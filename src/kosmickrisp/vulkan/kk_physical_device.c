@@ -1023,6 +1023,15 @@ get_metal_limits(struct kk_physical_device *pdev)
    pdev->info.gpu_apple_family =
       mtl_device_get_gpu_apple_family(pdev->mtl_dev_handle);
 
+   /* See Metal Feature Set Tables. Note that for certain MSAA sample counts the
+    * tile size will actually be restricted to a width and/or height of 16, but
+    * we typically don't know the actual sample count when querying granularity
+    * or checking render area alignment. Use 32x32 always as a best effort
+    * optimal rendering area, which will also ensure proper alignment for 16
+    * wide/tall tiles chosen by Metal. */
+   pdev->info.rendering_tile_width = 32;
+   pdev->info.rendering_tile_height = 32;
+
    pdev->supported_sample_counts = VK_SAMPLE_COUNT_1_BIT;
    for (uint32_t sample_count = VK_SAMPLE_COUNT_2_BIT;
         sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {

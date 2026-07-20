@@ -41,6 +41,8 @@ struct kk_device_info {
    uint32_t max_compute_shared_memory_size;
    uint32_t gpu_apple_family;
    uint64_t max_buffer_size;
+   uint32_t rendering_tile_width;
+   uint32_t rendering_tile_height;
 };
 
 struct kk_physical_device {

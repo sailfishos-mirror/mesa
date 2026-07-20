@@ -13,6 +13,7 @@
 #include "kk_cmd_buffer.h"
 #include "kk_format.h"
 #include "kk_image_view.h"
+#include "kk_physical_device.h"
 #include "kk_query_pool.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
@@ -81,7 +82,13 @@ kk_GetRenderingAreaGranularityKHR(
    VkDevice device, const VkRenderingAreaInfoKHR *pRenderingAreaInfo,
    VkExtent2D *pGranularity)
 {
-   *pGranularity = (VkExtent2D){.width = 1, .height = 1};
+   VK_FROM_HANDLE(kk_device, dev, device);
+   struct kk_physical_device *pdev = kk_device_physical(dev);
+
+   *pGranularity = (VkExtent2D){
+      .width = pdev->info.rendering_tile_width,
+      .height = pdev->info.rendering_tile_height,
+   };
 }
 
 static void
@@ -228,6 +235,7 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
+   struct kk_physical_device *pdev = kk_device_physical(dev);
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
 
    struct kk_rendering_state *render = &cmd->state.gfx.render;
@@ -320,11 +328,12 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    /* Understand if the render area is tile aligned so we know if we actually
     * need to load the tile to not lose information. */
-   uint32_t tile_alignment = 31u;
-   bool is_tile_aligned = !(render->area.offset.x & tile_alignment) &&
-                          !(render->area.offset.y & tile_alignment) &&
-                          !(render->area.extent.width & tile_alignment) &&
-                          !(render->area.extent.height & tile_alignment);
+   uint32_t tile_alignment_x = pdev->info.rendering_tile_width - 1u;
+   uint32_t tile_alignment_y = pdev->info.rendering_tile_height - 1u;
+   bool is_tile_aligned = !(render->area.offset.x & tile_alignment_x) &&
+                          !(render->area.offset.y & tile_alignment_y) &&
+                          !(render->area.extent.width & tile_alignment_x) &&
+                          !(render->area.extent.height & tile_alignment_y);
 
    /* Rendering to the whole framebuffer */
    is_tile_aligned |= is_whole_framebuffer;
