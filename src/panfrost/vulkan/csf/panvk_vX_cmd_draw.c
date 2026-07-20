@@ -52,6 +52,35 @@
 #include "vk_render_pass.h"
 #include "poly/geometry.h"
 
+static bool
+render_needs_zs_crc_ext(struct panvk_cmd_buffer *cmdbuf)
+{
+   struct panvk_rendering_state *render = &cmdbuf->state.gfx.render;
+   struct pan_fb_desc_info info = {
+      .fb = &render->fb.layout,
+      .store = &render->fb.store,
+   };
+   struct pan_fb_desc_info info_spill = {
+      .fb = &render->fb.layout,
+      .store = &render->fb.spill.store,
+   };
+
+   return GENX(pan_fb_needs_zs_crc_ext)(&info) ||
+          GENX(pan_fb_needs_zs_crc_ext)(&info_spill);
+}
+
+static bool
+render_needs_crc_patch(struct panvk_cmd_buffer *cmdbuf)
+{
+   struct panvk_rendering_state *render = &cmdbuf->state.gfx.render;
+   struct pan_fb_desc_info fbd_info = {
+      .fb = &render->fb.layout,
+      .store = &render->fb.store,
+   };
+   struct pan_fb_crc_rt_info crc_info;
+   return GENX(pan_fb_get_crc_rt_info)(&fbd_info, &crc_info);
+}
+
 #if PAN_ARCH < 14
 static enum cs_reg_perm
 provoking_vertex_fn_reg_perm_cb(struct cs_builder *b, unsigned reg)
@@ -133,10 +162,9 @@ get_fn_set_fbds_provoking_vertex_idx(bool has_zs_ext, uint32_t rt_count)
 static uint32_t
 calc_fn_set_fbds_provoking_vertex_idx(struct panvk_cmd_buffer *cmdbuf)
 {
-   const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
-   const bool has_zs_ext = pan_fb_has_zs(fb);
-
-   return get_fn_set_fbds_provoking_vertex_idx(has_zs_ext, fb->rt_count);
+   const bool has_zs_ext = render_needs_zs_crc_ext(cmdbuf);
+   return get_fn_set_fbds_provoking_vertex_idx(
+      has_zs_ext, cmdbuf->state.gfx.render.fb.layout.rt_count);
 }
 
 VkResult
@@ -1036,10 +1064,8 @@ calc_enabled_layer_count(struct panvk_cmd_buffer *cmdbuf)
 static uint32_t
 calc_fbd_size(struct panvk_cmd_buffer *cmdbuf)
 {
-   const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
-   const bool has_zs_ext = pan_fb_has_zs(fb);
-
-   return get_fbd_size(has_zs_ext, fb->rt_count);
+   const bool has_zs_ext = render_needs_zs_crc_ext(cmdbuf);
+   return get_fbd_size(has_zs_ext, cmdbuf->state.gfx.render.fb.layout.rt_count);
 }
 
 static uint32_t
@@ -1443,6 +1469,65 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
 }
 #endif /* PAN_ARCH >= 14 */
 
+#if PAN_ARCH >= 11
+static void
+patch_crc_init(struct cs_builder *b, struct pan_fb_desc_info *fbd_info,
+               struct cs_index fbd_ptr_reg, uint64_t fb_size,
+               uint32_t fbd_stride, uint32_t enabled_layer_count)
+{
+   struct pan_fb_crc_rt_info crc_info;
+   if (!GENX(pan_fb_get_crc_rt_info)(fbd_info, &crc_info))
+      return;
+
+   struct cs_index header_addr = cs_scratch_reg64(b, 2);
+   struct cs_index crc_init = cs_scratch_reg32(b, 4);
+   struct cs_index mask = cs_scratch_reg32(b, 5);
+   struct cs_index clear_color_lo = cs_scratch_reg32(b, 6);
+
+   const int crc_clear_color_lo_offset = fb_size + 2 * sizeof(uint32_t);
+
+   cs_move64_to(b, header_addr, crc_info.header_addr);
+   cs_load32_to(b, crc_init, header_addr, PAN_CRC_INIT_OFFSET);
+
+   cs_move32_to(b, mask, PAN_CRC_INIT_MASK);
+   cs_and32(b, crc_init, crc_init, mask);
+   cs_not32(b, mask, mask);
+
+   /* CRC reads and writes stay enabled; changing crc_init invalidates
+    * previously generated CRC values.
+    */
+   for (uint32_t i = 0; i < enabled_layer_count; i++) {
+      cs_load32_to(b, clear_color_lo, fbd_ptr_reg, crc_clear_color_lo_offset);
+      cs_and32(b, clear_color_lo, clear_color_lo, mask);
+      cs_or32(b, clear_color_lo, clear_color_lo, crc_init);
+      cs_store32(b, clear_color_lo, fbd_ptr_reg, crc_clear_color_lo_offset);
+
+      if (i + 1 < enabled_layer_count)
+         cs_add_imm64(b, fbd_ptr_reg, fbd_ptr_reg, fbd_stride);
+   }
+}
+
+static void
+invalidate_unselected_crc_rts(struct cs_builder *b,
+                              const struct pan_fb_desc_info *info)
+{
+   struct pan_fb_crc_rt_info crc_info;
+   bool has_crc_rt = GENX(pan_fb_get_crc_rt_info)(info, &crc_info);
+
+   for (uint32_t i = 0; i < info->fb->rt_count; i++) {
+      const struct pan_fb_store_target *rt = &info->store->rts[i];
+
+      if (!rt->store || !rt->crc_header_addr)
+         continue;
+
+      if (has_crc_rt && crc_info.rt == i)
+         continue;
+
+      panvk_per_arch(cmd_invalidate_crc_init)(b, rt->crc_header_addr);
+   }
+}
+#endif /* PAN_ARCH >= 11 */
+
 static VkResult
 get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 {
@@ -1480,10 +1565,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    bool simul_use =
       cmdbuf->flags & VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
-   /* The only bit we patch in FBDs is the tiler pointer. If tiler is not
-    * involved (clear job) or if the update can happen in place (not
-    * simultaneous use of the command buffer), we can avoid the
-    * copy.
+   /* The only bit we patch in FBDs is the tiler pointer and CRC. If tiler
+    * is not involved (clear job) with no CRC, or if the update can happen in
+    * place (not simultaneous use of the command buffer), we can avoid the copy.
     *
     * According to VUID-VkSubmitInfo2KHR-commandBuffer-06192 and
     * VUID-VkSubmitInfo2KHR-commandBuffer-06010, suspend/resume operations
@@ -1501,7 +1585,10 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
     *   pCommandBufferInfos.
     * "
     */
-   bool copy_fbds = simul_use && cmdbuf->state.gfx.render.tiler;
+   const bool has_crc_patch = render_needs_crc_patch(cmdbuf);
+   const bool copy_fbds =
+      simul_use && (cmdbuf->state.gfx.render.tiler || has_crc_patch);
+   const bool has_zs_crc_ext = render_needs_zs_crc_ext(cmdbuf);
    struct pan_ptr fbds = cmdbuf->state.gfx.render.fbds;
    uint32_t fbd_flags = 0;
 
@@ -1527,7 +1614,6 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    if (result != VK_SUCCESS)
       return result;
 
-   const bool has_zs_ext = pan_fb_has_zs(&render->fb.layout);
 #if PAN_ARCH >= 14
    const unsigned fb_sz = ALIGN_POT(sizeof(struct panvk_fb_layer_state), 64);
 #else
@@ -1544,9 +1630,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 #if PAN_ARCH <= 13
          .fbd = fbd.cpu,
 #endif
-         .zs_crc = has_zs_ext ? fbd.cpu + fb_sz : NULL,
-         .rts = has_zs_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
-                           : fbd.cpu + fb_sz,
+         .zs_crc = has_zs_crc_ext ? fbd.cpu + fb_sz : NULL,
+         .rts = has_zs_crc_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
+                               : fbd.cpu + fb_sz,
       };
       uint32_t new_fbd_flags = GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
 #if PAN_ARCH >= 14
@@ -1564,6 +1650,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 #endif
 
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
+#if PAN_ARCH >= 11
+   invalidate_unselected_crc_rts(b, &fbd_info);
+#endif
    for (uint32_t ir_pass = 0; ir_pass < PANVK_IR_PASS_COUNT; ir_pass++) {
       struct pan_ptr ir_fbds =
          panvk_cmd_alloc_dev_mem(cmdbuf, desc, fbds_sz, fbds_alignment);
@@ -1597,9 +1686,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 #if PAN_ARCH <= 13
             .fbd = fbd.cpu,
 #endif
-            .zs_crc = has_zs_ext ? fbd.cpu + fb_sz : NULL,
-            .rts = has_zs_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
-                              : fbd.cpu + fb_sz,
+            .zs_crc = has_zs_crc_ext ? fbd.cpu + fb_sz : NULL,
+            .rts = has_zs_crc_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
+                                  : fbd.cpu + fb_sz,
          };
          ASSERTED uint32_t new_fbd_flags =
             GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
@@ -1615,6 +1704,11 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                     "ir.fbds array size must match PANVK_IR_PASS_COUNT");
       cmdbuf->state.gfx.render.ir.fbds[ir_pass] = ir_fbds.gpu;
    }
+
+   /* Incremental-rendering loop might set fbd_info.load/store to spill nodes.
+    * Set it back to the regular nodes here for CRC patching later. */
+   fbd_info.load = &render->fb.load;
+   fbd_info.store = &render->fb.store;
 
    /* Wait for IR info push to complete */
    cs_wait_slot(b, SB_ID(LS));
@@ -1693,6 +1787,14 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          /* Finish stores to pass_dst_fbd_ptr. */
          cs_flush_stores(b);
 
+#if PAN_ARCH >= 11
+         struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
+         cs_move_reg64(b, fbd_ptr_reg, dst_fbd_ptr);
+         /* Patch CRC init for the copied descriptor. */
+         patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz, 1);
+         cs_flush_stores(b);
+#endif
+
          cs_add_imm64(b, src_fbd_ptr, src_fbd_ptr, fbd_sz);
          cs_update_frag_ctx(b)
             cs_add_imm64(b, dst_fbd_ptr, dst_fbd_ptr, fbd_sz);
@@ -1722,6 +1824,14 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                       -(full_td_count * pan_size(TILER_CONTEXT)));
       }
    } else {
+#if PAN_ARCH >= 11
+      struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
+      cs_move64_to(b, fbd_ptr_reg, fbds.gpu);
+      patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz,
+                     enabled_layer_count);
+#endif
+      cs_flush_stores(b);
+
       cs_update_frag_ctx(b) {
          cs_move64_to(b, cs_sr_reg64(b, FRAGMENT, FBD_POINTER),
                       fbds.gpu | fbd_flags);
@@ -4192,7 +4302,12 @@ panvk_per_arch(CmdEndRendering)(VkCommandBuffer commandBuffer)
       }
 
       if (clear && !inherits_render_ctx(cmdbuf)) {
-         result = get_fb_descs(cmdbuf);
+         bool needs_crc_tiler =
+            (cmdbuf->flags & VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT) &&
+            render_needs_crc_patch(cmdbuf);
+         result =
+            needs_crc_tiler ? get_render_ctx(cmdbuf) : get_fb_descs(cmdbuf);
+
          if (result != VK_SUCCESS)
             return;
       }

@@ -39,6 +39,10 @@ struct panvk_sync_scope {
 #else
 #define MAX_LAYERS_PER_TILER_DESC 8
 #endif
+#if PAN_ARCH >= 11
+#define PAN_CRC_INIT_OFFSET  0
+#define PAN_CRC_INIT_MASK    0xffff
+#endif
 
 struct panvk_cs_sync32 {
    uint32_t seqno;
@@ -985,5 +989,10 @@ cs_emit_layer_fragment_state(struct cs_builder *b, struct cs_index fbd_ptr)
                 offsetof(struct panvk_fb_layer_state, dcd_pointer));
 }
 #endif /* PAN_ARCH >= 14 */
+
+#if PAN_ARCH >= 11
+void panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
+                                             uint64_t crc_header_addr);
+#endif
 
 #endif /* PANVK_CMD_BUFFER_H */

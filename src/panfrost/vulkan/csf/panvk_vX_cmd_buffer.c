@@ -1085,3 +1085,29 @@ panvk_per_arch(CmdExecuteCommands)(VkCommandBuffer commandBuffer,
     */
    panvk_cmd_invalidate_state(primary);
 }
+
+#if PAN_ARCH >= 11
+void
+panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
+                                        uint64_t crc_header_addr)
+{
+   if (!crc_header_addr)
+      return;
+
+   struct cs_index addr = cs_scratch_reg64(b, 0);
+   struct cs_index init = cs_scratch_reg32(b, 2);
+   struct cs_index mask = cs_scratch_reg32(b, 3);
+
+   cs_move64_to(b, addr, crc_header_addr);
+   cs_load32_to(b, init, addr, PAN_CRC_INIT_OFFSET);
+
+   cs_add_imm32(b, init, init, 1);
+
+   cs_move32_to(b, mask, PAN_CRC_INIT_MASK);
+   cs_and32(b, init, init, mask);
+
+   cs_store32(b, init, addr, PAN_CRC_INIT_OFFSET);
+
+   cs_flush_stores(b);
+}
+#endif
