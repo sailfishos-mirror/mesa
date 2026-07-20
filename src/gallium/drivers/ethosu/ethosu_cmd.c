@@ -269,8 +269,13 @@ emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
 static void
 emit_kernel(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   EMIT0(NPU_SET_KERNEL_HEIGHT_M1, operation->kernel.height - 1);
-   EMIT0(NPU_SET_KERNEL_WIDTH_M1, operation->kernel.width - 1);
+   unsigned height = (operation->kernel.height - 1) *
+                     operation->kernel.dilation_y + 1;
+   unsigned width = (operation->kernel.width - 1) *
+                    operation->kernel.dilation_x + 1;
+
+   EMIT0(NPU_SET_KERNEL_HEIGHT_M1, height - 1);
+   EMIT0(NPU_SET_KERNEL_WIDTH_M1, width - 1);
    unsigned stride = (operation->kernel.stride_x - 1) & 1;
    stride |= ((operation->kernel.stride_y - 1) & 1) << 1;
    stride |= ((operation->kernel.stride_x - 1) >> 1) << 6;

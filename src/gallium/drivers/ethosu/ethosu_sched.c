@@ -17,13 +17,19 @@ _get_ifm_blocksize(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
 {
    struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    struct ethosu_block ifm_block = {0};
+   int kernel_height = (operation->kernel.height - 1) *
+                       operation->kernel.dilation_y + 1;
+   int kernel_width = (operation->kernel.width - 1) *
+                      operation->kernel.dilation_x + 1;
 
    // IFM block height
-   int h = required_input_size(ofm_block.height, operation->kernel.stride_y, MIN2(operation->kernel.height, SUB_KERNEL_MAX.height));
+   int h = required_input_size(ofm_block.height, operation->kernel.stride_y,
+                               MIN2(kernel_height, SUB_KERNEL_MAX.height));
    h = align(h, device->ofm_ublock.height);
 
    // IFM block width
-   int w = required_input_size(ofm_block.width, operation->kernel.stride_x, MIN2(operation->kernel.width, SUB_KERNEL_MAX.width));
+   int w = required_input_size(ofm_block.width, operation->kernel.stride_x,
+                               MIN2(kernel_width, SUB_KERNEL_MAX.width));
    w = align(w, device->ofm_ublock.width);
 
    ifm_block.height = h;
