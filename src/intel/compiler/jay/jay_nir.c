@@ -1128,7 +1128,14 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
       .archiver = archiver,
    }, *pt = &pt_;
 
-   nir->info.min_subgroup_size = nir->info.max_subgroup_size = simd_width;
+   /* If the API subgroup size must be draw uniform, we handle it in
+    * jay_compile_nir, which knows about all possible SIMD variants.
+    *
+    * Otherwise, we don't have any restrictions, and this clone of the
+    * NIR is being tailored for this specific SIMD width.
+    */
+   if (!nir->info.api_subgroup_size_draw_uniform)
+      nir->info.min_subgroup_size = nir->info.max_subgroup_size = simd_width;
 
    if (!nir->info.api_subgroup_size)
       nir->info.api_subgroup_size = nir->info.max_subgroup_size;

@@ -4004,25 +4004,27 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
    stats->sends -= (s->spills + s->fills);
 }
 
-struct jay_shader_bin *
-jay_compile(const struct intel_device_info *devinfo,
-            void *mem_ctx,
-            nir_shader *nir,
-            union brw_any_prog_data *prog_data,
-            union brw_any_prog_key *key,
-            debug_archiver *archiver)
+static unsigned
+simd_to_index(unsigned simd)
+{
+   assert(!(simd & ~(8 | 16 | 32)));
+   return util_logbase2(simd) - 3;
+}
+
+static struct jay_shader_bin *
+jay_compile_simd(const struct intel_device_info *devinfo,
+                 void *mem_ctx,
+                 nir_shader *nir,
+                 union brw_any_prog_data *prog_data,
+                 union brw_any_prog_key *key,
+                 debug_archiver *archiver,
+                 unsigned simd_width,
+                 bool bail_if_inefficient)
 {
    jay_debug = debug_get_option_jay_debug();
    bool debug =
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       (!nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
-
-   jay_process_nir(devinfo, nir, prog_data, key, archiver);
-
-   unsigned modes = jay_select_simd(devinfo, nir);
-
-   /* XXX: for now, jay only supports a single SIMD mode. pick the largest */
-   unsigned simd_width = 1 << (util_last_bit(modes) - 1);
 
    bool track_helpers = false;
    jay_process_nir_for_simd(devinfo, nir, simd_width, prog_data, key, archiver,
@@ -4078,7 +4080,7 @@ jay_compile(const struct intel_device_info *devinfo,
    }
 
    if (debug) {
-      fprintf(stdout, "Jay shader:\n\n");
+      fprintf(stdout, "Jay SIMD%u shader:\n\n", simd_width);
       jay_print(stdout, s);
    }
 
@@ -4092,6 +4094,22 @@ jay_compile(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_lower_pre_ra);
    JAY_PASS(s, jay_partition_grf);
+
+   /* If this compilation has triggered spilling or poor thread occupancy,
+    * and we have other SIMD options available, bail early and let the
+    * caller try again with a smaller SIMD option.
+    *
+    * XXX: add VRT occupancy check
+    */
+   if (bail_if_inefficient && s->num_regs[MEM] > 0) {
+      if (debug) {
+         fprintf(stdout,
+                 "Jay SIMD%u shader skipped due to num_regs[MEM] = %u > 0.\n",
+                 simd_width, s->num_regs[MEM]);
+      }
+      return NULL;
+   }
+
    JAY_PASS(s, jay_schedule);
 
    if (debug) {
@@ -4215,5 +4233,141 @@ jay_compile(const struct intel_device_info *devinfo,
    prog_data->base.total_scratch = align(prog_data->base.total_scratch, 1024);
 
    ralloc_free(s);
+   return bin;
+}
+
+struct jay_shader_bin *
+jay_compile(const struct intel_device_info *devinfo,
+            void *mem_ctx,
+            nir_shader *nir,
+            union brw_any_prog_data *prog_data,
+            union brw_any_prog_key *key,
+            debug_archiver *archiver)
+{
+   jay_process_nir(devinfo, nir, prog_data, key, archiver);
+
+   unsigned modes = jay_select_simd(devinfo, nir);
+
+   if (util_bitcount(modes) == 1) {
+      return jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key, archiver,
+                              modes, false);
+   }
+
+   nir_shader *orig_nir = nir;
+   const unsigned smallest = 1u << (ffs(modes) - 1);
+   const unsigned largest = 1u << (util_last_bit(modes) - 1);
+
+   struct jay_simd_variant {
+      struct jay_shader_bin *bin;
+      const struct intel_shader_reloc *relocs;
+      unsigned num_relocs;
+   } variants[3] = {};
+
+   /* Compile SIMD variants */
+   for (unsigned simd = largest; simd >= smallest; simd >>= 1) {
+      if (!(modes & simd))
+         continue;
+
+      struct jay_simd_variant *jv = &variants[simd_to_index(simd)];
+
+      nir = nir_shader_clone(mem_ctx, orig_nir);
+      nir->constant_data_size = 0;
+
+      if (nir->info.api_subgroup_size_draw_uniform) {
+         nir->info.max_subgroup_size = largest;
+         nir->info.min_subgroup_size = smallest;
+      }
+
+      jv->bin = jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key,
+                                 archiver, simd, simd != smallest);
+      jv->relocs = prog_data->base.relocs;
+      jv->num_relocs = prog_data->base.num_relocs;
+
+      if (!jv->bin)
+         modes &= ~simd;
+
+      ralloc_free(nir);
+
+      /* Only fragment shaders can dispatch multiple SIMD widths, so stop
+       * compiling compute shaders once we've found a width that works without
+       * spilling. In the future we could consider more heuristics but for now
+       * this should suffice.
+       */
+      if (jv->bin && nir->info.stage != MESA_SHADER_FRAGMENT) {
+         break;
+      }
+   }
+
+   /* Merge into a single binary */
+   unsigned total_bin_size = 0;
+   unsigned total_num_relocs = 0;
+   for (unsigned i = 0; i < ARRAY_SIZE(variants); i++) {
+      if (variants[i].bin) {
+         /* Ensure shaders start at 64 byte boundary. */
+         total_bin_size = align(total_bin_size, 64);
+         total_bin_size += variants[i].bin->size;
+
+         total_num_relocs += variants[i].num_relocs;
+      }
+   }
+
+   if (orig_nir->constant_data_size > 0) {
+      total_bin_size = align(total_bin_size, 32) + orig_nir->constant_data_size;
+   }
+
+   struct jay_shader_bin *bin = rzalloc(mem_ctx, struct jay_shader_bin);
+   bin->kernel = rzalloc_size(mem_ctx, total_bin_size);
+   bin->size = total_bin_size;
+   prog_data->base.program_size = total_bin_size;
+
+   struct intel_shader_reloc *relocs = NULL;
+   if (total_num_relocs > 0) {
+      prog_data->base.relocs = relocs =
+         ralloc_array(mem_ctx, struct intel_shader_reloc, total_num_relocs);
+      prog_data->base.num_relocs = total_num_relocs;
+   }
+
+   uint8_t *kernel = (uint8_t *) bin->kernel;
+   unsigned offset = 0;
+   unsigned reloc_start = 0;
+   for (unsigned i = 0; i < ARRAY_SIZE(variants); i++) {
+      if (!variants[i].bin)
+         continue;
+
+      offset = align(offset, 64);
+      memcpy(kernel + offset, variants[i].bin->kernel, variants[i].bin->size);
+
+      for (unsigned r = 0; r < variants[i].num_relocs; r++) {
+         relocs[reloc_start + r] = variants[i].relocs[r];
+         relocs[reloc_start + r].offset += offset;
+      }
+
+      if (orig_nir->info.stage == MESA_SHADER_FRAGMENT) {
+         if (i == 1) {
+            prog_data->fs.prog_offset_16 = offset;
+         } else if (i == 2) {
+            prog_data->fs.prog_offset_32 = offset;
+         }
+      }
+      if (orig_nir->info.stage == MESA_SHADER_COMPUTE) {
+         prog_data->cs.prog_mask |= BITFIELD_BIT(i);
+      } else if (brw_shader_stage_is_bindless(orig_nir->info.stage)) {
+         prog_data->bs.simd_size = 8 << i;
+      }
+
+      offset += variants[i].bin->size;
+      reloc_start += variants[i].num_relocs;
+
+      ralloc_free(variants[i].bin);
+   }
+
+   if (orig_nir->constant_data_size) {
+      offset = align(offset, 32);
+      memcpy(kernel + offset, orig_nir->constant_data,
+             orig_nir->constant_data_size);
+      prog_data->base.const_data_offset = offset;
+      prog_data->base.const_data_size = orig_nir->constant_data_size;
+   }
+
    return bin;
 }
