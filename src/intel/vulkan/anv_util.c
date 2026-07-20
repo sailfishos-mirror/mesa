@@ -465,7 +465,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
             jay_compile(device->info, tmp_ctx, trampoline_nir,
                         (union brw_any_prog_data *)&trampoline_prog_data,
                         (union brw_any_prog_key *)&trampoline_key.key.base,
-                        debug_archiver);
+                        debug_archiver, NULL);
 
          tramp_data = bin->kernel;
       } else {
@@ -540,7 +540,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
             jay_compile(device->info, tmp_ctx, trivial_return_nir,
                         (union brw_any_prog_data *)&return_prog_data,
                         (union brw_any_prog_key *)&return_key.key.base,
-                        debug_archiver);
+                        debug_archiver, NULL);
 
          return_data = bin->kernel;
       } else {
@@ -612,7 +612,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
             jay_compile(device->info, tmp_ctx, null_ahs_nir,
                         (union brw_any_prog_data *)&return_prog_data,
                         (union brw_any_prog_key *)&null_return_key.key.base,
-                        debug_archiver);
+                        debug_archiver, NULL);
 
          return_data = bin->kernel;
       } else {

@@ -85,7 +85,8 @@ iris_backend_compile(const struct iris_screen *screen,
          jay_compile(devinfo, mem_ctx, nir,
                      (union brw_any_prog_data *)params->prog_data,
                      (union brw_any_prog_key *)params->key,
-                     params->archiver);
+                     params->archiver,
+                     NULL);
 
       return bin->kernel;
    } else {

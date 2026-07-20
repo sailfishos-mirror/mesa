@@ -597,18 +597,19 @@ void
 jay_populate_prog_data(const struct intel_device_info *devinfo,
                        nir_shader *nir,
                        union brw_any_prog_data *prog_data,
-                       union brw_any_prog_key *key)
+                       union brw_any_prog_key *key,
+                       struct jay_fs_perprim_data *fs_perprim)
 {
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       populate_vs_prog_data(nir, devinfo, &key->vs, &prog_data->vs);
    } else if (nir->info.stage == MESA_SHADER_TESS_CTRL) {
       populate_tcs_prog_data(nir, &key->tcs, &prog_data->tcs);
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      int per_primitive_offsets[VARYING_SLOT_MAX];
-      memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
+      int32_t *per_primitive_offsets = fs_perprim->per_primitive_offsets;
+      memset(per_primitive_offsets, -1, VARYING_SLOT_MAX * sizeof(int));
 
       populate_fs_prog_data(nir, devinfo, &key->fs, &prog_data->fs,
-                            NULL /* TODO: mue_map */, per_primitive_offsets);
+                            fs_perprim->mue, per_primitive_offsets);
    } else if (nir->info.stage == MESA_SHADER_GEOMETRY) {
       populate_gs_prog_data(nir, &key->gs, &prog_data->gs);
    }

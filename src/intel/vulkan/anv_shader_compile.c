@@ -1923,7 +1923,9 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
       jay_compile(devinfo, mem_ctx, nir,
                   (union brw_any_prog_data *)compile_params->prog_data,
                   (union brw_any_prog_key *)compile_params->key,
-                  shader_data->archiver);
+                  shader_data->archiver,
+                  nir->info.stage == MESA_SHADER_FRAGMENT ? params.fs.mue_map
+                                                          : NULL);
 
    /* Early return if there are not resume shaders to compile */
    if (params.bs.num_resume_shaders == 0 ||
@@ -1979,7 +1981,7 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
                                           resume_nir,
                                           &main_prog_data,
                                           (union brw_any_prog_key *)compile_params->key,
-                                          shader_data->archiver);
+                                          shader_data->archiver, NULL);
 
       resume_prog_data[i] = main_prog_data;
       resume_grf_used[i] = resume_prog_data[i].base.grf_used;

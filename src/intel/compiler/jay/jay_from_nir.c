@@ -18,6 +18,7 @@
 #include "util/bitset.h"
 #include "util/lut.h"
 #include "util/macros.h"
+#include "util/ralloc.h"
 #include "util/u_math.h"
 #include "intel_device_info_gen.h"
 #include "jay.h"
@@ -96,6 +97,7 @@ typedef struct jay_fs_payload {
    jay_def sample_offsets[2];
    jay_def coefficients;
    jay_def *deltas;
+   jay_def per_prim_data;
 } jay_fs_payload;
 
 struct nir_to_jay_state {
@@ -151,6 +153,8 @@ struct nir_to_jay_state {
          jay_task_mesh_payload task_mesh;
       };
    } payload;
+
+   int32_t *fs_per_primitive_offsets;
 };
 
 static jay_def
@@ -2745,6 +2749,22 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          jay_copy(b, dst,
                   jay_collect_vectors(b, nj->payload.tes.patch_inputs + offs,
                                       intr->def.num_components));
+      } else if (s->stage == MESA_SHADER_FRAGMENT) {
+         unsigned start = UINT32_MAX, end_excl = 0;
+         if (nj->s->prog_data->fs.num_per_primitive_inputs > 0) {
+            start = jay_base_index(nj->payload.fs.per_prim_data);
+            end_excl = start + jay_num_values(nj->payload.fs.per_prim_data);
+         }
+         if (nj->s->prog_data->fs.num_varying_inputs) {
+            jay_def last =
+               fs->deltas[4 * nj->s->prog_data->fs.num_varying_inputs - 1];
+
+            start = MIN2(start, jay_base_index(fs->deltas[0]));
+            end_excl = jay_base_index(last) + jay_num_values(last);
+         }
+         jay_VECTOR_EXTRACT(b, JAY_TYPE_U32, dst,
+                            jay_contiguous_def(UGPR, start, end_excl - start),
+                            nj_src(intr->src[0]));
       } else {
          UNREACHABLE("TODO: attribute payload data");
       }
@@ -2752,6 +2772,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_input:
    case nir_intrinsic_load_per_vertex_input:
+   case nir_intrinsic_load_per_primitive_input:
       if (s->stage == MESA_SHADER_VERTEX || s->stage == MESA_SHADER_GEOMETRY) {
          unsigned offs = nir_intrinsic_base(intr) * 4;
          offs += nir_intrinsic_component(intr);
@@ -2781,6 +2802,17 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          jay_EXTRACT_SUBSPAN_INFO(b, x, jay_extract(nj->payload.u0, 9),
                                   payload_u1(nj, 9, 1), BITFIELD_RANGE(12, 4));
          jay_SHR(b, JAY_TYPE_U32, dst, x, 12);
+         break;
+      }
+
+      if (fs && intr->intrinsic == nir_intrinsic_load_per_primitive_input) {
+         unsigned base = nir_intrinsic_base(intr);
+         assert(base != VARYING_SLOT_LAYER);
+         unsigned comp = nir_intrinsic_component(intr);
+         unsigned offset = nj->fs_per_primitive_offsets[base];
+         jay_copy(b, dst,
+                  jay_extract_range(nj->payload.fs.per_prim_data,
+                                    offset / 4 + comp, jay_num_values(dst)));
          break;
       }
 
@@ -4287,6 +4319,14 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    fs->config = nj->payload.push_data[nj->s->prog_data->fs.fs_config_param / 4];
 
+   if (nj->s->prog_data->fs.num_per_primitive_inputs > 0) {
+      /* always read up to a mutliple of 64 bytes */
+      unsigned num_per_prim_inputs =
+         DIV_ROUND_UP(nj->s->prog_data->fs.num_per_primitive_inputs, 4) * 4;
+
+      fs->per_prim_data = read_vector_payload(p, UGPR, num_per_prim_inputs * 4);
+   }
+
    if (nj->s->prog_data->fs.num_varying_inputs > 0) {
       fs->deltas =
          linear_alloc_child_array(nj->s->lin_ctx, sizeof(jay_def),
@@ -4579,7 +4619,8 @@ static void
 jay_from_nir_function(const struct intel_device_info *devinfo,
                       nir_shader *nir,
                       jay_shader *s,
-                      nir_function_impl *impl)
+                      nir_function_impl *impl,
+                      struct jay_fs_perprim_data *fs_perprim)
 {
    jay_function *f = jay_new_function(s);
    f->is_entrypoint = impl->function->is_entrypoint;
@@ -4590,6 +4631,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       .nir = nir,
       .devinfo = devinfo,
       .bld = (jay_builder){ .shader = s, .func = f },
+      .fs_per_primitive_offsets = fs_perprim->per_primitive_offsets
    };
 
    nir_block *conv_blocks_storage[32];
@@ -4657,7 +4699,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
                  union brw_any_prog_key *key,
                  debug_archiver *archiver,
                  unsigned simd_width,
-                 bool bail_if_inefficient)
+                 bool bail_if_inefficient,
+                 struct jay_fs_perprim_data *fs_perprim)
 {
    jay_debug = debug_get_option_jay_debug();
    bool debug =
@@ -4686,7 +4729,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    s->helpers_tracked = track_helpers;
 
    nir_foreach_function_impl(impl, nir) {
-      jay_from_nir_function(devinfo, nir, s, impl);
+      jay_from_nir_function(devinfo, nir, s, impl, fs_perprim);
    }
 
    /* Re-number block indices to be sequential and match the NIR. This ensures
@@ -4882,15 +4925,20 @@ jay_compile(const struct intel_device_info *devinfo,
             nir_shader *nir,
             union brw_any_prog_data *prog_data,
             union brw_any_prog_key *key,
-            debug_archiver *archiver)
+            debug_archiver *archiver,
+            const struct brw_mue_map *mue)
 {
-   jay_process_nir(devinfo, nir, prog_data, key, archiver);
+   struct jay_fs_perprim_data fs_perprim = {
+      .mue = mue
+   };
+
+   jay_process_nir(devinfo, nir, prog_data, key, archiver, &fs_perprim);
 
    unsigned modes = jay_select_simd(devinfo, nir);
 
    if (util_bitcount(modes) == 1) {
       return jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key, archiver,
-                              modes, false);
+                              modes, false, &fs_perprim);
    }
 
    nir_shader *orig_nir = nir;
@@ -4924,7 +4972,7 @@ jay_compile(const struct intel_device_info *devinfo,
       }
 
       jv->bin = jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key,
-                                 archiver, simd, simd != smallest);
+                                 archiver, simd, simd != smallest, &fs_perprim);
       jv->relocs = prog_data->base.relocs;
       jv->num_relocs = prog_data->base.num_relocs;
 
