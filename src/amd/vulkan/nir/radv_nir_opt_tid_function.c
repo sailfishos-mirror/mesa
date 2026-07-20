@@ -265,24 +265,68 @@ bool_scalar_to_ballot(nir_scalar s, nir_shader *shader, BITSET_WORD *mask)
    return true;
 }
 
-struct shuffle_info {
+struct fotid_context {
    const radv_nir_opt_tid_function_options *options;
+   nir_builder b;
+   BITSET_WORD *used_invocations;
+   unsigned words_per_def;
+};
+
+static void
+init_fotid_context(struct fotid_context *ctx, nir_function_impl *impl, const radv_nir_opt_tid_function_options *options)
+{
+   ctx->options = options;
+   ctx->b = nir_builder_create(impl);
+   ctx->words_per_def = BITSET_WORDS(impl->function->shader->info.max_subgroup_size);
+   ctx->used_invocations = rzalloc_array(NULL, BITSET_WORD, ctx->words_per_def * impl->ssa_alloc);
+}
+
+static void
+destroy_fotid_context(struct fotid_context *ctx)
+{
+   ralloc_free(ctx->used_invocations);
+}
+
+static BITSET_WORD *
+def_used_invocations(struct fotid_context *ctx, nir_def *def)
+{
+   unsigned offset = def->index * ctx->words_per_def;
+   return &ctx->used_invocations[offset];
+}
+
+static void
+src_mark_used(struct fotid_context *ctx, nir_src *src, const BITSET_WORD *used)
+{
+   BITSET_WORD *def_used = def_used_invocations(ctx, src->ssa);
+
+   __bitset_or(def_used, def_used, used, ctx->words_per_def);
+}
+
+struct shuffle_info {
+   struct fotid_context *ctx;
    uint8_t src_invoc[NIR_MAX_SUBGROUP_SIZE];
    BITSET_WORD reads_zero[NIR_MAX_SUBGROUP_BITSET_WORDS];
    nir_shader *shader;
 };
 
 static bool
-gather_read_invocation_shuffle(nir_def *src, struct shuffle_info *shuffle)
+gather_read_invocation_shuffle(nir_intrinsic_instr *intrin, struct shuffle_info *shuffle)
 {
-   nir_scalar s = {src, 0};
+   nir_scalar s = nir_get_scalar(intrin->src[1].ssa, 0);
+
+   BITSET_WORD *def_used = def_used_invocations(shuffle->ctx, &intrin->def);
 
    /* Recursive constant folding for each invocation */
    for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
+      if (!BITSET_TEST(def_used, i)) {
+         shuffle->src_invoc[i] = UINT8_MAX;
+         continue;
+      }
+
       nir_const_value value;
       if (!constant_fold_scalar(s, i, shuffle->shader, &value, 0))
          return false;
-      shuffle->src_invoc[i] = MIN2(nir_const_value_as_uint(value, src->bit_size), UINT8_MAX);
+      shuffle->src_invoc[i] = MIN2(nir_const_value_as_uint(value, s.def->bit_size), UINT8_MAX);
    }
 
    return true;
@@ -388,9 +432,9 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
       return nir_undef(b, def->num_components, def->bit_size);
    } else if (and_mask == 0x7f && xor_mask == 0) {
       return def;
-   } else if (shuffle->options->use_shuffle_xor && and_mask == 0x7f) {
+   } else if (shuffle->ctx->options->use_shuffle_xor && and_mask == 0x7f) {
       return nir_shuffle_xor(b, def, nir_imm_int(b, xor_mask));
-   } else if (shuffle->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
+   } else if (shuffle->ctx->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
       return nir_masked_swizzle_amd(b, def, (xor_mask << 10) | (and_mask & 0x1f), .fetch_inactive = true);
    } else if (all_equal) {
       /* Oddly enough, we do this last. This is because of there is a DPP pattern,
@@ -466,26 +510,43 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
 }
 
 static bool
-opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
+init_fotid_shuffle(struct fotid_context *ctx, nir_intrinsic_instr *instr, struct shuffle_info *shuffle)
 {
-   const radv_nir_opt_tid_function_options *options = _options;
-   if (instr->intrinsic != nir_intrinsic_shuffle)
-      return false;
-   if (nir_src_is_const(instr->src[1]))
-      return false; /* Leave obvious broadcasts alone */
    if (!nir_def_instr(instr->src[1].ssa)->pass_flags)
       return false;
 
-   struct shuffle_info shuffle = {
-      .options = options,
+   *shuffle = (struct shuffle_info){
+      .ctx = ctx,
       .reads_zero = {0},
-      .shader = b->shader,
+      .shader = ctx->b.shader,
    };
 
-   memset(shuffle.src_invoc, 0xff, sizeof(shuffle.src_invoc));
+   memset(shuffle->src_invoc, 0xff, sizeof(shuffle->src_invoc));
 
-   if (!gather_read_invocation_shuffle(instr->src[1].ssa, &shuffle))
-      return false;
+   return gather_read_invocation_shuffle(instr, shuffle);
+}
+
+static void
+mark_shuffle_data_used(nir_intrinsic_instr *instr, struct shuffle_info *shuffle)
+{
+   BITSET_WORD *src_used = def_used_invocations(shuffle->ctx, instr->src[0].ssa);
+
+   for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
+      unsigned read = shuffle->src_invoc[i];
+      if (read >= shuffle->shader->info.max_subgroup_size)
+         continue;
+
+      BITSET_SET(src_used, read);
+   }
+}
+
+static bool
+opt_fotid_shuffle(nir_intrinsic_instr *instr, struct shuffle_info *shuffle)
+{
+   mark_shuffle_data_used(instr, shuffle);
+
+   if (nir_src_is_const(instr->src[1]))
+      return false; /* Leave obvious broadcasts alone */
 
    unsigned src_idx = 0;
    nir_alu_instr *bcsel = get_singluar_user_bcsel(&instr->def, &src_idx);
@@ -495,24 +556,21 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
     */
    bool can_remove_bcsel = false;
    if (bcsel)
-      can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, &shuffle);
+      can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, shuffle);
 
 #if 0
    for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
-      fprintf(stderr, "invocation %d reads %d\n", i, shuffle.src_invoc[i]);
-   }
-
-   for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
-      fprintf(stderr, "invocation %d zero %d\n", i, BITSET_TEST(shuffle.reads_zero, i));
+      fprintf(stderr, "invocation %d reads %d\n", i, shuffle->src_invoc[i]);
    }
 #endif
 
+   nir_builder *b = &shuffle->ctx->b;
    b->cursor = nir_after_instr(&instr->instr);
 
    nir_def *res = NULL;
 
-   if (can_remove_bcsel && options->use_dpp16_shift_amd) {
-      res = try_opt_dpp16_shift(b, instr->src[0].ssa, &shuffle);
+   if (can_remove_bcsel && shuffle->ctx->options->use_dpp16_shift_amd) {
+      res = try_opt_dpp16_shift(b, instr->src[0].ssa, shuffle);
 
       if (res) {
          /* Rewrite the bcsel as a move, we are not allowed to remove the
@@ -523,9 +581,9 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    }
 
    if (!res)
-      res = try_opt_bitwise_mask(b, instr->src[0].ssa, &shuffle);
-   if (!res && options->use_clustered_rotate)
-      res = try_opt_rotate(b, instr->src[0].ssa, &shuffle);
+      res = try_opt_bitwise_mask(b, instr->src[0].ssa, shuffle);
+   if (!res && shuffle->ctx->options->use_clustered_rotate)
+      res = try_opt_rotate(b, instr->src[0].ssa, shuffle);
 
    if (res) {
       nir_def_replace(&instr->def, res);
@@ -567,7 +625,7 @@ opt_fotid_bool(nir_builder *b, nir_alu_instr *instr, const radv_nir_opt_tid_func
 
 struct fotid_init_state {
    const radv_nir_opt_tid_function_options *options;
-   bool has_shuffle;
+   bool needs_second_pass;
 };
 
 static bool
@@ -579,20 +637,333 @@ init_fotid_mask(nir_builder *b, nir_instr *instr, void *params)
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
+      if (alu->def.bit_size != 1 || !instr->pass_flags)
+         return false;
+
+      state->needs_second_pass = true;
+
       if (!state->options->hw_ballot_bit_size || !state->options->hw_ballot_num_comp)
          return false;
-      if (alu->def.bit_size != 1 || alu->def.num_components > 1 || !instr->pass_flags)
+      if (alu->def.num_components > 1)
          return false;
       return opt_fotid_bool(b, alu, state->options);
    }
    case nir_instr_type_intrinsic: {
       nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-      state->has_shuffle |= intrin->intrinsic == nir_intrinsic_shuffle;
+      switch (intrin->intrinsic) {
+      case nir_intrinsic_shuffle:
+      case nir_intrinsic_read_invocation:
+         state->needs_second_pass |= src_get_fotid_mask(intrin->src[1]);
+         break;
+      case nir_intrinsic_inverse_ballot:
+         state->needs_second_pass |= nir_src_is_const(intrin->src[0]);
+         break;
+      default:
+         break;
+      }
       return false;
    }
    default:
       return false;
    }
+}
+
+struct src_mark_used_data {
+   struct fotid_context *ctx;
+   const BITSET_WORD *used;
+};
+
+static bool
+src_mark_used_cb(nir_src *src, void *_data)
+{
+   struct src_mark_used_data *data = _data;
+
+   src_mark_used(data->ctx, src, data->used);
+
+   return true;
+}
+
+enum cond_restriction {
+   THEN_RESTRICTED = 0x1,
+   ELSE_RESTRICTED = 0x2,
+};
+
+static uint8_t
+get_restriction(nir_scalar *cond)
+{
+   /* Look through one level of iand/ior for one source that restricts maybe active invocations. */
+   if ((nir_def_instr(cond->def)->pass_flags & BITFIELD_BIT(cond->comp)) == 0 && nir_scalar_is_alu(*cond)) {
+      nir_op op = nir_scalar_alu_op(*cond);
+      if (op == nir_op_iand || op == nir_op_ior) {
+         for (unsigned i = 0; i < 2; i++) {
+            nir_scalar alu_src = nir_scalar_chase_alu_src(*cond, i);
+            if ((nir_def_instr(alu_src.def)->pass_flags & BITFIELD_BIT(alu_src.comp)) != 0) {
+               *cond = alu_src;
+               return op == nir_op_iand ? THEN_RESTRICTED : ELSE_RESTRICTED;
+            }
+         }
+      }
+   }
+
+   return THEN_RESTRICTED | ELSE_RESTRICTED;
+}
+
+static bool
+opt_fotid_instr(nir_instr *instr, struct fotid_context *ctx, const BITSET_WORD *maybe_active)
+{
+   switch (instr->type) {
+   case nir_instr_type_alu: {
+      nir_alu_instr *alu = nir_instr_as_alu(instr);
+
+      BITSET_WORD *def_used = def_used_invocations(ctx, &alu->def);
+      __bitset_and(def_used, def_used, maybe_active, ctx->words_per_def);
+
+      switch (alu->op) {
+      case nir_op_bcsel: {
+         bool has_cond_swizzle = false;
+         for (unsigned i = 1; i < alu->def.num_components; i++)
+            has_cond_swizzle |= alu->src[0].swizzle[0] != alu->src[0].swizzle[i];
+
+         if (has_cond_swizzle)
+            break;
+
+         BITSET_WORD cond_ballot[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+         nir_scalar cond = nir_get_scalar(alu->src[0].src.ssa, alu->src[0].swizzle[0]);
+         uint8_t cond_restriction = get_restriction(&cond);
+
+         if (!bool_scalar_to_ballot(cond, ctx->b.shader, cond_ballot))
+            break;
+
+         int mov_src = -1;
+         for (unsigned i = 1; i < 3; i++) {
+            if ((cond_restriction & (i == 1 ? THEN_RESTRICTED : ELSE_RESTRICTED)) == 0) {
+               src_mark_used(ctx, &alu->src[i].src, def_used);
+               continue;
+            }
+
+            BITSET_WORD src_used[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+            if (i == 1)
+               __bitset_and(src_used, def_used, cond_ballot, ctx->words_per_def);
+            else
+               __bitset_andnot(src_used, def_used, cond_ballot, ctx->words_per_def);
+
+            if (!BITSET_TEST_COUNT(src_used, 0, ctx->b.shader->info.max_subgroup_size)) {
+               mov_src = 3 - i;
+            } else {
+               src_mark_used(ctx, &alu->src[i].src, src_used);
+            }
+         }
+
+         if (mov_src > 0) {
+            /* Only one of the sources is actually used,
+             * turn the bcsel into a move.
+             */
+            ctx->b.cursor = nir_after_instr(&alu->instr);
+
+            nir_def *mov = nir_mov_alu(&ctx->b, alu->src[mov_src], alu->def.num_components);
+            nir_def_replace(&alu->def, mov);
+
+            return true;
+         } else {
+            src_mark_used(ctx, &alu->src[0].src, def_used);
+            return false;
+         }
+      }
+      case nir_op_iand:
+      case nir_op_ior: {
+         if (alu->def.bit_size != 1 || alu->def.num_components != 1)
+            break;
+
+         for (unsigned i = 0; i < 2; i++) {
+            nir_scalar cond = nir_get_scalar(alu->src[i].src.ssa, alu->src[i].swizzle[0]);
+
+            BITSET_WORD other_used[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+            if (!bool_scalar_to_ballot(cond, ctx->b.shader, other_used))
+               continue;
+
+            if (alu->op == nir_op_iand)
+               __bitset_and(other_used, def_used, other_used, ctx->words_per_def);
+            else
+               __bitset_andnot(other_used, def_used, other_used, ctx->words_per_def);
+
+            /* We don't need all invocations of the other source if the current one is
+             * an inverse_ballot.
+             */
+            src_mark_used(ctx, &alu->src[!i].src, other_used);
+            src_mark_used(ctx, &alu->src[i].src, def_used);
+            return false;
+         }
+
+         break;
+      }
+      default:
+         break;
+      }
+
+      const nir_op_info *info = &nir_op_infos[alu->op];
+
+      for (unsigned i = 0; i < info->num_inputs; i++)
+         src_mark_used(ctx, &alu->src[i].src, def_used);
+
+      return false;
+   }
+   case nir_instr_type_intrinsic: {
+      nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+      switch (intrin->intrinsic) {
+      case nir_intrinsic_read_invocation: {
+         if (!nir_src_is_const(intrin->src[1]))
+            break;
+         unsigned invocation = nir_src_as_uint(intrin->src[1]);
+         if (invocation < ctx->b.shader->info.max_subgroup_size) {
+            BITSET_WORD *src_used = def_used_invocations(ctx, intrin->src[0].ssa);
+            BITSET_SET(src_used, invocation);
+         }
+         src_mark_used(ctx, &intrin->src[1], maybe_active);
+         return false;
+      }
+      case nir_intrinsic_shuffle: {
+         BITSET_WORD *def_used = def_used_invocations(ctx, &intrin->def);
+         __bitset_and(def_used, def_used, maybe_active, ctx->words_per_def);
+
+         struct shuffle_info shuffle;
+         if (!init_fotid_shuffle(ctx, intrin, &shuffle))
+            break;
+
+         if (opt_fotid_shuffle(intrin, &shuffle)) {
+            return true;
+         } else {
+            src_mark_used(ctx, &intrin->src[1], maybe_active);
+            return false;
+         }
+      }
+      default:
+         break;
+      }
+      break;
+   }
+   default:
+      break;
+   }
+
+   struct src_mark_used_data data = {
+      .ctx = ctx,
+      .used = maybe_active,
+   };
+
+   nir_foreach_src(instr, src_mark_used_cb, &data);
+
+   return false;
+}
+
+static bool
+opt_fotid_list(struct exec_list *list, struct fotid_context *ctx, const BITSET_WORD *maybe_active)
+{
+   bool progress = false;
+   foreach_list_typed_reverse (nir_cf_node, node, node, list) {
+      switch (node->type) {
+      case nir_cf_node_block: {
+         nir_block *block = nir_cf_node_as_block(node);
+         nir_foreach_instr_reverse_safe (instr, block) {
+            if (instr->type == nir_instr_type_phi)
+               break; /* Phis are handled in cf_node before them. */
+            progress |= opt_fotid_instr(instr, ctx, maybe_active);
+         }
+         break;
+      }
+      case nir_cf_node_if: {
+         nir_if *nif = nir_cf_node_as_if(node);
+
+         src_mark_used(ctx, &nif->condition, maybe_active);
+
+         nir_scalar cond = nir_scalar_resolved(nif->condition.ssa, 0);
+         uint8_t cond_restriction = get_restriction(&cond);
+
+         BITSET_WORD cond_ballot[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+         if (!bool_scalar_to_ballot(cond, ctx->b.shader, cond_ballot))
+            cond_restriction = 0;
+
+         nir_block *merge = nir_cf_node_as_block(nir_cf_node_next(node));
+
+         for (unsigned visit_then = 0; visit_then < 2; visit_then++) {
+            BITSET_WORD branch_active_storage[NIR_MAX_SUBGROUP_BITSET_WORDS];
+            const BITSET_WORD *branch_active = maybe_active;
+            if (cond_restriction & (visit_then ? THEN_RESTRICTED : ELSE_RESTRICTED)) {
+               if (visit_then)
+                  __bitset_and(branch_active_storage, maybe_active, cond_ballot, ctx->words_per_def);
+               else
+                  __bitset_andnot(branch_active_storage, maybe_active, cond_ballot, ctx->words_per_def);
+               branch_active = branch_active_storage;
+            }
+
+            nir_block *last_block = visit_then ? nir_if_last_then_block(nif) : nir_if_last_else_block(nif);
+
+            if (nir_block_has_pred(merge, last_block)) {
+               nir_foreach_phi (phi, merge) {
+                  nir_phi_src *phi_src = nir_phi_get_src_from_block(phi, last_block);
+
+                  const BITSET_WORD *phi_used = def_used_invocations(ctx, &phi->def);
+
+                  BITSET_WORD phi_src_used[NIR_MAX_SUBGROUP_BITSET_WORDS];
+
+                  __bitset_and(phi_src_used, phi_used, branch_active, ctx->words_per_def);
+
+                  src_mark_used(ctx, &phi_src->src, phi_src_used);
+               }
+            }
+
+            progress |= opt_fotid_list(visit_then ? &nif->then_list : &nif->else_list, ctx, branch_active);
+         }
+         break;
+      }
+      case nir_cf_node_loop: {
+         nir_loop *loop = nir_cf_node_as_loop(node);
+
+         /* Propagate which invocations are used for loop exit phis. */
+         nir_foreach_phi (phi, nir_cf_node_as_block(nir_cf_node_next(node))) {
+            BITSET_WORD *phi_used = def_used_invocations(ctx, &phi->def);
+
+            __bitset_and(phi_used, phi_used, maybe_active, ctx->words_per_def);
+
+            nir_foreach_phi_src (phi_src, phi) {
+               src_mark_used(ctx, &phi_src->src, phi_used);
+            }
+         }
+
+         /* Handle loop header phi: assume all active invocations are used. */
+         nir_foreach_phi (phi, nir_loop_first_block(loop)) {
+            nir_foreach_phi_src (phi_src, phi) {
+               src_mark_used(ctx, &phi_src->src, maybe_active);
+            }
+         }
+
+         progress |= opt_fotid_list(&loop->body, ctx, maybe_active);
+
+         break;
+      }
+      default:
+         UNREACHABLE("unknown nf_node type");
+      }
+   }
+
+   return progress;
+}
+
+static bool
+opt_fotid_impl(nir_function_impl *impl, const radv_nir_opt_tid_function_options *options)
+{
+   struct fotid_context ctx = {0};
+   init_fotid_context(&ctx, impl, options);
+
+   BITSET_WORD maybe_active[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+   BITSET_SET_COUNT(maybe_active, 0, impl->function->shader->info.max_subgroup_size);
+
+   bool progress = opt_fotid_list(&impl->body, &ctx, maybe_active);
+
+   destroy_fotid_context(&ctx);
+
+   return nir_progress(progress, impl, nir_metadata_control_flow);
 }
 
 bool
@@ -602,7 +973,7 @@ radv_nir_opt_tid_function(nir_shader *shader, const radv_nir_opt_tid_function_op
 
    struct fotid_init_state state = {
       .options = options,
-      .has_shuffle = false,
+      .needs_second_pass = false,
    };
 
    /* The pass is split in two steps because the shuffle optimization needs the function of tid mask
@@ -610,8 +981,12 @@ radv_nir_opt_tid_function(nir_shader *shader, const radv_nir_opt_tid_function_op
     * to reduce work during the second step.
     */
    progress |= nir_shader_instructions_pass(shader, init_fotid_mask, nir_metadata_control_flow, &state);
-   if (state.has_shuffle) {
-      progress |= nir_shader_intrinsics_pass(shader, opt_fotid_shuffle, nir_metadata_control_flow, (void *)options);
+
+   if (!state.needs_second_pass)
+      return progress;
+
+   nir_foreach_function_impl (impl, shader) {
+      progress |= opt_fotid_impl(impl, options);
    }
 
    return progress;
