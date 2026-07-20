@@ -1090,6 +1090,8 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_RESIZE,
    PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR,
    PIPE_ML_OPERATION_TYPE_ARGMAX,
+   PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH,
+   PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE,
    PIPE_ML_OPERATION_TYPE_MUL,
    PIPE_ML_OPERATION_TYPE_LEAKY_RELU,
    PIPE_ML_OPERATION_TYPE_QUANTIZE,
@@ -1311,6 +1313,15 @@ struct pipe_ml_operation
       struct {
          int axis;
       } argmax;
+
+      struct {
+         int block_y;
+         int block_x;
+         int before_y;
+         int after_y;
+         int before_x;
+         int after_x;
+      } space_batch;
 
       struct {
          int begin[4];
