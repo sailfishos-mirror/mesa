@@ -455,6 +455,7 @@ panvk_image_init_layouts(struct panvk_image *image,
 
    const struct pan_mod_handler *mod_handler =
       pan_mod_get_handler(arch, image->vk.drm_format_mod);
+   image->crc_safe_external = false;
 
    /* initialize pan_image props and mod_handler */
    if (panvk_image_use_yuv_tex(arch, image->vk.format)) {
@@ -659,6 +660,33 @@ panvk_image_plane_bind_mem(struct panvk_device *dev,
    plane->plane.base = mem->addr.dev + offset;
    plane->mem = mem;
    plane->mem_offset = offset;
+   /* Zero-initialize CRC state. If CRC state is not mapped on the host, do a
+    * temporary mapping just for this operation. */
+   if (plane->image.props.crc) {
+      const struct pan_image_slice_layout *slice =
+         &plane->plane.layout.slices[0];
+      uint64_t state_offset = offset + slice->crc.header_offset_B;
+
+      bool temporary_map = mem->addr.host == NULL;
+      uint8_t *cpu_map = temporary_map
+                            ? pan_kmod_bo_mmap(mem->bo, PROT_READ | PROT_WRITE,
+                                               MAP_SHARED, NULL)
+                            : mem->addr.host;
+      if (cpu_map == 0 || cpu_map == MAP_FAILED) {
+         plane->image.props.crc = false;
+         return;
+      }
+
+      size_t crc_size = PAN_CRC_HEADER_SIZE_B + slice->crc.size_B;
+      memset(cpu_map + state_offset, 0, crc_size);
+      pan_kmod_queue_bo_map_sync(mem->bo, state_offset, cpu_map + state_offset,
+                                 crc_size, PAN_KMOD_BO_SYNC_CPU_CACHE_FLUSH);
+
+      if (temporary_map) {
+         int ret = os_munmap(cpu_map, pan_kmod_bo_size(mem->bo));
+         assert(!ret);
+      }
+   }
 }
 
 static void
@@ -891,7 +919,9 @@ get_image_subresource_layout(const struct panvk_image *image,
    layout->offset =
       slice_layout->offset_B +
       (subres->arrayLayer * image->planes[plane].plane.layout.array_stride_B);
-   layout->size = slice_layout->size_B;
+   layout->size = slice_layout->crc.size_B ? slice_layout->crc.header_offset_B -
+                                                slice_layout->offset_B
+                                           : slice_layout->size_B;
    layout->arrayPitch = image->planes[plane].plane.layout.array_stride_B;
 
    if (drm_is_afbc(image->vk.drm_format_mod)) {
