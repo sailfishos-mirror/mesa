@@ -137,11 +137,23 @@ fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
     }
 }
 
-fn write_back_info(src: &ShaderInfo, dst: &mut pan_shader_info) {
+fn write_back_info(
+    src: &ShaderInfo,
+    nir: &nir_shader,
+    dst: &mut pan_shader_info,
+) {
     dst.work_reg_count = src.registers_used.into();
     dst.tls_size = src.tls_size;
     dst.preload = src.register_preload;
     dst.has_shader_clk_instr = src.has_ld_gclk;
+
+    if nir.info.stage() == MESA_SHADER_VERTEX {
+        // TODO: only for BI_IDVS_ALL (only one supported right now)
+        let secondary_mask =
+            unsafe { val_ex_fifo_varying_bits() } | (1 << VARYING_SLOT_POS);
+        dst.__bindgen_anon_1.vs.secondary_enable =
+            (nir.info.outputs_written & !secondary_mask) != 0;
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -178,6 +190,6 @@ pub extern "C" fn kraid_compile_nir(
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);
 
-    write_back_info(&s.info, info);
+    write_back_info(&s.info, nir, info);
     unsafe { pan_shader_update_info(info, nir, inputs) };
 }
