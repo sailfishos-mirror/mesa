@@ -305,7 +305,6 @@ src_mark_used(struct fotid_context *ctx, nir_src *src, const BITSET_WORD *used)
 struct shuffle_info {
    struct fotid_context *ctx;
    uint8_t src_invoc[NIR_MAX_SUBGROUP_SIZE];
-   BITSET_WORD reads_zero[NIR_MAX_SUBGROUP_BITSET_WORDS];
    nir_shader *shader;
 };
 
@@ -353,35 +352,6 @@ get_singluar_user_bcsel(nir_def *def, unsigned *src_idx)
    if (*src_idx == 0)
       return NULL;
    return bcsel;
-}
-
-static bool
-gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct shuffle_info *shuffle)
-{
-   nir_scalar s = nir_get_scalar(bcsel->src[0].src.ssa, bcsel->src[0].swizzle[0]);
-
-   BITSET_WORD selects_other[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
-
-   if (!bool_scalar_to_ballot(s, shuffle->shader, selects_other))
-      return false;
-
-   if (shuffle_idx == 1)
-      BITSET_NOT(selects_other);
-
-   unsigned i = 0;
-   BITSET_FOREACH_SET (i, selects_other, shuffle->shader->info.max_subgroup_size) {
-      /* If this invocation selects the other source,
-       * so we can read an undefined result.
-       */
-      shuffle->src_invoc[i] = UINT8_MAX;
-   }
-
-   if (nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0) {
-      __bitset_copy(shuffle->reads_zero, selects_other, BITSET_WORDS(shuffle->shader->info.max_subgroup_size));
-      return true;
-   } else {
-      return false;
-   }
 }
 
 static nir_def *
@@ -482,8 +452,25 @@ try_opt_rotate(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
 }
 
 static nir_def *
-try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
+try_opt_dpp16_shift(nir_builder *b, nir_intrinsic_instr *intrin, struct shuffle_info *shuffle)
 {
+   unsigned shuffle_idx = 0;
+   nir_alu_instr *bcsel = get_singluar_user_bcsel(&intrin->def, &shuffle_idx);
+
+   if (!bcsel || !nir_src_is_const(bcsel->src[3 - shuffle_idx].src) ||
+       nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) != 0)
+      return NULL;
+
+   nir_scalar s = nir_get_scalar(bcsel->src[0].src.ssa, bcsel->src[0].swizzle[0]);
+
+   BITSET_WORD reads_zero[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+   if (!bool_scalar_to_ballot(s, shuffle->shader, reads_zero))
+      return NULL;
+
+   if (shuffle_idx == 1)
+      BITSET_NOT(reads_zero);
+
    int delta = INT_MAX;
    for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
       if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
@@ -498,7 +485,7 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
    for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
       int read = i + delta;
       bool out_of_bounds = (read & ~0xf) != (i & ~0xf);
-      if (BITSET_TEST(shuffle->reads_zero, i) && !out_of_bounds)
+      if (BITSET_TEST(reads_zero, i) && !out_of_bounds)
          return NULL;
       if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
          continue;
@@ -506,7 +493,13 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
          return NULL;
    }
 
-   return nir_dpp16_shift_amd(b, def, .base = delta);
+   nir_def *res = nir_dpp16_shift_amd(b, intrin->src[0].ssa, .base = delta);
+
+   b->cursor = nir_after_instr(&bcsel->instr);
+   nir_def_rewrite_uses_with_alu_src(b, &bcsel->def, bcsel->src[shuffle_idx]);
+   nir_instr_remove(&bcsel->instr);
+
+   return res;
 }
 
 static bool
@@ -517,7 +510,6 @@ init_fotid_shuffle(struct fotid_context *ctx, nir_intrinsic_instr *instr, struct
 
    *shuffle = (struct shuffle_info){
       .ctx = ctx,
-      .reads_zero = {0},
       .shader = ctx->b.shader,
    };
 
@@ -548,16 +540,6 @@ opt_fotid_shuffle(nir_intrinsic_instr *instr, struct shuffle_info *shuffle)
    if (nir_src_is_const(instr->src[1]))
       return false; /* Leave obvious broadcasts alone */
 
-   unsigned src_idx = 0;
-   nir_alu_instr *bcsel = get_singluar_user_bcsel(&instr->def, &src_idx);
-
-   /* Generalize src_invoc by taking into account which invocations
-    * do not use the shuffle result because of bcsel.
-    */
-   bool can_remove_bcsel = false;
-   if (bcsel)
-      can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, shuffle);
-
 #if 0
    for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
       fprintf(stderr, "invocation %d reads %d\n", i, shuffle->src_invoc[i]);
@@ -569,16 +551,8 @@ opt_fotid_shuffle(nir_intrinsic_instr *instr, struct shuffle_info *shuffle)
 
    nir_def *res = NULL;
 
-   if (can_remove_bcsel && shuffle->ctx->options->use_dpp16_shift_amd) {
-      res = try_opt_dpp16_shift(b, instr->src[0].ssa, shuffle);
-
-      if (res) {
-         /* Rewrite the bcsel as a move, we are not allowed to remove the
-          * bcsel because it could break the safe instruction iteration.
-          */
-         nir_alu_src_rewrite_scalar(&bcsel->src[3 - src_idx], nir_get_scalar(res, 0));
-      }
-   }
+   if (shuffle->ctx->options->use_dpp16_shift_amd)
+      res = try_opt_dpp16_shift(b, instr, shuffle);
 
    if (!res)
       res = try_opt_bitwise_mask(b, instr->src[0].ssa, shuffle);
