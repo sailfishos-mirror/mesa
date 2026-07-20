@@ -695,7 +695,7 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
       }
       ret = vlVaUploadImage(drv, tmp_surf, img_buf, vaimage);
       if (ret != VA_STATUS_SUCCESS) {
-         FREE(tmp_surf);
+         vlVaDestroySurface(drv, tmp_surf);
          mtx_unlock(&drv->mutex);
          return ret;
       }
