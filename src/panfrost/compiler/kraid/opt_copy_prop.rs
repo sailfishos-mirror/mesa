@@ -72,6 +72,17 @@ impl WordCopies<'_> {
                     }
                 }
             }
+            Op::IAdd(op) => {
+                if let DstRef::SSA(vec) = &op.dst.dst_ref {
+                    let ssa = vec[0];
+
+                    if op.srcs[0].is_zero() {
+                        self.add_copy(ssa, op.srcs[1].clone(), op.dst_type);
+                    } else if op.srcs[1].is_zero() {
+                        self.add_copy(ssa, op.srcs[0].clone(), op.dst_type);
+                    }
+                }
+            }
             Op::F16ToF32(op) => {
                 if let DstRef::SSA(vec) = &op.dst.dst_ref {
                     debug_assert_eq!(vec.comps(), 1);
