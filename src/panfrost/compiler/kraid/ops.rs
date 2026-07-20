@@ -52,13 +52,15 @@ pub struct OpACmpXchg {
     pub offset: u8,
 }
 
-impl fmt::Display for OpACmpXchg {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpACmpXchg {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ACMPXCHG{}", self.data_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = ACMPXCHG{} {} {} #{}",
-            self.dst,
-            self.data_type,
+            " {} {} #{}",
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
             self.offset
@@ -145,15 +147,22 @@ pub struct OpAtom {
     pub offset: u8,
 }
 
-impl fmt::Display for OpAtom {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpAtom {
+    fn fmt_dsts(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.dst.dst_ref.is_none() {
-            write!(f, "{} = ", self.dst)?;
+            write!(f, "{}", &self.dst)?;
         }
+        Ok(())
+    }
+
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ATOM.{}", self.data_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ATOM.{}{} {} {} #{}",
-            self.data_type,
+            "{} {} {} #{}",
             self.atom_op,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
@@ -176,15 +185,22 @@ pub struct OpAtom1 {
     pub offset: u8,
 }
 
-impl fmt::Display for OpAtom1 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpAtom1 {
+    fn fmt_dsts(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.dst.dst_ref.is_none() {
-            write!(f, "{} = ", self.dst)?;
+            write!(f, "{}", &self.dst)?;
         }
+        Ok(())
+    }
+
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ATOM1.{}", self.data_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ATOM1.{}{} {} #{}",
-            self.data_type,
+            "{} {} #{}",
             self.atom_op,
             self.fmt_src(&self.addr),
             self.offset
@@ -196,9 +212,13 @@ impl fmt::Display for OpAtom1 {
 #[derive(Clone, Opcode)]
 pub struct OpBarrier {}
 
-impl fmt::Display for OpBarrier {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpBarrier {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "BARRIER")
+    }
+
+    fn fmt_body(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(())
     }
 }
 
@@ -212,9 +232,13 @@ pub struct OpBitRev {
     pub src: Src,
 }
 
-impl fmt::Display for OpBitRev {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = BITREV.i32 {}", &self.dst, self.fmt_src(&self.src))
+impl DisplayOp for OpBitRev {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BITREV.i32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -263,11 +287,15 @@ pub struct OpBranch {
     pub label: Label,
 }
 
-impl fmt::Display for OpBranch {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpBranch {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BRANCH")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "BRANCH{} {}{} {}",
+            "{} {}{} {}",
             bool_as_mod_str!(self, not),
             self.fmt_src(&self.cond),
             self.combine_op,
@@ -413,12 +441,15 @@ pub struct OpClper {
     pub lane: Src,
 }
 
-impl fmt::Display for OpClper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpClper {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CLPER")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = CLPER.{}{}{} {} {}",
-            &self.dst,
+            "{}{}{} {} {}",
             self.subgroup,
             self.lane_op,
             self.inactive,
@@ -441,13 +472,15 @@ pub struct OpClz {
     pub src: Src,
 }
 
-impl fmt::Display for OpClz {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpClz {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CLZ.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = CLZ.{}{} {}",
-            &self.dst,
-            self.src_type,
+            "{} {}",
             if self.mask { ".mask" } else { "" },
             self.fmt_src(&self.src),
         )
@@ -476,15 +509,13 @@ pub struct OpCopy {
     pub src: Src,
 }
 
-impl fmt::Display for OpCopy {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = COPY.{} {}",
-            &self.dst,
-            self.dst_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpCopy {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "COPY.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -534,13 +565,15 @@ pub struct OpCSel {
     pub sel_srcs: [Src; 2],
 }
 
-impl fmt::Display for OpCSel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpCSel {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CSEL{}", self.cmp_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = CSEL{}{} {} {} {} {}",
-            &self.dst,
-            self.cmp_type,
+            "{} {} {} {} {}",
             self.cmp_op,
             self.fmt_src(&self.cmp_srcs[0]),
             self.fmt_src(&self.cmp_srcs[1]),
@@ -574,9 +607,13 @@ pub struct OpF16ToF32 {
     pub src: Src,
 }
 
-impl fmt::Display for OpF16ToF32 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = F16_TO_F32 {}", &self.dst, self.fmt_src(&self.src))
+impl DisplayOp for OpF16ToF32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "F16_TO_F32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -633,12 +670,15 @@ pub struct OpF32ToF16 {
     pub clamp: FClamp,
 }
 
-impl fmt::Display for OpF32ToF16 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpF32ToF16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "F32_TO_F16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = F32_TO_F16{}{} {}",
-            &self.dst,
+            "{}{} {}",
             self.round,
             self.clamp,
             self.fmt_src(&self.src)
@@ -657,14 +697,18 @@ pub struct OpF32ToI32 {
     pub round: FRound,
 }
 
-impl fmt::Display for OpF32ToI32 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpF32ToI32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n = match self.dst_type {
             DataType::S32 => "S32",
             DataType::U32 => "U32",
             _ => panic!("Invalid variant"),
         };
-        write!(f, "{} = F32_TO_{n} {}", &self.dst, self.fmt_src(&self.src))
+        write!(f, "F32_TO_{n}")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -679,13 +723,15 @@ pub struct OpFAdd {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpFAdd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFAdd {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FADD.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FADD.{}{}{} {} {}",
-            &self.dst,
-            &self.dst_type,
+            "{}{} {} {}",
             self.round,
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -707,12 +753,15 @@ pub struct OpFAddLScale {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpFAddLScale {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFAddLScale {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FADD_LSCALE.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FADD_LSCALE.f32{}{} {} {}",
-            &self.dst,
+            "{}{} {} {}",
             self.round,
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -890,14 +939,15 @@ pub struct OpFCmp {
     pub accum_op: CmpAccumOp,
 }
 
-impl fmt::Display for OpFCmp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFCmp {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FCMP{}.{}", self.accum_op, self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FCMP{}.{}{}{} {} {}",
-            &self.dst,
-            self.accum_op,
-            self.src_type,
+            "{}{} {} {}",
             self.res_type,
             self.cmp_op,
             self.fmt_src(&self.srcs[0]),
@@ -938,12 +988,15 @@ pub struct OpFCosTable {
     pub offset: bool,
 }
 
-impl fmt::Display for OpFCosTable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFCosTable {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FCOS_TABLE.u6")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FCOS_TABLE.u6{} {}",
-            &self.dst,
+            "{} {}",
             bool_as_mod_str!(self, offset),
             self.fmt_src(&self.src),
         )
@@ -965,12 +1018,15 @@ pub struct OpFExp32 {
     pub expf: Src,
 }
 
-impl fmt::Display for OpFExp32 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFExp32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FEXP.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FEXP.f32 {} {}",
-            &self.dst,
+            " {} {}",
             self.fmt_src(&self.expx),
             self.fmt_src(&self.expf),
         )
@@ -988,9 +1044,13 @@ pub struct OpFLogD {
     pub src: Src,
 }
 
-impl fmt::Display for OpFLogD {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = FLOGD.f32 {}", &self.dst, self.fmt_src(&self.src))
+impl DisplayOp for OpFLogD {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FLOGD.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -1028,13 +1088,15 @@ pub struct OpFlush {
     pub flush_nan: FlushNanMode,
 }
 
-impl fmt::Display for OpFlush {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFlush {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FLUSH{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FLUSH{}{}{}{} {}",
-            &self.dst,
-            self.src_type,
+            "{}{}{} {}",
             bool_as_mod_str!(self, ftz),
             bool_as_mod_str!(self, flush_inf),
             self.flush_nan,
@@ -1054,13 +1116,15 @@ pub struct OpFma {
     pub srcs: [Src; 3],
 }
 
-impl fmt::Display for OpFma {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFma {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FMA.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FMA.{}{}{} {} {} {}",
-            &self.dst,
-            &self.dst_type,
+            "{}{} {} {} {}",
             self.round,
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -1084,12 +1148,15 @@ pub struct OpFmaRScale {
     pub scale: Src,
 }
 
-impl fmt::Display for OpFmaRScale {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFmaRScale {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FMA_RSCALE.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FMA_RSCALE.f32{}{} {} {} {} {}",
-            &self.dst,
+            "{}{} {} {} {} {}",
             self.round,
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -1111,13 +1178,15 @@ pub struct OpFMax {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpFMax {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFMax {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FMAX.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FMAX.{}{}{} {} {}",
-            &self.dst,
-            &self.dst_type,
+            "{}{} {} {}",
             bool_as_mod_str!(self, propagate_nan),
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -1137,13 +1206,15 @@ pub struct OpFMin {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpFMin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFMin {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FMIN.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FMIN.{}{}{} {} {}",
-            &self.dst,
-            &self.dst_type,
+            "{}{} {} {}",
             bool_as_mod_str!(self, propagate_nan),
             self.clamp,
             self.fmt_src(&self.srcs[0]),
@@ -1161,13 +1232,15 @@ pub struct OpFMul {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpFMul {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFMul {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FMUL.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FMUL.{} {} {}",
-            &self.dst,
-            &self.dst_type,
+            " {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -1183,15 +1256,13 @@ pub struct OpFRcp {
     pub src: Src,
 }
 
-impl fmt::Display for OpFRcp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = FRCP.{} {}",
-            &self.dst,
-            &self.dst_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpFRcp {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FRCP.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -1227,12 +1298,15 @@ pub struct OpFrexpE {
     pub neg_result: bool,
 }
 
-impl fmt::Display for OpFrexpE {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFrexpE {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FREXPE.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FREXPE.f32{}{} {}",
-            &self.dst,
+            "{}{} {}",
             self.mode,
             bool_as_mod_str!(self, neg_result),
             self.fmt_src(&self.src),
@@ -1250,15 +1324,13 @@ pub struct OpFrexpM {
     pub mode: FrexpMode,
 }
 
-impl fmt::Display for OpFrexpM {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = FREXPM.f32{} {}",
-            &self.dst,
-            self.mode,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpFrexpM {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FREXPM.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.mode, self.fmt_src(&self.src))
     }
 }
 
@@ -1272,15 +1344,13 @@ pub struct OpFRound {
     pub round: FRound,
 }
 
-impl fmt::Display for OpFRound {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = FROUND.f32{} {}",
-            &self.dst,
-            self.round,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpFRound {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FROUND.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.round, self.fmt_src(&self.src))
     }
 }
 
@@ -1293,15 +1363,13 @@ pub struct OpFRsq {
     pub src: Src,
 }
 
-impl fmt::Display for OpFRsq {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = FRSQ.{} {}",
-            &self.dst,
-            &self.dst_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpFRsq {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FRSQ.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -1318,12 +1386,15 @@ pub struct OpFSinTable {
     pub offset: bool,
 }
 
-impl fmt::Display for OpFSinTable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpFSinTable {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FSIN_TABLE.u6")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FSIN_TABLE.u6{} {}",
-            &self.dst,
+            "{} {}",
             bool_as_mod_str!(self, offset),
             self.fmt_src(&self.src),
         )
@@ -1341,15 +1412,13 @@ pub struct OpIAbs {
     pub src: Src,
 }
 
-impl fmt::Display for OpIAbs {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = IABS.{} {}",
-            &self.dst,
-            self.dst_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpIAbs {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "IABS.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -1380,14 +1449,16 @@ pub struct OpIAdd {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpIAdd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpIAdd {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "IADD.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sat = if self.saturate { ".sat" } else { "" };
         write!(
             f,
-            "{} = IADD.{}{sat} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{sat} {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -1437,14 +1508,15 @@ pub struct OpICmp {
     pub accum_op: CmpAccumOp,
 }
 
-impl fmt::Display for OpICmp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpICmp {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ICMP{}.{}", self.accum_op, self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = ICMP{}.{}{}{} {} {}",
-            &self.dst,
-            self.accum_op,
-            self.src_type,
+            "{}{} {} {}",
             self.res_type,
             self.cmp_op,
             self.fmt_src(&self.srcs[0]),
@@ -1482,13 +1554,15 @@ pub struct OpICmpMulti {
     pub accum: Src,
 }
 
-impl fmt::Display for OpICmpMulti {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpICmpMulti {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ICMP_MULTI.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = ICMP_MULTI.{}{}{} {} {} {}",
-            &self.dst,
-            self.src_type,
+            "{}{} {} {} {}",
             self.res_type,
             self.cmp_op,
             self.fmt_src(&self.srcs[0]),
@@ -1529,14 +1603,16 @@ pub struct OpIDpAdd {
     pub accum: Src,
 }
 
-impl fmt::Display for OpIDpAdd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpIDpAdd {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "IDPADD.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sat = if self.saturate { ".sat" } else { "" };
         write!(
             f,
-            "{} = IDPADD.{}.{}.{}{sat} {} {} {}",
-            &self.dst,
-            self.dst_type,
+            ".{}.{}{sat} {} {} {}",
             self.src_types[0],
             self.src_types[1],
             self.fmt_src(&self.srcs[0]),
@@ -1602,14 +1678,16 @@ pub struct OpIMul {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpIMul {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpIMul {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "IMUL.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sat = if self.saturate { ".sat" } else { "" };
         write!(
             f,
-            "{} = IMUL.{}{sat} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{sat} {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -1658,14 +1736,16 @@ pub struct OpISub {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpISub {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpISub {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ISUB.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sat = if self.saturate { ".sat" } else { "" };
         write!(
             f,
-            "{} = ISUB.{}{sat} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{sat} {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -1709,20 +1789,18 @@ pub struct OpIToF32 {
     pub round: FRound,
 }
 
-impl fmt::Display for OpIToF32 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpIToF32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n = match self.src_type {
             DataType::U32 => "U32",
             DataType::S32 => "S32",
             _ => unreachable!("Invalid variant"),
         };
-        write!(
-            f,
-            "{} = {n}_TO_F32{} {}",
-            &self.dst,
-            self.round,
-            self.fmt_src(&self.src)
-        )
+        write!(f, "{n}_TO_F32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.round, self.fmt_src(&self.src))
     }
 }
 
@@ -1768,13 +1846,15 @@ pub struct OpLdCvt {
     pub offset: u8,
 }
 
-impl fmt::Display for OpLdCvt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLdCvt {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_CVT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LD_CVT.{}{} {} #{} {}",
-            &self.dst,
-            self.dst_type,
+            "{} {} #{} {}",
             self.access,
             self.fmt_src(&self.addr),
             self.offset,
@@ -1797,13 +1877,15 @@ pub struct OpLdExp {
     pub scale: Src,
 }
 
-impl fmt::Display for OpLdExp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLdExp {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LDEXP.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LDEXP.{}{} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{} {} {}",
             self.round,
             self.fmt_src(&self.src),
             self.fmt_src(&self.scale),
@@ -1834,9 +1916,13 @@ pub struct OpLdGClk {
     pub source: GClkSource,
 }
 
-impl fmt::Display for OpLdGClk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = LD_GCLK{}", &self.dst, self.source)
+impl DisplayOp for OpLdGClk {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_GCLK")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.source)
     }
 }
 
@@ -1855,13 +1941,15 @@ pub struct OpLdPka {
     pub handle: Src,
 }
 
-impl fmt::Display for OpLdPka {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLdPka {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_PKA.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LD_PKA.{}{} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{} {} {}",
             self.access,
             self.fmt_src(&self.offset),
             self.fmt_src(&self.handle),
@@ -1889,13 +1977,15 @@ pub struct OpLdTex {
     pub handle: Src,
 }
 
-impl fmt::Display for OpLdTex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLdTex {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_TEX.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LD_TEX.{} {} {} {}",
-            &self.dst,
-            self.dst_type,
+            " {} {} {}",
             self.fmt_src(&self.coords[0]),
             self.fmt_src(&self.coords[1]),
             self.fmt_src(&self.handle),
@@ -1914,12 +2004,15 @@ pub struct OpLeaBuf {
     pub handle: Src,
 }
 
-impl fmt::Display for OpLeaBuf {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLeaBuf {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LEA_BUF")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LEA_BUF {} {}",
-            &self.dst,
+            " {} {}",
             self.fmt_src(&self.index),
             self.fmt_src(&self.handle),
         )
@@ -1937,12 +2030,15 @@ pub struct OpLeaPka {
     pub handle: Src,
 }
 
-impl fmt::Display for OpLeaPka {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLeaPka {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LEA_PKA")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LEA_PKA {} {}",
-            &self.dst,
+            " {} {}",
             self.fmt_src(&self.offset),
             self.fmt_src(&self.handle),
         )
@@ -1960,12 +2056,15 @@ pub struct OpLeaTex {
     pub handle: Src,
 }
 
-impl fmt::Display for OpLeaTex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLeaTex {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LEA_TEX")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LEA_TEX {} {} {}",
-            &self.dst,
+            " {} {} {}",
             self.fmt_src(&self.coords[0]),
             self.fmt_src(&self.coords[1]),
             self.fmt_src(&self.handle),
@@ -1986,13 +2085,15 @@ pub struct OpLoad {
     pub offset: i16,
 }
 
-impl fmt::Display for OpLoad {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpLoad {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LOAD.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = LOAD.{}{} {} #{}",
-            &self.dst,
-            self.dst_type,
+            "{} {} #{}",
             self.access,
             self.fmt_src(&self.addr),
             self.offset,
@@ -2010,12 +2111,15 @@ pub struct OpMkVecV2I8 {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpMkVecV2I8 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpMkVecV2I8 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MKVEC.v2i8")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MKVEC.v2i8 {} {}",
-            &self.dst,
+            " {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -2039,12 +2143,15 @@ pub struct OpMkVecV2I8I16 {
     pub accum: Src,
 }
 
-impl fmt::Display for OpMkVecV2I8I16 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpMkVecV2I8I16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MKVEC.v2i8+i16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MKVEC.v2i8+i16 {} {} {}",
-            &self.dst,
+            " {} {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
             self.fmt_src(&self.accum),
@@ -2062,12 +2169,15 @@ pub struct OpMkVecV2I16 {
     pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpMkVecV2I16 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpMkVecV2I16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MKVEC.v2i16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MKVEC.v2i16 {} {}",
-            &self.dst,
+            " {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
@@ -2098,12 +2208,15 @@ pub struct OpMkVecV4I8 {
     pub srcs: [Src; 4],
 }
 
-impl fmt::Display for OpMkVecV4I8 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpMkVecV4I8 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MKVEC.v4i8")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MKVEC.v4i8 {} {} {} {}",
-            &self.dst,
+            " {} {} {} {}",
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
             self.fmt_src(&self.srcs[2]),
@@ -2131,15 +2244,13 @@ pub struct OpMov {
     pub src: Src,
 }
 
-impl fmt::Display for OpMov {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = MOV.{} {}",
-            &self.dst,
-            self.dst_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpMov {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MOV.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -2174,13 +2285,15 @@ pub struct OpMux {
     pub sel: Src,
 }
 
-impl fmt::Display for OpMux {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpMux {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MUX.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MUX.{}{} {} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{} {} {} {}",
             self.mux_op,
             self.fmt_src(&self.src0),
             self.fmt_src(&self.src1),
@@ -2222,9 +2335,13 @@ impl PerCompFoldable for OpMux {
 #[derive(Clone, Opcode)]
 pub struct OpNop {}
 
-impl fmt::Display for OpNop {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpNop {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "NOP")
+    }
+
+    fn fmt_body(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(())
     }
 }
 
@@ -2237,9 +2354,13 @@ pub struct OpPhiDst {
     pub phi: Phi,
 }
 
-impl fmt::Display for OpPhiDst {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = PHI_DST.{} {}", &self.dst, self.dst_type, &self.phi)
+impl DisplayOp for OpPhiDst {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PHI_DST.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", &self.phi)
     }
 }
 
@@ -2262,15 +2383,17 @@ pub struct OpPhiSrc {
     pub src: Src,
 }
 
-impl fmt::Display for OpPhiSrc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = PHI_SRC.{} {}",
-            &self.phi,
-            self.src_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpPhiSrc {
+    fn fmt_dsts(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.phi)
+    }
+
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PHI_SRC.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -2305,14 +2428,13 @@ pub struct OpPopCount {
     pub src: Src,
 }
 
-impl fmt::Display for OpPopCount {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = POPCOUNT.i32 {}",
-            &self.dst,
-            self.fmt_src(&self.src)
-        )
+impl DisplayOp for OpPopCount {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "POPCOUNT.i32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -2333,9 +2455,13 @@ pub struct OpRegIn {
     pub reg: RegRef,
 }
 
-impl fmt::Display for OpRegIn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = REG_IN.{} {}", &self.dst, self.dst_type, &self.reg)
+impl DisplayOp for OpRegIn {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "REG_IN.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", &self.reg)
     }
 }
 
@@ -2355,15 +2481,17 @@ pub struct OpRegOut {
     pub src: Src,
 }
 
-impl fmt::Display for OpRegOut {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = REG_OUT.{} {}",
-            &self.reg,
-            self.src_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpRegOut {
+    fn fmt_dsts(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.reg)
+    }
+
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "REG_OUT.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -2446,19 +2574,21 @@ pub struct OpShiftLop {
     pub src2: Src,
 }
 
-impl fmt::Display for OpShiftLop {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = ", &self.dst)?;
+impl DisplayOp for OpShiftLop {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (self.shift_op, self.logic_op) {
             (ShiftOp::None, LogicOp::None) => write!(f, "NO_SHIFT")?,
             (shift_op, LogicOp::None) => write!(f, "{shift_op}")?,
             (ShiftOp::None, logic_op) => write!(f, "{logic_op}")?,
             (shift_op, logic_op) => write!(f, "{shift_op}_{logic_op}")?,
         }
+        write!(f, ".{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            ".{} {} {} {}",
-            self.dst_type,
+            " {} {} {}",
             self.fmt_src(&self.src0),
             self.fmt_src(&self.shift),
             self.fmt_src(&self.src2),
@@ -2536,12 +2666,15 @@ pub struct OpStCvt {
     pub offset: u8,
 }
 
-impl fmt::Display for OpStCvt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpStCvt {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ST_CVT.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ST_CVT.{}{} {} {} #{} {}",
-            self.src_type,
+            "{} {} {} #{} {}",
             self.access,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
@@ -2565,12 +2698,15 @@ pub struct OpStore {
     pub offset: i16,
 }
 
-impl fmt::Display for OpStore {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpStore {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "STORE.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "STORE.{}{} {} {} #{}",
-            self.src_type,
+            "{} {} {} #{}",
             self.access,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
@@ -2596,15 +2732,13 @@ pub struct OpSwz {
     pub src: Src,
 }
 
-impl fmt::Display for OpSwz {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = SWZ.{} {}",
-            &self.dst,
-            self.src_type,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpSwz {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SWZ.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -2781,13 +2915,15 @@ pub struct OpTexFetch {
     pub handle: Src,
 }
 
-impl fmt::Display for OpTexFetch {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpTexFetch {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TEX_FETCH.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = TEX_FETCH.{}{}{}{}{}{}{} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{}{}{}{}{}{} {} {}",
             bool_as_mod_str!(self, skip),
             self.dim,
             self.write_mask,
@@ -2827,13 +2963,15 @@ pub struct OpTexGather {
     pub handle: Src,
 }
 
-impl fmt::Display for OpTexGather {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpTexGather {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TEX_GATHER.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = TEX_GATHER.{}{}{}{}{}{}{}{}{}{}{} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{}{}{}{}{}{}{}{}{}{} {} {}",
             bool_as_mod_str!(self, skip),
             self.dim,
             bool_as_mod_str!(self, projection_enable),
@@ -2890,12 +3028,15 @@ pub struct OpTexGradient {
     pub handle: Src,
 }
 
-impl fmt::Display for OpTexGradient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpTexGradient {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TEX_GRADIENT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = TEX_GRADIENT.{}{}{}{}{}{}{} {} {}",
-            &self.dst,
+            "{}{}{}{}{}{}{} {} {}",
             bool_as_mod_str!(self, skip),
             self.dim,
             bool_as_mod_str!(self, projection_enable),
@@ -2935,13 +3076,15 @@ pub struct OpTexSingle {
     pub handle: Src,
 }
 
-impl fmt::Display for OpTexSingle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl DisplayOp for OpTexSingle {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TEX_SINGLE.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = TEX_SINGLE.{}{}{}{}{}{}{}{}{}{} {} {}",
-            &self.dst,
-            self.dst_type,
+            "{}{}{}{}{}{}{}{}{} {} {}",
             bool_as_mod_str!(self, skip),
             self.dim,
             bool_as_mod_str!(self, projection_enable),
@@ -2967,15 +3110,13 @@ pub struct OpWMask {
     pub src: Src,
 }
 
-impl fmt::Display for OpWMask {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} = WMASK{} {}",
-            &self.dst,
-            self.subgroup,
-            self.fmt_src(&self.src),
-        )
+impl DisplayOp for OpWMask {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WMASK")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.subgroup, self.fmt_src(&self.src),)
     }
 }
 

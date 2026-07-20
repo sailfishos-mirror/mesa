@@ -451,7 +451,7 @@ fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
 }
 
 pub fn test_foldable_op_with(
-    mut op: impl Foldable + Clone + Into<Op> + fmt::Display,
+    mut op: impl Foldable + Clone + Into<Op> + fmt::Debug,
     mut rand_u32: impl FnMut(usize) -> u32,
 ) {
     let run = RunSingleton::get();
@@ -559,7 +559,7 @@ pub fn test_foldable_op_with(
         op.fold(&*run.model, &mut fold);
 
         if hw_dst != fold_dst {
-            eprintln!("Foldable test data mismatch for {op}:");
+            eprintln!("Foldable test data mismatch for {op:?}:");
             eprintln!("| Input:    {:?}", &fold_src);
             eprintln!("| Hardware: {:?}", &hw_dst);
             eprintln!("| Folded:   {:?}", &fold_dst);
@@ -568,7 +568,7 @@ pub fn test_foldable_op_with(
     }
 }
 
-pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
+pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Debug) {
     let mut a = Acorn::new();
     test_foldable_op_with(op, |_| a.get_u32());
 }

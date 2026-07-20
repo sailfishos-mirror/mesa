@@ -1299,8 +1299,38 @@ impl Iterator for DataTypeIter {
     }
 }
 
+pub trait DisplayOp: AsSlice<Dst, Attr = PartialDataType> {
+    fn fmt_dsts(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dsts = self.as_slice();
+
+        for (i, dst) in dsts.iter().enumerate() {
+            if i != 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "{}", &dst)?;
+        }
+        Ok(())
+    }
+
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dst = format!("{}", Fmt(|f| self.fmt_dsts(f)));
+        if !dst.is_empty() {
+            write!(f, "{dst} = ")?;
+        }
+        self.fmt_name(f)?;
+        self.fmt_body(f)?;
+        Ok(())
+    }
+}
+
 pub trait Opcode:
-    AsSlice<Src, Attr = PartialDataType> + AsSlice<Dst, Attr = PartialDataType>
+    AsSlice<Src, Attr = PartialDataType>
+    + AsSlice<Dst, Attr = PartialDataType>
+    + DisplayOp
 {
     fn variant(&self) -> Option<DataType>;
     fn set_variant(&mut self, data_type: DataType);
@@ -1495,6 +1525,21 @@ pub trait VirtualOpcode {
     }
 }
 
+// Hack struct so we can re-use Formatters.  Shamelessly stolen from
+// https://users.rust-lang.org/t/reusing-an-fmt-formatter/8531/4
+pub struct Fmt<F>(pub F)
+where
+    F: Fn(&mut fmt::Formatter) -> fmt::Result;
+
+impl<F> fmt::Display for Fmt<F>
+where
+    F: Fn(&mut fmt::Formatter) -> fmt::Result,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (self.0)(f)
+    }
+}
+
 #[derive(Clone)]
 pub struct Instr {
     pub op: Op,
@@ -1530,7 +1575,13 @@ impl<T: Into<Op>> From<T> for Instr {
 
 impl fmt::Display for Instr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.op.fmt(f)
+        let dst = format!("{}", Fmt(|f| self.op.fmt_dsts(f)));
+        if !dst.is_empty() {
+            write!(f, "{dst} = ")?;
+        }
+        self.op.fmt_name(f)?;
+        self.op.fmt_body(f)?;
+        Ok(())
     }
 }
 

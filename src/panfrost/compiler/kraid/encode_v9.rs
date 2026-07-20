@@ -2671,7 +2671,7 @@ macro_rules! v9_op_match_else {
 
 macro_rules! v9_op_match {
     ($op: expr, |$x: ident| $y: expr) => {
-        v9_op_match_else!($op, |$x| $y, panic!("Unsupported op: {}", $op))
+        v9_op_match_else!($op, |$x| $y, panic!("Unsupported op: {:?}", $op))
     };
 }
 
