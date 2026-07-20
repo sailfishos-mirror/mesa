@@ -184,6 +184,8 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
                  nir_intrinsic_instr *low, nir_intrinsic_instr *high,
                  void *data)
 {
+   uint64_t gpu_id = *(uint64_t *)data;
+
    if (hole_size > 0)
       return false;
 
@@ -194,8 +196,17 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
    const unsigned bytes = num_components * (bit_size / 8);
    const unsigned max_bytes = 128u / 8u; /* LOAD.i128 */
 
+   if (bytes > max_bytes)
+      return false;
+
+   /* Valhall+ (v9+) supports unaligned load/store, so we don't need the
+    * combined access to be naturally aligned.
+    */
+   if (pan_arch(gpu_id) >= 9)
+      return true;
+
    const unsigned combined_align = nir_combined_align(align_mul, align_offset);
-   return bytes <= combined_align && bytes <= max_bytes;
+   return bytes <= combined_align;
 }
 
 static void
@@ -300,6 +311,7 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
                nir_var_mem_shared |
                nir_var_mem_ubo /* | nir_var_mem_temp */,
       .callback = mem_vectorize_cb,
+      .cb_data = &gpu_id,
       .robust_modes = robust_modes,
    };
 
@@ -801,9 +813,15 @@ mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
    }
 
    /* All loads must be aligned up to the next power of two of their byte
-    * size. If we have insufficient alignment, split into smaller loads. */
+    * size. If we have insufficient alignment, split into smaller loads.
+    *
+    * Valhall+ (v9+) supports unaligned global/shared accesses, so we don't
+    * split them for alignment there.
+    */
    unsigned required_align = util_next_power_of_two(bytes);
-   if (align < required_align) {
+   if (pan_arch(gpu_id) >= 9) {
+      required_align = MIN2(align, required_align);
+   } else if (align < required_align) {
       bytes = align;
       required_align = bytes;
    }
