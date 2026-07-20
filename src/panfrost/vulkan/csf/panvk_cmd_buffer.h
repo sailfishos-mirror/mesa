@@ -203,6 +203,24 @@ struct panvk_cache_flush_info {
    enum mali_cs_other_flush_mode others;
 };
 
+#if PAN_ARCH >= 11
+/* Execute CRC state updates on a destination subqueue when possible.
+ * Fall back to compute when the destination scope maps to no subqueue.
+ */
+static inline enum panvk_subqueue_id
+panvk_crc_exec_subqueue(uint32_t dst_mask)
+{
+   return dst_mask ? u_bit_scan(&dst_mask) : PANVK_SUBQUEUE_COMPUTE;
+}
+
+struct panvk_cs_crc_deps {
+   const uint64_t *addrs;
+   uint32_t count;
+   uint32_t src_subqueue_mask;
+   uint32_t dst_subqueue_mask;
+};
+#endif
+
 struct panvk_cs_deps {
    bool needs_fb_barrier;
 
@@ -217,6 +235,10 @@ struct panvk_cs_deps {
       enum mali_cs_condition cond;
       struct cs_index cond_value;
    } dst[PANVK_SUBQUEUE_COUNT];
+
+#if PAN_ARCH >= 11
+   struct panvk_cs_crc_deps crc;
+#endif
 };
 
 enum panvk_sb_ids {
@@ -1001,6 +1023,9 @@ cs_emit_layer_fragment_state(struct cs_builder *b, struct cs_index fbd_ptr)
 #endif /* PAN_ARCH >= 14 */
 
 #if PAN_ARCH >= 11
+void panvk_per_arch(collect_crc_invalidation_deps)(const VkDependencyInfo *info,
+                                                   struct panvk_cs_deps *deps,
+                                                   uint64_t *crc_addrs);
 void panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
                                              uint64_t crc_header_addr);
 #endif

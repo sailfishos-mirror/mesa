@@ -3492,6 +3492,56 @@ panvk_per_arch(cmd_inherit_render_state)(
    vk_cmd_set_rendering_attachment_locations(&cmdbuf->vk, att_loc_info);
 }
 
+#if PAN_ARCH >= 11
+static void
+invalidate_initial_attachment_crcs(struct panvk_cmd_buffer *cmdbuf,
+                                   const VkRenderingInfo *rendering)
+{
+   if (rendering->flags & VK_RENDERING_RESUMING_BIT)
+      return;
+
+   uint64_t addrs[PAN_MAX_RTS];
+   uint32_t addr_count = 0;
+
+   for (uint32_t i = 0; i < rendering->colorAttachmentCount; i++) {
+      const VkRenderingAttachmentInfo *att = &rendering->pColorAttachments[i];
+
+      const VkRenderingAttachmentInitialLayoutInfoMESA *initial =
+         vk_find_struct_const(att->pNext,
+                              RENDERING_ATTACHMENT_INITIAL_LAYOUT_INFO_MESA);
+
+      if (!initial || initial->initialLayout != VK_IMAGE_LAYOUT_PREINITIALIZED)
+         continue;
+
+      VK_FROM_HANDLE(panvk_image_view, iview, att->imageView);
+      if (!iview || iview->pview.first_level != 0)
+         continue;
+
+      struct panvk_image *image =
+         container_of(iview->vk.image, struct panvk_image, vk);
+      uint64_t header_addr = panvk_image_plane_crc_header_addr(image);
+
+      if (!header_addr)
+         continue;
+
+      bool duplicate = false;
+      for (uint32_t j = 0; j < addr_count; j++) {
+         duplicate |= addrs[j] == header_addr;
+      }
+
+      if (!duplicate) {
+         addrs[addr_count++] = header_addr;
+      }
+   }
+
+   struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
+
+   for (uint32_t i = 0; i < addr_count; i++) {
+      panvk_per_arch(cmd_invalidate_crc_init)(b, addrs[i]);
+   }
+}
+#endif
+
 VKAPI_ATTR void VKAPI_CALL
 panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
                                   const VkRenderingInfo *pRenderingInfo)
@@ -3501,6 +3551,17 @@ panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
    bool resuming = pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT;
 
    panvk_per_arch(cmd_init_render_state)(cmdbuf, pRenderingInfo);
+
+#if PAN_ARCH >= 11
+   /* Renderpass lowering can fold an initial layout transition into
+    * CmdBeginRendering() and report the old layout through
+    * VkRenderingAttachmentInitialLayoutInfoMESA instead of an image barrier.
+    *
+    * If the previous image content could have been modified by the host
+    * (PREINITIALIZED), we need to invalidate CRC.
+    */
+   invalidate_initial_attachment_crcs(cmdbuf, pRenderingInfo);
+#endif
 
    /* If we're not resuming, the FBD should be NULL. */
    assert(!state->render.fbds.gpu || resuming);
