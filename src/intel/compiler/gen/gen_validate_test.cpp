@@ -196,7 +196,7 @@ static const struct {
    { "mad (8) r0:d r1:d r2:d r3:d",
      "Gfx9 3-source instructions must use Align16 mode.", { .eq = 90 }
    },
-   { "mad (8) r0:d r1:d r2:d r3:d", VALID, { .gt = 90 } },
+   { "mad (8) r0:d r1:d r2:d r3:d", VALID, { .gt = 90, .lt = 120 } },
 
    { "mad (8) r0.:d r1:d r2:d r3:d {Align16}", VALID,                                   { .eq = 90 } },
    { "mad (8) r0.:d r1:d r2:d r3:d {Align16}", "Align16 mode doesn't exist on Gfx11+.", { .ge = 110 } },

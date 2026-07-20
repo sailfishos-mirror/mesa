@@ -824,6 +824,14 @@ private:
       if (gen_inst_is_send(inst))
          return;
 
+      if (inst->opcode == GEN_OP_MAD &&
+          (inst->dst.type == GEN_TYPE_D || inst->dst.type == GEN_TYPE_UD) &&
+          devinfo->ver >= 12 && devinfo->ver <= 30) {
+         ERROR_IF(inst->src[2].type != GEN_TYPE_W &&
+                  inst->src[2].type != GEN_TYPE_UW,
+                  "When destination of a MAD is DWord, src2 must be Word.");
+      }
+
       if (devinfo->ver >= 11) {
          if (num_sources == 3 && inst->opcode != GEN_OP_DPAS) {
             ERROR_IF(gen_type_size_bytes(inst->src[1].type) == 1 ||
