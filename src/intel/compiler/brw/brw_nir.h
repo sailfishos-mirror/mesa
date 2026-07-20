@@ -514,6 +514,10 @@ brw_nir_frag_convert_attrs_prim_to_vert_indirect(struct nir_shader *nir,
 
 bool brw_nir_opt_divergent_atomics(nir_shader *shader, enum brw_divergent_atomics_flags flags);
 
+bool
+brw_nir_lower_active_thread_barriers(nir_shader *nir,
+                                     const struct intel_device_info *devinfo);
+
 #ifdef __cplusplus
 }
 #endif

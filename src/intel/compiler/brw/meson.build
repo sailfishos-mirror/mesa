@@ -47,6 +47,7 @@ libintel_compiler_brw_files = files(
   'brw_nir_lower_cooperative_matrix.c',
   'brw_nir_lower_cs_intrinsics.c',
   'brw_nir_lower_alpha_to_coverage.c',
+  'brw_nir_lower_divergent_barriers.c',
   'brw_nir_lower_fs_barycentrics.c',
   'brw_nir_lower_fs_load_output.c',
   'brw_nir_lower_fully_covered.c',
