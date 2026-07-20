@@ -268,6 +268,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool r11g11b10_wa = device->instance->drirc.debug.r11g11b10_atomic_swap_wa;
    _mesa_blake3_update(&ctx, &r11g11b10_wa, sizeof(r11g11b10_wa));
 
+   const bool emulate_active_thread_barriers = device->instance->drirc.debug.emulate_active_thread_barriers;
+   _mesa_blake3_update(&ctx, &emulate_active_thread_barriers, sizeof(emulate_active_thread_barriers));
+
    uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, blake3);
    memcpy(device->shader_binary_uuid, blake3, sizeof(device->shader_binary_uuid));
@@ -1560,6 +1563,9 @@ anv_shader_lower_nir(struct anv_device *device,
       NIR_PASS(_, nir, brw_nir_apply_sampler_undef_derivatives_workaround);
 
    if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {
+      if (pdevice->instance->drirc.debug.emulate_active_thread_barriers)
+         NIR_PASS(_, nir, brw_nir_lower_active_thread_barriers, devinfo);
+
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
                nir_var_mem_shared, shared_type_info);
 

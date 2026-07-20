@@ -77,6 +77,9 @@ def declare_options(android_version):
         B("anv_xe2_r11g11b10_atomic_swap_wa", True,
           "Enable workaround for apps using atomic swaps on R11G11B10 images",
           c_name="r11g11b10_atomic_swap_wa"),
+        B("anv_emulate_active_thread_barriers", True,
+          "Emulates Xe2+ active thread barriers on Gfx125 and below",
+          c_name="emulate_active_thread_barriers"),
 
         # Workaround various driver
         B("always_flush_cache", False,
