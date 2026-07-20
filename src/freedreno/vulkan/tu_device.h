@@ -158,7 +158,7 @@ struct tu_physical_device
       bool allow_oob_indirect_ubo_loads : 1;
       bool no_multi_pos : 1;
       bool compute_round_robin : 1;
-      uint32_t padding : 28;
+      uint32_t padding : 27;
    } compiler_options;
 
    struct {
