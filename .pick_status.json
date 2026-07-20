@@ -434,7 +434,7 @@
         "description": "panvk/ci: Update expectations for g610-vk-asan following VK CTS uprev",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4c8de8c202d1ffc7d12d8ba251024ea5d89a2281",
         "notes": null
