@@ -265,7 +265,7 @@ bool_scalar_to_ballot(nir_scalar s, nir_shader *shader, BITSET_WORD *mask)
    return true;
 }
 
-struct fotid_context {
+struct shuffle_info {
    const radv_nir_opt_tid_function_options *options;
    uint8_t src_invoc[NIR_MAX_SUBGROUP_SIZE];
    BITSET_WORD reads_zero[NIR_MAX_SUBGROUP_BITSET_WORDS];
@@ -273,16 +273,16 @@ struct fotid_context {
 };
 
 static bool
-gather_read_invocation_shuffle(nir_def *src, struct fotid_context *ctx)
+gather_read_invocation_shuffle(nir_def *src, struct shuffle_info *shuffle)
 {
    nir_scalar s = {src, 0};
 
    /* Recursive constant folding for each invocation */
-   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
+   for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
       nir_const_value value;
-      if (!constant_fold_scalar(s, i, ctx->shader, &value, 0))
+      if (!constant_fold_scalar(s, i, shuffle->shader, &value, 0))
          return false;
-      ctx->src_invoc[i] = MIN2(nir_const_value_as_uint(value, src->bit_size), UINT8_MAX);
+      shuffle->src_invoc[i] = MIN2(nir_const_value_as_uint(value, src->bit_size), UINT8_MAX);
    }
 
    return true;
@@ -312,28 +312,28 @@ get_singluar_user_bcsel(nir_def *def, unsigned *src_idx)
 }
 
 static bool
-gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct fotid_context *ctx)
+gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct shuffle_info *shuffle)
 {
    nir_scalar s = nir_get_scalar(bcsel->src[0].src.ssa, bcsel->src[0].swizzle[0]);
 
    BITSET_WORD selects_other[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
 
-   if (!bool_scalar_to_ballot(s, ctx->shader, selects_other))
+   if (!bool_scalar_to_ballot(s, shuffle->shader, selects_other))
       return false;
 
    if (shuffle_idx == 1)
       BITSET_NOT(selects_other);
 
    unsigned i = 0;
-   BITSET_FOREACH_SET (i, selects_other, ctx->shader->info.max_subgroup_size) {
+   BITSET_FOREACH_SET (i, selects_other, shuffle->shader->info.max_subgroup_size) {
       /* If this invocation selects the other source,
        * so we can read an undefined result.
        */
-      ctx->src_invoc[i] = UINT8_MAX;
+      shuffle->src_invoc[i] = UINT8_MAX;
    }
 
    if (nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0) {
-      __bitset_copy(ctx->reads_zero, selects_other, BITSET_WORDS(ctx->shader->info.max_subgroup_size));
+      __bitset_copy(shuffle->reads_zero, selects_other, BITSET_WORDS(shuffle->shader->info.max_subgroup_size));
       return true;
    } else {
       return false;
@@ -341,7 +341,7 @@ gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct fotid_
 }
 
 static nir_def *
-try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
+try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
 {
    unsigned one = NIR_MAX_SUBGROUP_SIZE - 1;
    unsigned zero = NIR_MAX_SUBGROUP_SIZE - 1;
@@ -355,14 +355,14 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    bool all_equal = true;
    int first_valid = -1;
 
-   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
-      unsigned read = ctx->src_invoc[i];
-      if (read >= ctx->shader->info.max_subgroup_size)
+   for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
+      unsigned read = shuffle->src_invoc[i];
+      if (read >= shuffle->shader->info.max_subgroup_size)
          continue; /* undefined result */
 
       if (first_valid < 0)
          first_valid = i;
-      else if (read != ctx->src_invoc[first_valid])
+      else if (read != shuffle->src_invoc[first_valid])
          all_equal = false;
 
       copy &= ~(read ^ i);
@@ -388,35 +388,35 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
       return nir_undef(b, def->num_components, def->bit_size);
    } else if (and_mask == 0x7f && xor_mask == 0) {
       return def;
-   } else if (ctx->options->use_shuffle_xor && and_mask == 0x7f) {
+   } else if (shuffle->options->use_shuffle_xor && and_mask == 0x7f) {
       return nir_shuffle_xor(b, def, nir_imm_int(b, xor_mask));
-   } else if (ctx->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
+   } else if (shuffle->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
       return nir_masked_swizzle_amd(b, def, (xor_mask << 10) | (and_mask & 0x1f), .fetch_inactive = true);
    } else if (all_equal) {
       /* Oddly enough, we do this last. This is because of there is a DPP pattern,
        * we should prefer it - after all, DPP can be fused into VALU, but not readlane.
        */
-      return nir_read_invocation(b, def, nir_imm_int(b, ctx->src_invoc[first_valid]));
+      return nir_read_invocation(b, def, nir_imm_int(b, shuffle->src_invoc[first_valid]));
    }
 
    return NULL;
 }
 
 static nir_def *
-try_opt_rotate(nir_builder *b, nir_def *def, struct fotid_context *ctx)
+try_opt_rotate(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
 {
-   for (unsigned csize = 4; csize <= ctx->shader->info.max_subgroup_size; csize *= 2) {
+   for (unsigned csize = 4; csize <= shuffle->shader->info.max_subgroup_size; csize *= 2) {
       unsigned cmask = csize - 1;
 
       unsigned delta = UINT_MAX;
-      for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
-         if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
+      for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
+         if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
             continue;
 
-         if (ctx->src_invoc[i] >= i)
-            delta = ctx->src_invoc[i] - i;
+         if (shuffle->src_invoc[i] >= i)
+            delta = shuffle->src_invoc[i] - i;
          else
-            delta = csize - i + ctx->src_invoc[i];
+            delta = csize - i + shuffle->src_invoc[i];
          break;
       }
 
@@ -424,10 +424,10 @@ try_opt_rotate(nir_builder *b, nir_def *def, struct fotid_context *ctx)
          continue;
 
       bool use_rotate = true;
-      for (unsigned i = 0; use_rotate && i < ctx->shader->info.max_subgroup_size; i++) {
-         if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
+      for (unsigned i = 0; use_rotate && i < shuffle->shader->info.max_subgroup_size; i++) {
+         if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
             continue;
-         use_rotate &= (((i + delta) & cmask) + (i & ~cmask)) == ctx->src_invoc[i];
+         use_rotate &= (((i + delta) & cmask) + (i & ~cmask)) == shuffle->src_invoc[i];
       }
 
       if (use_rotate)
@@ -438,27 +438,27 @@ try_opt_rotate(nir_builder *b, nir_def *def, struct fotid_context *ctx)
 }
 
 static nir_def *
-try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct fotid_context *ctx)
+try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
 {
    int delta = INT_MAX;
-   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
-      if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
+   for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
+      if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
          continue;
-      delta = ctx->src_invoc[i] - i;
+      delta = shuffle->src_invoc[i] - i;
       break;
    }
 
    if (delta < -15 || delta > 15 || delta == 0)
       return NULL;
 
-   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
+   for (unsigned i = 0; i < shuffle->shader->info.max_subgroup_size; i++) {
       int read = i + delta;
       bool out_of_bounds = (read & ~0xf) != (i & ~0xf);
-      if (BITSET_TEST(ctx->reads_zero, i) && !out_of_bounds)
+      if (BITSET_TEST(shuffle->reads_zero, i) && !out_of_bounds)
          return NULL;
-      if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
+      if (shuffle->src_invoc[i] >= shuffle->shader->info.max_subgroup_size)
          continue;
-      if (read != ctx->src_invoc[i] || out_of_bounds)
+      if (read != shuffle->src_invoc[i] || out_of_bounds)
          return NULL;
    }
 
@@ -476,15 +476,15 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    if (!nir_def_instr(instr->src[1].ssa)->pass_flags)
       return false;
 
-   struct fotid_context ctx = {
+   struct shuffle_info shuffle = {
       .options = options,
       .reads_zero = {0},
       .shader = b->shader,
    };
 
-   memset(ctx.src_invoc, 0xff, sizeof(ctx.src_invoc));
+   memset(shuffle.src_invoc, 0xff, sizeof(shuffle.src_invoc));
 
-   if (!gather_read_invocation_shuffle(instr->src[1].ssa, &ctx))
+   if (!gather_read_invocation_shuffle(instr->src[1].ssa, &shuffle))
       return false;
 
    unsigned src_idx = 0;
@@ -495,15 +495,15 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
     */
    bool can_remove_bcsel = false;
    if (bcsel)
-      can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, &ctx);
+      can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, &shuffle);
 
 #if 0
    for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
-      fprintf(stderr, "invocation %d reads %d\n", i, ctx.src_invoc[i]);
+      fprintf(stderr, "invocation %d reads %d\n", i, shuffle.src_invoc[i]);
    }
 
    for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
-      fprintf(stderr, "invocation %d zero %d\n", i, BITSET_TEST(ctx.reads_zero, i));
+      fprintf(stderr, "invocation %d zero %d\n", i, BITSET_TEST(shuffle.reads_zero, i));
    }
 #endif
 
@@ -512,7 +512,7 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    nir_def *res = NULL;
 
    if (can_remove_bcsel && options->use_dpp16_shift_amd) {
-      res = try_opt_dpp16_shift(b, instr->src[0].ssa, &ctx);
+      res = try_opt_dpp16_shift(b, instr->src[0].ssa, &shuffle);
 
       if (res) {
          /* Rewrite the bcsel as a move, we are not allowed to remove the
@@ -523,9 +523,9 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    }
 
    if (!res)
-      res = try_opt_bitwise_mask(b, instr->src[0].ssa, &ctx);
+      res = try_opt_bitwise_mask(b, instr->src[0].ssa, &shuffle);
    if (!res && options->use_clustered_rotate)
-      res = try_opt_rotate(b, instr->src[0].ssa, &ctx);
+      res = try_opt_rotate(b, instr->src[0].ssa, &shuffle);
 
    if (res) {
       nir_def_replace(&instr->def, res);
