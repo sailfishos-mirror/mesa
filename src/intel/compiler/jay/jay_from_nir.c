@@ -4019,7 +4019,10 @@ jay_compile(const struct intel_device_info *devinfo,
 
    jay_process_nir(devinfo, nir, prog_data, key, archiver);
 
-   unsigned simd_width = jay_select_simd(devinfo, nir);
+   unsigned modes = jay_select_simd(devinfo, nir);
+
+   /* XXX: for now, jay only supports a single SIMD mode. pick the largest */
+   unsigned simd_width = 1 << (util_last_bit(modes) - 1);
 
    bool track_helpers = false;
    jay_process_nir_for_simd(devinfo, nir, simd_width, prog_data, key, archiver,

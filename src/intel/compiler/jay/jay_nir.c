@@ -1029,38 +1029,82 @@ jay_process_nir(const struct intel_device_info *devinfo,
    brw_postprocess_nir_opts(pt);
 }
 
+/**
+ * Returns a bitmask of 8 | 16 | 32 containing selected SIMD modes.
+ */
 unsigned
 jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
 {
-   /* TODO: Real heuristic */
-   bool do_simd32 = stage == MESA_SHADER_FRAGMENT ? INTEL_SIMD(FS, 32) :
-                    stage == MESA_SHADER_COMPUTE  ? INTEL_SIMD(CS, 32) :
-                    stage == MESA_SHADER_MESH     ? INTEL_SIMD(MS, 32) :
-                    stage == MESA_SHADER_TASK     ? INTEL_SIMD(TS, 32) :
-                                                    false;
+   /* TODO: multipolygon */
+   unsigned simd_debug_modes =
+      intel_simd_debug_allowed_modes(nir->info.stage) << 3;
+   unsigned undesirable_modes = ~simd_debug_modes;
+   unsigned unsupported_modes = ~(32 | 16 | (devinfo->ver < 20 ? 8 : 0));
 
-   /* The 'Render Target Write message' section of the docs says:
-    *
-    *    "Output Stencil is not supported with SIMD16 Render Target
-    *     Write Messages."
-    *
-    * Likewise for Xe2 at SIMD32.
-    */
-   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
-       (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)))
-      do_simd32 = false;
+   /* Step 1: Discard SIMD modes we cannot dispatch */
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
-       nir->info.fs.color_is_dual_source)
-      do_simd32 = false;
+   if (nir->info.stage <= MESA_SHADER_GEOMETRY ||
+       mesa_shader_stage_is_rt(nir->info.stage)) {
+      unsupported_modes = ~(devinfo->ver >= 20 ? 16 : 8);
+   } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      /* The 'Render Target Write message' section of the docs says:
+       *
+       *    "Output Stencil is not supported with SIMD16 Render Target
+       *     Write Messages."
+       *
+       * Likewise for Xe2 at SIMD32.
+       */
+      if (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL))
+         unsupported_modes |= 32;
+
+      if (nir->info.fs.color_is_dual_source)
+         unsupported_modes |= 32;
+   }
+
+   if (nir->info.min_subgroup_size) {
+      assert(util_is_power_of_two_or_zero(nir->info.min_subgroup_size));
+      unsupported_modes |= nir->info.min_subgroup_size - 1;
+   }
+
+   if (nir->info.max_subgroup_size > 0 && nir->info.max_subgroup_size < 32) {
+      assert(util_is_power_of_two_or_zero(nir->info.max_subgroup_size));
+      unsupported_modes |= ~((nir->info.max_subgroup_size << 1) - 1);
+   }
+
+   /* Step 2: Apply heuristics to mark SIMD mode preferences */
 
    /* SIMD splitting of ray queries is inefficient, avoid it when possible */
-   if (nir->info.ray_queries && nir->info.min_subgroup_size < 32)
-      do_simd32 = false;
+   if (nir->info.ray_queries && nir->info.min_subgroup_size < 32) {
+      undesirable_modes |= 32;
+      /* XXX: ray query SIMD splitting not implemented yet */
+      unsupported_modes |= 32;
+   }
 
-   unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
+   /* If the entire workgroup fits in a SIMD, use that one. */
+   if (mesa_shader_stage_uses_workgroup(nir->info.stage) &&
+       !nir->info.workgroup_size_variable) {
+      unsigned work_size = nir_static_workgroup_size(nir);
+      unsigned pot_work_size = util_next_power_of_two(work_size);
+      if (pot_work_size & ~unsupported_modes)
+         undesirable_modes |= ~pot_work_size;
+   }
 
-   return simd_width;
+   /* Step 3: Handle SIMD overrides.  Undesirable modes become allowed,
+    * any modes not in our override becomes undesirable.
+    */
+   if (intel_simd_debug_forced(nir->info.stage)) {
+      undesirable_modes &= ~simd_debug_modes;
+   }
+
+   unsigned modes = (32 | 16 | 8) & ~unsupported_modes;
+   assert(modes && "some SIMD mode must be supported");
+
+   /* Skip undesirable modes when possible */
+   if (modes & ~undesirable_modes) {
+      modes &= ~undesirable_modes;
+   }
+
+   return modes;
 }
 
 /**
