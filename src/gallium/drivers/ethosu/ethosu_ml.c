@@ -333,6 +333,23 @@ ethosu_argmax_supported(struct pipe_ml_device *pdevice,
           output->dims[3] == input->dims[2];
 }
 
+static bool
+ethosu_space_batch_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input = operation->input_tensors[0];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+
+   return input->type_size == 1 && output->type_size == 1 &&
+          input->is_signed == output->is_signed && input->scale == output->scale &&
+          input->zero_point == output->zero_point &&
+          operation->space_batch.block_y > 1 &&
+          operation->space_batch.block_x > 1 &&
+          operation->space_batch.before_y >= 0 &&
+          operation->space_batch.after_y >= 0 &&
+          operation->space_batch.before_x >= 0 &&
+          operation->space_batch.after_x >= 0;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -380,6 +397,10 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
       break;
    case PIPE_ML_OPERATION_TYPE_ARGMAX:
       supported = ethosu_argmax_supported(pdevice, operation);
+      break;
+   case PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH:
+   case PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE:
+      supported = ethosu_space_batch_supported(operation);
       break;
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*

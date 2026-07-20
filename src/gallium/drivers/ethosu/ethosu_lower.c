@@ -888,6 +888,58 @@ ethosu_find_first_producer(const struct pipe_ml_operation *poperations, unsigned
    return NULL;
 }
 
+static bool
+ethosu_space_batch_fusion(const struct pipe_ml_operation *poperations,
+                          unsigned count,
+                          const struct pipe_ml_operation *conv,
+                          const struct pipe_ml_operation **space_to_batch,
+                          const struct pipe_ml_operation **batch_to_space)
+{
+   const struct pipe_ml_operation *producer =
+      ethosu_find_first_producer(poperations, count,
+                                 conv->input_tensors[0]->index);
+   const struct pipe_ml_operation *consumer =
+      ethosu_find_only_consumer(poperations, count,
+                                conv->output_tensors[0]->index);
+
+   if (!producer || !consumer ||
+       ethosu_find_only_consumer(poperations, count,
+                                 conv->input_tensors[0]->index) != conv ||
+       producer->type != PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH ||
+       consumer->type != PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE ||
+       producer->space_batch.block_y != consumer->space_batch.block_y ||
+       producer->space_batch.block_x != consumer->space_batch.block_x)
+      return false;
+
+   *space_to_batch = producer;
+   *batch_to_space = consumer;
+   return true;
+}
+
+static bool
+ethosu_space_batch_is_fused(const struct pipe_ml_operation *poperations,
+                            unsigned count,
+                            const struct pipe_ml_operation *op)
+{
+   bool is_space_to_batch =
+      op->type == PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH;
+   const struct pipe_ml_operation *conv =
+      is_space_to_batch
+         ? ethosu_find_only_consumer(poperations, count,
+                                     op->output_tensors[0]->index)
+         : ethosu_find_first_producer(poperations, count,
+                                      op->input_tensors[0]->index);
+   const struct pipe_ml_operation *space_to_batch;
+   const struct pipe_ml_operation *batch_to_space;
+
+   if (!conv || conv->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION ||
+       !ethosu_space_batch_fusion(poperations, count, conv,
+                                  &space_to_batch, &batch_to_space))
+      return false;
+
+   return op == (is_space_to_batch ? space_to_batch : batch_to_space);
+}
+
 static void
 set_sparse_weight_format(struct ethosu_subgraph *subgraph,
                          struct ethosu_operation *operation,
@@ -1001,6 +1053,37 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
       operation->conv.activation_min = operation->ofm.zero_point;
 }
 
+static uint8_t *
+dilate_conv_weights(struct pipe_tensor *weight, unsigned dilation_y,
+                    unsigned dilation_x)
+{
+   const unsigned height = weight->dims[1];
+   const unsigned width = weight->dims[2];
+   const unsigned dilated_height = (height - 1) * dilation_y + 1;
+   const unsigned dilated_width = (width - 1) * dilation_x + 1;
+   const unsigned outer = weight->dims[0];
+   const unsigned channels = weight->dims[3];
+   const size_t size = (size_t)outer * dilated_height * dilated_width * channels;
+   uint8_t *dilated = malloc(size);
+
+   assert(weight->type_size == 1);
+   memset(dilated, weight->zero_point, size);
+   for (unsigned o = 0; o < outer; o++)
+      for (unsigned y = 0; y < height; y++)
+         for (unsigned x = 0; x < width; x++) {
+            unsigned src = ((o * height + y) * width + x) * channels;
+            unsigned dst = ((o * dilated_height + y * dilation_y) *
+                               dilated_width +
+                            x * dilation_x) *
+                           channels;
+            memcpy(dilated + dst, weight->data + src, channels);
+         }
+   weight->dims[1] = dilated_height;
+   weight->dims[2] = dilated_width;
+   weight->data = dilated;
+   return dilated;
+}
+
 static void
 ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
                          const struct pipe_ml_operation *poperation,
@@ -1010,6 +1093,9 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    int32_t *bias_data = poperation->conv.bias_tensor ? (int32_t *)poperation->conv.bias_tensor->data : NULL;
    struct pipe_tensor conv_weight = *poperation->conv.weight_tensor;
    uint8_t *transposed_weights = NULL;
+   uint8_t *dilated_weights = NULL;
+   unsigned dilation_y = poperation->conv.dilation_height_factor;
+   unsigned dilation_x = poperation->conv.dilation_width_factor;
 
    operation->conv.depthwise = is_depthwise(poperation);
 
@@ -1038,10 +1124,23 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
       conv_weight.data = transposed_weights;
    }
 
+   if (dilation_y > 2 || dilation_x > 2) {
+      unsigned manual_dilation_y;
+      unsigned manual_dilation_x;
+      dilation_y = dilation_y % 2 == 0 ? 2 : 1;
+      dilation_x = dilation_x % 2 == 0 ? 2 : 1;
+      manual_dilation_y = poperation->conv.dilation_height_factor / dilation_y;
+      manual_dilation_x = poperation->conv.dilation_width_factor / dilation_x;
+      dilated_weights = dilate_conv_weights(&conv_weight, manual_dilation_y,
+                                            manual_dilation_x);
+   }
+
    operation->kernel.height = conv_weight.dims[1];
    operation->kernel.width = conv_weight.dims[2];
    operation->kernel.stride_y = poperation->conv.stride_y;
    operation->kernel.stride_x = poperation->conv.stride_x;
+   operation->kernel.dilation_y = dilation_y;
+   operation->kernel.dilation_x = dilation_x;
    operation->kernel.depthwise = is_depthwise(poperation);
    operation->kernel.scale = conv_weight.scale;
    operation->kernel.zero_point = conv_weight.zero_point;
@@ -1060,6 +1159,7 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
                      operation);
 
    free(transposed_weights);
+   free(dilated_weights);
 }
 
 static void
@@ -3640,19 +3740,69 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          ethosu_lower_batch_matmul(subgraph, &poperations[i]);
          break;
 
+      case PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH:
+      case PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE:
+         /* Fold the supported SpaceToBatchND/conv/BatchToSpaceND pattern. */
+         assert(ethosu_space_batch_is_fused(poperations, count,
+                                            &poperations[i]));
+         break;
+
       case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
-         struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];
+         const struct pipe_ml_operation *conv = &poperations[i];
+         struct pipe_ml_operation fused_conv;
+         struct pipe_tensor *fused_inputs[3];
+         struct pipe_tensor *fused_outputs[1];
+         const struct pipe_ml_operation *space_to_batch;
+         const struct pipe_ml_operation *batch_to_space;
+         struct pipe_tensor *input_tensor = conv->input_tensors[0];
          const struct pipe_ml_operation *producer = ethosu_find_first_producer(poperations, count, input_tensor->index);
-         const struct pipe_ml_operation *lut =
-            ethosu_find_fusible_lut(
-               poperations, count, poperations[i].output_tensors[0]->index);
+         const struct pipe_ml_operation *lut;
          bool padded_input = producer && producer->type == PIPE_ML_OPERATION_TYPE_PAD;
+
+         if (ethosu_space_batch_fusion(poperations, count, conv,
+                                       &space_to_batch, &batch_to_space)) {
+            fused_conv = *conv;
+            memcpy(fused_inputs, conv->input_tensors,
+                   conv->input_count * sizeof(*fused_inputs));
+            fused_inputs[0] = space_to_batch->input_tensors[0];
+            fused_outputs[0] = batch_to_space->output_tensors[0];
+            fused_conv.input_tensors = fused_inputs;
+            fused_conv.output_tensors = fused_outputs;
+            fused_conv.conv.dilation_height_factor *=
+               space_to_batch->space_batch.block_y;
+            fused_conv.conv.dilation_width_factor *=
+               space_to_batch->space_batch.block_x;
+            fused_conv.conv.padding_top =
+               (fused_outputs[0]->dims[1] - 1) * fused_conv.conv.stride_y +
+               (fused_conv.conv.weight_tensor->dims[1] - 1) *
+                  fused_conv.conv.dilation_height_factor +
+               1 -
+               fused_inputs[0]->dims[1];
+            fused_conv.conv.padding_left =
+               (fused_outputs[0]->dims[2] - 1) * fused_conv.conv.stride_x +
+               (fused_conv.conv.weight_tensor->dims[2] - 1) *
+                  fused_conv.conv.dilation_width_factor +
+               1 -
+               fused_inputs[0]->dims[2];
+            fused_conv.conv.padding_bottom = fused_conv.conv.padding_top -
+                                             fused_conv.conv.padding_top / 2;
+            fused_conv.conv.padding_top /= 2;
+            fused_conv.conv.padding_right = fused_conv.conv.padding_left -
+                                            fused_conv.conv.padding_left / 2;
+            fused_conv.conv.padding_left /= 2;
+            conv = &fused_conv;
+            input_tensor = fused_inputs[0];
+            padded_input = false;
+         }
+
+         lut = ethosu_find_fusible_lut(poperations, count,
+                                       conv->output_tensors[0]->index);
 
          if (padded_input) {
             input_tensor = producer->input_tensors[0];
          }
 
-         ethosu_lower_convolution(subgraph, &poperations[i], input_tensor, &operation);
+         ethosu_lower_convolution(subgraph, conv, input_tensor, &operation);
 
          if (lut)
             ethosu_fuse_lut(subgraph, lut, &operation);
@@ -3663,7 +3813,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
             operation.pad.left += producer->pad.before_x;
             operation.pad.right += producer->pad.after_x;
             trim_padding_to_output(&operation, input_tensor,
-                                   poperations[i].output_tensors[0]);
+                                   conv->output_tensors[0]);
          }
 
          if (ethosu_needs_strided_conv_unroll(&operation)) {
@@ -3671,7 +3821,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
                 ethosu_ml_device(subgraph->base.device)->sram_size) {
                struct ethosu_operation dma_operation = {0};
 
-               ethosu_lower_dma(subgraph, &poperations[i], &operation,
+               ethosu_lower_dma(subgraph, conv, &operation,
                                 &dma_operation);
                util_dynarray_append(&subgraph->operations, dma_operation);
             }
@@ -3690,7 +3840,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          if (operation.conv.scales.size + operation.conv.weights.size <=
              ethosu_ml_device(subgraph->base.device)->sram_size) {
             struct ethosu_operation dma_operation = {0};
-            ethosu_lower_dma(subgraph, &poperations[i], &operation, &dma_operation);
+            ethosu_lower_dma(subgraph, conv, &operation, &dma_operation);
 
             util_dynarray_append(&subgraph->operations, dma_operation);
          }
