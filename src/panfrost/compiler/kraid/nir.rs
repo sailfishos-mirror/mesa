@@ -13,7 +13,6 @@ use compiler::cfg::*;
 use compiler::nir::*;
 use kraid_bindings::*;
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use std::cmp::min;
 
 #[derive(Default)]
 struct BlockLabelMap {
@@ -337,56 +336,16 @@ impl<'a> ShaderFromNir<'a> {
                 64 => {
                     for (def, c) in nsrcs {
                         let vec = self.get_ssa(def);
-                        srcs.push(Src::from(vec[usize::from(c) * 2 + 0]));
-                        srcs.push(Src::from(vec[usize::from(c) * 2 + 1]));
+                        srcs.push(Src::from([
+                            vec[usize::from(c) * 2 + 0],
+                            vec[usize::from(c) * 2 + 1],
+                        ]));
                     }
                 }
                 _ => panic!("Unsupported bit size: {src_bit_size}"),
             }
 
-            // We flattened i64 to v2i32
-            let src_bit_size = min(src_bit_size, 32);
-
-            let mut srcs = srcs.into_iter().fuse();
-            let mut dst_vec = Vec::new();
-            if src_bit_size == 8 {
-                if srcs.len() == 1 {
-                    let x = srcs.next().unwrap();
-                    dst_vec.push(b.copy_i8(x));
-                } else if srcs.len() == 2 {
-                    let x = srcs.next().unwrap();
-                    let y = srcs.next().unwrap();
-                    dst_vec.push(b.mkvec_v2i8(x, y));
-                } else {
-                    loop {
-                        let Some(x) = srcs.next() else {
-                            break;
-                        };
-                        let y = srcs.next().unwrap_or(Src::imm_u8(0));
-                        let z = srcs.next().unwrap_or(Src::imm_u8(0));
-                        let w = srcs.next().unwrap_or(Src::imm_u8(0));
-                        dst_vec.push(b.mkvec_v4i8(x, y, z, w));
-                    }
-                }
-            } else if src_bit_size == 16 {
-                if srcs.len() == 1 {
-                    let x = srcs.next().unwrap();
-                    dst_vec.push(b.copy_i16(x));
-                } else {
-                    loop {
-                        let Some(x) = srcs.next() else {
-                            break;
-                        };
-                        let y = srcs.next().unwrap_or(Src::imm_u16(0));
-                        dst_vec.push(b.mkvec_v2i16(x, y));
-                    }
-                }
-            } else if src_bit_size == 32 {
-                dst_vec = srcs.map(|src| b.copy_i32(src)).collect();
-            } else {
-                panic!("Unsupported bit size: {src_bit_size}");
-            }
-            self.set_ssa(&alu.def, dst_vec);
+            self.set_ssa(&alu.def, b.mkvec_vN(src_bit_size, srcs));
             return;
         }
 

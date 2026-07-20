@@ -88,6 +88,69 @@ pub trait SSABuilder: Builder + AllocSSA {
         });
         def
     }
+
+    fn mkvec_vN<I: IntoIterator<Item = Src>>(
+        &mut self,
+        bits: u8,
+        comps: I,
+    ) -> Vec<SSAValue>
+    where
+        <I as IntoIterator>::IntoIter: ExactSizeIterator,
+    {
+        let mut srcs = comps.into_iter().fuse();
+        let mut dst_vec = Vec::new();
+        match bits {
+            8 => {
+                if srcs.len() == 1 {
+                    let x = srcs.next().unwrap();
+                    dst_vec.push(self.copy_i8(x));
+                } else if srcs.len() == 2 {
+                    let x = srcs.next().unwrap();
+                    let y = srcs.next().unwrap();
+                    dst_vec.push(self.mkvec_v2i8(x, y));
+                } else {
+                    loop {
+                        let Some(x) = srcs.next() else {
+                            break;
+                        };
+                        let y = srcs.next().unwrap_or(Src::imm_u8(0));
+                        let z = srcs.next().unwrap_or(Src::imm_u8(0));
+                        let w = srcs.next().unwrap_or(Src::imm_u8(0));
+                        dst_vec.push(self.mkvec_v4i8(x, y, z, w));
+                    }
+                }
+            }
+            16 => {
+                if srcs.len() == 1 {
+                    let x = srcs.next().unwrap();
+                    dst_vec.push(self.copy_i16(x));
+                } else {
+                    loop {
+                        let Some(x) = srcs.next() else {
+                            break;
+                        };
+                        let y = srcs.next().unwrap_or(Src::imm_u16(0));
+                        dst_vec.push(self.mkvec_v2i16(x, y));
+                    }
+                }
+            }
+            32 => {
+                dst_vec = srcs.map(|src| self.copy_i32(src)).collect();
+            }
+            64 => {
+                dst_vec = srcs
+                    .flat_map(|src| {
+                        [
+                            self.copy_i32(src.clone().word(0)),
+                            self.copy_i32(src.word(1)),
+                        ]
+                    })
+                    .collect();
+            }
+            _ => panic!("Unsupported bit size: {bits}"),
+        }
+        dst_vec
+    }
 }
 
 impl<T: Builder + AllocSSA> SSABuilder for T {}
