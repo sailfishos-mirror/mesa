@@ -597,9 +597,6 @@ pass(jay_function *f)
    jay_dag_init(&sctx.dag, memctx, nr_inst);
    jay_dag_iterator_init(&sctx.it, &sctx.dag);
 
-   unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
-   unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
-
    /* Build the DAG for the whole program and transpose it */
    jay_foreach_block(f, block) {
       populate_dag(&sctx, block);
@@ -637,8 +634,8 @@ pass(jay_function *f)
             block->demand_max[UGPR] + block->demand_max[FLAG];
          unsigned demand_gpr = block->demand_max[GPR];
 
-         if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >=
-             (120 * ugpr_per_grf)) {
+         if (((demand_gpr * jay_ugpr_per_gpr(f->shader)) + demand_ugpr) >=
+             (120 * jay_ugpr_per_grf(f->shader))) {
             f->prioritize_pressure = true;
             schedule_block(block, &sctx, memctx, BACKWARD | PRESSURE);
          }

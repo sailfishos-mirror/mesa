@@ -911,8 +911,7 @@ jay_emit_derivative(jay_builder *b,
     */
    bool split = swz0 == JAY_QUAD_SWIZZLE_XYXY;
    enum jay_file tmpfile = split ? UGPR : GPR;
-   unsigned tmp_nr =
-      split ? jay_ugpr_per_grf(b->shader) * jay_grf_per_gpr(b->shader) : 1;
+   unsigned tmp_nr = split ? jay_ugpr_per_gpr(b->shader) : 1;
    jay_def v0 = jay_alloc_def(b, tmpfile, tmp_nr);
    jay_def v1 = jay_alloc_def(b, tmpfile, tmp_nr);
 
