@@ -1580,6 +1580,7 @@ impl fmt::Display for Instr {
             write!(f, "{dst} = ")?;
         }
         self.op.fmt_name(f)?;
+        write!(f, "{}", self.flow)?;
         self.op.fmt_body(f)?;
         Ok(())
     }
