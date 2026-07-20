@@ -551,7 +551,8 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
       EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
    } else {
       switch (operation->pooling.type) {
-      case ETHOSU_POOLING_TYPE_MAX: {
+      case ETHOSU_POOLING_TYPE_MAX:
+      case ETHOSU_POOLING_TYPE_MIN: {
          if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
             EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
             break;
