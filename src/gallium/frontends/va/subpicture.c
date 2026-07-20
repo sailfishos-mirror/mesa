@@ -300,7 +300,7 @@ vlVaCreateSubpicture(VADriverContextP ctx, VAImageID image,
    sub->surf->templat.width = img->width;
    sub->surf->templat.height = img->height;
 
-   if (vlVaHandleSurfaceAllocate(drv, sub->surf, &sub->surf->templat, NULL, 0) != VA_STATUS_SUCCESS) {
+   if (vlVaHandleSurfaceAllocate(drv, sub->surf, NULL, 0) != VA_STATUS_SUCCESS) {
       FREE(sub->surf);
       FREE(sub);
       mtx_unlock(&drv->mutex);
@@ -394,7 +394,7 @@ vlVaSubpictureImage(VADriverContextP ctx, VASubpictureID subpicture, VAImageID i
    sub->surf->templat.width = img->width;
    sub->surf->templat.height = img->height;
 
-   if (vlVaHandleSurfaceAllocate(drv, sub->surf, &sub->surf->templat, NULL, 0) != VA_STATUS_SUCCESS) {
+   if (vlVaHandleSurfaceAllocate(drv, sub->surf, NULL, 0) != VA_STATUS_SUCCESS) {
       FREE(sub->surf);
       sub->surf = NULL;
       mtx_unlock(&drv->mutex);

@@ -494,7 +494,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
          .height = vaimage->height,
       };
       VAStatus ret =
-         vlVaHandleSurfaceAllocate(drv, tmp_surf, &tmp_surf->templat, NULL, 0);
+         vlVaHandleSurfaceAllocate(drv, tmp_surf, NULL, 0);
       if (ret != VA_STATUS_SUCCESS) {
          FREE(tmp_surf);
          mtx_unlock(&drv->mutex);
@@ -687,7 +687,7 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
          .width = vaimage->width,
          .height = vaimage->height,
       };
-      ret = vlVaHandleSurfaceAllocate(drv, tmp_surf, &tmp_surf->templat, NULL, 0);
+      ret = vlVaHandleSurfaceAllocate(drv, tmp_surf, NULL, 0);
       if (ret != VA_STATUS_SUCCESS) {
          FREE(tmp_surf);
          mtx_unlock(&drv->mutex);
