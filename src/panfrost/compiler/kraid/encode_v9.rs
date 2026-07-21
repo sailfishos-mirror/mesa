@@ -286,31 +286,53 @@ fn op_encode_dst(op: &impl Opcode, dst: &Dst) -> v9::EncodedDst {
     }
 }
 
-fn op_encode_sr_read(op: &impl Opcode, src: &Src) -> v9::SrRead {
+fn op_encode_sr_read_swizz(op: &impl Opcode, src: &Src) -> v9::SrReadSwizzle {
     let SrcRef::Reg(reg) = &src.src_ref else {
         panic!("Staging registers be registers");
     };
 
-    let src_type = op.src_type(src);
-    let swizzle = AsmSwizzleWiden::from_swizzle(src_type, src.swizzle)
-        .expect("Invalid swizzle");
-    let swizzle = swizzle.into();
-
     assert!(src.src_mod == SrcMod::None);
+    let data_type = op.src_type(src);
+    let swizzle = AsmSwizzleWiden::from_swizzle(data_type, src.swizzle)
+        .expect("Invalid swizzle")
+        .into();
 
     let index = reg.idx;
     let count = reg.bytes().div_ceil(4);
 
     assert!(count == 1 || (index % 2) == 0);
 
-    v9::SrRead {
+    v9::SrReadSwizzle {
         index,
         count,
         swizzle,
     }
 }
 
-fn op_encode_sr_write(_op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
+fn op_encode_sr_read(op: &impl Opcode, src: &Src) -> SrRead {
+    let SrcRef::Reg(reg) = &src.src_ref else {
+        panic!("Staging registers be registers");
+    };
+
+    assert!(src.src_mod == SrcMod::None);
+    let data_type = op.src_type(src);
+    let swizzle = AsmSwizzleWiden::from_swizzle(data_type, src.swizzle)
+        .expect("Invalid swizzle");
+    assert_eq!(swizzle, AsmSwizzleWiden::None);
+
+    let index = reg.idx;
+    let count = reg.bytes().div_ceil(4);
+
+    assert!(count == 1 || (index % 2) == 0);
+
+    SrRead {
+        index,
+        count,
+        data_type,
+    }
+}
+
+fn op_encode_sr_write_lanes(_op: &impl Opcode, dst: &Dst) -> v9::SrWriteLanes {
     let DstRef::Reg(reg) = &dst.dst_ref else {
         panic!("Staging registers be registers");
     };
@@ -331,10 +353,28 @@ fn op_encode_sr_write(_op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
         lanes => panic!("Invalid DstLanes: {lanes}"),
     };
 
-    v9::SrWrite {
+    v9::SrWriteLanes {
         index,
         count,
         lanes,
+    }
+}
+
+fn op_encode_sr_write(op: &impl Opcode, dst: &Dst) -> SrWrite {
+    let DstRef::Reg(reg) = &dst.dst_ref else {
+        panic!("Staging registers be registers");
+    };
+
+    let data_type = op.dst_type(dst);
+    let index = reg.idx;
+    let count = reg.bytes().div_ceil(4);
+
+    assert!(count == 1 || (index % 2) == 0);
+
+    SrWrite {
+        index,
+        count,
+        data_type,
     }
 }
 
@@ -1720,8 +1760,6 @@ impl V9Instr for OpLdCvt {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(LdCvt {
-            register_format: self.dst_type.scalar_type().try_into().unwrap(),
-            vecsize: self.dst_type.comps().try_into().unwrap(),
             access: self.access.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
             sr_dst: op_encode_sr_write(self, &self.dst),
@@ -1772,7 +1810,7 @@ impl V9Instr for OpLdPka {
             access: self.access.into(),
             extend: SignExtendOrNoneM::None,
             message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_dst: op_encode_sr_write_lanes(self, &self.dst),
             src0: op_encode_src(self, &self.offset),
             src1: op_encode_src(self, &self.handle),
         })
@@ -1800,12 +1838,6 @@ impl V9Instr for OpLdTex {
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
             e.encode(LdTexImm {
-                register_format: self
-                    .dst_type
-                    .scalar_type()
-                    .try_into()
-                    .unwrap(),
-                vecsize: self.dst_type.comps().try_into().unwrap(),
                 message_slot_index: e.get_msg_slot_idx().unwrap(),
                 sr_dst: op_encode_sr_write(self, &self.dst),
                 src0: op_encode_src(self, &self.coords[0]),
@@ -1815,12 +1847,6 @@ impl V9Instr for OpLdTex {
             })
         } else {
             e.encode(LdTex {
-                register_format: self
-                    .dst_type
-                    .scalar_type()
-                    .try_into()
-                    .unwrap(),
-                vecsize: self.dst_type.comps().try_into().unwrap(),
                 message_slot_index: e.get_msg_slot_idx().unwrap(),
                 sr_dst: op_encode_sr_write(self, &self.dst),
                 src0: op_encode_src(self, &self.coords[0]),
@@ -1945,7 +1971,7 @@ impl V9Instr for OpLoad {
             access: self.access.into(),
             extend: SignExtendOrNoneM::None,
             message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_dst: op_encode_sr_write_lanes(self, &self.dst),
             src0: op_encode_src(self, &self.addr),
             offset: self.offset,
         })
@@ -2282,8 +2308,6 @@ impl V9Instr for OpStCvt {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(StCvt {
-            register_format: self.src_type.scalar_type().try_into().unwrap(),
-            vecsize: self.src_type.comps().try_into().unwrap(),
             access: self.access.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
             sr_src: op_encode_sr_read(self, &self.data),
@@ -2310,7 +2334,7 @@ impl V9Instr for OpStore {
             variant: self.src_type.try_into().unwrap(),
             access: self.access.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_src: op_encode_sr_read(self, &self.data),
+            sr_src: op_encode_sr_read_swizz(self, &self.data),
             src0: op_encode_src(self, &self.addr),
             offset: self.offset,
         })
@@ -2397,7 +2421,6 @@ impl V9Instr for OpTexFetch {
             array_enable: self.array_enable.into(),
             dimensionality: self.dim.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
-            register_width: self.dst_type.into(),
             skip: self.skip.into(),
             sr_dst: op_encode_sr_write(self, &self.dst),
             sr_src: op_encode_sr_read(self, &self.data),
@@ -2429,7 +2452,6 @@ impl V9Instr for OpTexGather {
             gather_component: self.gather_comp.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
             projection_enable: self.projection_enable.into(),
-            register_width: self.dst_type.into(),
             skip: self.skip.into(),
             sr_dst: op_encode_sr_write(self, &self.dst),
             sr_src: op_encode_sr_read(self, &self.data),
@@ -2455,6 +2477,17 @@ impl From<TexGradientCoordMode> for TexCoordinateOrDerivativeM {
     }
 }
 
+impl From<DataType> for TexGradientWidthM {
+    fn from(dst_type: DataType) -> Self {
+        assert!(dst_type.num_type() == NumericType::Auto);
+        match dst_type.bits() {
+            16 => TexGradientWidthM::Dst16,
+            32 => TexGradientWidthM::Dst32,
+            _ => panic!("Invalid texture dst_type: {dst_type}"),
+        }
+    }
+}
+
 impl V9Instr for OpTexGradient {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2474,7 +2507,6 @@ impl V9Instr for OpTexGradient {
             lod_clamp_disable: self.lod_clamp_disable.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
             projection_enable: self.projection_enable.into(),
-            register_width: TexGradientWidthM::Dst32,
             skip: self.skip.into(),
             sr_dst: op_encode_sr_write(self, &self.dst),
             sr_src: op_encode_sr_read(self, &self.data),
@@ -2504,7 +2536,6 @@ impl V9Instr for OpTexSingle {
             lod_mode: self.lod_mode.into(),
             message_slot_index: e.get_msg_slot_idx().unwrap(),
             projection_enable: self.projection_enable.into(),
-            register_width: self.dst_type.into(),
             skip: self.skip.into(),
             sr_dst: op_encode_sr_write(self, &self.dst),
             sr_src: op_encode_sr_read(self, &self.data),

@@ -2830,7 +2830,7 @@ impl fmt::Display for TexGradientCoordMode {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpTexGradient {
-    #[dst_type(I64)]
+    #[dst_type(V2A32)]
     pub dst: Dst,
 
     pub skip: bool,
