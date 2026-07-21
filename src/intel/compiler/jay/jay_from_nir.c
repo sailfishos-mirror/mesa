@@ -4002,6 +4002,7 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
    stats->spills = s->spills;
    stats->fills = s->fills;
    stats->sends -= (s->spills + s->fills);
+   stats->dispatch_width = s->dispatch_width;
 }
 
 static unsigned
@@ -4163,8 +4164,11 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    assert(bin->kernel);
    ralloc_steal(mem_ctx, bin);
 
-   jay_gather_stats(s, &bin->stats);
-   bin->stats.code_size = bin->size;
+   struct genisa_stats *stats = &bin->stats[0];
+
+   jay_gather_stats(s, stats);
+   stats->code_size = bin->size;
+   stats->workgroup_memory_size = nir->info.shared_size;
 
    if (debug) {
       if (nir->info.label) {
@@ -4174,11 +4178,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
       const char *shader_name =
          ralloc_asprintf(s, "%s SIMD%u", _mesa_shader_stage_to_abbrev(s->stage),
                          s->dispatch_width);
-      genisa_stats_fprintf(stdout, shader_name, &bin->stats);
+      genisa_stats_fprintf(stdout, shader_name, stats);
    }
-
-   bin->stats.workgroup_memory_size = nir->info.shared_size;
-   bin->stats.dispatch_width = simd_width;
 
    if (s->stage == MESA_SHADER_FRAGMENT) {
       if (simd_width == 8) {
@@ -4330,6 +4331,7 @@ jay_compile(const struct intel_device_info *devinfo,
    uint8_t *kernel = (uint8_t *) bin->kernel;
    unsigned offset = 0;
    unsigned reloc_start = 0;
+   unsigned s = 0;
    for (unsigned i = 0; i < ARRAY_SIZE(variants); i++) {
       if (!variants[i].bin)
          continue;
@@ -4357,6 +4359,8 @@ jay_compile(const struct intel_device_info *devinfo,
 
       offset += variants[i].bin->size;
       reloc_start += variants[i].num_relocs;
+
+      bin->stats[s++] = variants[i].bin->stats[0];
 
       ralloc_free(variants[i].bin);
    }

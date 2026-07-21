@@ -2323,7 +2323,8 @@ anv_shader_compile(struct vk_device *vk_device,
             anv_shader_compile_jay(devinfo, mem_ctx, nir, params, shader_data);
 
          shader_data->code = bin->kernel;
-         shader_data->stats[0] = bin->stats;
+         for (unsigned i = 0; i < 3; i++)
+            shader_data->stats[i] = bin->stats[i];
 
          if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {
             struct brw_cs_prog_data *prog_data =
