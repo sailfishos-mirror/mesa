@@ -1199,7 +1199,7 @@ radv_CmdControlVideoCodingKHR(VkCommandBuffer commandBuffer, const VkVideoCoding
       cmd.embedded_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + offset;
    }
 
-   int ret = vid->dec->build_create_cmd(vid->dec, &cmd);
+   ASSERTED int ret = vid->dec->build_create_cmd(vid->dec, &cmd);
    cs->b->cdw += cmd.out.cmd_dw;
    assert(ret == 0);
 }
@@ -2015,7 +2015,7 @@ radv_CmdDecodeVideoKHR(VkCommandBuffer commandBuffer, const VkVideoDecodeInfoKHR
       fill_surface(cmd_buffer, dpb, 0, false, pdev->info.gfx_level, &cmd.ref_surfaces[0]);
    }
 
-   int ret = vid->dec->build_decode_cmd(vid->dec, &cmd);
+   ASSERTED int ret = vid->dec->build_decode_cmd(vid->dec, &cmd);
    cs->b->cdw += cmd.out.cmd_dw;
    assert(ret == 0);
 }
