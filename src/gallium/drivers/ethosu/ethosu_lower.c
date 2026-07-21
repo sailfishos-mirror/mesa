@@ -781,10 +781,10 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
 
    if (ethosu_ml_device(subgraph->base.device)->is_u65) {
       operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-      operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    } else
       operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
    operation->pooling.nop = true;
@@ -849,6 +849,7 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
    operation->ifm.shape = operation->ofm.shape;

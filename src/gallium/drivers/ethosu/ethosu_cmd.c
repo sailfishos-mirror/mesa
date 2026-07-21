@@ -450,6 +450,17 @@ emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
    emit_activation(subgraph, operation);
 }
 
+static unsigned
+u85_ofm_scale_param(struct ethosu_subgraph *subgraph,
+                    struct ethosu_operation *operation)
+{
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
+       operation->round_mode == ETHOSU_ROUNDING_NATURAL)
+      return NPU_SET_OFM_SCALE_ROUND_MODE(1);
+
+   return 0;
+}
+
 static void
 emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
@@ -545,19 +556,21 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    emit_common(subgraph, operation, false);
 
    if (operation->pooling.nop) {
+      unsigned ofm_scale_param = u85_ofm_scale_param(subgraph, operation);
+
       scale = ethosu_quantize_scale(
          operation->ifm.scale / operation->ofm.scale,
          &scale_shift, false);
-      EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
+      EMIT1(NPU_SET_OFM_SCALE,
+            ofm_scale_param | NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
    } else {
+      unsigned ofm_scale_param = u85_ofm_scale_param(subgraph, operation);
+
       switch (operation->pooling.type) {
       case ETHOSU_POOLING_TYPE_MAX:
       case ETHOSU_POOLING_TYPE_MIN: {
-         if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
-            EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
-            break;
-         } else
-            FALLTHROUGH;
+         EMIT1(NPU_SET_OFM_SCALE, ofm_scale_param, 1);
+         break;
       }
       case ETHOSU_POOLING_TYPE_AVG: {
          scale = pooling_emit_ofm_scaling(
@@ -567,7 +580,8 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
             operation->kernel.width,
             &scale_shift);
 
-         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
+         EMIT1(NPU_SET_OFM_SCALE,
+               ofm_scale_param | NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
          break;
       }
       case ETHOSU_POOLING_TYPE_SUM: {
@@ -578,7 +592,10 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
             operation->kernel.width,
             &scale_shift);
 
-         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift) | NPU_SET_OFM_SCALE_ROUND_MODE(1), scale);
+         EMIT1(NPU_SET_OFM_SCALE,
+               ofm_scale_param | NPU_SET_OFM_SCALE_SHIFT(scale_shift) |
+                  NPU_SET_OFM_SCALE_ROUND_MODE(1),
+               scale);
          break;
       }
       default:
