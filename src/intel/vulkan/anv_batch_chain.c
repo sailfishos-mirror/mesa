@@ -969,17 +969,6 @@ anv_cmd_buffer_fini_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer)
 void
 anv_cmd_buffer_reset_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer)
 {
-   /* Delete all batch bos */
-   list_for_each_entry_safe(struct anv_batch_bo, bbo,
-                            &cmd_buffer->batch_bos, link) {
-      list_del(&bbo->link);
-      anv_batch_bo_destroy(bbo, cmd_buffer);
-   }
-
-   anv_batch_set_storage(&cmd_buffer->batch, ANV_NULL_ADDRESS, NULL, 0);
-   cmd_buffer->batch.allocated_batch_size = 0;
-   cmd_buffer->batch.relocs = NULL;
-
    while (u_vector_length(&cmd_buffer->bt_block_states) > 0) {
       struct anv_state *bt_block = u_vector_remove(&cmd_buffer->bt_block_states);
       anv_binding_table_pool_free(cmd_buffer->device, *bt_block);
@@ -997,6 +986,28 @@ anv_cmd_buffer_reset_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer)
                             &cmd_buffer->generation.batch_bos, link) {
       list_del(&bbo->link);
       anv_batch_bo_destroy(bbo, cmd_buffer);
+   }
+
+   /* Delete all but the first batch bo if we ever allocated one */
+   if (!list_is_empty(&cmd_buffer->batch_bos)) {
+      while (cmd_buffer->batch_bos.next != cmd_buffer->batch_bos.prev) {
+         struct anv_batch_bo *bbo = anv_cmd_buffer_current_batch_bo(cmd_buffer);
+         list_del(&bbo->link);
+         anv_batch_bo_destroy(bbo, cmd_buffer);
+      }
+      assert(!list_is_empty(&cmd_buffer->batch_bos));
+      anv_batch_bo_start(anv_cmd_buffer_current_batch_bo(cmd_buffer),
+                         &cmd_buffer->batch,
+                         GFX9_MI_BATCH_BUFFER_START_length * 4);
+
+      struct anv_batch_bo *first_bbo = anv_cmd_buffer_current_batch_bo(cmd_buffer);
+      *(struct anv_batch_bo **)u_vector_add(&cmd_buffer->seen_bbos) = first_bbo;
+      assert(first_bbo->bo->size == ANV_MIN_CMD_BUFFER_BATCH_SIZE);
+      cmd_buffer->batch.allocated_batch_size = first_bbo->bo->size;
+   } else {
+      anv_batch_set_storage(&cmd_buffer->batch, ANV_NULL_ADDRESS, NULL, 0);
+      cmd_buffer->batch.allocated_batch_size = 0;
+      cmd_buffer->batch.relocs = NULL;
    }
 
    /* And reset generation batch */
