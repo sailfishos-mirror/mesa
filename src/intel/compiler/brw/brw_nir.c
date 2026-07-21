@@ -3558,8 +3558,11 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
    if (devinfo->ver >= 30)
       NIR_PASS(_, nir, brw_nir_lower_sample_index_in_coord);
 
-   if (mesa_shader_stage_can_set_fragment_shading_rate(nir->info.stage))
-      NIR_PASS(_, nir, intel_nir_lower_shading_rate_output);
+   /* for jay mesh shaders we do this earlier */
+   if (!(jay && nir->info.stage == MESA_SHADER_MESH)) {
+      if (mesa_shader_stage_can_set_fragment_shading_rate(nir->info.stage))
+         NIR_PASS(_, nir, intel_nir_lower_shading_rate_output);
+   }
 
    OPT(brw_nir_tag_speculative_access);
 
