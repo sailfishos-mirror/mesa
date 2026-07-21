@@ -325,23 +325,3 @@ Integer Ops,Crash
 Images (API Info),Fail
 Images (API Info)@1Darray,Fail
 Images (API Info)@2D,Fail
-
-# VKCTS 1.4.5.3 -> 1.4.6.1 uprev
-# [  254.111168] panthor fb000000.gpu: [drm] *ERROR* Unhandled Page fault in AS4 at VA 0x00007FFFFFFF9000
-# [  254.111168] raw fault status: 0x50002C3
-# [  254.111168] decoded fault status: SLAVE FAULT
-# [  254.111168] exception type 0xC3: TRANSLATION_FAULT_3
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_debug_utils,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_large2,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_small2,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.xcb_bind_sparse_wsi,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.xlib_wsi_bind_sparse,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_bind_sparse,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_debug_utils,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_device_wait_idle,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_large2,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_small2,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.debug_utils_bind_sparse,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.device_wait_idle_bind_sparse,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.large2_bind_sparse,Crash
-asan-dEQP-VK.synchronization2.internally_synchronized_queues.small2_bind_sparse,Crash

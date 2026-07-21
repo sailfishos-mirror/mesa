@@ -769,20 +769,3 @@ angle-dEQP-GLES3.functional.texture.wrap.rgba8.repeat_repeat_nearest_npot,Fail
 dEQP-VK.wsi.xcb.present_timing.basic.timing_queue,Fail
 dEQP-VK.wsi.xcb.present_timing.query.parallel.parallel,Fail
 dEQP-VK.wsi.xlib.present_timing.basic.timing_queue,Fail
-
-# VKCTS 1.4.5.3 -> 1.4.6.1 uprev
-# [  164.514209] panthor 48000000.gpu: [drm] *ERROR* Unhandled Page fault in AS5 at VA 0x00007FFFFFFFD200
-# [  164.514209] raw fault status: 0x10003C3
-# [  164.514209] decoded fault status: SLAVE FAULT
-# [  164.514209] exception type 0xC3: TRANSLATION_FAULT_3
-# Not entirely reliable -- which ones crash vs pass may flip around, so clear the flakes entry when it's fixed.
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_bind_sparse,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_debug_utils,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_device_wait_idle,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_large2,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_small2,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.debug_utils_bind_sparse,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.device_wait_idle_bind_sparse,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.large2_bind_sparse,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.small2_bind_sparse,Crash
-dEQP-VK.synchronization2.internally_synchronized_queues.xcb_wsi_bind_sparse,Crash
