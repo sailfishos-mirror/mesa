@@ -3641,7 +3641,8 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
       OPT(nir_opt_peephole_select, &peephole_select_options);
    }
 
-   OPT(brw_nir_opt_systolic_vectorize, devinfo);
+   if (OPT(brw_nir_opt_systolic_vectorize, devinfo))
+      OPT(nir_lower_vars_to_ssa);
 
    OPT(brw_nir_lower_fsign);
    OPT(brw_nir_opt_fsat);
