@@ -175,8 +175,8 @@ st_get_sampler_views(struct st_context *st,
       /* use original view as template: */
       tmpl = *sampler_views[unit];
 
-      /* if resource format matches then YUV wasn't lowered */
-      if (st_get_view_format(stObj) == stObj->pt->format)
+      /* if no extra YUV plane views are needed, skip */
+      if (!stObj->needs_yuv_plane_views)
          continue;
 
       switch (st_get_view_format(stObj)) {

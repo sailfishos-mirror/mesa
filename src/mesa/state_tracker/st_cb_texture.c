@@ -3331,6 +3331,15 @@ st_finalize_texture(struct gl_context *ctx,
       }
    }
 
+   /* Cache whether the extra YUV plane-view / lowering setup must run for
+    * this texture, so st_get_sampler_views() and st_get_external_sampler_key()
+    * can read a flag instead of re-deriving it on every call.
+    */
+   if (tObj->pt) {
+      enum pipe_format view_format = st_get_view_format(tObj);
+      tObj->needs_yuv_plane_views = (view_format != tObj->pt->format);
+   }
+
    /* Pull in any images not in the object's texture:
     */
    for (face = 0; face < nr_faces; face++) {
