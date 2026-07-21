@@ -2495,6 +2495,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
                    const struct brw_nir_compiler_opts *opts)
 {
    const struct intel_device_info *devinfo = compiler->devinfo;
+   bool jay = intel_use_jay(devinfo, nir->info.stage);
 
    /* TODO: This is part of the "pre-processing" before the shader is fed to
     * brw_compile_* functions, so there's no debug archiver available yet.
@@ -2558,11 +2559,14 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
 
    OPT(nir_lower_flrp, lower_flrp, false /* always_precise */);
 
-   struct nir_opt_16bit_tex_image_options options = {
-      .rounding_mode = nir_rounding_mode_undef,
-      .opt_tex_dest_types = nir_type_float | nir_type_int | nir_type_uint,
-   };
-   OPT(nir_opt_16bit_tex_image, &options);
+   /* Needs more work to enable for Jay, see corresponding TODO there */
+   if (!jay) {
+      struct nir_opt_16bit_tex_image_options options = {
+         .rounding_mode = nir_rounding_mode_undef,
+         .opt_tex_dest_types = nir_type_float | nir_type_int | nir_type_uint,
+      };
+      OPT(nir_opt_16bit_tex_image, &options);
+   }
 
    /* Anv delays the initialization of softfp64, so we may not have
     * softfp64 set here. The full lowering will happen during the post-process
@@ -2596,8 +2600,6 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .has_base_workgroup_id = nir->info.stage == MESA_SHADER_COMPUTE,
    };
    OPT(nir_lower_compute_system_values, &lower_csv_options);
-
-   bool jay = intel_use_jay(devinfo, nir->info.stage);
 
    const nir_lower_subgroups_options subgroups_options = {
       .subgroup_size = brw_nir_api_subgroup_size(nir, 0),
