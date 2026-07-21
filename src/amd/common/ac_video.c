@@ -498,7 +498,7 @@ vcn_enc_caps(struct radeon_info *info)
    cap->qp_map_texel_size = 64;
    cap->qp_map_formats.r16_sint = info->vcn_ip_version >= VCN_5_0_0;
    cap->qp_map_formats.r32_sint = info->vcn_ip_version < VCN_5_0_0;
-   cap->av1.single_refs = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 1;
+   cap->av1.single_refs = 1;
    cap->av1.unidir_refs = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 0;
    cap->av1.bidir_refs = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 0;
    cap->av1.bidir_g1_refs = info->vcn_ip_version >= VCN_5_0_0 ? 1 : 0;

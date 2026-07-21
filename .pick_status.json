@@ -2494,7 +2494,7 @@
         "description": "ac/video: Fix number of AV1 single refs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "914b4a700cc0e2f0c8afec4cbd29c49384fa0b92",
         "notes": null
