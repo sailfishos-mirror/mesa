@@ -3116,6 +3116,8 @@ panfrost_val_emit_varying_descriptors(struct panfrost_batch *batch)
 
    batch->nr_varying_attribs[MESA_SHADER_FRAGMENT] = fs_in_slots;
 
+   const bool fullscreen = batch->fullscreen_texcoord_buf != 0;
+
    for (uint32_t i = 0; i < fs_in_slots; i++) {
       const struct pan_varying_slot *fs_slot =
          pan_varying_layout_slot_at(fs_format, i);
@@ -3140,11 +3142,13 @@ panfrost_val_emit_varying_descriptors(struct panfrost_batch *batch)
          cfg.attribute_type = MALI_ATTRIBUTE_TYPE_VERTEX_PACKET;
          cfg.offset_enable = false;
          cfg.format = GENX(pan_format_from_pipe_format)(format)->hw;
-         cfg.table = 61;
+         /* Fullscreen on CSF uses a const buffer, everything else uses HCBs. */
+         cfg.table = fullscreen ? PAN_TABLE_ATTRIBUTE_BUFFER : 61;
          cfg.frequency = MALI_ATTRIBUTE_FREQUENCY_VERTEX;
          cfg.offset = 1024 + offset;
-         /* On v12+, the hardware-controlled buffer is at index 1 for varyings */
-         cfg.buffer_index = PAN_ARCH >= 12 ? 1 : 0;
+         /* On v12+, the hardware-controlled buffer is at index 1 for varyings.
+          * Fullscreen texcoords are on index 0 of ATTR_BUF. */
+         cfg.buffer_index = (PAN_ARCH >= 12 && !fullscreen) ? 1 : 0;
          cfg.attribute_stride = vs_layout->generic_size_B;
          cfg.packet_stride = vs_layout->generic_size_B + 16;
       }
@@ -3714,6 +3718,17 @@ panfrost_draw_fullscreen(struct panfrost_context *ctx,
    panfrost_update_shader_variant(ctx, MESA_SHADER_VERTEX);
    panfrost_update_active_prim(ctx, MESA_PRIM_QUADS);
 
+#if PAN_ARCH >= 10
+   /* On CSF, emit texcoord varyings as a constant buffer. */
+   struct pan_ptr texcoord_array =
+      panfrost_emit_fullscreen_vertex_array(batch, type, attrib);
+   struct pan_ptr texcoord_buf_desc =
+      pan_pool_alloc_desc_array(&batch->pool.base, 1, BUFFER);
+   batch->fullscreen_texcoord_buf = texcoord_buf_desc.gpu;
+   panfrost_emit_ubo(texcoord_buf_desc.cpu, 0, texcoord_array.gpu,
+                     PAN_RUN_FULLSCREEN_ARRAY_SIZE);
+#endif
+
    /* Clear the dirty vertex flag to ensure the shader state update doesn't
     * emit any vertex info. */
    ctx->dirty &= ~PAN_DIRTY_VERTEX;
@@ -3722,6 +3737,9 @@ panfrost_draw_fullscreen(struct panfrost_context *ctx,
    panfrost_clean_state_3d(ctx);
 
    JOBX(launch_draw_fullscreen)(batch, type, attrib);
+
+   batch->fullscreen_texcoord_buf = 0;
+
    batch->draw_count++;
 }
 
