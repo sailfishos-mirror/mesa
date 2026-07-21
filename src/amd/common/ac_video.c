@@ -485,8 +485,10 @@ vcn_enc_caps(struct radeon_info *info)
    cap->bitstream_address_alignment = 256;
    cap->separate_refs = info->vcn_ip_version >= VCN_5_0_0;
    cap->max_bitrate = 1000000000;
-   cap->width_alignment = info->vcn_ip_version >= VCN_5_0_0 ? 8 : 64;
-   cap->height_alignment = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 16;
+   cap->width_alignment = info->vcn_ip_version >= VCN_5_3_0 ? 1 :
+                          info->vcn_ip_version >= VCN_5_0_0 ? 8 : 64;
+   cap->height_alignment = info->vcn_ip_version >= VCN_5_3_0 ? 1 :
+                           info->vcn_ip_version >= VCN_5_0_0 ? 2 : 16;
    cap->max_slices = 128;
    cap->max_temporal_layers = 4;
    cap->quality_levels = info->vcn_ip_version >= VCN_4_0_0 ? 4 : 3;
@@ -498,7 +500,7 @@ vcn_enc_caps(struct radeon_info *info)
    cap->qp_map_texel_size = 64;
    cap->qp_map_formats.r16_sint = info->vcn_ip_version >= VCN_5_0_0;
    cap->qp_map_formats.r32_sint = info->vcn_ip_version < VCN_5_0_0;
-   cap->av1.single_refs = 1;
+   cap->av1.single_refs = info->vcn_ip_version >= VCN_5_3_0 ? 2 : 1;
    cap->av1.unidir_refs = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 0;
    cap->av1.bidir_refs = info->vcn_ip_version >= VCN_5_0_0 ? 2 : 0;
    cap->av1.bidir_g1_refs = info->vcn_ip_version >= VCN_5_0_0 ? 1 : 0;
