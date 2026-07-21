@@ -859,13 +859,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
          assert(fs_config_offset >= push_start);
          fs_prog_data->fs_config_param = fs_config_offset - push_start;
       }
-      if (data.needs_wa_18019110168) {
-         const uint32_t fs_per_prim_remap_offset =
-            anv_drv_const_offset(drv_data.gfx.wa_18019110168);
-         assert(fs_per_prim_remap_offset >= push_start);
-         fs_prog_data->per_primitive_remap_param =
-            fs_per_prim_remap_offset - push_start;
-      }
       break;
    }
 

@@ -648,13 +648,6 @@ struct brw_fs_prog_data {
    unsigned fs_config_param;
 
    /**
-    * Push constant location of the remapping offset in the instruction heap
-    * for Wa_18019110168 in bytes (the value read by the compiler is a
-    * uint16_t).
-    */
-   unsigned per_primitive_remap_param;
-
-   /**
     * Mask of which interpolation modes are required by the fragment shader.
     * Those interpolations are delivered as part of the thread payload. Used
     * in hardware setup on gfx6+.
