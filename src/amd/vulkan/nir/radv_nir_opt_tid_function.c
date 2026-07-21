@@ -811,6 +811,34 @@ opt_fotid_instr(nir_instr *instr, struct fotid_context *ctx, const BITSET_WORD *
             return false;
          }
       }
+      case nir_intrinsic_inverse_ballot: {
+         if (!nir_src_is_const(intrin->src[0]))
+            break;
+
+         BITSET_WORD *def_used = def_used_invocations(ctx, &intrin->def);
+         __bitset_and(def_used, def_used, maybe_active, ctx->words_per_def);
+
+         BITSET_WORD ballot[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+         nir_scalar s = nir_get_scalar(&intrin->def, 0);
+         if (!bool_scalar_to_ballot(s, ctx->b.shader, ballot))
+            break;
+
+         __bitset_and(ballot, ballot, def_used, ctx->words_per_def);
+
+         bool is_false = __bitset_is_empty(ballot, ctx->words_per_def);
+         bool is_true = !is_false && memcmp(ballot, def_used, ctx->words_per_def * sizeof(BITSET_WORD)) == 0;
+         if (!is_false && !is_true)
+            break;
+
+         ctx->b.cursor = nir_after_instr(&intrin->instr);
+
+         /* Replace inverse_ballot with a constant boolean if it's always true/false in the invocations
+          * where it's used.
+          */
+         nir_def_replace(&intrin->def, nir_imm_bool(&ctx->b, is_true));
+         return true;
+      }
       default:
          break;
       }
