@@ -991,6 +991,25 @@ a740_raw_magic_regs = [
     ]
 
 add_gpus([
+        GPUId(chip_id=0x43020100, name="Adreno (TM) 722"),
+        GPUId(chip_id=0xffff43020100, name="Adreno (TM) 722"),
+    ], A6xxGPUInfo(
+        CHIP.A7XX,
+        [a7xx_base, a7xx_gen1],
+        num_ccu = 1,
+        tile_align_w = 64,
+        tile_align_h = 16,
+        tile_max_w = 1024,
+        tile_max_h = 1024,
+        num_vsc_pipes = 32,
+        cs_shared_mem_size = 32 * 1024,
+        wave_granularity = 2,
+        fibers_per_sp = 128 * 2 * 16,
+        magic_regs = a730_magic_regs,
+        raw_magic_regs = a730_raw_magic_regs,
+    ))
+
+add_gpus([
         # These are named as Adreno730v3 or Adreno725v1.
         GPUId(chip_id=0x07030002, name="FD725"),
         GPUId(chip_id=0xffff07030002, name="FD725"),
