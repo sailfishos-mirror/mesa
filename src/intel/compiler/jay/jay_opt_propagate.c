@@ -210,6 +210,12 @@ propagate_forwards(jay_function *f)
                   &I->src[s] != jay_inst_get_default(I)) &&
                  !(I->src[s].file == UFLAG && !jay_is_imm(def->src[0])) &&
                  !(I->src[s].file == FLAG) &&
+                 !(I->predication &&
+                   jay_inst_get_predicate(I) == &I->src[s] &&
+                   !jay_is_flag(def->src[0])) &&
+                 !(I->op == JAY_OPCODE_SEL &&
+                   s == 2 &&
+                   !jay_is_flag(def->src[0])) &&
                  !(def->src[0].file == J_ARF && s != 0) &&
                  !(jay_is_imm(def->src[0]) && I->src[s].negate) &&
                  (jay_num_values(I->src[s]) == jay_num_values(def->src[0]) ||
@@ -288,6 +294,10 @@ fuse_flag_op(jay_function *f, jay_inst *I, jay_inst *use, BITSET_WORD *defined)
 
    unsigned i = jay_defs_equivalent(use->src[0], I->cond_flag) ? 0 : 1;
    jay_def other = use->src[1 - i];
+
+   /* XXX: we want to handle things like and.u1 flag 0x1 differently */
+   if (jay_is_imm(other))
+      return false;
 
    assert(jay_is_null(I->dst) && !I->predication);
    assert(jay_defs_equivalent(use->src[i], I->cond_flag));
