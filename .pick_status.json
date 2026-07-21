@@ -4434,7 +4434,7 @@
         "description": "tu: Fix condition for skipping emitting aprons",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4b87df29b3afcfcdcfe8519f3d47228ca0a4294e",
         "notes": null
