@@ -17,6 +17,7 @@
 #include "radv_image.h"
 #include "radv_image_view.h"
 #include "radv_video.h"
+#include "vk_common_entrypoints.h"
 
 #define RADV_VIDEO_H264_MAX_NUM_REF_FRAME 16
 #define RADV_VIDEO_H265_MAX_DPB_SLOTS     17
@@ -298,6 +299,69 @@ radv_CreateVideoSessionKHR(VkDevice _device, const VkVideoSessionCreateInfoKHR *
    return VK_SUCCESS;
 }
 
+static void
+radv_video_destroy_session(struct radv_device *device, struct radv_video_session *vid)
+{
+   struct radv_queue *queue = NULL;
+   struct radv_cmd_stream *cs;
+   struct radeon_winsys_bo *emb_bo = NULL;
+   VkResult result;
+
+   for (uint32_t i = 0; i < RADV_MAX_QUEUE_FAMILIES; i++) {
+      if (device->queue_count[i]) {
+         queue = device->queues[i];
+         if (queue->state.qf == RADV_QUEUE_VIDEO_DEC)
+            break;
+      }
+   }
+   assert(queue && queue->state.qf == RADV_QUEUE_VIDEO_DEC);
+   assert(queue->vk.internally_synchronized);
+
+   result = radv_create_cmd_stream(device, vid->dec->ip_type, false, &cs);
+   if (result != VK_SUCCESS)
+      return;
+
+   radeon_check_space(device->ws, cs->b, vid->dec->max_destroy_cmd_dw);
+
+   struct ac_video_dec_destroy_cmd cmd = {
+      .cmd_buffer = cs->b->buf + cs->b->cdw,
+   };
+
+   if (vid->dec->embedded_size) {
+      result = radv_bo_create(device, &vid->vk.base, vid->dec->embedded_size, VID_DEFAULT_ALIGNMENT, RADEON_DOMAIN_VRAM,
+                              RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING, RADV_BO_PRIORITY_SCRATCH, 0,
+                              true, &emb_bo);
+      if (result != VK_SUCCESS)
+         goto cleanup;
+
+      cmd.embedded_va = radv_buffer_get_va(emb_bo);
+      cmd.embedded_ptr = radv_buffer_map(device->ws, emb_bo);
+      if (!cmd.embedded_ptr)
+         goto cleanup;
+
+      radv_cs_add_buffer(device->ws, cs->b, emb_bo);
+   }
+
+   ASSERTED int ret = vid->dec->build_destroy_cmd(vid->dec, &cmd);
+   cs->b->cdw += cmd.out.cmd_dw;
+   assert(ret == 0);
+
+   result = radv_finalize_cmd_stream(device, cs);
+   if (result != VK_SUCCESS)
+      goto cleanup;
+
+   vk_queue_lock(&queue->vk);
+   radv_queue_internal_submit(queue, cs->b);
+   vk_queue_unlock(&queue->vk);
+
+   vk_common_QueueWaitIdle(radv_queue_to_handle(queue));
+
+cleanup:
+   if (emb_bo)
+      radv_bo_destroy(device, &vid->vk.base, emb_bo);
+   radv_destroy_cmd_stream(device, cs);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 radv_DestroyVideoSessionKHR(VkDevice _device, VkVideoSessionKHR _session, const VkAllocationCallbacks *pAllocator)
 {
@@ -305,6 +369,9 @@ radv_DestroyVideoSessionKHR(VkDevice _device, VkVideoSessionKHR _session, const 
    VK_FROM_HANDLE(radv_video_session, vid, _session);
    if (!_session)
       return;
+
+   if (vid->dec && vid->dec->build_destroy_cmd)
+      radv_video_destroy_session(device, vid);
 
    radv_DestroyImage(_device, radv_image_to_handle(vid->intra_only_dpb), pAllocator);
 
