@@ -210,6 +210,12 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
       }
       break;
 
+   case nir_intrinsic_load_subgroup_size:
+      assert(b->shader->info.api_subgroup_size);
+      nir_def_replace(&intr->def,
+                      nir_imm_int(b, b->shader->info.api_subgroup_size));
+      return true;
+
    /* Note: we don't treat read_invocation specially because there's little
     * benefit but doing so would require expensive uniformizing in some cases.
     */
@@ -1078,7 +1084,10 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
       .archiver = archiver,
    }, *pt = &pt_;
 
-   brw_nir_apply_key(pt, &key->base, simd_width);
+   nir->info.min_subgroup_size = nir->info.max_subgroup_size = simd_width;
+
+   if (!nir->info.api_subgroup_size)
+      nir->info.api_subgroup_size = nir->info.max_subgroup_size;
 
    if (JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
                     nir_metadata_control_flow, &simd_width)) {
