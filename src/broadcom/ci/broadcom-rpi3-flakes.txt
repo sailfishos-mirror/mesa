@@ -239,3 +239,8 @@ spec@glsl-1.10@execution@built-in-functions@vs-op-div-int-ivec3
 spec@glsl-1.10@execution@built-in-functions@vs-op-ne-vec4-vec4-using-if
 spec@glsl-1.10@execution@variable-indexing@fs-varying-array-mat2-col-rd
 spec@glsl-1.10@execution@variable-indexing@vs-varying-mat4-row-rd
+
+spec@arb_vertex_program@vp-write-undefined-to-output
+spec@glsl-1.10@execution@builtins@glsl-fs-neg-dot
+spec@glsl-1.10@execution@variable-indexing@vs-uniform-mat4-col-row-rd
+spec@glsl-1.20@execution@built-in-functions@vs-op-ne-mat2x3-mat2x3

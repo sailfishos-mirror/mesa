@@ -271,10 +271,7 @@ spec@oes_texture_view@rendering-formats@clear GL_RGB10_A2 as GL_RG16I,Fail
 spec@oes_texture_view@rendering-formats@clear GL_RGB10_A2 as GL_RGBA8I,Fail
 
 # Piglit OpenCL tests
-api@clgetcommandqueueinfo,Fail
-api@clgetdeviceinfo,Fail
 api@clgetextensionfunctionaddressforplatform,Fail
-api@clgetkernelarginfo,Fail
 api@cllinkprogram,Fail
 program@execute@amdgcn-f32-inline-immediates,Fail
 program@execute@amdgcn-f32-inline-immediates@add integer 64,Fail
@@ -303,10 +300,6 @@ program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong8,Fai
 program@execute@global-offset,Fail
 program@execute@global-offset@3d- input dependent,Fail
 program@run kernel with max work item sizes,Fail
-
-# Bisected to 626ec83855a ("rusticl: implement CL 3.1 platform features")
-api@clsetkernelarg,Fail
-api@clsetkernelarg@Input checks,Fail
 
 # Bisected to 6bc47e65 ("rusticl: Fix work group size validation")
 program@bitcoin: phatk kernel,Fail
