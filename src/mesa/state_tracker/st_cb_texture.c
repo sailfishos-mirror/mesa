@@ -3337,7 +3337,8 @@ st_finalize_texture(struct gl_context *ctx,
     */
    if (tObj->pt) {
       enum pipe_format view_format = st_get_view_format(tObj);
-      tObj->needs_yuv_plane_views = (view_format != tObj->pt->format);
+      tObj->needs_yuv_plane_views = (view_format != tObj->pt->format ||
+                                     util_format_is_yuv(view_format));
    }
 
    /* Pull in any images not in the object's texture:
