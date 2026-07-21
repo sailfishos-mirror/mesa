@@ -340,6 +340,10 @@ validate_inst(struct validate_state *validate, jay_inst *I)
       const unsigned pf = 1 << jay_slice_repack_factor_log2(I);
       CHECK(pf == 1 || pf == 2 || pf == 4);
       CHECK(jay_num_values(I->dst) == (unpack ? pf : 1));
+   } else if (I->op == JAY_OPCODE_BROADCAST_IMM) {
+      CHECK(jay_broadcast_imm_lane(I) <
+               validate->func->shader->dispatch_width &&
+            "jay_nir.c ensures this and codegen relies on it");
    }
 }
 
