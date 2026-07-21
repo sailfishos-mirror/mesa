@@ -867,6 +867,16 @@ vk_alloc_ahardware_buffer(const VkMemoryAllocateInfo *pAllocateInfo)
       format = image->ahb_format;
       usage = vk_image_usage_to_ahb_usage(image->create_flags,
                                           image->usage);
+
+      /* VK_IMAGE_COMPRESSION_DISABLED_EXT means the app doesn't want an
+       * implicit compressed/tiled layout for this image. Use
+       * CPU_WRITE_RARELY to implicitly force LINEAR, preventing gralloc from
+       * allocating a compressed buffer and silently violating
+       * VK_IMAGE_COMPRESSION_DISABLED_EXT.
+       */
+      if ((image->compr_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
+          !vk_format_is_depth_or_stencil(image->format))
+         usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
    } else {
       /* AHB export allocation for VkBuffer requires a valid allocationSize */
       assert(pAllocateInfo->allocationSize);
@@ -1200,6 +1210,19 @@ vk_android_get_ahb_image_properties(
 
       ahb_usage->androidHardwareBufferUsage =
          vk_image_usage_to_ahb_usage(image_flags, image_usage);
+
+      /* Keep this in sync with the usage bits vk_alloc_ahardware_buffer()
+       * actually requests for a dedicated allocation, so apps querying
+       * support see the same usage that will be used at allocation time.
+       */
+      const VkImageCompressionControlEXT *compression_control =
+         vk_find_struct_const(info->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
+      if (compression_control &&
+          (compression_control->flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
+          !vk_format_is_depth_or_stencil(info->format)) {
+         ahb_usage->androidHardwareBufferUsage |=
+            AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
+      }
    }
 
    return VK_SUCCESS;
