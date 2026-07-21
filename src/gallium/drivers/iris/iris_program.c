@@ -2582,10 +2582,6 @@ iris_compile_gs(struct iris_screen *screen,
       struct iris_ubo_range ubo_ranges[4] = {};
       brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
-      brw_compute_vue_map(devinfo,
-                          &brw_prog_data->base.vue_map, nir->info.outputs_written,
-                          key->vue.layout, /* pos_slots */ 1);
-
       struct brw_gs_prog_key brw_key = iris_to_brw_gs_key(screen, key);
 
       struct brw_compile_gs_params params = {

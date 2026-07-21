@@ -127,13 +127,6 @@ blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
    struct brw_vs_prog_data *vs_prog_data = rzalloc(mem_ctx, struct brw_vs_prog_data);
-   vs_prog_data->inputs_read = nir->info.inputs_read;
-
-   brw_compute_vue_map(compiler->devinfo,
-                       &vs_prog_data->base.vue_map,
-                       nir->info.outputs_written,
-                       nir->info.separate_shader,
-                       1);
 
    struct brw_vs_prog_key vs_key = {
       .base = {
