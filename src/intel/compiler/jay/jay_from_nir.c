@@ -1911,10 +1911,9 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_MOV(b, dst, fs->coverage_mask);
       break;
 
-   case nir_intrinsic_load_subgroup_invocation: {
+   case nir_intrinsic_load_subgroup_invocation:
       jay_MOV(b, dst, lane_id(b));
       break;
-   }
 
    case nir_intrinsic_demote:
       jay_DEMOTE_u32(b, jay_null(), jay_null());
