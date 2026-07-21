@@ -3001,7 +3001,7 @@ tu_trace_start_render_pass(struct tu_cmd_buffer *cmd)
 
    trace_start_render_pass(&cmd->trace, &cmd->cs, cmd, cmd->state.framebuffer,
                            cmd->state.tiling, max_samples, clear_cpp,
-                           load_cpp, store_cpp, has_depth, ubwc,
+                           load_cpp, store_cpp, has_depth, ubwc, cmd->state.pass->has_msrtss,
                            cmd->state.rp.cb_disable_reason ? cmd->state.rp.cb_disable_reason : "");
 }
 
