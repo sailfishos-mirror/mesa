@@ -1142,6 +1142,8 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
 
    if (JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
                     nir_metadata_control_flow, &simd_width)) {
+      JAY_NIR_PASS(nir_opt_constant_folding);
+      JAY_NIR_PASS(nir_opt_dead_cf);
       brw_nir_lower_int64(pt);
    }
 
