@@ -265,16 +265,21 @@ push_temp(jay_builder *b,
       return tmp;
    }
 
-   /* Find a register that does not conflict with the inputs */
-   bool avoid_regs[2] = { false, false };
-   if (!jay_is_null(avoid1) && avoid1.file == file && avoid1.reg < 2) {
-      avoid_regs[avoid1.reg] = true;
-   }
-   if (!jay_is_null(avoid2) && avoid2.file == file && avoid2.reg < 2) {
-      avoid_regs[avoid2.reg] = true;
-   }
+   /* Find an aligned register that does not conflict with the inputs */
+   jay_def av[] = { avoid1, avoid2 };
+   unsigned r = 0;
+   bool succ;
+   do {
+      succ = true;
+      for (unsigned i = 0; i < ARRAY_SIZE(av); ++i) {
+         if (!jay_is_null(av[i]) && av[i].file == file && av[i].reg == r) {
+            r += (file == UGPR ? jay_ugpr_per_grf(b->shader) : 1);
+            succ = false;
+         }
+      }
+   } while (!succ);
 
-   unsigned r = avoid_regs[0] ? (avoid_regs[1] ? 2 : 1) : 0;
+   assert(r < jay_num_regs(b->shader, file) && "should have found something");
    jay_def new = def_from_reg(make_reg(file, r));
 
    /* Put accumulators down the float pipe - it's still a raw move. */
