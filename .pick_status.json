@@ -84,7 +84,7 @@
         "description": "tu: Custom resolve should always use AVOID_CCU layout",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ad84ae2719008a8490ec21199a9a9b03a1a9993a",
         "notes": null

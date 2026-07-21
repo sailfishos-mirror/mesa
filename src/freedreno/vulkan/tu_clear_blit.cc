@@ -5775,6 +5775,9 @@ tu_choose_gmem_layout(struct tu_cmd_buffer *cmd)
 
    for (unsigned i = 0; i < cmd->state.pass->subpass_count; i++) {
       const struct tu_subpass *subpass = &cmd->state.pass->subpasses[i];
+      if (subpass->custom_resolve)
+         cmd->state.gmem_layout = TU_GMEM_LAYOUT_AVOID_CCU;
+
       for (unsigned j = 0; j < subpass->resolve_count; j++) {
          uint32_t a = subpass->resolve_attachments[j].attachment;
          if (a == VK_ATTACHMENT_UNUSED)
@@ -5784,8 +5787,6 @@ tu_choose_gmem_layout(struct tu_cmd_buffer *cmd)
                subpass->depth_stencil_attachment.attachment :
                subpass->color_attachments[j].attachment;
          if (tu_attachment_store_mismatched_mutability(cmd, a, gmem_a))
-            cmd->state.gmem_layout = TU_GMEM_LAYOUT_AVOID_CCU;
-         if (subpass->custom_resolve)
             cmd->state.gmem_layout = TU_GMEM_LAYOUT_AVOID_CCU;
       }
    }
