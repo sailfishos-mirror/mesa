@@ -97,7 +97,7 @@ gen_pipe jay_inferred_sync_pipe(const struct intel_device_info *devinfo,
 gen_pipe jay_inst_exec_pipe(const struct intel_device_info *devinfo,
                             jay_inst *I);
 
-unsigned jay_latency(jay_shader *s, jay_inst *I);
+unsigned jay_latency(jay_shader *s, jay_inst *I, bool bias_acc);
 unsigned jay_estimate_cycles(jay_function *f);
 
 struct jay_shader_bin *jay_to_binary(jay_shader *s,

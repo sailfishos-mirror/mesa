@@ -290,7 +290,8 @@ static inline unsigned
 ready_cycle(struct sched_ctx *s, bool backward, uint32_t node)
 {
    unsigned cycle = s->cycle;
-   uint32_t lat = backward ? jay_latency(s->func->shader, s->insts[node]) : 0;
+   uint32_t lat =
+      backward ? jay_latency(s->func->shader, s->insts[node], true) : 0;
    struct jay_dag *dag = backward ? &s->dag_t : &s->dag;
 
    jay_dag_foreach_edge(dag, node, it) {
@@ -505,7 +506,7 @@ schedule_block(jay_block *block,
          s->cycle_ready[node] =
             s->cycle + ((mode & BACKWARD) ?
                            0 :
-                           jay_latency(s->func->shader, s->insts[node]));
+                           jay_latency(s->func->shader, s->insts[node], true));
          s->cycle++;
       }
    }
