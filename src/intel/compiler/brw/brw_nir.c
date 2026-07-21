@@ -3664,11 +3664,16 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
    OPT(nir_opt_move, move_all);
    OPT(nir_opt_dead_cf);
 
-   static const nir_lower_subgroups_options subgroups_options = {
+   const nir_lower_subgroups_options subgroups_options = {
       .ballot_bit_size = 32,
       .ballot_components = 1,
-      .lower_elect = true,
+      .lower_elect = !jay,
       .lower_subgroup_masks = true,
+      .lower_boolean_reduce = jay,
+      .lower_vote = jay,
+      .lower_vote_feq = jay,
+      .lower_vote_ieq = jay,
+      .lower_boolean_shuffle = jay,
    };
 
    if (!intel_use_jay(devinfo, pt->nir->info.stage) &&
