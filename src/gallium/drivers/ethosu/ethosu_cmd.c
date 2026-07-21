@@ -650,6 +650,9 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
                scale);
          break;
       }
+      case ETHOSU_POOLING_TYPE_REDUCE_SUM:
+         EMIT1(NPU_SET_OFM_SCALE, ofm_scale_param, 1);
+         break;
       default:
          UNREACHABLE("Invalid pooling type");
       }
