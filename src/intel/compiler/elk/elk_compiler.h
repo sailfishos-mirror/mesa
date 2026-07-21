@@ -642,8 +642,6 @@ struct elk_stage_prog_data {
     * push reg i if
     *
     *    reg_used & zero_push_reg & ~*push_reg_mask_param & (1ull << i)
-    *
-    * If this field is set, elk_compiler::compact_params must be false.
     */
    uint64_t zero_push_reg;
    unsigned push_reg_mask_param;

@@ -471,8 +471,6 @@ struct brw_stage_prog_data {
     *
     *    (robust_ubo_ranges & (1 << j)) &&
     *    (i < push_reg_mask_param[j] * 16)
-    *
-    * brw_compiler::compact_params must be false if robust_ubo_ranges used
     */
    uint8_t robust_ubo_ranges;
    unsigned push_reg_mask_param;
