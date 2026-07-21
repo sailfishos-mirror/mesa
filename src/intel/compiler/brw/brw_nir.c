@@ -2508,6 +2508,16 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
 
    nir_validate_ssa_dominance(nir, "before brw_preprocess_nir");
 
+   /* Geometry stages run at a fixed SIMD width, and raytracing shaders
+    * currently run at that same narrower width (see brw_compile_bs.cpp).
+    */
+   if (nir->info.stage <= MESA_SHADER_GEOMETRY ||
+       mesa_shader_stage_is_rt(nir->info.stage)) {
+      const unsigned simd = brw_geometry_stage_dispatch_width(devinfo);
+      nir->info.min_subgroup_size = simd;
+      nir->info.max_subgroup_size = simd;
+   }
+
    OPT(nir_lower_frexp);
 
    OPT(nir_lower_alu_to_scalar, NULL, NULL);
