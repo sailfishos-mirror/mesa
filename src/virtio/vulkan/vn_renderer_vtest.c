@@ -887,6 +887,7 @@ vtest_init_renderer_info(struct vtest *vtest)
 
    info->has_dma_buf_import = false;
    info->has_external_sync = false;
+   info->has_timeline_sync = !VN_PERF(NO_TIMELINE_SYNC);
    info->has_implicit_fencing = false;
 
    const struct virgl_renderer_capset_venus *capset = &vtest->capset.data;
