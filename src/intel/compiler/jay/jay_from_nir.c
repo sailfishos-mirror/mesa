@@ -830,19 +830,26 @@ translate_flush_type(nir_intrinsic_instr *intr)
 
 static void
 emit_lsc_fence(struct nir_to_jay_state *nj,
-               nir_intrinsic_instr *intr,
-               enum gen_sfid sfid)
+               enum gen_sfid sfid,
+               enum lsc_fence_scope scope,
+               enum lsc_flush_type flushtype)
+{
+   jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
+   uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, flushtype, false);
+   jay_SEND(&nj->bld, .sfid = sfid, .msg_desc = desc, .srcs = &nj->payload.u0,
+            .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true, .dst = notif);
+}
+
+static void
+emit_lsc_fence_from_intr(struct nir_to_jay_state *nj,
+                         nir_intrinsic_instr *intr,
+                         enum gen_sfid sfid)
 {
    bool device = nir_intrinsic_memory_scope(intr) >= SCOPE_QUEUE_FAMILY;
    enum lsc_fence_scope scope = device ? LSC_FENCE_TILE : LSC_FENCE_THREADGROUP;
    enum lsc_flush_type type =
       sfid == GEN_SFID_SLM ? LSC_FLUSH_TYPE_NONE : translate_flush_type(intr);
-
-   jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
-   uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, type, false);
-
-   jay_SEND(&nj->bld, .sfid = sfid, .msg_desc = desc, .srcs = &nj->payload.u0,
-            .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true, .dst = notif);
+   emit_lsc_fence(nj, sfid, scope, type);
 }
 
 static void
@@ -851,21 +858,21 @@ jay_emit_memory_barrier(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    nir_variable_mode modes = nir_intrinsic_memory_modes(intr);
 
    if (modes & nir_var_image) {
-      emit_lsc_fence(nj, intr, GEN_SFID_TGM);
+      emit_lsc_fence_from_intr(nj, intr, GEN_SFID_TGM);
       assert(!nj->nir->info.use_lowered_image_to_global && "fix common code");
    }
 
    if (modes & (nir_var_mem_ssbo | nir_var_mem_global)) {
-      emit_lsc_fence(nj, intr, GEN_SFID_UGM);
+      emit_lsc_fence_from_intr(nj, intr, GEN_SFID_UGM);
    }
 
    if (modes & (nir_var_shader_out | nir_var_mem_task_payload)) {
-      emit_lsc_fence(nj, intr, GEN_SFID_URB);
+      emit_lsc_fence_from_intr(nj, intr, GEN_SFID_URB);
    }
 
    if ((modes & nir_var_mem_shared) &&
        !jay_workgroup_is_one_subgroup(&nj->bld, nj->nir)) {
-      emit_lsc_fence(nj, intr, GEN_SFID_SLM);
+      emit_lsc_fence_from_intr(nj, intr, GEN_SFID_SLM);
    }
 }
 
