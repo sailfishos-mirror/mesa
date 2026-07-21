@@ -52,17 +52,7 @@ analyze_per_inst(jay_shader *shader)
                local.ugpr += size;
             } else if (x.file == GPR && i >= 0) {
                enum jay_stride min_stride = jay_src_stride_minmax(I, i, false);
-               enum jay_stride max_stride = jay_src_stride_minmax(I, i, true);
-
-               /* We want to reduce fragmentation of the partition as much as
-                * possible, so assume if the destination didn't already force a
-                * non-32-bit stride, assume sources are 32-bit strided.
-                */
-               if (min_stride <= JAY_STRIDE_4 && JAY_STRIDE_4 <= max_stride) {
-                  local.gpr[JAY_STRIDE_4] += size;
-               } else {
-                  local.gpr[min_stride] += size;
-               }
+               local.gpr[min_stride] += size;
             } else if (x.file == GPR) {
                enum jay_stride min_stride = jay_dst_stride_minmax(I, false);
                local.gpr[min_stride] += size;
