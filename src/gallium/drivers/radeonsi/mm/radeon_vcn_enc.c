@@ -1120,10 +1120,12 @@ static void radeon_vcn_enc_av1_get_param(struct radeon_encoder *enc,
       enc_pic->av1.compound = false;
 
       if (pic->ref_list1[0] != PIPE_H2645_LIST_REF_INVALID_ENTRY) {
-         enc_pic->av1.compound = true; /* BIDIR_COMP */
+         if (pic->compound_reference_mode != 0 || enc->caps->av1.single_refs == 1)
+            enc_pic->av1.compound = true; /* BIDIR_COMP */
          enc_pic->av1_enc_params.lsm_reference_frame_index[1] = pic->ref_list1[0];
       } else if (allow_unidir && pic->ref_list0[1] != PIPE_H2645_LIST_REF_INVALID_ENTRY) {
-         enc_pic->av1.compound = true; /* UNIDIR_COMP */
+         if (pic->compound_reference_mode != 0 || enc->caps->av1.single_refs == 1)
+            enc_pic->av1.compound = true; /* UNIDIR_COMP */
          enc_pic->av1_enc_params.lsm_reference_frame_index[1] = pic->ref_list0[1];
       }
 
