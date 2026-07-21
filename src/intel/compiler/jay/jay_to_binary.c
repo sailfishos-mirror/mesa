@@ -562,7 +562,7 @@ emit(struct jay_codegen *jc,
       break;
 
    case JAY_OPCODE_LANE_ID_8:
-      gen->src[0] = gen_imm_uv(0x76543210);
+      gen->src[0] = gen_imm_uv(0x76543210 + 0x11111111 * jay_lane_id_8_base(I));
       break;
 
    case JAY_OPCODE_ZIP_UGPR16:

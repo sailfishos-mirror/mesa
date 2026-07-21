@@ -159,8 +159,8 @@ op('preload', 0, 'u32',     0, ['unsigned reg'])
 op('deswizzle_odd', 2, 'f32', 0, ['bool src2_hi'])
 op('deswizzle_even', 1, 'f32', 0, ['bool src_hi'])
 
-# Return the UGPR[4] vector (0, 1, 2, 3, 4, 5, 6, 7) as packed 16-bit.
-op('lane_id_8', 0, 'u16')
+# Return the UGPR[4] vector base + (0, 1, 2, 3, 4, 5, 6, 7) as packed 16-bit.
+op('lane_id_8', 0, 'u16', 0, ['unsigned base'])
 
 # Build a GPR from two UGPR[16] ranges.
 op('zip_ugpr16', 2, 'u32')

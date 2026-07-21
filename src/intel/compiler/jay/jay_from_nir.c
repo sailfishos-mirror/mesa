@@ -1764,11 +1764,15 @@ lane_id(jay_builder *b)
 {
    jay_shader *s = b->shader;
    jay_def lid16 = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
-   jay_LANE_ID_8(b, jay_extract_range(lid16, 0, 4));
+   jay_LANE_ID_8(b, jay_extract_range(lid16, 0, 4), 0);
 
-   for (unsigned i = 8; i < s->dispatch_width; i *= 2) {
-      jay_ADD(b, JAY_TYPE_U16, jay_extract_range(lid16, i / 2, i / 2),
-              jay_extract_range(lid16, 0, i / 2), i);
+   if (s->dispatch_width >= 16) {
+      jay_LANE_ID_8(b, jay_extract_range(lid16, 4, 4), 8);
+   }
+
+   if (s->dispatch_width == 32) {
+      jay_ADD(b, JAY_TYPE_U16, jay_extract_range(lid16, 8, 8),
+              jay_extract_range(lid16, 0, 8), 16);
    }
 
    jay_def lid = jay_alloc_def(b, GPR, 1);
