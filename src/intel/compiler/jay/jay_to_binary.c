@@ -104,13 +104,12 @@ to_gen_operand(
    } else if (jay_is_null(d)) {
       R = gen_null();
    } else if (d.file == UGPR || (d.file == ACCUM && I->uniform)) {
-      grf += (reg / jay_ugpr_per_grf(f->shader));
-      offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
-
       if (d.file == UGPR) {
+         grf += (reg / jay_ugpr_per_grf(f->shader));
+         offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
          R = gen_grf(grf, 0);
       } else {
-         R = gen_accumulator(grf);
+         R = gen_accumulator(reg / 2);
       }
       R = gen_retype(gen_restride(R, 0, 1, 0), GEN_TYPE_UD);
 
