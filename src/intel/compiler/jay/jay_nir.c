@@ -665,8 +665,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
    JAY_NIR_SNAPSHOT("first");
 
-   brw_nir_apply_key(pt, &key->base, simd_width);
-
    if (stage == MESA_SHADER_VERTEX) {
       /* We only expect slot compaction to be disabled when using device
        * generated commands, to provide an independent 3DSTATE_VERTEX_ELEMENTS
@@ -1048,6 +1046,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
    }
 
    brw_postprocess_nir_opts(pt);
+
+   brw_nir_apply_key(pt, &key->base, simd_width);
 
    if (JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
                     nir_metadata_control_flow, &simd_width)) {
