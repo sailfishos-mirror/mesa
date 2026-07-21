@@ -213,7 +213,7 @@ uvd_build_destroy_cmd(struct ac_video_dec *decoder, struct ac_video_dec_destroy_
       .dec = dec,
       .cs = {
          .buf = cmd->cmd_buffer,
-         .max_dw = decoder->max_create_cmd_dw,
+         .max_dw = decoder->max_destroy_cmd_dw,
       }
    };
 
