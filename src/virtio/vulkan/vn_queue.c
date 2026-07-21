@@ -530,7 +530,17 @@ vn_queue_submission_count_semaphore(struct vn_queue_submission *submit)
          submit->fix.sync_sem = true;
          submit->sync_count++;
       }
-      fix.sig_timeline |= vn_semaphore_is_timeline(sem_handle);
+
+      if (vn_semaphore_is_timeline(sem_handle)) {
+         VK_FROM_HANDLE(vn_semaphore, sem, sem_handle);
+
+         fix.sig_timeline = true;
+
+         if (sem->payload->type == VN_SYNC_TYPE_TIMELINE_SYNC) {
+            submit->fix.sync_sem = true;
+            submit->sync_count++;
+         }
+      }
    }
 
    if (!fix.wait_sync_fd && !fix.sig_sync_fd)
@@ -1013,24 +1023,22 @@ vn_queue_submission_init_signal_semaphores(struct vn_queue_submission *submit)
 static void
 vn_queue_submission_init_syncs(struct vn_queue_submission *submit)
 {
-   /* TODO handle below:
-    * - timeline semaphore
-    */
+   VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
    uint32_t sync_index = 0;
 
    const uint32_t sig_count = vn_get_signal_semaphore_count(submit);
    for (uint32_t i = 0; i < sig_count; i++) {
       VkSemaphore sem_handle = vn_get_signal_semaphore(submit, i);
-      if (!vn_semaphore_is_sync_fd(sem_handle))
-         continue;
-
       VK_FROM_HANDLE(vn_semaphore, sem, sem_handle);
 
-      assert(sem->payload->type == VN_SYNC_TYPE_SYNC);
-
-      submit->temp.syncs[sync_index] = sem->payload->sync;
-      submit->temp.sync_vals[sync_index] = 1;
-      sync_index++;
+      if (sem->payload->type == VN_SYNC_TYPE_SYNC) {
+         submit->temp.syncs[sync_index] = sem->payload->sync;
+         submit->temp.sync_vals[sync_index++] = 1;
+      } else if (sem->payload->type == VN_SYNC_TYPE_TIMELINE_SYNC) {
+         const uint64_t sync_val = vn_get_signal_semaphore_counter(submit, i);
+         submit->temp.syncs[sync_index] = sem->payload->syncs[queue->index];
+         submit->temp.sync_vals[sync_index++] = sync_val;
+      }
    }
 
    if (submit->fence_handle != VK_NULL_HANDLE) {
