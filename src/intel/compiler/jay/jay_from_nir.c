@@ -565,24 +565,9 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    case nir_op_f2i8:
    case nir_op_f2u8:
    case nir_op_f2i8_sat:
-   case nir_op_f2u8_sat: {
-      enum jay_type src_type = jay_alu_source_type(alu, 0);
-
-      /* UGPR byte to float is not supported. Do it in 2 steps. */
-      if (jay_type_size_bits(src_type) == 8 &&
-          jay_base_type(type) == JAY_TYPE_F &&
-          dst.file == UGPR) {
-
-         enum jay_type integer = jay_type_rebase(type, jay_base_type(src_type));
-         jay_def tmp = jay_alloc_def(b, UGPR, 1);
-         jay_CVT(b, integer, tmp, src[0], src_type, JAY_ROUND, 0);
-         jay_CVT(b, type, dst, tmp, integer, JAY_ROUND, 0);
-      } else {
-         jay_CVT(b, type, dst, src[0], src_type, JAY_ROUND, 0);
-      }
-
+   case nir_op_f2u8_sat:
+      jay_CVT(b, type, dst, src[0], jay_alu_source_type(alu, 0), JAY_ROUND, 0);
       break;
-   }
 
    case nir_op_f2f16_rtne:
    case nir_op_f2f16_rtz:
