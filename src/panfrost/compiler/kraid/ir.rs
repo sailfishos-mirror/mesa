@@ -7,6 +7,7 @@ use crate::debug::{DEBUG, DebugFlags};
 pub use crate::flow::FlowCtrl;
 pub use crate::model::Model;
 pub use crate::ops::Op;
+use crate::ops::{OpPhiDst, OpPhiSrc};
 pub use crate::phi::Phi;
 use crate::phi::PhiAllocator;
 use crate::ssa_value::SSAValueAllocator;
@@ -1461,6 +1462,113 @@ impl BasicBlock {
     pub fn map_instrs(&mut self, map: impl FnMut(Instr) -> MappedInstrs) {
         let instrs = std::mem::take(&mut self.instrs);
         self.instrs = instrs.into_iter().flat_map(map).collect();
+    }
+
+    pub fn is_prelude_instr(instr: &Instr) -> bool {
+        matches!(&instr.op, Op::PhiDst(_) | Op::RegIn(_))
+    }
+
+    pub fn is_postlude_instr(instr: &Instr) -> bool {
+        matches!(&instr.op, Op::Branch(_) | Op::PhiSrc(_) | Op::RegOut(_))
+    }
+
+    pub fn is_branch_instr(instr: &Instr) -> bool {
+        matches!(&instr.op, Op::Branch(_))
+    }
+
+    /// Returns the IP which marks the end of the prelude and the start of the
+    /// body section.  This will be the IP of the first body instruction.
+    fn prelude_end_ip(&self) -> usize {
+        for (ip, instr) in self.instrs.iter().enumerate() {
+            if !BasicBlock::is_prelude_instr(instr) {
+                return ip;
+            }
+        }
+        self.instrs.len()
+    }
+
+    /// Returns the IP which marks the end of the body section and the start of
+    /// the postlude.  This will be the IP of the first postlude instruction.
+    fn postlude_start_ip(&self) -> usize {
+        for (ip, instr) in self.instrs.iter().enumerate().rev() {
+            if !BasicBlock::is_postlude_instr(instr) {
+                return ip + 1;
+            }
+        }
+        0
+    }
+
+    /// Returns the ip of the OpBranch or the end of the block.
+    fn branch_ip_or_end(&self) -> usize {
+        if self.instrs.last().is_some_and(BasicBlock::is_branch_instr) {
+            self.instrs.len() - 1
+        } else {
+            self.instrs.len()
+        }
+    }
+
+    pub fn iter_prelude(&self) -> impl Iterator<Item = &Instr> {
+        self.instrs
+            .iter()
+            .take_while(|instr| BasicBlock::is_prelude_instr(*instr))
+    }
+
+    pub fn iter_postlude_mut(&mut self) -> impl Iterator<Item = &mut Instr> {
+        let start = self.postlude_start_ip();
+        self.instrs[start..].iter_mut()
+    }
+
+    pub fn iter_phi_dsts(&self) -> impl Iterator<Item = &OpPhiDst> {
+        self.iter_prelude().filter_map(|instr| {
+            if let Op::PhiDst(op) = &instr.op {
+                Some(op.as_ref())
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_phi_srcs_mut(&mut self) -> impl Iterator<Item = &mut OpPhiSrc> {
+        self.iter_postlude_mut().filter_map(|instr| {
+            if let Op::PhiSrc(op) = &mut instr.op {
+                Some(op.as_mut())
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn insert_after_prelude(
+        &mut self,
+        iter: impl IntoIterator<Item = Instr>,
+    ) {
+        let ip = self.prelude_end_ip();
+        self.instrs.splice(ip..ip, iter);
+    }
+
+    pub fn insert_before_postlude(
+        &mut self,
+        iter: impl IntoIterator<Item = Instr>,
+    ) {
+        let ip = self.postlude_start_ip();
+        self.instrs.splice(ip..ip, iter);
+    }
+
+    pub fn insert_phi_dsts(
+        &mut self,
+        iter: impl IntoIterator<Item = OpPhiDst>,
+    ) {
+        let iter = iter.into_iter().map(Instr::from);
+        self.instrs.splice(0..0, iter);
+    }
+
+    pub fn insert_phi_srcs(
+        &mut self,
+        iter: impl IntoIterator<Item = OpPhiSrc>,
+    ) {
+        let iter = iter.into_iter().map(Instr::from);
+        let ip = self.branch_ip_or_end();
+        self.instrs.splice(ip..ip, iter);
     }
 }
 

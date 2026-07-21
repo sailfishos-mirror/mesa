@@ -77,19 +77,9 @@ impl PhiMap {
         };
 
         for bb in &s.blocks {
-            let mut is_preamble = true;
-            for instr in &bb.instrs {
-                if let Op::PhiDst(op) = &instr.op {
-                    debug_assert!(is_preamble);
-                    let ssa = op.dst.dst_ref.as_ssa().unwrap();
-                    map.phi_dst_ssa.insert(op.phi, ssa.clone());
-                } else if !matches!(&instr.op, Op::Nop(_)) {
-                    if cfg!(debug_assertions) {
-                        is_preamble = false;
-                    } else {
-                        break;
-                    }
-                }
+            for op in bb.iter_phi_dsts() {
+                let ssa = op.dst.dst_ref.as_ssa().unwrap();
+                map.phi_dst_ssa.insert(op.phi, ssa.clone());
             }
         }
         map
