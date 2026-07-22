@@ -3935,6 +3935,14 @@ jay_remove_unreachable_blocks(jay_function *func)
                   jay_foreach_successor(pred, succ, cfg) {
                      util_dynarray_delete_unordered(jay_predecessors(succ, cfg),
                                                     jay_block *, pred);
+
+                     /* If we are removing the backedge of a loop, the loop is
+                      * no longer a loop. Update to avoid validation issues.
+                      */
+                     if (succ->index <= pred->index) {
+                        assert(succ->physical_loop_header);
+                        succ->loop_header = false;
+                     }
                   }
 
                   jay_successors(pred, cfg)[0] = NULL;
@@ -3981,7 +3989,6 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
    list_addtail(&nj.exit_block->link, &f->blocks);
    jay_emit_task_mesh_fence_workaround(&nj);
    jay_emit_eot(&nj);
-   jay_remove_unreachable_blocks(f);
    free(nj.zero_inactive);
 }
 
@@ -4050,6 +4057,10 @@ jay_compile(const struct intel_device_info *devinfo,
       jay_foreach_block(f, b) {
          b->index = index++;
       }
+   }
+
+   jay_foreach_function(s, f) {
+      jay_remove_unreachable_blocks(f);
    }
 
    jay_validate(s, "NIR->Jay translation");
