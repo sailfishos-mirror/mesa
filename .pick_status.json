@@ -4264,7 +4264,7 @@
         "description": "nvk: free copy_memory_indirect_temps on command buffer destroy",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cbec12627bbb1fbe2700de79b5c7d871f5ed0145",
         "notes": null
