@@ -27,6 +27,7 @@ import pathlib
 import re
 import subprocess
 import typing
+from functools import cached_property
 
 import attr
 from packaging.version import Version
@@ -144,6 +145,7 @@ class Commit:
             c.resolution = Resolution(data['resolution'])
         return c
 
+    @cached_property
     def date(self) -> str:
         # Show commit date, ie. when the commit actually landed
         # (as opposed to when it was first written)
