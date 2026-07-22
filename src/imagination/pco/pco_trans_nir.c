@@ -2209,8 +2209,8 @@ static pco_instr *lower_isp_feedback(trans_ctx *tctx,
    bool does_discard = !nir_src_is_undef(intr->src[0]);
    bool does_depthf = !nir_src_is_undef(intr->src[1]);
 
-   does_depthf &= (tctx->shader->data.fs.uses.depth_feedback &&
-                   !tctx->shader->data.fs.uses.early_frag);
+   if (!does_discard && !does_depthf)
+      return NULL;
 
    if (does_discard) {
       pco_tstz(&tctx->b,

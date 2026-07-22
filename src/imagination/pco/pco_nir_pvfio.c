@@ -553,12 +553,75 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
 
    nir_def *discard_cond = nir_is_helper_invocation(b, 1);
 
-   nir_isp_feedback_pco(b,
-         discard_cond ? discard_cond : undef,
-         state->depth_feedback_src ? state->depth_feedback_src : undef);
+   /* Drop depth writes and discard cond if early fragment tests. */
+   if (shader->info.fs.early_fragment_tests) {
+      state->depth_feedback_src = NULL;
+      discard_cond = NULL;
+   }
+
+   if (discard_cond || state->depth_feedback_src) {
+      nir_isp_feedback_pco(b,
+            discard_cond ? discard_cond : undef,
+            state->depth_feedback_src ? state->depth_feedback_src : undef);
+   }
 
    state->fs->uses.discard = !!discard_cond;
    state->fs->uses.depth_feedback = !!state->depth_feedback_src;
+
+   return true;
+}
+
+static void cond_disable_frag_store(nir_builder *b,
+                                    nir_intrinsic_instr *store,
+                                    nir_def *cond)
+{
+   b->cursor = nir_before_instr(&store->instr);
+
+   nir_src *input_src = &store->src[0];
+   nir_def *input = input_src->ssa;
+   nir_def *offset = store->src[1].ssa;
+
+   struct nir_io_semantics io_semantics = nir_intrinsic_io_semantics(store);
+   io_semantics.fb_fetch_output = true;
+
+   nir_def *prev_input =
+      nir_load_output(b,
+                      input->num_components,
+                      input->bit_size,
+                      offset,
+                      .base = nir_intrinsic_base(store),
+                      .range = nir_intrinsic_range(store),
+                      .component = nir_intrinsic_component(store),
+                      .dest_type = nir_intrinsic_src_type(store),
+                      .io_semantics = io_semantics);
+
+   nir_src_rewrite(input_src,
+                   nir_bcsel(b, cond, prev_input, input));
+}
+
+/* When early fragment testing is enabled, rather than using ISP feedback to
+ * suppress pixel writes, use the accumulated discard conditions (via
+ * is_helper_invocation) to disable the writes by selecting between the previous
+ * framebuffer values and the ones being written instead.
+ */
+static bool handle_early_frag(nir_shader *shader, struct pfo_state *state)
+{
+   if (!state->stores.size)
+      return false;
+
+   nir_builder b = nir_builder_create(nir_shader_get_entrypoint(shader));
+   b.cursor = nir_before_instr(
+      &(*(nir_intrinsic_instr **)util_dynarray_begin(&state->stores))->instr);
+
+   /* TODO: should this actually be emitted before every store rather than just
+    * after the first one? is_helper_invocation result is position-dependent (on
+    * discards)!
+    */
+   nir_def *is_helper = nir_is_helper_invocation(&b, 1);
+
+   util_dynarray_foreach (&state->stores, nir_intrinsic_instr *, store) {
+      cond_disable_frag_store(&b, *store, is_helper);
+   }
 
    return true;
 }
@@ -722,18 +785,12 @@ static bool lower_color_write_enable(nir_builder *b,
    if (!(location >= FRAG_RESULT_DATA0 && location < FRAG_RESULT_MAX))
       return false;
 
-   nir_src *input_src = &intr->src[0];
-   nir_def *input = input_src->ssa;
-   nir_def *offset = intr->src[1].ssa;
-
    struct nir_io_semantics io_semantics = nir_intrinsic_io_semantics(intr);
    unsigned color_write_index = io_semantics.location - FRAG_RESULT_DATA0;
-   io_semantics.fb_fetch_output = true;
 
    b->cursor = nir_before_instr(&intr->instr);
 
-   /* TODO: nir op that returns bool based on whether a bit is set. */
-   nir_def *color_write_enabled = nir_ine_imm(
+   nir_def *color_write_disabled = nir_ieq_imm(
       b,
       nir_ubitfield_extract_imm(b,
                                 nir_load_fs_meta_pco(b),
@@ -742,20 +799,7 @@ static bool lower_color_write_enable(nir_builder *b,
                                 1u),
       0);
 
-   nir_def *prev_input =
-      nir_load_output(b,
-                      input->num_components,
-                      input->bit_size,
-                      offset,
-                      .base = nir_intrinsic_base(intr),
-                      .range = nir_intrinsic_range(intr),
-                      .component = nir_intrinsic_component(intr),
-                      .dest_type = nir_intrinsic_src_type(intr),
-                      .io_semantics = io_semantics);
-
-   nir_src_rewrite(input_src,
-                   nir_bcsel(b, color_write_enabled, input, prev_input));
-
+   cond_disable_frag_store(b, intr, color_write_disabled);
    return true;
 }
 
@@ -810,6 +854,9 @@ bool pco_nir_pfo(nir_shader *shader, pco_fs_data *fs)
     */
    if (!shader->info.internal)
       progress |= lower_isp_fb(&b, &state);
+
+   if (shader->info.fs.early_fragment_tests)
+      progress |= handle_early_frag(shader, &state);
 
    progress |= sink_outputs(shader, &state);
 
