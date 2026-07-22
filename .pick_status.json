@@ -2624,7 +2624,7 @@
         "description": "panfrost: Blit with the FullScreenJob descriptor (v9)",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "3b5daba32d1c4fca2f42d38cf78ef15ee93c43b0",
         "notes": null
