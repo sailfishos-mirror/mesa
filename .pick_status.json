@@ -2614,7 +2614,7 @@
         "description": "panfrost: Blit with the RUN_FULLSCREEN instruction (v10)",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "69ddb910e0081acf17a4a628c521984671919aee",
         "notes": null
