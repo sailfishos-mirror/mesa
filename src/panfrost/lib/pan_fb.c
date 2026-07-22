@@ -704,6 +704,32 @@ GENX(pan_fb_needs_zs_crc_ext)(const struct pan_fb_desc_info *info)
           pan_fb_select_crc_rt(info, info->fb->tile_size_px) != -1;
 }
 
+#if PAN_ARCH >= 7
+static uint64_t
+pan_fb_crc_clear_color(const struct pan_fb_desc_info *info)
+{
+   uint64_t hash = 0;
+
+   if (info->load) {
+      for (unsigned i = 0; i < info->fb->rt_count; i++) {
+         const struct pan_fb_load_target *rt = &info->load->rts[i];
+
+         if (!pan_target_has_clear(rt))
+            continue;
+
+         uint32_t packed_clear[4] = {0};
+         pan_pack_color(GENX(pan_blendable_formats), packed_clear,
+                        &rt->clear.color, info->fb->rt_formats[i],
+                        false /* dithered */);
+
+         hash ^= pan_crc_clear_color_hash_rt(i, packed_clear);
+      }
+   }
+
+   return pan_crc_clear_color_pack(hash);
+}
+#endif
+
 #if PAN_ARCH >= 14
 uint32_t
 GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
@@ -733,6 +759,11 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
    if (crc.index != -1) {
       crc.read = true;
       crc.write = true;
+#if PAN_ARCH >= 7
+      crc.clear_color = pan_fb_crc_clear_color(info);
+      crc.empty_tile_read = fb->rt_count == 1;
+      crc.empty_tile_write = true;
+#endif
    }
 
    const bool has_zs_crc_ext = GENX(pan_fb_needs_zs_crc_ext)(info);
@@ -842,6 +873,10 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
       if (pan_crc_is_enabled(&crc)) {
          cfg.crc_read_enable = crc.read;
          cfg.crc_write_enable = crc.write;
+#if PAN_ARCH >= 7
+         cfg.empty_tile_read_enable = crc.empty_tile_read;
+         cfg.empty_tile_write_enable = crc.empty_tile_write;
+#endif
       }
 
 #if PAN_ARCH >= 6
