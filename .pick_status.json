@@ -3194,7 +3194,7 @@
         "description": "nir: fix divergence for deref_cast",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "df86c5ffb35700466cdafc6a87b8a0279e473d07",
         "notes": null
