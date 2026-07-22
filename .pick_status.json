@@ -2664,7 +2664,7 @@
         "description": "u_blitter: Fix out-dated draw_rectangle handler doc",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "22ed1ba01a4d1a331775cf8d8faf256d69276e83",
         "notes": null
