@@ -1904,7 +1904,7 @@
         "description": "radv: fix RADV_PERFTEST=nircache enablement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4a91fd8babce0e344dd15120d8428d74600ea39b",
         "notes": null
