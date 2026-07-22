@@ -118,12 +118,3 @@ mtl_command_queue_signal_drawable(mtl_command_queue *queue, void *drawable)
       [q signalDrawable:d];
    }
 }
-
-void
-mtl_drawable_present(void *drawable)
-{
-   @autoreleasepool {
-      id<MTLDrawable> d = (id<MTLDrawable>)drawable;
-      [d present];
-   }
-}
