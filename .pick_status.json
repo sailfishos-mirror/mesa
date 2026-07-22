@@ -2814,7 +2814,7 @@
         "description": "anv: Include build and device identity in shader binary UUID",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4314c891f4c4654ad9542ff37bcb9de4cc24660f",
         "notes": null
