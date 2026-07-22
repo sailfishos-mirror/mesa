@@ -1906,6 +1906,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
             UNREACHABLE("Attempted to store unknown type");
             break;
          }
+         st.src_types[0] = type;
 
          emit_mir_instruction(ctx, &st);
       } else {
@@ -2991,6 +2992,7 @@ midgard_compile_shader_nir(nir_shader *nir,
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats);
       NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
                inputs->varying_layout, false /* has_idvs */,
                NULL /* needs_extended_fifo */);
