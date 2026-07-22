@@ -3842,6 +3842,58 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    }
 
    s->payload_gprs = p.offsets[GPR];
+
+   jay_def mask = nj->payload.push_data[s->prog_data->base.push_reg_mask_param];
+   unsigned simd = b->shader->dispatch_width;
+
+   /* To handle robustness, we need to zero some pushed data depending on a
+    * pushed length. We vectorize this with predication (SIMD32 SEL). The trick
+    * is the vectorized flag calculation using BFI1 directly to fill out the
+    * mask of present words, rather than needing a comparison and the lane ID.
+    * The other wrinkle is splitting up into multiple chunk for large ranges,
+    * since only the last-present chunk will follow the BFI1 mask, the others
+    * will be all zero or all one. That's just a bit of extra bookkeeping.
+    *
+    * See the definition of robust_ubo_ranges for more details.
+    */
+   u_foreach_bit(r, nj->s->prog_data->base.robust_ubo_ranges) {
+      unsigned sz_W = nj->s->prog_data->base.push_sizes[r] / 4;
+
+      jay_def limit_16B = jay_CVT_u32(b, mask, JAY_TYPE_U8, JAY_ROUND, r);
+      jay_def limit_4B = jay_SHL_u32(b, limit_16B, 2);
+      jay_def bitmask = jay_BFI1_u32(b, limit_4B, 0);
+
+      jay_def *push_data = nj->payload.push_data;
+      jay_def higher = jay_null();
+
+      for (unsigned i = 0; i < r; ++i) {
+         push_data += s->prog_data->base.push_sizes[i] / 4;
+      }
+
+      for (unsigned base = 0; base < sz_W; base += simd) {
+         unsigned n = MIN2(sz_W - base, simd);
+         unsigned shift = base % 32;
+
+         jay_def mask = shift ? jay_SHR_u32(b, bitmask, shift) : bitmask;
+         jay_def flag = jay_alloc_def(b, FLAG, 1);
+
+         if (!jay_is_null(higher)) {
+            mask = jay_SEL_u32(b, mask, 0, higher);
+         }
+
+         higher = jay_alloc_def(b, UFLAG, 1);
+         jay_CMP(b, JAY_TYPE_U32, GEN_CONDITION_GE, higher, limit_4B, base + n);
+         jay_SEL(b, JAY_TYPE_U | simd, flag, ~0, mask, higher);
+
+         jay_def dst = jay_alloc_def(b, UGPR, n);
+         jay_def src = jay_collect_vectors(b, &push_data[base], n);
+         jay_SEL(b, JAY_TYPE_U32, dst, src, 0, flag);
+
+         jay_foreach_comp(dst, c) {
+            push_data[base + c] = jay_extract(dst, c);
+         }
+      }
+   }
 }
 
 /*
