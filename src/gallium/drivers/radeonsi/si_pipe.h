@@ -202,6 +202,11 @@ enum
    DBG_SQTT,
    DBG_EXPORT_MODIFIER,
 
+   /* Meta options disabling more and more performance optimizations. */
+   DBG_SAFE,
+   DBG_SAFER,
+   DBG_SAFEST,
+
    DBG_COUNT
 };
 

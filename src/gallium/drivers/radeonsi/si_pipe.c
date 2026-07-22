@@ -81,6 +81,10 @@ static const struct debug_named_value radeonsi_debug_options[] = {
 
    {"userqjoblog", DBG(USERQ_JOB_LOG), "Log more informations when using userq"},
 
+   {"safe", DBG(SAFE), "Disable basic optimizations"},
+   {"safer", DBG(SAFER), "Disable basic and medium optimizations"},
+   {"safest", DBG(SAFEST), "Disable all optimizations"},
+
    DEBUG_NAMED_VALUE_END /* must be last */
 };
 
@@ -285,13 +289,30 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
    uint64_t debug_flags = debug_get_flags_option("R600_DEBUG", radeonsi_debug_options, 0);
    debug_flags |= debug_get_flags_option("AMD_DEBUG", radeonsi_debug_options, 0);
 
+   if (debug_flags & DBG(SAFEST)) {
+      debug_flags |= DBG(SAFER);
+      debug_flags |= DBG(NO_HYPERZ);
+      debug_flags |= DBG(NO_TILING);
+      debug_flags |= DBG(NO_DPBB);
+      debug_flags |= DBG(NO_FMASK);
+   }
+   if (debug_flags & DBG(SAFER)) {
+      debug_flags |= DBG(SAFE);
+      debug_flags |= DBG(NO_DCC);
+   }
+   if (debug_flags & DBG(SAFE)) {
+      debug_flags |= DBG(NO_DISPLAY_DCC);
+      debug_flags |= DBG(NO_EXPORTED_DCC);
+   }
+
    struct amdgpu_winsys_options options = {
       .is_virtio = false,
       .check_vm = debug_flags & DBG(CHECK_VM),
       .reserve_vmid = debug_flags & (DBG(RESERVE_VMID) | DBG(SQTT)),
       .userq_job_log = debug_flags & DBG(USERQ_JOB_LOG),
       .noop_cs = debug_get_bool_option("RADEON_NOOP", false),
-      .zero_vram = driQueryOptionb(config->options, "radeonsi_zerovram"),
+      .zero_vram = driQueryOptionb(config->options, "radeonsi_zerovram") ||
+                   (debug_flags & DBG(SAFE)),
    };
 
 #ifdef HAVE_AMDGPU_VIRTIO
