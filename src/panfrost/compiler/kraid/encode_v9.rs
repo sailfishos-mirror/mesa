@@ -366,6 +366,13 @@ fn op_encode_sr_write(op: &impl Opcode, dst: &Dst) -> SrWrite {
     };
 
     let data_type = op.dst_type(dst);
+    if data_type.total_bits() == 16 {
+        assert_eq!(dst.lanes, ir::DstLanes::H0);
+    } else {
+        debug_assert!(data_type.total_bits() >= 32);
+        assert_eq!(dst.lanes, ir::DstLanes::All);
+    }
+
     let index = reg.idx;
     let count = reg.bytes().div_ceil(4);
 
@@ -2733,6 +2740,18 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
     else {
         return Default::default();
     };
+
+    if dst_info.has_vecsize {
+        let dst = &op.dsts()[0];
+        let dst_type = op.dst_type(dst);
+        let lanes = if dst_type.total_bits() == 16 {
+            DstLanesSet::from_array([ir::DstLanes::H0])
+        } else {
+            debug_assert!(dst_type.total_bits() >= 32);
+            DstLanesSet::from_array([ir::DstLanes::All])
+        };
+        return lanes;
+    }
 
     let mut lanes = DstLanesSet::new();
     for l in dst_info.allowed_lanes.iter() {
