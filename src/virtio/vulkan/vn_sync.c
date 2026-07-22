@@ -17,16 +17,36 @@
 #include "vn_wsi.h"
 
 static void
+vn_sync_payload_release_internal(struct vn_device *dev,
+                                 struct vn_sync_payload *payload,
+                                 const VkAllocationCallbacks *alloc)
+{
+   switch (payload->type) {
+   case VN_SYNC_TYPE_SYNC:
+      vn_renderer_sync_destroy(dev->renderer, payload->sync);
+      break;
+   case VN_SYNC_TYPE_TIMELINE_SYNC:
+      for (uint32_t i = 0; i < dev->queue_count; i++)
+         vn_renderer_sync_destroy(dev->renderer, payload->syncs[i]);
+      vk_free2(&dev->base.vk.alloc, alloc, payload->syncs);
+      break;
+   case VN_SYNC_TYPE_IMPORTED_SYNC_FD:
+      if (payload->fd >= 0)
+         close(payload->fd);
+      break;
+   case VN_SYNC_TYPE_DEVICE_ONLY:
+   case VN_SYNC_TYPE_INVALID:
+      break;
+   }
+
+   payload->type = VN_SYNC_TYPE_INVALID;
+}
+
+static inline void
 vn_sync_payload_release(struct vn_device *dev,
                         struct vn_sync_payload *payload)
 {
-   if (payload->type == VN_SYNC_TYPE_SYNC)
-      vn_renderer_sync_destroy(dev->renderer, payload->sync);
-
-   if (payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD && payload->fd >= 0)
-      close(payload->fd);
-
-   payload->type = VN_SYNC_TYPE_INVALID;
+   vn_sync_payload_release_internal(dev, payload, NULL);
 }
 
 /* fence commands */
