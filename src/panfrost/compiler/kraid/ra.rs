@@ -1426,8 +1426,9 @@ impl Shader<'_> {
 
         let live = SimpleLiveness::for_shader(self);
         let max_live = live.calc_max_live_bytes(self);
-        if max_live > 64 * 4 {
-            panic!("Not enough registers: max_live = {max_live}");
+        assert_eq!(max_live.mem, 0);
+        if max_live.reg > 64 * 4 {
+            panic!("Not enough registers: max_live = {}", max_live.reg);
         }
         let mut ra = GlobalRegAlloc::new(self.model, 64);
         ra.alloc_regs(self, &live);

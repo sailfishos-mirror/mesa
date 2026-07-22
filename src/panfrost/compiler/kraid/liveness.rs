@@ -8,9 +8,39 @@ use compiler::dataflow::BackwardDataflow;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cmp::{Ord, Ordering};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct LiveBytes {
+    pub reg: u32,
+    pub mem: u32,
+}
+
+impl std::ops::Add<LiveBytes> for LiveBytes {
+    type Output = LiveBytes;
+
+    fn add(self, other: LiveBytes) -> LiveBytes {
+        LiveBytes {
+            reg: self.reg + other.reg,
+            mem: self.mem + other.mem,
+        }
+    }
+}
+
+impl LiveBytes {
+    fn get_mut(&mut self, is_mem: bool) -> &mut u32 {
+        if is_mem { &mut self.mem } else { &mut self.reg }
+    }
+
+    fn max(self, other: LiveBytes) -> LiveBytes {
+        LiveBytes {
+            reg: self.reg.max(other.reg),
+            mem: self.mem.max(other.mem),
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct LiveSet {
-    bytes: u32,
+    bytes: LiveBytes,
     set: FxHashSet<SSAValue>,
     bit_set: BitSet<u32>,
 }
@@ -25,7 +55,7 @@ impl LiveSet {
     }
 
     pub fn clear(&mut self) {
-        self.bytes = 0;
+        self.bytes = Default::default();
         self.set.clear();
         self.bit_set.clear();
     }
@@ -34,7 +64,7 @@ impl LiveSet {
         self.bit_set.contains(ssa.idx())
     }
 
-    pub fn bytes(&self) -> u32 {
+    pub fn bytes(&self) -> LiveBytes {
         self.bytes
     }
 
@@ -42,7 +72,7 @@ impl LiveSet {
         if self.bit_set.insert(ssa.idx()) {
             let inserted = self.set.insert(ssa);
             debug_assert!(inserted);
-            self.bytes += u32::from(ssa.bytes());
+            *self.bytes.get_mut(ssa.is_mem()) += u32::from(ssa.bytes());
             true
         } else {
             false
@@ -57,7 +87,7 @@ impl LiveSet {
         if self.bit_set.remove(ssa.idx()) {
             let removed = self.set.remove(ssa);
             debug_assert!(removed);
-            self.bytes -= u32::from(ssa.bytes());
+            *self.bytes.get_mut(ssa.is_mem()) -= u32::from(ssa.bytes());
             true
         } else {
             false
@@ -69,17 +99,18 @@ impl LiveSet {
         ip: usize,
         instr: &Instr,
         bl: &L,
-    ) -> u32 {
-        let mut extra = 0;
+    ) -> LiveBytes {
+        let mut extra: LiveBytes = Default::default();
         for ssa in instr.iter_ssa_defs() {
+            // For sub-register destinations, we assume that they
+            // instantaneously use an entire register.  See also
+            // BlockLiveness::get_instr_pressure().
             if bl.is_live_after_ip(ssa, ip) {
-                // For sub-register destinations, we assume that they
-                // instantaneously use an entire register.  See also
-                // BlockLiveness::get_instr_pressure().
-                extra += 4_u32.saturating_sub(ssa.bytes().into());
+                *extra.get_mut(ssa.is_mem()) +=
+                    4_u32.saturating_sub(ssa.bytes().into());
                 self.insert(*ssa);
             } else {
-                extra += 4;
+                *extra.get_mut(ssa.is_mem()) += 4;
             }
         }
 
@@ -159,8 +190,8 @@ pub trait Liveness {
 
     fn block(&self, idx: usize) -> &Self::PerBlock;
 
-    fn calc_max_live_bytes(&self, s: &Shader) -> u32 {
-        let mut max_live = 0_u32;
+    fn calc_max_live_bytes(&self, s: &Shader) -> LiveBytes {
+        let mut max_live: LiveBytes = Default::default();
         let mut block_live_out: Vec<LiveSet> = Vec::new();
 
         for (bi, bb) in s.blocks.iter().enumerate() {
@@ -174,7 +205,7 @@ pub trait Liveness {
                 live = pred_out
                     .iter()
                     .cloned()
-                    .filter(|ssa| bl.is_live_in(ssa))
+                    .filter(|ssa| !ssa.is_mem() && bl.is_live_in(ssa))
                     .collect();
             }
 
