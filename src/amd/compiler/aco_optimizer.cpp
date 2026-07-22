@@ -3519,18 +3519,22 @@ apply_v_not(opt_ctx& ctx, aco_ptr<Instruction>& instr, Instruction* op_instr)
 }
 
 aco_opcode
-get_bool_invert(opt_ctx& ctx, Instruction* instr)
+get_bool_invert(opt_ctx& ctx, Instruction* instr, bool* swap)
 {
    if (instr->definitions.size() == 2 && ctx.uses[instr->definitions[1].tempId()])
       return aco_opcode::num_opcodes;
 
+#define INVERT_OP(op1, op2, _swap)                                                                 \
+   case aco_opcode::s_##op1##_b32: *swap = _swap; return aco_opcode::s_##op2##_b32;                \
+   case aco_opcode::s_##op2##_b32: *swap = _swap; return aco_opcode::s_##op1##_b32;                \
+   case aco_opcode::s_##op1##_b64: *swap = _swap; return aco_opcode::s_##op2##_b64;                \
+   case aco_opcode::s_##op2##_b64: *swap = _swap; return aco_opcode::s_##op1##_b64;
+
    switch (instr->opcode) {
-   case aco_opcode::s_and_b32: return aco_opcode::s_nand_b32; break;
-   case aco_opcode::s_or_b32: return aco_opcode::s_nor_b32; break;
-   case aco_opcode::s_xor_b32: return aco_opcode::s_xnor_b32; break;
-   case aco_opcode::s_and_b64: return aco_opcode::s_nand_b64; break;
-   case aco_opcode::s_or_b64: return aco_opcode::s_nor_b64; break;
-   case aco_opcode::s_xor_b64: return aco_opcode::s_xnor_b64; break;
+      INVERT_OP(and, nand, false)
+      INVERT_OP(or, nor, false)
+      INVERT_OP(xor, xnor, false)
+      INVERT_OP(andn2, orn2, true)
    default:
       if (!instr->isVOPC())
          return aco_opcode::num_opcodes;
@@ -3541,11 +3545,16 @@ get_bool_invert(opt_ctx& ctx, Instruction* instr)
 bool
 try_bool_invert(opt_ctx& ctx, Instruction* instr)
 {
-   aco_opcode opcode = get_bool_invert(ctx, instr);
+   bool swap = false;
+   aco_opcode opcode = get_bool_invert(ctx, instr, &swap);
    if (opcode == aco_opcode::num_opcodes)
       return false;
 
    instr->opcode = opcode;
+
+   if (swap)
+      std::swap(instr->operands[0], instr->operands[1]);
+
    return true;
 }
 
@@ -4967,10 +4976,11 @@ compute_cndmask_weights(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    if (!instr.get())
       return;
 
+   bool swap = false;
    /* Check if we can invert the definition. */
    if (!instr->definitions.empty() &&
        (ctx.cond_weights[instr->definitions[0].tempId()] <= 0 ||
-        get_bool_invert(ctx, instr.get()) == aco_opcode::num_opcodes)) {
+        get_bool_invert(ctx, instr.get(), &swap) == aco_opcode::num_opcodes)) {
       for (const Definition& def : instr->definitions)
          ctx.cond_weights[def.tempId()] = INT32_MIN;
    }
