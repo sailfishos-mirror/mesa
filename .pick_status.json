@@ -1,5 +1,185 @@
 [
     {
+        "sha": "0aba464832e3f2bae16fb47a825cdbcfa68246d4",
+        "description": "kraid/v9: Fix op_dst_supported_lanes() for vecsize dsts",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "632ad59d6871dd1be2a9696222533e8ea33dc51e",
+        "description": "kraid/opt_copy_prop: Copy-prop IAdd",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9afeb940360de18df059b60cd653b315f576fe90",
+        "description": "kraid: Split staging-register encodings into swizzle/lanes vs data_type forms",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "79e16e72329bc871cee6ea23489cfa3b25779ac7",
+        "description": "tu/autotune: Track binning pass for RP duration",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "af16b1ceb1e60f8b1718bbb7522c105a2b5698b1",
+        "description": "tu/autotune: Stabilize RP hash for replays",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c43cac7264b36b3e3c30408d1b4ad99655293af9",
+        "description": "pan/bi: enable late_lower_int64 on Valhall (v9+)",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "99ca4cb9b743e5cad94f45ca358f1e8cbc0c4eed",
+        "description": "pan/bi: relax load/store alignment constraints on Valhall (v9+)",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "34190c25c149d97fdd0bded229f21261c8232831",
+        "description": "radeonsi: always set is_format_supported in screen create",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c18032ad16582118809bfb2628270b59f7aa4fb7",
+        "description": "va: Remove templat argument from vlVaHandleSurfaceAllocate",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a187e191c0c0947d171f6c0f646e70a85c8600f0",
+        "description": "va: Ensure templat is valid for temporary surfaces",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "153b2f210828bfbe9b5146556ac4922755973289",
+        "notes": null
+    },
+    {
+        "sha": "0e20116a2fa88a19630dd7e0f1092d1ce7bf9cb5",
+        "description": "va: Fix leak when vlVaUploadImage fails",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "153b2f210828bfbe9b5146556ac4922755973289",
+        "notes": null
+    },
+    {
+        "sha": "44b24a0fc6093eff7aa906287764095fda5cf12e",
+        "description": "va: Remove unused upload_sampler function",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d3d45a7fb41433149924d0bbbf9d9bd1ddb9c33a",
+        "description": "pvr: Implementation of VK_KHR_maintenance7",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "67eae5e5fd8c918e16d671a2255426a4af4e66c0",
+        "description": "radv/bvh: Fix updating acceleration structures containing AABBs",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "405c93c665e99d4928391690dd72ceeb6b359868",
+        "notes": null
+    },
+    {
+        "sha": "9e3d66a6c313734c36e1a5272cb66e4a54d59f4c",
+        "description": "tu: Add msrtss to render_pass tracepoint",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "38ba9dd991a2a221719212740222f048c070aeeb",
+        "description": "kk: Remove unused mtl_drawable_present",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "db78021b399b40a74bd4c02ce1f108bd1b813c2e",
+        "description": "kk: Advertise VK_KHR_present_(id/wait)(2)",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ffedd6798dd125e71feda5c181c3f4b8496c0986",
+        "description": "wsi/metal: Implement present ID and present wait",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "d49a00bdf15fd48b31af93aaf5feed3eebcbda12",
         "description": "r300: fixes for UB around left shifts",
         "nominated": false,
