@@ -110,7 +110,7 @@ TEST_F(RegisterCoalesceTest, ChangingTemporaryCompoundRegisterNotChangesOriginal
    EXPECT_NO_PROGRESS(brw_opt_register_coalesce, bld);
 }
 
-TEST_F(RegisterCoalesceTest, DISABLED_OverlappingMultiRegMovLeavesHole)
+TEST_F(RegisterCoalesceTest, OverlappingMultiRegMovLeavesHole)
 {
    brw_builder bld = make_shader(MESA_SHADER_COMPUTE, 16);
 
