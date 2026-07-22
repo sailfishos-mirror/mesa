@@ -14,6 +14,96 @@ use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::ops::Range;
 
+/// A structure that models an arena from which to allocate SSA values.  An
+/// arena may be backed by registers or memory.  This struct mostly isn't
+/// stateful (besides a count of how many bytes have been used) and exists to
+/// tells the allocator about the arena (its size, etc.) and provides methods
+/// for mapping byte ranges used by RA back into the RegRef etc. used by
+/// instructions.
+struct Arena {
+    /// Limit on the number of bytes allocated
+    limit: u16,
+
+    /// Number of bytes actually used
+    used: std::cell::Cell<u16>,
+
+    /// True if we are on v9-14 and in 32-reg mode.  In this case, the middle
+    /// 32 registers of the register arena are missing.  To deal with this, we
+    /// assume a contiguous 32 register arena and place the high regs in 48..64
+    /// as part of reg_for_bytes().
+    is_v9_32reg: bool,
+}
+
+impl Arena {
+    /// Creates a new register arena
+    pub fn new_reg(model: &dyn Model, limit: u16) -> Arena {
+        Arena {
+            limit,
+            used: 0.into(),
+            is_v9_32reg: model.arch() < 15 && limit <= 32 * 4,
+        }
+    }
+
+    /// Returns the number of bytes used from this arena.  This will be updated
+    /// as we allocate and can be queried after RA is complete to know the
+    /// final amount we need to report to the driver.
+    pub fn bytes_used(&self) -> u16 {
+        self.used.get()
+    }
+
+    /// Returns the maximum number of bytes that can be allocated from this
+    /// arena.
+    pub fn limit(&self) -> u16 {
+        self.limit
+    }
+
+    fn mark_used(&self, bytes: Range<u16>) {
+        self.used.set(self.used.get().max(bytes.end));
+    }
+
+    /// Maps a byte range to a [RegRef]
+    pub fn reg_for_bytes(&self, mut bytes: Range<u16>) -> RegRef {
+        self.mark_used(bytes.clone());
+        if self.is_v9_32reg {
+            if bytes.start < (16 * 4) {
+                assert!(bytes.end <= 16 * 4);
+            } else {
+                assert!(bytes.end <= 32 * 4);
+                bytes.start += 32 * 4;
+                bytes.end += 32 * 4;
+            }
+        }
+        RegRef::from_byte_range(bytes.clone()).unwrap()
+    }
+
+    /// Maps a [RegRef] for a byte range
+    pub fn reg_to_bytes(&self, reg: &RegRef) -> Range<u16> {
+        let mut bytes = reg.byte_range();
+        if self.is_v9_32reg {
+            if bytes.start < (16 * 4) {
+                assert!(bytes.end <= 16 * 4);
+            } else {
+                assert!(bytes.start >= 48 * 32);
+                assert!(bytes.end <= 64 * 4);
+                bytes.start -= 32 * 4;
+                bytes.end -= 32 * 4;
+            }
+        }
+        self.mark_used(bytes.clone());
+        bytes
+    }
+
+    /// Maps a byte range to a [Src]
+    pub fn src_for_bytes(&self, bytes: Range<u16>) -> Src {
+        self.reg_for_bytes(bytes).into()
+    }
+
+    /// Maps a byte range to a [Dst]
+    pub fn dst_for_bytes(&self, bytes: Range<u16>) -> Dst {
+        self.reg_for_bytes(bytes).into()
+    }
+}
+
 struct SSABytesIter<'a> {
     ssa_iter: std::slice::Iter<'a, SSAValue>,
     bytes: Range<u16>,
@@ -134,14 +224,8 @@ impl std::ops::BitOrAssign for RegAlignConstraint {
 struct LocalRegAlloc<'a> {
     model: &'a dyn Model,
 
-    /// Total number of bytes available
-    bytes_avail: u16,
-
-    /// True if we are on v9-14 and in 32-reg mode.  In this case, the middle
-    /// 32 registers of the register file are missing.  To deal with this, we
-    /// assume a contiguous 32 register file and place the high regs in 48..64
-    /// as part of reg_for_bytes().
-    is_v9_32reg: bool,
+    /// Allocation arena
+    arena: &'a Arena,
 
     /// Bitset of bytes currently used
     used: BitSet<usize>,
@@ -158,14 +242,12 @@ struct LocalRegAlloc<'a> {
 }
 
 impl LocalRegAlloc<'_> {
-    fn new(model: &dyn Model, reg_limit: u8) -> LocalRegAlloc<'_> {
-        let bytes_avail = u16::from(reg_limit) * 4;
+    fn new<'a>(model: &'a dyn Model, arena: &'a Arena) -> LocalRegAlloc<'a> {
         let mut byte_idx = Vec::new();
-        byte_idx.resize(usize::from(bytes_avail), u32::MAX);
+        byte_idx.resize(usize::from(arena.limit()), u32::MAX);
         LocalRegAlloc {
             model,
-            bytes_avail,
-            is_v9_32reg: model.arch() < 15 && reg_limit <= 32,
+            arena,
             used: Default::default(),
             idx_bytes: Default::default(),
             byte_idx,
@@ -226,34 +308,6 @@ impl LocalRegAlloc<'_> {
         }
     }
 
-    fn reg_for_bytes(&self, mut bytes: Range<u16>) -> RegRef {
-        if self.is_v9_32reg {
-            if bytes.start < (16 * 4) {
-                assert!(bytes.end <= 16 * 4);
-            } else {
-                assert!(bytes.end <= 32 * 4);
-                bytes.start += 32 * 4;
-                bytes.end += 32 * 4;
-            }
-        }
-        RegRef::from_byte_range(bytes.clone()).unwrap()
-    }
-
-    fn reg_to_bytes(&self, reg: &RegRef) -> Range<u16> {
-        let mut bytes = reg.byte_range();
-        if self.is_v9_32reg {
-            if bytes.start < (16 * 4) {
-                assert!(bytes.end <= 16 * 4);
-            } else {
-                assert!(bytes.start >= 48 * 32);
-                assert!(bytes.end <= 64 * 4);
-                bytes.start -= 32 * 4;
-                bytes.end -= 32 * 4;
-            }
-        }
-        bytes
-    }
-
     fn ssa_ref_bytes(&self, vec: &SSARef) -> Option<Range<u16>> {
         let mut vec_bytes = self.ssa_bytes(&vec[0]);
         for i in 1..vec.len() {
@@ -274,7 +328,7 @@ impl LocalRegAlloc<'_> {
     }
 
     fn assign_ssa_ref_reg(&mut self, vec: &SSARef, reg: &RegRef) {
-        self.assign_ssa_ref_bytes(vec, self.reg_to_bytes(reg));
+        self.assign_ssa_ref_bytes(vec, self.arena.reg_to_bytes(reg));
     }
 
     fn pin_bytes(&mut self, bytes: Range<u16>) {
@@ -347,7 +401,7 @@ impl LocalRegAlloc<'_> {
         // First, loop through unused registers in the hopes that one of them
         // ends up having cost 0
         let (align_mul, align_offset) = align.max_align();
-        let max = usize::from(self.bytes_avail) - usize::from(bytes);
+        let max = usize::from(self.arena.limit()) - usize::from(bytes);
         let mut start = 0;
         loop {
             let b = self.find_aligned_unused_unpinned_range(
@@ -695,37 +749,41 @@ impl LocalRegAlloc<'_> {
                     let i = usize::try_from(i).unwrap();
                     let src = &instr.srcs()[i];
 
-                    let mut reg = self.reg_for_bytes(bytes.clone());
-                    let mut swz = Swizzle::from(reg.range);
-                    if self.model.op_src_is_64bit(&instr.op, src) {
-                        let word = reg.idx & 1;
-                        reg.idx &= !1;
-                        if src.swizzle.is_byte_swizzle() {
-                            assert!(word == 0);
-                            assert!(reg.range.bytes() <= 4);
-                        } else if reg.range == RegRange::Regs(1) {
-                            swz = Swizzle::replicate_word(word);
-                            if word == 1 {
-                                reg.range = RegRange::Regs(2);
+                    let ra_src = self.arena.src_for_bytes(bytes.clone());
+                    if let SrcRef::Reg(mut reg) = ra_src.src_ref {
+                        let mut swz = ra_src.swizzle;
+                        if self.model.op_src_is_64bit(&instr.op, src) {
+                            let word = reg.idx & 1;
+                            reg.idx &= !1;
+                            if src.swizzle.is_byte_swizzle() {
+                                assert!(word == 0);
+                                assert!(reg.range.bytes() <= 4);
+                            } else if reg.range == RegRange::Regs(1) {
+                                swz = Swizzle::replicate_word(word);
+                                if word == 1 {
+                                    reg.range = RegRange::Regs(2);
+                                }
+                            } else {
+                                assert!(word == 0);
                             }
-                        } else {
-                            assert!(word == 0);
                         }
-                    }
 
-                    let src = &mut instr.srcs_mut()[i];
-                    src.src_ref = reg.into();
-                    src.swizzle = swz
-                        .swizzle(src.swizzle)
-                        .expect("16-bit and smaller sources have to swizzle");
+                        let src = &mut instr.srcs_mut()[i];
+                        src.src_ref = reg.into();
+                        src.swizzle = swz
+                            .swizzle(src.swizzle)
+                            .expect("8 and 16-bit sources have to swizzle");
+                    } else {
+                        assert_eq!(src.swizzle, ra_src.swizzle);
+                        instr.srcs_mut()[i].src_ref = ra_src.src_ref;
+                    }
                 }
             } else {
                 debug_assert!(src_dst.mask.is_power_of_two());
                 let i = usize::try_from(src_dst.mask.trailing_zeros()).unwrap();
 
                 // Assign the dst to the whole byte range
-                let reg = self.reg_for_bytes(bytes);
-                instr.dsts_mut()[i] = reg.into();
+                instr.dsts_mut()[i] = self.arena.dst_for_bytes(bytes);
             }
         }
 
@@ -766,8 +824,8 @@ impl LocalRegAlloc<'_> {
             };
 
             pcopy.add_copy(
-                self.reg_for_bytes(dst_bytes).into(),
-                self.reg_for_bytes(e.bytes).into(),
+                self.arena.dst_for_bytes(dst_bytes),
+                self.arena.src_for_bytes(e.bytes),
             );
         }
 
@@ -786,9 +844,9 @@ struct GlobalRegAlloc<'a> {
 }
 
 impl GlobalRegAlloc<'_> {
-    fn new(model: &dyn Model, reg_limit: u8) -> GlobalRegAlloc<'_> {
+    fn new<'a>(model: &'a dyn Model, arena: &'a Arena) -> GlobalRegAlloc<'a> {
         GlobalRegAlloc {
-            local: LocalRegAlloc::new(model, reg_limit),
+            local: LocalRegAlloc::new(model, arena),
             live_out: Default::default(),
         }
     }
@@ -981,8 +1039,8 @@ impl GlobalRegAlloc<'_> {
                 let src_bytes = self.local.idx_bytes(idx);
                 let dst_bytes = live_out.get(&idx).unwrap().clone();
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes).into(),
-                    self.local.reg_for_bytes(src_bytes).into(),
+                    self.local.arena.dst_for_bytes(dst_bytes),
+                    self.local.arena.src_for_bytes(src_bytes),
                 );
             }
 
@@ -998,16 +1056,16 @@ impl GlobalRegAlloc<'_> {
                             op.src.swizzle,
                         );
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
-                            self.local.reg_for_bytes(src_bytes).into(),
+                            self.local.arena.dst_for_bytes(dst_bytes.clone()),
+                            self.local.arena.src_for_bytes(src_bytes),
                         );
                     }
                 } else {
                     for w in 0..dst_vec.comps() {
                         let idx = dst_vec[usize::from(w)].idx();
                         let dst_bytes = live_out.get(&idx).unwrap().clone();
-                        let dst = self.local.reg_for_bytes(dst_bytes);
-                        pcopy.add_copy(dst.into(), op.src.clone().word(w));
+                        let dst = self.local.arena.dst_for_bytes(dst_bytes);
+                        pcopy.add_copy(dst, op.src.clone().word(w));
                     }
                 }
             }
@@ -1059,8 +1117,8 @@ impl GlobalRegAlloc<'_> {
 
                 self.local.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes.clone()).into(),
-                    self.local.reg_for_bytes(idx_bytes.clone()).into(),
+                    self.local.arena.dst_for_bytes(dst_bytes.clone()),
+                    self.local.arena.src_for_bytes(idx_bytes.clone()),
                 );
                 let old = live_out.insert(idx, dst_bytes.clone());
                 assert!(old.is_none());
@@ -1087,7 +1145,7 @@ impl GlobalRegAlloc<'_> {
                 // value.
                 if bl.is_live_out(ssa) {
                     let bytes = live_out.get(&idx).unwrap().clone();
-                    branch.cond = self.local.reg_for_bytes(bytes).into();
+                    branch.cond = self.local.arena.src_for_bytes(bytes);
                     continue;
                 }
 
@@ -1101,11 +1159,11 @@ impl GlobalRegAlloc<'_> {
 
                 self.local.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes.clone()).into(),
-                    self.local.reg_for_bytes(idx_bytes.clone()).into(),
+                    self.local.arena.dst_for_bytes(dst_bytes.clone()),
+                    self.local.arena.src_for_bytes(idx_bytes.clone()),
                 );
 
-                branch.cond = self.local.reg_for_bytes(dst_bytes).into();
+                branch.cond = self.local.arena.src_for_bytes(dst_bytes);
             }
 
             // Now place any chunk_bytes sized phis
@@ -1137,12 +1195,12 @@ impl GlobalRegAlloc<'_> {
                             op.src.swizzle,
                         );
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
-                            self.local.reg_for_bytes(src_bytes).into(),
+                            self.local.arena.dst_for_bytes(dst_bytes.clone()),
+                            self.local.arena.src_for_bytes(src_bytes),
                         );
                     } else {
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
+                            self.local.arena.dst_for_bytes(dst_bytes.clone()),
                             op.src.clone().word(i.try_into().unwrap()),
                         );
                     }
@@ -1434,7 +1492,8 @@ impl Shader<'_> {
         if max_live.reg > 64 * 4 {
             panic!("Not enough registers: max_live = {}", max_live.reg);
         }
-        let mut ra = GlobalRegAlloc::new(self.model, 64);
+        let reg_arena = Arena::new_reg(self.model, 64 * 4);
+        let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
         ra.alloc_regs(self, &live);
         self.info.registers_used = 64;
     }
