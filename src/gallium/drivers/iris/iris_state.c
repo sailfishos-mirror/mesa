@@ -5072,7 +5072,8 @@ iris_store_vs_state(const struct iris_screen *screen,
       vs.UserClipDistanceCullTestEnableBitmask =
          vue_data->cull_distance_mask;
 #if GFX_VER >= 30
-      vs.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+      vs.RegistersPerThread =
+         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5122,7 +5123,8 @@ iris_store_tcs_state(const struct iris_screen *screen,
 #endif
 
 #if GFX_VER >= 30
-      hs.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+      hs.RegistersPerThread =
+         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5156,7 +5158,8 @@ iris_store_tes_state(const struct iris_screen *screen,
          vue_data->cull_distance_mask;
 
 #if GFX_VER >= 30
-      ds.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+      ds.RegistersPerThread =
+         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 
@@ -5239,7 +5242,8 @@ iris_store_gs_state(const struct iris_screen *screen,
       gs.VertexURBEntryOutputLength = MAX2(urb_entry_output_length, 1);
 
 #if GFX_VER >= 30
-      gs.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+      gs.RegistersPerThread =
+         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5271,7 +5275,8 @@ iris_store_fs_state(const struct iris_screen *screen,
 #endif
 
 #if GFX_VER >= 30
-      ps.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+      ps.RegistersPerThread =
+         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
 
       /* From the documentation for this packet:
@@ -5370,8 +5375,9 @@ iris_store_cs_state(const struct iris_screen *screen,
       desc.ThreadPreemptionDisable = true;
 #endif
 #if GFX_VER >= 30
-      desc.RegistersPerThread = ptl_register_blocks(
-         shader->brw_prog_data->grf_used);
+      desc.RegistersPerThread =
+         brw_register_blocks(screen->devinfo,
+                             shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -9133,7 +9139,8 @@ iris_upload_compute_walker(struct iris_context *ice,
    idd.BindingTableEntryCount = MIN2(encode_surface_count(screen, shader), 31);
    idd.NumberOfBarriers = cs_data->uses_barrier;
 #if GFX_VER >= 30
-   idd.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);
+   idd.RegistersPerThread =
+      brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
 
 struct GENX(COMPUTE_WALKER_BODY) body = {
