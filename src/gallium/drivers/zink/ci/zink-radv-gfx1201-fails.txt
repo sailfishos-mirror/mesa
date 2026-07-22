@@ -43,5 +43,6 @@ spec@arb_pipeline_statistics_query@arb_pipeline_statistics_query-clip,Fail
 
 # uprev Piglit in Mesa
 glx@glx-make-current,Fail
+spec@ext_yuv_target@execution@rgb_2_yuv,Fail
+spec@ext_yuv_target@execution@yuv_2_rgb,Fail
 vulkan@shaders@cmat-uniform-ctor,Fail
-
