@@ -1036,7 +1036,7 @@ namespace {
             grf_used = DIV_ROUND_UP(max_regs_live, reg_unit(s->devinfo));
          }
 
-         return 32 / MAX2(3, ptl_register_blocks(grf_used) + 1);
+         return 32 / MAX2(3, brw_register_blocks(s->devinfo, grf_used) + 1);
       } else {
          return s->devinfo->num_thread_per_eu;
       }
