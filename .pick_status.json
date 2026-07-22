@@ -2984,7 +2984,7 @@
         "description": "pan/nir: Fix header static inline function",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bf9fa6e6191dcf223d72ae7e1bea96a29bfefcbd",
         "notes": null
