@@ -51,7 +51,6 @@ IS_FIX = re.compile(r'^\s*fixes:\s*([a-f0-9]{6,40})', flags=re.MULTILINE | re.IG
 # FIXME: I dislike the duplication in this regex, but I couldn't get it to work otherwise
 IS_CC = re.compile(r'^\s*cc:\s*["\']?([0-9]{2}\.[0-9])?["\']?\s*["\']?([0-9]{2}\.[0-9])?["\']?\s*\<?mesa-stable',
                    flags=re.MULTILINE | re.IGNORECASE)
-IS_REVERT = re.compile(r'This reverts commit ([0-9a-f]{40})')
 IS_BACKPORT = re.compile(r'^\s*backport-to:\s*(?:(\d{2}\.\d),?\s*(\d{2}\.\d)?|(\*))',
                          flags=re.MULTILINE | re.IGNORECASE)
 
@@ -75,7 +74,7 @@ class NominationType(enum.Enum):
     NONE = 0
     CC = 1
     FIXES = 2
-    REVERT = 3
+    # REVERT = 3
     BACKPORT = 4
 
 
@@ -279,7 +278,6 @@ async def resolve_nomination(commit: 'Commit', version: str) -> 'Commit':
         assert p.returncode == 0, f'git log for {commit.sha} failed'
         commit_message = _out.decode()
 
-    # We give precedence to fixes and cc tags over revert tags.
     if fix_for_commit := IS_FIX.search(commit_message):
         # We set the nomination_type and because_sha here so that we can later
         # check to see if this fixes another staged commit.
@@ -307,23 +305,11 @@ async def resolve_nomination(commit: 'Commit', version: str) -> 'Commit':
             commit.nomination_type = NominationType.CC
             return commit
 
-    if revert_of := IS_REVERT.search(commit_message):
-        # See comment for IS_FIX path
-        try:
-            commit.because_sha = reverted = await full_sha(revert_of.group(1))
-        except PickUIException:
-            pass
-        else:
-            commit.nomination_type = NominationType.REVERT
-            if await is_commit_in_branch(reverted):
-                commit.nominated = True
-                return commit
-
     return commit
 
 
 async def resolve_fixes(commits: typing.List['Commit'], previous: typing.List['Commit']) -> None:
-    """Determine if any of the undecided commits fix/revert a staged commit.
+    """Determine if any of the undecided commits fix a staged commit.
 
     The are still needed if they apply to a commit that is staged for
     inclusion, but not yet included.
@@ -340,20 +326,6 @@ async def resolve_fixes(commits: typing.List['Commit'], previous: typing.List['C
 
         if commit.nominated:
             shas.add(commit.sha)
-
-    for commit in commits:
-        if (commit.nomination_type is NominationType.REVERT and
-                commit.because_sha in shas):
-            for oldc in reversed(commits):
-                if oldc.sha == commit.because_sha:
-                    # In this case a commit that hasn't yet been applied is
-                    # reverted, we don't want to apply that commit at all
-                    oldc.nominated = False
-                    oldc.resolution = Resolution.DENOMINATED
-                    commit.nominated = False
-                    commit.resolution = Resolution.DENOMINATED
-                    shas.remove(commit.because_sha)
-                    break
 
 
 async def gather_commits(version: str, previous: typing.List['Commit'],
