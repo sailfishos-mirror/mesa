@@ -15,6 +15,7 @@
 #include "nv_push_cl906f.h"
 #include "nv_push_cl9097.h"
 #include "nv_push_cl90b5.h"
+#include "nv_push_clc5b0.h"
 #include "nv_push_cl90c0.h"
 
 #define NVK_EVENT_MEM_SIZE sizeof(VkResult)
@@ -188,6 +189,25 @@ nvk_event_report_semaphore(struct nvk_cmd_buffer *cmd,
       P_NV90C0_SET_REPORT_SEMAPHORE_D(p, {
          .operation = OPERATION_RELEASE,
          .structure_size = STRUCTURE_SIZE_ONE_WORD,
+      });
+   } else if (nvk_cmd_buffer_queue_flags(cmd) & VK_QUEUE_VIDEO_DECODE_BIT_KHR) {
+      /* Video engine: backend semaphore release. The flush (on by default)
+       * orders the release after the preceding decode operations complete.
+       *
+       * Note: this must be keyed on the queue flags, not the subchannel:
+       * SUBC_NVC5B0 == SUBC_NV90B5, so the subchannel number cannot
+       * distinguish the video queue from the transfer queue.
+       */
+      assert(subc == SUBC_NVC5B0);
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+      P_MTHD(p, NVC5B0, SEMAPHORE_A);
+      P_NVC5B0_SEMAPHORE_A(p, addr >> 32);
+      P_NVC5B0_SEMAPHORE_B(p, addr);
+      P_NVC5B0_SEMAPHORE_C(p, value);
+      P_MTHD(p, NVC5B0, SEMAPHORE_D);
+      P_NVC5B0_SEMAPHORE_D(p, {
+         .structure_size = STRUCTURE_SIZE_ONE,
+         .operation = OPERATION_RELEASE,
       });
    } else {
       assert(subc == SUBC_NV90B5);
