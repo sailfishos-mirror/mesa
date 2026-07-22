@@ -3754,7 +3754,7 @@
         "description": "nvk: report fills from memory correctly",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2a0302967feb5efb541a8a702d18c933af6e75d1",
         "notes": null
