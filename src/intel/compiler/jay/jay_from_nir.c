@@ -957,6 +957,7 @@ static void
 jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_builder *b = &nj->bld;
+   const struct brw_fs_prog_data *prog_data = &nj->s->prog_data->fs;
    const struct intel_device_info *devinfo = b->shader->devinfo;
    jay_def colour = nj_src(intr->src[0]);
    jay_def dual_colour = jay_null();
@@ -964,13 +965,21 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_def omask = optional_src(intr->src[3]);
    jay_def depth = optional_src(intr->src[4]);
    jay_def stencil = optional_src(intr->src[5]);
-   const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
-   const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
+
+   int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
-   const bool coarse = nj->s->prog_data->fs.coarse_pixel_dispatch;
+   const bool coarse = prog_data->coarse_pixel_dispatch;
+
+   /* Enable null_rt if the shader doesn't write any relevant output. */
+   const bool null_rt = prog_data->alpha_to_coverage == INTEL_NEVER &&
+                        !prog_data->uses_omask &&
+                        !(nj->nir->info.outputs_written &
+                          (BITFIELD64_BIT(FRAG_RESULT_DEPTH) |
+                           BITFIELD64_BIT(FRAG_RESULT_STENCIL))) &&
+                        ((signed) nir_intrinsic_target(intr) < 0);
 
    /* The hardware freaks out if we give it an omask without multisampling. */
-   if (!b->shader->prog_data->fs.uses_omask) {
+   if (!prog_data->uses_omask) {
       omask = jay_null();
    }
 
@@ -981,7 +990,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                      nir_scalar_resolved(intr->src[0].ssa, 3)))
       src0_alpha = jay_null();
 
-   if (b->shader->prog_data->fs.dual_src_blend) {
+   if (prog_data->dual_src_blend) {
       assert(b->shader->dispatch_width == 16);
       dual_colour = nj_src(intr->src[1]);
       src0_alpha = jay_null();
