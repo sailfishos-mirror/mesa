@@ -20,6 +20,12 @@ enum vn_sync_type {
    /* renderer sync object */
    VN_SYNC_TYPE_SYNC,
 
+   /* renderer sync objects
+    * - cpu sync x 1
+    * - gpu sync x vn_device::queue_count
+    */
+   VN_SYNC_TYPE_TIMELINE_SYNC,
+
    /* payload is an imported sync file */
    VN_SYNC_TYPE_IMPORTED_SYNC_FD,
 };
@@ -30,6 +36,10 @@ struct vn_sync_payload {
    union {
       /* If type is VN_SYNC_TYPE_SYNC, sync is non-NULL. */
       struct vn_renderer_sync *sync;
+
+      /* If type is VN_SYNC_TYPE_TIMELINE_SYNC, syncs are non-NULL. */
+      struct vn_renderer_sync **syncs;
+
       /* If type is VN_SYNC_TYPE_IMPORTED_SYNC_FD, fd is a sync file. */
       int fd;
    };
