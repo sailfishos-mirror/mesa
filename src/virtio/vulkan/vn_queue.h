@@ -16,6 +16,9 @@
 struct vn_queue {
    struct vn_queue_base base;
 
+   /* internal queue index within vn_device::queues */
+   uint32_t index;
+
    /* emulated queue shares base queue id and ring_idx with another queue */
    bool emulated;
 

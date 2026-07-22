@@ -52,6 +52,7 @@ vn_queue_fini(struct vn_queue *queue)
 static VkResult
 vn_queue_init(struct vn_device *dev,
               struct vn_queue *queue,
+              uint32_t array_index,
               const VkDeviceQueueCreateInfo *queue_info,
               uint32_t queue_index,
               struct vn_queue *shared_queue)
@@ -60,6 +61,8 @@ vn_queue_init(struct vn_device *dev,
       vn_queue_base_init(&queue->base, &dev->base, queue_info, queue_index);
    if (result != VK_SUCCESS)
       return result;
+
+   queue->index = array_index;
 
    vn_cached_storage_init(&queue->storage, &dev->base.vk.alloc);
 
@@ -127,8 +130,8 @@ vn_device_init_queues(struct vn_device *dev,
       const VkDeviceQueueCreateInfo *queue_info =
          &create_info->pQueueCreateInfos[i];
       for (uint32_t j = 0; j < queue_info->queueCount; j++) {
-         result =
-            vn_queue_init(dev, &queues[count], queue_info, j, shared_queue);
+         result = vn_queue_init(dev, &queues[count], count, queue_info, j,
+                                shared_queue);
          if (result != VK_SUCCESS) {
             for (uint32_t k = 0; k < count; k++)
                vn_queue_fini(&queues[k]);
