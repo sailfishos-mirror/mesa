@@ -1356,7 +1356,7 @@ pub trait Opcode:
         }
     }
 
-    fn iter_ssa_uses(&self) -> impl Iterator<Item = &SSAValue> {
+    fn iter_ssa_uses(&self) -> impl DoubleEndedIterator<Item = &SSAValue> {
         self.srcs().iter().flat_map(|src| {
             if let SrcRef::SSA(vec) = &src.src_ref {
                 vec.iter()
@@ -1366,12 +1366,36 @@ pub trait Opcode:
         })
     }
 
-    fn iter_ssa_defs(&self) -> impl Iterator<Item = &SSAValue> {
+    fn iter_ssa_uses_mut(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = &mut SSAValue> {
+        self.srcs_mut().iter_mut().flat_map(|src| {
+            if let SrcRef::SSA(vec) = &mut src.src_ref {
+                vec.iter_mut()
+            } else {
+                (&mut []).iter_mut()
+            }
+        })
+    }
+
+    fn iter_ssa_defs(&self) -> impl DoubleEndedIterator<Item = &SSAValue> {
         self.dsts().iter().flat_map(|dst| {
             if let DstRef::SSA(vec) = &dst.dst_ref {
                 vec.iter()
             } else {
                 (&[]).iter()
+            }
+        })
+    }
+
+    fn iter_ssa_defs_mut(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = &mut SSAValue> {
+        self.dsts_mut().iter_mut().flat_map(|dst| {
+            if let DstRef::SSA(vec) = &mut dst.dst_ref {
+                vec.iter_mut()
+            } else {
+                (&mut []).iter_mut()
             }
         })
     }
