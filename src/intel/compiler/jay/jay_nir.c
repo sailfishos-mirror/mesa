@@ -76,6 +76,10 @@ lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
       nir_def_replace(&intr->def, nir_fmul_imm(b, pos, 1.0f / 16.0f));
       return true;
+   } else if (intr->intrinsic == nir_intrinsic_load_max_polygon_intel) {
+      /* TODO: Support multipolygon */
+      nir_def_replace(&intr->def, nir_imm_int(b, 1));
+      return true;
    }
 
    return false;
