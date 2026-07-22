@@ -188,6 +188,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_post_depth_coverage = true,
       .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
+      .EXT_provoking_vertex = true,
       .EXT_robustness2 = true,
       .EXT_sample_locations = true,
       .EXT_shader_atomic_float = true,
@@ -452,6 +453,7 @@ kk_get_device_features(
       .extendedDynamicState3DepthClampEnable = true,
       .extendedDynamicState3DepthClipNegativeOneToOne = true,
       .extendedDynamicState3LineRasterizationMode = true,
+      .extendedDynamicState3ProvokingVertexMode = true,
       .extendedDynamicState3SampleLocationsEnable = true,
       .extendedDynamicState3TessellationDomainOrigin = true,
 
@@ -478,6 +480,9 @@ kk_get_device_features(
       /* VK_EXT_primitive_topology_list_restart */
       .primitiveTopologyListRestart = true,
       .primitiveTopologyPatchListRestart = false,
+
+      /* VK_EXT_provoking_vertex */
+      .provokingVertexLast = true,
 
       /* VK_EXT_shader_replicated_composites */
       .shaderReplicatedComposites = true,

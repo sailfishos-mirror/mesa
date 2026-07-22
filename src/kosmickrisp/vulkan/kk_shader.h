@@ -100,6 +100,10 @@ struct kk_shader_info {
       } tess;
 
       struct {
+         bool uses_flat_varyings;
+      } fs;
+
+      struct {
          struct mtl_size local_size;
       } cs;
    };

@@ -1006,10 +1006,11 @@ struct kk_draw_command {
    bool indirect;
    bool indexed;
    bool restart;
+   bool flatshade_first;
+   uint8_t pad_[3];
    uint32_t predicate_count;
    enum kk_predicate_op predicate_op[2];
    uint32_t draw_count;
-   uint32_t pad_;
    uint64_t predicate_addr[2];
 
    union {
@@ -1433,7 +1434,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
                        : 0u,
       .in_el_size_B = data->index_buffer_el_size_B,
       .out_el_size_B = 4u,
-      .flatshade_first = true,
+      .flatshade_first = data->flatshade_first,
       .mode = data->prim,
    };
 
@@ -1449,6 +1450,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
    data->indirect = true;
    data->indexed = true;
    data->restart = false;
+   data->flatshade_first = true;
    data->indirect_command.addr = out_draws.gpu;
    data->indirect_command.stride = sizeof(VkDrawIndexedIndirectCommand);
 
@@ -1562,7 +1564,7 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 }
 
 static bool
-requires_index_promotion(const struct kk_draw_command *data)
+requires_unroll_index_promotion(const struct kk_draw_command *data)
 {
    if (!data->indexed)
       return false;
@@ -1669,6 +1671,38 @@ requires_unroll_restart(struct kk_cmd_buffer *cmd,
     * restart index is set by user */
    uint32_t default_idx = BITFIELD_RANGE(0, data->index_buffer_el_size_B * 8);
    return data->restart_index != default_idx;
+}
+
+static bool
+requires_unroll_flatshade(struct kk_cmd_buffer *cmd,
+                          struct kk_draw_command *data)
+{
+   struct kk_shader *fs = cmd->state.shaders[MESA_SHADER_FRAGMENT];
+
+   /* If the last vertex is provoking and the fragment shader uses flat inputs,
+    * we need to unroll to correct the vertex order */
+   return !data->flatshade_first && fs && fs->info.fs.uses_flat_varyings;
+}
+
+static bool
+requires_unroll(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
+{
+   /* No need to unroll for tessellation. Robustness is handled by tessellator,
+    * restart is not supported for patch lists, and flat-shading does not have a
+    * well-defined vertex used when tessellating. */
+   bool tess = cmd->state.shaders[MESA_SHADER_TESS_EVAL];
+   if (tess)
+      return false;
+
+   /* Metal does not support triangle fans */
+   if (data->prim == MESA_PRIM_TRIANGLE_FAN)
+      return true;
+
+   /* Check for remaining unroll conditions */
+   return requires_unroll_index_promotion(data) ||
+          requires_unroll_robustness(cmd, data) ||
+          requires_unroll_restart(cmd, data) ||
+          requires_unroll_flatshade(cmd, data);
 }
 
 static uint64_t
@@ -1878,11 +1912,14 @@ build_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
 static void
 kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
 {
+   struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
+
    kk_flush_gfx_state(cmd);
 
-   data->restart = cmd->vk.dynamic_graphics_state.ia.primitive_restart_enable;
-   data->restart_index =
-      cmd->vk.dynamic_graphics_state.ia.primitive_restart_index;
+   data->restart = dyn->ia.primitive_restart_enable;
+   data->restart_index = dyn->ia.primitive_restart_index;
+   data->flatshade_first =
+      dyn->rs.provoking_vertex == VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
    /* Convert to indirect and process predicates. Skip draw if we fail. */
    if (data->predicate_count > 0 && !kk_predicate_draws(cmd, data))
@@ -1890,13 +1927,8 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
 
    bool tess = cmd->state.shaders[MESA_SHADER_TESS_EVAL];
 
-   /* Unroll geometry. Skip draw if we fail. No need to unroll if tessellation
-    * is present since it also handles unrolling. */
-   bool requires_unroll = !tess && (data->prim == MESA_PRIM_TRIANGLE_FAN ||
-                                    requires_index_promotion(data) ||
-                                    requires_unroll_robustness(cmd, data) ||
-                                    requires_unroll_restart(cmd, data));
-   if (requires_unroll && !kk_unroll_geometry(cmd, data))
+   /* Unroll geometry. Skip draw if we fail. */
+   if (requires_unroll(cmd, data) && !kk_unroll_geometry(cmd, data))
       return;
 
    for (uint32_t i = 0; i < data->draw_count; i++) {

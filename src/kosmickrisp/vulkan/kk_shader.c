@@ -723,6 +723,23 @@ gather_vs_inputs(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    return false;
 }
 
+static bool
+fs_uses_flat_varying(nir_shader *nir)
+{
+   nir_foreach_function_impl(impl, nir) {
+      nir_foreach_block_safe(block, impl) {
+         nir_foreach_instr_safe(instr, block) {
+            if (instr->type == nir_instr_type_intrinsic) {
+               nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+               if (intr->intrinsic == nir_intrinsic_load_input)
+                  return true;
+            }
+         }
+      }
+   }
+   return false;
+}
+
 static void
 gather_shader_info(struct kk_shader *shader, nir_shader *nir,
                    const struct vk_graphics_pipeline_state *state)
@@ -739,6 +756,7 @@ gather_shader_info(struct kk_shader *shader, nir_shader *nir,
        * which is not a valid Metal layout */
       if (nir->info.fs.depth_layout == FRAG_DEPTH_LAYOUT_NONE)
          nir->info.fs.depth_layout = FRAG_DEPTH_LAYOUT_ANY;
+      shader->info.fs.uses_flat_varyings = fs_uses_flat_varying(nir);
    } else if (nir->info.stage == MESA_SHADER_COMPUTE) {
       shader->info.cs.local_size.x = nir->info.workgroup_size[0];
       shader->info.cs.local_size.y = nir->info.workgroup_size[1];
