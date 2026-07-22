@@ -101,15 +101,12 @@ si_res_print_flags(enum radeon_bo_flag flags) {
       fprintf(stderr, "GFX12_ALLOW_DCC ");
 }
 
-enum radeon_map_flags
-{
-   /* Indicates that the caller will unmap the buffer.
-    *
-    * Not unmapping buffers is an important performance optimization for
-    * OpenGL (avoids kernel overhead for frequently mapped buffers).
-    */
-   RADEON_MAP_TEMPORARY = (PIPE_MAP_DRV_PRV << 0),
-};
+/* Indicates that the caller will unmap the buffer.
+ *
+ * Not unmapping buffers is an important performance optimization for
+ * OpenGL (avoids kernel overhead for frequently mapped buffers).
+ */
+#define RADEON_MAP_TEMPORARY (PIPE_MAP_DRV_PRV << 0)
 
 #define RADEON_SPARSE_PAGE_SIZE (64 * 1024)
 
