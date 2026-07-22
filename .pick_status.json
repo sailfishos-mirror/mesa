@@ -3504,7 +3504,7 @@
         "description": "mesa/st: Invalidate FS sampler views after PBO texture transfers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "62efee18607380e3728480cb0061de0521171ef4",
         "notes": null
