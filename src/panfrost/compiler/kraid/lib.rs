@@ -27,6 +27,7 @@ mod parallel_copy;
 mod phi;
 mod ra;
 mod remat_constants;
+mod repair_ssa;
 mod small_constants;
 mod ssa_value;
 mod swizzle;
