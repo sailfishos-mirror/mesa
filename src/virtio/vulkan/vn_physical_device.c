@@ -1074,8 +1074,19 @@ vn_physical_device_init_external_semaphore_handles(
 {
    /* The current code manipulates the host-side VkSemaphore directly.  It
     * works very well for binary semaphores because there is no CPU operation.
-    * But for timeline semaphores, vkWaitSemaphores is translated to repeated
-    * vkGetSemaphoreCounterValue.
+    *
+    * Timeline semaphore is implemented on top of both renderer side device
+    * object and driver side vn_renderer_sync. Each semaphore encapsulates
+    * 1 cpu sync and vn_device::queue_count gpu syncs to ensure monotonicity
+    * of the sync timeline while supporting wait-before-signal.
+    * - device wait: forward the semaphore object to renderer side
+    * - device signal: forward the semaphore object to renderer side, and then
+    *                  submit the queue sync to signal the same timeline point
+    * - host query: query each of the driver side syncs and return the max
+    * - host wait: for each timeline semaphore, wait for any of the driver
+    *              side syncs to reach the point
+    * - host signal: forward the semaphore object to renderer side and signal
+    *                driver side cpu sync (order doesn't matter)
     *
     * SYNC_FD semaphore is implemented on top of driver side vn_renderer_sync.
     * If such semaphore isn't exported but waited, currently we resolve the
