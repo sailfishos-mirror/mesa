@@ -3904,7 +3904,7 @@
         "description": "v3dv: avoid restoring stale descriptor state after a meta op",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e59e706928369b2a8aaf260d3662e1d39489363a",
         "notes": null
