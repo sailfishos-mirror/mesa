@@ -1204,9 +1204,23 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
       case GLSL_SAMPLER_DIM_2D: {
          /* Calculate untwiddled offset. */
-         nir_def *x = nir_channel(b, coords, 0);
-         nir_def *y = nir_channel(b, coords, 1);
-         twiddled_offset = nir_interleave(b, y, x);
+         nir_def *num_comps = nir_imm_int(b, 2);
+         nir_def *dim = nir_imm_int(b, image_dim);
+         nir_def *_is_array = nir_imm_bool(b, is_array);
+         nir_def *is_image = nir_imm_bool(b, true);
+         nir_def *size_comps = usclib_tex_state_size(b,
+                                                     tex_state,
+                                                     num_comps,
+                                                     dim,
+                                                     _is_array,
+                                                     is_image,
+                                                     lod);
+
+         twiddled_offset = usclib_twiddle2d(b,
+                                            nir_channels(b, coords, 0b11),
+                                            nir_channels(b, size_comps, 0b11));
+         data->common.uses.usclib = true;
+
          twiddled_offset =
             nir_imul_imm(b, twiddled_offset, util_format_get_blocksize(format));
 
