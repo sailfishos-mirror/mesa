@@ -5212,12 +5212,10 @@ d3d12_video_encoder_update_picparams_region_of_interest_qpmap(struct d3d12_video
 }
 
 int
-d3d12_video_encoder_fence_wait(struct pipe_video_codec *codec,
+d3d12_video_encoder_fence_wait([[maybe_unused]] struct pipe_video_codec *codec,
                                struct pipe_fence_handle *_fence,
                                uint64_t timeout)
 {
-   struct d3d12_video_encoder *pD3D12Enc = (struct d3d12_video_encoder *) codec;
-   assert(pD3D12Enc);
    struct d3d12_fence *fence = (struct d3d12_fence *) _fence;
    assert(fence);
 
