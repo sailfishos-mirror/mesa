@@ -6,6 +6,7 @@ use crate::liveness::*;
 use crate::ops::{OpBranch, OpPhiSrc, OpRegOut};
 use crate::parallel_copy::*;
 use crate::phi::PhiMap;
+use crate::ssa_value::*;
 use compiler::bitset::*;
 use compiler::cfg::CFG;
 use compiler::smallvec::*;
@@ -765,7 +766,7 @@ impl LocalRegAlloc<'_> {
             };
 
             pcopy.add_copy(
-                self.reg_for_bytes(dst_bytes),
+                self.reg_for_bytes(dst_bytes).into(),
                 self.reg_for_bytes(e.bytes).into(),
             );
         }
@@ -822,14 +823,17 @@ impl GlobalRegAlloc<'_> {
     ) -> ParallelCopy<'_> {
         debug_assert!(cfg.succ_indices(bi).is_empty());
 
-        let mut pcopy = ParallelCopy::new(self.local.model);
+        let mut pcopy = ParallelCopy::new(self.local.model, false);
         for op in reg_outs {
             if let RegRange::Regs(words) = op.reg.range {
                 for i in 0..words {
-                    pcopy.add_copy(op.reg.word(i), op.src.clone().word(i));
+                    pcopy.add_copy(
+                        op.reg.word(i).into(),
+                        op.src.clone().word(i),
+                    );
                 }
             } else {
-                pcopy.add_copy(op.reg, op.src);
+                pcopy.add_copy(op.reg.into(), op.src);
             }
         }
 
@@ -971,13 +975,13 @@ impl GlobalRegAlloc<'_> {
         if let Some(live_out) = live_out {
             // In this case, someone already set up our live-out.  We just have
             // to emit copies to shuffle everything into place.
-            let mut pcopy = ParallelCopy::new(self.local.model);
+            let mut pcopy = ParallelCopy::new(self.local.model, false);
             for idx in bl.live_out_set().iter() {
                 let idx = u32::try_from(idx).unwrap();
                 let src_bytes = self.local.idx_bytes(idx);
                 let dst_bytes = live_out.get(&idx).unwrap().clone();
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes),
+                    self.local.reg_for_bytes(dst_bytes).into(),
                     self.local.reg_for_bytes(src_bytes).into(),
                 );
             }
@@ -994,7 +998,7 @@ impl GlobalRegAlloc<'_> {
                             op.src.swizzle,
                         );
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()),
+                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
                             self.local.reg_for_bytes(src_bytes).into(),
                         );
                     }
@@ -1003,7 +1007,7 @@ impl GlobalRegAlloc<'_> {
                         let idx = dst_vec[usize::from(w)].idx();
                         let dst_bytes = live_out.get(&idx).unwrap().clone();
                         let dst = self.local.reg_for_bytes(dst_bytes);
-                        pcopy.add_copy(dst, op.src.clone().word(w));
+                        pcopy.add_copy(dst.into(), op.src.clone().word(w));
                     }
                 }
             }
@@ -1035,7 +1039,7 @@ impl GlobalRegAlloc<'_> {
 
         // Now, place everything.  Go largest to smallest to reduce so that
         // we can guarantee everything fits.
-        let mut pcopy = ParallelCopy::new(self.local.model);
+        let mut pcopy = ParallelCopy::new(self.local.model, false);
         let mut live_out_set = bl.live_out_set().clone();
         let mut live_out: FxHashMap<u32, Range<u16>> = Default::default();
         for chunk_bytes in [8, 4, 2, 1] {
@@ -1055,7 +1059,7 @@ impl GlobalRegAlloc<'_> {
 
                 self.local.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes.clone()),
+                    self.local.reg_for_bytes(dst_bytes.clone()).into(),
                     self.local.reg_for_bytes(idx_bytes.clone()).into(),
                 );
                 let old = live_out.insert(idx, dst_bytes.clone());
@@ -1097,7 +1101,7 @@ impl GlobalRegAlloc<'_> {
 
                 self.local.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
-                    self.local.reg_for_bytes(dst_bytes.clone()),
+                    self.local.reg_for_bytes(dst_bytes.clone()).into(),
                     self.local.reg_for_bytes(idx_bytes.clone()).into(),
                 );
 
@@ -1133,12 +1137,12 @@ impl GlobalRegAlloc<'_> {
                             op.src.swizzle,
                         );
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()),
+                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
                             self.local.reg_for_bytes(src_bytes).into(),
                         );
                     } else {
                         pcopy.add_copy(
-                            self.local.reg_for_bytes(dst_bytes.clone()),
+                            self.local.reg_for_bytes(dst_bytes.clone()).into(),
                             op.src.clone().word(i.try_into().unwrap()),
                         );
                     }
@@ -1201,9 +1205,9 @@ impl GlobalRegAlloc<'_> {
                 }
                 Op::RegOut(op) => reg_outs.push(op),
                 _ => {
-                    let mut pcopy = ParallelCopy::new(self.local.model);
+                    let mut pcopy = ParallelCopy::new(self.local.model, false);
                     self.local.alloc_regs_instr(ip, &mut instr, &mut pcopy, bl);
-                    instrs.extend(pcopy.into_instrs());
+                    instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
                     instrs.push(instr);
                 }
             }
@@ -1213,7 +1217,7 @@ impl GlobalRegAlloc<'_> {
             assert!(phi_srcs.is_empty());
             assert!(branch.is_none());
             let pcopy = self.end_shader(cfg, bi, reg_outs);
-            instrs.extend(pcopy.into_instrs());
+            instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
         } else {
             assert!(reg_outs.is_empty());
             let pcopy = self.end_block(
@@ -1224,7 +1228,7 @@ impl GlobalRegAlloc<'_> {
                 branch.as_mut(),
                 phi_map,
             );
-            instrs.extend(pcopy.into_instrs());
+            instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
             instrs.extend(branch.map(Instr::from));
         }
 
