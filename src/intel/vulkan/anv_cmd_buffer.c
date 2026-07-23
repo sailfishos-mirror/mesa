@@ -1078,12 +1078,13 @@ anv_cmd_buffer_merge_dynamic(struct anv_cmd_buffer *cmd_buffer,
 struct anv_state
 anv_cmd_buffer_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer)
 {
-   const struct anv_push_constants *data =
-      &cmd_buffer->state.gfx.base->push_constants;
+   const struct anv_cmd_graphics_state *gfx = &cmd_buffer->state.gfx;
+   const struct anv_bind_point_state *bind_state = gfx->base;
+   const struct anv_push_constants *data = &bind_state->push_constants;
+   const uint32_t size = anv_push_constants_size(bind_state->binding_mode);
 
    struct anv_state state =
-      anv_cmd_buffer_alloc_temporary_state(cmd_buffer,
-                                           sizeof(struct anv_push_constants),
+      anv_cmd_buffer_alloc_temporary_state(cmd_buffer, size,
                                            32 /* bottom 5 bits MBZ */);
    if (state.alloc_size == 0)
       return state;
@@ -1092,7 +1093,7 @@ anv_cmd_buffer_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer)
           cmd_buffer->state.gfx.base->push_constants_client_size);
    memcpy(state.map + offsetof(struct anv_push_constants, drv_data),
           &data->drv_data,
-          sizeof(struct anv_push_constants) - offsetof(struct anv_push_constants, drv_data));
+          size - offsetof(struct anv_push_constants, drv_data));
 
    return state;
 }

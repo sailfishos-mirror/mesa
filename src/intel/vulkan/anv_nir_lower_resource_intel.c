@@ -142,8 +142,10 @@ lower_resource_intel(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
           * resource_intel::src[0]. That way the shader can just do a single
           * ADD and get the surface handle.
           */
-         if (!is_sampler)
+         if (!is_sampler) {
+            set_offset = nir_ishl_imm(b, set_offset, 6);
             binding_offset = nir_ishl_imm(b, binding_offset, 6);
+         }
       }
 
       nir_src_rewrite(&intrin->src[1],

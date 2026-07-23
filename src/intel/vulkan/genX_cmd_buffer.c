@@ -3457,8 +3457,8 @@ compute_descriptor_set_surface_offset(const struct anv_cmd_buffer *cmd_buffer,
    const uint32_t descriptor_buffer_align =
       cmd_buffer->state.descriptor_buffers.address[buffer_index] % 4096;
 
-   return (descriptor_buffer_align +
-           bind_state->descriptor_buffers[set_idx].buffer_offset) << 6;
+   return descriptor_buffer_align +
+          bind_state->descriptor_buffers[set_idx].buffer_offset;
 }
 
 ALWAYS_INLINE static uint32_t
@@ -3475,7 +3475,7 @@ compute_descriptor_set_sampler_offset(const struct anv_cmd_buffer *cmd_buffer,
       cmd_buffer->state.descriptor_buffers.address[buffer_index];
 
    return (buffer_address - anv_physical_device_get_dynamic_state_pool_va(device)->addr) +
-      bind_state->descriptor_buffers[set_idx].buffer_offset;
+          bind_state->descriptor_buffers[set_idx].buffer_offset;
 }
 
 void
@@ -3549,19 +3549,19 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
 
 #if GFX_VERx10 < 125
       struct anv_device *device = cmd_buffer->device;
-      UPDATE_PUSH(push->desc_surface_offsets[0],
+      UPDATE_PUSH(push->heap.surfaces_offset,
                   cmd_buffer->state.descriptor_heap.surfaces_address % 4096);
-      UPDATE_PUSH(push->surfaces_base_offset,
+      UPDATE_PUSH(push->heap.surfaces_base_offset,
                   ROUND_DOWN_TO(
                      cmd_buffer->state.descriptor_heap.surfaces_address,
                      4096) -
                   anv_physical_device_get_dynamic_visible_pool_va(device->physical)->addr);
 #else
-      UPDATE_PUSH(push->desc_surface_offsets[0],
+      UPDATE_PUSH(push->heap.surfaces_offset,
                   cmd_buffer->state.descriptor_heap.surfaces_address -
                   cmd_buffer->device->physical->va.dynamic_visible_pool.addr);
 #endif
-      UPDATE_PUSH(push->desc_surface_offsets[1],
+      UPDATE_PUSH(push->heap.samplers_offset,
                   cmd_buffer->state.descriptor_heap.samplers_address -
                   anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr);
 
@@ -3579,16 +3579,16 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          for (uint32_t i = 0; i < bind_state->max_bound_descriptors; i++) {
             update_descriptor_set_surface_state(cmd_buffer, bind_state, i);
 
-            UPDATE_PUSH(push->desc_surface_offsets[i],
+            UPDATE_PUSH(push->buffer.sets[i].surfaces_offset,
                         compute_descriptor_set_surface_offset(cmd_buffer, bind_state, i));
-            UPDATE_PUSH(push->desc_sampler_offsets[i],
+            UPDATE_PUSH(push->buffer.sets[i].samplers_offset,
                         compute_descriptor_set_sampler_offset(cmd_buffer, bind_state, i));
          }
 
 #if GFX_VERx10 < 125
          struct anv_device *device = cmd_buffer->device;
          if (cmd_buffer->state.descriptor_buffers.surfaces_buffer != -1) {
-            UPDATE_PUSH(push->surfaces_base_offset,
+            UPDATE_PUSH(push->buffer.surfaces_base_offset,
                         ROUND_DOWN_TO(
                            cmd_buffer->state.descriptor_buffers.address[
                               cmd_buffer->state.descriptor_buffers.surfaces_buffer],
@@ -3629,13 +3629,13 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
           * more likely to access the offset on pre-LSC platforms.
           */
          if (cmd_buffer->device->vk.enabled_features.deviceGeneratedCommands || GFX_VERx10 >= 125) {
-            UPDATE_PUSH(push->desc_surface_offsets[i], offset | dyn_set_offset);
-            UPDATE_PUSH(push->desc_sampler_offsets[i],
+            UPDATE_PUSH(push->legacy.sets[i].surfaces_offset, offset | dyn_set_offset);
+            UPDATE_PUSH(push->legacy.sets[i].samplers_offset,
                         anv_address_physical(set->desc_sampler_addr) -
                         anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr);
          }
          for (uint32_t j = 0; j < set->layout->vk.dynamic_descriptor_count; j++) {
-            UPDATE_PUSH(push->dynamic_offsets[dyn_set_offset + j],
+            UPDATE_PUSH(push->legacy.dynamic_offsets[dyn_set_offset + j],
                         bind_state->dynamic_offsets[i].offsets[j]);
          }
          dyn_set_offset += set->layout->vk.dynamic_descriptor_count;

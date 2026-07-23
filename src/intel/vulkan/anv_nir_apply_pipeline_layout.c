@@ -329,7 +329,7 @@ build_load_desc_set_dynamic_index(nir_builder *b, unsigned set_idx)
 {
    return nir_iand_imm(
       b,
-      anv_load_driver_uniform(b, 1, desc_surface_offsets[set_idx]),
+      anv_load_driver_uniform(b, 1, legacy.sets[set_idx].surfaces_offset),
       ANV_DESCRIPTOR_SET_DYNAMIC_INDEX_MASK);
 }
 
@@ -788,10 +788,44 @@ build_descriptor_set_offset(nir_builder *b,
                             uint32_t set,
                             const struct apply_pipeline_layout_state *state)
 {
-   if (state->pdevice->info.has_lsc || state->is_device_bindable) {
+   switch (state->bind_map->binding_mode) {
+   case ANV_SHADER_BINDING_MODE_LEGACY:
+   case ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT:
       return nir_iand_imm(b,
-                          anv_load_driver_uniform(b,  1, desc_surface_offsets[set]),
+                          anv_load_driver_uniform(b,  1, legacy.sets[set].surfaces_offset),
                           ANV_DESCRIPTOR_SET_OFFSET_MASK /* array_index */);
+   case ANV_SHADER_BINDING_MODE_BUFFER:
+      return anv_load_driver_uniform(b,  1, buffer.sets[set].surfaces_offset);
+   case ANV_SHADER_BINDING_MODE_UNKNOWN:
+      return nir_imm_int(b, 0);
+   default:
+      UNREACHABLE("invalid binding mode");
+   }
+}
+
+static nir_def *
+build_descriptor_set_sampler_offset(nir_builder *b,
+                                    uint32_t set,
+                                    const struct apply_pipeline_layout_state *state)
+{
+   switch (state->bind_map->binding_mode) {
+   case ANV_SHADER_BINDING_MODE_LEGACY:
+   case ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT:
+      return anv_load_driver_uniform(b, 1, legacy.sets[set].samplers_offset);
+   case ANV_SHADER_BINDING_MODE_BUFFER:
+      return anv_load_driver_uniform(b, 1, buffer.sets[set].samplers_offset);
+   default:
+      UNREACHABLE("invalid binding mode");
+   }
+}
+
+static nir_def *
+build_descriptor_set_offset_buffers(nir_builder *b,
+                                    uint32_t set,
+                                    const struct apply_pipeline_layout_state *state)
+{
+   if (state->pdevice->info.has_lsc || state->is_device_bindable) {
+      return build_descriptor_set_offset(b, set, state);
    } else {
       return nir_imm_int(b, 0);
    }
@@ -972,7 +1006,7 @@ build_surface_index_for_binding(nir_builder *b,
             b, build_res_index(b, set, binding, array_index, state),
             final_offset, 1, 32, state);
       } else {
-         set_offset = anv_load_driver_uniform(b, 1, desc_surface_offsets[set]);
+         set_offset = build_descriptor_set_offset(b, set, state);
 
          /* With bindless indexes are offsets in the descriptor buffer */
          surface_index =
@@ -1066,7 +1100,7 @@ build_sampler_handle_for_binding(nir_builder *b,
 
          sampler_index = nir_channel(b, desc_data, 1);
       } else {
-         set_offset = anv_load_driver_uniform(b, 1, desc_sampler_offsets[set]);
+         set_offset = build_descriptor_set_sampler_offset(b, set, state);
 
          uint32_t final_offset = descriptor_offset;
 
@@ -1124,7 +1158,7 @@ build_buffer_dynamic_offset_for_res_index(nir_builder *b,
    nir_def *dyn_offset_idx = nir_iadd(b, dyn_offset_base, array_index);
 
    nir_def *dyn_load =
-      anv_load_driver_uniform_indexed(b, 1, dynamic_offsets, dyn_offset_idx);
+      anv_load_driver_uniform_indexed(b, 1, legacy.dynamic_offsets, dyn_offset_idx);
 
    return nir_bcsel(b, nir_ieq_imm(b, dyn_offset_base, 0xff),
                        nir_imm_int(b, 0), dyn_load);
@@ -1157,7 +1191,7 @@ build_indirect_buffer_addr_for_res_index(nir_builder *b,
          nir_iadd(b, res.dyn_offset_base, res.array_index);
 
       nir_def *dyn_load =
-         anv_load_driver_uniform_indexed(b, 1, dynamic_offsets, dyn_offset_idx);
+         anv_load_driver_uniform_indexed(b, 1, legacy.dynamic_offsets, dyn_offset_idx);
 
       nir_def *dynamic_offset =
          nir_bcsel(b, nir_ieq_imm(b, res.dyn_offset_base, 0xff),
@@ -2614,7 +2648,7 @@ build_descriptor_sets_offset_array(nir_builder *b,
 
    for (uint32_t i = 0; i < MAX_SETS; i++) {
       nir_store_array_var(b, set_to_offset, nir_imm_int(b, i),
-                          build_descriptor_set_offset(b, i, state), 0x1);
+                          build_descriptor_set_offset_buffers(b, i, state), 0x1);
    }
 
    return set_to_offset;
