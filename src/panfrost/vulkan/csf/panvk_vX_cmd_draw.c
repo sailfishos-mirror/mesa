@@ -1384,13 +1384,12 @@ get_tiler_context(struct panvk_cmd_buffer *cmdbuf, uint32_t layer)
 #if PAN_ARCH >= 14
 static void
 init_layer_fragment_state(const struct pan_fb_desc_info *info,
-                          const struct pan_ptr fbd)
+                          const struct pan_ptr fbd, const bool has_zs_crc_ext)
 {
    const struct pan_fb_layout *fb = info->fb;
    const struct pan_fb_load *load = info->load;
    const struct pan_fb_store *store = info->store;
    const struct pan_fb_clean_tile ct = GENX(pan_fb_get_clean_tile)(info);
-   const bool has_zs_crc_ext = pan_fb_has_zs(fb);
 
    struct panvk_fb_layer_state fbd_data = {0};
    fbd_data.tiler = info->tiler_ctx->valhall.desc;
@@ -1407,11 +1406,14 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
    /* Layer offset is unused on v14+. */
    assert(info->tiler_ctx->valhall.layer_offset == 0);
 
+   struct pan_fb_crc_rt_info crc_info;
+   const bool has_crc = GENX(pan_fb_get_crc_rt_info)(info, &crc_info);
    pan_pack(&fbd_data.flags0, FRAGMENT_FLAGS_0, cfg) {
+      const bool force_clean_tile = ct.rts || ct.zs || ct.s || has_crc;
       cfg.pre_frame_0 = pan_fix_frame_shader_mode(info->frame_shaders.modes[0],
-                                                  ct.rts || ct.zs || ct.s);
+                                                  force_clean_tile);
       cfg.pre_frame_1 = pan_fix_frame_shader_mode(info->frame_shaders.modes[1],
-                                                  ct.rts || ct.zs || ct.s);
+                                                  force_clean_tile);
       cfg.post_frame = info->frame_shaders.modes[2];
 
       /* Enabling prepass without pipelineing is generally not good for
@@ -1439,6 +1441,13 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
       } else {
          cfg.z_internal_format = MALI_Z_INTERNAL_FORMAT_D24;
          assert(!store || !store->zs.store);
+      }
+
+      if (has_crc) {
+         cfg.crc_read_enable = true;
+         cfg.crc_write_enable = true;
+         cfg.empty_tile_write_enable = true;
+         cfg.empty_tile_read_enable = fb->rt_count == 1;
       }
    }
 
@@ -1637,7 +1646,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
       };
       uint32_t new_fbd_flags = GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
 #if PAN_ARCH >= 14
-      init_layer_fragment_state(&fbd_info, fbd);
+      init_layer_fragment_state(&fbd_info, fbd, has_zs_crc_ext);
 #endif
 
       /* Make sure all FBDs have the same flags. */
@@ -1694,7 +1703,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          ASSERTED uint32_t new_fbd_flags =
             GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
 #if PAN_ARCH >= 14
-         init_layer_fragment_state(&fbd_info, fbd);
+         init_layer_fragment_state(&fbd_info, fbd, has_zs_crc_ext);
 #endif
 
          /* Make sure all FBDs have the same flags. */
@@ -1748,9 +1757,28 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
             cs_load_to(b, cs_scratch_reg_tuple(b, 0, 16), src_fbd_ptr,
                        BITFIELD_MASK(16), fbd_off);
 
-            /* Patch the Tiler pointer. */
-            if (fbd_off == 0)
+            /* Point the copied layer state at its copied tiler, DBD, and RTDs. */
+            if (fbd_off == 0) {
+               const unsigned dbd_reg =
+                  offsetof(struct panvk_fb_layer_state, dbd_pointer) /
+                  sizeof(uint32_t);
+               const unsigned rtd_reg =
+                  offsetof(struct panvk_fb_layer_state, rtd_pointer) /
+                  sizeof(uint32_t);
+
                cs_add_imm64(b, cs_scratch_reg64(b, 0), cur_tiler, 0);
+
+               if (has_zs_crc_ext) {
+                  cs_add_imm64(b, cs_scratch_reg64(b, dbd_reg), dst_fbd_ptr,
+                               fb_sz);
+               } else {
+                  cs_move64_to(b, cs_scratch_reg64(b, dbd_reg), 0);
+               }
+
+               cs_add_imm64(
+                  b, cs_scratch_reg64(b, rtd_reg), dst_fbd_ptr,
+                  fb_sz + (has_zs_crc_ext ? pan_size(ZS_CRC_EXTENSION) : 0));
+            }
 
             cs_store(b, cs_scratch_reg_tuple(b, 0, 16), dst_fbd_ptr,
                      BITFIELD_MASK(16), fbd_off);

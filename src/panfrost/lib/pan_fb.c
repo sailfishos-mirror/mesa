@@ -735,8 +735,17 @@ uint32_t
 GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
                        const struct pan_fb_descs *out)
 {
-   struct pan_crc crc = {.index = -1};
-   if (pan_fb_has_zs(info->fb)) {
+   const struct pan_fb_layout *fb = info->fb;
+   struct pan_crc crc = {.index = pan_fb_select_crc_rt(info, fb->tile_size_px)};
+   if (crc.index != -1) {
+      crc.read = true;
+      crc.write = true;
+      crc.clear_color = pan_fb_crc_clear_color(info);
+      crc.empty_tile_read = fb->rt_count == 1;
+      crc.empty_tile_write = true;
+   }
+
+   if (GENX(pan_fb_needs_zs_crc_ext)(info)) {
       emit_zs_crc_desc(info, GENX(pan_fb_get_clean_tile)(info), out->zs_crc,
                        crc);
    }

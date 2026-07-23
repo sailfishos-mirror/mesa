@@ -504,7 +504,7 @@ panvk_image_init_layouts(struct panvk_image *image,
    const struct pan_mod_handler *mod_handler =
       pan_mod_get_handler(arch, image->vk.drm_format_mod);
    const bool should_checksum =
-      arch >= 11 && arch < 14 && panvk_should_checksum(image, pCreateInfo);
+      arch >= 11 && panvk_should_checksum(image, pCreateInfo);
    image->crc_safe_external = should_checksum && wsi_info != NULL;
 
    /* initialize pan_image props and mod_handler */

@@ -47,6 +47,18 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
                 offsetof(struct panvk_fb_layer_state, tiler));
    cs_load_to(b, cs_scratch_reg_tuple(b, 2, 6), src_other, BITFIELD_MASK(6),
               2 * sizeof(uint32_t));
+
+   /* IR processes only part of the original render and cannot maintain the
+    * full-frame CRC table, so disable CRC and ETE in copied FBDs.
+    */
+   const unsigned flags2_reg =
+      offsetof(struct panvk_fb_layer_state, flags2) / sizeof(uint32_t);
+   struct cs_index mask = cs_scratch_reg32(b, 8);
+
+   cs_move32_to(b, mask, BITFIELD_MASK(28));
+   cs_and32(b, cs_scratch_reg32(b, flags2_reg), cs_scratch_reg32(b, flags2_reg),
+            mask);
+
    cs_store(b, cs_scratch_reg_tuple(b, 0, 8), dst, BITFIELD_MASK(8), 0);
 
    cs_load_to(b, cs_scratch_reg_tuple(b, 0, 2), src_other, BITFIELD_MASK(2),
