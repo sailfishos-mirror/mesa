@@ -1885,23 +1885,26 @@ endif
 dep_libdrm_amdgpu = null_dep
 dep_libdrm_intel = null_dep
 
-_drm_amdgpu_ver = '2.4.133'
-_drm_intel_ver = '2.4.75'
 _drm_ver = '2.4.109'
 
-_libdrm_checks = [
-  ['intel', with_gallium_i915],
-  ['amdgpu', (with_amd_vk and not with_platform_windows) or with_gallium_radeonsi],
-]
+_libdrm_checks = {
+  'intel': {
+    'version': '2.4.75',
+    'enabled': with_gallium_i915,
+  },
+  'amdgpu': {
+    'version': '2.4.133',
+    'enabled': (with_amd_vk and not with_platform_windows) or with_gallium_radeonsi,
+  },
+}
 
 # Loop over the enables versions and get the highest libdrm requirement for all
 # active drivers.
 _drm_blame = ''
-foreach d : _libdrm_checks
-  ver = get_variable('_drm_@0@_ver'.format(d[0]))
-  if d[1] and ver.version_compare('>' + _drm_ver)
-    _drm_ver = ver
-    _drm_blame = d[0]
+foreach name, d : _libdrm_checks
+  if d['enabled'] and d['version'].version_compare('>' + _drm_ver)
+    _drm_ver = d['version']
+    _drm_blame = name
   endif
 endforeach
 if _drm_blame != ''
@@ -1918,8 +1921,8 @@ if system_has_kms_drm
     allow_fallback: allow_fallback_for_libdrm,
     default_options : {
       'auto_features' : 'disabled',
-      'intel' : _libdrm_checks[0][1] ? 'enabled' : 'disabled',
-      'amdgpu' : _libdrm_checks[1][1] ? 'enabled' : 'disabled',
+      'intel' : _libdrm_checks['intel']['enabled'].to_string('enabled', 'disabled'),
+      'amdgpu' : _libdrm_checks['amdgpu']['enabled'].to_string('enabled', 'disabled'),
     },
   )
 else
@@ -1935,12 +1938,12 @@ if dep_libdrm.found()
 endif
 
 # Then get each libdrm module
-foreach d : _libdrm_checks
-  if d[1]
+foreach name, d : _libdrm_checks
+  if d['enabled']
     set_variable(
-      'dep_libdrm_' + d[0],
+      'dep_libdrm_' + name,
       dependency(
-        'libdrm_' + d[0],
+        'libdrm_' + name,
         version : '>=' + _drm_ver,
         allow_fallback: allow_fallback_for_libdrm,
       )
