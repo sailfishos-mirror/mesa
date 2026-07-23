@@ -68,6 +68,9 @@ panfrost_ioctl_get_param(int fd, unsigned long request, void *arg)
       /* Assume an MP4 GPU */
       gp->value = 0xF;
       return 0;
+   case DRM_PANFROST_PARAM_L2_FEATURES:
+      gp->value = 0x7120306;
+      return 0;
    case DRM_PANFROST_PARAM_TILER_FEATURES:
       gp->value = 0x809;
       return 0;
