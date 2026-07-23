@@ -462,6 +462,52 @@ impl RegRef {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct MemRef {
+    pub offset: u16,
+    pub range: u8,
+}
+
+impl fmt::Display for MemRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "m{}..{}",
+            self.offset,
+            self.offset + u16::from(self.range)
+        )
+    }
+}
+
+impl MemRef {
+    pub fn bytes(&self) -> u8 {
+        self.range
+    }
+
+    pub fn byte_range(&self) -> Range<u16> {
+        self.offset..(self.offset + u16::from(self.range))
+    }
+
+    pub fn from_byte_range(range: Range<u16>) -> Result<MemRef, &'static str> {
+        Ok(MemRef {
+            offset: range.start,
+            range: range
+                .len()
+                .try_into()
+                .map_err(|_| "Memory range too large")?,
+        })
+    }
+
+    pub fn word(self, word: u8) -> MemRef {
+        let offset = u16::from(word) * 4;
+        assert!(offset + 4 <= u16::from(self.range));
+        MemRef {
+            offset: self.offset + offset,
+            range: 4,
+        }
+    }
+}
+
 #[derive(Clone, PartialEq)]
 pub enum SrcRef {
     /// A zero value
@@ -471,6 +517,7 @@ pub enum SrcRef {
     FAU(FAURef),
     SSA(SSARef),
     Reg(RegRef),
+    Mem(MemRef),
 }
 
 impl fmt::Display for SrcRef {
@@ -481,6 +528,7 @@ impl fmt::Display for SrcRef {
             SrcRef::FAU(fau) => fau.fmt(f),
             SrcRef::SSA(ssa) => ssa.fmt(f),
             SrcRef::Reg(reg) => reg.fmt(f),
+            SrcRef::Mem(mem) => mem.fmt(f),
         }
     }
 }
@@ -521,6 +569,7 @@ impl SrcRef {
             }
             SrcRef::SSA(vec) => vec.bytes(),
             SrcRef::Reg(reg) => reg.bytes(),
+            SrcRef::Mem(mem) => mem.bytes(),
         }
     }
 
@@ -544,6 +593,7 @@ impl SrcRef {
             SrcRef::FAU(fau) => fau.word(word).into(),
             SrcRef::SSA(ssa) => ssa[usize::from(word)].into(),
             SrcRef::Reg(reg) => reg.word(word).into(),
+            SrcRef::Mem(mem) => mem.word(word).into(),
         }
     }
 }
@@ -591,6 +641,12 @@ impl<T: Into<SSARef>> From<T> for SrcRef {
 impl From<RegRef> for SrcRef {
     fn from(reg: RegRef) -> SrcRef {
         SrcRef::Reg(reg)
+    }
+}
+
+impl From<MemRef> for SrcRef {
+    fn from(mem: MemRef) -> SrcRef {
+        SrcRef::Mem(mem)
     }
 }
 
@@ -891,6 +947,11 @@ impl<T: Into<SrcRef>> From<T> for Src {
                 _ => Swizzle::NONE,
             },
             SrcRef::Reg(reg) => reg.range.into(),
+            SrcRef::Mem(mem) => match mem.range {
+                1 => Swizzle::B0000,
+                2 => Swizzle::H00,
+                _ => Swizzle::NONE,
+            },
         };
         Src {
             src_ref,
@@ -906,6 +967,7 @@ pub enum DstRef {
     None,
     SSA(SSARef),
     Reg(RegRef),
+    Mem(MemRef),
 }
 
 impl fmt::Display for DstRef {
@@ -914,6 +976,7 @@ impl fmt::Display for DstRef {
             DstRef::None => write!(f, "null"),
             DstRef::SSA(ssa) => ssa.fmt(f),
             DstRef::Reg(reg) => reg.fmt(f),
+            DstRef::Mem(mem) => mem.fmt(f),
         }
     }
 }
@@ -940,6 +1003,13 @@ impl DstRef {
         }
     }
 
+    pub fn as_mem(&self) -> Option<&MemRef> {
+        match self {
+            DstRef::Mem(mem) => Some(mem),
+            _ => None,
+        }
+    }
+
     pub fn is_none(&self) -> bool {
         matches!(self, DstRef::None)
     }
@@ -949,6 +1019,7 @@ impl DstRef {
             DstRef::None => 0,
             DstRef::SSA(vec) => vec.bytes(),
             DstRef::Reg(reg) => reg.bytes(),
+            DstRef::Mem(mem) => mem.bytes(),
         }
     }
 
@@ -957,6 +1028,7 @@ impl DstRef {
             DstRef::None => DstRef::None,
             DstRef::SSA(ssa) => ssa[usize::from(word)].into(),
             DstRef::Reg(reg) => reg.word(word).into(),
+            DstRef::Mem(mem) => mem.word(word).into(),
         }
     }
 }
@@ -970,6 +1042,12 @@ impl<T: Into<SSARef>> From<T> for DstRef {
 impl From<RegRef> for DstRef {
     fn from(reg: RegRef) -> DstRef {
         DstRef::Reg(reg)
+    }
+}
+
+impl From<MemRef> for DstRef {
+    fn from(mem: MemRef) -> DstRef {
+        DstRef::Mem(mem)
     }
 }
 
@@ -1180,6 +1258,11 @@ impl<T: Into<DstRef>> From<T> for Dst {
                 }
             }
             DstRef::Reg(reg) => reg.range.into(),
+            DstRef::Mem(mem) => match mem.range {
+                1 => DstLanes::AnyB,
+                2 => DstLanes::AnyH,
+                _ => DstLanes::All,
+            },
         };
         Dst { dst_ref, lanes }
     }

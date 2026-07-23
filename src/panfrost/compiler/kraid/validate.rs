@@ -52,6 +52,7 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
                     RegRange::Half1 => 0b1100,
                     RegRange::Regs(n) => u8::MAX >> (8 - (n * 4)),
                 },
+                SrcRef::Mem(mem) => u8::MAX >> (8 - mem.range),
             };
             let swizzle_byte_mask = src.swizzle.bytes_read(src_bytes);
             assert!(swizzle_byte_mask & !src_ref_byte_mask == 0);

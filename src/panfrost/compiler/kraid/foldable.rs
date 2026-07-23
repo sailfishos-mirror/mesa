@@ -28,7 +28,7 @@ impl<'a, O: Opcode> FoldDataView for FoldData<'a, O> {
                 todo!();
             }
             SrcRef::SSA(_) => self.srcs[idx],
-            SrcRef::Reg(_) => todo!(),
+            SrcRef::Reg(_) | SrcRef::Mem(_) => todo!(),
         };
         let src_type = self.op.src_type(src);
 

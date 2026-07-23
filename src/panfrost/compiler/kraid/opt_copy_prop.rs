@@ -498,7 +498,7 @@ impl ByteCopy {
                     }
                 }
             }
-            SrcRef::Reg(_) => {
+            SrcRef::Reg(_) | SrcRef::Mem(_) => {
                 panic!("Must be run in SSA form");
             }
         }
