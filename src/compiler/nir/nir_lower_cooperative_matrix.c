@@ -941,7 +941,7 @@ split_var(nir_shader *shader,
 
 static bool
 lower_dimensions(nir_shader *shader, nir_function_impl *impl,
-                 unsigned m_gran, unsigned n_gran, unsigned k_gran)
+                 const struct nir_lower_coopmat_args *args)
 {
    void *mem_ctx = ralloc_context(NULL);
    struct hash_table *split_mats = _mesa_pointer_hash_table_create(mem_ctx);
@@ -950,9 +950,9 @@ lower_dimensions(nir_shader *shader, nir_function_impl *impl,
 
    struct split_info split_info = {
       .split_mats = split_mats,
-      .m_gran = m_gran,
-      .n_gran = n_gran,
-      .k_gran = k_gran,
+      .m_gran = args->m_gran,
+      .n_gran = args->n_gran,
+      .k_gran = args->k_gran,
    };
 
    nir_foreach_variable_in_shader(var, shader) {
@@ -969,7 +969,8 @@ lower_dimensions(nir_shader *shader, nir_function_impl *impl,
 }
 
 bool
-nir_lower_cooperative_matrix_flexible_dimensions(nir_shader *shader, unsigned m_gran, unsigned n_gran, unsigned k_gran)
+nir_lower_cooperative_matrix_flexible_dimensions(nir_shader *shader,
+                                                 const struct nir_lower_coopmat_args *args)
 {
    bool progress = false;
 
@@ -978,7 +979,7 @@ nir_lower_cooperative_matrix_flexible_dimensions(nir_shader *shader, unsigned m_
 
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);
 
-   progress |= lower_dimensions(shader, impl, m_gran, n_gran, k_gran);
+   progress |= lower_dimensions(shader, impl, args);
 
    nir_foreach_function_impl(fnim, shader)
       nir_progress(progress, fnim, 0);
