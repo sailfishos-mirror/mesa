@@ -141,6 +141,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_external_semaphore_fd = true,
       .KHR_format_feature_flags2 = true,
       .KHR_get_memory_requirements2 = true,
+      .KHR_global_priority = true,
       .KHR_incremental_present = PVR_USE_WSI_PLATFORM,
       .KHR_image_format_list = true,
       .KHR_imageless_framebuffer = true,
@@ -193,6 +194,8 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_depth_clip_enable = true,
       .EXT_device_memory_report = true,
       .EXT_display_control = PVR_USE_WSI_PLATFORM_DISPLAY,
+      .EXT_global_priority = true,
+      .EXT_global_priority_query = true,
       .EXT_image_drm_format_modifier = true,
       .EXT_extended_dynamic_state = true,
       .EXT_extended_dynamic_state2 = true,
@@ -436,6 +439,9 @@ static void pvr_physical_device_get_supported_features(
       .extendedDynamicState3CoverageReductionMode = false,
       .extendedDynamicState3RepresentativeFragmentTestEnable = false,
       .extendedDynamicState3ShadingRateImageEnable = false,
+
+      /* Vulkan 1.4 / VK_KHR_global_priority / VK_EXT_global_priority_query */
+      .globalPriorityQuery = true,
 
       /* Vulkan 1.2 / VK_EXT_host_query_reset */
       .hostQueryReset = true,
@@ -1301,7 +1307,24 @@ void pvr_GetPhysicalDeviceQueueFamilyProperties2(
       p->queueFamilyProperties = pvr_queue_family_properties;
 
       vk_foreach_struct (ext, p->pNext) {
-         vk_debug_ignored_stype(ext->sType);
+         switch (ext->sType) {
+         case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
+            VkQueueFamilyGlobalPriorityProperties
+               *pvr_queue_global_family_properties =
+                  (VkQueueFamilyGlobalPriorityProperties *)ext;
+            uint32_t priority_index = 0;
+
+            pvr_queue_global_family_properties->priorities[priority_index++] =
+               VK_QUEUE_GLOBAL_PRIORITY_LOW;
+            pvr_queue_global_family_properties->priorities[priority_index++] =
+               VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
+            pvr_queue_global_family_properties->priorityCount = priority_index;
+            break;
+         }
+         default:
+            vk_debug_ignored_stype(ext->sType);
+            break;
+         }
       }
    }
 }
