@@ -953,6 +953,18 @@ scalars_equal(nir_scalar a, nir_scalar b)
            nir_scalar_as_uint(a) == nir_scalar_as_uint(b));
 }
 
+static jay_def
+fb_src(jay_builder *b, enum jay_file payload_file, jay_def src)
+{
+   if (payload_file == GPR)
+      return jay_as_gpr(b, src);
+
+   assert(payload_file == UGPR);
+   jay_def uvec = jay_alloc_def(b, UGPR, b->shader->dispatch_width);
+   jay_MOV(b, uvec, src);
+   return uvec;
+}
+
 static void
 jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
@@ -1016,11 +1028,31 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    jay_def srcs[4 + 16 + 4 + 1 + 16];
 
+   /* The oMask and stencil sources are both stored as a single GRF with
+    * packed 16-bit or 8-bit data, which doesn't play nice with the GPR
+    * model in SIMD32, where each GPR is two GRFs.  So, we use UGPR vectors
+    * for those.
+    *
+    * Unfortunately, the message order is also awkward:
+    *
+    *    src0 alpha | oMask (UGPR) | colour | depth | stencil (UGPR)
+    *
+    * Since UGPRs and GPRs aren't from the same register partition, this
+    * means that we can't make all of these contiguous.  We can use split
+    * sends to switch files one time, but we can't do this more than once.
+    * In that case, we copy the whole payload to UGPRs.  Fortunately this
+    * is very unlikely to happen in practice.
+    */
+   enum jay_file pf = GPR;
+   if (!jay_is_null(omask) &&
+       (!jay_is_null(src0_alpha) || !jay_is_null(stencil)))
+      pf = UGPR;
+
    unsigned len = 0;
    int split = -1;
 
    if (!jay_is_null(src0_alpha))
-      srcs[len++] = jay_as_gpr(b, src0_alpha);
+      srcs[len++] = fb_src(b, pf, src0_alpha);
 
    if (!jay_is_null(omask)) {
       jay_def packed = jay_alloc_def(b, UGPR, b->shader->dispatch_width / 2);
@@ -1034,22 +1066,21 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    for (unsigned i = 0; i < 4; i++)
-      srcs[len++] = jay_as_gpr(b, jay_extract(colour, i));
+      srcs[len++] = fb_src(b, pf, jay_extract(colour, i));
 
    if (!jay_is_null(dual_colour)) {
       for (unsigned i = 0; i < 4; i++)
-         srcs[len++] = jay_as_gpr(b, jay_extract(dual_colour, i));
+         srcs[len++] = fb_src(b, pf, jay_extract(dual_colour, i));
    }
 
    if (!jay_is_null(depth))
-      srcs[len++] = jay_as_gpr(b, depth);
+      srcs[len++] = fb_src(b, pf, depth);
 
    if (!jay_is_null(stencil)) {
       jay_def packed = jay_alloc_def(b, UGPR, b->shader->dispatch_width / 4);
       jay_MOV(b, packed, stencil)->type = JAY_TYPE_U8;
 
       /* Split send before stencil due to file difference */
-      assert(split == -1 && "TODO: samplemask and stencil outputs together");
       split = len;
 
       for (unsigned i = 0; i < jay_num_values(packed); i++)
@@ -1058,7 +1089,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
             .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
-            .type = JAY_TYPE_U32, .eot = last, .split = split,
+            .type = JAY_TYPE_U32, .eot = last, .split = pf == GPR ? split : -1,
             .skip_helpers = true);
 }
 
