@@ -876,13 +876,26 @@ lookup_ycbcr_conversion(const void *_stage, uint32_t set,
 }
 
 static void
-anv_fixup_subgroup_size(struct anv_device *device, nir_shader *shader)
+anv_fixup_subgroup_size(struct anv_device *device,
+                        struct anv_shader_data *shader_data)
 {
+   nir_shader *shader = shader_data->info->nir;
    struct shader_info *info = &shader->info;
    const struct anv_instance *instance = device->physical->instance;
 
    if (!mesa_shader_stage_uses_workgroup(info->stage))
       return;
+
+   /* Force a tagged compute shader to SIMD32. Xe2+ only: pre-Xe2 has half the
+    * register file (128 vs 256 GRF) and could spill badly when forced wide.
+    */
+   if (shader_data->workaround != NULL &&
+       shader_data->workaround->force_xe2_simd32_cs &&
+       info->stage == MESA_SHADER_COMPUTE &&
+       device->info->ver >= 20) {
+      info->max_subgroup_size = BRW_SUBGROUP_SIZE;
+      info->min_subgroup_size = BRW_SUBGROUP_SIZE;
+   }
 
    unsigned local_size = info->workgroup_size[0] *
                          info->workgroup_size[1] *
@@ -1341,7 +1354,7 @@ anv_shader_lower_nir(struct anv_device *device,
 
    if (nir->info.stage == MESA_SHADER_COMPUTE &&
        nir->info.cs.has_cooperative_matrix) {
-      anv_fixup_subgroup_size(device, nir);
+      anv_fixup_subgroup_size(device, shader_data);
       NIR_PASS(_, nir, brw_nir_lower_cmat, nir->info.api_subgroup_size);
 
       /* Lowering of nir_instr_type_cmat_call will produce new
@@ -2226,7 +2239,7 @@ anv_shader_compile(struct vk_device *vk_device,
 
       anv_shader_lower_nir(device, mem_ctx, state, shader_data);
 
-      anv_fixup_subgroup_size(device, shader_data->info->nir);
+      anv_fixup_subgroup_size(device, shader_data);
 
       anv_nir_apply_shader_workarounds(shader_data->info->nir);
    }

@@ -150,6 +150,8 @@ def declare_options(android_version):
         B("brw_prefer_simd32_fs", False,
           "Keep this fragment shader's SIMD32 variant even if the throughput "
           "model ties it"),
+        B("anv_xe2_force_simd32_cs", False,
+          "Force this compute shader to dispatch at SIMD32 (Xe2+ only)"),
     ]
 
     perf_options = [
