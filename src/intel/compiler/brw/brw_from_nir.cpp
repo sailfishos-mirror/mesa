@@ -5168,6 +5168,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       unsigned nr = base_offset / REG_SIZE;
       nr += instr->intrinsic == nir_intrinsic_load_inline_data_intel ? BRW_INLINE_PARAM_REG : 0;
       brw_reg src = brw_uniform_reg(nr, dest.type);
+      src.offset = base_offset % REG_SIZE;
 
       if (nir_src_is_const(instr->src[0])) {
          unsigned load_offset = nir_src_as_uint(instr->src[0]);
@@ -5176,7 +5177,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
           * data take the modulo of the offset with 4 bytes and add it to
           * the offset to read from within the source register.
           */
-         src.offset = load_offset + base_offset % REG_SIZE;
+         src.offset += load_offset;
 
          for (unsigned j = 0; j < instr->num_components; j++) {
             xbld.MOV(offset(dest, xbld, j), offset(src, xbld, j));
