@@ -3484,7 +3484,7 @@
         "description": "tu: limit VALVE_fragment_density_map_layered to Vulkan 1.1 devices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a3a53b7cee4ad3f461ac8d93a14453ec1076a21f",
         "notes": null
