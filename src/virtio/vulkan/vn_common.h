@@ -33,6 +33,7 @@
 #include "util/simple_mtx.h"
 #include "util/u_atomic.h"
 #include "util/u_math.h"
+#include "util/u_memset.h"
 #include "util/u_thread.h"
 #include "util/xmlconfig.h"
 #include "vk_alloc.h"
