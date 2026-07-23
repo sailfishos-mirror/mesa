@@ -3964,7 +3964,7 @@
         "description": "panvk: Disable VK_KHR_internally_synchronized_queues on Vulkan 1.0",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3b1f86d437fe61e740b75bee058737c5a8d65db9",
         "notes": null
