@@ -515,14 +515,8 @@ struct brw_stage_prog_data {
 };
 
 /**
- * Convert a number of GRF registers used (grf_used in prog_data) into
- * a number of GRF register blocks supported by the hardware on PTL+.
- */
-unsigned ptl_register_blocks(unsigned grf_used);
-
-/**
- * Convert a number of GRF registers used (grf_used in prog_data) into
- * a number of GRF register blocks supported by the hardware.
+ * Convert a number of GRF registers used (grf_used in prog_data) into a
+ * number of GRF register blocks supported by the hardware.
  */
 unsigned brw_register_blocks(const struct intel_device_info *devinfo,
                              unsigned grf_used);
