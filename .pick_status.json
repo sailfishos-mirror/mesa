@@ -3764,7 +3764,7 @@
         "description": "vl/proc: Guard compositor creation with HAVE_GFX_COMPUTE",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1c8cec690cc3753b97dbc531124e6141b1e517f9",
         "notes": null
