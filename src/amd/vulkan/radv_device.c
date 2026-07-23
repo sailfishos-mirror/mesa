@@ -925,10 +925,11 @@ radv_create_gfx_preamble(struct radv_device *device)
 
    device->ws->cs_pad(cs->b, 0);
 
-   result = radv_bo_create(
-      device, NULL, cs->b->cdw * 4, 4096, device->ws->cs_domain(device->ws),
-      RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_READ_ONLY | RADEON_FLAG_GTT_WC,
-      RADV_BO_PRIORITY_CS, 0, true, &device->gfx_init);
+   const uint32_t gfx_init_bo_flags = RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING |
+                                      RADEON_FLAG_READ_ONLY | RADEON_FLAG_GTT_WC | RADEON_FLAG_GL2_BYPASS;
+
+   result = radv_bo_create(device, NULL, cs->b->cdw * 4, 4096, device->ws->cs_domain(device->ws), gfx_init_bo_flags,
+                           RADV_BO_PRIORITY_CS, 0, true, &device->gfx_init);
    if (result != VK_SUCCESS)
       goto fail;
 
