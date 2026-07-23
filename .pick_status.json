@@ -3954,7 +3954,7 @@
         "description": "tu: Fix CmdSetRenderingInputAttachmentIndices with custom resolve",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "520e3f3a4732e66bbb2cdfe3b2a72a321ce9c04e",
         "notes": null
