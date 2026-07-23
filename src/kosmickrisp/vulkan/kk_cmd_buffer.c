@@ -11,6 +11,8 @@
 #include "kk_cmd_pool.h"
 #include "kk_descriptor_set_layout.h"
 #include "kk_entrypoints.h"
+#include "kk_format.h"
+#include "kk_image_view.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
 #include "kosmickrisp/bridge/mtl_command_buffer.h"
@@ -18,6 +20,7 @@
 #include "kosmickrisp/bridge/mtl_encoder.h"
 #include "kosmickrisp/bridge/vk_to_mtl_map.h"
 
+#include "vk_format.h"
 #include "vk_alloc.h"
 #include "vk_common_entrypoints.h"
 #include "vk_pipeline_layout.h"
@@ -916,6 +919,36 @@ kk_CmdEndConditionalRenderingEXT(VkCommandBuffer commandBuffer)
    cmd->state.cond_render.enabled = false;
 }
 
+static enum mtl_store_action
+kk_get_attachment_store_op(const struct kk_attachment *attachment,
+                           bool force_store,
+                           bool rendering_to_whole_framebuffer,
+                           VkImageAspectFlags aspect)
+{
+   bool renderpass_resolve = kk_attachment_do_renderpass_resolve(
+      attachment, rendering_to_whole_framebuffer, aspect);
+   force_store |=
+      attachment->resolve_mode != VK_RESOLVE_MODE_NONE && !renderpass_resolve;
+
+   force_store |= (attachment->load_op == VK_ATTACHMENT_LOAD_OP_LOAD ||
+                   attachment->load_op == VK_ATTACHMENT_LOAD_OP_NONE) &&
+                  attachment->store_op == VK_ATTACHMENT_STORE_OP_NONE;
+
+   enum mtl_store_action store_action =
+      force_store
+         ? MTL_STORE_ACTION_STORE
+         : vk_attachment_store_op_to_mtl_store_action(attachment->store_op);
+
+   if (renderpass_resolve) {
+      if (store_action == MTL_STORE_ACTION_STORE)
+         store_action = MTL_STORE_ACTION_STORE_AND_MULTISAMPLE_RESOLVE;
+      else if (store_action == MTL_STORE_ACTION_DONT_CARE)
+         store_action = MTL_STORE_ACTION_MULTISAMPLE_RESOLVE;
+   }
+
+   return store_action;
+}
+
 void
 kk_apply_attachment_store_ops(struct kk_cmd_buffer *cmd, bool force_store)
 {
@@ -932,48 +965,108 @@ kk_apply_attachment_store_ops(struct kk_cmd_buffer *cmd, bool force_store)
 
       if (render->color_att[i].iview &&
           logical_index != MESA_VK_ATTACHMENT_UNUSED) {
-         bool resolve =
-            render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE;
-         bool retain =
-            (render->color_att[i].load_op == VK_ATTACHMENT_LOAD_OP_LOAD ||
-             render->color_att[i].load_op == VK_ATTACHMENT_LOAD_OP_NONE) &&
-            render->color_att[i].store_op == VK_ATTACHMENT_STORE_OP_NONE;
+         enum mtl_store_action store_action = kk_get_attachment_store_op(
+            &render->color_att[i], force_store,
+            render->rendering_to_whole_framebuffer, VK_IMAGE_ASPECT_COLOR_BIT);
 
-         enum mtl_store_action store_action =
-            force_store || resolve || retain
-               ? MTL_STORE_ACTION_STORE
-               : vk_attachment_store_op_to_mtl_store_action(
-                    render->color_att[i].store_op);
          mtl_render_set_color_store_action(encoder, store_action,
                                            logical_index);
       }
    }
+   enum mtl_store_action depth_store_action = MTL_STORE_ACTION_UNKNOWN;
+   enum mtl_store_action stencil_store_action = MTL_STORE_ACTION_UNKNOWN;
    if (render->depth_att.iview) {
-      bool resolve = render->depth_att.resolve_mode != VK_RESOLVE_MODE_NONE;
-      bool retain = (render->depth_att.load_op == VK_ATTACHMENT_LOAD_OP_LOAD ||
-                     render->depth_att.load_op == VK_ATTACHMENT_LOAD_OP_NONE) &&
-                    render->depth_att.store_op == VK_ATTACHMENT_STORE_OP_NONE;
-
-      enum mtl_store_action store_action =
-         force_store || resolve || retain
-            ? MTL_STORE_ACTION_STORE
-            : vk_attachment_store_op_to_mtl_store_action(
-                 render->depth_att.store_op);
-      mtl_render_set_depth_store_action(encoder, store_action);
+      depth_store_action = kk_get_attachment_store_op(
+         &render->depth_att, force_store,
+         render->rendering_to_whole_framebuffer, VK_IMAGE_ASPECT_DEPTH_BIT);
    }
    if (render->stencil_att.iview) {
-      bool resolve = render->stencil_att.resolve_mode != VK_RESOLVE_MODE_NONE;
-      bool retain =
-         (render->stencil_att.load_op == VK_ATTACHMENT_LOAD_OP_LOAD ||
-          render->stencil_att.load_op == VK_ATTACHMENT_LOAD_OP_NONE) &&
-         render->stencil_att.store_op == VK_ATTACHMENT_STORE_OP_NONE;
+      stencil_store_action = kk_get_attachment_store_op(
+         &render->stencil_att, force_store,
+         render->rendering_to_whole_framebuffer, VK_IMAGE_ASPECT_STENCIL_BIT);
+   }
+   bool ds_resolve_dont_care =
+      depth_store_action == MTL_STORE_ACTION_MULTISAMPLE_RESOLVE ||
+      stencil_store_action == MTL_STORE_ACTION_MULTISAMPLE_RESOLVE;
+   bool ds_store = depth_store_action == MTL_STORE_ACTION_STORE ||
+                   stencil_store_action == MTL_STORE_ACTION_STORE;
+   /* Metal does not allow combining MTL_STORE_ACTION_MULTISAMPLE_RESOLVE
+    * (so resolve but don't care about the MS data) for depth/stencil with
+    * MTL_STORE_ACTION_STORE for the other one of depth/stencil regardless of
+    * whether it's the same texture or different ones. */
+   bool ds_force_ms_store = ds_resolve_dont_care && ds_store;
 
-      enum mtl_store_action store_action =
-         force_store || resolve || retain
-            ? MTL_STORE_ACTION_STORE
-            : vk_attachment_store_op_to_mtl_store_action(
-                 render->stencil_att.store_op);
-      mtl_render_set_stencil_store_action(encoder, store_action);
+   if (render->depth_att.iview) {
+      if (depth_store_action == MTL_STORE_ACTION_MULTISAMPLE_RESOLVE &&
+          ds_force_ms_store)
+         depth_store_action = MTL_STORE_ACTION_STORE_AND_MULTISAMPLE_RESOLVE;
+
+      mtl_render_set_depth_store_action(encoder, depth_store_action);
+   }
+   if (render->stencil_att.iview) {
+      if (stencil_store_action == MTL_STORE_ACTION_MULTISAMPLE_RESOLVE &&
+          ds_force_ms_store)
+         stencil_store_action = MTL_STORE_ACTION_STORE_AND_MULTISAMPLE_RESOLVE;
+
+      mtl_render_set_stencil_store_action(encoder, stencil_store_action);
+   }
+}
+
+bool
+kk_attachment_do_renderpass_resolve(const struct kk_attachment *attachment,
+                                    bool rendering_to_whole_framebuffer,
+                                    VkImageAspectFlags aspect)
+{
+   if (!rendering_to_whole_framebuffer)
+      return false;
+
+   if (attachment->resolve_mode == VK_RESOLVE_MODE_NONE ||
+       !attachment->resolve_iview || !attachment->iview)
+      return false;
+
+   /* There appears to be a synchronization bug in Metal.
+    * Producer barriers do not synchronize depth render pass resolves
+    * properly, even when it's STAGE_ALL -> STAGE_ALL.
+    * Force meta resolves for depth and stencil for now. */
+   if (!(attachment->resolve_iview->vk.aspects & VK_IMAGE_ASPECT_COLOR_BIT))
+      return false;
+
+   /* Dynamic rendering doesn't allow different formats but the Mesa Vulkan
+    * runtime does it anyway when emulating legacy render passes.
+    * Just fall back to meta resolves instead of creating views on the fly. */
+   if (attachment->vk_format != attachment->resolve_iview->vk.view_format)
+      return false;
+
+   if (attachment->flags &
+       VK_RENDERING_ATTACHMENT_RESOLVE_SKIP_TRANSFER_FUNCTION_BIT_KHR)
+      return false;
+
+   enum pipe_format p_format = vk_format_to_pipe_format(attachment->vk_format);
+   const struct kk_va_format *format_features = kk_get_va_format(p_format);
+
+   if (!format_features->resolve)
+      return false;
+
+   /* From the spec:
+    * The aspectMask of any image view specified for pDepthAttachment or
+    * pStencilAttachment is ignored. Instead, depth attachments are
+    * automatically treated as if VK_IMAGE_ASPECT_DEPTH_BIT was specified
+    * for their aspect masks, and stencil attachments are automatically
+    * treated as if VK_IMAGE_ASPECT_STENCIL_BIT was specified for their
+    * aspect masks.
+    *
+    * That's why we have an extra parameter for what we use the attachment for.
+    */
+
+   if (aspect == VK_IMAGE_ASPECT_DEPTH_BIT) {
+      return attachment->resolve_mode == VK_RESOLVE_MODE_SAMPLE_ZERO_BIT ||
+             attachment->resolve_mode == VK_RESOLVE_MODE_MIN_BIT ||
+             attachment->resolve_mode == VK_RESOLVE_MODE_MAX_BIT;
+
+   } else if (aspect == VK_IMAGE_ASPECT_STENCIL_BIT) {
+      return attachment->resolve_mode == VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
+   } else {
+      return attachment->resolve_mode == VK_RESOLVE_MODE_AVERAGE_BIT;
    }
 }
 

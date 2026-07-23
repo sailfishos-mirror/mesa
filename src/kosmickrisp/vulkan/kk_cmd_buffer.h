@@ -126,6 +126,7 @@ struct kk_rendering_state {
    uint32_t sample_locations_count;
    VkSampleLocationEXT sample_locations[KK_MAX_SAMPLES];
    bool force_attachment_store;
+   bool rendering_to_whole_framebuffer;
 };
 
 /* Dirty tracking bits for state not tracked by vk_dynamic_graphics_state or
@@ -341,6 +342,10 @@ void kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
                                           struct kk_descriptor_state *desc);
 
 void kk_apply_attachment_store_ops(struct kk_cmd_buffer *cmd, bool force_store);
+
+bool kk_attachment_do_renderpass_resolve(const struct kk_attachment *attachment,
+                                         bool rendering_to_whole_framebuffer,
+                                         VkImageAspectFlags aspect);
 
 enum kk_grid_mode {
    KK_GRID_DIRECT = 0u,

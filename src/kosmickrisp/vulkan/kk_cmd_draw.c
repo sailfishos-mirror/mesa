@@ -114,12 +114,14 @@ kk_clear_common_attachment_description(
       descriptor, MTL_LOAD_ACTION_DONT_CARE);
    mtl_render_pass_attachment_descriptor_set_store_action(
       descriptor, MTL_STORE_ACTION_UNKNOWN);
+   mtl_render_pass_attachment_descriptor_set_resolve_texture(descriptor, NULL);
 }
 
 static void
 kk_fill_common_attachment_description(
    mtl_render_pass_attachment_descriptor *descriptor,
-   const struct kk_attachment *info, bool force_attachment_load)
+   const struct kk_attachment *info, bool force_attachment_load,
+   bool attach_resolve_texture)
 {
    const struct kk_image_view *iview = info->iview;
    assert(iview->plane_count ==
@@ -151,6 +153,18 @@ kk_fill_common_attachment_description(
                                                          load_action);
    mtl_render_pass_attachment_descriptor_set_store_action(
       descriptor, MTL_STORE_ACTION_UNKNOWN);
+
+   if (attach_resolve_texture) {
+      mtl_render_pass_attachment_descriptor_set_resolve_texture(
+         descriptor, info->resolve_iview->planes[0].mtl_handle_render);
+
+      if (!info->resolve_iview->planes[0].render_is_view) {
+         mtl_render_pass_attachment_descriptor_set_resolve_level(
+            descriptor, info->resolve_iview->vk.base_mip_level);
+         mtl_render_pass_attachment_descriptor_set_resolve_slice(
+            descriptor, info->resolve_iview->vk.base_array_layer);
+      }
+   }
 }
 
 static struct mtl_clear_color
@@ -191,7 +205,8 @@ static void
 kk_set_color_attachments(mtl_render_pass_descriptor *pass_descriptor,
                          struct kk_rendering_state *render,
                          const struct vk_dynamic_graphics_state *dyn,
-                         bool force_attachment_load)
+                         bool force_attachment_load,
+                         bool rendering_to_whole_framebuffer)
 {
    for (uint32_t i = 0; i < ARRAY_SIZE(render->color_att); i++) {
       mtl_render_pass_attachment_descriptor *attachment_descriptor =
@@ -217,8 +232,13 @@ kk_set_color_attachments(mtl_render_pass_descriptor *pass_descriptor,
          container_of(iview->vk.image, struct kk_image, vk);
       render->samples = MAX2(render->samples, image->vk.samples);
 
+      bool renderpass_resolve = kk_attachment_do_renderpass_resolve(
+         &render->color_att[i], rendering_to_whole_framebuffer,
+         VK_IMAGE_ASPECT_COLOR_BIT);
+
       kk_fill_common_attachment_description(attachment_descriptor, color_att,
-                                            force_attachment_load);
+                                            force_attachment_load,
+                                            renderpass_resolve);
 
       struct mtl_clear_color clear_color =
          vk_clear_color_value_to_mtl_clear_color(color_att->clear_value.color,
@@ -340,6 +360,8 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
       (render->view_mask == 0u ||
        render->view_mask == BITFIELD64_MASK(render->layer_count));
 
+   render->rendering_to_whole_framebuffer = is_whole_framebuffer;
+
    /* renderTargetWidth/Height doesn't seem to guarantee
     * that the attachments won't get touched outside the area
     * so just checking for offset = 0 doesn't cut it. */
@@ -349,8 +371,8 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
    render->force_attachment_store =
       !is_whole_framebuffer || (render->flags & VK_RENDERING_SUSPENDING_BIT);
 
-   kk_set_color_attachments(pass_descriptor, render, dyn,
-                            force_attachment_load);
+   kk_set_color_attachments(pass_descriptor, render, dyn, force_attachment_load,
+                            is_whole_framebuffer);
 
    if (render->depth_att.iview) {
       const struct kk_image_view *iview = render->depth_att.iview;
@@ -358,10 +380,14 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          container_of(iview->vk.image, struct kk_image, vk);
       render->samples = image->vk.samples;
 
+      bool renderpass_resolve = kk_attachment_do_renderpass_resolve(
+         &render->depth_att, is_whole_framebuffer, VK_IMAGE_ASPECT_DEPTH_BIT);
+
       mtl_render_pass_attachment_descriptor *attachment_descriptor =
          mtl_render_pass_descriptor_get_depth_attachment(pass_descriptor);
       kk_fill_common_attachment_description(
-         attachment_descriptor, &render->depth_att, force_attachment_load);
+         attachment_descriptor, &render->depth_att, force_attachment_load,
+         renderpass_resolve);
 
       /* clearValue.depthStencil.depth could have invalid values such as NaN
        * which will trigger a Metal validation error. Ensure we only use this
@@ -371,6 +397,11 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          mtl_render_pass_attachment_descriptor_set_clear_depth(
             attachment_descriptor,
             pRenderingInfo->pDepthAttachment->clearValue.depthStencil.depth);
+
+      if (renderpass_resolve)
+         mtl_render_pass_attachment_descriptor_set_depth_resolve_filter(
+            attachment_descriptor, vk_resolve_mode_to_mtl_depth_resolve_filter(
+                                      render->depth_att.resolve_mode));
    }
    if (render->stencil_att.iview) {
       const struct kk_image_view *iview = render->stencil_att.iview;
@@ -378,13 +409,24 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          container_of(iview->vk.image, struct kk_image, vk);
       render->samples = image->vk.samples;
 
+      bool renderpass_resolve = kk_attachment_do_renderpass_resolve(
+         &render->stencil_att, is_whole_framebuffer,
+         VK_IMAGE_ASPECT_STENCIL_BIT);
+
       mtl_render_pass_attachment_descriptor *attachment_descriptor =
          mtl_render_pass_descriptor_get_stencil_attachment(pass_descriptor);
       kk_fill_common_attachment_description(
-         attachment_descriptor, &render->stencil_att, force_attachment_load);
+         attachment_descriptor, &render->stencil_att, force_attachment_load,
+         renderpass_resolve);
       mtl_render_pass_attachment_descriptor_set_clear_stencil(
          attachment_descriptor,
          pRenderingInfo->pStencilAttachment->clearValue.depthStencil.stencil);
+
+      if (renderpass_resolve)
+         mtl_render_pass_attachment_descriptor_set_stencil_resolve_filter(
+            attachment_descriptor,
+            vk_resolve_mode_to_mtl_stencil_resolve_filter(
+               render->stencil_att.resolve_mode));
    }
 
    /* Set global visibility buffer */
@@ -490,31 +532,45 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    struct kk_rendering_state *render = &cmd->state.gfx.render;
-   bool need_resolve = false;
+   bool need_meta_resolve = false;
 
    /* Translate render state back to VK for meta */
    VkRenderingAttachmentInfo vk_color_att[KK_MAX_RTS];
    VkRenderingAttachmentFlagsInfoKHR vk_color_att_flags[KK_MAX_RTS];
    for (uint32_t i = 0; i < render->color_att_count; i++) {
-      if (render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE)
-         need_resolve = true;
+      bool attachment_meta_resolve =
+         render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE &&
+         !kk_attachment_do_renderpass_resolve(
+            &render->color_att[i], render->rendering_to_whole_framebuffer,
+            VK_IMAGE_ASPECT_COLOR_BIT);
+      need_meta_resolve |= attachment_meta_resolve;
 
       vk_color_att_flags[i] = (VkRenderingAttachmentFlagsInfoKHR){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
          .flags = render->color_att[i].flags,
       };
-
       vk_color_att[i] = (VkRenderingAttachmentInfo){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
          .pNext = &vk_color_att_flags[i],
          .imageView = kk_image_view_to_handle(render->color_att[i].iview),
          .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-         .resolveMode = render->color_att[i].resolve_mode,
+         .resolveMode = attachment_meta_resolve
+                           ? render->color_att[i].resolve_mode
+                           : VK_RESOLVE_MODE_NONE,
          .resolveImageView =
-            kk_image_view_to_handle(render->color_att[i].resolve_iview),
+            attachment_meta_resolve
+               ? kk_image_view_to_handle(render->color_att[i].resolve_iview)
+               : VK_NULL_HANDLE,
          .resolveImageLayout = VK_IMAGE_LAYOUT_GENERAL,
       };
    }
+
+   bool depth_meta_resolve =
+      render->depth_att.resolve_mode != VK_RESOLVE_MODE_NONE &&
+      !kk_attachment_do_renderpass_resolve(
+         &render->depth_att, render->rendering_to_whole_framebuffer,
+         VK_IMAGE_ASPECT_DEPTH_BIT);
+   need_meta_resolve |= depth_meta_resolve;
 
    const VkRenderingAttachmentFlagsInfoKHR vk_depth_att_flags = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
@@ -525,13 +581,21 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
       .pNext = &vk_depth_att_flags,
       .imageView = kk_image_view_to_handle(render->depth_att.iview),
       .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-      .resolveMode = render->depth_att.resolve_mode,
+      .resolveMode = depth_meta_resolve ? render->depth_att.resolve_mode
+                                        : VK_RESOLVE_MODE_NONE,
       .resolveImageView =
-         kk_image_view_to_handle(render->depth_att.resolve_iview),
+         depth_meta_resolve
+            ? kk_image_view_to_handle(render->depth_att.resolve_iview)
+            : VK_NULL_HANDLE,
       .resolveImageLayout = VK_IMAGE_LAYOUT_GENERAL,
    };
-   if (render->depth_att.resolve_mode != VK_RESOLVE_MODE_NONE)
-      need_resolve = true;
+
+   bool stencil_meta_resolve =
+      render->stencil_att.resolve_mode != VK_RESOLVE_MODE_NONE &&
+      !kk_attachment_do_renderpass_resolve(
+         &render->stencil_att, render->rendering_to_whole_framebuffer,
+         VK_IMAGE_ASPECT_STENCIL_BIT);
+   need_meta_resolve |= stencil_meta_resolve;
 
    const VkRenderingAttachmentFlagsInfoKHR vk_stencil_att_flags = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
@@ -542,13 +606,14 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
       .pNext = &vk_stencil_att_flags,
       .imageView = kk_image_view_to_handle(render->stencil_att.iview),
       .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-      .resolveMode = render->stencil_att.resolve_mode,
+      .resolveMode = stencil_meta_resolve ? render->stencil_att.resolve_mode
+                                          : VK_RESOLVE_MODE_NONE,
       .resolveImageView =
-         kk_image_view_to_handle(render->stencil_att.resolve_iview),
+         stencil_meta_resolve
+            ? kk_image_view_to_handle(render->stencil_att.resolve_iview)
+            : VK_NULL_HANDLE,
       .resolveImageLayout = VK_IMAGE_LAYOUT_GENERAL,
    };
-   if (render->stencil_att.resolve_mode != VK_RESOLVE_MODE_NONE)
-      need_resolve = true;
 
    const VkRenderingInfo vk_render = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -570,11 +635,11 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
 
    if (render->flags &
        (VK_RENDERING_SUSPENDING_BIT | VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT))
-      need_resolve = false;
+      need_meta_resolve = false;
 
    memset(render, 0, sizeof(*render));
 
-   if (need_resolve) {
+   if (need_meta_resolve) {
       kk_meta_resolve_rendering(cmd, &vk_render);
    }
 }
@@ -889,8 +954,9 @@ kk_flush_render_pass(struct kk_cmd_buffer *cmd)
          /* Apply the store ops before the new color map is stored. */
          kk_apply_attachment_store_ops(cmd, true);
 
-         kk_set_color_attachments(cmd->state.gfx.render_pass_descriptor, render,
-                                  dyn, true);
+         kk_set_color_attachments(
+            cmd->state.gfx.render_pass_descriptor, render, dyn, true,
+            cmd->state.gfx.render.rendering_to_whole_framebuffer);
          needs_restart = true;
          color_attachment_map_changed = true;
       }

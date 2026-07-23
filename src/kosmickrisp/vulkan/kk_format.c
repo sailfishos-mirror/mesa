@@ -160,6 +160,8 @@
                              texel_buffer_capabilities,                        \
                              .is_native = 1}
 
+/* TODO_KOSMICKRISP: This is based on the Apple 7 GPU family, dynamically add
+ * newly supported capabilities on newer gens. */
 static const struct kk_va_format kk_vf_formats[] = {
    // 8-bit formats
    MTL_FMT_NATIVE(R8_UNORM, MTL_FMT_ALL_NO_ATOMIC(8), MTL_FMT_TB_ALL),
