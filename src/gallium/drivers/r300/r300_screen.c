@@ -497,6 +497,9 @@ static void r300_init_screen_caps(struct r300_screen* r300screen)
 
    caps->texture_transfer_modes = PIPE_TEXTURE_TRANSFER_BLIT;
 
+   caps->max_texture_upload_memory_budget =
+      MIN2(16 * 1024, r300screen->info.gart_size_kb / 8) * 1024;
+
    caps->min_map_buffer_alignment = R300_BUFFER_ALIGNMENT;
 
    caps->constant_buffer_offset_alignment = 16;
