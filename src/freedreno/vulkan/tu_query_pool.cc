@@ -13,6 +13,7 @@
 
 #include "nir/nir_builder.h"
 #include "util/os_time.h"
+#include "util/ralloc.h"
 #include "vk_acceleration_structure.h"
 #include "vk_util.h"
 
@@ -257,6 +258,25 @@ compare_perfcntr_pass(const void *a, const void *b)
           ((struct tu_perf_query_raw_data *)b)->pass;
 }
 
+static uint32_t
+perfcntr_query_capacity(const struct fd_perfcntr_group *group)
+{
+   /* Keep raw perf queries off the CP slots reserved by autotune latency optimization.
+    * TODO: This should be handled in a better way, but we need this info at
+    *       GetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR where we have only physical device.
+    */
+   uint32_t autotune_counters = strcmp(group->name, "CP") == 0 ? 2 : 0;
+
+   return group->num_counters -
+          MIN2(group->num_counters, autotune_counters);
+}
+
+struct perfcntr_query_group_state {
+   uint32_t next_counter;
+   uint32_t pass;
+   const struct fd_perfcntr_counter **counters;
+};
+
 static void
 tu_query_pool_destroy(struct tu_device *device, struct tu_query_pool *pool,
                       const VkAllocationCallbacks *pAllocator)
@@ -264,8 +284,11 @@ tu_query_pool_destroy(struct tu_device *device, struct tu_query_pool *pool,
    if (is_perf_query_raw(pool)) {
       struct tu_perf_query_raw *perf_query = &pool->perf_query.raw;
 
-      for (uint32_t i = 0; i < perf_query->counter_index_count; i++)
-         fd_perfcntr_release(device->perfcntrs, perf_query->data[i].counter);
+      for (uint32_t i = 0; i < perf_query->counter_index_count; i++) {
+         /* Later passes alias the physical registers reserved by pass 0. */
+         if (perf_query->data[i].pass == 0)
+            fd_perfcntr_release(device->perfcntrs, perf_query->data[i].counter);
+      }
    } else if (is_perf_query_raw(pool)) {
       struct tu_perf_query_derived *perf_query = &pool->perf_query.derived;
       struct fd_derived_counter_collection *collection = perf_query->collection;
@@ -359,6 +382,12 @@ tu_CreateQueryPool(VkDevice _device,
                                             &perf_query->perf_group_count);
 
       perf_query->counter_index_count = perf_query_info->counterIndexCount;
+      struct perfcntr_query_group_state *group_state =
+         rzalloc_array(NULL, struct perfcntr_query_group_state, perf_query->perf_group_count);
+      for (uint32_t i = 0; i < perf_query->perf_group_count; i++) {
+         group_state[i].counters = rzalloc_array(group_state, const struct fd_perfcntr_counter *,
+                                                 perfcntr_query_capacity(&perf_query->perf_group[i]));
+      }
 
       for (uint32_t i = 0; i < perf_query->counter_index_count; i++) {
          uint32_t gid = 0, cid = 0;
@@ -370,12 +399,28 @@ tu_CreateQueryPool(VkDevice _device,
 
          const struct fd_perfcntr_group *group = &perf_query->perf_group[gid];
          const struct fd_perfcntr_countable *countable = &group->countables[cid];
+         uint32_t available_counters = perfcntr_query_capacity(group);
 
          perf_query->data[i].countable = countable;
-         perf_query->data[i].counter =
-            fd_perfcntr_reserve(device->perfcntrs, group, countable);
+
+         struct perfcntr_query_group_state &state = group_state[gid];
+         if (state.next_counter == available_counters) {
+            state.next_counter = 0;
+            state.pass++;
+         }
+
+         const uint32_t counter_idx = state.next_counter++;
+
+         perf_query->data[i].pass = state.pass;
+         if (state.pass == 0) {
+            state.counters[counter_idx] =
+               fd_perfcntr_reserve(device->perfcntrs, group, NULL);
+         }
+
+         perf_query->data[i].counter = state.counters[counter_idx];
 
          if (!perf_query->data[i].counter) {
+            ralloc_free(group_state);
             tu_query_pool_destroy(device, pool, pAllocator);
             return vk_errorf(device, VK_ERROR_FEATURE_NOT_PRESENT, "No raw perf counters available in group %s",
                              group->name);
@@ -388,6 +433,7 @@ tu_CreateQueryPool(VkDevice _device,
       qsort(perf_query->data, perf_query->counter_index_count,
             sizeof(perf_query->data[0]),
             compare_perfcntr_pass);
+      ralloc_free(group_state);
    }
 
    if (is_perf_query_derived(pool)) {
@@ -2312,8 +2358,7 @@ tu_GetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
           * autotune or other queries, etc).  But we don't know that up
           * front.
           */
-         uint32_t available_counters = group[i].num_counters;
-
+         uint32_t available_counters = perfcntr_query_capacity(&group[i]);
          n_passes = DIV_ROUND_UP(counters_requested[i], available_counters);
          *pNumPasses = MAX2(*pNumPasses, n_passes);
       }
