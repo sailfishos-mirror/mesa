@@ -7634,7 +7634,7 @@
         "description": "v3d: cap CL BO growth when doubling",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "de6e76f253a16d68451c4e0f72af81ed660bfd16",
         "notes": null
