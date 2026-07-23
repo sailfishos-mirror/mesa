@@ -859,36 +859,6 @@ kk_flush_sample_locations(struct kk_cmd_buffer *cmd)
 }
 
 static void
-kk_force_descriptor_attachment_load(struct kk_cmd_buffer *cmd)
-{
-   struct kk_rendering_state *render = &cmd->state.gfx.render;
-
-   for (uint32_t i = 0; i < render->color_att_count; i++) {
-      if (render->color_att[i].iview) {
-         mtl_render_pass_attachment_descriptor *att =
-            mtl_render_pass_descriptor_get_color_attachment(
-               cmd->state.gfx.render_pass_descriptor, i);
-         mtl_render_pass_attachment_descriptor_set_load_action(
-            att, MTL_LOAD_ACTION_LOAD);
-      }
-   }
-   if (render->depth_att.iview) {
-      mtl_render_pass_attachment_descriptor *att =
-         mtl_render_pass_descriptor_get_depth_attachment(
-            cmd->state.gfx.render_pass_descriptor);
-      mtl_render_pass_attachment_descriptor_set_load_action(
-         att, MTL_LOAD_ACTION_LOAD);
-   }
-   if (render->stencil_att.iview) {
-      mtl_render_pass_attachment_descriptor *att =
-         mtl_render_pass_descriptor_get_stencil_attachment(
-            cmd->state.gfx.render_pass_descriptor);
-      mtl_render_pass_attachment_descriptor_set_load_action(
-         att, MTL_LOAD_ACTION_LOAD);
-   }
-}
-
-static void
 kk_flush_render_pass(struct kk_cmd_buffer *cmd)
 {
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
@@ -922,9 +892,6 @@ kk_flush_render_pass(struct kk_cmd_buffer *cmd)
       cs_end(cmd);
       kk_cmd_buffer_dirty_all_gfx(cmd);
       cmd->state.gfx.need_to_start_render_pass = true;
-
-      /* Override load action to prevent data loss between encoders. */
-      kk_force_descriptor_attachment_load(cmd);
    }
 }
 
