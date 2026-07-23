@@ -685,6 +685,8 @@ vn_WaitSemaphores(VkDevice device,
 {
    VN_TRACE_FUNC();
 
+   VK_FROM_HANDLE(vn_device, dev, device);
+
    if (!pWaitInfo->semaphoreCount)
       return VK_SUCCESS;
 
@@ -692,7 +694,73 @@ vn_WaitSemaphores(VkDevice device,
    if (test_sem->payload->type != VN_SYNC_TYPE_TIMELINE_SYNC)
       return vn_wait_semaphores_legacy(device, pWaitInfo, timeout);
 
-   return VK_SUCCESS;
+   const uint32_t sem_sync_count = dev->queue_count + 1;
+   VkResult result;
+
+   if (pWaitInfo->flags & VK_SEMAPHORE_WAIT_ANY_BIT) {
+      const uint32_t total_count = sem_sync_count * pWaitInfo->semaphoreCount;
+
+      STACK_ARRAY(struct vn_renderer_sync *, syncs, total_count);
+      STACK_ARRAY(uint64_t, sync_vals, total_count);
+
+      struct vn_renderer_sync **dst_syncs = syncs;
+      uint64_t *dst_sync_vals = sync_vals;
+      uint32_t sync_count = 0;
+      for (uint32_t i = 0; i < pWaitInfo->semaphoreCount; i++) {
+         VK_FROM_HANDLE(vn_semaphore, sem, pWaitInfo->pSemaphores[i]);
+
+         /* skip wait for zero since syncobj api doesn't like it */
+         if (!pWaitInfo->pValues[i])
+            continue;
+
+         typed_memcpy(dst_syncs, sem->payload->syncs, sem_sync_count);
+         dst_syncs += sem_sync_count;
+
+         util_memset64(dst_sync_vals, pWaitInfo->pValues[i], sem_sync_count);
+         dst_sync_vals += sem_sync_count;
+
+         sync_count += sem_sync_count;
+      }
+
+      const struct vn_renderer_wait wait = {
+         .wait_any = true,
+         .timeout = timeout,
+         .syncs = syncs,
+         .sync_values = sync_vals,
+         .sync_count = sync_count,
+      };
+      result = vn_renderer_wait(dev->renderer, &wait);
+
+      STACK_ARRAY_FINISH(sync_vals);
+      STACK_ARRAY_FINISH(syncs);
+   } else {
+      STACK_ARRAY(uint64_t, sem_sync_vals, sem_sync_count);
+
+      for (uint32_t i = 0; i < pWaitInfo->semaphoreCount; i++) {
+         VK_FROM_HANDLE(vn_semaphore, sem, pWaitInfo->pSemaphores[i]);
+
+         /* skip wait for zero since syncobj api doesn't like it */
+         if (!pWaitInfo->pValues[i])
+            continue;
+
+         util_memset64(sem_sync_vals, pWaitInfo->pValues[i], sem_sync_count);
+
+         const struct vn_renderer_wait wait = {
+            .wait_any = true,
+            .timeout = timeout,
+            .syncs = sem->payload->syncs,
+            .sync_values = sem_sync_vals,
+            .sync_count = sem_sync_count,
+         };
+         result = vn_renderer_wait(dev->renderer, &wait);
+         if (result != VK_SUCCESS)
+            break;
+      }
+
+      STACK_ARRAY_FINISH(sem_sync_vals);
+   }
+
+   return vn_result(dev->instance, result);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
