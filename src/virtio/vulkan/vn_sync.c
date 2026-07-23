@@ -560,13 +560,19 @@ vn_SignalSemaphore(VkDevice device, const VkSemaphoreSignalInfo *pSignalInfo)
    struct vn_device *dev = vn_device_from_handle(device);
    struct vn_semaphore *sem =
       vn_semaphore_from_handle(pSignalInfo->semaphore);
+   struct vn_sync_payload *payload = sem->payload;
 
    vn_async_vkSignalSemaphore(dev->primary_ring, device, pSignalInfo);
 
-   if (vn_sync_feedback_enabled(&sem->feedback))
-      vn_sync_feedback_write(&sem->feedback, pSignalInfo->value);
+   if (payload->type != VN_SYNC_TYPE_TIMELINE_SYNC) {
+      if (vn_sync_feedback_enabled(&sem->feedback))
+         vn_sync_feedback_write(&sem->feedback, pSignalInfo->value);
+      return VK_SUCCESS;
+   }
 
-   return VK_SUCCESS;
+   VkResult result = vn_renderer_sync_write(
+      dev->renderer, payload->syncs[dev->queue_count], pSignalInfo->value);
+   return vn_result(dev->instance, result);
 }
 
 static VkResult
