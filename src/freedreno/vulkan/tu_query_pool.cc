@@ -1066,6 +1066,7 @@ tu_CmdResetQueryPool(VkCommandBuffer commandBuffer,
 }
 TU_GENX(tu_CmdResetQueryPool);
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_ResetQueryPool(VkDevice device,
                   VkQueryPool queryPool,
@@ -1077,11 +1078,15 @@ tu_ResetQueryPool(VkDevice device,
    for (uint32_t i = 0; i < queryCount; i++) {
       struct query_slot *slot = slot_address(pool, i + firstQuery);
       slot->available = 0;
+      uint32_t statistics = pool->vk.pipeline_statistics;
 
       for (uint32_t k = 0; k < get_result_count(pool); k++) {
          uint64_t *res;
 
-         if (is_perf_query_raw(pool)) {
+         if (pool->vk.query_type == VK_QUERY_TYPE_PIPELINE_STATISTICS) {
+            uint32_t stat_idx = statistics_index<CHIP>(&statistics);
+            res = query_result_addr(pool, i + firstQuery, uint64_t, stat_idx);
+         } else if (is_perf_query_raw(pool)) {
             res = query_result_addr(pool, i + firstQuery,
                                     struct perfcntr_query_slot, k);
          } else if (pool->vk.query_type == VK_QUERY_TYPE_OCCLUSION) {
@@ -1107,6 +1112,7 @@ tu_ResetQueryPool(VkDevice device,
       }
    }
 }
+TU_GENX(tu_ResetQueryPool);
 
 template <chip CHIP>
 static void
