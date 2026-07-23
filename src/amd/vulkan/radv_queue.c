@@ -443,7 +443,9 @@ radv_emit_task_rings(struct radv_device *device, struct radv_cmd_stream *cs, str
 
    radeon_begin(cs);
 
-   /* Tell the GPU where the task control buffer is. */
+   /* Tell the GPU where the task control buffer is.
+    * CP reads the buffer and caches the data structure internally.
+    */
    radeon_emit(PKT3(PKT3_DISPATCH_TASK_STATE_INIT, 1, 0) | PKT3_SHADER_TYPE_S(!!compute));
    /* bits [31:8]: control buffer address lo, bits[7:0]: reserved (set to zero) */
    radeon_emit(task_ctrlbuf_va & 0xFFFFFF00);
@@ -1056,7 +1058,6 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
 
          radv_emit_gs_ring_sizes(device, cs, esgs_ring_bo, needs->esgs_ring_size, gsvs_ring_bo, needs->gsvs_ring_size);
          radv_emit_tess_factor_ring(device, cs, tess_rings_bo);
-         radv_emit_task_rings(device, cs, task_rings_bo, false);
          radv_emit_ge_rings(device, cs, ge_rings_bo);
          radv_emit_graphics_shader_pointers(device, cs, descriptor_bo);
          radv_emit_compute_scratch(device, cs, needs->compute_scratch_size_per_wave, needs->compute_scratch_waves,
@@ -1065,14 +1066,6 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
          break;
       case RADV_QUEUE_COMPUTE:
          radv_emit_compute(device, cs, true);
-
-         if (task_rings_bo) {
-            radeon_begin(cs);
-            radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
-            radeon_end();
-         }
-
-         radv_emit_task_rings(device, cs, task_rings_bo, true);
          radv_emit_compute_shader_pointers(device, cs, descriptor_bo);
          radv_emit_compute_scratch(device, cs, needs->compute_scratch_size_per_wave, needs->compute_scratch_waves,
                                    compute_scratch_bo);
@@ -1081,14 +1074,14 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
          break;
       }
 
-      if (i < 2) {
+      if (i < 2 || task_rings_bo) {
          /* The two initial preambles have a cache flush at the beginning. */
          const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
          enum radv_cmd_flush_bits flush_bits = RADV_CMD_FLAG_INV_ICACHE | RADV_CMD_FLAG_INV_SCACHE |
                                                RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2 |
                                                RADV_CMD_FLAG_START_PIPELINE_STATS;
 
-         if (i == 0) {
+         if (i == 0 || task_rings_bo) {
             /* The full flush preamble should also wait for previous shader work to finish. */
             flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
             if (queue->qf == RADV_QUEUE_GENERAL)
@@ -1097,6 +1090,13 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
 
          radv_cs_emit_cache_flush(ws, cs, gfx_level, NULL, 0, flush_bits, &sqtt_flush_bits, 0);
       }
+
+      /* Emit task rings after the initial cache flush and wait
+       * to make sure that we aren't reading stale data from cache
+       * and that a previous submission isn't perturbing the BO.
+       */
+      if (task_rings_bo)
+         radv_emit_task_rings(device, cs, task_rings_bo, queue->qf == RADV_QUEUE_COMPUTE);
 
       result = radv_finalize_cmd_stream(device, cs);
       if (result != VK_SUCCESS)
