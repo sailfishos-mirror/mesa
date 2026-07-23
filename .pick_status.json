@@ -3494,7 +3494,7 @@
         "description": "tu: limit KHR_internally_synchronized_queues to Vulkan 1.1+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "879dd9ca8c37b2cedcd8c0b7626e36e57fd1faa3",
         "notes": null
