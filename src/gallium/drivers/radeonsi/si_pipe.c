@@ -124,7 +124,7 @@ static struct pipe_context *si_pipe_create_context(struct pipe_screen *screen, v
    ctx = si_create_context(screen, flags);
    sctx = (struct si_context *)ctx;
 
-   if (!(flags & PIPE_CONTEXT_PREFER_THREADED))
+   if (!(flags & PIPE_CONTEXT_PREFER_THREADED) || sscreen->debug_flags & DBG(SAFEST))
       return ctx;
 
    /* Clover (compute-only) is unsupported. */
