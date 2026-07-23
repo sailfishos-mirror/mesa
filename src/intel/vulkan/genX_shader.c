@@ -574,7 +574,8 @@ emit_vs_shader(struct anv_batch *batch,
          vs_prog_data->base.cull_distance_mask;
 
 #if GFX_VER >= 30
-      vs.RegistersPerThread = ptl_register_blocks(vs_prog_data->base.base.grf_used);
+      vs.RegistersPerThread =
+         brw_register_blocks(devinfo, vs_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -656,7 +657,8 @@ emit_hs_shader(struct anv_batch *batch,
       hs.IncludePrimitiveID = tcs_prog_data->include_primitive_id;
 
 #if GFX_VER >= 30
-      hs.RegistersPerThread = ptl_register_blocks(tcs_prog_data->base.base.grf_used);
+      hs.RegistersPerThread =
+         brw_register_blocks(devinfo, tcs_prog_data->base.base.grf_used);
 #endif
    };
 
@@ -746,7 +748,8 @@ emit_ds_shader(struct anv_batch *batch,
 #endif
 
 #if GFX_VER >= 30
-      ds.RegistersPerThread = ptl_register_blocks(tes_prog_data->base.base.grf_used);
+      ds.RegistersPerThread =
+         brw_register_blocks(devinfo, tes_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -824,7 +827,8 @@ emit_gs_shader(struct anv_batch *batch,
          gs_prog_data->base.cull_distance_mask;
 
 #if GFX_VER >= 30
-      gs.RegistersPerThread = ptl_register_blocks(gs_prog_data->base.base.grf_used);
+      gs.RegistersPerThread =
+         brw_register_blocks(devinfo, gs_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -911,7 +915,8 @@ emit_task_shader(struct anv_batch *batch,
       task.XP0Required = task_prog_data->uses_drawid;
 
 #if GFX_VER >= 30
-      task.RegistersPerThread = ptl_register_blocks(task_prog_data->base.base.grf_used);
+      task.RegistersPerThread =
+         brw_register_blocks(devinfo, task_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -1010,7 +1015,8 @@ emit_mesh_shader(struct anv_batch *batch,
       mesh.XP0Required = mesh_prog_data->uses_drawid;
 
 #if GFX_VER >= 30
-      mesh.RegistersPerThread = ptl_register_blocks(mesh_prog_data->base.base.grf_used);
+      mesh.RegistersPerThread =
+         brw_register_blocks(devinfo, mesh_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -1066,7 +1072,8 @@ emit_ps_shader(struct anv_batch *batch,
       ps.MaximumNumberofThreadsPerPSD = devinfo->max_threads_per_psd - 1;
 
 #if GFX_VER >= 30
-      ps.RegistersPerThread = ptl_register_blocks(fs_prog_data->base.grf_used);
+      ps.RegistersPerThread =
+         brw_register_blocks(devinfo, fs_prog_data->base.grf_used);
 #endif
    }
 
@@ -1187,7 +1194,8 @@ emit_cs_shader(struct anv_batch *batch,
             dispatch.group_size, dispatch.simd_size),
          .NumberOfBarriers                  = cs_prog_data->uses_barrier,
 #if GFX_VER >= 30
-         .RegistersPerThread                = ptl_register_blocks(cs_prog_data->base.grf_used),
+         .RegistersPerThread                =
+            brw_register_blocks(devinfo, cs_prog_data->base.grf_used),
 #endif
       },
       .EmitInlineParameter            = shader->bind_map.inline_dwords_count > 0,
@@ -1429,7 +1437,7 @@ genX(write_rt_shader_group)(struct anv_device *device,
       assert(shader_count == 1);
       struct anv_shader *shader = container_of(shaders[0], struct anv_shader, vk);
       struct GENX(RT_GENERAL_SBT_HANDLE) sh = {};
-      sh.General = anv_shader_get_bsr(shader, 32);
+      sh.General = anv_shader_get_bsr(device->info, shader, 32);
       GENX(RT_GENERAL_SBT_HANDLE_pack)(NULL, output, &sh);
       break;
    }
@@ -1441,14 +1449,15 @@ genX(write_rt_shader_group)(struct anv_device *device,
       for (uint32_t i = 0; i < shader_count; i++) {
          struct anv_shader *shader = container_of(shaders[i], struct anv_shader, vk);
          if (shader->vk.stage == MESA_SHADER_CLOSEST_HIT) {
-            sh.ClosestHit = anv_shader_get_bsr(shader, 32);
+            sh.ClosestHit = anv_shader_get_bsr(device->info, shader, 32);
          } else if (shader->vk.stage == MESA_SHADER_ANY_HIT) {
-            sh.AnyHit = anv_shader_get_bsr(shader, 24);
+            sh.AnyHit = anv_shader_get_bsr(device->info, shader, 24);
             anyhit_seen = true;
          }
       }
       if (!anyhit_seen)
-         sh.AnyHit = anv_shader_internal_get_bsr(device->rt_null_ahs, 24);
+         sh.AnyHit = anv_shader_internal_get_bsr(device->info,
+                                                 device->rt_null_ahs, 24);
       GENX(RT_TRIANGLES_SBT_HANDLE_pack)(NULL, output, &sh);
       break;
    }
@@ -1463,9 +1472,9 @@ genX(write_rt_shader_group)(struct anv_device *device,
           * this shader groupe type.
           */
          if (shader->vk.stage == MESA_SHADER_CLOSEST_HIT)
-            sh.ClosestHit = anv_shader_get_bsr(shader, 32);
+            sh.ClosestHit = anv_shader_get_bsr(device->info, shader, 32);
          else if (shader->vk.stage == MESA_SHADER_INTERSECTION)
-            sh.Intersection = anv_shader_get_bsr(shader, 24);
+            sh.Intersection = anv_shader_get_bsr(device->info, shader, 24);
          else
             assert(shader->vk.stage == MESA_SHADER_ANY_HIT);
       }

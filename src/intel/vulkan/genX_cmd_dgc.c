@@ -510,9 +510,11 @@ preprocess_rt_sequences(struct anv_cmd_buffer *cmd_buffer,
       },
 #if GFX_VERx10 >= 300
       .CallStackHandler   = anv_shader_internal_get_handler(
+         device->info,
          device->rt_trivial_return, 0),
 #else
       .CallStackHandler   = anv_shader_internal_get_bsr(
+         device->info,
          device->rt_trivial_return, 0),
 #endif
       .AsyncRTStackSize   = rt_state->scratch.layout.ray_stack_stride / 64,
@@ -552,7 +554,9 @@ preprocess_rt_sequences(struct anv_cmd_buffer *cmd_buffer,
             .ThreadPreemption = false,
 #endif
 #if GFX_VER >= 30
-            .RegistersPerThread = ptl_register_blocks(cs_prog_data->base.grf_used),
+            .RegistersPerThread =
+               brw_register_blocks(device->info,
+                                   cs_prog_data->base.grf_used),
 #endif
          },
       },

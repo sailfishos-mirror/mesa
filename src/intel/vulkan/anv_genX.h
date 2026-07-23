@@ -301,7 +301,8 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
                                             struct anv_device *device);
 
 #if GFX_VERx10 >= 300
-#define anv_shader_internal_get_handler(bin, local_arg_offset) ({    \
+#define anv_shader_internal_get_handler(devinfo, bin,                \
+                                        local_arg_offset) ({         \
    assert((local_arg_offset) % 8 == 0);                              \
    const struct brw_bs_prog_data *prog_data =                        \
       brw_bs_prog_data_const(bin->prog_data);                        \
@@ -311,13 +312,14 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .OffsetToLocalArguments = (local_arg_offset) / 8,              \
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
       .KernelStartPointer = bin->kernel.offset,                      \
-      .RegistersPerThread = ptl_register_blocks(prog_data->base.grf_used), \
+      .RegistersPerThread =                                          \
+         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
    };                                                                \
 })
 #endif
 
 #if GFX_VERx10 >= 300
-#define anv_shader_get_bsr(shader, local_arg_offset) ({              \
+#define anv_shader_get_bsr(devinfo, shader, local_arg_offset) ({     \
    assert((local_arg_offset) % 8 == 0);                              \
    const struct brw_bs_prog_data *prog_data =                        \
       brw_bs_prog_data_const(shader->prog_data);                     \
@@ -328,11 +330,12 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
       .KernelStartPointer = shader->replay_kernel.alloc_size != 0 ?  \
          shader->replay_kernel.offset : shader->kernel.offset,       \
-      .RegistersPerThread = ptl_register_blocks(prog_data->base.grf_used), \
+      .RegistersPerThread =                                          \
+         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
    };                                                                \
 })
 #else
-#define anv_shader_get_bsr(shader, local_arg_offset) ({              \
+#define anv_shader_get_bsr(devinfo, shader, local_arg_offset) ({     \
    assert((local_arg_offset) % 8 == 0);                              \
    const struct brw_bs_prog_data *prog_data =                        \
       brw_bs_prog_data_const(shader->prog_data);                     \
@@ -349,7 +352,8 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
 #endif
 
 #if GFX_VERx10 >= 300
-#define anv_shader_internal_get_bsr(bin, local_arg_offset) ({        \
+#define anv_shader_internal_get_bsr(devinfo, bin,                    \
+                                    local_arg_offset) ({             \
    assert((local_arg_offset) % 8 == 0);                              \
    const struct brw_bs_prog_data *prog_data =                        \
       brw_bs_prog_data_const(bin->prog_data);                        \
@@ -359,11 +363,13 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .OffsetToLocalArguments = (local_arg_offset) / 8,              \
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
       .KernelStartPointer = bin->kernel.offset,                      \
-      .RegistersPerThread = ptl_register_blocks(prog_data->base.grf_used), \
+      .RegistersPerThread =                                          \
+         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
    };                                                                \
 })
 #else
-#define anv_shader_internal_get_bsr(bin, local_arg_offset) ({        \
+#define anv_shader_internal_get_bsr(devinfo, bin,                    \
+                                    local_arg_offset) ({             \
    assert((local_arg_offset) % 8 == 0);                              \
    const struct brw_bs_prog_data *prog_data =                        \
       brw_bs_prog_data_const(bin->prog_data);                        \

@@ -1062,9 +1062,11 @@ cmd_buffer_emit_rt_dispatch_globals(struct anv_cmd_buffer *cmd_buffer,
       },
 #if GFX_VERx10 >= 300
       .CallStackHandler   = anv_shader_internal_get_handler(
+         cmd_buffer->device->info,
          cmd_buffer->device->rt_trivial_return, 0),
 #else
       .CallStackHandler   = anv_shader_internal_get_bsr(
+         cmd_buffer->device->info,
          cmd_buffer->device->rt_trivial_return, 0),
 #endif
       .AsyncRTStackSize   = rt->scratch.layout.ray_stack_stride / 64,
@@ -1132,9 +1134,11 @@ cmd_buffer_emit_rt_dispatch_globals_indirect(struct anv_cmd_buffer *cmd_buffer,
       },
 #if GFX_VERx10 >= 300
       .CallStackHandler   = anv_shader_internal_get_handler(
+         cmd_buffer->device->info,
          cmd_buffer->device->rt_trivial_return, 0),
 #else
       .CallStackHandler   = anv_shader_internal_get_bsr(
+         cmd_buffer->device->info,
          cmd_buffer->device->rt_trivial_return, 0),
 #endif
       .AsyncRTStackSize   = rt->scratch.layout.ray_stack_stride / 64,
@@ -1565,7 +1569,8 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
          .ThreadPreemption = false,
 #endif
 #if GFX_VER >= 30
-         .RegistersPerThread = ptl_register_blocks(cs_prog_data->base.grf_used),
+         .RegistersPerThread =
+            brw_register_blocks(device->info, cs_prog_data->base.grf_used),
 #endif
       },
    };

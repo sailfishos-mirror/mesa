@@ -1900,8 +1900,10 @@ anv_bsr(const struct intel_device_info *devinfo,
    /* Gfx30+ supports VRT, for other platforms just program is to 0. HW ignore
     * these bits if VRT is disabled.
     */
-   uint64_t registers_per_thread = devinfo->ver >= 30 ?
-                                   ((uint64_t)ptl_register_blocks(grf_used) << 60) : 0;
+   uint64_t registers_per_thread =
+      devinfo->ver >= 30 ? ((uint64_t)brw_register_blocks(devinfo,
+                                                          grf_used) << 60) :
+                                                          0;
    return registers_per_thread |
           offset |
           SET_BITS(bindless_shader_dispatch_mode, 4, 4) |
