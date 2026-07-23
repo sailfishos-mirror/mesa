@@ -607,9 +607,9 @@ namespace {
                                      30 /* XXX */, 0,
                                      10 /* XXX */, 300 /* XXX */, 0, 0, 0, 0);
             default:
-               if (devinfo->ver >= 30)
+               if (devinfo->ver >= 20)
                   return calculate_desc(info, EU_UNIT_DP_RC, 2, 0, 0,
-                                        0, 400 /* XXX */,
+                                        0, 300 /* XXX */,
                                         10 /* XXX */, 300 /* XXX */, 0, 0,
                                         0, 0);
                else
