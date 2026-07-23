@@ -70,15 +70,22 @@ render_needs_zs_crc_ext(struct panvk_cmd_buffer *cmdbuf)
 }
 
 static bool
-render_needs_crc_patch(struct panvk_cmd_buffer *cmdbuf)
+render_get_crc_info(struct panvk_cmd_buffer *cmdbuf,
+                    struct pan_fb_crc_rt_info *crc_info)
 {
    struct panvk_rendering_state *render = &cmdbuf->state.gfx.render;
    struct pan_fb_desc_info fbd_info = {
       .fb = &render->fb.layout,
       .store = &render->fb.store,
    };
+   return GENX(pan_fb_get_crc_rt_info)(&fbd_info, crc_info);
+}
+
+static bool
+render_needs_crc_patch(struct panvk_cmd_buffer *cmdbuf)
+{
    struct pan_fb_crc_rt_info crc_info;
-   return GENX(pan_fb_get_crc_rt_info)(&fbd_info, &crc_info);
+   return render_get_crc_info(cmdbuf, &crc_info);
 }
 
 #if PAN_ARCH < 14
@@ -1478,6 +1485,91 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
 }
 #endif /* PAN_ARCH >= 14 */
 
+#if PAN_ARCH == 10
+static void
+patch_crc_valid(struct cs_builder *b, const struct pan_fb_crc_rt_info *crc_info,
+                uint32_t crc_fbd_flags, uint32_t crc_rtd_flags,
+                struct cs_index fbd_ptr_reg, uint64_t fb_size,
+                uint32_t fbd_stride, uint32_t enabled_layer_count)
+{
+   if (crc_info->rt == -1 || !crc_info->header_addr)
+      return;
+
+   /* Patch FBD with CRC state immediately before use. Invalid state uses
+    * write-only initialization; valid state enables TE. */
+   struct cs_index header_addr_reg = cs_scratch_reg64(b, 2);
+   struct cs_index fbd_flags = cs_scratch_reg32(b, 4);
+   struct cs_index rtd_flags = cs_scratch_reg32(b, 5);
+   struct cs_index valid = cs_scratch_reg32(b, 6);
+
+   const int flags_offset = 12 * sizeof(uint32_t);
+   const int crc_rt_flags_offset = fb_size + pan_size(ZS_CRC_EXTENSION) +
+                                   crc_info->rt * pan_size(RENDER_TARGET) +
+                                   sizeof(uint32_t);
+
+   const uint32_t valid_fbd_flags = crc_fbd_flags;
+   const uint32_t invalid_fbd_flags = (valid_fbd_flags & BITFIELD_MASK(28)) |
+                                      BITFIELD_BIT(29) | /* ETE write */
+                                      BITFIELD_BIT(31);  /* CRC write */
+
+   const uint32_t valid_rtd_flags = crc_rtd_flags;
+   const uint32_t invalid_rtd_flags =
+      valid_rtd_flags | BITFIELD_BIT(31); /* Clean-tile write */
+
+   cs_move64_to(b, header_addr_reg, crc_info->header_addr);
+   cs_load32_to(b, valid, header_addr_reg, PAN_CRC_VALID_OFFSET);
+
+   /* Invalid: initialize CRC and ETE by setting write only. */
+   cs_move32_to(b, fbd_flags, invalid_fbd_flags);
+   cs_move32_to(b, rtd_flags, invalid_rtd_flags);
+   /* Valid: enable both read and write. */
+   cs_if(b, MALI_CS_CONDITION_NEQUAL, valid) {
+      cs_move32_to(b, fbd_flags, valid_fbd_flags);
+      cs_move32_to(b, rtd_flags, valid_rtd_flags);
+   }
+
+   for (uint32_t i = 0; i < enabled_layer_count; i++) {
+      /* Store new CRC/ETE read/write flags to the FBD. */
+      cs_store32(b, fbd_flags, fbd_ptr_reg, flags_offset);
+      cs_store32(b, rtd_flags, fbd_ptr_reg, crc_rt_flags_offset);
+
+      if (i + 1 < enabled_layer_count)
+         cs_add_imm64(b, fbd_ptr_reg, fbd_ptr_reg, fbd_stride);
+   }
+}
+
+static void
+mark_crc_valid_after_fragment(struct cs_builder *b,
+                              struct panvk_cmd_buffer *cmdbuf)
+{
+   struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
+   struct pan_fb_crc_rt_info crc_info;
+   if (!pan_fb_is_fully_covered(&cmdbuf->state.gfx.render.fb.layout) ||
+       !render_get_crc_info(cmdbuf, &crc_info))
+      return;
+
+   struct cs_index state_addr_reg = cs_scratch_reg64(b, 0);
+   struct cs_index valid = cs_scratch_reg32(b, 3);
+   cs_move64_to(b, state_addr_reg, crc_info.header_addr);
+   cs_load32_to(b, valid, state_addr_reg, PAN_CRC_VALID_OFFSET);
+
+   cs_if(b, MALI_CS_CONDITION_EQUAL, valid) {
+      cs_wait_slots(b, dev->csf.sb.all_iters_mask);
+
+      struct cs_index counter_reg = cs_scratch_reg32(b, 4);
+      cs_load32_to(b, counter_reg, cs_subqueue_ctx_reg(b),
+                   TILER_OOM_CTX_FIELD_OFFSET(counter));
+
+      cs_if(b, MALI_CS_CONDITION_EQUAL, counter_reg) {
+         cs_move32_to(b, valid, 1);
+         cs_store32(b, valid, state_addr_reg, PAN_CRC_VALID_OFFSET);
+      }
+
+      cs_flush_stores(b);
+   }
+}
+#endif /* PAN_ARCH == 10 */
+
 #if PAN_ARCH >= 11
 static void
 patch_crc_init(struct cs_builder *b, struct pan_fb_desc_info *fbd_info,
@@ -1594,7 +1686,14 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
     *   pCommandBufferInfos.
     * "
     */
+#if PAN_ARCH == 10
+   struct pan_fb_crc_rt_info crc_info;
+   const bool has_crc_patch = render_get_crc_info(cmdbuf, &crc_info);
+   uint32_t crc_fbd_flags = 0;
+   uint32_t crc_rtd_flags = 0;
+#elif PAN_ARCH >= 11
    const bool has_crc_patch = render_needs_crc_patch(cmdbuf);
+#endif
    const bool copy_fbds =
       simul_use && (cmdbuf->state.gfx.render.tiler || has_crc_patch);
    const bool has_zs_crc_ext = render_needs_zs_crc_ext(cmdbuf);
@@ -1652,6 +1751,18 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
       /* Make sure all FBDs have the same flags. */
       assert(i == 0 || new_fbd_flags == fbd_flags);
       fbd_flags = new_fbd_flags;
+#if PAN_ARCH == 10
+      if (has_crc_patch) {
+         uint32_t fbd_word = fb_descs.fbd->opaque[12];
+         uint32_t rtd_word = fb_descs.rts[crc_info.rt].opaque[1];
+
+         assert(i == 0 || fbd_word == crc_fbd_flags);
+         assert(i == 0 || rtd_word == crc_rtd_flags);
+
+         crc_fbd_flags = fbd_word;
+         crc_rtd_flags = rtd_word;
+      }
+#endif
    }
 
 #if PAN_ARCH >= 14
@@ -1816,13 +1927,19 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          /* Finish stores to pass_dst_fbd_ptr. */
          cs_flush_stores(b);
 
-#if PAN_ARCH >= 11
-         struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
-         cs_move_reg64(b, fbd_ptr_reg, dst_fbd_ptr);
-         /* Patch CRC init for the copied descriptor. */
-         patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz, 1);
-         cs_flush_stores(b);
+         if (has_crc_patch) {
+            struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
+            cs_move_reg64(b, fbd_ptr_reg, dst_fbd_ptr);
+#if PAN_ARCH == 10
+            /* Patch CRC read/write flags based on valid state. */
+            patch_crc_valid(b, &crc_info, crc_fbd_flags, crc_rtd_flags,
+                            fbd_ptr_reg, fb_sz, fbd_sz, 1);
+#elif PAN_ARCH >= 11
+            /* Patch CRC init for the copied descriptor. */
+            patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz, 1);
 #endif
+            cs_flush_stores(b);
+         }
 
          cs_add_imm64(b, src_fbd_ptr, src_fbd_ptr, fbd_sz);
          cs_update_frag_ctx(b)
@@ -1853,13 +1970,18 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                       -(full_td_count * pan_size(TILER_CONTEXT)));
       }
    } else {
-#if PAN_ARCH >= 11
-      struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
-      cs_move64_to(b, fbd_ptr_reg, fbds.gpu);
-      patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz,
-                     enabled_layer_count);
+      if (has_crc_patch) {
+         struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 0);
+         cs_move64_to(b, fbd_ptr_reg, fbds.gpu);
+#if PAN_ARCH == 10
+         patch_crc_valid(b, &crc_info, crc_fbd_flags, crc_rtd_flags,
+                         fbd_ptr_reg, fb_sz, fbd_sz, enabled_layer_count);
+#elif PAN_ARCH >= 11
+         patch_crc_init(b, &fbd_info, fbd_ptr_reg, fb_sz, fbd_sz,
+                        enabled_layer_count);
 #endif
-      cs_flush_stores(b);
+         cs_flush_stores(b);
+      }
 
       cs_update_frag_ctx(b) {
          cs_move64_to(b, cs_sr_reg64(b, FRAGMENT, FBD_POINTER),
@@ -4239,6 +4361,11 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
             cs_add_imm64(b, fbd_pointer, fbd_pointer, fbd_sz);
       }
    }
+
+#if PAN_ARCH == 10
+   /* CRC becomes valid only after full-frame fragment completion without IR. */
+   mark_crc_valid_after_fragment(b, cmdbuf);
+#endif
 
    struct cs_index sync_addr = cs_scratch_reg64(b, 0);
    struct cs_index sb_update_scratch_regs = cs_scratch_reg_tuple(b, 2, 2);

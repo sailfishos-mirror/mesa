@@ -39,6 +39,9 @@ struct panvk_sync_scope {
 #else
 #define MAX_LAYERS_PER_TILER_DESC 8
 #endif
+#if PAN_ARCH == 10
+#define PAN_CRC_VALID_OFFSET  0
+#endif
 #if PAN_ARCH >= 11
 #define PAN_CRC_INIT_OFFSET  0
 #define PAN_CRC_INIT_MASK    0xffff
