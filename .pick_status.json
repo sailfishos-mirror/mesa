@@ -6744,7 +6744,7 @@
         "description": "pco: amend atomic address calculation for 2d images",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6dc5e1e1094554c291239b955a1dc39c6e4c017b",
         "notes": null
