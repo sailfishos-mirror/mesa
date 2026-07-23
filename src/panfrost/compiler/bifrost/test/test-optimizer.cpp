@@ -41,6 +41,7 @@ class Optimizer : public testing::Test {
    Optimizer()
    {
       mem_ctx = ralloc_context(NULL);
+      arch = 7;
 
       x = bi_register(1);
       y = bi_register(2);
@@ -53,6 +54,7 @@ class Optimizer : public testing::Test {
    }
 
    void *mem_ctx;
+   unsigned arch;
 
    bi_index x;
    bi_index y;
