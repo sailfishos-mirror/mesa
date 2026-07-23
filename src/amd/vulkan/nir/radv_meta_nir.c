@@ -769,32 +769,17 @@ radv_meta_nir_build_clear_color_shaders(struct nir_shader **out_vs, struct nir_s
    *out_fs = fs_b.shader;
 }
 
-void
-radv_meta_nir_build_clear_depthstencil_shaders(struct nir_shader **out_vs, struct nir_shader **out_fs,
-                                               bool unrestricted)
+nir_shader *
+radv_meta_nir_build_clear_depthstencil_vertex_shader()
 {
-   nir_builder vs_b = radv_meta_nir_init_shader(
-      MESA_SHADER_VERTEX, unrestricted ? "meta_clear_depthstencil_unrestricted_vs" : "meta_clear_depthstencil_vs");
-   nir_builder fs_b = radv_meta_nir_init_shader(
-      MESA_SHADER_FRAGMENT, unrestricted ? "meta_clear_depthstencil_unrestricted_fs" : "meta_clear_depthstencil_fs");
+   nir_builder vs_b = radv_meta_nir_init_shader(MESA_SHADER_VERTEX, "meta_clear_depthstencil_vs");
 
    const struct glsl_type *position_out_type = glsl_vec4_type();
 
    nir_variable *vs_out_pos = nir_variable_create(vs_b.shader, nir_var_shader_out, position_out_type, "gl_Position");
    vs_out_pos->data.location = VARYING_SLOT_POS;
 
-   nir_def *z;
-   if (unrestricted) {
-      nir_def *in_color_load = nir_load_push_constant(&fs_b, 1, 32, nir_imm_int(&fs_b, 0), .range = 4);
-
-      nir_variable *fs_out_depth = nir_variable_create(fs_b.shader, nir_var_shader_out, glsl_int_type(), "f_depth");
-      fs_out_depth->data.location = FRAG_RESULT_DEPTH;
-      nir_store_var(&fs_b, fs_out_depth, in_color_load, 0x1);
-
-      z = nir_imm_float(&vs_b, 0.0);
-   } else {
-      z = nir_load_push_constant(&vs_b, 1, 32, nir_imm_int(&vs_b, 0), .range = 4);
-   }
+   nir_def *z = nir_load_push_constant(&vs_b, 1, 32, nir_imm_int(&vs_b, 0), .range = 4);
 
    nir_def *outvec = nir_gen_rect_vertices(&vs_b, z, NULL);
    nir_store_var(&vs_b, vs_out_pos, outvec, 0xf);
@@ -809,8 +794,7 @@ radv_meta_nir_build_clear_depthstencil_shaders(struct nir_shader **out_vs, struc
    nir_def *layer_id = nir_iadd(&vs_b, inst_id, base_instance);
    nir_store_var(&vs_b, vs_out_layer, layer_id, 0x1);
 
-   *out_vs = vs_b.shader;
-   *out_fs = fs_b.shader;
+   return vs_b.shader;
 }
 
 nir_shader *

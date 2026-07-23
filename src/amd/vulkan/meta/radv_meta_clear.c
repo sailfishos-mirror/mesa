@@ -273,20 +273,18 @@ static bool radv_can_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const 
 
 struct radv_clear_ds_layout_key {
    enum radv_meta_object_key_type type;
-   bool unrestricted;
 };
 
 static VkResult
-get_depth_stencil_pipeline_layout(struct radv_device *device, bool unrestricted, VkPipelineLayout *layout_out)
+get_depth_stencil_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out)
 {
    struct radv_clear_ds_layout_key key;
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_CLEAR_DS;
-   key.unrestricted = unrestricted;
 
    const VkPushConstantRange pc_range = {
-      .stageFlags = unrestricted ? VK_SHADER_STAGE_FRAGMENT_BIT : VK_SHADER_STAGE_VERTEX_BIT,
+      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
       .size = 4,
    };
 
@@ -298,18 +296,16 @@ struct radv_clear_ds_key {
    enum radv_meta_object_key_type type;
    VkImageAspectFlags aspects;
    uint8_t samples;
-   bool unrestricted;
 };
 
 static VkResult
 get_depth_stencil_pipeline(struct radv_device *device, int samples, VkImageAspectFlags aspects,
                            VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
-   const bool unrestricted = device->vk.enabled_extensions.EXT_depth_range_unrestricted;
    struct radv_clear_ds_key key;
    VkResult result;
 
-   result = get_depth_stencil_pipeline_layout(device, unrestricted, layout_out);
+   result = get_depth_stencil_pipeline_layout(device, layout_out);
    if (result != VK_SUCCESS)
       return result;
 
@@ -317,7 +313,6 @@ get_depth_stencil_pipeline(struct radv_device *device, int samples, VkImageAspec
    key.type = RADV_META_OBJECT_KEY_CLEAR_DS;
    key.aspects = aspects;
    key.samples = samples;
-   key.unrestricted = unrestricted;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {
@@ -325,9 +320,8 @@ get_depth_stencil_pipeline(struct radv_device *device, int samples, VkImageAspec
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module, *fs_module;
-
-   radv_meta_nir_build_clear_depthstencil_shaders(&vs_module, &fs_module, unrestricted);
+   nir_shader *vs_module = radv_meta_nir_build_clear_depthstencil_vertex_shader();
+   nir_shader *fs_module = radv_meta_nir_build_fs_noop();
 
    VkGraphicsPipelineCreateInfoRADV radv_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO_RADV,
@@ -374,6 +368,11 @@ get_depth_stencil_pipeline(struct radv_device *device, int samples, VkImageAspec
       .pRasterizationState =
          &(VkPipelineRasterizationStateCreateInfo){
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .pNext =
+               &(VkPipelineRasterizationDepthClipStateCreateInfoEXT){
+                  .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT,
+                  .depthClipEnable = false,
+               },
             .rasterizerDiscardEnable = false,
             .polygonMode = VK_POLYGON_MODE_FILL,
             .cullMode = VK_CULL_MODE_NONE,
@@ -452,7 +451,6 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
                         VkImageAspectFlags aspects, const VkClearRect *clear_rect, uint32_t view_mask)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const bool unrestricted = device->vk.enabled_extensions.EXT_depth_range_unrestricted;
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
    struct radv_image_view *iview = render->ds_att.iview;
    uint32_t samples;
@@ -483,9 +481,7 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
    if (!(aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
       clear_value.depth = 1.0f;
 
-   radv_meta_push_constants(cmd_buffer, layout,
-                            unrestricted ? VK_SHADER_STAGE_FRAGMENT_BIT : VK_SHADER_STAGE_VERTEX_BIT, 0, 4,
-                            &clear_value.depth);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 4, &clear_value.depth);
 
    uint32_t prev_reference = cmd_buffer->state.dynamic.vk.ds.stencil.front.reference;
    if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
