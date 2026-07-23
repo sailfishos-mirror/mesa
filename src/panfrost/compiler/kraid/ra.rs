@@ -94,6 +94,11 @@ impl Arena {
         true
     }
 
+    /// Returns true if this arena is for memory.
+    pub fn is_mem(&self) -> bool {
+        false
+    }
+
     /// Returns the maximum number of bytes that can be allocated from this
     /// arena.
     pub fn limit(&self) -> u16 {
@@ -904,6 +909,16 @@ impl LocalRegAlloc<'_> {
     }
 }
 
+/// A wrapper around AllocSSA that only allows registers
+struct RegSSAAlloc<'a>(&'a mut SSAValueAllocator);
+
+impl AllocSSA for RegSSAAlloc<'_> {
+    fn alloc_ssa_value(&mut self, bits: u8, is_mem: bool) -> SSAValue {
+        assert!(!is_mem);
+        self.0.alloc_ssa_value(bits, false)
+    }
+}
+
 struct GlobalRegAlloc<'a> {
     local: LocalRegAlloc<'a>,
 
@@ -950,10 +965,10 @@ impl GlobalRegAlloc<'_> {
         cfg: &CFG<BasicBlock>,
         bi: usize,
         reg_outs: &mut Vec<Box<OpRegOut>>,
-    ) -> ParallelCopy<'_> {
+        pcopy: &mut ParallelCopy,
+    ) {
         debug_assert!(cfg.succ_indices(bi).is_empty());
 
-        let mut pcopy = ParallelCopy::new(self.local.model, false);
         if self.local.arena.is_reg() {
             for op in std::mem::take(reg_outs) {
                 if let RegRange::Regs(words) = op.reg.range {
@@ -971,8 +986,6 @@ impl GlobalRegAlloc<'_> {
 
         // After the block is done, nothing is used
         self.local.used.clear();
-
-        pcopy
     }
 
     fn start_block(
@@ -1057,7 +1070,8 @@ impl GlobalRegAlloc<'_> {
         phi_srcs: &mut Vec<Box<OpPhiSrc>>,
         mut branch: Option<&mut Box<OpBranch>>,
         phi_map: &PhiMap,
-    ) -> ParallelCopy<'_> {
+        pcopy: &mut ParallelCopy,
+    ) {
         debug_assert!(self.local.pinned.is_empty());
 
         let succ = cfg.succ_indices(bi);
@@ -1125,7 +1139,6 @@ impl GlobalRegAlloc<'_> {
         if let Some(live_out) = live_out {
             // In this case, someone already set up our live-out.  We just have
             // to emit copies to shuffle everything into place.
-            let mut pcopy = ParallelCopy::new(self.local.model, false);
             for idx in live_out_set.iter() {
                 let src_bytes = self.local.idx_bytes(idx);
                 let dst_bytes = live_out.get(&idx).unwrap().clone();
@@ -1170,7 +1183,7 @@ impl GlobalRegAlloc<'_> {
             // After the block is done, nothing is used
             self.local.used.clear();
 
-            return pcopy;
+            return;
         }
 
         // If se got here, we're building the live-out.
@@ -1196,7 +1209,6 @@ impl GlobalRegAlloc<'_> {
 
         // Now, place everything.  Go largest to smallest to reduce so that
         // we can guarantee everything fits.
-        let mut pcopy = ParallelCopy::new(self.local.model, false);
         let mut live_out: FxHashMap<u32, Range<u16>> = Default::default();
         for chunk_bytes in [8, 4, 2, 1] {
             // First place any chunk_bytes sized live-out values
@@ -1334,15 +1346,27 @@ impl GlobalRegAlloc<'_> {
 
         let old = self.live_out[bi].replace(live_out);
         assert!(old.is_none());
+    }
 
-        pcopy
+    fn pcopy_alloc<'a>(
+        &self,
+        ssa_alloc: &'a mut SSAValueAllocator,
+    ) -> Option<RegSSAAlloc<'a>> {
+        // We only want to provide an AllocSSA to ParallelCopy::into_instrs()
+        // if we are copying memory values and we want to restrict it to only
+        // being able to allocate registers, not memory.
+        if self.local.arena.is_mem() {
+            Some(RegSSAAlloc(ssa_alloc))
+        } else {
+            None
+        }
     }
 
     fn alloc_regs_block(
         &mut self,
         cfg: &mut CFG<BasicBlock>,
         live: &impl Liveness,
-        ssa_alloc: &SSAValueAllocator,
+        ssa_alloc: &mut SSAValueAllocator,
         bi: usize,
         phi_map: &PhiMap,
     ) {
@@ -1388,9 +1412,13 @@ impl GlobalRegAlloc<'_> {
                 }
                 Op::RegOut(op) => reg_outs.push(op),
                 _ => {
-                    let mut pcopy = ParallelCopy::new(self.local.model, false);
+                    let mut pcopy = ParallelCopy::new(
+                        self.local.model,
+                        self.local.arena.is_mem(),
+                    );
                     self.local.alloc_regs_instr(ip, &mut instr, &mut pcopy, bl);
-                    instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
+                    let mut pcopy_alloc = self.pcopy_alloc(ssa_alloc);
+                    instrs.extend(pcopy.into_instrs(pcopy_alloc.as_mut()));
                     instrs.push(instr);
                 }
             }
@@ -1399,12 +1427,17 @@ impl GlobalRegAlloc<'_> {
         if cfg.succ_indices(bi).is_empty() {
             assert!(phi_srcs.is_empty());
             assert!(branch.is_none());
-            let pcopy = self.end_shader(cfg, bi, &mut reg_outs);
-            instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
+            let mut pcopy =
+                ParallelCopy::new(self.local.model, self.local.arena.is_mem());
+            self.end_shader(cfg, bi, &mut reg_outs, &mut pcopy);
+            let mut pcopy_alloc = self.pcopy_alloc(ssa_alloc);
+            instrs.extend(pcopy.into_instrs(pcopy_alloc.as_mut()));
             instrs.extend(reg_outs.into_iter().map(Instr::from));
         } else {
             assert!(reg_outs.is_empty());
-            let pcopy = self.end_block(
+            let mut pcopy =
+                ParallelCopy::new(self.local.model, self.local.arena.is_mem());
+            self.end_block(
                 cfg,
                 live,
                 ssa_alloc,
@@ -1412,8 +1445,10 @@ impl GlobalRegAlloc<'_> {
                 &mut phi_srcs,
                 branch.as_mut(),
                 phi_map,
+                &mut pcopy,
             );
-            instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
+            let mut pcopy_alloc = self.pcopy_alloc(ssa_alloc);
+            instrs.extend(pcopy.into_instrs(pcopy_alloc.as_mut()));
             instrs.extend(phi_srcs.into_iter().map(Instr::from));
             instrs.extend(branch.map(Instr::from));
         }
@@ -1429,7 +1464,7 @@ impl GlobalRegAlloc<'_> {
             self.alloc_regs_block(
                 &mut s.blocks,
                 live,
-                &s.ssa_alloc,
+                &mut s.ssa_alloc,
                 bi,
                 &phi_map,
             );
