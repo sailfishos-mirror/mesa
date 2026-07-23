@@ -140,6 +140,66 @@ mtl_render_pass_attachment_descriptor_set_clear_stencil(mtl_render_pass_attachme
 }
 
 void
+mtl_render_pass_attachment_descriptor_set_depth_resolve_filter(mtl_render_pass_attachment_descriptor *descriptor,
+                                                               enum mtl_depth_resolve_filter filter)
+{
+   @autoreleasepool {
+      MTLRenderPassDepthAttachmentDescriptor *desc = (MTLRenderPassDepthAttachmentDescriptor *)descriptor;
+      desc.depthResolveFilter = (MTLMultisampleDepthResolveFilter)filter;
+   }
+}
+
+void
+mtl_render_pass_attachment_descriptor_set_stencil_resolve_filter(mtl_render_pass_attachment_descriptor *descriptor,
+                                                                 enum mtl_stencil_resolve_filter filter)
+{
+   @autoreleasepool {
+      MTLRenderPassStencilAttachmentDescriptor *desc = (MTLRenderPassStencilAttachmentDescriptor *)descriptor;
+      desc.stencilResolveFilter = (MTLMultisampleStencilResolveFilter)filter;
+   }
+}
+
+void
+mtl_render_pass_attachment_descriptor_set_resolve_texture(mtl_render_pass_attachment_descriptor *descriptor,
+                                                          mtl_texture *resolve_texture)
+{
+   @autoreleasepool {
+      MTLRenderPassAttachmentDescriptor *desc = (MTLRenderPassAttachmentDescriptor *)descriptor;
+      desc.resolveTexture = resolve_texture;
+   }
+}
+
+void
+mtl_render_pass_attachment_descriptor_set_resolve_level(mtl_render_pass_attachment_descriptor *descriptor,
+                                                        uint32_t resolve_level)
+{
+   @autoreleasepool {
+      MTLRenderPassAttachmentDescriptor *desc = (MTLRenderPassAttachmentDescriptor *)descriptor;
+      desc.resolveLevel = resolve_level;
+   }
+}
+
+void
+mtl_render_pass_attachment_descriptor_set_resolve_slice(mtl_render_pass_attachment_descriptor *descriptor,
+                                                        uint32_t resolve_slice)
+{
+   @autoreleasepool {
+      MTLRenderPassAttachmentDescriptor *desc = (MTLRenderPassAttachmentDescriptor *)descriptor;
+      desc.resolveSlice = resolve_slice;
+   }
+}
+
+void
+mtl_render_pass_attachment_descriptor_set_resolve_depth_plane(mtl_render_pass_attachment_descriptor *descriptor,
+                                                              uint32_t resolve_depth_plane)
+{
+   @autoreleasepool {
+      MTLRenderPassAttachmentDescriptor *desc = (MTLRenderPassAttachmentDescriptor *)descriptor;
+      desc.resolveDepthPlane = resolve_depth_plane;
+   }
+}
+
+void
 mtl_render_pass_descriptor_set_render_target_array_length(mtl_render_pass_descriptor *descriptor,
                                                           uint32_t length)
 {

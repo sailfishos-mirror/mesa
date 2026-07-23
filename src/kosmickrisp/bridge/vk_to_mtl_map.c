@@ -251,6 +251,34 @@ vk_front_face_to_mtl_cull_mode(enum VkCullModeFlagBits mode)
    }
 }
 
+enum mtl_depth_resolve_filter
+vk_resolve_mode_to_mtl_depth_resolve_filter(
+   enum VkResolveModeFlagBits resolve_mode)
+{
+   switch (resolve_mode) {
+   case VK_RESOLVE_MODE_SAMPLE_ZERO_BIT:
+      return MTL_DEPTH_RESOLVE_FILTER_SAMPLE_0;
+   case VK_RESOLVE_MODE_MIN_BIT:
+      return MTL_DEPTH_RESOLVE_FILTER_MIN;
+   case VK_RESOLVE_MODE_MAX_BIT:
+      return MTL_DEPTH_RESOLVE_FILTER_MAX;
+   default:
+      UNREACHABLE("Unsupported VkResolveMode for depth");
+   }
+}
+
+enum mtl_stencil_resolve_filter
+vk_resolve_mode_to_mtl_stencil_resolve_filter(
+   enum VkResolveModeFlagBits resolve_mode)
+{
+   switch (resolve_mode) {
+   case VK_RESOLVE_MODE_SAMPLE_ZERO_BIT:
+      return MTL_STENCIL_RESOLVE_FILTER_SAMPLE_0;
+   default:
+      UNREACHABLE("Unsupported VkResolveMode for stencil");
+   }
+}
+
 enum mtl_index_type
 index_size_in_bytes_to_mtl_index_type(unsigned bytes)
 {

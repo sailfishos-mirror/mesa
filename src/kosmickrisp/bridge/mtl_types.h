@@ -156,6 +156,17 @@ enum mtl_store_action {
    MTL_STORE_ACTION_CUSTOM_SAMPLE_DEPTH_STORE = 5u,
 };
 
+enum mtl_depth_resolve_filter {
+   MTL_DEPTH_RESOLVE_FILTER_SAMPLE_0 = 0u,
+   MTL_DEPTH_RESOLVE_FILTER_MIN = 1u,
+   MTL_DEPTH_RESOLVE_FILTER_MAX = 2u,
+};
+
+enum mtl_stencil_resolve_filter {
+   MTL_STENCIL_RESOLVE_FILTER_SAMPLE_0 = 0u,
+   MTL_STENCIL_RESOLVE_FILTER_DEPTH_RESOLVED_SAMPLE = 1u,
+};
+
 enum mtl_texture_swizzle {
    MTL_TEXTURE_SWIZZLE_ZERO = 0,
    MTL_TEXTURE_SWIZZLE_ONE = 1,
