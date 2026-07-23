@@ -633,12 +633,11 @@ vn_remove_signaled_semaphores(VkDevice device,
    return cur ? VK_NOT_READY : VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL
-vn_WaitSemaphores(VkDevice device,
-                  const VkSemaphoreWaitInfo *pWaitInfo,
-                  uint64_t timeout)
+static VkResult
+vn_wait_semaphores_legacy(VkDevice device,
+                          const VkSemaphoreWaitInfo *pWaitInfo,
+                          uint64_t timeout)
 {
-   VN_TRACE_FUNC();
    struct vn_device *dev = vn_device_from_handle(device);
 
    const int64_t abs_timeout = os_time_get_absolute_timeout(timeout);
@@ -677,6 +676,23 @@ vn_WaitSemaphores(VkDevice device,
    }
 
    return vn_result(dev->instance, result);
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+vn_WaitSemaphores(VkDevice device,
+                  const VkSemaphoreWaitInfo *pWaitInfo,
+                  uint64_t timeout)
+{
+   VN_TRACE_FUNC();
+
+   if (!pWaitInfo->semaphoreCount)
+      return VK_SUCCESS;
+
+   VK_FROM_HANDLE(vn_semaphore, test_sem, pWaitInfo->pSemaphores[0]);
+   if (test_sem->payload->type != VN_SYNC_TYPE_TIMELINE_SYNC)
+      return vn_wait_semaphores_legacy(device, pWaitInfo, timeout);
+
+   return VK_SUCCESS;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
