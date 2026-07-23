@@ -57,6 +57,30 @@ pub trait Builder {
             srcs: [a, b],
         });
     }
+
+    fn load_tls_to(&mut self, dst: Dst, dst_type: DataType, offset: u16) {
+        let tls_ptr = SpecialFAU::ThreadLocalPointer;
+        let tls_ptr = self.model().fau().special(tls_ptr).unwrap();
+        self.push_op(OpLoad {
+            dst,
+            dst_type,
+            access: MemAccess::Force,
+            addr: tls_ptr.into(),
+            offset: offset.try_into().unwrap(),
+        });
+    }
+
+    fn store_tls(&mut self, offset: u16, src_type: DataType, src: Src) {
+        let tls_ptr = SpecialFAU::ThreadLocalPointer;
+        let tls_ptr = self.model().fau().special(tls_ptr).unwrap();
+        self.push_op(OpStore {
+            src_type,
+            access: MemAccess::Force,
+            data: src,
+            addr: tls_ptr.into(),
+            offset: offset.try_into().unwrap(),
+        });
+    }
 }
 
 pub trait SSABuilder: Builder + AllocSSA {

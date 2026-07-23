@@ -9,6 +9,18 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
     debug_assert!(copy.src.src_mod.is_none());
     debug_assert!(copy.src_supports_swizzle(&copy.src, copy.src.swizzle));
 
+    if let DstRef::Mem(mem) = &copy.dst.dst_ref {
+        assert!(
+            !matches!(&copy.src.src_ref, SrcRef::Mem(_)),
+            "We can't handle mem <-> mem copies this late"
+        );
+        b.store_tls(mem.offset, DataType::i(mem.range * 8), copy.src);
+        return;
+    } else if let SrcRef::Mem(mem) = &copy.src.src_ref {
+        b.load_tls_to(copy.dst, DataType::i(mem.range * 8), mem.offset);
+        return;
+    }
+
     if copy.dst_type == DataType::I8 {
         debug_assert!(copy.dst.lanes.is_byte());
 
