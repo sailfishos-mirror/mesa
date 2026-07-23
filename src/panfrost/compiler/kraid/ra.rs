@@ -74,6 +74,26 @@ impl Arena {
         (self.bytes_used() / 4).try_into().unwrap()
     }
 
+    /// Returns true if the given SSAValue is in this arena
+    pub fn contains_ssa(&self, _ssa: &SSAValue) -> bool {
+        true
+    }
+
+    /// Returns true if the given SSARef is in this arena
+    pub fn contains_ref(&self, vec: &SSARef) -> bool {
+        let contains = self.contains_ssa(&vec[0]);
+        for i in 1..vec.len() {
+            debug_assert_eq!(self.contains_ssa(&vec[i]), contains);
+        }
+        contains
+    }
+
+    /// Returns true if this arena is for registers.  This controls whether
+    /// or not we handle OpRegIn and OpRegOut
+    pub fn is_reg(&self) -> bool {
+        true
+    }
+
     /// Returns the maximum number of bytes that can be allocated from this
     /// arena.
     pub fn limit(&self) -> u16 {
@@ -573,6 +593,10 @@ impl LocalRegAlloc<'_> {
                 continue;
             };
 
+            if !self.arena.contains_ref(vec) {
+                continue;
+            }
+
             let src_type = instr.src_type(src);
             let bytes = vec.bytes();
 
@@ -663,6 +687,10 @@ impl LocalRegAlloc<'_> {
             let DstRef::SSA(vec) = &dst.dst_ref else {
                 continue;
             };
+
+            if !self.arena.contains_ref(vec) {
+                continue;
+            }
 
             let supported_lanes = self.model.op_dst_supported_lanes(&instr.op);
 
@@ -899,17 +927,19 @@ impl GlobalRegAlloc<'_> {
         let bi = 0;
         assert!(cfg.pred_indices(bi).is_empty());
 
-        let mut is_preamble = true;
-        for instr in &cfg[bi].instrs {
-            if let Op::RegIn(op) = &instr.op {
-                debug_assert!(is_preamble);
-                let dst_vec = op.dst.dst_ref.as_ssa().unwrap();
-                self.local.assign_ssa_ref_reg(dst_vec, &op.reg);
-            } else if !matches!(&instr.op, Op::Nop(_)) {
-                if cfg!(debug_assertions) {
-                    is_preamble = false;
-                } else {
-                    break;
+        if self.local.arena.is_reg() {
+            let mut is_preamble = true;
+            for instr in &cfg[bi].instrs {
+                if let Op::RegIn(op) = &instr.op {
+                    debug_assert!(is_preamble);
+                    let dst_vec = op.dst.dst_ref.as_ssa().unwrap();
+                    self.local.assign_ssa_ref_reg(dst_vec, &op.reg);
+                } else if !matches!(&instr.op, Op::Nop(_)) {
+                    if cfg!(debug_assertions) {
+                        is_preamble = false;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -919,21 +949,23 @@ impl GlobalRegAlloc<'_> {
         &mut self,
         cfg: &CFG<BasicBlock>,
         bi: usize,
-        reg_outs: Vec<Box<OpRegOut>>,
+        reg_outs: &mut Vec<Box<OpRegOut>>,
     ) -> ParallelCopy<'_> {
         debug_assert!(cfg.succ_indices(bi).is_empty());
 
         let mut pcopy = ParallelCopy::new(self.local.model, false);
-        for op in reg_outs {
-            if let RegRange::Regs(words) = op.reg.range {
-                for i in 0..words {
-                    pcopy.add_copy(
-                        op.reg.word(i).into(),
-                        op.src.clone().word(i),
-                    );
+        if self.local.arena.is_reg() {
+            for op in std::mem::take(reg_outs) {
+                if let RegRange::Regs(words) = op.reg.range {
+                    for i in 0..words {
+                        pcopy.add_copy(
+                            op.reg.word(i).into(),
+                            op.src.clone().word(i),
+                        );
+                    }
+                } else {
+                    pcopy.add_copy(op.reg.into(), op.src);
                 }
-            } else {
-                pcopy.add_copy(op.reg.into(), op.src);
             }
         }
 
@@ -947,6 +979,7 @@ impl GlobalRegAlloc<'_> {
         &mut self,
         cfg: &CFG<BasicBlock>,
         live: &impl Liveness,
+        ssa_alloc: &SSAValueAllocator,
         bi: usize,
     ) {
         debug_assert!(self.local.used.is_empty());
@@ -967,10 +1000,18 @@ impl GlobalRegAlloc<'_> {
         let pred_live_out = pred_live_out.unwrap();
 
         let mut live_in = live.block(bi).live_in_set().clone();
+        live_in.retain(|idx| {
+            let ssa = ssa_alloc.lookup_by_idx(idx);
+            self.local.arena.contains_ssa(&ssa)
+        });
+
         for instr in &cfg[bi].instrs {
             if let Op::PhiDst(op) = &instr.op {
-                for ssa in op.dst.dst_ref.as_ssa().unwrap() {
-                    live_in.insert(ssa.idx());
+                let dst_vec = op.dst.dst_ref.as_ssa().unwrap();
+                if self.local.arena.contains_ref(dst_vec) {
+                    for ssa in dst_vec {
+                        live_in.insert(ssa.idx());
+                    }
                 }
             } else if !matches!(&instr.op, Op::Nop(_)) {
                 break;
@@ -978,7 +1019,6 @@ impl GlobalRegAlloc<'_> {
         }
 
         for idx in live_in.iter() {
-            let idx = idx.try_into().unwrap();
             let bytes = pred_live_out.get(&idx).unwrap();
             self.local.assign_idx_bytes(idx, bytes.clone());
         }
@@ -1012,8 +1052,9 @@ impl GlobalRegAlloc<'_> {
         &mut self,
         cfg: &CFG<BasicBlock>,
         live: &impl Liveness,
+        ssa_alloc: &SSAValueAllocator,
         bi: usize,
-        mut phi_srcs: Vec<Box<OpPhiSrc>>,
+        phi_srcs: &mut Vec<Box<OpPhiSrc>>,
         mut branch: Option<&mut Box<OpBranch>>,
         phi_map: &PhiMap,
     ) -> ParallelCopy<'_> {
@@ -1072,12 +1113,20 @@ impl GlobalRegAlloc<'_> {
         }
 
         let bl = live.block(bi);
+
+        // Grab the live-out set and filter it down to just the values we care
+        // about.  We'll use this a few places below.
+        let mut live_out_set = bl.live_out_set().clone();
+        live_out_set.retain(|idx| {
+            let ssa = ssa_alloc.lookup_by_idx(idx);
+            self.local.arena.contains_ssa(&ssa)
+        });
+
         if let Some(live_out) = live_out {
             // In this case, someone already set up our live-out.  We just have
             // to emit copies to shuffle everything into place.
             let mut pcopy = ParallelCopy::new(self.local.model, false);
-            for idx in bl.live_out_set().iter() {
-                let idx = u32::try_from(idx).unwrap();
+            for idx in live_out_set.iter() {
                 let src_bytes = self.local.idx_bytes(idx);
                 let dst_bytes = live_out.get(&idx).unwrap().clone();
                 pcopy.add_copy(
@@ -1086,8 +1135,12 @@ impl GlobalRegAlloc<'_> {
                 );
             }
 
-            for op in phi_srcs {
+            phi_srcs.retain(|op| {
                 let dst_vec = phi_map.get_dst_ssa(&op.phi);
+                if !self.local.arena.contains_ref(dst_vec) {
+                    return true;
+                }
+
                 if let SrcRef::SSA(src_vec) = &op.src.src_ref {
                     debug_assert_eq!(dst_vec.len(), src_vec.len());
                     for (dst_ssa, src_ssa) in dst_vec.iter().zip(src_vec.iter())
@@ -1110,7 +1163,9 @@ impl GlobalRegAlloc<'_> {
                         pcopy.add_copy(dst, op.src.clone().word(w));
                     }
                 }
-            }
+
+                false
+            });
 
             // After the block is done, nothing is used
             self.local.used.clear();
@@ -1122,17 +1177,19 @@ impl GlobalRegAlloc<'_> {
         //
         // Start by accumulating the source bytes
         let mut all_src_bytes = BitSet::new();
-        for idx in bl.live_out_set().iter() {
+        for idx in live_out_set.iter() {
             let bytes = self.local.idx_bytes(idx.try_into().unwrap());
             let bytes = bytes.start.into()..bytes.end.into();
             all_src_bytes.set_range(bytes);
         }
-        for op in &phi_srcs {
+        for op in phi_srcs.iter() {
             if let SrcRef::SSA(src_vec) = &op.src.src_ref {
                 for src_ssa in src_vec {
-                    let bytes = self.local.idx_bytes(src_ssa.idx());
-                    let bytes = bytes.start.into()..bytes.end.into();
-                    all_src_bytes.set_range(bytes);
+                    if self.local.arena.contains_ssa(src_ssa) {
+                        let bytes = self.local.idx_bytes(src_ssa.idx());
+                        let bytes = bytes.start.into()..bytes.end.into();
+                        all_src_bytes.set_range(bytes);
+                    }
                 }
             }
         }
@@ -1140,7 +1197,6 @@ impl GlobalRegAlloc<'_> {
         // Now, place everything.  Go largest to smallest to reduce so that
         // we can guarantee everything fits.
         let mut pcopy = ParallelCopy::new(self.local.model, false);
-        let mut live_out_set = bl.live_out_set().clone();
         let mut live_out: FxHashMap<u32, Range<u16>> = Default::default();
         for chunk_bytes in [8, 4, 2, 1] {
             // First place any chunk_bytes sized live-out values
@@ -1168,7 +1224,7 @@ impl GlobalRegAlloc<'_> {
                 false
             });
 
-            // Now place the chun_bytes sized branch condition, if any
+            // Now place the chunk_bytes sized branch condition, if any
             for branch in branch.iter_mut() {
                 let SrcRef::SSA(vec) = &branch.cond.src_ref else {
                     continue;
@@ -1178,6 +1234,10 @@ impl GlobalRegAlloc<'_> {
 
                 assert_eq!(vec.comps(), 1);
                 let ssa = &vec[0];
+                if !self.local.arena.contains_ssa(ssa) {
+                    continue;
+                }
+
                 if ssa.bytes() != chunk_bytes {
                     continue;
                 }
@@ -1213,7 +1273,11 @@ impl GlobalRegAlloc<'_> {
                 if op.phi.bytes() < chunk_bytes {
                     return true;
                 }
+
                 let dst_vec = phi_map.get_dst_ssa(&op.phi);
+                if !self.local.arena.contains_ref(dst_vec) {
+                    return true;
+                }
 
                 let src_vec = op.src.src_ref.as_ssa();
                 let src_bytes = src_vec
@@ -1253,8 +1317,14 @@ impl GlobalRegAlloc<'_> {
                 false
             });
         }
+
         debug_assert!(live_out_set.is_empty());
-        debug_assert!(phi_srcs.is_empty());
+        if cfg!(debug_assertions) {
+            for op in phi_srcs.iter() {
+                let dst_vec = phi_map.get_dst_ssa(&op.phi);
+                debug_assert!(!self.local.arena.contains_ref(dst_vec));
+            }
+        }
 
         // Clean up by unpinning everything
         self.local.pinned.clear();
@@ -1272,13 +1342,14 @@ impl GlobalRegAlloc<'_> {
         &mut self,
         cfg: &mut CFG<BasicBlock>,
         live: &impl Liveness,
+        ssa_alloc: &SSAValueAllocator,
         bi: usize,
         phi_map: &PhiMap,
     ) {
         if bi == 0 {
             self.start_shader(cfg);
         } else {
-            self.start_block(cfg, live, bi);
+            self.start_block(cfg, live, ssa_alloc, bi);
         }
 
         let bl = live.block(bi);
@@ -1294,14 +1365,26 @@ impl GlobalRegAlloc<'_> {
                     let old = branch.replace(op);
                     assert!(old.is_none());
                 }
-                Op::PhiDst(_) => {
-                    // These are handled by start_block
+                Op::PhiDst(ref op) => {
                     debug_assert_ne!(bi, 0);
+                    // These are handled by start_block if they are in the
+                    // current arena.  If handled, start_block sets dst_ref
+                    // to None and we can drop it.  If not, we need to leave
+                    // it in place.
+                    let dst_vec = op.dst.dst_ref.as_ssa().unwrap();
+                    if !self.local.arena.contains_ref(dst_vec) {
+                        instrs.push(instr);
+                    }
                 }
                 Op::PhiSrc(op) => phi_srcs.push(op),
                 Op::RegIn(_) => {
-                    // These are handled by start_shader
+                    // These were handled by start_shader if is_reg().  If not,
+                    // then we're allocating memory and we need to leave them
+                    // alone.
                     debug_assert_eq!(bi, 0);
+                    if !self.local.arena.is_reg() {
+                        instrs.push(instr);
+                    }
                 }
                 Op::RegOut(op) => reg_outs.push(op),
                 _ => {
@@ -1316,19 +1399,22 @@ impl GlobalRegAlloc<'_> {
         if cfg.succ_indices(bi).is_empty() {
             assert!(phi_srcs.is_empty());
             assert!(branch.is_none());
-            let pcopy = self.end_shader(cfg, bi, reg_outs);
+            let pcopy = self.end_shader(cfg, bi, &mut reg_outs);
             instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
+            instrs.extend(reg_outs.into_iter().map(Instr::from));
         } else {
             assert!(reg_outs.is_empty());
             let pcopy = self.end_block(
                 cfg,
                 live,
+                ssa_alloc,
                 bi,
-                phi_srcs,
+                &mut phi_srcs,
                 branch.as_mut(),
                 phi_map,
             );
             instrs.extend(pcopy.into_instrs::<SSAValueAllocator>(None));
+            instrs.extend(phi_srcs.into_iter().map(Instr::from));
             instrs.extend(branch.map(Instr::from));
         }
 
@@ -1340,7 +1426,13 @@ impl GlobalRegAlloc<'_> {
 
         self.live_out.resize_with(s.blocks.len(), Default::default);
         for bi in 0..s.blocks.len() {
-            self.alloc_regs_block(&mut s.blocks, live, bi, &phi_map);
+            self.alloc_regs_block(
+                &mut s.blocks,
+                live,
+                &s.ssa_alloc,
+                bi,
+                &phi_map,
+            );
         }
     }
 }
