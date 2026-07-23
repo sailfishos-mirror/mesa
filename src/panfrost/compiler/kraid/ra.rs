@@ -30,6 +30,12 @@ struct Arena {
     /// Granularity (in bytes) to return from bytes_used
     granularity: u8,
 
+    /// True if this is a memory register file
+    is_mem: bool,
+
+    /// For memory, the offset into the TLS where we can start allocating
+    tls_offset: u16,
+
     /// True if we are on v9-14 and in 32-reg mode.  In this case, the middle
     /// 32 registers of the register arena are missing.  To deal with this, we
     /// assume a contiguous 32 register arena and place the high regs in 48..64
@@ -48,8 +54,27 @@ impl Arena {
             limit: limit.next_multiple_of(granularity.into()),
             used: 0.into(),
             granularity,
+            is_mem: false,
+            tls_offset: 0,
             is_v9_32reg: model.arch() < 15 && limit <= 32 * 4,
             is_v9_64reg: model.arch() < 15 && limit > 32 * 4,
+        }
+    }
+
+    /// Creates a new memory arena, starting at `tls_start`.  The newly created
+    /// arena subsumes the entire TLS range and the total amount of TLS used by
+    /// the shader after spill allocation is returned by bytes_used().  This
+    /// allows us to deal with any alignments inside the arena.
+    fn new_mem(_model: &dyn Model, tls_start: u16) -> Arena {
+        let granularity = 8;
+        Arena {
+            limit: u16::MAX - tls_start,
+            used: 0.into(),
+            granularity,
+            is_mem: true,
+            tls_offset: tls_start.next_multiple_of(granularity.into()),
+            is_v9_32reg: false,
+            is_v9_64reg: false,
         }
     }
 
@@ -70,13 +95,14 @@ impl Arena {
 
     /// Returns the same as bytes_used but in units of 32-bit registers
     pub fn regs_used(&self) -> u8 {
+        debug_assert!(!self.is_mem);
         debug_assert!(self.bytes_used() % 4 == 0);
         (self.bytes_used() / 4).try_into().unwrap()
     }
 
     /// Returns true if the given SSAValue is in this arena
-    pub fn contains_ssa(&self, _ssa: &SSAValue) -> bool {
-        true
+    pub fn contains_ssa(&self, ssa: &SSAValue) -> bool {
+        ssa.is_mem() == self.is_mem
     }
 
     /// Returns true if the given SSARef is in this arena
@@ -91,12 +117,12 @@ impl Arena {
     /// Returns true if this arena is for registers.  This controls whether
     /// or not we handle OpRegIn and OpRegOut
     pub fn is_reg(&self) -> bool {
-        true
+        !self.is_mem
     }
 
     /// Returns true if this arena is for memory.
     pub fn is_mem(&self) -> bool {
-        false
+        self.is_mem
     }
 
     /// Returns the maximum number of bytes that can be allocated from this
@@ -121,6 +147,7 @@ impl Arena {
 
     /// Maps a byte range to a [RegRef]
     pub fn reg_for_bytes(&self, mut bytes: Range<u16>) -> RegRef {
+        debug_assert!(!self.is_mem);
         self.mark_used(bytes.clone());
         if self.is_v9_32reg {
             if bytes.start < (16 * 4) {
@@ -136,6 +163,7 @@ impl Arena {
 
     /// Maps a [RegRef] for a byte range
     pub fn reg_to_bytes(&self, reg: &RegRef) -> Range<u16> {
+        debug_assert!(!self.is_mem);
         let mut bytes = reg.byte_range();
         if self.is_v9_32reg {
             if bytes.start < (16 * 4) {
@@ -151,14 +179,31 @@ impl Arena {
         bytes
     }
 
+    /// Maps a byte range to a [MemRef]
+    fn mem_for_bytes(&self, mut bytes: Range<u16>) -> MemRef {
+        debug_assert!(self.is_mem);
+        bytes.start += self.tls_offset;
+        bytes.end += self.tls_offset;
+        self.mark_used(bytes.clone());
+        MemRef::from_byte_range(bytes).unwrap()
+    }
+
     /// Maps a byte range to a [Src]
     pub fn src_for_bytes(&self, bytes: Range<u16>) -> Src {
-        self.reg_for_bytes(bytes).into()
+        if self.is_mem {
+            self.mem_for_bytes(bytes).into()
+        } else {
+            self.reg_for_bytes(bytes).into()
+        }
     }
 
     /// Maps a byte range to a [Dst]
     pub fn dst_for_bytes(&self, bytes: Range<u16>) -> Dst {
-        self.reg_for_bytes(bytes).into()
+        if self.is_mem {
+            self.mem_for_bytes(bytes).into()
+        } else {
+            self.reg_for_bytes(bytes).into()
+        }
     }
 }
 
