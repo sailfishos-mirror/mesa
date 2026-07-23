@@ -1961,6 +1961,8 @@ RadeonSI driver environment variables
       Disable basic and medium optimizations.
    ``safest``
       Disable all optimizations.
+   ``ibcachesflush``
+      Flush all caches at the beginning of IBs.
 
 r600 driver environment variables
 ---------------------------------

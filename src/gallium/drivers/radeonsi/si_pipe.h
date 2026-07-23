@@ -168,6 +168,7 @@ enum
    DBG_USERQ_NO_SHADOW_REGS,
    DBG_NO_FAST_DISPLAY_LIST,
    DBG_NO_DMA_SHADERS,
+   DBG_IB_CACHES_FLUSH,
 
    /* 3D engine options: */
    DBG_NO_NGG,

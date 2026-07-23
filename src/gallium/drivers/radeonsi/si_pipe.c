@@ -46,6 +46,7 @@ static const struct debug_named_value radeonsi_debug_options[] = {
    {"userqnoshadowregs", DBG(USERQ_NO_SHADOW_REGS), "Disable register shadowing in userqueue."},
    {"nofastdlist", DBG(NO_FAST_DISPLAY_LIST), "Disable fast display lists"},
    {"nodmashaders", DBG(NO_DMA_SHADERS), "Disable uploading shaders via CP DMA and map them directly."},
+   {"ibcachesflush", DBG(IB_CACHES_FLUSH), "Flush all caches at the beginning of IBs."},
 
    /* 3D engine options: */
    {"nongg", DBG(NO_NGG), "Disable NGG and use the legacy pipeline."},
@@ -299,6 +300,7 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
    if (debug_flags & DBG(SAFER)) {
       debug_flags |= DBG(SAFE);
       debug_flags |= DBG(NO_DCC);
+      debug_flags |= DBG(IB_CACHES_FLUSH);
    }
    if (debug_flags & DBG(SAFE)) {
       debug_flags |= DBG(NO_DISPLAY_DCC);
@@ -313,6 +315,7 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
       .noop_cs = debug_get_bool_option("RADEON_NOOP", false),
       .zero_vram = driQueryOptionb(config->options, "radeonsi_zerovram") ||
                    (debug_flags & DBG(SAFE)),
+      .ib_caches_flush = debug_flags & DBG(IB_CACHES_FLUSH),
    };
 
 #ifdef HAVE_AMDGPU_VIRTIO

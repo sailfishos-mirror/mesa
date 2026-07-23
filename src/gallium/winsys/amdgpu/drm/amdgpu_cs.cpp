@@ -848,6 +848,9 @@ static void amdgpu_init_cs_context(struct amdgpu_winsys *aws,
           * useless.
           */
          csc->chunk_ib[i].flags |= AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE;
+
+         if (aws->ib_caches_flush)
+            csc->chunk_ib[i].flags |= AMDGPU_IB_FLAG_EMIT_MEM_SYNC;
       }
    }
 

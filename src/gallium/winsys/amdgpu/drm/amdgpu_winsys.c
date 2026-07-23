@@ -63,6 +63,7 @@ static bool do_winsys_init(struct amdgpu_winsys *aws,
    aws->reserve_vmid = options->reserve_vmid;
    aws->zero_all_vram_allocs = options->zero_vram;
    aws->userq_job_log = options->userq_job_log;
+   aws->ib_caches_flush = options->ib_caches_flush;
 
    for (unsigned i = 0; i < ARRAY_SIZE(aws->queues); i++)
       simple_mtx_init(&aws->queues[i].userq.lock, mtx_plain);
