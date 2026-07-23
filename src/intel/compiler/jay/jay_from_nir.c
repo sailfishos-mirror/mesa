@@ -2153,11 +2153,12 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_urb_input_handle_intel:
-      assert(tes || (nj->s->stage == MESA_SHADER_MESH));
       if (tes) {
          jay_MOV(b, dst, jay_extract(nj->payload.u0, 0));
       } else if (nj->s->stage == MESA_SHADER_MESH) {
          jay_MOV(b, dst, jay_extract(nj->payload.u0, 7));
+      } else {
+         jay_MOV(b, dst, nj->payload.urb_handle);
       }
       break;
 
