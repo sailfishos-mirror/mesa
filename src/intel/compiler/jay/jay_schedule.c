@@ -655,7 +655,7 @@ pass(jay_function *f)
             while (sctx.aggression > 0 && bw == FAIL_PRESSURE) {
                bw = schedule_block(block, &sctx, memctx,
                                    BACKWARD | PRESSURE | LATENCY);
-               sctx.aggression--;
+               sctx.aggression -= 2;
             }
          }
       } else {
