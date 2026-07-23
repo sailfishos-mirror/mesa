@@ -390,7 +390,9 @@ amdgpu_drm_winsys_get_fd(struct radeon_winsys *rws)
 
 PUBLIC struct radeon_winsys *
 amdgpu_winsys_create(int fd, const struct pipe_screen_config *config,
-		     radeon_screen_create_t screen_create, bool is_virtio)
+                     radeon_screen_create_t screen_create,
+                     uint64_t debug_flags,
+                     bool is_virtio)
 {
    struct amdgpu_screen_winsys *sws;
    struct amdgpu_winsys *aws;
@@ -596,7 +598,7 @@ amdgpu_winsys_create(int fd, const struct pipe_screen_config *config,
     *
     * Alternatively, we could create the screen based on "ws->gen"
     * and link all drivers into one binary blob. */
-   sws->base.screen = screen_create(&sws->base, config);
+   sws->base.screen = screen_create(&sws->base, config, debug_flags);
    if (!sws->base.screen) {
       amdgpu_winsys_destroy_locked(&sws->base, true);
       simple_mtx_unlock(&dev_tab_mutex);

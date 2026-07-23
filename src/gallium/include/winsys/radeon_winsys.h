@@ -1010,14 +1010,17 @@ static inline int radeon_get_heap_index(enum radeon_bo_domain domain, enum radeo
 }
 
 typedef struct pipe_screen *(*radeon_screen_create_t)(struct radeon_winsys *,
-                                                      const struct pipe_screen_config *);
+                                                      const struct pipe_screen_config *,
+                                                      uint64_t);
 
 /* These functions create the radeon_winsys instance for the corresponding kernel driver. */
 struct radeon_winsys *
 amdgpu_winsys_create(int fd, const struct pipe_screen_config *config,
-		     radeon_screen_create_t screen_create, bool is_virtio);
+                     radeon_screen_create_t screen_create,
+                     uint64_t debug_flags, bool is_virtio);
 struct radeon_winsys *
 radeon_drm_winsys_create(int fd, const struct pipe_screen_config *config,
-			 radeon_screen_create_t screen_create);
+                         radeon_screen_create_t screen_create,
+                         uint64_t debug_flags);
 
 #endif

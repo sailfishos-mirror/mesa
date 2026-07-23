@@ -191,7 +191,8 @@ void si_destroy_screen(struct pipe_screen *pscreen)
 }
 
 static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
-                                                       const struct pipe_screen_config *config)
+                                                       const struct pipe_screen_config *config,
+                                                       uint64_t debug_flags)
 {
    struct si_screen *sscreen = CALLOC_STRUCT(si_screen);
 
@@ -210,8 +211,7 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
    sscreen->ws = ws;
    ws->query_info(ws, &sscreen->info);
 
-   sscreen->debug_flags = debug_get_flags_option("R600_DEBUG", radeonsi_debug_options, 0);
-   sscreen->debug_flags |= debug_get_flags_option("AMD_DEBUG", radeonsi_debug_options, 0);
+   sscreen->debug_flags = debug_flags;
 
    if ((sscreen->debug_flags & DBG(TMZ)) &&
        !sscreen->info.has_tmz_support) {
@@ -280,20 +280,23 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
    driParseConfigFiles(config->options, config->options_info,
                        &(driConfigFileParseParams) { .driverName = "radeonsi" });
 
+   uint64_t debug_flags = debug_get_flags_option("R600_DEBUG", radeonsi_debug_options, 0);
+   debug_flags |= debug_get_flags_option("AMD_DEBUG", radeonsi_debug_options, 0);
+
 #ifdef HAVE_AMDGPU_VIRTIO
    if (strcmp(version->name, "virtio_gpu") == 0) {
-      rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, true);
+      rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, true);
    } else if (debug_get_bool_option("AMD_FORCE_VPIPE", false)) {
-      rw = amdgpu_winsys_create(-1, config, radeonsi_screen_create_impl, true);
+      rw = amdgpu_winsys_create(-1, config, radeonsi_screen_create_impl, debug_flags, true);
    } else
 #endif
    {
       switch (version->version_major) {
       case 2:
-         rw = radeon_drm_winsys_create(fd, config, radeonsi_screen_create_impl);
+         rw = radeon_drm_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags);
          break;
       case 3:
-         rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, false);
+         rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, false);
          break;
       }
    }
