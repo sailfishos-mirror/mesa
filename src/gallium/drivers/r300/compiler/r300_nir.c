@@ -9,6 +9,7 @@
 #include "r300_screen.h"
 #include "util/log.h"
 #include "util/u_endian.h"
+#include "util/u_math.h"
 
 static bool
 r300_nir_stub_deriv_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
@@ -339,6 +340,32 @@ r300_check_control_flow(nir_shader *s)
       default:
          return "Unknown control flow type";
       }
+   }
+
+   return NULL;
+}
+
+char *
+r300_check_fs_inputs(nir_shader *s)
+{
+   uint64_t coord_inputs =
+      s->info.inputs_read &
+      (VARYING_BIT_FOGC |
+       VARYING_BITS_TEX_ANY |
+       BITFIELD64_RANGE(VARYING_SLOT_VAR0, MAX_VARYING));
+   unsigned num_coord_inputs = util_bitcount64(coord_inputs);
+
+   if ((s->info.inputs_read & VARYING_BIT_POS) ||
+       BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_FRAG_COORD))
+      num_coord_inputs++;
+
+   if ((s->info.inputs_read & VARYING_BIT_PNTC) ||
+       BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_POINT_COORD))
+      num_coord_inputs++;
+
+   if (num_coord_inputs > 8) {
+      return ralloc_asprintf(s, "Fragment shader uses %u coordinate interpolators, "
+                            "but R300/R400 support only 8.", num_coord_inputs);
    }
 
    return NULL;

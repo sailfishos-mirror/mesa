@@ -1275,6 +1275,8 @@ static void* r300_create_fs_state(struct pipe_context* pipe,
         /* R300/R400 can not do any kind of control flow, so abort early here. */
         if (!r300->screen->caps.is_r500) {
             char *msg = r300_check_control_flow(shader->ir.nir);
+            if (!msg)
+                msg = r300_check_fs_inputs(shader->ir.nir);
             if (msg && shader->report_compile_error) {
                 fprintf(stderr, "r300 FP: Compiler error: %s\n", msg);
                 ((struct pipe_shader_state *)shader)->error_message = strdup(msg);

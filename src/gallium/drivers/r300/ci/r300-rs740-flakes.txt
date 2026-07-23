@@ -4,8 +4,6 @@ dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.88
 dEQP-GLES2.functional.fragment_ops.random.77
 dEQP-GLES2.functional.fragment_ops.scissor.contained_point
 
-shaders@glsl-max-varyings
-
 spec@!opengl 1.2@tex3d-maxsize
 
 glx@glx-buffer-age

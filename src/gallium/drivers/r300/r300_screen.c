@@ -546,7 +546,8 @@ static void r300_init_screen_caps(struct r300_screen* r300screen)
 
    caps->max_vertex_attrib_stride = 2048;
 
-   caps->max_varyings = 10;
+   /* R500 can use two color interpolators for generic varyings. */
+   caps->max_varyings = is_r500 ? 10 : 8;
 
    caps->prefer_imm_arrays_as_constbuf = false;
 
