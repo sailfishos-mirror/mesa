@@ -548,9 +548,28 @@ vn_GetSemaphoreCounterValue(VkDevice device,
                             uint64_t *pValue)
 {
    struct vn_device *dev = vn_device_from_handle(device);
-   VkResult result =
-      vn_get_semaphore_counter_value(device, semaphore, NULL, pValue);
-   return vn_result(dev->instance, result);
+   VK_FROM_HANDLE(vn_semaphore, sem, semaphore);
+   struct vn_sync_payload *payload = sem->payload;
+
+   if (payload->type != VN_SYNC_TYPE_TIMELINE_SYNC)
+      return vn_get_semaphore_counter_value(device, semaphore, NULL, pValue);
+
+   const uint32_t sync_count = dev->queue_count + 1;
+   uint64_t counter = 0;
+   VkResult result;
+
+   for (uint32_t i = 0; i < sync_count; i++) {
+      uint64_t tmp;
+      result = vn_renderer_sync_read(dev->renderer, payload->syncs[i], &tmp);
+      if (result != VK_SUCCESS)
+         return vn_error(dev->instance, result);
+
+      counter = MAX2(counter, tmp);
+   }
+
+   *pValue = counter;
+
+   return VK_SUCCESS;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
