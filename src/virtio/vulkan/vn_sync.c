@@ -361,7 +361,8 @@ vn_semaphore_wait_sync_fd(VkDevice dev_handle, VkSemaphore sem_handle)
 static VkResult
 vn_semaphore_init_payloads(struct vn_device *dev,
                            struct vn_semaphore *sem,
-                           uint64_t initial_val)
+                           uint64_t initial_val,
+                           const VkAllocationCallbacks *alloc)
 {
    sem->permanent.type = VN_SYNC_TYPE_DEVICE_ONLY;
    sem->temporary.type = VN_SYNC_TYPE_INVALID;
@@ -372,6 +373,31 @@ vn_semaphore_init_payloads(struct vn_device *dev,
       return vn_renderer_sync_create(dev->renderer, initial_val,
                                      &sem->payload->sync);
    }
+
+   if (sem->type != VK_SEMAPHORE_TYPE_TIMELINE ||
+       !dev->renderer->info.has_timeline_sync)
+      return VK_SUCCESS;
+
+   const uint32_t sync_count = dev->queue_count + 1;
+   struct vn_renderer_sync **syncs =
+      vk_zalloc(alloc, sync_count * sizeof(*syncs), VN_DEFAULT_ALIGN,
+                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   if (!syncs)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+   for (uint32_t i = 0; i < sync_count; i++) {
+      VkResult result =
+         vn_renderer_sync_create(dev->renderer, initial_val, &syncs[i]);
+      if (result != VK_SUCCESS) {
+         for (uint32_t j = 0; j < i; j++)
+            vn_renderer_sync_destroy(dev->renderer, syncs[j]);
+         vk_free(alloc, syncs);
+         return result;
+      }
+   }
+
+   sem->permanent.type = VN_SYNC_TYPE_TIMELINE_SYNC;
+   sem->permanent.syncs = syncs;
 
    return VK_SUCCESS;
 }
@@ -410,11 +436,12 @@ vn_CreateSemaphore(VkDevice device,
       export_info && (export_info->handleTypes &
                       VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
 
-   VkResult result = vn_semaphore_init_payloads(dev, sem, initial_val);
+   VkResult result = vn_semaphore_init_payloads(dev, sem, initial_val, alloc);
    if (result != VK_SUCCESS)
       goto out_object_base_fini;
 
    if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE &&
+       sem->payload->type == VN_SYNC_TYPE_DEVICE_ONLY &&
        !VN_PERF(NO_SEMAPHORE_FEEDBACK)) {
       assert(!sem->sync_fd_export);
 
@@ -434,7 +461,7 @@ vn_CreateSemaphore(VkDevice device,
    return VK_SUCCESS;
 
 out_payloads_fini:
-   vn_sync_payload_release(dev, &sem->permanent);
+   vn_sync_payload_release_internal(dev, &sem->permanent, alloc);
    vn_sync_payload_release(dev, &sem->temporary);
 
 out_object_base_fini:
@@ -461,10 +488,9 @@ vn_DestroySemaphore(VkDevice device,
       vn_async_vkDestroySemaphore(dev->primary_ring, device, semaphore, NULL);
    }
 
-   if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE)
-      vn_sync_feedback_fini(dev, &sem->feedback);
+   vn_sync_feedback_fini(dev, &sem->feedback);
 
-   vn_sync_payload_release(dev, &sem->permanent);
+   vn_sync_payload_release_internal(dev, &sem->permanent, alloc);
    vn_sync_payload_release(dev, &sem->temporary);
 
    vn_object_base_fini(&sem->base);
@@ -690,8 +716,7 @@ vn_WaitSemaphores(VkDevice device,
    if (!pWaitInfo->semaphoreCount)
       return VK_SUCCESS;
 
-   VK_FROM_HANDLE(vn_semaphore, test_sem, pWaitInfo->pSemaphores[0]);
-   if (test_sem->payload->type != VN_SYNC_TYPE_TIMELINE_SYNC)
+   if (!dev->renderer->info.has_timeline_sync)
       return vn_wait_semaphores_legacy(device, pWaitInfo, timeout);
 
    const uint32_t sem_sync_count = dev->queue_count + 1;
