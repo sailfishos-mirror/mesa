@@ -1013,11 +1013,21 @@ typedef struct pipe_screen *(*radeon_screen_create_t)(struct radeon_winsys *,
                                                       const struct pipe_screen_config *,
                                                       uint64_t);
 
+struct amdgpu_winsys_options {
+   bool is_virtio;
+   bool zero_vram;
+   bool check_vm;
+   bool reserve_vmid;
+   bool userq_job_log;
+   bool noop_cs;
+};
+
 /* These functions create the radeon_winsys instance for the corresponding kernel driver. */
 struct radeon_winsys *
 amdgpu_winsys_create(int fd, const struct pipe_screen_config *config,
                      radeon_screen_create_t screen_create,
-                     uint64_t debug_flags, bool is_virtio);
+                     uint64_t debug_flags,
+                     const struct amdgpu_winsys_options *options);
 struct radeon_winsys *
 radeon_drm_winsys_create(int fd, const struct pipe_screen_config *config,
                          radeon_screen_create_t screen_create,

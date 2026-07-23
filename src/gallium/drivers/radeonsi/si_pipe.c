@@ -79,6 +79,8 @@ static const struct debug_named_value radeonsi_debug_options[] = {
    {"sqtt", DBG(SQTT), "Enable SQTT"},
    {"export_modifier", DBG(EXPORT_MODIFIER), "Export real modifier instead of DRM_FORMAT_MOD_INVALID"},
 
+   {"userqjoblog", DBG(USERQ_JOB_LOG), "Log more informations when using userq"},
+
    DEBUG_NAMED_VALUE_END /* must be last */
 };
 
@@ -283,11 +285,22 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
    uint64_t debug_flags = debug_get_flags_option("R600_DEBUG", radeonsi_debug_options, 0);
    debug_flags |= debug_get_flags_option("AMD_DEBUG", radeonsi_debug_options, 0);
 
+   struct amdgpu_winsys_options options = {
+      .is_virtio = false,
+      .check_vm = debug_flags & DBG(CHECK_VM),
+      .reserve_vmid = debug_flags & (DBG(RESERVE_VMID) | DBG(SQTT)),
+      .userq_job_log = debug_flags & DBG(USERQ_JOB_LOG),
+      .noop_cs = debug_get_bool_option("RADEON_NOOP", false),
+      .zero_vram = driQueryOptionb(config->options, "radeonsi_zerovram"),
+   };
+
 #ifdef HAVE_AMDGPU_VIRTIO
    if (strcmp(version->name, "virtio_gpu") == 0) {
-      rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, true);
+      options.is_virtio = true;
+      rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, &options);
    } else if (debug_get_bool_option("AMD_FORCE_VPIPE", false)) {
-      rw = amdgpu_winsys_create(-1, config, radeonsi_screen_create_impl, debug_flags, true);
+      options.is_virtio = true;
+      rw = amdgpu_winsys_create(-1, config, radeonsi_screen_create_impl, debug_flags, &options);
    } else
 #endif
    {
@@ -296,7 +309,7 @@ struct pipe_screen *radeonsi_screen_create(int fd, const struct pipe_screen_conf
          rw = radeon_drm_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags);
          break;
       case 3:
-         rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, false);
+         rw = amdgpu_winsys_create(fd, config, radeonsi_screen_create_impl, debug_flags, &options);
          break;
       }
    }
