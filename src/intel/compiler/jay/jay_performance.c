@@ -107,7 +107,8 @@ jay_latency(jay_shader *s, jay_inst *I, bool bias_acc)
       return XE_LATENCY_ARF;
    } else {
       bool acc = I->dst.file == ACCUM;
-      bool maybe_acc = I->dst.file == GPR && I->type == JAY_TYPE_F32;
+      bool maybe_acc =
+         I->dst.file == GPR && I->type == JAY_TYPE_F32 && bias_acc;
 
       unsigned base = acc       ? XE_LATENCY_FPU_ACC :
                       maybe_acc ? (XE_LATENCY_FPU_ACC + XE_LATENCY_FPU) / 2 :
