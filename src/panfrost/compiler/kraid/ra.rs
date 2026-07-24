@@ -32,6 +32,9 @@ struct Arena {
     /// assume a contiguous 32 register arena and place the high regs in 48..64
     /// as part of reg_for_bytes().
     is_v9_32reg: bool,
+
+    /// True if we are on v9-14 and in 64-reg mode.
+    is_v9_64reg: bool,
 }
 
 impl Arena {
@@ -41,6 +44,7 @@ impl Arena {
             limit,
             used: 0.into(),
             is_v9_32reg: model.arch() < 15 && limit <= 32 * 4,
+            is_v9_64reg: model.arch() < 15 && limit > 32 * 4,
         }
     }
 
@@ -48,7 +52,15 @@ impl Arena {
     /// as we allocate and can be queried after RA is complete to know the
     /// final amount we need to report to the driver.
     pub fn bytes_used(&self) -> u16 {
-        self.used.get()
+        let used = self.used.get();
+        if self.is_v9_64reg && used > 16 * 4 {
+            // If we've run in 64-reg mode up until now and we've used more
+            // than the first 16 then we've probably used some out of the
+            // middle and it's not safe to report 32 registers.
+            64 * 4
+        } else {
+            used
+        }
     }
 
     /// Returns the maximum number of bytes that can be allocated from this
@@ -57,7 +69,17 @@ impl Arena {
         self.limit
     }
 
+    /// Returns true if the given range maps to a contiguous range in the arena
+    pub fn is_contiguous(&self, bytes: Range<u16>) -> bool {
+        if self.is_v9_32reg {
+            bytes.end <= 16 * 4 || bytes.start >= 16 * 4
+        } else {
+            true
+        }
+    }
+
     fn mark_used(&self, bytes: Range<u16>) {
+        debug_assert!(self.is_contiguous(bytes.clone()));
         self.used.set(self.used.get().max(bytes.end));
     }
 
@@ -83,7 +105,7 @@ impl Arena {
             if bytes.start < (16 * 4) {
                 assert!(bytes.end <= 16 * 4);
             } else {
-                assert!(bytes.start >= 48 * 32);
+                assert!(bytes.start >= 48 * 4);
                 assert!(bytes.end <= 64 * 4);
                 bytes.start -= 32 * 4;
                 bytes.end -= 32 * 4;
@@ -420,6 +442,10 @@ impl LocalRegAlloc<'_> {
             }
 
             let b = u16::try_from(b).unwrap();
+            if !self.arena.is_contiguous(b..(b + u16::from(bytes))) {
+                continue;
+            }
+
             let c = cost(b);
             if c == 0 {
                 return Some(b);
@@ -448,6 +474,10 @@ impl LocalRegAlloc<'_> {
             }
 
             let b = u16::try_from(b).unwrap();
+            if !self.arena.is_contiguous(b..(b + u16::from(bytes))) {
+                continue;
+            }
+
             let c = cost(b);
             if c < best.1 {
                 best = (b, c);
@@ -477,6 +507,7 @@ impl LocalRegAlloc<'_> {
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
             if align.satisfied(vec_bytes.start.into())
+                && self.arena.is_contiguous(vec_bytes.clone())
                 && self.bytes_are_unpinned(vec_bytes.clone())
             {
                 return vec_bytes;
