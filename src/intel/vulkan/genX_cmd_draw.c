@@ -1774,7 +1774,7 @@ void genX(CmdDrawIndirectByteCount2EXT)(
 
    mi_store(&b, mi_reg32(GFX7_3DPRIM_START_VERTEX), mi_imm(firstVertex));
    mi_store(&b, mi_reg32(GFX7_3DPRIM_INSTANCE_COUNT),
-            mi_imm(instanceCount * gfx->instance_multiplier));
+            mi_imm((uint64_t)instanceCount * gfx->instance_multiplier));
    mi_store(&b, mi_reg32(GFX7_3DPRIM_START_INSTANCE), mi_imm(firstInstance));
    mi_store(&b, mi_reg32(GFX7_3DPRIM_BASE_VERTEX), mi_imm(0));
 
