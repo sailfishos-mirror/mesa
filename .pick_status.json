@@ -2974,7 +2974,7 @@
         "description": "glthread: fix check for unroll draws using user VBOs when the ctx supports GLES",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b5f388a22205aa5af37f1a667fdeeb9892270db6",
         "notes": null
