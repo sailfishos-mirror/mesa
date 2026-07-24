@@ -227,16 +227,23 @@ isl_gfx20_choose_image_alignment_el(const struct isl_device *dev,
       *image_align_el = tiling == ISL_TILING_LINEAR ?
          isl_extent3d(128, 4, 1) :
          isl_extent3d(16, 4, 1);
-   } else if (_isl_surf_info_supports_ccs(dev, info->format, info->usage) ||
-              tiling == ISL_TILING_LINEAR) {
+   } else if (tiling == ISL_TILING_LINEAR) {
       /* From RENDER_SURFACE_STATE::SurfaceHorizontalAlignment,
        *
-       *    - Losslessly Compressed Surfaces Must be HALIGN=128 for all
-       *      supported Bpp, if other restriction are not applied
        *    - Linear Surfaces surfaces must use HALIGN=128, including 1D which
        *      is always Linear.
        */
       *image_align_el = isl_extent3d(128 * 8 / fmtl->bpb, 4, 1);
+   } else {
+      /* From RENDER_SURFACE_STATE::SurfaceHorizontalAlignment,
+       *
+       *    - 64bpe and 128bpe Surfaces Must Be HALIGN=64Bytes or 128Bytes (4,
+       *      8 texels or 16 texels)
+       *
+       * Use the smallest alignment possible for the given format.
+       */
+      const uint32_t halign_B = fmtl->bpb >= 64 ? 64 : 16;
+      *image_align_el = isl_extent3d(halign_B * 8 / fmtl->bpb, 4, 1);
 
       /* WA_22018390030:
        *
@@ -248,21 +255,12 @@ isl_gfx20_choose_image_alignment_el(const struct isl_device *dev,
        * Xe3P+.
        */
       if (!INTEL_DEBUG(DEBUG_NO_FAST_CLEAR) &&
+          _isl_surf_info_supports_ccs(dev, info->format, info->usage) &&
           tiling == ISL_TILING_4 &&
           info->dim != ISL_SURF_DIM_3D) {
          assert(intel_needs_workaround(dev->info, 22018390030) ||
                 ISL_GFX_VER(dev) >= 35);
          image_align_el->h = 8;
       }
-   } else {
-      /* From RENDER_SURFACE_STATE::SurfaceHorizontalAlignment,
-       *
-       *    - 64bpe and 128bpe Surfaces Must Be HALIGN=64Bytes or 128Bytes (4,
-       *      8 texels or 16 texels)
-       *
-       * Use the smallest alignment possible for the given format.
-       */
-      const uint32_t halign_B = fmtl->bpb >= 64 ? 64 : 16;
-      *image_align_el = isl_extent3d(halign_B * 8 / fmtl->bpb, 4, 1);
    }
 }
