@@ -2087,7 +2087,7 @@ nir_assign_shared_var_locations(nir_shader *shader, glsl_type_size_align_func ty
       /* Per SPV_KHR_workgroup_storage_explicit_layout, if one shared variable is
        * a Block, all of them will be and Blocks are explicitly laid out.
        */
-      assert(glsl_type_is_interface(var->type));
+      assert(var->data.how_declared == nir_var_hidden || glsl_type_is_interface(var->type));
 
       if (var->data.aliased_shared_memory) {
          const bool align_to_stride = false;
