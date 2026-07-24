@@ -673,7 +673,6 @@ void
 panvk_per_arch(emit_barrier)(struct panvk_cmd_buffer *cmdbuf,
                              struct panvk_cs_deps deps)
 {
-#if PAN_ARCH >= 11
    /* Execute CRC invalidation after all source work and before releasing any
     * destination subqueue. One subqueue performs the state writes.
     */
@@ -696,7 +695,7 @@ panvk_per_arch(emit_barrier)(struct panvk_cmd_buffer *cmdbuf,
 
       struct cs_builder *b = panvk_get_cs_builder(cmdbuf, exec);
       for (uint32_t i = 0; i < crc.count; i++) {
-         panvk_per_arch(cmd_invalidate_crc_init)(b, crc.addrs[i]);
+         panvk_per_arch(cmd_invalidate_crc)(b, crc.addrs[i]);
       }
 
       uint32_t other_dst = crc.dst_subqueue_mask & ~BITFIELD_BIT(exec);
@@ -713,7 +712,7 @@ panvk_per_arch(emit_barrier)(struct panvk_cmd_buffer *cmdbuf,
 
       return;
    }
-#endif
+
    emit_barrier_csf(cmdbuf, deps);
 }
 
@@ -729,7 +728,6 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
    if (deps.needs_fb_barrier)
       panvk_per_arch(cmd_fb_barrier)(cmdbuf);
 
-#if PAN_ARCH >= 11
    uint32_t max_crc_count = pDependencyInfo->imageMemoryBarrierCount;
    STACK_ARRAY(uint64_t, crc_addrs, max_crc_count);
 
@@ -740,13 +738,10 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
 
    panvk_per_arch(collect_crc_invalidation_deps)(pDependencyInfo, &deps,
                                                  crc_addrs);
-#endif
 
    panvk_per_arch(emit_barrier)(cmdbuf, deps);
 
-#if PAN_ARCH >= 11
    STACK_ARRAY_FINISH(crc_addrs);
-#endif
 }
 
 static struct cs_buffer
@@ -1150,7 +1145,6 @@ panvk_per_arch(CmdExecuteCommands)(VkCommandBuffer commandBuffer,
    panvk_cmd_invalidate_state(primary);
 }
 
-#if PAN_ARCH >= 11
 static bool
 image_barrier_invalidates_crc(const VkImageMemoryBarrier2 *barrier,
                               const struct panvk_image *image)
@@ -1241,12 +1235,21 @@ panvk_per_arch(collect_crc_invalidation_deps)(const VkDependencyInfo *info,
 }
 
 void
-panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
-                                        uint64_t crc_header_addr)
+panvk_per_arch(cmd_invalidate_crc)(struct cs_builder *b,
+                                   uint64_t crc_header_addr)
 {
    if (!crc_header_addr)
       return;
 
+#if PAN_ARCH == 10
+   struct cs_index addr = cs_scratch_reg64(b, 0);
+   struct cs_index valid = cs_scratch_reg32(b, 2);
+
+   cs_move64_to(b, addr, crc_header_addr);
+   cs_move32_to(b, valid, 0);
+
+   cs_store32(b, valid, addr, PAN_CRC_VALID_OFFSET);
+#elif PAN_ARCH >= 11
    struct cs_index addr = cs_scratch_reg64(b, 0);
    struct cs_index init = cs_scratch_reg32(b, 2);
    struct cs_index mask = cs_scratch_reg32(b, 3);
@@ -1260,7 +1263,7 @@ panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
    cs_and32(b, init, init, mask);
 
    cs_store32(b, init, addr, PAN_CRC_INIT_OFFSET);
+#endif
 
    cs_flush_stores(b);
 }
-#endif

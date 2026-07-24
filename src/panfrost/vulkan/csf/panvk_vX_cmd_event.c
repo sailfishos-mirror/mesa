@@ -59,7 +59,6 @@ panvk_per_arch(CmdResetEvent2)(VkCommandBuffer commandBuffer, VkEvent _event,
    }
 }
 
-#if PAN_ARCH >= 11
 static struct panvk_cache_flush_info
 collect_event_cache_flush(const struct panvk_cs_deps *deps)
 {
@@ -86,7 +85,6 @@ panvk_event_transitions_execute_at_wait(const VkDependencyInfo *info)
 
    return !(src_stages & ~VK_PIPELINE_STAGE_2_HOST_BIT);
 }
-#endif
 
 VKAPI_ATTR void VKAPI_CALL
 panvk_per_arch(CmdSetEvent2)(VkCommandBuffer commandBuffer, VkEvent _event,
@@ -101,7 +99,6 @@ panvk_per_arch(CmdSetEvent2)(VkCommandBuffer commandBuffer, VkEvent _event,
    /* vkCmdSetEvents() is not allowed to be called mid-render-pass */
    assert(!deps.needs_fb_barrier);
 
-#if PAN_ARCH >= 11
    STACK_ARRAY(uint64_t, crc_addrs, pDependencyInfo->imageMemoryBarrierCount);
 
    if (!crc_addrs) {
@@ -132,7 +129,6 @@ panvk_per_arch(CmdSetEvent2)(VkCommandBuffer commandBuffer, VkEvent _event,
          panvk_per_arch(emit_barrier)(cmdbuf, transition);
       }
    }
-#endif
 
    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++) {
       struct cs_builder *b = panvk_get_cs_builder(cmdbuf, i);
@@ -166,9 +162,7 @@ panvk_per_arch(CmdSetEvent2)(VkCommandBuffer commandBuffer, VkEvent _event,
          }
       }
    }
-#if PAN_ARCH >= 11
    STACK_ARRAY_FINISH(crc_addrs);
-#endif
 }
 
 static void
@@ -179,7 +173,6 @@ cmd_wait_event(struct panvk_cmd_buffer *cmdbuf, struct panvk_event *event,
 
    panvk_per_arch(add_cs_deps)(cmdbuf, info, &deps, false);
 
-#if PAN_ARCH >= 11
    STACK_ARRAY(uint64_t, crc_addrs, info->imageMemoryBarrierCount);
 
    if (!crc_addrs) {
@@ -210,7 +203,6 @@ cmd_wait_event(struct panvk_cmd_buffer *cmdbuf, struct panvk_event *event,
 
       deps.dst[exec].wait_subqueue_mask |= event_src_mask;
    }
-#endif
 
    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++) {
       struct cs_builder *b = panvk_get_cs_builder(cmdbuf, i);
@@ -228,7 +220,7 @@ cmd_wait_event(struct panvk_cmd_buffer *cmdbuf, struct panvk_event *event,
                                  seqno, sync_addr);
       }
    }
-#if PAN_ARCH >= 11
+
    if (has_wait_ops) {
       struct cs_builder *b = panvk_get_cs_builder(cmdbuf, exec);
 
@@ -242,7 +234,7 @@ cmd_wait_event(struct panvk_cmd_buffer *cmdbuf, struct panvk_event *event,
       }
 
       for (uint32_t i = 0; i < crc.count; i++)
-         panvk_per_arch(cmd_invalidate_crc_init)(b, crc.addrs[i]);
+         panvk_per_arch(cmd_invalidate_crc)(b, crc.addrs[i]);
 
       uint32_t other_dst = dst_mask & ~BITFIELD_BIT(exec);
 
@@ -259,7 +251,6 @@ cmd_wait_event(struct panvk_cmd_buffer *cmdbuf, struct panvk_event *event,
    }
 
    STACK_ARRAY_FINISH(crc_addrs);
-#endif
 }
 
 VKAPI_ATTR void VKAPI_CALL

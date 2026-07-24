@@ -125,7 +125,6 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
    }
 }
 
-#if PAN_ARCH >= 11
 static void
 invalidate_crc_addrs_from_oom_ctx(struct cs_builder *b,
                                   struct cs_index subqueue_ctx)
@@ -135,32 +134,43 @@ invalidate_crc_addrs_from_oom_ctx(struct cs_builder *b,
    struct cs_index count = cs_scratch_reg32(b, 8);
    struct cs_index addrs = cs_scratch_reg64(b, 10);
    struct cs_index addr = cs_scratch_reg64(b, 12);
+#if PAN_ARCH == 10
+   struct cs_index valid = cs_scratch_reg32(b, 14);
+#elif PAN_ARCH >= 11
    struct cs_index init = cs_scratch_reg32(b, 14);
    struct cs_index mask = cs_scratch_reg32(b, 15);
+#endif
 
    cs_load32_to(b, count, subqueue_ctx,
                 TILER_OOM_CTX_FIELD_OFFSET(crc_header_addr_count));
    cs_add_imm64(b, addrs, subqueue_ctx,
                 TILER_OOM_CTX_FIELD_OFFSET(crc_header_addrs));
 
+#if PAN_ARCH == 10
+   cs_move32_to(b, valid, 0);
+#elif PAN_ARCH >= 11
    cs_move32_to(b, mask, PAN_CRC_INIT_MASK);
+#endif
 
    cs_while(b, MALI_CS_CONDITION_GREATER, count) {
       cs_load64_to(b, addr, addrs, 0);
+#if PAN_ARCH == 10
+      cs_store32(b, valid, addr, PAN_CRC_VALID_OFFSET);
+#elif PAN_ARCH >= 11
       cs_load32_to(b, init, addr, PAN_CRC_INIT_OFFSET);
 
       cs_add_imm32(b, init, init, 1);
       cs_and32(b, init, init, mask);
       cs_store32(b, init, addr, PAN_CRC_INIT_OFFSET);
+#endif
 
-      /* Required before reusing init as the next load destination. */
+      /* Required before reusing register as the next load destination. */
       cs_flush_stores(b);
 
       cs_add_imm64(b, addrs, addrs, sizeof(uint64_t));
       cs_add_imm32(b, count, count, -1);
    }
 }
-#endif
 
 static size_t
 generate_tiler_oom_handler(struct panvk_device *dev,
@@ -305,9 +315,8 @@ generate_tiler_oom_handler(struct panvk_device *dev,
        * to use the last IR config.
        */
       cs_if(&b, MALI_CS_CONDITION_EQUAL, ir_count) {
-#if PAN_ARCH >= 11
          invalidate_crc_addrs_from_oom_ctx(&b, subqueue_ctx);
-#endif
+
          cs_load64_to(&b, current_fbd_ptr_reg, subqueue_ctx,
                       TILER_OOM_CTX_FIELD_OFFSET(layer_fbd_ptr));
          cs_load64_to(&b, ir_descs_ptr, subqueue_ctx,

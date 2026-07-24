@@ -178,15 +178,12 @@ struct panvk_cs_subqueue_context {
       uint32_t td_count;
       uint32_t layer_count;
 
-#if PAN_ARCH >= 11
       /* Spill target and final regular target can differ for
        * the same RT index and point to two different images. For CRC tracking,
        * we need to store two CRC header addresses, one for the regular and one
        * for the spill. */
       uint32_t crc_header_addr_count;
       uint64_t crc_header_addrs[PAN_MAX_RTS * 2];
-#endif
-
    } tiler_oom_ctx;
    struct {
       struct {
@@ -206,7 +203,6 @@ struct panvk_cache_flush_info {
    enum mali_cs_other_flush_mode others;
 };
 
-#if PAN_ARCH >= 11
 /* Execute CRC state updates on a destination subqueue when possible.
  * Fall back to compute when the destination scope maps to no subqueue.
  */
@@ -222,7 +218,6 @@ struct panvk_cs_crc_deps {
    uint32_t src_subqueue_mask;
    uint32_t dst_subqueue_mask;
 };
-#endif
 
 struct panvk_cs_deps {
    bool needs_fb_barrier;
@@ -239,9 +234,7 @@ struct panvk_cs_deps {
       struct cs_index cond_value;
    } dst[PANVK_SUBQUEUE_COUNT];
 
-#if PAN_ARCH >= 11
    struct panvk_cs_crc_deps crc;
-#endif
 };
 
 enum panvk_sb_ids {
@@ -1025,12 +1018,10 @@ cs_emit_layer_fragment_state(struct cs_builder *b, struct cs_index fbd_ptr)
 }
 #endif /* PAN_ARCH >= 14 */
 
-#if PAN_ARCH >= 11
 void panvk_per_arch(collect_crc_invalidation_deps)(const VkDependencyInfo *info,
                                                    struct panvk_cs_deps *deps,
                                                    uint64_t *crc_addrs);
-void panvk_per_arch(cmd_invalidate_crc_init)(struct cs_builder *b,
-                                             uint64_t crc_header_addr);
-#endif
+void panvk_per_arch(cmd_invalidate_crc)(struct cs_builder *b,
+                                        uint64_t crc_header_addr);
 
 #endif /* PANVK_CMD_BUFFER_H */

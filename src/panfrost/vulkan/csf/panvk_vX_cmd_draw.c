@@ -1607,6 +1607,7 @@ patch_crc_init(struct cs_builder *b, struct pan_fb_desc_info *fbd_info,
          cs_add_imm64(b, fbd_ptr_reg, fbd_ptr_reg, fbd_stride);
    }
 }
+#endif /* PAN_ARCH >= 11 */
 
 static void
 invalidate_unselected_crc_rts(struct cs_builder *b,
@@ -1624,10 +1625,9 @@ invalidate_unselected_crc_rts(struct cs_builder *b,
       if (has_crc_rt && crc_info.rt == i)
          continue;
 
-      panvk_per_arch(cmd_invalidate_crc_init)(b, rt->crc_header_addr);
+      panvk_per_arch(cmd_invalidate_crc)(b, rt->crc_header_addr);
    }
 }
-#endif /* PAN_ARCH >= 11 */
 
 static VkResult
 get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
@@ -1771,9 +1771,8 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 #endif
 
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
-#if PAN_ARCH >= 11
    invalidate_unselected_crc_rts(b, &fbd_info);
-#endif
+
    for (uint32_t ir_pass = 0; ir_pass < PANVK_IR_PASS_COUNT; ir_pass++) {
       struct pan_ptr ir_fbds =
          panvk_cmd_alloc_dev_mem(cmdbuf, desc, fbds_sz, fbds_alignment);
@@ -1782,7 +1781,20 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
       uint32_t ir_view_mask_temp = cmdbuf->state.gfx.render.view_mask;
+      const struct pan_fb_store *ir_store = ir_pass == PANVK_IR_LAST_PASS
+                                               ? &render->fb.store
+                                               : &render->fb.spill.store;
+#if PAN_ARCH == 10
+      /* IR processes only part of the original render and cannot maintain
+       * the full-frame CRC table, so disable CRC and ETE in copied FBDs.
+       */
+      struct pan_fb_store ir_store_without_crc = *ir_store;
 
+      for (uint32_t rt = 0; rt < fbd_info.fb->rt_count; rt++)
+         ir_store_without_crc.rts[rt].crc_header_addr = 0;
+
+      ir_store = &ir_store_without_crc;
+#endif
       for (uint32_t i = 0; i < enabled_layer_count; i++) {
          uint32_t layer_idx = multiview ? u_bit_scan(&ir_view_mask_temp) : i;
 
@@ -1791,9 +1803,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          fbd_info.load = ir_pass == PANVK_IR_FIRST_PASS
                             ? &render->fb.load
                             : &render->fb.spill.load;
-         fbd_info.store = ir_pass == PANVK_IR_LAST_PASS
-                             ? &render->fb.store
-                             : &render->fb.spill.store;
+         fbd_info.store = ir_store;
 
          VkResult result = panvk_per_arch(cmd_get_frame_shaders)(
             cmdbuf, fbd_info.fb, fbd_info.load,
@@ -3642,7 +3652,6 @@ panvk_per_arch(cmd_inherit_render_state)(
    vk_cmd_set_rendering_attachment_locations(&cmdbuf->vk, att_loc_info);
 }
 
-#if PAN_ARCH >= 11
 static void
 invalidate_initial_attachment_crcs(struct panvk_cmd_buffer *cmdbuf,
                                    const VkRenderingInfo *rendering)
@@ -3687,10 +3696,9 @@ invalidate_initial_attachment_crcs(struct panvk_cmd_buffer *cmdbuf,
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
 
    for (uint32_t i = 0; i < addr_count; i++) {
-      panvk_per_arch(cmd_invalidate_crc_init)(b, addrs[i]);
+      panvk_per_arch(cmd_invalidate_crc)(b, addrs[i]);
    }
 }
-#endif
 
 VKAPI_ATTR void VKAPI_CALL
 panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
@@ -3702,7 +3710,6 @@ panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
 
    panvk_per_arch(cmd_init_render_state)(cmdbuf, pRenderingInfo);
 
-#if PAN_ARCH >= 11
    /* Renderpass lowering can fold an initial layout transition into
     * CmdBeginRendering() and report the old layout through
     * VkRenderingAttachmentInitialLayoutInfoMESA instead of an image barrier.
@@ -3711,7 +3718,6 @@ panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
     * (PREINITIALIZED), we need to invalidate CRC.
     */
    invalidate_initial_attachment_crcs(cmdbuf, pRenderingInfo);
-#endif
 
    /* If we're not resuming, the FBD should be NULL. */
    assert(!state->render.fbds.gpu || resuming);
@@ -4075,7 +4081,6 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
                 -(int32_t)fb_tag.opaque[0]);
 #endif
 
-#if PAN_ARCH >= 11
    /* The OOM handler may use both spill and final stores. Preserve every
     * possible CRC state address so the first IR invocation can invalidate them
     * all.
@@ -4129,7 +4134,6 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
                TILER_OOM_CTX_FIELD_OFFSET(crc_header_addrs) +
                   base * sizeof(crc_addrs[0]));
    }
-#endif
 
    cs_store64(b, fbd_ptr_reg, cs_subqueue_ctx_reg(b),
               TILER_OOM_CTX_FIELD_OFFSET(layer_fbd_ptr));
