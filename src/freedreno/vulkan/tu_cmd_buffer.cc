@@ -519,11 +519,10 @@ tu_emit_cache_flush_renderpass(struct tu_cmd_buffer *cmd_buffer)
    struct tu_cs *cs = &cmd_buffer->draw_cs;
    struct tu_cache_state *cache = &cmd_buffer->state.renderpass_cache;
 
-   tu6_emit_flushes<CHIP>(cmd_buffer, cs, cache);
-   if (cmd_buffer->state.renderpass_cache.flush_bits &
-       TU_CMD_FLAG_BLIT_CACHE_CLEAN) {
+   if (cache->flush_bits & TU_CMD_FLAG_BLIT_CACHE_CLEAN) {
       cmd_buffer->state.blit_cache_cleaned = true;
    }
+   tu6_emit_flushes<CHIP>(cmd_buffer, cs, cache);
 }
 TU_GENX(tu_emit_cache_flush_renderpass);
 
