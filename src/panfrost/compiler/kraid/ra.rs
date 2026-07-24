@@ -27,6 +27,9 @@ struct Arena {
     /// Number of bytes actually used
     used: std::cell::Cell<u16>,
 
+    /// Granularity (in bytes) to return from bytes_used
+    granularity: u8,
+
     /// True if we are on v9-14 and in 32-reg mode.  In this case, the middle
     /// 32 registers of the register arena are missing.  To deal with this, we
     /// assume a contiguous 32 register arena and place the high regs in 48..64
@@ -40,9 +43,11 @@ struct Arena {
 impl Arena {
     /// Creates a new register arena
     pub fn new_reg(model: &dyn Model, limit: u16) -> Arena {
+        let granularity = if model.arch() < 15 { 32 * 4 } else { 16 * 4 };
         Arena {
-            limit,
+            limit: limit.next_multiple_of(granularity.into()),
             used: 0.into(),
+            granularity,
             is_v9_32reg: model.arch() < 15 && limit <= 32 * 4,
             is_v9_64reg: model.arch() < 15 && limit > 32 * 4,
         }
@@ -59,8 +64,14 @@ impl Arena {
             // middle and it's not safe to report 32 registers.
             64 * 4
         } else {
-            used
+            used.next_multiple_of(self.granularity.into())
         }
+    }
+
+    /// Returns the same as bytes_used but in units of 32-bit registers
+    pub fn regs_used(&self) -> u8 {
+        debug_assert!(self.bytes_used() % 4 == 0);
+        (self.bytes_used() / 4).try_into().unwrap()
     }
 
     /// Returns the maximum number of bytes that can be allocated from this
@@ -1523,9 +1534,10 @@ impl Shader<'_> {
         if max_live.reg > 64 * 4 {
             panic!("Not enough registers: max_live = {}", max_live.reg);
         }
-        let reg_arena = Arena::new_reg(self.model, 64 * 4);
+        let reg_arena =
+            Arena::new_reg(self.model, max_live.reg.try_into().unwrap());
         let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
         ra.alloc_regs(self, &live);
-        self.info.registers_used = 64;
+        self.info.registers_used = reg_arena.regs_used();
     }
 }
