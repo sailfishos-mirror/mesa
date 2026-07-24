@@ -508,7 +508,10 @@ impl VirtualOpcode for OpCopy {
     }
 
     fn dst_supported_lanes(&self) -> DstLanesSet {
-        match self.dst_type.total_bits() {
+        // We allow vector types for the purposes of widening.  However, we
+        // don't actually want to allow copies to swizzle so we only allow
+        // dst_lanes corresponding to the scalar size
+        match self.dst_type.bits() {
             8 => DstLanes::ALL_B,
             16 => DstLanes::ALL_H,
             _ => DstLanesSet::from_array([DstLanes::All]),
