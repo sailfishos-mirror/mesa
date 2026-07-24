@@ -50,6 +50,9 @@ panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
                                 enum blitter_attrib_type type,
                                 const struct blitter_attrib *attrib)
 {
+   PAN_TRACE_SCOPE(PAN_TRACE_GL_BLIT, "%s rect=((%d, %d), (%d, %d))",
+                   __func__, x1, y1, x2, y2);
+
    assert(num_instances);
 
    struct pipe_context *ctx = blitter->pipe;
