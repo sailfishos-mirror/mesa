@@ -58,6 +58,9 @@ jay_print_def(FILE *fp, const jay_inst *I, int src)
       fprintf(fp, "_");
    } else if (def.file == J_ARF) {
       fputs(gen_arf_to_string(jay_base_index(def)), fp);
+      if (def.reg) {
+         fprintf(fp, ".%u", def.reg);
+      }
    } else if (def.collect) {
       assert(has_index && "else would be contiguous");
       fprintf(fp, "(");

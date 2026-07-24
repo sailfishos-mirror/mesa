@@ -211,6 +211,8 @@ to_gen_operand(
       R = gen_flag(offs_B / 2);
    } else if (d.file == J_ADDRESS) {
       R = gen_address(d.reg);
+   } else if (d.file == J_ARF && jay_base_index(d) == GEN_ARF_STATE) {
+      R = gen_arf(GEN_ARF_STATE, d.reg * 4);
    } else if (d.file == J_ARF) {
       R = gen_arf(jay_base_index(d), 0);
    } else {
