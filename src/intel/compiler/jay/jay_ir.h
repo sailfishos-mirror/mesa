@@ -82,7 +82,6 @@ jay_normalize_uflag(enum jay_file x)
 #define JAY_MAX_OPERANDS             (JAY_MAX_SRCS + JAY_MAX_DESTS)
 #define JAY_MAX_FLAGS                (8)
 #define JAY_MAX_SAMPLER_MESSAGE_SIZE (11)
-#define JAY_NUM_LAST_USE_BITS        (64)
 #define JAY_NUM_PHYS_GRF             (128)
 #define JAY_NUM_UGPR                 (1024)
 #define JAY_REG_BITS                 (17)
@@ -537,12 +536,6 @@ enum jay_predication : uint8_t {
 typedef struct jay_inst {
    struct list_head link;
 
-   /**
-    * Metadata calculated by liveness analysis: bit i is set if the i'th
-    * non-null SSA index read by the instruction is killed by that read.
-    */
-   BITSET_DECLARE(last_use, JAY_NUM_LAST_USE_BITS);
-
    enum jay_opcode op;
    enum jay_type type; /**< execution type of the instruction */
 
@@ -600,7 +593,7 @@ typedef struct jay_inst {
    jay_def src[];
 } jay_inst;
 
-static_assert(sizeof(jay_inst) == 32 + (sizeof(uintptr_t) * 2), "packed");
+static_assert(sizeof(jay_inst) == 24 + (sizeof(uintptr_t) * 2), "packed");
 
 /*
  * Return the number of instruction set defined sources, ignoring implicit
@@ -1192,6 +1185,11 @@ typedef struct jay_block {
    BITSET_DECLARE(postra_gpr_live_in, JAY_NUM_PHYS_GRF);
    BITSET_DECLARE(postra_gpr_live_out, JAY_NUM_PHYS_GRF);
 
+   /* Last-use bit for each non-null index in each source in each instruction in
+    * the block, source order, left-to-right.
+    */
+   BITSET_WORD *last_use;
+
    /**
     * After register allocation but before going out-of-SSA, registers that
     * are free at the logical end of the block (before phi_src). These will
@@ -1539,12 +1537,6 @@ jay_source_last_use_bit(const jay_def *srcs, unsigned src_idx)
 
    return i;
 }
-
-#define jay_foreach_killed(I, s, c)                                            \
-   for (unsigned _kill_idx = 0; _kill_idx == 0; _kill_idx = 1)                 \
-      jay_foreach_src_index(I, s, c, idx)                                      \
-         for (unsigned _k = _kill_idx++; _k != ~0; _k = ~0)                    \
-            if (BITSET_TEST(I->last_use, _k))
 
 /* Helper to run a pass */
 #define JAY_PASS(shader, pass, ...)                                            \

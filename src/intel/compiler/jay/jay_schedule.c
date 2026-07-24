@@ -266,8 +266,6 @@ adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 {
    assert(ctx->phase < POSTRA);
 
-   unsigned counter = 0;
-
    /* Dead destinations are those written by the instruction but killed
     * immediately after the instruction finishes.
     */
@@ -276,16 +274,17 @@ adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
       demand[dst.file] += !u_sparse_bitset_test(&ctx->live, index);
    }
 
-   /* Late-kill sources. We precomputed the deduplication info and stashed it in
-    * the I->last_use bitfield for convenience.
-    */
+   /* Late-kill sources. TODO: Is there a better way to deduplicate? */
    jay_foreach_src_index(I, s, c, index) {
-      if (BITSET_TEST(I->last_use, counter)) {
-         assert(I->src[s].file < JAY_NUM_SSA_FILES);
+      if (!BITSET_TEST(ctx->seen, index)) {
          demand[I->src[s].file] += !u_sparse_bitset_test(&ctx->live, index);
       }
 
-      counter++;
+      BITSET_SET(ctx->seen, index);
+   }
+
+   jay_foreach_src_index(I, _, c, index) {
+      BITSET_CLEAR(ctx->seen, index);
    }
 }
 
@@ -384,26 +383,6 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
          break;
       } else if (jay_op_ends_block(I->op) && s->phase == EARLY) {
          continue;
-      }
-
-      if (s->phase < POSTRA && I->op != JAY_OPCODE_PHI_SRC) {
-         unsigned counter = 0;
-
-         /* Filter duplicates as we go */
-         BITSET_ZERO(I->last_use);
-
-         jay_foreach_src_index(I, _, c, index) {
-            if (!BITSET_TEST(s->seen, index)) {
-               BITSET_SET(I->last_use, counter);
-            }
-
-            BITSET_SET(s->seen, index);
-            counter++;
-         }
-
-         jay_foreach_src_index(I, _, c, index) {
-            BITSET_CLEAR(s->seen, index);
-         }
       }
 
       if (s->phase == EARLY) {
@@ -592,6 +571,7 @@ pass(jay_function *f)
       }
    } else {
       jay_compute_liveness(f);
+      jay_calculate_last_use(f);
       jay_calculate_register_demands(f);
       sctx.seen = BITSET_LINEAR_ZALLOC(linctx, f->ssa_alloc);
       sctx.prera.def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);

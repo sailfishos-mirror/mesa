@@ -44,6 +44,7 @@ void jay_process_nir_for_simd(const struct intel_device_info *devinfo,
                               bool *track_helpers);
 
 void jay_compute_liveness(jay_function *f);
+void jay_calculate_last_use(jay_function *func);
 void jay_calculate_register_demands(jay_function *f);
 
 void jay_spill(jay_function *func, enum jay_file file, unsigned limit);
@@ -55,7 +56,7 @@ void jay_assign_accumulators(jay_shader *s);
 
 const char *jay_file_prefix(enum jay_file file);
 void jay_print_type(FILE *f, enum jay_type t);
-void jay_print_inst(FILE *f, jay_inst *I);
+void jay_print_inst(FILE *fp, jay_block *block, jay_inst *I, unsigned *lu);
 void jay_print_block(FILE *f, jay_block *block);
 void jay_print_func(FILE *fp, jay_function *func);
 void jay_print(FILE *f, jay_shader *s);

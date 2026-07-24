@@ -214,6 +214,9 @@ typedef struct jay_ra_state {
 
    /** Vector affinities for each def. */
    struct affinity *affinities;
+
+   /* Last-use counter within the block */
+   unsigned lu;
 } jay_ra_state;
 
 static bool
@@ -977,9 +980,8 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
 
          killed = true;
          for (unsigned i = 0; i < size; ++i) {
-            assert(lu + i < JAY_NUM_LAST_USE_BITS);
             if (jay_channel(I->src[s], i) == 0 ||
-                !BITSET_TEST(I->last_use, lu + i)) {
+                !BITSET_TEST(ra->block->last_use, ra->lu + lu + i)) {
                killed = false;
                break;
             }
@@ -1017,7 +1019,8 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
           * to use the unpadded size to avoid leaking a register for vec3
           * destinations tied to vec4 sources.
           */
-         BITSET_CLEAR_COUNT(I->last_use, lu_offs, jay_num_values(var));
+         BITSET_CLEAR_COUNT(ra->block->last_use, ra->lu + lu_offs,
+                            jay_num_values(var));
          BITSET_CLEAR(ra->killed[file], base);
       } else {
          /* Otherwise pin our choice */
@@ -1080,16 +1083,15 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
    /* Sources selected for early-kill have had their last_use fields cleared.
     * Anything else is late-killed. Release those registers.
     */
-   unsigned kill_idx = 0;
    jay_foreach_ssa_src(I, s) {
       jay_foreach_index(saved_srcs[s], c, idx) {
          if (I->src[s].file < JAY_NUM_RA_FILES &&
-             BITSET_TEST(I->last_use, kill_idx)) {
+             BITSET_TEST(ra->block->last_use, ra->lu)) {
 
             release_reg(ra, make_reg(I->src[s].file, I->src[s].reg + c));
          }
 
-         kill_idx++;
+         ra->lu++;
       }
    }
 }
@@ -1098,6 +1100,7 @@ static void
 local_ra(jay_ra_state *ra, jay_block *block)
 {
    ra->block = block;
+   ra->lu = 0;
 
    /* Initialize local data structures based on global state */
    jay_foreach_ra_file(file) {
@@ -1149,7 +1152,7 @@ local_ra(jay_ra_state *ra, jay_block *block)
       if (jay_debug & JAY_DBG_PRINTDEMAND) {
          printf("(RA) [G:%u\tU:%u\tF:%u] ", register_demand(ra, GPR),
                 register_demand(ra, UGPR), register_demand(ra, FLAG));
-         jay_print_inst(stdout, I);
+         jay_print_inst(stdout, block, I, NULL);
       }
    }
 
@@ -1303,8 +1306,10 @@ map_gpr_to_acc(jay_shader *shader, jay_def *x)
 static void
 jay_register_allocate_function(jay_function *f)
 {
-   /* TODO: Could do a simplified liveness analysis gathering only .kill */
-   jay_compute_liveness(f);
+   /* Pre-RA scheduling ran a liveness analysis but disrupted all the
+    * last-use bits, so recalculate that only.
+    */
+   jay_calculate_last_use(f);
 
    jay_shader *shader = f->shader;
    jay_ra_state ra = { .b.shader = shader, .b.func = f };

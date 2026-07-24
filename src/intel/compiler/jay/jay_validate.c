@@ -57,7 +57,7 @@ chirp(struct validate_state *validate, const char *fmt, ...)
    if (validate->I) {
       fprintf(stderr,
               "   invalid instruction in block %d: ", validate->block->index);
-      jay_print_inst(stderr, validate->I);
+      jay_print_inst(stderr, validate->block, validate->I, NULL);
    }
    fprintf(stderr, "   ");
    vfprintf(stderr, fmt, args);

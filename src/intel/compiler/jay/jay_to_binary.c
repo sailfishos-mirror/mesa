@@ -707,7 +707,7 @@ emit(struct jay_codegen *jc,
 
    static_assert(GEN_OP_ILLEGAL == 0);
    if (!gen->opcode) {
-      jay_print_inst(stderr, (jay_inst *) I);
+      jay_print_inst(stderr, NULL, (jay_inst *) I, NULL);
       UNREACHABLE("Unhandled opcode");
    }
 }
