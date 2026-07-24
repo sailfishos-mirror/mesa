@@ -2386,11 +2386,12 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_local_invocation_index:
-   case nir_intrinsic_load_local_invocation_index_intel:
+   case nir_intrinsic_load_local_invocation_index_intel: {
       jay_def inv_idx_u16 =
          jay_extract_range(nj->payload.u1, 0, s->dispatch_width / 2);
       jay_CVT(b, JAY_TYPE_U32, dst, inv_idx_u16, JAY_TYPE_U16, JAY_ROUND, 0);
       break;
+   }
 
    default:
 #ifndef NDEBUG
