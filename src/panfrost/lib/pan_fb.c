@@ -666,6 +666,16 @@ pan_fb_store_target_should_crc(const struct pan_fb_layout *fb,
        !GENX(pan_image_view_can_crc)(rt->iview, tile_size))
       return false;
 
+#if PAN_ARCH == 10
+   const struct pan_image *image =
+      pan_image_view_get_color_plane(rt->iview).image;
+
+   /* CRC validity covers the entire mip-0 CRC table. */
+   if (image->props.extent_px.width != fb->width_px ||
+       image->props.extent_px.height != fb->height_px)
+      return false;
+#endif
+
    return true;
 }
 
