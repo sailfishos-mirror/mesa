@@ -247,9 +247,6 @@ op('slice_repack', 1, 'u32', 0, [
 # Active lanes select source 0, inactive lanes select the constant value
 op('sel_active', 1, 'u32 u64', 0, ['uint64_t value'])
 
-# Initialize helper invocations. Takes 16-bit halves of the dispatch mask.
-op('init_helpers', 2, 'u16', Props.NO_DEST)
-
 # Compare the arguments and demote based on the result.
 op('demote', 2, 'u1 u16 u32 u64 s16 s32 s64 f16 f32 f64', Props.NEGATE | Props.NO_DEST)
 

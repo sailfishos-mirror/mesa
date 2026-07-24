@@ -106,17 +106,7 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
    jay_foreach_inst_in_block_safe_rev(block, I) {
       b->cursor = jay_before_inst(I);
 
-      if (I->op == JAY_OPCODE_INIT_HELPERS) {
-         jay_NOT(b, ctx->helper_flag, I->src[0])->type = JAY_TYPE_U16;
-
-         if (!jay_is_null(I->src[1])) {
-            jay_def hi = ctx->helper_flag;
-            hi.hi = true;
-            jay_NOT(b, hi, I->src[1])->type = JAY_TYPE_U16;
-         }
-
-         jay_remove_instruction(I);
-      } else if (I->op == JAY_OPCODE_HALT) {
+      if (I->op == JAY_OPCODE_HALT) {
          ctx->halted = ctx->uses_terminate = true;
       } else if (I->op == JAY_OPCODE_DEMOTE) {
          enum gen_condition cond = I->conditional_mod;
@@ -198,20 +188,25 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
 void
 jay_lower_helpers(jay_shader *shader)
 {
-   jay_function *entrypoint = jay_shader_get_entrypoint(shader);
-   jay_block *exit_block = jay_last_block(entrypoint);
+   jay_function *entry = jay_shader_get_entrypoint(shader);
+   jay_builder b = jay_init_builder(entry, jay_before_function(entry));
 
    /* By ABI with jay_assign_flags, the last flag is used to track helpers */
    assert(shader->helpers_tracked);
    unsigned helper_flag_no = jay_num_regs(shader, FLAG) - 1;
    struct ctx ctx = { .helper_flag = jay_bare_reg(FLAG, helper_flag_no) };
-   jay_builder b = jay_init_builder(entrypoint, jay_after_block(exit_block));
 
-   jay_foreach_block_rev(entrypoint, block) {
+   /* Initialize the helper flag sensibly based on the dispatch mask (sr0.2) */
+   jay_def sr0_2 = jay_scalar(J_ARF, GEN_ARF_STATE);
+   sr0_2.reg = 2;
+   jay_NOT(&b, ctx.helper_flag, sr0_2)->type =
+      JAY_TYPE_U | shader->dispatch_width;
+
+   jay_foreach_block_rev(entry, block) {
       process_block(&ctx, &b, block);
    }
 
-   b.cursor = jay_after_block(exit_block);
+   b.cursor = jay_after_block(jay_last_block(entry));
    if (ctx.halted) {
       jay_HALT_TARGET(&b);
    }

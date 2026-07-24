@@ -3696,14 +3696,6 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       }
    }
 
-   /* INIT_HELPERS reads UGPRs but has no SSA write. Therefore to minimize
-    * pressure, we want to hoist it as much as possible.
-    */
-   if (nj->s->helpers_tracked) {
-      jay_INIT_HELPERS(b, jay_extract(nj->payload.u0, 15),
-                       payload_u1(nj, 15, 1));
-   }
-
    for (unsigned i = 0; i < ARRAY_SIZE(split_gprs); ++i) {
       if (!jay_is_null(split[i]) && split_gprs[i].def->file == UGPR) {
          *(split_gprs[i].def) =

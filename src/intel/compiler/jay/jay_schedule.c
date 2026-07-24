@@ -212,7 +212,6 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
        */
       if ((I->op == JAY_OPCODE_SEND && !jay_send_pure(I)) ||
           I->op == JAY_OPCODE_SCHEDULE_BARRIER ||
-          I->op == JAY_OPCODE_INIT_HELPERS ||
           I->op == JAY_OPCODE_DEMOTE ||
           I->op == JAY_OPCODE_IS_HELPER ||
           (I->op == JAY_OPCODE_SEND &&
