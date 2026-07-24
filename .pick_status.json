@@ -3014,7 +3014,7 @@
         "description": "rusticl/memory: return 0 for CL_IMAGE_SLICE_PITCH also for 2d images",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
