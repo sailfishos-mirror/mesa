@@ -1501,14 +1501,14 @@ impl GlobalRegAlloc<'_> {
         cfg[bi].instrs = instrs;
     }
 
-    fn alloc_regs(&mut self, s: &mut Shader, live: &impl Liveness) {
+    fn alloc_regs(&mut self, s: &mut Shader, live: impl Liveness) {
         let phi_map = PhiMap::for_shader(s);
 
         self.live_out.resize_with(s.blocks.len(), Default::default);
         for bi in 0..s.blocks.len() {
             self.alloc_regs_block(
                 &mut s.blocks,
-                live,
+                &live,
                 &mut s.ssa_alloc,
                 bi,
                 &phi_map,
