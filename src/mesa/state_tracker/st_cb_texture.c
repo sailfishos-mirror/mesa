@@ -3476,6 +3476,10 @@ st_texture_storage(struct gl_context *ctx,
    if (memObj) {
       memObj->TextureTiling = texObj->TextureTiling;
       bindings |= PIPE_BIND_SHARED;
+   } else {
+      if (ctx->Const.AllowGLTextureLinearTiling &&
+          texObj->TextureTiling == GL_LINEAR_TILING_EXT)
+         bindings |= PIPE_BIND_LINEAR;
    }
 
    if (texObj->IsProtected)
