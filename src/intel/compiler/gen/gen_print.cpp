@@ -832,6 +832,8 @@ private:
          subnr = op.subnr / 2;
       } else if (arf == GEN_ARF_NOTIFICATION_COUNT) {
          subnr = op.subnr / MAX2(gen_type_size_bytes(op.type), 1u);
+      } else if (arf == GEN_ARF_STATE) {
+         subnr = op.subnr / 4;
       }
 
       if (show_default_zero || subnr) {
