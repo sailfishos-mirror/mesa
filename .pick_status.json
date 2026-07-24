@@ -1884,7 +1884,7 @@
         "description": "brw: Match fill/spill optimization scratch accesses by logical offset",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a9b67ad0954b0eda6ad3bb9d1dc8aa76975d0769",
         "notes": null
