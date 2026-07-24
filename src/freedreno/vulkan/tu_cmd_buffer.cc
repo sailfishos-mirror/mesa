@@ -5722,7 +5722,7 @@ vk2tu_access(VkAccessFlags2 flags, VkAccessFlags3KHR flags2,
       mask |= TU_ACCESS_SYSMEM_READ;
 
    if (gfx_write_access(flags, stages,
-                        VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT,
+                        VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT,
                         VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT))
       mask |= TU_ACCESS_CP_WRITE;
 

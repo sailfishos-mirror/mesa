@@ -2704,7 +2704,7 @@
         "description": "tu: Fix gfx_write_access checking for TRANSFORM_FEEDBACK_COUNTER_READ_BIT",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "59259a0167184e0cf9f472d379ac9723a2842139",
         "notes": null
