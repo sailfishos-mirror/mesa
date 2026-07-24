@@ -7,9 +7,9 @@ use rustc_hash::FxHashSet;
 
 fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
     for (src, src_type) in instr.srcs_types() {
-        if let SrcRef::SSA(ssa) = &src.src_ref {
-            for val in ssa {
-                assert!(ssa_vals.contains(val));
+        if let SrcRef::SSA(vec) = &src.src_ref {
+            for ssa in vec {
+                assert!(ssa_vals.contains(ssa), "Undefined SSA value: {ssa}");
             }
         }
 
