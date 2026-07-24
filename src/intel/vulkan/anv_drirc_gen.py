@@ -177,6 +177,10 @@ def declare_options(android_version):
           "Query threshold count above which query copies are executed with a shader",
           c_name="query_copy_with_shader_threshold"),
 
+        B("anv_enable_alloc_oversubscription", True,
+          "Allow the optional alignment of allocation sizes to large page sizes",
+          c_name="alloc_oversubscription"),
+
         B("anv_disable_push_constant_alloc", True,
           "Disable push constant space allocations",
           c_name="disable_push_const_alloc"),

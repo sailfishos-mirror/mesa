@@ -11,7 +11,6 @@ static const struct debug_control debug_control[] = {
    { "dgc-dump",                  ANV_DEBUG_DGC_DUMP},
    { "experimental",              ANV_DEBUG_EXPERIMENTAL},
    { "no-gpl",                    ANV_DEBUG_NO_GPL},
-   { "no-alloc-oversubscription", ANV_DEBUG_NO_ALLOC_OVER_SUBSCRIPTION},
    { "no-slab",                   ANV_DEBUG_NO_SLAB},
    { "no-sparse",                 ANV_DEBUG_NO_SPARSE},
    { "sparse-trtt",               ANV_DEBUG_SPARSE_TRTT},
