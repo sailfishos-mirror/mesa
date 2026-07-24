@@ -496,7 +496,7 @@ lower_cmat_tensor_load_store(nir_builder *b, nir_cmat_call_instr *call, const lo
    }
 
    nir_def *base_row = radv_get_base_row(b, desc, params, local_idx);
-   struct nir_calc_tensor_info info = {};
+   struct nir_calc_tensor_info info = {0};
    nir_calc_tensor_derefs_init(b, &info, call);
 
    if (info.decode_fnptr) {
