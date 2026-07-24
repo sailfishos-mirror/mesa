@@ -1315,6 +1315,8 @@ radv_graphics_shaders_fill_linked_io_info(struct radv_shader_stage *producer_sta
 static void
 radv_graphics_shaders_link_varyings(struct radv_shader_stage *stages, enum amd_gfx_level gfx_level)
 {
+   bool fs_layer_lowered_to_input = false;
+
    /* Prepare shaders before running nir_opt_varyings. */
    for (int i = 0; i < ARRAY_SIZE(graphics_shader_order); ++i) {
       const mesa_shader_stage s = graphics_shader_order[i];
@@ -1331,6 +1333,14 @@ radv_graphics_shaders_link_varyings(struct radv_shader_stage *stages, enum amd_g
 
       /* Update load/store alignments because inter-stage code motion may move instructions used to deduce this info. */
       NIR_PASS(_, shader, nir_opt_load_store_update_alignments);
+
+      if (s == MESA_SHADER_FRAGMENT) {
+         /* LAYER_ID must be an input to be optimizable by nir_opt_varyings.
+          * PRIMITIVE_ID too, but that's already an input.
+          */
+         NIR_PASS(fs_layer_lowered_to_input, shader, nir_lower_sysvals_to_varyings,
+                  &(nir_lower_sysvals_to_varyings_options){.layer_id = true});
+      }
    }
 
    int highest_changed_producer = -1;
@@ -1396,6 +1406,9 @@ radv_graphics_shaders_link_varyings(struct radv_shader_stage *stages, enum amd_g
          continue;
 
       nir_shader *shader = stages[s].nir;
+
+      if (shader->info.stage == MESA_SHADER_FRAGMENT && fs_layer_lowered_to_input)
+         NIR_PASS(_, shader, nir_lower_system_values);
 
       /* Re-vectorize I/O for stages that use memory for I/O (LDS or VRAM).
        * Don't vectorize FS I/O, doing so just regresses shader stats without any benefit.
