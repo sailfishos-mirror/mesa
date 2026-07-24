@@ -1562,6 +1562,10 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P(ctx, "));\n");
       break;
    }
+   case nir_intrinsic_bindless_image_levels:
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ".get_num_mip_levels();\n");
+      break;
    case nir_intrinsic_bindless_image_load:
       src_to_msl(ctx, &instr->src[0]);
       P(ctx, ".read(");

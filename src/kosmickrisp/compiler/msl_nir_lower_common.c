@@ -8,6 +8,7 @@
 
 #include "nir.h"
 #include "nir_builder.h"
+#include "nir_builtin_builder.h"
 
 #include "util/format/u_format.h"
 
@@ -112,6 +113,102 @@ msl_nir_fs_force_output_signedness(
    return nir_shader_intrinsics_pass(nir, fs_force_output_type,
                                      nir_metadata_control_flow,
                                      render_target_formats);
+}
+
+/* Used to weed out instructions where the lod is known to be 0.
+ * This is an optimization and avoids trying to instrument
+ * texel buffers, which won't work with the generated Metal code
+ * for the OOB lod workaround */
+static bool
+kk_src_is_const_zero(nir_src *src)
+{
+   return nir_src_is_const(*src) && (nir_src_as_uint(*src) == 0);
+}
+
+static void
+kk_lod_oob_fixup(nir_builder *b, nir_src *coord, nir_src *lod, nir_def *levels)
+{
+   /* For chips (M5) that don't handle OOB LOD correctly, transform it into
+    * a coordinate OOB, which is handled correctly */
+   nir_def *oob = nir_uge(b, lod->ssa, levels);
+   nir_def *def = nir_bcsel(b, oob, nir_imm_int(b, -1), coord->ssa);
+
+   nir_src_rewrite(coord, def);
+}
+
+static bool
+kk_lower_robustness2_textures(nir_builder *b, nir_instr *instr,
+                              UNUSED void *data)
+{
+   if (instr->type != nir_instr_type_tex)
+      return false;
+
+   nir_tex_instr *tex = nir_instr_as_tex(instr);
+   if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF)
+      return false;
+   if ((tex->op != nir_texop_txf) && (tex->op != nir_texop_txf_ms))
+      return false;
+
+   int coord_index = nir_tex_instr_src_index(tex, nir_tex_src_coord);
+   if (coord_index < 0)
+      return false;
+
+   int lod_index = nir_tex_instr_src_index(tex, nir_tex_src_lod);
+   if (lod_index < 0)
+      return false;
+
+   nir_src *lod = &tex->src[lod_index].src;
+   if (!lod || kk_src_is_const_zero(lod))
+      return false;
+
+   b->cursor = nir_before_instr(instr);
+   nir_def *levels = nir_build_texture_query(b, tex, nir_texop_query_levels, 1,
+                                             nir_type_uint32, false, false);
+
+   kk_lod_oob_fixup(b, &tex->src[coord_index].src, lod, levels);
+
+   return true;
+}
+
+static bool
+kk_lower_robustness2_intrinsics(nir_builder *b, nir_intrinsic_instr *intr,
+                                UNUSED void *data)
+{
+   /* So far it doesn't seem like we need to fix up
+    * nir_intrinsic_bindless_image_store, even though it could have an OOB lod. */
+   if (intr->intrinsic != nir_intrinsic_bindless_image_load &&
+       intr->intrinsic != nir_intrinsic_bindless_image_sparse_load)
+      return false;
+
+   nir_src *lod = &intr->src[3];
+   if (!lod || kk_src_is_const_zero(lod))
+      return false;
+
+   b->cursor = nir_before_instr(&intr->instr);
+
+   nir_intrinsic_instr *levels_instr = nir_intrinsic_instr_create(
+      b->shader, nir_intrinsic_bindless_image_levels);
+   levels_instr->src[0] = intr->src[0];
+   nir_def_init(&levels_instr->instr, &levels_instr->def, 1, 32);
+   nir_builder_instr_insert(b, &levels_instr->instr);
+
+   kk_lod_oob_fixup(b, &intr->src[1], lod, &levels_instr->def);
+
+   return true;
+}
+
+bool
+msl_lower_robustness2_images(nir_shader *nir)
+{
+   bool progress = false;
+
+   progress |= nir_shader_intrinsics_pass(nir, kk_lower_robustness2_intrinsics,
+                                          nir_metadata_control_flow, NULL);
+
+   progress |= nir_shader_instructions_pass(nir, kk_lower_robustness2_textures,
+                                            nir_metadata_control_flow, NULL);
+
+   return progress;
 }
 
 bool

@@ -71,6 +71,8 @@ bool msl_nir_fs_remove_depth_write(nir_builder *b, nir_intrinsic_instr *intrin,
 
 bool msl_lower_textures(nir_shader *s);
 
+bool msl_lower_robustness2_images(nir_shader *s);
+
 bool msl_lower_static_sample_mask(nir_shader *nir, uint32_t sample_mask);
 bool msl_ensure_depth_write(nir_shader *nir);
 bool msl_ensure_vertex_position_output(nir_shader *nir);

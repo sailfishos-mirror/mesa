@@ -49,6 +49,24 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_16
+----------------
+| macOS version: 27.0 beta (26A5353q)
+| Metal ticket: Not reported
+| Metal ticket status:
+| CTS test failure: ``dEQP-VK.robustness.robustness2.*.sampled_image.*``
+| Comments:
+
+On M5, if a texture read uses an OOB lod, the lod is clamped to a valid one
+and the read returns data from that level rather than (0, 0, 0, 1). M1 to M4
+chips do not behave like this. Based on workarounds in the HoneyKrisp driver,
+we suspect that the Metal compiler is implementing a workaround on M1-M4
+but not yet on M5.
+
+| Log:
+| 2026-07-24: Workaround implemented
+
+
 KK_WORKAROUND_15
 ----------------
 | macOS version: 27.0 beta (26A5353q)

@@ -263,6 +263,10 @@ kk_parse_device_environment_options(struct kk_device *dev)
       dev->disabled_workarounds |= BITFIELD64_MASK(7);
       dev->disabled_workarounds |= BITFIELD64_BIT(12);
    }
+   /* M5-only workarounds */
+   if (kk_device_physical(dev)->info.gpu_apple_family < 10) {
+      dev->disabled_workarounds |= BITFIELD64_BIT(16);
+   }
 }
 
 static VkResult

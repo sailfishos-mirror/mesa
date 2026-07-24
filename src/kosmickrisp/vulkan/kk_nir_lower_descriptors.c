@@ -459,6 +459,7 @@ try_lower_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
    case nir_intrinsic_image_deref_size:
    case nir_intrinsic_image_deref_samples:
    case nir_intrinsic_image_deref_store_block_agx:
+   case nir_intrinsic_image_deref_levels:
       return lower_image_intrin(b, intrin, ctx);
 
    default:

@@ -610,6 +610,14 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
     */
    NIR_PASS(_, nir, kk_nir_lower_descriptors, rs, set_layout_count,
             set_layouts);
+
+   /* KK_WORKAROUND_16 - must be called after kk_nir_lower_descriptors(), which
+    * lowers all image intrinsics to be bindless */
+   if (rs->images ==
+          VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2 &&
+       !(dev->disabled_workarounds & BITFIELD64_BIT(16)))
+      NIR_PASS(_, nir, msl_lower_robustness2_images);
+
    NIR_PASS(_, nir, kk_nir_lower_textures);
 
    if (dev->vk.enabled_features.nullDescriptor)
@@ -857,6 +865,7 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
          }
       }
    }
+
    struct msl_compile_data *data = &shader->msl_data[stage];
    data->code = nir_to_msl(nir, &translate_options);
    const char *entrypoint_name = nir_shader_get_entrypoint(nir)->function->name;
