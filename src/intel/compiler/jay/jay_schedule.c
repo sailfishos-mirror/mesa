@@ -253,6 +253,8 @@ weighted_demand(struct sched_ctx *ctx, signed *demands)
 static void
 adjust_demand_before(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 {
+   assert(ctx->phase < POSTRA);
+
    /* Make destinations live */
    jay_foreach_dst(I, dst) {
       demand[dst.file] -= jay_num_values(dst);
@@ -262,6 +264,8 @@ adjust_demand_before(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 static void
 adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 {
+   assert(ctx->phase < POSTRA);
+
    unsigned counter = 0;
 
    /* Dead destinations are those written by the instruction but killed
@@ -317,6 +321,8 @@ choose_inst(struct sched_ctx *s, enum sched_mode mode)
       jay_inst *I = s->insts[*head];
       int32_t score = 0;
       if (pressure_weight) {
+         assert(s->phase < POSTRA);
+
          /* To minimize pressure, consider the effect on liveness. */
          int32_t deltas[JAY_NUM_SSA_FILES] = { 0 };
          adjust_demand_after(s, I, deltas);
@@ -451,7 +457,7 @@ schedule_block(jay_block *block,
       u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
    }
 
-   if (s->phase > EARLY) {
+   if (s->phase > EARLY && s->phase < POSTRA) {
       jay_foreach_inst_in_block_rev(block, I) {
          if (!jay_op_ends_block(I->op)) {
             break;
