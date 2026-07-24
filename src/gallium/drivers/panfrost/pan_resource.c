@@ -18,7 +18,6 @@
 #include "util/os_misc.h"
 #include "util/u_debug_image.h"
 #include "util/u_drm.h"
-#include "util/u_gen_mipmap.h"
 #include "util/u_memory.h"
 #include "util/u_resource.h"
 #include "util/u_surface.h"
@@ -2474,11 +2473,7 @@ panfrost_generate_mipmap(struct pipe_context *pctx, struct pipe_resource *prsrc,
                          unsigned last_level, unsigned first_layer,
                          unsigned last_layer)
 {
-   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
-
    struct panfrost_resource *rsrc = pan_resource(prsrc);
-
-   perf_debug(pan_context(pctx), "Unoptimized mipmap generation");
 
    /* Generating a mipmap invalidates the written levels, so make that
     * explicit so we don't try to wallpaper them back and end up with
@@ -2488,13 +2483,9 @@ panfrost_generate_mipmap(struct pipe_context *pctx, struct pipe_resource *prsrc,
    for (unsigned l = base_level + 1; l <= last_level; ++l)
       BITSET_CLEAR(rsrc->valid.data, l);
 
-   /* Beyond that, we just delegate the hard stuff. */
-
-   bool blit_res =
-      util_gen_mipmap(pctx, prsrc, format, base_level, last_level, first_layer,
-                      last_layer, PIPE_TEX_FILTER_LINEAR);
-
-   return blit_res;
+   return panfrost_blitter_generate_mipmap(pctx, prsrc, format, base_level,
+                                           last_level, first_layer,
+                                           last_layer);
 }
 
 static void

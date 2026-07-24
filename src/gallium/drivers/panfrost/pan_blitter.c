@@ -5,6 +5,7 @@
  */
 
 #include "util/format/u_format.h"
+#include "util/u_gen_mipmap.h"
 #include "pan_blitter.h"
 #include "pan_context.h"
 #include "pan_resource.h"
@@ -313,4 +314,44 @@ panfrost_blitter_clear_render_target(struct pipe_context *pipe,
    panfrost_blitter_save(ctx, states);
    util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
                                     width, height);
+}
+
+bool
+panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
+                                 struct pipe_resource *tex,
+                                 enum pipe_format format, unsigned base_level,
+                                 unsigned last_level, unsigned first_layer,
+                                 unsigned last_layer)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
+
+   struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE |
+      PAN_SAVE_RENDER_COND;
+   const struct util_format_description *desc =
+      util_format_description(format);
+
+   if (tex->nr_samples > 1)
+      goto fallback;
+
+   if (util_format_has_stencil(desc) && !util_format_has_depth(desc))
+      goto fallback;
+
+   if (!util_blitter_is_copy_supported(ctx->blitter, tex, tex))
+      goto fallback;
+
+   pan_legalize_format(ctx, pan_resource(tex), util_format_linear(format),
+                       true, false);
+   panfrost_blitter_save(ctx, states);
+   ctx->has_blit_loop = true;
+   util_blitter_generate_mipmap(ctx->blitter, tex, format, base_level,
+                                last_level, first_layer, last_layer, 1);
+   ctx->has_blit_loop = false;
+   return true;
+
+ fallback:
+   perf_debug(ctx, "Software fallback for generate_mipmap()");
+   return util_gen_mipmap(pipe, tex, format, base_level, last_level,
+                          first_layer, last_layer, PIPE_TEX_FILTER_LINEAR);
 }
