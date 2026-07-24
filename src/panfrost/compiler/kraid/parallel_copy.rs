@@ -76,8 +76,14 @@ fn xor(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
 
         let dst = RegRef::from_byte_range(dst_b).unwrap();
         let src = RegRef::from_byte_range(src_b).unwrap();
-        let mut src2 = Src::from(dst);
-        src2.swizzle = Swizzle::NONE;
+
+        // src2 isn't allowed to have a swizzle so we need to expand it out to
+        // a full register.  It lines up with dst so the mask will take care of
+        // selecting the right half
+        let mut src2 = dst;
+        if bytes < 4 {
+            src2.range = RegRange::Regs(1);
+        }
 
         b.push_op(OpShiftLop {
             dst: dst.into(),
@@ -87,7 +93,7 @@ fn xor(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
             not_result: false,
             src0: src.into(),
             shift: Src::imm_u8(0),
-            src2,
+            src2: src2.into(),
         });
     }
 }
