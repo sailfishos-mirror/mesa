@@ -857,6 +857,19 @@ emit_lsc_fence(struct nir_to_jay_state *nj,
    enum lsc_flush_type flushtype =
       sfid == GEN_SFID_SLM ? LSC_FLUSH_TYPE_NONE :
                              translate_flush_type(params->memory_semantics);
+    
+   if (params->memory_scope >= SCOPE_WORKGROUP &&
+       sfid == GEN_SFID_TGM &&
+       nj->devinfo->ver >= 20) {
+      /* On Xe2 and Xe3 we need the eviction of dirty lines and/or invalidation
+       * of clean lines for threadgroup scope due to aliasing of TGM data in L1
+       * (HSD 14020414266). On Xe3p we need this due to how data post-format
+       * conversion happens (HSD 22020984324). Although we have already set
+       * flush_type to the appropriate value, we also need to upgrade the scope
+       * to at least TILE for the flush to actually take effect.
+       */
+      scope = LSC_FENCE_TILE;
+   }
 
    if (!(params->memory_semantics & NIR_MEMORY_RELEASE) &&
        scope == LSC_FENCE_THREADGROUP) {
