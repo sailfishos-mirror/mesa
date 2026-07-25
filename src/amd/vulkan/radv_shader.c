@@ -3916,8 +3916,15 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
        !G_0286CC_PERSP_PULL_MODEL_ENA(spi_ps_input))
       spi_ps_input |= S_0286CC_PERSP_CENTER_ENA(1);
 
-   if (!(spi_ps_input & 0x7F) && !G_0286CC_LINE_STIPPLE_TEX_ENA(spi_ps_input)) {
-      /* At least one of PERSP_* (0xF) or LINEAR_* (0x70) or LINE_STIPPLE_TEX must be enabled.
+   if (!G_0286CC_PERSP_SAMPLE_ENA(spi_ps_input) &&
+       !G_0286CC_PERSP_CENTER_ENA(spi_ps_input) &&
+       !G_0286CC_PERSP_CENTROID_ENA(spi_ps_input) &&
+       !G_0286CC_PERSP_PULL_MODEL_ENA(spi_ps_input) &&
+       !G_0286CC_LINEAR_SAMPLE_ENA(spi_ps_input) &&
+       !G_0286CC_LINEAR_CENTER_ENA(spi_ps_input) &&
+       !G_0286CC_LINEAR_CENTROID_ENA(spi_ps_input) &&
+       !G_0286CC_LINE_STIPPLE_TEX_ENA(spi_ps_input)) {
+      /* At least one of PERSP_*, LINEAR_*, or LINE_STIPPLE_TEX must be enabled.
        * LINE_STIPPLE_TEX uses the least number of initialized VGPRs, so let's use it because
        * pixel throughput is limited by the number of initialized VGPRs.
        *
