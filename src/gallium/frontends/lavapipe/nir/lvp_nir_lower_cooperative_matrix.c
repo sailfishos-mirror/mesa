@@ -693,7 +693,7 @@ lower_cmat_tensor_load_store(nir_builder *b, nir_cmat_call_instr *call)
          vars[i] = nir_channel(b, src, i);
    }
 
-   struct nir_calc_tensor_info info = {};
+   struct nir_calc_tensor_info info = {0};
    nir_calc_tensor_derefs_init(b, &info, call);
 
    if (info.decode_fnptr) {
