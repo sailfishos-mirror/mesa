@@ -1267,6 +1267,15 @@ brw_reg_alloc::alloc_spill_scratch(unsigned spill_reg)
    return { offset, logical_offset };
 }
 
+/* Bitmask of \p count registers of a VGRF starting at register \p first. */
+static inline uint64_t
+reg_range(unsigned first, unsigned count)
+{
+   assert(count > 0);
+   assert(first + count <= 64);
+   return (~(uint64_t)0 >> (64 - count)) << first;
+}
+
 void
 brw_reg_alloc::spill_reg(unsigned spill_reg)
 {
@@ -1282,6 +1291,16 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
    ra_set_node_spill_cost(g, first_vgrf_node + spill_reg, 0);
    ra_reset_node_interference(g, first_vgrf_node + spill_reg);
 
+   /* Track which registers of the spilled VGRF hold a defined value, so that
+    * we don't fill undefined data back from scratch.  Initialized at each
+    * block from livein, cleared by SHADER_OPCODE_UNDEF and set by any other
+    * write.
+    */
+   const unsigned vgrf_size = fs->alloc.sizes[spill_reg];
+   uint64_t defined_regs = 0;
+   assert(vgrf_size <= 8 * sizeof(defined_regs));
+   const struct bblock_t *cur_block = NULL;
+
    /* Generate spill/unspill instructions for the objects being
     * spilled.  Right now, we spill or unspill the whole thing to a
     * virtual grf of the same size.  For most instructions, though, we
@@ -1292,6 +1311,28 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
       const brw_builder ibld = brw_builder(inst);
       brw_exec_node *before = inst->prev;
       brw_exec_node *after = inst->next;
+
+      if (block != cur_block) {
+         cur_block = block;
+
+         const BITSET_WORD *livein = live.block_data[block->num].livein;
+         const unsigned first_var = live.var_from_vgrf[spill_reg];
+
+         defined_regs = 0;
+         for (unsigned i = 0; i < vgrf_size; i++) {
+            if (BITSET_TEST(livein, first_var + i))
+               defined_regs |= (uint64_t)1 << i;
+         }
+      }
+
+      if (inst->opcode == SHADER_OPCODE_UNDEF &&
+          inst->dst.file == VGRF && inst->dst.nr == spill_reg) {
+         const unsigned first_reg = inst->dst.offset / REG_SIZE;
+         assert(first_reg < vgrf_size);
+         defined_regs &= ~reg_range(first_reg,
+                                    MIN2(regs_written(inst),
+                                         vgrf_size - first_reg));
+      }
 
       for (unsigned int i = 0; i < inst->sources; i++) {
 	 if (inst->src[i].file == VGRF &&
@@ -1343,6 +1384,9 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
          /* Align the spilling offset the physical register size */
          const unsigned aligned_offset =
             ROUND_DOWN_TO(inst->dst.offset, reg_unit(devinfo) * REG_SIZE);
+         /* Taken before inst->dst.offset is adjusted below. */
+         const unsigned dst_first_reg = inst->dst.offset / REG_SIZE;
+         assert(dst_first_reg < vgrf_size);
          const spill_scratch_slot subset_slot =
             offset_spill_slot(spill_slot, aligned_offset);
          brw_reg spill_src = alloc_spill_reg(count, ip);
@@ -1384,14 +1428,29 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
           * instruction had force_writemask_all set and is not a partial
           * write, there should be no need for the unspill since the
           * instruction will be overwriting the whole destination in any case.
+          *
+          * There's also no need to unspill when the value is completely
+          * undefined.
 	  */
-         if (inst->is_partial_write(reg_unit(devinfo) * REG_SIZE) ||
-             (!inst->force_writemask_all && !per_channel))
+         const unsigned first_reg = aligned_offset / REG_SIZE;
+         assert(first_reg < vgrf_size);
+         const bool dst_defined =
+            (defined_regs & reg_range(first_reg,
+                                      MIN2((unsigned)count,
+                                           vgrf_size - first_reg))) != 0;
+
+         if (dst_defined &&
+             (inst->is_partial_write(reg_unit(devinfo) * REG_SIZE) ||
+              (!inst->force_writemask_all && !per_channel)))
             emit_unspill(ubld, &fs->shader_stats, spill_src, subset_slot,
                          regs_written(inst), ip);
 
          emit_spill(ubld.after(inst), &fs->shader_stats, spill_src,
                     subset_slot, regs_written(inst), ip);
+
+         defined_regs |= reg_range(dst_first_reg,
+                                   MIN2(regs_written(inst),
+                                        vgrf_size - dst_first_reg));
       }
 
       for (brw_inst *inst = (brw_inst *)before->next;
