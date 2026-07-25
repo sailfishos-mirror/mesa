@@ -2497,6 +2497,12 @@ impl From<DataType> for TexGradientWidthM {
     }
 }
 
+impl From<TexWriteMask> for TexGradientWriteMaskM {
+    fn from(mask: TexWriteMask) -> Self {
+        TexGradientWriteMaskM::try_decode(mask.to_bits(), 9).unwrap()
+    }
+}
+
 impl V9Instr for OpTexGradient {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2509,6 +2515,7 @@ impl V9Instr for OpTexGradient {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
         e.encode(TexGradient {
             coordinate_or_derivative: self.coord_mode.into(),
             dimensionality: self.dim.into(),
@@ -2521,7 +2528,7 @@ impl V9Instr for OpTexGradient {
             sr_src: op_encode_sr_read(self, &self.data),
             src0: op_encode_src(self, &self.handle),
             wide_indices: self.wide_indices.into(),
-            write_mask: TexGradientWriteMaskM::Rg,
+            write_mask: self.write_mask.into(),
         })
     }
 }

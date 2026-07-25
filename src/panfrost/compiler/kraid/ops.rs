@@ -2829,13 +2829,15 @@ impl fmt::Display for TexGradientCoordMode {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [A16, V2A16, V3A16, V4A16, A32, V2A32])]
 pub struct OpTexGradient {
-    #[dst_type(V2A32)]
     pub dst: Dst,
+    pub dst_type: DataType,
 
     pub skip: bool,
     pub dim: TexDim,
     pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
     pub wide_indices: bool,
     pub coord_mode: TexGradientCoordMode,
     pub lod_bias_disable: bool,

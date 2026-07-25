@@ -1339,7 +1339,6 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_texop_gradient_pan => {
-                assert!(dst_type.total_bits() == 64);
                 let coord_mode = if flags.force_delta_enable() {
                     assert!(!flags.derivative_enable());
                     TexGradientCoordMode::ForceDelta
@@ -1350,9 +1349,11 @@ impl<'a> ShaderFromNir<'a> {
                 };
                 b.push_op(OpTexGradient {
                     dst: tmp.clone().into(),
+                    dst_type,
                     skip,
                     dim,
                     projection_enable: false,
+                    write_mask,
                     wide_indices,
                     coord_mode,
                     lod_bias_disable: flags.lod_bias_disable(),
