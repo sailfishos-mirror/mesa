@@ -2424,6 +2424,7 @@ impl V9Instr for OpTexFetch {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
         e.encode(TexFetch {
             array_enable: self.array_enable.into(),
             dimensionality: self.dim.into(),
@@ -2451,6 +2452,7 @@ impl V9Instr for OpTexGather {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
         e.encode(TexGather {
             array_enable: self.array_enable.into(),
             compare_enable: self.compare_enable.into(),
@@ -2536,6 +2538,7 @@ impl V9Instr for OpTexSingle {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
         e.encode(TexSingle {
             array_enable: self.array_enable.into(),
             compare_enable: self.compare_enable.into(),
