@@ -865,6 +865,33 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_fquantize2f16 => {
+                debug_assert!(alu.def.bit_size == 32);
+                debug_assert!(alu.def.num_components == 1);
+
+                let x16 = b.alloc_ssa(16);
+                b.push_op(OpF32ToF16 {
+                    dst: x16.into(),
+                    src: srcs(0),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::None,
+                });
+
+                let flush16 = b.alloc_ssa(16);
+                b.push_op(OpFlush {
+                    dst: flush16.into(),
+                    src_type: DataType::F16,
+                    src: x16.into(),
+                    ftz: true,
+                    flush_inf: false,
+                    flush_nan: FlushNanMode::None,
+                });
+
+                b.push_op(OpF16ToF32 {
+                    dst: dst.into(),
+                    src: flush16.into(),
+                });
+            }
             nir_op_fsin => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.fsincos_32_to(dst.into(), srcs(0), false);
