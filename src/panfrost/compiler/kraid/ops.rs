@@ -1811,6 +1811,35 @@ impl fmt::Display for OpLdExp {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum GClkSource {
+    CycleCounter,
+    SystemTimestamp,
+}
+
+impl fmt::Display for GClkSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GClkSource::CycleCounter => write!(f, ".cycle_counter"),
+            GClkSource::SystemTimestamp => write!(f, ".system_timestamp"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpLdGClk {
+    #[dst_type(I64)]
+    pub dst: Dst,
+    pub source: GClkSource,
+}
+
+impl fmt::Display for OpLdGClk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = LD_GCLK{}", &self.dst, self.source)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
@@ -2993,6 +3022,7 @@ pub enum Op {
     IToF32(Box<OpIToF32>),
     LdCvt(Box<OpLdCvt>),
     LdExp(Box<OpLdExp>),
+    LdGClk(Box<OpLdGClk>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
     LeaBuf(Box<OpLeaBuf>),

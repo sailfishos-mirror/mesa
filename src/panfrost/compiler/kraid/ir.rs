@@ -1697,6 +1697,8 @@ pub struct ShaderInfo {
     pub tls_size: u32,
     /// Bitset of preloaded registers
     pub register_preload: u64,
+    /// True if we have OpLdGclk
+    pub has_ld_gclk: bool,
 }
 
 pub struct Shader<'a> {

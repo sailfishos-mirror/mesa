@@ -1662,6 +1662,19 @@ impl<'a> ShaderFromNir<'a> {
                     lane,
                 });
             }
+            nir_intrinsic_shader_clock => {
+                assert_eq!(intrin.def.bit_size * intrin.def.num_components, 64);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdGClk {
+                    dst,
+                    source: match intrin.memory_scope() {
+                        SCOPE_SUBGROUP => GClkSource::CycleCounter,
+                        SCOPE_DEVICE => GClkSource::SystemTimestamp,
+                        _ => panic!("Invalid OpReadClock scope"),
+                    },
+                });
+                self.info.has_ld_gclk = true;
+            }
             nir_intrinsic_store_global => {
                 let bits = srcs[0].bit_size() * srcs[0].num_components();
                 let mut data = self.get_src(&srcs[0]);

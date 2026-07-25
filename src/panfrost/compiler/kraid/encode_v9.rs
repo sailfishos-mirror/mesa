@@ -1800,6 +1800,23 @@ impl V9Instr for OpLdExp {
     }
 }
 
+impl V9Instr for OpLdGClk {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(LdGclk::get_info((), arch), src_map! {})
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LdGclk {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            source: match self.source {
+                GClkSource::CycleCounter => LdGclkSourceM::CycleCounter,
+                GClkSource::SystemTimestamp => LdGclkSourceM::SystemTimestamp,
+            },
+        })
+    }
+}
+
 impl V9Instr for OpLdPka {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2626,6 +2643,7 @@ macro_rules! v9_op_match_else {
             Op::IToF32($x) => $y,
             Op::LdCvt($x) => $y,
             Op::LdExp($x) => $y,
+            Op::LdGClk($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
             Op::LeaBuf($x) => $y,
