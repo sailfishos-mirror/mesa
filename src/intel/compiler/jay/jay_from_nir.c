@@ -858,6 +858,16 @@ emit_lsc_fence(struct nir_to_jay_state *nj,
       sfid == GEN_SFID_SLM ? LSC_FLUSH_TYPE_NONE :
                              translate_flush_type(params->memory_semantics);
 
+   if (!(params->memory_semantics & NIR_MEMORY_RELEASE) &&
+       scope == LSC_FENCE_THREADGROUP) {
+      /* Acquire fences with threadgroup scope or below are NOP in this case,
+       * the release fences in any associated release sequences and schedule
+       * barrier we emit before acquire fences should already give us all the
+       * ordering we need.
+       */
+      return;
+   }
+
    jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
    uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, flushtype, false);
 
@@ -869,6 +879,13 @@ static void
 jay_emit_memory_barrier(struct nir_to_jay_state *nj,
                         const struct jay_barrier_params *params)
 {
+   if (params->memory_semantics & NIR_MEMORY_ACQUIRE) {
+      /* Ensures that prior atomics (including atomic reads) across all shared
+       * functions are sequenced before a barrier with acquire semantics.
+       */
+      jay_SCHEDULE_BARRIER(&nj->bld);
+   }
+
    if (params->memory_modes & nir_var_image) {
       emit_lsc_fence(nj, GEN_SFID_TGM, params);
       assert(!nj->nir->info.use_lowered_image_to_global && "fix common code");
@@ -885,6 +902,14 @@ jay_emit_memory_barrier(struct nir_to_jay_state *nj,
    if ((params->memory_modes & nir_var_mem_shared) &&
        !jay_workgroup_is_one_subgroup(&nj->bld, nj->nir)) {
       emit_lsc_fence(nj, GEN_SFID_SLM, params);
+   }
+
+   if (params->memory_semantics & NIR_MEMORY_RELEASE) {
+      /* Ensure that control barriers and subsequent atomics (including atomic
+       * writes) across all shared functions are sequenced after a barrier with
+       * release semantics.
+       */
+      jay_SCHEDULE_BARRIER(&nj->bld);
    }
 }
 
@@ -924,8 +949,6 @@ static void
 jay_emit_barrier_s(struct nir_to_jay_state *nj,
                    const struct jay_barrier_params *params)
 {
-   jay_SCHEDULE_BARRIER(&nj->bld);
-
    if (params->memory_scope != SCOPE_NONE) {
       jay_emit_memory_barrier(nj, params);
    }
