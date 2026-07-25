@@ -359,6 +359,48 @@ opt_uub_imul(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
    return false;
 }
 
+/* shr(iadd(src0, src1), #c) -> shr(src0, #c) if src1 is fully shifted away. */
+static bool
+opt_uub_shr(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+{
+   assert(alu->op == nir_op_ishr || alu->op == nir_op_ushr);
+
+   nir_scalar src, shift;
+   unsigned const_src_idx;
+
+   if (!get_src_and_const(alu, &src, &shift, &const_src_idx) || const_src_idx != 1)
+      return false;
+
+   if (!nir_scalar_is_alu(src))
+      return false;
+
+   unsigned cshift = nir_scalar_as_uint(shift) & (alu->def.bit_size - 1);
+
+   nir_op op = nir_scalar_alu_op(src);
+
+   if (!op_is_add_or(op))
+      return false;
+
+   nir_scalar iadd_src[2] = {
+      nir_scalar_chase_alu_src(src, 0),
+      nir_scalar_chase_alu_src(src, 1),
+   };
+
+   for (unsigned i = 0; i < 2; i++) {
+      if (uub(state, iadd_src[i]) > BITFIELD64_MASK(cshift))
+         continue;
+
+      if (op == nir_op_iadd && num_lsb_zero(state, iadd_src[!i]) < cshift)
+         continue;
+
+      nir_src_rewrite(&alu->src[0].src, iadd_src[!i].def);
+      alu->src[0].swizzle[0] = iadd_src[!i].comp;
+      return true;
+   }
+
+   return false;
+}
+
 static bool
 src_is_const(nir_src *src, void *data)
 {
@@ -402,6 +444,9 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
       return opt_uub_minmax(b, alu, state);
    case nir_op_imul:
       return opt_uub_imul(b, alu, state);
+   case nir_op_ishr:
+   case nir_op_ushr:
+      return opt_uub_shr(b, alu, state);
    default:
       return false;
    }
