@@ -1334,15 +1334,23 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
    if (num_srcs)
       fprintf(fp, ")");
 
+   unsigned num_printed_indices = 0;
+
    for (unsigned i = 0; i < info->num_indices; i++) {
       unsigned idx = info->indices[i];
 
-      /* Skip "general" to denoise since it is the unremarkable default case */
+      /* Skip some unremarkable default cases. */
       if (idx == NIR_INTRINSIC_PREAMBLE_CLASS &&
           nir_intrinsic_preamble_class(instr) == nir_preamble_class_general)
          continue;
+      if (idx == NIR_INTRINSIC_ARG_NUM_LSB_ZERO &&
+          nir_intrinsic_arg_num_lsb_zero(instr) == 0)
+         continue;
+      if (idx == NIR_INTRINSIC_ARG_UPPER_BOUND_U32_AMD &&
+          nir_intrinsic_arg_upper_bound_u32_amd(instr) == 0)
+         continue;
 
-      if (i == 0)
+      if (num_printed_indices++ == 0)
          fprintf(fp, " (");
       else
          fprintf(fp, ", ");
@@ -1868,7 +1876,7 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
       }
       }
    }
-   if (info->num_indices)
+   if (num_printed_indices)
       fprintf(fp, ")");
 
    if (!state->shader)
