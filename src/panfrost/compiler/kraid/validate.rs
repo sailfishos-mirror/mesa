@@ -96,25 +96,38 @@ impl Shader<'_> {
             blocks.insert(bb.label);
         }
 
-        let mut allow_reg_in = true;
-        let mut allow_non_reg_out = true;
         let mut ssa_vals: FxHashSet<SSAValue> = Default::default();
-        for (bi, bb) in self.blocks.iter().enumerate() {
-            for i in &bb.instrs {
-                if matches!(&i.op, Op::RegIn(_)) {
-                    assert!(bi == 0);
-                    assert!(allow_reg_in);
-                } else if !matches!(&i.op, Op::Nop(_)) {
-                    allow_reg_in = false;
+        for (bi, block) in self.blocks.iter().enumerate() {
+            let mut is_prelude = true;
+            for instr in block.instrs.iter() {
+                if matches!(&instr.op, Op::RegIn(_)) {
+                    assert!(bi == 0, "OpRegIn is not in the start block");
                 }
 
-                if matches!(&i.op, Op::RegOut(_)) {
-                    allow_non_reg_out = false;
-                } else if !matches!(&i.op, Op::Nop(_)) {
-                    assert!(allow_non_reg_out);
+                if BasicBlock::is_prelude_instr(instr) {
+                    assert!(
+                        is_prelude,
+                        "Misplaced prelude instr in block {}: {}",
+                        block.label, instr,
+                    );
+                } else {
+                    is_prelude = false;
                 }
 
-                validate_instr(&i, &mut ssa_vals);
+                validate_instr(instr, &mut ssa_vals);
+            }
+
+            let mut is_postlude = true;
+            for instr in block.instrs.iter().rev() {
+                if BasicBlock::is_postlude_instr(instr) {
+                    assert!(
+                        is_postlude,
+                        "Misplaced postlude instr in block {}: {}",
+                        block.label, instr,
+                    );
+                } else {
+                    is_postlude = false;
+                }
             }
         }
     }
