@@ -179,8 +179,21 @@ algebraic_late += [
     (('uror', a, b), ('rrot_or_pan', a, ('u2u8', b), 0), 'is_kraid'),
 ]
 
+def unpack_16_2x8_y(x):
+    return ('u2u8', ('extract_u8', x, 1))
+
 # Kraid doesn't have [iu]mul_high but it does have [iu]mul_2x32_64
 algebraic_late += [
+    (('imul_high', 'a@8', 'b@8'),
+     unpack_16_2x8_y(('imul', ('i2i16', a), ('i2i16', b))), 'is_kraid'),
+    (('umul_high', 'a@8', 'b@8'),
+     unpack_16_2x8_y(('imul', ('u2u16', a), ('u2u16', b))), 'is_kraid'),
+
+    (('imul_high', 'a@16', 'b@16'),
+     ('unpack_32_2x16_split_y', ('imul', ('i2i32', a), ('i2i32', b))), 'is_kraid'),
+    (('umul_high', 'a@16', 'b@16'),
+     ('unpack_32_2x16_split_y', ('imul', ('u2u32', a), ('u2u32', b))), 'is_kraid'),
+
     (('imul_high', 'a@32', 'b@32'),
      ('unpack_64_2x32_split_y', ('imul_2x32_64', a, b)), 'is_kraid'),
     (('umul_high', 'a@32', 'b@32'),
