@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::debug::*;
 use crate::ir::*;
 use rustc_hash::FxHashSet;
 
@@ -86,6 +87,10 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
 
 impl Shader<'_> {
     pub fn validate(&self) {
+        if !cfg!(debug_assertions) && !DEBUG.contains(DebugFlags::VALIDATE) {
+            return;
+        }
+
         let mut blocks: FxHashSet<Label> = Default::default();
         for bb in &self.blocks {
             blocks.insert(bb.label);

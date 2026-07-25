@@ -36,6 +36,7 @@ mod debug {
     bitflags::bitflags! {
         pub struct DebugFlags: u32 {
             const PRINT = 1 << 0;
+            const VALIDATE = 1 << 1;
         }
     }
 
@@ -49,6 +50,7 @@ mod debug {
         for flag in debug_str.split(',') {
             match flag.trim() {
                 "print" => flags |= DebugFlags::PRINT,
+                "validate" => flags |= DebugFlags::VALIDATE,
                 unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
             }
         }
