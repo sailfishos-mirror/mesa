@@ -847,8 +847,8 @@ genX(cmd_dispatch_unaligned)(
 
    /* RT shaders have Y and Z local size set to 1 always. */
    assert(prog_data->local_size[1] == 1 && prog_data->local_size[2] == 1);
-   /* RT shaders dispatched with group Y and Z set to 1 always. */
-   assert(groupCountY == 1 && groupCountZ == 1);
+   /* RT shaders dispatched with group Z set to 1 always. */
+   assert(groupCountZ == 1);
 
    anv_measure_snapshot(cmd_buffer,
                         INTEL_SNAPSHOT_COMPUTE,
