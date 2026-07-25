@@ -1964,8 +1964,21 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_begin_invocation_interlock:
+      jay_CHECK_TDR(b);
+      jay_emit_barrier(nj, .memory_scope = SCOPE_WORKGROUP,
+                       .memory_semantics = NIR_MEMORY_ACQUIRE,
+                       .memory_modes = nir_var_mem_global |
+                                       nir_var_mem_ssbo |
+                                       nir_var_image);
+      break;
+
    case nir_intrinsic_end_invocation_interlock:
-      UNREACHABLE("TODO");
+      jay_emit_barrier(nj, .memory_scope = SCOPE_WORKGROUP,
+                       .memory_semantics = NIR_MEMORY_RELEASE,
+                       .memory_modes = nir_var_mem_global |
+                                       nir_var_mem_ssbo |
+                                       nir_var_image);
+      break;
 
    case nir_intrinsic_load_reloc_const_intel:
       jay_RELOC(b, dst, nir_intrinsic_param_idx(intr),
