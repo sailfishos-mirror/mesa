@@ -83,12 +83,21 @@ convert_def(nir_builder *b, nir_def *def, convert_address_format_state *state)
          nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
 
          switch (intrin->intrinsic) {
-         case nir_intrinsic_load_deref:
          case nir_intrinsic_store_deref:
-         case nir_intrinsic_load_deref_block_intel:
          case nir_intrinsic_store_deref_block_intel:
          case nir_intrinsic_deref_atomic:
          case nir_intrinsic_deref_atomic_swap:
+            /* These all take a deref as the first src, followed by one or
+             * more non-deref args.  If a non-deref src is the use, it must
+             * be converted back to the original address format.
+             */
+            if (&intrin->src[0] == use)
+               continue;
+
+            break;
+
+         case nir_intrinsic_load_deref:
+         case nir_intrinsic_load_deref_block_intel:
          case nir_intrinsic_deref_buffer_array_length:
          case nir_intrinsic_deref_mode_is:
          case nir_intrinsic_launch_mesh_workgroups_with_payload_deref:
