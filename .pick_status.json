@@ -1114,7 +1114,7 @@
         "description": "nir/convert_address_format: Handle non-deref sources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e714497981912849d2c146575077eb2c7daf2731",
         "notes": null
