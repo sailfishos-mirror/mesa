@@ -559,18 +559,32 @@ anv_encode_as_batch(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
-   if (nodes == 0)
-      return;
+   uint i = 0;
+   for (; i < batch->count &&
+          align(batch->ordered[i].leaf_node_count, 32) >= node_offset + nodes; i++);
 
-   const struct encode_args args = {
-      .batch_args = batch->buffer_pa,
-      .batch_offset = 0,
-      .start_node_offset = node_offset,
-   };
-   anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
+   if (i > 0) {
+      const struct encode_args args = {
+         .batch_args = batch->buffer_pa,
+         .batch_offset = 0,
+         .start_node_offset = node_offset,
+      };
+      anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 
-   anv_genX(cmd_buffer->device->info, cmd_dispatch_unaligned)
-      (commandBuffer, align(nodes, 32), batch->count, 1);
+      anv_genX(cmd_buffer->device->info, cmd_dispatch_unaligned)
+         (commandBuffer, MIN2(nodes, align(batch->max_leaf_count, 32)), i, 1);
+   }
+
+   for (; i < batch->count && align(batch->ordered[i].leaf_node_count, 32) > node_offset; i++) {
+      const struct encode_args args = {
+         .batch_args = batch->buffer_pa,
+         .batch_offset = i,
+         .start_node_offset = node_offset,
+      };
+      anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
+      anv_genX(cmd_buffer->device->info, cmd_dispatch_unaligned)
+         (commandBuffer, align(batch->ordered[i].leaf_node_count - node_offset, 32), 1, 1);
+   }
 }
 
 static VkResult
@@ -600,8 +614,16 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
    anv_bvh_build_bind_pipeline(commandBuffer, ANV_OBJECT_KEY_BVH_ENCODE, encode_spv,
                                sizeof(encode_spv), sizeof(struct encode_args), build_flags);
 
-   anv_encode_as_batch(commandBuffer, states, build_count, build_flags,
-                       batch, batch->max_leaf_count, 0);
+   /* Encode root nodes first, then direct children of roots, followed by
+    * remaining nodes. Ordering thread execution from root -> leaf across all
+    * batches in parallel improves performance. Final dispatch is not batched
+    * to avoid thread wastage for shorter trees.
+    */
+   for (uint nodes = 32, node_offset = 0; node_offset < batch->max_leaf_count; nodes *= 4) {
+      anv_encode_as_batch(commandBuffer, states, build_count, build_flags,
+                          batch, nodes, node_offset);
+      node_offset += nodes;
+   }
 
    trace_intel_end_as_encode(&cmd_buffer->trace, build_flags);
    free(batch);
