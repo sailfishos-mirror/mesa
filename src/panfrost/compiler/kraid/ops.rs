@@ -2243,6 +2243,10 @@ impl fmt::Display for OpPhiSrc {
 }
 
 impl VirtualOpcode for OpPhiSrc {
+    fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
+        true
+    }
+
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         match self.src_type {
             DataType::I8 => matches!(
