@@ -1391,12 +1391,23 @@ nvk_get_device_properties(const struct nvk_instance *instance,
       VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
       VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT,
       VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
+      /* Keep the video layouts last: they are only reported when the video
+       * extensions are enabled and are trimmed off otherwise.
+       */
+      VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
+      VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR,
+      VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
    };
 
+   uint32_t supported_layout_count = ARRAY_SIZE(supported_layouts);
+   if (!(instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) ||
+       !info->has_video || !VIDEO_CODEC_H264DEC)
+      supported_layout_count -= 3;
+
    properties->pCopySrcLayouts = (VkImageLayout *)supported_layouts;
-   properties->copySrcLayoutCount = ARRAY_SIZE(supported_layouts);
+   properties->copySrcLayoutCount = supported_layout_count;
    properties->pCopyDstLayouts = (VkImageLayout *)supported_layouts;
-   properties->copyDstLayoutCount = ARRAY_SIZE(supported_layouts);
+   properties->copyDstLayoutCount = supported_layout_count;
 
    STATIC_ASSERT(sizeof(instance->driver_build_sha) >= VK_UUID_SIZE);
    memcpy(properties->optimalTilingLayoutUUID,
