@@ -82,7 +82,7 @@ jay_normalize_uflag(enum jay_file x)
 #define JAY_MAX_OPERANDS             (JAY_MAX_SRCS + JAY_MAX_DESTS)
 #define JAY_MAX_FLAGS                (8)
 #define JAY_MAX_SAMPLER_MESSAGE_SIZE (11)
-#define JAY_MAX_PHYS_GRF             (128)
+#define JAY_MAX_PHYS_GRF             (256)
 #define JAY_NUM_UGPR                 (1024)
 #define JAY_REG_BITS                 (17)
 
