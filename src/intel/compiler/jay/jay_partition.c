@@ -84,7 +84,10 @@ struct jay_partition_builder {
 };
 
 static void
-build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
+build_partition(jay_shader *shader,
+                unsigned hw_grfs,
+                struct jay_partition_builder *b,
+                unsigned n)
 {
    unsigned base_grf = 0, base_gpr[JAY_NUM_RA_FILES] = { 0 };
    struct jay_partition *p = &shader->partition;
@@ -147,7 +150,7 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
          }
 
          assert(len_grf > 0 && "no empty partitions");
-         assert(B.start_grf + len_grf <= JAY_NUM_PHYS_GRF && "GRF file size");
+         assert(B.start_grf + len_grf <= hw_grfs && "GRF file size");
          assert(!BITSET_TEST_COUNT(regs, B.start_grf, len_grf) && "uniqueness");
 
          /* This requirement avoids invalid constructions like g127<2> */
@@ -160,7 +163,7 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
       }
    }
 
-   assert(BITSET_COUNT(regs) == JAY_NUM_PHYS_GRF && "all GRFs mapped");
+   assert(BITSET_COUNT(regs) == hw_grfs && "all GRFs mapped");
 }
 
 static inline unsigned
@@ -350,6 +353,8 @@ jay_partition_grf(jay_shader *shader)
 
    unsigned mapped_accums = grf_per_gpr == 1 ? 2 : 0;
 
+   const unsigned hw_grfs = 128;
+
    for (unsigned spilling = 0; spilling <= 1; spilling++) {
       /* There is an interdependence between partition choice and spilling,
        * because spilling requires reserved UGPRs for the lowered SENDs. The
@@ -370,8 +375,7 @@ jay_partition_grf(jay_shader *shader)
                                       min_grf[JAY_STRIDE_2] +
                                       special_4;
 
-      if ((uniform_grfs + estimate_nonunif_grf + bonus_grfs) <=
-          JAY_NUM_PHYS_GRF) {
+      if ((uniform_grfs + estimate_nonunif_grf + bonus_grfs) <= hw_grfs) {
          uniform_grfs += bonus_grfs;
       }
 
@@ -388,9 +392,9 @@ jay_partition_grf(jay_shader *shader)
 
       /* Finally, we need to snap to GPR bounds */
       uniform_grfs = CLAMP(uniform_grfs, DIV_ROUND_UP(min_ugprs, ugpr_per_grf),
-                           128 - (32 * grf_per_gpr));
+                           hw_grfs - (32 * grf_per_gpr));
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
-      nonuniform_grfs = JAY_NUM_PHYS_GRF - uniform_grfs;
+      nonuniform_grfs = hw_grfs - uniform_grfs;
 
       /* Set the targets for the virtual register file accordingly */
       shader->num_regs[GPR] = (nonuniform_grfs / grf_per_gpr) + mapped_accums;
@@ -485,10 +489,10 @@ jay_partition_grf(jay_shader *shader)
 
    shader->num_regs[FLAG] = hw_flags;
 
-   build_partition(shader, blocks, ARRAY_SIZE(blocks));
+   build_partition(shader, hw_grfs, blocks, ARRAY_SIZE(blocks));
 
    /* By construction of our partition, the entire GRF is used. */
-   shader->prog_data->base.grf_used = JAY_NUM_PHYS_GRF;
+   shader->prog_data->base.grf_used = hw_grfs;
 
    /* Spill as needed to fit within the partition we picked. */
    jay_foreach_function(shader, f) {
