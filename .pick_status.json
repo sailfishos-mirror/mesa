@@ -2574,7 +2574,7 @@
         "description": "anv: fix push buffer descriptor address relocation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1ffdbe276dbc4992bb8f0ac35eede4f0eeafc5d7",
         "notes": null
