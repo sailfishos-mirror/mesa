@@ -82,7 +82,7 @@ jay_normalize_uflag(enum jay_file x)
 #define JAY_MAX_OPERANDS             (JAY_MAX_SRCS + JAY_MAX_DESTS)
 #define JAY_MAX_FLAGS                (8)
 #define JAY_MAX_SAMPLER_MESSAGE_SIZE (11)
-#define JAY_NUM_PHYS_GRF             (128)
+#define JAY_MAX_PHYS_GRF             (128)
 #define JAY_NUM_UGPR                 (1024)
 #define JAY_REG_BITS                 (17)
 
@@ -1214,8 +1214,8 @@ typedef struct jay_block {
    struct u_sparse_bitset live_in;
    struct u_sparse_bitset live_out;
 
-   BITSET_DECLARE(postra_gpr_live_in, JAY_NUM_PHYS_GRF);
-   BITSET_DECLARE(postra_gpr_live_out, JAY_NUM_PHYS_GRF);
+   BITSET_DECLARE(postra_gpr_live_in, JAY_MAX_PHYS_GRF);
+   BITSET_DECLARE(postra_gpr_live_out, JAY_MAX_PHYS_GRF);
 
    /* Last-use bit for each non-null index in each source in each instruction in
     * the block, source order, left-to-right.

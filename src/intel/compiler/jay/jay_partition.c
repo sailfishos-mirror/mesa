@@ -139,7 +139,7 @@ build_partition(jay_shader *shader,
    }
 
    /* Validate the well formedness of the partition we built above */
-   BITSET_DECLARE(regs, JAY_NUM_PHYS_GRF) = { 0 };
+   BITSET_DECLARE(regs, JAY_MAX_PHYS_GRF) = { 0 };
 
    for (enum jay_file file = 0; file < JAY_NUM_GRF_FILES; ++file) {
       for (unsigned b = 0; b < p->nr_blocks[file]; ++b) {
