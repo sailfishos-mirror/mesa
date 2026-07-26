@@ -184,3 +184,19 @@ gmem-dEQP-VK.memory.pipeline_barrier.host_write_uniform_texel_buffer.65536,Fail
 
 # Some buffer values were incorrect
 dEQP-VK.sparse_resources.buffer.ssbo.read_write.sparse_residency_non_resident_strict,Fail
+
+#
+# OpenCL-CTS
+#
+
+# float controls?
+SPIRV new,Fail
+SPIRV new@op_neg_half,Fail
+SPIRV new@op_spec_constant_half_simple,Fail
+
+Atomics,Fail
+Atomics@atomic_and,Fail
+Atomics@atomic_or,Fail
+
+# Unhandled intrinsic type: quad_vote_all
+Subgroups,Crash

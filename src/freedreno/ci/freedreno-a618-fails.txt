@@ -487,3 +487,16 @@ dEQP-VK.renderpasses.renderpass2.custom_resolve.monolithic.fdm_nonsubsampled_mul
 dEQP-VK.renderpasses.renderpass2.custom_resolve.monolithic.fdm_nonsubsampled_with_offset,Fail
 gmem-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.fdm_nonsubsampled_with_offset,Fail
 gmem-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.monolithic.fdm_nonsubsampled_multilayer_with_offset,Fail
+
+#
+# OpenCL-CTS
+#
+
+# float controls?
+SPIRV new,Fail
+SPIRV new@op_neg_half,Fail
+SPIRV new@op_spec_constant_half_simple,Fail
+
+# crashes with wave128, passes with wave64 (and gen8+)
+Subgroups,Fail
+Subgroups@subgroup_functions_ballot,Fail

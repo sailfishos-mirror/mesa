@@ -25,6 +25,7 @@
         - src/freedreno/ci/$GPU_VERSION-fails.txt
         - src/freedreno/ci/$GPU_VERSION-flakes.txt
         - src/freedreno/ci/$GPU_VERSION-skips.txt
+        - src/freedreno/ci/$GPU_VERSION-single-thread.txt
         - src/freedreno/ci/$GPU_VERSION-slow-skips.txt
         - src/freedreno/ci/$PIGLIT_TRACES_FILE
         - src/freedreno/ci/$REPLAY_CONFIG
@@ -277,6 +278,15 @@
     - !reference [.test, rules]
     - !reference [.qualcomm-freedreno-manual-rules, rules]
     - !reference [.qualcomm-turnip-manual-rules, rules]
+
+.freedreno-opencl-cts:
+  extends:
+    - .test-opencl-cts
+  timeout: 2h
+  variables:
+    DEQP_SUITE: freedreno-opencl-cts-quick
+    FREEDRENO_HANGCHECK_MS: 50000
+    HWCI_START_WESTON: 1
 
 # Status: https://lava.collabora.dev/scheduler/device_type/dragonboard-410c
 .lava-dragonboard-410c:arm64:

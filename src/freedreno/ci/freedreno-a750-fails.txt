@@ -80,3 +80,53 @@ dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.storage_texel_buf
 dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_large2,Crash
 dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_small2,Crash
 gmem-dEQP-VK.synchronization2.internally_synchronized_queues.bind_sparse_small2,Crash
+
+#
+# OpenCL-CTS
+#
+
+# float controls?
+SPIRV new,Fail
+SPIRV new@op_neg_half,Fail
+SPIRV new@op_spec_constant_half_simple,Fail
+
+# crashes with wave128, passes with wave64 (and gen8+)
+Subgroups,Fail
+Subgroups@subgroup_functions_clustered_reduce,Fail
+Subgroups@subgroup_functions_ballot,Fail
+
+# timestamp queries seem problematic on a750:
+Device timer,Fail
+Device timer@device_and_host_timers,Fail
+Profiling,Fail
+Profiling@copy_array,Fail
+Profiling@copy_image,Fail
+Profiling@copy_partial_array,Fail
+Profiling@execute,Fail
+Profiling@profiling_timebase,Fail
+Profiling@read_array_char,Fail
+Profiling@read_array_float,Fail
+Profiling@read_array_int,Fail
+Profiling@read_array_long,Fail
+Profiling@read_array_short,Fail
+Profiling@read_array_struct,Fail
+Profiling@read_array_uchar,Fail
+Profiling@read_array_uint,Fail
+Profiling@read_array_ulong,Fail
+Profiling@read_array_ushort,Fail
+Profiling@read_image_char,Fail
+Profiling@read_image_float,Fail
+Profiling@read_image_uchar,Fail
+Profiling@write_array_char,Fail
+Profiling@write_array_float,Fail
+Profiling@write_array_int,Fail
+Profiling@write_array_long,Fail
+Profiling@write_array_short,Fail
+Profiling@write_array_struct,Fail
+Profiling@write_array_uchar,Fail
+Profiling@write_array_uint,Fail
+Profiling@write_array_ulong,Fail
+Profiling@write_array_ushort,Fail
+Profiling@write_image_char,Fail
+Profiling@write_image_float,Fail
+Profiling@write_image_uchar,Fail
