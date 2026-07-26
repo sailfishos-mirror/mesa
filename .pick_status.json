@@ -1894,7 +1894,7 @@
         "description": "virtio: magma-gpu-rs: accept a null device in virtgpu_kumquat_finish",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f2b07903abaf348151aad02116585367d7d42f51",
         "notes": null
