@@ -3187,6 +3187,11 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
    const bool key_frame = std_pic->frame_type == STD_VIDEO_VP9_FRAME_TYPE_KEY;
    const bool key_frame_or_intra_only =
       std_pic->flags.intra_only || std_pic->frame_type == STD_VIDEO_VP9_FRAME_TYPE_KEY;
+   /* Key, intra-only and error-resilient frames always decode with
+    * probability context 0, regardless of the signalled index. */
+   const uint32_t ctx_idx =
+      (key_frame_or_intra_only || std_pic->flags.error_resilient_mode) ?
+      0 : std_pic->frame_context_idx;
    const StdVideoVP9Segmentation *segmentation = std_pic->pSegmentation;
 
    /* Probability table setting */
@@ -3205,11 +3210,11 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
             BITSET_CLEAR(vid->copy_seg_probs, i);
 
          copy_seg_prob = true;
-      } else if (!BITSET_TEST(vid->copy_seg_probs, std_pic->frame_context_idx)) {
+      } else if (!BITSET_TEST(vid->copy_seg_probs, ctx_idx)) {
          copy_seg_prob_default = true;
       }
       /* Mask for indicating seg probs are copied */
-      BITSET_SET(vid->copy_seg_probs, std_pic->frame_context_idx);
+      BITSET_SET(vid->copy_seg_probs, ctx_idx);
    }
 
 
@@ -3226,7 +3231,7 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
 
    if (reset_all) {
       BITSET_SET(vid->prob_tbl_set, 0);
-      BITSET_SET(vid->frame_ctx_reset_mask, std_pic->frame_context_idx);
+      BITSET_SET(vid->frame_ctx_reset_mask, ctx_idx);
 
       for (int i = 1; i < 4; i++)
          BITSET_CLEAR(vid->frame_ctx_reset_mask, i);
@@ -3388,7 +3393,12 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
    /* 12 bit doesn't support for the moment */
    bool is_10bit = std_pic->pColorConfig->BitDepth > 8;
-   uint32_t prob_id = ANV_VID_MEM_VP9_PROBABILITY_0 + std_pic->frame_context_idx;
+   /* Key, intra-only and error-resilient frames always decode with
+    * probability context 0, regardless of the signalled index. */
+   const uint32_t ctx_idx =
+      (key_frame_or_intra_only || std_pic->flags.error_resilient_mode) ?
+      0 : std_pic->frame_context_idx;
+   uint32_t prob_id = ANV_VID_MEM_VP9_PROBABILITY_0 + ctx_idx;
    bool is_scaling = false;
 
    uint32_t frame_width = frame_info->dstPictureResource.codedExtent.width;
