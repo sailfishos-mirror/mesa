@@ -17,6 +17,7 @@ impl F16 {
     pub const RADIX: u32 = 2;
     pub const BITS: u32 = 16;
     pub const MANTISSA_DIGITS: u32 = 11;
+    pub const ZERO: F16 = F16::from_bits(0x0000);
     pub const EPSILON: F16 = F16::from_bits(0x1400);
     pub const MIN: F16 = F16::from_bits(0xfbff);
     pub const MIN_POSITIVE: F16 = F16::from_bits(0x0001);
@@ -50,6 +51,18 @@ impl F16 {
         F16::from_bits(unsafe { _mesa_float_to_float16_rtne(v) })
     }
 
+    pub fn from_f32_ru(v: f32) -> F16 {
+        F16::from_bits(unsafe { _mesa_float_to_float16_ru(v) })
+    }
+
+    pub fn from_f32_rd(v: f32) -> F16 {
+        F16::from_bits(unsafe { _mesa_float_to_float16_rd(v) })
+    }
+
+    pub fn from_f32_rtz(v: f32) -> F16 {
+        F16::from_bits(unsafe { _mesa_float_to_float16_rtz(v) })
+    }
+
     pub fn from_f64_rtne(v: f64) -> F16 {
         F16::from_bits(unsafe { _mesa_double_to_float16_rtne(v) })
     }
@@ -72,6 +85,14 @@ impl F16 {
 
     pub const fn is_sign_negative(self) -> bool {
         !self.is_sign_positive()
+    }
+
+    pub fn copysign(self, other: F16) -> F16 {
+        if other.is_sign_positive() {
+            self.abs()
+        } else {
+            -self.abs()
+        }
     }
 
     pub const fn to_bits(self) -> u16 {
