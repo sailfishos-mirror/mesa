@@ -535,8 +535,70 @@ fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
     assert_eq!(offset, words.len());
 }
 
+fn folded_eq(
+    a: &[u64],
+    b: &[u64],
+    types: DataTypeIter,
+    precision: Precision,
+) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .zip(types)
+        .all(|((a, b), dtype)| match dtype {
+            DataType::F32 => {
+                let a = f32::from_bits(*a as u32);
+                let b = f32::from_bits(*b as u32);
+                cmp_eq_f32(a, b, precision)
+            }
+            DataType::F16 => {
+                let a = F16::from_bits(*a as u16);
+                let b = F16::from_bits(*b as u16);
+                cmp_eq_f16(a, b, precision)
+            }
+            DataType::V2F16 => {
+                let a0 = F16::from_bits(*a as u16);
+                let b0 = F16::from_bits(*b as u16);
+                let a1 = F16::from_bits((*a >> 16) as u16);
+                let b1 = F16::from_bits((*b >> 16) as u16);
+                cmp_eq_f16(a0, b0, precision) && cmp_eq_f16(a1, b1, precision)
+            }
+            _ => a == b,
+        })
+}
+
+fn format_folded(data: &[u64], types: DataTypeIter) -> String {
+    use std::fmt::Write;
+    let mut s = "[".to_string();
+    for (i, (data, dtype)) in data.iter().zip(types).enumerate() {
+        if i != 0 {
+            write!(s, ", ").unwrap();
+        }
+        match dtype {
+            DataType::F32 => {
+                let f = f32::from_bits(*data as u32);
+                write!(s, "{f}").unwrap();
+            }
+            DataType::F16 => {
+                let f = F16::from_bits(*data as u16);
+                write!(s, "{f}").unwrap();
+            }
+            DataType::V2F16 => {
+                let x = F16::from_bits(*data as u16);
+                let y = F16::from_bits((*data >> 16) as u16);
+                write!(s, "({x}, {y})").unwrap();
+            }
+            _ => {
+                write!(s, "{data}").unwrap();
+            }
+        }
+    }
+    s += "]";
+    s
+}
+
 pub fn test_foldable_op_with(
     mut op: impl Foldable + Clone + Into<Op> + fmt::Debug,
+    precision: Precision,
     mut rand_u32: impl FnMut(usize) -> u32,
 ) {
     let run = RunSingleton::get();
@@ -643,19 +705,25 @@ pub fn test_foldable_op_with(
         };
         op.fold(&*run.model, &mut fold);
 
-        if hw_dst != fold_dst {
+        if !folded_eq(&hw_dst, &fold_dst, op.dst_types(), precision) {
+            let input_s = format_folded(&fold_src, op.src_types());
+            let hw_out_s = format_folded(&hw_dst, op.dst_types());
+            let fold_out_s = format_folded(&fold_dst, op.dst_types());
             eprintln!("Foldable test data mismatch for {op:?}:");
-            eprintln!("| Input:    {:?}", &fold_src);
-            eprintln!("| Hardware: {:?}", &hw_dst);
-            eprintln!("| Folded:   {:?}", &fold_dst);
+            eprintln!("| Input:    {input_s}");
+            eprintln!("| Hardware: {hw_out_s}");
+            eprintln!("| Folded:   {fold_out_s}");
             panic!("Folding test data mismatch");
         }
     }
 }
 
-pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Debug) {
+pub fn test_foldable_op(
+    op: impl Foldable + Clone + Into<Op> + fmt::Debug,
+    precision: Precision,
+) {
     let mut a = Acorn::new();
-    test_foldable_op_with(op, |_| a.get_u32());
+    test_foldable_op_with(op, precision, |_| a.get_u32());
 }
 
 #[test]
@@ -665,7 +733,7 @@ fn test_op_bitrev() {
         src: 0.into(),
     };
 
-    test_foldable_op(op);
+    test_foldable_op(op, Precision::Exact);
 }
 
 #[test]
@@ -699,7 +767,7 @@ fn test_op_clz() {
 
             let mut a = Acorn::new();
             let mut idx = 0usize;
-            test_foldable_op_with(op, |_| {
+            test_foldable_op_with(op, Precision::Exact, |_| {
                 let v = edge_cases
                     .get(idx)
                     .copied()
@@ -748,7 +816,7 @@ fn test_op_csel() {
                 cmp_srcs: [0.into(), 0.into()],
                 sel_srcs: [0.into(), 0.into()],
             };
-            test_foldable_op(op);
+            test_foldable_op(op, Precision::Exact);
         }
     }
 }
@@ -790,7 +858,7 @@ fn test_op_fcmp() {
                     };
                     // Accum is always treated as a bool so let's use 0-1
                     // (otherwise it would always be true)
-                    test_foldable_op_with(op, |i| match i {
+                    test_foldable_op_with(op, Precision::Exact, |i| match i {
                         2 => a.get_u32() % 2,
                         _ => a.get_u32(),
                     });
@@ -822,7 +890,7 @@ fn test_op_iabs() {
                 src: Src::from(0).swizzle(src0_swizzle),
                 dst_type,
             };
-            test_foldable_op(op);
+            test_foldable_op(op, Precision::Exact);
         }
     }
 }
@@ -868,7 +936,7 @@ fn test_op_iadd() {
                     dst_type,
                     saturate,
                 };
-                test_foldable_op(op);
+                test_foldable_op(op, Precision::Exact);
             }
         }
     }
@@ -914,7 +982,7 @@ fn test_op_icmp() {
                     };
                     // Accum is always treated as a bool so let's use 0-1
                     // (otherwise it would always be true)
-                    test_foldable_op_with(op, |i| match i {
+                    test_foldable_op_with(op, Precision::Exact, |i| match i {
                         2 => a.get_u32() % 2,
                         _ => a.get_u32(),
                     });
@@ -961,7 +1029,7 @@ fn test_op_icmp_multi() {
                     accum: 0.into(),
                 };
                 // Accum should be 0, 1, or -1
-                test_foldable_op_with(op, |i| match i {
+                test_foldable_op_with(op, Precision::Exact, |i| match i {
                     2 => (a.get_u32() % 3) - 1,
                     _ => a.get_u32(),
                 });
@@ -985,7 +1053,7 @@ fn test_op_idpadd() {
             srcs: [0.into(), 0.into()],
             accum: 0.into(),
         };
-        test_foldable_op(op);
+        test_foldable_op(op, Precision::Exact);
     }
 
     for &src0_type in SRC_TYPES {
@@ -1004,7 +1072,7 @@ fn test_op_idpadd() {
                     srcs: [0.into(), 0.into()],
                     accum: 0.into(),
                 };
-                test_foldable_op(op);
+                test_foldable_op(op, Precision::Exact);
             }
         }
     }
@@ -1044,7 +1112,7 @@ fn test_op_imul() {
                     dst_type,
                     saturate,
                 };
-                test_foldable_op(op);
+                test_foldable_op(op, Precision::Exact);
             }
         }
     }
@@ -1091,7 +1159,7 @@ fn test_op_isub() {
                     dst_type,
                     saturate,
                 };
-                test_foldable_op(op);
+                test_foldable_op(op, Precision::Exact);
             }
         }
     }
@@ -1117,7 +1185,7 @@ fn test_op_mux() {
                 src1: 0.into(),
                 sel: 0.into(),
             };
-            test_foldable_op(op);
+            test_foldable_op(op, Precision::Exact);
         }
     }
 }
@@ -1129,7 +1197,7 @@ fn test_op_popcount() {
         src: 0.into(),
     };
 
-    test_foldable_op(op);
+    test_foldable_op(op, Precision::Exact);
 }
 
 #[test]
@@ -1177,7 +1245,7 @@ fn test_op_shift_lop() {
                             shift: 0.into(),
                             src2: 0.into(),
                         };
-                        test_foldable_op(op);
+                        test_foldable_op(op, Precision::Exact);
                     }
                 }
             }
