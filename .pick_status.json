@@ -1854,7 +1854,7 @@
         "description": "asahi: ci: Add failing b10g11r11 and e5b9g9r9 copy tests",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
