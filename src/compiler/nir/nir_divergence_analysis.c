@@ -396,6 +396,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_frag_shading_rate_intel:
    case nir_intrinsic_load_msaa_rate_intel:
    case nir_intrinsic_test_fs_config_intel:
+   case nir_intrinsic_select_active_intel:
+   case nir_intrinsic_read_handle_intel:
    case nir_intrinsic_load_ttmp_register_amd:
    case nir_intrinsic_load_scalar_arg_amd:
    case nir_intrinsic_load_ro_sink_address_poly:
@@ -1069,6 +1071,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_dpas_intel:
    case nir_intrinsic_convert_cmat_intel:
    case nir_intrinsic_load_coverage_mask_intel:
+   case nir_intrinsic_gather_lanes_intel:
    case nir_intrinsic_isberd_nv:
    case nir_intrinsic_isbewr_nv:
    case nir_intrinsic_vild_nv:

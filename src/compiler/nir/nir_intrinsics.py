@@ -341,6 +341,9 @@ index("unsigned", "resource_block_intel")
 # Various flags describing the resource access
 index("nir_resource_data_intel", "resource_access_intel")
 
+# Value for inactive lanes in select_active_intel
+index("uint64_t", "inactive_value", size = 2)
+
 # Register metadata
 # number of vector components
 index("unsigned", "num_components")
@@ -2732,6 +2735,26 @@ intrinsic("store_render_target_intel", [4, 4, 1, 1, 1, 1], indices=[TARGET], bit
 # Shuffle with an offset in bytes instead of a lane index.
 # src[] = { payload, lane offset in bytes }
 intrinsic("shuffle_intel", src_comp=[1, 1], dest_comp=0, bit_sizes=src0, flags=SUBGROUP_FLAGS)
+
+# NIR has vec16 but not vec32. Therefore, Jay's subgroup lowering uses opaque
+# convergent "handles" representing a convergent SIMD-width vector (vec32 for
+# SIMD32). read_handle_intel indexes into the underlying (potentially) vec32,
+# returning the vector (base, ..., base + dest_comp - 1).
+intrinsic("read_handle_intel", src_comp=[1], dest_comp=0, bit_sizes=src0,
+          flags=[CAN_ELIMINATE, CAN_REORDER], indices=[BASE])
+
+# Move a divergent value into a convergent SIMD-width vector represented as such
+# a handle. Active lanes are copied as-is. Inactive lanes are filled with the
+# specified inative-value. In other words, select based on the execution mask.
+# src[] = { data }
+intrinsic("select_active_intel", src_comp=[1], dest_comp=1, bit_sizes=src0,
+          flags=SUBGROUP_FLAGS, indices=[INACTIVE_VALUE])
+
+# Gather a SIMD-width convergent NIR vector (possibly split into two vec16
+# sources for SIMD32) and copies the active channels into a divergent NIR
+# definition. Inactive channels are undefined in the divergent result.
+intrinsic("gather_lanes_intel", src_comp=[0, 0], dest_comp=1, bit_sizes=src0,
+          flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # 1 component 32bit surface index that can be used for bindless or BTI heaps
 #
