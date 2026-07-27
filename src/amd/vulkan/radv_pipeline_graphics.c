@@ -2644,7 +2644,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       if (i != MESA_SHADER_MESH && radv_should_export_multiview(&stages[i], gfx_state))
          NIR_PASS(_, stages[i].nir, radv_nir_export_multiview);
 
-      uint64_t remove_as_varying = 0;
+      uint64_t remove_as_varying = VARYING_BIT_PSIZ | VARYING_BIT_LAYER;
       uint64_t remove_as_sysval = 0;
 
       /* Remove all varyings when the fragment shader is a noop. */
@@ -2656,13 +2656,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
        */
       if (gfx_state->enable_remove_point_size && (i != MESA_SHADER_TESS_EVAL || !stages[i].nir->info.tess.point_mode) &&
           (i != MESA_SHADER_GEOMETRY || stages[i].nir->info.gs.output_primitive != MESA_PRIM_POINTS) &&
-          (i != MESA_SHADER_MESH || stages[i].nir->info.mesh.primitive_type != MESA_PRIM_POINTS)) {
-         remove_as_varying |= VARYING_BIT_PSIZ;
+          (i != MESA_SHADER_MESH || stages[i].nir->info.mesh.primitive_type != MESA_PRIM_POINTS))
          remove_as_sysval |= VARYING_BIT_PSIZ;
-      }
-
-      if (!remove_as_varying && !remove_as_sysval)
-         continue;
 
       NIR_PASS(_, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, remove_as_varying, remove_as_sysval);
       break;
