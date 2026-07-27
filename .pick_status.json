@@ -2714,7 +2714,7 @@
         "description": "venus: ensure cached vn_ring_submit batches are bounded",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2cf1f6cb5088dcbe0523616169630e2e1f1de574",
         "notes": null
