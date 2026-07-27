@@ -921,6 +921,103 @@ fn test_op_cubefacemax() {
 }
 
 #[test]
+fn test_op_f16_to_f32() {
+    let op = OpF16ToF32 {
+        dst: DstRef::None.into(),
+        src: 0.into(),
+    };
+    test_foldable_op(op, Precision::Ulp(0));
+}
+
+#[test]
+fn test_op_f32_to_f16() {
+    const ROUND_MODES: &'static [FRound] = &[
+        FRound::NearestEven,
+        FRound::Up,
+        FRound::Down,
+        FRound::TowardsZero,
+    ];
+
+    const CLAMP_MODES: &'static [FClamp] = &[
+        FClamp::None,
+        FClamp::ZeroToInf,
+        FClamp::NegOneToOne,
+        FClamp::ZeroToOne,
+    ];
+    for &round in ROUND_MODES {
+        for &clamp in CLAMP_MODES {
+            let op = OpF32ToF16 {
+                dst: DstRef::None.into(),
+                src: 0.into(),
+                round,
+                clamp,
+            };
+            test_foldable_op(op, Precision::Ulp(0));
+        }
+    }
+}
+
+#[test]
+fn test_op_f32_to_i32() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::S32, DataType::U32];
+
+    const ROUND_MODES: &'static [FRound] = &[
+        FRound::NearestEven,
+        FRound::Up,
+        FRound::Down,
+        FRound::TowardsZero,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for &round in ROUND_MODES {
+            let op = OpF32ToI32 {
+                dst: DstRef::None.into(),
+                src: 0.into(),
+                round,
+                dst_type,
+            };
+            test_foldable_op(op, Precision::Ulp(0));
+        }
+    }
+}
+
+#[test]
+fn test_op_fadd() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const ROUND_MODES: &'static [FRound] = &[
+        FRound::NearestEven,
+        FRound::Up,
+        FRound::Down,
+        FRound::TowardsZero,
+    ];
+
+    const CLAMP_MODES: &'static [FClamp] = &[
+        FClamp::None,
+        FClamp::ZeroToInf,
+        FClamp::NegOneToOne,
+        FClamp::ZeroToOne,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for &round in ROUND_MODES {
+            for &clamp in CLAMP_MODES {
+                let op = OpFAdd {
+                    dst: DstRef::None.into(),
+                    dst_type,
+                    round,
+                    clamp,
+                    srcs: [0.into(), 0.into()],
+                };
+                // FRound is not emulated correctly
+                let ulps = if round == FRound::NearestEven { 0 } else { 1 };
+                test_foldable_op(op, Precision::Ulp(ulps));
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_fadd_lscale() {
     const ROUND_MODES: &'static [FRound] = &[
         FRound::NearestEven,
@@ -996,6 +1093,188 @@ fn test_op_fcmp() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn test_op_flush() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const NAN_MODES: &'static [FlushNanMode] = &[
+        FlushNanMode::None,
+        FlushNanMode::FlushNan,
+        FlushNanMode::QuietNan,
+    ];
+
+    for &src_type in DATA_TYPES {
+        for ftz in [false, true] {
+            for flush_inf in [false, true] {
+                for &flush_nan in NAN_MODES {
+                    let op = OpFlush {
+                        dst: DstRef::None.into(),
+                        src_type,
+                        src: 0.into(),
+                        ftz,
+                        flush_inf,
+                        flush_nan,
+                    };
+                    test_foldable_op(op, Precision::Exact);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_op_fma() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const ROUND_MODES: &'static [FRound] = &[
+        FRound::NearestEven,
+        FRound::Up,
+        FRound::Down,
+        FRound::TowardsZero,
+    ];
+
+    const CLAMP_MODES: &'static [FClamp] = &[
+        FClamp::None,
+        FClamp::ZeroToInf,
+        FClamp::NegOneToOne,
+        FClamp::ZeroToOne,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for &round in ROUND_MODES {
+            for &clamp in CLAMP_MODES {
+                let op = OpFma {
+                    dst: DstRef::None.into(),
+                    dst_type,
+                    round,
+                    clamp,
+                    srcs: [0.into(), 0.into(), 0.into()],
+                };
+                // FRound is not emulated correctly, F16 has double-rounding issues
+                test_foldable_op(op, Precision::Ulp(1));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_op_fmin() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const CLAMP_MODES: &'static [FClamp] = &[
+        FClamp::None,
+        FClamp::ZeroToInf,
+        FClamp::NegOneToOne,
+        FClamp::ZeroToOne,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for propagate_nan in [false, true] {
+            for &clamp in CLAMP_MODES {
+                let op = OpFMin {
+                    dst: DstRef::None.into(),
+                    dst_type,
+                    clamp,
+                    propagate_nan,
+                    srcs: [0.into(), 0.into()],
+                };
+                test_foldable_op(op, Precision::Ulp(0));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_op_fmul() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    for &dst_type in DATA_TYPES {
+        let op = OpFMul {
+            dst: DstRef::None.into(),
+            dst_type,
+            srcs: [0.into(), 0.into()],
+        };
+        test_foldable_op(op, Precision::Ulp(0));
+    }
+}
+
+#[test]
+fn test_op_fmax() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const CLAMP_MODES: &'static [FClamp] = &[
+        FClamp::None,
+        FClamp::ZeroToInf,
+        FClamp::NegOneToOne,
+        FClamp::ZeroToOne,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for propagate_nan in [false, true] {
+            for &clamp in CLAMP_MODES {
+                let op = OpFMax {
+                    dst: DstRef::None.into(),
+                    dst_type,
+                    clamp,
+                    propagate_nan,
+                    srcs: [0.into(), 0.into()],
+                };
+                test_foldable_op(op, Precision::Ulp(0));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_op_frcp() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::F16];
+
+    for &dst_type in DATA_TYPES {
+        let op = OpFRcp {
+            dst: DstRef::None.into(),
+            dst_type,
+            src: 0.into(),
+        };
+        // The docs only guarantee a maximum error strictly below 1 ulp
+        test_foldable_op(op, Precision::Ulp(1));
+    }
+}
+
+#[test]
+fn test_op_fround() {
+    const ROUND_MODES: &'static [FRound] = &[
+        FRound::NearestEven,
+        FRound::Up,
+        FRound::Down,
+        FRound::TowardsZero,
+        FRound::NearestValue,
+    ];
+
+    for &round in ROUND_MODES {
+        let op = OpFRound {
+            dst: DstRef::None.into(),
+            round,
+            src: 0.into(),
+        };
+        test_foldable_op(op, Precision::Ulp(0));
+    }
+}
+
+#[test]
+fn test_op_frsq() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::F16];
+
+    for &dst_type in DATA_TYPES {
+        let op = OpFRsq {
+            dst: DstRef::None.into(),
+            dst_type,
+            src: 0.into(),
+        };
+        // Hardware has 1 ULP precision, but we have double-rounding issues
+        test_foldable_op(op, Precision::Ulp(2));
     }
 }
 
