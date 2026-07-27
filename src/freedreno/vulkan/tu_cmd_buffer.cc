@@ -7166,8 +7166,10 @@ tu_CmdSetRenderingAttachmentLocationsKHR(
    /* Same case as a drawcall not writing to some color attachments, but not
     * trying to make LRZ work in cases where we can prove that LRZ can work.
     */
-   if (cmd->state.lrz.valid)
+   if (cmd->state.lrz.valid && !cmd->state.lrz.disable_write_for_rp) {
       tu_lrz_disable_write_for_rp(cmd, "CmdSetRenderingAttachmentLocations");
+      cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
+   }
 
    /* Because this is just a remapping and not a different "reference", there
     * doesn't need to be a barrier between accesses to the same attachment

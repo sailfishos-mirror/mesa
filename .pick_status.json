@@ -2484,7 +2484,7 @@
         "description": "tu: Dirty LRZ after changing attachment locations disable LRZ writes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7ee9835475c8209745f953806f31dae990e31cff",
         "notes": null
