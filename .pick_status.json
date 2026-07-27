@@ -1744,7 +1744,7 @@
         "description": "nir/opt_vectorize: Remove the phis that were combined",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "850768bacbf7ef1c9f45bba58f3979a98d4a8655",
         "notes": null
