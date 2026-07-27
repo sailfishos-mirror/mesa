@@ -192,8 +192,8 @@ struct ac_cs_clear_copy_buffer_dispatch {
 };
 
 nir_shader *
-ac_create_clear_copy_buffer_cs(struct ac_cs_clear_copy_buffer_options *options,
-                               union ac_cs_clear_copy_buffer_key *key);
+ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *options,
+                               const union ac_cs_clear_copy_buffer_key *key);
 
 bool
 ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *options,

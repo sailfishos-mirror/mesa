@@ -44,8 +44,8 @@ load_ssbo_sparse(nir_builder *b, unsigned num_components, unsigned bit_size, nir
 
 /* Create a compute shader implementing clear_buffer or copy_buffer. */
 nir_shader *
-ac_create_clear_copy_buffer_cs(struct ac_cs_clear_copy_buffer_options *options,
-                               union ac_cs_clear_copy_buffer_key *key)
+ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *const options,
+                               const union ac_cs_clear_copy_buffer_key *const key)
 {
    if (options->print_key) {
       fprintf(stderr, "Internal shader: dma\n");
