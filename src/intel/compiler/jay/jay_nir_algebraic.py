@@ -37,11 +37,11 @@ lower_fsign = [
 
     (('iadd', ('imul(is_used_once)', 'a@32', '#b'), c),
      ('umad_32x16_intel', a, ('iand', b, 0xffff),
-                          ('umad_32x16_intel', ('iand', b, 0xffff0000), a, c))),
+      ('umad_32x16_intel', ('iand', b, 0xffff0000), a, c))),
 
     (('imul', 'a@32', '#b'),
      ('umad_32x16_intel', a, ('iand', b, 0xffff),
-                          ('umul_32x16', ('iand', b, 0xffff0000), a))),
+      ('umul_32x16', ('iand', b, 0xffff0000), a))),
 
     (('pack_half_2x16_split', a, b),
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
@@ -50,7 +50,7 @@ lower_fsign = [
 for i in range(2, 15):
     lower_fsign.extend([
         (('iadd', ('ishl(is_only_used_by_iadd)', 'b@32', i), c),
-        ('umad_32x16_intel', b, 1 << i, c)),
+         ('umad_32x16_intel', b, 1 << i, c)),
     ])
 
 

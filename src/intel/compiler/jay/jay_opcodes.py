@@ -242,7 +242,7 @@ op('dpas', 3, 'u32', 0, [
 op('slice_repack', 1, 'u32', 0, [
    'uint8_t factor_log2',
    'bool unpack',
-])
+   ])
 
 # Active lanes select source 0, inactive lanes select the constant value
 op('sel_active', 1, 'u32 u64', 0, ['uint64_t value'])
