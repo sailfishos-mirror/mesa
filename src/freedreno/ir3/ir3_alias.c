@@ -170,13 +170,27 @@ ir3_create_alias_tex_regs(struct ir3 *ir)
       return false;
 
    bool progress = false;
+   bool block_is_predicated = false;
 
    foreach_block (block, &ir->block_list) {
-      foreach_instr (instr, &block->instr_list) {
-         if (supports_alias_srcs(instr)) {
-            progress |= alias_srcs(instr, ir->compiler);
+      /* All current HW has a limitation where alias.tex is not allowed inside a
+       * predt/predf/prede sequence.
+       */
+      if (!ir->compiler->info->props.alias_predication_quirk ||
+          !block_is_predicated) {
+         foreach_instr (instr, &block->instr_list) {
+            if (supports_alias_srcs(instr)) {
+               progress |= alias_srcs(instr, ir->compiler);
+            }
          }
       }
+
+      /* If a block ends in pred[tf] then the subsequent block is predicated
+       * (inside a predt/predf/prede sequence).
+       */
+      struct ir3_instruction *terminator = ir3_block_get_terminator(block);
+      block_is_predicated = terminator &&
+         (terminator->opc == OPC_PREDT || terminator->opc == OPC_PREDF);
    }
 
    return progress;

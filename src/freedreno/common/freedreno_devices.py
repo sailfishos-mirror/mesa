@@ -834,6 +834,7 @@ a7xx_base = GPUProps(
         max_storage_buffer_range_bytes = 1 << 27,
 
         alias_mova_quirk = True,
+        alias_predication_quirk = True,
     )
 
 a7xx_gen1 = GPUProps(
