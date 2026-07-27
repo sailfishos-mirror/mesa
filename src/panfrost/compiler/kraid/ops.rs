@@ -32,7 +32,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 macro_rules! bool_as_mod_str {
-    ($s: expr, $mod: ident) => {
+    ($s: ident . $mod: ident) => {
         if $s.$mod { stringify!(.$mod) } else { "" }
     }
 }
@@ -296,7 +296,7 @@ impl DisplayOp for OpBranch {
         write!(
             f,
             "{} {}{} {}",
-            bool_as_mod_str!(self, not),
+            bool_as_mod_str!(self.not),
             self.fmt_src(&self.cond),
             self.combine_op,
             self.label,
@@ -997,7 +997,7 @@ impl DisplayOp for OpFCosTable {
         write!(
             f,
             "{} {}",
-            bool_as_mod_str!(self, offset),
+            bool_as_mod_str!(self.offset),
             self.fmt_src(&self.src),
         )
     }
@@ -1097,8 +1097,8 @@ impl DisplayOp for OpFlush {
         write!(
             f,
             "{}{}{} {}",
-            bool_as_mod_str!(self, ftz),
-            bool_as_mod_str!(self, flush_inf),
+            bool_as_mod_str!(self.ftz),
+            bool_as_mod_str!(self.flush_inf),
             self.flush_nan,
             self.fmt_src(&self.src),
         )
@@ -1187,7 +1187,7 @@ impl DisplayOp for OpFMax {
         write!(
             f,
             "{}{} {} {}",
-            bool_as_mod_str!(self, propagate_nan),
+            bool_as_mod_str!(self.propagate_nan),
             self.clamp,
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
@@ -1215,7 +1215,7 @@ impl DisplayOp for OpFMin {
         write!(
             f,
             "{}{} {} {}",
-            bool_as_mod_str!(self, propagate_nan),
+            bool_as_mod_str!(self.propagate_nan),
             self.clamp,
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
@@ -1308,7 +1308,7 @@ impl DisplayOp for OpFrexpE {
             f,
             "{}{} {}",
             self.mode,
-            bool_as_mod_str!(self, neg_result),
+            bool_as_mod_str!(self.neg_result),
             self.fmt_src(&self.src),
         )
     }
@@ -1395,7 +1395,7 @@ impl DisplayOp for OpFSinTable {
         write!(
             f,
             "{} {}",
-            bool_as_mod_str!(self, offset),
+            bool_as_mod_str!(self.offset),
             self.fmt_src(&self.src),
         )
     }
@@ -2924,12 +2924,12 @@ impl DisplayOp for OpTexFetch {
         write!(
             f,
             "{}{}{}{}{}{} {} {}",
-            bool_as_mod_str!(self, skip),
+            bool_as_mod_str!(self.skip),
             self.dim,
             self.write_mask,
-            bool_as_mod_str!(self, wide_indices),
-            bool_as_mod_str!(self, array_enable),
-            bool_as_mod_str!(self, texel_offset),
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.texel_offset),
             self.fmt_src(&self.data),
             self.fmt_src(&self.handle),
         )
@@ -2972,14 +2972,14 @@ impl DisplayOp for OpTexGather {
         write!(
             f,
             "{}{}{}{}{}{}{}{}{}{} {} {}",
-            bool_as_mod_str!(self, skip),
+            bool_as_mod_str!(self.skip),
             self.dim,
-            bool_as_mod_str!(self, projection_enable),
+            bool_as_mod_str!(self.projection_enable),
             self.write_mask,
-            bool_as_mod_str!(self, wide_indices),
-            bool_as_mod_str!(self, array_enable),
-            bool_as_mod_str!(self, texel_offset),
-            bool_as_mod_str!(self, compare_enable),
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.texel_offset),
+            bool_as_mod_str!(self.compare_enable),
             self.coord_mode,
             self.gather_comp,
             self.fmt_src(&self.data),
@@ -3037,13 +3037,13 @@ impl DisplayOp for OpTexGradient {
         write!(
             f,
             "{}{}{}{}{}{}{} {} {}",
-            bool_as_mod_str!(self, skip),
+            bool_as_mod_str!(self.skip),
             self.dim,
-            bool_as_mod_str!(self, projection_enable),
-            bool_as_mod_str!(self, wide_indices),
+            bool_as_mod_str!(self.projection_enable),
+            bool_as_mod_str!(self.wide_indices),
             self.coord_mode,
-            bool_as_mod_str!(self, lod_bias_disable),
-            bool_as_mod_str!(self, lod_clamp_disable),
+            bool_as_mod_str!(self.lod_bias_disable),
+            bool_as_mod_str!(self.lod_clamp_disable),
             self.fmt_src(&self.data),
             self.fmt_src(&self.handle),
         )
@@ -3085,14 +3085,14 @@ impl DisplayOp for OpTexSingle {
         write!(
             f,
             "{}{}{}{}{}{}{}{}{} {} {}",
-            bool_as_mod_str!(self, skip),
+            bool_as_mod_str!(self.skip),
             self.dim,
-            bool_as_mod_str!(self, projection_enable),
+            bool_as_mod_str!(self.projection_enable),
             self.write_mask,
-            bool_as_mod_str!(self, wide_indices),
-            bool_as_mod_str!(self, array_enable),
-            bool_as_mod_str!(self, texel_offset),
-            bool_as_mod_str!(self, compare_enable),
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.texel_offset),
+            bool_as_mod_str!(self.compare_enable),
             self.lod_mode,
             self.fmt_src(&self.data),
             self.fmt_src(&self.handle),
