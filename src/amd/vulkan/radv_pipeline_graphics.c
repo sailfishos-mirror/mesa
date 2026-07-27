@@ -1791,22 +1791,9 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
          (ngg_stage == VK_SHADER_STAGE_VERTEX_BIT || ngg_stage == VK_SHADER_STAGE_GEOMETRY_BIT);
    }
 
-   if (compiler_info->smooth_lines) {
-      /* Make the line rasterization mode dynamic for smooth lines to conditionally enable the lowering at draw time.
-       * This is because it's not possible to know if the graphics pipeline will draw lines at this point and it also
-       * simplifies the implementation.
-       */
-      if (BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_LINE_MODE) ||
-          (state->rs && state->rs->line.mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH))
-         key.dynamic_line_rast_mode = true;
-
-      /* For GPL, when the fragment shader is compiled without any pre-rasterization information,
-       * ensure the line rasterization mode is considered dynamic because we can't know if it's
-       * going to draw lines or not.
-       */
-      key.dynamic_line_rast_mode |= !!(lib_flags & VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT) &&
-                                    !(lib_flags & VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT);
-   }
+   key.smooth_lines_may_be_enabled =
+      compiler_info->smooth_lines && (BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_LINE_MODE) || !state->rs ||
+                                      state->rs->line.mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH);
 
    key.dcc_decompress_gfx11 =
       compiler_info->ac->gfx_level >= GFX11 && custom_blend_mode == V_028808_CB_DCC_DECOMPRESS_GFX11;
@@ -2597,7 +2584,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_move_to_top,
                nir_move_to_entry_block_only | nir_move_to_top_input_loads_simple);
 
-      if ((!num_raster_vertices_per_prim || num_raster_vertices_per_prim == 2) && gfx_state->dynamic_line_rast_mode)
+      if ((!num_raster_vertices_per_prim || num_raster_vertices_per_prim == 2) &&
+          gfx_state->smooth_lines_may_be_enabled)
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, RADV_NUM_SMOOTH_AA_SAMPLES);
 
       if (!gfx_state->ps.has_epilog) {
