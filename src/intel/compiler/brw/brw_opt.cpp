@@ -61,13 +61,6 @@ brw_optimize(brw_shader &s)
     */
    OPT(brw_insert_load_reg);
 
-   /* Track how much non-SSA at this point. */
-   {
-      const brw_def_analysis &defs = s.def_analysis.require();
-      s.shader_stats.non_ssa_registers_after_nir =
-         defs.count() - defs.ssa_count();
-   }
-
    do {
       progress = false;
       pass_num = 0;

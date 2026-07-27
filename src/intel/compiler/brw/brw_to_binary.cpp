@@ -2226,7 +2226,6 @@ brw_generator::generate_code(const brw_shader &s,
                  "scheduled with mode %s. "
                  "Promoted %u constants. "
                  "GRF registers: %u. "
-                 "Non-SSA regs (after NIR): %u. "
                  "Compacted %d to %d bytes (%.0f%%)\n",
                  shader_name, prog_data->source_hash, blake3buf,
                  dispatch_width,
@@ -2238,7 +2237,6 @@ brw_generator::generate_code(const brw_shader &s,
                  shader_stats.scheduler_mode,
                  shader_stats.promoted_constants,
                  s.grf_used,
-                 shader_stats.non_ssa_registers_after_nir,
                  before_size, after_size,
                  100.0f * (before_size - after_size) / before_size);
 
@@ -2291,7 +2289,6 @@ brw_generator::generate_code(const brw_shader &s,
       stats->fills = shader_stats.fill_count;
       stats->scratch_memory_size = prog_data->total_scratch;
       stats->max_live_registers = shader_stats.max_register_pressure;
-      stats->non_ssa_regs_after_nir = shader_stats.non_ssa_registers_after_nir;
       stats->source_hash = prog_data->source_hash;
       stats->grf_registers = devinfo->ver >= 30 ? s.grf_used : 0;
 
