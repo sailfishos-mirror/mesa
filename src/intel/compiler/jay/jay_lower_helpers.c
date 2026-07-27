@@ -93,7 +93,7 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
       uint64_t desc = brw_fb_write_desc(b->shader->devinfo, 0, op, true, false);
       uint64_t ex_desc = (1 << 20) /* null rt */;
 
-      send = jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
+      send = jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
                       .msg_desc = desc | (ex_desc << 32), .nr_srcs = 1,
                       .srcs = &dummy, .type = JAY_TYPE_U32, .eot = true);
       send = jay_add_predicate(b, send, jay_negate(ctx->helper_flag));

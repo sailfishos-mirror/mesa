@@ -1151,7 +1151,8 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          srcs[len++] = jay_extract(packed, i);
    }
 
-   jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
+   jay_CHECK_TDR(b);
+   jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
             .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
             .type = JAY_TYPE_U32, .eot = last, .split = pf == GPR ? split : -1,
             .skip_helpers = true);

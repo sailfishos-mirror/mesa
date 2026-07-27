@@ -130,6 +130,7 @@ op('shr', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD | Props.NEGATE0)
 op('quad_swizzle', 1, 'u1 u32', 0, ['enum jay_quad_swizzle swizzle'])
 op('sync', 1, 'u32', Props.NO_DEST, ['enum tgl_sync_function op'])
 op('schedule_barrier', 0, None, Props.NO_DEST)
+op('check_tdr', 0, None, Props.NO_DEST)
 
 for n in ['brd', 'illegal', 'goto', 'join', 'if', 'else',
           'endif', 'while', 'break', 'cont', 'call', 'calla', 'jmpi', 'ret',

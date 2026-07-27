@@ -46,6 +46,7 @@ struct swsb_sbid_edge {
    struct swsb_sbid_state *ctx;
    uint32_t tokens_busy[MAX_SBID_DEP_TYPES];
    BITSET_WORD *tokens_bitset[NUM_TOKENS];
+   bool tdr_state;
 };
 
 /** SBID scoreboarding */
@@ -183,6 +184,8 @@ store_sbid_edge(struct swsb_sbid_edge *dst, const struct swsb_sbid_edge *src)
       release_sbid_bitset(dst->ctx, &dst->tokens_bitset[sbid]);
    }
 
+   dst->tdr_state = src ? src->tdr_state : false;
+
    validate_edge(dst);
 }
 
@@ -234,6 +237,8 @@ merge_sbid_edges(const struct swsb_sbid_edge *a,
    u_foreach_bit(sbid, dst_alloced & ~src_alloced) {
       release_sbid_bitset(out->ctx, &out->tokens_bitset[sbid]);
    }
+
+   out->tdr_state = a->tdr_state | b->tdr_state;
 
    validate_edge(out);
 }
@@ -337,6 +342,7 @@ lower_sbid_local(jay_function *func,
 
    uint32_t busy_src = edge->tokens_busy[SRC];
    uint32_t busy_dst = edge->tokens_busy[DST];
+   bool tdr_state = edge->tdr_state;
 
    unsigned roundrobin = 0;
 
@@ -448,6 +454,8 @@ lower_sbid_local(jay_function *func,
          sync_src |= busy_src & ~busy_dst;
          busy_dst = 0;
          busy_src = 0;
+      } else if (I->op == JAY_OPCODE_CHECK_TDR) {
+         tdr_state = true;
       }
 
       /* Dispose of the bitsets for any synced sbids */
@@ -470,7 +478,18 @@ lower_sbid_local(jay_function *func,
       sync_sbids(&b, sync_dst, GEN_SBID_DST);
       sync_sbids(&b, sync_src, GEN_SBID_SRC);
 
-      if (I->op == JAY_OPCODE_SCHEDULE_BARRIER) {
+      /* Convert all memory volatile SENDs to SENDCs if we have a pending thread
+       * dependency check. This can lead to some unnecessary SENDCs, but it
+       * shouldn't matter for performance unless apps abuse interlocks. SENDC
+       * does not stall the EU on its own, so we would also have to track when
+       * its SBID has cleared if we ever wanted to implement proper elision.
+       */
+      if (tdr_state && I->op == JAY_OPCODE_SEND && !jay_send_pure(I)) {
+         jay_set_send_check_tdr(I, true);
+      }
+
+      if (I->op == JAY_OPCODE_SCHEDULE_BARRIER ||
+          I->op == JAY_OPCODE_CHECK_TDR) {
          /* Lowered above into a sync, but removed late to keep the cursor */
          jay_remove_instruction(I);
       }
@@ -478,6 +497,7 @@ lower_sbid_local(jay_function *func,
 
    edge->tokens_busy[SRC] = busy_src;
    edge->tokens_busy[DST] = busy_dst;
+   edge->tdr_state = tdr_state;
    validate_edge(edge);
 }
 
@@ -774,6 +794,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
 void
 jay_lower_scoreboard_trivial(jay_shader *shader)
 {
+   bool any_check_tdr = false;
    jay_foreach_inst_in_shader_safe(shader, func, I) {
       if (jay_inst_has_sbid(I)) {
          /* DPAS can't have an A@1, so insert an extra SYNC.nop. */
@@ -790,10 +811,20 @@ jay_lower_scoreboard_trivial(jay_shader *shader)
             b.cursor = jay_after_inst(I);
             jay_SYNC(&b, jay_null(), TGL_SYNC_BAR);
          }
+
+      } else if (I->op == JAY_OPCODE_CHECK_TDR) {
+         any_check_tdr = true;
+         jay_remove_instruction(I);
       } else if (I->op == JAY_OPCODE_SCHEDULE_BARRIER) {
          jay_remove_instruction(I);
       } else {
          I->dep = gen_swsb_regdist(1);
+      }
+   }
+
+   jay_foreach_inst_in_shader(shader, func, I) {
+      if (I->op == JAY_OPCODE_SEND) {
+         jay_set_send_check_tdr(I, any_check_tdr);
       }
    }
 }

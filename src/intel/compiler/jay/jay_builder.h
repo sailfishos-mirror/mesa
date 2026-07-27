@@ -471,7 +471,6 @@ struct jayb_send_params {
    uint32_t ex_desc_imm;
    int split; /**< explicit split point */
    bool eot;
-   bool check_tdr;
    bool uniform;
    bool bindless;
    bool pure;
@@ -587,7 +586,6 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
 
    info->sfid = p.sfid;
    info->eot = p.eot;
-   info->check_tdr = p.check_tdr;
    info->bindless = p.bindless;
    info->pure = p.pure;
    info->skip_helpers = p.skip_helpers;
