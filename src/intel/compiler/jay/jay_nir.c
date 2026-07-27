@@ -73,6 +73,85 @@ lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    return false;
 }
 
+static nir_def *
+lower_reduce(nir_builder *b, nir_intrinsic_instr *intr, unsigned simd_width)
+{
+   unsigned cluster_size = nir_intrinsic_cluster_size(intr);
+   nir_op binop = nir_intrinsic_reduction_op(intr);
+   nir_const_value identity = nir_alu_binop_identity(binop, intr->def.bit_size);
+   nir_def *handle = nir_select_active_intel(b, intr->src[0].ssa,
+                                             .inactive_value = identity.u64);
+   if (cluster_size && cluster_size < simd_width) {
+      nir_def *out[32] = {};
+
+      for (unsigned c = 0; c < simd_width / cluster_size; ++c) {
+         nir_def *sum = nir_read_handle_intel(b, 1, handle, c * cluster_size);
+
+         for (unsigned i = 1; i < cluster_size; ++i) {
+            nir_def *x =
+               nir_read_handle_intel(b, 1, handle, (c * cluster_size) + i);
+            sum = nir_build_alu2(b, binop, sum, x);
+         }
+
+         for (unsigned i = 0; i < cluster_size; ++i) {
+            out[(c * cluster_size) + i] = sum;
+         }
+      }
+
+      nir_def *lo = nir_vec(b, out, MIN2(simd_width, 16));
+      nir_def *hi = simd_width == 32 ? nir_vec(b, &out[16], 16) : lo;
+      return nir_gather_lanes_intel(b, lo, hi);
+   } else {
+      nir_def *accum = NULL;
+
+      for (unsigned width = simd_width / 2; width >= 1; width /= 2) {
+         nir_def *lo, *hi;
+         if (accum) {
+            lo = nir_channels(b, accum, nir_component_mask(width));
+            hi = nir_channels(b, accum, nir_component_mask(width) << width);
+         } else {
+            lo = nir_read_handle_intel(b, width, handle, 0);
+            hi = nir_read_handle_intel(b, width, handle, width);
+         }
+
+         if (width == 2 && nir_op_infos[binop].output_type == nir_type_float) {
+            /* Scalarize since otherwise we'd just insert a copy */
+            nir_def *x = nir_build_alu2(b, binop, nir_channel(b, lo, 0),
+                                        nir_channel(b, hi, 0));
+            nir_def *y = nir_build_alu2(b, binop, nir_channel(b, lo, 1),
+                                        nir_channel(b, hi, 1));
+            accum = nir_vec2(b, x, y);
+         } else {
+            accum = nir_build_alu2(b, binop, lo, hi);
+         }
+      }
+
+      return accum;
+   }
+}
+
+static nir_def *
+lower_scan(nir_builder *b, nir_intrinsic_instr *intr, unsigned simd_width)
+{
+   bool exclusive = intr->intrinsic == nir_intrinsic_exclusive_scan;
+   nir_op binop = nir_intrinsic_reduction_op(intr);
+   nir_const_value identity = nir_alu_binop_identity(binop, intr->def.bit_size);
+   nir_def *handle = nir_select_active_intel(b, intr->src[0].ssa,
+                                             .inactive_value = identity.u64);
+   nir_def *out[32] = {};
+   out[0] = exclusive ? nir_imm_intN_t(b, identity.u64, intr->def.bit_size) :
+                        nir_read_handle_intel(b, 1, handle, 0);
+
+   for (unsigned c = 1; c < simd_width; ++c) {
+      nir_def *x = nir_read_handle_intel(b, 1, handle, c - exclusive);
+      out[c] = nir_build_alu2(b, binop, out[c - 1], x);
+   }
+
+   nir_def *lo = nir_vec(b, out, MIN2(simd_width, 16));
+   nir_def *hi = simd_width == 32 ? nir_vec(b, &out[16], 16) : lo;
+   return nir_gather_lanes_intel(b, lo, hi);
+}
+
 static bool
 jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
 {
@@ -136,6 +215,15 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
 
       return true;
    }
+
+   case nir_intrinsic_reduce:
+      nir_def_replace(&intr->def, lower_reduce(b, intr, simd_width));
+      return true;
+
+   case nir_intrinsic_inclusive_scan:
+   case nir_intrinsic_exclusive_scan:
+      nir_def_replace(&intr->def, lower_scan(b, intr, simd_width));
+      return true;
 
    default:
       break;
@@ -942,8 +1030,11 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
    brw_postprocess_nir_opts(pt);
 
-   JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
-                nir_metadata_control_flow, &simd_width);
+   if (JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
+                    nir_metadata_control_flow, &simd_width)) {
+      brw_nir_lower_int64(pt);
+   }
+
    JAY_NIR_PASS(nir_opt_algebraic_late);
    JAY_NIR_PASS(intel_nir_opt_peephole_imul32x16);
 
