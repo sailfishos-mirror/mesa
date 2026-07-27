@@ -56,6 +56,44 @@ update_fotid_alu(nir_builder *b, nir_alu_instr *instr, const radv_nir_opt_tid_fu
    }
 
    instr->instr.pass_flags = (uint8_t)res;
+
+   /* Special case iand(local_index, #c) or iand(local_id.x, #c) where
+    * c < subgroup_size.
+    */
+   if (instr->op == nir_op_iand && !instr->instr.pass_flags &&
+       b->shader->info.derivative_group != DERIVATIVE_GROUP_QUADS) {
+      nir_scalar src[2] = {
+         nir_scalar_resolved(instr->src[0].src.ssa, instr->src[0].swizzle[0]),
+         nir_scalar_resolved(instr->src[1].src.ssa, instr->src[1].swizzle[0]),
+      };
+
+      for (unsigned i = 0; i < 2; i++) {
+         if (!nir_scalar_is_const(src[i]) || nir_scalar_as_uint(src[i]) >= b->shader->info.max_subgroup_size)
+            continue;
+
+         if (!nir_scalar_is_intrinsic(src[!i]))
+            continue;
+
+         switch (nir_scalar_intrinsic_op(src[!i])) {
+         case nir_intrinsic_load_local_invocation_index:
+            break;
+         case nir_intrinsic_load_local_invocation_id:
+            /* workgroup_size.x must be a power of two, otherwise the iand
+             * won't produce the same result for all subgroups.
+             */
+            if (src[!i].comp != 0 || b->shader->info.workgroup_size_variable)
+               continue;
+            if (!util_is_power_of_two_nonzero(b->shader->info.workgroup_size[0]))
+               continue;
+            break;
+         default:
+            continue;
+         }
+
+         instr->instr.pass_flags = 0x1;
+         break;
+      }
+   }
 }
 
 static void
