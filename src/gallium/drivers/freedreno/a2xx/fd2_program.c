@@ -75,8 +75,13 @@ fd2_shader_state_create(struct pipe_context *pctx,
    so->type = so->nir->info.stage;
    so->is_a20x = is_a20x(fd_context(pctx)->screen);
 
-   NIR_PASS(_, so->nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-              ir2_glsl_type_size, 0);
+   /* TGSI still arrives as IO variables, GLSL is lowered by the state
+    * tracker because we ask for nir_io_has_intrinsics
+    */
+   if (!so->nir->info.io_lowered) {
+      NIR_PASS(_, so->nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
+                 ir2_glsl_type_size, 0);
+   }
 
    if (ir2_optimize_nir(so->nir, true))
       goto fail;

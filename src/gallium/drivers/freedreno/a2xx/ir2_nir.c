@@ -13,6 +13,7 @@
 #include "nir_legacy.h"
 
 static const nir_shader_compiler_options options = {
+   .io_options = nir_io_has_intrinsics,
    .compact_arrays = true,
    .lower_fpow = true,
    .lower_flrp32 = true,
@@ -123,12 +124,9 @@ ir2_optimize_nir(nir_shader *s, bool lower)
    OPT_V(s, nir_opt_sink, nir_move_const_undef);
 
    /* TODO we dont want to get shaders writing to depth for depth textures */
-   if (s->info.stage == MESA_SHADER_FRAGMENT) {
-      nir_foreach_shader_out_variable (var, s) {
-         if (var->data.location == FRAG_RESULT_DEPTH)
-            return -1;
-      }
-   }
+   if (s->info.stage == MESA_SHADER_FRAGMENT &&
+       (s->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH)))
+      return -1;
 
    return 0;
 }
@@ -501,10 +499,11 @@ emit_alu(struct ir2_context *ctx, nir_alu_instr *alu)
 }
 
 static void
-load_input(struct ir2_context *ctx, nir_def *def, unsigned idx)
+load_input(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 {
    struct ir2_instr *instr;
-   int slot = -1;
+   nir_def *def = &intr->def;
+   unsigned idx = nir_intrinsic_base(intr);
 
    if (ctx->so->type == MESA_SHADER_VERTEX) {
       instr = ir2_instr_create_fetch(ctx, def, 0);
@@ -514,14 +513,7 @@ load_input(struct ir2_context *ctx, nir_def *def, unsigned idx)
       return;
    }
 
-   /* get slot from idx */
-   nir_foreach_shader_in_variable (var, ctx->nir) {
-      if (var->data.driver_location == idx) {
-         slot = var->data.location;
-         break;
-      }
-   }
-   assert(slot >= 0);
+   unsigned slot = nir_intrinsic_io_semantics(intr).location;
 
    switch (slot) {
    case VARYING_SLOT_POS:
@@ -556,16 +548,7 @@ load_input(struct ir2_context *ctx, nir_def *def, unsigned idx)
 static unsigned
 output_slot(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 {
-   int slot = -1;
-   unsigned idx = nir_intrinsic_base(intr);
-   nir_foreach_shader_out_variable (var, ctx->nir) {
-      if (var->data.driver_location == idx) {
-         slot = var->data.location;
-         break;
-      }
-   }
-   assert(slot != -1);
-   return slot;
+   return nir_intrinsic_io_semantics(intr).location;
 }
 
 static void
@@ -617,8 +600,18 @@ emit_intrinsic(struct ir2_context *ctx, nir_intrinsic_instr *intr)
       /* Nothing to do for these */
       break;
 
+   case nir_intrinsic_load_barycentric_pixel:
+   case nir_intrinsic_load_barycentric_centroid:
+   case nir_intrinsic_load_barycentric_sample:
+      /* the result feeds load_interpolated_input, which ignores it */
+      break;
+
    case nir_intrinsic_load_input:
-      load_input(ctx, &intr->def, nir_intrinsic_base(intr));
+   case nir_intrinsic_load_interpolated_input:
+      /* a2xx has no interpolation modes, so the barycentric source of
+       * load_interpolated_input can simply be ignored
+       */
+      load_input(ctx, intr);
       break;
    case nir_intrinsic_store_output:
       store_output(ctx, intr->src[0], output_slot(ctx, intr),
@@ -774,14 +767,12 @@ emit_tex(struct ir2_context *ctx, nir_tex_instr *tex)
 }
 
 static void
-setup_input(struct ir2_context *ctx, nir_variable *in)
+setup_input(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 {
    struct fd2_shader_stateobj *so = ctx->so;
-   unsigned n = in->data.driver_location;
-   unsigned slot = in->data.location;
-
-   assert(glsl_type_is_vector_or_scalar(in->type) ||
-          glsl_type_is_unsized_array(in->type));
+   unsigned n = nir_intrinsic_base(intr);
+   unsigned slot = nir_intrinsic_io_semantics(intr).location;
+   unsigned ncomp = nir_intrinsic_component(intr) + intr->num_components;
 
    /* handle later */
    if (ctx->so->type == MESA_SHADER_VERTEX)
@@ -805,12 +796,34 @@ setup_input(struct ir2_context *ctx, nir_variable *in)
       so->need_param = true;
    }
 
+   /* a varying can be read by more than one intrinsic, each covering
+    * only part of it, so accumulate the components
+    */
    ctx->f->inputs[n].slot = slot;
-   ctx->f->inputs[n].ncomp = glsl_get_components(in->type);
+   ctx->f->inputs[n].ncomp = MAX2(ctx->f->inputs[n].ncomp, ncomp);
 
-   /* in->data.interpolation?
+   /* nir_intrinsic_io_semantics(intr).interp_mode?
     * opengl ES 2.0 can't do flat mode, but we still get it from GALLIUM_HUD
     */
+}
+
+/* IO is lowered, so the inputs have to be collected from the intrinsics
+ * reading them rather than from the variable list
+ */
+static void
+setup_inputs(struct ir2_context *ctx)
+{
+   nir_foreach_block (block, nir_shader_get_entrypoint(ctx->nir)) {
+      nir_foreach_instr (instr, block) {
+         if (instr->type != nir_instr_type_intrinsic)
+            continue;
+
+         nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+         if (intr->intrinsic == nir_intrinsic_load_input ||
+             intr->intrinsic == nir_intrinsic_load_interpolated_input)
+            setup_input(ctx, intr);
+      }
+   }
 }
 
 static void
@@ -1183,8 +1196,7 @@ ir2_nir_compile(struct ir2_context *ctx, bool binning)
    }
 
    /* Setup inputs: */
-   nir_foreach_shader_in_variable (in, ctx->nir)
-      setup_input(ctx, in);
+   setup_inputs(ctx);
 
    if (so->type == MESA_SHADER_FRAGMENT) {
       unsigned idx;
