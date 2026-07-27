@@ -79,8 +79,10 @@ update_fotid_intrinsic(nir_builder *b, nir_intrinsic_instr *instr, const radv_ni
          partial_size *= b->shader->info.workgroup_size[i];
 
          const bool quad_x = i == 0 && b->shader->info.derivative_group == DERIVATIVE_GROUP_QUADS;
-         if (partial_size * (quad_x ? 2 : 1) == b->shader->info.max_subgroup_size)
+         if (partial_size * (quad_x ? 2 : 1) <= b->shader->info.max_subgroup_size &&
+             util_is_power_of_two_nonzero(partial_size)) {
             instr->instr.pass_flags = (uint8_t)BITFIELD_MASK(i + 1);
+         }
       }
       if (partial_size <= b->shader->info.max_subgroup_size)
          instr->instr.pass_flags = 0x7;
