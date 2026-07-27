@@ -33,7 +33,6 @@
 
 
 // Undef these vars just to silence warnings
-#undef PACKAGE_BUGREPORT
 #undef PACKAGE_VERSION
 
 
