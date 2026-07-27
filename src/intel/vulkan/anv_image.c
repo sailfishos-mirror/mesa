@@ -1973,19 +1973,6 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
-      if ((image->vk.create_flags & VK_IMAGE_CREATE_ALIAS_BIT) &&
-          !image->from_wsi) {
-         /* We must reject aliasing of any image that uses
-          * ANV_IMAGE_MEMORY_BINDING_PRIVATE. Since we're already rejecting
-          * all aliasing here, there's no need to further analyze if the image
-          * needs a private binding.
-          */
-         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
-                       "Disabling aux: "
-                       "aliased image not from WSI");
-         isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
-      }
-
       if (device->info->verx10 == 125 &&
           image->vk.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
           (image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
