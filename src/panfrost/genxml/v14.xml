@@ -734,7 +734,8 @@
   </struct>
 
   <struct name="CS NOP" size="2">
-    <field name="Ignored" size="56" start="0" type="hex"/>
+    <field name="Metadata payload" size="48" start="0" type="hex"/>
+    <field name="Metadata type" size="8" start="48" type="hex"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="NOP"/>
   </struct>
 

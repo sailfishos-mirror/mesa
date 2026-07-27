@@ -103,10 +103,15 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
    switch (base.opcode) {
    case MALI_CS_OPCODE_NOP: {
       cs_unpack(instr, CS_NOP, I);
-      if (I.ignored)
-         fprintf(fp, "NOP // 0x%" PRIX64, I.ignored);
-      else
+      switch (I.metadata_type) {
+      case CS_NOP_TYPE_NOP:
          fprintf(fp, "NOP");
+         break;
+      default:
+         fprintf(fp, "NOP: t%u, 0x%" PRIX64, I.metadata_type,
+                 I.metadata_payload);
+         break;
+      }
       break;
    }
 

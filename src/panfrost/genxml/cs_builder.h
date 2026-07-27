@@ -2557,11 +2557,19 @@ cs_match_end(struct cs_builder *b, struct cs_match *match)
         });                                                                    \
         !__default_defined; __default_defined = true)
 
+enum cs_nop_type {
+   CS_NOP_TYPE_NOP = 0,
+};
+
 static inline void
-cs_nop(struct cs_builder *b)
+cs_nop(struct cs_builder *b, enum cs_nop_type type, uint64_t payload)
 {
-   cs_emit(b, NOP, I)
-      ;
+   assert(type != CS_NOP_TYPE_NOP || payload == 0);
+
+   cs_emit(b, NOP, I) {
+      I.metadata_payload = payload;
+      I.metadata_type = type;
+   }
 }
 
 struct cs_function_ctx {
@@ -2706,7 +2714,7 @@ cs_function_end(struct cs_builder *b,
 
    /* Fill the rest of the buffer with NOPs. */
    for (; num_instrs < padded_num_instrs; num_instrs++)
-      cs_nop(b);
+      cs_nop(b, CS_NOP_TYPE_NOP, 0);
 
    function->length = padded_num_instrs;
 }
