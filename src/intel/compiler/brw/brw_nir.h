@@ -310,6 +310,7 @@ bool brw_nir_lower_mem_access_bit_sizes(nir_shader *shader,
 bool brw_nir_lower_simd(nir_shader *nir);
 
 void brw_postprocess_nir_opts(struct brw_pass_tracker *pt);
+void brw_nir_lower_int64(struct brw_pass_tracker *pt);
 
 void brw_postprocess_nir_out_of_ssa(struct brw_pass_tracker *pt,
                                     bool debug_enabled);

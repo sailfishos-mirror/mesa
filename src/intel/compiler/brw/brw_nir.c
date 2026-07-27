@@ -3481,7 +3481,7 @@ flag_fused_eu_disable_instr(nir_builder *b, nir_instr *instr, void *data)
    }
 }
 
-static void
+void
 brw_nir_lower_int64(brw_pass_tracker *pt)
 {
    /* Potentially perform this optimization pass twice because it can create
