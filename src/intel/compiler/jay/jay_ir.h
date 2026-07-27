@@ -1043,13 +1043,15 @@ jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
    assert(util_is_aligned(dst_size, vec_per_channel));
 
    if (base == 1 && dst_size > vec_per_channel && I->op != JAY_OPCODE_SEND) {
-      assert(util_is_power_of_two_nonzero(dst_size) && vec_per_channel == 1);
+      assert(util_is_power_of_two_nonzero(dst_size));
       base = dst_size;
 
       if (jay_type_size_bits(I->type) == 8) {
          base *= 4;
       } else if (jay_type_size_bits(I->type) == 16) {
          base *= 2;
+      } else if (jay_type_size_bits(I->type) == 64) {
+         base /= 2;
       }
    }
 
