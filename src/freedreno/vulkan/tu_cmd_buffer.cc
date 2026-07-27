@@ -7369,11 +7369,15 @@ tu_CmdSetRenderingInputAttachmentIndicesKHR(
    const VkRenderingInputAttachmentIndexInfoKHR *pLocationInfo)
 {
    VK_FROM_HANDLE(tu_cmd_buffer, cmd, commandBuffer);
+   const uint8_t old_depth_att = cmd->vk.dynamic_graphics_state.ial.depth_att;
 
    vk_common_CmdSetRenderingInputAttachmentIndicesKHR(commandBuffer, pLocationInfo);
 
    const struct vk_input_attachment_location_state *ial =
       &cmd->vk.dynamic_graphics_state.ial;
+
+   if (old_depth_att != ial->depth_att)
+      cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
 
    struct tu_subpass *subpass = &cmd->dynamic_subpasses[0];
 
