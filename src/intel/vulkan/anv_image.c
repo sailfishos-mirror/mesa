@@ -1978,10 +1978,13 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
    if ((image->vk.aspects & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) &&
        !vk_format_is_block_compressed(image->vk.format) &&
        image->vk.samples == 1) {
-      if (image->n_planes != 1) {
+      if (image->n_planes != 1 ||
+          (image->vk.create_flags & VK_IMAGE_CREATE_DISJOINT_BIT)) {
          /* Multiplanar images seem to hit a sampler bug with CCS and R16G16
           * format. (Putting the clear state a page/4096bytes further fixes
-          * the issue).
+          * the issue). Since we're banning CCS on these images, we must also
+          * ban it on any image which may alias a plane of a multiplanar
+          * image.
           */
          anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
                        "Disabling aux: "
@@ -1991,10 +1994,7 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
 
       if ((image->vk.create_flags & VK_IMAGE_CREATE_ALIAS_BIT) &&
           !image->from_wsi) {
-         /* The image may alias a plane of a multiplanar image. Above we ban
-          * CCS on multiplanar images.
-          *
-          * We must also reject aliasing of any image that uses
+         /* We must reject aliasing of any image that uses
           * ANV_IMAGE_MEMORY_BINDING_PRIVATE. Since we're already rejecting
           * all aliasing here, there's no need to further analyze if the image
           * needs a private binding.
