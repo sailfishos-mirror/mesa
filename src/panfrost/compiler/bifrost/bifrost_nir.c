@@ -288,38 +288,12 @@ bi_optimize_loop(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
 
 static void
 bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
-                nir_variable_mode robust_modes,
                 const struct pan_shader_info *info)
 {
    NIR_PASS(_, nir, nir_opt_shrink_stores, false /* shrink_image_store */);
    bi_optimize_loop(nir, gpu_id, false /* allow_copies */);
 
    NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
-
-   /* Why aren't we vectorizing nir_var_shader_temp?
-    * Basically, the current RA doesn't know rematerialization and is still
-    * learning spills, if we vectorize temp stores it might create long-lived
-    * COLLECTs that make the RA fall off the bicycle and create very scary spills.
-    * (spills that are just other temp STORE/LOADs).
-    *
-    * Really hope that a Metroid boss hears my prayer and saves the day soon!
-    * test case: dEQP-VK.subgroups.ballot_broadcast.compute.subgroupbroadcast_u8vec3
-    * TODO: Fix RA and re-enable temp vectorization.
-    */
-   nir_load_store_vectorize_options vectorize_opts = {
-      .modes = nir_var_mem_global |
-               nir_var_mem_shared |
-               nir_var_mem_ubo /* | nir_var_mem_temp */,
-      .callback = mem_vectorize_cb,
-      .cb_data = &gpu_id,
-      .robust_modes = robust_modes,
-   };
-
-   /* Only allow vectorization of SSBOs when no robustness2 is configured */
-   if (!(robust_modes & nir_var_mem_ssbo))
-      vectorize_opts.modes |= nir_var_mem_ssbo;
-
-   NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
 
    NIR_PASS(_, nir, pan_nir_fuse_io_cvt, gpu_id, &info->varyings.formats);
 
@@ -981,6 +955,31 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, pan_nir_lower_tex, gpu_id);
    NIR_PASS(_, nir, pan_nir_lower_image, gpu_id);
 
+   /* Why aren't we vectorizing nir_var_shader_temp?
+    * Basically, the current RA doesn't know rematerialization and is still
+    * learning spills, if we vectorize temp stores it might create long-lived
+    * COLLECTs that make the RA fall off the bicycle and create very scary spills.
+    * (spills that are just other temp STORE/LOADs).
+    *
+    * Really hope that a Metroid boss hears my prayer and saves the day soon!
+    * test case: dEQP-VK.subgroups.ballot_broadcast.compute.subgroupbroadcast_u8vec3
+    * TODO: Fix RA and re-enable temp vectorization.
+    */
+   nir_load_store_vectorize_options vectorize_opts = {
+      .modes = nir_var_mem_global |
+               nir_var_mem_shared |
+               nir_var_mem_ubo /* | nir_var_mem_temp */,
+      .callback = mem_vectorize_cb,
+      .cb_data = (void *)&gpu_id,
+      .robust_modes = inputs->robust_modes,
+   };
+
+   /* Only allow vectorization of SSBOs when no robustness2 is configured */
+   if (!(inputs->robust_modes & nir_var_mem_ssbo))
+      vectorize_opts.modes |= nir_var_mem_ssbo;
+
+   NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
+
    /* Our OpenCL compiler (src/panfrost/clc/pan_compile.c) has a very weird and
     * suboptimal optimization pipeline that results in a lot of unoptimized
     * memcpys and sparse scratch space.  That code is still being used for
@@ -1296,7 +1295,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bifrost_init_debug_options();
 
-   bi_optimize_late(nir, inputs->gpu_id, inputs->robust_modes, info);
+   bi_optimize_late(nir, inputs->gpu_id, info);
 
    /* Lower constants to scalar but then immediately fold so we get minimum-
     * width vectors instead of scalars
