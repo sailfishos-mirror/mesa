@@ -904,12 +904,6 @@ anv_shader_create(struct anv_device *device,
    if (result != VK_SUCCESS)
       goto error_state;
 
-   struct anv_batch batch = {};
-   anv_batch_set_storage(&batch, ANV_NULL_ADDRESS,
-                         cmd_data, 4 * cmd_data_dwords);
-   batch.relocs = &shader->relocs;
-   shader->cmd_data = cmd_data;
-   anv_genX(device->info, shader_emit)(&batch, device, shader);
 
    /* Apply workarounds associated with this shader hash */
    struct anv_instance *instance = device->physical->instance;
@@ -920,6 +914,43 @@ anv_shader_create(struct anv_device *device,
       if (workaround != NULL)
          shader->workaround = *workaround;
    }
+
+   switch (shader->vk.stage) {
+   case MESA_SHADER_FRAGMENT:
+      if (brw_fs_prog_data_const(shader->prog_data)->prefer_simd32 !=
+          shader->workaround.prefer_simd32_fs) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Fragment shader 0x%016"PRIx64" for disk cache not "
+                       "matching SIMD preference, recompile needed",
+                       shader->prog_data->source_hash);
+         result = VK_ERROR_UNKNOWN;
+         goto error_state;
+      }
+      break;
+
+   case MESA_SHADER_COMPUTE:
+      if (device->info->ver >= 20 &&
+          brw_cs_prog_data_const(shader->prog_data)->force_simd32 !=
+          shader->workaround.force_xe2_simd32_cs) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Compute shader 0x%016"PRIx64" for disk cache not "
+                       "matching SIMD preference, recompile needed",
+                       shader->prog_data->source_hash);
+         result = VK_ERROR_UNKNOWN;
+         goto error_state;
+      }
+      break;
+
+   default:
+      break;
+   }
+
+   struct anv_batch batch = {};
+   anv_batch_set_storage(&batch, ANV_NULL_ADDRESS,
+                         cmd_data, 4 * cmd_data_dwords);
+   batch.relocs = &shader->relocs;
+   shader->cmd_data = cmd_data;
+   anv_genX(device->info, shader_emit)(&batch, device, shader);
 
    *shader_out = &shader->vk;
 

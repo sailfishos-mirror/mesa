@@ -2212,6 +2212,10 @@ anv_shader_compile(struct vk_device *vk_device,
       case MESA_SHADER_COMPUTE:
          populate_cs_prog_key(&shader_data->key.cs, vk_device->physical,
                               info->robustness);
+         shader_data->prog_data.cs.force_simd32 =
+            device->info->ver >= 20 &&
+            shader_data->workaround != NULL &&
+            shader_data->workaround->force_xe2_simd32_cs;
          break;
       case MESA_SHADER_RAYGEN:
       case MESA_SHADER_ANY_HIT:

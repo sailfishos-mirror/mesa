@@ -617,6 +617,11 @@ struct brw_fs_prog_data {
    bool coarse_pixel_dispatch;
 
    /**
+    * Whether the shader was compiled with a preference for SIMD32.
+    */
+   bool prefer_simd32;
+
+   /**
     * Shader writes the SampleMask and this is AND-ed with the API's
     * SampleMask to generate a new coverage mask.
     */
@@ -828,6 +833,9 @@ struct brw_cs_prog_data {
 
    /* True if shader has any sample operation */
    bool uses_sampler;
+
+   /* True if the shader was compiled with SIMD32 forced */
+   bool force_simd32;
 
    struct {
       struct brw_push_const_block cross_thread;

@@ -882,6 +882,8 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
    calculate_urb_setup(devinfo, key, prog_data, shader, prev_stage_vue_map,
                        mue_map, per_primitive_offsets);
    brw_compute_flat_inputs(prog_data, shader);
+
+   prog_data->prefer_simd32 = key->prefer_simd32;
 }
 
 /* From the SKL PRM, Volume 16, Workarounds:
