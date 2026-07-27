@@ -118,8 +118,11 @@ to_gen_operand(
          R = gen_restride(R, 2, 2, 1);
       }
 
-      /* Handle SIMD split of vectorized uniform code */
-      if (jay_num_values(d) > jay_type_vector_length(type) && I->uniform) {
+      /* Handle SIMD split of vectorized uniform code. The mov case comes up
+       * from the SEL_ACTIVE lowering for 64-bit code.
+       */
+      if (jay_num_values(d) > jay_type_vector_length(type) &&
+          (I->uniform || I->op == JAY_OPCODE_MOV)) {
          unsigned simd_width = jay_simd_width_physical(f->shader, I);
          uint32_t type_bits = jay_type_size_bits(type);
          unsigned stride_bits = type_bits;

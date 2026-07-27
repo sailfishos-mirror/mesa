@@ -2349,6 +2349,37 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                        JAY_QUAD_SWIZZLE_XXXX + nir_src_as_uint(intr->src[1]));
       break;
 
+   case nir_intrinsic_select_active_intel: {
+      uint64_t inactive_val = nir_intrinsic_inactive_value(intr);
+      unsigned nr = jay_num_values(dst) * jay_ugpr_per_gpr(b->shader);
+      dst.num_values_m1 = nr - 1;
+
+      jay_inst *I = jay_SEL_ACTIVE(b, dst, nj_src(intr->src[0]), inactive_val);
+      I->type = (intr->def.bit_size == 64) ? JAY_TYPE_U64 : JAY_TYPE_U32;
+      break;
+   }
+
+   case nir_intrinsic_read_handle_intel: {
+      unsigned width = DIV_ROUND_UP(intr->def.bit_size, 32);
+      unsigned base = nir_intrinsic_base(intr) * width;
+
+      jay_def x = nj_src(intr->src[0]);
+      x.num_values_m1 = (jay_num_values(x) * jay_ugpr_per_gpr(b->shader)) - 1;
+      jay_copy(b, dst, jay_extract_range(x, base, jay_num_values(dst)));
+      break;
+   }
+
+   case nir_intrinsic_gather_lanes_intel: {
+      jay_def x = nj_src(intr->src[0]);
+      if (b->shader->dispatch_width == 32) {
+         jay_MOV(b, dst, jay_collect_two(b, x, nj_src(intr->src[1])));
+      } else {
+         unsigned width = b->shader->dispatch_width * jay_num_values(dst);
+         jay_MOV(b, dst, jay_extract_range(x, 0, width));
+      }
+      break;
+   }
+
    case nir_intrinsic_load_topology_id_intel:
       jay_MOV(b, dst, jay_scalar(J_ARF, GEN_ARF_STATE));
       break;

@@ -30,7 +30,14 @@ index_ssa_def_cb(nir_def *def, void *state)
 {
    unsigned *index = (unsigned *) state;
    def->index = *index;
-   *index += DIV_ROUND_UP(def->num_components * MAX2(def->bit_size, 32), 32);
+   unsigned nr = def->num_components;
+
+   nir_intrinsic_instr *intr = nir_def_as_intrinsic_or_null(def);
+   if (intr && intr->intrinsic == nir_intrinsic_select_active_intel) {
+      nr = 32;
+   }
+
+   *index += DIV_ROUND_UP(nr * MAX2(def->bit_size, 32), 32);
    return true;
 }
 
