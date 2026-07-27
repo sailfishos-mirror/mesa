@@ -701,6 +701,16 @@ v3dv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
    instance->pipeline_cache_enabled = true;
    instance->default_pipeline_cache_enabled = true;
    instance->meta_cache_enabled = true;
+   int64_t pipeline_cache_max_entries =
+      debug_get_num_option("V3DV_MAX_PIPELINE_CACHE_ENTRIES", 0);
+   if (pipeline_cache_max_entries < 0 ||
+       pipeline_cache_max_entries > UINT32_MAX) {
+      mesa_loge("V3DV_MAX_PIPELINE_CACHE_ENTRIES must be between 0 and %u\n",
+                UINT32_MAX);
+      pipeline_cache_max_entries = 0;
+   }
+   instance->pipeline_cache_max_entries = (uint32_t) pipeline_cache_max_entries;
+
    const char *pipeline_cache_str = os_get_option("V3DV_ENABLE_PIPELINE_CACHE");
    uint64_t pipeline_cache_flags =
       parse_debug_string(pipeline_cache_str, v3dv_pipeline_cache_control);
