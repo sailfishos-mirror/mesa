@@ -496,7 +496,14 @@ calc_ifm_au_size_u85(int ifm_block_depth,
                      int ifm_bits,
                      struct ethosu_block ofm_ublock, int macs)
 {
-   struct ethosu_block result;
+   static const struct ethosu_block ifm_au_table[3][3] = {
+      /* Ublock 2x1x16 */
+      {{2, 2, 1}, {2, 1, 2}, {1, 1, 4}},
+      /* Ublock 4x1x8 */
+      {{4, 1, 1}, {2, 1, 2}, {1, 1, 4}},
+      /* Ublock 2x2x8 */
+      {{2, 2, 1}, {2, 1, 2}, {1, 1, 4}},
+   };
    int ifm_depth_bits = ifm_block_depth * ifm_bits;
 
    /* Determine IFMU index based on depth*bits */
@@ -507,22 +514,6 @@ calc_ifm_au_size_u85(int ifm_block_depth,
       ifmu = 1; /* ifmu2 */
    }
 
-   /* For U85-256, the _uBlockToIfmAuTable is indexed by:
-    * blockIdx (0 for 2x1x16, 1 for 4x1x8, 2 for 2x2x8)
-    * ifmu (0, 1, or 2 based on ifm_depth_bits)
-    *
-    * The table values are:
-    * [0][0] = 2x2x1  (ublock 2x1x16, ifmu=0)
-    * [0][1] = 2x1x2  (ublock 2x1x16, ifmu=1)
-    * [0][2] = 2x1x2  (ublock 2x1x16, ifmu=2)
-    * [1][0] = 4x1x1  (ublock 4x1x8, ifmu=0)
-    * [1][1] = 4x1x2  (ublock 4x1x8, ifmu=1)
-    * [1][2] = 4x1x2  (ublock 4x1x8, ifmu=2)
-    * [2][0] = 2x2x1  (ublock 2x2x8, ifmu=0)
-    * [2][1] = 2x2x2  (ublock 2x2x8, ifmu=1)
-    * [2][2] = 2x2x2  (ublock 2x2x8, ifmu=2)
-    */
-
    /* Determine blockIdx from ofm_ublock */
    int block_idx = 0;
    if (ofm_ublock.width == 4 && ofm_ublock.height == 1 && ofm_ublock.depth == 8) {
@@ -532,38 +523,7 @@ calc_ifm_au_size_u85(int ifm_block_depth,
    }
    /* else block_idx = 0 for 2x1x16 */
 
-   /* Look up base AU shape from table */
-   if (block_idx == 0) { /* 2x1x16 */
-      if (ifmu == 0) {
-         result.width = 2;
-         result.height = 2;
-         result.depth = 1;
-      } else { /* ifmu == 1 or 2 */
-         result.width = 2;
-         result.height = 1;
-         result.depth = 2;
-      }
-   } else if (block_idx == 1) { /* 4x1x8 */
-      if (ifmu == 0) {
-         result.width = 4;
-         result.height = 1;
-         result.depth = 1;
-      } else { /* ifmu == 1 or 2 */
-         result.width = 4;
-         result.height = 1;
-         result.depth = 2;
-      }
-   } else { /* block_idx == 2, 2x2x8 */
-      if (ifmu == 0) {
-         result.width = 2;
-         result.height = 2;
-         result.depth = 1;
-      } else { /* ifmu == 1 or 2 */
-         result.width = 2;
-         result.height = 2;
-         result.depth = 2;
-      }
-   }
+   struct ethosu_block result = ifm_au_table[block_idx][ifmu];
 
    /* Scale depth by 128/ifm_bits */
    result.depth = result.depth * 128 / ifm_bits;
