@@ -231,6 +231,51 @@ ethosu_find_first_producer(const struct pipe_ml_operation *poperations, unsigned
 }
 
 static void
+set_sparse_weight_format(struct ethosu_subgraph *subgraph,
+                         struct ethosu_operation *operation,
+                         const struct pipe_tensor *weight)
+{
+   unsigned depth = weight->dims[3];
+   unsigned padded_depth = align(depth, 4);
+
+   if (ethosu_ml_device(subgraph->base.device)->is_u65 ||
+       operation->conv.depthwise)
+      return;
+
+   for (unsigned o = 0; o < weight->dims[0]; o++) {
+      for (unsigned y = 0; y < weight->dims[1]; y++) {
+         for (unsigned x = 0; x < weight->dims[2]; x++) {
+            for (unsigned c = 0; c < padded_depth; c += 4) {
+               unsigned zeros = 0;
+
+               for (unsigned i = c; i < c + 4; i++) {
+                  int value = 0;
+
+                  if (i < depth) {
+                     unsigned index = ((o * weight->dims[1] + y) *
+                                       weight->dims[2] + x) * depth + i;
+                     value = weight->is_signed ?
+                        (int)(int8_t)weight->data[index] : weight->data[index];
+                     value -= operation->kernel.zero_point;
+                  }
+
+                  if (value == 0)
+                     zeros++;
+                  else if (value < -127 || value > 127)
+                     return;
+               }
+
+               if (zeros < 2)
+                  return;
+            }
+         }
+      }
+   }
+
+   operation->conv.weight_sparse = true;
+}
+
+static void
 lower_conv_common(struct ethosu_subgraph *subgraph,
                   const struct pipe_ml_operation *poperation,
                   struct pipe_tensor *input_tensor,
@@ -256,7 +301,7 @@ lower_conv_common(struct ethosu_subgraph *subgraph,
    }
 
    allocate_feature_maps(subgraph, operation);
-
+   set_sparse_weight_format(subgraph, operation, weight);
    ethosu_sched_operation(subgraph, operation);
    fill_coefs(subgraph, operation, bias_data, weight->data,
               weight->dims[0] * weight->dims[1] * weight->dims[2] * weight->dims[3]);

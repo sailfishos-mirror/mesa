@@ -290,7 +290,7 @@ static void
 emit_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    if (!ethosu_ml_device(subgraph->base.device)->is_u65)
-      EMIT0(NPU_SET_WEIGHT_FORMAT, 0x0);
+      EMIT0(NPU_SET_WEIGHT_FORMAT, operation->conv.weight_sparse << 4);
 
    EMIT0(NPU_SET_WEIGHT_REGION, operation->conv.weights.region);
    EMIT1(NPU_SET_WEIGHT_BASE, 0x0, operation->conv.weights.address);

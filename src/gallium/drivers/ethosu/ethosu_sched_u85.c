@@ -696,18 +696,21 @@ find_block_config_u85(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    bool is_elementwise = (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE);
    bool is_convolution = (operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION);
    bool is_equal_depth_op = is_elementwise || is_pooling || is_depthwise;
+   bool is_sparse = operation->conv.weight_sparse;
 
    /* Determine if we should use kernel-first (part-kernel) scheduling for convolutions */
    bool is_part_kernel = false;
    if (is_convolution) {
       struct ethosu_block ifm_shape = operation->ifm.shape;
       int k = operation->kernel.width * operation->kernel.height;
-      int s = 5; /* sparse would be 10 */
-      int r = 2; /* sparse would be 4 */
+      int s = is_sparse ? 10 : 5;
+      int r = is_sparse ? 4 : 2;
       int k_rnd = (k / s) * s + MAX2(k % s, r);
       double kernel_first_util = ((double)ifm_shape.depth / round_away(ifm_shape.depth, 16)) *
                                  ((double)k / k_rnd);
-      double depth_first_util = (double)ifm_shape.depth / round_away(ifm_shape.depth, 64);
+      double depth_first_util =
+         (double)ifm_shape.depth / round_away(ifm_shape.depth,
+                                               is_sparse ? 128 : 64);
       is_part_kernel = (kernel_first_util >= depth_first_util);
 
       DBG("UBLOCK: kernel-first heuristic: k=%d k_rnd=%d ifm_depth=%d\n", k, k_rnd, ifm_shape.depth);
@@ -767,10 +770,12 @@ find_block_config_u85(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    int ifm_block_depth = 64;
    if (is_part_kernel) {
       ifm_block_depth = 16;
-   } else if (macs == 128 || macs == 256) {
-      if (ofm_ublock.depth == 16) {
-         ifm_block_depth = 32;
-      }
+   } else if (common.ifm_bits == 32 ||
+              ((macs == 128 || macs == 256) &&
+               ofm_ublock.depth == 16 && !is_sparse)) {
+      ifm_block_depth = 32;
+   } else if (is_sparse && common.ifm_bits == 8) {
+      ifm_block_depth = 128;
    }
 
    common.ifm_block_depth = ifm_block_depth;

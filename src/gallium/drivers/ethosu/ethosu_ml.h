@@ -197,6 +197,7 @@ struct ethosu_operation {
          struct ethosu_address_range weights;
          struct ethosu_address_range scales;
          bool depthwise;
+         bool weight_sparse;
          unsigned scale;
          unsigned shift;
          uint16_t activation;

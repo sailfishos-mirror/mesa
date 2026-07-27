@@ -60,7 +60,7 @@ ml_reorder_encode_weights(struct ethosu_subgraph *subgraph,
 {
    struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    int bit_depth = 8;
-   bool is_sparse = false;
+   bool is_sparse = operation->conv.weight_sparse;
    EthosUTraversal traversal;
    struct WeightTransformParam param;
    WeightTransformFunc transform_func = apply_zero_point_ohwi;
