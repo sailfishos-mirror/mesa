@@ -84,6 +84,10 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       prog_data->uses_src_xy = true;
       break;
 
+   case nir_intrinsic_load_sample_pos_from_id:
+      prog_data->uses_sample_offsets = true;
+      break;
+
    default:
       break;
    }
@@ -399,7 +403,7 @@ populate_fs_prog_data(nir_shader *shader,
          ctx.offset_interp_modes & INTEL_BARYCENTRIC_NONPERSPECTIVE_BITS;
       prog_data->uses_pc_bary_coefficients =
          ctx.offset_interp_modes & ~INTEL_BARYCENTRIC_NONPERSPECTIVE_BITS;
-      prog_data->uses_sample_offsets =
+      prog_data->uses_sample_offsets |=
          ctx.offset_interp_modes &
          ((1 << INTEL_BARYCENTRIC_PERSPECTIVE_SAMPLE) |
           (1 << INTEL_BARYCENTRIC_NONPERSPECTIVE_SAMPLE));

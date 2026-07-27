@@ -93,6 +93,7 @@ typedef struct jay_fs_payload {
    jay_def config;
    jay_def coverage_mask;
    jay_def sample_pos;
+   jay_def sample_offsets[2];
    jay_def coefficients;
    jay_def *deltas;
 } jay_fs_payload;
@@ -2084,6 +2085,11 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
       break;
 
+   case nir_intrinsic_load_sample_positions_intel:
+      assert(fs);
+      jay_copy(b, dst, jay_collect_vectors(b, fs->sample_offsets, 2));
+      break;
+
    case nir_intrinsic_load_tess_coord:
       assert(tes);
       jay_copy(b, dst, tes->tess_coord);
@@ -3651,6 +3657,12 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       /* 2 bytes per lane, divided into 4 byte UGPRs */
       fs->sample_pos =
          jay_extract_range(fs->sample_pos, 0, nj->s->dispatch_width / 2);
+   }
+
+   if (nj->s->prog_data->fs.uses_sample_offsets) {
+      jay_def t = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+      fs->sample_offsets[0] = jay_extract_range(t, 0, 2);
+      fs->sample_offsets[1] = jay_extract_range(t, 4, 2);
    }
 
    nj->s->payload_ugprs = p->offsets[UGPR];
