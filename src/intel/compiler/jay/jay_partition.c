@@ -359,8 +359,10 @@ jay_partition_grf(jay_shader *shader)
    unsigned increment[JAY_NUM_STRIDES] = { grf_per_gpr, grf_per_gpr,
                                            2 * grf_per_gpr };
    unsigned min_grf[JAY_NUM_STRIDES] = {};
+   unsigned min_grf_for_gprs = 0;
    for (unsigned i = 0; i < JAY_NUM_STRIDES; ++i) {
       min_grf[i] = align(instr_req.gpr[i] * grf_per_gpr, increment[i]);
+      min_grf_for_gprs += min_grf[i];
    }
 
    unsigned estimate_nonunif_grf = (demand[GPR] * grf_per_gpr) +
@@ -395,7 +397,7 @@ jay_partition_grf(jay_shader *shader)
       uniform_grfs =
          CLAMP(uniform_grfs,
                DIV_ROUND_UP(min_ugprs, ugpr_per_grf) + spilling_grfs,
-               hw_grfs - (32 * grf_per_gpr));
+               hw_grfs - min_grf_for_gprs);
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
       nonuniform_grfs = hw_grfs - uniform_grfs;
 
