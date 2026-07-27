@@ -37,6 +37,54 @@ macro_rules! bool_as_mod_str {
     }
 }
 
+// Code compilation bug: old rustc versions use
+// llvm.minnum/llvm.maxnum for f32::min/f32::max, the behaviour for
+// signaling NaN values is undefined and this compiles to the aarch64
+// FMINNM/FMAXNM instructions.  Those have a weird sNAN handling where
+// sNAN.min(x) = qNAN, throwing off all folding.
+// Since rustc 1.96.0 they instead use llvm.minimumnum/llvm.maximumnum
+// that compiles to the correct code, see also
+// https://github.com/rust-lang/rust/pull/153343
+// This can be dropped once Mesa's minimum supported rustc is >= 1.96.0,
+// until then we need manual min/max nan handling
+pub trait CorrectFloatExt {
+    fn ieee_min(self, other: Self) -> Self;
+    fn ieee_max(self, other: Self) -> Self;
+
+    /// Flushes subnormals to +-0, not a compiler bug, just useful
+    fn flush_subnormals(self) -> Self;
+}
+
+impl CorrectFloatExt for f32 {
+    fn ieee_min(self, other: Self) -> Self {
+        if self.is_nan() {
+            other
+        } else if other.is_nan() {
+            self
+        } else {
+            self.min(other)
+        }
+    }
+
+    fn ieee_max(self, other: Self) -> Self {
+        if self.is_nan() {
+            other
+        } else if other.is_nan() {
+            self
+        } else {
+            self.max(other)
+        }
+    }
+
+    fn flush_subnormals(self) -> Self {
+        if self.is_subnormal() {
+            0f32.copysign(self)
+        } else {
+            self
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(data_type in [I32, I64])]
