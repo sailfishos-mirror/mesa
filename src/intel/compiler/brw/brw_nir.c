@@ -1560,6 +1560,9 @@ generate_fs_config_state_bits(const struct brw_fs_prog_key *key,
    if (prog_data->conservative_raster == comp_value)
       f |= INTEL_FS_CONFIG_CONSERVATIVE_RASTER;
 
+   if (key->mesh_input == comp_value)
+      f |= INTEL_FS_CONFIG_PER_PRIMITIVE_REMAPPING;
+
    if (comp_value == INTEL_ALWAYS) {
       if (prog_data->persample_dispatch)
          f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH;

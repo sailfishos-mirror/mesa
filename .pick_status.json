@@ -1914,7 +1914,7 @@
         "description": "brw: add missing INTEL_FS_CONFIG_PER_PRIMITIVE_REMAPPING handling",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "df5a6d7b871975dd161836c3dbb07ff96b3a3f3f",
         "notes": null
