@@ -1864,7 +1864,7 @@
         "description": "panfrost: ci: Drop no longer failing VK.wsi.xcb.present_timing test",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1546dabd4a9412dd0674b4c055fec4d876119116",
         "notes": null
