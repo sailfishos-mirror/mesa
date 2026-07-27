@@ -14,6 +14,7 @@ use crate::ssa_value::{AllocSSA, SSAValueAllocator};
 use crate::swizzle::AsmSwizzleWiden;
 use acorn::Acorn;
 use compiler::cfg::CFGBuilder;
+use compiler::float16::F16;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
 use rustc_hash::FxBuildHasher;
 
@@ -78,6 +79,90 @@ fn transmute_mut_slice_to_u8<T: Sized>(data: &mut [T]) -> &mut [u8] {
             data.len() * size_of::<T>(),
         )
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum Precision {
+    Exact,
+    Ulp(u32),
+    Abs(f32),
+}
+
+fn f32_ulp_dist(a: f32, b: f32) -> u32 {
+    let ulp_key = |x: f32| {
+        let sign_bit = 1 << 31;
+        let bits = x.to_bits();
+        if bits & sign_bit != 0 {
+            !bits
+        } else {
+            bits ^ sign_bit
+        }
+    };
+
+    ulp_key(a).abs_diff(ulp_key(b))
+}
+
+fn f16_ulp_dist(a: F16, b: F16) -> u16 {
+    let ulp_key = |x: F16| {
+        let sign_bit = 1 << 15;
+        let bits = x.to_bits();
+        if bits & sign_bit != 0 {
+            !bits
+        } else {
+            bits ^ sign_bit
+        }
+    };
+
+    ulp_key(a).abs_diff(ulp_key(b))
+}
+
+fn cmp_eq_f32(real: f32, expected: f32, prec: Precision) -> bool {
+    if real.is_nan() || expected.is_nan() {
+        return real.is_nan() && expected.is_nan();
+    }
+    match prec {
+        Precision::Exact => real.to_bits() == expected.to_bits(),
+        Precision::Ulp(ulps) => {
+            if (real - expected).abs() < f32::MIN_POSITIVE {
+                return true; // ftz
+            }
+            f32_ulp_dist(real, expected) < ulps
+        }
+        Precision::Abs(prec) => (real - expected).abs() < prec,
+    }
+}
+
+fn cmp_eq_f16(real: F16, expected: F16, prec: Precision) -> bool {
+    if real.is_nan() || expected.is_nan() {
+        return real.is_nan() && expected.is_nan();
+    }
+    match prec {
+        Precision::Exact => real.to_bits() == expected.to_bits(),
+        Precision::Ulp(ulps) => {
+            if (real - expected).abs() < F16::MIN_POSITIVE {
+                return true; // ftz
+            }
+            u32::from(f16_ulp_dist(real, expected)) < ulps
+        }
+        Precision::Abs(prec) => f32::from(real - expected.abs()) < prec,
+    }
+}
+
+// `assert_f32_eq!(expected, hardware, prec, "msg {..}")`
+macro_rules! assert_f32_eq {
+    ($expected:expr, $hardware:expr, $prec:expr, $($fmt:tt)+) => {{
+        if !cmp_eq_f32($expected, $hardware, $prec) {
+            panic!(
+                "Test {} failed\nExpected: {}\nHardware: {}",
+                format_args!($($fmt)+), $expected, $hardware
+            );
+        }
+    }};
+}
+
+fn sample_f32_range(rng: &mut Acorn, range: Range<f32>) -> f32 {
+    let t = (rng.get_u32() as f64 / u32::MAX as f64) as f32;
+    t * (range.end - range.start) + range.start
 }
 
 pub struct TestShaderBuilder<'a> {
@@ -1103,58 +1188,6 @@ fn test_op_shift_lop() {
 mod builder {
     use super::*;
 
-    #[derive(Clone, Copy)]
-    enum FPrecision {
-        Ulp(u32),
-        Abs(f32),
-    }
-
-    fn ulp_dist(a: f32, b: f32) -> u32 {
-        let ulp_key = |x: f32| {
-            let sign_bit = 1 << 31;
-            let bits = x.to_bits();
-            if bits & sign_bit != 0 {
-                !bits
-            } else {
-                bits ^ sign_bit
-            }
-        };
-
-        ulp_key(a).abs_diff(ulp_key(b))
-    }
-
-    fn cmp_eq_f32(real: f32, expected: f32, prec: FPrecision) -> bool {
-        if real.is_nan() || expected.is_nan() {
-            return real.is_nan() && expected.is_nan();
-        }
-        match prec {
-            FPrecision::Ulp(ulps) => {
-                if (real - expected).abs() < f32::MIN_POSITIVE {
-                    return true; // ftz
-                }
-                ulp_dist(real, expected) < ulps
-            }
-            FPrecision::Abs(prec) => (real - expected).abs() < prec,
-        }
-    }
-
-    // `assert_feq!(expected, hardware, prec, "msg {..}")`
-    macro_rules! assert_feq {
-        ($expected:expr, $hardware:expr, $prec:expr, $($fmt:tt)+) => {{
-            if !cmp_eq_f32($expected, $hardware, $prec) {
-                panic!(
-                    "Test {} failed\nExpected: {}\nHardware: {}",
-                    format_args!($($fmt)+), $expected, $hardware
-                );
-            }
-        }};
-    }
-
-    fn sample_f32_range(rng: &mut Acorn, range: Range<f32>) -> f32 {
-        let t = (rng.get_u32() as f64 / u32::MAX as f64) as f32;
-        t * (range.end - range.start) + range.start
-    }
-
     #[test]
     fn test_fexp() {
         // Vulkan Environment for SPIR-V requires an absolute precision of
@@ -1203,8 +1236,8 @@ mod builder {
             let comp = (base_log2 * arg).exp2();
 
             let ulps = 3 + 2 * ((base_log2 * arg).abs() as u32);
-            let prec = FPrecision::Ulp(ulps);
-            assert_feq!(comp, res, prec, "fexp({base_log2}, {arg})");
+            let prec = Precision::Ulp(ulps);
+            assert_f32_eq!(comp, res, prec, "fexp({base_log2}, {arg})");
         }
     }
 
@@ -1248,11 +1281,11 @@ mod builder {
             let res = input.log2();
 
             let prec = if (0.5..=2.0).contains(&input) {
-                FPrecision::Abs(2f32.powi(-21))
+                Precision::Abs(2f32.powi(-21))
             } else {
-                FPrecision::Ulp(3)
+                Precision::Ulp(3)
             };
-            assert_feq!(comp, res, prec, "flog2({input})");
+            assert_f32_eq!(comp, res, prec, "flog2({input})");
         }
     }
 
@@ -1261,7 +1294,7 @@ mod builder {
         // Vulkan Environment for SPIR-V requires an absolute precision of 2^-11
         // in the range [-PI, PI]
         const RANGE: Range<f32> = -PI..PI;
-        let prec = FPrecision::Abs(2f32.powi(-11));
+        let prec = Precision::Abs(2f32.powi(-11));
 
         let run = RunSingleton::get();
         let shader = {
@@ -1298,8 +1331,8 @@ mod builder {
             // built with glibc, that should offer more precision what what we need
             let (esin, ecos) = input.sin_cos();
 
-            assert_feq!(esin, csin, prec, "sin({input})");
-            assert_feq!(ecos, ccos, prec, "cos({input})");
+            assert_f32_eq!(esin, csin, prec, "sin({input})");
+            assert_f32_eq!(ecos, ccos, prec, "cos({input})");
         }
     }
 }
