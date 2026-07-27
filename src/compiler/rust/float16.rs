@@ -4,6 +4,7 @@
 use crate::bindings::*;
 use std::cmp::{Ordering, PartialOrd};
 use std::fmt;
+use std::num::FpCategory;
 use std::ops::{Neg, Sub};
 
 #[repr(transparent)]
@@ -27,9 +28,22 @@ impl F16 {
     pub const NEG_INFINITY: F16 = F16::from_bits(0xfc00);
 
     const SIGN_BIT: u16 = 0x8000;
+    const EXPONENT_MASK: u16 = 0x7c00;
+    const MANTISSA_MASK: u16 = 0x03ff;
 
     pub const fn abs(self) -> F16 {
         F16::from_bits(self.to_bits() & !F16::SIGN_BIT)
+    }
+
+    pub const fn classify(self) -> FpCategory {
+        let b = self.to_bits();
+        match (b & Self::MANTISSA_MASK, b & Self::EXPONENT_MASK) {
+            (0, Self::EXPONENT_MASK) => FpCategory::Infinite,
+            (_, Self::EXPONENT_MASK) => FpCategory::Nan,
+            (0, 0) => FpCategory::Zero,
+            (_, 0) => FpCategory::Subnormal,
+            _ => FpCategory::Normal,
+        }
     }
 
     pub fn from_f32_rtne(v: f32) -> F16 {
@@ -41,11 +55,11 @@ impl F16 {
     }
 
     pub const fn is_nan(self) -> bool {
-        self.abs().to_bits() > 0x7c00
+        matches!(self.classify(), FpCategory::Nan)
     }
 
     pub const fn is_infinite(self) -> bool {
-        self.abs().to_bits() == F16::INFINITY.to_bits()
+        matches!(self.classify(), FpCategory::Infinite)
     }
 
     pub const fn is_finite(self) -> bool {
