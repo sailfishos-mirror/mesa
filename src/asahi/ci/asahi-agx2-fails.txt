@@ -16,4 +16,3 @@ dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.non_resident_buffer_strict
 dEQP-VK.compute.shader_object_binary.basic.copy_ssbo_bounds,Fail
 dEQP-VK.compute.shader_object_spirv.basic.copy_ssbo_bounds,Fail
 dEQP-VK.shader_object.tessellation.hlsl.point_mode,Fail
-dEQP-VK.wsi.xcb.present_timing.basic.timing_queue,Fail
