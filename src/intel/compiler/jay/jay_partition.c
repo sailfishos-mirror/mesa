@@ -363,6 +363,11 @@ jay_partition_grf(jay_shader *shader)
       min_grf[i] = align(instr_req.gpr[i] * grf_per_gpr, increment[i]);
    }
 
+   unsigned estimate_nonunif_grf = (demand[GPR] * grf_per_gpr) +
+                                   min_grf[JAY_STRIDE_8] +
+                                   min_grf[JAY_STRIDE_2] +
+                                   special_4;
+
    unsigned mapped_accums = grf_per_gpr == 1 ? 2 : 0;
 
    const unsigned hw_grfs = 128;
@@ -381,10 +386,6 @@ jay_partition_grf(jay_shader *shader)
        */
       uniform_grfs = DIV_ROUND_UP(demand[UGPR], ugpr_per_grf) + spilling_grfs;
       unsigned bonus_grfs = 4 * grf_per_gpr;
-      unsigned estimate_nonunif_grf = (demand[GPR] * grf_per_gpr) +
-                                      min_grf[JAY_STRIDE_8] +
-                                      min_grf[JAY_STRIDE_2] +
-                                      special_4;
 
       if ((uniform_grfs + estimate_nonunif_grf + bonus_grfs) <= hw_grfs) {
          uniform_grfs += bonus_grfs;
