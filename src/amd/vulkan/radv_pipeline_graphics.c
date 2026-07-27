@@ -2597,7 +2597,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_move_to_top,
                nir_move_to_entry_block_only | nir_move_to_top_input_loads_simple);
 
-      if (gfx_state->dynamic_line_rast_mode)
+      if ((!num_raster_vertices_per_prim || num_raster_vertices_per_prim == 2) && gfx_state->dynamic_line_rast_mode)
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, RADV_NUM_SMOOTH_AA_SAMPLES);
 
       if (!gfx_state->ps.has_epilog) {
