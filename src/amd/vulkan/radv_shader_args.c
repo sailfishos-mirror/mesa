@@ -410,7 +410,7 @@ radv_ps_needs_state_sgpr(const struct radv_shader_info *info, const struct radv_
    if (info->ps.needs_sample_positions && gfx_state->dynamic_rasterization_samples)
       return true;
 
-   if (gfx_state->smooth_lines_may_be_enabled)
+   if (info->ps.needs_poly_line_smooth)
       return true;
 
    if (info->ps.reads_sample_mask_in && (info->ps.uses_sample_shading || gfx_state->ms.sample_shading_enable))
