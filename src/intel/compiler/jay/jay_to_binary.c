@@ -114,8 +114,7 @@ to_gen_operand(
       R = gen_retype(gen_restride(R, 0, 1, 0), GEN_TYPE_UD);
 
       /* Handle 3-src restrictions and vectorized uniform code. */
-      if (is_dest ||
-          jay_num_values(d) > jay_type_vector_length(jay_src_type(I, idx))) {
+      if (is_dest || jay_num_values(d) > jay_type_vector_length(type)) {
          R = gen_restride(R, 2, 2, 1);
       }
 
