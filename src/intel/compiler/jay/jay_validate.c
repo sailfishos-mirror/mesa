@@ -139,7 +139,7 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
                adjust_width_for_type(simd_width, I->type) ||
             I->op == JAY_OPCODE_SEND);
 
-      return 1;
+      return elsize;
    } else if (I->src[s].file == UGPR && jay_num_values(I->src[s]) > elsize) {
       return adjust_width_for_type(simd_width, jay_src_type(I, s));
    } else {
