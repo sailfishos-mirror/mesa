@@ -20,11 +20,8 @@ static bool si_utrace_record_ts(struct u_trace *trace, void *cs, void *timestamp
    struct si_resource *ts_bo = si_resource(buffer);
 
    if (ctx->gfx_cs.current.buf == ctx->last_timestamp_cmd &&
-       ctx->gfx_cs.current.cdw == ctx->last_timestamp_cmd_cdw) {
-      uint64_t *ts = (uint64_t *)((char *)si_buffer_map(ctx, ts_bo, PIPE_MAP_READ) + offset_B);
-      *ts = U_TRACE_NO_TIMESTAMP;
-      return true;
-   }
+       ctx->gfx_cs.current.cdw == ctx->last_timestamp_cmd_cdw)
+      return false;
 
    si_emit_ts(ctx, ts_bo, offset_B);
    ctx->last_timestamp_cmd = ctx->gfx_cs.current.buf;
