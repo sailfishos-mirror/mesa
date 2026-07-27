@@ -547,9 +547,9 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
       return false; /* invalid value */
    }
 
-   unsigned dst_align_offset = info->dst_offset % (dwords_per_thread * 4);
-   unsigned dst_offset_bound = info->dst_offset - dst_align_offset;
-   unsigned src_align_offset = is_copy ? info->src_offset % 4 : 0;
+   uint64_t dst_align_offset = info->dst_offset % (dwords_per_thread * 4);
+   uint64_t dst_offset_bound = info->dst_offset - dst_align_offset;
+   uint64_t src_align_offset = is_copy ? info->src_offset % 4 : 0;
    unsigned num_user_data_terms = 0;
 
    /* Set the clear value in user data SGPRs. */
