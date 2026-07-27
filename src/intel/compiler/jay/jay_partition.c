@@ -342,7 +342,19 @@ jay_partition_grf(jay_shader *shader)
 
    unsigned uniform_grfs, nonuniform_grfs;
    unsigned spilling_grfs = 0, mem_slots = 0;
-   unsigned special_4 = payload_4[0] + payload_4[1] + eot_4, special_u;
+   unsigned special_4 = payload_4[0] + payload_4[1] + eot_4;
+   unsigned special_u = payload_u[0] + payload_u[1] + eot_u;
+
+   /* If the minimum vector length can't fit in any single existing block, we
+    * will need a new block for it. This is quite conservative.
+    */
+   unsigned min_ugprs = special_u * ugpr_per_grf;
+   if (instr_req.ugpr > payload_u[0] * ugpr_per_grf &&
+       instr_req.ugpr > payload_u[1] * ugpr_per_grf &&
+       instr_req.ugpr > eot_u * ugpr_per_grf) {
+
+      min_ugprs += instr_req.ugpr;
+   }
 
    unsigned increment[JAY_NUM_STRIDES] = { grf_per_gpr, grf_per_gpr,
                                            2 * grf_per_gpr };
@@ -362,7 +374,6 @@ jay_partition_grf(jay_shader *shader)
        * and if that fails, build one with it.
        */
       spilling_grfs = spilling ? shader->dispatch_width / ugpr_per_grf : 0;
-      special_u = payload_u[0] + payload_u[1] + spilling_grfs + eot_u;
 
       /* We want to determine a good GPR/UGPR split by the demand calculation.
        * At minimum we need to not spill UGPRs, but if GPR pressure is low we
@@ -379,20 +390,11 @@ jay_partition_grf(jay_shader *shader)
          uniform_grfs += bonus_grfs;
       }
 
-      /* If the minimum vector length can't fit in any single existing block, we
-       * will need a new block for it. This is quite conservative.
-       */
-      unsigned min_ugprs = special_u * ugpr_per_grf;
-      if (instr_req.ugpr > payload_u[0] * ugpr_per_grf &&
-          instr_req.ugpr > payload_u[1] * ugpr_per_grf &&
-          instr_req.ugpr > eot_u * ugpr_per_grf) {
-
-         min_ugprs += instr_req.ugpr;
-      }
-
       /* Finally, we need to snap to GPR bounds */
-      uniform_grfs = CLAMP(uniform_grfs, DIV_ROUND_UP(min_ugprs, ugpr_per_grf),
-                           hw_grfs - (32 * grf_per_gpr));
+      uniform_grfs =
+         CLAMP(uniform_grfs,
+               DIV_ROUND_UP(min_ugprs, ugpr_per_grf) + spilling_grfs,
+               hw_grfs - (32 * grf_per_gpr));
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
       nonuniform_grfs = hw_grfs - uniform_grfs;
 
@@ -469,7 +471,7 @@ jay_partition_grf(jay_shader *shader)
       { GPR, JAY_STRIDE_4, payload_4[1] },
 
       /* General registers */
-      { UGPR, 0, uniform_grfs - special_u },
+      { UGPR, 0, uniform_grfs - special_u - spilling_grfs },
       { GPR, JAY_STRIDE_4, picked_grf[JAY_STRIDE_4] - special_4 },
       { GPR, JAY_STRIDE_8, picked_grf[JAY_STRIDE_8] },
       { GPR, JAY_STRIDE_2, picked_grf[JAY_STRIDE_2] },
