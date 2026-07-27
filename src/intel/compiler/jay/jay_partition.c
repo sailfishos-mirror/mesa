@@ -340,7 +340,7 @@ jay_partition_grf(jay_shader *shader)
       demand[I->dst.file] = MAX2(demand[I->dst.file], end + extra);
    }
 
-   unsigned uniform_grfs, nonuniform_grfs;
+   unsigned uniform_grfs, nonuniform_grfs, hw_grfs;
    unsigned spilling_grfs = 0, mem_slots = 0;
    unsigned special_4 = payload_4[0] + payload_4[1] + eot_4;
    unsigned special_u = payload_u[0] + payload_u[1] + eot_u;
@@ -372,8 +372,6 @@ jay_partition_grf(jay_shader *shader)
 
    unsigned mapped_accums = grf_per_gpr == 1 ? 2 : 0;
 
-   const unsigned hw_grfs = 128;
-
    for (unsigned spilling = 0; spilling <= 1; spilling++) {
       /* There is an interdependence between partition choice and spilling,
        * because spilling requires reserved UGPRs for the lowered SENDs. The
@@ -381,14 +379,17 @@ jay_partition_grf(jay_shader *shader)
        * and if that fails, build one with it.
        */
       spilling_grfs = spilling ? shader->dispatch_width / ugpr_per_grf : 0;
+      uniform_grfs = DIV_ROUND_UP(demand[UGPR], ugpr_per_grf) + spilling_grfs;
+
+      hw_grfs =
+         intel_vrt_register_file_size(shader->devinfo,
+                                      uniform_grfs + estimate_nonunif_grf);
 
       /* We want to determine a good GPR/UGPR split by the demand calculation.
        * At minimum we need to not spill UGPRs, but if GPR pressure is low we
        * want to take extra UGPRs to reduce shuffling.
        */
-      uniform_grfs = DIV_ROUND_UP(demand[UGPR], ugpr_per_grf) + spilling_grfs;
       unsigned bonus_grfs = 4 * grf_per_gpr;
-
       if ((uniform_grfs + estimate_nonunif_grf + bonus_grfs) <= hw_grfs) {
          uniform_grfs += bonus_grfs;
       }
