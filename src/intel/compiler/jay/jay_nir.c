@@ -69,7 +69,15 @@ lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    } else if (intr->intrinsic == nir_intrinsic_load_frag_coord_w) {
       nir_def_replace(&intr->def, nir_frcp(b, nir_load_frag_coord_w_rcp(b)));
       return true;
+   } else if (intr->intrinsic == nir_intrinsic_load_sample_pos_from_id) {
+      nir_def *shift = nir_ishl_imm(b, intr->src[0].ssa, 3);
+      nir_def *shifted = nir_ushr(b, nir_load_sample_positions_intel(b), shift);
+      nir_def *pos = nir_u2f32(b, nir_u2u8(b, shifted));
+
+      nir_def_replace(&intr->def, nir_fmul_imm(b, pos, 1.0f / 16.0f));
+      return true;
    }
+
    return false;
 }
 
