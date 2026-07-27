@@ -566,14 +566,18 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
       progress = false;
       NIR_PASS(progress, nir, nir_inline_functions);
+
+      /* Inlining leaves the now-unused function implementations in the
+       * shader.  Drop them before running whole-shader cleanup passes.
+       * Cooperative matrix call functions are not inlined and must remain.
+       */
+      nir_remove_non_cmat_call_entrypoints(nir);
+
       if (progress) {
          NIR_PASS(_, nir, nir_opt_copy_prop_vars);
          NIR_PASS(_, nir, nir_opt_copy_prop);
       }
       NIR_PASS(_, nir, nir_opt_deref);
-
-      /* Pick off the single entrypoint that we want - leave cmat call functions */
-      nir_remove_non_cmat_call_entrypoints(nir);
 
       /* Make sure we lower constant initializers on output variables so that
        * nir_remove_dead_variables below sees the corresponding stores
