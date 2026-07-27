@@ -3,6 +3,7 @@
 
 use crate::bindings::*;
 use std::cmp::{Ordering, PartialOrd};
+use std::fmt;
 use std::ops::Neg;
 
 #[repr(transparent)]
@@ -110,6 +111,18 @@ impl From<F16> for f32 {
 impl From<F16> for f64 {
     fn from(f: F16) -> f64 {
         unsafe { _mesa_half_to_float(f.v).into() }
+    }
+}
+
+impl fmt::Debug for F16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", f32::from(*self))
+    }
+}
+
+impl fmt::Display for F16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", f32::from(*self))
     }
 }
 
