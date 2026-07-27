@@ -832,6 +832,8 @@ a7xx_base = GPUProps(
         round_robin_errata = True,
         max_texel_buffer_range_elements = 1 << 27,
         max_storage_buffer_range_bytes = 1 << 27,
+
+        alias_mova_quirk = True,
     )
 
 a7xx_gen1 = GPUProps(
@@ -1296,6 +1298,7 @@ a8xx_base = GPUProps(
         round_robin_errata = False,
         max_texel_buffer_range_elements = (1 << 29) - 1,
         max_storage_buffer_range_bytes = (1 << 31) - 1,
+        alias_mova_quirk = False,
     )
 
 # For a8xx, the chicken bit and most other non-ctx reg

@@ -56,7 +56,7 @@ can_alias_srcs_of_def(struct ir3_register *src)
 }
 
 static bool
-alias_srcs(struct ir3_instruction *instr)
+alias_srcs(struct ir3_instruction *instr, const struct ir3_compiler *compiler)
 {
    bool progress = false;
 
@@ -138,6 +138,14 @@ alias_srcs(struct ir3_instruction *instr)
       progress = true;
    }
 
+   /* On a7xx, alias is not supported between mova and (ul). Force the
+    * scheduler to avoid putting potentially-aliasing instructions between mova
+    * and the last use of the mova.
+    */
+   if (num_aliases > 0 && compiler->info->props.alias_mova_quirk) {
+      ir3_dst_create(instr, REG_A0_X, IR3_REG_HALF);
+   }
+
    return progress;
 }
 
@@ -166,7 +174,7 @@ ir3_create_alias_tex_regs(struct ir3 *ir)
    foreach_block (block, &ir->block_list) {
       foreach_instr (instr, &block->instr_list) {
          if (supports_alias_srcs(instr)) {
-            progress |= alias_srcs(instr);
+            progress |= alias_srcs(instr, ir->compiler);
          }
       }
    }

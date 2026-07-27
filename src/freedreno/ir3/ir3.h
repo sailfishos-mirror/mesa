@@ -2735,7 +2735,7 @@ static inline struct ir3_instruction *ir3_##name(                              \
    struct ir3_instruction *instr =                                             \
       ir3_build_instr(build, opc, dst_count, 1);                               \
    unsigned dst_flag = scalar_alu ? (a->dsts[0]->flags & IR3_REG_SHARED) : 0;  \
-   for (unsigned i = 0; i < dst_count; i++)                                    \
+   if (dst_count > 0)                                                          \
       __ssa_dst(instr)->flags |= dst_flag;                                     \
    __ssa_src(instr, a, aflags);                                                \
    instr->flags |= flag;                                                       \
@@ -2756,7 +2756,10 @@ static inline struct ir3_instruction_rpt ir3_##name##_rpt(                     \
 /* clang-format on */
 #define INSTR1F(f, name)  __INSTR1(IR3_INSTR_##f, 1, name##_##f, OPC_##name,   \
                                    false)
+#define INSTR1FEXTRADST(f, name)  __INSTR1(IR3_INSTR_##f, 2, name##_##f,       \
+                                           OPC_##name, false)
 #define INSTR1(name)      __INSTR1((ir3_instruction_flags)0, 1, name, OPC_##name, false)
+#define INSTR1EXTRADST(name) __INSTR1((ir3_instruction_flags)0, 2, name, OPC_##name, false)
 #define INSTR1S(name)     __INSTR1((ir3_instruction_flags)0, 1, name, OPC_##name, true)
 #define INSTR1NODST(name) __INSTR1((ir3_instruction_flags)0, 0, name, OPC_##name, false)
 
@@ -3043,13 +3046,13 @@ INSTR1S(COS)
 INSTR1S(SQRT)
 
 /* cat5 instructions: */
-INSTR1(DSX)
-INSTR1(DSXPP_MACRO)
-INSTR1(DSY)
-INSTR1(DSYPP_MACRO)
-INSTR1F(3D, DSX)
-INSTR1F(3D, DSY)
-INSTR1(RGETPOS)
+INSTR1EXTRADST(DSX)
+INSTR1EXTRADST(DSXPP_MACRO)
+INSTR1EXTRADST(DSY)
+INSTR1EXTRADST(DSYPP_MACRO)
+INSTR1FEXTRADST(3D, DSX)
+INSTR1FEXTRADST(3D, DSY)
+INSTR1EXTRADST(RGETPOS)
 
 static inline struct ir3_instruction *
 ir3_SAM(struct ir3_builder *build, opc_t opc, type_t type, unsigned wrmask,
@@ -3069,7 +3072,10 @@ ir3_SAM(struct ir3_builder *build, opc_t opc, type_t type, unsigned wrmask,
       nreg++;
    }
 
-   sam = ir3_build_instr(build, opc, 1, nreg);
+   /* Add an extra destination for fake writes to a0.x for the alias.tex
+    * workaround.
+    */
+   sam = ir3_build_instr(build, opc, 2, nreg);
    sam->flags |= flags;
    __ssa_dst(sam)->wrmask = wrmask;
    if (flags & IR3_INSTR_S2EN) {
