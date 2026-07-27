@@ -4088,6 +4088,10 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
    stats->sends -= (s->spills + s->fills);
    stats->dispatch_width = s->dispatch_width;
    stats->source_hash = s->prog_data->base.source_hash;
+   stats->grf_registers = s->prog_data->base.grf_used;
+   stats->vrt_size =
+      intel_vrt_register_file_size(s->devinfo, stats->grf_registers);
+   stats->vrt_threads = intel_max_vrt_threads(s->devinfo, stats->vrt_size);
 }
 
 static unsigned

@@ -2291,6 +2291,10 @@ brw_generator::generate_code(const brw_shader &s,
       stats->max_live_registers = shader_stats.max_register_pressure;
       stats->source_hash = prog_data->source_hash;
       stats->grf_registers = devinfo->ver >= 30 ? s.grf_used : 0;
+      stats->vrt_size =
+         intel_vrt_register_file_size(devinfo, stats->grf_registers);
+      stats->vrt_threads =
+         intel_max_vrt_threads(devinfo, stats->vrt_size);
 
       switch (stage) {
       case MESA_SHADER_VERTEX:

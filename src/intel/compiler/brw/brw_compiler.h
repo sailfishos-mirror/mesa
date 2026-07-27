@@ -1544,6 +1544,22 @@ enum brw_topology_id
    BRW_TOPOLOGY_ID_EU_THREAD_SIMD,
 };
 
+static inline unsigned
+intel_vrt_register_file_size(const struct intel_device_info *devinfo,
+                             unsigned size)
+{
+   if (devinfo->ver < 30)
+      return 128;
+
+   return MIN2(align(size, size > 192 ? 64 : 32), 256);
+}
+
+static inline unsigned
+intel_max_vrt_threads(const struct intel_device_info *devinfo, unsigned grfs)
+{
+   return devinfo->ver >= 30 ? MIN2(1024 / grfs, 10) : UINT32_MAX;
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
