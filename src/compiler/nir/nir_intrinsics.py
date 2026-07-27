@@ -2696,6 +2696,9 @@ system_value("fs_z_c0_intel", 1, bit_sizes=[32])
 # Lower 16-bit has pixel X coord, upper 16-bit has pixel Y coord
 system_value("pixel_coord_intel", 1, bit_sizes=[32])
 
+# Loads the packed fixed-point sample position array as a i64vec2.
+system_value("sample_positions_intel", 2, bit_sizes=[64])
+
 # Read the attribute thread payload at a given byte offset
 # src[] = { offset }
 load("attribute_payload_intel", [1], indices=[VECTOR_PAYLOAD_INTEL],
