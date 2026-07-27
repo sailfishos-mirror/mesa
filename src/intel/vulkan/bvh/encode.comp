@@ -201,12 +201,6 @@ encode_internal_node(uint32_t child, uint32_t child_block_offset_from_internal_n
          DEREF(dst_node).node_mask = uint8_t(0xff);
          DEREF(dst_node).node_type = node_type;
          DEREF(dst_node).pad = uint8_t(0);
-
-         if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE &&
-             args.parent_child_count_map != 0) {
-            DEREF(INDEX(uint8_t, args.parent_child_count_map, bvh_block_offset)) =
-               uint8_t(child_count);
-         }
       }
 
       child_aabb = conservative_aabb(child_aabb);
@@ -530,8 +524,9 @@ main()
             if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE &&
                 child != VK_BVH_INVALID_NODE &&
                 args.parent_child_map != 0 &&
-                args.leaf_block_offset_map != 0) {
-	       if (type == vk_ir_node_triangle || type == vk_ir_node_aabb) {
+                args.leaf_block_offset_map != 0 &&
+                args.parent_child_count_map != 0) {
+               if (type == vk_ir_node_triangle || type == vk_ir_node_aabb) {
                   uint32_t ir_offset = ir_id_to_offset(child);
                   uint32_t leaf_id = ir_offset / intermediate_leaf_node_size;
                   /* Block offset 0 is assigned to root, so avoid accidental
@@ -546,6 +541,11 @@ main()
                   uint32_t pcm = 0;
                   pcm = internal_node_block | (cluster.idx << 26);
                   DEREF(INDEX(uint32_t, args.parent_child_map, child_block)) = pcm;
+               }
+
+               if (type == vk_ir_node_internal) {
+                  uint32_t count = anv_shuffle(cluster, idx, found_child_count);
+                  DEREF(INDEX(uint8_t, args.parent_child_count_map, internal_node_block)) = uint8_t(count);
                }
             }
 
