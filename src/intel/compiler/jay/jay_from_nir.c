@@ -4807,6 +4807,11 @@ jay_compile(const struct intel_device_info *devinfo,
       unsigned num_relocs;
    } variants[3] = {};
 
+   unsigned best_vrt_size = UINT32_MAX;
+
+   /* VRT sizes at or below this threshold can fully occupy the EU threads */
+   const unsigned vrt_threshold = 96;
+
    /* Compile SIMD variants */
    for (unsigned simd = largest; simd >= smallest; simd >>= 1) {
       if (!(modes & simd))
@@ -4827,18 +4832,34 @@ jay_compile(const struct intel_device_info *devinfo,
       jv->relocs = prog_data->base.relocs;
       jv->num_relocs = prog_data->base.num_relocs;
 
-      if (!jv->bin)
-         modes &= ~simd;
-
       ralloc_free(nir);
 
-      /* Only fragment shaders can dispatch multiple SIMD widths, so stop
-       * compiling compute shaders once we've found a width that works without
-       * spilling. In the future we could consider more heuristics but for now
-       * this should suffice.
-       */
-      if (jv->bin && orig_nir->info.stage != MESA_SHADER_FRAGMENT) {
-         break;
+      if (jv->bin) {
+         best_vrt_size = MIN2(jv->bin->stats[0].vrt_size, best_vrt_size);
+
+         /* Only fragment shaders can dispatch multiple SIMD widths, so for
+          * other stages, stop compiling once we've found a width that works
+          * without spilling, and on Xe3, already has a VRT size that allows
+          * us to utilize all the EU threads.
+          */
+         if (orig_nir->info.stage != MESA_SHADER_FRAGMENT &&
+             (devinfo->ver < 30 || best_vrt_size <= vrt_threshold)) {
+            break;
+         }
+      } else {
+         modes &= ~simd;
+      }
+   }
+
+   /* Discard variants with poor VRT occupancy */
+   if (devinfo->ver >= 30) {
+      for (unsigned i = 0; i < ARRAY_SIZE(variants); i++) {
+         if (variants[i].bin &&
+             variants[i].bin->stats[0].vrt_size > best_vrt_size &&
+             variants[i].bin->stats[0].vrt_size > vrt_threshold) {
+            ralloc_free(variants[i].bin);
+            variants[i].bin = NULL;
+         }
       }
    }
 
@@ -4863,6 +4884,10 @@ jay_compile(const struct intel_device_info *devinfo,
    bin->kernel = rzalloc_size(mem_ctx, total_bin_size);
    bin->size = total_bin_size;
    prog_data->base.program_size = total_bin_size;
+   prog_data->base.grf_used = 0;
+   prog_data->fs.dispatch_8 = false;
+   prog_data->fs.dispatch_16 = false;
+   prog_data->fs.dispatch_32 = false;
 
    struct intel_shader_reloc *relocs = NULL;
    if (total_num_relocs > 0) {
@@ -4887,14 +4912,23 @@ jay_compile(const struct intel_device_info *devinfo,
          relocs[reloc_start + r].offset += offset;
       }
 
+      /* Smaller SIMD variants may use fewer registers, select the largest
+       * of the VRT sizes for all variants we're merging together.
+       */
+      prog_data->base.grf_used =
+         MAX2(prog_data->base.grf_used, variants[i].bin->stats[0].vrt_size);
+
       if (orig_nir->info.stage == MESA_SHADER_FRAGMENT) {
-         if (i == 1) {
+         if (i == 0) {
+            prog_data->fs.dispatch_8 = true;
+         } else if (i == 1) {
+            prog_data->fs.dispatch_16 = true;
             prog_data->fs.prog_offset_16 = offset;
          } else if (i == 2) {
+            prog_data->fs.dispatch_32 = true;
             prog_data->fs.prog_offset_32 = offset;
          }
-      }
-      if (orig_nir->info.stage == MESA_SHADER_COMPUTE) {
+      } else if (orig_nir->info.stage == MESA_SHADER_COMPUTE) {
          prog_data->cs.prog_mask |= BITFIELD_BIT(i);
       } else if (brw_shader_stage_is_bindless(orig_nir->info.stage)) {
          prog_data->bs.simd_size = 8 << i;
