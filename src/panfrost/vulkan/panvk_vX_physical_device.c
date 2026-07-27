@@ -39,7 +39,6 @@ panvk_per_arch(get_physical_device_extensions)(
    const struct panvk_instance *instance,
    struct vk_device_extension_table *ext)
 {
-   bool has_vk1_2 = PAN_ARCH >= 10;
    bool has_gralloc = vk_android_get_ugralloc() != NULL;
 
    *ext = (struct vk_device_extension_table){
@@ -108,7 +107,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_maximal_reconvergence = PAN_ARCH >= 9,
       .KHR_shader_non_semantic_info = true,
-      .KHR_shader_quad_control = has_vk1_2,
+      .KHR_shader_quad_control = PAN_ARCH >= 9,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_extended_types = true,
       .KHR_shader_subgroup_rotate = true,
@@ -776,7 +775,7 @@ get_api_version()
    if (PAN_ARCH >= 10)
       return VK_MAKE_API_VERSION(0, 1, 4, VK_HEADER_VERSION);
 
-   return VK_MAKE_API_VERSION(0, 1, 1, VK_HEADER_VERSION);
+   return VK_MAKE_API_VERSION(0, 1, 3, VK_HEADER_VERSION);
 }
 
 static VkConformanceVersion

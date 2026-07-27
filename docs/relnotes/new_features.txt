@@ -1,6 +1,6 @@
 VK_IMG_filter_linear_2d on pvr
 VK_KHR_maintenance7 on pvr
-Vulkan 1.1 on panvk/v6-7
+Vulkan 1.3 on panvk/v6-7
 VK_KHR_maintenance4 on panvk/v6-7
 VK_KHR_maintenance5 on panvk/v6-7
 VK_KHR_maintenance7 on panvk/v6-7
