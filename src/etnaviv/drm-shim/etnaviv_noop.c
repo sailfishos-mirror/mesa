@@ -157,6 +157,17 @@ etnaviv_ioctl_noop(int fd, unsigned long request, void *arg)
 }
 
 static int
+etnaviv_ioctl_pm_query_dom(int fd, unsigned long request, void *arg)
+{
+   struct drm_etnaviv_pm_domain *args = arg;
+
+   args->iter = 0xff;
+   args->nr_signals = 0;
+
+   return 0;
+}
+
+static int
 etnaviv_ioctl_gem_new(int fd, unsigned long request, void *arg)
 {
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
@@ -208,7 +219,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_ETNAVIV_WAIT_FENCE] = etnaviv_ioctl_noop,
    [DRM_ETNAVIV_GEM_USERPTR] = etnaviv_ioctl_noop,
    [DRM_ETNAVIV_GEM_WAIT] = etnaviv_ioctl_noop,
-   [DRM_ETNAVIV_PM_QUERY_DOM] = etnaviv_ioctl_noop,
+   [DRM_ETNAVIV_PM_QUERY_DOM] = etnaviv_ioctl_pm_query_dom,
    [DRM_ETNAVIV_PM_QUERY_SIG] = etnaviv_ioctl_noop,
 };
 
