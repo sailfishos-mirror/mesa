@@ -1791,13 +1791,6 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
          (ngg_stage == VK_SHADER_STAGE_VERTEX_BIT || ngg_stage == VK_SHADER_STAGE_GEOMETRY_BIT);
    }
 
-   if (!BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY) && state->ia &&
-       state->ia->primitive_topology != VK_PRIMITIVE_TOPOLOGY_POINT_LIST &&
-       !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_POLYGON_MODE) && state->rs &&
-       state->rs->polygon_mode != VK_POLYGON_MODE_POINT) {
-      key.enable_remove_point_size = true;
-   }
-
    if (compiler_info->smooth_lines) {
       /* Make the line rasterization mode dynamic for smooth lines to conditionally enable the lowering at draw time.
        * This is because it's not possible to know if the graphics pipeline will draw lines at this point and it also
@@ -2543,9 +2536,9 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       merge_tess_info(&stages[MESA_SHADER_TESS_EVAL].nir->info, &stages[MESA_SHADER_TESS_CTRL].nir->info);
    }
 
-   if (stages[MESA_SHADER_FRAGMENT].nir) {
-      unsigned num_raster_vertices_per_prim = radv_get_num_raster_vertices_per_prim(stages, gfx_state);
+   unsigned num_raster_vertices_per_prim = radv_get_num_raster_vertices_per_prim(stages, gfx_state);
 
+   if (stages[MESA_SHADER_FRAGMENT].nir) {
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_fs_barycentric, gfx_state,
                num_raster_vertices_per_prim);
 
@@ -2667,9 +2660,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       /* Remove PSIZ from shaders when it's not needed.
        * This is typically produced by translation layers like Zink or d3d9 DXVK.
        */
-      if (gfx_state->enable_remove_point_size && (i != MESA_SHADER_TESS_EVAL || !stages[i].nir->info.tess.point_mode) &&
-          (i != MESA_SHADER_GEOMETRY || stages[i].nir->info.gs.output_primitive != MESA_PRIM_POINTS) &&
-          (i != MESA_SHADER_MESH || stages[i].nir->info.mesh.primitive_type != MESA_PRIM_POINTS))
+      if (num_raster_vertices_per_prim > 1)
          remove_as_sysval |= VARYING_BIT_PSIZ;
 
       NIR_PASS(_, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, remove_as_varying, remove_as_sysval);

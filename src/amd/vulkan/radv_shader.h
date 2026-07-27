@@ -142,9 +142,8 @@ struct radv_graphics_state_key {
    uint32_t dynamic_rasterization_samples : 1;
    uint32_t dynamic_provoking_vtx_mode : 1;
    uint32_t dynamic_line_rast_mode : 1;
-   uint32_t enable_remove_point_size : 1;
    uint32_t dcc_decompress_gfx11 : 1;
-   uint32_t reserved : 12;
+   uint32_t reserved : 13;
 
    struct {
       uint8_t topology;
