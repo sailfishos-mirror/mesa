@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::ir::*;
-use compiler::bitset::IntoBitIndex;
+use compiler::bitset::{BitSet, IntoBitIndex};
 use rustc_hash::FxHashMap;
 
 use std::fmt;
@@ -87,5 +87,28 @@ impl PhiMap {
 
     pub fn get_dst_ssa(&self, phi: &Phi) -> &SSARef {
         self.phi_dst_ssa.get(phi).unwrap()
+    }
+}
+
+/// A set of phi words.
+///
+/// Unlike SSA values, phis can be 64-bit.  This provides a set type which
+/// tracks individual phi words, rather than just the phi handles themselves.
+#[derive(Clone, Default)]
+pub struct PhiWordSet(BitSet<u32>);
+
+impl PhiWordSet {
+    pub fn new() -> PhiWordSet {
+        Default::default()
+    }
+
+    pub fn insert(&mut self, phi: Phi, word: u8) {
+        debug_assert!(word < 2);
+        self.0.insert((phi.idx() << 1) | u32::from(word));
+    }
+
+    pub fn contains(&mut self, phi: &Phi, word: u8) -> bool {
+        debug_assert!(word < 2);
+        self.0.contains((phi.idx() << 1) | u32::from(word))
     }
 }
