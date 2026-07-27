@@ -837,6 +837,19 @@ pub enum FClamp {
     ZeroToOne,
 }
 
+impl FClamp {
+    pub fn fold(&self, x: f32) -> f32 {
+        // Don't use f32::clamp as it propagates NaN (the hardware doesn't)
+        let (lo, hi) = match self {
+            FClamp::None => return x,
+            FClamp::ZeroToInf => (0.0, f32::INFINITY),
+            FClamp::NegOneToOne => (-1.0, 1.0),
+            FClamp::ZeroToOne => (0.0, 1.0),
+        };
+        x.ieee_max(lo).ieee_min(hi)
+    }
+}
+
 impl fmt::Display for FClamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -956,6 +969,28 @@ impl DisplayOp for OpFAddLScale {
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
+    }
+}
+
+impl Foldable for OpFAddLScale {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_f32(&self.srcs[0]);
+        let cb = f.get_f32(&self.srcs[1]);
+
+        fn reduce(x: f32) -> f32 {
+            if !x.is_normal() {
+                return x;
+            }
+            // Force exponent to 0
+            let m = f32::from_bits((x.to_bits() & 0x807fffff) | 0x3f800000);
+            // Mantissa is (by construction) in [1.0, 2.0), half it if too large
+            if m.abs() >= 1.5 { m * 0.5 } else { m }
+        }
+
+        // TODO: proper rounding
+        let c = self.clamp.fold(ca + reduce(cb));
+
+        f.set_f32(&self.dst, c);
     }
 }
 
