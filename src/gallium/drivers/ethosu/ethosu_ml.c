@@ -205,6 +205,21 @@ ethosu_ml_subgraph_create(struct pipe_ml_device *pdevice,
 
    ethosu_lower_graph(subgraph, poperations, count);
 
+   if (subgraph->failed) {
+      util_dynarray_foreach (&subgraph->operations,
+                             struct ethosu_operation, operation) {
+         free(operation->kernel.scales);
+         free(operation->kernel.zero_points);
+      }
+      util_dynarray_fini(&subgraph->operations);
+      free(subgraph->cmd0_state);
+      free(subgraph->cmd1_state);
+      free(subgraph->cmd0_valid);
+      free(subgraph->cmd1_valid);
+      ethosu_ml_subgraph_destroy(pdevice, &subgraph->base);
+      return NULL;
+   }
+
    ethosu_emit_cmdstream(subgraph);
 
    if (subgraph->failed) {

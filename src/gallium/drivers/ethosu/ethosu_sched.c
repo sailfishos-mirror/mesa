@@ -240,6 +240,16 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
    return config;
 }
 
+static bool
+block_config_is_valid(const struct ethosu_block_config *config)
+{
+   return config->ifm_block.width && config->ifm_block.height &&
+          config->ifm_block.depth && config->ofm_block.width &&
+          config->ofm_block.height && config->ofm_block.depth &&
+          config->ofm_ublock.width && config->ofm_ublock.height &&
+          config->ofm_ublock.depth;
+}
+
 void
 ethosu_sched_operation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
@@ -249,4 +259,13 @@ ethosu_sched_operation(struct ethosu_subgraph *subgraph, struct ethosu_operation
       operation->block_config = find_block_config(subgraph, operation);
    else
       operation->block_config = find_block_config_u85(subgraph, operation);
+
+   if (!block_config_is_valid(&operation->block_config)) {
+      mesa_loge("ethosu: failed to find block configuration for operation "
+                "%u (IFM %ux%ux%u, OFM %ux%ux%u)", operation->type,
+                operation->ifm.shape.width, operation->ifm.shape.height,
+                operation->ifm.shape.depth, operation->ofm.shape.width,
+                operation->ofm.shape.height, operation->ofm.shape.depth);
+      subgraph->failed = true;
+   }
 }

@@ -1274,26 +1274,30 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
    if (!prev_op)
       return 0;
 
+   /*
+    * An alias has no command or block configuration.  It marks a layout
+    * change, so the following command must not derive a dependency from
+    * the operation that produced the aliased storage.
+    */
+   if (prev_op->type == ETHOSU_OPERATION_TYPE_NONE)
+      return 0;
+
    /* Check if previous OFM matches current IFM (same tensor) */
    int ifm_index = 0;
    if (operation->ifm2.tensor == prev_op->ofm.tensor) {
       ifm_index = 1;
    } else if (operation->ifm.tensor != prev_op->ofm.tensor) {
-      if (prev_op->type == ETHOSU_OPERATION_TYPE_NONE)
-         return 0;
-      else
-         /* Previous operation doesn't produce current operation's IFM */
-         return device->max_concurrent_blocks;
+      /* Previous operation doesn't produce current operation's IFM. */
+      return device->max_concurrent_blocks;
    }
 
    const struct ethosu_feature_map *ifm = (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
    const struct ethosu_feature_map *prev_ofm = &prev_op->ofm;
 
-   /* Check if shapes match (no reshape between operations) */
    if (ifm->shape.height != prev_ofm->shape.height ||
        ifm->shape.width != prev_ofm->shape.width ||
        ifm->shape.depth != prev_ofm->shape.depth) {
-      /* OFM has been reshaped; overlap calculations don't work */
+      /* OFM has been reshaped; overlap calculations don't work. */
       return 0;
    }
 
@@ -1309,11 +1313,33 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
 
    /* Calculate block shapes */
    struct ethosu_block prev_block = prev_op->block_config.ofm_block;
+   struct ethosu_block curr_block = operation->block_config.ofm_block;
+
+   if (!prev_block.height || !prev_block.width || !prev_block.depth ||
+       !curr_block.height || !curr_block.width || !curr_block.depth ||
+       !operation->block_config.ifm_block.depth) {
+      mesa_loge("ethosu: invalid block configuration for dependency: "
+                "previous=%ux%ux%u current=%ux%ux%u",
+                prev_block.width, prev_block.height, prev_block.depth,
+                curr_block.width, curr_block.height, curr_block.depth);
+      return device->max_concurrent_blocks;
+   }
+
    struct ethosu_block curr_ifm_job;
-   calc_ifm_job_shape(&operation->block_config.ofm_block,
+   calc_ifm_job_shape(&curr_block,
                       &operation->kernel,
                       operation->block_config.ifm_block.depth,
                       &curr_ifm_job);
+
+   if (!curr_ifm_job.height || !curr_ifm_job.width ||
+       !curr_ifm_job.depth) {
+      mesa_loge("ethosu: invalid block configuration for dependency: "
+                "previous=%ux%ux%u current=%ux%ux%u",
+                prev_block.width, prev_block.height, prev_block.depth,
+                curr_ifm_job.width, curr_ifm_job.height,
+                curr_ifm_job.depth);
+      return device->max_concurrent_blocks;
+   }
 
    /* Get last jobs from previous operation */
    int max_jobs = device->max_concurrent_blocks;
@@ -1357,6 +1383,9 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
    struct util_dynarray outstanding_dma_ops;
    struct util_dynarray outstanding_npu_ops;
    bool has_op = false;
+
+   if (subgraph->failed)
+      return;
 
    util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
       if (operation->type != ETHOSU_OPERATION_TYPE_NONE) {
