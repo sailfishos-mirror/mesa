@@ -8,8 +8,8 @@
 #include "radv_nir.h"
 
 /* This pass optimizes shuffles and boolean alu where the source can be
- * expressed as a function of tid (only subgroup_id,
- * invocation_id or constant as inputs).
+ * expressed as a function of tid (only subgroup_invocation_id, local_invocation_index,
+ * local_invocation_id or constant as inputs).
  * Shuffles are replaced by specialized intrinsics, boolean alu by inverse_ballot.
  * The pass first computes the function of tid (fotid) mask, and then uses constant
  * folding to compute the source for each invocation.
