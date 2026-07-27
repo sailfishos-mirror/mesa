@@ -1304,7 +1304,7 @@
         "description": "brw: fix wa_18019110168 lowering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fcf4401824692acbb696709449dd06dd577da355",
         "notes": null
