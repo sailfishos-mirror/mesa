@@ -2534,7 +2534,7 @@
         "description": "nir: Add cases to nir_get_io_offset_src_number()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "47f6c74b71cfa15dd7ea0dbee7c0d3f0d8b5d25f",
         "notes": null
