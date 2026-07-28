@@ -852,25 +852,38 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   unsigned input_span = operation->ifm.shape.height * operation->ifm.shape.width;
+
+   if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+      input_span *= align(operation->ifm.shape.depth, 16);
+   else
+      input_span *= operation->ifm.shape.depth;
+   input_span *= 1 << operation->ifm.precision;
+
    operation->ifm.shape = operation->ofm.shape;
 
    allocate_feature_maps(subgraph, operation);
 
-   unsigned augmented_coord[5] = {};
-   for (int i = 0; i < poperation->input_tensors[1]->dims[3]; ++i) {
-      augmented_coord[i + 1] = poperation->slice.begin[i];
-   }
-
-   unsigned augmented_strides[5];
-   augmented_strides[0] = operation->ifm.shape.depth * operation->ifm.shape.width * operation->ifm.shape.height;
-   augmented_strides[1] = 1;
-   augmented_strides[2] = operation->ifm.shape.depth * operation->ifm.shape.width;
-   augmented_strides[3] = operation->ifm.shape.depth;
-   augmented_strides[4] = 1;
-
+   unsigned rank = poperation->input_tensors[1]->dims[3];
    unsigned address_offset = 0;
-   for (int i = 0; i < 5; ++i)
-      address_offset += augmented_coord[i] * augmented_strides[i];
+
+   assert(rank <= 4);
+   for (unsigned i = 0; i < rank; i++) {
+      switch (i + 4 - rank) {
+      case 0:
+         address_offset += poperation->slice.begin[i] * input_span;
+         break;
+      case 1:
+         address_offset += poperation->slice.begin[i] * operation->ifm.stride.y;
+         break;
+      case 2:
+         address_offset += poperation->slice.begin[i] * operation->ifm.stride.x;
+         break;
+      case 3:
+         address_offset += poperation->slice.begin[i] * operation->ifm.stride.c;
+         break;
+      }
+   }
 
    operation->ifm.tiles.addresses[0] += address_offset;
 
