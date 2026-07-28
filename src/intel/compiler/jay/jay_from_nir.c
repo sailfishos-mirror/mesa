@@ -3675,7 +3675,7 @@ static void
 setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
    /* Summarizing the "PS Thread Payload for Normal Dispatch" docs, the
-    * physical thread payload layout is as follows:
+    * physical thread payload layout on Xe2 is as follows:
     *
     * UGPRs:
     * R0: All modes
@@ -3720,6 +3720,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    jay_fs_payload *fs = &nj->payload.fs;
    jay_builder *b = &nj->bld;
+   const struct intel_device_info *devinfo = nj->s->devinfo;
 
    if (nj->s->dispatch_width == 32) {
       nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
@@ -3802,11 +3803,22 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
       for (unsigned i = 0; i < nj->s->prog_data->fs.num_varying_inputs * 4;
            ++i) {
-         fs->deltas[i] = read_vector_payload(p, UGPR, 3);
+         if (devinfo->ver >= 20) {
+            /* On Xe2, we have packed vec3s with the 15th reserved as padding */
+            fs->deltas[i] = read_vector_payload(p, UGPR, 3);
 
-         /* Padding */
-         if ((i % 5) == 4) {
+            /* Padding */
+            if ((i % 5) == 4) {
+               read_payload(p, UGPR);
+            }
+         } else {
+            /* On older platforms, we have vec4s arranged as <1, 2, pad, 0> */
+            jay_def a1 = read_payload(p, UGPR);
+            jay_def a2 = read_payload(p, UGPR);
             read_payload(p, UGPR);
+            jay_def a0 = read_payload(p, UGPR);
+            jay_def a[] = { a0, a1, a2 };
+            fs->deltas[i] = jay_collect_vectors(b, a, 3);
          }
       }
    }
@@ -3919,7 +3931,17 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    b->cursor = jay_after_block(nj->after_block);
 
    struct payload_builder p = { .b = &nj->bld };
-   nj->payload.u0 = read_vector_payload(&p, UGPR, jay_ugpr_per_grf(s));
+
+   /* On Xe2, u0 contains 16 UGPRs with various meanings. On Xe1 fragment
+    * shaders, u0 and u1 are ganged together to build essentially the same 16
+    * UGPRs. So we read twice as much there to avoid special cases all over the
+    * payload code, allowing us to assume an Xe2 model unless otherwise
+    * specified.
+    */
+   unsigned factor =
+      s->devinfo->ver < 20 && s->stage == MESA_SHADER_FRAGMENT ? 2 : 1;
+
+   nj->payload.u0 = read_vector_payload(&p, UGPR, jay_ugpr_per_grf(s) * factor);
    nj->payload.sampler_state_pointer = jay_extract(nj->payload.u0, 3);
 
    switch (s->stage) {

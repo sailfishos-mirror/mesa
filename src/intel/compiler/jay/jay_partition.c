@@ -200,6 +200,7 @@ register_limit(jay_shader *s, enum jay_file file, unsigned limit)
 void
 jay_partition_grf(jay_shader *shader)
 {
+   const struct intel_device_info *devinfo = shader->devinfo;
    unsigned grf_per_gpr = jay_grf_per_gpr(shader);
    unsigned ugpr_per_grf = jay_ugpr_per_grf(shader);
 
@@ -270,6 +271,10 @@ jay_partition_grf(jay_shader *shader)
        */
       assert(util_is_aligned(shader->payload_gprs, grf_per_gpr) &&
              "payload constraint");
+
+      if (devinfo->ver < 20) {
+         payload_u[0] = 2;
+      }
 
       payload_4[0] = shader->payload_gprs;
       payload_u[1] = (shader->payload_ugprs / ugpr_per_grf) - payload_u[0];
