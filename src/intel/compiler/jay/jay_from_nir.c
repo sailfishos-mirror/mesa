@@ -1101,12 +1101,22 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    uint64_t desc = brw_fb_write_desc(devinfo, target, op, last, coarse);
 
-   uint64_t ex_desc = (target << 21) |
-                      (null_rt ? (1 << 20) : 0) |
-                      (jay_is_null(src0_alpha) ? 0 : (1 << 15)) |
-                      (jay_is_null(stencil) ? 0 : (1 << 14)) |
-                      (jay_is_null(depth) ? 0 : (1 << 13)) |
-                      (jay_is_null(omask) ? 0 : (1 << 12));
+   uint64_t ex_desc = 0;
+   if (devinfo->ver >= 20) {
+      ex_desc = (target << 21) |
+                (null_rt ? (1 << 20) : 0) |
+                (jay_is_null(src0_alpha) ? 0 : (1 << 15)) |
+                (jay_is_null(stencil) ? 0 : (1 << 14)) |
+                (jay_is_null(depth) ? 0 : (1 << 13)) |
+                (jay_is_null(omask) ? 0 : (1 << 12));
+   } else if (devinfo->ver >= 11) {
+      /* Set the "Render Target Index" and "Src0 Alpha Present" fields
+       * in the extended message descriptor, in lieu of using a header.
+       */
+      ex_desc = (target << 12) |
+                (null_rt ? (1 << 20) : 0) |
+                (jay_is_null(src0_alpha) ? 0 : (1 << 15));
+   }
 
    assert((jay_is_null(src0_alpha) || jay_is_null(omask)) &&
           "TODO: lower alpha test to discards when samplemask is written");
