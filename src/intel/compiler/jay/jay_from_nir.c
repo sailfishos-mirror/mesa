@@ -1279,7 +1279,7 @@ jay_scratch_surface(struct nir_to_jay_state *nj)
 }
 
 static void
-jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
+jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_builder *b = &nj->bld;
    bool slm = nir_is_shared_access(intr);
@@ -1547,6 +1547,229 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .pure = nir_intrinsic_can_reorder(intr),
             .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS, .ex_desc = ex_desc,
             .ex_desc_imm = ex_desc_imm, .skip_helpers = skip_helpers);
+
+   if (has_dest && !jay_defs_equivalent(tmp, dst)) {
+      unsigned src_stride = transpose ? 1 : jay_ugpr_per_grf(b->shader);
+
+      jay_foreach_comp(dst, i) {
+         unsigned c = ((i / dst_stride) * src_stride) + (i % dst_stride);
+         jay_MOV(b, jay_extract(dst, i), jay_extract(tmp, c));
+      }
+   }
+}
+
+static void
+jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
+{
+   jay_builder *b = &nj->bld;
+   bool slm = nir_is_shared_access(intr);
+   bool tgm = nir_intrinsic_has_image_dim(intr);
+   bool urb = intr->intrinsic == nir_intrinsic_load_urb_lsc_intel ||
+              intr->intrinsic == nir_intrinsic_load_urb_vec4_intel ||
+              intr->intrinsic == nir_intrinsic_store_urb_lsc_intel ||
+              intr->intrinsic == nir_intrinsic_store_urb_vec4_intel;
+   enum gen_sfid sfid = slm ? GEN_SFID_SLM :
+                        tgm ? GEN_SFID_HDC1 :
+                        urb ? GEN_SFID_URB :
+                              GEN_SFID_UGM;
+
+   nir_src *data_src = nir_get_io_data_src(intr);
+   bool scratch = intr->intrinsic == nir_intrinsic_load_scratch_intel ||
+                  intr->intrinsic == nir_intrinsic_store_scratch_intel;
+
+   enum lsc_opcode op;
+   if (nir_intrinsic_has_atomic_op(intr))
+      op = lsc_op_for_atomic(nir_intrinsic_atomic_op(intr));
+   else if (tgm)
+      op = data_src ? LSC_OP_STORE_CMASK : LSC_OP_LOAD_CMASK;
+   else
+      op = data_src ? LSC_OP_STORE : LSC_OP_LOAD;
+
+   nir_src *bti = nir_get_io_index_src(intr), *ubo = NULL;
+   nir_src *offset_src = tgm ? &intr->src[1] : nir_get_io_offset_src(intr);
+
+   if (intr->intrinsic == nir_intrinsic_load_ubo ||
+       intr->intrinsic == nir_intrinsic_load_ubo_uniform_block_intel) {
+      ubo = bti;
+      bti = NULL;
+      b->shader->prog_data->base.has_ubo_pull = true;
+   }
+
+   const struct intel_device_info *devinfo = b->shader->devinfo;
+   bool has_dest = nir_intrinsic_infos[intr->intrinsic].has_dest;
+   jay_def data = data_src ? nj_src(*data_src) : jay_null();
+   unsigned bti_const = 0;
+   bool internal = false;
+   bool bindless = false;
+   jay_def bti_indirect =
+      jay_resource_handle(b, bti ?: ubo, &bti_const, &internal, &bindless);
+   jay_def offset = nj_src(*offset_src);
+   nir_def *ndata = data_src ? data_src->ssa : &intr->def;
+   jay_def dst = has_dest ? nj_def(&intr->def) : jay_null();
+   int32_t base_offset =
+      nir_intrinsic_has_base(intr) ? nir_intrinsic_base(intr) : 0;
+
+   /* Optimize increment/decrement */
+   if (op == LSC_OP_ATOMIC_ADD && nir_src_is_const(*data_src)) {
+      int64_t add_val = nir_src_as_int(*data_src);
+      if (add_val == 1 || add_val == -1) {
+         op = add_val == 1 ? LSC_OP_ATOMIC_INC : LSC_OP_ATOMIC_DEC;
+         data = jay_null();
+      }
+   }
+
+   /* Pack the coordinates. TODO: MSAA */
+   if (tgm) {
+      unsigned nr = nir_image_intrinsic_coord_components(intr);
+      offset = jay_extract_range(offset, 0, nr);
+   }
+
+   internal |= scratch;
+   enum lsc_addr_surface_type surf_type = internal     ? LSC_ADDR_SURFTYPE_SS :
+                                          bindless     ? LSC_ADDR_SURFTYPE_BSS :
+                                          (bti || ubo) ? LSC_ADDR_SURFTYPE_BTI :
+                                                         LSC_ADDR_SURFTYPE_FLAT;
+
+   bool a64 = surf_type == LSC_ADDR_SURFTYPE_FLAT && sfid == GEN_SFID_UGM;
+   UNUSED enum lsc_addr_size addr_size =
+      a64 ? LSC_ADDR_SIZE_A64 : LSC_ADDR_SIZE_A32;
+   enum jay_type offset_type = a64 ? JAY_TYPE_U64 : JAY_TYPE_U32;
+
+   bool cmask = op == LSC_OP_LOAD_CMASK || op == LSC_OP_STORE_CMASK;
+   bool uniform = !(has_dest && dst.file != UGPR);
+
+   if (!has_dest) {
+      uniform &= jay_is_null(data) || data.file == UGPR;
+      uniform &= jay_is_null(offset) || offset.file == UGPR;
+      uniform &= !urb;
+   }
+
+   /* Per bspec 57330, 8-bit/16-bit are not supported for transpose */
+   bool transpose = uniform && !cmask && ndata->bit_size >= 32;
+
+   if (!uniform) {
+      offset = jay_as_gpr(b, offset);
+      data = jay_as_gpr(b, data);
+   } else if (!transpose) {
+      offset = jay_src_as_strided(b, offset, a64 ? 2 : 1, UGPR);
+      data = jay_src_as_strided(b, data, 1, UGPR);
+   }
+
+   unsigned access =
+      nir_intrinsic_has_access(intr) ? nir_intrinsic_access(intr) : 0;
+
+   bool volatile_access = access & ACCESS_VOLATILE;
+   bool coherent_access = access & ACCESS_COHERENT;
+
+   bool skip_helpers = data_src || (access & ACCESS_SKIP_HELPERS);
+   skip_helpers &= !(access & ACCESS_INCLUDE_HELPERS);
+
+   /* Skip L1 for coherent/volatile and URB access. */
+   bool bypass_l1 = volatile_access || coherent_access || urb;
+   bool bypass_l3 = volatile_access;
+
+   /* Skip L3 for URB */
+   bypass_l3 |= urb;
+
+   unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+   unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
+   unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+
+   if (bypass_l3) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
+   } else if (bypass_l1) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+   }
+
+   UNUSED unsigned cache = lsc_opcode_is_atomic(op) ? atomic_cache_mode :
+                           lsc_opcode_is_store(op)  ? store_cache_mode :
+                                                      load_cache_mode;
+
+   ASSERTED const unsigned max_imm_bits =
+      brw_max_immediate_offset_bits(surf_type);
+   assert(base_offset >= u_intN_min(max_imm_bits));
+   assert(base_offset <= u_intN_max(max_imm_bits));
+   assert(base_offset == 0 || !tgm);
+
+   unsigned nr = ndata->num_components;
+   uint64_t desc = 0;
+   unsigned exec_size = nj->bld.shader->dispatch_width;
+
+   if (tgm) {
+      if (lsc_opcode_is_atomic(op)) {
+         desc =
+            brw_dp_typed_atomic_desc(devinfo, exec_size, 0,
+                                     brw_lsc_op_to_legacy_atomic(op), has_dest);
+      } else {
+         desc =
+            brw_dp_typed_surface_rw_desc(devinfo, exec_size, 0, nr, !has_dest);
+      }
+   } else {
+      UNREACHABLE("todo: hdc messages");
+   }
+
+   /* Unlike most SENDs, we may skip the destination of atomics. We do this here
+    * instead of DCE so we don't need to fix up message descriptors later.
+    */
+   if (nir_intrinsic_has_atomic_op(intr) && nir_def_is_unused(&intr->def)) {
+      dst = jay_null();
+   }
+
+   jay_def tmp = dst;
+   unsigned dst_stride = transpose ? 1 : MAX2(ndata->bit_size / 32, 1);
+
+   if (dst.file == UGPR) {
+      if (transpose) {
+         /* Transpose writes whole GRFs, so round up */
+         tmp = jay_alloc_def(b, UGPR,
+                             ALIGN_POT(jay_num_values(dst),
+                                       jay_ugpr_per_grf(b->shader)));
+      } else {
+         /* Without transpose we write at GRF granularity. Pad out. */
+         tmp = jay_alloc_def(b, UGPR,
+                             jay_ugpr_per_grf(b->shader) * jay_num_values(dst));
+      }
+   }
+
+   jay_def srcs[] = { offset, data };
+
+   /* Second data source immediately follows the first */
+   if (op == LSC_OP_ATOMIC_CMPXCHG || op == LSC_OP_ATOMIC_FCMPXCHG) {
+      jay_def data2 = nj_src(*(data_src + 1));
+
+      if (!transpose) {
+         data2 = jay_as_gpr(b, data2);
+      }
+
+      srcs[1] = jay_collect_two(b, data, data2);
+   }
+
+   if (scratch) {
+      /* TODO: Once we have an address register RA, we should CSE these */
+      UNREACHABLE("todo");
+
+      if (has_dest) {
+         b->shader->fills++;
+      } else {
+         b->shader->spills++;
+      }
+   } else if (surf_type == LSC_ADDR_SURFTYPE_FLAT) {
+      UNREACHABLE("todo");
+   } else if (jay_is_null(bti_indirect)) {
+      desc |= bti_const;
+   } else if (!jay_is_null(bti_indirect)) {
+      UNREACHABLE("todo");
+   }
+
+   enum jay_type data_type = jay_type(JAY_TYPE_U, MAX2(ndata->bit_size, 32));
+   jay_SEND(b, .sfid = sfid, .msg_desc = desc, .srcs = srcs,
+            .nr_srcs = jay_is_null(data) ? 1 : 2, .dst = tmp, .type = data_type,
+            .src_type = { offset_type, data_type }, .uniform = uniform,
+            .pure = nir_intrinsic_can_reorder(intr),
+            .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS,
+            .skip_helpers = skip_helpers);
 
    if (has_dest && !jay_defs_equivalent(tmp, dst)) {
       unsigned src_stride = transpose ? 1 : jay_ugpr_per_grf(b->shader);
@@ -1981,7 +2204,12 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_bindless_image_store:
    case nir_intrinsic_bindless_image_atomic:
    case nir_intrinsic_bindless_image_atomic_swap:
-      jay_emit_mem_access(nj, intr);
+      if (nj->devinfo->has_lsc &&
+          (nj->devinfo->ver >= 20 || !nir_intrinsic_has_image_dim(intr))) {
+         jay_emit_mem_access_lsc(nj, intr);
+      } else {
+         jay_emit_mem_access_hdc(nj, intr);
+      }
       break;
 
    case nir_intrinsic_load_push_data_intel:
