@@ -344,7 +344,7 @@
         "description": "intel/gen: Fix Gfx11 3-src accumulator file encoding",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "03c32e90a98f9dcf4bd9ce5be134c26f1651a2a2",
         "notes": null
