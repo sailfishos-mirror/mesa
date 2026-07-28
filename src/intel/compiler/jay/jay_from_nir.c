@@ -1189,6 +1189,55 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .skip_helpers = true);
 }
 
+static void
+jay_emit_fb_read(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
+{
+   jay_builder *b = &nj->bld;
+   const struct brw_fs_prog_data *prog_data = &nj->s->prog_data->fs;
+   const struct intel_device_info *devinfo = b->shader->devinfo;
+
+   assert(nir_intrinsic_component(intr) == 0 && "todo: combine"); // TODO
+   assert(brw_can_coherent_fb_fetch(devinfo) && "pre-Xe2");
+   assert(devinfo->ver >= 9 && devinfo->ver < 20);
+
+   const nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+   assert(sem.location >= FRAG_RESULT_DATA0);
+   const unsigned target = sem.location - FRAG_RESULT_DATA0;
+
+   jay_def header = jay_alloc_def(b, UGPR, 2 * jay_ugpr_per_grf(b->shader));
+   jay_MOV(b, header, nj->payload.u0);
+
+   jay_def chans[16] = {};
+   jay_foreach_comp(header, c) {
+      chans[c] = jay_extract(header, c);
+   }
+
+   /* TODO: Handle simd32 issues, see brw */
+
+   /* BSpec 12470 (Gfx8-11), BSpec 47842 (Gfx12+) :
+    *
+    *   "Must be zero for Render Target Read message."
+    *
+    * For bits :
+    *   - 14 : Stencil Present to Render Target
+    *   - 13 : Source Depth Present to Render Target
+    *   - 12 : oMask to Render Target
+    *   - 11 : Source0 Alpha Present to Render Target
+    */
+   chans[0] = jay_AND_u32(b, chans[0], ~INTEL_MASK(14, 11));
+
+   unsigned exec_size = b->shader->dispatch_width;
+   uint64_t desc = brw_fb_read_desc(devinfo, target, 0 /* msg_control */,
+                                    exec_size, prog_data->persample_dispatch);
+   uint64_t ex_desc = 0;
+
+   jay_CHECK_TDR(b);
+   jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
+            .msg_desc = desc | (ex_desc << 32), .dst = nj_def(&intr->def),
+            .header = jay_collect_vectors(b, chans, ARRAY_SIZE(chans)),
+            .type = JAY_TYPE_U32);
+}
+
 static enum lsc_data_size
 lsc_bits_to_data_size(unsigned bit_size)
 {
@@ -2329,6 +2378,11 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_store_render_target_intel:
       assert(nj->nir->info.stage == MESA_SHADER_FRAGMENT);
       jay_emit_fb_write(nj, intr);
+      break;
+
+   case nir_intrinsic_load_output:
+      assert(nj->nir->info.stage == MESA_SHADER_FRAGMENT);
+      jay_emit_fb_read(nj, intr);
       break;
 
    case nir_intrinsic_shader_clock:
