@@ -2543,10 +2543,20 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_front_face: {
-      /* Bit 11 is facingness for subspans 1-2 and 5-6. */
-      jay_inst *and =
-         jay_EXTRACT_SUBSPAN_INFO(b, jay_null(), jay_extract(nj->payload.u0, 9),
-                                  payload_u1(nj, 9, 1), BITFIELD_BIT(11));
+      jay_inst *and;
+
+      if (b->shader->devinfo->ver >= 20) {
+         /* Bit 11 is facingness for subspans 1-2 and 5-6. */
+         and = jay_EXTRACT_SUBSPAN_INFO(b, jay_null(),
+                                        jay_extract(nj->payload.u0, 9),
+                                        payload_u1(nj, 9, 1), BITFIELD_BIT(11));
+      } else if (b->shader->devinfo->ver >= 12) {
+         /* Bit 15 instead and no multi-polygon */
+         and = jay_AND(b, JAY_TYPE_U32, jay_null(),
+                       jay_extract(nj->payload.u0, 9), BITFIELD_BIT(15));
+      } else {
+         UNREACHABLE("todo");
+      }
 
       /* The bit is actually backfacingness so check for equality with 0 */
       jay_set_conditional_mod(b, and, dst, GEN_CONDITION_EQ);
