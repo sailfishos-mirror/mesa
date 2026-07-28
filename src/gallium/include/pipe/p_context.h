@@ -81,6 +81,7 @@ struct pipe_viewport_state;
 struct pipe_compute_state;
 struct pipe_ml_operation;
 struct pipe_tensor;
+struct pipe_clientptr_range;
 union pipe_color_union;
 union pipe_query_result;
 struct u_log_context;
@@ -125,6 +126,7 @@ struct pipe_context {
     * Once you are done, use u_upload_unmap.
     */
    struct u_upload_mgr *stream_uploader; /* everything but shader constants */
+   struct u_upload_mgr *clientptr_uploader; /* staging buffers mapped to a client pointer range */
    struct u_upload_mgr *const_uploader;  /* shader constants only */
 
    /**
@@ -908,6 +910,9 @@ struct pipe_context {
     * out_transfer will contain the transfer object that must be passed
     * to all the other transfer functions. It also contains useful
     * information (like texture strides for texture_map).
+    *
+    * \return pointer to mapped buffer, or PIPE_TRANSFER_CLIENT_POINTER if
+    * usage contains PIPE_MAP_CLIENT_POINTER
     */
    void *(*buffer_map)(struct pipe_context *,
                        struct pipe_resource *resource,
@@ -923,6 +928,35 @@ struct pipe_context {
    void (*transfer_flush_region)(struct pipe_context *,
                                  struct pipe_transfer *transfer,
                                  const struct pipe_box *);
+
+   /**
+    * Map a resource to a client pointer range.
+    * 
+    * If for \param transfer the backing resource is already mapped to a
+    * client pointer range, \param clientptr_range is left unused.
+    *
+    * \param ctx          The current context.
+    * \param transfer     The transfer from which to get a mapped pointer
+    * \param clientptr_range The client range to map into or NULL
+    * \param size         On failure, size of a client range needed to map
+    *                     the backing BO
+    *
+    * \return pointer to mapped buffer, or NULL if not enough space. (cf. \param size)
+    *
+    * \note if \param clientptr_range is consumed for the mapping, it is emptied.
+    */
+
+   void *(*transfer_map_clientptr_range)(struct pipe_context *,
+                        struct pipe_transfer *transfer,
+                        struct pipe_clientptr_range *clientptr_range,
+                        uint32_t *size);
+
+   /**
+    * Releases and potentially unmaps a client pointer returned from
+    * transfer_map_clientptr_range.
+    */
+   void (*transfer_unmap_clientptr_range)(struct pipe_context *,
+                                          struct pipe_transfer *);
 
    void (*buffer_unmap)(struct pipe_context *,
                         struct pipe_transfer *transfer);

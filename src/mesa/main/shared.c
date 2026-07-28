@@ -150,6 +150,9 @@ _mesa_alloc_shared_state(struct gl_context *ctx,
 
    shared->GLThread.NoLockDuration = ONE_SECOND_IN_NS;
 
+   if (ctx->pipe->screen->clientptr_heap_create)
+      shared->ClientPointerHeap = ctx->pipe->screen->clientptr_heap_create(ctx->pipe->screen);
+
    return shared;
 }
 
@@ -419,6 +422,8 @@ free_shared_state(struct gl_context *ctx, struct gl_shared_state *shared)
                          ctx);
    _mesa_DeinitHashTable(&shared->SemaphoreObjects,
                          delete_semaphore_object_cb, ctx);
+
+   pipe_clientptr_heap_reference(ctx->pipe->screen, &shared->ClientPointerHeap, NULL);
 
    /* these should all be deleted by now */
    assert(!shared->ReleaseResources.entries);

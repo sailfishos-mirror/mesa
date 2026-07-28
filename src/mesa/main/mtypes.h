@@ -1476,6 +1476,10 @@ struct gl_buffer_object
 
    struct gl_buffer_mapping Mappings[MAP_COUNT];
    struct pipe_transfer *transfer[MAP_COUNT];
+
+   /** Is set to size of a needed pointer range the failure path of
+    *  glMapBuffer*Range (access=GL_MAP_CLIENT_POINTER_BIT_MESA)  */
+   unsigned ClientPointerSize;
 };
 
 
@@ -2508,6 +2512,9 @@ struct gl_shared_state
     * users.
     */
    bool HasExternallySharedImages;
+
+   /** MESA_map_buffer_client_pointer */
+   struct pipe_clientptr_heap *ClientPointerHeap;
 
    /* Small display list storage */
    struct {
@@ -3663,6 +3670,14 @@ struct gl_context
 
    struct pipe_draw_start_count_bias *tmp_draws;
    unsigned num_tmp_draws;
+
+   /**
+    * \name GL_MESA_map_buffer_client_pointer
+    *
+    * Range sent to AddClientPointerRange is client state until
+    * consumed or released.
+    */
+   struct pipe_clientptr_range AddClientPointerRange;
 };
 
 #ifndef NDEBUG

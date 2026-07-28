@@ -81,13 +81,13 @@ struct pipe_vertex_element;
  * want to provoke the driver to throw away the old storage, we will
  * respect the contents of already referenced data.
  */
-#define MESA_MAP_NOWAIT_BIT       0x4000
+#define MESA_MAP_NOWAIT_BIT       0x8000
 
 /* Mapping a buffer is allowed from any thread. */
-#define MESA_MAP_THREAD_SAFE_BIT  0x8000
+#define MESA_MAP_THREAD_SAFE_BIT  0x10000
 
 /* This buffer will only be mapped/unmapped once */
-#define MESA_MAP_ONCE            0x10000
+#define MESA_MAP_ONCE            0x20000
 
 /* This BufferStorage flag indicates that the buffer will be used
  * by pipe_vertex_state, which doesn't track buffer busyness and doesn't

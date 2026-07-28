@@ -510,6 +510,12 @@ pipe_buffer_map_range(struct pipe_context *pipe,
       return NULL;
    }
 
+   if (access & PIPE_MAP_CLIENT_POINTER) {
+      assert(map == PIPE_TRANSFER_CLIENT_POINTER);
+   } else {
+      assert(map != PIPE_TRANSFER_CLIENT_POINTER);
+   }
+
    return map;
 }
 
@@ -997,6 +1003,20 @@ pipe_create_multimedia_context(struct pipe_screen *screen, bool compute_only)
 static inline unsigned util_res_sample_count(const struct pipe_resource *res)
 {
    return res->nr_samples > 0 ? res->nr_samples : 1;
+}
+
+static inline void
+pipe_clientptr_heap_reference(struct pipe_screen *screen,
+                         struct pipe_clientptr_heap **dst,
+                         struct pipe_clientptr_heap *src)
+{
+   struct pipe_clientptr_heap *old_dst = *dst;
+
+   if (pipe_reference(old_dst ? &old_dst->reference : NULL,
+                      src ? &src->reference : NULL)) {
+      screen->clientptr_heap_destroy(screen, old_dst);
+   }
+   *dst = src;
 }
 
 #ifdef __cplusplus
