@@ -31,18 +31,25 @@ bi_use_kraid(nir_shader *nir, uint64_t gpu_id)
  * unsupported and ints are lowered with nir_lower_int64.  Certain 8-bit and
  * 16-bit instructions, however, are lowered here.
  */
+struct lower_bit_size_opts {
+   bool use_kraid;
+   uint64_t gpu_id;
+};
 static unsigned
 bi_lower_bit_size(const nir_instr *instr, void *data)
 {
+   const struct lower_bit_size_opts *opts = data;
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
-      uint64_t gpu_id = *((uint64_t *)data);
-
       switch (alu->op) {
       case nir_op_fexp2:
       case nir_op_flog2:
       case nir_op_fpow:
+         // Kraid can handle 32-bit fexp/flog/fpow
+         if (opts->use_kraid)
+            return 0;
+         FALLTHROUGH;
       case nir_op_fsin:
       case nir_op_fcos:
       case nir_op_bit_count:
@@ -56,7 +63,7 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
       case nir_op_frexp_sig:
       case nir_op_frexp_exp:
          /* On v11+, FROUND.v2s16 is gone */
-         if (pan_arch(gpu_id) < 11)
+         if (pan_arch(opts->gpu_id) < 11)
             return 0;
          return (nir_src_bit_size(alu->src[0].src) == 32) ? 0 : 32;
       case nir_op_iadd:
@@ -68,7 +75,7 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
       case nir_op_ineg:
       case nir_op_iabs:
          /* On v11+, IABS.v4s8, IADD.v4s8 and ISUB.v4s8 are gone */
-         if (pan_arch(gpu_id) < 11)
+         if (pan_arch(opts->gpu_id) < 11)
             return 0;
 
          return (nir_src_bit_size(alu->src[0].src) == 8) ? 16 : 0;
@@ -313,7 +320,11 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
    NIR_PASS(_, nir, nir_lower_int64);
 
    /* Algebraic can materialize instructions with a bit_size that we need to lower */
-   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size, &gpu_id);
+   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size,
+            &(struct lower_bit_size_opts) {
+               .use_kraid = bi_use_kraid(nir, gpu_id),
+               .gpu_id = gpu_id,
+            });
 
    /* We need to cleanup after each iteration of late algebraic
     * optimizations, since otherwise NIR can produce weird edge cases
@@ -1105,7 +1116,11 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_alu); /* Lower [iu]mul_high */
 
    /* Lower bit sizes and vector widths */
-   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size, (void *) &gpu_id);
+   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size,
+            &(struct lower_bit_size_opts) {
+               .use_kraid = bi_use_kraid(nir, gpu_id),
+               .gpu_id = gpu_id,
+            });
    NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, nir, nir_lower_phis_to_scalar, bi_vectorize_filter, &gpu_id);
