@@ -195,11 +195,11 @@ pass(jay_function *f)
             if (b.shader->dispatch_width == 32) {
                jay_AND(&b, JAY_TYPE_U32, I->dst, I->src[0], cond);
             } else {
-               /* The flag is 0...UINT16_MAX, make sure we sign-extend out.
+               /* The flag is 0...UINTN_MAX, make sure we sign-extend out.
                 *
                 * TODO: We should really add extends to the IR properly.
                 */
-               jay_AND_S32_SN(&b, I->dst, I->src[0], cond,
+               jay_AND_SN_S32(&b, I->dst, cond, I->src[0],
                               b.shader->dispatch_width);
             }
          } else {

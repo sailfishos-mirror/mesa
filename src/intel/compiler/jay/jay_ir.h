@@ -694,8 +694,8 @@ jay_src_type(const jay_inst *I, unsigned s)
    /* TODO: Do we want to allow zero-extension generally? */
    if (I->op == JAY_OPCODE_AND_U32_U16)
       return JAY_TYPE_U16;
-   else if (I->op == JAY_OPCODE_AND_S32_SN && s == 1)
-      return jay_type(JAY_TYPE_S, jay_and_s32_sN_n(I));
+   else if (I->op == JAY_OPCODE_AND_SN_S32 && s == 0)
+      return jay_type(JAY_TYPE_S, jay_and_sN_s32_n(I));
 
    /* Mixed-signedness integer dot product opcode */
    if (I->op == JAY_OPCODE_DP4A_SU && s == 2)
