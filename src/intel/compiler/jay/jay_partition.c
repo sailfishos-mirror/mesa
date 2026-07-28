@@ -254,7 +254,7 @@ jay_partition_grf(jay_shader *shader)
          payload_4[1] = urb_push_size;
       } else {
          payload_4[0] = 1 + prim_id_size;
-         payload_u[1] = 32 + shader->push_grfs;
+         payload_u[1] = shader->prog_data->gs.vertices_in + shader->push_grfs;
          payload_4[1] = urb_push_size;
       }
       eot_4 = 16;
