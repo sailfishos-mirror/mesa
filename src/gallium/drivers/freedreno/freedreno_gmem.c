@@ -493,7 +493,10 @@ gmem_key_init(struct fd_batch *batch, bool assume_zs, bool no_scis_opt)
    key->nr_cbufs = pfb->nr_cbufs;
    for (unsigned i = 0; i < pfb->nr_cbufs; i++) {
       if (pfb->cbufs[i].texture)
-         key->cbuf_cpp[i] = util_format_get_blocksize(pfb->cbufs[i].format);
+         /* Divide blocksize by block_width to get true per-pixel cost.
+          * For YUYV (block_width=2), this prevents GMEM overallocation. */
+         key->cbuf_cpp[i] = util_format_get_blocksize(pfb->cbufs[i].format) /
+                            util_format_get_blockwidth(pfb->cbufs[i].format);
       else
          key->cbuf_cpp[i] = 4;
       /* if MSAA, color buffers are super-sampled in GMEM: */
