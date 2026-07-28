@@ -83,6 +83,7 @@ struct gmem_key {
    /* Extra bin-width alignment for multiplanar YUV.
     * UV plane stride must be 64-byte aligned. */
    uint16_t tile_align_w;
+   bool has_yuv_uv_plane;
 };
 
 static uint32_t
@@ -187,8 +188,12 @@ layout_gmem(struct gmem_key *key, uint32_t nbins_x, uint32_t nbins_y,
 
    for (i = 0; i < MAX_RENDER_TARGETS; i++) {
       if (key->cbuf_cpp[i]) {
+         uint32_t rows = bin_h;
+         /* UV plane is 4:2:0 subsampled, so it only needs half the rows. */
+         if (key->has_yuv_uv_plane && i == 1)
+            rows /= 2;
          gmem->cbuf_base[i] = util_align_npot(total, gmem_align);
-         total = gmem->cbuf_base[i] + key->cbuf_cpp[i] * bin_w * bin_h;
+         total = gmem->cbuf_base[i] + key->cbuf_cpp[i] * bin_w * rows;
       }
    }
 
@@ -529,6 +534,23 @@ gmem_key_init(struct fd_batch *batch, bool assume_zs, bool no_scis_opt)
          key->cbuf_cpp[i] = 4;
       /* if MSAA, color buffers are super-sampled in GMEM: */
       key->cbuf_cpp[i] *= pfb->samples;
+
+      /* Multi-planar YUV: reserve GMEM space for the chroma plane.
+       * RB treats each plane as separate render target, but framebuffer
+       * only exposes single cbuf. Reserve matching GMEM region for UV plane.
+       * Only supported when the YUV cbuf is the sole color attachment,
+       * otherwise reserving cbuf_cpp[i + 1] would clobber another MRT.
+       * Packed YUV (YUYV & friends) keeps chroma in the same plane and needs
+       * no extra GMEM. */
+      if (pfb->cbufs[i].texture &&
+          util_format_is_yuv(pfb->cbufs[i].format) &&
+          util_format_get_num_planes(pfb->cbufs[i].format) >= 2 &&
+          pfb->cbufs[i].texture->next &&
+          i == 0 && pfb->nr_cbufs == 1) {
+         key->cbuf_cpp[i + 1] = key->cbuf_cpp[i];
+         key->has_yuv_uv_plane = true;
+         key->tile_align_w = fd_yuv_tile_align_w(screen, key->cbuf_cpp[i]);
+      }
    }
 
    /* NOTE: on a6xx, the max-scissor-rect is handled in fd6_gmem, and
