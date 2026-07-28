@@ -3736,7 +3736,7 @@ struct payload_builder {
 static jay_def
 read_payload(struct payload_builder *b, enum jay_file file)
 {
-   unsigned granularity = file == UGPR ? 16 : 1;
+   unsigned granularity = file == UGPR ? jay_ugpr_per_grf(b->b->shader) : 1;
    unsigned channel = b->offsets[file] % granularity;
 
    if (channel == 0) {
