@@ -80,6 +80,9 @@ struct gmem_key {
    uint8_t nr_cbufs;
    uint8_t cbuf_cpp[MAX_RENDER_TARGETS];
    uint8_t zsbuf_cpp[2];
+   /* Extra bin-width alignment for multiplanar YUV.
+    * UV plane stride must be 64-byte aligned. */
+   uint16_t tile_align_w;
 };
 
 static uint32_t
@@ -161,8 +164,10 @@ layout_gmem(struct gmem_key *key, uint32_t nbins_x, uint32_t nbins_y,
    if ((nbins_x == 0) || (nbins_y == 0))
       return false;
 
+   uint32_t align_w = MAX2(key->tile_align_w, screen->info->tile_align_w);
+
    uint32_t bin_w, bin_h;
-   bin_w = div_align(key->width, nbins_x, screen->info->tile_align_w);
+   bin_w = div_align(key->width, nbins_x, align_w);
    bin_h = div_align(key->height, nbins_y, screen->info->tile_align_h);
 
    if (bin_w > screen->info->tile_max_w)
@@ -207,6 +212,7 @@ calc_nbins(struct gmem_key *key, struct fd_gmem_stateobj *gmem)
    uint32_t nbins_x = 1, nbins_y = 1;
    uint32_t max_width = screen->info->tile_max_w;
    uint32_t max_height = screen->info->tile_max_h;
+   uint32_t align_w = MAX2(key->tile_align_w, screen->info->tile_align_w);
 
    if (FD_DBG(MSGS)) {
       debug_printf("binning input: cbuf cpp:");
@@ -219,7 +225,7 @@ calc_nbins(struct gmem_key *key, struct fd_gmem_stateobj *gmem)
    /* first, find a bin size that satisfies the maximum width/
     * height restrictions:
     */
-   while (div_align(key->width, nbins_x, screen->info->tile_align_w) >
+   while (div_align(key->width, nbins_x, align_w) >
           max_width) {
       nbins_x++;
    }
@@ -448,6 +454,28 @@ __fd_gmem_destroy(struct fd_gmem_stateobj *gmem)
 
    ralloc_free(gmem->key);
    ralloc_free(gmem);
+}
+
+/* Calculate LCM of tile alignment and UV stride alignment for YUV formats.
+ * UV plane stride must be 64-byte aligned; bin_w must be multiple of both
+ * tile_align_w (GMEM tiling) and 64/cpp (UV stride requirement). */
+static uint32_t
+fd_yuv_tile_align_w(struct fd_screen *screen, unsigned cpp)
+{
+   uint32_t pitch_align_px = DIV_ROUND_UP(64, MAX2(cpp, 1));
+   uint32_t a = screen->info->tile_align_w;
+   uint32_t b = pitch_align_px;
+
+   /* gcd */
+   uint32_t x = a, y = b;
+   while (y) {
+      uint32_t t = y;
+      y = x % y;
+      x = t;
+   }
+
+   /* lcm(a, b) = a / gcd(a, b) * b */
+   return (a / x) * b;
 }
 
 static struct gmem_key *
