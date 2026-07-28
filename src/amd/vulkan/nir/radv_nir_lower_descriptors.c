@@ -414,16 +414,33 @@ can_increase_load_size(nir_intrinsic_instr *intrin, unsigned offset, unsigned ol
 static nir_def *
 load_push_constant(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
-   unsigned base = nir_intrinsic_base(intrin);
+   unsigned base = 0;
    unsigned bit_size = intrin->def.bit_size;
    unsigned count = intrin->def.num_components * (bit_size / 32u);
    assert(bit_size >= 32);
 
+   nir_def *src_def = NULL;
    nir_def *addr = NULL;
    nir_def *offset = NULL;
    unsigned const_offset = -1;
-   if (nir_src_is_const(intrin->src[0]))
-      const_offset = (base + nir_src_as_uint(intrin->src[0])) / 4u;
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_user_data_amd:
+      src_def = nir_imm_int(b, 0);
+      const_offset = 0;
+      break;
+
+   case nir_intrinsic_load_push_constant:
+      base = nir_intrinsic_base(intrin);
+      src_def = intrin->src[0].ssa;
+      if (nir_src_is_const(intrin->src[0]))
+         const_offset = (base + nir_src_as_uint(intrin->src[0])) / 4u;
+
+      break;
+
+   default:
+      UNREACHABLE("unsupported push constant intrinsic");
+   }
 
    const unsigned max_push_constant = sizeof(state->args->ac.inline_push_const_mask) * 8u;
 
@@ -458,10 +475,13 @@ load_push_constant(nir_builder *b, lower_descriptors_state *state, nir_intrinsic
          continue;
       }
 
+      /* user_data is expected to be always inlined into SGPR args */
+      assert(intrin->intrinsic != nir_intrinsic_load_user_data_amd);
+
       if (!offset) {
          addr = get_indirect_push_constants_addr(b, state);
          addr = convert_pointer_to_64_bit(b, state, addr);
-         offset = nir_iadd_imm_nuw(b, intrin->src[0].ssa, base);
+         offset = nir_iadd_imm_nuw(b, src_def, base);
       }
 
       /* Decrease to supported size. */
@@ -535,6 +555,7 @@ lower_descriptors_intrin(nir_builder *b, lower_descriptors_state *state, nir_int
    case nir_intrinsic_image_deref_descriptor_amd:
       update_image_intrinsic(b, state, intrin);
       break;
+   case nir_intrinsic_load_user_data_amd:
    case nir_intrinsic_load_push_constant: {
       nir_def_replace(&intrin->def, load_push_constant(b, state, intrin));
       break;

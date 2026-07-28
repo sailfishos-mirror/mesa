@@ -179,19 +179,35 @@ static void
 gather_push_constant_info(const nir_shader *nir, const nir_intrinsic_instr *instr, struct radv_shader_info *info)
 {
    uint32_t offset, size;
+   bool src_is_const;
 
-   if (nir_src_is_const(instr->src[0])) {
-      offset = nir_intrinsic_base(instr) + nir_src_as_uint(instr->src[0]);
-      size = instr->num_components * (instr->def.bit_size / 8u);
-   } else {
+   switch (instr->intrinsic) {
+   case nir_intrinsic_load_user_data_amd:
+      offset = 0;
+      size = util_last_bit(nir_def_components_read(&instr->def)) * (instr->def.bit_size / 8u);
+      src_is_const = true;
+      break;
+
+   case nir_intrinsic_load_push_constant:
       offset = nir_intrinsic_base(instr);
       size = nir_intrinsic_range(instr);
+      src_is_const = nir_src_is_const(instr->src[0]);
+
+      if (src_is_const) {
+         offset += nir_src_as_uint(instr->src[0]);
+         size = instr->num_components * (instr->def.bit_size / 8u);
+      }
+
+      break;
+
+   default:
+      UNREACHABLE("unsupported push constant intrinsic");
    }
 
    info->loads_push_constants = true;
    info->push_constant_size = MAX2(info->push_constant_size, offset + size);
 
-   if (nir_src_is_const(instr->src[0])) {
+   if (src_is_const) {
       const uint32_t start_dw = offset / 4;
       const uint32_t size_dw = DIV_ROUND_UP(size + offset % 4, 4);
 
@@ -279,6 +295,7 @@ gather_intrinsic_info(const nir_shader *nir, const nir_intrinsic_instr *instr, s
    case nir_intrinsic_load_frag_coord_w_rcp:
       info->ps.reads_frag_coord_mask |= BITFIELD_BIT(3);
       break;
+   case nir_intrinsic_load_user_data_amd:
    case nir_intrinsic_load_push_constant:
       gather_push_constant_info(nir, instr, info);
       break;
