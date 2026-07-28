@@ -591,6 +591,7 @@ emit(struct jay_codegen *jc,
       } else {
          gen->swsb = gen_swsb_null();
          gen->opcode = jay_mul_32_high(I) ? GEN_OP_MACH : GEN_OP_MACL;
+         gen->acc_wr_control = jc->devinfo->ver < 20;
       }
       break;
 
