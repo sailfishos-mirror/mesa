@@ -240,7 +240,7 @@ insert_reload(struct spill_ctx *ctx,
       jay_inst *I = jay_MOV(&b, new_def, jay_def_spilled(ctx, node));
 
       if (ctx->file == FLAG) {
-         I->type = JAY_TYPE_U | ctx->func->shader->dispatch_width;
+         I->type = jay_flag_type(ctx->func);
       }
    }
 

@@ -335,10 +335,9 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
       jay_MOV(b, dst, temp)->type = acc_dst ? JAY_TYPE_F32 : JAY_TYPE_U32;
       pop_temp(b, temp, backing);
    } else {
-      jay_MOV(b, dst, src)->type =
-         (acc_src || acc_dst) ? JAY_TYPE_F32 :
-         dst.file == FLAG     ? JAY_TYPE_U | b->shader->dispatch_width :
-                                JAY_TYPE_U32;
+      jay_MOV(b, dst, src)->type = (acc_src || acc_dst) ? JAY_TYPE_F32 :
+                                   dst.file == FLAG ? jay_flag_type(b->func) :
+                                                      JAY_TYPE_U32;
    }
 }
 

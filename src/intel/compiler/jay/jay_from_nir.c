@@ -508,7 +508,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_b2b1:
       if (dst.file == UFLAG) {
-         jay_MOV(b, dst, src[0])->type = JAY_TYPE_U | b->shader->dispatch_width;
+         jay_MOV(b, dst, src[0])->type = jay_flag_type(b->func);
       } else {
          jay_inst *I =
             jay_CMP(b, JAY_TYPE_U32, GEN_CONDITION_NE, dst, src[0], 0);
@@ -2120,7 +2120,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          x = emit_uniformize(nj, x);
       }
 
-      jay_MOV(b, dst, x)->type = JAY_TYPE_U | b->shader->dispatch_width;
+      jay_MOV(b, dst, x)->type = jay_flag_type(b->func);
       break;
    }
 
@@ -4022,7 +4022,7 @@ jay_setup_payload(struct nir_to_jay_state *nj)
 
          higher = jay_alloc_def(b, UFLAG, 1);
          jay_CMP(b, JAY_TYPE_U32, GEN_CONDITION_GE, higher, limit_4B, base + n);
-         jay_SEL(b, JAY_TYPE_U | simd, flag, ~0, mask, higher);
+         jay_SEL(b, jay_flag_type(b->func), flag, ~0, mask, higher);
 
          jay_def dst = jay_alloc_def(b, UGPR, n);
          jay_def src = jay_collect_vectors(b, &push_data[base], n);

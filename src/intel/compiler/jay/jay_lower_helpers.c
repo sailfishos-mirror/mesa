@@ -166,13 +166,13 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
       } else if (I->op == JAY_OPCODE_IS_HELPER) {
          jay_inst *mov = jay_MOV(b, I->dst, ctx->helper_flag);
          mov->uniform = true;
-         mov->type = JAY_TYPE_U | b->shader->dispatch_width;
+         mov->type = jay_flag_type(b->func);
          jay_remove_instruction(I);
       } else if (I->op == JAY_OPCODE_SEND && jay_send_skip_helpers(I)) {
          if (jay_is_no_mask(I)) {
             /* I->cond_flag has been reserved for our use */
             jay_inst *not = jay_NOT(b, jay_null(), ctx->helper_flag);
-            not->type = JAY_TYPE_U | b->shader->dispatch_width;
+            not->type = jay_flag_type(b->func);
             not->uniform = true;
             jay_set_conditional_mod(b, not, I->cond_flag, GEN_CONDITION_NE);
             jay_add_predicate(b, I, I->cond_flag);
@@ -199,8 +199,7 @@ jay_lower_helpers(jay_shader *shader)
    /* Initialize the helper flag sensibly based on the dispatch mask (sr0.2) */
    jay_def sr0_2 = jay_scalar(J_ARF, GEN_ARF_STATE);
    sr0_2.reg = 2;
-   jay_NOT(&b, ctx.helper_flag, sr0_2)->type =
-      JAY_TYPE_U | shader->dispatch_width;
+   jay_NOT(&b, ctx.helper_flag, sr0_2)->type = jay_flag_type(entry);
 
    jay_foreach_block_rev(entry, block) {
       process_block(&ctx, &b, block);

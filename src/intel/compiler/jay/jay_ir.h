@@ -1159,6 +1159,12 @@ jay_def_stride(const jay_shader *shader, jay_def x)
    return jay_lookup_block(&shader->partition, x.reg, GPR).stride;
 }
 
+static inline enum jay_type
+jay_flag_type(jay_function *func)
+{
+   return jay_type(JAY_TYPE_U, func->shader->dispatch_width);
+}
+
 /* Represents an allocated register number with file in the top 3 bits. */
 typedef uint16_t jay_reg;
 

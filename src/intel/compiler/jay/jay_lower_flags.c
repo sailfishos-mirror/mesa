@@ -93,7 +93,7 @@ pass(jay_function *f)
           * for uniform UGPR outputs, make sure we broadcast the whole ~0.
           */
          if (jay_is_null(I->dst) || BITSET_TEST(arf, jay_index(I->dst))) {
-            I->type = JAY_TYPE_U | f->shader->dispatch_width;
+            I->type = jay_flag_type(f);
          } else {
             I->type = JAY_TYPE_U32;
          }
@@ -145,9 +145,7 @@ pass(jay_function *f)
             }
 
             jay_def def = jay_alloc_def(&b, UGPR, 1);
-            jay_MOV(&b, def, dst)->type =
-               JAY_TYPE_U | f->shader->dispatch_width;
-
+            jay_MOV(&b, def, dst)->type = jay_flag_type(f);
             as_ugpr[jay_index(dst)] = def;
          }
       }
@@ -205,8 +203,8 @@ pass(jay_function *f)
                               b.shader->dispatch_width);
             }
          } else {
-            jay_inst *csel = jay_CSEL(&b, JAY_TYPE_U | b.shader->dispatch_width,
-                                      I->dst, I->src[0], I->src[1], cond);
+            jay_inst *csel = jay_CSEL(&b, jay_flag_type(f), I->dst, I->src[0],
+                                      I->src[1], cond);
             csel->conditional_mod =
                cond.negate ? GEN_CONDITION_EQ : GEN_CONDITION_NE;
          }

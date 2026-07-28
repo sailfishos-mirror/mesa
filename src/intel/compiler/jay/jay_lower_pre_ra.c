@@ -235,7 +235,7 @@ jay_lower_pre_ra(jay_shader *s)
                b.cursor = jay_before_inst(I);
                jay_def copy = jay_alloc_def(&b, FLAG, 1);
                jay_MOV(&b, copy, I->src[I->num_srcs - 1])->type =
-                  JAY_TYPE_U | s->dispatch_width;
+                  jay_flag_type(f);
                assert(jay_defs_equivalent(I->src[I->num_srcs - 1],
                                           I->src[I->num_srcs - 2]));
                jay_replace_src(&I->src[I->num_srcs - 1], copy);
