@@ -111,14 +111,13 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
          uv_ubwc = fd_resource_ubwc_enabled(uv_rsc, psurf->level);
          if (uv_ubwc) {
             uv_ubwc_offset = fd_resource_ubwc_offset(uv_rsc, psurf->level, psurf->first_layer);
-            uv_flag_array_stride = uv_rsc->layout.ubwc_layer_size;
             array_stride = uv_offset - offset;
             flag_array_stride = uv_ubwc_offset - ubwc_offset;
 
             /* The UV plane array pitch must match the Y plane array pitch */
             uv_array_stride = array_stride;
-            /* For the UV flag array pitch, it's just the size of the UV plane (color+flag) */
-            uv_flag_array_stride = uv_rsc->layout.layer_size + uv_rsc->layout.ubwc_layer_size;
+            /* UV flag stride is flag buffer size only, not mixed with pixel data */
+            uv_flag_array_stride = uv_rsc->layout.ubwc_layer_size;
          }
       }
 
@@ -181,7 +180,7 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
          ));
 
          /* For UBWC, set the UV plane's UBWC flag buffer address and pitch.
-         */
+          */
          crb.add(A6XX_RB_COLOR_FLAG_BUFFER_ADDR(idx,
             .bo = uv_ubwc ? uv_rsc->bo : NULL,
             .bo_offset = uv_ubwc ? uv_ubwc_offset : 0,
@@ -1427,8 +1426,6 @@ set_window_offset(fd_crb &crb, uint32_t x1, uint32_t y1)
    crb.add(A6XX_RB_RESOLVE_WINDOW_OFFSET(.x = x1, .y = y1));
    crb.add(SP_WINDOW_OFFSET(CHIP, .x = x1, .y = y1));
    crb.add(A6XX_TPL1_WINDOW_OFFSET(.x = x1, .y = y1));
-   /* TPL1_A2D_WINDOW_OFFSET exists on A7XX+ (not just A8XX+).
-    * Without it, multi-bin surfaces resolve to wrong location. */
    if (CHIP >= A7XX)
       crb.add(TPL1_A2D_WINDOW_OFFSET(CHIP, .x = x1, .y = y1));
 }
@@ -1584,6 +1581,17 @@ emit_blit(struct fd_batch *batch, fd_crb &crb, uint32_t base,
    enum a6xx_tile_mode tile_mode = (enum a6xx_tile_mode)
          fd_resource_tile_mode(&rsc->b.b, psurf->level);
    enum a6xx_format format = fd6_color_format(pfmt, tile_mode);
+
+   /* UBWC NV12 must use FMT6_R8_G8B8_2PLANE_420_UNORM format.  Note this is
+    * also reached with a single plane of a multi-planar resource (see
+    * emit_resolve_blit()), so this keys off the format's plane count rather
+    * than the ->next chain.
+    */
+   if (ubwc_enabled && util_format_is_yuv(pfmt) &&
+       util_format_get_num_planes(pfmt) == 2) {
+      format = FMT6_R8_G8B8_2PLANE_420_UNORM;
+   }
+
    uint32_t stride = fd_resource_pitch(rsc, psurf->level);
    uint32_t array_stride = fd_resource_layer_stride(rsc, psurf->level);
    enum a3xx_color_swap swap =
@@ -1697,7 +1705,7 @@ emit_subpass_clears(struct fd_batch *batch, fd_cs &cs, struct fd_batch_subpass *
 
             bool ubwc = fd_resource_ubwc_enabled(rsc, pfb->cbufs[i].level);
 
-            /* Split clear for linear multi-planar YUV: the Y and UV planes are
+            /* Split clear for multi-planar YUV: the Y and UV planes are
              * separate GMEM buffers but share a single clear color, so clear
              * each plane in turn with RB_RESOLVE_CNTL_0.yuv_plane_id selecting
              * the plane.
@@ -1707,15 +1715,22 @@ emit_subpass_clears(struct fd_batch *batch, fd_cs &cs, struct fd_batch_subpass *
              * clear-color packing, and packed YUV (YUYV & friends) has a
              * single plane and falls through to the normal path below.
              */
-            if (!ubwc && util_format_get_num_planes(pfmt) == 2 &&
-                rsc->b.b.next) {
+            if (util_format_get_num_planes(pfmt) == 2 && rsc->b.b.next) {
+               /* UBWC needs the 2-plane format; linear uses whatever the
+                * format table maps this YUV format to.
+                */
+               enum a6xx_format clear_format =
+                  ubwc ? FMT6_R8_G8B8_2PLANE_420_UNORM
+                       : fd6_color_format(pfmt, TILE6_LINEAR);
+
                /* Plane 0: Y */
                with_crb (cs, 10) {
                   crb.add(A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO(
                      .tile_mode = TILE6_LINEAR,
+                     .flags = ubwc,
                      .samples = samples,
                      .color_swap = WZYX,
-                     .color_format = fd6_color_format(pfmt, TILE6_LINEAR),
+                     .color_format = clear_format,
                   ));
 
                   crb.add(A6XX_RB_RESOLVE_OPERATION(
@@ -2004,10 +2019,6 @@ blit_can_resolve(enum pipe_format format)
    if (util_format_is_snorm(format) || util_format_is_srgb(format))
       return false;
 
-   /* YUV multiplanar formats require the A2D 2D blitter engine which supports
-    * BASE_1/PITCH_1 for the UV plane. BLIT_EVENT_STORE only has a single
-    * GMEM base register and cannot resolve both planes at once.
-    */
    if (util_format_is_yuv(format))
       return false;
 
@@ -2078,10 +2089,6 @@ emit_resolve_blit(struct fd_batch *batch, fd_cs &cs,
     *
     * The separate-stencil is a special case, we might need to use CP_BLIT
     * for depth, but we can still resolve stencil with a BLIT event
-    *
-    * For YUV formats, we must use the 2D blitter (CP_BLIT) even without MSAA
-    * because BLIT_EVENT_STORE only supports a single GMEM base register and
-    * cannot resolve both Y and UV planes simultaneously.
     */
    if (needs_resolve(psurf) && !blit_can_resolve(psurf->format) &&
        (buffer != FD_BUFFER_STENCIL)) {
@@ -2284,36 +2291,46 @@ emit_sysmem_clears(fd_cs &cs, struct fd_batch *batch, struct fd_batch_subpass *s
 
          struct pipe_surface *psurf = &pfb->cbufs[i];
          struct fd_resource *rsc = fd_resource(psurf->texture);
-         bool is_linear_nv12 = !fd_resource_ubwc_enabled(rsc, psurf->level) &&
-                              util_format_is_yuv(psurf->format) && rsc->b.b.next;
 
-         if (is_linear_nv12) {
+         /* Linear multi-planar YUV has no single format the 2D blitter can
+          * clear in one pass, so clear each plane as its equivalent non-YUV
+          * format instead.  (UBWC goes through the native NV12 path in
+          * fd6_clear_surface() below.)
+          *
+          * Only the two-plane 4:2:0 formats (NV12/NV21) are handled here; a
+          * 3-plane format would need a third pass with separate U and V, and
+          * packed YUV has a single plane and needs no split at all.
+          */
+         bool clear_planes_separately =
+            !fd_resource_ubwc_enabled(rsc, psurf->level) &&
+            util_format_is_yuv(psurf->format) &&
+            util_format_get_num_planes(psurf->format) == 2 &&
+            rsc->b.b.next;
+
+         if (clear_planes_separately) {
             /* Plane 0: Y plane cleared as R8_UNORM */
             struct pipe_surface y_surf = *psurf;
             y_surf.format = PIPE_FORMAT_R8_UNORM;
             union pipe_color_union y_color = color; /* color.f[0] = Y value */
             fd6_clear_surface<CHIP>(ctx, cs, &y_surf, &box2d, &y_color, 0);
 
-            /* Plane 1: UV plane cleared as R8G8_UNORM (if separate resource exists) */
-            if (rsc->b.b.next) {
-               struct pipe_surface uv_surf = *psurf;
-               uv_surf.format = PIPE_FORMAT_R8G8_UNORM;
-               uv_surf.texture = rsc->b.b.next;
+            /* Plane 1: UV plane cleared as R8G8_UNORM */
+            struct pipe_surface uv_surf = *psurf;
+            uv_surf.format = PIPE_FORMAT_R8G8_UNORM;
+            uv_surf.texture = rsc->b.b.next;
 
-               struct pipe_box uv_box;
-               uv_box = box2d;
-               uv_box.height /= 2; /* UV plane is half height */
-               uv_box.width /= 2;  /* UV plane is half width in pairs */
+            struct pipe_box uv_box = box2d;
+            uv_box.height /= 2; /* UV plane is half height */
+            uv_box.width /= 2;  /* UV plane is half width in pairs */
 
-               union pipe_color_union uv_color;
-               memset(&uv_color, 0, sizeof(uv_color));
-               uv_color.f[0] = color.f[1]; 
-               uv_color.f[1] = color.f[2]; 
+            union pipe_color_union uv_color;
+            memset(&uv_color, 0, sizeof(uv_color));
+            uv_color.f[0] = color.f[1];
+            uv_color.f[1] = color.f[2];
 
-               fd6_clear_surface<CHIP>(ctx, cs, &uv_surf, &uv_box, &uv_color, 0);
-            }
+            fd6_clear_surface<CHIP>(ctx, cs, &uv_surf, &uv_box, &uv_color, 0);
          } else {
-            fd6_clear_surface<CHIP>(ctx, cs, &pfb->cbufs[i], &box2d, &color, 0);
+            fd6_clear_surface<CHIP>(ctx, cs, psurf, &box2d, &color, 0);
          }
       }
    }
