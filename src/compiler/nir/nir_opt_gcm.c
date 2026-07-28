@@ -79,14 +79,6 @@ struct gcm_state {
 
    bool progress;
 
-   /* If false, texture instructions are kept inside loops that exceed the
-    * large-loop threshold (MAX_LOOP_INSTRUCTIONS) instead of being hoisted
-    * out.  Hoisting a texel out of a large loop extends its result's live
-    * range across the whole loop, which can raise register pressure enough
-    * to lower dispatch width or occupancy.
-    */
-   bool hoist_tex_from_loops;
-
    bool second_early_run;
 
    /* Whether the function contains any loop at all. The second early run only
@@ -826,17 +818,12 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
     * instructions to be moved outside their original loops, or instructions
     * where the total loop instruction count is less than
     * MAX_LOOP_INSTRUCTIONS.
-    *
-    * Hoisting texture instructions out of a large loop extends the texel
-    * results' live ranges across the whole loop, which can raise register
-    * pressure enough to lower dispatch width or occupancy. The
-    * hoist_tex_from_loops parameter lets a caller keep them in the loop.
     */
    if (state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
       return true;
 
    if (instr->type == nir_instr_type_load_const ||
-       (state->hoist_tex_from_loops && instr->type == nir_instr_type_tex) ||
+       instr->type == nir_instr_type_tex ||
        (instr->type == nir_instr_type_intrinsic &&
         nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_resource_intel))
       return true;
@@ -1250,8 +1237,7 @@ weak_gvn(const nir_instr *a, const nir_instr *b)
 }
 
 static bool
-opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number,
-             bool hoist_tex_from_loops)
+opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number)
 {
    nir_metadata_require(impl, nir_metadata_block_index |
                               nir_metadata_dominance |
@@ -1270,7 +1256,6 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number,
    state.impl = impl;
    state.instr = NULL;
    state.progress = false;
-   state.hoist_tex_from_loops = hoist_tex_from_loops;
    state.second_early_run = false;
    state.has_loop = false;
    exec_list_make_empty(&state.instrs);
@@ -1349,13 +1334,12 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number,
 }
 
 bool
-nir_opt_gcm(nir_shader *shader, bool value_number, bool hoist_tex_from_loops)
+nir_opt_gcm(nir_shader *shader, bool value_number)
 {
    bool progress = false;
 
    nir_foreach_function_impl(impl, shader) {
-      progress |= opt_gcm_impl(shader, impl, value_number,
-                               hoist_tex_from_loops);
+      progress |= opt_gcm_impl(shader, impl, value_number);
    }
 
    return progress;

@@ -322,9 +322,9 @@ ir3_optimize_loop(struct ir3_compiler *compiler,
       if (gcm == -1)
          gcm = debug_get_num_option("GCM", 0);
       if (gcm == 1)
-         progress |= OPT(s, nir_opt_gcm, true, true);
+         progress |= OPT(s, nir_opt_gcm, true);
       else if (gcm == 2)
-         progress |= OPT(s, nir_opt_gcm, false, true);
+         progress |= OPT(s, nir_opt_gcm, false);
       nir_opt_peephole_select_options peephole_select_options = {
          .limit = 16,
          .indirect_load_ok = true,

@@ -1320,7 +1320,7 @@ bifrost_handle_unified_idvs_shader(nir_shader *nir)
    }
 
    /* Hoist common values before the predicated blocks. */
-   NIR_PASS(_, nir, nir_opt_gcm, true, true);
+   NIR_PASS(_, nir, nir_opt_gcm, true);
 }
 
 void
