@@ -237,7 +237,10 @@ pub trait SSABuilder: Builder + AllocSSA {
         self.push_op(OpFExp32 {
             dst,
             expx: scale_fixp.into(),
-            expf: arg,
+            // The expf field is only used for NaN propagation.  By passing
+            // `scale` in here, we ensure that the result is NaN if either
+            // `arg` or `log2_base` are NaN.
+            expf: scale.into(),
         });
     }
 
