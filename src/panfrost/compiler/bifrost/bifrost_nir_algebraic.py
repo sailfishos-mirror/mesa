@@ -200,6 +200,13 @@ algebraic_late += [
      ('unpack_64_2x32_split_y', ('umul_2x32_64', a, b)), 'is_kraid'),
 ]
 
+# We don't have hardware fpow so we need to lower it.  However, the way we
+# implement 32-bit fexp makes it so we can do better than this for 32-bit
+# so we leave that unlowered
+algebraic_late += [
+    (('fpow', 'a@16', 'b@16'), ('fexp2', ('fmul', ('flog2', a), b)))
+]
+
 # Bifrost LDEXP.v2f16 takes i16 exponent, while nir_op_ldexp takes i32. Lower
 # to nir_op_ldexp16_pan.
 #
