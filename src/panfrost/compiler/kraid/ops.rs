@@ -618,7 +618,7 @@ impl DisplayOp for OpCubeFaceIdx {
             f,
             " {} {} {}",
             self.fmt_src(&self.coords[0]),
-            self.fmt_src(&self.coords[2]),
+            self.fmt_src(&self.coords[1]),
             self.fmt_src(&self.coords[2]),
         )
     }
