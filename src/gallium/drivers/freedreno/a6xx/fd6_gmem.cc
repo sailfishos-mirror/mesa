@@ -2083,8 +2083,7 @@ emit_resolve_blit(struct fd_batch *batch, fd_cs &cs,
     * because BLIT_EVENT_STORE only supports a single GMEM base register and
     * cannot resolve both Y and UV planes simultaneously.
     */
-   if ((needs_resolve(psurf) || util_format_is_yuv(psurf->format)) &&
-       !blit_can_resolve(psurf->format) &&
+   if (needs_resolve(psurf) && !blit_can_resolve(psurf->format) &&
        (buffer != FD_BUFFER_STENCIL)) {
       /* We could potentially use RB_A2D_PIXEL_CNTL to handle partial z/s
        * resolve to packed z/s, but we would need a corresponding ability in the
@@ -2119,6 +2118,21 @@ emit_resolve_blit(struct fd_batch *batch, fd_cs &cs,
    }
 
    fd6_event_write<CHIP>(batch->ctx, cs, FD_CCU_RESOLVE);
+
+   if (uv_base) {
+      /* Second BLIT_EVENT_STORE for the chroma plane. */
+      struct fd_resource *rsc = fd_resource(psurf->texture);
+      struct pipe_surface uv_psurf = *psurf;
+      uv_psurf.texture = rsc->b.b.next;
+
+      with_crb (cs, 12) {
+         crb.add(A6XX_RB_RESOLVE_OPERATION(.dword = info));
+         crb.add(A6XX_RB_RESOLVE_CNTL_0(.yuv_plane_id = 1));
+         emit_blit<CHIP>(batch, crb, uv_base, &uv_psurf, stencil);
+      }
+
+      fd6_event_write<CHIP>(batch->ctx, cs, FD_CCU_RESOLVE);
+   }
 }
 
 /*
