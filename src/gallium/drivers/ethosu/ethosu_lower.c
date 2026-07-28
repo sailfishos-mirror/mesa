@@ -72,6 +72,7 @@ set_feature_map(struct ethosu_subgraph *subgraph,
                 struct ethosu_feature_map *fm)
 {
    fm->tensor = ethosu_find_tensor(subgraph, tensor->index);
+   fm->region = IO_REGION;
    fm->shape.height = tensor->dims[1];
    fm->shape.width = tensor->dims[2];
    fm->shape.depth = tensor->dims[3];
