@@ -789,16 +789,30 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
-            nir_op_fexp2 => {
-                // TODO: wire up fexp2.f16
-                assert!(alu.get_src(0).bit_size() == 32);
-                b.fexp_32_to(dst.into(), srcs(0), (1.0).into());
-            }
-            nir_op_flog2 => {
-                // TODO: wire up flog2.f16
-                assert!(alu.get_src(0).bit_size() == 32);
-                b.flog2_32_to(dst.into(), srcs(0));
-            }
+            nir_op_fexp2 => match alu.def.bit_size {
+                16 => {
+                    b.push_op(OpFExp16 {
+                        dst: dst.into(),
+                        expf: srcs(0),
+                    });
+                }
+                32 => {
+                    b.fexp_32_to(dst.into(), srcs(0), (1.0).into());
+                }
+                _ => panic!("Unhandled bit size for nir_op_fexp2"),
+            },
+            nir_op_flog2 => match alu.def.bit_size {
+                16 => {
+                    b.push_op(OpFLog16 {
+                        dst: dst.into(),
+                        src: srcs(0),
+                    });
+                }
+                32 => {
+                    b.flog2_32_to(dst.into(), srcs(0));
+                }
+                _ => panic!("Unhandled bit size for nir_op_flog2"),
+            },
             nir_op_fpow => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 assert!(alu.get_src(1).bit_size() == 32);

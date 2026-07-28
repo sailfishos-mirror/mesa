@@ -1155,6 +1155,26 @@ impl V9Instr for OpFCosTable {
     }
 }
 
+impl V9Instr for OpFExp16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fexp::get_info(FexpVariant::F16, arch),
+            src_map! {
+                src1: expf,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Fexp {
+            variant: FexpVariant::F16,
+            dst: op_encode_dst(self, &self.dst),
+            src0: None,
+            src1: op_encode_src(self, &self.expf),
+        })
+    }
+}
+
 impl V9Instr for OpFExp32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1172,6 +1192,25 @@ impl V9Instr for OpFExp32 {
             dst: op_encode_dst(self, &self.dst),
             src0: Some(op_encode_src(self, &self.expx)),
             src1: op_encode_src(self, &self.expf),
+        })
+    }
+}
+
+impl V9Instr for OpFLog16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Flog::get_info(FlogVariant::F16, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Flog {
+            variant: FlogVariant::F16,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
         })
     }
 }
@@ -2619,7 +2658,9 @@ macro_rules! v9_op_match_else {
             Op::FAddLScale($x) => $y,
             Op::FCmp($x) => $y,
             Op::FCosTable($x) => $y,
+            Op::FExp16($x) => $y,
             Op::FExp32($x) => $y,
+            Op::FLog16($x) => $y,
             Op::FLogD($x) => $y,
             Op::Flush($x) => $y,
             Op::Fma($x) => $y,

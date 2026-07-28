@@ -1006,6 +1006,27 @@ impl DisplayOp for OpFCosTable {
 /// Performs 2^x
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpFExp16 {
+    #[dst_type(F16)]
+    pub dst: Dst,
+
+    #[src_type(F16)]
+    pub expf: Src,
+}
+
+impl DisplayOp for OpFExp16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FEXP.f16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.expf))
+    }
+}
+
+/// Performs 2^x
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpFExp32 {
     #[dst_type(F32)]
     pub dst: Dst,
@@ -1030,6 +1051,27 @@ impl DisplayOp for OpFExp32 {
             self.fmt_src(&self.expx),
             self.fmt_src(&self.expf),
         )
+    }
+}
+
+/// Performs log2(x)
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFLog16 {
+    #[dst_type(F16)]
+    pub dst: Dst,
+
+    #[src_type(F16)]
+    pub src: Src,
+}
+
+impl DisplayOp for OpFLog16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FLOG.f16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.src))
     }
 }
 
@@ -3139,7 +3181,9 @@ pub enum Op {
     FAddLScale(Box<OpFAddLScale>),
     FCmp(Box<OpFCmp>),
     FCosTable(Box<OpFCosTable>),
+    FExp16(Box<OpFExp16>),
     FExp32(Box<OpFExp32>),
+    FLog16(Box<OpFLog16>),
     FLogD(Box<OpFLogD>),
     Flush(Box<OpFlush>),
     Fma(Box<OpFma>),
