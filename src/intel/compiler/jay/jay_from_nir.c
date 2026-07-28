@@ -3720,6 +3720,7 @@ jay_emit_eot(struct nir_to_jay_state *nj)
 {
    jay_builder *b = &nj->bld;
    b->cursor = jay_after_block(nj->exit_block);
+   const struct intel_device_info *devinfo = b->shader->devinfo;
 
    /* Jump target for HALT */
    if (nj->needs_final_halt) {
@@ -3759,7 +3760,7 @@ jay_emit_eot(struct nir_to_jay_state *nj)
          jay_set_send_eot(I, true);
          jay_remove_instruction(I);
          jay_builder_insert(b, I);
-      } else {
+      } else if (nj->devinfo->ver >= 20) {
          /* There's no SEND to reuse, make a noop write for EOT */
          const gen_lsc_ex_desc gen_ex_desc = {
             .addr_type = LSC_ADDR_SURFTYPE_FLAT,
@@ -3786,6 +3787,22 @@ jay_emit_eot(struct nir_to_jay_state *nj)
                       .nr_srcs = 2, .type = JAY_TYPE_U32, .uniform = true,
                       .eot = true);
          I = jay_add_predicate(b, I, never);
+      } else {
+         /* As above but for HDC URB platforms */
+         jay_def data = jay_alloc_def(b, GPR, 1);
+         jay_UNDEF(b, data);
+
+         jay_def mask = jay_alloc_def(b, GPR, 1);
+         jay_MOV(b, mask, 0);
+
+         uint32_t desc =
+            brw_urb_desc(devinfo, GEN_URB_OPCODE_SIMD8_WRITE, false,
+                         true /* channel_mask_present */, 0);
+
+         jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = &data,
+                  .header = jay_collect_two(b, nj->payload.urb_handle, mask),
+                  .nr_srcs = 1, .type = JAY_TYPE_U32,
+                  .src_type = { JAY_TYPE_U32, JAY_TYPE_U32 }, .eot = true);
       }
    }
 }
