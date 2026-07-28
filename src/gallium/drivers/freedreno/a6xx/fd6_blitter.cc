@@ -1291,8 +1291,16 @@ resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
                    BITMASK_ENUM(fd_buffer_mask) buffers)
 {
    const struct fd_gmem_stateobj *gmem = batch->gmem_state;
-   uint32_t gmem_pitch = gmem->bin_w * batch->framebuffer.samples *
-                         util_format_get_blocksize(psurf->format);
+   uint32_t gmem_pitch;
+   if (util_format_is_yuv(psurf->format)) {
+      /* util_format_get_stride() accounts for block_width, unlike naive
+       * bin_w * blocksize. For YUYV (block_width=2), this is half the size. */
+      gmem_pitch = util_format_get_stride(
+         psurf->format, gmem->bin_w * batch->framebuffer.samples);
+   } else {
+      gmem_pitch = gmem->bin_w * batch->framebuffer.samples *
+                   util_format_get_blocksize(psurf->format);
+   }
    unsigned width = pipe_surface_width(psurf);
    unsigned height = pipe_surface_height(psurf);
    /* Extra 8 DWORDs for YUV: BASE_1(2) + PITCH_1(1) + BASE_2(2) + FLAG_BASE(2) + FLAG_PITCH(1) */
