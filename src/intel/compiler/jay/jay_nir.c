@@ -169,10 +169,11 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
 {
    b->cursor = nir_after_instr(&intr->instr);
    unsigned simd_width = *((unsigned *) simd_);
+   unsigned flag_width = MAX2(simd_width, 16);
 
    switch (intr->intrinsic) {
    case nir_intrinsic_last_invocation: {
-      nir_def *mask = nir_ballot(b, 1, simd_width, nir_imm_true(b));
+      nir_def *mask = nir_ballot(b, 1, flag_width, nir_imm_true(b));
       nir_def *msb_rev = nir_ufind_msb_rev(b, nir_u2u32(b, mask));
       nir_def_replace(&intr->def, nir_iadd_imm(b, nir_ineg(b, msb_rev), 31));
       return true;
@@ -180,7 +181,7 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
 
    case nir_intrinsic_elect: {
       /* mask & -mask isolates the lowest set bit in the mask. */
-      nir_def *mask = nir_ballot(b, 1, simd_width, nir_imm_true(b));
+      nir_def *mask = nir_ballot(b, 1, flag_width, nir_imm_true(b));
       mask = nir_iand(b, mask, nir_ineg(b, mask));
       nir_def_replace(&intr->def, nir_inverse_ballot(b, mask));
       return true;
@@ -190,7 +191,7 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
    case nir_intrinsic_ballot_relaxed: {
       /* Ballots must match the SIMD size */
       unsigned old_bitsize = intr->def.bit_size;
-      intr->def.bit_size = simd_width;
+      intr->def.bit_size = flag_width;
       nir_def *u2uN = nir_u2uN(b, &intr->def, old_bitsize);
       nir_def_rewrite_uses_after(&intr->def, u2uN);
       return true;
