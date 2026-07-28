@@ -2424,7 +2424,7 @@
         "description": "radeonsi: emit MESHLET registers for mesh shaders in gfx10_emit_shader_ngg",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "74894150f180d2617a8003ddcc59fb487bac2561",
         "notes": null
