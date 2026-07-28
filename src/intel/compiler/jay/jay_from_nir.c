@@ -2535,8 +2535,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
       break;
 
-   case nir_intrinsic_load_urb_input_handle_indexed_intel:
+   case nir_intrinsic_load_urb_input_handle_indexed_intel: {
       assert(tcs || gs);
+      unsigned shift = util_logbase2(4 * jay_ugpr_per_gpr(b->shader));
+
       if (tcs) {
          if (nir_src_is_const(intr->src[0])) {
             jay_copy(b, dst,
@@ -2544,7 +2546,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                  nir_src_as_uint(intr->src[0])));
          } else {
             jay_VECTOR_EXTRACT(b, JAY_TYPE_U32, dst, tcs->icp_handles,
-                               jay_SHL_u32(b, nj_src(intr->src[0]), 6));
+                               jay_SHL_u32(b, nj_src(intr->src[0]), shift));
          }
       } else if (gs) {
          if (s->prog_data->gs.invocations == 1) {
@@ -2553,8 +2555,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                         jay_extract(gs->icp_handles,
                                     nir_src_as_uint(intr->src[0])));
             } else {
-
-               jay_def addr = jay_SHL_u32(b, nj_src(intr->src[0]), 6u);
+               jay_def addr = jay_SHL_u32(b, nj_src(intr->src[0]), shift);
 
                if (nj_src(intr->src[0]).file == GPR) {
                   addr = jay_ADD_u32(b, addr, jay_SHL_u32(b, lane_id(b), 2u));
@@ -2570,6 +2571,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          }
       }
       break;
+   }
 
    case nir_intrinsic_load_urb_input_handle_intel:
       if (tes) {
