@@ -1082,11 +1082,22 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       src0_alpha = jay_null();
    }
 
-   unsigned op = !jay_is_null(dual_colour) ?
-                    XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE :
-                 b->shader->dispatch_width == 32 ?
-                    XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
-                    BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE;
+   /* TODO: splitting for dual source, etc */
+   unsigned width = b->shader->dispatch_width;
+
+   unsigned op;
+   if (!jay_is_null(dual_colour)) {
+      assert(width == 16 && devinfo->ver >= 20 && "todo: older platforms");
+      op = XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE;
+   } else {
+      assert((width < 32 || devinfo->ver >= 20) && "todo: splitting");
+
+      op = width == 32 ?
+              XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
+           width == 16 ?
+              BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE :
+              BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD8_SINGLE_SOURCE_SUBSPAN01;
+   }
 
    uint64_t desc = brw_fb_write_desc(devinfo, target, op, last, coarse);
 
