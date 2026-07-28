@@ -912,6 +912,11 @@ jay_emit_signal_barrier(jay_builder *b, struct nir_to_jay_state *nj)
    jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY,
             .msg_desc = GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG, .srcs = &zipped,
             .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true);
+
+   /* Task/mesh inherit cs_prog_data */
+   if (mesa_shader_stage_uses_workgroup(nj->s->stage)) {
+      nj->s->prog_data->cs.uses_barrier = true;
+   }
 }
 
 static void
@@ -1919,7 +1924,6 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
           (((cs || task_mesh) && !jay_workgroup_is_one_subgroup(b, nj->nir)) ||
            (tcs && s->prog_data->tcs.instances != 1))) {
          jay_emit_signal_barrier(b, nj);
-         s->prog_data->cs.uses_barrier = true;
       }
 
       break;
