@@ -298,7 +298,7 @@ jay_partition_grf(jay_shader *shader)
    unsigned demand[JAY_NUM_GRF_FILES] = { 0 };
    struct instruction_req instr_req = analyze_per_inst(shader);
    unsigned ugpr_limit = register_limit(shader, UGPR, 1024);
-   unsigned hw_flags = 8 / jay_grf_per_gpr(shader);
+   unsigned hw_flags = jay_num_flags(shader);
    unsigned flag_limit = hw_flags - shader->helpers_tracked;
 
    jay_foreach_function(shader, f) {

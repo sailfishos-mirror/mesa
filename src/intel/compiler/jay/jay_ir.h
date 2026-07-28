@@ -1142,6 +1142,17 @@ jay_shader_get_entrypoint(jay_shader *s)
 }
 
 static inline unsigned
+jay_num_flags(jay_shader *shader)
+{
+   if (shader->devinfo->ver < 20) {
+      /* Even in SIMD8 mode, only 4 flags are usable */
+      return shader->dispatch_width == 32 ? 2 : 4;
+   } else {
+      return shader->dispatch_width == 32 ? 4 : 8;
+   }
+}
+
+static inline unsigned
 jay_num_regs(jay_shader *shader, enum jay_file file)
 {
    assert(file < JAY_NUM_SSA_FILES);
