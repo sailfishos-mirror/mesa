@@ -2295,8 +2295,23 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_layer_id:
-      jay_EXTRACT_SUBSPAN_INFO(b, dst, jay_extract(nj->payload.u0, 9),
-                               payload_u1(nj, 9, 1), 0x7ff);
+      if (b->shader->devinfo->ver >= 20) {
+         /* Gfx20+ has separate Render Target Array indices for each pair
+          * of subspans in order to support multiple polygons, so we need
+          * to use a <1;8,0> region in order to select the correct word
+          * for each channel.
+          */
+         jay_EXTRACT_SUBSPAN_INFO(b, dst, jay_extract(nj->payload.u0, 9),
+                                  payload_u1(nj, 9, 1), 0x7ff);
+      } else if (b->shader->devinfo->ver >= 12) {
+         /* The render target array index is provided in the thread payload as
+          * bits 26:16 of r1.1.
+          */
+         jay_BFE(b, JAY_TYPE_U32, dst, 11, 16, jay_extract(nj->payload.u0, 9));
+      } else {
+         UNREACHABLE("todo");
+      }
+
       break;
 
    case nir_intrinsic_load_front_face: {
