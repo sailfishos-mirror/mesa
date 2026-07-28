@@ -1781,6 +1781,59 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 }
 
+static jay_inst *
+emit_urb_vec4(jay_builder *b,
+              jay_def dst,
+              jay_def data,
+              jay_def urb_handle,
+              nir_src *per_slot,
+              nir_src *channel_mask,
+              unsigned base)
+{
+   const struct intel_device_info *devinfo = b->shader->devinfo;
+   data = jay_as_gpr(b, data);
+
+   assert((jay_is_null(dst) || dst.file == GPR) && "todo: uniform read");
+   jay_def header[3] = { jay_as_gpr(b, urb_handle) };
+   unsigned header_size = 1;
+
+   if (per_slot && nir_src_is_zero(*per_slot)) {
+      per_slot = NULL;
+   } else if (per_slot) {
+      header[header_size++] = jay_as_gpr(b, nj_src(*per_slot));
+   }
+
+   if (channel_mask &&
+       nir_src_is_const(*channel_mask) &&
+       nir_src_as_uint(*channel_mask) &&
+       nir_src_as_uint(*channel_mask) == 0xff) {
+
+      unsigned nr = util_bitcount(nir_src_as_uint(*channel_mask));
+      data = jay_extract_range(data, 0, nr);
+      channel_mask = NULL;
+   } else if (channel_mask) {
+      jay_def mask = jay_alloc_def(b, GPR, 1);
+
+      if (nir_src_is_const(*channel_mask)) {
+         jay_MOV(b, mask, (unsigned) nir_src_as_uint(*channel_mask) << 16);
+      } else {
+         jay_SHL(b, JAY_TYPE_U32, mask, nj_src(*channel_mask), 16);
+      }
+
+      header[header_size++] = mask;
+   }
+
+   unsigned op = jay_is_null(data) ? GEN_URB_OPCODE_SIMD8_READ :
+                                     GEN_URB_OPCODE_SIMD8_WRITE;
+   uint32_t desc = brw_urb_desc(devinfo, op, per_slot, channel_mask, base);
+
+   return jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = &data,
+                   .header = jay_collect_vectors(b, header, header_size),
+                   .nr_srcs = jay_is_null(data) ? 0 : 1, .dst = dst,
+                   .type = JAY_TYPE_U32,
+                   .src_type = { JAY_TYPE_U32, JAY_TYPE_U32 });
+}
+
 static void
 jay_emit_barycentric(struct nir_to_jay_state *nj,
                      nir_intrinsic_instr *intr,
@@ -2210,6 +2263,16 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       } else {
          jay_emit_mem_access_hdc(nj, intr);
       }
+      break;
+
+   case nir_intrinsic_load_urb_vec4_intel:
+      emit_urb_vec4(b, dst, jay_null(), nj_src(intr->src[0]), &intr->src[1],
+                    NULL, nir_intrinsic_base(intr));
+      break;
+
+   case nir_intrinsic_store_urb_vec4_intel:
+      emit_urb_vec4(b, jay_null(), nj_src(intr->src[0]), nj_src(intr->src[1]),
+                    &intr->src[2], &intr->src[3], nir_intrinsic_base(intr));
       break;
 
    case nir_intrinsic_load_push_data_intel:
