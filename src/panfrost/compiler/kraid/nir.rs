@@ -592,7 +592,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.into(),
                     src_type: DataType::U32,
                     src: srcs(0),
-                    round: FRound::NearestEven,
+                    round: self.fround(alu.def.bit_size),
                 });
             }
             nir_op_f2u32 => {
@@ -642,7 +642,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.into(),
                     src_type: DataType::S32,
                     src: srcs(0),
-                    round: FRound::NearestEven,
+                    round: self.fround(alu.def.bit_size),
                 });
             }
             nir_op_fabs => {
