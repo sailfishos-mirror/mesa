@@ -515,6 +515,10 @@ struct fd_dev_info {
       /* On a750+ SUBPASS_FENCE also implicitly does CCU_RESOLVE_CLEAN */
       bool subpass_fence_cleans_resolve;
    } props;
+
+#define FD_QUIRK(info, name) (info)->quirks.name
+   struct {
+   } quirks;
 };
 
 struct fd_dev_id {

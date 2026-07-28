@@ -36,6 +36,8 @@ class CCUColorCacheFraction(Enum):
     EIGHTH = 3
     THREE_QUARTER = 3  # a8xx_gen2 and later
 
+quirk_names = {
+}
 
 class State(object):
     def __init__(self):
@@ -169,7 +171,7 @@ class A6xxGPUInfo(GPUInfo):
         self.num_slices = num_slices
 
         self.props = Struct()
-
+        self.quirks = Struct()
         self.magic = Struct()
 
         for name, val in magic_regs.items():
@@ -190,8 +192,15 @@ class GPUProps(dict):
     unique_props = dict()
     def apply_props(self, gpu_info):
         for name, val in self.items():
-            setattr(getattr(gpu_info, "props"), name, val)
-            GPUProps.unique_props[(name, "props")] = val
+            structname = "props"
+            if name.startswith("QCTDD"):
+                if "_" in name:
+                    raise ValueError("invalid quirk name")
+                if name in quirk_names:
+                    name = name + "_" + quirk_names[name]
+                structname = "quirks"
+            setattr(getattr(gpu_info, structname), name, val)
+            GPUProps.unique_props[(name, structname)] = val
 
 template = """\
 /* Copyright © 2021 Google, Inc.
