@@ -679,9 +679,10 @@ impl Foldable for OpCubeFaceIdx {
         let z = f32::from_bits(f.get_src(&self.coords[2]) as u32);
 
         let max = x.abs().max(y.abs()).max(z.abs());
-        let is_inf = max.is_infinite();
+        let is_nan = x.is_nan() || y.is_nan() || z.is_nan();
+        let is_inf = max.is_infinite() && !is_nan;
 
-        let face = if x.is_nan() || y.is_nan() || z.is_nan() {
+        let face = if is_nan {
             4
         } else if z.abs() == max {
             4 + ((z < 0.0) as u8)
@@ -730,7 +731,15 @@ impl Foldable for OpCubeFaceMax {
         let max = if x.is_nan() || y.is_nan() || z.is_nan() {
             f32::NAN
         } else {
-            x.abs().max(y.abs()).max(z.abs())
+            // Zero and subnormals give 2.0, infinities give 1.0.
+            let max = x.abs().max(y.abs()).max(z.abs());
+            if max.is_infinite() {
+                1.0
+            } else if max < f32::MIN_POSITIVE {
+                2.0
+            } else {
+                max
+            }
         };
 
         f.set_dst(&self.dst, max.to_bits().into());
@@ -1095,7 +1104,7 @@ impl CmpOp {
 
     pub fn fold_data(self, data_type: DataType, a: u64, b: u64) -> bool {
         if matches!(self, CmpOp::Total) {
-            total_cmp_data(data_type, a, b).is_lt()
+            total_cmp_data(data_type, a, b).is_le()
         } else {
             self.fold_ordering(partial_cmp_data(data_type, a, b))
         }

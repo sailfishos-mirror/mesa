@@ -1343,7 +1343,7 @@ mod builder {
         run.execute(case);
         for arr in data {
             let [base_log2, arg, res] = arr.map(f32::from_bits);
-            let comp = (base_log2 * arg).exp2();
+            let comp = (base_log2 * arg).exp2().flush_subnormals();
 
             let ulps = 3 + 2 * ((base_log2 * arg).abs() as u32);
             let prec = Precision::Ulp(ulps);
