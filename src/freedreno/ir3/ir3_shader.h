@@ -809,7 +809,17 @@ struct ir3_shader_variant {
       bool rasterflat : 1; /* special handling for emit->rasterflat */
       bool half       : 1;
       bool flat       : 1;
-   } inputs[32 + 2]; /* +POSITION +FACE */
+      /* inputs[] array is sized for 32 FS input varyings plus sysvals.  Vulkan
+       * says that the built-ins (face, coord, etc.) count against the input
+       * components limit, so we shouldn't need to have space for them, but GL
+       * lacks that clarity.  Regardless, the IJs shouldn't count against the
+       * input components limit, which is fine since sysvals don't take up
+       * total_in slots.
+       *
+       * FS sysval list: FRAG_COORD, FACE, SAMPLE_ID, SAMPLE_MASK_IN,
+       * FRAG_SHADING_RATE
+       */
+   } inputs[32 + IJ_COUNT + 5];
    bool reads_primid;
    bool reads_shading_rate;
    bool reads_smask;
