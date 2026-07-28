@@ -764,7 +764,7 @@ pick_regs(jay_ra_state *ra,
           bool is_src)
 {
    struct jay_partition *partition = &ra->b.shader->partition;
-   bool eot = jay_is_early_eot_send(ra->b.shader, I);
+   bool eot = jay_is_early_eot_send(ra->b.shader, I) && file != FLAG;
 
    /* If possible, keep sources in place to avoid shuffles. */
    if (is_src && jay_channel(var, 0) != 0) {
@@ -1369,7 +1369,7 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 15);
          }
 
-         if (jay_is_early_eot_send(shader, I)) {
+         if (jay_is_early_eot_send(shader, I) && I->src[s].file != FLAG) {
             ra.affinities[index].eot = true;
          }
 
