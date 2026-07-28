@@ -885,7 +885,7 @@ jay_ugpr_per_gpr(jay_shader *s)
 static inline unsigned
 jay_phys_flag_per_virt(jay_shader *s)
 {
-   return jay_grf_per_gpr(s);
+   return s->dispatch_width == 32 ? 2 : 1;
 }
 
 /*
