@@ -123,10 +123,10 @@ fn cmp_eq_f32(real: f32, expected: f32, prec: Precision) -> bool {
     match prec {
         Precision::Exact => real.to_bits() == expected.to_bits(),
         Precision::Ulp(ulps) => {
-            if (real - expected).abs() < f32::MIN_POSITIVE {
-                return true; // ftz
+            if real.to_bits() == expected.to_bits() {
+                return true; // Also catches infs
             }
-            f32_ulp_dist(real, expected) < ulps
+            f32_ulp_dist(real, expected) <= ulps
         }
         Precision::Abs(prec) => (real - expected).abs() < prec,
     }
@@ -139,12 +139,12 @@ fn cmp_eq_f16(real: F16, expected: F16, prec: Precision) -> bool {
     match prec {
         Precision::Exact => real.to_bits() == expected.to_bits(),
         Precision::Ulp(ulps) => {
-            if (real - expected).abs() < F16::MIN_POSITIVE {
-                return true; // ftz
+            if real.to_bits() == expected.to_bits() {
+                return true; // Also catches infs
             }
-            u32::from(f16_ulp_dist(real, expected)) < ulps
+            u32::from(f16_ulp_dist(real, expected)) <= ulps
         }
-        Precision::Abs(prec) => f32::from(real - expected.abs()) < prec,
+        Precision::Abs(prec) => f32::from((real - expected).abs()) < prec,
     }
 }
 
