@@ -1162,7 +1162,11 @@ jay_def_stride(const jay_shader *shader, jay_def x)
 static inline enum jay_type
 jay_flag_type(jay_function *func)
 {
-   return jay_type(JAY_TYPE_U, func->shader->dispatch_width);
+   /* Flags can only be addressed as UW or UD as ARF sources, so we use 16-bit
+    * values for flags even in SIMD8 - going smaller is pointless and opens us
+    * up to GEN's many wonderful byte regioning restrictions.
+    */
+   return jay_type(JAY_TYPE_U, MAX2(func->shader->dispatch_width, 16));
 }
 
 /* Represents an allocated register number with file in the top 3 bits. */
