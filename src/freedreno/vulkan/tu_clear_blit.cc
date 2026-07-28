@@ -4191,7 +4191,7 @@ use_generic_clear_for_image_clear(struct tu_cmd_buffer *cmd,
            * dimensions (e.g. 960x540), and having GMEM renderpass afterwards
            * may lead to a GPU fault on A7XX.
            */
-          !(info->props.r8g8_faulty_fast_clear_quirk && image_is_r8g8(image));
+          !(FD_QUIRK(info, QCTDD12766770_r8g8_fc_alignment) && image_is_r8g8(image));
 }
 
 template <chip CHIP>

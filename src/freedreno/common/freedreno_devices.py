@@ -884,7 +884,6 @@ a7xx_gen3 = GPUProps(
         ubwc_unorm_snorm_int_compatible = True,
         supports_uav_ubwc = True,
         has_generic_clear = True,
-        r8g8_faulty_fast_clear_quirk = True,
         gs_vpc_adjacency_quirk = True,
         ubwc_all_formats_compatible = True,
         has_compliant_dp4acc = True,
@@ -904,6 +903,8 @@ a7xx_gen3 = GPUProps(
         has_64b_image_atomics = True,
         has_implicit_fragface_fragcoord_ij_linear = True,
         subpass_fence_cleans_resolve = True,
+
+        QCTDD12766770 = True,
     )
 
 a730_magic_regs = dict(

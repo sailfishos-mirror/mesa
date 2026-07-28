@@ -417,9 +417,6 @@ struct fd_dev_info {
       /* Whether a single clear blit could be used for both sysmem and gmem.*/
       bool has_generic_clear;
 
-      /* Whether r8g8 UBWC fast-clear work correctly. */
-      bool r8g8_faulty_fast_clear_quirk;
-
       /* a750 has a bug where writing and then reading a UBWC-compressed UAV
        * requires flushing UCHE. This is reproducible in many CTS tests, for
        * example dEQP-VK.image.load_store.with_format.2d.*.
@@ -517,6 +514,8 @@ struct fd_dev_info {
    struct {
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
+      /* Whether r8g8 UBWC fast-clear work correctly. */
+      bool QCTDD12766770_r8g8_fc_alignment : 1;
    } quirks;
 };
 
