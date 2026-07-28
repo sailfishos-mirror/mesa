@@ -1427,7 +1427,9 @@ set_window_offset(fd_crb &crb, uint32_t x1, uint32_t y1)
    crb.add(A6XX_RB_RESOLVE_WINDOW_OFFSET(.x = x1, .y = y1));
    crb.add(SP_WINDOW_OFFSET(CHIP, .x = x1, .y = y1));
    crb.add(A6XX_TPL1_WINDOW_OFFSET(.x = x1, .y = y1));
-   if (CHIP >= A8XX)
+   /* TPL1_A2D_WINDOW_OFFSET exists on A7XX+ (not just A8XX+).
+    * Without it, multi-bin surfaces resolve to wrong location. */
+   if (CHIP >= A7XX)
       crb.add(TPL1_A2D_WINDOW_OFFSET(CHIP, .x = x1, .y = y1));
 }
 
