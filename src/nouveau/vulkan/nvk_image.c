@@ -943,18 +943,31 @@ nvk_image_init(struct nvk_device *dev,
             explicit_offsets_B[plane] = mod_explicit_info->pPlaneLayouts[plane].offset;
          }
       } else {
-         /* Non-linear modifiers are not supported with YCbCr */
-         assert(image->plane_count == 1);
          const struct VkImageDrmFormatModifierListCreateInfoEXT *mod_list_info =
             vk_find_struct_const(pCreateInfo->pNext,
                                  IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT);
 
-         enum pipe_format p_format =
-            nvk_format_to_pipe_format(image->vk.format);
-         image->vk.drm_format_mod =
-            nil_select_best_drm_format_mod(&pdev->info, nil_format(p_format),
-                                           mod_list_info->drmFormatModifierCount,
-                                           mod_list_info->pDrmFormatModifiers);
+         if (ycbcr_info != NULL) {
+            /* Multi-planar formats only ever advertise LINEAR (see
+             * nvk_get_drm_format_properties()), and nil has no format for the
+             * combined multi-planar format, so pick LINEAR out of the list
+             * rather than asking nil to choose.
+             */
+            image->vk.drm_format_mod = DRM_FORMAT_MOD_INVALID;
+            for (uint32_t i = 0; i < mod_list_info->drmFormatModifierCount; i++) {
+               if (mod_list_info->pDrmFormatModifiers[i] == DRM_FORMAT_MOD_LINEAR) {
+                  image->vk.drm_format_mod = DRM_FORMAT_MOD_LINEAR;
+                  break;
+               }
+            }
+         } else {
+            enum pipe_format p_format =
+               nvk_format_to_pipe_format(image->vk.format);
+            image->vk.drm_format_mod =
+               nil_select_best_drm_format_mod(&pdev->info, nil_format(p_format),
+                                              mod_list_info->drmFormatModifierCount,
+                                              mod_list_info->pDrmFormatModifiers);
+         }
          assert(image->vk.drm_format_mod != DRM_FORMAT_MOD_INVALID);
       }
 
