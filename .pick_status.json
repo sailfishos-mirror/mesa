@@ -3904,7 +3904,7 @@
         "description": "freedreno/ir3: Actually pass cs_lock_unlock_quirk into the compiler.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d1df3b4e392d9ec167b6639a77a735b01eff60a7",
         "notes": null
