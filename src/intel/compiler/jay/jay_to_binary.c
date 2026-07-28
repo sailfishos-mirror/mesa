@@ -206,8 +206,8 @@ to_gen_operand(
        * SIMD1 instructions and are never SIMD split.
        */
       assert(simd_offs == 0 || idx >= 0);
-      unsigned offs_B =
-         (d.reg * (f->shader->dispatch_width / 8)) + (hi ? 2 : 0);
+      unsigned flag_B = jay_type_size_bits(jay_flag_type(f)) / 8;
+      unsigned offs_B = (d.reg * flag_B) + (hi ? 2 : 0);
       R = gen_flag(offs_B / 2);
    } else if (d.file == J_ADDRESS) {
       R = gen_address(d.reg);
