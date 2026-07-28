@@ -1149,6 +1149,22 @@ zink_init_screen_caps(struct zink_screen *screen)
    caps->max_varyings =
       MIN2(screen->info.props.limits.maxVertexOutputComponents / 4 / 2, 16);
 
+   /* On drivers that report a maxVertexOutputComponents value of 64 the
+    * streamout reservation can lead to the max_varyings falling below the spec
+    * required minimum value. However on specific drivers as long as the
+    * outputs above this limit are only used for streamout this will still work
+    * (this is due to these drivers also not supporting geometry and
+    * tessellation shaders). So configure a value that meets the spec minimum
+    * value.
+    */
+   if ((zink_driverid(screen) == VK_DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA ||
+        zink_driverid(screen) == VK_DRIVER_ID_MESA_TURNIP) &&
+       screen->info.props.limits.maxVertexOutputComponents == 64){
+      assert(screen->info.feats.features.geometryShader == VK_FALSE);
+      assert(screen->info.feats.features.tessellationShader == VK_FALSE);
+      caps->max_varyings = 16;
+   }
+
    caps->dmabuf =
 #if defined(HAVE_LIBDRM) && (DETECT_OS_LINUX || DETECT_OS_BSD)
       screen->info.have_KHR_external_memory_fd &&
