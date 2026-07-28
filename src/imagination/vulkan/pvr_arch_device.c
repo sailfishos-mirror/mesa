@@ -753,11 +753,11 @@ VkResult PVR_PER_ARCH(create_device)(struct pvr_physical_device *pdevice,
    if (result != VK_SUCCESS)
       goto err_out;
 
-   device = vk_alloc2(&instance->vk.alloc,
-                      pAllocator,
-                      sizeof(*device),
-                      8,
-                      VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+   device = vk_zalloc2(&instance->vk.alloc,
+                       pAllocator,
+                       sizeof(*device),
+                       8,
+                       VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
    if (!device) {
       result = vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
       goto err_pvr_winsys_destroy;
