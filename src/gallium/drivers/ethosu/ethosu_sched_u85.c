@@ -113,6 +113,14 @@ fit_area_by_aspect(double aspect, int *width, int *height, int area,
    double w = sqrt(area / aspect);
    double h = w * aspect;
 
+   if (h < 1.0) {
+      w *= h;
+      h = 1.0;
+   } else if (w < 1.0) {
+      h *= w;
+      w = 1.0;
+   }
+
    *width = round_zero(MAX2((int)w, granule.width), granule.width);
    *height = round_zero(MAX2((int)h, granule.height), granule.height);
 }
