@@ -7214,7 +7214,7 @@
         "description": "nvk: Reenable compression support on Turing with nouveau 1.4.3",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e81a292165add2997276dd30cd65381aa49ca72d",
         "notes": null
