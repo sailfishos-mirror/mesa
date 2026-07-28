@@ -4,7 +4,7 @@
 use crate::bindings::*;
 use std::cmp::{Ordering, PartialOrd};
 use std::fmt;
-use std::ops::Neg;
+use std::ops::{Neg, Sub};
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Default)]
@@ -145,5 +145,13 @@ impl Neg for F16 {
         F16 {
             v: self.v ^ F16::SIGN_BIT,
         }
+    }
+}
+
+impl Sub for F16 {
+    type Output = F16;
+
+    fn sub(self, other: F16) -> Self::Output {
+        F16::from_f32_rtne(f32::from(self) - f32::from(other))
     }
 }
