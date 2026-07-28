@@ -52,6 +52,12 @@ lower_fsign.extend([
      ('umad_32x16_intel', a, ('iand', b, 0xffff),
       ('umul_32x16', ('iand', b, 0xffff0000), a))),
 
+    # Xe2 has MACL which is more efficient for multiplication with no constants.
+    # On older platforms without MACL, use the above rule as the lowering.
+    (('imul', 'a@32', b),
+     ('umad_32x16_intel', a, b, ('umul_32x16', ('iand', b, 0xffff0000), a)),
+     'verx10 < 200'),
+
     (('pack_half_2x16_split', a, b),
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
 ])
@@ -118,7 +124,8 @@ def main() -> None:
         f.write('#include "jay_private.h"')
 
         f.write(nir_algebraic.AlgebraicPass(
-            "jay_nir_lower_fsign", lower_fsign).render())
+            "jay_nir_lower_fsign", lower_fsign,
+            [("unsigned", "verx10")]).render())
         f.write(nir_algebraic.AlgebraicPass(
             "jay_nir_lower_bool", lower_bool).render())
         f.write(nir_algebraic.AlgebraicPass(

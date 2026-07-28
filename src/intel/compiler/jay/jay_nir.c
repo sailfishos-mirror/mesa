@@ -1167,7 +1167,7 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
     * create additional fsign instructions.
     */
    JAY_NIR_PASS(jay_nir_lower_bfloat_math);
-   JAY_NIR_PASS(jay_nir_lower_fsign);
+   JAY_NIR_PASS(jay_nir_lower_fsign, devinfo->verx10);
    JAY_NIR_PASS(jay_nir_lower_bool);
    JAY_NIR_PASS(nir_opt_cse);
    JAY_NIR_PASS(nir_opt_dce);

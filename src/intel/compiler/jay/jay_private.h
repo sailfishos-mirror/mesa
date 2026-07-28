@@ -22,7 +22,7 @@ extern "C" {
 extern int jay_debug;
 
 bool jay_nir_lower_bool(nir_shader *nir);
-bool jay_nir_lower_fsign(nir_shader *nir);
+bool jay_nir_lower_fsign(nir_shader *nir, unsigned verx10);
 bool jay_nir_lower_bfloat_math(nir_shader *nir);
 
 void jay_populate_prog_data(const struct intel_device_info *devinfo,
