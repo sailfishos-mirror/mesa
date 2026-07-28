@@ -269,8 +269,9 @@ validate_inst(struct validate_state *validate, jay_inst *I)
          (!jay_is_null(I->cond_flag) && opinfo->cmod));
 
    /* We should not be clobbering multiple flags in SIMD16 with a mov.u32 */
-   CHECK(!(I->dst.file == FLAG && jay_type_size_bits(I->type) >
-                                     validate->func->shader->dispatch_width));
+   CHECK(!(I->dst.file == FLAG &&
+           jay_type_size_bits(I->type) >
+              jay_type_size_bits(jay_flag_type(validate->func))));
 
    unsigned num_srcs = I->num_srcs;
 
