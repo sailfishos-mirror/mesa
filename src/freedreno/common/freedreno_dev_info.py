@@ -37,6 +37,7 @@ class CCUColorCacheFraction(Enum):
     THREE_QUARTER = 3  # a8xx_gen2 and later
 
 quirk_names = {
+    "QCTDD08407086": "cs_lock_unlock",
 }
 
 class State(object):

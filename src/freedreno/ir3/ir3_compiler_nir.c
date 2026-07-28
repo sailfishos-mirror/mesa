@@ -6208,7 +6208,8 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
     */
    IR3_PASS(ir, ir3_legalize, so, &max_bary, is_preamble_speculatable);
 
-   if (ctx->compiler->info->props.cs_lock_unlock_quirk && ir3_shader_compute(so)) {
+   if (ir3_shader_compute(so) &&
+       IR3_QUIRK(ctx->compiler, QCTDD08407086_cs_lock_unlock)) {
       struct ir3_instruction *end = ir3_find_end(so->ir);
       struct ir3_instruction *lock =
          ir3_build_instr(&ctx->build, OPC_LOCK, 0, 0);
