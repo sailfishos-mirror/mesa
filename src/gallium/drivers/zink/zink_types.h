@@ -731,6 +731,13 @@ struct zink_bo {
           * it can only transition from false to true. Protected by lock.
           */
          bool is_shared;
+
+         struct zink_clientptr_heap *clientptr_heap;
+
+         /* entry for zink_clientptr_heap->bos */
+         struct list_head clientptr_heap_link;
+
+         struct zink_clientptr_range *clientptr_range;
       } real;
       struct {
          struct pb_slab_entry entry;
@@ -765,6 +772,40 @@ static inline struct zink_bo *
 zink_bo(struct pb_buffer_lean *pbuf)
 {
    return (struct zink_bo*)pbuf;
+}
+
+struct zink_clientptr_range {
+   struct pipe_clientptr_range b;
+   struct list_head free_ranges_link;
+};
+
+static inline struct zink_clientptr_range *
+zink_clientptr_range(struct pipe_clientptr_range *pclientptr_range)
+{
+   return (struct zink_clientptr_range*)pclientptr_range;
+}
+
+struct zink_clientptr_heap {
+   struct tc_clientptr_heap b;
+
+   struct zink_screen *screen;
+
+   /* client mapped buffers with the same heap can share slabs */
+   struct pb_slabs slabs;
+
+   /* real zink_bos mapped to client pointers in this heap */
+   struct list_head bos;
+   simple_mtx_t bos_lock;
+
+   /* former clientptr-backed cpu_storage ranges to be freed through clientptr_reclaim */
+   struct list_head free_ranges;
+   simple_mtx_t free_ranges_lock;
+};
+
+static inline struct zink_clientptr_heap *
+zink_clientptr_heap(struct pipe_clientptr_heap *clientptr_heap)
+{
+   return (struct zink_clientptr_heap*)clientptr_heap;
 }
 
 /** clear types */
@@ -1271,6 +1312,8 @@ struct zink_resource_object {
    bool coherent;
    bool is_aux;
    bool immutable_handle;
+
+   struct pipe_clientptr_heap *clientptr_heap;
 };
 
 /* "gfx" includes mesh here */
@@ -1360,6 +1403,9 @@ struct zink_transfer {
    unsigned offset;
    unsigned depthPitch;
    bool unsync_upload;
+   uint8_t *clientptr;
+   unsigned clientptr_refcnt;
+   struct pipe_transfer *clientptr_upload;
 };
 
 

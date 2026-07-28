@@ -161,6 +161,8 @@ zink_context_destroy(struct pipe_context *pctx)
    zink_descriptors_deinit_bindless(ctx);
 
    u_upload_destroy(pctx->stream_uploader);
+   if (pctx->clientptr_uploader)
+      u_upload_destroy(pctx->clientptr_uploader);
    u_upload_destroy(pctx->const_uploader);
    struct zink_batch_state *bs = ctx->batch_states;
    while (bs) {

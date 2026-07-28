@@ -1315,6 +1315,11 @@ zink_init_screen_caps(struct zink_screen *screen)
       caps->device_type = PIPE_DEVICE_TYPE_UNKNOWN;
       break;
    }
+
+   caps->map_client_pointer =
+      (screen->info.have_EXT_map_memory_placed &&
+       screen->info.map_memory_placed_feats.memoryMapPlaced &&
+       screen->info.map_memory_placed_feats.memoryUnmapReserve);
 }
 
 static VkSampleCountFlagBits

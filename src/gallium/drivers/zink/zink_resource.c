@@ -68,6 +68,10 @@
 
 #define ZINK_EXTERNAL_MEMORY_HANDLE 999
 
+#if !DETECT_OS_WINDOWS
+#include <sys/mman.h>
+#endif
+
 
 
 struct zink_debug_mem_entry {
@@ -243,6 +247,9 @@ zink_destroy_resource_object(struct zink_screen *screen, struct zink_resource_ob
       FREE(obj->bo); //this is a dummy struct
    } else
       zink_bo_unref(screen, obj->bo);
+
+   if (obj->clientptr_heap)
+      pipe_clientptr_heap_reference(&screen->base, &obj->clientptr_heap, NULL);
    FREE_CL(obj);
 }
 
@@ -270,6 +277,11 @@ zink_resource_destroy(struct pipe_screen *pscreen,
    pipe_resource_reference(&pres_transient, NULL);
    zink_resource_object_reference(screen, &res->obj, NULL);
    threaded_resource_deinit(pres);
+
+   if (res->base.b.clientptr_heap) {
+      pipe_clientptr_heap_reference(pscreen, &res->base.b.clientptr_heap, NULL);
+   }
+
    FREE_CL(res);
 }
 
@@ -1179,7 +1191,8 @@ allocate_bo(struct zink_screen *screen, const struct pipe_resource *templ,
             continue;
 
          mai.memoryTypeIndex = screen->heap_map[heap][i];
-         obj->bo = zink_bo(zink_bo_create(screen, reqs->size, alignment, heap, mai.pNext ? ZINK_ALLOC_NO_SUBALLOC : 0, mai.memoryTypeIndex, mai.pNext));
+         obj->bo = zink_bo(zink_bo_create(screen, reqs->size, alignment, heap, mai.pNext ? ZINK_ALLOC_NO_SUBALLOC : 0,
+                                          mai.memoryTypeIndex, mai.pNext, zink_clientptr_heap(templ->clientptr_heap)));
       }
 
       if (obj->bo || heap != ZINK_HEAP_DEVICE_LOCAL_VISIBLE)
@@ -1782,6 +1795,9 @@ resource_object_create(struct zink_screen *screen, const struct pipe_resource *t
       return obj;
    }
 
+   if (templ->clientptr_heap)
+      pipe_clientptr_heap_reference(&screen->base, &obj->clientptr_heap, templ->clientptr_heap);
+
    enum resource_object_create_result create_result;
    if (templ->target == PIPE_BUFFER) {
       max_level = 1;
@@ -1811,6 +1827,8 @@ resource_object_create(struct zink_screen *screen, const struct pipe_resource *t
          VKSCR(DestroyImage)(screen->dev, obj->image, NULL);
       FALLTHROUGH;
    case roc_fail_and_free_object:
+      if (obj->clientptr_heap)
+         pipe_clientptr_heap_reference(&screen->base, &obj->clientptr_heap, NULL);
       FREE_CL(obj);
       return NULL;
    default:
@@ -1991,6 +2009,11 @@ resource_create(struct pipe_screen *pscreen,
    }
    if (res->obj->exportable)
       res->base.b.bind |= ZINK_BIND_DMABUF;
+   if (templ->clientptr_heap) {
+      assert(res->base.b.clientptr_heap == templ->clientptr_heap);
+      res->base.b.clientptr_heap = NULL;
+      pipe_clientptr_heap_reference(pscreen, &res->base.b.clientptr_heap, templ->clientptr_heap);
+   }
    return &res->base.b;
 
 fail_obj:
@@ -2647,6 +2670,8 @@ zink_buffer_map(struct pipe_context *pctx,
    struct zink_screen *screen = zink_screen(pctx->screen);
    struct zink_resource *res = zink_resource(pres);
    struct zink_transfer *trans = create_transfer(ctx, pres, usage, box);
+   struct zink_clientptr_heap *clientptr_heap = zink_clientptr_heap(res->base.b.clientptr_heap);
+
    if (!trans)
       return NULL;
 
@@ -2671,13 +2696,21 @@ zink_buffer_map(struct pipe_context *pctx,
       usage |= PIPE_MAP_DISCARD_WHOLE_RESOURCE;
    }
 
+   /* If mapping a resource in a clientptr_heap without an according
+    * client pointer, we can't directly map the underlying resource,
+    * as Vulkan doesn't allow multiple mappings at the same time,
+    * and this would block a client pointer map.
+    */
+   bool force_staging = res->base.b.clientptr_heap &&
+                        !(usage & PIPE_MAP_CLIENT_POINTER);
+
    /* If a buffer in VRAM is too large and the range is discarded, don't
     * map it directly. This makes sure that the buffer stays in VRAM.
     */
    bool force_discard_range = false;
    if (usage & (PIPE_MAP_DISCARD_WHOLE_RESOURCE | PIPE_MAP_DISCARD_RANGE) &&
        !(usage & PIPE_MAP_PERSISTENT) &&
-       res->base.b.flags & PIPE_RESOURCE_FLAG_DONT_MAP_DIRECTLY) {
+       (res->base.b.flags & PIPE_RESOURCE_FLAG_DONT_MAP_DIRECTLY || force_staging)) {
       usage &= ~(PIPE_MAP_DISCARD_WHOLE_RESOURCE | PIPE_MAP_UNSYNCHRONIZED);
       usage |= PIPE_MAP_DISCARD_RANGE;
       force_discard_range = true;
@@ -2710,7 +2743,8 @@ zink_buffer_map(struct pipe_context *pctx,
 
          if (usage & PIPE_MAP_UNSYNCHRONIZED) {
             trans->offset = box->x % MAX2(screen->info.props.limits.minMemoryMapAlignment, 1 << MIN_SLAB_ORDER);
-            trans->staging_res = pipe_buffer_create(&screen->base, PIPE_BIND_LINEAR, PIPE_USAGE_STAGING, box->width + trans->offset);
+            trans->staging_res = pipe_buffer_create_clientptr(&screen->base, PIPE_BIND_LINEAR, PIPE_USAGE_STAGING, box->width + trans->offset,
+                                                              (usage & PIPE_MAP_CLIENT_POINTER) ? &clientptr_heap->b.b : NULL);
             trans->unsync_upload = true;
          } else {
             /* If we are not called from the driver thread, we have
@@ -2722,9 +2756,27 @@ zink_buffer_map(struct pipe_context *pctx,
                upload_ctx = &ctx->tc->base;
             else
                upload_ctx = &ctx->base;
-            u_upload_alloc_ref(upload_ctx->stream_uploader, 0, box->width,
-                        screen->info.props.limits.minMemoryMapAlignment, &offset,
-                        (struct pipe_resource **)&trans->staging_res, (void **)&ptr);
+
+            if ((usage & PIPE_MAP_CLIENT_POINTER)) {
+               assert(!!res->base.b.clientptr_heap);
+
+               if (!upload_ctx->clientptr_uploader) {
+                  upload_ctx->clientptr_uploader =
+                     u_upload_clone_clientptr(upload_ctx,
+                                              upload_ctx->stream_uploader,
+                                              &clientptr_heap->b.b);
+               }
+
+               u_upload_alloc_clientptr_ref(upload_ctx->clientptr_uploader, box->width,
+                           screen->info.props.limits.minMemoryMapAlignment, &offset,
+                           (struct pipe_resource **)&trans->staging_res, &trans->clientptr_upload);
+
+               ptr = PIPE_TRANSFER_CLIENT_POINTER;
+            } else {
+               u_upload_alloc_ref(upload_ctx->stream_uploader, 0, box->width,
+                           screen->info.props.limits.minMemoryMapAlignment, &offset,
+                           (struct pipe_resource **)&trans->staging_res, (void **)&ptr);
+            }
             trans->offset = offset;
          }
          res = zink_resource(trans->staging_res);
@@ -2745,12 +2797,13 @@ zink_buffer_map(struct pipe_context *pctx,
       usage |= PIPE_MAP_UNSYNCHRONIZED;
    } else if (((usage & PIPE_MAP_READ) && !(usage & PIPE_MAP_PERSISTENT) &&
                ((screen->info.mem_props.memoryTypes[res->obj->bo->base.placement].propertyFlags & VK_STAGING_RAM) != VK_STAGING_RAM)) ||
-              !res->obj->host_visible) {
+              !res->obj->host_visible || force_staging) {
       /* any read, non-HV write, or unmappable that reaches this point needs staging */
-      if ((usage & PIPE_MAP_READ) || !res->obj->host_visible || res->base.b.flags & PIPE_RESOURCE_FLAG_DONT_MAP_DIRECTLY) {
+      if ((usage & PIPE_MAP_READ) || !res->obj->host_visible || res->base.b.flags & PIPE_RESOURCE_FLAG_DONT_MAP_DIRECTLY || force_staging) {
 overwrite:
          trans->offset = box->x % MAX2(screen->info.props.limits.minMemoryMapAlignment, 1 << MIN_SLAB_ORDER);
-         trans->staging_res = pipe_buffer_create(&screen->base, PIPE_BIND_LINEAR, PIPE_USAGE_STAGING, box->width + trans->offset);
+         trans->staging_res = pipe_buffer_create_clientptr(&screen->base, PIPE_BIND_LINEAR, PIPE_USAGE_STAGING, box->width + trans->offset,
+            (usage & PIPE_MAP_CLIENT_POINTER) ? &clientptr_heap->b.b : NULL);
          if (!trans->staging_res)
             goto fail;
          struct zink_resource *staging_res = zink_resource(trans->staging_res);
@@ -2792,13 +2845,23 @@ overwrite:
          /* force counter buffer reset */
          res->so_valid = false;
       }
-      ptr = map_resource(screen, res);
+
+      if (res->base.b.clientptr_heap) {
+         if (usage & PIPE_MAP_CLIENT_POINTER) {
+            ptr = PIPE_TRANSFER_CLIENT_POINTER;
+         } else {
+            UNREACHABLE("zink: expected staging buffer for resource in client pointer heap");
+         }
+      } else {
+         ptr = map_resource(screen, res);
+      }
       if (!ptr)
          goto fail;
-      ptr = ((uint8_t *)ptr) + trans->offset;
+      if (ptr != PIPE_TRANSFER_CLIENT_POINTER)
+         ptr = ((uint8_t *)ptr) + trans->offset;
    }
 
-   if (!res->obj->coherent
+   if ((!res->obj->coherent && ptr != PIPE_TRANSFER_CLIENT_POINTER)
 #if defined(MVK_VERSION)
       // Work around for MoltenVk limitation specifically on coherent memory
       // MoltenVk returns blank memory ranges when there should be data present
@@ -3096,7 +3159,7 @@ zink_transfer_flush_region(struct pipe_context *pctx,
                   util_format_get_stride(m->base.b.format, box->x);
          assert(src_offset + size <= res->obj->size);
       }
-      if (!m->obj->coherent) {
+      if (!m->obj->coherent && (!m->base.b.clientptr_heap || trans->clientptr)) {
          VkMappedMemoryRange range = zink_resource_init_mem_range(screen, m->obj, m->obj->offset, m->obj->size);
          if (VKSCR(FlushMappedMemoryRanges)(screen->dev, 1, &range) != VK_SUCCESS) {
             mesa_loge("ZINK: vkFlushMappedMemoryRanges failed");
@@ -3352,6 +3415,8 @@ transfer_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
    struct zink_context *ctx = zink_context(pctx);
    struct zink_transfer *trans = (struct zink_transfer *)ptrans;
 
+   assert(trans->clientptr_refcnt == 0);
+
    if (!(trans->base.b.usage & (PIPE_MAP_FLUSH_EXPLICIT | PIPE_MAP_COHERENT))) {
       /* flush_region is relative to the mapped region: use only the extents */
       struct pipe_box box = ptrans->box;
@@ -3376,6 +3441,13 @@ do_transfer_unmap(struct zink_screen *screen, struct zink_transfer *trans)
    struct zink_resource *res = zink_resource(trans->staging_res);
    if (!res)
       res = zink_resource(trans->base.b.resource);
+
+   if (res->base.b.clientptr_heap) {
+      /* unmap_clientptr_range must be called before unmap */
+      assert(!trans->clientptr);
+      return;
+   }
+
    unmap_resource(screen, res);
 }
 
@@ -3577,6 +3649,154 @@ zink_resource_get_internal_format(struct pipe_resource *pres)
    return res->internal_format;
 }
 
+static struct pipe_clientptr_heap *
+zink_clientptr_heap_create(struct pipe_screen *pscreen)
+{
+   struct zink_screen *screen = zink_screen(pscreen);
+   struct zink_clientptr_heap *obj = CALLOC_STRUCT(zink_clientptr_heap);
+
+   tc_clientptr_heap_init(&obj->b);
+
+   if (!zink_bo_clientptr_heap_init(screen, obj)) {
+      mesa_loge("ZINK: zink_bo_clientptr_heap_init failed.");
+      tc_clientptr_heap_deinit(&obj->b);
+      FREE(obj);
+      return NULL;
+   }
+
+   pipe_reference_init(&obj->b.b.reference, 1);
+
+   return &obj->b.b;
+}
+
+static void
+zink_clientptr_heap_destroy(struct pipe_screen *pscreen, struct pipe_clientptr_heap *pclientptr_heap)
+{
+   struct zink_screen *screen = zink_screen(pscreen);
+   struct zink_clientptr_heap *clientptr_heap = (struct zink_clientptr_heap *)pclientptr_heap;
+   struct pipe_clientptr_range range = {0};
+
+   while (zink_bo_reclaim_clientptr(screen, clientptr_heap, true, &range)) {
+      fprintf(stderr, "ZINK: freeing leaked client pointer range %p-%p.", range.start, range.start + range.size);
+
+      #if !DETECT_OS_WINDOWS
+         munmap(range.start, range.size);
+      #else
+         UNREACHABLE("client ptr not supported on Windows");
+      #endif
+   }
+
+   tc_clientptr_heap_deinit(&clientptr_heap->b);
+   zink_bo_clientptr_heap_deinit(clientptr_heap);
+
+   FREE(clientptr_heap);
+}
+
+static bool
+zink_clientptr_range_reclaim(struct pipe_screen *pscreen, struct pipe_clientptr_heap *pclientptr_heap,
+                          bool release_all, struct pipe_clientptr_range *range)
+{
+   struct zink_screen *screen = zink_screen(pscreen);
+   struct zink_clientptr_heap *clientptr_heap = zink_clientptr_heap(pclientptr_heap);
+
+   if (tc_clientptr_reclaim(&clientptr_heap->b, release_all, range))
+      return true;
+
+   if (zink_bo_reclaim_clientptr(screen, clientptr_heap, release_all, range))
+      return true;
+
+   return false;
+}
+
+static void *
+zink_transfer_map_clientptr_range(struct pipe_context *pctx, struct pipe_transfer *ptrans,
+                               struct pipe_clientptr_range *clientptr_range, uint32_t *size)
+{
+   struct zink_context *ctx = zink_context(pctx);
+   struct zink_screen *screen = zink_screen(ctx->base.screen);
+   struct zink_transfer *trans = (struct zink_transfer *)ptrans;
+   struct zink_resource *res = trans->staging_res ? zink_resource(trans->staging_res) :
+                                                    zink_resource(trans->base.b.resource);
+   struct zink_clientptr_heap *clientptr_heap = zink_clientptr_heap(res->base.b.clientptr_heap);
+   struct zink_bo *buf = res->obj->bo;
+
+   assert(res->base.b.flags & PIPE_RESOURCE_FLAG_MAP_CLIENT_POINTER);
+   assert(clientptr_heap);
+   assert(trans->base.b.usage & PIPE_MAP_CLIENT_POINTER);
+
+   if (!res->obj->is_buffer)
+      return NULL;
+
+   if (!(res->base.b.clientptr_heap))
+      return NULL;
+
+   if (!trans->clientptr) {
+      assert(trans->clientptr_refcnt == 0);
+
+      uint8_t *ptr = NULL;
+      uint32_t range_size = 0;
+      bool ret = zink_bo_map_clientptr(screen, buf, clientptr_range, &ptr, &range_size);
+
+      if (!ret)
+         return NULL;
+
+      if (!ptr) {
+         *size = range_size;
+         return NULL;
+      }
+
+      if (!res->obj->coherent) {
+         VkDeviceSize size = trans->base.b.box.width;
+         VkDeviceSize offset = res->obj->offset + trans->offset;
+         VkMappedMemoryRange range = zink_resource_init_mem_range(screen, res->obj, offset, size);
+         if (VKSCR(InvalidateMappedMemoryRanges)(screen->dev, 1, &range) != VK_SUCCESS) {
+            mesa_loge("ZINK: vkInvalidateMappedMemoryRanges failed");
+         }
+      }
+
+      trans->clientptr = ptr + trans->offset;
+   }
+
+   trans->clientptr_refcnt++;
+   return trans->clientptr;
+}
+
+static void
+do_unmap_clientptr_resource(struct zink_screen *screen, struct zink_transfer *trans)
+{
+   struct zink_resource *res = zink_resource(trans->staging_res);
+   if (!res)
+      res = zink_resource(trans->base.b.resource);
+
+   assert(res->base.b.clientptr_heap);
+
+   if (!res->obj->coherent) {
+      VkMappedMemoryRange range = zink_resource_init_mem_range(screen, res->obj, res->obj->offset, res->obj->size);
+      if (VKSCR(FlushMappedMemoryRanges)(screen->dev, 1, &range) != VK_SUCCESS) {
+         mesa_loge("ZINK: vkFlushMappedMemoryRanges failed");
+      }
+   }
+
+   unmap_resource(screen, res);
+}
+
+static void
+zink_transfer_unmap_clientptr_range(struct pipe_context *pctx, struct pipe_transfer *ptrans)
+{
+   struct zink_screen *screen = zink_screen(pctx->screen);
+   struct zink_transfer *trans = (struct zink_transfer *)ptrans;
+
+   assert(trans->clientptr_refcnt);
+   if (!(--trans->clientptr_refcnt)) {
+      if (trans->clientptr_upload) {
+         zink_transfer_unmap_clientptr_range(pctx, trans->clientptr_upload);
+      } else {
+         do_unmap_clientptr_resource(screen, trans);
+      }
+      trans->clientptr = NULL;
+   }
+}
+
 static const struct u_transfer_vtbl transfer_vtbl = {
    .resource_create       = zink_resource_create,
    .resource_destroy      = zink_resource_destroy,
@@ -3617,6 +3837,15 @@ zink_screen_resource_init(struct pipe_screen *pscreen)
    if (screen->info.have_KHR_buffer_device_address)
       pscreen->resource_get_address = zink_resource_get_address_gallium;
    pscreen->resource_get_param = zink_resource_get_param;
+
+   if (screen->info.have_EXT_map_memory_placed &&
+       screen->info.map_memory_placed_feats.memoryMapPlaced &&
+       screen->info.map_memory_placed_feats.memoryUnmapReserve)
+   {
+      pscreen->clientptr_heap_create = zink_clientptr_heap_create;
+      pscreen->clientptr_heap_destroy = zink_clientptr_heap_destroy;
+      pscreen->clientptr_range_reclaim = zink_clientptr_range_reclaim;
+   }
    return true;
 }
 
@@ -3632,4 +3861,7 @@ zink_context_resource_init(struct pipe_context *pctx)
    pctx->buffer_subdata = zink_buffer_subdata;
    pctx->texture_subdata = zink_image_subdata;
    pctx->invalidate_resource = zink_resource_invalidate;
+
+   pctx->transfer_map_clientptr_range = zink_transfer_map_clientptr_range;
+   pctx->transfer_unmap_clientptr_range = zink_transfer_unmap_clientptr_range;
 }

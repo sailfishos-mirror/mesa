@@ -480,6 +480,28 @@ pipe_buffer_create_const0(struct pipe_screen *screen,
    return screen->resource_create(screen, &buffer);
 }
 
+static inline struct pipe_resource *
+pipe_buffer_create_clientptr(struct pipe_screen *screen,
+                             unsigned bind,
+                             enum pipe_resource_usage usage,
+                             unsigned size,
+                             struct pipe_clientptr_heap *clientptr_heap)
+{
+   struct pipe_resource buffer;
+   memset(&buffer, 0, sizeof buffer);
+   buffer.target = PIPE_BUFFER;
+   buffer.format = PIPE_FORMAT_R8_UNORM; /* want TYPELESS or similar */
+   buffer.bind = bind;
+   buffer.usage = usage;
+   buffer.flags = clientptr_heap ? PIPE_RESOURCE_FLAG_MAP_CLIENT_POINTER : 0;
+   buffer.width0 = size;
+   buffer.height0 = 1;
+   buffer.depth0 = 1;
+   buffer.array_size = 1;
+   buffer.clientptr_heap = clientptr_heap;
+   return screen->resource_create(screen, &buffer);
+}
+
 
 /**
  * Map a range of a resource.
