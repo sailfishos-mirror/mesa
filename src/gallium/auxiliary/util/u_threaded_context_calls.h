@@ -106,6 +106,8 @@ CALL(begin_intel_perf_query)
 CALL(end_intel_perf_query)
 CALL(image_copy_buffer)
 
+CALL(transfer_unmap_clientptr_range)
+
 CALL(draw_mesh_tasks)
 CALL(bind_ts_state)
 CALL(bind_ms_state)

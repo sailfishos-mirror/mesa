@@ -384,6 +384,18 @@ struct threaded_resource {
     * ranges.
     */
    struct util_range pending_staging_uploads_range;
+
+   /* Number of transfers referencing the current cpu_storage (heap or clientptr_storage) */
+   int cpu_storage_map_count;
+
+   /* Lock on both cpu_storage and clientptr_storage */
+   simple_mtx_t cpu_storage_lock;
+
+   /* Client pointer backed cpu_storage */
+   struct tc_clientptr_storage *clientptr_storage;
+
+   /* Entry for cpu_storage_resources */
+   struct list_head clientptr_heap_link;
 };
 
 struct threaded_transfer {
@@ -401,6 +413,11 @@ struct threaded_transfer {
    struct util_range *valid_buffer_range;
 
    bool cpu_storage_mapped;
+
+   uint8_t *clientptr;
+   int clientptr_refcnt;
+
+   struct pipe_transfer *clientptr_upload;
 };
 
 struct threaded_query {
@@ -722,6 +739,29 @@ void threaded_resource_deinit(struct pipe_resource *res);
 struct pipe_context *threaded_context_unwrap_sync(struct pipe_context *pipe);
 void tc_driver_internal_flush_notify(struct threaded_context *tc);
 
+struct tc_clientptr_heap
+{
+   struct pipe_clientptr_heap b;
+
+   /* threaded_resources with clientptr-backed cpu_storage (for reclaim/release_all = true) */
+   struct list_head cpu_storage_resources;
+   simple_mtx_t cpu_storage_resources_lock;
+
+   /* former clientptr-backed cpu_storage ranges to be freed through clientptr_reclaim */
+   struct list_head free_ranges;
+   simple_mtx_t free_ranges_lock;
+};
+
+void
+tc_clientptr_heap_init(struct tc_clientptr_heap *clientptr_heap);
+void
+tc_clientptr_heap_deinit(struct tc_clientptr_heap *clientptr_heap);
+bool
+tc_clientptr_reclaim(struct tc_clientptr_heap *clientptr_heap,
+                                       bool release_all, struct pipe_clientptr_range *range);
+void
+threaded_resource_free_clientptr_storage(struct threaded_resource *tres);
+
 /** function for getting the current renderpass info:
  * - renderpass info is always non-null
  *
@@ -828,6 +868,8 @@ static inline void
 tc_buffer_disable_cpu_storage(struct pipe_resource *buf)
 {
    struct threaded_resource *tres = threaded_resource(buf);
+
+   threaded_resource_free_clientptr_storage(tres);
 
    if (tres->cpu_storage) {
       align_free(tres->cpu_storage);
