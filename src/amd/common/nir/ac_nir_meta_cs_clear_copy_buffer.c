@@ -62,8 +62,21 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
 
    assert(key->dwords_per_thread && key->dwords_per_thread <= 4);
 
-   nir_builder b = nir_builder_init_simple_shader(MESA_SHADER_COMPUTE, options->nir_options,
-                                                  "clear_copy_buffer_cs");
+   nir_builder b =
+      nir_builder_init_simple_shader(
+         MESA_SHADER_COMPUTE,
+         options->nir_options,
+         "%s%s%s_buffer_cs_dw%u_srcao_%u_dstao_%u_dstltb_%u_dststua_%u_hst_%u",
+         key->is_clear ? "clear" : "copy",
+         key->clear_value_size_is_12 ? "12" : "",
+         key->src_scalarize_for_sparse ? "_sparse" : "",
+         key->dwords_per_thread,
+         key->src_align_offset,
+         key->dst_align_offset,
+         key->dst_last_thread_bytes,
+         key->dst_single_thread_unaligned,
+         key->has_start_thread);
+
    b.shader->info.workgroup_size[0] = 64;
    b.shader->info.workgroup_size[1] = 1;
    b.shader->info.workgroup_size[2] = 1;
