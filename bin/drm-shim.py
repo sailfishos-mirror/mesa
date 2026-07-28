@@ -76,17 +76,6 @@ TARGETS = {
     "a810": ["freedreno", "810"],
     "a830": ["freedreno", "830"],
 
-    "skl": ["intel", "skl"],
-    "apl": ["intel", "apl"],
-    "glk": ["intel", "glk"],
-    "kbl": ["intel", "kbl"],
-    "jsl": ["intel", "jsl"],
-    "tgl": ["intel", "tgl"],
-    "adl": ["intel", "adl"],
-    "rpl": ["intel", "rpl"],
-    "lnl": ["intel", "lnl"],
-    "ptl": ["intel", "ptl"],
-
     "mali450": ["lima", None],
 
     "turing": ["nouveau", "160"],
@@ -112,6 +101,17 @@ TARGETS = {
     "rpi3": ["vc4", None],
 
 }
+
+INTEL_TARGETS = [
+   "lpt", "brw", "g4x", "ilk", "snb", "ivb", "hsw", "byt", "bdw", "chv", "skl",
+   "bxt", "kbl", "aml", "glk", "cfl", "whl", "cml", "icl", "ehl", "jsl", "tgl",
+   "rkl", "dg1", "adl", "sg1", "rpl", "dg2", "mtl", "arl", "lnl", "bmg", "ptl",
+   "nvl-u", "nvl"
+]
+
+for target in INTEL_TARGETS:
+    assert(target not in TARGETS)
+    TARGETS[target] = ["intel", target]
 
 LD_PRELOAD = {
     "amd": "src/amd/drm-shim/libamdgpu_noop_drm_shim.so",
