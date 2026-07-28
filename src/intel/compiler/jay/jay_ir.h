@@ -902,9 +902,12 @@ jay_is_send_like(const jay_inst *I)
 }
 
 static inline bool
-jay_inst_is_unordered(const jay_inst *I)
+jay_inst_is_unordered(const struct intel_device_info *devinfo,
+                      const jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_DPAS;
+   return I->op == JAY_OPCODE_SEND ||
+          I->op == JAY_OPCODE_DPAS ||
+          (devinfo->ver < 20 && I->op == JAY_OPCODE_MATH);
 }
 
 /*

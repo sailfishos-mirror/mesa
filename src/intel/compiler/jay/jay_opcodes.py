@@ -122,7 +122,8 @@ op('dp4a_su',    3, 's32', Props.SAT)
 op('rndd',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('rndz',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('rnde',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
-op('math', 1, 'f16 f32',     Props.NEGATE | Props.SAT, ['enum jay_math op'])
+op('math', 1, 'f16 f32',     Props.NEGATE | Props.SAT,
+   ['enum jay_math op', 'uint8_t sbid'])
 
 op('rol', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)
 op('ror', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)

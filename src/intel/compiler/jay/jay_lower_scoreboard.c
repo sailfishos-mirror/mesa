@@ -291,16 +291,18 @@ sync_sbids(jay_builder *b, uint32_t mask, gen_sbid_mode mode)
 }
 
 static inline bool
-jay_inst_has_sbid(const jay_inst *I)
+jay_inst_has_sbid(const struct intel_device_info *devinfo, const jay_inst *I)
 {
-   return jay_inst_is_unordered(I) &&
+   return jay_inst_is_unordered(devinfo, I) &&
           !(I->op == JAY_OPCODE_SEND && jay_send_eot(I));
 }
 
 static inline unsigned
 jay_inst_sbid(const jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SEND ? jay_send_sbid(I) : jay_dpas_sbid(I);
+   return I->op == JAY_OPCODE_SEND ? jay_send_sbid(I) :
+          I->op == JAY_OPCODE_MATH ? jay_math_sbid(I) :
+                                     jay_dpas_sbid(I);
 }
 
 static inline void
@@ -308,6 +310,8 @@ jay_inst_set_sbid(jay_inst *I, unsigned sbid)
 {
    if (I->op == JAY_OPCODE_SEND)
       jay_set_send_sbid(I, sbid);
+   else if (I->op == JAY_OPCODE_MATH)
+      jay_set_math_sbid(I, sbid);
    else
       jay_set_dpas_sbid(I, sbid);
 }
@@ -389,7 +393,7 @@ lower_sbid_local(jay_function *func,
          }
       }
 
-      if (jay_inst_has_sbid(I)) {
+      if (jay_inst_has_sbid(func->shader->devinfo, I)) {
          unsigned sbid;
 
          if (commit) {
@@ -648,7 +652,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       I->decrement_dep = last_pipe != exec_pipe;
    }
 
-   bool has_sbid = jay_inst_has_sbid(I);
+   bool has_sbid = jay_inst_has_sbid(func->shader->devinfo, I);
    I->dep = (gen_swsb){
       .sbid = has_sbid ? jay_inst_sbid(I) : 0,
       .mode = has_sbid ? GEN_SBID_SET : GEN_SBID_NULL,
@@ -739,7 +743,7 @@ jay_lower_scoreboard_trivial(jay_shader *shader)
 {
    bool any_check_tdr = false;
    jay_foreach_inst_in_shader_safe(shader, func, I) {
-      if (jay_inst_has_sbid(I)) {
+      if (jay_inst_has_sbid(shader->devinfo, I)) {
          /* DPAS can't have an A@1, so insert an extra SYNC.nop. */
          jay_builder before = jay_init_builder(func, jay_before_inst(I));
          jay_SYNC(&before, jay_null(), TGL_SYNC_NOP)->dep = gen_swsb_regdist(1);

@@ -152,11 +152,11 @@ jay_occupancy(jay_shader *s, jay_inst *I)
 gen_pipe
 jay_inst_exec_pipe(const struct intel_device_info *devinfo, jay_inst *I)
 {
-   return jay_inst_is_unordered(I)       ? GEN_PIPE_NONE :
-          I->op == JAY_OPCODE_MATH       ? GEN_PIPE_MATH :
-          I->type == JAY_TYPE_F64        ? GEN_PIPE_LONG :
-          jay_type_is_any_float(I->type) ? GEN_PIPE_FLOAT :
-                                           GEN_PIPE_INT;
+   return jay_inst_is_unordered(devinfo, I) ? GEN_PIPE_NONE :
+          I->op == JAY_OPCODE_MATH          ? GEN_PIPE_MATH :
+          I->type == JAY_TYPE_F64           ? GEN_PIPE_LONG :
+          jay_type_is_any_float(I->type)    ? GEN_PIPE_FLOAT :
+                                              GEN_PIPE_INT;
 }
 
 /**

@@ -403,7 +403,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
 #define MATH(nir, jay_op)                                                      \
    case nir_op_##nir:                                                          \
-      jay_MATH(b, type, dst, src[0], JAY_MATH_##jay_op);                       \
+      jay_MATH(b, type, dst, src[0], JAY_MATH_##jay_op, 0);                    \
       break;
 
 #define UNOP_UNTYPED(nir, jay_op)                                              \
