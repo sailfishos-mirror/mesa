@@ -648,16 +648,22 @@ fn format_folded(data: &[u64], types: DataTypeIter) -> String {
         match dtype {
             DataType::F32 => {
                 let f = f32::from_bits(*data as u32);
-                write!(s, "{f}").unwrap();
+                write!(s, "{f:?} (0x{:08x})", f.to_bits()).unwrap();
             }
             DataType::F16 => {
                 let f = F16::from_bits(*data as u16);
-                write!(s, "{f}").unwrap();
+                write!(s, "{f:?} (0x{:04x})", f.to_bits()).unwrap();
             }
             DataType::V2F16 => {
                 let x = F16::from_bits(*data as u16);
                 let y = F16::from_bits((*data >> 16) as u16);
-                write!(s, "({x}, {y})").unwrap();
+                write!(
+                    s,
+                    "[{x:?} (0x{:04x}), {y:?} (0x{:04x})]",
+                    x.to_bits(),
+                    y.to_bits()
+                )
+                .unwrap();
             }
             _ => {
                 write!(s, "{data}").unwrap();
