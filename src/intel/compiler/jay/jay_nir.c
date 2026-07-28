@@ -353,7 +353,30 @@ calc_control_data_bits_per_vertex(struct brw_gs_prog_data *progdata)
 }
 
 static void
+store_urb_vec4(nir_builder *b,
+               const struct intel_device_info *devinfo,
+               nir_def *data,
+               nir_def *offset_dw,
+               unsigned base_vec4)
+{
+   assert(data->num_components == 1);
+   nir_def *urb_handle = nir_load_urb_output_handle_intel(b);
+
+   if (devinfo->ver >= 20) {
+      nir_store_urb_lsc_intel(b, data,
+                              nir_iadd(b, urb_handle,
+                                       nir_imul_imm(b, offset_dw, 4)),
+                              .base = base_vec4 * 16);
+   } else {
+      nir_store_urb_vec4_intel(b, data, urb_handle,
+                               nir_ushr_imm(b, offset_dw, 2),
+                               nir_imm_int(b, 0x1), .base = base_vec4);
+   }
+}
+
+static void
 emit_gs_control_data_bits(struct brw_gs_prog_data *progdata,
+                          const struct intel_device_info *devinfo,
                           nir_builder *b,
                           nir_variable *control_data_bits,
                           nir_def *vertex_count)
@@ -365,14 +388,8 @@ emit_gs_control_data_bits(struct brw_gs_prog_data *progdata,
       nir_ushr_imm(b, nir_iadd_imm(b, nir_imax_imm(b, vertex_count, 1), -1),
                    6 - calc_control_data_bits_per_vertex(progdata));
 
-   nir_def *byte_urb_offset = nir_ishl_imm(b, dword_urb_offset, 2u);
-
-   nir_def *output_handle = nir_load_urb_output_handle_intel(b);
-   nir_def *urb_addr = nir_iadd(b, output_handle, byte_urb_offset);
-
-   nir_store_urb_lsc_intel(b, curr_control_data_bits, urb_addr,
-                           .base =
-                              progdata->static_vertex_count == -1 ? 32 : 0);
+   store_urb_vec4(b, devinfo, curr_control_data_bits, dword_urb_offset,
+                  progdata->static_vertex_count == -1 ? 2 : 0);
 }
 
 /* This function is responsible for the code that emits control data bits
@@ -390,6 +407,7 @@ emit_gs_control_data_bits(struct brw_gs_prog_data *progdata,
  */
 static void
 emit_gs_vertex(nir_builder *b,
+               const struct intel_device_info *devinfo,
                struct brw_gs_prog_data *progdata,
                nir_variable *control_data_bits,
                nir_intrinsic_instr *intr)
@@ -432,7 +450,7 @@ emit_gs_vertex(nir_builder *b,
          /* If the vertex index is 0, don't emit anything. */
          nir_push_if(b, nir_ine_imm(b, vertex_count_src->ssa, 0));
          {
-            emit_gs_control_data_bits(progdata, b, control_data_bits,
+            emit_gs_control_data_bits(progdata, devinfo, b, control_data_bits,
                                       vertex_count_src->ssa);
          }
          nir_pop_if(b, NULL);
@@ -513,6 +531,7 @@ struct lower_gs_outputs_cb_data {
    nir_variable *control_data_bits;
    nir_variable *final_gs_vertex_count;
    struct brw_gs_prog_data *progdata;
+   const struct intel_device_info *devinfo;
 };
 
 static bool
@@ -522,7 +541,8 @@ lower_gs_outputs_cb(nir_builder *b, nir_intrinsic_instr *intr, void *_data)
    b->cursor = nir_before_instr(&intr->instr);
 
    if (intr->intrinsic == nir_intrinsic_emit_vertex_with_counter) {
-      emit_gs_vertex(b, data->progdata, data->control_data_bits, intr);
+      emit_gs_vertex(b, data->devinfo, data->progdata, data->control_data_bits,
+                     intr);
    } else if (intr->intrinsic == nir_intrinsic_end_primitive_with_counter) {
       end_primitive(b, data->progdata, intr, data->control_data_bits);
    } else if (intr->intrinsic == nir_intrinsic_set_vertex_and_primitive_count) {
@@ -797,6 +817,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
          .control_data_bits = control_data_bits,
          .final_gs_vertex_count = final_gs_vertex_count,
          .progdata = &prog_data->gs,
+         .devinfo = devinfo,
       };
       JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_gs_outputs_cb,
                    nir_metadata_none, &data);
@@ -806,14 +827,13 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       nir_def *out_vert_count = nir_load_var(&at_end, final_gs_vertex_count);
       if (prog_data->gs.control_data_header_size_hwords > 0) {
-         emit_gs_control_data_bits(&prog_data->gs, &at_end, control_data_bits,
-                                   out_vert_count);
+         emit_gs_control_data_bits(&prog_data->gs, devinfo, &at_end,
+                                   control_data_bits, out_vert_count);
       }
 
       if (prog_data->gs.static_vertex_count <= 0) {
-         nir_def *output_handle = nir_load_urb_output_handle_intel(&at_end);
-         nir_store_urb_lsc_intel(&at_end, out_vert_count, output_handle,
-                                 .base = 0);
+         store_urb_vec4(&at_end, devinfo, out_vert_count,
+                        nir_imm_int(&at_end, 0), 0);
       }
 
       uint32_t starting_urb_offset =
