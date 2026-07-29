@@ -49,3 +49,7 @@ spec@!opengl 1.1@read-front
 # Also, individually, it was disabled in most of the tests as it is
 # either too slow or results in an OOM
 spec@!opengl 1.1@streaming-texture-leak
+
+# OpenCL-CTS SPIR exits cleanly after reporting that cl_khr_spir is unsupported,
+# but deqp-runner cannot parse that message as a skip
+^SPIR$
