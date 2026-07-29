@@ -1501,6 +1501,41 @@ impl<'a> ShaderFromNir<'a> {
                     idx,
                 });
             }
+            nir_intrinsic_ddx
+            | nir_intrinsic_ddx_fine
+            | nir_intrinsic_ddx_coarse
+            | nir_intrinsic_ddy
+            | nir_intrinsic_ddy_fine
+            | nir_intrinsic_ddy_coarse => {
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    NumericType::Float,
+                    intrin.def.bit_size,
+                );
+                let axis = match intrin.intrinsic {
+                    nir_intrinsic_ddx
+                    | nir_intrinsic_ddx_fine
+                    | nir_intrinsic_ddx_coarse => DerivativeAxis::X,
+                    nir_intrinsic_ddy
+                    | nir_intrinsic_ddy_fine
+                    | nir_intrinsic_ddy_coarse => DerivativeAxis::Y,
+                    _ => unreachable!(),
+                };
+                let coarse = matches!(
+                    intrin.intrinsic,
+                    nir_intrinsic_ddx_coarse | nir_intrinsic_ddy_coarse
+                );
+                let sign_is_ignored =
+                    unsafe { nir_def_all_uses_ignore_sign_bit(&intrin.def) };
+                let ssa = b.derivative(
+                    dst_type,
+                    self.get_src(&srcs[0]),
+                    axis,
+                    coarse,
+                    sign_is_ignored,
+                );
+                self.set_ssa(&intrin.def, vec![ssa]);
+            }
             nir_intrinsic_global_atomic => {
                 let atom_op = match intrin.atomic_op() {
                     nir_atomic_op_iadd => AtomOp::IAdd,
