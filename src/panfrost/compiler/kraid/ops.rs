@@ -35,7 +35,10 @@ use std::num::FpCategory;
 macro_rules! bool_as_mod_str {
     ($s: ident . $mod: ident) => {
         if $s.$mod { stringify!(.$mod) } else { "" }
-    }
+    };
+    ($gate: expr, $display: expr) => {
+        if $gate { $display } else { "" }
+    };
 }
 
 // Code compilation bug: old rustc versions use
@@ -2607,7 +2610,8 @@ impl DisplayOp for OpLoad {
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} {} #{}",
+            "{}{} {} #{}",
+            bool_as_mod_str!(self.is_tls, "tls"),
             self.access,
             self.fmt_src(&self.addr),
             self.offset,
@@ -3223,7 +3227,8 @@ impl DisplayOp for OpStore {
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} {} {} #{}",
+            "{}{} {} {} #{}",
+            bool_as_mod_str!(self.is_tls, "tls"),
             self.access,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
