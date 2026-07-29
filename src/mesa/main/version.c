@@ -253,10 +253,14 @@ compute_version(const struct gl_extensions *extensions,
 
    const bool ver_1_4 = (extensions->ARB_shadow);
    const bool ver_1_5 = ver_1_4;
+   /* OpenGL 2.0 also requires ARB_texture_non_power_of_two, but we are
+    * relaxing the check here for the r300 driver that does not support
+    * NPOT textures in HW and is emulating them on a best-effort basis.
+    * This is what the proprietary driver also did historically.
+    */
    const bool ver_2_0 = (ver_1_5 &&
                          extensions->ARB_vertex_shader &&
                          extensions->ARB_fragment_shader &&
-                         extensions->ARB_texture_non_power_of_two &&
                          extensions->EXT_blend_equation_separate &&
                          extensions->EXT_stencil_two_side);
    const bool ver_2_1 = (ver_2_0 &&

@@ -1023,6 +1023,7 @@ _mesa_legal_texture_dimensions(struct gl_context *ctx, GLenum target,
    const bool allow_npot =
       _mesa_has_ARB_texture_non_power_of_two(ctx) ||
       _mesa_has_OES_texture_npot(ctx) ||
+      (_mesa_is_desktop_gl(ctx) && ctx->Version >= 20) ||
       (_mesa_is_gles2(ctx) && level == 0);
 
    switch (target) {
