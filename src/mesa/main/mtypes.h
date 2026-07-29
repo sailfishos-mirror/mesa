@@ -995,9 +995,10 @@ struct gl_texture_object
 
    /* Cached flag: whether the extra YUV plane-view / lowering setup in
     * st_get_sampler_views() and st_get_external_sampler_key() must run for
-    * this texture.  Computed once in st_finalize_texture() when pt is
-    * assigned, to avoid re-deriving it on every atom update and shader
-    * variant lookup.
+    * this texture.  Computed whenever pt/surface_format is assigned
+    * (st_finalize_texture(), st_bind_egl_image(), st_context_teximage(),
+    * st_TextureView()), to avoid re-deriving it on every atom update and
+    * shader variant lookup.
     */
    bool needs_yuv_plane_views;
 

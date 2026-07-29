@@ -3701,6 +3701,15 @@ st_TextureView(struct gl_context *ctx,
    tex->surface_format =
       st_mesa_format_to_pipe_format(st_context(ctx), image->TexFormat);
 
+   /* Cache whether the extra YUV plane-view / lowering setup in
+    * st_get_sampler_views() and st_get_external_sampler_key() must run for
+    * this texture. st_finalize_texture() returns early for surface_based
+    * textures without computing this.
+    */
+   tex->needs_yuv_plane_views = tex->pt &&
+      (tex->surface_format != tex->pt->format ||
+       util_format_is_yuv(tex->surface_format));
+
    tex->lastLevel = numLevels - 1;
 
    /* free texture sampler views.  They need to be recreated when we
