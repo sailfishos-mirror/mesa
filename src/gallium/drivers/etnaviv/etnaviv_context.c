@@ -374,6 +374,45 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    if (ctx->needs_gpu_state_reset)
       etna_reset_gpu_state(ctx);
 
+   struct etna_shader_key key = {
+      .front_ccw = ctx->rasterizer->front_ccw,
+      .sprite_coord_enable = ctx->rasterizer->sprite_coord_enable,
+      .sprite_coord_yinvert = !!ctx->rasterizer->sprite_coord_mode,
+   };
+
+   if (screen->info->halti >= 5)
+      key.flatshade = ctx->rasterizer->flatshade;
+
+   /* On LINEAR_PE GPUs rendering directly to a linear shared resource,
+    * use shader-based R/B swap so bytes in memory have the correct order
+    * for external consumers. This avoids a dedicated flush-time blit.
+    * Per-RT bitmask so MRT with mixed shared/non-shared targets works. */
+   if (VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE)) {
+      for (i = 0; i < pfb->nr_cbufs; i++) {
+         if (pfb->cbufs[i].texture) {
+            struct etna_resource *rsc = etna_resource(pfb->cbufs[i].texture);
+            if (rsc->shared && rsc->layout == ETNA_LAYOUT_LINEAR &&
+                translate_pe_format_rb_swap(pfb->cbufs[i].format)) {
+               key.frag_rb_swap |= (1 << i);
+            }
+         }
+      }
+   }
+
+   key.rt_is_128bit = ctx->framebuffer_s.rt_is_128bit;
+   key.has_128bit_rt = !!key.rt_is_128bit;
+   for (i = 0; i < ARRAY_SIZE(key.rt_companion); i++)
+      key.rt_companion[i] = ctx->framebuffer_s.rt_companion[i];
+
+   if (!etna_get_vs(ctx, &key) || !etna_get_fs(ctx, &key)) {
+      BUG("compiled shaders are not okay");
+      return;
+   }
+
+   /* Update any derived state */
+   if (ctx->dirty && !etna_state_update(ctx))
+      return;
+
    struct pipe_resource *indexbuf = NULL;
 
    if (info->index_size) {
@@ -420,45 +459,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
          ctx->dirty |= ETNA_DIRTY_INDEX_BUFFER;
       }
    }
-
-   struct etna_shader_key key = {
-      .front_ccw = ctx->rasterizer->front_ccw,
-      .sprite_coord_enable = ctx->rasterizer->sprite_coord_enable,
-      .sprite_coord_yinvert = !!ctx->rasterizer->sprite_coord_mode,
-   };
-
-   if (screen->info->halti >= 5)
-      key.flatshade = ctx->rasterizer->flatshade;
-
-   /* On LINEAR_PE GPUs rendering directly to a linear shared resource,
-    * use shader-based R/B swap so bytes in memory have the correct order
-    * for external consumers. This avoids a dedicated flush-time blit.
-    * Per-RT bitmask so MRT with mixed shared/non-shared targets works. */
-   if (VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE)) {
-      for (i = 0; i < pfb->nr_cbufs; i++) {
-         if (pfb->cbufs[i].texture) {
-            struct etna_resource *rsc = etna_resource(pfb->cbufs[i].texture);
-            if (rsc->shared && rsc->layout == ETNA_LAYOUT_LINEAR &&
-                translate_pe_format_rb_swap(pfb->cbufs[i].format)) {
-               key.frag_rb_swap |= (1 << i);
-            }
-         }
-      }
-   }
-
-   key.rt_is_128bit = ctx->framebuffer_s.rt_is_128bit;
-   key.has_128bit_rt = !!key.rt_is_128bit;
-   for (i = 0; i < ARRAY_SIZE(key.rt_companion); i++)
-      key.rt_companion[i] = ctx->framebuffer_s.rt_companion[i];
-
-   if (!etna_get_vs(ctx, &key) || !etna_get_fs(ctx, &key)) {
-      BUG("compiled shaders are not okay");
-      return;
-   }
-
-   /* Update any derived state */
-   if (ctx->dirty && !etna_state_update(ctx))
-      return;
 
    /*
     * Figure out the buffers/features we need:
