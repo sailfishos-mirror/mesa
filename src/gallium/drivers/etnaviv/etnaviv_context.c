@@ -426,6 +426,13 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    if (!etna_state_update(ctx))
       return;
 
+   u_foreach_bit(i, ctx->active_sampler_views) {
+      /* If a texture was modified since the last update, we need to clear the
+       * texture cache and possibly resolve TS or a sampler compatible sibling.
+       */
+      etna_update_sampler_source(ctx->sampler_view[i], i);
+   }
+
    /* Now that we know which states need to be emitted for this draw, reserve
     * the space for them in the cmdstream. This will possibly cause a flush of
     * the context, so this needs to be done before mutating any of the state
@@ -516,16 +523,10 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       resource_read(ctx, indexbuf);
    }
 
-   /* Mark textures as being read */
-   u_foreach_bit(i, ctx->active_sampler_views) {
-      if (ctx->dirty & ETNA_DIRTY_SAMPLER_VIEWS)
-            resource_read(ctx, ctx->sampler_view[i]->texture);
-
-      /* if texture was modified since the last update,
-       * we need to clear the texture cache and possibly
-       * resolve/update ts
-       */
-      etna_update_sampler_source(ctx->sampler_view[i], i);
+   if (ctx->dirty & ETNA_DIRTY_SAMPLER_VIEWS) {
+      /* Mark textures as being read */
+      u_foreach_bit(i, ctx->active_sampler_views)
+         resource_read(ctx, ctx->sampler_view[i]->texture);
    }
 
    /* Mark streamout buffers as being written. */
