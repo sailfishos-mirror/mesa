@@ -1753,6 +1753,7 @@ try_pbo_upload_common(struct gl_context *ctx,
                         CSO_BIT_RENDER_CONDITION));
 
    cso_set_sample_mask(cso, ~0);
+   cso_set_sample_coverage(cso, 1.0f, false);
    cso_set_min_samples(cso, 1);
    cso_set_render_condition(cso, NULL, false, 0);
 
@@ -2022,6 +2023,7 @@ try_pbo_download(struct st_context *st,
                         CSO_BIT_RENDER_CONDITION));
 
    cso_set_sample_mask(cso, ~0);
+   cso_set_sample_coverage(cso, 1.0f, false);
    cso_set_min_samples(cso, 1);
    cso_set_render_condition(cso, NULL, false, 0);
 
