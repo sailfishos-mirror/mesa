@@ -2584,7 +2584,7 @@
         "description": "llvmpipe: don't create a screen when the process is not allowed to JIT",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
