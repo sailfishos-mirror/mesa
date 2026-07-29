@@ -3012,5 +3012,12 @@ pub fn encode_v9(s: &Shader<'_>, arch: u8) -> Vec<u32> {
             ip += INSTR_SIZE;
         }
     }
+
+    if !enc.is_empty() {
+        // Pad to 128 bytes, keeping at least one empty instruction between shaders
+        let new_len = (enc.len() + 1).next_multiple_of(32);
+        enc.resize(new_len, 0);
+    }
+
     enc
 }
