@@ -671,19 +671,20 @@ static bool
 want_hiz_wt_for_image(const struct intel_device_info *devinfo,
                       const struct anv_image *image)
 {
-   /* Gen12 only supports single-sampled while Gen20+ supports
-    * multi-sampled images.
+   /* Gfx12 only supports single-sampled write-through. In addition, most
+    * platforms afterwards show disabling MSAA HiZ write-through produces a
+    * performance uplift in some titles without regressing others.
+    * BMG G31 is an exception (see HSD 18044248478).
     */
-   if (devinfo->ver < 20 && image->vk.samples > 1)
+   if (image->vk.samples > 1 && !intel_device_info_is_bmg_g31(devinfo))
       return false;
 
    if ((image->vk.usage & (VK_IMAGE_USAGE_SAMPLED_BIT |
                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)) == 0)
       return false;
 
-   /* If this image has the maximum number of samples supported by
-    * running platform and will be used as a texture, put the HiZ surface
-    * in write-through mode so that we can sample from it.
+   /* If this image is single-sampled and will be used as a texture, put
+    * the HiZ surface in write-through mode so that we can sample from it.
     *
     * TODO: This is a heuristic trade-off; we haven't tuned it at all.
     */
