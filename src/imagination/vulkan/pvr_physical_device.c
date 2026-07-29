@@ -630,7 +630,7 @@ static bool pvr_physical_device_get_properties(
       .maxImageDimension2D = 4096U,
       .maxImageDimension3D = 256U,
       .maxImageDimensionCube = 4096U,
-      .maxImageArrayLayers = 256U,
+      .maxImageArrayLayers = rogue_get_render_size_max_z(dev_info),
       .maxTexelBufferElements = 64U * 1024U,
       .maxUniformBufferRange = 16U * 1024U,
       .maxStorageBufferRange = 128U * 1024U * 1024U,
