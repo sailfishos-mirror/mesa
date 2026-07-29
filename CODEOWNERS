@@ -158,9 +158,8 @@ gitlab-ci*.yml @eric
 /src/gallium/drivers/d3d12/ @jenatali
 
 # Panfrost
-/src/panfrost/ @bbrezillon @larsivsi @chrpil
-/src/panfrost/midgard @italove
-/src/gallium/drivers/panfrost/ @bbrezillon
+/src/panfrost/ @bbrezillon @kusma @larsivsi @chrpil
+/src/gallium/drivers/panfrost/ @bbrezillon @kusma
 
 # R300
 /src/gallium/drivers/r300/ @ondracka @gawin
