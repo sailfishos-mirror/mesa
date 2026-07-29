@@ -1100,6 +1100,28 @@ executor_default_simd(const struct intel_device_info *devinfo)
 }
 
 static void
+handle_param_hw_regs(executor_run *run, slice name, slice args)
+{
+   slice_cut_result cut = slice_cut_any(args, " \t");
+   slice value = cut.before;
+   slice extra = strip_spaces(cut.after);
+
+   if (!slice_is_empty(extra))
+      failf("@param %.*s has extra arguments", SLICE_FMT(name));
+   if (slice_is_empty(value))
+      failf("@param %.*s needs a value", SLICE_FMT(name));
+
+   int64_t v;
+   if (!parse_int64(value, &v))
+      failf("@param %.*s must be an integer", SLICE_FMT(name));
+
+   if (v != 128)
+      failf("@param %.*s only supports 128", SLICE_FMT(name));
+
+   run->hw_regs = (uint32_t)v;
+}
+
+static void
 handle_param_hw_threads(executor_run *run, slice name, slice args)
 {
    executor_context *ec = run->ec;
@@ -1205,6 +1227,7 @@ executor_parse_source_params(executor_run *run, slice src)
       const char *name;
       void (*handle)(executor_run *run, slice name, slice args);
    } param_handlers[] = {
+      { "hw_regs",    handle_param_hw_regs },
       { "hw_threads", handle_param_hw_threads },
       { "simd",       handle_param_simd },
       { "slm_size",   handle_param_slm_size },
@@ -2152,6 +2175,7 @@ l_execute(lua_State *L)
    executor_run run = {
       .ec = ec,
       .tmp_ctx = ralloc_context(ec->mem_ctx),
+      .hw_regs = 128,
       .hw_threads = 1,
       .thread_groups = 1,
       .simd = executor_default_simd(ec->devinfo),

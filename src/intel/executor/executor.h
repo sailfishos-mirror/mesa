@@ -122,6 +122,7 @@ typedef struct {
    void *tmp_ctx;
 
    slice original_src;
+   uint32_t hw_regs;
    uint32_t hw_threads;
    uint32_t thread_groups;
    uint32_t simd;
