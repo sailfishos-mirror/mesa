@@ -1851,14 +1851,6 @@ hud_create_vs_color(struct pipe_context *pipe)
                                         VARYING_SLOT_COL0, glsl_vec4_type());
    nir_store_var(&b, out_color, hud_load_const(&b, 0), 0xf);
 
-   nir_variable *in_tc =
-      nir_create_variable_with_location(b.shader, nir_var_shader_in,
-                                        VERT_ATTRIB_GENERIC1, glsl_vec2_type());
-   nir_variable *out_tc =
-      nir_create_variable_with_location(b.shader, nir_var_shader_out,
-                                        VARYING_SLOT_VAR0, glsl_vec2_type());
-   nir_store_var(&b, out_tc, nir_load_var(&b, in_tc), 0x3);
-
    return hud_create_shader(pipe, b.shader);
 }
 
@@ -1992,10 +1984,11 @@ hud_set_record_context(struct hud_context *hud, struct pipe_context *pipe)
 }
 
 static void
-hud_init_velems(struct cso_velems_state *velems, unsigned stride)
+hud_init_velems(struct cso_velems_state *velems, unsigned count,
+                unsigned stride)
 {
-   velems->count = 2;
-   for (unsigned i = 0; i < 2; i++) {
+   velems->count = count;
+   for (unsigned i = 0; i < count; i++) {
       velems->velems[i].src_offset = i * 2 * sizeof(float);
       velems->velems[i].src_format = PIPE_FORMAT_R32G32_FLOAT;
       velems->velems[i].vertex_buffer_index = 0;
@@ -2136,8 +2129,8 @@ hud_create(struct cso_context *cso, struct hud_context *share,
    hud->rasterizer_aa_lines.line_smooth = 1;
 
    /* vertex elements */
-   hud_init_velems(&hud->velems, 2 * sizeof(float));
-   hud_init_velems(&hud->text_velems, 4 * sizeof(float));
+   hud_init_velems(&hud->velems, 1, 2 * sizeof(float));
+   hud_init_velems(&hud->text_velems, 2, 4 * sizeof(float));
 
    /* sampler state (for font drawing) */
    hud->font_sampler_state.wrap_s = PIPE_TEX_WRAP_CLAMP_TO_EDGE;
