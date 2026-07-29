@@ -437,34 +437,34 @@ jay_partition_grf(jay_shader *shader)
    }
 
    min_grf[JAY_STRIDE_4] = MAX2(min_grf[JAY_STRIDE_4], special_4);
-   unsigned denom_i = counts[0] + counts[1] + counts[2];
-   float factor = nonuniform_grfs / ((float) denom_i);
 
    unsigned picked_grf[JAY_NUM_STRIDES] = {}, total = 0;
-   for (unsigned i = 0; i < JAY_NUM_STRIDES; ++i) {
-      float ideal = ((float) counts[i]) * factor;
 
-      picked_grf[i] = align(MAX2(roundf(ideal), min_grf[i]), increment[i]);
+   /* Assign minimum required for each stride first */
+   for (unsigned i = 0; i < JAY_NUM_STRIDES; ++i) {
+      assert(util_is_aligned(min_grf[i], increment[i]));
+      picked_grf[i] = min_grf[i];
       total += picked_grf[i];
    }
+   assert(total <= nonuniform_grfs);
 
+   /* Proportionally assign remaining space */
    if (total < nonuniform_grfs) {
-      /* If we have GRFs to spare due to rounding, put them on 32-bit */
-      picked_grf[JAY_STRIDE_4] += nonuniform_grfs - total;
-   } else {
-      /* If we used too many GRFs, remove where we can */
-      unsigned excess = total - nonuniform_grfs;
-      assert(util_is_aligned(excess, grf_per_gpr));
-
+      unsigned denom_i = counts[0] + counts[1] + counts[2];
+      float factor = (nonuniform_grfs - total) / ((float) denom_i);
       for (unsigned i = 0; i < JAY_NUM_STRIDES; ++i) {
-         while (excess && picked_grf[i] > min_grf[i]) {
-            assert(excess >= increment[i]);
-            picked_grf[i] -= increment[i];
-            excess -= increment[i];
-         }
+         unsigned ideal = counts[i] * factor;
+         unsigned extra = ROUND_DOWN_TO(ideal, increment[i]);
+         picked_grf[i] += extra;
+         total += extra;
       }
    }
+   assert(total <= nonuniform_grfs);
 
+   /* If we have GRFs to spare due to rounding, put them on 32-bit */
+   if (total < nonuniform_grfs) {
+      picked_grf[JAY_STRIDE_4] += nonuniform_grfs - total;
+   }
    assert(picked_grf[0] + picked_grf[1] + picked_grf[2] == nonuniform_grfs);
 
    struct jay_partition_builder blocks[] = {
