@@ -20,8 +20,10 @@ Capability about the features and limits of the driver/GPU.
 
 * ``pipe_caps.graphics``: Whether graphics is supported. If not, contexts can
   only be created with PIPE_CONTEXT_COMPUTE_ONLY.
-* ``pipe_caps.npot_textures``: Whether :term:`NPOT` textures may have repeat modes,
-  normalized coordinates, and mipmaps.
+* ``pipe_caps.npot_textures``: Whether :term:`NPOT` textures may be sampled
+  with mipmap filtering and wrap modes other than clamp-to-edge. Sampling the
+  base level without mipmap filtering and with clamp-to-edge is always
+  supported.
 * ``pipe_caps.max_dual_source_render_targets``: How many dual-source blend RTs are support.
   :ref:`Blend` for more information.
 * ``pipe_caps.anisotropic_filter``: Whether textures can be filtered anisotropically.
