@@ -11,3 +11,6 @@ test_buffers_oob_behavior_vectorized_structured_16bit,Crash
 
 # d3d12: ../src/nouveau/vulkan/nvk_edb_bview_cache.c:204: nvk_edb_bview_cache_get_descriptor: Assertion `size_B <= view_stride_B(format)' failed.
 test_large_buffer_descriptors,Crash
+
+# d3d12: ../src/nouveau/vulkan/nvk_descriptor_types.h:210: nvk_ssbo_descriptor: Assertion `addr_range.address % min_ssbo_alignment == 0' failed.
+test_large_texel_buffer_view,Crash
