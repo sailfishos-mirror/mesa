@@ -47,12 +47,7 @@ impl WordCopies<'_> {
         assert!(!src.swizzle.is_word_swizzle());
         // For zero copies, get rid of source modifiers and trivialize swizzles
         if src.is_zero() {
-            src = match ssa.bits() {
-                8 => Src::imm_u8(0),
-                16 => Src::imm_u16(0),
-                32 => 0.into(),
-                _ => panic!("Invalid SSAValue bit size"),
-            };
+            src = Src::zero(ssa.bits());
         }
         self.copies.insert(ssa, WordCopy { src_type, src });
     }
