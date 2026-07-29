@@ -221,7 +221,7 @@ pub trait SSABuilder: Builder + AllocSSA {
             round: FRound::NearestEven,
             clamp: FClamp::None,
             srcs: [arg.clone(), log2_base, Src::fneg_zero(32)],
-            scale: 24.into(),
+            scale: 24_u32.into(),
         });
 
         // Convert to int

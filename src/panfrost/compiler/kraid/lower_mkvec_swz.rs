@@ -135,7 +135,7 @@ fn try_swizzle_with_iadd(b: &mut impl SSABuilder, dst: Dst, src: Src) -> bool {
         dst,
         dst_type: DataType::V2U16,
         saturate: false,
-        srcs: [src, 0.into()],
+        srcs: [src, 0_u32.into()],
     });
     for dst_type in dst_types {
         // Borrow mutable
@@ -171,7 +171,7 @@ fn try_swizzle_with_shift_lop(
         not_result: false,
         src0: src,
         shift: Src::imm_u8(0),
-        src2: 0.into(),
+        src2: 0_u32.into(),
     });
     for dst_type in dst_types {
         // Borrow mutable
@@ -225,7 +225,7 @@ fn try_sign_extend_with_arshift(
         not_result: false,
         src0: src,
         shift: Src::imm_u8(dst_type.bits() - 1),
-        src2: 0.into(),
+        src2: 0_u32.into(),
     });
     let Op::ShiftLop(lop) = &op else {
         unreachable!();
@@ -337,7 +337,7 @@ fn mkvec_vni8<const N: usize>(
                     not_result: false,
                     src0: src_byte.as_src(),
                     shift: Src::imm_u8(7),
-                    src2: 0.into(),
+                    src2: 0_u32.into(),
                 });
                 let sext_byte = Byte::Src(SrcByte {
                     src_ref: tmp.into(),

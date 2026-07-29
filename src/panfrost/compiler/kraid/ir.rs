@@ -821,7 +821,7 @@ impl Src {
         if let Some(swizzle_word) = self.swizzle.word(word) {
             use SwizzleWord::*;
             match swizzle_word {
-                Zero => 0.into(),
+                Zero => 0_u32.into(),
                 Word0 => Src::from(self.src_ref.word(0)),
                 Word1 => Src::from(self.src_ref.word(1)),
                 Sign0 => Src::from(self.src_ref.word(0)).swizzle(Swizzle::S3),
@@ -836,7 +836,7 @@ impl Src {
             } else {
                 let swizzle = self.swizzle.swizzle(Swizzle::S3).unwrap();
                 if swizzle.is_zero() {
-                    0.into()
+                    0_u32.into()
                 } else {
                     Src { swizzle, ..self }
                 }
@@ -856,7 +856,7 @@ impl Src {
         match bits {
             8 => Src::imm_u8(0),
             16 => Src::imm_u16(0),
-            32 => Src::from(0),
+            32 => Src::from(0_u32),
             _ => panic!("Invalid float bit size"),
         }
     }

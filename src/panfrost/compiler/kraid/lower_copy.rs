@@ -148,7 +148,7 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
                 not_result: false,
                 src0: copy.src,
                 shift: Src::imm_u8(0),
-                src2: 0.into(),
+                src2: 0_u32.into(),
             });
         }
     }

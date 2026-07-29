@@ -809,7 +809,7 @@ pub fn test_foldable_op(
 fn test_op_bitrev() {
     let op = OpBitRev {
         dst: DstRef::None.into(),
-        src: 0.into(),
+        src: 0_u32.into(),
     };
 
     test_foldable_op(op, Precision::Exact);
@@ -841,7 +841,7 @@ fn test_op_clz() {
                 dst: DstRef::None.into(),
                 src_type,
                 mask,
-                src: 0.into(),
+                src: 0_u32.into(),
             };
 
             let mut a = Acorn::new();
@@ -892,8 +892,8 @@ fn test_op_csel() {
                 dst: DstRef::None.into(),
                 cmp_type,
                 cmp_op,
-                cmp_srcs: [0.into(), 0.into()],
-                sel_srcs: [0.into(), 0.into()],
+                cmp_srcs: [0_u32.into(), 0_u32.into()],
+                sel_srcs: [0_u32.into(), 0_u32.into()],
             };
             test_foldable_op(op, Precision::Exact);
         }
@@ -904,7 +904,7 @@ fn test_op_csel() {
 fn test_op_cubefaceidx() {
     let op = OpCubeFaceIdx {
         dst: DstRef::None.into(),
-        coords: [0.into(), 0.into(), 0.into()],
+        coords: [0_u32.into(), 0_u32.into(), 0_u32.into()],
     };
 
     test_foldable_op(op, Precision::Exact);
@@ -914,7 +914,7 @@ fn test_op_cubefaceidx() {
 fn test_op_cubefacemax() {
     let op = OpCubeFaceMax {
         dst: DstRef::None.into(),
-        coords: [0.into(), 0.into(), 0.into()],
+        coords: [0_u32.into(), 0_u32.into(), 0_u32.into()],
     };
 
     test_foldable_op(op, Precision::Ulp(1));
@@ -924,7 +924,7 @@ fn test_op_cubefacemax() {
 fn test_op_f16_to_f32() {
     let op = OpF16ToF32 {
         dst: DstRef::None.into(),
-        src: 0.into(),
+        src: 0_u32.into(),
     };
     test_foldable_op(op, Precision::Ulp(0));
 }
@@ -948,7 +948,7 @@ fn test_op_f32_to_f16() {
         for &clamp in CLAMP_MODES {
             let op = OpF32ToF16 {
                 dst: DstRef::None.into(),
-                src: 0.into(),
+                src: 0_u32.into(),
                 round,
                 clamp,
             };
@@ -972,7 +972,7 @@ fn test_op_f32_to_i32() {
         for &round in ROUND_MODES {
             let op = OpF32ToI32 {
                 dst: DstRef::None.into(),
-                src: 0.into(),
+                src: 0_u32.into(),
                 round,
                 dst_type,
             };
@@ -1007,7 +1007,7 @@ fn test_op_fadd() {
                     dst_type,
                     round,
                     clamp,
-                    srcs: [0.into(), 0.into()],
+                    srcs: [0_u32.into(), 0_u32.into()],
                 };
                 // FRound is not emulated correctly
                 let ulps = if round == FRound::NearestEven { 0 } else { 1 };
@@ -1039,7 +1039,7 @@ fn test_op_fadd_lscale() {
                 dst: DstRef::None.into(),
                 round,
                 clamp,
-                srcs: [0.into(), 0.into()],
+                srcs: [0_u32.into(), 0_u32.into()],
             };
             // FRound is not emulated correctly
             let ulps = if round == FRound::NearestEven { 0 } else { 1 };
@@ -1079,8 +1079,8 @@ fn test_op_fcmp() {
                         src_type,
                         res_type,
                         cmp_op,
-                        srcs: [0.into(), 0.into()],
-                        accum: 0.into(),
+                        srcs: [0_u32.into(), 0_u32.into()],
+                        accum: 0_u32.into(),
                         accum_op,
                     };
                     // Accum is always treated as a bool so let's use 0-1
@@ -1113,7 +1113,7 @@ fn test_op_flush() {
                     let op = OpFlush {
                         dst: DstRef::None.into(),
                         src_type,
-                        src: 0.into(),
+                        src: 0_u32.into(),
                         ftz,
                         flush_inf,
                         flush_nan,
@@ -1151,7 +1151,7 @@ fn test_op_fma() {
                     dst_type,
                     round,
                     clamp,
-                    srcs: [0.into(), 0.into(), 0.into()],
+                    srcs: [0_u32.into(), 0_u32.into(), 0_u32.into()],
                 };
                 // FRound is not emulated correctly, F16 has double-rounding issues
                 test_foldable_op(op, Precision::Ulp(1));
@@ -1179,7 +1179,7 @@ fn test_op_fmin() {
                     dst_type,
                     clamp,
                     propagate_nan,
-                    srcs: [0.into(), 0.into()],
+                    srcs: [0_u32.into(), 0_u32.into()],
                 };
                 test_foldable_op(op, Precision::Ulp(0));
             }
@@ -1195,7 +1195,7 @@ fn test_op_fmul() {
         let op = OpFMul {
             dst: DstRef::None.into(),
             dst_type,
-            srcs: [0.into(), 0.into()],
+            srcs: [0_u32.into(), 0_u32.into()],
         };
         test_foldable_op(op, Precision::Ulp(0));
     }
@@ -1220,7 +1220,7 @@ fn test_op_fmax() {
                     dst_type,
                     clamp,
                     propagate_nan,
-                    srcs: [0.into(), 0.into()],
+                    srcs: [0_u32.into(), 0_u32.into()],
                 };
                 test_foldable_op(op, Precision::Ulp(0));
             }
@@ -1236,7 +1236,7 @@ fn test_op_frcp() {
         let op = OpFRcp {
             dst: DstRef::None.into(),
             dst_type,
-            src: 0.into(),
+            src: 0_u32.into(),
         };
         // The docs only guarantee a maximum error strictly below 1 ulp
         test_foldable_op(op, Precision::Ulp(1));
@@ -1257,7 +1257,7 @@ fn test_op_fround() {
         let op = OpFRound {
             dst: DstRef::None.into(),
             round,
-            src: 0.into(),
+            src: 0_u32.into(),
         };
         test_foldable_op(op, Precision::Ulp(0));
     }
@@ -1271,7 +1271,7 @@ fn test_op_frsq() {
         let op = OpFRsq {
             dst: DstRef::None.into(),
             dst_type,
-            src: 0.into(),
+            src: 0_u32.into(),
         };
         // Hardware has 1 ULP precision, but we have double-rounding issues
         test_foldable_op(op, Precision::Ulp(2));
@@ -1297,7 +1297,7 @@ fn test_op_iabs() {
 
             let op = OpIAbs {
                 dst: DstRef::None.into(),
-                src: Src::from(0).swizzle(src0_swizzle),
+                src: Src::from(0_u32).swizzle(src0_swizzle),
                 dst_type,
             };
             test_foldable_op(op, Precision::Exact);
@@ -1342,7 +1342,10 @@ fn test_op_iadd() {
 
                 let op = OpIAdd {
                     dst: DstRef::None.into(),
-                    srcs: [Src::from(0).swizzle(src0_swizzle), 0.into()],
+                    srcs: [
+                        Src::from(0_u32).swizzle(src0_swizzle),
+                        0_u32.into(),
+                    ],
                     dst_type,
                     saturate,
                 };
@@ -1386,8 +1389,8 @@ fn test_op_icmp() {
                         src_type,
                         res_type,
                         cmp_op,
-                        srcs: [0.into(), 0.into()],
-                        accum: 0.into(),
+                        srcs: [0_u32.into(), 0_u32.into()],
+                        accum: 0_u32.into(),
                         accum_op,
                     };
                     // Accum is always treated as a bool so let's use 0-1
@@ -1436,8 +1439,8 @@ fn test_op_icmp_multi() {
                     src_type,
                     res_type,
                     cmp_op,
-                    srcs: [0.into(), 0.into()],
-                    accum: 0.into(),
+                    srcs: [0_u32.into(), 0_u32.into()],
+                    accum: 0_u32.into(),
                 };
                 // Accum should be 0, 1, or -1
                 let rng = |i, dt| match i {
@@ -1462,8 +1465,8 @@ fn test_op_idpadd() {
             dst_type: DataType::U32,
             saturate,
             src_types: [DataType::V4U8; 2],
-            srcs: [0.into(), 0.into()],
-            accum: 0.into(),
+            srcs: [0_u32.into(), 0_u32.into()],
+            accum: 0_u32.into(),
         };
         test_foldable_op(op, Precision::Exact);
     }
@@ -1481,8 +1484,8 @@ fn test_op_idpadd() {
                     dst_type: DataType::S32,
                     saturate,
                     src_types,
-                    srcs: [0.into(), 0.into()],
-                    accum: 0.into(),
+                    srcs: [0_u32.into(), 0_u32.into()],
+                    accum: 0_u32.into(),
                 };
                 test_foldable_op(op, Precision::Exact);
             }
@@ -1520,7 +1523,10 @@ fn test_op_imul() {
             for saturate in [false, true] {
                 let op = OpIMul {
                     dst: DstRef::None.into(),
-                    srcs: [Src::from(0).swizzle(src0_swizzle), 0.into()],
+                    srcs: [
+                        Src::from(0_u32).swizzle(src0_swizzle),
+                        0_u32.into(),
+                    ],
                     dst_type,
                     saturate,
                 };
@@ -1567,7 +1573,10 @@ fn test_op_isub() {
 
                 let op = OpISub {
                     dst: DstRef::None.into(),
-                    srcs: [Src::from(0).swizzle(src0_swizzle), 0.into()],
+                    srcs: [
+                        Src::from(0_u32).swizzle(src0_swizzle),
+                        0_u32.into(),
+                    ],
                     dst_type,
                     saturate,
                 };
@@ -1593,9 +1602,9 @@ fn test_op_mux() {
                 dst: DstRef::None.into(),
                 dst_type,
                 mux_op,
-                src0: 0.into(),
-                src1: 0.into(),
-                sel: 0.into(),
+                src0: 0_u32.into(),
+                src1: 0_u32.into(),
+                sel: 0_u32.into(),
             };
             test_foldable_op(op, Precision::Exact);
         }
@@ -1606,7 +1615,7 @@ fn test_op_mux() {
 fn test_op_popcount() {
     let op = OpPopCount {
         dst: DstRef::None.into(),
-        src: 0.into(),
+        src: 0_u32.into(),
     };
 
     test_foldable_op(op, Precision::Exact);
@@ -1653,9 +1662,9 @@ fn test_op_shift_lop() {
                             shift_op,
                             logic_op,
                             not_result,
-                            src0: Src::from(0).swizzle(src0_swizzle),
-                            shift: 0.into(),
-                            src2: 0.into(),
+                            src0: Src::from(0_u32).swizzle(src0_swizzle),
+                            shift: 0_u32.into(),
+                            src2: 0_u32.into(),
                         };
                         test_foldable_op(op, Precision::Exact);
                     }

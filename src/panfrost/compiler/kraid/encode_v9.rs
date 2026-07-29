@@ -2402,7 +2402,7 @@ impl V9Instr for OpShiftLop {
             (ShiftOp::None, LogicOp::None) => {
                 let op = OpShiftLop {
                     logic_op: LogicOp::Or,
-                    src2: 0.into(),
+                    src2: 0_u32.into(),
                     ..self.clone()
                 };
                 op.encode(e)

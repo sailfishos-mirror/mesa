@@ -318,7 +318,7 @@ impl WordCopies<'_> {
         // If we read multiple words, we must have a word or none swizzle
         let swiz_words = src.swizzle.as_words().unwrap();
 
-        let mut words = [Src::from(0), Src::from(0)];
+        let mut words = [Src::from(0_u32), Src::from(0_u32)];
         for i in 0..2 {
             if let Some(w) = swiz_words[i].word_idx() {
                 if let Some(copy) = self.copies.get(&src_vec[usize::from(w)]) {
@@ -339,7 +339,7 @@ impl WordCopies<'_> {
 
         // Check if it's just a 64-bit zero
         if words[1].is_zero() && words[0].is_zero() {
-            return Some(0.into());
+            return Some(0_u32.into());
         }
 
         if src.swizzle.is_none() {

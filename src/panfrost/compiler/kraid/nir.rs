@@ -714,7 +714,7 @@ impl<'a> ShaderFromNir<'a> {
                         _ => panic!("Usupported float comparison"),
                     },
                     srcs: [srcs(0), srcs(1)],
-                    accum: 0.into(),
+                    accum: 0_u32.into(),
                     accum_op: CmpAccumOp::None,
                 });
             }
@@ -1012,7 +1012,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Integer),
                     saturate: false,
-                    srcs: [0.into(), srcs(0)],
+                    srcs: [0_u32.into(), srcs(0)],
                 });
             }
             nir_op_inot => {
@@ -1024,7 +1024,7 @@ impl<'a> ShaderFromNir<'a> {
                     not_result: true,
                     src0: srcs(0),
                     shift: Src::imm_u8(0),
-                    src2: 0.into(),
+                    src2: 0_u32.into(),
                 });
             }
             nir_op_ieq_pan | nir_op_ige_pan | nir_op_ilt_pan
@@ -1052,7 +1052,7 @@ impl<'a> ShaderFromNir<'a> {
                         res_type: CmpResultType::C,
                         cmp_op,
                         srcs: [srcs(0).word(0), srcs(1).word(0)],
-                        accum: 0.into(),
+                        accum: 0_u32.into(),
                     });
                     b.push_op(OpICmpMulti {
                         dst: dst[0].into(),
@@ -1072,7 +1072,7 @@ impl<'a> ShaderFromNir<'a> {
                         res_type: CmpResultType::M1,
                         cmp_op,
                         srcs: [srcs(0), srcs(1)],
-                        accum: 0.into(),
+                        accum: 0_u32.into(),
                         accum_op: CmpAccumOp::None,
                     });
                 }
@@ -1961,7 +1961,7 @@ impl<'a> ShaderFromNir<'a> {
                 cfg.add_edge(label, succ_label);
                 b.push_op(OpBranch {
                     not: true,
-                    cond: 0.into(),
+                    cond: 0_u32.into(),
                     combine_op: BranchCombineOp::None,
                     label: succ_label,
                 });
