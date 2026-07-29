@@ -2344,7 +2344,7 @@
         "description": "d3d12: Disable vao fast path for AMD",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
