@@ -2994,7 +2994,7 @@
         "description": "poly: Fix comment after moving passthrough_gs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "12e59536ab6cf35781f6c921aa6b383440090bf4",
         "notes": null
