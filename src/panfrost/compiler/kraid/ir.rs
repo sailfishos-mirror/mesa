@@ -966,6 +966,18 @@ impl<T: Into<SrcRef>> From<T> for Src {
     }
 }
 
+impl From<u16> for Src {
+    fn from(u: u16) -> Src {
+        Src::from(u32::from(u)).half(0)
+    }
+}
+
+impl From<u8> for Src {
+    fn from(u: u8) -> Src {
+        Src::from(u32::from(u)).byte(0)
+    }
+}
+
 #[derive(Clone)]
 pub enum DstRef {
     None,
