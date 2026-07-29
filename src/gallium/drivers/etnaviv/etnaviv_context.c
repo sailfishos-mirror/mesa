@@ -390,38 +390,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    if (ctx->needs_gpu_state_reset)
       etna_reset_gpu_state(ctx);
 
-   struct pipe_resource *indexbuf = NULL;
-
-   if (info->index_size) {
-      indexbuf = info->has_user_indices ? NULL : info->index.resource;
-      unsigned index_offset = 0;
-
-      /* Upload a user index buffer. */
-      if (info->has_user_indices &&
-          !util_upload_index_buffer(pctx, info, &draws[0], &indexbuf, &index_offset, 4)) {
-         BUG("Index buffer upload failed.");
-         return;
-      }
-      /* Add start to index offset, when rendering indexed */
-      index_offset += draws[0].start * info->index_size;
-
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo = etna_buffer_resource(indexbuf)->bo;
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.offset = index_offset;
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.flags = ETNA_RELOC_READ;
-      ctx->index_buffer.FE_INDEX_STREAM_CONTROL = translate_index_size(info->index_size);
-
-      if (!ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo) {
-         BUG("Unsupported or no index buffer");
-         return;
-      }
-   } else {
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo = 0;
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.offset = 0;
-      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.flags = 0;
-      ctx->index_buffer.FE_INDEX_STREAM_CONTROL = 0;
-   }
-   ctx->dirty |= ETNA_DIRTY_INDEX_BUFFER;
-
    struct etna_shader_key key = {
       .front_ccw = ctx->rasterizer->front_ccw,
       .sprite_coord_enable = ctx->rasterizer->sprite_coord_enable,
@@ -460,6 +428,38 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    /* Update any derived state */
    if (!etna_state_update(ctx))
       return;
+
+   struct pipe_resource *indexbuf = NULL;
+
+   if (info->index_size) {
+      indexbuf = info->has_user_indices ? NULL : info->index.resource;
+      unsigned index_offset = 0;
+
+      /* Upload a user index buffer. */
+      if (info->has_user_indices &&
+          !util_upload_index_buffer(pctx, info, &draws[0], &indexbuf, &index_offset, 4)) {
+         BUG("Index buffer upload failed.");
+         return;
+      }
+      /* Add start to index offset, when rendering indexed */
+      index_offset += draws[0].start * info->index_size;
+
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo = etna_buffer_resource(indexbuf)->bo;
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.offset = index_offset;
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.flags = ETNA_RELOC_READ;
+      ctx->index_buffer.FE_INDEX_STREAM_CONTROL = translate_index_size(info->index_size);
+
+      if (!ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo) {
+         BUG("Unsupported or no index buffer");
+         return;
+      }
+   } else {
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.bo = 0;
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.offset = 0;
+      ctx->index_buffer.FE_INDEX_STREAM_BASE_ADDR.flags = 0;
+      ctx->index_buffer.FE_INDEX_STREAM_CONTROL = 0;
+   }
+   ctx->dirty |= ETNA_DIRTY_INDEX_BUFFER;
 
    /*
     * Figure out the buffers/features we need:
