@@ -329,6 +329,7 @@ static inline bool intr_op_is_atomic(nir_intrinsic_op op)
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_shared_atomic:
    case nir_intrinsic_shared_atomic_swap:
+   case nir_intrinsic_global_atomic_pco:
       return true;
 
    default:
