@@ -283,6 +283,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    radv_nir_opt_tid_function_options tid_options = {
       .use_masked_swizzle_amd = true,
       .use_dpp16_shift_amd = !use_llvm && gfx_level >= GFX8,
+      .use_quad_swap_broadcast = true,
       .use_clustered_rotate = !use_llvm,
       .hw_ballot_bit_size = stage->info.wave_size,
       .hw_ballot_num_comp = 1,

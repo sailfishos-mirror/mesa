@@ -442,6 +442,14 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct shuffle_info *shuffle)
       return nir_undef(b, def->num_components, def->bit_size);
    } else if (and_mask == 0x7f && xor_mask == 0) {
       return def;
+   } else if (shuffle->ctx->options->use_quad_swap_broadcast && and_mask == 0x7f && xor_mask == 0x1) {
+      return nir_quad_swap_horizontal(b, def);
+   } else if (shuffle->ctx->options->use_quad_swap_broadcast && and_mask == 0x7f && xor_mask == 0x2) {
+      return nir_quad_swap_vertical(b, def);
+   } else if (shuffle->ctx->options->use_quad_swap_broadcast && and_mask == 0x7f && xor_mask == 0x3) {
+      return nir_quad_swap_diagonal(b, def);
+   } else if (shuffle->ctx->options->use_quad_swap_broadcast && and_mask == 0x7c && xor_mask <= 0x3) {
+      return nir_quad_broadcast(b, def, nir_imm_int(b, xor_mask));
    } else if (shuffle->ctx->options->use_shuffle_xor && and_mask == 0x7f) {
       return nir_shuffle_xor(b, def, nir_imm_int(b, xor_mask));
    } else if (shuffle->ctx->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
