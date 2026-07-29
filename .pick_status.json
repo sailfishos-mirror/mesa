@@ -3374,7 +3374,7 @@
         "description": "anv: fix barrier for Wa_1508744258 / Wa_14024015672",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ba0336ab3f69f958e4346c1465c2fe0859d4ac59",
         "notes": null
