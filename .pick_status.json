@@ -3004,7 +3004,7 @@
         "description": "hk: xfb: Avoid assertions in nir_slot_num_components",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8bb4f24ef1bd991003befcc9b14094e66f695fcb",
         "notes": null
