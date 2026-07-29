@@ -14,3 +14,6 @@ test_large_buffer_descriptors,Crash
 
 # d3d12: ../src/nouveau/vulkan/nvk_descriptor_types.h:210: nvk_ssbo_descriptor: Assertion `addr_range.address % min_ssbo_alignment == 0' failed.
 test_large_texel_buffer_view,Crash
+
+# Needs https://github.com/HansKristian-Work/vkd3d-proton/pull/3178
+test_shader_eval_attribute_dxil,Fail
