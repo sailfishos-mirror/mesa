@@ -85,6 +85,8 @@ typedef struct radv_nir_opt_tid_function_options {
    bool use_shuffle_xor : 1;
    bool use_quad_swap_broadcast : 1;
    bool use_clustered_rotate : 1;
+   bool use_permute16_amd : 1;
+   bool use_dpp8_swizzle_amd : 1;
    /* These can be smaller than the api ballot size
     * if some invocations are always inactive.
     */

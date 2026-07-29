@@ -285,6 +285,8 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
       .use_dpp16_shift_amd = !use_llvm && gfx_level >= GFX8,
       .use_quad_swap_broadcast = true,
       .use_clustered_rotate = !use_llvm,
+      .use_permute16_amd = !use_llvm && gfx_level >= GFX10,
+      .use_dpp8_swizzle_amd = !use_llvm && gfx_level >= GFX10,
       .hw_ballot_bit_size = stage->info.wave_size,
       .hw_ballot_num_comp = 1,
    };
