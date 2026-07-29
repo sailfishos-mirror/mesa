@@ -1475,6 +1475,9 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          if (instr->intrinsic == nir_intrinsic_quad_swizzle_amd) {
             for (unsigned i = 0; i < 4; i++)
                fprintf(fp, "%d", (mask >> (i * 2) & 3));
+         } else if (instr->intrinsic == nir_intrinsic_dpp8_swizzle_amd) {
+            for (unsigned i = 0; i < 8; i++)
+               fprintf(fp, "%d", (mask >> (i * 3) & 0x7));
          } else if (instr->intrinsic == nir_intrinsic_masked_swizzle_amd) {
             fprintf(fp, "((id & %d) | %d) ^ %d", mask & 0x1F,
                     (mask >> 5) & 0x1F,
