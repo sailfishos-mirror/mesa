@@ -3084,7 +3084,7 @@
         "description": "nir/unsigned_upper_bound: fix float to int conversions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "72ac3f60261a8510512861b93e843e695331e2ab",
         "notes": null
