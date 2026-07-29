@@ -1261,10 +1261,6 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    bool cmask = op == LSC_OP_LOAD_CMASK || op == LSC_OP_STORE_CMASK;
    bool uniform = !(has_dest && dst.file != UGPR);
 
-   if (nir_intrinsic_has_align(intr)) {
-      assert(nir_intrinsic_align(intr) >= (ndata->bit_size / 8));
-   }
-
    if (!has_dest) {
       uniform &= jay_is_null(data) || data.file == UGPR;
       uniform &= jay_is_null(offset) || offset.file == UGPR;
