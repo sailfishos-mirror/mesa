@@ -78,6 +78,7 @@ pub trait Builder {
         self.push_op(OpStore {
             src_type,
             is_tls: true,
+            is_psiz: false,
             access: MemAccess::Force,
             data: src,
             addr: tls_ptr.into(),

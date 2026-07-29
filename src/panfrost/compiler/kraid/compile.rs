@@ -4,6 +4,7 @@
 use crate::debug::*;
 use crate::ir::*;
 use crate::model::model_for_gpu_id;
+use crate::ops::OpNop;
 use compiler::bindings::*;
 use kraid_bindings::*;
 
@@ -156,6 +157,41 @@ fn write_back_info(
     }
 }
 
+/// v9 reuses psiz writes as line width when drawing lines.
+/// We cannot know what we're drawing at compile time so we need to create
+/// a variant without psiz writes to be selected when we aren't drawing points
+fn encode_no_psiz_variant(
+    nir: &nir_shader,
+    s: &mut Shader,
+    model: &dyn Model,
+    binary: &mut util_dynarray,
+    info: &mut pan_shader_info,
+) {
+    // TODO: v10+ HW should ignore psiz writes, investigate
+    if nir.info.internal
+        || nir.info.stage() != MESA_SHADER_VERTEX
+        || (nir.info.outputs_written & (1 << VARYING_SLOT_PSIZ)) == 0
+    {
+        return;
+    }
+
+    info.__bindgen_anon_1.vs.no_psiz_offset = binary.size;
+    // Find the store with is_psiz set
+    let store = s
+        .blocks
+        .iter_mut()
+        .rev()
+        .flat_map(|b| b.instrs.iter_mut().rev())
+        .find(|i| matches!(&i.op, Op::Store(s) if s.is_psiz))
+        .expect("No psiz write found");
+
+    // Patch it out, but preserve flow
+    store.op = Op::Nop(OpNop {});
+
+    let bin = model.encode_shader(s);
+    dynarray_append_vec(binary, bin);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kraid_compile_nir(
     nir: &mut nir_shader,
@@ -189,6 +225,8 @@ pub extern "C" fn kraid_compile_nir(
 
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);
+
+    encode_no_psiz_variant(nir, &mut s, model.as_ref(), binary, info);
 
     write_back_info(&s.info, nir, info);
     unsafe { pan_shader_update_info(info, nir, inputs) };

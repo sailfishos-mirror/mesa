@@ -1758,7 +1758,8 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.info.has_ld_gclk = true;
             }
-            nir_intrinsic_store_global => {
+            nir_intrinsic_store_global
+            | nir_intrinsic_store_global_psiz_pan => {
                 let bits = srcs[0].bit_size() * srcs[0].num_components();
                 let mut data = self.get_src(&srcs[0]);
                 if bits == 8 {
@@ -1767,9 +1768,12 @@ impl<'a> ShaderFromNir<'a> {
                     data = data.half(0);
                 }
                 let addr = self.get_src(&srcs[1]);
+                let is_psiz =
+                    intrin.intrinsic == nir_intrinsic_store_global_psiz_pan;
                 b.push_op(OpStore {
                     src_type: DataType::i(bits),
                     is_tls: (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0,
+                    is_psiz,
                     access: mem_access_from_nir(intrin),
                     data,
                     addr,

@@ -390,6 +390,7 @@ impl<'a> TestShaderBuilder<'a> {
         self.push_op(OpStore {
             src_type: DataType::get(1, NumericType::Integer, data.bytes() * 8),
             is_tls: false,
+            is_psiz: false,
             access: MemAccess::None,
             data: data.into(),
             addr: self.data_addr.clone().into(),

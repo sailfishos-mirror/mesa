@@ -3210,6 +3210,8 @@ pub struct OpStore {
 
     /// Used to determine if this STORE should count towards the spill count
     pub is_tls: bool,
+    /// Is this a glPointSize write?
+    pub is_psiz: bool,
     pub access: MemAccess,
 
     pub data: Src,
@@ -3227,8 +3229,9 @@ impl DisplayOp for OpStore {
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}{} {} {} #{}",
+            "{}{}{} {} {} #{}",
             bool_as_mod_str!(self.is_tls, "tls"),
+            bool_as_mod_str!(self.is_psiz, "psiz"),
             self.access,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),
