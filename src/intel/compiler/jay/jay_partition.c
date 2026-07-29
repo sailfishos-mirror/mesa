@@ -365,10 +365,11 @@ jay_partition_grf(jay_shader *shader)
       min_grf_for_gprs += min_grf[i];
    }
 
-   unsigned estimate_nonunif_grf = (demand[GPR] * grf_per_gpr) +
-                                   min_grf[JAY_STRIDE_8] +
-                                   min_grf[JAY_STRIDE_2] +
-                                   special_4;
+   unsigned estimate_nonunif_grf =
+      MAX2(demand[GPR] * grf_per_gpr, min_grf[JAY_STRIDE_4]) +
+      min_grf[JAY_STRIDE_8] +
+      min_grf[JAY_STRIDE_2] +
+      special_4;
 
    unsigned mapped_accums = grf_per_gpr == 1 ? 2 : 0;
 
