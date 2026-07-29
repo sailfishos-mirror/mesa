@@ -390,12 +390,13 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    if (ctx->needs_gpu_state_reset)
       etna_reset_gpu_state(ctx);
 
-   /* Upload a user index buffer. */
-   unsigned index_offset = 0;
    struct pipe_resource *indexbuf = NULL;
 
    if (info->index_size) {
       indexbuf = info->has_user_indices ? NULL : info->index.resource;
+      unsigned index_offset = 0;
+
+      /* Upload a user index buffer. */
       if (info->has_user_indices &&
           !util_upload_index_buffer(pctx, info, &draws[0], &indexbuf, &index_offset, 4)) {
          BUG("Index buffer upload failed.");
