@@ -2696,7 +2696,7 @@ zink_buffer_map(struct pipe_context *pctx,
       }
    }
 
-   unsigned map_offset = box->x;
+   trans->offset = box->x;
    if (usage & PIPE_MAP_DISCARD_RANGE &&
         (!res->obj->host_visible ||
         !(usage & (PIPE_MAP_UNSYNCHRONIZED | PIPE_MAP_PERSISTENT)))) {
@@ -2729,7 +2729,6 @@ zink_buffer_map(struct pipe_context *pctx,
          }
          res = zink_resource(trans->staging_res);
          usage |= PIPE_MAP_UNSYNCHRONIZED;
-         map_offset = trans->offset;
          ptr = ((uint8_t *)ptr);
       } else {
          /* At this point, the buffer is always idle (we checked it above). */
@@ -2765,7 +2764,6 @@ overwrite:
             zink_copy_buffer(ctx, staging_res, res, trans->offset, box->x, box->width, false);
          res = staging_res;
          usage &= ~PIPE_MAP_UNSYNCHRONIZED;
-         map_offset = trans->offset;
       }
    }
 
@@ -2797,7 +2795,7 @@ overwrite:
       ptr = map_resource(screen, res);
       if (!ptr)
          goto fail;
-      ptr = ((uint8_t *)ptr) + map_offset;
+      ptr = ((uint8_t *)ptr) + trans->offset;
    }
 
    if (!res->obj->coherent
