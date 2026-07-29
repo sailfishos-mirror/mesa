@@ -115,7 +115,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_shader_subgroup_uniform_control_flow = PAN_ARCH >= 9,
       .KHR_shader_terminate_invocation = true,
       .KHR_shader_untyped_pointers = PAN_ARCH >= 9,
-      .KHR_spirv_1_4 = PAN_ARCH >= 10,
+      .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
 #ifdef PANVK_USE_WSI_PLATFORM
       .KHR_present_id = true,
