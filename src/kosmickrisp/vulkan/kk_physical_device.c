@@ -180,6 +180,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_hdr_metadata = true,
       .EXT_image_2d_view_of_3d = true,
       .EXT_load_store_op_none = true,
+      .EXT_map_memory_placed = true,
       .EXT_memory_budget = true,
       .EXT_multi_draw = true,
       .EXT_mutable_descriptor_type = true,
@@ -457,6 +458,11 @@ kk_get_device_features(
       /* EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,
       .sampler2DViewOf3D = true,
+
+      /* VK_EXT_map_memory_placed */
+      .memoryMapPlaced = true,
+      .memoryMapRangePlaced = false,
+      .memoryUnmapReserve = true,
 
       /* VK_EXT_multi_draw */
       .multiDraw = true,
