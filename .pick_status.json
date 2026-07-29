@@ -6734,7 +6734,7 @@
         "description": "pco: ensure nir_global_atomic_pco ops are tracked",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c3325b22d852584d1b4cef944cfaf9e2801131a4",
         "notes": null
