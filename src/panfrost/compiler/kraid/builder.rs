@@ -171,9 +171,9 @@ pub trait SSABuilder: Builder + AllocSSA {
                         let Some(x) = srcs.next() else {
                             break;
                         };
-                        let y = srcs.next().unwrap_or(Src::imm_u8(0));
-                        let z = srcs.next().unwrap_or(Src::imm_u8(0));
-                        let w = srcs.next().unwrap_or(Src::imm_u8(0));
+                        let y = srcs.next().unwrap_or(0_u8.into());
+                        let z = srcs.next().unwrap_or(0_u8.into());
+                        let w = srcs.next().unwrap_or(0_u8.into());
                         dst_vec.push(self.mkvec_v4i8(x, y, z, w));
                     }
                 }
@@ -187,7 +187,7 @@ pub trait SSABuilder: Builder + AllocSSA {
                         let Some(x) = srcs.next() else {
                             break;
                         };
-                        let y = srcs.next().unwrap_or(Src::imm_u16(0));
+                        let y = srcs.next().unwrap_or(0_u16.into());
                         dst_vec.push(self.mkvec_v2i16(x, y));
                     }
                 }

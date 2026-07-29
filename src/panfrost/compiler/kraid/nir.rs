@@ -265,10 +265,10 @@ impl<'a> ShaderFromNir<'a> {
         assert_eq!(imm_u32.len(), usize::from(bits.div_ceil(32)));
 
         if bits == 8 {
-            let ssa = b.copy_i8(Src::imm_u8(imm_u32[0] as u8));
+            let ssa = b.copy_i8((imm_u32[0] as u8).into());
             self.set_ssa(&load.def, vec![ssa]);
         } else if bits == 16 {
-            let ssa = b.copy_i16(Src::imm_u16(imm_u32[0] as u16));
+            let ssa = b.copy_i16((imm_u32[0] as u16).into());
             self.set_ssa(&load.def, vec![ssa]);
         } else {
             self.set_ssa(
@@ -496,10 +496,10 @@ impl<'a> ShaderFromNir<'a> {
                 assert!(sel < 4);
 
                 let mut bytes = [
-                    Src::imm_u8(0),
-                    Src::imm_u8(0),
-                    Src::imm_u8(0),
-                    Src::imm_u8(0),
+                    Src::from(0_u8),
+                    Src::from(0_u8),
+                    Src::from(0_u8),
+                    Src::from(0_u8),
                 ];
                 bytes[sel as usize] = srcs(0).byte(0);
 
@@ -518,7 +518,7 @@ impl<'a> ShaderFromNir<'a> {
                     .expect("nir_op_insert.src[1] should be constant");
                 assert!(sel < 2);
 
-                let mut halves = [Src::imm_u16(0), Src::imm_u16(0)];
+                let mut halves = [Src::from(0_u16), Src::from(0_u16)];
                 halves[sel as usize] = srcs(0).half(0);
 
                 b.push_op(OpMkVecV2I16 {
@@ -1023,7 +1023,7 @@ impl<'a> ShaderFromNir<'a> {
                     logic_op: LogicOp::None,
                     not_result: true,
                     src0: srcs(0),
-                    shift: Src::imm_u8(0),
+                    shift: Src::from(0_u8),
                     src2: 0_u32.into(),
                 });
             }
@@ -1416,7 +1416,7 @@ impl<'a> ShaderFromNir<'a> {
                     let ssa = tmp[usize::from(c) / 2];
                     vec_srcs.push(Src::from(ssa).half(c % 2));
                 } else {
-                    vec_srcs.push(Src::imm_u16(0));
+                    vec_srcs.push(Src::from(0_u16));
                 }
             }
         } else {

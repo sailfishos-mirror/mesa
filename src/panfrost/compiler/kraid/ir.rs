@@ -844,18 +844,10 @@ impl Src {
         }
     }
 
-    pub fn imm_u8(u: u8) -> Src {
-        Src::from(u32::from(u)).byte(0)
-    }
-
-    pub fn imm_u16(u: u16) -> Src {
-        Src::from(u32::from(u)).half(0)
-    }
-
     pub fn zero(bits: u8) -> Src {
         match bits {
-            8 => Src::imm_u8(0),
-            16 => Src::imm_u16(0),
+            8 => Src::from(0_u8),
+            16 => Src::from(0_u16),
             32 => Src::from(0_u32),
             _ => panic!("Invalid float bit size"),
         }
