@@ -387,9 +387,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       return;
    }
 
-   if (ctx->needs_gpu_state_reset)
-      etna_reset_gpu_state(ctx);
-
    struct etna_shader_key key = {
       .front_ccw = ctx->rasterizer->front_ccw,
       .sprite_coord_enable = ctx->rasterizer->sprite_coord_enable,
@@ -428,6 +425,19 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    /* Update any derived state */
    if (!etna_state_update(ctx))
       return;
+
+   /* Now that we know which states need to be emitted for this draw, reserve
+    * the space for them in the cmdstream. This will possibly cause a flush of
+    * the context, so this needs to be done before mutating any of the state
+    * tracking data structures in the context that get reset on flush.
+    *
+    * After this point there must be no other states emitted into the cmdstream
+    * aside from the draw state updates that have been reserved.
+    */
+   etna_reserve_emit_space(ctx);
+
+   if (ctx->needs_gpu_state_reset)
+      etna_reset_gpu_state(ctx);
 
    struct pipe_resource *indexbuf = NULL;
 
