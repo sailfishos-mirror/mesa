@@ -231,6 +231,14 @@ convert_loop_exit_for_ssa(nir_def *def, void *void_state)
       ASSERTED bool progress = nir_rematerialize_deref_in_use_blocks(nir_def_as_deref(def));
       assert(progress);
       return true;
+   } else if (nir_def_is_const(def)) {
+      /* Various things in NIR depend on constant sources,
+       * so move the constant before the loop to prevent creating phis.
+       */
+      nir_block *before_loop = nir_cf_node_as_block(nir_cf_node_prev(&state->loop->cf_node));
+      nir_cursor cursor = nir_after_block(before_loop);
+      nir_instr_move(cursor, nir_def_instr(def));
+      return true;
    }
 
    /* Initialize a phi-instruction */
