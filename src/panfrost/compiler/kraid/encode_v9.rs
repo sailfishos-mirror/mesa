@@ -2935,7 +2935,7 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
         let dst = &op.dsts()[0];
         let dst_type = op.dst_type(dst);
         let lanes = if dst_type.total_bits() == 16 {
-            DstLanesSet::from_array([ir::DstLanes::H0])
+            DstLanesSet::from_array([ir::DstLanes::AnyH, ir::DstLanes::H0])
         } else {
             debug_assert!(dst_type.total_bits() >= 32);
             DstLanesSet::from_array([ir::DstLanes::All])
