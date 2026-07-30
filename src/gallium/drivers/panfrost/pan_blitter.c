@@ -326,11 +326,13 @@ panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
+   struct panfrost_screen *scr = pan_screen(pipe->screen);
    const enum pan_save_state states =
       PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE |
       PAN_SAVE_RENDER_COND;
    const struct util_format_description *desc =
       util_format_description(format);
+   unsigned levels_per_draw = 1;
 
    if (tex->nr_samples > 1)
       goto fallback;
@@ -341,12 +343,40 @@ panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
    if (!util_blitter_is_copy_supported(ctx->blitter, tex, tex))
       goto fallback;
 
+   /* Legalization of the destination resource might change the modifier so it
+    * must be done before checking if the writeback format supports MSAA
+    * averaging.
+    */
    pan_legalize_format(ctx, pan_resource(tex), util_format_linear(format),
                        true, false);
+
+   /* Mali v10+ supports downscaling of the tile buffer content to output 2
+    * mipmap levels per draw. It's restricted to writeback formats supporting
+    * MSAA averaging and to the highest square effective tile sizes.
+    */
+   if (scr->dev.arch >= 10 &&
+       pan_resource(tex)->image.mod_handler->supports_msaa_average(format)) {
+      struct pan_image_view view = { .format = format, };
+      struct pan_fb_info fb = {
+         .nr_samples = 1,
+         .rt_count = 2,
+         .rts = { { .view = &view, }, { .view = &view, }, },
+         .tile_buf_budget = scr->dev.optimal_tib_size,
+         .z_tile_buf_budget = scr->dev.optimal_z_tib_size,
+         .downscale_rts = true,
+      };
+      scr->vtbl.select_tile_size(&fb);
+      if (fb.tile_size == 32 * 32 ||
+          (fb.tile_size == 64 * 64 && scr->dev.arch >= 12)) {
+         levels_per_draw = 2;
+      }
+   }
+
    panfrost_blitter_save(ctx, states);
    ctx->has_blit_loop = true;
    util_blitter_generate_mipmap(ctx->blitter, tex, format, base_level,
-                                last_level, first_layer, last_layer, 1);
+                                last_level, first_layer, last_layer,
+                                levels_per_draw);
    ctx->has_blit_loop = false;
    return true;
 
