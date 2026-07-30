@@ -670,13 +670,13 @@ etna_flush(struct pipe_context *pctx, struct pipe_fence_handle **fence,
       ctx->in_fence_fd = -1;
    }
 
-   list_for_each_entry(struct etna_acc_query, aq, &ctx->active_acc_queries, node)
-      etna_acc_query_resume(aq, ctx);
-
    if (fence)
       *fence = etna_fence_create(pctx, out_fence_fd);
 
    _mesa_hash_table_clear(ctx->pending_resources, NULL);
+
+   list_for_each_entry(struct etna_acc_query, aq, &ctx->active_acc_queries, node)
+      etna_acc_query_resume(aq, ctx);
 
    ctx->needs_gpu_state_reset = true;
 }
