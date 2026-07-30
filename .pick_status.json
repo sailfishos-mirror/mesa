@@ -5224,7 +5224,7 @@
         "description": "anv: fixup the logic dealing with STATE_BYTE_STRIDE",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "778cb590862c50eaf817ae5a2bdb2d24a8fed192",
         "notes": null
