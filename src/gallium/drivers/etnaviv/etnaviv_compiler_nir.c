@@ -557,6 +557,9 @@ emit_tex(struct etna_compile *c, nir_tex_instr * tex)
          assert(!src2);
          src2 = &tex->src[i].src;
          break;
+      case nir_tex_src_ms_index:
+         /* Consumed as an instruction immediate by etna_emit_tex(..). */
+         break;
       default:
          compile_error(c, "Unhandled NIR tex src type: %d\n",
                        tex->src[i].src_type);
