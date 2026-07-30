@@ -374,7 +374,7 @@ wsi_metal_layer_make_queue_resident(const CAMetalLayer *metal_layer,
    void *mtl4_command_queue)
 {
 /* Metal4 was introduced in macOS26 */
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_26_0
+#if defined(MAC_OS_VERSION_26_0) && __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_26_0
    @autoreleasepool {
       id<MTL4CommandQueue> queue = (id<MTL4CommandQueue>)mtl4_command_queue;
       [queue addResidencySet:metal_layer.residencySet];
@@ -388,7 +388,7 @@ wsi_metal_layer_remove_queue_resident(const CAMetalLayer *metal_layer,
    void *mtl4_command_queue)
 {
 /* Metal4 was introduced in macOS26 */
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_26_0
+#if defined(MAC_OS_VERSION_26_0) && __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_26_0
    @autoreleasepool {
       id<MTL4CommandQueue> queue = (id<MTL4CommandQueue>)mtl4_command_queue;
       [queue removeResidencySet:metal_layer.residencySet];
