@@ -189,6 +189,7 @@ v3dv_bo_init(struct v3dv_bo *bo,
              uint32_t size,
              uint32_t offset,
              const char *name,
+             uint64_t report_id,
              bool private)
 {
    p_atomic_set(&bo->refcnt, 1);
@@ -203,6 +204,7 @@ v3dv_bo_init(struct v3dv_bo *bo,
    bo->dumb_handle = -1;
    bo->is_import = false;
    bo->cl_branch_offset = 0xffffffff;
+   bo->report_id = report_id;
    list_inithead(&bo->list_link);
 }
 
@@ -213,7 +215,7 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
                     uint32_t offset,
                     bool private)
 {
-   v3dv_bo_init(bo, handle, size, offset, "import", private);
+   v3dv_bo_init(bo, handle, size, offset, "import", handle, private);
    bo->is_import = true;
 }
 
@@ -227,6 +229,7 @@ v3dv_bo_alloc(struct v3dv_device *device,
 
    const uint32_t page_align = 4096; /* Always allocate full pages */
    size = align(size, page_align);
+   uint64_t report_id = (uint64_t)p_atomic_inc_return(&device->bo_report_id);
 
    if (private) {
       bo = bo_from_cache(device, size, name);
@@ -235,6 +238,7 @@ v3dv_bo_alloc(struct v3dv_device *device,
             mesa_logi("Allocated %s %dkb from cache:\n", name, size / 1024);
             bo_dump_stats(device);
          }
+         bo->report_id = (report_id << 32) | bo->handle;
          return bo;
       }
    }
@@ -263,7 +267,16 @@ retry:
    bo = v3dv_device_lookup_bo(device->pdevice, create.handle);
    assert(bo && bo->handle == 0);
 
-   v3dv_bo_init(bo, create.handle, size, create.offset, name, private);
+   /* Private BOs may be recycled from the cache, so bo->handle
+    * alone would not be a valid report_id.
+    */
+   if (private)
+      report_id = (report_id << 32) | create.handle;
+   else
+      report_id = create.handle;
+
+   v3dv_bo_init(bo, create.handle, size, create.offset, name,
+                report_id, private);
 
    device->bo_count++;
    device->bo_size += bo->size;

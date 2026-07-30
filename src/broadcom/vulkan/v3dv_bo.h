@@ -72,9 +72,19 @@ struct v3dv_bo {
    int32_t dumb_handle;
 
    int32_t refcnt;
+
+   /* memoryObjectId for VK_EXT_device_memory_report.
+    *
+    * This is the BO handle (which is a system-wide unique ID),
+    * except for private BOs, which also include a monotonically
+    * increasing device-wide id in the upper 32-bit. This is to
+    * satisfy the requirement that each allocation has its own
+    * ID, even if the actual BO is recycled from the BO cache.
+    */
+   uint64_t report_id;
 };
 
-void v3dv_bo_init(struct v3dv_bo *bo, uint32_t handle, uint32_t size, uint32_t offset, const char *name, bool private);
+void v3dv_bo_init(struct v3dv_bo *bo, uint32_t handle, uint32_t size, uint32_t offset, const char *name, uint64_t report_id, bool private);
 void v3dv_bo_init_import(struct v3dv_bo *bo, uint32_t handle, uint32_t size, uint32_t offset, bool private);
 
 struct v3dv_bo *v3dv_bo_alloc(struct v3dv_device *device, uint32_t size, const char *name, bool private);
