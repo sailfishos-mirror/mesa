@@ -363,8 +363,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
       unsigned len = nir_src_bit_size(alu->src[i].src) == 64 ? 2 : 1;
       jay_def chans[NIR_MAX_VEC_COMPONENTS];
-      unsigned nr_chans =
-         nir_op_is_vec_or_mov(alu->op) ? 1 : alu->def.num_components;
+      unsigned nr_chans = nir_op_is_vec(alu->op) ? 1 : alu->def.num_components;
       bool all_same = true;
       for (unsigned c = 0; c < nr_chans; ++c) {
          /* Optimize swizzles corresponding to dead channels */
