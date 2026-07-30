@@ -642,11 +642,14 @@ etna_emit_state(struct etna_context *ctx)
 
          /*1C008*/ EMIT_STATE_RELOC(TFB_CONTEXT_BUFFER, &context_buffer);
 
-         for (int i = 0; i < 4; i++) {
+         for (int i = 0; i < ctx->streamout.num_targets; i++)
             /*1C040*/ EMIT_STATE_RELOC(TFB_BUFFER_ADDR(i), &ctx->streamout.TFB_BUFFER_ADDR[i]);
+
+         for (int i = 0; i < ctx->streamout.num_targets; i++)
             /*1C080*/ EMIT_STATE(TFB_BUFFER_SIZE(i), ctx->streamout.TFB_BUFFER_SIZE[i]);
+
+         for (int i = 0; i < ctx->streamout.num_targets; i++)
             /*1C0C0*/ EMIT_STATE(TFB_BUFFER_STRIDE(i), ctx->streamout.TFB_BUFFER_STRIDE[i]);
-         }
 
          for (int i = 0; i < 4; i++) {
             /*1C100*/ EMIT_STATE(TFB_DESCRIPTOR_COUNT(i), ctx->streamout.TFB_DESCRIPTOR_COUNT[i]);
