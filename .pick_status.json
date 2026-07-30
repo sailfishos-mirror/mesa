@@ -2824,7 +2824,7 @@
         "description": "docs: fix javascript-warning on search-page",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7da0482636a3475232ed906cfd611b2d912227f7",
         "notes": null
