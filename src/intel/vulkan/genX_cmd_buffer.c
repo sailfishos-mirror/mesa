@@ -4217,6 +4217,14 @@ end_command_buffer(struct anv_cmd_buffer *cmd_buffer,
       genX(cmd_buffer_set_protected_memory)(cmd_buffer, false);
 #endif
 
+#if GFX_VER >= 20
+   if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_PRIMARY &&
+       anv_cmd_buffer_is_render_queue(cmd_buffer) &&
+       cmd_buffer->state.gfx.indirect_data_stride_set) {
+      anv_batch_emit(&cmd_buffer->batch, GENX(STATE_BYTE_STRIDE), sb_stride);
+   }
+#endif
+
    trace_intel_end_cmd_buffer(&cmd_buffer->trace,
                               (uintptr_t)(vk_command_buffer_to_handle(&cmd_buffer->vk)),
                               cmd_buffer->vk.level);
@@ -4419,10 +4427,8 @@ genX(CmdExecuteCommands)(
       /* Copy the mode of the secondary if set, at the next draw if things
        * don't match we will reprogram.
        */
-      if (secondary->state.gfx.indirect_data_stride_aligned !=
-          U_TRISTATE_UNSET) {
-         container->state.gfx.indirect_data_stride_aligned =
-            secondary->state.gfx.indirect_data_stride_aligned;
+      if (secondary->state.gfx.indirect_data_stride_set) {
+         container->state.gfx.indirect_data_stride_set = true;
          container->state.gfx.indirect_data_stride =
             secondary->state.gfx.indirect_data_stride;
       }
