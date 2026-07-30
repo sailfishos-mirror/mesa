@@ -4615,7 +4615,6 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
       /* Fit 64-bit mask for wave32 */
       src = emit_extract_vector(ctx, src, 0, RegClass(src.type(), bld.lm.size()));
       emit_mbcnt(ctx, dst, Operand(src), Operand(add_src));
-      set_wqm(ctx);
       break;
    }
    case nir_intrinsic_lane_permute_16_amd:
