@@ -117,6 +117,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
       b.shader->info.cs.user_data_components_amd++;
 
    nir_def *thread_id = ac_get_global_ids(&b, 1, 32);
+   nir_def *user_data = nir_load_user_data_amd(&b);
 
    /* If the clear/copy area is unaligned, we launched extra threads at the beginning to make it
     * aligned. Skip those threads here.
@@ -124,7 +125,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
    nir_if *if_positive = NULL;
    if (key->has_start_thread) {
       nir_def *start_thread =
-         nir_channel(&b, nir_load_user_data_amd(&b), start_thread_user_data_index);
+         nir_channel(&b, user_data, start_thread_user_data_index);
       thread_id = nir_isub(&b, thread_id, start_thread);
       if_positive = nir_push_if(&b, nir_ige_imm(&b, thread_id, 0));
    }
@@ -134,7 +135,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
    nir_def *value;
 
    if (key->is_clear) {
-      value = nir_trim_vector(&b, nir_load_user_data_amd(&b), key->dwords_per_thread);
+      value = nir_trim_vector(&b, user_data, key->dwords_per_thread);
 
       /* We store 4 dwords per thread, but the clear value has 3 dwords. Swizzle it to 4 dwords.
        * Storing 4 dwords per thread is faster even when the ALU cost is worse.
@@ -274,7 +275,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
 
       if (key->dst_last_thread_bytes) {
          nir_def *last_thread_id =
-            nir_channel(&b, nir_load_user_data_amd(&b), last_thread_user_data_index);
+            nir_channel(&b, user_data, last_thread_user_data_index);
 
          if_last_thread = nir_push_if(&b, nir_ieq(&b, thread_id, last_thread_id));
          {
