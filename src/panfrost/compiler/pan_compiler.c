@@ -71,6 +71,7 @@ pan_use_kraid(unsigned arch, mesa_shader_stage stage, bool internal)
    case MESA_SHADER_FRAGMENT:
       return use_kraid & USE_KRAID_FS;
    case MESA_SHADER_COMPUTE:
+   case MESA_SHADER_KERNEL:
       return use_kraid & USE_KRAID_CS;
    default:
       return false;
