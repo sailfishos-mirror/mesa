@@ -6244,7 +6244,7 @@
         "description": "jay: copy resource_intel surface handle value",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e42e3193137d1b21e84b499336e7a8887b8a8689",
         "notes": null
