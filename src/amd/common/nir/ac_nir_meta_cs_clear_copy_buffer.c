@@ -102,6 +102,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
    b.shader->info.num_ssbos = key->is_clear ? 1 : 2;
    b.shader->info.cs.user_data_components_amd = 0;
 
+   unsigned clear_value_user_data_index = b.shader->info.cs.user_data_components_amd;
    if (key->is_clear) {
       b.shader->info.cs.user_data_components_amd +=
          key->clear_value_size_is_12 ? 3 : key->dwords_per_thread;
@@ -135,7 +136,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
    nir_def *value;
 
    if (key->is_clear) {
-      value = nir_trim_vector(&b, user_data, key->dwords_per_thread);
+      value = nir_extract_bits(&b, &user_data, 1, clear_value_user_data_index * 32, key->dwords_per_thread, 32);
 
       /* We store 4 dwords per thread, but the clear value has 3 dwords. Swizzle it to 4 dwords.
        * Storing 4 dwords per thread is faster even when the ALU cost is worse.
@@ -568,26 +569,31 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
       assert(clear_value_size >= 4 && clear_value_size <= 16 &&
              (clear_value_size == 12 || util_is_power_of_two_or_zero(clear_value_size)));
 
+      /* Put clear data after previous user_data contents. */
+      const unsigned clear_user_data_offset = num_user_data_terms * 4;
+
       /* Since the clear value may start on an unaligned offset and we just pass user SGPRs
        * to dword stores as-is, we need to byte-shift the clear value to that offset and
        * replicate it because 1 invocation stores up to 4 dwords from user SGPRs regardless of
        * the clear value size.
        */
-      num_user_data_terms = clear_value_size == 12 ? 3 : dwords_per_thread;
-      unsigned user_data_size = num_user_data_terms * 4;
+      const unsigned num_clear_user_data_terms = clear_value_size == 12 ? 3 : dwords_per_thread;
+      const unsigned clear_user_data_size = num_clear_user_data_terms * 4;
 
-      memcpy(out->user_data,
+      memcpy((uint8_t *)out->user_data + clear_user_data_offset,
              (uint8_t*)clear_value + clear_value_size - dst_align_offset % clear_value_size,
              dst_align_offset % clear_value_size);
       unsigned offset = dst_align_offset % clear_value_size;
 
-      while (offset + clear_value_size <= user_data_size) {
-         memcpy((uint8_t*)out->user_data + offset, clear_value, clear_value_size);
+      while (offset + clear_value_size <= clear_user_data_size) {
+         memcpy((uint8_t*)out->user_data + clear_user_data_offset + offset, clear_value, clear_value_size);
          offset += clear_value_size;
       }
 
-      if (offset < user_data_size)
-         memcpy((uint8_t*)out->user_data + offset, clear_value, user_data_size - offset);
+      if (offset < clear_user_data_size)
+         memcpy((uint8_t*)out->user_data + clear_user_data_offset + offset, clear_value, clear_user_data_size - offset);
+
+      num_user_data_terms += num_clear_user_data_terms;
    }
 
    out->shader_key.key = 0;
