@@ -1465,7 +1465,10 @@ impl<'a> ShaderFromNir<'a> {
                         // TODO: Scheduling barrier
                     }
                     SCOPE_WORKGROUP => {
-                        assert_eq!(self.nir.info.stage(), MESA_SHADER_COMPUTE);
+                        assert!(matches!(
+                            self.nir.info.stage(),
+                            MESA_SHADER_COMPUTE | MESA_SHADER_KERNEL
+                        ));
                         b.push_op(OpBarrier {});
                     }
                     _ => panic!("Unsupported barrier scope"),
