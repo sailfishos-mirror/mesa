@@ -165,7 +165,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_sampler_ycbcr_conversion = true,
       .KHR_separate_depth_stencil_layouts = true,
       .KHR_shader_draw_parameters = true,
-      .KHR_shader_expect_assume = false,
+      .KHR_shader_expect_assume = true,
       .KHR_shader_float_controls = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_non_semantic_info = true,
@@ -471,7 +471,7 @@ static void pvr_physical_device_get_supported_features(
       .bufferDeviceAddressMultiDevice = false,
 
       /* VK_KHR_shader_expect_assume */
-      .shaderExpectAssume = false,
+      .shaderExpectAssume = true,
 
       /* VK_EXT_shader_demote_to_helper_invocation */
       .shaderDemoteToHelperInvocation = true,
