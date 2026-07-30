@@ -225,8 +225,11 @@ convert_loop_exit_for_ssa(nir_def *def, void *void_state)
    if (all_uses_inside_loop)
       return true;
 
+   state->progress = true;
+
    if (nir_def_is_deref(def)) {
-      nir_rematerialize_deref_in_use_blocks(nir_def_as_deref(def));
+      ASSERTED bool progress = nir_rematerialize_deref_in_use_blocks(nir_def_as_deref(def));
+      assert(progress);
       return true;
    }
 
@@ -266,7 +269,6 @@ convert_loop_exit_for_ssa(nir_def *def, void *void_state)
       }
    }
 
-   state->progress = true;
    return true;
 }
 
