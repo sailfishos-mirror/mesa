@@ -867,6 +867,11 @@ dep_va = dependency(
 )
 if dep_va.found()
   dep_va_headers = dep_va.partial_dependency(compile_args : true, includes : true)
+  # Same as dep_va_headers but also propagates generated sources (e.g. the
+  # win32 headers copied into the flat va/ layout by the libva subproject) so
+  # consumers get a build-order edge to them. Kept separate because compiler
+  # checks below require an external-only partial dependency.
+  dep_va_headers_sources = dep_va.partial_dependency(compile_args : true, includes : true, sources : true)
   if cc.has_header_symbol('va/va.h', 'VASurfaceAttribDRMFormatModifiers',
                           dependencies: dep_va_headers)
     pre_args += '-DHAVE_VA_SURFACE_ATTRIB_DRM_FORMAT_MODIFIERS'
