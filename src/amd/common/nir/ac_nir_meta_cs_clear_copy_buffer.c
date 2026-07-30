@@ -229,37 +229,37 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
        * written by splitting it into 8-bit and 16-bit stores.
        */
       if (key->dst_align_offset) {
-          if_first_thread = nir_push_if(&b, nir_ieq_imm(&b, thread_id, 0));
-          {
-             unsigned local_offset = key->dst_align_offset;
-             nir_def *first_dword = nir_channel(&b, value, local_offset / 4);
+         if_first_thread = nir_push_if(&b, nir_ieq_imm(&b, thread_id, 0));
+         {
+            unsigned local_offset = key->dst_align_offset;
+            nir_def *first_dword = nir_channel(&b, value, local_offset / 4);
 
-             if (local_offset % 2 == 1) {
-                nir_store_ssbo(&b, nir_channel(&b, nir_unpack_32_4x8(&b, first_dword), local_offset % 4),
-                               dst_buf, nir_iadd_imm_nuw(&b, offset, local_offset),
-                               .access = ACCESS_RESTRICT);
-                local_offset++;
-             }
+            if (local_offset % 2 == 1) {
+               nir_store_ssbo(&b, nir_channel(&b, nir_unpack_32_4x8(&b, first_dword), local_offset % 4),
+                              dst_buf, nir_iadd_imm_nuw(&b, offset, local_offset),
+                              .access = ACCESS_RESTRICT);
+               local_offset++;
+            }
 
-             if (local_offset % 4 == 2) {
-                nir_store_ssbo(&b, nir_unpack_32_2x16_split_y(&b, first_dword), dst_buf,
-                               nir_iadd_imm_nuw(&b, offset, local_offset),
-                               .access = ACCESS_RESTRICT);
-                local_offset += 2;
-             }
+            if (local_offset % 4 == 2) {
+               nir_store_ssbo(&b, nir_unpack_32_2x16_split_y(&b, first_dword), dst_buf,
+                              nir_iadd_imm_nuw(&b, offset, local_offset),
+                              .access = ACCESS_RESTRICT);
+               local_offset += 2;
+            }
 
-             assert(local_offset % 4 == 0);
-             unsigned num_dw_remaining = key->dwords_per_thread - local_offset / 4;
+            assert(local_offset % 4 == 0);
+            unsigned num_dw_remaining = key->dwords_per_thread - local_offset / 4;
 
-             if (num_dw_remaining) {
-                nir_def *dwords =
-                   nir_channels(&b, value, BITFIELD_RANGE(local_offset / 4, num_dw_remaining));
+            if (num_dw_remaining) {
+               nir_def *dwords =
+                  nir_channels(&b, value, BITFIELD_RANGE(local_offset / 4, num_dw_remaining));
 
-                nir_store_ssbo(&b, dwords, dst_buf, nir_iadd_imm_nuw(&b, offset, local_offset),
-                               .access = ACCESS_RESTRICT);
-             }
-          }
-          nir_push_else(&b, if_first_thread);
+               nir_store_ssbo(&b, dwords, dst_buf, nir_iadd_imm_nuw(&b, offset, local_offset),
+                              .access = ACCESS_RESTRICT);
+            }
+         }
+         nir_push_else(&b, if_first_thread);
       }
 
       if (key->dst_last_thread_bytes) {
