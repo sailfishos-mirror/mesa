@@ -6366,6 +6366,7 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
           */
          if (!secondary->state.lrz.valid)
             cmd->state.lrz.valid = false;
+         cmd->state.lrz.disable_write_for_rp |= secondary->state.lrz.disable_write_for_rp;
          if (secondary->state.lrz.gpu_dir_set)
             cmd->state.lrz.gpu_dir_set = true;
          if (cmd->state.lrz.prev_direction == TU_LRZ_UNKNOWN &&

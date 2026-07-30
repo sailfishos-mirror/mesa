@@ -2864,7 +2864,7 @@
         "description": "tu: Merge disable_write_for_rp from secondary to primary",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "534cf4feeb5d94ad789ad9e03e61f0126aff9e66",
         "notes": null
