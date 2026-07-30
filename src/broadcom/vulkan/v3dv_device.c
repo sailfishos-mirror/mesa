@@ -1968,7 +1968,7 @@ static void
 destroy_device_meta(struct v3dv_device *device)
 {
    if (device->meta.tfu_fill_zero.src_bo) {
-      v3dv_bo_free(device, device->meta.tfu_fill_zero.src_bo);
+      v3dv_bo_free(device, device->meta.tfu_fill_zero.src_bo, 0);
       device->meta.tfu_fill_zero.src_bo = NULL;
    }
    mtx_destroy(&device->meta.mtx);
@@ -2118,7 +2118,7 @@ fail:
    v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
    v3dv_event_free_resources(device);
    v3dv_query_free_resources(device);
-   v3dv_bo_free(device, device->null_bo);
+   v3dv_bo_free(device, device->null_bo, 0);
 fail_queues_init:
    for (uint32_t i = 0; i < device->queue_count; i++)
       queue_finish(&device->queues[i]);
@@ -2153,12 +2153,12 @@ v3dv_DestroyDevice(VkDevice _device,
    v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
 
    if (device->default_attribute_float) {
-      v3dv_bo_free(device, device->default_attribute_float);
+      v3dv_bo_free(device, device->default_attribute_float, 0);
       device->default_attribute_float = NULL;
    }
 
    if (device->null_bo) {
-      v3dv_bo_free(device, device->null_bo);
+      v3dv_bo_free(device, device->null_bo, 0);
       device->null_bo = NULL;
    }
 
@@ -2221,7 +2221,7 @@ device_free(struct v3dv_device *device, struct v3dv_device_memory *mem)
 
    p_atomic_add(&device->pdevice->heap_used, -((int64_t)mem->bo->size));
 
-   v3dv_bo_free(device, mem->bo);
+   v3dv_bo_free(device, mem->bo, vk_object_to_u64_handle(&mem->vk.base));
 }
 
 static void
@@ -2297,6 +2297,11 @@ device_import_bo(struct v3dv_device *device,
 
    v3dv_bo_init_import(*bo, handle, size, get_offset.offset, obj_type, obj_handle, false);
 
+   v3dv_emit_device_memory_report(&device->vk, VK_SUCCESS,
+                                  true, /* is_alloc */
+                                  true, /* is_import */
+                                  handle, (*bo)->size,
+                                  obj_type, obj_handle);
    return VK_SUCCESS;
 }
 
@@ -2424,12 +2429,17 @@ v3dv_AllocateMemory(VkDevice _device,
     * maxMemoryAllocationSize must succeed. Accept one extra page over
     * the limit, which covers any sub-page padding after alignment.
     */
-   if (unlikely(alloc_size > MAX_MEMORY_ALLOCATION_SIZE + 4096u))
-      return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
-
    uint64_t heap_used = p_atomic_read(&pdevice->heap_used);
-   if (unlikely(heap_used + alloc_size > pdevice->memory.memoryHeaps[0].size))
+   if (unlikely(alloc_size > MAX_MEMORY_ALLOCATION_SIZE + 4096u ||
+      heap_used + alloc_size > pdevice->memory.memoryHeaps[0].size)) {
+      v3dv_emit_device_memory_report(&device->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                                     true, /* is_alloc */
+                                     false, /* is_import */
+                                     0, /* mem_obj_id */
+                                     alloc_size, VK_OBJECT_TYPE_DEVICE_MEMORY,
+                                     0 /* obj_handle */ );
       return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+   }
 
    mem = vk_device_memory_create(&device->vk, pAllocateInfo,
                                  pAllocator, sizeof(*mem));

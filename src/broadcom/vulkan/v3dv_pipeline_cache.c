@@ -371,8 +371,11 @@ v3dv_pipeline_shared_data_destroy(struct v3dv_device *device,
       }
    }
 
-   if (shared_data->assembly_bo)
-      v3dv_bo_free(device, shared_data->assembly_bo);
+   if (shared_data->assembly_bo){
+      shared_data->assembly_bo->report_obj_type = shared_data->owner_type;
+      shared_data->assembly_bo->report_obj_handle = shared_data->owner_handle;
+      v3dv_bo_free(device, shared_data->assembly_bo, 0);
+   }
 
    vk_free(&device->vk.alloc, shared_data);
 }

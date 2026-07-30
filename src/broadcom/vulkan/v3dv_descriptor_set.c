@@ -595,7 +595,7 @@ v3dv_DestroyDescriptorPool(VkDevice _device,
    }
 
    if (pool->bo) {
-      v3dv_bo_free(device, pool->bo);
+      v3dv_bo_free(device, pool->bo, 0);
       pool->bo = NULL;
    }
 

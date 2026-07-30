@@ -149,8 +149,8 @@ job_destroy_gpu_cl_resources(struct v3dv_job *job)
     */
    _mesa_set_destroy(job->bos, NULL);
 
-   v3dv_bo_free(job->device, job->tile_alloc);
-   v3dv_bo_free(job->device, job->tile_state);
+   v3dv_bo_free(job->device, job->tile_alloc, 0);
+   v3dv_bo_free(job->device, job->tile_state, 0);
 }
 
 static void
@@ -197,7 +197,7 @@ job_destroy_gpu_csd_resources(struct v3dv_job *job)
    _mesa_set_destroy(job->bos, NULL);
 
    if (job->csd.shared_memory)
-      v3dv_bo_free(job->device, job->csd.shared_memory);
+      v3dv_bo_free(job->device, job->csd.shared_memory, 0);
 }
 
 void
@@ -258,7 +258,7 @@ v3dv_cmd_buffer_destroy_bo_cb(VkDevice _device,
 {
    V3DV_FROM_HANDLE(v3dv_device, device, _device);
    struct v3dv_bo *bo = (struct v3dv_bo *)((uintptr_t) pobj);
-   v3dv_bo_free(device, bo);
+   v3dv_bo_free(device, bo, 0);
 }
 
 static void
@@ -293,7 +293,8 @@ cmd_buffer_free_resources(struct v3dv_cmd_buffer *cmd_buffer)
       vk_free(&cmd_buffer->device->vk.alloc, cmd_buffer->state.query.end.states);
 
    if (cmd_buffer->push_constants_resource.bo)
-      v3dv_bo_free(cmd_buffer->device, cmd_buffer->push_constants_resource.bo);
+      v3dv_bo_free(cmd_buffer->device,
+                   cmd_buffer->push_constants_resource.bo, 0);
 
    list_for_each_entry_safe(struct v3dv_cmd_buffer_private_obj, pobj,
                             &cmd_buffer->private_objs, list_link) {

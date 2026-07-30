@@ -397,9 +397,9 @@ fail:
    }
 
    if (pool->occlusion.bo)
-      v3dv_bo_free(device, pool->occlusion.bo);
+      v3dv_bo_free(device, pool->occlusion.bo, 0);
    if (pool->timestamp.bo)
-      v3dv_bo_free(device, pool->timestamp.bo);
+      v3dv_bo_free(device, pool->timestamp.bo, 0);
    if (pool->queries)
       vk_free2(&device->vk.alloc, pAllocator, pool->queries);
    pool_destroy_meta_resources(device, pool);
@@ -420,10 +420,10 @@ v3dv_DestroyQueryPool(VkDevice _device,
       return;
 
    if (pool->occlusion.bo)
-      v3dv_bo_free(device, pool->occlusion.bo);
+      v3dv_bo_free(device, pool->occlusion.bo, 0);
 
    if (pool->timestamp.bo)
-      v3dv_bo_free(device, pool->timestamp.bo);
+      v3dv_bo_free(device, pool->timestamp.bo, 0);
 
    if (pool->query_type == VK_QUERY_TYPE_TIMESTAMP) {
       for (uint32_t i = 0; i < pool->query_count; i++)

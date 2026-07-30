@@ -258,6 +258,11 @@ v3dv_bo_alloc(struct v3dv_device *device,
          bo->report_obj_type = obj_type;
          bo->report_obj_handle = obj_handle;
          bo->report_id = (report_id << 32) | bo->handle;
+         v3dv_emit_device_memory_report(&device->vk, VK_SUCCESS,
+                                       true, /* is_alloc */
+                                       false, /* is_import */
+                                       bo->report_id, bo->size,
+                                       obj_type, obj_handle);
          return bo;
       }
    }
@@ -277,6 +282,11 @@ retry:
       }
 
       mesa_loge("Failed to allocate device memory for BO\n");
+      v3dv_emit_device_memory_report(&device->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                                     true, /* is_alloc */
+                                     false, /* is_import */
+                                     0, /* mem_obj_id */
+                                     size, obj_type, obj_handle);
       return NULL;
    }
 
@@ -304,6 +314,11 @@ retry:
       bo_dump_stats(device);
    }
 
+   v3dv_emit_device_memory_report(&device->vk, VK_SUCCESS,
+                                  true, /* is_alloc */
+                                  false, /* is_import */
+                                  report_id, bo->size,
+                                  obj_type, obj_handle);
    return bo;
 }
 
@@ -496,10 +511,24 @@ free_stale_bos(struct v3dv_device *device,
 
 bool
 v3dv_bo_free(struct v3dv_device *device,
-             struct v3dv_bo *bo)
+             struct v3dv_bo *bo,
+             uint64_t mem_report_obj_handle)
 {
    if (!bo)
       return true;
+
+   /* Since we attach memory report info to the BO, when we consider
+    * memory import/export we can end up with more than one VkDeviceMemory
+    * object sharing the same BO reference. In that case we need to make
+    * sure when we free the BO it reports the right VkDeviceMemory object.
+    * (the last one to actually unref the memory).
+    */
+   mem_report_obj_handle = mem_report_obj_handle ?
+                           mem_report_obj_handle : bo->report_obj_handle;
+   v3dv_emit_device_memory_report(&device->vk, VK_SUCCESS,
+                                  false, /* is_alloc */
+                                  bo->is_import, bo->report_id, bo->size,
+                                  bo->report_obj_type, mem_report_obj_handle);
 
    if (!p_atomic_dec_zero(&bo->refcnt))
       return true;

@@ -119,11 +119,11 @@ v3dv_destroy_pipeline(struct v3dv_pipeline *pipeline,
 
    if (pipeline->spill.bo) {
       assert(pipeline->spill.size_per_thread > 0);
-      v3dv_bo_free(device, pipeline->spill.bo);
+      v3dv_bo_free(device, pipeline->spill.bo, 0);
    }
 
    if (pipeline->default_attribute_values) {
-      v3dv_bo_free(device, pipeline->default_attribute_values);
+      v3dv_bo_free(device, pipeline->default_attribute_values, 0);
       pipeline->default_attribute_values = NULL;
    }
 
@@ -1620,7 +1620,7 @@ pipeline_check_spill_size(struct v3dv_pipeline *pipeline)
          4 * device->devinfo.qpu_count * max_spill_size;
       if (pipeline->spill.bo) {
          assert(pipeline->spill.size_per_thread > 0);
-         v3dv_bo_free(device, pipeline->spill.bo);
+         v3dv_bo_free(device, pipeline->spill.bo, 0);
       }
       pipeline->spill.bo =
          v3dv_bo_alloc(device, total_spill_size, "spill", true,

@@ -96,7 +96,7 @@ void v3dv_bo_init_import(struct v3dv_bo *bo, uint32_t handle, uint32_t size, uin
 
 struct v3dv_bo *v3dv_bo_alloc(struct v3dv_device *device, uint32_t size, const char *name, bool private, VkObjectType obj_type, uint64_t obj_handle);
 
-bool v3dv_bo_free(struct v3dv_device *device, struct v3dv_bo *bo);
+bool v3dv_bo_free(struct v3dv_device *device, struct v3dv_bo *bo, uint64_t mem_report_obj_handle);
 
 bool v3dv_bo_wait(struct v3dv_device *device, struct v3dv_bo *bo, uint64_t timeout_ns);
 

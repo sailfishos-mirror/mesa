@@ -1562,7 +1562,7 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
                                  VK_OBJECT_TYPE_DEVICE,
                                  vk_object_to_u64_handle(&device->vk.base));
          if (zero_bo && !v3dv_bo_map(device, zero_bo, src_size)) {
-            v3dv_bo_free(device, zero_bo);
+            v3dv_bo_free(device, zero_bo, 0);
             zero_bo = NULL;
          }
          if (zero_bo) {
@@ -1587,7 +1587,7 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
             return;
          }
          if (!v3dv_bo_map(device, src_bo, src_size)) {
-            v3dv_bo_free(device, src_bo);
+            v3dv_bo_free(device, src_bo, 0);
             v3dv_flag_oom(cmd_buffer, NULL);
             return;
          }

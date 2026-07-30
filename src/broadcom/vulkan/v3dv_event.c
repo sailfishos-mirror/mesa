@@ -336,7 +336,7 @@ void
 v3dv_event_free_resources(struct v3dv_device *device)
 {
    if (device->events.bo) {
-      v3dv_bo_free(device, device->events.bo);
+      v3dv_bo_free(device, device->events.bo, 0);
       device->events.bo = NULL;
    }
 

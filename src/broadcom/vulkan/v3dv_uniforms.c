@@ -63,7 +63,7 @@ push_constants_bo_free(VkDevice _device,
                        VkAllocationCallbacks *alloc)
 {
    V3DV_FROM_HANDLE(v3dv_device, device, _device);
-   v3dv_bo_free(device, (struct v3dv_bo *)(uintptr_t) bo_ptr);
+   v3dv_bo_free(device, (struct v3dv_bo *)(uintptr_t) bo_ptr, 0);
 }
 
 /*
