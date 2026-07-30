@@ -789,15 +789,6 @@ radv_image_bo_set_metadata(struct radv_device *device, struct radv_image *image,
    device->ws->buffer_set_metadata(device->ws, bo, &md);
 }
 
-void
-radv_image_override_offset_stride(struct radv_device *device, struct radv_image *image, uint64_t offset,
-                                  uint32_t stride)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   ac_surface_override_offset_stride(&pdev->info, &image->planes[0].surface, image->vk.array_layers,
-                                     image->vk.mip_levels, offset, stride);
-}
-
 static void
 radv_image_alloc_single_sample_cmask(const struct radv_device *device, const struct radv_image *image,
                                      struct radeon_surf *surf)

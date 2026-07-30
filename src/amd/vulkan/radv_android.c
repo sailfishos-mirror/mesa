@@ -131,7 +131,11 @@ radv_image_from_gralloc(VkDevice device_h, const VkImageCreateInfo *base_info,
 
    image = radv_image_from_handle(image_h);
 
-   radv_image_override_offset_stride(device, image, 0, gralloc_info->stride);
+   if (!ac_surface_override_offset_stride(&pdev->info, &image->planes[0].surface, image->vk.array_layers,
+                                          image->vk.mip_levels, 0, gralloc_info->stride)) {
+      result = VK_ERROR_INVALID_EXTERNAL_HANDLE;
+      goto fail_override;
+   }
 
    VkBindImageMemoryInfo bind_info = {.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
                                       .image = image_h,
@@ -145,6 +149,8 @@ radv_image_from_gralloc(VkDevice device_h, const VkImageCreateInfo *base_info,
 
    return VK_SUCCESS;
 
+fail_override:
+   radv_DestroyImage(device_h, image_h, alloc);
 fail_create_image:
    radv_FreeMemory(device_h, memory_h, alloc);
    return result;

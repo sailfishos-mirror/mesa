@@ -410,9 +410,6 @@ void radv_compose_swizzle(const struct util_format_description *desc, const VkCo
 
 void radv_image_bo_set_metadata(struct radv_device *device, struct radv_image *image, struct radeon_winsys_bo *bo);
 
-void radv_image_override_offset_stride(struct radv_device *device, struct radv_image *image, uint64_t offset,
-                                       uint32_t stride);
-
 bool radv_image_can_fast_clear(const struct radv_device *device, const struct radv_image *image);
 
 struct ac_surf_info radv_get_ac_surf_info(struct radv_device *device, const struct radv_image *image);
