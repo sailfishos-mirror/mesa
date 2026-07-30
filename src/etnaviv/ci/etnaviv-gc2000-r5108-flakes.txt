@@ -88,6 +88,7 @@ spec@ext_texture_compression_s3tc@s3tc-teximage
 spec@ext_texture_compression_s3tc@s3tc-texsubimage
 spec@ext_texture_compression_s3tc@s3tc-texsubimage_gles2
 spec@ext_texture_compression_s3tc@texwrap formats
+spec@glsl-1.10@execution@fs-texture-select
 spec@glsl-1.10@execution@built-in-functions@fs-notequal-ivec2-ivec2
 spec@glsl-1.10@execution@built-in-functions@fs-op-assign-mult-ivec2-ivec2
 spec@glsl-1.10@execution@built-in-functions@vs-op-div-mat4-float
@@ -95,6 +96,7 @@ spec@glsl-1.10@execution@glsl-fs-functions-samplers
 spec@glsl-1.20@execution@built-in-functions@fs-matrixcompmult-mat4x2-mat4x2
 spec@glsl-1.20@execution@built-in-functions@fs-op-add-float-mat2x3
 spec@glsl-1.20@execution@built-in-functions@vs-op-mult-mat2-mat3x2
+spec@nv_copy_image@nv_copy_image-simple --rb-to-rb
 spec@nv_copy_image@nv_copy_image-simple --tex-to-tex
 spec@nv_conditional_render@bitmap
 spec@oes_compressed_etc1_rgb8_texture@miptree
@@ -501,6 +503,8 @@ spec@ext_texture_srgb@texwrap formats-s3tc@GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EX
 spec@ext_texture_srgb@texwrap formats-s3tc@GL_COMPRESSED_SRGB_S3TC_DXT1_EXT
 spec@ext_texture_srgb@texwrap formats-s3tc@GL_COMPRESSED_SRGB_S3TC_DXT1_EXT- swizzled
 spec@glsl-1.20@execution@tex-miplevel-selection gl2:textureproj\(bias\) 1d
+spec@glsl-1.20@execution@tex-miplevel-selection gl2:texture\(bias\) 2d
+spec@glsl-1.20@execution@tex-miplevel-selection gl2:texture\(bias\) 3d
 spec@glsl-1.20@execution@tex-miplevel-selection gl2:texture\(bias\) cube
 spec@nv_texture_env_combine4@nv_texture_env_combine4-combine
 
