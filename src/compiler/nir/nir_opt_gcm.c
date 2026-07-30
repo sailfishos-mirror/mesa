@@ -997,8 +997,15 @@ gcm_choose_block_for_instr(nir_instr *instr, nir_block *early_block,
    nir_block *best = late_block;
    for (nir_block *block = late_block; block != NULL; block = block->imm_dom) {
       if (state->blocks[block->index].loop_depth >
-          state->blocks[instr->block->index].loop_depth)
+          state->blocks[instr->block->index].loop_depth) {
+         /* Still stop at the early block, going any higher would put the
+          * instruction above its own sources.
+          */
+         if (block == early_block)
+            break;
+
          continue;
+      }
 
       if (state->blocks[block->index].if_depth >=
              state->blocks[best->index].if_depth &&
