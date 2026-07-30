@@ -639,6 +639,52 @@ lower_1bit_phi(nir_builder *b, nir_phi_instr *phi, void *_)
    return false;
 }
 
+/* TODO: multipolygon (will require significant changes!) */
+static bool
+lower_load_barycentric_at_offset(nir_builder *b,
+                                 nir_intrinsic_instr *intr,
+                                 void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_load_barycentric_at_offset) {
+      return false;
+   }
+
+   b->cursor = nir_before_instr(&intr->instr);
+   enum glsl_interp_mode interp = nir_intrinsic_interp_mode(intr);
+
+   nir_def *origin = nir_plane_eqn_origin_intel(b, .interp_mode = interp);
+   nir_def *coord =
+      nir_u2f32(b, nir_unpack_32_2x16(b, nir_load_pixel_coord_intel(b)));
+
+   nir_def *deltas = nir_fadd(b, nir_fsub(b, coord, origin),
+                              nir_fadd_imm(b, intr->src[0].ssa, 0.5));
+
+   nir_def *parts[] = {
+      nir_plane_eqn_bary1_intel(b, .interp_mode = interp),
+      nir_plane_eqn_bary2_intel(b, .interp_mode = interp),
+      nir_plane_eqn_rhw_intel(b, .interp_mode = interp),
+   };
+
+   /* Plane equation: coefs.z + coords.x * coefs.y + coords.y * coefs.x */
+   for (unsigned i = 0; i < ARRAY_SIZE(parts); ++i) {
+      nir_def *coefs = parts[i];
+
+      parts[i] =
+         nir_fmad(b, nir_channel(b, deltas, 1), nir_channel(b, coefs, 0),
+                  nir_fmad(b, nir_channel(b, deltas, 0),
+                           nir_channel(b, coefs, 1), nir_channel(b, coefs, 2)));
+   }
+
+   nir_def *bary = nir_vec(b, parts, 2);
+
+   if (interp != INTERP_MODE_NOPERSPECTIVE) {
+      bary = nir_fmul(b, bary, nir_frcp(b, parts[2]));
+   }
+
+   nir_def_replace(&intr->def, bary);
+   return true;
+}
+
 /**
  * Do NIR processing that can be shared across all SIMD width variants.
  */
@@ -1013,6 +1059,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
        * information.
        */
       jay_populate_prog_data(devinfo, nir, prog_data, key, fs_perprim);
+
+      JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_load_barycentric_at_offset,
+                   0, NULL);
 
       if (prog_data->fs.coarse_pixel_dispatch)
          JAY_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);

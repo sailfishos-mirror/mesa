@@ -450,6 +450,14 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
       is_divergent = stage != MESA_SHADER_TESS_EVAL && stage != MESA_SHADER_MESH;
       break;
 
+   case nir_intrinsic_plane_eqn_bary1_intel:
+   case nir_intrinsic_plane_eqn_bary2_intel:
+   case nir_intrinsic_plane_eqn_rhw_intel:
+   case nir_intrinsic_plane_eqn_origin_intel:
+      /* These would be divergent if Jay supported multipolygon */
+      is_divergent = false;
+      break;
+
    case nir_intrinsic_decl_reg:
    case nir_intrinsic_load_sysval_nv:
       is_divergent = nir_intrinsic_divergent(instr);

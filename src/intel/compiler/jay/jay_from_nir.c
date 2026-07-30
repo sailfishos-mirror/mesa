@@ -96,6 +96,7 @@ typedef struct jay_fs_payload {
    jay_def sample_pos;
    jay_def sample_offsets[2];
    jay_def coefficients;
+   jay_def npc_coefficients;
    jay_def *deltas;
    jay_def per_prim_data;
 } jay_fs_payload;
@@ -2547,6 +2548,22 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_copy(b, dst, jay_extract(fs->coefficients, 10));
       break;
 
+   case nir_intrinsic_plane_eqn_bary1_intel:
+   case nir_intrinsic_plane_eqn_bary2_intel:
+   case nir_intrinsic_plane_eqn_rhw_intel:
+   case nir_intrinsic_plane_eqn_origin_intel: {
+      bool npc = nir_intrinsic_interp_mode(intr) == INTERP_MODE_NOPERSPECTIVE;
+      jay_def coefs = npc ? fs->npc_coefficients : fs->coefficients;
+
+      unsigned chan =
+         intr->intrinsic == nir_intrinsic_plane_eqn_bary1_intel  ? 0 :
+         intr->intrinsic == nir_intrinsic_plane_eqn_bary2_intel  ? 3 :
+         intr->intrinsic == nir_intrinsic_plane_eqn_origin_intel ? 6 :
+                                                                   11;
+      jay_copy(b, dst, jay_extract_range(coefs, chan, 3));
+      break;
+   }
+
    case nir_intrinsic_load_sample_pos:
    case nir_intrinsic_load_sample_pos_or_center:
       assert(fs);
@@ -4312,6 +4329,10 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    if (nj->s->prog_data->fs.uses_depth_w_coefficients ||
        nj->s->prog_data->fs.uses_pc_bary_coefficients) {
       fs->coefficients = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+   }
+
+   if (nj->s->prog_data->fs.uses_npc_bary_coefficients) {
+      fs->npc_coefficients = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
    }
 
    setup_payload_dispatch_start(nj, p);

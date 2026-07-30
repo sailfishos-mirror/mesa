@@ -66,6 +66,7 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    case nir_intrinsic_load_barycentric_at_offset:
       ctx->offset_interp_modes |=
          BITFIELD_BIT(brw_barycentric_mode(ctx->prog_data, intr));
+      prog_data->uses_src_xy = true;
       break;
 
    case nir_intrinsic_load_frag_coord_z:

@@ -1286,6 +1286,22 @@ intrinsic("deref_texture_src", src_comp=[1], dest_comp=1,
 intrinsic("load_fs_input_interp_deltas", src_comp=[1], dest_comp=3,
           indices=[BASE, COMPONENT, IO_SEMANTICS], flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# For any given polygon, its barycentric coordinates and rhw (reciprocal
+# homogeneous W) can be calculated for any screen-space coordinate using a plane
+# equation. polygon_plane_eqn_coefficients_intel returns coefficients of this
+# plane equation, which can then be used to calculate barys and rhw like so:
+# 
+#   vec2 pos = gl_FragCoord.xy - xy_origin /* + offset for interpolateAtOffset */
+#   float result = dot(plane_eqn_*_intel, vec3(pos.xy, 1.0))
+for name in ["bary1", "bary2", "rhw"]:
+    intrinsic(f"plane_eqn_{name}_intel", src_comp=[], dest_comp=3,
+              flags=[CAN_ELIMINATE, CAN_REORDER], indices=[INTERP_MODE],
+              bit_sizes=[32])
+
+# Floating-point screen-space origin for plane coordinates.
+intrinsic("plane_eqn_origin_intel", src_comp=[], dest_comp=2,
+          flags=[CAN_ELIMINATE, CAN_REORDER], indices=[INTERP_MODE], bit_sizes=[32])
+
 # Load operations pull data from some piece of GPU memory.  All load
 # operations operate in terms of offsets into some piece of theoretical
 # memory.  Loads from externally visible memory (UBO and SSBO) simply take a
