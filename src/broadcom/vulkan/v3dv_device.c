@@ -2289,10 +2289,7 @@ device_import_bo(struct v3dv_device *device,
    *bo = v3dv_device_lookup_bo(device->pdevice, handle);
    assert(*bo);
 
-   if ((*bo)->refcnt == 0)
-      v3dv_bo_init_import(*bo, handle, size, get_offset.offset, false);
-   else
-      p_atomic_inc(&(*bo)->refcnt);
+   v3dv_bo_init_import(*bo, handle, size, get_offset.offset, false);
 
    return VK_SUCCESS;
 }

@@ -64,6 +64,7 @@ struct v3dv_bo {
 
    /** If this BO has been imported */
    bool is_import;
+   bool is_self_import;
 
    /**
     * If this BO was allocated for a swapchain on the display device, the

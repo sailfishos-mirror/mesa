@@ -203,6 +203,7 @@ v3dv_bo_init(struct v3dv_bo *bo,
    bo->private = private;
    bo->dumb_handle = -1;
    bo->is_import = false;
+   bo->is_self_import = false;
    bo->cl_branch_offset = 0xffffffff;
    bo->report_id = report_id;
    list_inithead(&bo->list_link);
@@ -215,6 +216,13 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
                     uint32_t offset,
                     bool private)
 {
+   if (bo->refcnt > 0) {
+      p_atomic_inc(&bo->refcnt);
+      bo->is_import = true;
+      bo->is_self_import = true;
+      return;
+   }
+
    v3dv_bo_init(bo, handle, size, offset, "import", handle, private);
    bo->is_import = true;
 }
