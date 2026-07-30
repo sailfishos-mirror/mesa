@@ -1846,18 +1846,40 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
                 assert!(intrin.range() == 0);
-                let offset =
-                    srcs[0].as_uint().expect("No indirect push constants");
-                assert!((offset % 4) == 0, "Unaligned push constant");
+                let offset: u16 = srcs[0]
+                    .as_uint()
+                    .expect("No indirect push constants")
+                    .try_into()
+                    .expect("Out of bounds push constant");
                 let word_idx = offset / 4;
+                let byte = (offset % 4) as u8;
 
                 let dsts = self.alloc_ssa(b, &intrin.def);
-                for (i, dst) in dsts.iter().copied().enumerate() {
-                    let word_idx = (word_idx + i as u64).try_into().unwrap();
-                    b.copy_i32_to(
-                        dst.into(),
-                        FAURef::user_i32(word_idx).into(),
-                    );
+                match intrin.def.bit_size * intrin.def.num_components {
+                    8 => {
+                        b.copy_i8_to(
+                            dsts.into(),
+                            Src::from(FAURef::user_i32(word_idx)).byte(byte),
+                        );
+                    }
+                    16 => {
+                        assert!(offset % 2 == 0, "Unaligned push constant");
+                        b.copy_i16_to(
+                            dsts.into(),
+                            Src::from(FAURef::user_i32(word_idx))
+                                .half(byte / 2),
+                        );
+                    }
+                    _ => {
+                        for (i, dst) in dsts.iter().copied().enumerate() {
+                            assert!(byte == 0, "Unaligned push constant");
+                            let i: u16 = i.try_into().unwrap();
+                            b.copy_i32_to(
+                                dst.into(),
+                                FAURef::user_i32(word_idx + i).into(),
+                            );
+                        }
+                    }
                 }
                 // TODO: update ShaderInfo to keep track of the highest push constant
             }
