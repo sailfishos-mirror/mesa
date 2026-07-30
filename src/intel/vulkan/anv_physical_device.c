@@ -184,6 +184,7 @@ get_device_extensions(const struct anv_physical_device *device,
    const struct anv_instance *instance = device->instance;
    const bool rt_enabled = ANV_SUPPORT_RT && device->info.has_ray_tracing;
    const bool hw_video_encode_supported = device->info.verx10 <= 125;
+
    const bool video_encode_enabled = hw_video_encode_supported &&
                                      ANV_DEBUG(VIDEO_ENCODE);
    const bool video_decode_enabled = ANV_DEBUG(VIDEO_DECODE);
@@ -311,6 +312,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_video_encode_queue                = video_encode_enabled,
       .KHR_video_encode_h264                 = VIDEO_CODEC_H264ENC && video_encode_enabled,
       .KHR_video_encode_h265                 = device->info.ver >= 12 && VIDEO_CODEC_H265ENC && video_encode_enabled,
+      .KHR_video_encode_av1                  = device->info.verx10 == 125 && VIDEO_CODEC_AV1ENC && video_encode_enabled,
       .KHR_video_maintenance1                = (video_decode_enabled &&
                                                (VIDEO_CODEC_H264DEC || VIDEO_CODEC_H265DEC)) ||
                                                (video_encode_enabled &&
@@ -997,6 +999,9 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_video_decode_vp9 */
       .videoDecodeVP9 = true,
+
+      /* VK_KHR_video_encode_av1 */
+      .videoEncodeAV1 = true,
 
       /* VK_EXT_image_compression_control */
       .imageCompressionControl = pdevice->expose_compression_control,
@@ -3269,6 +3274,8 @@ void anv_GetPhysicalDeviceQueueFamilyProperties2(
                if (queue_family->queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR) {
                   prop->videoCodecOperations |= VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR |
                                                 VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR;
+                  if (pdevice->info.verx10 == 125)
+                     prop->videoCodecOperations |= VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR;
                }
                break;
             }
