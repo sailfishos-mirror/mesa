@@ -760,8 +760,14 @@ v3dX(create_default_attribute_values)(struct v3dv_device *device,
    uint32_t size = MAX_VERTEX_ATTRIBS * sizeof(float) * 4;
    struct v3dv_bo *bo;
 
-   bo = v3dv_bo_alloc(device, size, "default_vi_attributes", true);
+   const VkObjectType obj_type = pipeline != NULL ? VK_OBJECT_TYPE_PIPELINE :
+                                                    VK_OBJECT_TYPE_DEVICE;
+   const uint64_t obj_handle = pipeline != NULL ?
+                                           vk_object_to_u64_handle(&pipeline->base) :
+                                           vk_object_to_u64_handle(&device->vk.base);
 
+   bo = v3dv_bo_alloc(device, size, "default_vi_attributes", true,
+                      obj_type, obj_handle);
    if (!bo) {
       mesa_loge("failed to allocate memory for the default "
                 "attribute values\n");

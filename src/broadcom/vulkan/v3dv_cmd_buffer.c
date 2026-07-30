@@ -490,7 +490,9 @@ v3dv_job_allocate_tile_state(struct v3dv_job *job)
                         &tile_state_size);
 
    job->tile_alloc = v3dv_bo_alloc(job->device, tile_alloc_size,
-                                   "tile_alloc", true);
+                                   "tile_alloc", true,
+                                   VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                   job_get_cmd_buffer_vk_handle(job));
    if (!job->tile_alloc) {
       v3dv_flag_oom(NULL, job);
       return false;
@@ -498,7 +500,9 @@ v3dv_job_allocate_tile_state(struct v3dv_job *job)
 
    v3dv_job_add_bo_unchecked(job, job->tile_alloc);
 
-   job->tile_state = v3dv_bo_alloc(job->device, tile_state_size, "TSDA", true);
+   job->tile_state = v3dv_bo_alloc(job->device, tile_state_size, "TSDA", true,
+                                   VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                   job_get_cmd_buffer_vk_handle(job));
    if (!job->tile_state) {
       v3dv_flag_oom(NULL, job);
       return false;
@@ -4333,7 +4337,9 @@ cmd_buffer_create_csd_job(struct v3dv_cmd_buffer *cmd_buffer,
       job->csd.shared_memory =
          v3dv_bo_alloc(cmd_buffer->device,
                        cs_variant->prog_data.cs->shared_size * num_wgs,
-                       "shared_vars", true);
+                       "shared_vars", true,
+                       VK_OBJECT_TYPE_COMMAND_BUFFER,
+                       vk_object_to_u64_handle(&cmd_buffer->vk.base));
       if (!job->csd.shared_memory) {
          v3dv_flag_oom(cmd_buffer, NULL);
          return job;

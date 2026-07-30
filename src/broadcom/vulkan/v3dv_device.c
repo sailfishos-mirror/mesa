@@ -2079,7 +2079,9 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
 
    if (device->vk.enabled_features.nullDescriptor) {
       device->null_bo =
-         v3dv_bo_alloc(device, 4096, "null texture data", true);
+         v3dv_bo_alloc(device, 4096, "null texture data", true,
+                       VK_OBJECT_TYPE_DEVICE,
+                       vk_object_to_u64_handle(&device->vk.base));
       if (!device->null_bo ||
           !v3dv_bo_map(device, device->null_bo,
                        device->null_bo->size)) {
@@ -2183,7 +2185,9 @@ device_alloc(struct v3dv_device *device,
    /* Our kernel interface is 32-bit */
    assert(size <= UINT32_MAX);
 
-   mem->bo = v3dv_bo_alloc(device, size, "device_alloc", false);
+   mem->bo = v3dv_bo_alloc(device, size, "device_alloc", false,
+                           VK_OBJECT_TYPE_DEVICE_MEMORY,
+                           vk_object_to_u64_handle(&mem->vk.base));
    if (!mem->bo)
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
@@ -2260,7 +2264,9 @@ static VkResult
 device_import_bo(struct v3dv_device *device,
                  const VkAllocationCallbacks *pAllocator,
                  int fd, uint64_t size,
-                 struct v3dv_bo **bo)
+                 struct v3dv_bo **bo,
+                 VkObjectType obj_type,
+                 uint64_t obj_handle)
 {
    *bo = NULL;
 
@@ -2289,7 +2295,7 @@ device_import_bo(struct v3dv_device *device,
    *bo = v3dv_device_lookup_bo(device->pdevice, handle);
    assert(*bo);
 
-   v3dv_bo_init_import(*bo, handle, size, get_offset.offset, false);
+   v3dv_bo_init_import(*bo, handle, size, get_offset.offset, obj_type, obj_handle, false);
 
    return VK_SUCCESS;
 }
@@ -2332,7 +2338,9 @@ device_alloc_for_wsi(struct v3dv_device *device,
    if (err < 0)
       goto fail_export;
 
-   result = device_import_bo(device, pAllocator, fd, size, &mem->bo);
+   result = device_import_bo(device, pAllocator, fd, size, &mem->bo,
+                             VK_OBJECT_TYPE_DEVICE_MEMORY,
+                             vk_object_to_u64_handle(&mem->vk.base));
    close(fd);
    if (result != VK_SUCCESS)
       goto fail_import;
@@ -2474,7 +2482,9 @@ v3dv_AllocateMemory(VkDevice _device,
       assert(fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT ||
              fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
       result = device_import_bo(device, pAllocator,
-                                fd_info->fd, pAllocateInfo->allocationSize, &mem->bo);
+                                fd_info->fd, pAllocateInfo->allocationSize, &mem->bo,
+                                VK_OBJECT_TYPE_DEVICE_MEMORY,
+                                vk_object_to_u64_handle(&mem->vk.base));
       if (result == VK_SUCCESS)
          close(fd_info->fd);
    } else if (mem->vk.ahardware_buffer) {
@@ -2483,7 +2493,9 @@ v3dv_AllocateMemory(VkDevice _device,
       assert(handle->numFds > 0);
       size_t size = lseek(handle->data[0], 0, SEEK_END);
       result = device_import_bo(device, pAllocator,
-                                handle->data[0], size, &mem->bo);
+                                handle->data[0], size, &mem->bo,
+                                VK_OBJECT_TYPE_DEVICE_MEMORY,
+                                vk_object_to_u64_handle(&mem->vk.base));
 #else
       result = VK_ERROR_FEATURE_NOT_PRESENT;
 #endif

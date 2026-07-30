@@ -190,6 +190,8 @@ v3dv_bo_init(struct v3dv_bo *bo,
              uint32_t offset,
              const char *name,
              uint64_t report_id,
+             VkObjectType obj_type,
+             uint64_t obj_handle,
              bool private)
 {
    p_atomic_set(&bo->refcnt, 1);
@@ -206,6 +208,8 @@ v3dv_bo_init(struct v3dv_bo *bo,
    bo->is_self_import = false;
    bo->cl_branch_offset = 0xffffffff;
    bo->report_id = report_id;
+   bo->report_obj_type = obj_type;
+   bo->report_obj_handle = obj_handle;
    list_inithead(&bo->list_link);
 }
 
@@ -214,6 +218,8 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
                     uint32_t handle,
                     uint32_t size,
                     uint32_t offset,
+                    VkObjectType obj_type,
+                    uint64_t obj_handle,
                     bool private)
 {
    if (bo->refcnt > 0) {
@@ -223,7 +229,8 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
       return;
    }
 
-   v3dv_bo_init(bo, handle, size, offset, "import", handle, private);
+   v3dv_bo_init(bo, handle, size, offset, "import", handle,
+                obj_type, obj_handle, private);
    bo->is_import = true;
 }
 
@@ -231,7 +238,9 @@ struct v3dv_bo *
 v3dv_bo_alloc(struct v3dv_device *device,
               uint32_t size,
               const char *name,
-              bool private)
+              bool private,
+              VkObjectType obj_type,
+              uint64_t obj_handle)
 {
    struct v3dv_bo *bo;
 
@@ -246,6 +255,8 @@ v3dv_bo_alloc(struct v3dv_device *device,
             mesa_logi("Allocated %s %dkb from cache:\n", name, size / 1024);
             bo_dump_stats(device);
          }
+         bo->report_obj_type = obj_type;
+         bo->report_obj_handle = obj_handle;
          bo->report_id = (report_id << 32) | bo->handle;
          return bo;
       }
@@ -284,7 +295,7 @@ retry:
       report_id = create.handle;
 
    v3dv_bo_init(bo, create.handle, size, create.offset, name,
-                report_id, private);
+                report_id, obj_type, obj_handle, private);
 
    device->bo_count++;
    device->bo_size += bo->size;

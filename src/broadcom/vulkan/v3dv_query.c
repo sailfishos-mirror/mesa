@@ -291,7 +291,9 @@ v3dv_CreateQueryPool(VkDevice _device,
       /* After the counters we store avalability data, 1 byte/query */
       pool->occlusion.avail_offset = bo_size;
       bo_size += pool->query_count;
-      pool->occlusion.bo = v3dv_bo_alloc(device, bo_size, "query:o", true);
+      pool->occlusion.bo = v3dv_bo_alloc(device, bo_size, "query:o", true,
+                                         VK_OBJECT_TYPE_QUERY_POOL,
+                                         vk_object_to_u64_handle(&pool->base));
       if (!pool->occlusion.bo) {
          result = vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
          goto fail;
@@ -324,7 +326,9 @@ v3dv_CreateQueryPool(VkDevice _device,
        * timestamps tightly packed first in the buffer.
        */
       const uint32_t bo_size = pool->query_count * 8;
-      pool->timestamp.bo = v3dv_bo_alloc(device, bo_size, "query:t", true);
+      pool->timestamp.bo = v3dv_bo_alloc(device, bo_size, "query:t", true,
+                                         VK_OBJECT_TYPE_QUERY_POOL,
+                                         vk_object_to_u64_handle(&pool->base));
       if (!pool->timestamp.bo) {
          result = vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
          goto fail;

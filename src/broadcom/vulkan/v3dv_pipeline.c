@@ -1494,7 +1494,9 @@ upload_assembly(struct v3dv_pipeline *pipeline)
    }
 
    struct v3dv_bo *bo = v3dv_bo_alloc(pipeline->device, total_size,
-                                      "pipeline shader assembly", true);
+                                      "pipeline shader assembly", true,
+                                      VK_OBJECT_TYPE_PIPELINE,
+                                      vk_object_to_u64_handle(&pipeline->base));
    if (!bo) {
       mesa_loge("Failed to allocate memory for shader");
       return false;
@@ -1621,7 +1623,9 @@ pipeline_check_spill_size(struct v3dv_pipeline *pipeline)
          v3dv_bo_free(device, pipeline->spill.bo);
       }
       pipeline->spill.bo =
-         v3dv_bo_alloc(device, total_spill_size, "spill", true);
+         v3dv_bo_alloc(device, total_spill_size, "spill", true,
+                       VK_OBJECT_TYPE_PIPELINE,
+                       vk_object_to_u64_handle(&pipeline->base));
       pipeline->spill.size_per_thread = max_spill_size;
    }
 }
