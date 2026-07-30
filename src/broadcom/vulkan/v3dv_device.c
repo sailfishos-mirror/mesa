@@ -247,6 +247,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .EXT_depth_clamp_zero_one             = device->devinfo.ver >= 71,
       .EXT_depth_clip_control               = true,
       .EXT_depth_clip_enable                = device->devinfo.ver >= 71,
+      .EXT_device_memory_report             = true,
       .EXT_load_store_op_none               = true,
       .EXT_inline_uniform_block             = true,
       .EXT_extended_dynamic_state           = true,
@@ -546,6 +547,9 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_EXT_depth_clip_enable */
       .depthClipEnable = physical_device->devinfo.ver >= 71,
+
+      /* VK_EXT_device_memory_report */
+      .deviceMemoryReport = true,
 
       /* VK_EXT_attachment_feedback_loop_layout */
       .attachmentFeedbackLoopLayout = true,
