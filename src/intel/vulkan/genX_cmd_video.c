@@ -2443,8 +2443,8 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       if (std_pic_info->frame_type != STD_VIDEO_AV1_FRAME_TYPE_KEY) {
          for (enum av1_ref_frame r = AV1_INTRA_FRAME; r <= AV1_ALTREF_FRAME; r++) {
             const struct anv_image_view *ref_iv = ref_info[r].iv;
-            const struct anv_image *ref_img = ref_iv->image;
             if (ref_iv) {
+               const struct anv_image *ref_img = ref_iv->image;
 
                buf.ReferencePictureAddress[r] =
                   anv_image_dpb_address(ref_iv, ref_info[r].array_layer);
