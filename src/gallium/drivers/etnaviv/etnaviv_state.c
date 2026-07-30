@@ -45,6 +45,7 @@
 #include "util/u_inlines.h"
 #include "util/u_math.h"
 #include "util/u_memory.h"
+#include "util/u_sample_positions.h"
 #include "util/u_upload_mgr.h"
 
 static void
@@ -1245,6 +1246,7 @@ etna_state_init(struct pipe_context *pctx)
    pctx->set_stencil_ref = etna_set_stencil_ref;
    pctx->set_clip_state = etna_set_clip_state;
    pctx->set_sample_mask = etna_set_sample_mask;
+   pctx->get_sample_position = u_default_get_sample_position;
    pctx->set_constant_buffer = etna_set_constant_buffer;
    pctx->set_framebuffer_state = etna_set_framebuffer_state;
    pctx->set_polygon_stipple = etna_set_polygon_stipple;
