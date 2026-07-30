@@ -50,9 +50,9 @@ traces:
 
   blender/blender-demo-ellie_pose.trace:
     gl-zink-anv-adl:
-      checksum: 0098bb7945cf985524358f1becd7dc96
+      checksum: c0b433fa9f758e3161af2bab57fbbdf4
     gl-zink-anv-tgl:
-      checksum: 0098bb7945cf985524358f1becd7dc96
+      checksum: c0b433fa9f758e3161af2bab57fbbdf4
     zink-radv-vangogh:
       checksum: 04050fd3b0285aedfe6b139d3a900fc5
     zink-radv-gfx1201:
