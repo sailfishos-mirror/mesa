@@ -1050,6 +1050,30 @@ tu_lrz_disable_during_renderpass(struct tu_cmd_buffer *cmd,
 }
 TU_GENX(tu_lrz_disable_during_renderpass);
 
+template <chip CHIP>
+static void
+tu_lrz_emit_disable_write_for_rp(struct tu_cs *cs)
+{
+   /* Don't disable LRZ feedback during sysmem rendering or per-tile rendering. */
+   tu_cond_exec_start(cs, CP_COND_REG_EXEC_0_MODE(RENDER_MODE) | CP_COND_REG_EXEC_0_BINNING);
+
+   const struct tu_reg_value gras_cs_bin_cntl = GRAS_SC_BIN_CNTL(CHIP, .force_lrz_write_dis = true);
+   const struct tu_reg_value rb_cntl = RB_CNTL(CHIP, .force_lrz_write_dis = true);
+
+   tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
+   tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(gras_cs_bin_cntl.reg));
+   tu_cs_emit(cs, ~0u);
+   tu_cs_emit(cs, gras_cs_bin_cntl.value);
+
+   tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
+   tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(rb_cntl.reg));
+   tu_cs_emit(cs, ~0u);
+   tu_cs_emit(cs, rb_cntl.value);
+
+   tu_cond_exec_end(cs);
+}
+
+template <chip CHIP>
 void
 tu_lrz_flush_valid_at_secondary_rp_boundary(
    struct tu_cmd_buffer *cmd,
@@ -1059,17 +1083,23 @@ tu_lrz_flush_valid_at_secondary_rp_boundary(
    const bool lrz_blending_skipped_color_writes =
       cmd->state.lrz.color_written_with_z_test &&
       secondary_lrz.has_lrz_write_with_skipped_color_writes;
-   /* Even if state is valid, we cannot be sure that secondary
-    * command buffer has the same sticky disable_write_for_rp.
-    */
-   if (cmd->state.lrz.valid && !cmd->state.lrz.disable_write_for_rp &&
-       !lrz_blending_skipped_color_writes)
+   const bool lrz_valid = cmd->state.lrz.valid && secondary_lrz.valid;
+   const bool disable_write_for_rp =
+      cmd->state.lrz.disable_write_for_rp || secondary_lrz.disable_write_for_rp || lrz_blending_skipped_color_writes;
+
+   if (lrz_valid && !disable_write_for_rp)
       return;
 
-   if (lrz_blending_skipped_color_writes) {
-      tu_lrz_disable_reason(cmd, "Depth write + no color writes with secondary cmdbuf");
-   } else if (cmd->state.lrz.disable_write_for_rp) {
-      tu_lrz_disable_reason(cmd, "Disabled LRZ write with secondary cmdbuf");
+   if (lrz_valid) {
+      /* Secondary command buffers cannot inherit the sticky write-disable state. */
+      if (!cmd->state.lrz.disable_write_for_rp) {
+         const char *reason = lrz_blending_skipped_color_writes ? "Depth write + no color writes with secondary cmdbuf"
+                                                                : "Disabled LRZ write in secondary cmdbuf";
+         tu_lrz_disable_write_for_rp(cmd, reason);
+      }
+
+      tu_lrz_emit_disable_write_for_rp<CHIP>(cs);
+      return;
    }
 
    tu6_write_lrz_reg(cmd, cs, A6XX_GRAS_LRZ_VIEW_INFO(
@@ -1078,7 +1108,9 @@ tu_lrz_flush_valid_at_secondary_rp_boundary(
       .base_mip_level = 0b1111,
    ));
 }
+TU_GENX(tu_lrz_flush_valid_at_secondary_rp_boundary);
 
+template <chip CHIP>
 void
 tu_lrz_flush_valid_at_suspending_rp_boundary(struct tu_cmd_buffer *cmd,
                                              struct tu_cs *cs)
@@ -1086,8 +1118,10 @@ tu_lrz_flush_valid_at_suspending_rp_boundary(struct tu_cmd_buffer *cmd,
    if (cmd->state.lrz.valid && !cmd->state.lrz.disable_write_for_rp)
       return;
 
-   if (cmd->state.lrz.disable_write_for_rp)
-      tu_lrz_disable_reason(cmd, "Disabled LRZ write at renderpass suspend");
+   if (cmd->state.lrz.valid) {
+      tu_lrz_emit_disable_write_for_rp<CHIP>(cs);
+      return;
+   }
 
    tu6_write_lrz_reg(cmd, cs, A6XX_GRAS_LRZ_VIEW_INFO(
       .base_layer = 0b11111111111,
@@ -1095,6 +1129,7 @@ tu_lrz_flush_valid_at_suspending_rp_boundary(struct tu_cmd_buffer *cmd,
       .base_mip_level = 0b1111,
    ));
 }
+TU_GENX(tu_lrz_flush_valid_at_suspending_rp_boundary);
 
 template <chip CHIP>
 static struct __GRAS_LRZ_CNTL
