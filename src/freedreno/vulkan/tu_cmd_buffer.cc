@@ -3030,11 +3030,11 @@ tu_trace_end_render_pass(struct tu_cmd_buffer *cmd, bool gmem,
                     offsetof(fd_lrzfc_layout<CHIP>, buffer[0].dir_track);
    }
 
-   int32_t lrz_disabled_at_draw = cmd->state.rp.lrz_disabled_at_draw
+   int32_t lrz_disabled_at_draw = cmd->state.rp.lrz_disable_reason
                                      ? cmd->state.rp.lrz_disabled_at_draw
                                      : -1;
    int32_t lrz_write_disabled_at_draw =
-      cmd->state.rp.lrz_write_disabled_at_draw
+      cmd->state.rp.lrz_write_disable_reason
          ? cmd->state.rp.lrz_write_disabled_at_draw
          : -1;
    trace_end_render_pass(
@@ -6192,8 +6192,8 @@ tu_render_pass_state_merge(struct tu_render_pass_state *dst,
       dst->lrz_disabled_at_draw =
          dst->drawcall_count + src->lrz_disabled_at_draw;
    }
-   if (!dst->lrz_write_disabled_at_draw &&
-       src->lrz_write_disabled_at_draw) {
+   if (!dst->lrz_write_disable_reason &&
+       src->lrz_write_disable_reason) {
       dst->lrz_write_disable_reason = src->lrz_write_disable_reason;
       dst->lrz_write_disabled_at_draw =
          dst->drawcall_count + src->lrz_write_disabled_at_draw;
