@@ -1350,11 +1350,13 @@ impl<'a> KernelExecBuilder<'a> {
 
     fn add_sysval(&mut self, vals: &[usize; 3]) {
         if self.dev.address_bits() == 64 {
+            let vals64 = vals.map(|v| v as u64);
             self.input
-                .extend_from_slice(unsafe { as_byte_slice(&vals.map(|v| v as u64)) });
+                .extend_from_slice(unsafe { as_byte_slice(&vals64) });
         } else {
+            let vals32 = vals.map(|v| v as u32);
             self.input
-                .extend_from_slice(unsafe { as_byte_slice(&vals.map(|v| v as u32)) });
+                .extend_from_slice(unsafe { as_byte_slice(&vals32) });
         }
     }
 
@@ -1938,9 +1940,8 @@ impl Kernel {
                         exec_builder.add_values(&[work_dim as u8; 1]);
                     }
                     CompiledKernelArgType::NumWorkgroups => {
-                        exec_builder.add_values(unsafe {
-                            as_byte_slice(&[grid[0] as u32, grid[1] as u32, grid[2] as u32])
-                        });
+                        let grid = [grid[0] as u32, grid[1] as u32, grid[2] as u32];
+                        exec_builder.add_values(unsafe { as_byte_slice(&grid) });
                     }
                 }
             }
