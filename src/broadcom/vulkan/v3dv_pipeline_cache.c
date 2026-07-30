@@ -406,6 +406,9 @@ v3dv_pipeline_shared_data_new(struct v3dv_pipeline_cache *cache,
       new_entry->variants[stage] = variants[stage];
    }
 
+   new_entry->owner_type = VK_OBJECT_TYPE_PIPELINE_CACHE;
+   new_entry->owner_handle = vk_object_to_u64_handle(&cache->base);
+
    struct v3dv_bo *bo = v3dv_bo_alloc(cache->device, total_assembly_size,
                                       "pipeline shader assembly", true);
    if (!bo) {
@@ -458,6 +461,10 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
    }
 
    v3dv_pipeline_shared_data_ref(shared_data);
+
+   shared_data->owner_type = VK_OBJECT_TYPE_PIPELINE_CACHE;
+   shared_data->owner_handle = vk_object_to_u64_handle(&cache->base);
+
    _mesa_hash_table_insert(cache->cache, shared_data->blake3_key, shared_data);
    cache->stats.count++;
    if (debug_cache) {
@@ -846,6 +853,10 @@ v3dv_MergePipelineCaches(VkDevice device,
             continue;
 
          v3dv_pipeline_shared_data_ref(cache_entry);
+
+         cache_entry->owner_type = VK_OBJECT_TYPE_PIPELINE_CACHE;
+         cache_entry->owner_handle = vk_object_to_u64_handle(&dst->base);
+
          _mesa_hash_table_insert(dst->cache, cache_entry->blake3_key, cache_entry);
 
          dst->stats.count++;

@@ -2198,6 +2198,9 @@ v3dv_pipeline_shared_data_new_empty(const unsigned char blake3_key[BLAKE3_KEY_LE
    new_entry->ref_cnt = 1;
    memcpy(new_entry->blake3_key, blake3_key, BLAKE3_KEY_LEN);
 
+   new_entry->owner_type = VK_OBJECT_TYPE_PIPELINE;
+   new_entry->owner_handle = vk_object_to_u64_handle(&pipeline->base);
+
    return new_entry;
 
 fail:
