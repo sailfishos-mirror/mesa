@@ -6524,7 +6524,7 @@
         "description": "tu: Fix tu_event not being reset on creation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "513184fa443731982a931bb30cadf5f1d4519731",
         "notes": null
