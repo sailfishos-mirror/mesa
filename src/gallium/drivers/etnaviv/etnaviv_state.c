@@ -849,11 +849,25 @@ etna_set_stream_output_targets(struct pipe_context *pctx,
 
    assert(num_targets <= ARRAY_SIZE(so->targets));
 
-   for (unsigned i = 0; i < num_targets; i++)
+   for (unsigned i = 0; i < num_targets; i++) {
       pipe_so_target_reference(&so->targets[i], targets[i]);
 
-   for (unsigned i = num_targets; i < so->num_targets; i++)
+      if (targets[i]) {
+         so->TFB_BUFFER_SIZE[i] = targets[i]->buffer_size;
+         so->TFB_BUFFER_ADDR[i].bo = etna_buffer_resource(targets[i]->buffer)->bo;
+         so->TFB_BUFFER_ADDR[i].offset = targets[i]->buffer_offset;
+         so->TFB_BUFFER_ADDR[i].flags = ETNA_RELOC_WRITE;
+      } else {
+         so->TFB_BUFFER_SIZE[i] = 0;
+         so->TFB_BUFFER_ADDR[i].bo = NULL;
+      }
+   }
+
+   for (unsigned i = num_targets; i < so->num_targets; i++) {
       pipe_so_target_reference(&so->targets[i], NULL);
+      so->TFB_BUFFER_SIZE[i] = 0;
+      so->TFB_BUFFER_ADDR[i].bo = NULL;
+   }
 
    so->num_targets = num_targets;
 
@@ -1148,7 +1162,6 @@ etna_update_hwxfb(struct etna_context *ctx)
    for (unsigned buffer = 0; buffer < 4; buffer++) {
       ctx->streamout.TFB_DESCRIPTOR_COUNT[buffer] = 0;
       ctx->streamout.TFB_BUFFER_STRIDE[buffer] = 0;
-      ctx->streamout.TFB_BUFFER_ADDR[buffer].bo = NULL;
    }
 
    if (!xfb_info || ctx->streamout.num_targets == 0)
@@ -1158,17 +1171,11 @@ etna_update_hwxfb(struct etna_context *ctx)
    assert(fs);
 
    u_foreach_bit(buffer, xfb_info->buffers_written) {
-      const struct pipe_stream_output_target *target = ctx->streamout.targets[buffer];
       const nir_xfb_buffer_info *buf_info = &xfb_info->buffers[buffer];
 
       assert(ctx->streamout.targets[buffer]);
 
-      ctx->streamout.TFB_BUFFER_SIZE[buffer] = target->buffer_size;
       ctx->streamout.TFB_BUFFER_STRIDE[buffer] = buf_info->stride;
-
-      ctx->streamout.TFB_BUFFER_ADDR[buffer].bo = etna_buffer_resource(target->buffer)->bo;
-      ctx->streamout.TFB_BUFFER_ADDR[buffer].offset = target->buffer_offset;
-      ctx->streamout.TFB_BUFFER_ADDR[buffer].flags = ETNA_RELOC_WRITE;
    }
 
    /* We need to sort our xfb outputs based on buffer and offset to ensure
