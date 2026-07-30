@@ -574,7 +574,7 @@
         "description": "nir, spirv: Pad 3-component debug printf arguments to 4 components",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "768f4782e3915a9bcbb303cf9c2edc7ff52e04b8",
         "notes": null

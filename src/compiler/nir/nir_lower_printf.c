@@ -249,7 +249,7 @@ nir_vprintf_fmt(nir_builder *b, unsigned ptr_bit_size, const char *fmt, va_list 
 
       ASSERTED nir_def *def = va_arg(ap, nir_def *);
       assert(def->bit_size / 8 == arg_size);
-      arg_size *= def->num_components;
+      arg_size *= def->num_components == 3 ? 4 : def->num_components;
 
       info.num_args++;
       info.arg_sizes = reralloc(b->shader, info.arg_sizes, unsigned,
