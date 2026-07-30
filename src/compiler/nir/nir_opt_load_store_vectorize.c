@@ -748,6 +748,34 @@ calc_alignment(struct entry *entry)
    }
 }
 
+static void
+parse_entry_offset(struct vectorize_ctx *ctx, struct entry *entry)
+{
+   entry->offset = 0;
+   entry->total_add32 = 0;
+
+   nir_intrinsic_instr *intrin = entry->intrin;
+   if (entry->info->deref_src >= 0) {
+      entry->deref = nir_src_as_deref(intrin->src[entry->info->deref_src]);
+      nir_deref_path path;
+      nir_deref_path_init(&path, entry->deref, NULL);
+      create_entry_key_from_deref(ctx, entry, &path);
+      nir_deref_path_finish(&path);
+   } else {
+      nir_def *base = entry->info->base_src >= 0 ? intrin->src[entry->info->base_src].ssa : NULL;
+      unsigned offset_scale = get_offset_scale(entry);
+      if (nir_intrinsic_has_base(intrin))
+         entry->offset = nir_intrinsic_base(intrin) * offset_scale;
+      create_entry_key_from_offset(ctx, entry, base, offset_scale);
+
+      if (base)
+         entry->offset = util_mask_sign_extend(entry->offset, base->bit_size);
+   }
+
+   if (entry->info->resource_src >= 0)
+      entry->key->resource = intrin->src[entry->info->resource_src].ssa;
+}
+
 static struct entry *
 create_entry(struct vectorize_ctx *ctx,
              const struct intrinsic_info *info,
@@ -773,25 +801,7 @@ create_entry(struct vectorize_ctx *ctx,
       entry->num_components = 1;
    }
 
-   if (entry->info->deref_src >= 0) {
-      entry->deref = nir_src_as_deref(intrin->src[entry->info->deref_src]);
-      nir_deref_path path;
-      nir_deref_path_init(&path, entry->deref, NULL);
-      create_entry_key_from_deref(ctx, entry, &path);
-      nir_deref_path_finish(&path);
-   } else {
-      nir_def *base = entry->info->base_src >= 0 ? intrin->src[entry->info->base_src].ssa : NULL;
-      unsigned offset_scale = get_offset_scale(entry);
-      if (nir_intrinsic_has_base(intrin))
-         entry->offset = nir_intrinsic_base(intrin) * offset_scale;
-      create_entry_key_from_offset(ctx, entry, base, offset_scale);
-
-      if (base)
-         entry->offset = util_mask_sign_extend(entry->offset, base->bit_size);
-   }
-
-   if (entry->info->resource_src >= 0)
-      entry->key->resource = intrin->src[entry->info->resource_src].ssa;
+   parse_entry_offset(ctx, entry);
 
    if (nir_intrinsic_has_access(intrin))
       entry->access = nir_intrinsic_access(intrin);
@@ -1885,6 +1895,12 @@ add_entries_from_predecessor(struct vectorize_ctx *ctx, nir_block *block)
       if (entry) {
          /* Ensure that the predecessor entry is always considered as first. */
          entry->index = -1;
+
+         /* We can't compare future keys with ones created from a less vectorized
+          * shader, so recreate the key.
+          */
+         parse_entry_offset(ctx, entry);
+
          list_addtail(&entry->head, &ctx->entries[i]);
       }
    }

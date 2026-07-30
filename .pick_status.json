@@ -5594,7 +5594,7 @@
         "description": "nir/load_store_vectorize: recreate entry key when adding from predecessor",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4ca7ee7bd789bba420ef4a844419977b6b78419d",
         "notes": null
