@@ -216,7 +216,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
       .EXT_subgroup_size_control = true,
-      .EXT_texel_buffer_alignment = false,
+      .EXT_texel_buffer_alignment = true,
       .EXT_tooling_info = true,
       .EXT_vertex_attribute_divisor = true,
       .EXT_zero_initialize_device_memory = true,
