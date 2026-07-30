@@ -1392,6 +1392,12 @@ is_alu(struct ir3_instruction *instr)
 }
 
 static inline bool
+is_mov(struct ir3_instruction *instr)
+{
+   return opc_cat(instr->opc) == 1;
+}
+
+static inline bool
 is_sfu(struct ir3_instruction *instr)
 {
    return (opc_cat(instr->opc) == 4) || instr->opc == OPC_GETFIBERID;

@@ -5793,6 +5793,45 @@ ir3_remove_noop_subreg_moves(struct ir3 *ir)
    return progress;
 }
 
+static void
+apply_QCTDD13523866(struct ir3_context *ctx)
+{
+   struct ir3 *ir = ctx->ir;
+   struct ir3_instruction *alu = NULL;
+
+   foreach_block (block, &ir->block_list) {
+      if (block->in_early_preamble)
+         continue;
+
+      foreach_instr (instr, &block->instr_list) {
+         if (is_mov(instr) || !is_alu(instr))
+            continue;
+         if (alu)
+            return;
+         alu = instr;
+      }
+   }
+
+   if (!alu)
+      return;
+
+   /* Only a single ALU instruction.. if it has a const src, we must
+    * apply the workaround:
+    */
+   foreach_src (reg, alu) {
+      if (reg->flags & IR3_REG_CONST) {
+         struct ir3_instruction *end = ir3_find_end(ir);
+         struct ir3_instruction *dummy =
+            ir3_build_instr(&ctx->build, OPC_MOV, 1, 1);
+         dummy->cat1.src_type = dummy->cat1.dst_type = TYPE_F32;
+         ir3_src_create(dummy, 0, 0);
+         ir3_dst_create(dummy, 0, 0);
+         ir3_instr_move_before(dummy, end);
+         break;
+      }
+   }
+}
+
 int
 ir3_compile_shader_nir(struct ir3_compiler *compiler,
                        struct ir3_shader *shader,
@@ -6202,6 +6241,9 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 
    if (ctx->compiler->gen == 4 && ctx->s->info.uses_texture_gather)
       fixup_tg4(ctx);
+
+   if (IR3_QUIRK(ctx->compiler, QCTDD13523866_dummy_alu))
+      apply_QCTDD13523866(ctx);
 
    /* We need to do legalize after (for frag shader's) the "bary.f"
     * offsets (inloc) have been assigned.

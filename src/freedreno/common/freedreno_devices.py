@@ -905,6 +905,7 @@ a7xx_gen3 = GPUProps(
         subpass_fence_cleans_resolve = True,
 
         QCTDD12766770 = True,
+        QCTDD13523866 = True,
     )
 
 a730_magic_regs = dict(

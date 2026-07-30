@@ -516,6 +516,10 @@ struct fd_dev_info {
       bool QCTDD08407086_cs_lock_unlock : 1;
       /* Whether r8g8 UBWC fast-clear work correctly. */
       bool QCTDD12766770_r8g8_fc_alignment : 1;
+      /* When there is a main shader with single ALU instruction
+       * which has CONST access, insert dummy ALU.
+       */
+      bool QCTDD13523866_dummy_alu : 1;
    } quirks;
 };
 
