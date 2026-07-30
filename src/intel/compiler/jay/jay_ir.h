@@ -74,7 +74,7 @@ jay_normalize_uflag(enum jay_file x)
 #define JAY_SENTINEL (0xffffffffu)
 
 /* Maximum number of words in an jay_def */
-#define JAY_MAX_DEF_LENGTH (128)
+#define JAY_MAX_DEF_LENGTH (256)
 
 /* Maximum number of sources/destinations other than for phis */
 #define JAY_MAX_SRCS                 (16)
