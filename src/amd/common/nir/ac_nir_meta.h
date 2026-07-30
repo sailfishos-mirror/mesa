@@ -173,6 +173,7 @@ typedef union {
       bool dst_single_thread_unaligned:1; /* only 1 thread executes, both previous fields apply */
       bool has_start_thread:1; /* whether the first few threads should be skipped, making later
                                   waves start on a 256B boundary */
+      bool addr_user_data:1;   /* pass src/dst addresses in user data SGPRs */
    };
    uint64_t key;
 } ac_cs_clear_copy_buffer_key;
@@ -183,6 +184,7 @@ typedef struct {
    uint64_t prefer_cp_dma_threshold; /* prefer CP DMA below the threshold when usable, even when slower */
    bool print_key;      /* print the shader key into stderr */
    bool fail_if_slow;   /* fail if a gfx blit is faster, set to false on compute queues */
+   bool addr_user_data; /* pass src/dst addresses in user data SGPRs */
 } ac_cs_clear_copy_buffer_options;
 
 typedef struct {
@@ -201,7 +203,8 @@ typedef struct {
 
 typedef struct {
    ac_cs_clear_copy_buffer_key shader_key;
-   uint32_t user_data[6];        /* for nir_intrinsic_load_user_data_amd */
+   uint32_t user_data[16];        /* for nir_intrinsic_load_user_data_amd */
+   unsigned num_user_data;
    unsigned num_ssbos;
    unsigned workgroup_size;
    unsigned num_threads;
