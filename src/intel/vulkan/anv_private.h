@@ -4653,7 +4653,7 @@ struct anv_cmd_graphics_state {
    uint32_t index_size;
 
    uint32_t indirect_data_stride;
-   enum u_tristate indirect_data_stride_aligned;
+   bool indirect_data_stride_set;
 
    struct vk_vertex_input_state vertex_input;
    struct vk_sample_locations_state sample_locations;
