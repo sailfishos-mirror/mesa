@@ -263,3 +263,14 @@ intel_compute_threads_group_dispatch_size(uint32_t hw_threads_in_wg)
       return 2;
    }
 }
+
+unsigned
+intel_register_blocks(const struct intel_device_info *devinfo,
+                      unsigned grf_used)
+{
+   if (INTEL_DEBUG(DEBUG_NO_VRT))
+      return (128 / 32) - 1; /* 3 => 128 regs */
+
+   const unsigned n = DIV_ROUND_UP(grf_used, 32) - 1;
+   return (n < 6 ? n : 7);
+}

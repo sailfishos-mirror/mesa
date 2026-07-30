@@ -5102,7 +5102,7 @@ iris_store_vs_state(const struct iris_screen *screen,
          vue_data->cull_distance_mask;
 #if GFX_VER >= 30
       vs.RegistersPerThread =
-         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+         intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5153,7 +5153,7 @@ iris_store_tcs_state(const struct iris_screen *screen,
 
 #if GFX_VER >= 30
       hs.RegistersPerThread =
-         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+         intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5188,7 +5188,7 @@ iris_store_tes_state(const struct iris_screen *screen,
 
 #if GFX_VER >= 30
       ds.RegistersPerThread =
-         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+         intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 
@@ -5272,7 +5272,7 @@ iris_store_gs_state(const struct iris_screen *screen,
 
 #if GFX_VER >= 30
       gs.RegistersPerThread =
-         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+         intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -5305,7 +5305,7 @@ iris_store_fs_state(const struct iris_screen *screen,
 
 #if GFX_VER >= 30
       ps.RegistersPerThread =
-         brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+         intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
 
       /* From the documentation for this packet:
@@ -5405,8 +5405,8 @@ iris_store_cs_state(const struct iris_screen *screen,
 #endif
 #if GFX_VER >= 30
       desc.RegistersPerThread =
-         brw_register_blocks(screen->devinfo,
-                             shader->brw_prog_data->grf_used);
+         intel_register_blocks(screen->devinfo,
+                               shader->brw_prog_data->grf_used);
 #endif
    }
 }
@@ -9130,7 +9130,7 @@ iris_upload_compute_walker(struct iris_context *ice,
    idd.NumberOfBarriers = cs_data->uses_barrier;
 #if GFX_VER >= 30
    idd.RegistersPerThread =
-      brw_register_blocks(devinfo, shader->brw_prog_data->grf_used);
+      intel_register_blocks(devinfo, shader->brw_prog_data->grf_used);
 #endif
 
 struct GENX(COMPUTE_WALKER_BODY) body = {

@@ -313,7 +313,7 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
       .KernelStartPointer = bin->kernel.offset,                      \
       .RegistersPerThread =                                          \
-         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
+         intel_register_blocks(devinfo, prog_data->base.grf_used),   \
    };                                                                \
 })
 #endif
@@ -331,7 +331,7 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .KernelStartPointer = shader->replay_kernel.alloc_size != 0 ?  \
          shader->replay_kernel.offset : shader->kernel.offset,       \
       .RegistersPerThread =                                          \
-         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
+         intel_register_blocks(devinfo, prog_data->base.grf_used),   \
    };                                                                \
 })
 #else
@@ -364,7 +364,7 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
       .KernelStartPointer = bin->kernel.offset,                      \
       .RegistersPerThread =                                          \
-         brw_register_blocks(devinfo, prog_data->base.grf_used),     \
+         intel_register_blocks(devinfo, prog_data->base.grf_used),   \
    };                                                                \
 })
 #else

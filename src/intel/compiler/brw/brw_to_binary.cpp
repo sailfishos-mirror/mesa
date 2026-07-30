@@ -13,6 +13,7 @@
 #include "brw_eu.h"
 #include "brw_shader.h"
 #include "brw_cfg.h"
+#include "common/intel_common.h"
 #include "dev/intel_debug.h"
 #include "util/ralloc.h"
 #include "util/mesa-blake3.h"
@@ -2555,7 +2556,7 @@ brw_bsr(const struct intel_device_info *devinfo,
    assert(simd_size == 8 || simd_size == 16);
    assert(local_arg_offset % 8 == 0);
 
-   return ((uint64_t)brw_register_blocks(devinfo, grf_used) << 60) |
+   return ((uint64_t)intel_register_blocks(devinfo, grf_used) << 60) |
           offset |
           SET_BITS(simd_size == 8, 4, 4) |
           SET_BITS(local_arg_offset / 8, 2, 0);

@@ -1570,7 +1570,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 #endif
 #if GFX_VER >= 30
          .RegistersPerThread =
-            brw_register_blocks(device->info, cs_prog_data->base.grf_used),
+            intel_register_blocks(device->info, cs_prog_data->base.grf_used),
 #endif
       },
    };

@@ -229,7 +229,7 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
 
 #if GFX_VER >= 30
       ps.RegistersPerThread =
-         brw_register_blocks(device->info, prog_data->base.grf_used);
+         intel_register_blocks(device->info, prog_data->base.grf_used);
 #endif
 
       ps.MaximumNumberofThreadsPerPSD = device->info->max_threads_per_psd - 1;
@@ -642,7 +642,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
             .NumberOfBarriers                  = prog_data->uses_barrier,
 #if GFX_VER >= 30
             .RegistersPerThread =
-               brw_register_blocks(devinfo, prog_data->base.grf_used),
+               intel_register_blocks(devinfo, prog_data->base.grf_used),
 #endif
          },
       };

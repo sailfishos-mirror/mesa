@@ -393,14 +393,3 @@ brw_write_shader_relocs(const struct brw_isa_info *isa,
       }
    }
 }
-
-unsigned
-brw_register_blocks(const struct intel_device_info *devinfo,
-                    unsigned grf_used)
-{
-   if (INTEL_DEBUG(DEBUG_NO_VRT))
-      return (BRW_MAX_GRF / 32) - 1;
-
-   const unsigned n = DIV_ROUND_UP(grf_used, 32) - 1;
-   return (n < 6 ? n : 7);
-}

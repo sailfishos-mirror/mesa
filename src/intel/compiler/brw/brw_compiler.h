@@ -514,13 +514,6 @@ struct brw_stage_prog_data {
    uint64_t source_hash;
 };
 
-/**
- * Convert a number of GRF registers used (grf_used in prog_data) into a
- * number of GRF register blocks supported by the hardware.
- */
-unsigned brw_register_blocks(const struct intel_device_info *devinfo,
-                             unsigned grf_used);
-
 enum brw_pixel_shader_computed_depth_mode {
    BRW_PSCDEPTH_OFF   = 0, /* PS does not compute depth */
    BRW_PSCDEPTH_ON    = 1, /* PS computes depth; no guarantee about value */

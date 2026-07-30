@@ -11,6 +11,7 @@
 
 #include "nir/nir_builtin_builder.h"
 
+#include "common/intel_common.h"
 #include "common/intel_compute_slm.h"
 #include "common/intel_l3_config.h"
 
@@ -1901,9 +1902,9 @@ anv_bsr(const struct intel_device_info *devinfo,
     * these bits if VRT is disabled.
     */
    uint64_t registers_per_thread =
-      devinfo->ver >= 30 ? ((uint64_t)brw_register_blocks(devinfo,
-                                                          grf_used) << 60) :
-                                                          0;
+      devinfo->ver >= 30 ? ((uint64_t)intel_register_blocks(devinfo,
+                                                            grf_used) << 60) :
+                           0;
    return registers_per_thread |
           offset |
           SET_BITS(bindless_shader_dispatch_mode, 4, 4) |

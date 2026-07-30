@@ -325,7 +325,7 @@ emit_indirect_generate_draw(struct iris_batch *batch,
 
 #if GFX_VER >= 30
       ps.RegistersPerThread =
-         brw_register_blocks(devinfo, fs_prog_data->base.grf_used);
+         intel_register_blocks(devinfo, fs_prog_data->base.grf_used);
 #endif
 
 #else

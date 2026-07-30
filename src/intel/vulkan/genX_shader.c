@@ -9,6 +9,7 @@
 #include "genxml/genX_pack.h"
 #include "genxml/genX_rt_pack.h"
 
+#include "common/intel_common.h"
 #include "common/intel_compute_slm.h"
 
 #include "nir/nir_xfb_info.h"
@@ -575,7 +576,7 @@ emit_vs_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       vs.RegistersPerThread =
-         brw_register_blocks(devinfo, vs_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, vs_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -658,7 +659,7 @@ emit_hs_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       hs.RegistersPerThread =
-         brw_register_blocks(devinfo, tcs_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, tcs_prog_data->base.base.grf_used);
 #endif
    };
 
@@ -749,7 +750,7 @@ emit_ds_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       ds.RegistersPerThread =
-         brw_register_blocks(devinfo, tes_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, tes_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -828,7 +829,7 @@ emit_gs_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       gs.RegistersPerThread =
-         brw_register_blocks(devinfo, gs_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, gs_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -916,7 +917,7 @@ emit_task_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       task.RegistersPerThread =
-         brw_register_blocks(devinfo, task_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, task_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -1016,7 +1017,7 @@ emit_mesh_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       mesh.RegistersPerThread =
-         brw_register_blocks(devinfo, mesh_prog_data->base.base.grf_used);
+         intel_register_blocks(devinfo, mesh_prog_data->base.base.grf_used);
 #endif
    }
 
@@ -1073,7 +1074,7 @@ emit_ps_shader(struct anv_batch *batch,
 
 #if GFX_VER >= 30
       ps.RegistersPerThread =
-         brw_register_blocks(devinfo, fs_prog_data->base.grf_used);
+         intel_register_blocks(devinfo, fs_prog_data->base.grf_used);
 #endif
    }
 
@@ -1195,7 +1196,7 @@ emit_cs_shader(struct anv_batch *batch,
          .NumberOfBarriers                  = cs_prog_data->uses_barrier,
 #if GFX_VER >= 30
          .RegistersPerThread                =
-            brw_register_blocks(devinfo, cs_prog_data->base.grf_used),
+            intel_register_blocks(devinfo, cs_prog_data->base.grf_used),
 #endif
       },
       .EmitInlineParameter            = shader->bind_map.inline_dwords_count > 0,

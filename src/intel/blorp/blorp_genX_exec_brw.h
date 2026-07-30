@@ -726,8 +726,8 @@ blorp_emit_vs_config(struct blorp_batch *batch,
 
 #if GFX_VER >= 30
          vs.RegistersPerThread =
-            brw_register_blocks(batch->blorp->isl_dev->info,
-                                vs_prog_data->base.base.grf_used);
+            intel_register_blocks(batch->blorp->isl_dev->info,
+                                  vs_prog_data->base.base.grf_used);
 #endif
       }
    }
@@ -930,8 +930,8 @@ blorp_emit_ps_config(struct blorp_batch *batch,
 
 #if GFX_VER >= 30
          ps.RegistersPerThread =
-            brw_register_blocks(batch->blorp->isl_dev->info,
-                                prog_data->base.grf_used);
+            intel_register_blocks(batch->blorp->isl_dev->info,
+                                  prog_data->base.grf_used);
 #endif
       }
    }
@@ -2082,7 +2082,7 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
          .NumberOfBarriers = cs_prog_data->uses_barrier,
 #if GFX_VER >= 30
          .RegistersPerThread =
-            brw_register_blocks(devinfo, prog_data->grf_used),
+            intel_register_blocks(devinfo, prog_data->grf_used),
 #endif
       },
    };
