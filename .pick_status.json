@@ -6214,7 +6214,7 @@
         "description": "pan: allow CRC with AFBC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ff34486325f134e8696eda1086d9a222a3d08b6",
         "notes": null
