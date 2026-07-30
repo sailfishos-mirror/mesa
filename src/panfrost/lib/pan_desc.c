@@ -112,6 +112,10 @@ pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
    if (!drm_is_afbc(mod))
       return true;
 
+   /* TODO: Temporarily disallow CRC on v14+ with AFBC, re-enable after fix. */
+   if (PAN_ARCH >= 14)
+      return false;
+
    /* Disallow CRC on sparse AFBC images */
    if (mod & AFBC_FORMAT_MOD_SPARSE)
       return false;
