@@ -631,6 +631,7 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
                                update_spv, sizeof(update_spv),
                                sizeof(struct update_args), build_flags);
 
+   bool barrier_needed = false;
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type != VK_INTERNAL_BUILD_TYPE_UPDATE)
@@ -638,9 +639,6 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
 
       VK_FROM_HANDLE(vk_acceleration_structure, src, state->build_info->srcAccelerationStructure);
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
-
-      struct bvh_layout bvh_layout;
-      get_bvh_layout(state, &bvh_layout);
 
       /* Just copy over data from src to dst if mismatch. */
       if (src != dst) {
@@ -652,8 +650,22 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
 
          assert(src->size == dst->size);
          anv_cmd_copy_addr(cmd_buffer, src_addr, dst_addr, src->size);
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         barrier_needed = true;
       }
+   }
+
+   if (barrier_needed)
+      vk_barrier_compute_w_to_compute_r(commandBuffer);
+
+   for (uint32_t i = 0; i < build_count; i++) {
+      struct vk_acceleration_structure_build_state *state = &states[i];
+      if (state->config.internal_type != VK_INTERNAL_BUILD_TYPE_UPDATE)
+         continue;
+
+      VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
+
+      struct bvh_layout bvh_layout;
+      get_bvh_layout(state, &bvh_layout);
 
       struct update_scratch_layout update_layout;
       anv_get_update_scratch_layout(device, state, &update_layout);
