@@ -49,10 +49,11 @@ scratch_superset(const intel_device_info *devinfo,
 }
 
 static bool
-propagate_fill_to_fill(brw_shader &s, brw_inst *inst)
+propagate_fill_to_fill(brw_shader &s, brw_inst *inst, brw_inst **tmp)
 {
    const intel_device_info *devinfo = s.devinfo;
-   bool block_progress = false;
+   unsigned num_tmp = 0;
+   bool dst_was_invalidated = false;
 
    brw_reg inst_dst = brw_lower_vgrf_to_fixed_grf(devinfo, inst, inst->dst);
 
@@ -80,7 +81,7 @@ propagate_fill_to_fill(brw_shader &s, brw_inst *inst)
             continue;
 
          if (scan_dst.equals(inst_dst)) {
-            scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_NOP);
+            tmp[num_tmp++] = scan_inst;
          } else {
             /* This can occur for fills in wider SIMD modes. In SIMD32 on Xe2,
              * a fill to r16 followed by a fill to r17 from the same location
@@ -88,7 +89,7 @@ propagate_fill_to_fill(brw_shader &s, brw_inst *inst)
              * would have the same problems of memcpy with overlapping ranges.
              *
              * FINISHME: This is fixable, but it required emitting two MOVs
-             * with hald SIMD size. It might also "just work" if scan_dst.nr <
+             * with half SIMD size. It might also "just work" if scan_dst.nr <
              * inst_dst.nr.
              */
             if (regions_overlap(scan_dst, scan_inst->size_written,
@@ -96,12 +97,8 @@ propagate_fill_to_fill(brw_shader &s, brw_inst *inst)
                break;
             }
 
-            scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_MOV);
-            scan_inst->src[0] = inst->dst;
+            tmp[num_tmp++] = scan_inst;
          }
-
-         s.shader_stats.fill_count--;
-         block_progress = true;
       } else {
          /* A spill to the same location invalidates the value. */
          if (scan_inst->opcode == SHADER_OPCODE_LSC_SPILL &&
@@ -113,12 +110,63 @@ propagate_fill_to_fill(brw_shader &s, brw_inst *inst)
          /* Write to the register being filled invalidates the value. */
          if (regions_overlap(scan_dst, scan_inst->size_written,
                              inst_dst, inst->size_written)) {
+            dst_was_invalidated = true;
             break;
          }
       }
    }
 
-   return block_progress;
+   if (num_tmp == 0)
+      return false;
+
+   s.shader_stats.fill_count -= num_tmp;
+
+   /* Process the marked copies in reverse order. This ensures that a sequence
+    * like
+    *
+    *    fill    r30, XYZ
+    *    ...
+    *    fill    r31, XYZ
+    *    ...
+    *    fill    r33, XYZ
+    *
+    * will become
+    *
+    *    fill    r30, XYZ
+    *    ...
+    *    mov     r31, r30
+    *    ...
+    *    mov     r33, r30
+    *
+    * Otherwise the last MOV would be from r31.
+    */
+   while (num_tmp-- > 0) {
+      brw_inst *scan_inst = tmp[num_tmp];
+      brw_reg scan_dst = brw_lower_vgrf_to_fixed_grf(devinfo, scan_inst,
+                                                     scan_inst->dst);
+
+      /* Only attempt to copy-from-a-copy if the original fill destination was
+       * actually invalidated by some other write.
+       */
+      if (dst_was_invalidated) {
+         /* Using &tmp[num_tmp] seems sketchy, but it is safe. The tmp array
+          * has enough space for every instruction in the block. The worst
+          * case scenario is that every instruction before (but not including)
+          * scan_inst is in tmp and every instruction after (but not
+          * including) scan_inst will be added.
+          */
+         propagate_fill_to_fill(s, scan_inst, &tmp[num_tmp]);
+      }
+
+      if (scan_dst.equals(inst_dst)) {
+         scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_NOP);
+      } else {
+         scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_MOV);
+         scan_inst->src[0] = inst->dst;
+      }
+   }
+
+   return true;
 }
 
 bool
@@ -131,8 +179,17 @@ brw_opt_fill_and_spill(brw_shader &s)
 
    std::vector<brw_inst *> tracked_spills, tracked_fills;
 
+   brw_inst **tmp = NULL;
+   unsigned tmp_size = 0;
+
    foreach_block(block, s.cfg) {
       bool block_progress = false;
+
+      if (tmp_size < block->num_instructions) {
+         tmp_size = block->num_instructions;
+         delete[] tmp;
+         tmp = new brw_inst *[tmp_size];
+      }
 
       foreach_inst_in_block(brw_inst, inst, block) {
          if (inst->opcode != SHADER_OPCODE_LSC_SPILL)
@@ -194,6 +251,9 @@ brw_opt_fill_and_spill(brw_shader &s)
                if (reg_count > max_reg_count)
                   continue;
 
+               /* Note: block_progress is unconditionally set below. */
+               propagate_fill_to_fill(s, scan_inst, tmp);
+
                if (scan_inst->dst.equals(inst->src[SPILL_SRC_PAYLOAD2])) {
                   scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_NOP);
                } else {
@@ -235,7 +295,7 @@ brw_opt_fill_and_spill(brw_shader &s)
 
          tracked_fills.push_back(inst);
 
-         if (propagate_fill_to_fill(s, inst))
+         if (propagate_fill_to_fill(s, inst, tmp))
             block_progress = true;
       }
 
@@ -248,6 +308,9 @@ brw_opt_fill_and_spill(brw_shader &s)
          progress = true;
       }
    }
+
+   delete[] tmp;
+   tmp = NULL;
 
    /* Remove any left-over spill that has no fills.  This can
     * happen when RA decides to spill a value but the value remains
