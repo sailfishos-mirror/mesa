@@ -854,7 +854,10 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
          fields[i].name = "";
          fields[i].offset = next_offset;
 
-         int size = (int) arg->def->bit_size * arg->def->num_components / 8;
+         unsigned num_components =
+            arg->def->num_components == 3 ? 4 : arg->def->num_components;
+
+         int size = (int) arg->def->bit_size * num_components / 8;
          info->arg_sizes[i] = size;
 
          /* Match u_printf_impl, which 4-aligns each argument as it reads. */
