@@ -1834,7 +1834,7 @@
         "description": "kraid: Use nir_shader_compiler_options directly",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a84cd8930c8947981b00e99e9f406c71df21dacb",
         "notes": null
