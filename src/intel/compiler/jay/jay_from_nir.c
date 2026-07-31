@@ -1455,6 +1455,7 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    bool volatile_access = access & ACCESS_VOLATILE;
    bool coherent_access = access & ACCESS_COHERENT;
+   bool non_temporal_access = access & ACCESS_NON_TEMPORAL;
 
    bool skip_helpers = data_src || (access & ACCESS_SKIP_HELPERS);
    skip_helpers &= !((access & ACCESS_INCLUDE_HELPERS) || scratch);
@@ -1494,12 +1495,21 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                 sfid == GEN_SFID_TGM &&
                 mesa_shader_stage_is_rt(b->shader->stage);
 
+   /* If we don't have any other reason to skip L1, and access is
+    * non-temporal, let's use L1s.
+    */
+   bool streaming_l1 = non_temporal_access && !bypass_l1;
+   bypass_l3 |= streaming_l1;
+
    unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
    unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
    unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
 
    if (bypass_l3) {
-      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
+      if (streaming_l1)
+         store_cache_mode = LSC_CACHE(devinfo, STORE, L1S_L3UC);
+      else
+         store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
       load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
    } else if (bypass_l1) {
       store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
