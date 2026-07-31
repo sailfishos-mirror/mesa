@@ -4450,6 +4450,58 @@ impl DisplayOp for OpTexSingle {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpV2F32ToV2F16 {
+    #[dst_type(V2F16)]
+    pub dst: Dst,
+    #[src_type(F32)]
+    pub srcs: [Src; 2],
+    pub round: FRound,
+    pub clamp: FClamp,
+}
+
+impl DisplayOp for OpV2F32ToV2F16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "V2F32_TO_V2F16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {}",
+            self.round,
+            self.clamp,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+impl Foldable for OpV2F32ToV2F16 {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let srcs = [f.get_src(&self.srcs[0]), f.get_src(&self.srcs[1])];
+        let mut dst = 0_u64;
+
+        for i in 0..2 {
+            let c = f32::from_bits(srcs[i] as u32);
+            let c = self.clamp.fold(c);
+
+            let c = match self.round {
+                FRound::NearestEven => F16::from_f32_rtne(c),
+                FRound::Up => F16::from_f32_ru(c),
+                FRound::Down => F16::from_f32_rd(c),
+                FRound::TowardsZero => F16::from_f32_rtz(c),
+                FRound::NearestValue => panic!("Invalid for float conv"),
+            };
+
+            dst |= u64::from(c.to_bits()) << (i * 16);
+        }
+
+        f.set_dst(&self.dst, dst);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpWMask {
     #[dst_type(I32)]
     pub dst: Dst,
@@ -4604,6 +4656,7 @@ pub enum Op {
     TexGather(Box<OpTexGather>),
     TexGradient(Box<OpTexGradient>),
     TexSingle(Box<OpTexSingle>),
+    V2F32ToV2F16(Box<OpV2F32ToV2F16>),
     WMask(Box<OpWMask>),
     ZSEmit(Box<OpZSEmit>),
 }

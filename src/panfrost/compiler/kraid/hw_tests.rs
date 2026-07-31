@@ -1203,6 +1203,13 @@ fn test_op_f16_to_f32() {
 
 #[test]
 fn test_op_f32_to_f16() {
+    let run = RunSingleton::get();
+
+    // F32_TO_F16 only available from v11
+    if run.model.arch() < 11 {
+        return;
+    }
+
     const ROUND_MODES: &[FRound] = &[
         FRound::NearestEven,
         FRound::Up,

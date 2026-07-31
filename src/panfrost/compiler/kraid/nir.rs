@@ -214,8 +214,11 @@ impl<'a> ShaderFromNir<'a> {
                 Src::from(src_vec[usize::from(w)]).swizzle(swizzle)
             }
             32 => {
-                assert_eq!(swizzle.len(), 1);
-                src_vec[usize::from(swizzle[0])].into()
+                // We can have more than one source component in the case of
+                // nir_op_f2f16 where we support vec2.
+                let vec: SSARef =
+                    swizzle.iter().map(|c| src_vec[usize::from(*c)]).collect();
+                vec.into()
             }
             64 => {
                 assert_eq!(swizzle.len(), 1);
@@ -628,18 +631,41 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_op_f2f16 | nir_op_f2f16_rtz | nir_op_f2f16_rtne => {
                 assert!(alu.get_src(0).bit_size() == 32);
-                assert!(alu.def.num_components == 1);
-                b.push_op(OpF32ToF16 {
-                    dst: dst.into(),
-                    src: srcs(0),
-                    round: match alu.op {
-                        nir_op_f2f16 => self.fround(16),
-                        nir_op_f2f16_rtne => FRound::NearestEven,
-                        nir_op_f2f16_rtz => FRound::TowardsZero,
-                        _ => panic!("Invalid f2f16 op"),
-                    },
-                    clamp: FClamp::None,
-                });
+                let round = match alu.op {
+                    nir_op_f2f16 => self.fround(16),
+                    nir_op_f2f16_rtne => FRound::NearestEven,
+                    nir_op_f2f16_rtz => FRound::TowardsZero,
+                    _ => panic!("Invalid f2f16 op"),
+                };
+                match alu.def.num_components {
+                    1 => {
+                        if self.model.arch() > 10 {
+                            b.push_op(OpF32ToF16 {
+                                dst: dst.into(),
+                                src: srcs(0),
+                                round,
+                                clamp: FClamp::None,
+                            });
+                        } else {
+                            b.push_op(OpV2F32ToV2F16 {
+                                dst: dst.into(),
+                                srcs: [srcs(0).word(0), srcs(0).word(0)],
+                                round,
+                                clamp: FClamp::None,
+                            });
+                        }
+                    }
+                    2 => {
+                        assert!(self.model.arch() <= 10);
+                        b.push_op(OpV2F32ToV2F16 {
+                            dst: dst.into(),
+                            srcs: [srcs(0).word(0), srcs(0).word(1)],
+                            round,
+                            clamp: FClamp::None,
+                        });
+                    }
+                    _ => panic!("Unspported nir_op_f2f16 vector size"),
+                }
             }
             nir_op_f2f32 => {
                 assert!(alu.get_src(0).bit_size() == 16);
