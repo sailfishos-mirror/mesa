@@ -167,12 +167,19 @@ impl FAUSlot {
 ///
 ///  4. Instructions executed within the execution engine limit the number of
 ///     FAU indices they can encode (1 in v13, 2 in v14)
-struct LegalizeFau<'a> {
+struct LegalizeFAU<'a> {
     fau_model: &'a FAUModel,
     slots: SmallVec<FAUSlot>,
 }
 
-impl LegalizeFau<'_> {
+impl LegalizeFAU<'_> {
+    fn new<'a>(fau_model: &'a FAUModel) -> LegalizeFAU<'a> {
+        LegalizeFAU {
+            fau_model,
+            slots: Default::default(),
+        }
+    }
+
     fn extract_srcs(&mut self, op: &Op) {
         for src in op.srcs() {
             let SrcRef::FAU(fau) = src.src_ref else {
@@ -345,10 +352,7 @@ fn legalize_fau_srcs(
     fau_model: &FAUModel,
     op: &mut Op,
 ) {
-    let mut ctx = LegalizeFau {
-        fau_model,
-        slots: SmallVec::new(),
-    };
+    let mut ctx = LegalizeFAU::new(fau_model);
 
     ctx.extract_srcs(op);
     if ctx.slots.is_empty() {
