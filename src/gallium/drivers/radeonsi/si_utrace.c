@@ -42,7 +42,7 @@ static uint64_t si_utrace_read_ts(struct u_trace_context *utctx, void *timestamp
    if (*ts == U_TRACE_NO_TIMESTAMP)
       return U_TRACE_NO_TIMESTAMP;
 
-   return (1000000 * *ts) / ctx->screen->info.clock_crystal_freq;
+   return *ts * 1000000.0 / ctx->screen->info.clock_crystal_freq;
 }
 
 static void si_utrace_delete_flush_data(struct u_trace_context *utctx, void *flush_data)
