@@ -2354,7 +2354,7 @@
         "description": "pan/compiler/stats: Fix ALU not being used in instruction bounds",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "320667060c5a6c2cd78580020d8c171f7b234df9",
         "notes": null
