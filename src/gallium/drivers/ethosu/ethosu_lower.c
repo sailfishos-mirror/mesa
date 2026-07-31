@@ -1128,16 +1128,14 @@ register_tensors(struct ethosu_subgraph *subgraph,
          if (!ptensor->is_external_output &&
              !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16)) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
-            if (tensor->shape.depth % 16 == 0) {
-               const struct pipe_ml_operation *consumer =
-                  ethosu_find_first_consumer(poperations, count, ptensor->index);
-               if (consumer && consumer->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
-                   !ethosu_fc_needs_flatten(poperation) &&
-                   !ethosu_fc_uses_batched_shape(subgraph, poperation) &&
-                   !ethosu_has_non_nhcwb_fc_consumer(subgraph, poperations, count,
-                                                     ptensor->index))
-                  tensor->layout = ETHOSU_LAYOUT_NHCWB16;
-            }
+            const struct pipe_ml_operation *consumer =
+               ethosu_find_first_consumer(poperations, count, ptensor->index);
+            if (consumer && consumer->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
+                !ethosu_fc_needs_flatten(poperation) &&
+                !ethosu_fc_uses_batched_shape(subgraph, poperation) &&
+                !ethosu_has_non_nhcwb_fc_consumer(subgraph, poperations, count,
+                                                  ptensor->index))
+               tensor->layout = ETHOSU_LAYOUT_NHCWB16;
          }
       }
    }
