@@ -230,10 +230,8 @@ ethosu_add_constant(struct ethosu_subgraph *subgraph,
                     const void *data,
                     unsigned size)
 {
-   unsigned address = subgraph->coefs_used;
+   unsigned address = ethosu_allocate_coefs(subgraph, size);
 
-   subgraph->coefs_used += ALIGN_POT(size, 16);
-   subgraph->coefs = realloc(subgraph->coefs, subgraph->coefs_used);
    memcpy(subgraph->coefs + address, data, size);
 
    return address;
