@@ -58,10 +58,6 @@ spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
 #Expected CL error: CL_LINK_PROGRAM_FAILURE -17
 api@cllinkprogram,Fail
 
-# https://gitlab.freedesktop.org/mesa/mesa/-/issues/8408
-program@execute@global-offset,Fail
-program@execute@global-offset@3d- input dependent,Fail
-
 #
 ## freedreno issues:
 #

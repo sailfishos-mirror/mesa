@@ -299,15 +299,10 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float16,
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float2,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float4,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,Fail
-program@execute@global-offset,Fail
-program@execute@global-offset@3d- input dependent,Fail
 program@execute@vector-conversion,Fail
 
 # OpenCL-CTS quick profile
 Images (clFillImage max size)@1D,Fail
-# Caused by the outdated SPIR-V LLVM Translator in the test image
-Basic@work_item_functions_out_of_range,Fail
-Basic,Crash
 Images (clCopyImage max size),Fail
 Images (clCopyImage max size)@2D,Fail
 Images (clCopyImage max size)@2Darrayto2D,Fail
@@ -316,6 +311,8 @@ Images (clCopyImage max size)@2Dto2Darray,Fail
 Images (clCopyImage max size)@2Dto3D,Fail
 Images (clCopyImage max size)@3Dto2D,Fail
 Images (clCopyImage max size)@3Dto2Darray,Fail
-Math@ilogb,Fail
-Math,Crash
-Relationals,Crash
+
+# Failing after updating SPIR-V LLVM Translator in the test image
+Basic@get_enqueued_local_size,Fail
+Basic@get_global_linear_id,Fail
+Basic@get_local_linear_id,Fail

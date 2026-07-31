@@ -19,10 +19,10 @@ include:
   - .gitlab-ci/conditional-build-image-tags.yml
 
 variables:
-  DEBIAN_BUILD_BASE_TAG: "20260731-mesalibclc2"
+  DEBIAN_BUILD_BASE_TAG: "20260805-spirv-llvm"
   DEBIAN_BUILD_TAG: "20260621-sdl3"
 
-  DEBIAN_TEST_BASE_TAG: "20260805-mesalibclc"
+  DEBIAN_TEST_BASE_TAG: "20260805-spirv-llvm"
   DEBIAN_TEST_ANDROID_TAG: "20260729-angle-c0"
   DEBIAN_TEST_GL_TAG: "20260804-piglit-65"
   DEBIAN_TEST_VIDEO_TAG: "20260709-flustergst"
