@@ -2135,9 +2135,10 @@ impl Foldable for OpIDpAdd {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
-    S8, U8, V2S8, V2U8, V4S8, V4U8,
-    S16, U16, V2S16, V2U16,
-    S32, U32, S64, U64,
+    I8, S8, U8, V2I8, V2S8, V2U8, V4I8, V4S8, V4U8,
+    I16, S16, U16, V2I16, V2S16, V2U16,
+    // I64 doesn't exist because 64-bit multiply requires widening
+    I32, S32, U32, S64, U64,
 ])]
 pub struct OpIMul {
     pub dst: Dst,

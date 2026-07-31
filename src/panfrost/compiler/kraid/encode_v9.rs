@@ -1798,6 +1798,14 @@ impl V9Instr for OpIDpAdd {
 
 impl V9Instr for OpIMul {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        // For 32-bit and smaller types, we have the usual signless integer
+        // rules where it's fine as long as we don't have source modifiers or
+        // widens.  However, since 64-bit multiplies require a word widen, it
+        // doesn't make any sense to claim to support them.
+        if self.dst_type == DataType::I64 {
+            return None;
+        }
+
         V9InstrInfo::from_isa(
             Imul::get_info(self.dst_type.i_as_u(), arch),
             src_map! {
@@ -1808,8 +1816,9 @@ impl V9Instr for OpIMul {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_ne!(self.dst_type, DataType::I64);
         e.encode(Imul {
-            variant: self.dst_type.try_into().unwrap(),
+            variant: self.dst_type.i_as_u().try_into().unwrap(),
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.srcs[0]),
             src1: op_encode_src(self, &self.srcs[1]),
