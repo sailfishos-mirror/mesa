@@ -308,7 +308,6 @@ CHIPSET(0xd740, nvl_s_hx_ul, "NVL-S", "Intel(R) Graphics", FORCE_PROBE)
 CHIPSET(0xd741, nvl_u_h, "NVL-U", "Intel(R) Graphics", FORCE_PROBE)
 CHIPSET(0xd742, nvl_u_h, "NVL-H", "Intel(R) Graphics", FORCE_PROBE)
 CHIPSET(0xd743, nvl_s_hx_ul, "NVL-HX", "Intel(R) Graphics", FORCE_PROBE)
-CHIPSET(0xd744, nvl_s_hx_ul, "NVL-UL", "Intel(R) Graphics", FORCE_PROBE)
 CHIPSET(0xd745, nvl_s_hx_ul, "NVL-HX", "Intel(R) Graphics", FORCE_PROBE)
 
 CHIPSET(0xd750, nvl_p, "NVL-P", "Intel(R) Graphics", FORCE_PROBE)
