@@ -177,6 +177,7 @@ debian-build-x86_64:
   extends:
     - .meson-build-for-tests
     - .use-debian/x86_64_build
+    - .build-run-long  # but it really shouldn't! tracked in mesa#12544
   variables:
     UNWIND: "enabled"
     C_ARGS: >
