@@ -1862,6 +1862,10 @@ anv_cmd_buffer_bind_shaders(struct vk_command_buffer *vk_cmd_buffer,
    struct anv_cmd_buffer *cmd_buffer =
       container_of(vk_cmd_buffer, struct anv_cmd_buffer, vk);
 
+   /* Make sure cmd_buffer->batch.relocs was intialized */
+   if (list_is_empty(&cmd_buffer->batch_bos))
+      anv_batch_emit_ensure_space(&cmd_buffer->batch, 4);
+
    /* Append any scratch surface used by the shaders */
    for (uint32_t i = 0; i < stage_count; i++) {
       if (shaders[i] != NULL) {
