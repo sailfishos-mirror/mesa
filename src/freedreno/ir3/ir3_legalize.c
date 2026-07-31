@@ -874,7 +874,12 @@ legalize_block(struct ir3_legalize_ctx *ctx, struct ir3_block *block)
              * results before releasing the varying memory.
              */
             struct ir3_instruction *last_input = n;
-            if (n->opc == OPC_LDLV) {
+            bool need_fake_bary_f = n->opc == OPC_LDLV;
+            if ((n->opc == OPC_FLAT_B) &&
+                IR3_QUIRK(ctx->compiler, QCTDD10204462_flat_ei))
+               need_fake_bary_f = true;
+
+            if (need_fake_bary_f) {
                struct ir3_instruction *baryf;
 
                /* (ss)bary.f (ei)r63.x, 0, r0.x */

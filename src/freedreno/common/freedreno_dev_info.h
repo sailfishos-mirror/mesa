@@ -514,6 +514,8 @@ struct fd_dev_info {
    struct {
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
+      /* Need fake bary.f for (ei) if last input is flat: */
+      bool QCTDD10204462_flat_ei : 1;
       /* Do not use a0 in early preamble. */
       bool QCTDD10789828_no_a0_ep : 1;
       /* Whether r8g8 UBWC fast-clear work correctly. */
