@@ -741,7 +741,8 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
           !flushed_cp_after_init_update_scratch)
          vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      vk_build_stage(anv_update_as, commandBuffer, device, meta, args, states, build_count, 0, true);
+      vk_build_stage(anv_update_as, commandBuffer, device, meta, args, states, build_count,
+                     VK_BUILD_FLAG_HAS_QUADS, true);
    }
 
    if (!has_build)
