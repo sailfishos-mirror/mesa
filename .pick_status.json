@@ -1454,7 +1454,7 @@
         "description": "ac/nir/clear_copy_buffer: Fix last thread byte count",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
