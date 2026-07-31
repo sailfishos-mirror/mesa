@@ -1961,7 +1961,10 @@ impl PerCompFoldable for OpIAdd {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(src_type in [S16, U16, V2S16, V2U16, S32, U32])]
+#[variants(src_type in [
+    S8, U8, V2S8, V2U8, V4S8, V4U8,
+    S16, U16, V2S16, V2U16, S32, U32
+])]
 pub struct OpICmp {
     pub dst: Dst,
 
