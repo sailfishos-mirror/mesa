@@ -134,15 +134,27 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
    case nir_op_ball_fequal2:
    case nir_op_ball_fequal3:
    case nir_op_ball_fequal4:
+   case nir_op_ball_fequal5:
+   case nir_op_ball_fequal8:
+   case nir_op_ball_fequal16:
    case nir_op_bany_fnequal2:
    case nir_op_bany_fnequal3:
    case nir_op_bany_fnequal4:
+   case nir_op_bany_fnequal5:
+   case nir_op_bany_fnequal8:
+   case nir_op_bany_fnequal16:
    case nir_op_ball_iequal2:
    case nir_op_ball_iequal3:
    case nir_op_ball_iequal4:
+   case nir_op_ball_iequal5:
+   case nir_op_ball_iequal8:
+   case nir_op_ball_iequal16:
    case nir_op_bany_inequal2:
    case nir_op_bany_inequal3:
    case nir_op_bany_inequal4:
+   case nir_op_bany_inequal5:
+   case nir_op_bany_inequal8:
+   case nir_op_bany_inequal16:
       return 1;
    case nir_op_pack_uvec2_to_uint:
    case nir_op_pack_uvec4_to_uint:
