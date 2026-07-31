@@ -91,10 +91,23 @@ typedef struct {
    struct hash_table *errors;
 } validate_state;
 
+static bool interactive;
+
+#if !DETECT_OS_WINDOWS
+static void
+init_interactive(void)
+{
+   interactive = isatty(STDERR_FILENO);
+}
+#endif
+
 static void
 log_error(validate_state *state, const char *cond, const char *file, int line)
 {
    const void *obj;
+
+   const char *color_red   = interactive ? "\x1b[0;1;31m" : "";
+   const char *color_reset = interactive ? "\x1b[0m"      : "";
 
    if (state->instr)
       obj = state->instr;
@@ -103,8 +116,8 @@ log_error(validate_state *state, const char *cond, const char *file, int line)
    else
       obj = cond;
 
-   char *msg = ralloc_asprintf(state->errors, "error: %s (%s:%d)",
-                               cond, file, line);
+   char *msg = ralloc_asprintf(state->errors, "%serror: %s (%s:%d)%s",
+                               color_red, cond, file, line, color_reset);
 
    _mesa_hash_table_insert(state->errors, obj, msg);
 }
@@ -2376,6 +2389,12 @@ validate_options(const nir_shader_compiler_options *options, validate_state *sta
 static void
 init_validate_state(validate_state *state)
 {
+   static struct util_once_flag once = UTIL_ONCE_FLAG_INIT;
+
+#if !DETECT_OS_WINDOWS
+   util_call_once(&once, init_interactive);
+#endif
+
    state->mem_ctx = ralloc_context(NULL);
    state->ssa_defs_found = NULL;
    state->blocks = _mesa_pointer_set_create(state->mem_ctx);
