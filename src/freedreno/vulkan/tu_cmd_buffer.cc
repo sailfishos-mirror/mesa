@@ -6181,6 +6181,7 @@ tu_render_pass_state_merge(struct tu_render_pass_state *dst,
    dst->has_zpass_done_sample_count_write_in_rp |= src->has_zpass_done_sample_count_write_in_rp;
    dst->disable_gmem |= src->disable_gmem;
    dst->sysmem_single_prim_mode |= src->sysmem_single_prim_mode;
+   dst->lrz_disable_for_next_rp |= src->lrz_disable_for_next_rp;
    dst->draw_cs_writes_to_cond_pred |= src->draw_cs_writes_to_cond_pred;
    dst->shared_viewport |= src->shared_viewport;
 
@@ -7393,6 +7394,7 @@ tu_CmdSetRenderingInputAttachmentIndicesKHR(
 }
 TU_GENX(tu_CmdSetRenderingInputAttachmentIndicesKHR);
 
+template <chip CHIP>
 static void
 tu_next_subpass_lrz(struct tu_cmd_buffer *cmd,
                     const struct tu_subpass *subpass,
@@ -7400,10 +7402,11 @@ tu_next_subpass_lrz(struct tu_cmd_buffer *cmd,
 {
    /* If custom resolve writes depth LRZ shouldn't be used for it. */
    if (new_subpass->custom_resolve) {
-      if (new_subpass->depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED)
-         cmd->state.lrz.valid = false;
-
-      cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
+      if (new_subpass->depth_stencil_attachment.attachment != VK_ATTACHMENT_UNUSED) {
+         tu_lrz_disable_during_renderpass<CHIP>(cmd, "Custom resolve writes depth");
+      } else {
+         cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
+      }
       return;
    }
 
@@ -7413,8 +7416,7 @@ tu_next_subpass_lrz(struct tu_cmd_buffer *cmd,
     * so if they become active again, we reuse its old state.
     */
    if (new_subpass->depth_stencil_attachment.attachment != subpass->depth_stencil_attachment.attachment) {
-      cmd->state.lrz.valid = false;
-      cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
+      tu_lrz_disable_during_renderpass<CHIP>(cmd, "Depth/stencil attachment changed between subpasses");
    }
 }
 
@@ -7437,7 +7439,7 @@ tu_CmdNextSubpass2(VkCommandBuffer commandBuffer,
    const struct tu_subpass *subpass = cmd->state.subpass++;
    const struct tu_subpass *new_subpass = cmd->state.subpass;
 
-   tu_next_subpass_lrz(cmd, subpass, new_subpass);
+   tu_next_subpass_lrz<CHIP>(cmd, subpass, new_subpass);
 
    if (cmd->state.tiling->possible) {
       if (cmd->state.pass->has_fdm)
@@ -7492,7 +7494,7 @@ tu_CmdBeginCustomResolveEXT(VkCommandBuffer commandBuffer,
    const struct tu_subpass *new_subpass = &cmd->dynamic_subpasses[1];
    cmd->state.subpass = new_subpass;
 
-   tu_next_subpass_lrz(cmd, subpass, new_subpass);
+   tu_next_subpass_lrz<CHIP>(cmd, subpass, new_subpass);
 
    tu_fill_render_pass_state(&cmd->state.vk_rp,
                              &cmd->state.vk_mv,

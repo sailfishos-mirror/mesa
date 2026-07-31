@@ -314,6 +314,7 @@ struct tu_render_pass_state
    bool has_zpass_done_sample_count_write_in_rp;
    bool disable_gmem;
    bool sysmem_single_prim_mode;
+   bool lrz_disable_for_next_rp;
 
    /* This is set if, at any point in the render pass, we were not able to
     * duplicate the viewport per-view due to the user using multiple viewports
