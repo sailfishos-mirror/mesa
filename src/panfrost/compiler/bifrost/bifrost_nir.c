@@ -46,8 +46,8 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
       case nir_op_fexp2:
       case nir_op_flog2:
       case nir_op_fpow:
-         // Kraid can handle 32-bit fexp/flog/fpow
-         if (opts->use_kraid)
+         // Kraid can handle 16-bit fexp/flog/fpow on v12+
+         if (opts->use_kraid && pan_arch(opts->gpu_id) >= 12)
             return 0;
          FALLTHROUGH;
       case nir_op_fsin:
