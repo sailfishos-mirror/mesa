@@ -2044,7 +2044,7 @@
         "description": "tu: Fix memory leak of FDM patch-points",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d4ad50752ffbdf9eadd6a8bb2aa88859040b275e",
         "notes": null
