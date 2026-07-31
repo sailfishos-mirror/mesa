@@ -718,6 +718,7 @@ etna_vertex_elements_state_create(struct pipe_context *pctx,
 
       elements = &dummy_element;
       num_elements = 1;
+      cs->dummy_element = true;
    }
 
    cs->num_elements = num_elements;
