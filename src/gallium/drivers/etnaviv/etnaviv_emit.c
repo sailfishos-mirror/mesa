@@ -112,8 +112,10 @@ etna_reserve_emit_space(struct etna_context *ctx)
    size += ctx->shader.fs->uniforms.count * 2;
 
    /* shader */
-   size += ctx->shader_state.vs_inst_mem_size + 1;
-   size += ctx->shader_state.ps_inst_mem_size + 1;
+   if (!ctx->shader_state.VS_INST_ADDR.bo)
+      size += ctx->shader_state.vs_inst_mem_size + 1;
+   if (!ctx->shader_state.PS_INST_ADDR.bo)
+      size += ctx->shader_state.ps_inst_mem_size + 1;
 
    /* DRAW_INDEXED_PRIMITIVES command */
    size += 6;
