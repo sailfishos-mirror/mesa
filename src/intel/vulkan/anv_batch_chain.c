@@ -70,6 +70,7 @@ anv_reloc_list_init_clone(struct anv_reloc_list *list,
                           const struct anv_reloc_list *other_list)
 {
    list->dep_words = other_list->dep_words;
+   list->uses_relocs = other_list->uses_relocs;
 
    if (list->dep_words > 0) {
       list->deps =
