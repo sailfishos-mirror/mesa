@@ -212,14 +212,6 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
    return true;
 }
 
-static inline void clear_draw_flag(struct etna_context **ctx_ptr) {
-   (*ctx_ptr)->in_draw_vbo = false;
-}
-
-#define AUTO_CLEAR_DRAW_FLAG(ctx) \
-   struct etna_context *_draw_cleanup __attribute__((cleanup(clear_draw_flag))) = (ctx); \
-   (ctx)->in_draw_vbo = true
-
 static void
 etna_reset_gpu_state(struct etna_context *ctx)
 {
@@ -335,8 +327,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
    if (!indirect && (!draws[0].count || !info->instance_count))
       return;
-
-   AUTO_CLEAR_DRAW_FLAG(etna_context(pctx));
 
    struct etna_context *ctx = etna_context(pctx);
    struct etna_screen *screen = ctx->screen;
@@ -690,13 +680,8 @@ static void
 etna_context_force_flush(struct etna_cmd_stream *stream, void *priv)
 {
    struct pipe_context *pctx = priv;
-   struct etna_context *ctx = etna_context(pctx);
 
    etna_flush(pctx, NULL, 0, true);
-
-   /* update derived states as the context is now fully dirty */
-   if (ctx->in_draw_vbo)
-      etna_state_update(ctx);
 }
 
 void

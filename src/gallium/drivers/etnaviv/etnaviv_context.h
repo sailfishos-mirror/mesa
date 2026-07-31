@@ -251,7 +251,6 @@ struct etna_context {
    bool is_noop;
 
    bool compute_only;
-   bool in_draw_vbo;
    bool in_transfer_blit;
 
    /* Set by etna_copy_resource/etna_copy_resource_box when the caller
