@@ -416,6 +416,7 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
     * aside from the draw state updates that have been reserved.
     */
    etna_reserve_emit_space(ctx);
+   ETNA_CONTEXT_ATOMIC_EMIT(ctx);
 
    if (ctx->needs_gpu_state_reset)
       etna_reset_gpu_state(ctx);
@@ -680,6 +681,8 @@ static void
 etna_context_force_flush(struct etna_cmd_stream *stream, void *priv)
 {
    struct pipe_context *pctx = priv;
+
+   assert(!etna_context(pctx)->in_atomic_emit);
 
    etna_flush(pctx, NULL, 0, true);
 }
