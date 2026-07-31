@@ -1974,7 +1974,7 @@
         "description": "nir/opt_varyings: fix incorrect counting of emit_vertex within a block",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca137e545c10a9f4bf0f24cad36048bab261fc50",
         "notes": null
