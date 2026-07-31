@@ -443,6 +443,8 @@ static void
 kk_lower_fs(struct kk_device *dev, nir_shader *nir,
             const struct vk_graphics_pipeline_state *state)
 {
+   struct kk_physical_device *pdev = kk_device_physical(dev);
+
    nir->info.fs.uses_sample_shading |=
       state->ms && state->ms->sample_shading_enable;
 
@@ -487,7 +489,7 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
        state->ms->sample_mask != UINT16_MAX) {
 
       /* KK_WORKAROUND_7 */
-      if (!(dev->disabled_workarounds & BITFIELD64_BIT(7))) {
+      if (!(pdev->settings.disabled_workarounds & BITFIELD64_BIT(7))) {
          if (!nir->info.fs.early_fragment_tests) {
             nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
             nir_builder b = nir_builder_at(nir_after_impl(entrypoint));
@@ -526,10 +528,10 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
    }
 
    /* KK_WORKAROUND_5 */
-   if (!(dev->disabled_workarounds & BITFIELD64_BIT(5)))
+   if (!(pdev->settings.disabled_workarounds & BITFIELD64_BIT(5)))
       NIR_PASS(_, nir, msl_nir_fake_guard_for_discards);
    /* KK_WORKAROUND_4 */
-   if (!(dev->disabled_workarounds & BITFIELD64_BIT(4))) {
+   if (!(pdev->settings.disabled_workarounds & BITFIELD64_BIT(4))) {
       NIR_PASS(_, nir, nir_lower_helper_writes, true);
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
    }
@@ -543,6 +545,8 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
              const struct vk_graphics_pipeline_state *state,
              enum kk_feature_key features)
 {
+   struct kk_physical_device *pdev = kk_device_physical(dev);
+
    if (nir->info.io_lowered)
       return;
 
@@ -660,7 +664,7 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
     * lowers all image intrinsics to be bindless */
    if (rs->images ==
           VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2 &&
-       !(dev->disabled_workarounds & BITFIELD64_BIT(16)))
+       !(pdev->settings.disabled_workarounds & BITFIELD64_BIT(16)))
       NIR_PASS(_, nir, msl_lower_robustness2_images);
 
    NIR_PASS(_, nir, kk_nir_lower_textures);
@@ -839,6 +843,7 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
                   struct kk_shader **shader_out)
 {
    assert(nir->info.io_lowered && "nir must have lowered io");
+   struct kk_physical_device *pdev = kk_device_physical(dev);
 
    struct kk_shader *shader;
    VkResult result = VK_SUCCESS;
@@ -907,7 +912,7 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
 
    struct nir_to_msl_options translate_options = {
       .mem_ctx = NULL,
-      .disabled_workarounds = dev->disabled_workarounds,
+      .disabled_workarounds = pdev->settings.disabled_workarounds,
    };
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       for (uint32_t i = 0u; i < MAX_DRAW_BUFFERS; ++i) {
@@ -1378,6 +1383,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
 {
    VkResult result = VK_SUCCESS;
    struct kk_device *dev = container_of(device, struct kk_device, vk);
+   struct kk_physical_device *pdev = kk_device_physical(dev);
 
    enum kk_feature_key features = kk_make_feature_key(enabled_features);
 
@@ -1408,7 +1414,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
       bool emulated_stage = tess && (nir->info.stage == MESA_SHADER_VERTEX ||
                                      nir->info.stage == MESA_SHADER_TESS_CTRL);
 
-      msl_preprocess_nir_workarounds(nir, dev->disabled_workarounds);
+      msl_preprocess_nir_workarounds(nir, pdev->settings.disabled_workarounds);
       kk_lower_nir(dev, nir, emulated_stage, info->robustness,
                    info->set_layout_count, info->set_layouts, state, features);
 

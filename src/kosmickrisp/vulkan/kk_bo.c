@@ -7,6 +7,7 @@
 #include "kk_bo.h"
 
 #include "kk_device.h"
+#include "kk_physical_device.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
 
@@ -31,7 +32,8 @@ kk_alloc_bo(struct kk_device *dev, struct vk_object_base *log_obj,
 
 #if DETECT_ARCH_X86_64
    /* KK_WORKAROUND_8 */
-   if (!(dev->disabled_workarounds & BITFIELD64_BIT(8))) {
+   struct kk_physical_device *pdev = kk_device_physical(dev);
+   if (!(pdev->settings.disabled_workarounds & BITFIELD64_BIT(8))) {
       minimum_alignment = MAX2(minimum_alignment, 16384);
    }
 #endif

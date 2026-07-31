@@ -1599,10 +1599,13 @@ requires_unroll_robustness(struct kk_cmd_buffer *cmd,
       return false;
 
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
+   struct kk_physical_device *pdev = kk_device_physical(dev);
 
    /* KK_WORKAROUND_12, KK_WORKAROUND_13 */
-   bool workaround_12 = !(dev->disabled_workarounds & BITFIELD64_BIT(12));
-   bool workaround_13 = !(dev->disabled_workarounds & BITFIELD64_BIT(13));
+   bool workaround_12 =
+      !(pdev->settings.disabled_workarounds & BITFIELD64_BIT(12));
+   bool workaround_13 =
+      !(pdev->settings.disabled_workarounds & BITFIELD64_BIT(13));
 
    /* Do nothing if both workarounds are disabled */
    if (!workaround_12 && !workaround_13)
