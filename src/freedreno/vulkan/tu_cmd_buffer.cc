@@ -7124,8 +7124,10 @@ tu_CmdBeginRendering(VkCommandBuffer commandBuffer,
                              &cmd->state.vk_mv,
                              cmd->state.pass, cmd->state.subpass);
 
-   if (!resuming) {
+   if (!cmd->patchpoints_ctx)
       cmd->patchpoints_ctx = ralloc_context(NULL);
+
+   if (!resuming) {
       tu_emit_subpass_begin<CHIP>(cmd);
    }
 
