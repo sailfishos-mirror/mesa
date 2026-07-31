@@ -231,7 +231,7 @@ void etna_cmd_stream_flush(struct etna_cmd_stream *stream, int in_fence_fd,
 		req.flags |= ETNA_SUBMIT_SOFTPIN;
 
 	if (stream->offset == priv->offset_end_of_context_init && !out_fence_fd &&
-	    !priv->submit.nr_pmrs)
+	    in_fence_fd == -1 && !priv->submit.nr_pmrs)
 		is_noop = true;
 
 	if (likely(!is_noop)) {
