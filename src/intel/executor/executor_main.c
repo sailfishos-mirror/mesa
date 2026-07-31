@@ -29,6 +29,7 @@
 
 #include "intel/compiler/gen/gen.h"
 #include "intel/compiler/gen/gen_names.h"
+#include "intel/common/intel_common.h"
 #include "intel/common/intel_compute_slm.h"
 #include "intel/common/intel_gem.h"
 #include "intel/common/xe/intel_engine.h"
@@ -1115,8 +1116,8 @@ handle_param_hw_regs(executor_run *run, slice name, slice args)
    if (!parse_int64(value, &v))
       failf("@param %.*s must be an integer", SLICE_FMT(name));
 
-   if (v != 128)
-      failf("@param %.*s only supports 128", SLICE_FMT(name));
+   if (!intel_register_blocks_supported(run->ec->devinfo, v))
+      failf("@param %.*s %u is not supported", SLICE_FMT(name), (unsigned)v);
 
    run->hw_regs = (uint32_t)v;
 }
