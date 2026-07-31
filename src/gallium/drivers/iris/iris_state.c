@@ -5360,6 +5360,10 @@ iris_store_fs_state(const struct iris_screen *screen,
       psx.PixelShaderRequiresSourceDepthandorWPlaneCoefficients =
          fs_data->uses_depth_w_coefficients;
 #endif
+#if INTEL_WA_16030144090_GFX_VER
+      if (intel_needs_workaround(devinfo, 16030144090))
+         psx.EnablePSDependencyOnCPsizeChange = fs_data->is_per_sample;
+#endif
    }
 }
 
