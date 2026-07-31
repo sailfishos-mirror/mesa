@@ -1382,7 +1382,9 @@ add_gpus([
         GPUId(chip_id=0xffff43051401, name="FD750"), # Default no-speedbin fallback
     ], A6xxGPUInfo(
         CHIP.A7XX,
-        [a7xx_base, a7xx_gen3],
+        [a7xx_base, a7xx_gen3, GPUProps(
+            QCTDD10789828 = True,
+        )],
         num_ccu = 6,
         tile_align_w = 96,
         tile_align_h = 32,

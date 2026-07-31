@@ -2559,9 +2559,13 @@ ir3_legalize(struct ir3 *ir, struct ir3_shader_variant *so, int *max_bary,
    }
 
    so->early_preamble = can_speculate_preamble && has_preamble && !gpr_in_preamble &&
-      !pred_in_preamble && !relative_in_preamble &&
+      !pred_in_preamble &&
       ir->compiler->info->props.has_early_preamble &&
       !(ir3_shader_debug & IR3_DBG_NOEARLYPREAMBLE);
+
+   if (relative_in_preamble && so->early_preamble &&
+       IR3_QUIRK(ctx->compiler, QCTDD10789828_no_a0_ep))
+      so->early_preamble = false;
 
    /* On a7xx, sync behavior for a1.x is different in the early preamble. RaW
     * dependencies must be synchronized with (ss) there must be an extra
