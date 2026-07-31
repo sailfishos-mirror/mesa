@@ -1301,16 +1301,6 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
       return 0;
    }
 
-   /* For operations with 1:1 IFM/OFM block mapping (elementwise, pooling, depthwise),
-    * always use BLOCKDEP=0 for safety */
-   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE ||
-       operation->type == ETHOSU_OPERATION_TYPE_POOLING ||
-       (operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION && operation->conv.depthwise) ||
-       prev_op->type == ETHOSU_OPERATION_TYPE_ELTWISE ||
-       prev_op->type == ETHOSU_OPERATION_TYPE_POOLING ||
-       (prev_op->type == ETHOSU_OPERATION_TYPE_CONVOLUTION && prev_op->conv.depthwise))
-      return 0;
-
    /* Calculate block shapes */
    struct ethosu_block prev_block = prev_op->block_config.ofm_block;
    struct ethosu_block curr_block = operation->block_config.ofm_block;
