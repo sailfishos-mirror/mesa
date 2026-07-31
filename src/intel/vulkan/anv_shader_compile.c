@@ -2290,7 +2290,6 @@ anv_shader_compile(struct vk_device *vk_device,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
-         .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       };
       struct brw_compile_params *compile_params = &params.base;
@@ -2331,6 +2330,8 @@ anv_shader_compile(struct vk_device *vk_device,
          UNREACHABLE("Invalid graphics shader stage");
       }
 
+      shader_data->prog_data.base.source_hash = shader_data->source_hash;
+
       if (intel_use_jay(devinfo, nir->info.stage)) {
          struct jay_shader_bin *bin =
             anv_shader_compile_jay(devinfo, mem_ctx, nir, params, shader_data);
@@ -2349,6 +2350,9 @@ anv_shader_compile(struct vk_device *vk_device,
       } else {
          shader_data->code = brw_compile(compiler, compile_params);
       }
+
+      /* The compiler should not alter this. */
+      assert(shader_data->prog_data.base.source_hash == shader_data->source_hash);
 
       if (shader_data->info->stage == MESA_SHADER_FRAGMENT) {
          shader_data->num_stats =

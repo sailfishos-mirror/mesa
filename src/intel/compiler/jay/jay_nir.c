@@ -632,8 +632,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
    prog_data->base.ray_queries = nir->info.ray_queries;
    prog_data->base.stage = stage;
-   // TODO: Make the driver do this?
-   // prog_data->base.source_hash = params->source_hash;
    prog_data->base.total_shared = nir->info.shared_size;
 
    brw_pass_tracker pt_ = {

@@ -4079,6 +4079,7 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
    stats->fills = s->fills;
    stats->sends -= (s->spills + s->fills);
    stats->dispatch_width = s->dispatch_width;
+   stats->source_hash = s->prog_data->base.source_hash;
 }
 
 static unsigned

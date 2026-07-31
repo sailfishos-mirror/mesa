@@ -2208,7 +2208,7 @@ brw_generator::generate_code(const brw_shader &s,
       FILE *files[2] = { NULL, NULL };
 
       if (debug_flag && (!intel_shader_dump_filter ||
-                         (intel_shader_dump_filter && intel_shader_dump_filter == params->source_hash)))
+                         (intel_shader_dump_filter && intel_shader_dump_filter == prog_data->source_hash)))
          files[0] = stderr;
 
       if (params->archiver) {
@@ -2227,7 +2227,7 @@ brw_generator::generate_code(const brw_shader &s,
                  "GRF registers: %u. "
                  "Non-SSA regs (after NIR): %u. "
                  "Compacted %d to %d bytes (%.0f%%)\n",
-                 shader_name, params->source_hash, blake3buf,
+                 shader_name, prog_data->source_hash, blake3buf,
                  dispatch_width,
                  before_size / 16 - nop_count - sync_nop_count,
                  loop_count, perf.latency,

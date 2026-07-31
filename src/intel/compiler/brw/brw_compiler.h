@@ -1276,8 +1276,6 @@ struct brw_compile_params {
 
    uint64_t debug_flag;
 
-   uint64_t source_hash;
-
    debug_archiver *archiver;
 };
 
