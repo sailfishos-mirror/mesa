@@ -802,6 +802,8 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
       radv_optimize_nir(nir, false);
 
+      NIR_PASS(_, nir, nir_opt_scalar_array_vars_to_vec, nir_var_mem_shared);
+
       NIR_PASS(_, nir, nir_opt_memcpy);
       NIR_PASS(_, nir, nir_opt_deref);
    }
