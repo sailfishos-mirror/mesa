@@ -1086,6 +1086,7 @@ impl V9Instr for OpFAdd {
     fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
         ptr_eq(src, &self.srcs[1])
             && self.srcs[0].swizzle.is_none()
+            && self.srcs[0].src_mod.is_none()
             && self.round == FRound::NearestEven
             && self.clamp == FClamp::None
             && FaddImm::is_supported(self.dst_type, arch)
@@ -1635,6 +1636,7 @@ impl V9Instr for OpIAdd {
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
+        assert!(self.srcs[0].src_mod.is_none());
         ptr_eq(src, &self.srcs[1])
             && self.srcs[0].swizzle.is_none()
             && !self.saturate
