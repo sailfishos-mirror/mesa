@@ -134,7 +134,7 @@
         "description": "radeonsi/mm: Don't use HEVC per slice loop filter across slices on old FW",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
