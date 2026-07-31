@@ -490,13 +490,16 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
    if (ctx->dirty & ETNA_DIRTY_FRAMEBUFFER) {
       for (i = 0; i < pfb->nr_cbufs; i++) {
-         struct pipe_resource *surf;
+         struct pipe_resource *rsc;
 
          if (!pfb->cbufs[i].texture)
             continue;
 
-         surf = pfb->cbufs[i].texture;
-         resource_written(ctx, surf);
+         rsc = pfb->cbufs[i].texture;
+         resource_written(ctx, rsc);
+
+         if (etna_resource(rsc)->shared && !etna_resource(rsc)->explicit_flush)
+            etna_context_add_flush_resource(ctx, rsc);
       }
    }
 

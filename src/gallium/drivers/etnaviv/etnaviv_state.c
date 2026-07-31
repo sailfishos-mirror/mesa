@@ -1100,24 +1100,6 @@ etna_update_zsa(struct etna_context *ctx)
    return true;
 }
 
-static bool
-etna_record_flush_resources(struct etna_context *ctx)
-{
-   struct pipe_framebuffer_state *fb = &ctx->framebuffer_s.base;
-
-   for (unsigned i = 0; i < fb->nr_cbufs; i++) {
-      if (!fb->cbufs[i].texture)
-         continue;
-
-      struct etna_resource *rsc = etna_resource(fb->cbufs[i].texture);
-
-      if (rsc->shared && !rsc->explicit_flush)
-         etna_context_add_flush_resource(ctx, &rsc->base);
-   }
-
-   return true;
-}
-
 static int
 compare_xfb_outputs(const void *a, const void *b) {
    const nir_xfb_output_info *out_a = a;
@@ -1236,8 +1218,6 @@ static const struct etna_state_updater etna_state_updates[] = {
                        ETNA_DIRTY_FRAMEBUFFER,
    },
    {
-      etna_record_flush_resources, ETNA_DIRTY_FRAMEBUFFER,
-   }, {
       etna_update_hwxfb, ETNA_DIRTY_STREAMOUT,
    }
 };
