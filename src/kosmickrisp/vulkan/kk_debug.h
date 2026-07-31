@@ -21,6 +21,8 @@ extern enum kk_debug kk_mesa_debug_flags;
 enum kk_experimental {
    /* Advertise custom border features */
    KK_EXPERIMENTAL_CUSTOM_BORDER = 1ull << 0,
+   /* Advertise image view min LOD feature */
+   KK_EXPERIMENTAL_IMAGE_VIEW_MIN_LOD = 1ull << 1,
 };
 
 extern enum kk_experimental kk_mesa_experimental_flags;

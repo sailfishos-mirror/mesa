@@ -157,6 +157,7 @@ kk_populate_fs_key(struct kk_fs_key *key,
 enum kk_feature_key {
    KK_FEAT_CUSTOM_BORDER = BITFIELD_BIT(0),
    KK_FEAT_NULL_DESCRIPTOR = BITFIELD_BIT(1),
+   KK_FEAT_IMAGE_VIEW_MIN_LOD = BITFIELD_BIT(2),
 };
 
 static enum kk_feature_key
@@ -167,6 +168,8 @@ kk_make_feature_key(const struct vk_features *feats)
       key |= KK_FEAT_CUSTOM_BORDER;
    if (feats->nullDescriptor)
       key |= KK_FEAT_NULL_DESCRIPTOR;
+   if (feats->minLod)
+      key |= KK_FEAT_IMAGE_VIEW_MIN_LOD;
    return key;
 }
 
@@ -642,6 +645,9 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
 
    if (features & KK_FEAT_CUSTOM_BORDER)
       NIR_PASS(_, nir, kk_nir_lower_custom_border);
+
+   if (features & KK_FEAT_IMAGE_VIEW_MIN_LOD)
+      NIR_PASS(_, nir, kk_nir_lower_image_view_min_lod);
 
    /* Descriptor lowering needs to happen after lowering blend since we will
     * generate a nir_intrinsic_load_blend_const_color_rgba which gets lowered by

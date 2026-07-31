@@ -492,7 +492,7 @@ lower_tex(nir_builder *b, nir_tex_instr *tex,
     */
    if (tex->op == nir_texop_lod_bias) {
       unsigned offs =
-         offsetof(struct kk_sampled_image_descriptor, lod_bias_fp16);
+         offsetof(struct kk_sampled_image_descriptor, sampler_lod_bias_fp16);
 
       nir_def *bias = load_resource_deref_desc(
          b, 1, 16, nir_src_as_deref(nir_src_for_ssa(sampler)),
@@ -502,22 +502,23 @@ lower_tex(nir_builder *b, nir_tex_instr *tex,
       return true;
    }
 
-   // if (tex->op == nir_texop_image_min_lod_agx) {
-   //    assert(tex->dest_type == nir_type_float16 ||
-   //           tex->dest_type == nir_type_uint16);
+   if (tex->op == nir_texop_image_min_lod_agx) {
+      assert(tex->dest_type == nir_type_float16 ||
+             tex->dest_type == nir_type_uint16);
 
-   //    unsigned offs =
-   //       tex->dest_type == nir_type_float16
-   //          ? offsetof(struct kk_sampled_image_descriptor, min_lod_fp16)
-   //          : offsetof(struct kk_sampled_image_descriptor, min_lod_uint16);
+      unsigned offs =
+         tex->dest_type == nir_type_float16
+            ? offsetof(struct kk_sampled_image_descriptor, image_min_lod_fp16)
+            : offsetof(struct kk_sampled_image_descriptor,
+                       image_min_lod_uint16);
 
-   //    nir_def *min = load_resource_deref_desc(
-   //       b, 1, 16, nir_src_as_deref(nir_src_for_ssa(texture)),
-   //       plane_offset_B + offs, ctx);
+      nir_def *min = load_resource_deref_desc(
+         b, 1, 16, nir_src_as_deref(nir_src_for_ssa(texture)),
+         plane_offset_B + offs, ctx);
 
-   //    nir_def_replace(&tex->def, min);
-   //    return true;
-   // }
+      nir_def_replace(&tex->def, min);
+      return true;
+   }
 
    if (tex->op == nir_texop_has_custom_border_color_agx) {
       unsigned offs = offsetof(struct kk_sampled_image_descriptor,
@@ -587,14 +588,14 @@ lower_tex(nir_builder *b, nir_tex_instr *tex,
       nir_def *lod_min = nir_f2f32(
          b, load_resource_deref_desc(
                b, 1, 16, nir_src_as_deref(nir_src_for_ssa(sampler)),
-               plane_offset_B +
-                  offsetof(struct kk_sampled_image_descriptor, lod_min_fp16),
+               plane_offset_B + offsetof(struct kk_sampled_image_descriptor,
+                                         sampler_lod_min_fp16),
                ctx));
       nir_def *lod_max = nir_f2f32(
          b, load_resource_deref_desc(
                b, 1, 16, nir_src_as_deref(nir_src_for_ssa(sampler)),
-               plane_offset_B +
-                  offsetof(struct kk_sampled_image_descriptor, lod_max_fp16),
+               plane_offset_B + offsetof(struct kk_sampled_image_descriptor,
+                                         sampler_lod_max_fp16),
                ctx));
 
       nir_tex_instr_add_src(tex, nir_tex_src_min_lod, lod_min);
