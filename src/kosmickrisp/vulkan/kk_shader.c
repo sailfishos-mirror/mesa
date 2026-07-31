@@ -17,6 +17,7 @@
 #include "kk_sampler.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
+#include "kosmickrisp/bridge/ns_process_info.h"
 #include "kosmickrisp/bridge/vk_to_mtl_map.h"
 #include "kosmickrisp/compiler/nir_to_msl.h"
 
@@ -500,8 +501,26 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
    /* Check https://github.com/KhronosGroup/Vulkan-Portability/issues/54 for
     * explanation on why we need this. */
    else if (nir->info.fs.needs_full_quad_helper_invocations ||
-            nir->info.fs.needs_coarse_quad_helper_invocations)
-      NIR_PASS(_, nir, msl_lower_static_sample_mask, 0xFFFFFFFF);
+            nir->info.fs.needs_coarse_quad_helper_invocations) {
+      struct kk_physical_device *pdev = kk_device_physical(dev);
+
+      /* Metal by default merges triangles which results in incorrect edges, see
+       * mentioned issue above. The issue is that if we disable them through
+       * writing to the sample mask, then derivatives are broken for multisample
+       * rendering in M1 and M2 with macOS 26. This bug is fixed in macOS 27.
+       *
+       * This is why we are choosing the lesser evil which is incorrect edges
+       * for multisampled rendering. Since CTS does not have tests for the edge
+       * case with multisample, we get a clean run. This does not mean we are
+       * Vulkan conformant with macOS26 for M1 and M2.
+       */
+      bool ms_bug_present = !ns_is_os_version_at_least(27, 0, 0) &&
+                            (pdev->info.gpu_apple_family == 7 ||
+                             pdev->info.gpu_apple_family == 8) &&
+                            state->ms && state->ms->rasterization_samples > 1;
+      if (!ms_bug_present)
+         NIR_PASS(_, nir, msl_lower_static_sample_mask, 0xFFFFFFFF);
+   }
 
    /* KK_WORKAROUND_5 */
    if (!(dev->disabled_workarounds & BITFIELD64_BIT(5)))
