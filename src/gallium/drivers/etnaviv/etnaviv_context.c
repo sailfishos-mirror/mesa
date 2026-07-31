@@ -132,7 +132,7 @@ etna_context_destroy(struct pipe_context *pctx)
 
    slab_destroy_child(&ctx->transfer_pool);
 
-   if (ctx->in_fence_fd != -1)
+   if (ctx->in_fence_fd >= 0)
       close(ctx->in_fence_fd);
 
    FREE(pctx);
@@ -659,7 +659,7 @@ etna_flush(struct pipe_context *pctx, struct pipe_fence_handle **fence,
                           (flags & PIPE_FLUSH_FENCE_FD) ? &out_fence_fd : NULL,
                           ctx->is_noop);
 
-   if (ctx->in_fence_fd != -1) {
+   if (ctx->in_fence_fd >= 0) {
       close(ctx->in_fence_fd);
       ctx->in_fence_fd = -1;
    }
