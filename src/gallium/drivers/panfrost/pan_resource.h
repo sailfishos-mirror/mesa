@@ -1,5 +1,5 @@
 /*
- * © Copyright2018-2019 Alyssa Rosenzweig
+ * © Copyright 2018-2019 Alyssa Rosenzweig
  * SPDX-License-Identifier: MIT
  */
 
