@@ -2398,107 +2398,6 @@ emit_exp(struct svga_shader_emitter *emit,
 }
 
 
-/**
- * Translate/emit LIT (Lighting helper) instruction.
- */
-static bool
-emit_lit(struct svga_shader_emitter *emit,
-         const struct tgsi_full_instruction *insn)
-{
-   if (emit->unit == MESA_SHADER_VERTEX) {
-      /* SVGA/DX9 has a LIT instruction, but only for vertex shaders:
-       */
-      return emit_simple_instruction(emit, SVGA3DOP_LIT, insn);
-   } else {
-      /* D3D vs. GL semantics can be fairly easily accommodated by
-       * variations on this sequence.
-       *
-       * GL:
-       *   tmp.y = src.x
-       *   tmp.z = pow(src.y,src.w)
-       *   p0 = src0.xxxx > 0
-       *   result = zero.wxxw
-       *   (p0) result.yz = tmp
-       *
-       * D3D:
-       *   tmp.y = src.x
-       *   tmp.z = pow(src.y,src.w)
-       *   p0 = src0.xxyy > 0
-       *   result = zero.wxxw
-       *   (p0) result.yz = tmp
-       *
-       * Will implement the GL version for now.
-       */
-      SVGA3dShaderDestToken dst = translate_dst_register(emit, insn, 0);
-      SVGA3dShaderDestToken tmp = get_temp(emit);
-      const struct src_register src0 = translate_src_register(
-         emit, &insn->Src[0]);
-
-      /* tmp = pow(src.y, src.w)
-       */
-      if (dst.mask & TGSI_WRITEMASK_Z) {
-         if (!submit_op2(emit, inst_token(SVGA3DOP_POW),
-                         tmp,
-                         scalar(src0, 1),
-                         scalar(src0, 3)))
-            return false;
-      }
-
-      /* tmp.y = src.x
-       */
-      if (dst.mask & TGSI_WRITEMASK_Y) {
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                          writemask(tmp, TGSI_WRITEMASK_Y),
-                          scalar(src0, 0)))
-            return false;
-      }
-
-      /* Can't quite do this with emit conditional due to the extra
-       * writemask on the predicated mov:
-       */
-      {
-         SVGA3dShaderDestToken pred_reg = dst_register(SVGA3DREG_PREDICATE, 0);
-         struct src_register predsrc;
-
-         /* D3D vs GL semantics:
-          */
-         if (0)
-            predsrc = swizzle(src0, 0, 0, 1, 1); /* D3D */
-         else
-            predsrc = swizzle(src0, 0, 0, 0, 0); /* GL */
-
-         /* SETP src0.xxyy, GT, {0}.x */
-         if (!submit_op2(emit,
-                          inst_token_setp(SVGA3DOPCOMP_GT),
-                          pred_reg,
-                          predsrc,
-                          get_zero_immediate(emit)))
-            return false;
-
-         /* MOV dst, fail */
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV), dst,
-                          get_immediate(emit, 1.0f, 0.0f, 0.0f, 1.0f)))
-             return false;
-
-         /* MOV dst.yz, tmp (predicated)
-          *
-          * Note that the predicate reg (and possible modifiers) is passed
-          * as the first source argument.
-          */
-         if (dst.mask & TGSI_WRITEMASK_YZ) {
-            if (!submit_op2(emit,
-                             inst_token_predicated(SVGA3DOP_MOV),
-                             writemask(dst, TGSI_WRITEMASK_YZ),
-                             src(pred_reg), src(tmp)))
-               return false;
-         }
-      }
-   }
-
-   return true;
-}
-
-
 static bool
 emit_ex2(struct svga_shader_emitter *emit,
          const struct tgsi_full_instruction *insn)
@@ -2926,9 +2825,6 @@ svga_emit_instruction(struct svga_shader_emitter *emit,
 
    case TGSI_OPCODE_DST:
       return emit_dst_insn(emit, insn);
-
-   case TGSI_OPCODE_LIT:
-      return emit_lit(emit, insn);
 
    case TGSI_OPCODE_LRP:
       return emit_lrp(emit, insn);
@@ -3486,8 +3382,7 @@ needs_to_create_common_immediate(const struct svga_shader_emitter *emit)
          return true;
 
       if (emit->info.opcode_count[TGSI_OPCODE_DST] >= 1 ||
-          emit->info.opcode_count[TGSI_OPCODE_SSG] >= 1 ||
-          emit->info.opcode_count[TGSI_OPCODE_LIT] >= 1)
+          emit->info.opcode_count[TGSI_OPCODE_SSG] >= 1)
          return true;
 
       if (emit->inverted_texcoords)

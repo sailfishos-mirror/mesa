@@ -927,30 +927,6 @@ ttn_dst(nir_builder *b, nir_def **src)
                       ttn_channel(b, src[1], W));
 }
 
-/* LIT - Light Coefficients
- *  dst.x = 1.0
- *  dst.y = max(src.x, 0.0)
- *  dst.z = (src.x > 0.0) ? max(src.y, 0.0)^{clamp(src.w, -128.0, 128.0))} : 0
- *  dst.w = 1.0
- */
-static nir_def *
-ttn_lit(nir_builder *b, nir_def **src)
-{
-   nir_def *src0_y = ttn_channel(b, src[0], Y);
-   nir_def *wclamp = nir_fmax(b, nir_fmin(b, ttn_channel(b, src[0], W),
-                                              nir_imm_float(b, 128.0)),
-                                  nir_imm_float(b, -128.0));
-   nir_def *pow = nir_fpow(b, nir_fmax(b, src0_y, nir_imm_float(b, 0.0)),
-                               wclamp);
-   nir_def *z = nir_bcsel(b, nir_flt_imm(b, ttn_channel(b, src[0], X), 0.0),
-                                 nir_imm_float(b, 0.0), pow);
-
-   return nir_vec4(b, nir_imm_float(b, 1.0),
-                      nir_fmax(b, ttn_channel(b, src[0], X),
-                                  nir_imm_float(b, 0.0)),
-                      z, nir_imm_float(b, 1.0));
-}
-
 static void
 ttn_barrier(nir_builder *b)
 {
@@ -1636,7 +1612,6 @@ static const nir_op op_trans[TGSI_OPCODE_LAST] = {
    [TGSI_OPCODE_ARL] = 0,
    [TGSI_OPCODE_MOV] = nir_op_mov,
    [TGSI_OPCODE_FBFETCH] = nir_op_mov,
-   [TGSI_OPCODE_LIT] = 0,
    [TGSI_OPCODE_RCP] = nir_op_frcp,
    [TGSI_OPCODE_RSQ] = nir_op_frsq,
    [TGSI_OPCODE_EXP] = 0,
@@ -1882,10 +1857,6 @@ ttn_emit_instruction(struct ttn_compile *c)
 
    case TGSI_OPCODE_DST:
       dst = ttn_dst(b, src);
-      break;
-
-   case TGSI_OPCODE_LIT:
-      dst = ttn_lit(b, src);
       break;
 
    case TGSI_OPCODE_DP2:

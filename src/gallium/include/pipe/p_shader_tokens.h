@@ -342,7 +342,7 @@ struct tgsi_property_data {
 enum tgsi_opcode {
    TGSI_OPCODE_ARL                = 0,
    TGSI_OPCODE_MOV                = 1,
-   TGSI_OPCODE_LIT                = 2,
+   /* gap */
    TGSI_OPCODE_RCP                = 3,
    TGSI_OPCODE_RSQ                = 4,
    TGSI_OPCODE_EXP                = 5,

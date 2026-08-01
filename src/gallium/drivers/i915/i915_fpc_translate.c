@@ -582,37 +582,6 @@ i915_translate_instruction(struct i915_fp_compile *p,
                       0);
       break;
 
-   case TGSI_OPCODE_LIT:
-      src0 = src_vector(p, &inst->Src[0], fs);
-      tmp = i915_get_utemp(p);
-
-      /* tmp = max( a.xyzw, a.00zw )
-       * XXX: Clamp tmp.w to -128..128
-       * tmp.y = log(tmp.y)
-       * tmp.y = tmp.w * tmp.y
-       * tmp.y = exp(tmp.y)
-       * result = cmp (a.11-x1, a.1x01, a.1xy1 )
-       */
-      i915_emit_arith(p, A0_MAX, tmp, A0_DEST_CHANNEL_ALL, 0, src0,
-                      swizzle(src0, ZERO, ZERO, Z, W), 0);
-
-      i915_emit_arith(p, A0_LOG, tmp, A0_DEST_CHANNEL_Y, 0,
-                      swizzle(tmp, Y, Y, Y, Y), 0, 0);
-
-      i915_emit_arith(p, A0_MUL, tmp, A0_DEST_CHANNEL_Y, 0,
-                      swizzle(tmp, ZERO, Y, ZERO, ZERO),
-                      swizzle(tmp, ZERO, W, ZERO, ZERO), 0);
-
-      i915_emit_arith(p, A0_EXP, tmp, A0_DEST_CHANNEL_Y, 0,
-                      swizzle(tmp, Y, Y, Y, Y), 0, 0);
-
-      i915_emit_arith(
-         p, A0_CMP, get_result_vector(p, &inst->Dst[0]), get_result_flags(inst),
-         0, negate(swizzle(tmp, ONE, ONE, X, ONE), 0, 0, 1, 0),
-         swizzle(tmp, ONE, X, ZERO, ONE), swizzle(tmp, ONE, X, Y, ONE));
-
-      break;
-
    case TGSI_OPCODE_LRP:
       src0 = src_vector(p, &inst->Src[0], fs);
       src1 = src_vector(p, &inst->Src[1], fs);

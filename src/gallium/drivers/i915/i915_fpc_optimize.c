@@ -98,7 +98,6 @@ static const struct {
    [TGSI_OPCODE_KILL_IF] = {false, false, 0, 0, 1},
    [TGSI_OPCODE_KILL] = {false, false, 0, 0, 0},
    [TGSI_OPCODE_LG2] = {false, false, 0, 1, 1},
-   [TGSI_OPCODE_LIT] = {false, false, 0, 1, 1},
    [TGSI_OPCODE_LRP] = {false, false, 0, 1, 3},
    [TGSI_OPCODE_MAX] = {false, false, 0, 1, 2},
    [TGSI_OPCODE_MAD] = {false, false, 0, 1, 3},

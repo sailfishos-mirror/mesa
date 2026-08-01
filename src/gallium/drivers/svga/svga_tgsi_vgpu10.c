@@ -3238,11 +3238,6 @@ alloc_common_immediates(struct svga_shader_emitter_v10 *emit)
    emit->common_immediate_pos[n++] =
       alloc_immediate_float4(emit, 0.0f, 1.0f, 0.5f, -1.0f);
 
-   if (emit->info.opcode_count[TGSI_OPCODE_LIT] > 0) {
-      emit->common_immediate_pos[n++] =
-         alloc_immediate_float4(emit, 128.0f, -128.0f, 0.0f, 0.0f);
-   }
-
    emit->common_immediate_pos[n++] =
       alloc_immediate_int4(emit, 0, 1, 2, -1);
 
@@ -7520,142 +7515,6 @@ emit_lg2(struct svga_shader_emitter_v10 *emit,
 
 
 /**
- * Emit code for TGSI_OPCODE_LIT instruction.
- */
-static bool
-emit_lit(struct svga_shader_emitter_v10 *emit,
-         const struct tgsi_full_instruction *inst)
-{
-   struct tgsi_full_src_register one = make_immediate_reg_float(emit, 1.0f);
-
-   /*
-    * If dst and src are the same we need to create
-    * a temporary for it and insert a extra move.
-    */
-   unsigned tmp_move = get_temp_index(emit);
-   struct tgsi_full_src_register move_src = make_src_temp_reg(tmp_move);
-   struct tgsi_full_dst_register move_dst = make_dst_temp_reg(tmp_move);
-
-   /*
-    * dst.x = 1
-    * dst.y = max(src.x, 0)
-    * dst.z = (src.x > 0) ? max(src.y, 0)^{clamp(src.w, -128, 128))} : 0
-    * dst.w = 1
-    */
-
-   /* MOV dst.x, 1.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_X) {
-      struct tgsi_full_dst_register dst_x =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_X);
-      emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &dst_x, &one);
-   }
-
-   /* MOV dst.w, 1.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_W) {
-      struct tgsi_full_dst_register dst_w =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_W);
-      emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &dst_w, &one);
-   }
-
-   /* MAX dst.y, src.x, 0.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Y) {
-      struct tgsi_full_dst_register dst_y =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Y);
-      struct tgsi_full_src_register zero =
-         make_immediate_reg_float(emit, 0.0f);
-      struct tgsi_full_src_register src_xxxx =
-         swizzle_src(&inst->Src[0], TGSI_SWIZZLE_X, TGSI_SWIZZLE_X,
-                     TGSI_SWIZZLE_X, TGSI_SWIZZLE_X);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MAX, &dst_y, &src_xxxx,
-                           &zero, NULL, inst->Instruction.Saturate, false);
-   }
-
-   /*
-    * tmp1 = clamp(src.w, -128, 128);
-    *   MAX tmp1, src.w, -128
-    *   MIN tmp1, tmp1, 128
-    *
-    * tmp2 = max(tmp2, 0);
-    *   MAX tmp2, src.y, 0
-    *
-    * tmp1 = pow(tmp2, tmp1);
-    *   LOG tmp2, tmp2
-    *   MUL tmp1, tmp2, tmp1
-    *   EXP tmp1, tmp1
-    *
-    * tmp1 = (src.w == 0) ? 1 : tmp1;
-    *   EQ tmp2, 0, src.w
-    *   MOVC tmp1, tmp2, 1.0, tmp1
-    *
-    * dst.z = (0 < src.x) ? tmp1 : 0;
-    *   LT tmp2, 0, src.x
-    *   MOVC dst.z, tmp2, tmp1, 0.0
-    */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Z) {
-      struct tgsi_full_dst_register dst_z =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Z);
-
-      unsigned tmp1 = get_temp_index(emit);
-      struct tgsi_full_src_register tmp1_src = make_src_temp_reg(tmp1);
-      struct tgsi_full_dst_register tmp1_dst = make_dst_temp_reg(tmp1);
-      unsigned tmp2 = get_temp_index(emit);
-      struct tgsi_full_src_register tmp2_src = make_src_temp_reg(tmp2);
-      struct tgsi_full_dst_register tmp2_dst = make_dst_temp_reg(tmp2);
-
-      struct tgsi_full_src_register src_xxxx =
-         scalar_src(&inst->Src[0], TGSI_SWIZZLE_X);
-      struct tgsi_full_src_register src_yyyy =
-         scalar_src(&inst->Src[0], TGSI_SWIZZLE_Y);
-      struct tgsi_full_src_register src_wwww =
-         scalar_src(&inst->Src[0], TGSI_SWIZZLE_W);
-
-      struct tgsi_full_src_register zero =
-         make_immediate_reg_float(emit, 0.0f);
-      struct tgsi_full_src_register lowerbound =
-         make_immediate_reg_float(emit, -128.0f);
-      struct tgsi_full_src_register upperbound =
-         make_immediate_reg_float(emit, 128.0f);
-
-      emit_instruction_op2(emit, VGPU10_OPCODE_MAX, &tmp1_dst, &src_wwww,
-                           &lowerbound);
-      emit_instruction_op2(emit, VGPU10_OPCODE_MIN, &tmp1_dst, &tmp1_src,
-                           &upperbound);
-      emit_instruction_op2(emit, VGPU10_OPCODE_MAX, &tmp2_dst, &src_yyyy,
-                           &zero);
-
-      /* POW tmp1, tmp2, tmp1 */
-      /* LOG tmp2, tmp2 */
-      emit_instruction_op1(emit, VGPU10_OPCODE_LOG, &tmp2_dst, &tmp2_src);
-
-      /* MUL tmp1, tmp2, tmp1 */
-      emit_instruction_op2(emit, VGPU10_OPCODE_MUL, &tmp1_dst, &tmp2_src,
-                           &tmp1_src);
-
-      /* EXP tmp1, tmp1 */
-      emit_instruction_op1(emit, VGPU10_OPCODE_EXP, &tmp1_dst, &tmp1_src);
-
-      /* EQ tmp2, 0, src.w */
-      emit_instruction_op2(emit, VGPU10_OPCODE_EQ, &tmp2_dst, &zero, &src_wwww);
-      /* MOVC tmp1.z, tmp2, tmp1, 1.0 */
-      emit_instruction_op3(emit, VGPU10_OPCODE_MOVC, &tmp1_dst,
-                           &tmp2_src, &one, &tmp1_src);
-
-      /* LT tmp2, 0, src.x */
-      emit_instruction_op2(emit, VGPU10_OPCODE_LT, &tmp2_dst, &zero, &src_xxxx);
-      /* MOVC dst.z, tmp2, tmp1, 0.0 */
-      emit_instruction_op3(emit, VGPU10_OPCODE_MOVC, &dst_z,
-                           &tmp2_src, &tmp1_src, &zero);
-   }
-
-   emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &inst->Dst[0], &move_src);
-   free_temp_indexes(emit);
-
-   return true;
-}
-
-
-/**
  * Emit Level Of Detail Query (LODQ) instruction.
  */
 static bool
@@ -11097,8 +10956,6 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
       return emit_cond_discard(emit, inst);
    case TGSI_OPCODE_LG2:
       return emit_lg2(emit, inst);
-   case TGSI_OPCODE_LIT:
-      return emit_lit(emit, inst);
    case TGSI_OPCODE_LODQ:
       return emit_lodq(emit, inst);
    case TGSI_OPCODE_LOG:

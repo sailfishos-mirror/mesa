@@ -370,62 +370,6 @@ kilp_fetch_args(
    emit_data->dst_type = LLVMVoidTypeInContext(bld_base->base.gallivm->context);
 }
 
-/* TGSI_OPCODE_LIT */
-
-static void
-lit_fetch_args(
-   struct lp_build_tgsi_context * bld_base,
-   struct lp_build_emit_data * emit_data)
-{
-   /* src0.x */
-   emit_data->args[0] = lp_build_emit_fetch(bld_base, emit_data->inst, 0, TGSI_CHAN_X);
-   /* src0.y */
-   emit_data->args[1] = lp_build_emit_fetch(bld_base, emit_data->inst, 0, TGSI_CHAN_Y);
-   /* src0.w */
-   emit_data->args[2] = lp_build_emit_fetch(bld_base, emit_data->inst, 0, TGSI_CHAN_W);
-   emit_data->arg_count = 3;
-}
-
-static void
-lit_emit(
-   const struct lp_build_tgsi_action * action,
-   struct lp_build_tgsi_context * bld_base,
-   struct lp_build_emit_data * emit_data)
-{
-   LLVMValueRef tmp0, tmp1, tmp2;
-
-   /* dst.x */
-   emit_data->output[TGSI_CHAN_X] = bld_base->base.one;
-
-   /* dst. y */
-   emit_data->output[TGSI_CHAN_Y] = lp_build_emit_llvm_binary(bld_base,
-                                               TGSI_OPCODE_MAX,
-                                               emit_data->args[0] /* src0.x */,
-                                               bld_base->base.zero);
-
-   /* dst.z */
-   /* XMM[1] = SrcReg[0].yyyy */
-   tmp1 = emit_data->args[1];
-   /* XMM[1] = max(XMM[1], 0) */
-   tmp1 = lp_build_emit_llvm_binary(bld_base, TGSI_OPCODE_MAX,
-                                    tmp1, bld_base->base.zero);
-   /* XMM[2] = SrcReg[0].wwww */
-   tmp2 = emit_data->args[2];
-   tmp1 = lp_build_emit_llvm_binary(bld_base, TGSI_OPCODE_POW,
-                                    tmp1, tmp2);
-   tmp0 = emit_data->args[0];
-   emit_data->output[TGSI_CHAN_Z] = lp_build_emit_llvm_ternary(bld_base,
-                                             TGSI_OPCODE_CMP,
-                                             tmp0, bld_base->base.zero, tmp1);
-   /* dst.w */
-   emit_data->output[TGSI_CHAN_W] = bld_base->base.one;
-}
-
-static struct lp_build_tgsi_action lit_action = {
-   lit_fetch_args,	 /* fetch_args */
-   lit_emit	 /* emit */
-};
-
 /* TGSI_OPCODE_LOG */
 
 static void
@@ -1162,7 +1106,6 @@ lp_set_default_actions(struct lp_build_tgsi_context * bld_base)
    bld_base->op_actions[TGSI_OPCODE_DP4] = dp4_action;
    bld_base->op_actions[TGSI_OPCODE_DST] = dst_action;
    bld_base->op_actions[TGSI_OPCODE_EXP] = exp_action;
-   bld_base->op_actions[TGSI_OPCODE_LIT] = lit_action;
    bld_base->op_actions[TGSI_OPCODE_LOG] = log_action;
    bld_base->op_actions[TGSI_OPCODE_PK2H] = pk2h_action;
    bld_base->op_actions[TGSI_OPCODE_RSQ] = rsq_action;

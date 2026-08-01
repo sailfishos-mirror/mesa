@@ -81,25 +81,6 @@ used.
       dst.w = src.w
 
 
-.. opcode:: LIT - Light Coefficients
-
-   .. math::
-
-      dst.x = 1
-
-      dst.y = max(src.x, 0)
-
-      dst.z =
-      \left\{
-      \begin{array}{ c l }
-         max(src.y, 0)^{clamp(src.w, -128, 128)} & \quad \textrm{if } src.x \gt 0 \\
-         0                                       & \quad \textrm{otherwise}
-      \end{array}
-      \right.
-
-      dst.w = 1
-
-
 .. opcode:: RCP - Reciprocal
 
    This instruction replicates its result.
