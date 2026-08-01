@@ -853,6 +853,7 @@ impl ToTokens for InstrVariantDstInfo {
 struct InstrVariantInfo {
     ident: Ident,
     arch: Range<u8>,
+    exec_unit: Ident,
     is_message: bool,
     srcs: Vec<InstrVariantSrcInfo>,
     sr_src: Option<InstrVariantSrcInfo>,
@@ -871,6 +872,7 @@ impl InstrVariantInfo {
 
         InstrVariantInfo {
             ident,
+            exec_unit: ident!("{}", to_camel_case(&instr.exec_unit)),
             arch: instr.arch.clone(),
             is_message: false,
             srcs: Default::default(),
@@ -931,7 +933,10 @@ impl InstrVariantInfo {
 impl ToTokens for InstrVariantInfo {
     fn to_tokens(&self, ts: &mut TokenStream2) {
         let InstrVariantInfo {
-            ident, is_message, ..
+            ident,
+            exec_unit,
+            is_message,
+            ..
         } = self;
 
         let mut src_infos_ts = TokenStream2::new();
@@ -954,6 +959,7 @@ impl ToTokens for InstrVariantInfo {
 
         ts.extend(quote! {
             const #ident: InstructionInfo = InstructionInfo {
+                exec_unit: ExecUnit::#exec_unit,
                 is_message: #is_message,
                 srcs: #srcs_ts,
                 sr_src: #sr_src_ts,
