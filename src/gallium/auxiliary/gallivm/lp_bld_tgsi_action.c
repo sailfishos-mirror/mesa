@@ -232,52 +232,6 @@ static struct lp_build_tgsi_action dp4_action = {
    dp4_emit	 /* emit */
 };
 
-/* TGSI_OPCODE_DST */
-static void
-dst_fetch_args(
-   struct lp_build_tgsi_context * bld_base,
-   struct lp_build_emit_data * emit_data)
-{
-   /* src0.y */
-   emit_data->args[0] = lp_build_emit_fetch(bld_base, emit_data->inst,
-                                            0, TGSI_CHAN_Y);
-   /* src0.z */
-   emit_data->args[1] = lp_build_emit_fetch(bld_base, emit_data->inst,
-                                            0, TGSI_CHAN_Z);
-   /* src1.y */
-   emit_data->args[2] = lp_build_emit_fetch(bld_base, emit_data->inst,
-                                            1, TGSI_CHAN_Y);
-   /* src1.w */
-   emit_data->args[3] = lp_build_emit_fetch(bld_base, emit_data->inst,
-                                            1, TGSI_CHAN_W);
-}
-
-static void
-dst_emit(
-   const struct lp_build_tgsi_action * action,
-   struct lp_build_tgsi_context * bld_base,
-   struct lp_build_emit_data * emit_data)
-{
-   /* dst.x */
-   emit_data->output[TGSI_CHAN_X] = bld_base->base.one;
-
-   /* dst.y */
-   emit_data->output[TGSI_CHAN_Y] = lp_build_emit_llvm_binary(bld_base,
-                                          TGSI_OPCODE_MUL,
-                                          emit_data->args[0] /* src0.y */,
-                                          emit_data->args[2] /* src1.y */);
-   /* dst.z */
-   emit_data->output[TGSI_CHAN_Z] = emit_data->args[1]; /* src0.z */
-
-   /* dst.w */
-   emit_data->output[TGSI_CHAN_W] = emit_data->args[3]; /* src1.w */
-}
-
-static struct lp_build_tgsi_action dst_action = {
-   dst_fetch_args,	 /* fetch_args */
-   dst_emit	 /* emit */
-};
-
 /* TGSI_OPCODE_END */
 static void
 end_emit(
@@ -1104,7 +1058,6 @@ lp_set_default_actions(struct lp_build_tgsi_context * bld_base)
    bld_base->op_actions[TGSI_OPCODE_DP2] = dp2_action;
    bld_base->op_actions[TGSI_OPCODE_DP3] = dp3_action;
    bld_base->op_actions[TGSI_OPCODE_DP4] = dp4_action;
-   bld_base->op_actions[TGSI_OPCODE_DST] = dst_action;
    bld_base->op_actions[TGSI_OPCODE_EXP] = exp_action;
    bld_base->op_actions[TGSI_OPCODE_LOG] = log_action;
    bld_base->op_actions[TGSI_OPCODE_PK2H] = pk2h_action;

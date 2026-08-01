@@ -351,7 +351,7 @@ enum tgsi_opcode {
    TGSI_OPCODE_ADD                = 8,
    TGSI_OPCODE_DP3                = 9,
    TGSI_OPCODE_DP4                = 10,
-   TGSI_OPCODE_DST                = 11,
+   /* gap */
    TGSI_OPCODE_MIN                = 12,
    TGSI_OPCODE_MAX                = 13,
    TGSI_OPCODE_SLT                = 14,

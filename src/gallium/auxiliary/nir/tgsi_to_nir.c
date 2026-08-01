@@ -911,22 +911,6 @@ ttn_log(nir_builder *b, nir_def **src)
                       nir_imm_float(b, 1.0));
 }
 
-/* DST - Distance Vector
- *   dst.x = 1.0
- *   dst.y = src0.y \times src1.y
- *   dst.z = src0.z
- *   dst.w = src1.w
- */
-static nir_def *
-ttn_dst(nir_builder *b, nir_def **src)
-{
-   return nir_vec4(b, nir_imm_float(b, 1.0),
-                      nir_fmul(b, ttn_channel(b, src[0], Y),
-                                  ttn_channel(b, src[1], Y)),
-                      ttn_channel(b, src[0], Z),
-                      ttn_channel(b, src[1], W));
-}
-
 static void
 ttn_barrier(nir_builder *b)
 {
@@ -1620,7 +1604,6 @@ static const nir_op op_trans[TGSI_OPCODE_LAST] = {
    [TGSI_OPCODE_ADD] = nir_op_fadd,
    [TGSI_OPCODE_DP3] = 0,
    [TGSI_OPCODE_DP4] = 0,
-   [TGSI_OPCODE_DST] = 0,
    [TGSI_OPCODE_MIN] = nir_op_fmin,
    [TGSI_OPCODE_MAX] = nir_op_fmax,
    [TGSI_OPCODE_SLT] = nir_op_slt,
@@ -1853,10 +1836,6 @@ ttn_emit_instruction(struct ttn_compile *c)
 
    case TGSI_OPCODE_LOG:
       dst = ttn_log(b, src);
-      break;
-
-   case TGSI_OPCODE_DST:
-      dst = ttn_dst(b, src);
       break;
 
    case TGSI_OPCODE_DP2:

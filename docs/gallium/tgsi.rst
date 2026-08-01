@@ -181,16 +181,6 @@ used.
       \end{aligned}
 
 
-.. opcode:: DST - Distance Vector
-
-   .. math::
-
-      dst.x &= 1\\
-      dst.y &= src0.y \times src1.y\\
-      dst.z &= src0.z\\
-      dst.w &= src1.w
-
-
 .. opcode:: MIN - Minimum
 
    .. math::

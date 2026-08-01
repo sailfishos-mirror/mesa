@@ -2255,84 +2255,6 @@ emit_lrp(struct svga_shader_emitter *emit,
    return submit_lrp(emit, dst, src0, src1, src2);
 }
 
-/**
- * Translate/emit DST (Distance function) instruction.
- */
-static bool
-emit_dst_insn(struct svga_shader_emitter *emit,
-              const struct tgsi_full_instruction *insn)
-{
-   if (emit->unit == MESA_SHADER_VERTEX) {
-      /* SVGA/DX9 has a DST instruction, but only for vertex shaders:
-       */
-      return emit_simple_instruction(emit, SVGA3DOP_DST, insn);
-   } else {
-      /* result[0] = 1    * 1;
-       * result[1] = a[1] * b[1];
-       * result[2] = a[2] * 1;
-       * result[3] = 1    * b[3];
-       */
-      SVGA3dShaderDestToken dst = translate_dst_register(emit, insn, 0);
-      SVGA3dShaderDestToken tmp;
-      const struct src_register src0 = translate_src_register(
-         emit, &insn->Src[0]);
-      const struct src_register src1 = translate_src_register(
-         emit, &insn->Src[1]);
-      bool need_tmp = false;
-
-      if (SVGA3dShaderGetRegType(dst.value) != SVGA3DREG_TEMP ||
-          alias_src_dst(src0, dst) ||
-          alias_src_dst(src1, dst))
-         need_tmp = true;
-
-      if (need_tmp) {
-         tmp = get_temp(emit);
-      } else {
-         tmp = dst;
-      }
-
-      /* tmp.xw = 1.0
-       */
-      if (tmp.mask & TGSI_WRITEMASK_XW) {
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                          writemask(tmp, TGSI_WRITEMASK_XW),
-                          get_one_immediate(emit)))
-            return false;
-      }
-
-      /* tmp.yz = src0
-       */
-      if (tmp.mask & TGSI_WRITEMASK_YZ) {
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                          writemask(tmp, TGSI_WRITEMASK_YZ),
-                          src0))
-            return false;
-      }
-
-      /* tmp.yw = tmp * src1
-       */
-      if (tmp.mask & TGSI_WRITEMASK_YW) {
-         if (!submit_op2(emit, inst_token(SVGA3DOP_MUL),
-                          writemask(tmp, TGSI_WRITEMASK_YW),
-                          src(tmp),
-                          src1))
-            return false;
-      }
-
-      /* dst = tmp
-       */
-      if (need_tmp) {
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                          dst,
-                          src(tmp)))
-            return false;
-      }
-   }
-
-   return true;
-}
-
-
 static bool
 emit_exp(struct svga_shader_emitter *emit,
          const struct tgsi_full_instruction *insn)
@@ -2822,9 +2744,6 @@ svga_emit_instruction(struct svga_shader_emitter *emit,
 
    case TGSI_OPCODE_KILL:
       return emit_discard(emit, insn);
-
-   case TGSI_OPCODE_DST:
-      return emit_dst_insn(emit, insn);
 
    case TGSI_OPCODE_LRP:
       return emit_lrp(emit, insn);
@@ -3381,8 +3300,7 @@ needs_to_create_common_immediate(const struct svga_shader_emitter *emit)
       if (emit->emit_frontface)
          return true;
 
-      if (emit->info.opcode_count[TGSI_OPCODE_DST] >= 1 ||
-          emit->info.opcode_count[TGSI_OPCODE_SSG] >= 1)
+      if (emit->info.opcode_count[TGSI_OPCODE_SSG] >= 1)
          return true;
 
       if (emit->inverted_texcoords)

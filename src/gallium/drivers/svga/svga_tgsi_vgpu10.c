@@ -7144,85 +7144,6 @@ emit_cmp(struct svga_shader_emitter_v10 *emit,
 
 
 /**
- * Emit code for TGSI_OPCODE_DST instruction.
- */
-static bool
-emit_dst(struct svga_shader_emitter_v10 *emit,
-         const struct tgsi_full_instruction *inst)
-{
-   /*
-    * dst.x = 1
-    * dst.y = src0.y * src1.y
-    * dst.z = src0.z
-    * dst.w = src1.w
-    */
-
-   struct tgsi_full_src_register s0_yyyy =
-      scalar_src(&inst->Src[0], TGSI_SWIZZLE_Y);
-   struct tgsi_full_src_register s0_zzzz =
-      scalar_src(&inst->Src[0], TGSI_SWIZZLE_Z);
-   struct tgsi_full_src_register s1_yyyy =
-      scalar_src(&inst->Src[1], TGSI_SWIZZLE_Y);
-   struct tgsi_full_src_register s1_wwww =
-      scalar_src(&inst->Src[1], TGSI_SWIZZLE_W);
-
-   /*
-    * If dst and either src0 and src1 are the same we need
-    * to create a temporary for it and insert a extra move.
-    */
-   unsigned tmp_move = get_temp_index(emit);
-   struct tgsi_full_src_register move_src = make_src_temp_reg(tmp_move);
-   struct tgsi_full_dst_register move_dst = make_dst_temp_reg(tmp_move);
-
-   /* MOV dst.x, 1.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_X) {
-      struct tgsi_full_dst_register dst_x =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_X);
-      struct tgsi_full_src_register one = make_immediate_reg_float(emit, 1.0f);
-
-      emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &dst_x, &one);
-   }
-
-   /* MUL dst.y, s0.y, s1.y */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Y) {
-      struct tgsi_full_dst_register dst_y =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Y);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MUL, &dst_y, &s0_yyyy,
-                           &s1_yyyy, NULL, inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-   }
-
-   /* MOV dst.z, s0.z */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Z) {
-      struct tgsi_full_dst_register dst_z =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Z);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MOV,
-                           &dst_z, &s0_zzzz, NULL, NULL,
-                           inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-  }
-
-   /* MOV dst.w, s1.w */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_W) {
-      struct tgsi_full_dst_register dst_w =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_W);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MOV,
-                           &dst_w, &s1_wwww, NULL, NULL,
-                           inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-   }
-
-   emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &inst->Dst[0], &move_src);
-   free_temp_indexes(emit);
-
-   return true;
-}
-
-
-/**
  * A helper function to return the stream index as specified in
  * the immediate register
  */
@@ -10942,8 +10863,6 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
       return emit_cmp(emit, inst);
    case TGSI_OPCODE_COS:
       return emit_sincos(emit, inst);
-   case TGSI_OPCODE_DST:
-      return emit_dst(emit, inst);
    case TGSI_OPCODE_EX2:
       return emit_ex2(emit, inst);
    case TGSI_OPCODE_EXP:
