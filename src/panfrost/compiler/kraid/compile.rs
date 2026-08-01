@@ -173,6 +173,8 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.lower_copy());
     pass!(s.assign_message_slots());
 
+    info.stats = s.get_stats();
+
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);
 

@@ -86,6 +86,8 @@ pub trait Model {
     fn subgroup_size(&self) -> u8 {
         unsafe { pan_subgroup_size(self.arch().into()).try_into().unwrap() }
     }
+
+    fn max_threads(&self, registers_used: u8) -> u8;
 }
 
 struct ValhallModel {
@@ -293,6 +295,10 @@ impl Model for ValhallModel {
             range: RegRange::Regs(1),
             preload: Some(preload),
         })
+    }
+
+    fn max_threads(&self, registers_used: u8) -> u8 {
+        64 / registers_used.max(32)
     }
 }
 

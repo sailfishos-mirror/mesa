@@ -31,6 +31,7 @@ mod repair_ssa;
 mod small_constants;
 mod spill;
 mod ssa_value;
+mod stats;
 mod swizzle;
 mod validate;
 mod widen_alu_ops;
