@@ -590,9 +590,6 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
    case TGSI_OPCODE_EX2:
       nvfx_vp_emit(vpc, arith(sat, SCA, EX2, dst, mask, none, none, src[0]));
       break;
-   case TGSI_OPCODE_EXP:
-      nvfx_vp_emit(vpc, arith(sat, SCA, EXP, dst, mask, none, none, src[0]));
-      break;
    case TGSI_OPCODE_FLR:
       nvfx_vp_emit(vpc, arith(sat, VEC, FLR, dst, mask, src[0], none, none));
       break;
@@ -601,9 +598,6 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
       break;
    case TGSI_OPCODE_LG2:
       nvfx_vp_emit(vpc, arith(sat, SCA, LG2, dst, mask, none, none, src[0]));
-      break;
-   case TGSI_OPCODE_LOG:
-      nvfx_vp_emit(vpc, arith(sat, SCA, LOG, dst, mask, none, none, src[0]));
       break;
    case TGSI_OPCODE_LRP:
       tmp = nvfx_src(temp(vpc));

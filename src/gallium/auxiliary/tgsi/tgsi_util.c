@@ -157,11 +157,6 @@ tgsi_util_get_src_usage_mask(enum tgsi_opcode opcode,
       read_mask = TGSI_WRITEMASK_XYZW;
       break;
 
-   case TGSI_OPCODE_EXP:
-   case TGSI_OPCODE_LOG:
-      read_mask = write_mask & TGSI_WRITEMASK_XYZ ? TGSI_WRITEMASK_X : 0;
-      break;
-
    case TGSI_OPCODE_DLDEXP:
       if (src_idx == 0) {
          read_mask = write_mask;

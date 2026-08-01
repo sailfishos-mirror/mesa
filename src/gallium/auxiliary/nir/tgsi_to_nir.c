@@ -876,41 +876,6 @@ ttn_alu(nir_builder *b, nir_op op, unsigned dest_bitsize, nir_def **src)
    return def;
 }
 
-/* EXP - Approximate Exponential Base 2
- *  dst.x = 2^{\lfloor src.x\rfloor}
- *  dst.y = src.x - \lfloor src.x\rfloor
- *  dst.z = 2^{src.x}
- *  dst.w = 1.0
- */
-static nir_def *
-ttn_exp(nir_builder *b, nir_def **src)
-{
-   nir_def *srcx = ttn_channel(b, src[0], X);
-
-   return nir_vec4(b, nir_fexp2(b, nir_ffloor(b, srcx)),
-                      nir_fsub(b, srcx, nir_ffloor(b, srcx)),
-                      nir_fexp2(b, srcx),
-                      nir_imm_float(b, 1.0));
-}
-
-/* LOG - Approximate Logarithm Base 2
- *  dst.x = \lfloor\log_2{|src.x|}\rfloor
- *  dst.y = \frac{|src.x|}{2^{\lfloor\log_2{|src.x|}\rfloor}}
- *  dst.z = \log_2{|src.x|}
- *  dst.w = 1.0
- */
-static nir_def *
-ttn_log(nir_builder *b, nir_def **src)
-{
-   nir_def *abs_srcx = nir_fabs(b, ttn_channel(b, src[0], X));
-   nir_def *log2 = nir_flog2(b, abs_srcx);
-
-   return nir_vec4(b, nir_ffloor(b, log2),
-                      nir_fdiv(b, abs_srcx, nir_fexp2(b, nir_ffloor(b, log2))),
-                      nir_flog2(b, abs_srcx),
-                      nir_imm_float(b, 1.0));
-}
-
 static void
 ttn_barrier(nir_builder *b)
 {
@@ -1598,8 +1563,6 @@ static const nir_op op_trans[TGSI_OPCODE_LAST] = {
    [TGSI_OPCODE_FBFETCH] = nir_op_mov,
    [TGSI_OPCODE_RCP] = nir_op_frcp,
    [TGSI_OPCODE_RSQ] = nir_op_frsq,
-   [TGSI_OPCODE_EXP] = 0,
-   [TGSI_OPCODE_LOG] = 0,
    [TGSI_OPCODE_MUL] = nir_op_fmul,
    [TGSI_OPCODE_ADD] = nir_op_fadd,
    [TGSI_OPCODE_DP3] = 0,
@@ -1828,14 +1791,6 @@ ttn_emit_instruction(struct ttn_compile *c)
 
    case TGSI_OPCODE_ARL:
       dst = nir_f2i32(b, nir_ffloor(b, src[0]));
-      break;
-
-   case TGSI_OPCODE_EXP:
-      dst = ttn_exp(b, src);
-      break;
-
-   case TGSI_OPCODE_LOG:
-      dst = ttn_log(b, src);
       break;
 
    case TGSI_OPCODE_DP2:

@@ -7217,93 +7217,6 @@ emit_ex2(struct svga_shader_emitter_v10 *emit,
 
 
 /**
- * Emit code for TGSI_OPCODE_EXP instruction.
- */
-static bool
-emit_exp(struct svga_shader_emitter_v10 *emit,
-         const struct tgsi_full_instruction *inst)
-{
-   /*
-    * dst.x = 2 ^ floor(s0.x)
-    * dst.y = s0.x - floor(s0.x)
-    * dst.z = 2 ^ s0.x
-    * dst.w = 1.0
-    */
-
-   struct tgsi_full_src_register src_xxxx =
-      scalar_src(&inst->Src[0], TGSI_SWIZZLE_X);
-   unsigned tmp = get_temp_index(emit);
-   struct tgsi_full_src_register tmp_src = make_src_temp_reg(tmp);
-   struct tgsi_full_dst_register tmp_dst = make_dst_temp_reg(tmp);
-
-   /*
-    * If dst and src are the same we need to create
-    * a temporary for it and insert a extra move.
-    */
-   unsigned tmp_move = get_temp_index(emit);
-   struct tgsi_full_src_register move_src = make_src_temp_reg(tmp_move);
-   struct tgsi_full_dst_register move_dst = make_dst_temp_reg(tmp_move);
-
-   /* only use X component of temp reg */
-   tmp_dst = writemask_dst(&tmp_dst, TGSI_WRITEMASK_X);
-   tmp_src = scalar_src(&tmp_src, TGSI_SWIZZLE_X);
-
-   /* ROUND_NI tmp.x, s0.x */
-   emit_instruction_op1(emit, VGPU10_OPCODE_ROUND_NI, &tmp_dst,
-                        &src_xxxx); /* round to -infinity */
-
-   /* EXP dst.x, tmp.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_X) {
-      struct tgsi_full_dst_register dst_x =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_X);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_EXP, &dst_x, &tmp_src,
-                           NULL, NULL,
-                           inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-   }
-
-   /* ADD dst.y, s0.x, -tmp */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Y) {
-      struct tgsi_full_dst_register dst_y =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Y);
-      struct tgsi_full_src_register neg_tmp_src = negate_src(&tmp_src);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_ADD, &dst_y, &src_xxxx,
-                           &neg_tmp_src, NULL,
-                           inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-   }
-
-   /* EXP dst.z, s0.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Z) {
-      struct tgsi_full_dst_register dst_z =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_Z);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_EXP, &dst_z, &src_xxxx,
-                           NULL, NULL,
-                           inst->Instruction.Saturate,
-                           inst->Instruction.Precise);
-   }
-
-   /* MOV dst.w, 1.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_W) {
-      struct tgsi_full_dst_register dst_w =
-         writemask_dst(&move_dst, TGSI_WRITEMASK_W);
-      struct tgsi_full_src_register one = make_immediate_reg_float(emit, 1.0f);
-
-      emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &dst_w, &one);
-   }
-
-   emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &inst->Dst[0], &move_src);
-
-   free_temp_indexes(emit);
-
-   return true;
-}
-
-
-/**
  * Emit code for TGSI_OPCODE_IF instruction.
  */
 static bool
@@ -7454,88 +7367,6 @@ emit_lodq(struct svga_shader_emitter_v10 *emit,
    emit_resource_register(emit, unit);
    emit_sampler_register(emit, unit);
    end_emit_instruction(emit);
-
-   return true;
-}
-
-
-/**
- * Emit code for TGSI_OPCODE_LOG instruction.
- */
-static bool
-emit_log(struct svga_shader_emitter_v10 *emit,
-         const struct tgsi_full_instruction *inst)
-{
-   /*
-    * dst.x = floor(lg2(abs(s0.x)))
-    * dst.y = abs(s0.x) / (2 ^ floor(lg2(abs(s0.x))))
-    * dst.z = lg2(abs(s0.x))
-    * dst.w = 1.0
-    */
-
-   struct tgsi_full_src_register src_xxxx =
-      scalar_src(&inst->Src[0], TGSI_SWIZZLE_X);
-   unsigned tmp = get_temp_index(emit);
-   struct tgsi_full_src_register tmp_src = make_src_temp_reg(tmp);
-   struct tgsi_full_dst_register tmp_dst = make_dst_temp_reg(tmp);
-   struct tgsi_full_src_register abs_src_xxxx = absolute_src(&src_xxxx);
-
-   /* only use X component of temp reg */
-   tmp_dst = writemask_dst(&tmp_dst, TGSI_WRITEMASK_X);
-   tmp_src = scalar_src(&tmp_src, TGSI_SWIZZLE_X);
-
-   /* LOG tmp.x, abs(s0.x) */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_XYZ) {
-      emit_instruction_op1(emit, VGPU10_OPCODE_LOG, &tmp_dst, &abs_src_xxxx);
-   }
-
-   /* MOV dst.z, tmp.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Z) {
-      struct tgsi_full_dst_register dst_z =
-         writemask_dst(&inst->Dst[0], TGSI_WRITEMASK_Z);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MOV,
-                           &dst_z, &tmp_src, NULL, NULL,
-                           inst->Instruction.Saturate, false);
-   }
-
-   /* FLR tmp.x, tmp.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_XY) {
-      emit_instruction_op1(emit, VGPU10_OPCODE_ROUND_NI, &tmp_dst, &tmp_src);
-   }
-
-   /* MOV dst.x, tmp.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_X) {
-      struct tgsi_full_dst_register dst_x =
-         writemask_dst(&inst->Dst[0], TGSI_WRITEMASK_X);
-
-      emit_instruction_opn(emit, VGPU10_OPCODE_MOV,
-                           &dst_x, &tmp_src, NULL, NULL,
-                           inst->Instruction.Saturate, false);
-   }
-
-   /* EXP tmp.x, tmp.x */
-   /* DIV dst.y, abs(s0.x), tmp.x */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_Y) {
-      struct tgsi_full_dst_register dst_y =
-         writemask_dst(&inst->Dst[0], TGSI_WRITEMASK_Y);
-
-      emit_instruction_op1(emit, VGPU10_OPCODE_EXP, &tmp_dst, &tmp_src);
-      emit_instruction_opn(emit, VGPU10_OPCODE_DIV, &dst_y, &abs_src_xxxx,
-                           &tmp_src, NULL, inst->Instruction.Saturate, false);
-   }
-
-   /* MOV dst.w, 1.0 */
-   if (inst->Dst[0].Register.WriteMask & TGSI_WRITEMASK_W) {
-      struct tgsi_full_dst_register dst_w =
-         writemask_dst(&inst->Dst[0], TGSI_WRITEMASK_W);
-      struct tgsi_full_src_register one =
-         make_immediate_reg_float(emit, 1.0f);
-
-      emit_instruction_op1(emit, VGPU10_OPCODE_MOV, &dst_w, &one);
-   }
-
-   free_temp_indexes(emit);
 
    return true;
 }
@@ -10865,8 +10696,6 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
       return emit_sincos(emit, inst);
    case TGSI_OPCODE_EX2:
       return emit_ex2(emit, inst);
-   case TGSI_OPCODE_EXP:
-      return emit_exp(emit, inst);
    case TGSI_OPCODE_IF:
       return emit_if(emit, &inst->Src[0]);
    case TGSI_OPCODE_KILL:
@@ -10877,8 +10706,6 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
       return emit_lg2(emit, inst);
    case TGSI_OPCODE_LODQ:
       return emit_lodq(emit, inst);
-   case TGSI_OPCODE_LOG:
-      return emit_log(emit, inst);
    case TGSI_OPCODE_LRP:
       return emit_lrp(emit, inst);
    case TGSI_OPCODE_POW:

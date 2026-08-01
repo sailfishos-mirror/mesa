@@ -2255,70 +2255,6 @@ emit_lrp(struct svga_shader_emitter *emit,
    return submit_lrp(emit, dst, src0, src1, src2);
 }
 
-static bool
-emit_exp(struct svga_shader_emitter *emit,
-         const struct tgsi_full_instruction *insn)
-{
-   SVGA3dShaderDestToken dst = translate_dst_register(emit, insn, 0);
-   struct src_register src0 =
-      translate_src_register(emit, &insn->Src[0]);
-   SVGA3dShaderDestToken fraction;
-
-   if (dst.mask & TGSI_WRITEMASK_Y)
-      fraction = dst;
-   else if (dst.mask & TGSI_WRITEMASK_X)
-      fraction = get_temp(emit);
-   else
-      fraction.value = 0;
-
-   /* If y is being written, fill it with src0 - floor(src0).
-    */
-   if (dst.mask & TGSI_WRITEMASK_XY) {
-      if (!submit_op1(emit, inst_token(SVGA3DOP_FRC),
-                       writemask(fraction, TGSI_WRITEMASK_Y),
-                       src0))
-         return false;
-   }
-
-   /* If x is being written, fill it with 2 ^ floor(src0).
-    */
-   if (dst.mask & TGSI_WRITEMASK_X) {
-      if (!submit_op2(emit, inst_token(SVGA3DOP_ADD),
-                       writemask(dst, TGSI_WRITEMASK_X),
-                       src0,
-                       scalar(negate(src(fraction)), TGSI_SWIZZLE_Y)))
-         return false;
-
-      if (!submit_op1(emit, inst_token(SVGA3DOP_EXP),
-                       writemask(dst, TGSI_WRITEMASK_X),
-                       scalar(src(dst), TGSI_SWIZZLE_X)))
-         return false;
-
-      if (!(dst.mask & TGSI_WRITEMASK_Y))
-         release_temp(emit, fraction);
-   }
-
-   /* If z is being written, fill it with 2 ^ src0 (partial precision).
-    */
-   if (dst.mask & TGSI_WRITEMASK_Z) {
-      if (!submit_op1(emit, inst_token(SVGA3DOP_EXPP),
-                       writemask(dst, TGSI_WRITEMASK_Z),
-                       src0))
-         return false;
-   }
-
-   /* If w is being written, fill it with one.
-    */
-   if (dst.mask & TGSI_WRITEMASK_W) {
-      if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                       writemask(dst, TGSI_WRITEMASK_W),
-                       get_one_immediate(emit)))
-         return false;
-   }
-
-   return true;
-}
-
 
 static bool
 emit_ex2(struct svga_shader_emitter *emit,
@@ -2345,112 +2281,6 @@ emit_ex2(struct svga_shader_emitter *emit,
    }
 
    return submit_op1(emit, inst, dst, src0);
-}
-
-
-static bool
-emit_log(struct svga_shader_emitter *emit,
-         const struct tgsi_full_instruction *insn)
-{
-   SVGA3dShaderDestToken dst = translate_dst_register(emit, insn, 0);
-   struct src_register src0 =
-      translate_src_register(emit, &insn->Src[0]);
-   SVGA3dShaderDestToken abs_tmp;
-   struct src_register abs_src0;
-   SVGA3dShaderDestToken log2_abs;
-
-   abs_tmp.value = 0;
-
-   if (dst.mask & TGSI_WRITEMASK_Z)
-      log2_abs = dst;
-   else if (dst.mask & TGSI_WRITEMASK_XY)
-      log2_abs = get_temp(emit);
-   else
-      log2_abs.value = 0;
-
-   /* If z is being written, fill it with log2(abs(src0)).
-    */
-   if (dst.mask & TGSI_WRITEMASK_XYZ) {
-      if (!src0.base.srcMod || src0.base.srcMod == SVGA3DSRCMOD_ABS) {
-         abs_src0 = src0;
-      } else {
-         abs_tmp = get_temp(emit);
-
-         if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                          abs_tmp,
-                          src0))
-            return false;
-
-         abs_src0 = src(abs_tmp);
-      }
-
-      abs_src0 = absolute(scalar(abs_src0, TGSI_SWIZZLE_X));
-
-      if (!submit_op1(emit, inst_token(SVGA3DOP_LOG),
-                       writemask(log2_abs, TGSI_WRITEMASK_Z),
-                       abs_src0))
-         return false;
-   }
-
-   if (dst.mask & TGSI_WRITEMASK_XY) {
-      SVGA3dShaderDestToken floor_log2;
-
-      if (dst.mask & TGSI_WRITEMASK_X)
-         floor_log2 = dst;
-      else
-         floor_log2 = get_temp(emit);
-
-      /* If x is being written, fill it with floor(log2(abs(src0))).
-       */
-      if (!submit_op1(emit, inst_token(SVGA3DOP_FRC),
-                       writemask(floor_log2, TGSI_WRITEMASK_X),
-                       scalar(src(log2_abs), TGSI_SWIZZLE_Z)))
-         return false;
-
-      if (!submit_op2(emit, inst_token(SVGA3DOP_ADD),
-                       writemask(floor_log2, TGSI_WRITEMASK_X),
-                       scalar(src(log2_abs), TGSI_SWIZZLE_Z),
-                       negate(src(floor_log2))))
-         return false;
-
-      /* If y is being written, fill it with
-       * abs (src0) / (2 ^ floor(log2(abs(src0)))).
-       */
-      if (dst.mask & TGSI_WRITEMASK_Y) {
-         if (!submit_op1(emit, inst_token(SVGA3DOP_EXP),
-                          writemask(dst, TGSI_WRITEMASK_Y),
-                          negate(scalar(src(floor_log2),
-                                          TGSI_SWIZZLE_X))))
-            return false;
-
-         if (!submit_op2(emit, inst_token(SVGA3DOP_MUL),
-                          writemask(dst, TGSI_WRITEMASK_Y),
-                          src(dst),
-                          abs_src0))
-            return false;
-      }
-
-      if (!(dst.mask & TGSI_WRITEMASK_X))
-         release_temp(emit, floor_log2);
-
-      if (!(dst.mask & TGSI_WRITEMASK_Z))
-         release_temp(emit, log2_abs);
-   }
-
-   if (dst.mask & TGSI_WRITEMASK_XYZ && src0.base.srcMod &&
-       src0.base.srcMod != SVGA3DSRCMOD_ABS)
-      release_temp(emit, abs_tmp);
-
-   /* If w is being written, fill it with one.
-    */
-   if (dst.mask & TGSI_WRITEMASK_W) {
-      if (!submit_op1(emit, inst_token(SVGA3DOP_MOV),
-                       writemask(dst, TGSI_WRITEMASK_W),
-                       get_one_immediate(emit)))
-         return false;
-   }
-
-   return true;
 }
 
 
@@ -2689,12 +2519,6 @@ svga_emit_instruction(struct svga_shader_emitter *emit,
 
    case TGSI_OPCODE_EX2:
       return emit_ex2(emit, insn);
-
-   case TGSI_OPCODE_EXP:
-      return emit_exp(emit, insn);
-
-   case TGSI_OPCODE_LOG:
-      return emit_log(emit, insn);
 
    case TGSI_OPCODE_LG2:
       return emit_scalar_op1(emit, SVGA3DOP_LOG, insn);
@@ -3339,8 +3163,6 @@ needs_to_create_common_immediate(const struct svga_shader_emitter *emit)
        emit->info.opcode_count[TGSI_OPCODE_SLT] >= 1 ||
        emit->info.opcode_count[TGSI_OPCODE_SNE] >= 1 ||
        emit->info.opcode_count[TGSI_OPCODE_SEQ] >= 1 ||
-       emit->info.opcode_count[TGSI_OPCODE_EXP] >= 1 ||
-       emit->info.opcode_count[TGSI_OPCODE_LOG] >= 1 ||
        emit->info.opcode_count[TGSI_OPCODE_KILL] >= 1 ||
        emit->info.opcode_count[TGSI_OPCODE_SQRT] >= 1)
       return true;

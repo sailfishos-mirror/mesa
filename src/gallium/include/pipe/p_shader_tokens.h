@@ -345,8 +345,8 @@ enum tgsi_opcode {
    /* gap */
    TGSI_OPCODE_RCP                = 3,
    TGSI_OPCODE_RSQ                = 4,
-   TGSI_OPCODE_EXP                = 5,
-   TGSI_OPCODE_LOG                = 6,
+   /* gap */
+   /* gap */
    TGSI_OPCODE_MUL                = 7,
    TGSI_OPCODE_ADD                = 8,
    TGSI_OPCODE_DP3                = 9,

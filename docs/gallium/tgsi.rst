@@ -108,26 +108,6 @@ used.
       dst = {\sqrt{src.x}}
 
 
-.. opcode:: EXP - Approximate Exponential Base 2
-
-   .. math::
-
-      dst.x &= 2^{\lfloor src.x\rfloor} \\
-      dst.y &= src.x - \lfloor src.x\rfloor \\
-      dst.z &= 2^{src.x} \\
-      dst.w &= 1
-
-
-.. opcode:: LOG - Approximate Logarithm Base 2
-
-   .. math::
-
-      dst.x &= \lfloor\log_2{|src.x|}\rfloor \\
-      dst.y &= \frac{|src.x|}{2^{\lfloor\log_2{|src.x|}\rfloor}} \\
-      dst.z &= \log_2{|src.x|} \\
-      dst.w &= 1
-
-
 .. opcode:: MUL - Multiply
 
    .. math::
