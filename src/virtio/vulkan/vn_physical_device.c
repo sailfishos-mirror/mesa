@@ -184,6 +184,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
          fragment_shader_barycentric;
       VkPhysicalDeviceFragmentShadingRateFeaturesKHR fragment_shading_rate;
       VkPhysicalDeviceMaintenance7FeaturesKHR maintenance_7;
+      VkPhysicalDeviceMaintenance8FeaturesKHR maintenance_8;
       VkPhysicalDeviceRayQueryFeaturesKHR ray_query;
       VkPhysicalDeviceRayTracingMaintenance1FeaturesKHR
          ray_tracing_maintenance_1;
@@ -359,6 +360,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR, local_feats.fragment_shader_barycentric, exts->KHR_fragment_shader_barycentric);
    VN_ADD_PNEXT_EXT(feats2, FRAGMENT_SHADING_RATE_FEATURES_KHR, local_feats.fragment_shading_rate, exts->KHR_fragment_shading_rate);
    VN_ADD_PNEXT_EXT(feats2, MAINTENANCE_7_FEATURES_KHR, local_feats.maintenance_7, exts->KHR_maintenance7);
+   VN_ADD_PNEXT_EXT(feats2, MAINTENANCE_8_FEATURES_KHR, local_feats.maintenance_8, exts->KHR_maintenance8);
    VN_ADD_PNEXT_EXT(feats2, RAY_QUERY_FEATURES_KHR, local_feats.ray_query, exts->KHR_ray_query);
    VN_ADD_PNEXT_EXT(feats2, RAY_TRACING_MAINTENANCE_1_FEATURES_KHR, local_feats.ray_tracing_maintenance_1, exts->KHR_ray_tracing_maintenance1);
    VN_ADD_PNEXT_EXT(feats2, RAY_TRACING_PIPELINE_FEATURES_KHR, local_feats.ray_tracing_pipeline, exts->KHR_ray_tracing_pipeline);
@@ -1289,6 +1291,7 @@ vn_physical_device_get_passthrough_extensions(
       .KHR_maintenance7 =
          physical_dev->renderer_version >= VK_API_VERSION_1_2 ||
          physical_dev->renderer_extensions.KHR_driver_properties,
+      .KHR_maintenance8 = true,
       .KHR_pipeline_library = true,
       .KHR_ray_query = physical_dev->ray_tracing,
       .KHR_ray_tracing_maintenance1 = physical_dev->ray_tracing,
