@@ -40,6 +40,7 @@ quirk_names = {
     "QCTDD08407086": "cs_lock_unlock",
     "QCTDD10204462": "flat_ei",
     "QCTDD10789828": "no_a0_ep",
+    "QCTDD11147232": "alias_mova",
     "QCTDD12766770": "r8g8_fc_alignment",
     "QCTDD13523866": "dummy_alu",
 }

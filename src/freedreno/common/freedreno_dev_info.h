@@ -491,9 +491,6 @@ struct fd_dev_info {
       uint32_t max_texel_buffer_range_elements;
       uint32_t max_storage_buffer_range_bytes;
 
-      /* On a7xx alias.tex may hang when in between mova and (ul). */
-      bool alias_mova_quirk;
-
       /* On some HW alias.tex may hang when predicated (i.e. between
        * predt/predf and prede).
        */
@@ -518,6 +515,8 @@ struct fd_dev_info {
       bool QCTDD10204462_flat_ei : 1;
       /* Do not use a0 in early preamble. */
       bool QCTDD10789828_no_a0_ep : 1;
+      /* On a7xx alias.tex may hang when in between mova and (ul). */
+      bool QCTDD11147232_alias_mova : 1;
       /* Whether r8g8 UBWC fast-clear work correctly. */
       bool QCTDD12766770_r8g8_fc_alignment : 1;
       /* When there is a main shader with single ALU instruction
