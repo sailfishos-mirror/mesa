@@ -110,7 +110,6 @@ tgsi_util_get_src_usage_mask(enum tgsi_opcode opcode,
 
    case TGSI_OPCODE_DP2:
    case TGSI_OPCODE_PK2H:
-   case TGSI_OPCODE_PK2US:
    case TGSI_OPCODE_F2D:
    case TGSI_OPCODE_I2D:
    case TGSI_OPCODE_U2D:
@@ -139,8 +138,6 @@ tgsi_util_get_src_usage_mask(enum tgsi_opcode opcode,
    case TGSI_OPCODE_DSLT:
    case TGSI_OPCODE_DSGE:
    case TGSI_OPCODE_DP4:
-   case TGSI_OPCODE_PK4B:
-   case TGSI_OPCODE_PK4UB:
    case TGSI_OPCODE_D2F:
    case TGSI_OPCODE_D2I:
    case TGSI_OPCODE_D2U:

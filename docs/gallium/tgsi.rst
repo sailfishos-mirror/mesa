@@ -392,46 +392,6 @@ used.
           ( & f32\_to\_f16(src.y) \ll 16)
       \end{aligned}
 
-.. opcode:: PK2US - Pack Two Unsigned 16-bit Scalars
-
-   This instruction replicates its result.
-
-   .. math::
-
-      \begin{aligned}
-      dst = & f32\_to\_unorm16(src.x) | \\
-          ( & f32\_to\_unorm16(src.y) \ll 16)
-      \end{aligned}
-
-
-.. opcode:: PK4B - Pack Four Signed 8-bit Scalars
-
-   This instruction replicates its result.
-
-   .. math::
-
-      \begin{aligned}
-      dst = & f32\_to\_snorm8(src.x) | \\
-          ( & f32\_to\_snorm8(src.y) \ll 8) | \\
-          ( & f32\_to\_snorm8(src.z) \ll 16) | \\
-          ( & f32\_to\_snorm8(src.w) \ll 24)
-      \end{aligned}
-
-
-.. opcode:: PK4UB - Pack Four Unsigned 8-bit Scalars
-
-   This instruction replicates its result.
-
-   .. math::
-
-      \begin{aligned}
-      dst = & f32\_to\_unorm8(src.x) | \\
-          ( & f32\_to\_unorm8(src.y) \ll 8) | \\
-          ( & f32\_to\_unorm8(src.z) \ll 16) | \\
-          ( & f32\_to\_unorm8(src.w) \ll 24)
-      \end{aligned}
-
-
 .. opcode:: SEQ - Set On Equal
 
    .. math::

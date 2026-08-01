@@ -4895,18 +4895,6 @@ exec_instruction(
       exec_pk2h(mach, inst);
       break;
 
-   case TGSI_OPCODE_PK2US:
-      assert (0);
-      break;
-
-   case TGSI_OPCODE_PK4B:
-      assert (0);
-      break;
-
-   case TGSI_OPCODE_PK4UB:
-      assert (0);
-      break;
-
    case TGSI_OPCODE_SEQ:
       exec_vector_binary(mach, inst, micro_seq, TGSI_EXEC_DATA_FLOAT);
       break;

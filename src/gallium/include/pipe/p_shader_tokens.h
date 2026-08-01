@@ -381,9 +381,9 @@ enum tgsi_opcode {
    TGSI_OPCODE_DDY                = 38,
    TGSI_OPCODE_KILL               = 39 /* unconditional */,
    TGSI_OPCODE_PK2H               = 40,
-   TGSI_OPCODE_PK2US              = 41,
-   TGSI_OPCODE_PK4B               = 42,
-   TGSI_OPCODE_PK4UB              = 43,
+   /* gap */
+   /* gap */
+   /* gap */
    TGSI_OPCODE_D2U64              = 44,
    TGSI_OPCODE_SEQ                = 45,
    TGSI_OPCODE_D2I64              = 46,
