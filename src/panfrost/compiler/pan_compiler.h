@@ -643,6 +643,8 @@ pan_res_handle(unsigned table, unsigned index)
 void pan_disassemble(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
                      bool verbose);
 
+float pan_va_compute_alu_bound(uint8_t arch, float fma, float cvt, float sfu);
+
 static inline unsigned
 pan_max_multiview_view_count(unsigned arch)
 {

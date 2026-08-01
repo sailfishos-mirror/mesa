@@ -3990,8 +3990,8 @@ bi_gather_stats(bi_context *ctx, unsigned size, struct bifrost_stats *out)
    out->cycles = MAX2(out->arith, MAX3(out->t, out->v, out->ldst));
 }
 
-static float
-va_compute_alu_bound(unsigned arch, float fma, float cvt, float sfu)
+float
+pan_va_compute_alu_bound(uint8_t arch, float fma, float cvt, float sfu)
 {
    switch (arch) {
    case 9:
@@ -4085,7 +4085,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
       stats.ls /= 1.0;
    }
 
-   stats.alu = va_compute_alu_bound(arch, stats.fma, stats.cvt, stats.sfu);
+   stats.alu = pan_va_compute_alu_bound(arch, stats.fma, stats.cvt, stats.sfu);
    stats.cycles = MAX4(stats.alu, stats.v, stats.t, stats.ls);
 
    *out = stats;
