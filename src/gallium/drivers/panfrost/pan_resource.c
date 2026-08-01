@@ -5,6 +5,7 @@
  * Copyright (C) 2018-2019 Alyssa Rosenzweig
  * Copyright (C) 2019 Collabora, Ltd.
  * Copyright (C) 2023 Amazon.com, Inc. or its affiliates
+ * Copyright (C) 2026 NXP
  * SPDX-License-Identifier: MIT
  */
 
@@ -2545,6 +2546,50 @@ panfrost_resource_screen_destroy(struct pipe_screen *pscreen)
    u_transfer_helper_destroy(pscreen->transfer_helper);
 }
 
+/* Buffer copies smaller than this use the CPU memcpy fallback: below the
+ * crossover the fixed GPU dispatch/flush overhead outweighs the higher copy
+ * bandwidth. Measured on Mali-G310, the GPU path has a ~0.155 ms fixed
+ * per-copy overhead (compute dispatch + the two batch flushes) while the CPU
+ * memcpy fallback runs at ~0.145 GB/s; the two cross over at ~21-22 KB. 32 KB
+ * sits safely past the noisy tie band so the GPU path is only taken when it is
+ * reliably faster. */
+#define PAN_COMPUTE_COPY_BUFFER_MIN_SIZE 32768
+
+static void
+panfrost_resource_copy_region(struct pipe_context *pipe,
+                              struct pipe_resource *dst, unsigned dst_level,
+                              unsigned dst_x, unsigned dst_y, unsigned dst_z,
+                              struct pipe_resource *src, unsigned src_level,
+                              const struct pipe_box *src_box)
+{
+   /* Fast path: sufficiently large, 4-byte-aligned, contiguous buffer->buffer
+    * copies are done on the GPU via the libpan copy compute kernel. Small
+    * copies (below PAN_COMPUTE_COPY_BUFFER_MIN_SIZE) and anything not even
+    * 4-byte aligned (rare for OpenCL buffers) fall back to the software path
+    * below, which maps both resources and does a CPU memcpy. */
+   if (src->target == PIPE_BUFFER && dst->target == PIPE_BUFFER) {
+      unsigned size = src_box->width;
+      struct panfrost_screen *screen = pan_screen(pipe->screen);
+      if (screen->vtbl.compute_copy_buffer &&
+          size >= PAN_COMPUTE_COPY_BUFFER_MIN_SIZE && (size % 4 == 0) &&
+          (dst_x % 4 == 0) && (src_box->x % 4 == 0)) {
+         struct panfrost_resource *pdst = pan_resource(dst);
+
+         screen->vtbl.compute_copy_buffer(pipe, pdst, dst_x, pan_resource(src),
+                                          src_box->x, size);
+
+         /* The GPU wrote [dst_x, dst_x + size) of the destination buffer, so
+          * mark that range valid for later reads. */
+         util_range_add(&pdst->base, &pdst->valid_buffer_range, dst_x,
+                        dst_x + size);
+         return;
+      }
+   }
+
+   util_resource_copy_region(pipe, dst, dst_level, dst_x, dst_y, dst_z, src,
+                             src_level, src_box);
+}
+
 void
 panfrost_resource_context_init(struct pipe_context *pctx)
 {
@@ -2552,7 +2597,7 @@ panfrost_resource_context_init(struct pipe_context *pctx)
    pctx->buffer_unmap = u_transfer_helper_transfer_unmap;
    pctx->texture_map = u_transfer_helper_transfer_map;
    pctx->texture_unmap = u_transfer_helper_transfer_unmap;
-   pctx->resource_copy_region = util_resource_copy_region;
+   pctx->resource_copy_region = panfrost_resource_copy_region;
    pctx->blit = panfrost_blitter_blit;
    pctx->generate_mipmap = panfrost_generate_mipmap;
    pctx->flush_resource = panfrost_flush_resource;
