@@ -763,15 +763,19 @@ tu_image_init(struct tu_device *device, struct tu_image *image,
       struct fdl_explicit_layout plane_layout;
 
       if (plane_layouts) {
-         /* only expect simple 2D images for now */
-         if (image->vk.mip_levels != 1 ||
-            image->vk.array_layers != 1 ||
-            image->vk.extent.depth != 1)
+         /* Reject mipmap and 3D images; fdl6_layout_image only accepts
+          * explicit pitch for single-mip 2D images.
+          */
+         if (image->vk.mip_levels != 1 || image->vk.extent.depth != 1)
             return vk_error(device, VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);
 
          plane_layout.offset = plane_layouts[i].offset;
          plane_layout.pitch = plane_layouts[i].rowPitch;
-         /* note: use plane_layouts[0].arrayPitch to support array formats */
+         /* arrayPitch is intentionally not consumed here. fdl6_layout_image
+          * deterministically computes layer_size from the imported pitch,
+          * format, and tiling mode. The per-layer stride is not an independent
+          * parameter, it is fully determined by the single-mip slice layout.
+          */
       }
 
       layout->tile_mode = tile_mode;
