@@ -842,11 +842,11 @@ a7xx_base = GPUProps(
         max_texel_buffer_range_elements = 1 << 27,
         max_storage_buffer_range_bytes = 1 << 27,
 
-        alias_predication_quirk = True,
         prefetch_sam_helpers_quirk = True,
 
         QCTDD10204462 = True,
         QCTDD11147232 = True,
+        QCTDD11183148 = True,
     )
 
 a7xx_gen1 = GPUProps(

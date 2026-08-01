@@ -491,11 +491,6 @@ struct fd_dev_info {
       uint32_t max_texel_buffer_range_elements;
       uint32_t max_storage_buffer_range_bytes;
 
-      /* On some HW alias.tex may hang when predicated (i.e. between
-       * predt/predf and prede).
-       */
-      bool alias_predication_quirk;
-
       /* There seems to be a HW bug where a dummy prefetch sam.s2en always
        * reads its src2 from fiber 0. This may cause faults when fiber 0 is a
        * helper and helpers are disabled. We work around this by keeping
@@ -517,6 +512,10 @@ struct fd_dev_info {
       bool QCTDD10789828_no_a0_ep : 1;
       /* On a7xx alias.tex may hang when in between mova and (ul). */
       bool QCTDD11147232_alias_mova : 1;
+      /* On some HW alias.tex may hang when predicated (i.e. between
+       * predt/predf and prede).
+       */
+      bool QCTDD11183148_alias_pred : 1;
       /* Whether r8g8 UBWC fast-clear work correctly. */
       bool QCTDD12766770_r8g8_fc_alignment : 1;
       /* When there is a main shader with single ALU instruction
