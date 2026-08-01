@@ -2815,6 +2815,10 @@ pub fn v9_op_is_supported(op: &Op, arch: u8) -> bool {
     v9_op_match_else!(op, |op| op.get_info(arch).is_some(), false)
 }
 
+pub fn v9_op_exec_unit(op: &Op, arch: u8) -> Option<ExecUnit> {
+    Some(v9_op_info(op, arch)?.isa_info.exec_unit)
+}
+
 pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {
     v9_op_info(op, arch).is_some_and(|info| info.isa_info.is_message)
 }
