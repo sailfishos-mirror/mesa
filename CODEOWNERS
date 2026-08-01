@@ -119,6 +119,10 @@ gitlab-ci*.yml @eric
 # Drivers #
 ###########
 
+# Apple
+/src/glx/apple @jeremyhu
+/src/glx/applegl_glx.c @jeremyhu
+
 # Asahi
 /src/asahi/ @alyssa
 /src/gallium/drivers/asahi/ @alyssa
