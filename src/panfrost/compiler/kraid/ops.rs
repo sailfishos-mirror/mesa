@@ -2550,6 +2550,9 @@ impl DisplayOp for OpLeaTex {
 pub struct OpLoad {
     pub dst: Dst,
     pub dst_type: DataType,
+
+    /// Used to determine if this LOAD should count towards the fill count
+    pub is_tls: bool,
     pub access: MemAccess,
 
     #[src_type(I64)]
@@ -3161,6 +3164,9 @@ impl DisplayOp for OpStCvt {
 #[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpStore {
     pub src_type: DataType,
+
+    /// Used to determine if this STORE should count towards the spill count
+    pub is_tls: bool,
     pub access: MemAccess,
 
     pub data: Src,

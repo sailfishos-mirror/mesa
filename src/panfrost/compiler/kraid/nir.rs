@@ -1624,6 +1624,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLoad {
                     dst,
                     dst_type: DataType::i(bits),
+                    is_tls: (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0,
                     access: mem_access_from_nir(intrin),
                     addr,
                     offset: 0,
@@ -1768,6 +1769,7 @@ impl<'a> ShaderFromNir<'a> {
                 let addr = self.get_src(&srcs[1]);
                 b.push_op(OpStore {
                     src_type: DataType::i(bits),
+                    is_tls: (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0,
                     access: mem_access_from_nir(intrin),
                     data,
                     addr,
