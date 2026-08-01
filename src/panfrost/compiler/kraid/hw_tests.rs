@@ -135,7 +135,8 @@ impl RunSingleton {
         let runner = TestRunner::new(DEVICE_DEBUG)?;
 
         let gpu_id = runner.gpu_id();
-        let model = model_for_gpu_id(gpu_id)
+        let gpu_variant = runner.gpu_variant();
+        let model = model_for_gpu_id(gpu_id, gpu_variant)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         Ok(RunSingleton { model, runner })

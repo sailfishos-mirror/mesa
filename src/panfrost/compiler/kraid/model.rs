@@ -6,6 +6,8 @@ use crate::ir::*;
 use crate::isa::ExecUnit;
 use kraid_bindings::*;
 
+pub use kraid_bindings::pan_model as PanModel;
+
 pub struct SmallConstantTable(Vec<SmallConstant>);
 
 impl<'a> IntoIterator for &'a SmallConstantTable {
@@ -43,6 +45,8 @@ impl FAUModel {
 
 pub trait Model {
     fn arch(&self) -> u8;
+
+    fn pan_model(&self) -> &PanModel;
 
     fn fau(&self) -> &FAUModel;
 
@@ -86,11 +90,16 @@ pub trait Model {
 
 struct ValhallModel {
     arch: u8,
+    pan_model: std::ptr::NonNull<PanModel>,
     fau: FAUModel,
 }
 
+// SAFETY: The pan_model pointer points to static data
+unsafe impl Send for ValhallModel {}
+unsafe impl Sync for ValhallModel {}
+
 impl ValhallModel {
-    fn new(arch: u8) -> ValhallModel {
+    fn new(arch: u8, pan_model: std::ptr::NonNull<PanModel>) -> ValhallModel {
         use crate::isa::{SmallConstantTable, v9};
         let sc_table = SmallConstantTable(v9::SmallConstantT::collect(arch));
         let fau = FAUModel {
@@ -101,7 +110,11 @@ impl ValhallModel {
             }),
             single_fau_ram_index: arch < 14,
         };
-        ValhallModel { arch, fau }
+        ValhallModel {
+            arch,
+            pan_model,
+            fau,
+        }
     }
 
     #[inline]
@@ -158,6 +171,10 @@ impl ValhallModel {
 impl Model for ValhallModel {
     fn arch(&self) -> u8 {
         self.arch
+    }
+
+    fn pan_model(&self) -> &PanModel {
+        unsafe { self.pan_model.as_ref() }
     }
 
     fn fau(&self) -> &FAUModel {
@@ -281,14 +298,19 @@ impl Model for ValhallModel {
 
 pub fn model_for_gpu_id(
     gpu_id: u64,
+    gpu_variant: u32,
 ) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
     // SAFETY: pan_arch() just translates one integer to another
     let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
+    let pan_model = unsafe {
+        let model = pan_get_model(gpu_id, gpu_variant) as *mut _;
+        std::ptr::NonNull::new(model).ok_or("Invalid GPU ID or variant")?
+    };
 
     if arch >= 15 {
         Err("Kraid does not yet support this GPU")
     } else if arch >= 9 {
-        Ok(Box::new(ValhallModel::new(arch)))
+        Ok(Box::new(ValhallModel::new(arch, pan_model)))
     } else {
         Err("Kraid only supports Valhall (v9) and later GPUs")
     }

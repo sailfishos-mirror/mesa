@@ -151,7 +151,7 @@ pub extern "C" fn kraid_compile_nir(
     binary: &mut util_dynarray,
     info: &mut pan_shader_info,
 ) {
-    let model = model_for_gpu_id(inputs.gpu_id).unwrap();
+    let model = model_for_gpu_id(inputs.gpu_id, inputs.gpu_variant).unwrap();
 
     if DEBUG.contains(DebugFlags::PRINT) {
         eprint!("{}", nir.to_string().unwrap());
