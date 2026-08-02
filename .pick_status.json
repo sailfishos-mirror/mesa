@@ -1084,7 +1084,7 @@
         "description": "drm-shim: remove the BO's `offset_map` entry on free",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c4b5ebe1fc911ff4a50c30efdcf31b66f47e5bae",
         "notes": null
