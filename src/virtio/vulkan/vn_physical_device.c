@@ -185,6 +185,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceFragmentShadingRateFeaturesKHR fragment_shading_rate;
       VkPhysicalDeviceMaintenance7FeaturesKHR maintenance_7;
       VkPhysicalDeviceMaintenance8FeaturesKHR maintenance_8;
+      VkPhysicalDeviceMaintenance9FeaturesKHR maintenance_9;
       VkPhysicalDeviceRayQueryFeaturesKHR ray_query;
       VkPhysicalDeviceRayTracingMaintenance1FeaturesKHR
          ray_tracing_maintenance_1;
@@ -361,6 +362,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, FRAGMENT_SHADING_RATE_FEATURES_KHR, local_feats.fragment_shading_rate, exts->KHR_fragment_shading_rate);
    VN_ADD_PNEXT_EXT(feats2, MAINTENANCE_7_FEATURES_KHR, local_feats.maintenance_7, exts->KHR_maintenance7);
    VN_ADD_PNEXT_EXT(feats2, MAINTENANCE_8_FEATURES_KHR, local_feats.maintenance_8, exts->KHR_maintenance8);
+   VN_ADD_PNEXT_EXT(feats2, MAINTENANCE_9_FEATURES_KHR, local_feats.maintenance_9, exts->KHR_maintenance9);
    VN_ADD_PNEXT_EXT(feats2, RAY_QUERY_FEATURES_KHR, local_feats.ray_query, exts->KHR_ray_query);
    VN_ADD_PNEXT_EXT(feats2, RAY_TRACING_MAINTENANCE_1_FEATURES_KHR, local_feats.ray_tracing_maintenance_1, exts->KHR_ray_tracing_maintenance1);
    VN_ADD_PNEXT_EXT(feats2, RAY_TRACING_PIPELINE_FEATURES_KHR, local_feats.ray_tracing_pipeline, exts->KHR_ray_tracing_pipeline);
@@ -642,6 +644,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
          fragment_shader_barycentric;
       VkPhysicalDeviceFragmentShadingRatePropertiesKHR fragment_shading_rate;
       VkPhysicalDeviceMaintenance7PropertiesKHR maintenance_7;
+      VkPhysicalDeviceMaintenance9PropertiesKHR maintenance_9;
       VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_tracing_pipeline;
       VkPhysicalDeviceRobustness2PropertiesKHR robustness_2;
 
@@ -739,6 +742,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(props2, FRAGMENT_SHADER_BARYCENTRIC_PROPERTIES_KHR, local_props.fragment_shader_barycentric, exts->KHR_fragment_shader_barycentric);
    VN_ADD_PNEXT_EXT(props2, FRAGMENT_SHADING_RATE_PROPERTIES_KHR, local_props.fragment_shading_rate, exts->KHR_fragment_shading_rate);
    VN_ADD_PNEXT_EXT(props2, MAINTENANCE_7_PROPERTIES_KHR, local_props.maintenance_7, exts->KHR_maintenance7);
+   VN_ADD_PNEXT_EXT(props2, MAINTENANCE_9_PROPERTIES_KHR, local_props.maintenance_9, exts->KHR_maintenance9);
    VN_ADD_PNEXT_EXT(props2, RAY_TRACING_PIPELINE_PROPERTIES_KHR, local_props.ray_tracing_pipeline, exts->KHR_ray_tracing_pipeline);
    VN_ADD_PNEXT_EXT(props2, ROBUSTNESS_2_PROPERTIES_KHR, local_props.robustness_2, exts->KHR_robustness2 || exts->EXT_robustness2);
 
@@ -823,6 +827,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
    VN_SET_VK_PROPS_EXT(props, &local_props.fragment_shader_barycentric, exts->KHR_fragment_shader_barycentric);
    VN_SET_VK_PROPS_EXT(props, &local_props.fragment_shading_rate, exts->KHR_fragment_shading_rate);
    VN_SET_VK_PROPS_EXT(props, &local_props.maintenance_7, exts->KHR_maintenance7);
+   VN_SET_VK_PROPS_EXT(props, &local_props.maintenance_9, exts->KHR_maintenance9);
    VN_SET_VK_PROPS_EXT(props, &local_props.ray_tracing_pipeline, exts->KHR_ray_tracing_pipeline);
    VN_SET_VK_PROPS_EXT(props, &local_props.robustness_2, exts->KHR_robustness2 || exts->EXT_robustness2);
 
@@ -918,11 +923,14 @@ vn_physical_device_init_queue_family_properties(
 
    VkQueueFamilyProperties2 *qfp;
    VkQueueFamilyGlobalPriorityProperties *qfgpp = NULL;
+   VkQueueFamilyOwnershipTransferPropertiesKHR *qfotp = NULL;
 
    VK_MULTIALLOC(ma);
    vk_multialloc_add(&ma, &qfp, __typeof__(*qfp), count);
    if (supported_feats->globalPriorityQuery)
       vk_multialloc_add(&ma, &qfgpp, __typeof__(*qfgpp), count);
+   if (supported_feats->maintenance9)
+      vk_multialloc_add(&ma, &qfotp, __typeof__(*qfotp), count);
 
    if (!vk_multialloc_zalloc(&ma, alloc, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE))
       return VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -932,7 +940,12 @@ vn_physical_device_init_queue_family_properties(
       if (supported_feats->globalPriorityQuery) {
          qfgpp[i].sType =
             VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES;
-         qfp[i].pNext = &qfgpp[i];
+         __vk_append_struct(&qfp[i], &qfgpp[i]);
+      }
+      if (supported_feats->maintenance9) {
+         qfotp[i].sType =
+            VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR;
+         __vk_append_struct(&qfp[i], &qfotp[i]);
       }
    }
    vn_call_vkGetPhysicalDeviceQueueFamilyProperties2(
@@ -966,6 +979,7 @@ vn_physical_device_init_queue_family_properties(
 
    physical_dev->qfp = qfp;
    physical_dev->qfgpp = qfgpp;
+   physical_dev->qfotp = qfotp;
    physical_dev->queue_family_count = count;
 
    return VK_SUCCESS;
@@ -1292,6 +1306,7 @@ vn_physical_device_get_passthrough_extensions(
          physical_dev->renderer_version >= VK_API_VERSION_1_2 ||
          physical_dev->renderer_extensions.KHR_driver_properties,
       .KHR_maintenance8 = true,
+      .KHR_maintenance9 = true,
       .KHR_pipeline_library = true,
       .KHR_ray_query = physical_dev->ray_tracing,
       .KHR_ray_tracing_maintenance1 = physical_dev->ray_tracing,
@@ -2062,6 +2077,10 @@ vn_fill_queue_family_properties(struct vn_physical_device *physical_dev,
       case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES:
          VN_COPY_STRUCT_GUTS(pnext, &physical_dev->qfgpp[qfi],
                              sizeof(*physical_dev->qfgpp));
+         break;
+      case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR:
+         VN_COPY_STRUCT_GUTS(pnext, &physical_dev->qfotp[qfi],
+                             sizeof(*physical_dev->qfotp));
          break;
       default:
          break;
