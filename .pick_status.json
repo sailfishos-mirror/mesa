@@ -5764,7 +5764,7 @@
         "description": "v3dv: check for a failed default attribute values allocation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ce9896727424621eb641fb48610a70af37960d3c",
         "notes": null
