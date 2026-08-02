@@ -1034,7 +1034,7 @@
         "description": "amdgpu/drm-shim: fix BO refcount leak",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "df387306d6bea860e69025f8079892b8429a6ab9",
         "notes": null
