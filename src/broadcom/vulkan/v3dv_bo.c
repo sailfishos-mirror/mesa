@@ -28,7 +28,6 @@
 #include <sys/mman.h>
 
 #include "util/perf/cpu_trace.h"
-#include "util/u_memory.h"
 
 /* Default max size of the bo cache, in MB.
  *
