@@ -35,6 +35,7 @@
 #include "panvk_wsi.h"
 
 #include "pan_afbc.h"
+#include "pan_compiler.h"
 #include "pan_props.h"
 
 #include "genxml/gen_macros.h"
@@ -165,16 +166,17 @@ init_shader_caches(struct panvk_physical_device *device,
    memcpy(device->cache_uuid, blake3, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE
+   const uint64_t gpu_id = device->kmod.dev->props.gpu_id;
+
    char renderer[25];
    ASSERTED int len =
-      snprintf(renderer, sizeof(renderer), "panvk_0x%016" PRIx64,
-               device->kmod.dev->props.gpu_id);
+      snprintf(renderer, sizeof(renderer), "panvk_0x%016" PRIx64, gpu_id);
    assert(len == sizeof(renderer) - 1);
 
    char timestamp[BLAKE3_HEX_LEN];
    _mesa_blake3_format(timestamp, instance->driver_build_sha);
 
-   const uint64_t driver_flags = 0;
+   const uint64_t driver_flags = pan_get_compiler_flags(pan_arch(gpu_id));
    device->vk.disk_cache = disk_cache_create(renderer, timestamp, driver_flags);
 #endif
 }
