@@ -2028,6 +2028,7 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
 
    mtx_init(&device->queue_mutex, mtx_plain);
    mtx_init(&device->query_mutex, mtx_plain);
+   mtx_init(&device->events.lock, mtx_plain);
    cnd_init(&device->query_ended);
 
    device->vk.command_buffer_ops = &v3dv_cmd_buffer_ops;
@@ -2105,7 +2106,6 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    util_dynarray_init(&device->device_address_bo_list,
                       device->device_address_mem_ctx);
 
-   mtx_init(&device->events.lock, mtx_plain);
    result = v3dv_event_allocate_resources(device);
    if (result != VK_SUCCESS)
       goto fail;
@@ -2128,13 +2128,20 @@ fail:
    v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
    v3dv_event_free_resources(device);
    v3dv_query_free_resources(device);
+   v3dv_bo_free(device, device->default_attribute_float, 0);
    v3dv_bo_free(device, device->null_bo, 0);
+   ralloc_free(device->device_address_mem_ctx);
+   /* The BO cache has to go last, since the frees above return their private
+    * BOs to it.
+    */
+   v3dv_bo_cache_destroy(device);
 fail_queues_init:
    for (uint32_t i = 0; i < device->queue_count; i++)
       queue_finish(&device->queues[i]);
    vk_free2(&device->vk.alloc, pAllocator, device->queues);
 fail_queues_alloc:
    cnd_destroy(&device->query_ended);
+   mtx_destroy(&device->events.lock);
    mtx_destroy(&device->query_mutex);
    mtx_destroy(&device->queue_mutex);
    vk_device_finish(&device->vk);
