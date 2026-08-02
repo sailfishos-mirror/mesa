@@ -78,3 +78,8 @@ mod debug {
         flags: std::sync::OnceLock::new(),
     };
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn kraid_get_compiler_flags() -> u32 {
+    debug::DEBUG.bits().into()
+}

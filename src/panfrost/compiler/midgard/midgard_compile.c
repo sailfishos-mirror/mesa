@@ -49,6 +49,13 @@ DEBUG_GET_ONCE_FLAGS_OPTION(midgard_debug, "MIDGARD_MESA_DEBUG",
 
 int midgard_debug = 0;
 
+uint32_t
+midgard_get_compiler_flags()
+{
+   midgard_debug = debug_get_option_midgard_debug();
+   return midgard_debug;
+}
+
 bool
 midgard_will_dump_shaders(void)
 {

@@ -22,6 +22,8 @@ void midgard_compile_shader_nir(nir_shader *nir,
                                 struct util_dynarray *binary,
                                 struct pan_shader_info *info);
 
+uint32_t midgard_get_compiler_flags(void);
+
 /* NIR options are shared between the standalone compiler and the online
  * compiler. Defining it here is the simplest, though maybe not the Right
  * solution. */

@@ -19,6 +19,8 @@
 
 struct pan_shader_info;
 
+uint32_t pan_get_compiler_flags(unsigned arch);
+
 bool pan_will_dump_shaders(unsigned arch);
 bool pan_want_debug_info(unsigned arch);
 bool pan_use_kraid(unsigned arch, mesa_shader_stage stage, bool internal);

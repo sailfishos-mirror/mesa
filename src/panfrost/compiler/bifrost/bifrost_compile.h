@@ -172,4 +172,6 @@ DEFINE_OPTIONS(bifrost_nir_options_v9_merge_wg, 9, true);
 DEFINE_OPTIONS(bifrost_nir_options_v11, 11, false);
 DEFINE_OPTIONS(bifrost_nir_options_v11_merge_wg, 11, true);
 
+uint32_t bifrost_get_compiler_flags(void);
+
 #endif
