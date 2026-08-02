@@ -1955,8 +1955,14 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    v3dv_bo_cache_init(device);
    v3dv_pipeline_cache_init(&device->default_pipeline_cache, device, 0,
                             device->instance->default_pipeline_cache_enabled);
-   device->default_attribute_float =
-      v3d_X((&device->devinfo), create_default_attribute_values)(device, NULL);
+   if (v3d_device_needs_default_attribute_values(&device->devinfo)) {
+      device->default_attribute_float =
+         v3d_X((&device->devinfo), create_default_attribute_values)(device, NULL);
+      if (!device->default_attribute_float) {
+         result = vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+         goto fail;
+      }
+   }
 
    device->device_address_mem_ctx = ralloc_context(NULL);
    util_dynarray_init(&device->device_address_bo_list,
