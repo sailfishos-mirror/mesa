@@ -5094,7 +5094,7 @@
         "description": "lima/drm-shim: fix BO refcount leak",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1976f4980c0fc60857e806ace2d743ff84b1ab18",
         "notes": null
