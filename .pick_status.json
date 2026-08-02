@@ -1014,7 +1014,7 @@
         "description": "drm-shim: fix inverted BO refcounting",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "82bf1979d7b7d83e8e213b11ff7787e6939c8f7e",
         "notes": null
