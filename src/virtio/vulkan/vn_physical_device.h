@@ -104,6 +104,7 @@ struct vn_physical_device {
    VkQueueFamilyProperties2 *qfp;
    VkQueueFamilyGlobalPriorityProperties *qfgpp;
    VkQueueFamilyOwnershipTransferPropertiesKHR *qfotp;
+   VkQueueFamilyOptimalImageTransferGranularityPropertiesKHR *qfoitgp;
    uint32_t queue_family_count;
    bool sparse_binding_disabled;
    /* Track the queue family index to emulate a second queue. -1 means no
