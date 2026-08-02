@@ -2179,8 +2179,13 @@ impl V9Instr for OpMkVecV2I16 {
 
 impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        // The ISA doesn'thave MOV.v2i16 but we can fake it for the sake of
+        // being able to do 16-bit copies
+        if !matches!(self.dst_type, DataType::V2I16 | DataType::I32) {
+            return None;
+        }
         V9InstrInfo::from_isa(
-            Mov::get_info(self.dst_type, arch),
+            Mov::get_info(DataType::I32, arch),
             src_map! {
                 src0: src,
             },
@@ -2192,6 +2197,7 @@ impl V9Instr for OpMov {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert!(matches!(self.dst_type, DataType::V2I16 | DataType::I32));
         if let Some(imm1w) = op_src_as_imm1w(self, &self.src) {
             e.encode(MovImm {
                 variant: self.dst_type.try_into().unwrap(),
@@ -2200,7 +2206,7 @@ impl V9Instr for OpMov {
             })
         } else {
             e.encode(Mov {
-                variant: self.dst_type.try_into().unwrap(),
+                variant: MovVariant::I32,
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.src),
             })
