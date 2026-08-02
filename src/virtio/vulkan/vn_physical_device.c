@@ -2049,6 +2049,27 @@ vn_GetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
    }
 }
 
+static void
+vn_fill_queue_family_properties(struct vn_physical_device *physical_dev,
+                                VkQueueFamilyProperties2 *props,
+                                uint32_t qfi)
+{
+   VN_COPY_STRUCT_GUTS(props, &physical_dev->queue_family_properties[qfi],
+                       sizeof(*physical_dev->queue_family_properties));
+
+   vk_foreach_struct(pnext, props->pNext) {
+      switch (pnext->sType) {
+      case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES:
+         VN_COPY_STRUCT_GUTS(
+            pnext, &physical_dev->global_priority_properties[qfi],
+            sizeof(*physical_dev->global_priority_properties));
+         break;
+      default:
+         break;
+      }
+   }
+}
+
 VKAPI_ATTR void VKAPI_CALL
 vn_GetPhysicalDeviceQueueFamilyProperties2(
    VkPhysicalDevice physicalDevice,
@@ -2061,21 +2082,8 @@ vn_GetPhysicalDeviceQueueFamilyProperties2(
    VK_OUTARRAY_MAKE_TYPED(VkQueueFamilyProperties2, out,
                           pQueueFamilyProperties, pQueueFamilyPropertyCount);
    for (uint32_t i = 0; i < physical_dev->queue_family_count; i++) {
-      vk_outarray_append_typed(VkQueueFamilyProperties2, &out, props) {
-         props->queueFamilyProperties =
-            physical_dev->queue_family_properties[i].queueFamilyProperties;
-
-         if (physical_dev->base.vk.supported_features.globalPriorityQuery) {
-            VkQueueFamilyGlobalPriorityProperties *prio_props =
-               vk_find_struct(props->pNext,
-                              QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES);
-            if (prio_props) {
-               void *pnext = prio_props->pNext;
-               *prio_props = physical_dev->global_priority_properties[i];
-               prio_props->pNext = pnext;
-            }
-         }
-      }
+      vk_outarray_append_typed(VkQueueFamilyProperties2, &out, props)
+         vn_fill_queue_family_properties(physical_dev, props, i);
    }
 }
 
