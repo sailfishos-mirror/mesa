@@ -3153,8 +3153,8 @@ get_mem_access_size_align(nir_intrinsic_op intrin, uint8_t bytes,
          if (comps > 4 && comps < 8)
             comps = is_load ? 8 : 4;
 
-         /* We would need to SIMD split for vec8+ (vec16+ on Xe2+) */
-         comps = MIN2(devinfo->ver >= 20 ? 8 : 4, comps);
+         /* We would need to SIMD split for vec8+ */
+         comps = MIN2(4, comps);
 
          return (nir_mem_access_size_align) {
             .bit_size = 32,
