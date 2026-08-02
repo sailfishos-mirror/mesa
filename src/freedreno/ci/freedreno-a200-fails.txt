@@ -4,7 +4,6 @@ KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_com
 KHR-GLES2.core.internalformat.texture2d.rgb_float_rgb32f,Fail
 KHR-GLES2.core.internalformat.texture2d.rgba_float_rgba32f,Fail
 KHR-GLES2.shaders.aggressive_optimizations.sin_vec3_frag,Crash
-KHR-GLES2.shaders.negative.constant_sequence,Crash
 KHR-GLES2.texture_3d.copy_sub_image.rgba,Crash
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_clamp_clamp,Crash
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_clamp_mirror,Crash
