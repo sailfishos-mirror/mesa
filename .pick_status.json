@@ -1044,7 +1044,7 @@
         "description": "radeon/drm-shim: fix BO refcount leak",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d4b6d03408a800926e5ffcb6a5fb2df39a59154e",
         "notes": null
