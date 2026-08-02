@@ -441,6 +441,8 @@ reallocate_size_list(struct v3dv_bo_cache *cache,
 void
 v3dv_bo_cache_init(struct v3dv_device *device)
 {
+   mtx_init(&device->bo_cache.lock, mtx_plain);
+
    device->bo_size = 0;
    device->bo_count = 0;
    list_inithead(&device->bo_cache.time_list);
@@ -476,6 +478,8 @@ v3dv_bo_cache_destroy(struct v3dv_device *device)
       mesa_loge("BO stats after screen destroy:\n");
       bo_dump_stats(device);
    }
+
+   mtx_destroy(&device->bo_cache.lock);
 }
 
 
