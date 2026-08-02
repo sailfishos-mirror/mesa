@@ -326,7 +326,7 @@ struct v3dv_device {
       /* Vulkan resources to access the event BO from shaders. We have a
        * pipeline that sets the state of an event and another that waits on
        * a single event. Both pipelines require access to the event state BO,
-       * for which we need to allocate a single descripot set.
+       * for which we need to allocate a single descriptor set.
        */
       VkBuffer buffer;
       VkDeviceMemory mem;
