@@ -387,6 +387,7 @@ drm_shim_bo_put(struct shim_bo *bo)
       shim_device.driver_bo_free(bo);
 
    mtx_lock(&shim_device.lock);
+   _mesa_hash_table_u64_remove(shim_device.offset_map, bo->mem_addr);
    util_vma_heap_free(&shim_device.mem_heap, bo->mem_addr, bo->size);
    mtx_unlock(&shim_device.lock);
    free(bo);
