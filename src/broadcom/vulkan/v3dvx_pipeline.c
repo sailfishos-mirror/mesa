@@ -755,6 +755,7 @@ v3dX(create_default_attribute_values)(struct v3dv_device *device,
    bool ok = v3dv_bo_map(device, bo, size);
    if (!ok) {
       mesa_loge("failed to map default attribute values buffer\n");
+      v3dv_bo_free(device, bo, 0);
       return NULL;
    }
 
