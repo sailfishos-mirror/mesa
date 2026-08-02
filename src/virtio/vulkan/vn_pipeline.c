@@ -421,7 +421,8 @@ vn_CreatePipelineCache(VkDevice device,
 
       local_create_info = *pCreateInfo;
       local_create_info.initialDataSize -= header->header_size;
-      local_create_info.pInitialData += header->header_size;
+      local_create_info.pInitialData =
+         (const char *)local_create_info.pInitialData + header->header_size;
       pCreateInfo = &local_create_info;
    }
 
@@ -515,9 +516,9 @@ vn_GetPipelineCacheData(VkDevice device,
    memcpy(header->uuid, props->pipelineCacheUUID, VK_UUID_SIZE);
 
    *pDataSize -= header->header_size;
-   result =
-      vn_call_vkGetPipelineCacheData(target_ring, device, pipelineCache,
-                                     pDataSize, pData + header->header_size);
+   result = vn_call_vkGetPipelineCacheData(
+      target_ring, device, pipelineCache, pDataSize,
+      (char *)pData + header->header_size);
    if (result < VK_SUCCESS)
       return vn_error(dev->instance, result);
 

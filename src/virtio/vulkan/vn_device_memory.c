@@ -498,7 +498,7 @@ vn_MapMemory2(VkDevice device,
 
    mem->map_end = size == VK_WHOLE_SIZE ? mem_vk->size : offset + size;
 
-   *ppData = ptr + offset;
+   *ppData = (char *)ptr + offset;
 
    return VK_SUCCESS;
 }
