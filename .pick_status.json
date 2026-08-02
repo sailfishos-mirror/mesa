@@ -1074,7 +1074,7 @@
         "description": "pvr/drm-shim: fix BO refcount leak",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ba104d3e923aeb14e4faf75db9c8a3e8313ecd48",
         "notes": null
