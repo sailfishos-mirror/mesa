@@ -131,6 +131,8 @@ panfrost_ioctl_mmap_bo(int fd, unsigned long request, void *arg)
 
    mmap_bo->offset = drm_shim_bo_get_mmap_offset(shim_fd, bo);
 
+   drm_shim_bo_put(bo);
+
    return 0;
 }
 
@@ -260,6 +262,8 @@ panthor_ioctl_bo_mmap_offset(int fd, unsigned long request, void *arg)
    struct shim_bo *bo = drm_shim_bo_lookup(shim_fd, mmap_offset->handle);
 
    mmap_offset->offset = drm_shim_bo_get_mmap_offset(shim_fd, bo);
+
+   drm_shim_bo_put(bo);
 
    return 0;
 }
