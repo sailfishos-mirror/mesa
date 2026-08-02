@@ -5104,7 +5104,7 @@
         "description": "panfrost/drm-shim: fix BO refcount leak",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "56ea259b42e20d5136dd3842c1264f5ab1775960",
         "notes": null
