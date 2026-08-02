@@ -909,34 +909,34 @@ vn_physical_device_init_queue_family_properties(
    struct vn_instance *instance = physical_dev->instance;
    struct vn_ring *ring = instance->ring.ring;
    const VkAllocationCallbacks *alloc = &instance->base.vk.alloc;
+   const struct vk_features *supported_feats =
+      &physical_dev->base.vk.supported_features;
    uint32_t count = 0;
 
    vn_call_vkGetPhysicalDeviceQueueFamilyProperties2(
       ring, vn_physical_device_to_handle(physical_dev), &count, NULL);
 
-   const bool can_query_prio =
-      physical_dev->base.vk.supported_features.globalPriorityQuery;
-   VkQueueFamilyProperties2 *props;
-   VkQueueFamilyGlobalPriorityProperties *prio_props = NULL;
+   VkQueueFamilyProperties2 *qfp;
+   VkQueueFamilyGlobalPriorityProperties *qfgpp = NULL;
 
    VK_MULTIALLOC(ma);
-   vk_multialloc_add(&ma, &props, __typeof__(*props), count);
-   if (can_query_prio)
-      vk_multialloc_add(&ma, &prio_props, __typeof__(*prio_props), count);
+   vk_multialloc_add(&ma, &qfp, __typeof__(*qfp), count);
+   if (supported_feats->globalPriorityQuery)
+      vk_multialloc_add(&ma, &qfgpp, __typeof__(*qfgpp), count);
 
    if (!vk_multialloc_zalloc(&ma, alloc, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE))
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
    for (uint32_t i = 0; i < count; i++) {
-      props[i].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
-      if (can_query_prio) {
-         prio_props[i].sType =
+      qfp[i].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+      if (supported_feats->globalPriorityQuery) {
+         qfgpp[i].sType =
             VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES;
-         props[i].pNext = &prio_props[i];
+         qfp[i].pNext = &qfgpp[i];
       }
    }
    vn_call_vkGetPhysicalDeviceQueueFamilyProperties2(
-      ring, vn_physical_device_to_handle(physical_dev), &count, props);
+      ring, vn_physical_device_to_handle(physical_dev), &count, qfp);
 
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) && ANDROID_API_LEVEL >= 34
    /* Starting from Android 14 (Android U), framework HWUI has required a
@@ -950,10 +950,10 @@ vn_physical_device_init_queue_family_properties(
 #endif
    physical_dev->emulate_second_queue = -1;
    for (uint32_t i = 0; i < count; i++) {
-      if (props[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+      if (qfp[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
          if (require_second_queue && !VN_DEBUG(NO_SECOND_QUEUE) &&
-             props[i].queueFamilyProperties.queueCount < 2) {
-            props[i].queueFamilyProperties.queueCount = 2;
+             qfp[i].queueFamilyProperties.queueCount < 2) {
+            qfp[i].queueFamilyProperties.queueCount = 2;
             physical_dev->emulate_second_queue = i;
          }
 
@@ -964,8 +964,8 @@ vn_physical_device_init_queue_family_properties(
    if (VN_DEBUG(NO_SPARSE))
       physical_dev->sparse_binding_disabled = true;
 
-   physical_dev->queue_family_properties = props;
-   physical_dev->global_priority_properties = prio_props;
+   physical_dev->qfp = qfp;
+   physical_dev->qfgpp = qfgpp;
    physical_dev->queue_family_count = count;
 
    return VK_SUCCESS;
@@ -1636,7 +1636,7 @@ vn_physical_device_init(struct vn_physical_device *physical_dev)
 
 fail:
    vk_free(alloc, physical_dev->extension_spec_versions);
-   vk_free(alloc, physical_dev->queue_family_properties);
+   vk_free(alloc, physical_dev->qfp);
    return result;
 }
 
@@ -1653,7 +1653,7 @@ vn_physical_device_fini(struct vn_physical_device *physical_dev)
 
    vn_wsi_fini(physical_dev);
    vk_free(alloc, physical_dev->extension_spec_versions);
-   vk_free(alloc, physical_dev->queue_family_properties);
+   vk_free(alloc, physical_dev->qfp);
 
    vn_physical_device_base_fini(&physical_dev->base);
 }
@@ -2054,15 +2054,14 @@ vn_fill_queue_family_properties(struct vn_physical_device *physical_dev,
                                 VkQueueFamilyProperties2 *props,
                                 uint32_t qfi)
 {
-   VN_COPY_STRUCT_GUTS(props, &physical_dev->queue_family_properties[qfi],
-                       sizeof(*physical_dev->queue_family_properties));
+   VN_COPY_STRUCT_GUTS(props, &physical_dev->qfp[qfi],
+                       sizeof(*physical_dev->qfp));
 
    vk_foreach_struct(pnext, props->pNext) {
       switch (pnext->sType) {
       case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES:
-         VN_COPY_STRUCT_GUTS(
-            pnext, &physical_dev->global_priority_properties[qfi],
-            sizeof(*physical_dev->global_priority_properties));
+         VN_COPY_STRUCT_GUTS(pnext, &physical_dev->qfgpp[qfi],
+                             sizeof(*physical_dev->qfgpp));
          break;
       default:
          break;
