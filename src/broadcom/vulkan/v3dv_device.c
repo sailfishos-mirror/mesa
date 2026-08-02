@@ -2103,6 +2103,10 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    }
 
    device->device_address_mem_ctx = ralloc_context(NULL);
+   if (!device->device_address_mem_ctx) {
+      result = vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      goto fail;
+   }
    util_dynarray_init(&device->device_address_bo_list,
                       device->device_address_mem_ctx);
 
