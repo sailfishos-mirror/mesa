@@ -1319,6 +1319,15 @@ vn_CmdEndRendering(VkCommandBuffer commandBuffer)
 }
 
 VKAPI_ATTR void VKAPI_CALL
+vn_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
+                       const VkRenderingEndInfoKHR *pRenderingEndInfo)
+{
+   VN_CMD_ENQUEUE(vkCmdEndRendering2KHR, commandBuffer, pRenderingEndInfo);
+
+   vn_cmd_end_rendering(vn_command_buffer_from_handle(commandBuffer));
+}
+
+VKAPI_ATTR void VKAPI_CALL
 vn_CmdDrawIndexed(VkCommandBuffer commandBuffer,
                   uint32_t indexCount,
                   uint32_t instanceCount,
