@@ -3504,7 +3504,7 @@
         "description": "radeonsi: fix typo in descriptors bitmask",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4bc8c2590e5a8f29e7dfa3bc8afb07463745166c",
         "notes": null
