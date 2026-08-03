@@ -9,17 +9,13 @@
 static bool
 lower_vs_input_intr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
-   if (intr->intrinsic != nir_intrinsic_load_input &&
-       intr->intrinsic != nir_intrinsic_load_attribute_pan)
+   if (intr->intrinsic != nir_intrinsic_load_input)
       return false;
 
    b->cursor = nir_before_instr(&intr->instr);
-   nir_def *vtx_id = intr->intrinsic == nir_intrinsic_load_attribute_pan ?
-                     intr->src[0].ssa : nir_load_raw_vertex_id(b);
-   nir_def *ins_id = intr->intrinsic == nir_intrinsic_load_attribute_pan ?
-                     intr->src[1].ssa : nir_load_instance_id(b);
-   nir_def *offset = intr->intrinsic == nir_intrinsic_load_attribute_pan ?
-                     intr->src[2].ssa : intr->src[0].ssa;
+   nir_def *vtx_id = nir_load_raw_vertex_id(b);
+   nir_def *ins_id = nir_load_instance_id(b);
+   nir_def *offset = intr->src[0].ssa;
 
    const unsigned component = nir_intrinsic_component(intr);
    const nir_io_semantics io = nir_intrinsic_io_semantics(intr);

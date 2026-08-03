@@ -1104,7 +1104,6 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_store_per_view_output:
    case nir_intrinsic_store_per_primitive_output:
    case nir_intrinsic_store_global_offset:
-   case nir_intrinsic_load_attribute_pan:
    case nir_intrinsic_store_ssbo_block_intel:
    case nir_intrinsic_store_urb_vec4_intel:
    case nir_intrinsic_store_buffer_amd:

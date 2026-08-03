@@ -1723,13 +1723,6 @@ intrinsic("resbase_ir3", src_comp=[1], dest_comp=2, flags=[CAN_ELIMINATE, CAN_RE
 # src[] = { vertex_id, instance_id, handle }
 load("attr_pan", [1, 1, 1], [DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 
-# Panfrost-specific intrinsic for loading vertex attributes. Takes explicit
-# vertex and instance IDs which we need in order to implement vertex attribute
-# divisor with non-zero base instance on v9+.  It is otherwise identical to
-# nir_intrinsic_load_input.
-# src[] = { vertex_id, instance_id, offset }
-load("attribute_pan", [1, 1, 1], [BASE, COMPONENT, DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
-
 # src[] = { idx, bary }
 load("var_pan", [1, 2], [DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 # src[] = { idx }

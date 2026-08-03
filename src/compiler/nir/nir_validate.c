@@ -639,7 +639,6 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
    case nir_intrinsic_load_per_primitive_output:
    case nir_intrinsic_load_push_constant:
    case nir_intrinsic_load_attr_pan:
-   case nir_intrinsic_load_attribute_pan:
       /* All memory load operations must load at least a byte */
       validate_assert(state, instr->def.bit_size >= 8);
       break;
