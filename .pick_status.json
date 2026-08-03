@@ -5064,7 +5064,7 @@
         "description": "aco/optimizer: fix skip_smem_offset_align",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b798ace443402715a48037374336968f7d3c26bb",
         "notes": null
