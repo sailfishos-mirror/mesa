@@ -1027,21 +1027,12 @@ tu_get_physical_device_properties_1_2(struct tu_physical_device *pdevice,
    memset(p->driverInfo, 0, sizeof(p->driverInfo));
    snprintf(p->driverInfo, VK_MAX_DRIVER_INFO_SIZE,
             "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
-   if (pdevice->info->chip >= 7) {
-      p->conformanceVersion = (VkConformanceVersion) {
-         .major = 1,
-         .minor = 4,
-         .subminor = 0,
-         .patch = 0,
-      };
-   } else {
-      p->conformanceVersion = (VkConformanceVersion) {
-         .major = 1,
-         .minor = 2,
-         .subminor = 7,
-         .patch = 1,
-      };
-   }
+   p->conformanceVersion = (VkConformanceVersion) {
+      .major = 1,
+      .minor = 4,
+      .subminor = 6,
+      .patch = 1,
+   };
 
    p->denormBehaviorIndependence =
       VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL;
