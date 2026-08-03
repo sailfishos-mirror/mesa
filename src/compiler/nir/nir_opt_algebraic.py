@@ -2400,6 +2400,10 @@ optimizations.extend([
    (('~fadd', ('fadd(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('fadd', ('fadd', a, c), b)),
    (('iadd', ('iadd(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('iadd', ('iadd', a, c), b)),
 
+   # Previous rules can strand a constant fadd between two fmuls, blocking the folding chain
+   (('~fadd', ('fadd(is_used_once)', ('fmul', a, '#b'), '#c'), ('fmul', a, '#d')), ('fadd', ('fmul', a, ('fadd', b, d)), c)),
+   (('~fadd', ('fadd(is_used_once)', ('fmulz', a, '#b'), '#c'), ('fmulz', a, '#d')), ('fadd', ('fmulz', a, ('fadd', b, d)), c)),
+
    # Reassociate constants in add/mul chains so they can be folded together.
    # For now, we mostly only handle cases where the constants are separated by
    # a single non-constant.  We could do better eventually.
