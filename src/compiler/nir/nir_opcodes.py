@@ -722,6 +722,12 @@ if (nir_is_rounding_mode_rtz(execution_mode, bit_size)) {
    dst = src0 + src1;
 }
 """)
+binop("fadd_rtne", tfloat, _2src_commutative + inexact_associative,"""
+dst = src0 + src1;
+""", description = """
+Used by lower_round_even in nir_lower_double_ops to correctly round regardless
+of the rounding mode set for the shader.
+""")
 binop("iadd", tint, _2src_commutative + associative, "(uint64_t)src0 + (uint64_t)src1")
 binop("iadd_sat", tint, _2src_commutative, """
       util_add_check_overflow({dest_type}, src0, src1) ?
