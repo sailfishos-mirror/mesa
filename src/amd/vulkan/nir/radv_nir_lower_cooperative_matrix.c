@@ -44,8 +44,6 @@
 typedef struct {
    enum amd_gfx_level gfx_level;
    unsigned wave_size;
-   bool ubo_robustness;
-   bool ssbo_robustness;
 } lower_cmat_params;
 
 static unsigned
@@ -321,9 +319,7 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intr, const lower_cma
 
    bool use_tr_load = params->gfx_level >= GFX12 && layout == GLSL_MATRIX_LAYOUT_ROW_MAJOR && is_load &&
                       radv_nir_cmat_bits(desc) < 32 &&
-                      (nir_deref_mode_is(deref, nir_var_mem_global) ||
-                       (nir_deref_mode_is(deref, nir_var_mem_ubo) && !params->ubo_robustness) ||
-                       (nir_deref_mode_is(deref, nir_var_mem_ssbo) && !params->ssbo_robustness));
+                      nir_deref_mode_must_be(deref, nir_var_mem_global | nir_var_mem_ubo | nir_var_mem_ssbo);
 
    if (use_tr_load) {
       assert(!load_acc_as_b);
@@ -1253,8 +1249,7 @@ lower_cmat_per_element_op(nir_builder *b, nir_cmat_call_instr *call, const lower
 }
 
 bool
-radv_nir_lower_cooperative_matrix(nir_shader *shader, enum amd_gfx_level gfx_level, struct radv_shader_stage *stage,
-                                  unsigned wave_size)
+radv_nir_lower_cooperative_matrix(nir_shader *shader, enum amd_gfx_level gfx_level, unsigned wave_size)
 {
    bool progress = false;
 
@@ -1264,8 +1259,6 @@ radv_nir_lower_cooperative_matrix(nir_shader *shader, enum amd_gfx_level gfx_lev
    const lower_cmat_params params = {
       .gfx_level = gfx_level,
       .wave_size = wave_size,
-      .ubo_robustness = stage->key.coop_matrix_uniform_robustness,
-      .ssbo_robustness = stage->key.coop_matrix_storage_robustness,
    };
 
    struct nir_function *func = (struct nir_function *)exec_list_get_head_const(&shader->functions);

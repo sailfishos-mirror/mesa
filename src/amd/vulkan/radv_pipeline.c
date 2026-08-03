@@ -129,11 +129,6 @@ radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
 
    radv_set_stage_key_robustness(&rs, s, &key);
 
-   if (compiler_info->key.coop_matrix_robust_buffer_access) {
-      key.coop_matrix_storage_robustness = rs.storage_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED;
-      key.coop_matrix_uniform_robustness = rs.uniform_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED;
-   }
-
    const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo *const subgroup_size =
       vk_find_struct_const(stage->pNext, PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO);
 
@@ -172,8 +167,6 @@ radv_merge_shader_stage_key(struct radv_shader_stage_key *dst, const struct radv
    dst->storage_robustness2 |= src->storage_robustness2;
    dst->uniform_robustness2 |= src->uniform_robustness2;
    dst->vertex_robustness1 |= src->vertex_robustness1;
-   dst->coop_matrix_storage_robustness |= src->coop_matrix_storage_robustness;
-   dst->coop_matrix_uniform_robustness |= src->coop_matrix_uniform_robustness;
 
    dst->optimisations_disabled |= src->optimisations_disabled;
    dst->keep_statistic_info |= src->keep_statistic_info;
