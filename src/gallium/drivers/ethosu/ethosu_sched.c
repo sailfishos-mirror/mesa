@@ -39,6 +39,22 @@ _get_ifm_blocksize(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
    return ifm_block;
 }
 
+static struct ethosu_block
+fit_block_for_ofm(struct ethosu_subgraph *subgraph,
+                  const struct ethosu_operation *operation,
+                  struct ethosu_block block)
+{
+   struct ethosu_ml_device *device =
+      ethosu_ml_device(subgraph->base.device);
+
+   /* Account for the actual accumulator height when selecting Conv1D blocks. */
+   if (operation->ofm.shape.height == 1 &&
+       operation->kernel.height == 1 &&
+       device->ofm_ublock.height == 2)
+      block.height = MIN2(block.height, operation->ofm.shape.height);
+
+   return block;
+}
 static bool
 try_block_config(struct ethosu_operation *operation, struct ethosu_block ofm_block, struct ethosu_block ifm_block, struct ethosu_shram_layout *layout)
 {
@@ -116,6 +132,13 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
    bool is_depthwise = operation->conv.depthwise;
    bool is_equal_depth = is_pooling || is_depthwise || operation->type == ETHOSU_OPERATION_TYPE_ELTWISE;
    bool is_convolution = operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION;
+   unsigned dilated_kernel_height =
+      (operation->kernel.height - 1) * operation->kernel.dilation_y + 1;
+   unsigned dilated_kernel_width =
+      (operation->kernel.width - 1) * operation->kernel.dilation_x + 1;
+   unsigned ifm_repeats =
+      DIV_ROUND_UP(dilated_kernel_width, SUB_KERNEL_MAX.width) *
+      DIV_ROUND_UP(dilated_kernel_height, SUB_KERNEL_MAX.height);
    float best_cost = FLT_MAX;
    float best_coverage = FLT_MAX;
 
@@ -160,6 +183,8 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
             if (!is_equal_depth)
                ifm_block.depth = align(MIN2(operation->ifm.shape.depth, is_part_kernel ? 16 : 32), device->ifm_ublock.depth);
 
+            ofm_block = fit_block_for_ofm(subgraph, operation, ofm_block);
+
             // Try to fit the blocks in SHRAM
             struct ethosu_shram_layout layout = {0};
             if (try_block_config(operation, ofm_block, ifm_block, &layout)) {
@@ -176,7 +201,9 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
                if (!is_depthwise)
                   weight_fetch *= blocks[2] * ofm_block.depth;
 
-               float ifm_fetch = ifm_block.width * ifm_block.height * operation->ifm.shape.depth * blocks[0] * blocks[1];
+               float ifm_fetch = ifm_block.width * ifm_block.height *
+                                 operation->ifm.shape.depth * ifm_repeats *
+                                 blocks[0] * blocks[1];
                if (!is_equal_depth)
                   ifm_fetch *= full_blocks.depth;
 
@@ -204,7 +231,8 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
                                                      config.ofm_block)) {
                         best_coverage = coverage;
                         choose_this = true;
-                     } else if (coverage < best_coverage) {
+                     } else if (coverage <= best_coverage && height <= 4 &&
+                                width <= 4) {
                         best_coverage = coverage;
                         choose_this = true;
                      }
