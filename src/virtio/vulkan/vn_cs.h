@@ -8,7 +8,7 @@
 
 #include "vn_common.h"
 
-#include "venus-protocol/vn_protocol_driver_info.h"
+#include "vn_protocol_driver_info.h"
 
 #define VN_CS_ENCODER_BUFFER_INITIALIZER(storage)                            \
    (struct vn_cs_encoder_buffer)                                             \

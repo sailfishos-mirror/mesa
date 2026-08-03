@@ -9,7 +9,7 @@
 #include <sys/resource.h>
 #endif
 
-#include "venus-protocol/vn_protocol_driver_transport.h"
+#include "vn_protocol_driver_transport.h"
 
 #include "vn_cs.h"
 #include "vn_instance.h"

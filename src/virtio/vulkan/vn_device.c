@@ -12,7 +12,7 @@
 
 #include "util/disk_cache.h"
 #include "util/hex.h"
-#include "venus-protocol/vn_protocol_driver_device.h"
+#include "vn_protocol_driver_device.h"
 
 #include "vn_android.h"
 #include "vn_instance.h"

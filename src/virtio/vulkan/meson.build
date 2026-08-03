@@ -100,6 +100,7 @@ vn_incs = [
 
 vn_deps = [
   dep_thread,
+  dep_venus_protocol,
   idep_mesautil,
   idep_vulkan_util,
   idep_vulkan_lite_runtime,

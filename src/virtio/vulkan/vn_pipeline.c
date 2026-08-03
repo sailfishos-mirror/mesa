@@ -10,10 +10,10 @@
 
 #include "vn_pipeline.h"
 
-#include "venus-protocol/vn_protocol_driver_pipeline.h"
-#include "venus-protocol/vn_protocol_driver_pipeline_cache.h"
-#include "venus-protocol/vn_protocol_driver_pipeline_layout.h"
-#include "venus-protocol/vn_protocol_driver_shader_module.h"
+#include "vn_protocol_driver_pipeline.h"
+#include "vn_protocol_driver_pipeline_cache.h"
+#include "vn_protocol_driver_pipeline_layout.h"
+#include "vn_protocol_driver_shader_module.h"
 
 #include "vn_descriptor_set.h"
 #include "vn_device.h"

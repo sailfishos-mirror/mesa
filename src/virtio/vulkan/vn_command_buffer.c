@@ -10,9 +10,9 @@
 
 #include "vn_command_buffer.h"
 
-#include "venus-protocol/vn_protocol_driver_command_buffer.h"
-#include "venus-protocol/vn_protocol_driver_command_pool.h"
 #include "vk_synchronization.h"
+#include "vn_protocol_driver_command_buffer.h"
+#include "vn_protocol_driver_command_pool.h"
 
 #include "vn_descriptor_set.h"
 #include "vn_device.h"

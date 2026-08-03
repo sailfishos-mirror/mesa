@@ -15,9 +15,9 @@
 #include "git_sha1.h"
 #include "util/mesa-blake3.h"
 #include "util/os_misc.h"
-#include "venus-protocol/vn_protocol_driver_device.h"
 #include "vk_android.h"
 #include "vk_common_entrypoints.h"
+#include "vn_protocol_driver_device.h"
 
 #include "vn_android.h"
 #include "vn_instance.h"

@@ -10,7 +10,7 @@
 
 #include "vn_query_pool.h"
 
-#include "venus-protocol/vn_protocol_driver_query_pool.h"
+#include "vn_protocol_driver_query_pool.h"
 
 #include "vn_device.h"
 #include "vn_feedback.h"

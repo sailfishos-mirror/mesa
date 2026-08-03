@@ -359,6 +359,14 @@ with_vdrm = [
   with_intel_virtio,
 ].contains(true)
 
+if with_virtio_vk
+  dep_venus_protocol = dependency('venus-protocol',
+    version : '== 1.0',
+    fallback : ['venus-protocol', 'dep_vn_protocol_driver'],
+    required : true
+  )
+endif
+
 with_dri = false
 if with_gallium and (system_has_kms_drm or (with_gallium_zink and (freedreno_kmds.contains('kgsl') or host_machine.system() == 'darwin')))
   _glx = get_option('glx')

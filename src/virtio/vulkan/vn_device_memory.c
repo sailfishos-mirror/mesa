@@ -10,9 +10,9 @@
 
 #include "vn_device_memory.h"
 
-#include "venus-protocol/vn_protocol_driver_device_memory.h"
-#include "venus-protocol/vn_protocol_driver_transport.h"
 #include "vk_debug_utils.h"
+#include "vn_protocol_driver_device_memory.h"
+#include "vn_protocol_driver_transport.h"
 
 #include "vn_android.h"
 #include "vn_buffer.h"
