@@ -236,16 +236,20 @@ nouveau_ws_bo_from_dma_buf(struct nouveau_ws_device *dev, int fd)
 }
 
 static bool
-atomic_dec_not_one(atomic_uint_fast32_t *counter)
+atomic_dec_not_one(uint32_t *counter)
 {
-   uint_fast32_t old = *counter;
+   uint32_t old, val;
+
+   val = *counter;
    while (1) {
-      assert(old != 0);
-      if (old == 1)
+      if (val == 1)
          return false;
 
-      if (atomic_compare_exchange_weak(counter, &old, old - 1))
+      old = p_atomic_cmpxchg(counter, val, val - 1);
+      if (old == val)
          return true;
+
+      val = old;
    }
 }
 
