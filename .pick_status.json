@@ -6194,7 +6194,7 @@
         "description": "nak: Serialize carry access in instr_sched_prepass",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b55b8da012df2170ebcf08ef13acbad312b4a4a5",
         "notes": null
