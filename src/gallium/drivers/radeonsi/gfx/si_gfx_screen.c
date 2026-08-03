@@ -1115,6 +1115,14 @@ bool si_init_gfx_screen(struct si_screen *sscreen) {
                                   PIPE_USAGE_DEFAULT,
                                   sscreen->info.total_attribute_pos_prim_ring_size,
                                   2 * 1024 * 1024);
+
+      if (!sscreen->attribute_pos_prim_ring) {
+         si_destroy_perfcounters(sscreen);
+         si_destroy_shader_cache(sscreen);
+         FREE(sscreen->nir_options);
+         glsl_type_singleton_decref();
+         return false;
+      }
    }
 
    ac_print_nonshadowed_regs(sscreen->info.gfx_level, sscreen->info.family);
