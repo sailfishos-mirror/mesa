@@ -296,20 +296,22 @@ si_sqtt_resize_bo(struct si_context *sctx)
 }
 
 static bool si_get_sqtt_trace(struct si_context *sctx,
-                              struct ac_sqtt_trace *sqtt)
+                              struct ac_sqtt_trace *sqtt,
+                              struct pipe_transfer **transfer)
 {
-   struct pipe_transfer *transfer;
    struct pipe_resource *bo = sctx->sqtt->bo;
 
    memset(sqtt, 0, sizeof(*sqtt));
 
-   sctx->sqtt->ptr = pipe_buffer_map(&sctx->b, bo, PIPE_MAP_READ, &transfer);
+   sctx->sqtt->ptr = pipe_buffer_map(&sctx->b, bo, PIPE_MAP_READ, transfer);
 
    if (!sctx->sqtt->ptr)
       return false;
 
    if (!ac_sqtt_get_trace(sctx->sqtt, &sctx->screen->info, sqtt)) {
-      pipe_buffer_unmap(&sctx->b, transfer);
+      pipe_buffer_unmap(&sctx->b, *transfer);
+      *transfer = NULL;
+      sctx->sqtt->ptr = NULL;
 
       if (!si_sqtt_resize_bo(sctx)) {
          mesa_loge("Failed to resize the SQTT buffer.");
@@ -323,7 +325,6 @@ static bool si_get_sqtt_trace(struct si_context *sctx,
       return false;
    }
 
-   pipe_buffer_unmap(&sctx->b, transfer);
    return true;
 }
 
@@ -559,6 +560,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
       }
    } else {
       struct ac_sqtt_trace sqtt_trace = {0};
+      struct pipe_transfer *transfers[2];
 
       /* Stop SQTT */
       si_end_sqtt(sctx, rcs);
@@ -569,13 +571,12 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
       /* Wait for SQTT to finish and read back the bo */
       if (sctx->ws->fence_wait(sctx->ws, sctx->last_sqtt_fence,
                                OS_TIMEOUT_INFINITE) &&
-          si_get_sqtt_trace(sctx, &sqtt_trace)) {
-         struct pipe_transfer *transfer;
+          si_get_sqtt_trace(sctx, &sqtt_trace, &transfers[0])) {
          struct ac_spm_trace spm_trace;
 
          /* Map the SPM counter buffer */
          if (sctx->spm.bo)
-            sctx->spm.ptr = pipe_buffer_map(&sctx->b, sctx->spm.bo, PIPE_MAP_READ, &transfer);
+            sctx->spm.ptr = pipe_buffer_map(&sctx->b, sctx->spm.bo, PIPE_MAP_READ, &transfers[1]);
 
          if (sctx->spm.ptr)
             ac_spm_get_trace(&sctx->spm, &spm_trace);
@@ -584,9 +585,12 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
                              sctx->spm.ptr ? &spm_trace : NULL, NULL);
 
          if (sctx->spm.ptr) {
-            pipe_buffer_unmap(&sctx->b, transfer);
+            pipe_buffer_unmap(&sctx->b, transfers[1]);
             sctx->spm.ptr = NULL;
          }
+
+         pipe_buffer_unmap(&sctx->b, transfers[0]);
+         sctx->sqtt->ptr = NULL;
       } else if (sctx->sqtt->bo) {
          if (!sctx->sqtt->trigger_file) {
             sctx->sqtt->start_frame = num_frames + 10;
