@@ -22,6 +22,7 @@
 #include "radv_shader_args.h"
 #include "radv_shader_info.h"
 #include "vk_nir_lower_descriptor_heaps.h"
+#include "vk_pipeline.h"
 #include "vk_pipeline_cache.h"
 
 #include "nir/nir_shader_compiler_options.h"
@@ -37,7 +38,6 @@ struct radv_shader_abort_data;
 struct radv_shader_args;
 struct radv_shader_args;
 struct radv_serialized_shader_arena_block;
-struct vk_pipeline_robustness_state;
 struct nir_parameter;
 typedef struct nir_parameter nir_parameter;
 
@@ -625,7 +625,7 @@ struct radv_compiler_info {
    uint32_t buffer_descriptor_alignment;
 
    /* Shader features, included as part of the pipeline key */
-   const struct vk_pipeline_robustness_state *device_robustness_state;
+   struct vk_pipeline_robustness_state device_robustness_state;
    bool smooth_lines;
    bool force_vrs_enabled;
 

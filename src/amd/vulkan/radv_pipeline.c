@@ -125,7 +125,7 @@ radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
       key.version = compiler_info->override_compute_shader_version;
    }
 
-   vk_pipeline_robustness_state_fill(compiler_info->device_robustness_state, &rs, pNext, stage->pNext);
+   vk_pipeline_robustness_state_fill(&compiler_info->device_robustness_state, &rs, pNext, stage->pNext);
 
    radv_set_stage_key_robustness(&rs, s, &key);
 
