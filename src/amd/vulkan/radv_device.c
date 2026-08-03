@@ -1175,6 +1175,22 @@ radv_device_init_compiler_info(struct radv_device *device)
       primitives_generated_query = true;
    }
 
+   /* We also need to be careful to not use most device->vk.enabled_features in the
+    * radv_compiler_info. This is because Fossilize only tracks the features it considers relevant
+    * for shader compilation in order to share databases across devices (which may have different
+    * sets of supported features) and use them to fill shader caches. The Fossilize replayer enables
+    * all other features.
+    *
+    * The features Fossilize tracks include robustBufferAccess, robustImageAccess, robustness2
+    * features, shaderObject, image2DViewOf3D, meshShaderQueries and PrimitivesGeneratedQuery features.
+    *
+    * The situation is similar for extension enablement.
+    *
+    * VkPhysicalDeviceLineRasterizationFeatures::smoothLines is used below, but it's part of the pipeline
+    * key instead of the cache key, so cache misses only happen with applications which don't enable the
+    * feature and have pipelines which may enable smooth lines.
+    */
+
    struct radv_compiler_info info = {
       /* Hardware info */
       .ac = &pdev->info.compiler_info,
@@ -1280,7 +1296,7 @@ radv_device_init_compiler_info(struct radv_device *device)
       .buffer_descriptor_alignment = pdev->vk.properties.bufferDescriptorAlignment,
       /* Shader features, included as part of the pipeline key */
       .device_robustness_state = &device->vk.robustness_state,
-      .smooth_lines = device->vk.enabled_features.smoothLines,
+      .smooth_lines = device->vk.enabled_features.smoothLines, /* This is only used for pipeline objects. */
       .force_vrs_enabled = device->force_vrs_enabled,
       /* Wave/subgroup sizes */
       .subgroup_size = device->vk.physical->properties.subgroupSize,
