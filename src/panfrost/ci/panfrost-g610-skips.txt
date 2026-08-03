@@ -27,7 +27,3 @@ OpenCL-GL Sharing
 ^Images \(clFillImage pitch\)$
 ^Images \(clFillImage\)$
 ^Select$
-
-# The OpenCL spec does not define relative error or precision requirements for
-# CL_FILTER_LINEAR sampler combinations
-CL_FILTER_LINEAR
