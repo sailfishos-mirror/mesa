@@ -2458,3 +2458,55 @@ BEGIN_TEST(optimizer.smem_buffer_align)
 
    finish_opt_test();
 END_TEST
+
+BEGIN_TEST(optimizer.cndmask_invert_cond)
+   //>>  v1: %a:v[0],  v1: %b:v[1],  v1: %c:v[2],  v1: %d:v[3] = p_startpgm
+   if (!setup_cs("v1 v1 v1 v1", GFX10_3))
+      return;
+
+   Temp a = inputs[0];
+   Temp b = inputs[1];
+   Temp c = inputs[2];
+   Temp d = inputs[3];
+
+   //! s2: %cond0 = v_cmp_lg_i32 %a, %b
+   //! v1: %bcsel0 = v_cndmask_b32 %d, %c, %cond0:vcc row_mirror bound_ctrl:1 fi
+   //! v1: %bcsel1 = v_cndmask_b32 %d, 0, %cond0
+   //! p_unit_test 0, %bcsel0
+   //! p_unit_test 1, %bcsel1
+   Temp cond0 = bld.vopc(aco_opcode::v_cmp_eq_i32, bld.def(bld.lm), a, b);
+   Temp dpp0 = bld.vop1_dpp(aco_opcode::v_mov_b32, bld.def(v1), d, dpp_row_mirror);
+   Temp bcsel0 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), c, dpp0, cond0);
+   Temp bcsel1 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), Operand::c32(0), d, cond0);
+   writeout(0, bcsel0);
+   writeout(1, bcsel1);
+
+   //! s2: %cond1 = v_cmp_lt_i32 %a, %b
+   //! v1: %bcsel2 = v_cndmask_b32 %d, %c, %cond1:vcc row_mirror bound_ctrl:1 fi
+   //! v1: %bcsel3 = v_cndmask_b32 %d, 0, %cond1
+   //! p_unit_test 2, %bcsel2
+   //! p_unit_test 3, %bcsel3
+   Temp cond1 = bld.vopc(aco_opcode::v_cmp_lt_i32, bld.def(bld.lm), a, b);
+   Temp dpp1 = bld.vop1_dpp(aco_opcode::v_mov_b32, bld.def(v1), d, dpp_row_mirror);
+   Temp bcsel2 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), dpp1, c, cond1);
+   Temp bcsel3 = bld.vop2_e64(aco_opcode::v_cndmask_b32, bld.def(v1), d, Operand::c32(0), cond1);
+   writeout(2, bcsel2);
+   writeout(3, bcsel3);
+
+   //! s2: %cond2 = v_cmp_neq_f32 %a, %b
+   //! v1: %bcsel4 = v_cndmask_b32 0, %d, %cond2
+   //! p_unit_test 4, %bcsel4
+   Temp cond2 = bld.vopc(aco_opcode::v_cmp_eq_f32, bld.def(bld.lm), a, b);
+   Temp bcsel4 = bld.vop2_e64(aco_opcode::v_cndmask_b32, bld.def(v1), d, Operand::c32(0), cond2);
+   writeout(4, bcsel4);
+
+   //! s2: %cond3 = v_cmp_neq_f16 %a, %b
+   //! v1: %bcsel5 = v_cndmask_b32 0x70ad, %d, %cond3
+   //! p_unit_test 5, %bcsel5
+   Temp cond3 = bld.vopc(aco_opcode::v_cmp_eq_f16, bld.def(bld.lm), a, b);
+   Temp literal = bld.copy(bld.def(v1), Operand::c32(0x70AD));
+   Temp bcsel5 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), d, literal, cond3);
+   writeout(5, bcsel5);
+
+   finish_opt_test();
+END_TEST
