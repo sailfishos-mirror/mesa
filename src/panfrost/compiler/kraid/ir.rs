@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::bitview::BitViewable;
 pub use crate::data_type::DataType;
 use crate::data_type::PartialDataType;
 use crate::debug::{DEBUG, DebugFlags};
@@ -302,6 +303,53 @@ impl fmt::Display for PreloadReg {
             FrameArgHigh => "FRAME_ARG_HI",
         };
         write!(f, "{name}")
+    }
+}
+
+/// Handle referencing an external resource (e.g. sampler, texture, attribute,
+/// uniform buffer...).  It is just a pair of indices, one selecting a "table",
+/// the other selecting a descriptor within the table.  Tables are either lists
+/// of descriptors stored in memory or a "virtual" table for hardware-controlled
+/// resources
+pub struct ResHandle {
+    /// The resource table index or special table enumerant specifying
+    /// which table is being referenced
+    pub table: u32,
+    /// The index into the table at which to find the descriptor
+    pub index: u32,
+}
+
+impl ResHandle {
+    pub fn from_bits(imm: u32) -> Self {
+        ResHandle {
+            table: imm.get_bit_range_u64(24..32) as u32,
+            index: imm.get_bit_range_u64(0..24) as u32,
+        }
+    }
+
+    /// Returns true if the handle can be encoded in an immediate
+    pub fn fits_imm_op(&self, index_bits: u8) -> bool {
+        let table = self.table;
+        let table_valid = table <= 11 || (table >= 60 && table <= 63);
+        let index_valid = self.index < (1 << index_bits);
+
+        table_valid && index_valid
+    }
+}
+
+impl TryFrom<&Src> for ResHandle {
+    type Error = &'static str;
+
+    fn try_from(value: &Src) -> Result<Self, Self::Error> {
+        u32::try_from(&value.src_ref)
+            .map(ResHandle::from_bits)
+            .map_err(|_| "Not an immediate")
+    }
+}
+
+impl fmt::Display for ResHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.table, self.index)
     }
 }
 
@@ -1442,6 +1490,14 @@ pub trait Opcode:
         FmtSrc {
             src,
             src_type: self.src_type(src),
+        }
+    }
+
+    fn fmt_handle_src(&self, src: &Src) -> String {
+        if let Ok(descr) = ResHandle::try_from(src) {
+            descr.to_string()
+        } else {
+            self.fmt_src(src).to_string()
         }
     }
 

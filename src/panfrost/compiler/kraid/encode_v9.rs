@@ -385,23 +385,6 @@ fn op_encode_sr_write(op: &impl Opcode, dst: &Dst) -> SrWrite {
     }
 }
 
-fn try_encode_res_table_index(handle: u32) -> Result<u32, &'static str> {
-    let table_idx = handle >> 24;
-    if !(table_idx <= 11 || (table_idx >= 60 && table_idx <= 63)) {
-        return Err("Cannot encode immediate resource table index");
-    }
-    Ok(table_idx & 15)
-}
-
-fn try_encode_res_index(handle: u32, bits: u8) -> Result<u8, &'static str> {
-    assert!(bits <= 8);
-    let res_idx = handle & 0xffffff;
-    if res_idx >= (1 << bits) {
-        return Err("Cannot encode immediate resource index");
-    }
-    Ok(res_idx as u8)
-}
-
 fn instr_fau_page(instr: &Instr) -> Option<u8> {
     let mut page = None;
     for src in instr.srcs() {
@@ -1981,20 +1964,19 @@ impl V9Instr for OpLdTex {
     }
 
     fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
-        ptr_eq(src, &self.handle)
-            && try_encode_res_index(imm, 4).is_ok()
-            && try_encode_res_table_index(imm).is_ok()
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(4)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+        if let Ok(texture) = ResHandle::try_from(&self.handle) {
+            assert!(texture.fits_imm_op(4));
             e.encode(LdTexImm {
                 message_slot_index: e.get_msg_slot_idx().unwrap(),
                 sr_dst: op_encode_sr_write(self, &self.dst),
                 src0: op_encode_src(self, &self.coords[0]),
                 src1: op_encode_src(self, &self.coords[1]),
-                texture_index: try_encode_res_index(imm32, 4).unwrap(),
-                texture_table_index: try_encode_res_table_index(imm32).unwrap(),
+                texture_index: texture.index as u8,
+                texture_table_index: texture.table,
             })
         } else {
             e.encode(LdTex {
@@ -2020,19 +2002,18 @@ impl V9Instr for OpLeaBuf {
     }
 
     fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
-        ptr_eq(src, &self.handle)
-            && try_encode_res_index(imm, 8).is_ok()
-            && try_encode_res_table_index(imm).is_ok()
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(8)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+        if let Ok(buffer) = ResHandle::try_from(&self.handle) {
+            assert!(buffer.fits_imm_op(8));
             e.encode(LeaBufImm {
                 message_slot_index: e.get_msg_slot_idx().unwrap(),
                 sr_dst: op_encode_sr_write(self, &self.dst),
                 src0: op_encode_src(self, &self.index),
-                buffer_index: try_encode_res_index(imm32, 8).unwrap(),
-                buffer_table_index: try_encode_res_table_index(imm32).unwrap(),
+                buffer_index: buffer.index as u8,
+                buffer_table_index: buffer.table,
             })
         } else {
             e.encode(LeaBuf {
@@ -2079,20 +2060,19 @@ impl V9Instr for OpLeaTex {
     }
 
     fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
-        ptr_eq(src, &self.handle)
-            && try_encode_res_index(imm, 4).is_ok()
-            && try_encode_res_table_index(imm).is_ok()
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(4)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+        if let Ok(texture) = ResHandle::try_from(&self.handle) {
+            assert!(texture.fits_imm_op(4));
             e.encode(LeaTexImm {
                 message_slot_index: e.get_msg_slot_idx().unwrap(),
                 sr_dst: op_encode_sr_write(self, &self.dst),
                 src0: op_encode_src(self, &self.coords[0]),
                 src1: op_encode_src(self, &self.coords[1]),
-                texture_index: try_encode_res_index(imm32, 4).unwrap(),
-                texture_table_index: try_encode_res_table_index(imm32).unwrap(),
+                texture_index: texture.index as u8,
+                texture_table_index: texture.table,
             })
         } else {
             e.encode(LeaTex {

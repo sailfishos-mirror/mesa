@@ -2460,7 +2460,7 @@ impl DisplayOp for OpLdTex {
             " {} {} {}",
             self.fmt_src(&self.coords[0]),
             self.fmt_src(&self.coords[1]),
-            self.fmt_src(&self.handle),
+            self.fmt_handle_src(&self.handle),
         )
     }
 }
@@ -2512,7 +2512,7 @@ impl DisplayOp for OpLeaPka {
             f,
             " {} {}",
             self.fmt_src(&self.offset),
-            self.fmt_src(&self.handle),
+            self.fmt_handle_src(&self.handle),
         )
     }
 }
@@ -2539,7 +2539,7 @@ impl DisplayOp for OpLeaTex {
             " {} {} {}",
             self.fmt_src(&self.coords[0]),
             self.fmt_src(&self.coords[1]),
-            self.fmt_src(&self.handle),
+            self.fmt_handle_src(&self.handle),
         )
     }
 }
