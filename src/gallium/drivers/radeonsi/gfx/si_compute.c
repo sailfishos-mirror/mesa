@@ -215,14 +215,17 @@ static void si_set_global_binding(struct pipe_context *ctx, unsigned first, unsi
    struct si_context *sctx = (struct si_context *)ctx;
 
    if (first + n > sctx->max_global_buffers) {
+      struct pipe_resource **new_global_buffers;
       unsigned old_max = sctx->max_global_buffers;
       sctx->max_global_buffers = first + n;
-      sctx->global_buffers = realloc(
+      new_global_buffers = realloc(
          sctx->global_buffers, sctx->max_global_buffers * sizeof(sctx->global_buffers[0]));
-      if (!sctx->global_buffers) {
+      if (!new_global_buffers) {
          mesa_loge("failed to allocate compute global_buffers");
+         sctx->max_global_buffers = old_max;
          return;
       }
+      sctx->global_buffers = new_global_buffers;
 
       memset(&sctx->global_buffers[old_max], 0,
              (sctx->max_global_buffers - old_max) * sizeof(sctx->global_buffers[0]));
