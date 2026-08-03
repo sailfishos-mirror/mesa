@@ -303,6 +303,37 @@ kk_nir_swizzle_fragment_output(nir_builder *b, nir_intrinsic_instr *intrin,
    return false;
 }
 
+static bool
+kk_is_possible_both_depth_clip_clamp(
+   const struct vk_graphics_pipeline_state *state, bool enabled)
+{
+   bool dyn_clamp =
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE);
+   bool dyn_clip =
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_DEPTH_CLIP_ENABLE);
+
+   /* If rasterization state is null, clamp must be dynamic, and clip must be
+    * inverted from clamp if not also dynamic. Thus, they cannot match unless
+    * both are dynamic. */
+   if (!state->rs)
+      return dyn_clamp && dyn_clip;
+
+   /* If clip is static and inverted from clamp, they can never be the same */
+   if (!dyn_clip &&
+       state->rs->depth_clip_enable == VK_MESA_DEPTH_CLIP_ENABLE_NOT_CLAMP)
+      return false;
+
+   /* Need to account for:
+    * - Both are dynamic
+    * - Both are static and match the desired value
+    * - One is dynamic and the other is static and matches the desired value
+    */
+   bool static_clamp_match = state->rs->depth_clamp_enable == enabled;
+   bool static_clip_match =
+      vk_rasterization_state_depth_clip_enable(state->rs) == enabled;
+   return (dyn_clamp || static_clamp_match) && (dyn_clip || static_clip_match);
+}
+
 static void
 kk_lower_vs_vbo(nir_shader *nir, const struct vk_graphics_pipeline_state *state,
                 const struct vk_pipeline_robustness_state *rs)
@@ -355,6 +386,12 @@ kk_lower_hw_vs(nir_shader *nir, const struct vk_graphics_pipeline_state *state)
 
    NIR_PASS(_, nir, msl_ensure_vertex_position_output);
    NIR_PASS(_, nir, nir_lower_clip_halfz_dynamic);
+
+   /* In any situation where both clip and clamp can be disabled, we need to
+    * add viewport Z transform emulation to the shader */
+   if (kk_is_possible_both_depth_clip_clamp(state, false))
+      NIR_PASS(_, nir, msl_nir_lower_vs_disabled_depth_clamp_clip);
+
    NIR_PASS(_, nir, msl_nir_vs_io_types);
 }
 
@@ -471,9 +508,14 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, msl_nir_fs_force_output_signedness, rts);
 
    if (state->rp->depth_attachment_format == VK_FORMAT_UNDEFINED ||
-       nir->info.fs.early_fragment_tests)
-      NIR_PASS(_, nir, nir_shader_intrinsics_pass,
-               msl_nir_fs_remove_depth_write, nir_metadata_control_flow, NULL);
+       nir->info.fs.early_fragment_tests) {
+      NIR_PASS(_, nir, msl_nir_fs_remove_depth_write);
+   }
+
+   /* In any situation where both clip and clamp can be enabled, we need to
+    * add clamp emulation to the shader */
+   if (kk_is_possible_both_depth_clip_clamp(state, true))
+      NIR_PASS(_, nir, msl_nir_lower_fs_combined_depth_clamp_clip);
 
    /* Input attachments are treated as 2D textures. Fixes sampler dimension */
    NIR_PASS(_, nir, nir_shader_tex_pass, lower_subpass_dim, nir_metadata_all,

@@ -727,8 +727,17 @@ kk_flush_vp_state(struct kk_cmd_buffer *cmd)
       viewports[i].width = vp->width;
       viewports[i].height = -vp->height;
 
-      viewports[i].znear = vp->minDepth;
-      viewports[i].zfar = vp->maxDepth;
+      if (dyn->rs.depth_clamp_enable ||
+          vk_rasterization_state_depth_clip_enable(&dyn->rs)) {
+         viewports[i].znear = vp->minDepth;
+         viewports[i].zfar = vp->maxDepth;
+      } else {
+         /* When clamp and clip are disabled, we set the viewport Z range to
+          * [0, 1] to disable hardware clamping. The viewport transform will be
+          * applied in shader */
+         viewports[i].znear = 0.f;
+         viewports[i].zfar = 1.f;
+      }
    }
 
    mtl_set_viewports(encoder, viewports, count);
@@ -1215,7 +1224,8 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
    /* We enable raster discard by setting scissor to size (0, 0) */
    if (!(dyn->rs.rasterizer_discard_enable || gfx->is_cull_front_and_back) &&
        (IS_DIRTY(VP_VIEWPORT_COUNT) || IS_DIRTY(VP_VIEWPORTS) ||
-        IS_DIRTY(VP_SCISSOR_COUNT) || IS_DIRTY(VP_SCISSORS)))
+        IS_DIRTY(VP_SCISSOR_COUNT) || IS_DIRTY(VP_SCISSORS) ||
+        IS_DIRTY(RS_DEPTH_CLAMP_ENABLE) || IS_DIRTY(RS_DEPTH_CLIP_ENABLE)))
       kk_flush_vp_state(cmd);
 
    if (IS_DIRTY(VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE)) {
@@ -1246,11 +1256,50 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
          mtl_set_depth_bias(enc, 0.0f, 0.0f, 0.0f);
    }
 
-   if (IS_DIRTY(RS_DEPTH_CLAMP_ENABLE)) {
-      enum mtl_depth_clip_mode mode = dyn->rs.depth_clamp_enable
-                                         ? MTL_DEPTH_CLIP_MODE_CLAMP
-                                         : MTL_DEPTH_CLIP_MODE_CLIP;
+   if (IS_DIRTY(RS_DEPTH_CLAMP_ENABLE) || IS_DIRTY(RS_DEPTH_CLIP_ENABLE) ||
+       IS_DIRTY(VP_VIEWPORT_COUNT) || IS_DIRTY(VP_VIEWPORTS)) {
+      /* Mapping of Vulkan clamp/clip combinations to Metal:
+       * - Clamp Off, Clip Off:
+       *     Use Metal's clamp mode with the viewport depth range set to [0, 1],
+       *     effectively disabling both clip and clamp. Emulate the viewport Z
+       *     transform in the vertex shader.
+       * - Clamp Off, Clip On:
+       *     Exact match to Metal's clip mode.
+       * - Clamp On, Clip Off:
+       *     Exact match to Metal's clamp mode.
+       * - Clamp On, Clip On:
+       *     Use Metal's clip mode, and emulate clamp in the fragment shader.
+       */
+      bool clamp = dyn->rs.depth_clamp_enable;
+      bool clip = vk_rasterization_state_depth_clip_enable(&dyn->rs);
+
+      enum mtl_depth_clip_mode mode =
+         clip ? MTL_DEPTH_CLIP_MODE_CLIP : MTL_DEPTH_CLIP_MODE_CLAMP;
       mtl_set_depth_clip_mode(enc, mode);
+
+      desc->root.draw.emulate_depth_clamp = clamp && clip;
+      desc->root.draw.emulate_viewport_z = !clamp && !clip;
+      if (desc->root.draw.emulate_depth_clamp ||
+          desc->root.draw.emulate_viewport_z) {
+         /* Ensure viewport depth ranges are up to date now, since we are
+          * dirtying root anyway. */
+         for (uint32_t i = 0; i < dyn->vp.viewport_count; i++) {
+            const VkViewport *vp = &dyn->vp.viewports[i];
+
+            /* These are mutually exclusive. Clamp expects the actual minimum
+             * and maximum values, viewport transform supports inverted depth */
+            if (desc->root.draw.emulate_depth_clamp) {
+               desc->root.draw.viewport_z_range[i * 2] =
+                  MIN2(vp->minDepth, vp->maxDepth);
+               desc->root.draw.viewport_z_range[i * 2 + 1] =
+                  MAX2(vp->minDepth, vp->maxDepth);
+            } else {
+               desc->root.draw.viewport_z_range[i * 2] = vp->minDepth;
+               desc->root.draw.viewport_z_range[i * 2 + 1] = vp->maxDepth;
+            }
+         }
+      }
+      desc->root_dirty = true;
    }
 
    if (IS_DIRTY(DS_STENCIL_REFERENCE))

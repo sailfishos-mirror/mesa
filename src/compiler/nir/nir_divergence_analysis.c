@@ -863,6 +863,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_texture_handle_kk:
    case nir_intrinsic_load_depth_texture_kk:
    case nir_intrinsic_load_sampler_handle_kk:
+   case nir_intrinsic_load_viewport_z_range_kk:
    case nir_intrinsic_load_texture_scale:
    case nir_intrinsic_load_inline_data_intel:
    case nir_intrinsic_resource_intel: {

@@ -445,6 +445,34 @@ try_lower_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
    case nir_intrinsic_load_clip_z_coeff:
       return lower_sysval_to_root_table(b, intrin, draw.clip_z_coeff);
 
+   case nir_intrinsic_load_is_depth_clamp_emulated_kk: {
+      unsigned offset = kk_root_descriptor_offset(draw.emulate_depth_clamp);
+      b->cursor = nir_instr_remove(&intrin->instr);
+      nir_def *val = load_root(b, 1, 8, nir_imm_int(b, offset), 1);
+      nir_def_rewrite_uses(&intrin->def, nir_ieq_imm(b, val, 1));
+      return true;
+   }
+
+   case nir_intrinsic_load_is_viewport_z_transform_emulated_kk: {
+      unsigned offset = kk_root_descriptor_offset(draw.emulate_viewport_z);
+      b->cursor = nir_instr_remove(&intrin->instr);
+      nir_def *val = load_root(b, 1, 8, nir_imm_int(b, offset), 1);
+      nir_def_rewrite_uses(&intrin->def, nir_ieq_imm(b, val, 1));
+      return true;
+   }
+
+   case nir_intrinsic_load_viewport_z_range_kk: {
+      unsigned offset = kk_root_descriptor_offset(draw.viewport_z_range);
+      assert((offset & 3) == 0 && "aligned");
+      b->cursor = nir_instr_remove(&intrin->instr);
+      nir_def *vp_offset =
+         nir_imul_imm(b, intrin->src[0].ssa, sizeof(float) * 2u);
+      nir_def *root_offset = nir_iadd_imm(b, vp_offset, offset);
+      nir_def *val = load_root(b, 2, 32, root_offset, 4);
+      nir_def_rewrite_uses(&intrin->def, val);
+      return true;
+   }
+
    case nir_intrinsic_load_push_constant:
       return lower_load_push_constant(b, intrin, ctx);
 

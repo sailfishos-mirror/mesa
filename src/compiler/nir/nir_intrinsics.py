@@ -3281,3 +3281,9 @@ intrinsic("load_sampler_handle_kk", [1], 1, [],
 image("fence_kk")
 # Store clip distance to vertex output.
 store("clip_distance_kk", [], [BASE])
+# System value indicating whether to emulate depth clamp.
+system_value("is_depth_clamp_emulated_kk", 1, bit_sizes=[1])
+# System value indicating whether to emulate the viewport Z transform.
+system_value("is_viewport_z_transform_emulated_kk", 1, bit_sizes=[1])
+# Loads the viewport Z range for a given viewport index.
+load("viewport_z_range_kk", [1], [], [CAN_ELIMINATE, CAN_REORDER])
