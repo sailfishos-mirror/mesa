@@ -982,22 +982,15 @@ tu_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer,
 }
 TU_GENX(tu_CmdCopyQueryPoolResults);
 
-template <chip CHIP>
+template <chip CHIP, typename ResetIova>
 static void
-emit_reset_query_pool(struct tu_cmd_buffer *cmdbuf,
-                      struct tu_query_pool *pool,
-                      uint32_t firstQuery,
-                      uint32_t queryCount)
+reset_query_pool(struct tu_query_pool *pool, uint32_t firstQuery, uint32_t queryCount, ResetIova reset_iova)
 {
-   struct tu_cs *cs = &cmdbuf->cs;
-
    for (uint32_t i = 0; i < queryCount; i++) {
       uint32_t query = firstQuery + i;
       uint32_t statistics = pool->vk.pipeline_statistics;
 
-      tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 4);
-      tu_cs_emit_qw(cs, query_available_iova(pool, query));
-      tu_cs_emit_qw(cs, 0x0);
+      reset_iova(query_available_iova(pool, query));
 
       for (uint32_t k = 0; k < get_result_count(pool); k++) {
          uint64_t result_iova;
@@ -1015,9 +1008,7 @@ emit_reset_query_pool(struct tu_cmd_buffer *cmdbuf,
             result_iova = query_result_iova(pool, query, uint64_t, k);
          }
 
-         tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 4);
-         tu_cs_emit_qw(cs, result_iova);
-         tu_cs_emit_qw(cs, 0x0);
+         reset_iova(result_iova);
       }
 
       if (is_perf_query_derived(pool)) {
@@ -1028,13 +1019,23 @@ emit_reset_query_pool(struct tu_cmd_buffer *cmdbuf,
 
          for (uint32_t j = 0; j < perf_query->collection->num_enabled_perfcntrs; ++j) {
             uint64_t perfcntr_result_iova = perf_query_derived_perfcntr_iova(pool, query, result, j);
-            tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 4);
-            tu_cs_emit_qw(cs, perfcntr_result_iova);
-            tu_cs_emit_qw(cs, 0x00);
+            reset_iova(perfcntr_result_iova);
          }
       }
    }
+}
 
+template <chip CHIP>
+static void
+emit_reset_query_pool(struct tu_cmd_buffer *cmdbuf, struct tu_query_pool *pool, uint32_t firstQuery, uint32_t queryCount)
+{
+   struct tu_cs *cs = &cmdbuf->cs;
+
+   reset_query_pool<CHIP>(pool, firstQuery, queryCount, [cs](uint64_t result_iova) {
+      tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 4);
+      tu_cs_emit_qw(cs, result_iova);
+      tu_cs_emit_qw(cs, 0x0);
+   });
 }
 
 template <chip CHIP>
@@ -1075,42 +1076,10 @@ tu_ResetQueryPool(VkDevice device,
 {
    VK_FROM_HANDLE(tu_query_pool, pool, queryPool);
 
-   for (uint32_t i = 0; i < queryCount; i++) {
-      struct query_slot *slot = slot_address(pool, i + firstQuery);
-      slot->available = 0;
-      uint32_t statistics = pool->vk.pipeline_statistics;
-
-      for (uint32_t k = 0; k < get_result_count(pool); k++) {
-         uint64_t *res;
-
-         if (pool->vk.query_type == VK_QUERY_TYPE_PIPELINE_STATISTICS) {
-            uint32_t stat_idx = statistics_index<CHIP>(&statistics);
-            res = query_result_addr(pool, i + firstQuery, uint64_t, stat_idx);
-         } else if (is_perf_query_raw(pool)) {
-            res = query_result_addr(pool, i + firstQuery,
-                                    struct perfcntr_query_slot, k);
-         } else if (pool->vk.query_type == VK_QUERY_TYPE_OCCLUSION) {
-            assert(k == 0);
-            res = occlusion_query_addr(pool, i + firstQuery, result);
-         } else {
-            res = query_result_addr(pool, i + firstQuery, uint64_t, k);
-         }
-
-         *res = 0;
-      }
-
-      if (is_perf_query_derived(pool)) {
-         /* For perf queries with derived counters, we also zero out every used
-          * perfcntr's result field into which counter value deltas are accumulated.
-          */
-         struct tu_perf_query_derived *perf_query = &pool->perf_query.derived;
-
-         for (uint32_t j = 0; j < perf_query->collection->num_enabled_perfcntrs; ++j) {
-            uint64_t *perfcntr_res = perf_query_derived_perfcntr_addr(pool, i + firstQuery, result, j);
-            *perfcntr_res = 0;
-         }
-      }
-   }
+   reset_query_pool<CHIP>(pool, firstQuery, queryCount, [pool](uint64_t result_iova) {
+      uint64_t *result = (uint64_t *) ((char *) pool->bo->map + result_iova - pool->bo->iova);
+      *result = 0;
+   });
 }
 TU_GENX(tu_ResetQueryPool);
 
