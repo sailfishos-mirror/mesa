@@ -20,6 +20,7 @@ static const nir_shader_compiler_options options = {
    .lower_fmod = true,
    .lower_fdiv = true,
    .lower_fceil = true,
+   .lower_fsign = true,
    .float_mul_add16 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
    .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
    .float_mul_add64 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
@@ -301,7 +302,6 @@ instr_create_alu(struct ir2_context *ctx, nir_op opcode, unsigned ncomp)
       [nir_op_fneg] = {MAXs, MAXv},
       [nir_op_fabs] = {MAXs, MAXv},
       [nir_op_fsat] = {MAXs, MAXv},
-      [nir_op_fsign] = {-1, CNDGTEv},
       [nir_op_fadd] = {ADDs, ADDv},
       [nir_op_fsub] = {ADDs, ADDv},
       [nir_op_fmul] = {MULs, MULv},
@@ -475,22 +475,6 @@ emit_alu(struct ir2_context *ctx, nir_alu_instr *alu)
       instr->src_count = 3;
       instr->src[2] = ir2_zero(ctx);
       break;
-   case nir_op_fsign: {
-      /* we need an extra instruction to deal with the zero case */
-      struct ir2_instr *tmp;
-
-      /* tmp = x == 0 ? 0 : 1 */
-      tmp = instr_create_alu(ctx, nir_op_fcsel, ncomp);
-      tmp->src[0] = instr->src[0];
-      tmp->src[1] = ir2_zero(ctx);
-      tmp->src[2] = load_const(ctx, (float[]){1.0f}, 1);
-
-      /* result = x >= 0 ? tmp : -tmp */
-      instr->src[1] = ir2_src(tmp->idx, 0, IR2_SRC_SSA);
-      instr->src[2] = instr->src[1];
-      instr->src[2].negate = true;
-      instr->src_count = 3;
-   } break;
    default:
       break;
    }
