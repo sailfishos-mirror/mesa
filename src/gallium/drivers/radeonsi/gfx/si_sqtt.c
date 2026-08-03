@@ -762,7 +762,7 @@ void si_write_user_event(struct si_context *sctx, struct radeon_cmdbuf *rcs,
       uint8_t *buffer = alloca(sizeof(marker) + marker.length);
       memcpy(buffer, &marker, sizeof(marker));
       memcpy(buffer + sizeof(marker), str, len);
-      buffer[sizeof(marker) + len - 1] = '\0';
+      memset(buffer + sizeof(marker) + len, 0, marker.length - len);
 
       si_emit_sqtt_userdata(sctx, rcs, buffer,
                             sizeof(marker) / 4 + marker.length / 4);
