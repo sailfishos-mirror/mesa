@@ -69,6 +69,8 @@ op('xor', 2, 'u1 u16 u32', Props.NEGATE | Props.CMOD | Props.COMMUTATIVE)
 
 op('add',   2, 'u32 s32 u64 s64 f32 f64 f16 bf16 u16 s16',
    Props.SAT | Props.CMOD | Props.COMMUTATIVE | Props.NEGATE)
+op('add_rtne',   2, 'f32 f64',
+   Props.SAT | Props.CMOD | Props.COMMUTATIVE | Props.NEGATE)
 op('add3',  3, 'u32 s32 u64 s64 u16 s16', Props.SAT |
    Props.CMOD | Props.COMMUTATIVE | Props.NEGATE)
 op('asr',   2, 's32 s64 s16', Props.CMOD | Props.NEGATE0)

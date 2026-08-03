@@ -259,6 +259,7 @@ static const struct {
    /* clang-format off */
    OP(ADD3, ADD3, 3),
    OP(ADD, ADD, 2),
+   OP(ADD_RTNE, ADD, 2),
    OP(AND, AND, 2),
    OP(AND_U32_U16, AND, 2),
    OP(AND_S32_SN, AND, 2),
