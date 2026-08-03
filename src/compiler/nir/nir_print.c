@@ -1553,6 +1553,7 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          case nir_intrinsic_load_per_vertex_input:
          case nir_intrinsic_load_input_vertex:
          case nir_intrinsic_load_coefficients_agx:
+         case nir_intrinsic_load_attr_pan:
          case nir_intrinsic_load_attribute_pan:
          case nir_intrinsic_load_fs_coeffs_pco:
             mode = nir_var_shader_in;

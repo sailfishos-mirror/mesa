@@ -492,7 +492,43 @@ bi_copy_component(bi_builder *b, nir_intrinsic_instr *instr, bi_index tmp)
 }
 
 static void
-bi_emit_load_attr(bi_builder *b, nir_intrinsic_instr *instr)
+bi_emit_load_attr(bi_builder *b, nir_intrinsic_instr *intr)
+{
+   assert(intr->intrinsic == nir_intrinsic_load_attr_pan);
+   nir_alu_type dst_fmt = nir_intrinsic_dest_type(intr);
+
+   bi_index vertex_id = bi_src_index(&intr->src[0]);
+   bi_index instance_id = bi_src_index(&intr->src[1]);
+   enum bi_register_format regfmt =
+      dst_fmt == 32 ? BI_REGISTER_FORMAT_AUTO
+                    : bi_reg_fmt_for_nir(dst_fmt);
+
+   const enum bi_vecsize vecsize = intr->num_components - 1;
+
+   /* Check if the index can fit in LEA_ATTR_IMM */
+   uint32_t imm_res = 0;
+   bool use_imm_form = false;
+   if (nir_src_is_const(intr->src[2])) {
+      imm_res = nir_src_as_uint(intr->src[2]);
+      use_imm_form = pan_res_handle_get_index(imm_res) < 0x10;
+   }
+
+   bi_index dest = bi_def_index(&intr->def);
+   if (use_imm_form) {
+      bi_instr *I = bi_ld_attr_imm_to(b, dest, vertex_id, instance_id,
+                                      regfmt, vecsize,
+                                      pan_res_handle_get_index(imm_res));
+      if (b->shader->arch >= 9)
+         I->table = va_res_fold_table_idx(pan_res_handle_get_table(imm_res));
+   } else {
+      bi_index res = bi_src_index(&intr->src[2]);
+      bi_ld_attr_to(b, dest, vertex_id, instance_id, res, regfmt, vecsize);
+   }
+   bi_split_def(b, &intr->def);
+}
+
+static void
+bi_emit_load_input_attr(bi_builder *b, nir_intrinsic_instr *instr)
 {
    bi_index vertex_id =
       instr->intrinsic == nir_intrinsic_load_attribute_pan ?
@@ -1597,9 +1633,15 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_barycentric_at_offset:
       /* handled later via load_fs_input */
       break;
-   case nir_intrinsic_load_attribute_pan:
+
+   case nir_intrinsic_load_attr_pan:
       assert(stage == MESA_SHADER_VERTEX);
       bi_emit_load_attr(b, instr);
+      break;
+
+   case nir_intrinsic_load_attribute_pan:
+      assert(stage == MESA_SHADER_VERTEX);
+      bi_emit_load_input_attr(b, instr);
       break;
 
    case nir_intrinsic_load_blend_input_pan:
@@ -1610,7 +1652,7 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_input:
       assert(!b->shader->inputs->is_blend);
       if (stage == MESA_SHADER_VERTEX)
-         bi_emit_load_attr(b, instr);
+         bi_emit_load_input_attr(b, instr);
       else
          UNREACHABLE("Unsupported shader stage");
       break;
