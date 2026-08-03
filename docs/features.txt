@@ -841,7 +841,7 @@ Rusticl Optional Core Features:
   - Built-in kernels                                    in progress (reports 0 built-in kernels)
   - Device partitioning                                 not started
   - cl_khr_fp64                                         in progress (iris, llvmpipe, nvc0, radeonsi, zink, Available with environment variable RUSTICL_FEATURES=fp64, device dependent.)
-  Latest conformance version passed for devices         DONE (asahi, iris, zink)
+  Latest conformance version passed for devices         DONE (asahi, iris, panfrost, zink)
 
 
 Rusticl Optional OpenCL 2.x Features:
