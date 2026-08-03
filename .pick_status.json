@@ -4884,7 +4884,7 @@
         "description": "st/mesa: Only drop ARB_depth_buffer_float on desktop GL",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bafa1cd897fe763516313f72287144c98bf65ee8",
         "notes": null
