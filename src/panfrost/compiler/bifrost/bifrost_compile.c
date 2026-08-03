@@ -528,78 +528,6 @@ bi_emit_load_attr(bi_builder *b, nir_intrinsic_instr *intr)
 }
 
 static void
-bi_emit_load_input_attr(bi_builder *b, nir_intrinsic_instr *instr)
-{
-   bi_index vertex_id =
-      instr->intrinsic == nir_intrinsic_load_attribute_pan ?
-         bi_src_index(&instr->src[0]) :
-         bi_vertex_id(b);
-   bi_index instance_id =
-      instr->intrinsic == nir_intrinsic_load_attribute_pan ?
-         bi_src_index(&instr->src[1]) :
-         bi_instance_id(b);
-
-   /* Disregard the signedness of an integer, since loading 32-bits into a
-    * 32-bit register should be bit exact so should not incur any clamping.
-    *
-    * If we are reading as a u32, then it must be paired with an integer (u32 or
-    * s32) source, so use .auto32 to disregard.
-    */
-   nir_alu_type T = nir_intrinsic_dest_type(instr);
-   enum bi_register_format regfmt = BI_REGISTER_FORMAT_AUTO;
-   switch (T) {
-      case nir_type_uint32:
-      case nir_type_int32:
-         regfmt = BI_REGISTER_FORMAT_AUTO;
-         break;
-      case nir_type_float32:
-         regfmt = BI_REGISTER_FORMAT_F32;
-         break;
-      case nir_type_uint16:
-         regfmt = BI_REGISTER_FORMAT_U16;
-         break;
-      case nir_type_int16:
-         regfmt = BI_REGISTER_FORMAT_S16;
-         break;
-      case nir_type_float16:
-         regfmt = BI_REGISTER_FORMAT_F16;
-         break;
-      default:
-         assert("unsupported attribute type" && false);
-   }
-
-   nir_src *offset = nir_get_io_offset_src(instr);
-   unsigned component = nir_intrinsic_component(instr);
-   enum bi_vecsize vecsize = (instr->num_components + component - 1);
-   unsigned imm_index = 0;
-   unsigned base = nir_intrinsic_base(instr);
-   bool constant = nir_src_is_const(*offset);
-   bool immediate = bi_is_imm_desc_handle(b, instr, &imm_index, 16);
-   bi_index dest =
-      (component == 0) ? bi_def_index(&instr->def) : bi_temp(b->shader);
-   bi_instr *I;
-
-   if (immediate) {
-      I = bi_ld_attr_imm_to(b, dest, vertex_id, instance_id, regfmt,
-                            vecsize, pan_res_handle_get_index(imm_index));
-
-      if (b->shader->arch >= 9)
-         I->table = va_res_fold_table_idx(pan_res_handle_get_table(base));
-   } else {
-      bi_index idx = bi_src_index(&instr->src[0]);
-
-      if (constant)
-         idx = bi_imm_u32(imm_index);
-      else if (base != 0)
-         idx = bi_iadd_u32(b, idx, bi_imm_u32(base), false);
-
-      I = bi_ld_attr_to(b, dest, vertex_id, instance_id, idx, regfmt, vecsize);
-   }
-
-   bi_copy_component(b, instr, dest);
-}
-
-static void
 bi_emit_lea_attr(bi_builder *b, nir_intrinsic_instr *intr)
 {
    assert(intr->intrinsic == nir_intrinsic_lea_attr_pan);
@@ -1639,22 +1567,8 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_emit_load_attr(b, instr);
       break;
 
-   case nir_intrinsic_load_attribute_pan:
-      assert(stage == MESA_SHADER_VERTEX);
-      bi_emit_load_input_attr(b, instr);
-      break;
-
    case nir_intrinsic_load_blend_input_pan:
       bi_emit_load_blend_input(b, instr);
-      break;
-
-   case nir_intrinsic_load_interpolated_input:
-   case nir_intrinsic_load_input:
-      assert(!b->shader->inputs->is_blend);
-      if (stage == MESA_SHADER_VERTEX)
-         bi_emit_load_input_attr(b, instr);
-      else
-         UNREACHABLE("Unsupported shader stage");
       break;
 
    case nir_intrinsic_load_var_pan:
