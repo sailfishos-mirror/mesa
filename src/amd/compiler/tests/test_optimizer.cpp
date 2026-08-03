@@ -2432,3 +2432,29 @@ BEGIN_TEST(optimizer.dotc_dpp)
 
    finish_opt_test();
 END_TEST
+
+BEGIN_TEST(optimizer.smem_buffer_align)
+   //>>  s4: %a:s[0-3],  s1: %b:s[4] = p_startpgm
+   if (!setup_cs("s4 s1", GFX10_3))
+      return;
+
+   Temp a = inputs[0];
+   Temp b = inputs[1];
+
+   //! s1: %load0 = s_buffer_load_dword %a, %b
+   //! p_unit_test 0, %load0
+   Temp address0 =
+      bld.sop2(aco_opcode::s_and_b32, bld.def(s1), bld.def(s1, scc), b, Operand::c32(-4));
+   Temp load0 = bld.smem(aco_opcode::s_buffer_load_dword, bld.def(s1), a, address0);
+   writeout(0, load0);
+
+   //! s1: %address1,  s1: %_:scc = s_and_b32 %b, -8
+   //! s1: %load1 = s_buffer_load_dword %a, %address1
+   //! p_unit_test 1, %load1
+   Temp address1 =
+      bld.sop2(aco_opcode::s_and_b32, bld.def(s1), bld.def(s1, scc), b, Operand::c32(-8));
+   Temp load1 = bld.smem(aco_opcode::s_buffer_load_dword, bld.def(s1), a, address1);
+   writeout(1, load1);
+
+   finish_opt_test();
+END_TEST
