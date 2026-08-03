@@ -2272,7 +2272,7 @@ tu_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
       for (int i = 0; i < group_count; i++) {
          for (int j = 0; j < group[i].num_countables; j++) {
             vk_outarray_append_typed(VkPerformanceCounterKHR, &out, counter) {
-               counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_BUFFER_KHR;
+               counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
                counter->unit = VK_PERFORMANCE_COUNTER_UNIT_GENERIC_KHR;
                counter->storage = VK_PERFORMANCE_COUNTER_STORAGE_UINT64_KHR;
 
