@@ -1572,7 +1572,7 @@ static int gfx6_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
    if (AddrSurfInfoIn.format == ADDR_FMT_32_32_32)
       AddrSurfInfoIn.format = ADDR_FMT_INVALID;
 
-   AddrDccIn.numSamples = AddrSurfInfoIn.numSamples = MAX2(1, config->info.samples);
+   AddrSurfInfoIn.numSamples = MAX2(1, config->info.samples);
    AddrSurfInfoIn.tileIndex = -1;
 
    if (!(surf->flags & RADEON_SURF_Z_OR_SBUFFER)) {
