@@ -1274,7 +1274,7 @@
         "description": "radv: drop support for cooperativeMatrixRobustBufferAccess",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0cdb7594d778539c55e77444251ffb9d5f208f56",
         "notes": null
