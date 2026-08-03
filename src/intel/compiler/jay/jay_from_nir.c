@@ -2858,11 +2858,9 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             (uint8_t) BITFIELD_MASK(util_last_bit(component_mask));
       }
 
-      /* TODO: Shrink 16-bit textures too. Shrinking is problematic for some
-       * component masks due to 32-bit granularity of ISA registers.
-       */
-      if (tex->def.bit_size != 32 || (jay_debug & JAY_DBG_NOOPT))
+      if (jay_debug & JAY_DBG_NOOPT) {
          component_mask = nir_component_mask(tex->def.num_components);
+      }
 
       /* If we shrunk the destination, we need a temporary */
       if (component_mask != BITFIELD_MASK(tex->def.num_components)) {
@@ -2988,7 +2986,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    }
 
    const unsigned msg_type = brw_get_sampler_hw_opcode(op);
-   bool is_16 = false; /* TODO */
+   bool is_16 = tex->def.bit_size == 16;
    unsigned ret_type = is_16 ? GFX8_SAMPLER_RETURN_FORMAT_16BITS :
                                GFX8_SAMPLER_RETURN_FORMAT_32BITS;
 
@@ -3035,10 +3033,11 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    }
 
    enum jay_type src_type = jay_type(JAY_TYPE_U, payload_type_bit_size);
+   enum jay_type dst_type = jay_type(JAY_TYPE_U, tex->def.bit_size);
    jay_SEND(b, .sfid = GEN_SFID_SAMPLER, .msg_desc = desc, .desc = desc_src,
             .ex_desc = desc_ex_src, .header = header, .srcs = payload,
-            .nr_srcs = n_sources, .type = JAY_TYPE_U32,
-            .src_type = { src_type }, .dst = tmp, .uniform = payload_uniform,
+            .nr_srcs = n_sources, .type = dst_type, .src_type = { src_type },
+            .dst = tmp, .uniform = payload_uniform,
             .bindless = surface_bindless, .pure = true,
             .skip_helpers = tex->skip_helpers);
 
