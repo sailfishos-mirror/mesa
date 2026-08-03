@@ -1470,7 +1470,8 @@ clone_copies(struct copy_prop_var_state *state, struct copies *clones,
 
    _mesa_hash_table_clone_into(&clones->ht, &copies->ht);
 
-   util_dynarray_clone(&clones->arr, state->mem_ctx, &copies->arr);
+   util_dynarray_clear(&clones->arr);
+   util_dynarray_append_dynarray(&clones->arr, &copies->arr);
 }
 
 /* Returns an existing struct for reuse or creates a new on if they are
