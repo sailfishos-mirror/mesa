@@ -456,8 +456,10 @@ void si_destroy_sqtt(struct si_context *sctx)
    free(sctx->sqtt->trigger_file);
 
    for (int i = 0; i < ARRAY_SIZE(sctx->sqtt->start_cs); i++) {
-      sscreen->ws->cs_destroy(sctx->sqtt->start_cs[i]);
-      sscreen->ws->cs_destroy(sctx->sqtt->stop_cs[i]);
+      if (sctx->sqtt->start_cs[i])
+         sscreen->ws->cs_destroy(sctx->sqtt->start_cs[i]);
+      if (sctx->sqtt->stop_cs[i])
+         sscreen->ws->cs_destroy(sctx->sqtt->stop_cs[i]);
    }
 
    struct rgp_pso_correlation *pso_correlation =
