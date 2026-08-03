@@ -50,6 +50,26 @@ mtl_new_compute_command_encoder(mtl_command_buffer *cmd_buffer)
 }
 
 void
+mtl_encoder_set_label(void *encoder, const char *label)
+{
+}
+
+void
+mtl_encoder_insert_debug_signpost(void *encoder, const char *label)
+{
+}
+
+void
+mtl_encoder_push_debug_group(void *encoder, const char *label)
+{
+}
+
+void
+mtl_encoder_pop_debug_group(void *encoder)
+{
+}
+
+void
 mtl_copy_from_buffer_to_buffer(mtl_compute_encoder *encoder,
                                mtl_buffer *src_buf, size_t src_offset,
                                mtl_buffer *dst_buf, size_t dst_offset,
