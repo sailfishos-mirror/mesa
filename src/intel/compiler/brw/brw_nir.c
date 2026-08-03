@@ -1022,17 +1022,11 @@ brw_nir_should_vectorize_urb(unsigned align_mul, unsigned align_offset,
 {
    brw_pass_tracker *pt = data;
 
-   /* Jay does not yet SIMD split SENDs, so we cannot SIMD split illegal 
-    * SIMD32x8 SENDs in Jay, like BRW does. Instead we just limit URB
-    * vectorization to x4 here. 
-    */
-   if (
-      intel_use_jay(pt->compiler->devinfo, pt->nir->info.stage) && 
-      pt->dispatch_width == 32 && num_components > 4) {
-      return false;
-   }
-
    if (bit_size != 32 || num_components > 8)
+      return false;
+
+   /* vec8 sends are illegal in SIMD32, which may happen for mesh/task */
+   if (pt->nir->info.max_subgroup_size > 16 && num_components > 4)
       return false;
 
    if (num_components > 4 && num_components < 8 &&
