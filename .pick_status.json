@@ -3514,7 +3514,7 @@
         "description": "radeonsi/sqtt: fix barrier flags for <= gfx8",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0adea53a6aafcb3f556c8e9f3088878d245484b1",
         "notes": null
