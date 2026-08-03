@@ -1377,6 +1377,9 @@ radv_amdgpu_winsys_get_cpu_addr(void *_cs, uint64_t addr, struct ac_addr_info *i
    }
    u_rwlock_rdunlock(&cs->ws->global_bo_list.lock);
 
+   if (cs->chained_to)
+      radv_amdgpu_winsys_get_cpu_addr(cs->chained_to, addr, info);
+
    return;
 }
 
