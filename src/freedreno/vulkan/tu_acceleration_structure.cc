@@ -162,15 +162,17 @@ tu_encode(VkCommandBuffer commandBuffer,
           struct vk_meta_device *meta,
           const struct vk_acceleration_structure_build_args *args,
           struct vk_acceleration_structure_build_state *states,
-          uint32_t build_count,
-          bool flushed_cp_after_init_update_scratch,
-          bool flushed_compute_after_init_update_scratch)
+          uint32_t build_count, bool flushed_compute_after_init_update_scratch)
 {
    VK_FROM_HANDLE(tu_cmd_buffer, cmdbuf, commandBuffer);
    struct tu_device *device = cmdbuf->device;
    VkResult result;
    VkPipeline pipeline;
    VkPipelineLayout layout;
+
+   /* Insert barrier so that build data gets reflected properly for encode pass */
+   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_barrier_compute_w_to_indirect_compute_r(commandBuffer);
 
    result = get_pipeline_spv(device, "encode", encode_spv, sizeof(encode_spv), sizeof(encode_args), &pipeline, &layout);
    if (result != VK_SUCCESS) {

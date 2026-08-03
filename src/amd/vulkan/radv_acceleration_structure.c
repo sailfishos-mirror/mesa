@@ -963,7 +963,7 @@ static void
 radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
             const struct vk_acceleration_structure_build_args *args,
             struct vk_acceleration_structure_build_state *states, uint32_t build_count,
-            bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch)
+            bool flushed_compute_after_init_update_scratch)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -972,6 +972,7 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
    bool has_build = false;
    bool has_batch_compress = false;
    bool has_update = false;
+   bool flushed_compute = false;
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE) {
@@ -984,13 +985,9 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
    }
 
    if (has_update) {
-      /* Wait for update scratch initialization to finish. */
-      if (!flushed_compute_after_init_update_scratch)
+      if (!flushed_compute_after_init_update_scratch) {
          vk_barrier_compute_w_to_compute_r(commandBuffer);
-
-      if (!flushed_cp_after_init_update_scratch) {
-         if (radv_device_physical(device)->info.cp_sdma_ge_use_system_memory_scope)
-            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flushed_compute = true;
       }
 
       /* Copy acceleration structure metadata if the update is not in place. */
@@ -1026,6 +1023,9 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
    if (!has_build)
       return;
+
+   if (!flushed_compute)
+      vk_barrier_compute_w_to_compute_r(commandBuffer);
 
    if (radv_use_bvh8(pdev)) {
       vk_build_stage(radv_encode_as_gfx12, commandBuffer, vk_device, meta, args, states, build_count,

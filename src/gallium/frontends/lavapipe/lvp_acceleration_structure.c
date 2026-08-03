@@ -164,9 +164,12 @@ lvp_cmd_fill_buffer_addr(VkCommandBuffer cmdbuf, VkDeviceAddress addr,
 static void
 lvp_enqueue_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_meta_device *meta,
                    const struct vk_acceleration_structure_build_args *args, struct vk_acceleration_structure_build_state *states,
-                   uint32_t build_count, bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch)
+                   uint32_t build_count, bool flushed_compute_after_init_update_scratch)
 {
    VK_FROM_HANDLE(lvp_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* Insert barrier so that build data gets reflected properly for encode pass */
+   vk_barrier_compute_w_to_compute_r(commandBuffer);
 
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];

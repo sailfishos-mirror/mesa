@@ -866,10 +866,11 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
 static void
 anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_meta_device *meta,
            const struct vk_acceleration_structure_build_args *args, struct vk_acceleration_structure_build_state *states,
-           uint32_t build_count, bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch)
+           uint32_t build_count, bool flushed_compute_after_init_update_scratch)
 {
    bool has_build = false;
    bool has_update = false;
+   bool flushed_compute = false;
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
@@ -879,9 +880,10 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
    }
 
    if (has_update) {
-      if (!flushed_compute_after_init_update_scratch ||
-          !flushed_cp_after_init_update_scratch)
+      if (!flushed_compute_after_init_update_scratch) {
          vk_barrier_compute_w_to_compute_r(commandBuffer);
+         flushed_compute = true;
+      }
 
       vk_build_stage(anv_update_as, commandBuffer, device, meta, args, states, build_count,
                      VK_BUILD_FLAG_HAS_QUADS, true);
@@ -889,6 +891,9 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
 
    if (!has_build)
       return;
+
+   if (!flushed_compute)
+      vk_barrier_compute_w_to_compute_r(commandBuffer);
    
    vk_build_stage(anv_encode_as, commandBuffer, device, meta, args, states, build_count, ANV_ENCODE_BUILD_FLAGS, false);
 

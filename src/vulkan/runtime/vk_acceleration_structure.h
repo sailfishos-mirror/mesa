@@ -173,11 +173,14 @@ struct vk_acceleration_structure_build_ops {
    VkDeviceSize (*get_encode_scratch_size)(VkDevice device, const struct vk_acceleration_structure_build_state *state);
    VkDeviceSize (*get_update_scratch_size)(VkDevice device, const struct vk_acceleration_structure_build_state *state);
 
+   /* We always call flush_buffer_write_cp after init_update_scratch which
+    * takes care of required flush.
+    */
    void (*init_update_scratch)(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *states, uint32_t build_count);
 
    void (*encode)(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_meta_device *meta,
                   const struct vk_acceleration_structure_build_args *args, struct vk_acceleration_structure_build_state *states,
-                  uint32_t build_count, bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch);
+                  uint32_t build_count, bool flushed_compute_after_init_update_scratch);
 
    const uint32_t *leaf_spirv_override;
    size_t leaf_spirv_override_size;

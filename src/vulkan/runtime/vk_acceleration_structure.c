@@ -1469,7 +1469,6 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
       ops->init_update_scratch(commandBuffer, states, infoCount);
 
    bool flushed_compute_after_init_update_scratch = false;
-   bool flushed_cp_after_init_update_scratch = true;
 
    /* Wait for the write_buffer_cp to land before using in compute shaders */
    device->flush_buffer_write_cp(commandBuffer);
@@ -1562,13 +1561,11 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
          }
       }
 
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
-      vk_barrier_compute_w_to_indirect_compute_r(commandBuffer);
       flushed_compute_after_init_update_scratch = true;
    }
 
    ops->encode(commandBuffer, device, meta, args, states, infoCount,
-               flushed_cp_after_init_update_scratch, flushed_compute_after_init_update_scratch);
+               flushed_compute_after_init_update_scratch);
 
    if (args->emit_markers)
       device->as_build_ops->end_debug_marker(commandBuffer, &top_marker);
