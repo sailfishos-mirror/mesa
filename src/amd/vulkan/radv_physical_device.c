@@ -1473,7 +1473,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_KHR_cooperative_matrix */
       .cooperativeMatrix = radv_cooperative_matrix_enabled(pdev),
-      .cooperativeMatrixRobustBufferAccess = radv_cooperative_matrix_enabled(pdev),
+      .cooperativeMatrixRobustBufferAccess = false,
 
       /* VK_EXT_image_compression_control */
       .imageCompressionControl = radv_compression_control_enabled(pdev),
