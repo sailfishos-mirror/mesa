@@ -232,6 +232,15 @@ is_perf_query_derived(struct tu_query_pool *pool)
           pool->perf_query_type == TU_PERF_QUERY_TYPE_DERIVED;
 }
 
+static bool
+raw_perfcntr_group_is_exposed(const struct fd_perfcntr_group *group)
+{
+   /* Doesn't make sense to expose BV counters in perfcraw queries since they correspond
+    * to the work that is done in parallel to measured commands.
+    */
+   return strncmp(group->name, "BV_", 3) != 0;
+}
+
 static void
 perfcntr_index(const struct fd_perfcntr_group *group, uint32_t group_count,
                uint32_t index, uint32_t *gid, uint32_t *cid)
@@ -240,6 +249,9 @@ perfcntr_index(const struct fd_perfcntr_group *group, uint32_t group_count,
    uint32_t i;
 
    for (i = 0; i < group_count; i++) {
+      if (!raw_perfcntr_group_is_exposed(&group[i]))
+         continue;
+
       if (group[i].num_countables > index) {
          *gid = i;
          *cid = index;
@@ -2270,6 +2282,9 @@ tu_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
             fd_perfcntrs(&phydev->dev_id, &group_count);
 
       for (int i = 0; i < group_count; i++) {
+         if (!raw_perfcntr_group_is_exposed(&group[i]))
+            continue;
+
          for (int j = 0; j < group[i].num_countables; j++) {
             vk_outarray_append_typed(VkPerformanceCounterKHR, &out, counter) {
                counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
@@ -2353,6 +2368,9 @@ tu_GetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR(
       }
 
       for (uint32_t i = 0; i < group_count; i++) {
+         if (!raw_perfcntr_group_is_exposed(&group[i]))
+            continue;
+
          /* Some counters may be unavailable at the time the query is
           * created due to runtime factors (pps/fdperf using some counters,
           * autotune or other queries, etc).  But we don't know that up
