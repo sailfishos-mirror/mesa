@@ -3474,7 +3474,7 @@
         "description": "radeonsi: fix off-by-one cs shader indexing",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "86131c25a14556ea0af342f718035b838ca64305",
         "notes": null
