@@ -419,6 +419,7 @@ ethosu_lut_is_fused(const struct pipe_ml_operation *poperations,
 
    if (!producer ||
        (producer->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION &&
+        producer->type != PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED &&
         producer->type != PIPE_ML_OPERATION_TYPE_ADD &&
         producer->type != PIPE_ML_OPERATION_TYPE_MUL &&
         producer->type != PIPE_ML_OPERATION_TYPE_SUBTRACT &&
@@ -2657,8 +2658,19 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED: {
          struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
 
          ethosu_lower_fully_connected(subgraph, &poperations[i], input_tensor, &operation);
+         if (lut) {
+            struct ethosu_operation dma_operation;
+
+            ethosu_fuse_lut(subgraph, lut, &operation);
+            operation_set_defaults(&dma_operation);
+            ethosu_lower_lut_dma(subgraph, lut, &operation, &dma_operation);
+            util_dynarray_append(&subgraph->operations, dma_operation);
+         }
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
