@@ -430,16 +430,19 @@ emit_alu(struct ir2_context *ctx, nir_alu_instr *alu)
    for (int i = 0; i < info->num_inputs; i++) {
       nir_alu_src *src = &alu->src[i];
 
-      /* compress swizzle with writemask when applicable */
+      nir_legacy_alu_src legacy_src =
+         nir_legacy_chase_alu_src(src, true /* fuse_abs */);
+
+      /* compress swizzle with writemask when applicable.  Take it from the
+       * chased source: folding a neg or an abs skips over an instruction that
+       * carried a swizzle of its own, and only the chase composes the two.
+       */
       unsigned swiz = 0, j = 0;
       for (int i = 0; i < 4; i++) {
          if (!(legacy_dest.write_mask & 1 << i) && !info->output_size)
             continue;
-         swiz |= swiz_set(src->swizzle[i], j++);
+         swiz |= swiz_set(legacy_src.swizzle[i], j++);
       }
-
-      nir_legacy_alu_src legacy_src =
-         nir_legacy_chase_alu_src(src, true /* fuse_abs */);
 
       instr->src[i] = make_legacy_src(ctx, legacy_src.src);
       instr->src[i].swizzle = swiz_merge(instr->src[i].swizzle, swiz);
