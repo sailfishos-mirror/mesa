@@ -2545,9 +2545,6 @@ extract_apply_extract(opt_ctx& ctx, aco_ptr<Instruction>& instr)
 void
 label_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
 {
-   if (instr->isSMEM())
-      smem_combine(ctx, instr);
-
    for (unsigned i = 0; i < instr->operands.size(); i++) {
       if (!instr->operands[i].isTemp())
          continue;
@@ -2695,6 +2692,9 @@ label_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
          }
       }
    }
+
+   if (instr->isSMEM())
+      smem_combine(ctx, instr);
 
    /* SALU / VALU: propagate inline constants, temps, and imod */
    if (instr->isSALU() || instr->isVALU()) {
