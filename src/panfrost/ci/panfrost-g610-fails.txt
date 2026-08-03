@@ -301,11 +301,6 @@ program@execute@global-offset@3d- input dependent,Fail
 program@execute@vector-conversion,Fail
 
 # OpenCL-CTS quick profile
-Compiler@unload_repeated,Fail
-Compiler@unload_compile_unload_link,Fail
-Compiler@unload_build_unload_create_kernel,Fail
-Compiler@unload_build_threaded,Fail
-Compiler,Fail
 Images (clFillImage max size)@1D,Fail
 # Caused by the outdated SPIR-V LLVM Translator in the test image
 Basic@work_item_functions_out_of_range,Fail
