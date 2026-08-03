@@ -306,6 +306,9 @@ translate_rs_format(enum pipe_format fmt)
    case PIPE_FORMAT_B8G8R8A8_UNORM:
    case PIPE_FORMAT_R8G8B8A8_UNORM:
       return RS_FORMAT_A8R8G8B8;
+   case PIPE_FORMAT_R10G10B10A2_UNORM:
+   case PIPE_FORMAT_R10G10B10X2_UNORM:
+      return RS_FORMAT_A2R10G10B10;
    default:
       return ETNA_NO_MATCH;
    }
