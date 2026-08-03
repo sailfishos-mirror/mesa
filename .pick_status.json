@@ -3524,7 +3524,7 @@
         "description": "radeonsi: fix typo in barrier flag check",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "15e320e970570e1579d7886748cffa2cca7a4c6c",
         "notes": null

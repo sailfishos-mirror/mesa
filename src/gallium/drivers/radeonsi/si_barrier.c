@@ -82,7 +82,7 @@ static unsigned get_reduced_barrier_flags(struct si_context *ctx)
    if (flags & (SI_BARRIER_SYNC_AND_INV_CB | SI_BARRIER_SYNC_AND_INV_DB | SI_BARRIER_SYNC_PS)) {
       ctx->last_ps_sync_num_draw_calls = ctx->num_draw_calls;
       ctx->last_vs_sync_num_draw_calls = ctx->num_draw_calls;
-   } else if (SI_BARRIER_SYNC_VS) {
+   } else if (flags & SI_BARRIER_SYNC_VS) {
       ctx->last_vs_sync_num_draw_calls = ctx->num_draw_calls;
    }
 
