@@ -110,7 +110,12 @@ void *si_create_compute_state_for_nir(struct pipe_context *ctx, nir_shader *nir,
    struct si_context *sctx = (struct si_context *)ctx;
    struct si_screen *sscreen = (struct si_screen *)ctx->screen;
    struct si_compute *program = CALLOC_STRUCT(si_compute);
-   struct si_shader_selector *sel = &program->sel;
+   struct si_shader_selector *sel;
+
+   if (!program)
+      return NULL;
+
+   sel = &program->sel;
 
    pipe_reference_init(&sel->base.reference, 1);
    sel->stage = stage;
