@@ -384,7 +384,7 @@ pub fn test_ld_st_atom() {
                         }
                         MemSpace::Global(_) => {
                             format!(
-                                "ldg.e.ef.strong.{cta} r0, [r1+{addr_offset_str}];"
+                                "ldg.e.ef.strong.{cta} r0, [{r4_64_str}+{addr_offset_str}];"
                             )
                         }
                         MemSpace::Shared => {
@@ -1080,6 +1080,8 @@ pub fn test_mufu() {
             for (op_type, op_type_str) in op_types {
                 match (op, op_type) {
                     (Rcp64H | Rsq64H, FloatType::F16) => continue,
+                    (Tanh, _) if sm < 75 => continue,
+                    (_, FloatType::F16) if sm < 75 => continue,
                     _ => (),
                 }
                 let instr = OpMuFu {
@@ -1129,20 +1131,22 @@ pub fn test_nanosleep() {
                 .into(),
                 "c[0x5][0x100]",
             ));
-            srcs.push((
-                CBufRef {
-                    buf: CBuf::BindlessUGPR(ur2_4),
-                    offset: 0x100,
-                }
-                .into(),
-                "cx[ur2][0x100]",
-            ))
+            if sm >= 75 {
+                srcs.push((
+                    CBufRef {
+                        buf: CBuf::BindlessUGPR(ur2_4),
+                        offset: 0x100,
+                    }
+                    .into(),
+                    "cx[ur2][0x100]",
+                ));
+            }
         }
 
         for (src, src_str) in srcs {
             let mut instr: Instr = OpNanosleep { time: src }.into();
 
-            // Delay can't be the deafult value otherwise nvdisasm is unappy
+            // Delay can't be the default value otherwise nvdisasm is unhappy
             instr.deps.delay = 1;
 
             let disasm = format!("nanosleep {src_str} ;");
@@ -1160,6 +1164,10 @@ pub fn test_uldc_global() {
     let up1 = RegRef::new(RegFile::UPred, 1, 1);
 
     for &sm in sm_list() {
+        if sm < 75 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
 
         let mut mem_types = vec![
