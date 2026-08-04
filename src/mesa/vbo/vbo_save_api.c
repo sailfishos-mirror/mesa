@@ -863,8 +863,9 @@ compile_vertex_list(struct gl_context *ctx)
 
    /* How many bytes do we need to store the indices and the vertices */
    total_vert_count = vertex_to_index ? (max_index + 1) : idx;
-   unsigned total_bytes_needed = idx * sizeof(uint32_t) +
-                                 total_vert_count * save->vertex_size * sizeof(fi_type);
+   const unsigned indices_size = idx * sizeof(uint32_t);
+   const unsigned vert_size = total_vert_count ? total_vert_count * save->vertex_size * sizeof(fi_type) : 4;
+   const unsigned total_bytes_needed = align(vert_size, 4) + indices_size;
    uint32_t upload_offset = 0, reused_bo_range_start = 0;
    ASSERTED bool shared_buffer;
 
