@@ -46,6 +46,8 @@ struct nvfx_vpc {
 
    unsigned r_temps;
    unsigned r_temps_discard;
+   unsigned num_requested_tmps;
+
    struct nvfx_reg r_result[PIPE_MAX_SHADER_OUTPUTS];
    struct nvfx_reg *r_address;
    struct nvfx_reg *r_temp;
@@ -68,6 +70,7 @@ static struct nvfx_reg
 temp(struct nvfx_vpc *vpc)
 {
    int idx = ffs(~vpc->r_temps) - 1;
+   vpc->num_requested_tmps++;
 
    if (idx < 0 || (!vpc->is_nv4x && idx >= 16)) {
       NOUVEAU_ERR("out of temps!!\n");
@@ -941,7 +944,7 @@ nvfx_vertprog_prepare(struct nvfx_vpc *vpc)
 DEBUG_GET_ONCE_BOOL_OPTION(nvfx_dump_vp, "NVFX_DUMP_VP", false)
 
 bool
-_nvfx_vertprog_translate(uint16_t oclass, struct nv30_vertprog *vp)
+_nvfx_vertprog_translate(uint16_t oclass, struct nv30_vertprog *vp, struct util_debug_callback *debug)
 {
    struct tgsi_parse_context parse;
    struct nvfx_vpc *vpc = NULL;
@@ -1083,6 +1086,10 @@ _nvfx_vertprog_translate(uint16_t oclass, struct nv30_vertprog *vp)
    }
 
    vp->translated = true;
+
+   util_debug_message(debug, SHADER_INFO,
+                      "%s shader: %u inst, %u const, %u requested_temps",
+                      "VP", vp->nr_insns, vp->nr_consts, vpc->num_requested_tmps);
 
 out:
    tgsi_parse_free(&parse);

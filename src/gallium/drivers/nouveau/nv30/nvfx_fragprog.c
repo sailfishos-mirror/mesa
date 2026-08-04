@@ -26,6 +26,7 @@ struct nvfx_fpc {
    struct nvfx_reg r_result[PIPE_MAX_SHADER_OUTPUTS];
    struct nvfx_reg r_input[PIPE_MAX_SHADER_INPUTS];
    struct nvfx_reg *r_temp;
+   unsigned num_requested_tmps;
 
    int num_regs;
 
@@ -47,6 +48,7 @@ static inline struct nvfx_reg
 temp(struct nvfx_fpc *fpc)
 {
    int idx = __builtin_ctzll(~fpc->r_temps);
+   fpc->num_requested_tmps++;
 
    if (idx >= fpc->max_temps) {
       NOUVEAU_ERR("out of temps!!\n");
@@ -55,6 +57,7 @@ temp(struct nvfx_fpc *fpc)
 
    fpc->r_temps |= (1ULL << idx);
    fpc->r_temps_discard |= (1ULL << idx);
+
    return nvfx_reg(NVFXSR_TEMP, idx);
 }
 
@@ -1035,7 +1038,7 @@ out_err:
 DEBUG_GET_ONCE_BOOL_OPTION(nvfx_dump_fp, "NVFX_DUMP_FP", false)
 
 void
-_nvfx_fragprog_translate(uint16_t oclass, struct nv30_fragprog *fp)
+_nvfx_fragprog_translate(uint16_t oclass, struct nv30_fragprog *fp, struct util_debug_callback *debug)
 {
    struct tgsi_parse_context parse;
    struct nvfx_fpc *fpc = NULL;
@@ -1124,6 +1127,10 @@ _nvfx_fragprog_translate(uint16_t oclass, struct nv30_fragprog *fp)
    }
 
    fp->translated = true;
+
+   util_debug_message(debug, SHADER_INFO,
+                      "%s shader: %u inst, %u const, %u requested_temps",
+                      "FP", fp->insn_len, fp->nr_consts, fpc->num_requested_tmps);
 
 out:
    tgsi_parse_free(&parse);
