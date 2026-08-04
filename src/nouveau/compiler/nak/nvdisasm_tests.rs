@@ -49,6 +49,7 @@ fn run_nvdisasm(s: &Shader) -> String {
 
 fn disassemble_instrs(instrs: Vec<Instr>, sm: u8) -> Vec<String> {
     let mut label_alloc = LabelAllocator::new();
+    let num_instrs = instrs.len();
     let block = BasicBlock {
         label: label_alloc.alloc(),
         uniform: true,
@@ -94,7 +95,7 @@ fn disassemble_instrs(instrs: Vec<Instr>, sm: u8) -> Vec<String> {
         functions: vec![f],
     };
     let out = run_nvdisasm(&s);
-    let out: Vec<String> = out
+    let mut out: Vec<String> = out
         .lines()
         .map(|line| {
             let mut line: String = line
@@ -117,6 +118,11 @@ fn disassemble_instrs(instrs: Vec<Instr>, sm: u8) -> Vec<String> {
             line
         })
         .collect();
+
+    // Drop padding instructions from the output
+    if out.len() > 0 {
+        out.drain(num_instrs..out.len());
+    }
 
     out
 }
@@ -178,7 +184,7 @@ fn sm_list() -> &'static [u8] {
         let stdout = std::str::from_utf8(&out.stdout).unwrap();
 
         if stdout.contains("cuda_12") {
-            &[70, 75, 80, 86, 89, 90, 100, 120]
+            &[50, 52, 53, 60, 61, 62, 70, 75, 80, 86, 89, 90, 100, 120]
         } else if stdout.contains("cuda_13") {
             &[75, 80, 86, 89, 90, 100, 120]
         } else {
@@ -333,8 +339,13 @@ pub fn test_ld_st_atom() {
     for &sm in sm_list() {
         let mut c = DisasmCheck::new();
         for space in spaces {
-            for (addr_offset, addr_offset_str) in [(0x12, "0x12"), (-1, "-0x1")]
+            for (addr_offset, addr_offset_str) in
+                [(0x12, "0x12"), (-1, "-0x1"), (0x4, "0x4")]
             {
+                if addr_offset % 4 != 0 && sm < 70 {
+                    continue;
+                }
+
                 for addr_stride in [OffsetStride::X1, OffsetStride::X8] {
                     let cta = if sm >= 80 { "sm" } else { "cta" };
                     let r4_64_str =
@@ -388,9 +399,14 @@ pub fn test_ld_st_atom() {
                                 "ldg.e.ef.strong.{cta} r0, [{r4_64_str}{uniform_addr}+{addr_offset_str}], p4;"
                             )
                         }
-                        MemSpace::Global(_) => {
+                        MemSpace::Global(_) if sm >= 70 => {
                             format!(
                                 "ldg.e.ef.strong.{cta} r0, [{r4_64_str}+{addr_offset_str}];"
+                            )
+                        }
+                        MemSpace::Global(_) => {
+                            format!(
+                                "ldg.e r0, [{r4_64_str}+{addr_offset_str}];"
                             )
                         }
                         MemSpace::Shared => {
@@ -415,9 +431,14 @@ pub fn test_ld_st_atom() {
                         stride: addr_stride,
                     };
                     let expected = match space {
-                        MemSpace::Global(_) => {
+                        MemSpace::Global(_) if sm >= 70 => {
                             format!(
                                 "stg.e.ef.strong.{cta} [{r4_64_str}{uniform_addr}+{addr_offset_str}], r2;"
+                            )
+                        }
+                        MemSpace::Global(_) => {
+                            format!(
+                                "stg.e [{r4_64_str}{uniform_addr}+{addr_offset_str}], r2;"
                             )
                         }
                         MemSpace::Shared => {
@@ -433,7 +454,20 @@ pub fn test_ld_st_atom() {
                     };
                     c.push(instr, expected);
 
-                    for (atom_type, atom_type_str) in atom_types {
+                    for (atom_type, mut atom_type_str) in atom_types {
+                        if sm < 70 {
+                            if matches!(
+                                atom_type,
+                                AtomType::F16v2 | AtomType::F64
+                            ) {
+                                continue;
+                            }
+
+                            if matches!(atom_type, AtomType::U64) {
+                                atom_type_str = ".u64";
+                            }
+                        }
+
                         let active_atom_ops = if atom_type.is_float() {
                             &atom_ops[0..3]
                         } else {
@@ -469,19 +503,28 @@ pub fn test_ld_st_atom() {
 
                                 let expected = match space {
                                     MemSpace::Global(_) => {
-                                        let op = if use_dst {
+                                        let op = if use_dst && sm >= 70 {
                                             "atomg"
+                                        } else if use_dst {
+                                            "atom"
                                         } else if sm >= 90 {
                                             "redg"
                                         } else {
                                             "red"
                                         };
-                                        let dst = if use_dst {
+                                        let dst = if use_dst && sm >= 70 {
                                             "pt, r0, "
+                                        } else if use_dst {
+                                            "r0, "
                                         } else {
                                             ""
                                         };
-                                        format!("{op}.e{atom_op}.ef{atom_type_str}.strong.{cta} {dst}[{r4_64_str}{uniform_addr}+{addr_offset_str}], r2;")
+
+                                        if sm >= 70 {
+                                            format!("{op}.e{atom_op}.ef{atom_type_str}.strong.{cta} {dst}[{r4_64_str}{uniform_addr}+{addr_offset_str}], r2;")
+                                        } else {
+                                            format!("{op}.e{atom_op}{atom_type_str} {dst}[{r4_64_str}{uniform_addr}+{addr_offset_str}], r2;")
+                                        }
                                     }
                                     MemSpace::Shared => {
                                         if atom_type.is_float() {
@@ -538,6 +581,11 @@ pub fn test_texture() {
     ];
 
     for &sm in sm_list() {
+        // TODO: For pre-Volta we need to test without dst1 and adapt the text disassembly
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
         for scalar in [false, true] {
             let scr = if scalar { ".scr" } else { "" };
@@ -702,6 +750,11 @@ pub fn test_lea() {
     ];
 
     for &sm in sm_list() {
+        // TODO: Maxwell and Pascal have LEA, support it
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
 
         for (intermediate_mod, b_mod) in src_mods {
@@ -768,6 +821,11 @@ pub fn test_hfma2() {
     let src_mods = [SrcMod::None, SrcMod::FAbs, SrcMod::FNeg, SrcMod::FNegAbs];
 
     for &sm in sm_list() {
+        // TODO: SM53+ have HFMA2, support it
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
 
         for a_mod in src_mods {
@@ -842,6 +900,10 @@ pub fn test_match() {
     let p1 = RegRef::new(RegFile::Pred, 1, 1);
 
     for &sm in sm_list() {
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
 
         for (op, pred, pred_str) in [
@@ -874,6 +936,10 @@ pub fn test_sgxt() {
     let r2 = RegRef::new(RegFile::GPR, 2, 1);
 
     for &sm in sm_list() {
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
         for signed in [false, true] {
             let instr = OpSgxt {
@@ -905,6 +971,10 @@ pub fn test_plop3() {
     let src_mods = [SrcMod::None, SrcMod::BNot];
 
     for &sm in sm_list() {
+        if sm < 70 {
+            continue;
+        }
+
         let mut c = DisasmCheck::new();
         for a_mod in src_mods {
             for b_mod in src_mods {
@@ -970,6 +1040,10 @@ pub fn test_isberd() {
 
         let mut c = DisasmCheck::new();
         for (output, output_str) in output_type {
+            if output && sm < 70 {
+                continue;
+            }
+
             for (access_type, access_type_str) in access_type_list {
                 if access_type != IsbeAccessType::Map && sm < 75 {
                     continue;
@@ -1087,6 +1161,7 @@ pub fn test_mufu() {
                 match (op, op_type) {
                     (Rcp64H | Rsq64H, FloatType::F16) => continue,
                     (Tanh, _) if sm < 75 => continue,
+                    (Sqrt, _) if sm < 52 => continue,
                     (_, FloatType::F16) if sm < 75 => continue,
                     _ => (),
                 }
