@@ -22,6 +22,23 @@ for driver in freedreno lima v3d vc4; do
     section_end shader-db-${driver}
 done
 
+# Run shader-db over a number of supported GPUs for etnaviv. The shim takes an
+# identity of the form model:revision[:product:customer:eco], see
+# src/etnaviv/drm-shim/README.md.
+for gpu in 2000:5108 \
+           3000:5450 \
+           7000:6204:70003:11 \
+           7000:6214:70002:30; do
+    IFS=: read -r model revision _ <<< "$gpu"
+    model_revision="gc$model-r$revision"
+    section_start shader-db-etnaviv-"$model_revision" "Running shader-db for etnaviv - $model_revision"
+    env LD_PRELOAD="$LIBDIR/libetnaviv_noop_drm_shim.so" \
+        ETNA_SHIM_GPU="$gpu" \
+        ./run -j"${FDO_CI_CONCURRENT:-4}" -o etnaviv ./shaders \
+            > "$ARTIFACTSDIR/etnaviv-$model_revision-shader-db.txt"
+    section_end shader-db-etnaviv-"$model_revision"
+done
+
 # Run shader-db over a number of supported platforms for crocus/iris
 for platform in hsw bdw skl mtl lnl ptl; do
     section_start "shader-db-intel-${platform}" "Running shader-db for intel - ${platform}"
