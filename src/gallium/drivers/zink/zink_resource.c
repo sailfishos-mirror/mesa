@@ -2717,12 +2717,12 @@ zink_buffer_map(struct pipe_context *pctx,
             * to use the uploader from u_threaded_context, which is
             * local to the calling thread.
             */
-            struct u_upload_mgr *mgr;
+            struct pipe_context *upload_ctx;
             if (usage & TC_TRANSFER_MAP_THREADED_UNSYNC)
-               mgr = ctx->tc->base.stream_uploader;
+               upload_ctx = &ctx->tc->base;
             else
-               mgr = ctx->base.stream_uploader;
-            u_upload_alloc_ref(mgr, 0, box->width,
+               upload_ctx = &ctx->base;
+            u_upload_alloc_ref(upload_ctx->stream_uploader, 0, box->width,
                         screen->info.props.limits.minMemoryMapAlignment, &offset,
                         (struct pipe_resource **)&trans->staging_res, (void **)&ptr);
             trans->offset = offset;
