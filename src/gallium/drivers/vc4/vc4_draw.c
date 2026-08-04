@@ -680,7 +680,7 @@ vc4_clear_depth_stencil(struct pipe_context *pctx, struct pipe_surface *ps,
 {
         struct vc4_context *vc4 = vc4_context(pctx);
 
-        vc4_blitter_clear_save(pctx, VC4_CLEAR_SURFACE);
+        vc4_blitter_clear_save(pctx, VC4_CLEAR_ZS_SURFACE);
         util_blitter_clear_depth_stencil(vc4->blitter, ps, buffers, depth,
                                          stencil, x, y, w, h);
         util_blitter_restore_textures(vc4->blitter);
