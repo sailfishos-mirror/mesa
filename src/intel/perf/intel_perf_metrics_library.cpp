@@ -31,6 +31,26 @@ static ClientGen get_client_gen_from_devinfo(const struct intel_device_info *dev
    }
 }
 
+static uint32_t intel_metrics_library_get_query_report_size(struct intel_perf_config *perf, bool gpu_report)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return 0;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->GetParameter)
+      return 0;
+
+   TypedValue_1_0 value = {};
+
+   ParameterType parameter = gpu_report ? ParameterType::QueryHwCountersReportGpuSize : ParameterType::QueryHwCountersReportApiSize;
+
+   StatusCode status = api->GetParameter(parameter, &value.Type, &value);
+   if (status != StatusCode::Success || value.Type != ValueType::Uint32)
+      return 0;
+
+   return value.ValueUInt32;
+}
+
 bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd)
 {
    const char *libstr = "libigdml.so.1";
@@ -91,6 +111,8 @@ bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd)
    perf->metrics_library.lib = metrics_library;
    perf->metrics_library.context = (void*)context_handle.data;
    perf->metrics_library.destroy_context_func = (void*)destroy_context;
+   perf->metrics_library.gpu_report_size = intel_metrics_library_get_query_report_size(perf, true);
+   perf->metrics_library.api_report_size = intel_metrics_library_get_query_report_size(perf, false);
 
    return true;
 }
@@ -155,28 +177,8 @@ bool intel_perf_metrics_library_destroy_configuration(struct intel_perf_config *
    ConfigurationHandle_1_0 config_handle = {};
    config_handle.data = reinterpret_cast<void*>(config_id);
 
-   StatusCode status = api->ConfigurationDelete(&config_handle);
+   StatusCode status = api->ConfigurationDelete(config_handle);
    return status == StatusCode::Success;
-}
-
-uint32_t intel_metrics_library_get_query_gpu_size(struct intel_perf_config *perf)
-{
-   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
-      return 0;
-
-   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
-   if (!api->GetParameter)
-      return 0;
-
-   uint32_t gpu_size = 0;
-
-   TypedValue_1_0 value = {};
-
-   StatusCode status = api->GetParameter(ParameterType::QueryHwCountersReportGpuSize, &value.Type, &value);
-   if (status != StatusCode::Success || value.Type != ValueType::Uint32)
-      return 0;
-
-   return value.ValueUInt32;
 }
 
 void* intel_perf_metrics_library_create_query_pool(struct intel_perf_config *perf, uint32_t query_count)
@@ -213,6 +215,37 @@ bool intel_perf_metrics_library_destroy_query_pool(struct intel_perf_config *per
    QueryHandle_1_0 query_handle = {};
    query_handle.data = query_pool;
 
-   StatusCode status = api->QueryDelete(&query_handle);
+   StatusCode status = api->QueryDelete(query_handle);
    return status == StatusCode::Success;
+}
+
+bool intel_perf_metrics_library_get_query_results(struct intel_perf_config *perf, void* query_pool, void* data, uint32_t query_index, bool* write_results)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api || !write_results)
+      return false;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->GetData)
+      return false;
+
+   GetReportData_1_0 report_data = {};
+   report_data.Type = ObjectType::QueryHwCounters;
+   report_data.Query.Handle.data = query_pool;
+   report_data.Query.Slot = query_index;
+   report_data.Query.SlotsCount = 1;
+   report_data.Query.DataSize = perf->metrics_library.api_report_size;
+   report_data.Query.Data = data;
+
+   StatusCode status = api->GetData(&report_data);
+
+   if (status == StatusCode::Success) {
+      *write_results = true;
+      return true;
+   } else if (status == StatusCode::ReportNotReady) {
+      *write_results = false;
+      return true;
+   } else {
+      *write_results = false;
+      return false;
+   }
 }

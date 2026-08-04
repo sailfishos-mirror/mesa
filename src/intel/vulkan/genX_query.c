@@ -185,7 +185,7 @@ VkResult genX(CreateQueryPool)(
       break;
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
       if (pdevice->perf->use_metrics_library) {
-         uint64s_per_slot = intel_metrics_library_get_query_gpu_size(pdevice->perf) / sizeof(uint64_t);
+         uint64s_per_slot = pdevice->perf->metrics_library.gpu_report_size / sizeof(uint64_t);
 
          metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pCreateInfo->queryCount);
 
@@ -512,9 +512,15 @@ cpu_write_query_result(void *dst_slot, VkQueryResultFlags flags,
 }
 
 static bool
-query_is_available(struct anv_query_pool *pool, uint32_t query)
+query_is_available(struct anv_device *device,
+                   struct anv_query_pool *pool,
+                   uint32_t query)
 {
-   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL &&
+       device->physical->perf->use_metrics_library) {
+      /* Dealt with metrics_library */
+      return true;
+   } else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
       for (uint32_t p = 0; p < pool->n_passes; p++) {
          volatile uint64_t *slot =
             pool->bo->map + khr_perf_query_availability_offset(pool, query, p);
@@ -533,7 +539,10 @@ wait_for_available(struct anv_device *device,
 {
    /* By default we leave a 2s timeout before declaring the device lost. */
    uint64_t rel_timeout = 2 * NSEC_PER_SEC;
-   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL &&
+       device->physical->perf->use_metrics_library) {
+      return VK_SUCCESS;
+   } else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
       /* With performance queries, there is an additional 500us reconfiguration
        * time in i915.
        */
@@ -546,7 +555,7 @@ wait_for_available(struct anv_device *device,
    uint64_t abs_timeout_ns = os_time_get_absolute_timeout(rel_timeout);
 
    while (os_time_get_nano() < abs_timeout_ns) {
-      if (query_is_available(pool, query))
+      if (query_is_available(device, pool, query))
          return VK_SUCCESS;
       VkResult status = vk_device_check_status(&device->vk);
       if (status != VK_SUCCESS)
@@ -593,11 +602,15 @@ VkResult genX(GetQueryPoolResults)(
    if (pData == NULL)
       return VK_SUCCESS;
 
+   /* If stride 0, data is tightly packed */
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL && stride == 0)
+      stride = device->physical->perf->metrics_library.api_report_size;
+
    void *data_end = pData + dataSize;
 
    VkResult status = VK_SUCCESS;
    for (uint32_t i = 0; i < queryCount; i++) {
-      bool available = query_is_available(pool, firstQuery + i);
+      bool available = query_is_available(device, pool, firstQuery + i);
 
       if (!available && (flags & VK_QUERY_RESULT_WAIT_BIT)) {
          status = wait_for_available(device, pool, firstQuery + i);
@@ -730,19 +743,29 @@ VkResult genX(GetQueryPoolResults)(
       case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
          if (!write_results)
             break;
-         const void *query_data = query_slot(pool, firstQuery + i);
-         const struct intel_perf_query_info *query = &device->physical->perf->queries[0];
-         struct intel_perf_query_result result;
-         intel_perf_query_result_clear(&result);
-         intel_perf_query_result_accumulate_fields(&result, query,
-                                                   query_data + intel_perf_query_data_offset(pool, false),
-                                                   query_data + intel_perf_query_data_offset(pool, true),
-                                                   false /* no_oa_accumulate */);
-         intel_perf_query_result_write_mdapi(pData, stride,
-                                             device->info,
-                                             query, &result);
-         const uint64_t *marker = query_data + intel_perf_marker_offset();
-         intel_perf_query_mdapi_write_marker(pData, stride, device->info, *marker);
+         if (device->physical->perf->use_metrics_library) {
+            if (!intel_perf_metrics_library_get_query_results(device->physical->perf,
+                                                              pool->metrics_library_query_pool,
+                                                              pData, firstQuery + i,
+                                                              &write_results)) {
+               i = queryCount;
+               status = VK_ERROR_UNKNOWN;
+            }
+         } else {
+            const void *query_data = query_slot(pool, firstQuery + i);
+            const struct intel_perf_query_info *query = &device->physical->perf->queries[0];
+            struct intel_perf_query_result result;
+            intel_perf_query_result_clear(&result);
+            intel_perf_query_result_accumulate_fields(&result, query,
+                                                      query_data + intel_perf_query_data_offset(pool, false),
+                                                      query_data + intel_perf_query_data_offset(pool, true),
+                                                      false /* no_oa_accumulate */);
+            intel_perf_query_result_write_mdapi(pData, stride,
+                                                device->info,
+                                                query, &result);
+            const uint64_t *marker = query_data + intel_perf_marker_offset();
+            intel_perf_query_mdapi_write_marker(pData, stride, device->info, *marker);
+         }
          break;
       }
 

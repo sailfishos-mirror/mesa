@@ -453,6 +453,8 @@ struct intel_perf_config {
       void *api;
       void *callbacks;
       void *destroy_context_func;
+      uint32_t gpu_report_size;
+      uint32_t api_report_size;
    } metrics_library;
 
    enum intel_perf_features features_supported;
