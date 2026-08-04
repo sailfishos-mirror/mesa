@@ -925,7 +925,11 @@ Rusticl extensions:
   cl_ext_buffer_device_address                          DONE (iris, llvmpipe, radeonsi, zink)
   cl_ext_cxx_for_opencl                                 not started
   cl_ext_device_fission                                 not started
-  cl_ext_float_atomics                                  not started
+  cl_ext_float_atomics                                  in progress
+  - FP_ATOMIC_ADD_EXT                                   DONE (llvmpipe, zink)
+  - FP_ATOMIC_MIN_MAX_EXT                               DONE (iris, llvmpipe)
+  - fp16                                                not started
+  - fp64                                                not started
   cl_ext_image_from_buffer                              not started
   cl_ext_image_raw10_raw12                              not started
   cl_ext_image_requirements_info                        not started

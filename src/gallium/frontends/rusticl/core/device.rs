@@ -834,6 +834,24 @@ impl DeviceBase {
             add_ext(1, 0, 1, "cl_khr_semaphore");
         }
 
+        if self.has_atomic_float() {
+            add_ext(1, 0, 0, "cl_ext_float_atomics");
+
+            if self.has_atomic_float_add() {
+                add_cap(SpvCapability::SpvCapabilityAtomicFloat32AddEXT);
+                add_feat(1, 0, 0, "__opencl_c_ext_fp32_global_atomic_add");
+                add_feat(1, 0, 0, "__opencl_c_ext_fp32_local_atomic_add");
+                add_spirv(c"SPV_EXT_shader_atomic_float_add");
+            }
+
+            if self.has_atomic_float_minmax() {
+                add_cap(SpvCapability::SpvCapabilityAtomicFloat32MinMaxEXT);
+                add_feat(1, 0, 0, "__opencl_c_ext_fp32_global_atomic_min_max");
+                add_feat(1, 0, 0, "__opencl_c_ext_fp32_local_atomic_min_max");
+                add_spirv(c"SPV_EXT_shader_atomic_float_min_max");
+            }
+        }
+
         self.extensions = exts;
         self.clc_features = feats;
         self.extension_string = exts_str.join(" ");
@@ -1359,6 +1377,8 @@ impl DeviceBase {
     pub fn cl_features(&self) -> clc_optional_features {
         let subgroups_supported = self.subgroups_supported();
         clc_optional_features {
+            atomic_fp32_add: self.has_atomic_float_add(),
+            atomic_fp32_minmax: self.has_atomic_float_minmax(),
             extended_bit_ops: true,
             fp16: self.fp16_supported(),
             fp64: self.fp64_supported(),
@@ -1394,6 +1414,19 @@ impl DeviceBase {
 
     pub fn uuid_supported(&self) -> bool {
         self.screen().device_uuid().is_some() && self.screen().driver_uuid().is_some()
+    }
+
+    pub fn has_atomic_float(&self) -> bool {
+        self.has_atomic_float_add() || self.has_atomic_float_minmax()
+    }
+
+    pub fn has_atomic_float_add(&self) -> bool {
+        // This also enables atomics on buffers
+        self.screen().caps().image_atomic_float_add
+    }
+
+    pub fn has_atomic_float_minmax(&self) -> bool {
+        self.screen().caps().atomic_float_minmax
     }
 
     pub fn spirv_to_nir_opts(&self) -> SPIRVToNirOptions {

@@ -31,3 +31,4 @@ VK_EXT_global_priority_query on pvr
 VK_KHR_global_priority on pvr
 VK_KHR_cooperative_matrix on panvk
 Support for Mali G68 GPU on Panfrost
+cl_ext_float_atomics on iris, llvmpipe and zink
