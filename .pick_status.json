@@ -404,7 +404,7 @@
         "description": "nir/nir_builder: inline dst_bit_size calculation in assert",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "067d786dd5e645fdf3d0d8a7b06773ff0494dbd3",
         "notes": null
