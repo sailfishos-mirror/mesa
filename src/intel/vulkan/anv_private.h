@@ -6771,6 +6771,9 @@ struct anv_query_pool {
 
    /* Video encoding queries */
    VkVideoCodecOperationFlagsKHR                codec;
+
+   /* Metrics Library handle */
+   void*                                        metrics_library_query_pool;
 };
 
 static inline uint32_t khr_perf_query_preamble_offset(const struct anv_query_pool *pool,

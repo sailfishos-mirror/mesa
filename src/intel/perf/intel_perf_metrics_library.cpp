@@ -158,3 +158,61 @@ bool intel_perf_metrics_library_destroy_configuration(struct intel_perf_config *
    StatusCode status = api->ConfigurationDelete(&config_handle);
    return status == StatusCode::Success;
 }
+
+uint32_t intel_metrics_library_get_query_gpu_size(struct intel_perf_config *perf)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return 0;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->GetParameter)
+      return 0;
+
+   uint32_t gpu_size = 0;
+
+   TypedValue_1_0 value = {};
+
+   StatusCode status = api->GetParameter(ParameterType::QueryHwCountersReportGpuSize, &value.Type, &value);
+   if (status != StatusCode::Success || value.Type != ValueType::Uint32)
+      return 0;
+
+   return value.ValueUInt32;
+}
+
+void* intel_perf_metrics_library_create_query_pool(struct intel_perf_config *perf, uint32_t query_count)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return nullptr;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->QueryCreate)
+      return nullptr;
+
+   QueryCreateData_1_0 create_data = {};
+   create_data.HandleContext.data = perf->metrics_library.context;
+   create_data.Type = ObjectType::QueryHwCounters;
+   create_data.Slots = query_count;
+
+   QueryHandle_1_0 query_handle = {};
+   StatusCode status = api->QueryCreate(&create_data, &query_handle);
+   if (status != StatusCode::Success || !query_handle.data)
+      return nullptr;
+
+   return query_handle.data;
+}
+
+bool intel_perf_metrics_library_destroy_query_pool(struct intel_perf_config *perf, void* query_pool)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return false;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->QueryDelete)
+      return false;
+
+   QueryHandle_1_0 query_handle = {};
+   query_handle.data = query_pool;
+
+   StatusCode status = api->QueryDelete(&query_handle);
+   return status == StatusCode::Success;
+}

@@ -35,6 +35,9 @@ bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd);
 bool intel_perf_deinit_metrics_library(struct intel_perf_config *perf);
 uint64_t intel_perf_metrics_library_create_configuration(struct intel_perf_config *perf);
 bool intel_perf_metrics_library_destroy_configuration(struct intel_perf_config *perf, uint64_t config_id);
+uint32_t intel_metrics_library_get_query_gpu_size(struct intel_perf_config *perf);
+void* intel_perf_metrics_library_create_query_pool(struct intel_perf_config *perf, uint32_t query_count);
+bool intel_perf_metrics_library_destroy_query_pool(struct intel_perf_config *perf, void* query_pool);
 
 #ifdef __cplusplus
 }

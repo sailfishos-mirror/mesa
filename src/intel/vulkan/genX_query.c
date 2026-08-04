@@ -47,6 +47,7 @@
 
 #include "perf/intel_perf.h"
 #include "perf/intel_perf_mdapi.h"
+#include "perf/intel_perf_metrics_library.h"
 #include "perf/intel_perf_regs.h"
 
 #include "vk_util.h"
@@ -138,6 +139,7 @@ VkResult genX(CreateQueryPool)(
    uint32_t data_offset = 0;
    VK_MULTIALLOC(ma);
    VkResult result;
+   void* metrics_library_query_pool = NULL;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO);
 
@@ -182,16 +184,25 @@ VkResult genX(CreateQueryPool)(
       uint64s_per_slot = 1 + 4;
       break;
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      const struct intel_perf_query_field_layout *layout =
-         &pdevice->perf->query_layout;
+      if (pdevice->perf->use_metrics_library) {
+         uint64s_per_slot = intel_metrics_library_get_query_gpu_size(pdevice->perf) / sizeof(uint64_t);
 
-      uint64s_per_slot = 2; /* availability + marker */
-      /* Align to the requirement of the layout */
-      uint64s_per_slot = align(uint64s_per_slot,
-                               DIV_ROUND_UP(layout->alignment, sizeof(uint64_t)));
-      data_offset = uint64s_per_slot * sizeof(uint64_t);
-      /* Add the query data for begin & end commands */
-      uint64s_per_slot += 2 * DIV_ROUND_UP(layout->size, sizeof(uint64_t));
+         metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pCreateInfo->queryCount);
+
+         if (!metrics_library_query_pool)
+            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      } else {
+         const struct intel_perf_query_field_layout *layout =
+            &pdevice->perf->query_layout;
+
+         uint64s_per_slot = 2; /* availability + marker */
+         /* Align to the requirement of the layout */
+         uint64s_per_slot = align(uint64s_per_slot,
+                                 DIV_ROUND_UP(layout->alignment, sizeof(uint64_t)));
+         data_offset = uint64s_per_slot * sizeof(uint64_t);
+         /* Add the query data for begin & end commands */
+         uint64s_per_slot += 2 * DIV_ROUND_UP(layout->size, sizeof(uint64_t));
+      }
       break;
    }
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR: {
@@ -262,6 +273,8 @@ VkResult genX(CreateQueryPool)(
 
    vk_query_pool_init(&device->vk, &pool->vk, pCreateInfo);
    pool->stride = uint64s_per_slot * sizeof(uint64_t);
+
+   pool->metrics_library_query_pool = metrics_library_query_pool;
 
    if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
       pool->data_offset = data_offset;
@@ -358,6 +371,11 @@ void genX(DestroyQueryPool)(
 
    if (!pool)
       return;
+
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL && device->physical->perf->use_metrics_library) {
+      if (!intel_perf_metrics_library_destroy_query_pool(device->physical->perf, pool->metrics_library_query_pool))
+         vk_error(device, VK_ERROR_UNKNOWN);
+   }
 
    ANV_ADDR_BINDING_REPORT_BO_UNBIND(device, &pool->vk.base, pool->bo);
    ANV_RMV(resource_destroy, device, pool);
