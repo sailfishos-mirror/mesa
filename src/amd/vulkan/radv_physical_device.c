@@ -153,7 +153,7 @@ radv_compute_queue_enabled(const struct radv_physical_device *pdev)
           (!(instance->queue_disable_flags & RADV_QUEUE_DISABLE_COMPUTE) || !pdev->info.has_graphics);
 }
 
-static bool
+bool
 radv_graphics_queue_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
