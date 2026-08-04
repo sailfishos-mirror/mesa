@@ -304,7 +304,7 @@
         "description": "spirv: fix handling OpAbortKHR",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "88fb73c883872edb307f207877c02c54d9e33b21",
         "notes": null
