@@ -619,7 +619,7 @@ pub struct OpCSel {
 
 impl DisplayOp for OpCSel {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CSEL{}", self.cmp_type)
+        write!(f, "CSEL.{}", self.cmp_type)
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
