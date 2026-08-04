@@ -346,7 +346,6 @@ nv30_screen_is_format_supported(struct pipe_screen *pscreen,
    .lower_insert_byte = true,\
    .lower_insert_word = true,\
    .lower_fdph = true,\
-   .lower_flrp32 = true,\
    .lower_flrp64 = true,\
    .lower_fmod = true, \
    .lower_fceil = true, \
@@ -362,12 +361,14 @@ static const nir_shader_compiler_options nv30_vs_compiler_options = {
    NIR_OPTIONS_COMMONS,
    .lower_fsat = true,
    .lower_fpow = true,
+   .lower_flrp32 = true,
 };
 
 static const nir_shader_compiler_options nv40_vs_compiler_options = {
    NIR_OPTIONS_COMMONS,
    .lower_fsat = true,
    .lower_fpow = true,
+   .lower_flrp32 = true,
 };
 
 // FRAGMENT
@@ -378,7 +379,8 @@ static const nir_shader_compiler_options nv30_fs_compiler_options = {
 };
 
 static const nir_shader_compiler_options nv40_fs_compiler_options = {
-   NIR_OPTIONS_COMMONS
+   NIR_OPTIONS_COMMONS,
+   .lower_flrp32 = true,
 };
 
 static void

@@ -618,9 +618,7 @@ nvfx_fragprog_parse_instruction(struct nvfx_fpc *fpc,
       if(!fpc->is_nv4x)
          nvfx_fp_emit(fpc, arith(sat, LRP_NV30, dst, mask, src[0], src[1], src[2]));
       else {
-         tmp = nvfx_src(temp(fpc));
-         nvfx_fp_emit(fpc, arith(0, MAD, tmp.reg, mask, neg(src[0]), src[2], src[2]));
-         nvfx_fp_emit(fpc, arith(sat, MAD, dst, mask, src[0], src[1], tmp));
+         NOUVEAU_ERR("LRP should have been lowered.\n");
       }
       break;
    case TGSI_OPCODE_MAD:

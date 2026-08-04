@@ -601,9 +601,7 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
       nvfx_vp_emit(vpc, arith(sat, SCA, LG2, dst, mask, none, none, src[0]));
       break;
    case TGSI_OPCODE_LRP:
-      tmp = nvfx_src(temp(vpc));
-      nvfx_vp_emit(vpc, arith(0, VEC, MAD, tmp.reg, mask, neg(src[0]), src[2], src[2]));
-      nvfx_vp_emit(vpc, arith(sat, VEC, MAD, dst, mask, src[0], src[1], tmp));
+      NOUVEAU_ERR("LRP should have been lowered.\n");
       break;
    case TGSI_OPCODE_MAD:
       nvfx_vp_emit(vpc, arith(sat, VEC, MAD, dst, mask, src[0], src[1], src[2]));
