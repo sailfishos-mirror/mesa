@@ -189,6 +189,19 @@ impl<'a> ShaderFromNir<'a> {
         self.get_swiz_src(src.src.as_def(), &src.swizzle[..usize::from(comps)])
     }
 
+    fn get_src_add_imm(
+        &self,
+        src: &nir_src,
+        imm_bits: u8,
+        imm_sign: bool,
+    ) -> (Src, i64) {
+        unsafe {
+            let add_imm = pan_nir_def_as_add_imm(src.ssa, imm_bits, imm_sign);
+            let src = self.get_swiz_src(&*add_imm.def, &[add_imm.def_comp]);
+            (src, add_imm.imm)
+        }
+    }
+
     fn preload(
         &mut self,
         b: &mut impl SSABuilder,
@@ -1565,7 +1578,7 @@ impl<'a> ShaderFromNir<'a> {
                     self.alloc_ssa(b, &intrin.def).into()
                 };
 
-                let addr = self.get_src(&srcs[0]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[0], 8, false);
                 let data = self.get_src(&srcs[1]);
                 if let Some(atom1_op) =
                     srcs[1].as_int().and_then(|data| atom_op.as_atom1(data))
@@ -1575,7 +1588,7 @@ impl<'a> ShaderFromNir<'a> {
                         data_type: DataType::i(intrin.def.bit_size),
                         atom_op: atom1_op,
                         addr,
-                        offset: 0,
+                        offset: offset.try_into().unwrap(),
                     });
                 } else {
                     b.push_op(OpAtom {
@@ -1584,12 +1597,12 @@ impl<'a> ShaderFromNir<'a> {
                         atom_op,
                         data,
                         addr,
-                        offset: 0,
+                        offset: offset.try_into().unwrap(),
                     });
                 }
             }
             nir_intrinsic_global_atomic_swap => {
-                let addr = self.get_src(&srcs[0]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[0], 8, false);
                 let cmpr = self.get_src_ssa(&srcs[1]);
                 let data = self.get_src_ssa(&srcs[2]);
                 let data = SSARef::from_iter(
@@ -1601,7 +1614,7 @@ impl<'a> ShaderFromNir<'a> {
                     data_type: DataType::i(intrin.def.bit_size),
                     data: data.into(),
                     addr,
-                    offset: 0,
+                    offset: offset.try_into().unwrap(),
                 });
             }
             nir_intrinsic_lea_buf_pan => {
@@ -1622,7 +1635,7 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_intrinsic_load_global | nir_intrinsic_load_global_constant => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
-                let addr = self.get_src(&srcs[0]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[0], 16, true);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.push_op(OpLoad {
                     dst,
@@ -1630,7 +1643,7 @@ impl<'a> ShaderFromNir<'a> {
                     is_tls: (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0,
                     access: mem_access_from_nir(intrin),
                     addr,
-                    offset: 0,
+                    offset: offset.try_into().unwrap(),
                 });
             }
             nir_intrinsic_load_global_cvt_pan => {
@@ -1650,7 +1663,7 @@ impl<'a> ShaderFromNir<'a> {
                     intrin.def.bit_size,
                 );
 
-                let addr = self.get_src(&srcs[0]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[0], 8, false);
                 let cvt = self.get_src(&srcs[1]);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.push_op(OpLdCvt {
@@ -1659,7 +1672,7 @@ impl<'a> ShaderFromNir<'a> {
                     access: mem_access_from_nir(intrin),
                     addr,
                     cvt,
-                    offset: 0,
+                    offset: offset.try_into().unwrap(),
                 });
             }
             nir_intrinsic_load_scratch_base_ptr => {
@@ -1770,7 +1783,7 @@ impl<'a> ShaderFromNir<'a> {
                 } else if bits == 16 {
                     data = data.half(0);
                 }
-                let addr = self.get_src(&srcs[1]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[1], 16, true);
                 let is_psiz =
                     intrin.intrinsic == nir_intrinsic_store_global_psiz_pan;
                 b.push_op(OpStore {
@@ -1780,7 +1793,7 @@ impl<'a> ShaderFromNir<'a> {
                     access: mem_access_from_nir(intrin),
                     data,
                     addr,
-                    offset: 0,
+                    offset: offset.try_into().unwrap(),
                 });
             }
             nir_intrinsic_store_global_cvt_pan => {
@@ -1807,7 +1820,7 @@ impl<'a> ShaderFromNir<'a> {
                 } else if bits == 16 {
                     data = data.half(0);
                 }
-                let addr = self.get_src(&srcs[1]);
+                let (addr, offset) = self.get_src_add_imm(&srcs[1], 8, false);
                 let cvt = self.get_src(&srcs[2]);
                 b.push_op(OpStCvt {
                     src_type,
@@ -1815,7 +1828,7 @@ impl<'a> ShaderFromNir<'a> {
                     data,
                     addr,
                     cvt,
-                    offset: 0,
+                    offset: offset.try_into().unwrap(),
                 });
             }
             nir_intrinsic_load_local_invocation_id => {
