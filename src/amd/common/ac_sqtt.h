@@ -42,6 +42,7 @@ struct ac_sqtt {
    uint64_t buffer_va;
    void *ptr;
    uint32_t buffer_size;
+   bool capture_cancelled;
    int start_frame;
    char *trigger_file;
    bool instruction_timing_enabled;

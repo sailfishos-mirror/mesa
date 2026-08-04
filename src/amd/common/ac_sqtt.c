@@ -68,6 +68,8 @@ ac_sqtt_init(struct ac_sqtt *data)
 
    list_inithead(&data->rgp_queue_event.record);
    simple_mtx_init(&data->rgp_queue_event.lock, mtx_plain);
+
+   data->capture_cancelled = false;
 }
 
 void
@@ -744,6 +746,7 @@ bool ac_sqtt_update_bo_size(struct ac_sqtt *sqtt, const char *env_var_prefix)
                  "Try again with %s_THREAD_TRACE_INSTRUCTION_TIMING=false"
                  " to reduce the size of the captured data.\n",
                  env_var_prefix);
+      sqtt->capture_cancelled = true;
       return false;
    }
    return true;

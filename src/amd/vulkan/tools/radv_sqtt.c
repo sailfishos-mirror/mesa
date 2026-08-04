@@ -454,11 +454,11 @@ radv_sqtt_finish(struct radv_device *device)
 static bool
 radv_sqtt_resize_bo(struct radv_device *device)
 {
-   /* Destroy the previous thread trace BO. */
-   radv_sqtt_finish_bo(device);
-
    if (!ac_sqtt_update_bo_size(&device->sqtt, "RADV"))
       return false;
+
+   /* Destroy the previous thread trace BO*/
+   radv_sqtt_finish_bo(device);
 
    /* Re-create the thread trace BO. */
    return radv_sqtt_init_bo(device);
@@ -697,6 +697,8 @@ radv_sqtt_start_capturing(struct radv_queue *queue)
       return;
    }
 
+   device->sqtt.capture_cancelled = false;
+
    /* Reserve a VMID to allow the KMD to update SPM_VMID accordingly. */
    if (device->ws->reserve_vmid(device->ws) < 0) {
       fprintf(stderr, "radv: Failed to reserve VMID for SQTT tracing.\n");
@@ -732,17 +734,20 @@ radv_sqtt_stop_capturing(struct radv_queue *queue)
 
    device->ws->unreserve_vmid(device->ws);
 
-   if (radv_get_sqtt_trace(queue, &sqtt_trace) && (!device->spm.bo || radv_get_spm_trace(queue, &spm_trace))) {
-      struct ac_rgp_capture_info capture_info = {
-         .mode = instance->vk.trace_per_submit ? AC_RGP_CAPTURE_MODE_SUBMIT : AC_RGP_CAPTURE_MODE_FRAME,
-      };
+   const bool sqtt_ok = radv_get_sqtt_trace(queue, &sqtt_trace);
+   const bool spm_ok = !device->spm.bo || radv_get_spm_trace(queue, &spm_trace);
 
-      if (instance->vk.trace_per_submit) {
-         capture_info.submit_idx = device->rgp_num_submits;
-      } else {
-         capture_info.frame_idx = device->vk.current_frame;
-      }
+   struct ac_rgp_capture_info capture_info = {
+      .mode = instance->vk.trace_per_submit ? AC_RGP_CAPTURE_MODE_SUBMIT : AC_RGP_CAPTURE_MODE_FRAME,
+   };
 
+   if (instance->vk.trace_per_submit) {
+      capture_info.submit_idx = device->rgp_num_submits;
+   } else {
+      capture_info.frame_idx = device->vk.current_frame;
+   }
+
+   if (sqtt_ok && spm_ok) {
       ac_dump_rgp_capture(&pdev->info, &sqtt_trace, device->spm.bo ? &spm_trace : NULL, &capture_info);
    } else {
       /* Failed to capture because the buffer was too small. */

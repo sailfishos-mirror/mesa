@@ -653,7 +653,8 @@ radv_handle_sqtt(VkQueue _queue)
    if (device->sqtt_enabled) {
       if (!radv_sqtt_stop_capturing(queue)) {
          /* Try to capture the next frame if the buffer was too small initially. */
-         trigger = true;
+         if (!device->sqtt.capture_cancelled)
+            trigger = true;
       }
    }
 
