@@ -4994,7 +4994,7 @@
         "description": "freedreno/a2xx: don't type-pun the immediate values through a cast",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "67610a0323ddfe0d7cced121abb43286b862b495",
         "notes": null
