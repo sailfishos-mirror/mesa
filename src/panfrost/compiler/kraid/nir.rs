@@ -139,19 +139,18 @@ impl<'a> ShaderFromNir<'a> {
         self.get_src_ssa(src).into()
     }
 
-    fn get_alu_src(&self, src: &nir_alu_src, comps: u8) -> Src {
-        let src_vec = self.get_ssa(src.src.as_def());
-
-        match src.src.as_def().bit_size {
+    fn get_swiz_src(&self, def: &nir_def, swizzle: &[u8]) -> Src {
+        let src_vec = self.get_ssa(def);
+        match def.bit_size {
             8 => {
-                assert!(comps <= 4);
-                let w = src.swizzle[0] / 4;
-                let mut bytes = [src.swizzle[0] % 4; 4];
-                for i in 1..usize::from(comps) {
-                    assert!(src.swizzle[i] / 4 == w);
-                    bytes[i] = src.swizzle[i] % 4;
+                assert!(swizzle.len() <= 4);
+                let w = swizzle[0] / 4;
+                let mut bytes = [swizzle[0] % 4; 4];
+                for i in 1..swizzle.len() {
+                    assert!(swizzle[i] / 4 == w);
+                    bytes[i] = swizzle[i] % 4;
                 }
-                if comps == 2 {
+                if swizzle.len() == 2 {
                     // For vec2's, make it symmetric
                     bytes[2] = bytes[0];
                     bytes[3] = bytes[1];
@@ -160,30 +159,34 @@ impl<'a> ShaderFromNir<'a> {
                 Src::from(src_vec[usize::from(w)]).swizzle(swizzle)
             }
             16 => {
-                assert!(comps <= 2);
-                let w = src.swizzle[0] / 2;
-                let mut halves = [src.swizzle[0] % 2; 2];
-                if comps == 2 {
-                    assert!(src.swizzle[1] / 2 == w);
-                    halves[1] = src.swizzle[1] % 2;
+                assert!(swizzle.len() <= 2);
+                let w = swizzle[0] / 2;
+                let mut halves = [swizzle[0] % 2; 2];
+                if swizzle.len() == 2 {
+                    assert!(swizzle[1] / 2 == w);
+                    halves[1] = swizzle[1] % 2;
                 }
                 let swizzle = Swizzle::from_halves(halves);
                 Src::from(src_vec[usize::from(w)]).swizzle(swizzle)
             }
             32 => {
-                assert!(comps == 1);
-                src_vec[usize::from(src.swizzle[0])].into()
+                assert_eq!(swizzle.len(), 1);
+                src_vec[usize::from(swizzle[0])].into()
             }
             64 => {
-                assert!(comps == 1);
+                assert_eq!(swizzle.len(), 1);
                 [
-                    src_vec[usize::from(src.swizzle[0]) * 2],
-                    src_vec[usize::from(src.swizzle[0]) * 2 + 1],
+                    src_vec[usize::from(swizzle[0]) * 2],
+                    src_vec[usize::from(swizzle[0]) * 2 + 1],
                 ]
                 .into()
             }
             bit_size => panic!("Unsupported bit size: {bit_size}"),
         }
+    }
+
+    fn get_alu_src(&self, src: &nir_alu_src, comps: u8) -> Src {
+        self.get_swiz_src(src.src.as_def(), &src.swizzle[..usize::from(comps)])
     }
 
     fn preload(
