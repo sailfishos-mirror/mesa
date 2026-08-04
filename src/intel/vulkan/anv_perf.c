@@ -30,6 +30,7 @@
 
 #include "perf/intel_perf.h"
 #include "perf/intel_perf_mdapi.h"
+#include "perf/intel_perf_metrics_library.h"
 
 #include "util/mesa-blake3.h"
 
@@ -161,6 +162,13 @@ VkResult anv_InitializePerformanceApiINTEL(
 
    if (!device->physical->perf)
       return VK_ERROR_EXTENSION_NOT_PRESENT;
+
+   if (device->physical->perf->use_metrics_library) {
+      if (!intel_perf_init_metrics_library(device->physical->perf, device->fd)) {
+         /* Do not use Metrics Library if it fails to initialize */
+         device->physical->perf->use_metrics_library = false;
+      }
+   }
 
    /* Not much to do here */
    return VK_SUCCESS;

@@ -445,6 +445,16 @@ struct intel_perf_config {
    /* Have extended metrics been enabled */
    bool enable_all_metrics;
 
+   /* Whether to use the metrics library to handle performance queries. */
+   bool use_metrics_library;
+   struct {
+      void *lib;
+      void *context;
+      void *api;
+      void *callbacks;
+      void *destroy_context_func;
+   } metrics_library;
+
    enum intel_perf_features features_supported;
 
    /* Number of bits to shift the OA timestamp values by to match the ring
