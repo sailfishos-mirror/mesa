@@ -734,7 +734,7 @@
         "description": "nir/simplify_loops: lower ssa to registers if it might be necessary",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "31af989270fa47f7563e5b053952b871631c1a8a",
         "notes": null
