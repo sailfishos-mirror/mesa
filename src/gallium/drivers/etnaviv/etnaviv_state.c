@@ -771,8 +771,13 @@ etna_vertex_elements_state_create(struct pipe_context *pctx,
             COND(nonconsecutive, VIVS_NFE_GENERIC_ATTRIB_CONFIG1_NONCONSECUTIVE) |
             VIVS_NFE_GENERIC_ATTRIB_CONFIG1_END(end_offset - start_offset);
       }
-      cs->FE_VERTEX_STREAM_CONTROL[buffer_idx] =
-            FE_VERTEX_STREAM_CONTROL_VERTEX_STRIDE(elements[idx].src_stride);
+
+      if (screen->info->halti >= 2)
+         cs->FE_VERTEX_STREAM_CONTROL[buffer_idx] =
+               VIVS_NFE_VERTEX_STREAMS_CONTROL_VERTEX_STRIDE(elements[idx].src_stride);
+      else
+         cs->FE_VERTEX_STREAM_CONTROL[buffer_idx] =
+               FE_VERTEX_STREAM_CONTROL_VERTEX_STRIDE(elements[idx].src_stride);
 
       if (util_format_is_pure_integer(elements[idx].src_format))
          cs->NFE_GENERIC_ATTRIB_SCALE[idx] = 1;
