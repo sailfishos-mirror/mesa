@@ -1328,3 +1328,422 @@ pub fn test_f2fp() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_float_ops() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+    let r3 = RegRef::new(RegFile::GPR, 3, 1);
+    let r4 = RegRef::new(RegFile::GPR, 4, 1);
+    let p1 = RegRef::new(RegFile::Pred, 1, 1);
+    let p2 = RegRef::new(RegFile::Pred, 2, 1);
+    let p4 = RegRef::new(RegFile::Pred, 4, 1);
+    let ur1 = RegRef::new(RegFile::UGPR, 1, 1);
+    let ur2 = RegRef::new(RegFile::UGPR, 2, 1);
+    let ur3 = RegRef::new(RegFile::UGPR, 3, 1);
+    let ur4 = RegRef::new(RegFile::UGPR, 4, 1);
+    let up1 = RegRef::new(RegFile::UPred, 1, 1);
+    let up2 = RegRef::new(RegFile::UPred, 2, 1);
+    let up4 = RegRef::new(RegFile::UPred, 4, 1);
+
+    let test_two_src_cases = [
+        (Dst::Reg(r1), ([Src::from(r2), Src::from(r3)], "r2, r3")),
+        (
+            Dst::Reg(r1),
+            ([Src::from(r2), Src::from(2.0f32.to_bits())], "r2, 2"),
+        ),
+    ];
+
+    let test_uniform_two_src_cases = [
+        (
+            Dst::Reg(ur1),
+            ([Src::from(ur2), Src::from(ur3)], "ur2, ur3"),
+        ),
+        (
+            Dst::Reg(ur1),
+            ([Src::from(ur2), Src::from(2.0f32.to_bits())], "ur2, 2"),
+        ),
+    ];
+
+    let test_three_src_cases = [
+        (
+            Dst::Reg(r1),
+            ([Src::from(r2), Src::from(r3), Src::from(r4)], "r2, r3, r4"),
+        ),
+        (
+            Dst::Reg(r1),
+            (
+                [Src::from(r2), Src::from(2.0f32.to_bits()), Src::from(r4)],
+                "r2, 2, r4",
+            ),
+        ),
+    ];
+
+    let test_uniform_three_src_cases = [
+        (
+            Dst::Reg(ur1),
+            (
+                [Src::from(ur2), Src::from(ur3), Src::from(ur4)],
+                "ur2, ur3, ur4",
+            ),
+        ),
+        (
+            Dst::Reg(ur1),
+            (
+                [Src::from(ur2), Src::from(2.0f32.to_bits()), Src::from(ur4)],
+                "ur2, 2, ur4",
+            ),
+        ),
+    ];
+
+    let pred_set_ops = [PredSetOp::And, PredSetOp::Or, PredSetOp::Xor];
+
+    let float_cmp_ops = [
+        FloatCmpOp::OrdEq,
+        FloatCmpOp::OrdNe,
+        FloatCmpOp::OrdLt,
+        FloatCmpOp::OrdLe,
+        FloatCmpOp::OrdGt,
+        FloatCmpOp::OrdGe,
+        FloatCmpOp::UnordEq,
+        FloatCmpOp::UnordNe,
+        FloatCmpOp::UnordLt,
+        FloatCmpOp::UnordLe,
+        FloatCmpOp::UnordGt,
+        FloatCmpOp::UnordGe,
+        FloatCmpOp::IsNum,
+        FloatCmpOp::IsNan,
+    ];
+
+    for &sm in sm_list() {
+        let mut c = DisasmCheck::new();
+
+        for (ftz, ftz_str) in [(false, ""), (true, ".ftz")] {
+            for (dst, (srcs, srcs_str)) in &test_two_src_cases {
+                let instr = OpFMnMx {
+                    dst: dst.clone(),
+                    srcs: srcs.clone(),
+                    min: p4.into(),
+                    ftz,
+                };
+                let disasm = format!("fmnmx{ftz_str} {dst}, {srcs_str}, p4;");
+                c.push(instr, disasm);
+
+                for cmp_op in &float_cmp_ops {
+                    let instr = OpFSet {
+                        dst: dst.clone(),
+                        cmp_op: *cmp_op,
+                        srcs: srcs.clone(),
+                        ftz,
+                    };
+                    let disasm = format!(
+                        "fset.bf{cmp_op}{ftz_str}.and {dst}, {srcs_str}, pt;"
+                    );
+                    c.push(instr, disasm);
+
+                    for set_op in &pred_set_ops {
+                        let instr = OpFSetP {
+                            dst: p2.into(),
+                            set_op: *set_op,
+                            cmp_op: *cmp_op,
+                            srcs: srcs.clone(),
+                            accum: p1.into(),
+                            ftz,
+                        };
+                        let disasm = format!(
+                            "fsetp{cmp_op}{ftz_str}{set_op} p2, pt, {srcs_str}, p1;"
+                        );
+                        c.push(instr, disasm);
+                    }
+                }
+            }
+
+            if sm >= 120 {
+                for (dst, (srcs, srcs_str)) in &test_uniform_two_src_cases {
+                    let instr = OpFMnMx {
+                        dst: dst.clone(),
+                        srcs: srcs.clone(),
+                        min: up4.into(),
+                        ftz,
+                    };
+                    let disasm =
+                        format!("ufmnmx{ftz_str} {dst}, {srcs_str}, up4;");
+                    c.push(instr, disasm);
+
+                    for cmp_op in &float_cmp_ops {
+                        let instr = OpFSet {
+                            dst: dst.clone(),
+                            cmp_op: *cmp_op,
+                            srcs: srcs.clone(),
+                            ftz,
+                        };
+                        let disasm = format!("ufset.bf{cmp_op}{ftz_str}.and {dst}, {srcs_str}, upt;");
+                        c.push(instr, disasm);
+
+                        for set_op in &pred_set_ops {
+                            let instr = OpFSetP {
+                                dst: up2.into(),
+                                set_op: *set_op,
+                                cmp_op: *cmp_op,
+                                srcs: srcs.clone(),
+                                accum: up1.into(),
+                                ftz,
+                            };
+                            let disasm = format!(
+                                "ufsetp{cmp_op}{ftz_str}{set_op} up2, upt, {srcs_str}, up1;"
+                            );
+                            c.push(instr, disasm);
+                        }
+                    }
+                }
+            }
+
+            for (rnd_mode, rnd_mode_str, int_rnd_mode_str) in [
+                (FRndMode::NearestEven, "", ""),
+                (FRndMode::Zero, ".rz", ".trunc"),
+            ] {
+                let instr = OpF2F {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: FloatType::F64,
+                    dst_type: FloatType::F32,
+                    rnd_mode,
+                    ftz,
+                    integer_rnd: false,
+                };
+                let disasm =
+                    format!("f2f{ftz_str}.f32.f64{rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                let instr = OpF2F {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: FloatType::F16,
+                    dst_type: FloatType::F32,
+                    rnd_mode,
+                    ftz,
+                    integer_rnd: false,
+                };
+                let disasm =
+                    format!("f2f{ftz_str}.f32.f16{rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                let instr = OpF2I {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: FloatType::F64,
+                    dst_type: IntType::U32,
+                    rnd_mode,
+                    ftz,
+                };
+                let disasm =
+                    format!("f2i{ftz_str}.u32.f64{int_rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                let instr = OpF2I {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: FloatType::F16,
+                    dst_type: IntType::U32,
+                    rnd_mode,
+                    ftz,
+                };
+                let disasm =
+                    format!("f2i{ftz_str}.u32.f16{int_rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                if sm >= 70 {
+                    let instr = OpFRnd {
+                        dst: r2.into(),
+                        src: r2.into(),
+                        src_type: FloatType::F64,
+                        dst_type: FloatType::F64,
+                        rnd_mode,
+                        ftz,
+                    };
+                    let disasm =
+                        format!("frnd{ftz_str}.f64{int_rnd_mode_str} r2, r2;");
+                    c.push(instr, disasm);
+
+                    let instr = OpFRnd {
+                        dst: r1.into(),
+                        src: r2.into(),
+                        src_type: FloatType::F32,
+                        dst_type: FloatType::F32,
+                        rnd_mode,
+                        ftz,
+                    };
+                    let disasm =
+                        format!("frnd{ftz_str}{int_rnd_mode_str} r1, r2;");
+                    c.push(instr, disasm);
+                }
+
+                let instr = OpI2F {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: IntType::U32,
+                    dst_type: FloatType::F64,
+                    rnd_mode,
+                };
+                let disasm = format!("i2f.f64.u32{rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                let instr = OpI2F {
+                    dst: r1.into(),
+                    src: r2.into(),
+                    src_type: IntType::U32,
+                    dst_type: FloatType::F16,
+                    rnd_mode,
+                };
+                let disasm = format!("i2f.f16.u32{rnd_mode_str} r1, r2;");
+                c.push(instr, disasm);
+
+                if sm >= 120 {
+                    let instr = OpF2F {
+                        dst: ur1.into(),
+                        src: ur2.into(),
+                        src_type: FloatType::F16,
+                        dst_type: FloatType::F32,
+                        rnd_mode,
+                        ftz,
+                        integer_rnd: false,
+                    };
+                    let disasm = format!(
+                        "uf2f{ftz_str}.f32.f16{rnd_mode_str} ur1, ur2;"
+                    );
+                    c.push(instr, disasm);
+
+                    let instr = OpF2I {
+                        dst: ur1.into(),
+                        src: ur2.into(),
+                        src_type: FloatType::F16,
+                        dst_type: IntType::U32,
+                        rnd_mode,
+                        ftz,
+                    };
+                    let disasm = format!(
+                        "uf2i{ftz_str}.u32.f16{int_rnd_mode_str} ur1, ur2;"
+                    );
+                    c.push(instr, disasm);
+
+                    let instr = OpI2F {
+                        dst: ur1.into(),
+                        src: ur2.into(),
+                        src_type: IntType::U32,
+                        dst_type: FloatType::F16,
+                        rnd_mode,
+                    };
+                    let disasm =
+                        format!("ui2f.f16.u32{rnd_mode_str} ur1, ur2;");
+                    c.push(instr, disasm);
+
+                    let instr = OpFRnd {
+                        dst: ur1.into(),
+                        src: ur2.into(),
+                        src_type: FloatType::F32,
+                        dst_type: FloatType::F32,
+                        rnd_mode,
+                        ftz,
+                    };
+                    let disasm =
+                        format!("ufrnd{ftz_str}{int_rnd_mode_str} ur1, ur2;");
+                    c.push(instr, disasm);
+                }
+
+                for (saturate, saturate_str) in [(false, ""), (true, ".sat")] {
+                    for (dst, (srcs, srcs_str)) in &test_two_src_cases {
+                        let instr = OpFAdd {
+                            dst: dst.clone(),
+                            srcs: srcs.clone(),
+                            saturate,
+                            rnd_mode,
+                            ftz,
+                        };
+                        let disasm = format!(
+                            "fadd{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                        );
+                        c.push(instr, disasm);
+
+                        let instr = OpFMul {
+                            dst: dst.clone(),
+                            srcs: srcs.clone(),
+                            saturate,
+                            rnd_mode,
+                            ftz,
+                            dnz: false,
+                        };
+                        let disasm = format!(
+                            "fmul{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                        );
+                        c.push(instr, disasm);
+                    }
+
+                    for (dst, (srcs, srcs_str)) in &test_three_src_cases {
+                        let instr = OpFFma {
+                            dst: dst.clone(),
+                            srcs: srcs.clone(),
+                            saturate,
+                            rnd_mode,
+                            ftz,
+                            dnz: false,
+                        };
+                        let disasm = format!(
+                            "ffma{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                        );
+                        c.push(instr, disasm);
+                    }
+
+                    if sm >= 120 {
+                        for (dst, (srcs, srcs_str)) in
+                            &test_uniform_two_src_cases
+                        {
+                            let instr = OpFAdd {
+                                dst: dst.clone(),
+                                srcs: srcs.clone(),
+                                saturate,
+                                rnd_mode,
+                                ftz,
+                            };
+                            let disasm = format!(
+                            "ufadd{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                            );
+                            c.push(instr, disasm);
+
+                            let instr = OpFMul {
+                                dst: dst.clone(),
+                                srcs: srcs.clone(),
+                                saturate,
+                                rnd_mode,
+                                ftz,
+                                dnz: false,
+                            };
+                            let disasm = format!(
+                            "ufmul{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                            );
+                            c.push(instr, disasm);
+                        }
+
+                        for (dst, (srcs, srcs_str)) in
+                            &test_uniform_three_src_cases
+                        {
+                            let instr = OpFFma {
+                                dst: dst.clone(),
+                                srcs: srcs.clone(),
+                                saturate,
+                                rnd_mode,
+                                ftz,
+                                dnz: false,
+                            };
+                            let disasm = format!(
+                            "uffma{ftz_str}{rnd_mode_str}{saturate_str} {dst}, {srcs_str};"
+                            );
+                            c.push(instr, disasm);
+                        }
+                    }
+                }
+            }
+        }
+
+        c.check(sm);
+    }
+}
