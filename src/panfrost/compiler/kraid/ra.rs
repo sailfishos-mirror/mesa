@@ -618,6 +618,7 @@ impl LocalRegAlloc<'_> {
         &self,
         vec: &SSARef,
         align: RegAlignConstraint,
+        src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
@@ -630,7 +631,15 @@ impl LocalRegAlloc<'_> {
         }
 
         let bytes = vec.bytes();
-        let b = self.find_unpinned_bytes(bytes, align, |_| 0).unwrap();
+        let cost_fn = |b: u16| {
+            let bytes = b..(b + u16::from(bytes));
+            src_bytes
+                .count_set_in_range(bytes.start.into()..bytes.end.into())
+                .try_into()
+                .unwrap_or(u8::MAX)
+        };
+
+        let b = self.find_unpinned_bytes(bytes, align, cost_fn).unwrap();
         b..(b + u16::from(bytes))
     }
 
@@ -670,6 +679,7 @@ impl LocalRegAlloc<'_> {
             idx: u32,
         }
 
+        let mut src_bytes = BitSet::new();
         let mut evicted = VecDeque::new();
         let mut srcs_dsts: Vec<SrcDst> = Vec::new();
         for (i, src) in instr.srcs().iter().enumerate() {
@@ -749,6 +759,9 @@ impl LocalRegAlloc<'_> {
                 // ensure we copy it back into place.
                 for ssa in vec {
                     let ssa_bytes = self.ssa_bytes(ssa);
+                    src_bytes.set_range(
+                        ssa_bytes.start.into()..ssa_bytes.end.into(),
+                    );
                     evicted.push_back(Evicted {
                         is_src: true,
                         bytes: ssa_bytes.clone(),
@@ -837,7 +850,7 @@ impl LocalRegAlloc<'_> {
 
         for src_dst in &srcs_dsts {
             let bytes = if src_dst.is_src {
-                self.choose_src_bytes(&src_dst.vec, src_dst.align)
+                self.choose_src_bytes(&src_dst.vec, src_dst.align, &src_bytes)
             } else {
                 self.choose_dst_bytes(
                     &src_dst.vec,
