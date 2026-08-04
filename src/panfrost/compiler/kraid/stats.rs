@@ -38,7 +38,7 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
         for instr in &block.instrs {
             for src in instr.srcs() {
                 match &src.src_ref {
-                    SrcRef::FAU(fau) => {
+                    SrcRef::FAU(fau) if fau.page == FAUPage::User => {
                         fau_used = fau_used.max(fau.idx / 2 + 1);
                     }
                     SrcRef::Reg(reg) => mark_reg(reg),
