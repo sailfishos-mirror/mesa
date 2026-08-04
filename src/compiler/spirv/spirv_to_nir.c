@@ -6939,7 +6939,7 @@ vtn_handle_allocate_node_payloads(struct vtn_builder *b, SpvOp opcode,
    nir_initialize_node_payloads(&b->nb, payloads, payload_count, node_index, .execution_scope = scope);
 }
 
-static void
+void
 vtn_handle_abort(struct vtn_builder *b, const uint32_t *w, unsigned count)
 {
    struct vtn_type *msg_type = vtn_get_type(b, w[1]);
@@ -7523,10 +7523,6 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpCooperativeMatrixLoadTensorNV:
    case SpvOpCooperativeMatrixStoreTensorNV:
       vtn_handle_cooperative_instruction(b, opcode, w, count);
-      break;
-
-   case SpvOpAbortKHR:
-      vtn_handle_abort(b, w, count);
       break;
 
    default:
