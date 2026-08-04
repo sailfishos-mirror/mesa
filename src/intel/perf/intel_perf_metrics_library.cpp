@@ -249,3 +249,22 @@ bool intel_perf_metrics_library_get_query_results(struct intel_perf_config *perf
       return false;
    }
 }
+
+bool intel_perf_metrics_library_activate_configuration(struct intel_perf_config *perf, uint64_t config_id)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return false;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->ConfigurationActivate)
+      return false;
+
+   ConfigurationHandle_1_0 config_handle = {};
+   config_handle.data = reinterpret_cast<void*>(config_id);
+
+   ConfigurationActivateData_1_0 activate_data = {};
+   activate_data.Type = GpuConfigurationActivationType::Tbs;
+
+   StatusCode status = api->ConfigurationActivate(config_handle, &activate_data);
+   return status == StatusCode::Success;
+}

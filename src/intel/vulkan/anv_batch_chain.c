@@ -39,6 +39,9 @@
 
 #include "util/perf/u_trace.h"
 
+#include "perf/intel_perf.h"
+#include "perf/intel_perf_metrics_library.h"
+
 /** \file anv_batch_chain.c
  *
  * This file contains functions related to anv_cmd_buffer as a data
@@ -1643,6 +1646,13 @@ anv_queue_submit(struct vk_queue *vk_queue,
       &utrace_submit);
    if (result != VK_SUCCESS)
       return result;
+
+   if (device->physical->perf->use_metrics_library && queue->metrics_library_configuration) {
+      if (!intel_perf_metrics_library_activate_configuration(device->physical->perf,
+                                                             queue->metrics_library_configuration)) {
+         return VK_ERROR_UNKNOWN;
+      }
+   }
 
    uint64_t start_ts = intel_ds_begin_submit(&queue->ds);
 
