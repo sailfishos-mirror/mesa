@@ -1977,6 +1977,11 @@ impl<'a> ShaderFromNir<'a> {
                 let ssa = self.preload(b, reg);
                 self.set_ssa(&intrin.def, vec![ssa]);
             }
+            nir_intrinsic_load_frame_arg_pan => {
+                let low = self.preload(b, PreloadReg::FrameArgLow);
+                let high = self.preload(b, PreloadReg::FrameArgHigh);
+                self.set_ssa(&intrin.def, vec![low, high]);
+            }
             nir_intrinsic_load_view_index => {
                 // v14+ is the only architecture supporting multiview directly
                 // others lower VS multiview in NIR

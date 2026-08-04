@@ -1143,7 +1143,8 @@ enum bi_preload {
    BI_PRELOAD_RASTERIZER_COVERAGE,
    BI_PRELOAD_SAMPLE_ID,
    BI_PRELOAD_CENTROID_ID,
-   BI_PRELOAD_FRAME_ARG,
+   BI_PRELOAD_FRAME_ARG_LO,
+   BI_PRELOAD_FRAME_ARG_HI,
    /* Blend */
    BI_PRELOAD_BLEND_SRC0_C0,
    BI_PRELOAD_BLEND_SRC0_C1,
@@ -1221,9 +1222,10 @@ bi_preload_reg(enum bi_preload val, unsigned arch)
    case BI_PRELOAD_CENTROID_ID:
       /* Bits [31;24] */
       return 61;
-   case BI_PRELOAD_FRAME_ARG:
-      /* Double reg */
+   case BI_PRELOAD_FRAME_ARG_LO:
       return 62;
+   case BI_PRELOAD_FRAME_ARG_HI:
+      return 63;
    /* Blend */
    case BI_PRELOAD_BLEND_SRC0_C0:
       return 0;

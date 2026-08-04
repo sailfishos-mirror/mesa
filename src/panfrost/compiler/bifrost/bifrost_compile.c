@@ -2087,7 +2087,13 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       assert(b->shader->arch >= 9);
       bi_mov_i32_to(
          b, dst,
-         bi_u8_to_u32(b, bi_byte(bi_preload(b, BI_PRELOAD_FRAME_ARG), 0)));
+         bi_u8_to_u32(b, bi_byte(bi_preload(b, BI_PRELOAD_FRAME_ARG_LO), 0)));
+      break;
+
+   case nir_intrinsic_load_frame_arg_pan:
+      assert(b->shader->arch >= 9);
+      bi_collect_v2i32_to(b, dst, bi_preload(b, BI_PRELOAD_FRAME_ARG_LO),
+                                  bi_preload(b, BI_PRELOAD_FRAME_ARG_HI));
       break;
 
    case nir_intrinsic_load_ssbo_address:

@@ -1921,6 +1921,9 @@ system_value("fb_render_area_pan", 4, bit_sizes=[16])
 load("clear_value_pan", [], [IO_SEMANTICS, DEST_TYPE],
      [CAN_ELIMINATE, CAN_REORDER])
 
+# Frame argument parameter from the framebuffer descriptor
+system_value("frame_arg_pan", 1, bit_sizes=[64])
+
 # Cumulative coverage mask, the start of the atest/zt/blend chain
 system_value("cumulative_coverage_pan", 1, bit_sizes=[32])
 system_value("blend_descriptor_pan", 1, bit_sizes=[64], indices=[BASE])
