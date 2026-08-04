@@ -119,3 +119,42 @@ bool intel_perf_deinit_metrics_library(struct intel_perf_config *perf)
 
    return true;
 }
+
+uint64_t intel_perf_metrics_library_create_configuration(struct intel_perf_config *perf)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return 0;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->ConfigurationCreate)
+      return 0;
+
+   ConfigurationHandle_1_0 config_handle = {};
+   ConfigurationCreateData_1_0 create_data = {};
+
+   create_data.HandleContext.data = perf->metrics_library.context;
+   create_data.Type = ObjectType::ConfigurationHwCountersOa;
+
+   StatusCode status = api->ConfigurationCreate(&create_data, &config_handle);
+   if (status != StatusCode::Success || !config_handle.data)
+      return 0;
+
+   /* Assuming the configuration handle's data can be interpreted as a uint64_t ID. */
+   return reinterpret_cast<uint64_t>(config_handle.data);
+}
+
+bool intel_perf_metrics_library_destroy_configuration(struct intel_perf_config *perf, uint64_t config_id)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api)
+      return false;
+
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+   if (!api->ConfigurationDelete)
+      return false;
+
+   ConfigurationHandle_1_0 config_handle = {};
+   config_handle.data = reinterpret_cast<void*>(config_id);
+
+   StatusCode status = api->ConfigurationDelete(&config_handle);
+   return status == StatusCode::Success;
+}

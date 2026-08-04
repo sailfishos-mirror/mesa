@@ -24,12 +24,17 @@
 #ifndef INTEL_PERF_METRICS_LIBRARY_H
 #define INTEL_PERF_METRICS_LIBRARY_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd);
 bool intel_perf_deinit_metrics_library(struct intel_perf_config *perf);
+uint64_t intel_perf_metrics_library_create_configuration(struct intel_perf_config *perf);
+bool intel_perf_metrics_library_destroy_configuration(struct intel_perf_config *perf, uint64_t config_id);
 
 #ifdef __cplusplus
 }

@@ -228,7 +228,14 @@ VkResult anv_AcquirePerformanceConfigurationINTEL(
    if (!config)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
+   if (device->physical->perf->use_metrics_library) {
+      config->config_id = intel_perf_metrics_library_create_configuration(device->physical->perf);
+
+      if (config->config_id == 0) {
+         vk_object_free(&device->vk, NULL, config);
+         return VK_INCOMPLETE;
+      }
+   } else if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
       config->config_id = intel_perf_get_configuration_id(device->physical->perf,
                                                           INTEL_PERF_QUERY_GUID_MDAPI);
       if (config->config_id == 0) {
@@ -249,7 +256,11 @@ VkResult anv_ReleasePerformanceConfigurationINTEL(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_performance_configuration_intel, config, _configuration);
 
-   if (!INTEL_DEBUG(DEBUG_NO_OACONFIG))
+   if (device->physical->perf->use_metrics_library) {
+      if (!intel_perf_metrics_library_destroy_configuration(device->physical->perf, config->config_id))
+         vk_error(device, VK_ERROR_UNKNOWN);
+   }
+   else if (!INTEL_DEBUG(DEBUG_NO_OACONFIG))
       intel_perf_remove_configuration(device->physical->perf, device->fd, config->config_id);
 
    vk_object_free(&device->vk, NULL, config);
@@ -282,7 +293,9 @@ VkResult anv_QueueSetPerformanceConfigurationINTEL(
 
    vk_queue_lock(&queue->vk);
 
-   if (queue == anv_device_get_perf_queue(device)) {
+   if (device->physical->perf->use_metrics_library) {
+      queue->metrics_library_configuration = config->config_id;
+   } else if (queue == anv_device_get_perf_queue(device)) {
       if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
          if (device->perf_fd < 0) {
             device->perf_fd = anv_device_perf_open(device, queue, config->config_id);

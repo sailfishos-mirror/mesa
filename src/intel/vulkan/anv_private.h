@@ -1907,6 +1907,8 @@ struct anv_queue {
 
    struct anv_async_submit                  *init_submit;
    struct anv_async_submit                  *init_companion_submit;
+
+   uint64_t metrics_library_configuration;
 };
 
 struct nir_xfb_info;
