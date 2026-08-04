@@ -45,6 +45,9 @@ static struct ubo_range
 get_pushable_ubo_range(nir_intrinsic_instr *load,
                        const struct opt_push_ubo_ctx *ctx)
 {
+   /* We can't have any load_push_constant yet */
+   assert(load->intrinsic != nir_intrinsic_load_push_constant);
+
    struct ubo_range range = {
       .ubo_idx = -1,
       .nr_words = -1,
@@ -100,6 +103,20 @@ analyze_ubo_intr(nir_builder *b, nir_intrinsic_instr *load, void *data)
    return false;
 }
 
+static void
+add_ubo_push(struct opt_push_ubo_ctx *ctx, unsigned ubo_idx, unsigned word)
+{
+   struct pushable_ubo *ubo = &ctx->ubos[ubo_idx];
+   assert(!BITSET_TEST(ubo->pushed, word));
+
+   BITSET_SET(ubo->pushed, word);
+
+   pan_fau_emit_reloc(ctx->fau, (struct pan_ubo_relocation) {
+      .ubo = ubo_idx,
+      .offset = word * 4,
+   });
+}
+
 /* We always map blend constants from the first slot in the sysval UBO to the
  * first four FAU words, so that they can be accessed from a consistent
  * location from the blend shader.
@@ -114,15 +131,8 @@ add_blend_constants(struct opt_push_ubo_ctx *ctx)
    /* Blend constants are the first, non-reorderable ("fixed") relocations */
    assert(ctx->fau->count == 0 && ctx->fau->reserved == 0);
 
-   for (unsigned channel = 0; channel < 4; channel++) {
-      pan_fau_emit_reloc(ctx->fau, (struct pan_ubo_relocation) {
-         .ubo = sysval_ubo,
-         .offset = channel * 4,
-      });
-   }
-
-   struct pushable_ubo *ubo = &ctx->ubos[sysval_ubo];
-   BITSET_SET_COUNT(ubo->pushed, 0, 4);
+   for (unsigned channel = 0; channel < 4; channel++)
+      add_ubo_push(ctx, sysval_ubo, channel);
 }
 
 /* Select UBO words to push. A sophisticated implementation would consider the
@@ -145,15 +155,8 @@ pick_ubo_push_words(struct opt_push_ubo_ctx *ctx)
          if (pan_fau_available(ctx->fau) < range)
             return;
 
-         for (unsigned w = 0; w < range; w++) {
-            pan_fau_emit_reloc(ctx->fau, (struct pan_ubo_relocation) {
-               .ubo = ubo_idx,
-               .offset = (word + w) * 4,
-            });
-         }
-
-         /* Mark it as pushed so we can rewrite */
-         BITSET_SET_COUNT(ubo->pushed, word, range);
+         for (unsigned w = 0; w < range; w++)
+            add_ubo_push(ctx, ubo_idx, word + w);
       }
    }
 }
