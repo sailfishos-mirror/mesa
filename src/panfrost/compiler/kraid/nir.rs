@@ -979,9 +979,10 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_op_imul => {
+                assert!(alu.def.bit_size <= 32);
                 b.push_op(OpIMul {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::SignedInteger),
+                    dst_type: dst_type(NumericType::Integer),
                     saturate: false,
                     srcs: [srcs(0), srcs(1)],
                 });
