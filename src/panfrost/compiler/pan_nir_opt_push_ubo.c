@@ -18,8 +18,14 @@
 struct pushable_ubo {
    BITSET_DECLARE(read, MAX_UBO_WORDS);
    BITSET_DECLARE(pushed, MAX_UBO_WORDS);
-   uint8_t range[MAX_UBO_WORDS];
+
+   /* In the first pass, this is the range in bytes accessed starting from
+    * the given UBO word.  In the second pass, it's converted to an FAU index
+    */
+   uint8_t range_idx[MAX_UBO_WORDS];
 };
+
+static_assert(PAN_MAX_PUSH <= 256, "We assume an FAU index fits in a uint8_t");
 
 struct opt_push_ubo_ctx {
    struct pan_fau_layout *fau;
@@ -98,7 +104,8 @@ analyze_ubo_intr(nir_builder *b, nir_intrinsic_instr *load, void *data)
 
    struct pushable_ubo *ubo = &ctx->ubos[range.ubo_idx];
    BITSET_SET_COUNT(ubo->read, range.word, range.nr_words);
-   ubo->range[range.word] = MAX2(ubo->range[range.word], range.nr_words);
+   ubo->range_idx[range.word] = MAX2(ubo->range_idx[range.word],
+                                     range.nr_words);
 
    return false;
 }
@@ -110,6 +117,7 @@ add_ubo_push(struct opt_push_ubo_ctx *ctx, unsigned ubo_idx, unsigned word)
    assert(!BITSET_TEST(ubo->pushed, word));
 
    BITSET_SET(ubo->pushed, word);
+   ubo->range_idx[word] = ctx->fau->count;
 
    pan_fau_emit_reloc(ctx->fau, (struct pan_ubo_relocation) {
       .ubo = ubo_idx,
@@ -151,7 +159,10 @@ pick_ubo_push_words(struct opt_push_ubo_ctx *ctx)
          if (BITSET_TEST(ubo->pushed, word))
             continue;
 
-         unsigned range = ubo->range[word];
+         /* This is still a range if the corresponding bit in pushed is not
+          * yet set, which we checked above.
+          */
+         unsigned range = ubo->range_idx[word];
          if (pan_fau_available(ctx->fau) < range)
             return;
 
@@ -187,8 +198,10 @@ lower_ubo_intr(nir_builder *b, nir_intrinsic_instr *load, void *data)
       }
    }
 
-   uint32_t fau_word =
-      pan_lookup_pushed_ubo(ctx->fau, range.ubo_idx, range.word * 4);
+   uint32_t fau_word = ubo->range_idx[range.word];
+   assert(!BITSET_TEST(ctx->fau->is_const, fau_word));
+   assert(ctx->fau->words[fau_word].relocation.ubo == range.ubo_idx);
+   assert(ctx->fau->words[fau_word].relocation.offset == range.word * 4);
 
    const uint16_t align_mul = nir_intrinsic_align_mul(load);
    const uint16_t align_offset = nir_intrinsic_align_offset(load);
