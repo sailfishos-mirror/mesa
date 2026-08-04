@@ -1280,3 +1280,51 @@ pub fn test_uldc_global() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_f2fp() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+    let r3 = RegRef::new(RegFile::GPR, 3, 1);
+    let ur1 = RegRef::new(RegFile::UGPR, 1, 1);
+    let ur2 = RegRef::new(RegFile::UGPR, 2, 1);
+    let ur3 = RegRef::new(RegFile::UGPR, 3, 1);
+
+    let rnd_modes = [(FRndMode::NearestEven, ""), (FRndMode::Zero, ".rz")];
+
+    for &sm in sm_list() {
+        if sm < 80 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+
+        let conv_type_str = if sm >= 89 { ".f16.f32" } else { "" };
+        let conv_type_uniform_str = if sm >= 120 { ".f16.f32" } else { "" };
+        for (rnd_mode, rnd_mode_str) in rnd_modes {
+            let instr = OpF2FP {
+                dst: r1.into(),
+                srcs: [r2.into(), r3.into()],
+                rnd_mode,
+            };
+            let disasm = format!(
+                "f2fp{conv_type_str}.pack_ab{rnd_mode_str} r1, r2, r3;"
+            );
+            c.push(instr, disasm);
+
+            if sm >= 86 {
+                let instr = OpF2FP {
+                    dst: ur1.into(),
+                    srcs: [ur2.into(), ur3.into()],
+                    rnd_mode,
+                };
+                let disasm = format!(
+                    "uf2fp{conv_type_uniform_str}.pack_ab{rnd_mode_str} ur1, ur2, ur3;"
+                );
+                c.push(instr, disasm);
+            }
+        }
+
+        c.check(sm);
+    }
+}
