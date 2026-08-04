@@ -110,6 +110,18 @@ panvk_lower_sysvals(nir_builder *b, nir_instr *instr, void *data)
       else
          val = load_sysval(b, graphics, bit_size, layer_id);
       break;
+#else
+   case nir_intrinsic_load_view_index:
+      /* this is usually lowered with nir_lower_multiview, but if
+       * view_mask == 0 we still need something to load.
+       */
+      if (ctx->state->mv->view_mask == 0) {
+         val = nir_imm_zero(b, 1, 32);
+      } else {
+         assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+         return false;
+      }
+      break;
 #endif
 
    case nir_intrinsic_load_draw_id:

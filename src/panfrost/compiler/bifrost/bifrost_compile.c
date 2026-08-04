@@ -2114,7 +2114,8 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_load_view_index:
-      if (b->shader->arch >= 14 && b->shader->stage == MESA_SHADER_VERTEX) {
+      if (b->shader->stage == MESA_SHADER_VERTEX) {
+         assert(b->shader->arch >= 14);
          bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_VIEW_ID));
          break;
       }
