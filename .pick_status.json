@@ -2964,7 +2964,7 @@
         "description": "panvk/v10+: Fix unbound LD_ATTR.auto32",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
