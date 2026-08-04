@@ -4034,7 +4034,7 @@
         "description": "radv: fix blitting for 2D array to 3D with a Z flip",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
