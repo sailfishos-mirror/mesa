@@ -501,19 +501,21 @@ ac_fill_hw_ip_info(struct radeon_info *info, const struct drm_amdgpu_info_device
       info->ip[ip_type].ver_major = ip_info->hw_ip_version_major;
       info->ip[ip_type].ver_minor = ip_info->hw_ip_version_minor;
 
-      /* Fix incorrect IP versions reported by the kernel. */
-      if (device_info->family == FAMILY_NV &&
-            (ASICREV_IS(device_info->external_rev, NAVI10) ||
-            ASICREV_IS(device_info->external_rev, NAVI12) ||
-            ASICREV_IS(device_info->external_rev, NAVI14) ||
-            ASICREV_IS(device_info->external_rev, GFX1013)))
-         info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 1;
-      else if (device_info->family == FAMILY_NV ||
-               device_info->family == FAMILY_VGH ||
-               device_info->family == FAMILY_RMB ||
-               device_info->family == FAMILY_RPL ||
-               device_info->family == FAMILY_MDN)
-         info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 3;
+      if (ip_type == AMD_IP_GFX) {
+         /* Fix incorrect IP versions reported by the kernel. */
+         if (device_info->family == FAMILY_NV &&
+               (ASICREV_IS(device_info->external_rev, NAVI10) ||
+               ASICREV_IS(device_info->external_rev, NAVI12) ||
+               ASICREV_IS(device_info->external_rev, NAVI14) ||
+               ASICREV_IS(device_info->external_rev, GFX1013)))
+            info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 1;
+         else if (device_info->family == FAMILY_NV ||
+                  device_info->family == FAMILY_VGH ||
+                  device_info->family == FAMILY_RMB ||
+                  device_info->family == FAMILY_RPL ||
+                  device_info->family == FAMILY_MDN)
+            info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 3;
+      }
    }
 
    /* According to the kernel, only SDMA and VPE require 256B alignment, but use it
