@@ -1504,7 +1504,7 @@
         "description": "gallivm: orcjit: fix use-after-free in remove_jd() during exit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5f22e152ade956fdce1b0cba8097d76aac085c92",
         "notes": null
