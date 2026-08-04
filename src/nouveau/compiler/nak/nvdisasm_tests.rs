@@ -108,6 +108,12 @@ fn disassemble_instrs(instrs: Vec<Instr>, sm: u8) -> Vec<String> {
                 .trim()
                 .into();
             line.make_ascii_lowercase();
+
+            // Remove possible scheduling infos present as seen on CUDA 12.8.xx
+            if let Some(pos) = line.find('?') {
+                line = line[0..pos].trim().into();
+                line.push_str(" ;");
+            }
             line
         })
         .collect();
