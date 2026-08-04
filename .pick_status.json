@@ -1044,7 +1044,7 @@
         "description": "kk: Fix icd json api version",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ae820e242697ab7e8de3d3652cfd7188267a10b4",
         "notes": null
