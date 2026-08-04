@@ -268,3 +268,52 @@ bool intel_perf_metrics_library_activate_configuration(struct intel_perf_config 
    StatusCode status = api->ConfigurationActivate(config_handle, &activate_data);
    return status == StatusCode::Success;
 }
+
+bool intel_perf_metrics_library_get_stream_marker_cmds(struct intel_perf_config *perf, uint32_t marker_value, void* cmds, uint32_t* cmds_size)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api || !cmds_size)
+      return false;
+
+   StatusCode status = StatusCode::Failed;
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+
+   if (!cmds || *cmds_size == 0)
+   {
+      if (!api->CommandBufferGetSize)
+         return false;
+      
+      CommandBufferData_1_0 data = {};
+      CommandBufferSize_1_0 size = {};
+
+      data.HandleContext.data = perf->metrics_library.context;
+      data.CommandsType = ObjectType::MarkerStreamUser;
+      data.Type = GpuCommandBufferType::Render;
+      data.MarkerStreamUser.Value = marker_value;
+
+      status = api->CommandBufferGetSize(&data, &size);
+
+      if (status != StatusCode::Success)
+         return false;
+
+      *cmds_size = size.GpuMemorySize;
+      return true;
+   }
+
+   if (cmds && *cmds_size > 0)
+   {
+      CommandBufferData_1_0 data = {};
+      data.HandleContext.data = perf->metrics_library.context;
+      data.CommandsType = ObjectType::MarkerStreamUser;
+      data.Type = GpuCommandBufferType::Render;
+      data.MarkerStreamUser.Value = marker_value;
+
+      status = api->CommandBufferGet(&data);
+
+      if (status != StatusCode::Success)
+         return false;
+
+      return true;
+   }
+
+   return false;
+}

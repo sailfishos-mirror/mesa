@@ -39,6 +39,7 @@ void* intel_perf_metrics_library_create_query_pool(struct intel_perf_config *per
 bool intel_perf_metrics_library_destroy_query_pool(struct intel_perf_config *perf, void* query_pool);
 bool intel_perf_metrics_library_get_query_results(struct intel_perf_config *perf, void* query_pool, void* data, uint32_t query_index, bool* write_results);
 bool intel_perf_metrics_library_activate_configuration(struct intel_perf_config *perf, uint64_t config_id);
+bool intel_perf_metrics_library_get_stream_marker_cmds(struct intel_perf_config *perf, uint32_t marker_value, void* cmds, uint32_t* cmds_size);
 
 #ifdef __cplusplus
 }

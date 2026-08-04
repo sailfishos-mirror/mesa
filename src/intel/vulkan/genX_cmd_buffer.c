@@ -41,6 +41,9 @@
 #include "genX_mi_builder.h"
 #include "genX_cmd_draw_generated_flush.h"
 
+#include "perf/intel_perf.h"
+#include "perf/intel_perf_metrics_library.h"
+
 static void emit_pipe_control(struct anv_batch *batch,
                               const struct intel_device_info *devinfo,
                               uint32_t current_pipeline,
@@ -7486,7 +7489,27 @@ VkResult genX(CmdSetPerformanceStreamMarkerINTEL)(
     VkCommandBuffer                             commandBuffer,
     const VkPerformanceStreamMarkerInfoINTEL*   pMarkerInfo)
 {
-   /* TODO: Waiting on the register to write, might depend on generation. */
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   if (cmd_buffer->device->physical->perf->use_metrics_library) {
+      bool success = false;
+      uint32_t cmds_size = 0;
+
+      if (intel_perf_metrics_library_get_stream_marker_cmds(
+             cmd_buffer->device->physical->perf, pMarkerInfo->marker,
+             NULL, &cmds_size)) {
+         void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
+
+         success = cmds && intel_perf_metrics_library_get_stream_marker_cmds(
+            cmd_buffer->device->physical->perf, pMarkerInfo->marker,
+            cmds, &cmds_size);
+      }
+
+      if (!success) {
+         anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_HOST_MEMORY);
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+      }
+   }
 
    return VK_SUCCESS;
 }
