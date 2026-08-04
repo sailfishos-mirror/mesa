@@ -554,6 +554,13 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
       I->src[3] = jay_collect_vectors(b, &p.srcs[split], p.nr_srcs - split);
    }
 
+   if (jay_type_size_bits(p.type) == 16 &&
+       !p.uniform &&
+       b->shader->dispatch_width == 32) {
+      unsigned stride = b->shader->dispatch_width / 2;
+      I->dst = jay_alloc_def(b, UGPR, stride * jay_num_values(I->dst));
+   }
+
    /* For message headers we pack a UGPR vector as a single GRF */
    unsigned lens[3];
    for (unsigned i = 0; i < 3; ++i) {
@@ -621,6 +628,20 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
    }
 
    jay_builder_insert(b, I);
+
+   if (!jay_defs_equivalent(p.dst, I->dst)) {
+      /* Unpack 16-bit vectors to match the hardware with the data model.
+       *
+       * XXX: This is a hack.
+       */
+      unsigned stride = b->shader->dispatch_width / 2;
+      assert(stride % jay_ugpr_per_grf(b->shader) == 0);
+      for (unsigned i = 0; i < jay_num_values(p.dst); ++i) {
+         jay_def src = jay_extract_range(I->dst, i * stride, stride);
+         jay_MOV(b, jay_extract(p.dst, i), src)->type = JAY_TYPE_U16;
+      }
+   }
+
    return I;
 }
 
