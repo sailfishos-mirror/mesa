@@ -131,7 +131,7 @@ radv_compute_queue_enabled(const struct radv_physical_device *pdev)
           (!(instance->debug_flags & RADV_DEBUG_NO_COMPUTE_QUEUE) || !pdev->info.has_graphics);
 }
 
-static bool
+bool
 radv_graphics_queue_enabled(const struct radv_physical_device *pdev)
 {
    return pdev->info.ip[AMD_IP_GFX].num_queues > 0;
