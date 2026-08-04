@@ -2110,13 +2110,32 @@ impl SM70Op for OpF2FP {
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
-        e.encode_alu(
-            0x03e,
-            Some(&self.dst),
-            Some(&self.srcs[0]),
-            Some(&self.srcs[1]),
-            Some(&Src::ZERO),
-        );
+        assert!(e.sm >= 80);
+        if self.is_uniform() {
+            assert!(e.sm >= 86);
+            e.encode_ualu(
+                0x0ba,
+                Some(&self.dst),
+                Some(&self.srcs[0]),
+                Some(&self.srcs[1]),
+                Some(&Src::ZERO),
+            );
+
+            // Uniform form always expect the type size on SM86
+            let dst_type = FloatType::F16;
+            let src_type = FloatType::F32;
+
+            e.set_field(75..77, (dst_type.bits() / 8).ilog2());
+            e.set_field(84..86, (src_type.bits() / 8).ilog2());
+        } else {
+            e.encode_alu(
+                0x03e,
+                Some(&self.dst),
+                Some(&self.srcs[0]),
+                Some(&self.srcs[1]),
+                Some(&Src::ZERO),
+            );
+        }
 
         // .MERGE_C behavior
         // Use src1 and src2, src0 is unused

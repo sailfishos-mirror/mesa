@@ -145,8 +145,9 @@ impl ShaderModel for ShaderModel70 {
             | Op::Pin(_)
             | Op::Unpin(_)
             | Op::Ldcg(_) => true,
+            Op::F2FP(_) => self.sm() >= 86,
             Op::Ldc(op) => op.offset.is_zero(),
-            // UCLEA  USHL  USHR
+            // UCLEA
             _ => false,
         }
     }
