@@ -264,7 +264,7 @@
         "description": "ac/gpu_info: fix detecting AMD BC250 as RDNA1",
         "nominated": false,
         "nomination_type": 2,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ddbdc9826344d121f608fc77ede21a0d9cc2eb2f",
         "notes": null
