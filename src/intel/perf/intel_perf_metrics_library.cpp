@@ -94,3 +94,28 @@ bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd)
 
    return true;
 }
+
+bool intel_perf_deinit_metrics_library(struct intel_perf_config *perf)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.destroy_context_func)
+      return false;
+
+   ContextHandle_1_0 context_handle = {};
+   context_handle.data = perf->metrics_library.context;
+
+   ContextDeleteFunction_1_0 destroy_context = (ContextDeleteFunction_1_0)perf->metrics_library.destroy_context_func;
+   StatusCode status = destroy_context(context_handle);
+   if (status != StatusCode::Success)
+      return false;
+
+   delete (Interface_1_0*)perf->metrics_library.api;
+   perf->metrics_library.api = nullptr;
+   delete (ClientCallbacks_1_0*)perf->metrics_library.callbacks;
+   perf->metrics_library.callbacks = nullptr;
+   dlclose(perf->metrics_library.lib);
+   perf->metrics_library.lib = nullptr;
+   perf->metrics_library.context = nullptr;
+   perf->metrics_library.destroy_context_func = nullptr;
+
+   return true;
+}

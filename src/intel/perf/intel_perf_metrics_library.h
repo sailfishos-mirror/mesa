@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 bool intel_perf_init_metrics_library(struct intel_perf_config *perf, int fd);
+bool intel_perf_deinit_metrics_library(struct intel_perf_config *perf);
 
 #ifdef __cplusplus
 }

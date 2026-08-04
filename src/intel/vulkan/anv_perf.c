@@ -314,6 +314,10 @@ void anv_UninitializePerformanceApiINTEL(
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
 
+   if (device->physical->perf->use_metrics_library) {
+      intel_perf_deinit_metrics_library(device->physical->perf);
+   }
+
    anv_device_perf_close(device);
 }
 
