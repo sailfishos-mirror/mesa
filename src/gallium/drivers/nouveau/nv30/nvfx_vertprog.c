@@ -559,9 +559,7 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
       nvfx_vp_emit(vpc, arith(0, VEC, ARL, dst, mask, src[0], none, none));
       break;
    case TGSI_OPCODE_CEIL:
-      tmp = nvfx_src(temp(vpc));
-      nvfx_vp_emit(vpc, arith(0, VEC, FLR, tmp.reg, mask, neg(src[0]), none, none));
-      nvfx_vp_emit(vpc, arith(sat, VEC, MOV, dst, mask, neg(tmp), none, none));
+      NOUVEAU_ERR("CEIL should have been lowered.\n");
       break;
    case TGSI_OPCODE_CMP:
       insn = arith(0, VEC, MOV, none.reg, mask, src[0], none, none);

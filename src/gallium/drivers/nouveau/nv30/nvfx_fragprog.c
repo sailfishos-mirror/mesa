@@ -539,9 +539,7 @@ nvfx_fragprog_parse_instruction(struct nvfx_fpc *fpc,
       nvfx_fp_emit(fpc, arith(sat, ADD, dst, mask, src[0], src[1], none));
       break;
    case TGSI_OPCODE_CEIL:
-      tmp = nvfx_src(temp(fpc));
-      nvfx_fp_emit(fpc, arith(0, FLR, tmp.reg, mask, neg(src[0]), none, none));
-      nvfx_fp_emit(fpc, arith(sat, MOV, dst, mask, neg(tmp), none, none));
+      NOUVEAU_ERR("CEIL should have been lowered.\n");
       break;
    case TGSI_OPCODE_CMP:
       insn = arith(0, MOV, none.reg, mask, src[0], none, none);

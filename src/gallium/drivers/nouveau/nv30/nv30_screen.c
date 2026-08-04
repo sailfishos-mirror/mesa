@@ -349,6 +349,7 @@ nv30_screen_is_format_supported(struct pipe_screen *pscreen,
    .lower_flrp32 = true,\
    .lower_flrp64 = true,\
    .lower_fmod = true, \
+   .lower_fceil = true, \
    .lower_uniforms_to_ubo = true,\
    .force_indirect_unrolling = nir_var_all,\
    .force_indirect_unrolling_sampler = true,\
