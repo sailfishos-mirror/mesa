@@ -1120,7 +1120,8 @@ impl SM70Op for OpMuFu {
                 MuFuOp::Rcp64H => 6_u8,
                 MuFuOp::Rsq64H => 7_u8,
                 MuFuOp::Sqrt => 8_u8,
-                MuFuOp::Tanh => 9_u8,
+                MuFuOp::Tanh if e.sm >= 75 => 9_u8,
+                MuFuOp::Tanh => panic!("MUFU.TANH not supported on SM70"),
             },
         );
     }
