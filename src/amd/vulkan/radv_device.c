@@ -790,6 +790,9 @@ init_app_workarounds_entrypoints(struct radv_device *device, struct dispatch_tab
       SET_ENTRYPOINT(strange_brigade, CmdPipelineBarrier2);
    } else if (!strcmp(pdev->drirc.debug.app_layer, "gfxbench5")) {
       SET_ENTRYPOINT(gfxbench5, CmdPipelineBarrier2);
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "ue5")) {
+      SET_ENTRYPOINT(ue5, CmdSetViewport);
+      SET_ENTRYPOINT(ue5, CmdSetScissor);
    }
 #undef SET_ENTRYPOINT
 
