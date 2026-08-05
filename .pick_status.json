@@ -1894,7 +1894,7 @@
         "description": "nir: Add missing lower_io case",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "355c9b88f7218930d2397e08e10e037a596b4367",
         "notes": null
