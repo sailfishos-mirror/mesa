@@ -4764,7 +4764,7 @@
         "description": "ac/nir/lower_tex_coords: fix moving vector FS inputs loads",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ac33f82d54b764f3a82cfab19ba073e4637d0884",
         "notes": null
