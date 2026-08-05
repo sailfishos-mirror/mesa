@@ -221,6 +221,7 @@ pub extern "C" fn kraid_compile_nir(
     s.assign_registers();
     pass!(s.lower_copy());
     pass!(s.assign_message_slots());
+    pass!(s.mark_reconvergence());
 
     info.stats = s.get_stats();
 

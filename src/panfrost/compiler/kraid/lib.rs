@@ -26,6 +26,7 @@ mod opt_dce;
 mod parallel_copy;
 mod phi;
 mod ra;
+mod reconvergence;
 mod remat_constants;
 mod repair_ssa;
 mod small_constants;
