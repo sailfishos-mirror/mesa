@@ -780,6 +780,9 @@ init_app_workarounds_entrypoints(struct radv_device *device, struct dispatch_tab
       SET_ENTRYPOINT(no_mans_sky, CreateImageView);
    } else if (!strcmp(instance->drirc.debug.app_layer, "strange_brigade")) {
       SET_ENTRYPOINT(strange_brigade, CmdPipelineBarrier2);
+   } else if (!strcmp(instance->drirc.debug.app_layer, "ue5")) {
+      SET_ENTRYPOINT(ue5, CmdSetViewport);
+      SET_ENTRYPOINT(ue5, CmdSetScissor);
    }
 #undef SET_ENTRYPOINT
 
