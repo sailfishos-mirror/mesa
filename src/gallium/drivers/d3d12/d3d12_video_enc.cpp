@@ -5210,6 +5210,13 @@ int d3d12_video_encoder_get_encode_headers([[maybe_unused]] struct pipe_video_co
                                                       postEncodeHeadersNeeded,
                                                       preEncodeGeneratedHeadersByteSize,
                                                       pWrittenCodecUnitsSizes);
+#if VIDEO_CODEC_AV1ENC
+   if (postEncodeHeadersNeeded) {
+      preEncodeGeneratedHeadersByteSize =
+         d3d12_video_encoder_build_codec_sequence_headers_av1(pD3D12Enc, pWrittenCodecUnitsSizes);
+   }
+#endif
+
    if (preEncodeGeneratedHeadersByteSize > *bitstream_buf_size)
       return ENOMEM;
 
