@@ -120,6 +120,9 @@
     - changes:
         *panfrost_bifrost_file_list
       when: on_success
+    - changes: &panfrost_kraid_file_list
+        - src/panfrost/compiler/kraid/**/*
+      when: on_success
 
 .panfrost-vk-panfrost-rules:
   extends: .panfrost-vk-rules-common
