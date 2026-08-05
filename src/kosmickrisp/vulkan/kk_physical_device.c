@@ -211,6 +211,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_external_semaphore_fd = true,
 
       .AMD_shader_image_load_store_lod = true,
+      .AMD_buffer_marker = true,
    };
 }
 
