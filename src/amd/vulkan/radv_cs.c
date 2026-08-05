@@ -59,7 +59,7 @@ radv_cp_acquire_mem(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, un
 static void
 gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, uint32_t *flush_cnt,
                           uint64_t flush_va, enum radv_cmd_flush_bits flush_bits,
-                          enum ac_rgp_flush_bits *rgp_flush_bits)
+                          enum radv_pws_acquire_point pws_acquire_point, enum ac_rgp_flush_bits *rgp_flush_bits)
 {
    const bool is_mec = cs->hw_ip == AMD_IP_COMPUTE;
    uint32_t gcr_cntl = 0;
@@ -145,15 +145,54 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          /* Send an event that flushes caches. */
          ac_emit_cp_release_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, gcr_cntl & C_587_GLI_INV);
 
+         /* The RELEASE_MEM above already flushed the data caches, so the ACQUIRE only has to
+          * invalidate the I$ (GLI_INV, which RELEASE_MEM can't handle).
+          */
+         uint32_t acquire_gcr_cntl = gcr_cntl & ~C_587_GLI_INV; /* keep only GLI_INV */
+
+         /* Select the ACQUIRE point (PWS stage). The data caches are already flushed, so ME is
+          * enough unless a PFP_SYNC_ME is pending (then PFP); the barrier destination stage below
+          * can defer the wait further to PRE_DEPTH.
+          */
+         uint32_t pws_stage = flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME;
+
+         if (!is_mec) {
+            enum radv_pws_acquire_point acquire_point = pws_acquire_point;
+
+            /* HW limitation: GCR cache ops during an ACQUIRE can only be performed at the PFP/ME
+             * stage. If the ACQUIRE still needs to invalidate the I$ (GLI_INV), don't defer the
+             * wait past ME.
+             */
+            if (acquire_point < RADV_PWS_ACQUIRE_POINT_ME && G_587_GLI_INV(acquire_gcr_cntl) != 0)
+               acquire_point = RADV_PWS_ACQUIRE_POINT_ME;
+
+            switch (acquire_point) {
+            case RADV_PWS_ACQUIRE_POINT_PRE_DEPTH:
+               pws_stage = V_581B_PRE_DEPTH;
+               /* A PRE_DEPTH ACQUIRE can't carry GCR bits; GLI_INV is 0 here (see the clamp
+                * above), so drop the remaining bits to make the ACQUIRE a pure wait.
+                */
+               acquire_gcr_cntl = 0;
+               break;
+            case RADV_PWS_ACQUIRE_POINT_ME:
+               pws_stage = V_581B_CP_ME;
+               break;
+            default:
+               break;
+            }
+         }
+
          /* Wait for the event and invalidate remaining caches if needed. */
-         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event,
-                                    flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME, 0,
-                                    gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
+         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, pws_stage, 0, acquire_gcr_cntl);
 
          gcr_cntl = 0; /* all done */
 
-         /* ACQUIRE_MEM in PFP is implemented as ACQUIRE_MEM in ME + PFP_SYNC_ME. */
-         flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
+         /* A PFP ACQUIRE_MEM is implemented as an ACQUIRE at the ME plus a PFP_SYNC_ME, so it
+          * already syncs the PFP. A deferred (ME/PRE_DEPTH) ACQUIRE does not, so only drop a
+          * pending PFP_SYNC_ME when the ACQUIRE actually runs at the PFP.
+          */
+         if (pws_stage == V_581B_CP_PFP)
+            flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
       } else {
          /* CB/DB flush and invalidate (or possibly just a wait for a
           * meta flush) via RELEASE_MEM.
@@ -266,7 +305,8 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 void
 radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level,
                          uint32_t *flush_cnt, uint64_t flush_va, enum radv_cmd_flush_bits flush_bits,
-                         enum ac_rgp_flush_bits *rgp_flush_bits, uint64_t gfx9_eop_bug_va)
+                         enum ac_rgp_flush_bits *rgp_flush_bits, enum radv_pws_acquire_point pws_acquire_point,
+                         uint64_t gfx9_eop_bug_va)
 {
    unsigned cp_coher_cntl = 0;
    uint32_t flush_cb_db = flush_bits & (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB);
@@ -275,7 +315,7 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
    if (gfx_level >= GFX10) {
       /* GFX10 cache flush handling is quite different. */
-      gfx10_cs_emit_cache_flush(cs, gfx_level, flush_cnt, flush_va, flush_bits, rgp_flush_bits);
+      gfx10_cs_emit_cache_flush(cs, gfx_level, flush_cnt, flush_va, flush_bits, pws_acquire_point, rgp_flush_bits);
       return;
    }
 

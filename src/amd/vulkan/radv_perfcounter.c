@@ -656,7 +656,7 @@ radv_pc_wait_idle(struct radv_cmd_buffer *cmd_buffer)
    enum ac_rgp_flush_bits sqtt_flush_bits = 0;
 
    radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                            cmd_buffer->gfx9_fence_va, flush_bits, &sqtt_flush_bits, 0);
+                            cmd_buffer->gfx9_fence_va, flush_bits, &sqtt_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
 }
 
 /**

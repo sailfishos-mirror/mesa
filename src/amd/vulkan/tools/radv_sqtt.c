@@ -49,7 +49,7 @@ radv_emit_wait_for_idle(const struct radv_device *device, struct radv_cmd_stream
           ? RADV_CMD_FLAG_CS_PARTIAL_FLUSH
           : (RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) |
          RADV_CMD_FLAG_INV_ICACHE | RADV_CMD_FLAG_INV_SCACHE | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2,
-      &rgp_flush_bits, 0);
+      &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
 }
 
 static void

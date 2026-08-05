@@ -171,6 +171,17 @@ enum radv_cmd_flush_bits {
                                  RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2 | RADV_CMD_FLAG_CS_PARTIAL_FLUSH),
 };
 
+/* PWS (Pixel Wait Sync) acquire point, i.e. the pipeline stage at which a GFX11+ PWS ACQUIRE
+ * waits for a preceding RELEASE. The acquire point is derived from the barrier destination stage
+ * so the wait can be deferred to the latest legal pipeline stage.
+ */
+enum radv_pws_acquire_point {
+   RADV_PWS_ACQUIRE_POINT_NONE = 0,
+   RADV_PWS_ACQUIRE_POINT_PRE_DEPTH, /* Wait just before depth/fragment work. */
+   RADV_PWS_ACQUIRE_POINT_ME,        /* Wait at the CP micro-engine. */
+   RADV_PWS_ACQUIRE_POINT_PFP,       /* Wait at the CP prefetch parser (frontend). */
+};
+
 struct radv_streamout_binding {
    uint64_t va;
    VkDeviceSize size;
@@ -365,6 +376,8 @@ struct radv_cmd_state {
    struct radv_meta_saved_state meta;
 
    enum radv_cmd_flush_bits flush_bits;
+   /* Earliest PWS acquire point required by the currently pending flush_bits*/
+   enum radv_pws_acquire_point pws_acquire_point;
    unsigned active_occlusion_queries;
    bool perfect_occlusion_queries_enabled;
    unsigned active_pipeline_queries;
@@ -816,7 +829,7 @@ uint32_t radv_init_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *im
 
 uint32_t radv_init_display_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, uint32_t value);
 
-void radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer);
+void radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed);
 
 void radv_emit_set_predication_state(struct radv_cmd_buffer *cmd_buffer, bool draw_visible, unsigned pred_op,
                                      uint64_t va);
