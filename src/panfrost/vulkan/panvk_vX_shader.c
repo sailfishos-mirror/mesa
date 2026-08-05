@@ -113,15 +113,26 @@ panvk_lower_sysvals(nir_builder *b, nir_instr *instr, void *data)
       break;
 #else
    case nir_intrinsic_load_view_index:
-      /* this is usually lowered with nir_lower_multiview, but if
-       * view_mask == 0 we still need something to load.
-       */
       if (ctx->state->mv->view_mask == 0) {
          val = nir_imm_zero(b, 1, 32);
-      } else {
-         assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+         break;
+      } else if (b->shader->info.stage == MESA_SHADER_VERTEX) {
+         /* On v14+ we have real multiview and view_index comes from a preload
+          * in the vertex stage.  On earlier generations, view_index in vertex
+          * shaders gets lowered away by nir_lower_multiview() so we should
+          * never see it here.
+          */
+         assert(PAN_ARCH >= 14);
          return false;
       }
+
+      /* For fragment shaders, it's the same as layer_id */
+      assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+      FALLTHROUGH;
+
+   case nir_intrinsic_load_layer_id:
+      val = nir_load_frame_arg_pan(b);
+      val = nir_extract_u8_imm(b, nir_u2u32(b, val), 0);
       break;
 #endif
 
