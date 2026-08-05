@@ -236,7 +236,7 @@ panfrost-g610-vk-asan:arm64:
     LAVA_TAGS: at-least-8gb
 
 panfrost-g925-vk:arm64:
-  parallel: 4
+  parallel: 2
   extends:
     - .lava-arm64-test-vk
     - .panfrost-test
@@ -249,6 +249,14 @@ panfrost-g925-vk:arm64:
     DEQP_SUITE: panfrost-g925-vk
     HWCI_START_WESTON: 1
     FDO_CI_CONCURRENT: 8  # We get OOMkills if we go too wide since VKCTS 1.4.5.3
+    DEQP_FRACTION: 2
+
+panfrost-g925-vk-full:arm64:
+  extends:
+    - panfrost-g925-vk:arm64
+    - .panfrost-vk-manual-panthor-rules
+  variables:
+    DEQP_FRACTION: 1
 
 panfrost-g925-angle:arm64:
   extends:
