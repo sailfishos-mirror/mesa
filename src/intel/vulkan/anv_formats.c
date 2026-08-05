@@ -1666,7 +1666,6 @@ anv_get_image_format_properties(
    VkTextureLODGatherFormatPropertiesAMD *texture_lod_gather_props = NULL;
    VkImageCompressionPropertiesEXT *comp_props = NULL;
    VkHostImageCopyDevicePerformanceQueryEXT *host_props = NULL;
-   bool from_wsi = false;
    const bool is_sparse = info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
 
    /* Extract input structs */
@@ -1685,7 +1684,7 @@ anv_get_image_format_properties(
          /* Ignore but don't warn */
          break;
       case VK_STRUCTURE_TYPE_WSI_IMAGE_CREATE_INFO_MESA:
-         from_wsi = true;
+         /* Ignore but don't warn */
          break;
       case VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR:
          /* Ignore but don't warn */
@@ -1945,26 +1944,6 @@ anv_get_image_format_properties(
           * eglCreateImage, we require that the dma_buf for the primary surface
           * and the dma_buf for its aux surface refer to the same bo.
           */
-         goto unsupported;
-      }
-   }
-
-   if ((info->flags & VK_IMAGE_CREATE_ALIAS_BIT) && !from_wsi) {
-      /* Reject aliasing of images with non-linear DRM format modifiers because:
-       *
-       * 1. For modifiers with compression, we store aux tracking state in
-       *    ANV_IMAGE_MEMORY_BINDING_PRIVATE, which is not aliasable because it's
-       *    not client-bound.
-       *
-       * 2. For tiled modifiers without compression, we may attempt to compress
-       *    them behind the scenes, in which case both the aux tracking state
-       *    and the CCS data are bound to ANV_IMAGE_MEMORY_BINDING_PRIVATE.
-       *
-       * 3. For WSI we should ignore ALIAS_BIT because we have the ability to
-       *    bind the ANV_MEMORY_BINDING_PRIVATE from the other WSI image.
-       */
-      if (info->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
-          isl_mod_info->modifier != DRM_FORMAT_MOD_LINEAR) {
          goto unsupported;
       }
    }
