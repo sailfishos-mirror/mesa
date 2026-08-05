@@ -337,6 +337,19 @@ nv30_screen_is_format_supported(struct pipe_screen *pscreen,
    return (nv30_format_info(pscreen, format)->bindings & bindings) == bindings;
 }
 
+// todo:
+// reordering for better results?
+// lower_ftrunc, regression: dEQP-GLES2.functional.shaders.conversions.matrix_combine.float_ivec3_bvec3_vec4_ivec2_float_vec2_to_mat4_fragment
+// lower cmp (deeper changes needed),
+// lower DP2 (const or uninitialized tmp could be used for 0 to convert into dp3/dp4),
+// lower RSQ on nv40 (currently it's using scale that it not implemented outside),
+// cmp could be expressed as 2 instructions instead of three (moving conditionally first variable in spot of second or SLT + LRP on nv30)
+// fragment shader can use byte/word,
+// hardware allows for long shaders, figure out unrolling value,
+// hardware has opcodes that could be generated like lit/dst,
+// merging add/mov/mul into mad,
+// after isolating gallivm prepare separate config for it (for now speed of gpu is more important, as long as it works)
+
 #define NIR_OPTIONS_COMMONS \
    .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,\
    .lower_bitops = true,\
