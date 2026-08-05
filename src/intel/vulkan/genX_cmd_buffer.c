@@ -3470,10 +3470,20 @@ genX(flush_descriptor_buffers)(struct anv_cmd_buffer *cmd_buffer,
    struct anv_push_constants *push_constants =
       &pipe_state->push_constants;
    if (cmd_buffer->state.current_db_mode == ANV_CMD_DESCRIPTOR_BUFFER_MODE_HEAP) {
-      /* TODO handle non 4k aligned offsets */
+#if GFX_VERx10 < 125
+      struct anv_device *device = cmd_buffer->device;
+      push_constants->desc_surface_offsets[0] =
+         cmd_buffer->state.descriptor_buffers.surfaces_address % 4096;
+      push_constants->surfaces_base_offset =
+         ROUND_DOWN_TO(
+            cmd_buffer->state.descriptor_buffers.surfaces_address,
+            4096) -
+         anv_physical_device_get_dynamic_visible_pool_va(device->physical)->addr;
+#else
       push_constants->desc_surface_offsets[0] =
          cmd_buffer->state.descriptor_buffers.surfaces_address -
          cmd_buffer->device->physical->va.dynamic_visible_pool.addr;
+#endif
       push_constants->desc_surface_offsets[1] =
          cmd_buffer->state.descriptor_buffers.samplers_address -
          anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr;

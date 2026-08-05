@@ -6594,7 +6594,7 @@
         "description": "anv: fix descriptor heap with non buffer aligned addresses pre Gfx12.5",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "247afa047e11afcbb4d37fe660982b66e2d1d28b",
         "notes": null
