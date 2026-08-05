@@ -854,7 +854,7 @@
         "description": "nouveau/drm-shim: use a 64 bit constant for the VRAM BAR size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6fc211335ab604681085a372ed656c5afe5bb150",
         "notes": null
