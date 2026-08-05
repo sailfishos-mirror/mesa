@@ -33,44 +33,6 @@
 #include "vk_object.h"
 #include "vk_util.h"
 
-bool
-panvk_image_can_use_afbc(
-   struct panvk_physical_device *phys_dev, VkFormat fmt,
-   VkImageUsageFlags usage, VkImageType type, VkImageTiling tiling,
-   VkImageCreateFlags flags)
-{
-   unsigned arch = pan_arch(phys_dev->kmod.dev->props.gpu_id);
-   enum pipe_format pfmt = vk_format_to_pipe_format(fmt);
-
-   /* Disallow AFBC if either of these is true
-    * - PANVK_DEBUG does not have the 'afbc' flag set
-    * - storage image views are requested
-    * - host image copies are requested
-    * - the GPU doesn't support AFBC
-    * - the format is not AFBC-able
-    * - tiling is set to linear
-    * - this is a 1D image
-    * - this is a 3D image on a pre-v7 GPU
-    * - this is a mutable format image on v7- (format re-interpretation is
-    *   not possible on Bifrost hardware)
-    * - this is a sparse image
-    *
-    * Some of these checks are redundant with tests provided by the AFBC mod
-    * handler when pan_image_test_props() is called, but we need them because
-    * panvk_image_can_use_afbc() is also called from
-    * GetPhysicalDeviceImageFormatProperties2() and we don't have enough
-    * information to conduct a full image property check in this context.
-    */
-   return !PANVK_DEBUG(NO_AFBC) &&
-          !(usage &
-            (VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_HOST_TRANSFER_BIT)) &&
-          pan_query_afbc(&phys_dev->kmod.dev->props) &&
-          pan_afbc_supports_format(arch, pfmt) &&
-          tiling != VK_IMAGE_TILING_LINEAR && type != VK_IMAGE_TYPE_1D &&
-          (type != VK_IMAGE_TYPE_3D || arch >= 7) &&
-          (!(flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) || arch >= 9) &&
-          (!(flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT));
-}
 
 static enum mali_texture_dimension
 panvk_image_type_to_mali_tex_dim(VkImageType type)
