@@ -3157,6 +3157,14 @@ tu7_emit_concurrent_binning_start(struct tu_cmd_buffer *cmd,
        tu7_cb_disable_reason(
           (!cmd->state.lrz.fast_clear && cmd->state.lrz.image_view), cmd,
           "LRZ fast clear disabled") ||
+       /* A partially covering flag RAM needs the uncovered blocks cleared by a
+        * blit, which can only be emitted in BR. BV would then run against an
+        * LRZ buffer whose tail still holds stale depths and over-cull.
+        */
+       tu7_cb_disable_reason(
+          cmd->state.lrz.image_view &&
+          !fdl6_lrz_fc_fully_covered(&cmd->state.lrz.image_view->image->lrz_layout),
+          cmd, "partial LRZ fast clear") ||
        tu7_cb_disable_reason(!cmd->device->instance->drirc.perf.allow_concurrent_binning, cmd,
                              "globally disabled")) {
      tu_cs_emit_pkt7(cs, CP_THREAD_CONTROL, 1);

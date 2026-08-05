@@ -569,6 +569,15 @@ tu_lrz_clear(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
       if (CHIP >= A7XX)
          tu_cs_emit_regs(cs, GRAS_LRZ_DEPTH_CLEAR(CHIP, clear_value->depthStencil.depth));
       tu_emit_event_write<CHIP>(cmd, cs, FD_LRZ_CLEAR);
+
+      /* The flag RAM may not cover the whole LRZ image. FD_LRZ_CLEAR only
+       * clears the part it does cover, so clear the rest explicitly.
+       */
+      if (fast_clear) {
+         if (!fdl6_lrz_fc_fully_covered(&image->lrz_layout)) {
+            tu6_clear_lrz_partial<CHIP>(cmd, cs, image, clear_value);
+         }
+      }
    }
 
    if (!fast_clear) {
