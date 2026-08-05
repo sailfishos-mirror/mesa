@@ -77,6 +77,25 @@ dominates(const nir_instr *old_instr, const nir_instr *new_instr)
 }
 
 static bool
+allow_discard(const nir_intrinsic_instr *intrin, const void *data)
+{
+   (void)data;
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_terminate:
+   case nir_intrinsic_terminate_if:
+   case nir_intrinsic_demote:
+   case nir_intrinsic_demote_if:
+      /* If a terminate/demote dominates another with the same source,
+       * the second won't affect additional invocations.
+       */
+      return true;
+   default:
+      return false;
+   }
+}
+
+static bool
 nir_opt_cse_impl(nir_function_impl *impl)
 {
    struct set instr_set;
@@ -89,7 +108,7 @@ nir_opt_cse_impl(nir_function_impl *impl)
    bool progress = false;
    nir_foreach_block(block, impl) {
       nir_foreach_instr_safe(instr, block) {
-         if (nir_instr_set_add_or_rewrite(&instr_set, instr, NULL, NULL, dominates)) {
+         if (nir_instr_set_add_or_rewrite(&instr_set, instr, allow_discard, NULL, dominates)) {
             progress = true;
             nir_instr_remove(instr);
          }

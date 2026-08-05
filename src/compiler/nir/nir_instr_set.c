@@ -70,14 +70,6 @@ instr_can_rewrite(const nir_instr *instr, nir_intrin_filter_cb allow_additional_
           * CSE is inclined to without a problem.
           */
          return true;
-      case nir_intrinsic_terminate:
-      case nir_intrinsic_terminate_if:
-      case nir_intrinsic_demote:
-      case nir_intrinsic_demote_if:
-         /* If a terminate/demote dominates another with the same source,
-          * the second won't affect additional invocations.
-          */
-         return true;
       default:
          if (nir_intrinsic_can_reorder(intr))
             return true;
