@@ -621,10 +621,7 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
    case TGSI_OPCODE_NOP:
       break;
    case TGSI_OPCODE_POW:
-      tmp = nvfx_src(temp(vpc));
-      nvfx_vp_emit(vpc, arith(0, SCA, LG2, tmp.reg, NVFX_VP_MASK_X, none, none, swz(src[0], X, X, X, X)));
-      nvfx_vp_emit(vpc, arith(0, VEC, MUL, tmp.reg, NVFX_VP_MASK_X, swz(tmp, X, X, X, X), swz(src[1], X, X, X, X), none));
-      nvfx_vp_emit(vpc, arith(sat, SCA, EX2, dst, mask, none, none, swz(tmp, X, X, X, X)));
+      NOUVEAU_ERR("POW should have been lowered.\n");
       break;
    case TGSI_OPCODE_RCP:
       nvfx_vp_emit(vpc, arith(sat, SCA, RCP, dst, mask, none, none, src[0]));

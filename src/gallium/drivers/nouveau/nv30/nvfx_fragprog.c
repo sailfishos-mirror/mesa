@@ -642,10 +642,7 @@ nvfx_fragprog_parse_instruction(struct nvfx_fpc *fpc,
       if(!fpc->is_nv4x)
          nvfx_fp_emit(fpc, arith(sat, POW_NV30, dst, mask, src[0], src[1], none));
       else {
-         tmp = nvfx_src(temp(fpc));
-         nvfx_fp_emit(fpc, arith(0, LG2, tmp.reg, NVFX_FP_MASK_X, swz(src[0], X, X, X, X), none, none));
-         nvfx_fp_emit(fpc, arith(0, MUL, tmp.reg, NVFX_FP_MASK_X, swz(tmp, X, X, X, X), swz(src[1], X, X, X, X), none));
-         nvfx_fp_emit(fpc, arith(sat, EX2, dst, mask, swz(tmp, X, X, X, X), none, none));
+         NOUVEAU_ERR("POW should have been lowered.\n");
       }
       break;
    case TGSI_OPCODE_RCP:
