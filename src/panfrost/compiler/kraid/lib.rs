@@ -12,6 +12,7 @@ mod foldable;
 mod hw_tests;
 mod ir;
 mod isa;
+mod jump_thread;
 mod legalize;
 mod legalize_src_swizzles;
 mod liveness;

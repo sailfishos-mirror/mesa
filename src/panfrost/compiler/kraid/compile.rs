@@ -220,6 +220,14 @@ pub extern "C" fn kraid_compile_nir(
     // Shader::assign_registers() uses pass!() internally
     s.assign_registers();
     pass!(s.lower_copy());
+
+    // These have to happen after register allocation because they may add
+    // critical edges.
+    pass!(s.opt_jump_thread());
+    pass!(s.opt_fall_through());
+
+    // These have to happen last since we can't remove any instructions after
+    // they've completed.
     pass!(s.assign_message_slots());
     pass!(s.mark_reconvergence());
 

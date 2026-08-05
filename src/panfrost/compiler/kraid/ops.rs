@@ -339,6 +339,12 @@ pub struct OpBranch {
     pub label: Label,
 }
 
+impl OpBranch {
+    pub fn is_unconditional(&self) -> bool {
+        self.cond.is_zero() && self.not
+    }
+}
+
 impl DisplayOp for OpBranch {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "BRANCH")
