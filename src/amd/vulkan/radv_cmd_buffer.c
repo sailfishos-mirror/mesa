@@ -10219,10 +10219,9 @@ get_rendering_attachment_flags(const VkRenderingInfo *rendering_info, const VkRe
    return flags;
 }
 
-VKAPI_ATTR void VKAPI_CALL
-radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRenderingInfo)
+static void
+radv_cmd_buffer_begin_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *pRenderingInfo)
 {
-   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    VkExtent2D screen_scissor = {pdev->image_props.max_dims.width, pdev->image_props.max_dims.height};
@@ -10553,6 +10552,37 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
 }
 
 VKAPI_ATTR void VKAPI_CALL
+radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRenderingInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* From the Vulkan spec 1.4.358:
+    *
+    * "Until this command is called, mappings in the command buffer state are treated as each color
+    *  attachment specified in vkCmdBeginRendering having a location equal to its index in
+    *  VkRenderingInfo::pColorAttachments. This state is reset whenever vkCmdBeginRendering is
+    *  called."
+    *
+    * Same logic applies to vkCmdSetRenderingInputAttachmentIndices().
+    */
+   const VkRenderingAttachmentLocationInfo ral_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_LOCATION_INFO,
+      .colorAttachmentCount = pRenderingInfo->colorAttachmentCount,
+   };
+
+   radv_CmdSetRenderingAttachmentLocations(commandBuffer, &ral_info);
+
+   const VkRenderingInputAttachmentIndexInfo ria_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO,
+      .colorAttachmentCount = pRenderingInfo->colorAttachmentCount,
+   };
+
+   radv_CmdSetRenderingInputAttachmentIndices(commandBuffer, &ria_info);
+
+   radv_cmd_buffer_begin_rendering(cmd_buffer, pRenderingInfo);
+}
+
+VKAPI_ATTR void VKAPI_CALL
 radv_CmdEndRendering2KHR(VkCommandBuffer commandBuffer, const VkRenderingEndInfoKHR *pRenderingEndInfo)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
@@ -10709,7 +10739,7 @@ radv_CmdBeginCustomResolveEXT(VkCommandBuffer commandBuffer, const VkBeginCustom
    };
 
    radv_CmdEndRendering2KHR(radv_cmd_buffer_to_handle(cmd_buffer), &end_info);
-   radv_CmdBeginRendering(radv_cmd_buffer_to_handle(cmd_buffer), &rendering_info);
+   radv_cmd_buffer_begin_rendering(cmd_buffer, &rendering_info);
 
    STACK_ARRAY_FINISH(color_atts);
 }
