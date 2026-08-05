@@ -162,12 +162,14 @@ lower_jumps_in_if(nir_if *nif, struct loop_simplify_state *state)
       if (nif->cf_node.parent != &state->loop->cf_node)
          nir_cf_list_detach_ssa(&list);
 
-      state->b->cursor = nir_after_cf_node_and_phis(&nif->cf_node);
-      nir_if *if_stmt = nir_push_if(state->b, nir_load_reg(state->b, state->jump_flag));
+      /* The list might be empty if the only instructions at the merge block are phis. */
+      if (!exec_list_is_empty(&list.list)) {
+         state->b->cursor = nir_after_cf_node_and_phis(&nif->cf_node);
+         nir_if *if_stmt = nir_push_if(state->b, nir_load_reg(state->b, state->jump_flag));
 
-      assert(!exec_list_is_empty(&list.list));
-      nir_cf_reinsert(&list, nir_before_cf_list(&if_stmt->else_list));
-      nir_pop_if(state->b, NULL);
+         nir_cf_reinsert(&list, nir_before_cf_list(&if_stmt->else_list));
+         nir_pop_if(state->b, NULL);
+      }
    }
 
    return progress;

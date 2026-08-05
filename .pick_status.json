@@ -724,7 +724,7 @@
         "description": "nir/simplify_loops: fix predication of an empty cf list",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "31af989270fa47f7563e5b053952b871631c1a8a",
         "notes": null
