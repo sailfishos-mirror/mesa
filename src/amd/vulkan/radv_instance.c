@@ -114,18 +114,11 @@ static const struct debug_control radv_perftest_options[] = {
    {"nosam", RADV_PERFTEST_NO_SAM},
    {"sam", RADV_PERFTEST_SAM},
    {"nggc", RADV_PERFTEST_NGGC},
-   {"emulate_rt", RADV_PERFTEST_EMULATE_RT},
    {"rtwave64", RADV_PERFTEST_RT_WAVE_64},
-   {"video_decode", RADV_PERFTEST_VIDEO_DECODE},
    {"dmashaders", RADV_PERFTEST_DMA_SHADERS},
-   {"transfer_queue", RADV_PERFTEST_TRANSFER_QUEUE},
    {"nircache", RADV_PERFTEST_NIR_CACHE},
-   {"video_encode", RADV_PERFTEST_VIDEO_ENCODE},
    {"nogttspill", RADV_PERFTEST_NO_GTT_SPILL},
-   {"hic", RADV_PERFTEST_HIC},
-   {"sparse", RADV_PERFTEST_SPARSE},
    {"rtcps", RADV_PERFTEST_RT_CPS},
-   {"bfloat16", RADV_PERFTEST_BFLOAT16},
    {"lowlatencydec", RADV_PERFTEST_LOWLATENCYDEC},
    {"lowlatencyenc", RADV_PERFTEST_LOWLATENCYENC},
    {NULL, 0},
@@ -266,27 +259,6 @@ radv_parse_pstate(const char *str)
    }
 }
 
-static void
-radv_convert_perftest_to_experimental(struct radv_instance *instance)
-{
-#define CONVERT(name, flag)                                                                                            \
-   if (instance->perftest_flags & RADV_PERFTEST_##flag) {                                                              \
-      fprintf(stderr, "radv: RADV_PERFTEST=" #name " is deprecated and will be removed in future Mesa releases. "      \
-                      "Please use RADV_EXPERIMENTAL=" #name " instead.\n");                                            \
-      instance->experimental_flags |= RADV_EXPERIMENTAL_##flag;                                                        \
-   }
-
-   CONVERT(emulate_rt, EMULATE_RT);
-   CONVERT(video_decode, VIDEO_DECODE);
-   CONVERT(video_encode, VIDEO_ENCODE);
-   CONVERT(transfer_queue, TRANSFER_QUEUE);
-   CONVERT(hic, HIC);
-   CONVERT(sparse, SPARSE);
-   CONVERT(bfloat16, BFLOAT16);
-
-#undef CONVERT
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator,
                     VkInstance *pInstance)
@@ -357,8 +329,6 @@ radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationC
       fprintf(stderr, "radv: info: Created an instance.\n");
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
-
-   radv_convert_perftest_to_experimental(instance);
 
    if (instance->debug_flags & RADV_DEBUG_NO_COMPUTE_QUEUE) {
       fprintf(stderr, "radv: RADV_DEBUG=nocompute is deprecated and will be removed in future Mesa Releases.\n"

@@ -1627,10 +1627,6 @@ RADV driver environment variables
    ``sam``
       enable optimizations to move more driver internal objects to VRAM.
 
-   Note that bfloat16, emulate_rt, hic, sparse, transfer_queue, video_decode
-   and video_encode are deprecated and RADV_EXPERIMENTAL should be
-   used instead.
-
 .. envvar:: RADV_EXPERIMENTAL
 
    a comma-separated list of named flags, which do various things:
