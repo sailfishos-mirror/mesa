@@ -1363,6 +1363,59 @@ pub fn test_iabs() {
 }
 
 #[test]
+pub fn test_imnmx() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+    let r3 = RegRef::new(RegFile::GPR, 3, 1);
+    let p4 = RegRef::new(RegFile::Pred, 4, 1);
+    let ur1 = RegRef::new(RegFile::UGPR, 1, 1);
+    let ur2 = RegRef::new(RegFile::UGPR, 2, 1);
+    let ur3 = RegRef::new(RegFile::UGPR, 3, 1);
+    let up4 = RegRef::new(RegFile::UPred, 4, 1);
+
+    for &sm in sm_list() {
+        // IMNMX does not exist on Volta.
+        if sm == 70 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+
+        for (cmp_type, cmp_type_str) in
+            [(IntCmpType::U32, ".u32"), (IntCmpType::I32, "")]
+        {
+            let instr = OpIMnMx {
+                dst: r1.into(),
+                cmp_type,
+                srcs: [r2.into(), r3.into()],
+                min: p4.into(),
+            };
+            let disasm = if sm >= 120 {
+                format!("imnmx{cmp_type_str} pt, pt, r1, r2, r3, p4, !pt;")
+            } else {
+                format!("imnmx{cmp_type_str} r1, r2, r3, p4;")
+            };
+            c.push(instr, disasm);
+
+            if sm >= 120 {
+                let instr = OpIMnMx {
+                    dst: ur1.into(),
+                    cmp_type,
+                    srcs: [ur2.into(), ur3.into()],
+                    min: up4.into(),
+                };
+                let disasm = format!(
+                    "uimnmx{cmp_type_str} upt, upt, ur1, ur2, ur3, up4, !upt;"
+                );
+                c.push(instr, disasm);
+            }
+        }
+
+        c.check(sm);
+    }
+}
+
+#[test]
 pub fn test_float_ops() {
     let r1 = RegRef::new(RegFile::GPR, 1, 1);
     let r2 = RegRef::new(RegFile::GPR, 2, 1);
