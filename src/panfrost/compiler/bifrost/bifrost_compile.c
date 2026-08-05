@@ -2076,18 +2076,9 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_load_view_index:
-      if (b->shader->stage == MESA_SHADER_VERTEX) {
-         assert(b->shader->arch >= 14);
-         bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_VIEW_ID));
-         break;
-      }
-      FALLTHROUGH;
-
-   case nir_intrinsic_load_layer_id:
-      assert(b->shader->arch >= 9);
-      bi_mov_i32_to(
-         b, dst,
-         bi_u8_to_u32(b, bi_byte(bi_preload(b, BI_PRELOAD_FRAME_ARG_LO), 0)));
+      assert(b->shader->arch >= 14);
+      assert(b->shader->stage == MESA_SHADER_VERTEX);
+      bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_VIEW_ID));
       break;
 
    case nir_intrinsic_load_frame_arg_pan:
