@@ -97,6 +97,7 @@ fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
         } else {
             0
         },
+        lower_mediump_io: Some(pan_nir_lower_mediump_io),
         ..Default::default()
     }
 }
