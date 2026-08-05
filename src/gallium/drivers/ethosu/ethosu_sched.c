@@ -146,7 +146,12 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
    search_space.height = MIN2(search_space.height, operation->ofm.shape.height);
    search_space.depth = MIN2(search_space.depth, operation->ofm.shape.depth);
 
-   unsigned depth = MAX2(device->ofm_ublock.depth, MIN2(search_space.depth, ARCH_SPLIT_DEPTH));
+   search_space.width = align(search_space.width, device->ofm_ublock.width);
+   search_space.height = align(search_space.height, device->ofm_ublock.height);
+   search_space.depth = align(search_space.depth, device->ofm_ublock.depth);
+
+   unsigned depth =
+      MAX2(device->ofm_ublock.depth, MIN2(search_space.depth, ARCH_SPLIT_DEPTH));
 
    bool is_part_kernel = false;
    if (is_convolution) {
@@ -162,10 +167,6 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
    if (depth < operation->ofm.shape.depth) {
       depth = align(depth, ARCH_SPLIT_DEPTH);
    }
-
-   search_space.width = align(search_space.width, device->ofm_ublock.width);
-   search_space.height = align(search_space.height, device->ofm_ublock.height);
-   search_space.depth = align(search_space.depth, device->ofm_ublock.depth);
 
    while (depth <= search_space.depth) {
       bool wont_fit[search_space.height + 1][search_space.width + 1];
