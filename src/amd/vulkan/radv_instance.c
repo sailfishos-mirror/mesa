@@ -33,7 +33,6 @@ static const struct debug_control radv_debug_options[] = {
    {"nocache", RADV_DEBUG_NO_CACHE},
    {"shaderstats", RADV_DEBUG_DUMP_SHADER_STATS},
    {"nohiz", RADV_DEBUG_NO_HIZ},
-   {"nocompute", RADV_DEBUG_NO_COMPUTE_QUEUE},
    {"allbos", RADV_DEBUG_ALL_BOS},
    {"noibchaining", RADV_DEBUG_NO_IB_CHAINING},
    {"spirv", RADV_DEBUG_DUMP_SPIRV},
@@ -329,12 +328,6 @@ radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationC
       fprintf(stderr, "radv: info: Created an instance.\n");
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
-
-   if (instance->debug_flags & RADV_DEBUG_NO_COMPUTE_QUEUE) {
-      fprintf(stderr, "radv: RADV_DEBUG=nocompute is deprecated and will be removed in future Mesa Releases.\n"
-                      "Please use RADV_QUEUE_DISABLE=compute instead.\n");
-      instance->queue_disable_flags |= RADV_QUEUE_DISABLE_COMPUTE;
-   }
 
    radv_init_dri_options(instance);
 

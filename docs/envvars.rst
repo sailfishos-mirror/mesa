@@ -1467,8 +1467,6 @@ RADV driver environment variables
       disable primitive binning
    ``nocache``
       disable shaders cache
-   ``nocompute``
-      disable compute queue
    ``nodcc``
       disable Delta Color Compression (DCC) on images
    ``nodisplaydcc``
