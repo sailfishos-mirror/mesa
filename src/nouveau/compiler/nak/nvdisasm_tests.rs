@@ -1330,6 +1330,39 @@ pub fn test_f2fp() {
 }
 
 #[test]
+pub fn test_iabs() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+    let ur1 = RegRef::new(RegFile::UGPR, 1, 1);
+    let ur2 = RegRef::new(RegFile::UGPR, 2, 1);
+
+    for &sm in sm_list() {
+        if sm < 70 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+        let instr = OpIAbs {
+            dst: r1.into(),
+            src: r2.into(),
+        };
+        let disasm = format!("iabs r1, r2;");
+        c.push(instr, disasm);
+
+        if sm >= 120 {
+            let instr = OpIAbs {
+                dst: ur1.into(),
+                src: ur2.into(),
+            };
+            let disasm = format!("uiabs ur1, ur2;");
+            c.push(instr, disasm);
+        }
+
+        c.check(sm);
+    }
+}
+
+#[test]
 pub fn test_float_ops() {
     let r1 = RegRef::new(RegFile::GPR, 1, 1);
     let r2 = RegRef::new(RegFile::GPR, 2, 1);
