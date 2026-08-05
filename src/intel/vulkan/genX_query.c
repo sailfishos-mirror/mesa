@@ -1345,12 +1345,39 @@ void genX(CmdBeginQueryIndexedEXT)(
    }
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      genx_batch_emit_pipe_control(&cmd_buffer->batch,
-                                   cmd_buffer->device->info,
-                                   cmd_buffer->state.current_pipeline,
-                                   ANV_PIPE_CS_STALL_BIT |
-                                   ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
-      emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, false);
+      if (cmd_buffer->device->physical->perf->use_metrics_library) {
+         uint32_t cmds_size = 0;
+
+         if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                            pool->metrics_library_query_pool,
+                                                            anv_address_physical(query_addr),
+                                                            query_slot(pool, query),
+                                                            query,
+                                                            cmd_buffer->intel_perf_marker,
+                                                            true,
+                                                            NULL,
+                                                            &cmds_size)) {
+            void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
+
+            if (cmds)
+               intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                              pool->metrics_library_query_pool,
+                                                              anv_address_physical(query_addr),
+                                                              query_slot(pool, query),
+                                                              query,
+                                                              cmd_buffer->intel_perf_marker,
+                                                              true,
+                                                              cmds,
+                                                              &cmds_size);
+         }
+      } else {
+         genx_batch_emit_pipe_control(&cmd_buffer->batch,
+                                      cmd_buffer->device->info,
+                                      cmd_buffer->state.current_pipeline,
+                                      ANV_PIPE_CS_STALL_BIT |
+                                      ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
+         emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, false);
+      }
       break;
    }
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
@@ -1546,16 +1573,43 @@ void genX(CmdEndQueryIndexedEXT)(
    }
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      genx_batch_emit_pipe_control(&cmd_buffer->batch,
-                                   cmd_buffer->device->info,
-                                   cmd_buffer->state.current_pipeline,
-                                   ANV_PIPE_CS_STALL_BIT |
-                                   ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
-      uint32_t marker_offset = intel_perf_marker_offset();
-      mi_store(&b, mi_mem64(anv_address_add(query_addr, marker_offset)),
-                   mi_imm(cmd_buffer->intel_perf_marker));
-      emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, true);
-      emit_query_mi_availability(&b, query_addr, true);
+      if (cmd_buffer->device->physical->perf->use_metrics_library) {
+         uint32_t cmds_size = 0;
+
+         if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                            pool->metrics_library_query_pool,
+                                                            anv_address_physical(query_addr),
+                                                            query_slot(pool, query),
+                                                            query,
+                                                            cmd_buffer->intel_perf_marker,
+                                                            false,
+                                                            NULL,
+                                                            &cmds_size)) {
+            void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
+
+            if (cmds)
+               intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                              pool->metrics_library_query_pool,
+                                                              anv_address_physical(query_addr),
+                                                              query_slot(pool, query),
+                                                              query,
+                                                              cmd_buffer->intel_perf_marker,
+                                                              false,
+                                                              cmds,
+                                                              &cmds_size);
+         }
+      } else {
+         genx_batch_emit_pipe_control(&cmd_buffer->batch,
+                                      cmd_buffer->device->info,
+                                      cmd_buffer->state.current_pipeline,
+                                      ANV_PIPE_CS_STALL_BIT |
+                                      ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
+         uint32_t marker_offset = intel_perf_marker_offset();
+         mi_store(&b, mi_mem64(anv_address_add(query_addr, marker_offset)),
+                  mi_imm(cmd_buffer->intel_perf_marker));
+         emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, true);
+         emit_query_mi_availability(&b, query_addr, true);
+      }
       break;
    }
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:

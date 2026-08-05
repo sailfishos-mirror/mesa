@@ -281,7 +281,7 @@ bool intel_perf_metrics_library_get_stream_marker_cmds(struct intel_perf_config 
    {
       if (!api->CommandBufferGetSize)
          return false;
-      
+
       CommandBufferData_1_0 data = {};
       CommandBufferSize_1_0 size = {};
 
@@ -306,6 +306,78 @@ bool intel_perf_metrics_library_get_stream_marker_cmds(struct intel_perf_config 
       data.CommandsType = ObjectType::MarkerStreamUser;
       data.Type = GpuCommandBufferType::Render;
       data.MarkerStreamUser.Value = marker_value;
+      data.Data = cmds;
+      data.Size = *cmds_size;
+
+      status = api->CommandBufferGet(&data);
+
+      if (status != StatusCode::Success)
+         return false;
+
+      return true;
+   }
+
+   return false;
+}
+
+bool intel_perf_metrics_library_get_perf_query_cmds(
+   struct intel_perf_config *perf,
+   void* metrics_library_query_pool,
+   uint64_t gpu_memory_offset,
+   void* cpu_memory_offset,
+   uint32_t query_index,
+   uint64_t perf_marker,
+   bool begin,
+   void* cmds,
+   uint32_t* cmds_size)
+{
+   if (!perf->metrics_library.lib || !perf->metrics_library.context || !perf->metrics_library.api || !cmds_size || !metrics_library_query_pool)
+      return false;
+
+   StatusCode status = StatusCode::Failed;
+   Interface_1_0* api = (Interface_1_0*)perf->metrics_library.api;
+
+   if (!cmds || *cmds_size == 0)
+   {
+      if (!api->CommandBufferGetSize)
+         return false;
+
+      CommandBufferData_1_0 data = {};
+      CommandBufferSize_1_0 size = {};
+
+      data.HandleContext.data = perf->metrics_library.context;
+      data.CommandsType = ObjectType::QueryHwCounters;
+      data.Type = GpuCommandBufferType::Render;
+      data.QueryHwCounters.Handle.data = metrics_library_query_pool;
+      data.QueryHwCounters.Slot = query_index;
+      data.QueryHwCounters.MarkerUser = perf_marker;
+      data.QueryHwCounters.Begin = begin;
+      data.Allocation.GpuAddress = gpu_memory_offset;
+      data.Allocation.CpuAddress = cpu_memory_offset;
+
+      status = api->CommandBufferGetSize(&data, &size);
+
+      if (status != StatusCode::Success)
+         return false;
+
+      *cmds_size = size.GpuMemorySize;
+      return true;
+   }
+
+   if (cmds && *cmds_size > 0)
+   {
+      CommandBufferData_1_0 data = {};
+      data.HandleContext.data = perf->metrics_library.context;
+      data.CommandsType = ObjectType::QueryHwCounters;
+      data.Type = GpuCommandBufferType::Render;
+      data.QueryHwCounters.Handle.data = metrics_library_query_pool;
+      data.QueryHwCounters.Slot = query_index;
+      data.QueryHwCounters.MarkerUser = perf_marker;
+      data.QueryHwCounters.Begin = begin;
+      data.Allocation.GpuAddress = gpu_memory_offset;
+      data.Allocation.CpuAddress = cpu_memory_offset;
+      data.Data = cmds;
+      data.Size = *cmds_size;
 
       status = api->CommandBufferGet(&data);
 
