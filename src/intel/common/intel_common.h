@@ -32,6 +32,14 @@ unsigned
 intel_register_blocks(const struct intel_device_info *devinfo,
                       unsigned grf_used);
 
+/**
+ * Returns true if this number of registers can be exactly selected for in
+ * hardware.
+ */
+bool
+intel_register_blocks_supported(const struct intel_device_info *devinfo,
+                                int num_regs);
+
 #ifdef __cplusplus
 }
 #endif

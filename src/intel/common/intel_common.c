@@ -297,3 +297,14 @@ intel_register_blocks(const struct intel_device_info *devinfo,
    const unsigned usable = hw_blocks & ~(n_bit - 1);
    return (usable ? ffs(usable) : util_last_bit(hw_blocks)) - 1;
 }
+
+bool
+intel_register_blocks_supported(const struct intel_device_info *devinfo,
+                                int num_regs)
+{
+   if ((num_regs % 32) != 0)
+      return false;
+
+   const unsigned n = (num_regs / 32) - 1;
+   return intel_register_blocks_bits(devinfo) & (1u << n);
+}
