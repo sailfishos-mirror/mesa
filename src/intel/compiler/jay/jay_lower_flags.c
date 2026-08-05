@@ -172,6 +172,7 @@ pass(jay_function *f)
 
             I->cond_flag = jay_null();
             I->conditional_mod = GEN_CONDITION_NONE;
+            I->zero_inactive = false;
             cmp->cond_flag.file = FLAG;
          }
       }
