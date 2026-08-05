@@ -883,6 +883,12 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       .embedded_samplers = &embedded_samplers,
    };
 
+   /* Remove deref_cast(undefined) texture derefs in dead control flow before nir_vk_lower_ycbcr_tex.
+    * An earlier radv_optimize_nir() would have done this if optimisations_disabled=false.
+    */
+   if (stage->key.optimisations_disabled)
+      NIR_PASS(_, nir, nir_opt_dead_cf);
+
    NIR_PASS(progress, nir, nir_vk_lower_ycbcr_tex, ycbcr_conversion_lookup, &lower_ycbcr_state);
    /* Gather info in the case that nir_vk_lower_ycbcr_tex might have emitted resinfo instructions. */
    if (progress)
