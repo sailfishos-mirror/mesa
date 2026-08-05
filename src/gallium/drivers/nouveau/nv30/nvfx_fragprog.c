@@ -681,24 +681,8 @@ nvfx_fragprog_parse_instruction(struct nvfx_fpc *fpc,
       nvfx_fp_emit(fpc, arith(sat, SNE, dst, mask, src[0], src[1], none));
       break;
    case TGSI_OPCODE_SSG:
-   {
-      struct nvfx_src minones = swz(nvfx_src(nvfx_fp_imm(fpc, -1, -1, -1, -1)), X, X, X, X);
-
-      insn = arith(sat, MOV, dst, mask, src[0], none, none);
-      insn.cc_update = 1;
-      nvfx_fp_emit(fpc, insn);
-
-      insn = arith(0, STR, dst, mask, none, none, none);
-      insn.cc_test = NVFX_COND_GT;
-      nvfx_fp_emit(fpc, insn);
-
-      if(!sat) {
-         insn = arith(0, MOV, dst, mask, minones, none, none);
-         insn.cc_test = NVFX_COND_LT;
-         nvfx_fp_emit(fpc, insn);
-      }
+      NOUVEAU_ERR("SSG should have been lowered.\n");
       break;
-   }
    case TGSI_OPCODE_TEX:
       nvfx_fp_emit(fpc, tex(sat, TEX, unit, dst, mask, src[0], none, none));
       break;
