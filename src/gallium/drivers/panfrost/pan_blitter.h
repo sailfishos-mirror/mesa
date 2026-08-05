@@ -49,4 +49,12 @@ bool panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
                                       unsigned first_layer,
                                       unsigned last_layer);
 
+void panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
+                                           struct pipe_resource *dst,
+                                           unsigned dst_level, unsigned dst_x,
+                                           unsigned dst_y, unsigned dst_z,
+                                           struct pipe_resource *src,
+                                           unsigned src_level,
+                                           const struct pipe_box *src_box);
+
 #endif

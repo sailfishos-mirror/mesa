@@ -1,16 +1,28 @@
 /*
  * Copyright (C) 2014 Broadcom
  * Copyright (C) 2019 Collabora, Ltd.
+ * Copyright (C) 2026 NXP
  * SPDX-License-Identifier: MIT
  */
 
 #include "util/format/u_format.h"
 #include "util/u_gen_mipmap.h"
+#include "util/u_surface.h"
 #include "pan_blitter.h"
 #include "pan_context.h"
 #include "pan_resource.h"
 #include "pan_trace.h"
 #include "pan_util.h"
+
+/* Buffer copies smaller than this use the CPU memcpy fallback: below the
+ * crossover the fixed GPU dispatch/flush overhead outweighs the higher copy
+ * bandwidth. Measured on Mali-G310, the GPU path has a ~0.155 ms fixed
+ * per-copy overhead (compute dispatch + the two batch flushes) while the CPU
+ * memcpy fallback runs at ~0.145 GB/s; the two cross over at ~21-22 KB. 32 KB
+ * sits safely past the noisy tie band so the GPU path is only taken when it
+ * is reliably faster.
+ */
+#define PAN_COMPUTE_COPY_BUFFER_MIN_SIZE 32768
 
 enum pan_save_state {
    PAN_SAVE_TEXTURES = BITFIELD_BIT(0),
@@ -384,4 +396,47 @@ panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
    perf_debug(ctx, "Software fallback for generate_mipmap()");
    return util_gen_mipmap(pipe, tex, format, base_level, last_level,
                           first_layer, last_layer, PIPE_TEX_FILTER_LINEAR);
+}
+
+void
+panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
+                                      struct pipe_resource *dst,
+                                      unsigned dst_level, unsigned dst_x,
+                                      unsigned dst_y, unsigned dst_z,
+                                      struct pipe_resource *src,
+                                      unsigned src_level,
+                                      const struct pipe_box *src_box)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
+
+   struct panfrost_context *ctx = pan_context(pipe);
+
+   /* Sufficiently large, 4-byte-aligned, contiguous buffer->buffer copies are
+    * done on the GPU via the libpan copy compute kernel. Small copies (below
+    * PAN_COMPUTE_COPY_BUFFER_MIN_SIZE) and anything not even 4-byte aligned
+    * (rare for OpenCL buffers) fall back to the software path.
+    */
+   if (src->target == PIPE_BUFFER && dst->target == PIPE_BUFFER) {
+      unsigned size = src_box->width;
+      struct panfrost_screen *scr = pan_screen(pipe->screen);
+      if (scr->vtbl.compute_copy_buffer &&
+          size >= PAN_COMPUTE_COPY_BUFFER_MIN_SIZE && (size % 4 == 0) &&
+          (dst_x % 4 == 0) && (src_box->x % 4 == 0)) {
+         struct panfrost_resource *pdst = pan_resource(dst);
+
+         scr->vtbl.compute_copy_buffer(pipe, pdst, dst_x, pan_resource(src),
+                                       src_box->x, size);
+
+         /* The GPU wrote [dst_x, dst_x + size) of the destination buffer, so
+          * mark that range valid for later reads.
+          */
+         util_range_add(dst, &pdst->valid_buffer_range, dst_x, dst_x + size);
+         return;
+      }
+   }
+
+   /* Map resources and memcpy() on the CPU. */
+   perf_debug(ctx, "Software fallback for resource_copy_region()");
+   util_resource_copy_region(pipe, dst, dst_level, dst_x, dst_y, dst_z, src,
+                             src_level, src_box);
 }
