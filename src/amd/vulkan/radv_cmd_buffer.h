@@ -361,8 +361,6 @@ struct radv_cmd_state {
    struct radv_shader_object *shader_objs[MESA_VULKAN_SHADER_STAGES];
 
    uint32_t prefetch_L2_mask;
-   uint64_t vb_va;
-   unsigned vb_size;
 
    struct radv_graphics_pipeline *graphics_pipeline;
    struct radv_shader_part *emitted_vs_prolog;

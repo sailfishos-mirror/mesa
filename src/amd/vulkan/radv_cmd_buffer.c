@@ -49,18 +49,17 @@
 #include "util/perf/u_trace.h"
 
 enum {
-   RADV_PREFETCH_VBO_DESCRIPTORS = (1 << 0),
-   RADV_PREFETCH_VS = (1 << 1),
-   RADV_PREFETCH_TCS = (1 << 2),
-   RADV_PREFETCH_TES = (1 << 3),
-   RADV_PREFETCH_GS = (1 << 4),
-   RADV_PREFETCH_PS = (1 << 5),
-   RADV_PREFETCH_MS = (1 << 6),
-   RADV_PREFETCH_CS = (1 << 7),
-   RADV_PREFETCH_RT = (1 << 8),
+   RADV_PREFETCH_VS = (1 << 0),
+   RADV_PREFETCH_TCS = (1 << 1),
+   RADV_PREFETCH_TES = (1 << 2),
+   RADV_PREFETCH_GS = (1 << 3),
+   RADV_PREFETCH_PS = (1 << 4),
+   RADV_PREFETCH_MS = (1 << 5),
+   RADV_PREFETCH_CS = (1 << 6),
+   RADV_PREFETCH_RT = (1 << 7),
    RADV_PREFETCH_GFX_SHADERS = (RADV_PREFETCH_VS | RADV_PREFETCH_TCS | RADV_PREFETCH_TES | RADV_PREFETCH_GS |
                                 RADV_PREFETCH_PS | RADV_PREFETCH_MS),
-   RADV_PREFETCH_GRAPHICS = (RADV_PREFETCH_VBO_DESCRIPTORS | RADV_PREFETCH_GFX_SHADERS),
+   RADV_PREFETCH_GRAPHICS = RADV_PREFETCH_GFX_SHADERS,
 };
 
 static void radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
@@ -2793,16 +2792,13 @@ radv_emit_graphics_prefetch(struct radv_cmd_buffer *cmd_buffer, bool first_stage
 
    /* Fast prefetch path for starting draws as soon as possible. */
    if (first_stage_only)
-      mask &= RADV_PREFETCH_VS | RADV_PREFETCH_VBO_DESCRIPTORS | RADV_PREFETCH_MS;
+      mask &= RADV_PREFETCH_VS | RADV_PREFETCH_MS;
 
    if (mask & RADV_PREFETCH_VS)
       radv_emit_shader_prefetch(cmd_buffer, cmd_buffer->state.shaders[MESA_SHADER_VERTEX]);
 
    if (mask & RADV_PREFETCH_MS)
       radv_emit_shader_prefetch(cmd_buffer, cmd_buffer->state.shaders[MESA_SHADER_MESH]);
-
-   if (mask & RADV_PREFETCH_VBO_DESCRIPTORS)
-      radv_cp_dma_prefetch(cmd_buffer, state->vb_va, state->vb_size);
 
    if (mask & RADV_PREFETCH_TCS)
       radv_emit_shader_prefetch(cmd_buffer, cmd_buffer->state.shaders[MESA_SHADER_TESS_CTRL]);
@@ -7005,10 +7001,6 @@ radv_flush_vertex_descriptors(struct radv_cmd_buffer *cmd_buffer)
    va += vb_offset;
 
    radv_emit_userdata_address(device, cs, vs, AC_UD_VS_VERTEX_BUFFERS, va);
-
-   cmd_buffer->state.vb_va = va;
-   cmd_buffer->state.vb_size = vb_desc_alloc_size;
-   cmd_buffer->state.prefetch_L2_mask |= RADV_PREFETCH_VBO_DESCRIPTORS;
 
    if (radv_device_fault_detection_enabled(device))
       radv_save_vertex_descriptors(cmd_buffer, (uintptr_t)vb_ptr);
