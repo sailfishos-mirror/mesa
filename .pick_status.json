@@ -1144,7 +1144,7 @@
         "description": "nir: Add an unreachable default to generated switch statement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "32e91a746758437cc4886feb873cd930e342db37",
         "notes": null
