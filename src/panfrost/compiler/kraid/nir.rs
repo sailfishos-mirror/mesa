@@ -1954,7 +1954,6 @@ impl<'a> ShaderFromNir<'a> {
             | nir_intrinsic_load_raw_vertex_id
             | nir_intrinsic_load_instance_id
             | nir_intrinsic_load_draw_id
-            | nir_intrinsic_load_layer_id
             | nir_intrinsic_load_idvs_output_buf_index_pan
             | nir_intrinsic_load_raster_sample_centroid_pan => {
                 assert_eq!(intrin.def.bit_size, 32);
@@ -1965,7 +1964,6 @@ impl<'a> ShaderFromNir<'a> {
                     nir_intrinsic_load_raw_vertex_id => PreloadReg::VertexId,
                     nir_intrinsic_load_instance_id => PreloadReg::InstanceId,
                     nir_intrinsic_load_draw_id => PreloadReg::DrawId,
-                    nir_intrinsic_load_layer_id => PreloadReg::FrameArgLow,
                     nir_intrinsic_load_idvs_output_buf_index_pan => {
                         PreloadReg::InternalId
                     }
@@ -1983,15 +1981,9 @@ impl<'a> ShaderFromNir<'a> {
                 self.set_ssa(&intrin.def, vec![low, high]);
             }
             nir_intrinsic_load_view_index => {
-                // v14+ is the only architecture supporting multiview directly
-                // others lower VS multiview in NIR
-                let reg = if self.nir.info.stage() == MESA_SHADER_VERTEX {
-                    assert!(b.arch() >= 14);
-                    PreloadReg::ViewId
-                } else {
-                    PreloadReg::FrameArgLow
-                };
-                let ssa = self.preload(b, reg);
+                assert!(b.arch() >= 14);
+                assert!(self.nir.info.stage() == MESA_SHADER_VERTEX);
+                let ssa = self.preload(b, PreloadReg::ViewId);
                 self.set_ssa(&intrin.def, vec![ssa]);
             }
             nir_intrinsic_load_shader_output_pan => {
