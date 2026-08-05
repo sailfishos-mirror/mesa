@@ -47,7 +47,7 @@ static const struct debug_control panvk_debug_options[] = {
    {"force_simultaneous", PANVK_DEBUG_FORCE_SIMULTANEOUS},
    {"implicit_others_inv", PANVK_DEBUG_IMPLICIT_OTHERS_INV},
    {"force_blackhole", PANVK_DEBUG_FORCE_BLACKHOLE},
-   {"wsi_afbc", PANVK_DEBUG_WSI_AFBC},
+   {"wsi_no_afbc", PANVK_DEBUG_WSI_NO_AFBC},
    {"no_wb_mmap", PANVK_DEBUG_NO_WB_MMAP},
    {"no_user_mmap_sync", PANVK_DEBUG_NO_USER_MMAP_SYNC},
    {"cached_before_coherent", PANVK_DEBUG_CACHED_BEFORE_COHERENT},

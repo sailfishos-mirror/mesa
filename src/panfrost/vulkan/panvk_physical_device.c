@@ -1085,7 +1085,7 @@ panvk_get_mod_format_caps(const struct panvk_physical_device *pdev,
    if (!mod_handler)
       return 0;
 
-   if (drm_is_afbc(mod) && !PANVK_DEBUG(WSI_AFBC))
+   if (drm_is_afbc(mod) && PANVK_DEBUG(WSI_NO_AFBC))
       return 0;
 
    return mod_handler->get_format_caps(&pdev->kmod.dev->props, pfmt, mod);
@@ -1631,7 +1631,7 @@ panvk_GetPhysicalDeviceImageFormatProperties2(
        * report suboptimal access. */
       enum pipe_format pfmt = vk_format_to_pipe_format(base_info->format);
       bool can_use_afbc = false;
-      if (PANVK_DEBUG(WSI_AFBC) &&
+      if (!PANVK_DEBUG(WSI_NO_AFBC) &&
           base_info->tiling != VK_IMAGE_TILING_LINEAR &&
           base_info->type != VK_IMAGE_TYPE_1D &&
           pan_query_afbc(&physical_device->kmod.dev->props)) {
