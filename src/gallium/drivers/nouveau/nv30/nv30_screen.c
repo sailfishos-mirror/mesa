@@ -366,7 +366,6 @@ static const nir_shader_compiler_options nv30_vs_compiler_options = {
 
 static const nir_shader_compiler_options nv40_vs_compiler_options = {
    NIR_OPTIONS_COMMONS,
-   .lower_fsat = true,
    .lower_fpow = true,
    .lower_flrp32 = true,
 };

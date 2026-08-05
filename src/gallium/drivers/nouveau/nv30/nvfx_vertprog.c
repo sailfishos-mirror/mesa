@@ -464,7 +464,6 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
 {
    struct nvfx_src src[3], tmp;
    struct nvfx_reg dst;
-   struct nvfx_reg final_dst;
    struct nvfx_src none = nvfx_src(nvfx_reg(NVFXSR_NONE, 0));
    struct nvfx_insn insn;
    struct nvfx_relocation reloc;
@@ -540,15 +539,14 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
       finst->Instruction.Opcode != TGSI_OPCODE_ARL)
       return false;
 
-   final_dst = dst  = tgsi_dst(vpc, &finst->Dst[0]);
+   dst  = tgsi_dst(vpc, &finst->Dst[0]);
    mask = tgsi_mask(finst->Dst[0].Register.WriteMask);
    if(finst->Instruction.Saturate) {
       assert(finst->Instruction.Opcode != TGSI_OPCODE_ARL);
       if (vpc->is_nv4x)
          sat = true;
       else
-      if(dst.type != NVFXSR_TEMP)
-         dst = temp(vpc);
+         NOUVEAU_ERR("SAT should have been lowered.\n");
    }
 
    switch (finst->Instruction.Opcode) {
@@ -764,13 +762,6 @@ nvfx_vertprog_parse_instruction(struct nvfx_vpc *vpc,
    default:
       NOUVEAU_ERR("invalid opcode %d\n", finst->Instruction.Opcode);
       return false;
-   }
-
-   if(finst->Instruction.Saturate && !vpc->is_nv4x) {
-      if (!vpc->r_0_1.type)
-         vpc->r_0_1 = constant(vpc, -1, 0, 1, 0, 0);
-      nvfx_vp_emit(vpc, arith(0, VEC, MAX, dst, mask, nvfx_src(dst), swz(nvfx_src(vpc->r_0_1), X, X, X, X), none));
-      nvfx_vp_emit(vpc, arith(0, VEC, MIN, final_dst, mask, nvfx_src(dst), swz(nvfx_src(vpc->r_0_1), Y, Y, Y, Y), none));
    }
 
    release_temps(vpc);
