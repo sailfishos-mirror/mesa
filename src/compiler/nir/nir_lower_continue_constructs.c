@@ -218,8 +218,10 @@ lower_jumps_in_cf_list(struct exec_list *cf_list,
  * For breaks, insert a single conditional break just before
  * the back edge.
  *
- * It's assumed that all phis for the jumps in question are
- * lowered to registers before the call to this function.
+ * It's assumed that all headers phis are lowered to registers
+ * before the call to this function. For breaks, exit phis must
+ * also be lowered. Before lowering exit phis, the loop should
+ * be in LCSSA.
  */
 void
 nir_simplify_loop(nir_loop *loop, nir_jump_type type)
