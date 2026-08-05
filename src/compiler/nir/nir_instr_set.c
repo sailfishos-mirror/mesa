@@ -29,6 +29,14 @@
 #define XXH_INLINE_ALL
 #include "util/xxhash.h"
 
+static bool
+intrin_cb_true(const nir_intrinsic_instr *intr, const void *data)
+{
+   (void)intr;
+   (void)data;
+   return true;
+}
+
 /* This function determines if uses of an instruction can safely be rewritten
  * to use another identical instruction instead. Note that this function must
  * be kept in sync with hash_instr() and nir_instrs_equal() -- only
@@ -36,7 +44,7 @@
  * conversely they must handle everything that this function returns true for.
  */
 static bool
-instr_can_rewrite(const nir_instr *instr)
+instr_can_rewrite(const nir_instr *instr, nir_intrin_filter_cb allow_additional_intrin, const void *cb_data)
 {
    switch (instr->type) {
    case nir_instr_type_alu:
@@ -71,7 +79,9 @@ instr_can_rewrite(const nir_instr *instr)
           */
          return true;
       default:
-         return nir_intrinsic_can_reorder(intr);
+         if (nir_intrinsic_can_reorder(intr))
+            return true;
+         return allow_additional_intrin && allow_additional_intrin(intr, cb_data);
       }
    }
    case nir_instr_type_call:
@@ -588,7 +598,8 @@ nir_alu_srcs_equal(const nir_alu_instr *alu1, const nir_alu_instr *alu2,
 bool
 nir_instrs_equal(const nir_instr *instr1, const nir_instr *instr2)
 {
-   assert(instr_can_rewrite(instr1) && instr_can_rewrite(instr2));
+   assert(instr_can_rewrite(instr1, intrin_cb_true, NULL) &&
+          instr_can_rewrite(instr2, intrin_cb_true, NULL));
 
    if (instr1->type != instr2->type)
       return false;
@@ -827,10 +838,12 @@ nir_instr_set_fini(struct set *instr_set)
 
 nir_instr *
 nir_instr_set_add_or_rewrite(struct set *instr_set, nir_instr *instr,
+                             nir_intrin_filter_cb allow_additional_intrin,
+                             const void *intrin_data,
                              bool (*cond_function)(const nir_instr *a,
                                                    const nir_instr *b))
 {
-   if (!instr_can_rewrite(instr))
+   if (!instr_can_rewrite(instr, allow_additional_intrin, intrin_data))
       return NULL;
 
    struct set_entry *e = _mesa_set_search_or_add(instr_set, instr, NULL);
@@ -879,7 +892,7 @@ nir_instr_set_add_or_rewrite(struct set *instr_set, nir_instr *instr,
 void
 nir_instr_set_remove(struct set *instr_set, nir_instr *instr)
 {
-   if (!instr_can_rewrite(instr))
+   if (!instr_can_rewrite(instr, intrin_cb_true, NULL))
       return;
 
    struct set_entry *entry = _mesa_set_search(instr_set, instr);
