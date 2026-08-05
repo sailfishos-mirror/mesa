@@ -864,7 +864,7 @@
         "description": "panfrost/drm-shim: go through uintptr_t when casting a query pointer",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "76397f76c944092164df1a96732c37272b5863e4",
         "notes": null
