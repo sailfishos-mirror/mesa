@@ -1491,6 +1491,57 @@ impl<'a> ShaderFromNir<'a> {
                     _ => panic!("Unsupported barrier scope"),
                 }
             }
+            nir_intrinsic_cmat_muladd_pan => {
+                let src_a = self.get_src(&srcs[0]);
+                let src_b = self.get_src(&srcs[1]);
+                let src_c = self.get_src(&srcs[2]);
+                let dst = self.alloc_ssa(b, &intrin.def);
+                let mul_type = match intrin.src_type() {
+                    ALUType::INT8 => DataType::V4S8,
+                    ALUType::UINT8 => DataType::V4U8,
+                    ALUType::FLOAT16 => DataType::V2F16,
+                    ALUType::FLOAT32 => DataType::F32,
+                    _ => panic!("Invalid NIR ALU type"),
+                };
+
+                match mul_type {
+                    DataType::V4S8 | DataType::V4U8 => {
+                        b.push_op(OpMMulI32 {
+                            dst: dst.into(),
+                            mul_type,
+                            saturate: false,
+                            a_type: mul_type,
+                            b_type: mul_type,
+                            a: src_a,
+                            b: src_b,
+                            c: src_c,
+                        });
+                    }
+                    DataType::V2F16 => {
+                        b.push_op(OpMMulF32 {
+                            dst: dst.into(),
+                            src_type: mul_type,
+                            a_submat: F16SubMat::F0,
+                            b_submat: F16SubMat::F0,
+                            a: src_a,
+                            b: src_b,
+                            c: src_c,
+                        });
+                    }
+                    DataType::F32 => {
+                        b.push_op(OpMMulF32 {
+                            dst: dst.into(),
+                            src_type: mul_type,
+                            a_submat: F16SubMat::None,
+                            b_submat: F16SubMat::None,
+                            a: src_a,
+                            b: src_b,
+                            c: src_c,
+                        });
+                    }
+                    _ => unreachable!(),
+                }
+            }
             nir_intrinsic_cubeface_pan => {
                 let x = self.get_src(&srcs[0]);
                 let y = self.get_src(&srcs[1]);

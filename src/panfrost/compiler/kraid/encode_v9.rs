@@ -2196,6 +2196,114 @@ impl V9Instr for OpMkVecV2I16 {
     }
 }
 
+impl From<F16SubMat> for SubmatrixSelM {
+    fn from(submat: F16SubMat) -> SubmatrixSelM {
+        match submat {
+            F16SubMat::None => SubmatrixSelM::None,
+            F16SubMat::F0 => SubmatrixSelM::F0,
+            F16SubMat::F1 => SubmatrixSelM::F1,
+        }
+    }
+}
+
+impl V9Instr for OpMMulF16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mmul::get_info(MmulVariant::F16, arch),
+            src_map! {
+                src0: a,
+                src1: b,
+                src2: c,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Mmul {
+            variant: MmulVariant::F16,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.a),
+            src1: op_encode_src(self, &self.b),
+            src2: op_encode_src(self, &self.c),
+            saturate: SaturateM::None,
+            unsigned0: V4u8M::None,
+            unsigned1: V4u8M::None,
+            sub0: self.a_submat.try_into().unwrap(),
+            sub1: SubmatrixSelM::None,
+        })
+    }
+}
+
+impl V9Instr for OpMMulF32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mmul::get_info(self.src_type, arch),
+            src_map! {
+                src0: a,
+                src1: b,
+                src2: c,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if self.src_type == DataType::F32 {
+            assert_eq!(self.a_submat, F16SubMat::None);
+            assert_eq!(self.b_submat, F16SubMat::None);
+        } else {
+            assert_ne!(self.a_submat, F16SubMat::None);
+            assert_ne!(self.b_submat, F16SubMat::None);
+        }
+        e.encode(Mmul {
+            variant: self.src_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.a),
+            src1: op_encode_src(self, &self.b),
+            src2: op_encode_src(self, &self.c),
+            saturate: SaturateM::None,
+            unsigned0: V4u8M::None,
+            unsigned1: V4u8M::None,
+            sub0: self.a_submat.try_into().unwrap(),
+            sub1: self.b_submat.try_into().unwrap(),
+        })
+    }
+}
+
+impl V9Instr for OpMMulI32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mmul::get_info(self.mul_type, arch),
+            src_map! {
+                src0: a,
+                src1: b,
+                src2: c,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let unsigned = |src_type: DataType| match (self.mul_type, src_type) {
+            (DataType::V4S8, DataType::V4S8) => V4u8M::None,
+            (DataType::V4S8, DataType::V4U8) => V4u8M::V4U8,
+            (DataType::V4U8, DataType::V4U8) => V4u8M::None,
+            _ => panic!("Invalid IMMulI32::[ab]_type"),
+        };
+
+        e.encode(Mmul {
+            variant: self.mul_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.a),
+            src1: op_encode_src(self, &self.b),
+            src2: op_encode_src(self, &self.c),
+            saturate: self.saturate.into(),
+            unsigned0: unsigned(self.a_type),
+            unsigned1: unsigned(self.b_type),
+            sub0: SubmatrixSelM::None,
+            sub1: SubmatrixSelM::None,
+        })
+    }
+}
+
 impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         // The ISA doesn'thave MOV.v2i16 but we can fake it for the sake of
@@ -2810,6 +2918,9 @@ macro_rules! v9_op_match_else {
             Op::Load($x) => $y,
             Op::MkVecV2I8I16($x) => $y,
             Op::MkVecV2I16($x) => $y,
+            Op::MMulF16($x) => $y,
+            Op::MMulF32($x) => $y,
+            Op::MMulI32($x) => $y,
             Op::Mov($x) => $y,
             Op::Mux($x) => $y,
             Op::Nop($x) => $y,

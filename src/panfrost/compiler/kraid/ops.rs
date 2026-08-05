@@ -2759,6 +2759,152 @@ impl VirtualOpcode for OpMkVecV4I8 {
     }
 }
 
+/// MMUL.v2f16 sources are 4x8 matrices with each MMUL acting on a 4x4
+/// sub-matrix.  Similarly, MMUL.f16 is a 4x4*4x8 matrix multiply where the A
+/// matrix is a 4x4 sub-matrix of the 4x8 input matrix.  This enum selects
+/// which of the two 4x4 sub-matrices in the 4x8 matrix gets read.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum F16SubMat {
+    /// No submatrix operation.  This is used for F32 4x4 source matrices.
+    None,
+    /// Selects the first 4 columns of the 4x8 input matrix
+    F0,
+    /// Selects the last 4 columns of the 4x8 input matrix
+    F1,
+}
+
+impl fmt::Display for F16SubMat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            F16SubMat::None => Ok(()),
+            F16SubMat::F0 => write!(f, ".f0"),
+            F16SubMat::F1 => write!(f, ".f1"),
+        }
+    }
+}
+
+/// A matrix multiply and add operation on a 4x8 F16 accumulator matrix.  The
+/// multiply operation is fundamentally a (4x4)*(8x4) -> (8x4) matrix multiply.
+/// However, since all F16 MMUL sources read an 8x4 matrix, the A source acts
+/// on a 4x4 sub-matrix of the 4x8 source matrix, specified by `a_submat`.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpMMulF16 {
+    #[dst_type(F16)]
+    pub dst: Dst,
+
+    pub a_submat: F16SubMat,
+
+    #[src_type(V2F16)]
+    pub a: Src,
+    #[src_type(V2F16)]
+    pub b: Src,
+    #[src_type(F16)]
+    pub c: Src,
+}
+
+impl DisplayOp for OpMMulF16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MMUL.f16")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {}{} {} {}",
+            self.fmt_src(&self.a),
+            self.a_submat,
+            self.fmt_src(&self.b),
+            self.fmt_src(&self.c),
+        )
+    }
+}
+
+/// A matrix multiply and add operation on a 4x4 F32 accumulator matrix.  The
+/// multiply operation is fundamentally a (4x4)*(4x4) -> (4x4) matrix multiply
+/// and can operate either on 4x4 F32 source matrices or on 4x4 sub-matrices
+/// of 4x8 F16 matrices.  In the later case, `a_submat` and `b_submat` specify
+/// which of the two possible 4x4 sub-matrices are read from the 4x8 F16 source
+/// matrix.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [V2F16, F32])]
+pub struct OpMMulF32 {
+    #[dst_type(F32)]
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub a_submat: F16SubMat,
+    pub b_submat: F16SubMat,
+
+    pub a: Src,
+    pub b: Src,
+    #[src_type(F32)]
+    pub c: Src,
+}
+
+impl DisplayOp for OpMMulF32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MMUL.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {}{} {}{} {}",
+            self.fmt_src(&self.a),
+            self.a_submat,
+            self.fmt_src(&self.b),
+            self.b_submat,
+            self.fmt_src(&self.c),
+        )
+    }
+}
+
+/// A matrix multiply and add operation on a 4x4 S32 or U32 accumulator matrix.
+/// The matrix multiply operation is a (4x16)*(16x4) -> (4x4) matrix multiply
+/// acting on source matrices of (possibly signed) bytes.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(mul_type in [V4S8, V4U8])]
+pub struct OpMMulI32 {
+    #[dst_type(X32)]
+    pub dst: Dst,
+
+    /// The type of this multiplication,  This isn't quite the source type or
+    /// destination type.
+    pub mul_type: DataType,
+    pub saturate: bool,
+
+    pub a_type: DataType,
+    pub b_type: DataType,
+
+    #[src_type(V4I8)]
+    pub a: Src,
+    #[src_type(V4I8)]
+    pub b: Src,
+    #[src_type(X32)]
+    pub c: Src,
+}
+
+impl DisplayOp for OpMMulI32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MMUL.{}", self.mul_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {}.{} {}.{} {}",
+            self.fmt_src(&self.a),
+            self.a_type,
+            self.fmt_src(&self.b),
+            self.b_type,
+            self.fmt_src(&self.c),
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [V2I16, I32])]
@@ -3711,6 +3857,9 @@ pub enum Op {
     MkVecV2I8I16(Box<OpMkVecV2I8I16>),
     MkVecV2I16(Box<OpMkVecV2I16>),
     MkVecV4I8(Box<OpMkVecV4I8>),
+    MMulF16(Box<OpMMulF16>),
+    MMulF32(Box<OpMMulF32>),
+    MMulI32(Box<OpMMulI32>),
     Mov(Box<OpMov>),
     Mux(Box<OpMux>),
     Nop(OpNop),
