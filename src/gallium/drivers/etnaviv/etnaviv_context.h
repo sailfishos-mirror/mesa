@@ -31,6 +31,7 @@
 #include <stdint.h>
 
 #include "etnaviv_resource.h"
+#include "etnaviv_shader.h"
 #include "etnaviv_tiling.h"
 #include "etnaviv_yuv.h"
 #include "pipe/p_context.h"
@@ -91,6 +92,7 @@ struct etna_vertexbuf_state {
 struct etna_shader_state {
    void *bind_vs, *bind_fs;
    struct etna_shader_variant *vs, *fs;
+   struct etna_shader_key key;
 };
 
 enum etna_xfb_hw_state {
