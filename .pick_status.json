@@ -1704,7 +1704,7 @@
         "description": "panfrost/model: Fix G720 and G725 sfu rates",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4696b1809d099d2be24ead5d7c321845a92c8e9d",
         "notes": null
