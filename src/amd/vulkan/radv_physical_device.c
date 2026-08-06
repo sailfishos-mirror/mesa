@@ -2522,6 +2522,32 @@ radv_is_gpu_supported(const struct radeon_info *info)
    return true;
 }
 
+void
+radv_physical_device_destroy(struct vk_physical_device *vk_device)
+{
+   struct radv_physical_device *pdev = container_of(vk_device, struct radv_physical_device, vk);
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   radv_finish_wsi(pdev);
+   ac_destroy_perfcounters(&pdev->ac_perfcounters);
+   free(pdev->perfcounters);
+   if (pdev->addrlib)
+      ac_addrlib_destroy(pdev->addrlib);
+   disk_cache_destroy(pdev->vk.disk_cache);
+   disk_cache_destroy(pdev->disk_cache_meta);
+   if (pdev->wsi_master_fd != -1)
+      close(pdev->wsi_master_fd);
+   if (pdev->wsi_syncobj_fd != -1)
+      close(pdev->wsi_syncobj_fd);
+   simple_mtx_destroy(&pdev->drm_device_mtx);
+#ifndef _WIN32
+   if (pdev->drm_device)
+      ac_drm_device_deinitialize(pdev->drm_device);
+#endif
+   vk_physical_device_finish(&pdev->vk);
+   vk_free(&instance->vk.alloc, pdev);
+}
+
 static VkResult
 radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm_device,
                                 struct radv_physical_device **pdev_out)
@@ -2532,7 +2558,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 #else
    VkResult result;
    int fd = -1;
-   int wsi_master_fd = -1, wsi_syncobj_fd = -1;
    const char *path = drm_device->nodes[DRM_NODE_RENDER];
    enum radv_drm_device_type drm_device_type;
    drmVersionPtr version;
@@ -2584,13 +2609,18 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       goto fail_fd;
    }
 
+   pdev->wsi_master_fd = -1;
+   pdev->wsi_syncobj_fd = -1;
+
+   simple_mtx_init(&pdev->drm_device_mtx, mtx_plain);
+
    struct vk_physical_device_dispatch_table dispatch_table;
    vk_physical_device_dispatch_table_from_entrypoints(&dispatch_table, &radv_physical_device_entrypoints, true);
    vk_physical_device_dispatch_table_from_entrypoints(&dispatch_table, &wsi_physical_device_entrypoints, false);
 
    result = vk_physical_device_init(&pdev->vk, &instance->vk, NULL, NULL, NULL, &dispatch_table);
    if (result != VK_SUCCESS) {
-      goto fail_alloc;
+      goto fail;
    }
 
    pdev->drm_device_type = drm_device_type;
@@ -2603,7 +2633,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    result = radv_amdgpu_winsys_query_info(fd, instance->debug_flags, is_virtio, &winsys_info);
    if (result != VK_SUCCESS) {
       result = vk_errorf(instance, result, "failed to query GPU info");
-      goto fail_base;
+      goto fail;
    }
 
    memcpy(&pdev->info, &winsys_info.base, sizeof(pdev->info));
@@ -2630,22 +2660,22 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    pdev->vk.supported_sync_types = pdev->sync_types;
 
    if (instance->vk.enabled_extensions.KHR_display) {
-      wsi_master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
-      if (wsi_master_fd >= 0) {
+      pdev->wsi_master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
+      if (pdev->wsi_master_fd >= 0) {
          uint32_t accel_working = 0;
          struct drm_amdgpu_info request = {.return_pointer = (uintptr_t)&accel_working,
                                            .return_size = sizeof(accel_working),
                                            .query = AMDGPU_INFO_ACCEL_WORKING};
 
-         if (drm_ioctl_write(wsi_master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
+         if (drm_ioctl_write(pdev->wsi_master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
              !accel_working) {
-            close(wsi_master_fd);
-            wsi_master_fd = -1;
+            close(pdev->wsi_master_fd);
+            pdev->wsi_master_fd = -1;
          }
       }
 
       if (fd != -1)
-         wsi_syncobj_fd = os_dupfd_cloexec(fd);
+         pdev->wsi_syncobj_fd = os_dupfd_cloexec(fd);
    }
 
    /* Allow all devices on a virtual winsys, otherwise do a basic support check. */
@@ -2653,17 +2683,14 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       if (instance->debug_flags & RADV_DEBUG_STARTUP)
          fprintf(stderr, "radv: info: device '%s' is not supported by RADV.\n", ac_get_family_name(pdev->info.family));
       result = VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto fail_wsi;
+      goto fail;
    }
 
    pdev->addrlib = ac_addrlib_create(&pdev->info, &pdev->info.max_alignment);
    if (!pdev->addrlib) {
       result = VK_ERROR_INITIALIZATION_FAILED;
-      goto fail_wsi;
+      goto fail;
    }
-
-   pdev->wsi_master_fd = wsi_master_fd;
-   pdev->wsi_syncobj_fd = wsi_syncobj_fd;
 
    pdev->use_llvm = instance->debug_flags & RADV_DEBUG_LLVM;
 #if !AMD_LLVM_AVAILABLE
@@ -2787,7 +2814,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
        stat(drm_device->nodes[DRM_NODE_PRIMARY], &primary_stat) != 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM primary node %s",
                          drm_device->nodes[DRM_NODE_PRIMARY]);
-      goto fail_perfcounters;
+      goto fail;
    }
    pdev->primary_devid = primary_stat.st_rdev;
 
@@ -2795,13 +2822,13 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
        stat(drm_device->nodes[DRM_NODE_RENDER], &render_stat) != 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM render node %s",
                          drm_device->nodes[DRM_NODE_RENDER]);
-      goto fail_perfcounters;
+      goto fail;
    }
    pdev->render_devid = render_stat.st_rdev;
 
    if (radv_device_get_cache_uuid(pdev, pdev->cache_uuid)) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "cannot generate UUID");
-      goto fail_wsi;
+      goto fail;
    }
 
    /* The gpu id is already embedded in the uuid so we just pass "radv"
@@ -2834,7 +2861,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    result = radv_init_wsi(pdev);
    if (result != VK_SUCCESS) {
       vk_error(instance, result);
-      goto fail_perfcounters;
+      goto fail;
    }
 
    pdev->gs_table_depth = ac_get_gs_table_depth(pdev->info.gfx_level, pdev->info.family);
@@ -2851,8 +2878,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       pdev->tess_distribution_mode = V_028B6C_NO_DIST;
    }
 
-   simple_mtx_init(&pdev->drm_device_mtx, mtx_plain);
-
    *pdev_out = pdev;
 
    if (fd != -1)
@@ -2861,24 +2886,11 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 
    return VK_SUCCESS;
 
-fail_perfcounters:
-   ac_destroy_perfcounters(&pdev->ac_perfcounters);
-   disk_cache_destroy(pdev->vk.disk_cache);
-   disk_cache_destroy(pdev->disk_cache_meta);
-fail_wsi:
-   if (pdev->addrlib)
-      ac_addrlib_destroy(pdev->addrlib);
-fail_base:
-   vk_physical_device_finish(&pdev->vk);
-fail_alloc:
-   vk_free(&instance->vk.alloc, pdev);
+fail:
+   radv_physical_device_destroy(&pdev->vk);
 fail_fd:
    if (fd != -1)
       close(fd);
-   if (wsi_master_fd != -1)
-      close(wsi_master_fd);
-   if (wsi_syncobj_fd != -1)
-      close(wsi_syncobj_fd);
    return result;
 #endif
 }
@@ -2907,32 +2919,6 @@ create_drm_physical_device(struct vk_instance *vk_instance, struct _drmDevice *d
 #else
    return VK_SUCCESS;
 #endif
-}
-
-void
-radv_physical_device_destroy(struct vk_physical_device *vk_device)
-{
-   struct radv_physical_device *pdev = container_of(vk_device, struct radv_physical_device, vk);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-
-   radv_finish_wsi(pdev);
-   ac_destroy_perfcounters(&pdev->ac_perfcounters);
-   free(pdev->perfcounters);
-   if (pdev->addrlib)
-      ac_addrlib_destroy(pdev->addrlib);
-   disk_cache_destroy(pdev->vk.disk_cache);
-   disk_cache_destroy(pdev->disk_cache_meta);
-   if (pdev->wsi_master_fd != -1)
-      close(pdev->wsi_master_fd);
-   if (pdev->wsi_syncobj_fd != -1)
-      close(pdev->wsi_syncobj_fd);
-   simple_mtx_destroy(&pdev->drm_device_mtx);
-#ifndef _WIN32
-   if (pdev->drm_device)
-      ac_drm_device_deinitialize(pdev->drm_device);
-#endif
-   vk_physical_device_finish(&pdev->vk);
-   vk_free(&instance->vk.alloc, pdev);
 }
 
 static VkQueueFlags
