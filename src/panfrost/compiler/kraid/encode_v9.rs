@@ -277,6 +277,8 @@ fn op_encode_dst(op: &impl Opcode, dst: &Dst) -> v9::EncodedDst {
         ir::DstLanes::B3 => v9::DstLanes::B3,
         ir::DstLanes::H0 => v9::DstLanes::H0,
         ir::DstLanes::H1 => v9::DstLanes::H1,
+        ir::DstLanes::HF0 => v9::DstLanes::Hf0,
+        ir::DstLanes::HF1 => v9::DstLanes::Hf1,
         lanes => panic!("Invalid DstLanes: {lanes}"),
     };
 
@@ -350,6 +352,8 @@ fn op_encode_sr_write_lanes(_op: &impl Opcode, dst: &Dst) -> v9::SrWriteLanes {
         ir::DstLanes::B3 => v9::DstLanes::B3,
         ir::DstLanes::H0 => v9::DstLanes::H0,
         ir::DstLanes::H1 => v9::DstLanes::H1,
+        ir::DstLanes::HF0 => v9::DstLanes::Hf0,
+        ir::DstLanes::HF1 => v9::DstLanes::Hf1,
         lanes => panic!("Invalid DstLanes: {lanes}"),
     };
 
@@ -3094,10 +3098,16 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
                 lanes.insert(ir::DstLanes::AnyH);
                 lanes.insert(ir::DstLanes::H1);
             }
+            v9::DstLanes::Hf0 => {
+                lanes.insert(ir::DstLanes::AnyHF);
+                lanes.insert(ir::DstLanes::HF0);
+            }
+            v9::DstLanes::Hf1 => {
+                lanes.insert(ir::DstLanes::AnyHF);
+                lanes.insert(ir::DstLanes::HF1);
+            }
             v9::DstLanes::H01
             | v9::DstLanes::Hf01
-            | v9::DstLanes::Hf0
-            | v9::DstLanes::Hf1
             | v9::DstLanes::W0
             | v9::DstLanes::D0 => {
                 // Not currently supported

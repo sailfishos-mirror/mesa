@@ -284,14 +284,18 @@ fn fold_lanes(alloc_lanes: DstLanes, dst_lanes: DstLanes) -> DstLanes {
             AnyH
         }
         H0 => match dst_lanes {
+            AnyHF | HF0 => HF0,
             AnyB | AnyH | B0 | B1 | H0 => H0,
             _ => panic!("Invalid dst_lanes: {dst_lanes}"),
         },
         H1 => match dst_lanes {
+            AnyHF | HF1 => HF1,
             AnyB | AnyH | B2 | B3 | H1 => H1,
             _ => panic!("Invalid dst_lanes: {dst_lanes}"),
         },
-        None => panic!("Invalid alloc_lanes: {alloc_lanes}"),
+        None | AnyHF | HF0 | HF1 => {
+            panic!("Invalid alloc_lanes: {alloc_lanes}");
+        }
     }
 }
 
@@ -1668,6 +1672,9 @@ fn ra_trivial(s: &mut Shader) {
                         DstLanes::All => debug_assert_eq!(lanes, DstLanes::All),
                         DstLanes::AnyB => debug_assert!(lanes.is_byte()),
                         DstLanes::AnyH => debug_assert!(lanes.is_half()),
+                        DstLanes::AnyHF => debug_assert!(lanes.is_half()),
+                        DstLanes::HF0 => debug_assert_eq!(lanes, DstLanes::H0),
+                        DstLanes::HF1 => debug_assert_eq!(lanes, DstLanes::H1),
                         _ => debug_assert_eq!(lanes, alloc_lanes),
                     }
 

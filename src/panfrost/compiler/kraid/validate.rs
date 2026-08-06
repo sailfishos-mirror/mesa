@@ -71,6 +71,12 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
             DstRef::Mem(_) => (),
         }
 
+        if dst.lanes.is_f16_narrow() {
+            assert_eq!(dst_type, DataType::F32);
+            assert_eq!(dst.dst_ref.bytes_written(), 2);
+            continue;
+        }
+
         let dst_type_bits = dst_type.bits();
         let dst_type_comps = dst_type.comps();
         if dst_type_bits >= 32 {
