@@ -726,7 +726,22 @@ build_descriptor_set_bti(nir_builder *b,
                          uint32_t set,
                          const struct apply_pipeline_layout_state *state)
 {
-   if (state->pdevice->info.has_lsc) {
+   if (state->pdevice->uses_efficient_64bit) {
+      /* No need for resource_intel since there is no BTI, it's all bindless. */
+      return nir_resource_intel(
+         b, 2, 32,
+         nir_imm_int(b, set),
+         nir_vec2(b,
+                  nir_load_reloc_const_intel(b, BRW_SHADER_RELOC_DESCRIPTORS_VIEW_HANDLE),
+                  nir_load_reloc_const_intel(b, BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH)),
+         nir_imm_int(b, 0) /* array_index */,
+         nir_imm_int(b, 0) /* bindless_base_offset */,
+         .desc_set = set,
+         .binding = -1,
+         .resource_block_intel = state->set[set].push_block,
+         .resource_access_intel = nir_resource_intel_pushable |
+         nir_resource_intel_internal);
+   } else if (state->pdevice->info.has_lsc) {
       nir_def *surface_handle =
          (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT ||
           state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_UNKNOWN) ?
@@ -772,7 +787,12 @@ build_descriptor_set_base_address(nir_builder *b,
       (state->set_layouts[set]->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
    enum intel_shader_reloc_id reloc_id;
 
-   if (state->pdevice->info.has_lsc) {
+   if (state->pdevice->uses_efficient_64bit) {
+      reloc_id =
+         is_push_set ?
+         BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH :
+         BRW_SHADER_RELOC_DESCRIPTORS_APP_HIGH;
+   } else if (state->pdevice->info.has_lsc) {
       reloc_id =
          state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_BUFFER ?
          BRW_SHADER_RELOC_DESCRIPTORS_BUFFER_ADDR_HIGH :
@@ -843,16 +863,29 @@ build_desc_address32(nir_builder *b,
                      nir_def *offset,
                      const struct apply_pipeline_layout_state *state)
 {
-
-   return nir_vec2(b,
-                   nir_load_array_var(b, state->set_idx_to_bti,
-                                      set < MAX_SETS ?
-                                      nir_imm_int(b, set) : set_idx),
-                   nir_iadd(b,
-                            nir_load_array_var(b, state->set_idx_to_offset,
-                                               set < MAX_SETS ?
-                                               nir_imm_int(b, set) : set_idx),
-                            offset));
+   if (state->pdevice->uses_efficient_64bit) {
+      nir_def *surface = nir_load_array_var(b, state->set_idx_to_bti,
+                                            set < MAX_SETS ?
+                                            nir_imm_int(b, set) : set_idx);
+      return nir_vec3(b,
+                      nir_channel(b, surface, 0),
+                      nir_channel(b, surface, 1),
+                      nir_iadd(b,
+                               nir_load_array_var(b, state->set_idx_to_offset,
+                                                  set < MAX_SETS ?
+                                                  nir_imm_int(b, set) : set_idx),
+                               offset));
+   } else {
+      return nir_vec2(b,
+                      nir_load_array_var(b, state->set_idx_to_bti,
+                                         set < MAX_SETS ?
+                                         nir_imm_int(b, set) : set_idx),
+                      nir_iadd(b,
+                               nir_load_array_var(b, state->set_idx_to_offset,
+                                                  set < MAX_SETS ?
+                                                  nir_imm_int(b, set) : set_idx),
+                               offset));
+   }
 }
 
 /** Build a 64bit_bounded_global address for a descriptor set */
@@ -863,6 +896,9 @@ build_desc_address64(nir_builder *b,
                      uint32_t range,
                      const struct apply_pipeline_layout_state *state)
 {
+   /* This helper is only use pre Gfx12.5 */
+   assert(!state->pdevice->info.has_lsc);
+   assert(!state->pdevice->uses_efficient_64bit);
    return nir_vec4(b,
                    nir_iadd(b,
                             nir_load_array_var(b, state->set_idx_to_offset,
@@ -942,8 +978,9 @@ build_surface_index_for_binding(nir_builder *b,
                                 bool non_uniform,
                                 const struct apply_pipeline_layout_state *state)
 {
+   const struct anv_descriptor_set_layout *set_layout = state->set_layouts[set];
    const struct anv_descriptor_set_binding_layout *bind_layout =
-      &state->set_layouts[set]->binding[binding];
+      &set_layout->binding[binding];
    const unsigned descriptor_offset =
       binding_descriptor_offset(state, bind_layout, false /* sampler */);
    const unsigned descriptor_stride =
@@ -1001,19 +1038,30 @@ build_surface_index_for_binding(nir_builder *b,
       assert(state->set[set].binding[binding].surface_offset < MAX_BINDING_TABLE_SIZE);
    }
 
-   return nir_resource_intel(b, 1, 32,
-                             set_offset,
-                             surface_index,
-                             array_index,
-                             nir_imm_int(b, 0) /* bindless_base_offset */,
-                             .desc_set = set,
-                             .binding = binding,
-                             .resource_block_intel = state->set[set].binding[binding].push_block,
-                             .resource_access_intel =
-                                (is_bindless ? nir_resource_intel_bindless : 0) |
-                                (non_uniform ? nir_resource_intel_non_uniform : 0) |
-                                ((state->set[set].binding[binding].properties &
-                                  BINDING_PROPERTY_PUSHABLE) ? nir_resource_intel_pushable : 0));
+   if (state->pdevice->uses_efficient_64bit) {
+      surface_index = nir_vec2(b,
+                               nir_iadd(b, set_offset, surface_index),
+                               nir_load_reloc_const_intel(
+                                  b,
+                                  (set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) ?
+                                  BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH :
+                                  BRW_SHADER_RELOC_DESCRIPTORS_APP_HIGH));
+   }
+
+   return nir_resource_intel(
+      b, state->pdevice->uses_efficient_64bit ? 2 : 1, 32,
+      set_offset,
+      surface_index,
+      array_index,
+      nir_imm_int(b, 0) /* bindless_base_offset */,
+      .desc_set = set,
+      .binding = binding,
+      .resource_block_intel = state->set[set].binding[binding].push_block,
+      .resource_access_intel =
+      (is_bindless ? nir_resource_intel_bindless : 0) |
+      (non_uniform ? nir_resource_intel_non_uniform : 0) |
+      ((state->set[set].binding[binding].properties &
+        BINDING_PROPERTY_PUSHABLE) ? nir_resource_intel_pushable : 0));
 }
 
 static nir_def *
@@ -1024,8 +1072,9 @@ build_sampler_handle_for_binding(nir_builder *b,
                                  bool non_uniform,
                                  const struct apply_pipeline_layout_state *state)
 {
+   const struct anv_descriptor_set_layout *set_layout = state->set_layouts[set];
    const struct anv_descriptor_set_binding_layout *bind_layout =
-      &state->set_layouts[set]->binding[binding];
+      &set_layout->binding[binding];
    const unsigned descriptor_offset =
       binding_descriptor_offset(state, bind_layout, true /* sampler */);
    const unsigned descriptor_stride =
@@ -1092,6 +1141,24 @@ build_sampler_handle_for_binding(nir_builder *b,
                       state->set[set].binding[binding].sampler_offset + plane);
    }
 
+   if (state->pdevice->uses_efficient_64bit) {
+      if (is_embedded) {
+         sampler_index = nir_vec2(
+            b, sampler_index,
+            nir_load_reloc_const_intel(
+               b, BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH));
+      } else {
+         sampler_index =  nir_vec2(
+            b,
+            nir_iadd(b, set_offset, sampler_index),
+            nir_load_reloc_const_intel(
+               b,
+               (set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) ?
+               BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH :
+               BRW_SHADER_RELOC_DESCRIPTORS_APP_HIGH));
+      }
+   }
+
    nir_resource_data_intel sampler_resource = nir_resource_intel_sampler;
    if (is_bindless)
       sampler_resource |= nir_resource_intel_bindless;
@@ -1100,14 +1167,15 @@ build_sampler_handle_for_binding(nir_builder *b,
    if (non_uniform)
       sampler_resource |= nir_resource_intel_non_uniform;
 
-   return nir_resource_intel(b, 1, 32,
-                             set_offset,
-                             sampler_index,
-                             array_index,
-                             sampler_base_offset,
-                             .desc_set = set,
-                             .binding = binding,
-                             .resource_access_intel = sampler_resource);
+   return nir_resource_intel(
+      b, state->pdevice->uses_efficient_64bit ? 2 : 1, 32,
+      set_offset,
+      sampler_index,
+      array_index,
+      sampler_base_offset,
+      .desc_set = set,
+      .binding = binding,
+      .resource_access_intel = sampler_resource);
 }
 
 static nir_def *
@@ -1271,12 +1339,21 @@ build_buffer_addr_for_binding(nir_builder *b,
 
    struct res_index_defs res = unpack_res_index(b, res_index);
 
-   return nir_vec2(b,
-                   build_surface_index_for_binding(b, set, binding, res.array_index,
-                                                   0 /* plane */,
-                                                   false /* non_uniform */,
-                                                   state),
-                   nir_imm_int(b, 0));
+   nir_def *surface_handle =
+      build_surface_index_for_binding(b, set, binding, res.array_index,
+                                      0 /* plane */,
+                                      false /* non_uniform */,
+                                      state);
+   if (state->pdevice->uses_efficient_64bit) {
+      assert(surface_handle->num_components == 2);
+      return nir_vec3(b,
+                      nir_channel(b, surface_handle, 0),
+                      nir_channel(b, surface_handle, 1),
+                      nir_imm_int(b, 0));
+   } else {
+      assert(surface_handle->num_components == 1);
+      return nir_vec2(b, surface_handle, nir_imm_int(b, 0));
+   }
 }
 
 /** Loads descriptor memory for a variable-based deref chain
@@ -2538,13 +2615,17 @@ static nir_variable *
 build_descriptor_sets_bti_array(nir_builder *b,
                                 const struct apply_pipeline_layout_state *state)
 {
-   nir_variable *set_to_bti = nir_local_variable_create(
-      b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
-      "set_to_bti");
+   const glsl_type *type = glsl_array_type(
+      state->pdevice->uses_efficient_64bit ? glsl_ivec2_type(): glsl_uint_type(),
+      MAX_SETS,
+      (state->pdevice->uses_efficient_64bit ? 2 : 1) * sizeof(uint32_t));
+   nir_variable *set_to_bti =
+      nir_local_variable_create(b->impl, type, "set_to_bti");
 
    for (uint32_t i = 0; i < MAX_SETS; i++) {
       nir_store_array_var(b, set_to_bti, nir_imm_int(b, i),
-                          build_descriptor_set_bti(b, i, state), 0x1);
+                          build_descriptor_set_bti(b, i, state),
+                          state->pdevice->uses_efficient_64bit ? 0x3 : 0x1);
    }
 
    return set_to_bti;
@@ -2610,7 +2691,9 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
       .set_count = set_count,
       .dynamic_offset_start = dynamic_offset_start,
       /* Use vec2 index for the 64bit mode */
-      .direct_addr_format = nir_address_format_32bit_index_offset,
+      .direct_addr_format = pdevice->uses_efficient_64bit ?
+                            nir_address_format_vec2_index_32bit_offset :
+                            nir_address_format_32bit_index_offset,
       .ssbo_addr_format = anv_nir_ssbo_addr_format(pdevice, robust_flags),
       .ubo_addr_format = anv_nir_ubo_addr_format(pdevice, robust_flags),
       .is_device_bindable = device_bindable,

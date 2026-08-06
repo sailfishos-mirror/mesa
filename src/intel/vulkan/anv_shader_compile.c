@@ -229,6 +229,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool indirect_descriptors = device->indirect_descriptors;
    _mesa_blake3_update(&ctx, &indirect_descriptors, sizeof(indirect_descriptors));
 
+   const bool efficient_64bit = device->uses_efficient_64bit;
+   _mesa_blake3_update(&ctx, &efficient_64bit, sizeof(efficient_64bit));
+
    const int spilling_rate = device->compiler->spilling_rate;
    _mesa_blake3_update(&ctx, &spilling_rate, sizeof(spilling_rate));
 
