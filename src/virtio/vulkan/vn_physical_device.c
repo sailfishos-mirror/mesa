@@ -259,6 +259,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex;
       VkPhysicalDeviceRasterizationOrderAttachmentAccessFeaturesEXT
          rasterization_order_attachment_access;
+      VkPhysicalDeviceRGBA10X6FormatsFeaturesEXT rgba10x6_formats;
       VkPhysicalDeviceShaderAtomicFloatFeaturesEXT shader_atomic_float;
       VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT shader_atomic_float_2;
       VkPhysicalDeviceShaderFloat8FeaturesEXT shader_float8;
@@ -428,6 +429,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, PRIMITIVES_GENERATED_QUERY_FEATURES_EXT, local_feats.primitives_generated_query, exts->EXT_primitives_generated_query);
    VN_ADD_PNEXT_EXT(feats2, PROVOKING_VERTEX_FEATURES_EXT, local_feats.provoking_vertex, exts->EXT_provoking_vertex);
    VN_ADD_PNEXT_EXT(feats2, RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT, local_feats.rasterization_order_attachment_access, exts->EXT_rasterization_order_attachment_access || exts->ARM_rasterization_order_attachment_access);
+   VN_ADD_PNEXT_EXT(feats2, RGBA10X6_FORMATS_FEATURES_EXT, local_feats.rgba10x6_formats, exts->EXT_rgba10x6_formats);
    VN_ADD_PNEXT_EXT(feats2, SHADER_ATOMIC_FLOAT_FEATURES_EXT, local_feats.shader_atomic_float, exts->EXT_shader_atomic_float);
    VN_ADD_PNEXT_EXT(feats2, SHADER_ATOMIC_FLOAT_2_FEATURES_EXT, local_feats.shader_atomic_float_2, exts->EXT_shader_atomic_float2);
    VN_ADD_PNEXT_EXT(feats2, SHADER_FLOAT8_FEATURES_EXT, local_feats.shader_float8, exts->EXT_shader_float8);
@@ -1418,6 +1420,7 @@ vn_physical_device_get_passthrough_extensions(
       .EXT_provoking_vertex = true,
       .EXT_queue_family_foreign = true,
       .EXT_rasterization_order_attachment_access = true,
+      .EXT_rgba10x6_formats = true,
       .EXT_robustness2 = true,
       .EXT_sample_locations = true,
       .EXT_shader_atomic_float = true,
@@ -2211,12 +2214,10 @@ vn_sanitize_format_properties(VkFormat format,
       VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT |
       VK_FORMAT_FEATURE_DISJOINT_BIT;
 
-   /* TODO drop rgba10x6 after supporting VK_EXT_rgba10x6_formats */
    switch (format) {
    case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
    case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
    case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
-   case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16:
       props->linearTilingFeatures &= allowed_ycbcr_feats;
       props->optimalTilingFeatures &= allowed_ycbcr_feats;
       if (props3) {
@@ -2668,11 +2669,6 @@ vn_sanitize_image_format_properties(
       physical_dev->external_memory.renderer_handle_type;
    const VkExternalMemoryHandleTypeFlags supported_handle_types =
       physical_dev->external_memory.supported_handle_types;
-
-   /* TODO drop this after supporting VK_EXT_rgba10x6_formats */
-   if (info->format == VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16) {
-      props->imageFormatProperties.sampleCounts = VK_SAMPLE_COUNT_1_BIT;
-   }
 
    /* sanitize VkExternalMemoryProperties */
    VkExternalImageFormatProperties *external_props =
