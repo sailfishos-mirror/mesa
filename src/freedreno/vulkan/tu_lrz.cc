@@ -1195,7 +1195,8 @@ tu6_calculate_lrz_state(struct tu_cmd_buffer *cmd,
    gras_lrz_cntl.z_write_enable = z_write_enable;
    gras_lrz_cntl.z_bounds_enable = z_bounds_enable;
    gras_lrz_cntl.fc_enable = cmd->state.lrz.fast_clear;
-   gras_lrz_cntl.dir_write = cmd->state.lrz.gpu_dir_tracking;
+   gras_lrz_cntl.dir_write = cmd->state.lrz.gpu_dir_tracking &&
+      z_write_enable;
    gras_lrz_cntl.disable_on_wrong_dir = cmd->state.lrz.gpu_dir_tracking;
 
    if (CHIP >= A7XX)
