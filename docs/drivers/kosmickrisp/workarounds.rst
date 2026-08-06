@@ -412,9 +412,14 @@ The implemented solution is to change the ``while(true)`` loop with
 tricks the MSL compiler into believing we are not doing an infinite loop
 (wink wink).
 
+For M5, this workaround is needed in macOS 27 to avoid the compiler going
+into an infinite loop for ``dEQP-VK.reconvergence.maximal.compute.nesting3.0.32``,
+``3.2.12`` and ``6.1.3``.
+
 | Log:
 | 2025-09-08: Workaround implemented
 | 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
+| 2026-08-06: Renabled for M5 macOs 27 Beta (26A5388g)
 
 KK_WORKAROUND_1
 ---------------
