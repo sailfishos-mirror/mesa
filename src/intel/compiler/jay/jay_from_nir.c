@@ -4372,7 +4372,7 @@ jay_compile(const struct intel_device_info *devinfo,
        * spilling. In the future we could consider more heuristics but for now
        * this should suffice.
        */
-      if (jv->bin && nir->info.stage != MESA_SHADER_FRAGMENT) {
+      if (jv->bin && orig_nir->info.stage != MESA_SHADER_FRAGMENT) {
          break;
       }
    }
