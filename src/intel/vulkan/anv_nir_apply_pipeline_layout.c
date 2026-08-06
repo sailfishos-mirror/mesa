@@ -1339,10 +1339,10 @@ build_res_index_for_chain(nir_builder *b, nir_intrinsic_instr *intrin,
  * The cursor is not where you left it when this function returns.
  */
 static nir_def *
-build_buffer_addr_for_idx_intrin(nir_builder *b,
-                                 nir_intrinsic_instr *idx_intrin,
-                                 nir_address_format addr_format,
-                                 struct apply_pipeline_layout_state *state)
+build_direct_buffer_addr_for_idx_intrin(nir_builder *b,
+                                        nir_intrinsic_instr *idx_intrin,
+                                        nir_address_format addr_format,
+                                        struct apply_pipeline_layout_state *state)
 {
    uint32_t set = UINT32_MAX, binding = UINT32_MAX;
    nir_def *res_index =
@@ -1360,14 +1360,14 @@ build_buffer_addr_for_idx_intrin(nir_builder *b,
  * The cursor is not where you left it when this function returns.
  */
 static nir_def *
-build_buffer_addr_for_deref(nir_builder *b, nir_deref_instr *deref,
-                            nir_address_format addr_format,
-                            struct apply_pipeline_layout_state *state)
+build_direct_buffer_addr_for_deref(nir_builder *b, nir_deref_instr *deref,
+                                   nir_address_format addr_format,
+                                   struct apply_pipeline_layout_state *state)
 {
    nir_deref_instr *parent = nir_deref_instr_parent(deref);
    if (parent) {
-      nir_def *addr =
-         build_buffer_addr_for_deref(b, parent, addr_format, state);
+      nir_def *addr = build_direct_buffer_addr_for_deref(
+         b, parent, addr_format, state);
 
       b->cursor = nir_before_instr(&deref->instr);
       return nir_explicit_io_address_from_deref(b, deref, addr, addr_format);
@@ -1380,7 +1380,7 @@ build_buffer_addr_for_deref(nir_builder *b, nir_deref_instr *deref,
 
    b->cursor = nir_before_instr(&deref->instr);
 
-   return build_buffer_addr_for_idx_intrin(b, idx_intrin, addr_format, state);
+   return build_direct_buffer_addr_for_idx_intrin(b, idx_intrin, addr_format, state);
 }
 
 static bool
@@ -1460,7 +1460,7 @@ try_lower_direct_buffer_intrinsic(nir_builder *b,
       nir_address_format_32bit_index_offset;
 
    nir_def *addr =
-      build_buffer_addr_for_deref(b, deref, addr_format, state);
+      build_direct_buffer_addr_for_deref(b, deref, addr_format, state);
 
    b->cursor = nir_before_instr(&intrin->instr);
    nir_lower_explicit_io_instr(b, intrin, addr, addr_format);

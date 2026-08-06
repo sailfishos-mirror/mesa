@@ -494,13 +494,13 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
 }
 
 static nir_def *
-build_buffer_addr_for_deref(nir_builder *b, nir_deref_instr *deref,
-                            const struct anv_physical_device *pdevice)
+build_direct_buffer_addr_for_deref(nir_builder *b, nir_deref_instr *deref,
+                                   const struct anv_physical_device *pdevice)
 {
    if (deref->deref_type != nir_deref_type_cast) {
       nir_deref_instr *parent = nir_deref_instr_parent(deref);
       nir_def *addr =
-         build_buffer_addr_for_deref(b, parent, pdevice);
+         build_direct_buffer_addr_for_deref(b, parent, pdevice);
 
       b->cursor = nir_before_instr(&deref->instr);
       return nir_explicit_io_address_from_deref(
@@ -556,7 +556,7 @@ try_lower_direct_buffer_intrinsic(nir_builder *b,
 
    b->cursor = nir_before_instr(&intrin->instr);
 
-   nir_def *addr = build_buffer_addr_for_deref(b, deref, pdevice);
+   nir_def *addr = build_direct_buffer_addr_for_deref(b, deref, pdevice);
    nir_lower_explicit_io_instr(b, intrin, addr,
                                nir_address_format_32bit_index_offset);
 
