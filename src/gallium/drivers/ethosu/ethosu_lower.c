@@ -828,9 +828,25 @@ ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
                      struct ethosu_operation *operation);
 
 static void
+set_constant_tensor_data_feature_map(struct ethosu_subgraph *subgraph,
+                                     struct pipe_tensor *tensor,
+                                     const void *data,
+                                     struct ethosu_feature_map *fm);
+
+static void
+set_constant_tensor_feature_map_value(struct ethosu_subgraph *subgraph,
+                                      struct pipe_tensor *tensor,
+                                      int value,
+                                      struct ethosu_feature_map *fm);
+
+static void
 set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
                                 struct pipe_tensor *tensor,
-                                struct ethosu_feature_map *fm);
+                                struct ethosu_feature_map *fm)
+{
+   set_constant_tensor_feature_map_value(subgraph, tensor,
+                                         tensor->zero_point, fm);
+}
 
 static unsigned
 ethosu_lut_activation(struct ethosu_subgraph *subgraph,
@@ -1414,9 +1430,10 @@ ethosu_lower_argmax(struct ethosu_subgraph *subgraph,
 }
 
 static void
-set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
-                                struct pipe_tensor *tensor,
-                                struct ethosu_feature_map *fm)
+set_constant_tensor_data_feature_map(struct ethosu_subgraph *subgraph,
+                                     struct pipe_tensor *tensor,
+                                     const void *data,
+                                     struct ethosu_feature_map *fm)
 {
    struct ethosu_block shape = {
       tensor->dims[2],
@@ -1425,17 +1442,7 @@ set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
    };
    unsigned elements = shape.height * shape.width * shape.depth;
    unsigned size = elements * tensor->type_size;
-   uint8_t *data = malloc(size);
    struct ethosu_tensor *ethosu_tensor;
-
-   if (tensor->type_size == 1) {
-      memset(data, tensor->zero_point, size);
-   } else {
-      int16_t *data16 = (int16_t *)data;
-
-      for (unsigned i = 0; i < elements; i++)
-         data16[i] = tensor->zero_point;
-   }
 
    ethosu_tensor = ethosu_add_internal_tensor(subgraph, shape,
                                               tensor->type_size);
@@ -1446,6 +1453,28 @@ set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
    fm->tiles.height_0 = shape.height;
    fm->tiles.height_1 = shape.height;
    fm->tiles.width_0 = shape.width;
+}
+
+static void
+set_constant_tensor_feature_map_value(struct ethosu_subgraph *subgraph,
+                                      struct pipe_tensor *tensor,
+                                      int value,
+                                      struct ethosu_feature_map *fm)
+{
+   unsigned elements = tensor->dims[1] * tensor->dims[2] * tensor->dims[3];
+   unsigned size = elements * tensor->type_size;
+   uint8_t *data = malloc(size);
+
+   if (tensor->type_size == 1) {
+      memset(data, value, size);
+   } else {
+      int16_t *data16 = (int16_t *)data;
+
+      for (unsigned i = 0; i < elements; i++)
+         data16[i] = value;
+   }
+
+   set_constant_tensor_data_feature_map(subgraph, tensor, data, fm);
 
    free(data);
 }
@@ -1453,6 +1482,7 @@ set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
 static void
 create_pad_constant(struct ethosu_subgraph *subgraph,
                     const struct pipe_tensor *tensor, unsigned elements,
+                    int value,
                     struct ethosu_tensor **out_tensor, unsigned *out_address)
 {
    struct ethosu_block shape = {elements, 1, 1};
@@ -1460,12 +1490,12 @@ create_pad_constant(struct ethosu_subgraph *subgraph,
    uint8_t *data = malloc(size);
 
    if (tensor->type_size == 1) {
-      memset(data, tensor->zero_point, size);
+      memset(data, value, size);
    } else {
       int16_t *data16 = (int16_t *)data;
 
       for (unsigned i = 0; i < elements; i++)
-         data16[i] = tensor->zero_point;
+         data16[i] = value;
    }
 
    *out_tensor = ethosu_add_internal_tensor(subgraph, shape,
@@ -1580,9 +1610,18 @@ ethosu_lower_pad(struct ethosu_subgraph *subgraph,
    unsigned elements = MAX2(MAX2(ow * oc * pad_y, oh * oc * pad_x),
                             oh * ow * pad_z);
 
-   create_pad_constant(subgraph, output, elements, &constant, &address);
+   create_pad_constant(subgraph, output, elements,
+                       poperation->pad.raw_zero ? 0 : output->zero_point,
+                       &constant, &address);
 
-   set_feature_map(subgraph, poperation->input_tensors[0], &input_fm);
+   if (poperation->input_tensors[0]->data) {
+      set_constant_tensor_data_feature_map(subgraph,
+                                           poperation->input_tensors[0],
+                                           poperation->input_tensors[0]->data,
+                                           &input_fm);
+   } else {
+      set_feature_map(subgraph, poperation->input_tensors[0], &input_fm);
+   }
    set_pad_ofm(subgraph, poperation,
                poperation->pad.before_y, poperation->pad.before_x,
                poperation->pad.before_z, input->dims[1], input->dims[2],
@@ -3757,7 +3796,9 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          struct pipe_tensor *input_tensor = conv->input_tensors[0];
          const struct pipe_ml_operation *producer = ethosu_find_first_producer(poperations, count, input_tensor->index);
          const struct pipe_ml_operation *lut;
-         bool padded_input = producer && producer->type == PIPE_ML_OPERATION_TYPE_PAD;
+         bool padded_input = producer &&
+                             producer->type == PIPE_ML_OPERATION_TYPE_PAD &&
+                             !producer->pad.raw_zero;
 
          if (ethosu_space_batch_fusion(poperations, count, conv,
                                        &space_to_batch, &batch_to_space)) {
@@ -4024,7 +4065,8 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          break;
 
       case PIPE_ML_OPERATION_TYPE_PAD: {
-         if (ethosu_all_consumers_are_convolutions(
+         if (!poperations[i].pad.raw_zero &&
+             ethosu_all_consumers_are_convolutions(
                 poperations, count, poperations[i].output_tensors[0]->index))
             break;
 
