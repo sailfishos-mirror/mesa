@@ -470,10 +470,10 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    }
    case PIPE_ML_OPERATION_TYPE_SPLIT: {
       struct pipe_tensor *input = operation->input_tensors[0];
+      unsigned split_size = 0;
 
       if (operation->split.axis < 1 || operation->split.axis > 3 ||
-          !operation->output_count ||
-          input->dims[operation->split.axis] % operation->output_count)
+          !operation->output_count)
          break;
 
       supported = true;
@@ -485,12 +485,15 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
             supported = false;
 
          for (unsigned axis = 0; axis < 4; axis++) {
-            unsigned expected = axis == operation->split.axis ? input->dims[axis] / operation->output_count : input->dims[axis];
+            unsigned expected = axis == operation->split.axis ? output->dims[axis] : input->dims[axis];
 
             if (output->dims[axis] != expected)
                supported = false;
          }
+
+         split_size += output->dims[operation->split.axis];
       }
+      supported &= split_size == input->dims[operation->split.axis];
       break;
    }
    case PIPE_ML_OPERATION_TYPE_MEAN: {
