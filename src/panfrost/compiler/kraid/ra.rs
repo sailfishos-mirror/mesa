@@ -1726,6 +1726,7 @@ impl Shader<'_> {
             // We don't validate before SSA repair
 
             pass!(self.repair_ssa());
+            pass!(self.opt_dce());
 
             live = SimpleLiveness::for_shader(self)
         }
