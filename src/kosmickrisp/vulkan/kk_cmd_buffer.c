@@ -76,6 +76,9 @@ kk_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
       container_of(vk_cmd_buffer, struct kk_cmd_buffer, vk);
    struct kk_cmd_pool *pool = kk_cmd_buffer_pool(cmd);
 
+   if (cmd->drawable)
+      mtl_release(cmd->drawable);
+
    mtl_release(cmd->argument_table);
    kk_destroy_encoder_state(&cmd->cmp[0]);
    kk_destroy_encoder_state(&cmd->cmp[1]);
