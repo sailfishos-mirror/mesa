@@ -129,6 +129,7 @@ ac_create_clear_copy_buffer_cs(const struct ac_cs_clear_copy_buffer_options *con
          nir_channel(&b, user_data, start_thread_user_data_index);
       thread_id = nir_isub(&b, thread_id, start_thread);
       if_positive = nir_push_if(&b, nir_ige_imm(&b, thread_id, 0));
+      if_positive->control = nir_selection_control_divergent_always_taken;
    }
 
    /* Convert the global thread ID into bytes. */
