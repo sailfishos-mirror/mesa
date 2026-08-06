@@ -948,18 +948,30 @@ radv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
       for (uint32_t j = 0; j < num_tiling; j++) {
          vk_outarray_append_typed(VkVideoFormatPropertiesKHR, &out, p)
          {
+            VkImageCreateFlags2KHR create_flags = 0;
+            if (src_dst || qp_map)
+               create_flags |= VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR |
+                               VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR | VK_IMAGE_CREATE_2_ALIAS_BIT_KHR;
+
             p->format = format;
             p->componentMapping.r = VK_COMPONENT_SWIZZLE_IDENTITY;
             p->componentMapping.g = VK_COMPONENT_SWIZZLE_IDENTITY;
             p->componentMapping.b = VK_COMPONENT_SWIZZLE_IDENTITY;
             p->componentMapping.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            p->imageCreateFlags = 0;
-            if (src_dst || qp_map)
-               p->imageCreateFlags |= VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR |
-                                      VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR | VK_IMAGE_CREATE_2_ALIAS_BIT_KHR;
+            p->imageCreateFlags = create_flags;
             p->imageType = VK_IMAGE_TYPE_2D;
             p->imageTiling = tiling[j];
             p->imageUsageFlags = usage_flags;
+
+            struct VkImageCreateFlags2CreateInfoKHR *create_flags2 =
+               vk_find_struct(p->pNext, IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR);
+            if (create_flags2)
+               create_flags2->flags = create_flags;
+
+            struct VkImageUsageFlags2CreateInfoKHR *usage_flags2 =
+               vk_find_struct(p->pNext, IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR);
+            if (usage_flags2)
+               usage_flags2->usage = usage_flags;
 
             if (qp_map) {
                struct VkVideoFormatQuantizationMapPropertiesKHR *qp_map_props =

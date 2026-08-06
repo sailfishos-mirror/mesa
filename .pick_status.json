@@ -6234,7 +6234,7 @@
         "description": "radv/video: Fix interaction with KHR_extended_flags",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d9a4ad1807134f11b82e45e0749d96d21fb029db",
         "notes": null
