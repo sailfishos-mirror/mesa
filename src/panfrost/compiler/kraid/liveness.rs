@@ -126,6 +126,14 @@ impl LiveSet {
     }
 }
 
+impl std::fmt::Debug for LiveSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut vec: Vec<_> = self.set.iter().cloned().collect();
+        vec.sort_by_key(|ssa| ssa.idx());
+        write!(f, "{vec:?}")
+    }
+}
+
 impl FromIterator<SSAValue> for LiveSet {
     fn from_iter<T: IntoIterator<Item = SSAValue>>(iter: T) -> Self {
         let mut set = LiveSet::new();
