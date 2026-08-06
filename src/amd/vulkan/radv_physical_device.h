@@ -271,10 +271,6 @@ bool radv_use_bvh8(const struct radv_physical_device *pdev);
 
 bool radv_is_dcc_disabled(const struct radv_physical_device *pdev);
 
-bool radv_are_dcc_stores_disabled(const struct radv_physical_device *pdev);
-
-bool radv_are_dcc_mips_disabled(const struct radv_physical_device *pdev);
-
 VkResult create_drm_physical_device(struct vk_instance *vk_instance, struct _drmDevice *device,
                                     struct vk_physical_device **out);
 

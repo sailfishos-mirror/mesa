@@ -291,11 +291,11 @@ radv_use_dcc_for_image_early(struct radv_device *device, struct radv_image *imag
    }
 
    /* Force disable DCC for mips to workaround game bugs. */
-   if (radv_are_dcc_mips_disabled(pdev) && image->vk.mip_levels > 1)
+   if (pdev->drirc.debug.disable_dcc_mips && image->vk.mip_levels > 1)
       return false;
 
    /* Force disable DCC for stores to workaround game bugs. */
-   if (radv_are_dcc_stores_disabled(pdev) && (image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR))
+   if (pdev->drirc.debug.disable_dcc_stores && (image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR))
       return false;
 
    /* DCC MSAA can't work on GFX10.3 and earlier without FMASK. */

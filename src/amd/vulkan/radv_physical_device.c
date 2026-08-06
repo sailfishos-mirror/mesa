@@ -287,19 +287,7 @@ radv_is_dcc_disabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
-   return instance->debug_flags & RADV_DEBUG_NO_DCC || (pdev->drirc.debug.disable_dcc && pdev->info.gfx_level < GFX12);
-}
-
-bool
-radv_are_dcc_stores_disabled(const struct radv_physical_device *pdev)
-{
-   return pdev->drirc.debug.disable_dcc_stores && pdev->info.gfx_level < GFX12;
-}
-
-bool
-radv_are_dcc_mips_disabled(const struct radv_physical_device *pdev)
-{
-   return pdev->drirc.debug.disable_dcc_mips && pdev->info.gfx_level < GFX12;
+   return instance->debug_flags & RADV_DEBUG_NO_DCC || pdev->drirc.debug.disable_dcc;
 }
 
 static bool
@@ -2561,6 +2549,13 @@ radv_init_dri_options(struct radv_physical_device *pdev)
       const bool is_d3d9 = instance->vk.app_info.app_version & 0x1;
 
       drirc->debug.disable_trunc_coord &= !is_d3d9;
+   }
+
+   if (pdev->info.gfx_level >= GFX12) {
+      /* GFX12 isn't affected by any DCC issues from drirc. */
+      pdev->drirc.debug.disable_dcc = false;
+      pdev->drirc.debug.disable_dcc_stores = false;
+      pdev->drirc.debug.disable_dcc_mips = false;
    }
 }
 
