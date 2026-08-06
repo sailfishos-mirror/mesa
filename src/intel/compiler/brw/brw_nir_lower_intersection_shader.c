@@ -179,6 +179,26 @@ shader_uses_hit_attrib(const nir_shader *shader)
    return false;
 }
 
+static bool
+any_hit_has_reject_or_terminate(nir_shader *shader)
+{
+   nir_foreach_function_impl(impl, shader) {
+      nir_foreach_block(block, impl) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+            if (intrin->intrinsic == nir_intrinsic_ignore_ray_intersection ||
+                intrin->intrinsic == nir_intrinsic_terminate_ray)
+               return true;
+         }
+      }
+   }
+
+   return false;
+}
+
 bool
 brw_nir_lower_intersection_shader(nir_shader *intersection,
                                   const nir_shader *any_hit,
@@ -188,8 +208,10 @@ brw_nir_lower_intersection_shader(nir_shader *intersection,
 
    nir_function_impl *any_hit_impl = NULL;
    struct hash_table *any_hit_var_remap = NULL;
+   bool ahs_has_reject_or_terminate = false;
    if (any_hit) {
       nir_shader *any_hit_tmp = nir_shader_clone(dead_ctx, any_hit);
+      ahs_has_reject_or_terminate = any_hit_has_reject_or_terminate(any_hit_tmp);
       NIR_PASS(_, any_hit_tmp, nir_opt_dce);
       any_hit_impl = lower_any_hit_for_intersection(any_hit_tmp);
       any_hit_var_remap = _mesa_pointer_hash_table_create(dead_ctx);
@@ -275,7 +297,13 @@ brw_nir_lower_intersection_shader(nir_shader *intersection,
                      nir_pop_if(b, NULL);
                   }
 
-                  nir_push_if(b, nir_load_var(b, commit_tmp));
+                  /* An any-hit shader that cannot reject or terminate, the
+                   * candidate hit is always accepted.
+                   */
+                  nir_def *condition = !ahs_has_reject_or_terminate ?
+                                       nir_imm_true(b) :
+                                       nir_load_var(b, commit_tmp);
+                  nir_push_if(b, condition);
                   {
                      nir_store_var(b, commit, nir_imm_true(b), 0x1);
 
