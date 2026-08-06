@@ -2864,7 +2864,7 @@
         "description": "venus: amend VK_EXT_ycbcr_image_array advertisement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "af1b4f61b5301a6a95c39ef9e8473f25f1f0e4a6",
         "notes": null
