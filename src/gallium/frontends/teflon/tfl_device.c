@@ -287,6 +287,79 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->split.axis = 4 - input_rank + axis;
       break;
    }
+   case kTfLiteBuiltinSplitV: {
+      TfLiteSplitVParams *params = node->builtin_data;
+      TfLiteTensor *input_tensor;
+      TfLiteTensor *sizes_tensor;
+      TfLiteTensor *axis_tensor;
+      int input_rank;
+      int axis;
+      int inferred_index = -1;
+      int inferred_size = 0;
+      int total_size = 0;
+
+      if (node->inputs->size != 3 || !params ||
+          node->outputs->size != params->num_splits)
+         return false;
+
+      input_tensor = &tf_context->tensors[node->inputs->data[0]];
+      sizes_tensor = &tf_context->tensors[node->inputs->data[1]];
+      axis_tensor = &tf_context->tensors[node->inputs->data[2]];
+      input_rank = input_tensor->dims->size;
+      if (input_rank < 1 || input_rank > 4 ||
+          sizes_tensor->type != kTfLiteInt32 || !sizes_tensor->data.i32 ||
+          sizes_tensor->bytes < params->num_splits * sizeof(*sizes_tensor->data.i32) ||
+          axis_tensor->type != kTfLiteInt32 || !axis_tensor->data.i32 ||
+          axis_tensor->bytes < sizeof(*axis_tensor->data.i32))
+         return false;
+
+      axis = axis_tensor->data.i32[0];
+      if (axis < 0)
+         axis += input_rank;
+      if (axis < 0 || axis >= input_rank)
+         return false;
+
+      for (unsigned i = 0; i < params->num_splits; i++) {
+         int size = sizes_tensor->data.i32[i];
+
+         if (size == -1) {
+            if (inferred_index >= 0)
+               return false;
+            inferred_index = i;
+            continue;
+         }
+         if (size <= 0 || total_size > input_tensor->dims->data[axis] - size)
+            return false;
+         total_size += size;
+      }
+
+      if (inferred_index >= 0) {
+         inferred_size = input_tensor->dims->data[axis] - total_size;
+         if (inferred_size <= 0)
+            return false;
+      }
+
+      if (total_size + inferred_size !=
+          input_tensor->dims->data[axis])
+         return false;
+
+      for (unsigned i = 0; i < params->num_splits; i++) {
+         TfLiteTensor *output = &tf_context->tensors[node->outputs->data[i]];
+         int size = sizes_tensor->data.i32[i];
+
+         if (i == inferred_index)
+            size = inferred_size;
+
+         if (output->dims->size != input_rank ||
+             output->dims->data[axis] != size)
+            return false;
+      }
+
+      operation->type = PIPE_ML_OPERATION_TYPE_SPLIT;
+      operation->input_count = 1;
+      operation->split.axis = 4 - input_rank + axis;
+      break;
+   }
    case kTfLiteBuiltinUnpack: {
       TfLiteUnpackParams *params = node->builtin_data;
       int input_rank;
