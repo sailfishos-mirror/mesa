@@ -12,7 +12,6 @@
 #define RADV_INSTANCE_H
 
 #include "util/simple_mtx.h"
-#include "radv_drirc.h"
 #include "radv_radeon_winsys.h"
 #include "vk_instance.h"
 
@@ -168,8 +167,6 @@ struct radv_instance {
 
    enum radeon_ctx_pstate profile_pstate;
 
-   struct radv_drirc drirc;
-
    FILE *pso_history_logfile;
 };
 
@@ -178,8 +175,6 @@ VK_DEFINE_HANDLE_CASTS(radv_instance, vk.base, VkInstance, VK_OBJECT_TYPE_INSTAN
 const char *radv_get_debug_option_name(int id);
 
 const char *radv_get_perftest_option_name(int id);
-
-bool radv_is_rt_wave64_enabled(const struct radv_instance *instance);
 
 static const char *
 radv_bvh_stats_file()

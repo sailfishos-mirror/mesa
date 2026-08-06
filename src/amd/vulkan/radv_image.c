@@ -640,7 +640,7 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
       }
 
       if ((image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) &&
-          instance->drirc.performance.prefer_2d_swizzle_for_3d_storage) {
+          pdev->drirc.performance.prefer_2d_swizzle_for_3d_storage) {
          /* Some applications perform much better with a 2D swizzle mode for 3D storage images. */
          flags |= RADEON_SURF_VIEW_3D_AS_2D_ARRAY;
       }
@@ -1580,7 +1580,6 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
                                 VkImageLayout layout, unsigned queue_mask)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
    /* Don't compress exclusive images used on transfer queues when SDMA doesn't support HTILE.
     * Note that HTILE is already disabled on concurrent images when not supported.
@@ -1604,7 +1603,7 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
        * the number of decompressions from/to GENERAL.
        */
       if (radv_tc_compat_htile_enabled(image, level) && queue_mask & (1u << RADV_QUEUE_GENERAL) &&
-          !instance->drirc.debug.disable_tc_compat_htile_general) {
+          !pdev->drirc.debug.disable_tc_compat_htile_general) {
          return true;
       } else {
          return false;

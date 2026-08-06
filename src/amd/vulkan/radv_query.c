@@ -2513,7 +2513,6 @@ radv_CmdCopyQueryPoolResultsToMemoryKHR(VkCommandBuffer commandBuffer, VkQueryPo
    VK_FROM_HANDLE(radv_query_pool, pool, queryPool);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    const uint64_t dst_va = pDstRange->address;
    const uint64_t stride = pDstRange->stride;
@@ -2528,7 +2527,7 @@ radv_CmdCopyQueryPoolResultsToMemoryKHR(VkCommandBuffer commandBuffer, VkQueryPo
    /* Workaround engines that forget to properly specify WAIT_BIT because some driver implicitly
     * synchronizes before query copy.
     */
-   if (instance->drirc.debug.flush_before_query_copy)
+   if (pdev->drirc.debug.flush_before_query_copy)
       cmd_buffer->state.flush_bits |= cmd_buffer->active_query_flush_bits;
 
    /* From the Vulkan spec 1.1.108:
@@ -2785,7 +2784,6 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
    VK_FROM_HANDLE(radv_query_pool, pool, queryPool);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    const unsigned num_queries = MAX2(util_bitcount(cmd_buffer->state.render.view_mask), 1);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    const uint64_t va = radv_buffer_get_va(pool->bo);
@@ -2794,7 +2792,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
    radv_cs_add_buffer(device->ws, cs->b, pool->bo);
 
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
-      if (instance->drirc.debug.flush_before_timestamp_write) {
+      if (pdev->drirc.debug.flush_before_timestamp_write) {
          radv_sdma_emit_nop(device, cs);
       }
 
@@ -2813,7 +2811,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       return;
    }
 
-   if (instance->drirc.debug.flush_before_timestamp_write) {
+   if (pdev->drirc.debug.flush_before_timestamp_write) {
       /* Make sure previously launched waves have finished */
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
    }

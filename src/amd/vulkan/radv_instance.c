@@ -174,33 +174,6 @@ static const struct debug_control trace_options[] = {
    {NULL, 0},
 };
 
-static void
-radv_init_dri_options(struct radv_instance *instance)
-{
-   struct radv_drirc *drirc = &instance->drirc;
-
-   radv_parse_dri_options(drirc, &(driConfigFileParseParams){
-                                    .driverName = "radv",
-                                    .applicationName = instance->vk.app_info.app_name,
-                                    .applicationVersion = instance->vk.app_info.app_version,
-                                    .engineName = instance->vk.app_info.engine_name,
-                                    .engineVersion = instance->vk.app_info.engine_version,
-                                 });
-
-   if (instance->vk.app_info.engine_name && !strcmp(instance->vk.app_info.engine_name, "DXVK")) {
-      /* Since 2.3.1+, DXVK uses the application version to notify the driver about D3D9. */
-      const bool is_d3d9 = instance->vk.app_info.app_version & 0x1;
-
-      drirc->debug.disable_trunc_coord &= !is_d3d9;
-   }
-}
-
-bool
-radv_is_rt_wave64_enabled(const struct radv_instance *instance)
-{
-   return instance->perftest_flags & RADV_PERFTEST_RT_WAVE_64 || instance->drirc.debug.rt_wave64;
-}
-
 static const struct vk_instance_extension_table radv_instance_extensions_supported = {
    .KHR_device_group_creation = true,
    .KHR_external_fence_capabilities = true,
@@ -329,8 +302,6 @@ radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationC
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
 
-   radv_init_dri_options(instance);
-
    *pInstance = radv_instance_to_handle(instance);
 
    return VK_SUCCESS;
@@ -350,9 +321,6 @@ radv_DestroyInstance(VkInstance _instance, const VkAllocationCallbacks *pAllocat
       fclose(instance->pso_history_logfile);
 
    simple_mtx_destroy(&instance->shader_dump_mtx);
-
-   driDestroyOptionCache(&instance->drirc.options);
-   driDestroyOptionInfo(&instance->drirc.available_options);
 
    vk_instance_finish(&instance->vk);
    vk_free(&instance->vk.alloc, instance);

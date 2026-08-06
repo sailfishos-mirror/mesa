@@ -8331,8 +8331,7 @@ radv_bind_descriptor_sets(struct radv_cmd_buffer *cmd_buffer, const VkBindDescri
    VK_FROM_HANDLE(radv_pipeline_layout, layout, pBindDescriptorSetsInfo->layout);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   const bool no_dynamic_bounds = instance->drirc.debug.no_dynamic_bounds;
+   const bool no_dynamic_bounds = pdev->drirc.debug.no_dynamic_bounds;
    struct radv_descriptor_state *descriptors_state = radv_get_descriptors_state(cmd_buffer, bind_point);
    unsigned dyn_idx = 0;
 

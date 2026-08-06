@@ -52,10 +52,9 @@ bool
 radv_device_should_clear_vram(const struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
    /* Ignore drirc radv_zero_vram=true if the feature is enabled to let applications take control. */
-   return instance->drirc.debug.zero_vram && !device->vk.enabled_features.zeroInitializeDeviceMemory;
+   return pdev->drirc.debug.zero_vram && !device->vk.enabled_features.zeroInitializeDeviceMemory;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
@@ -776,21 +775,20 @@ static void
 init_app_workarounds_entrypoints(struct radv_device *device, struct dispatch_table_builder *b)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct vk_device_entrypoint_table table = {0};
 
 #define SET_ENTRYPOINT(app_layer, entrypoint) table.entrypoint = app_layer##_##entrypoint;
-   if (!strcmp(instance->drirc.debug.app_layer, "metroexodus")) {
+   if (!strcmp(pdev->drirc.debug.app_layer, "metroexodus")) {
       SET_ENTRYPOINT(metro_exodus, GetSemaphoreCounterValue);
-   } else if (!strcmp(instance->drirc.debug.app_layer, "rage2")) {
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "rage2")) {
       SET_ENTRYPOINT(rage2, CmdBeginRenderPass);
-   } else if (!strcmp(instance->drirc.debug.app_layer, "quanticdream")) {
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "quanticdream")) {
       SET_ENTRYPOINT(quantic_dream, UnmapMemory2);
-   } else if (!strcmp(instance->drirc.debug.app_layer, "no_mans_sky")) {
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "no_mans_sky")) {
       SET_ENTRYPOINT(no_mans_sky, CreateImageView);
-   } else if (!strcmp(instance->drirc.debug.app_layer, "strange_brigade")) {
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "strange_brigade")) {
       SET_ENTRYPOINT(strange_brigade, CmdPipelineBarrier2);
-   } else if (!strcmp(instance->drirc.debug.app_layer, "gfxbench5")) {
+   } else if (!strcmp(pdev->drirc.debug.app_layer, "gfxbench5")) {
       SET_ENTRYPOINT(gfxbench5, CmdPipelineBarrier2);
    }
 #undef SET_ENTRYPOINT
@@ -1217,7 +1215,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .use_ngg = pdev->use_ngg,
             .use_ngg_culling = pdev->use_ngg_culling,
             .nggc_max_ps_params = nggc_max_ps_params,
-            .no_ngg_gs = instance->drirc.performance.disable_ngg_gs,
+            .no_ngg_gs = pdev->drirc.performance.disable_ngg_gs,
             .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
             .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
             .primitives_generated_query = primitives_generated_query,
@@ -1234,19 +1232,19 @@ radv_device_init_compiler_info(struct radv_device *device)
             .bvh8 = radv_use_bvh8(pdev),
             .no_rt = !!(instance->debug_flags & RADV_DEBUG_NO_RT),
             .rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS),
-            .clear_lds = instance->drirc.misc.clear_lds,
-            .disable_aniso_single_level = instance->drirc.debug.disable_aniso_single_level,
-            .disable_shrink_image_store = instance->drirc.debug.disable_shrink_image_store,
-            .disable_sinking_load_input_fs = instance->drirc.debug.disable_sinking_load_input_fs,
-            .disable_trunc_coord = instance->drirc.debug.disable_trunc_coord,
-            .enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup,
+            .clear_lds = pdev->drirc.misc.clear_lds,
+            .disable_aniso_single_level = pdev->drirc.debug.disable_aniso_single_level,
+            .disable_shrink_image_store = pdev->drirc.debug.disable_shrink_image_store,
+            .disable_sinking_load_input_fs = pdev->drirc.debug.disable_sinking_load_input_fs,
+            .disable_trunc_coord = pdev->drirc.debug.disable_trunc_coord,
+            .enable_mrt_output_nan_fixup = pdev->drirc.debug.enable_mrt_output_nan_fixup,
             .emulate_rt = radv_emulate_rt(pdev),
-            .split_fma = instance->drirc.debug.split_fma,
-            .ssbo_non_uniform = instance->drirc.debug.ssbo_non_uniform,
-            .tex_non_uniform = instance->drirc.debug.tex_non_uniform,
-            .lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard,
-            .no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size,
-            .force_nan_preserve_min_max = instance->drirc.debug.force_nan_preserve_min_max,
+            .split_fma = pdev->drirc.debug.split_fma,
+            .ssbo_non_uniform = pdev->drirc.debug.ssbo_non_uniform,
+            .tex_non_uniform = pdev->drirc.debug.tex_non_uniform,
+            .lower_terminate_to_discard = pdev->drirc.debug.lower_terminate_to_discard,
+            .no_implicit_varying_subgroup_size = pdev->drirc.debug.no_implicit_varying_subgroup_size,
+            .force_nan_preserve_min_max = pdev->drirc.debug.force_nan_preserve_min_max,
             .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */
@@ -1289,9 +1287,9 @@ radv_device_init_compiler_info(struct radv_device *device)
       .cache_disabled = radv_device_is_cache_disabled(device),
       .enable_nir_cache = !!(instance->perftest_flags & RADV_PERFTEST_NIR_CACHE),
       .mem_cache = device->mem_cache,
-      .override_graphics_shader_version = instance->drirc.misc.override_graphics_shader_version,
-      .override_ray_tracing_shader_version = instance->drirc.misc.override_ray_tracing_shader_version,
-      .override_compute_shader_version = instance->drirc.misc.override_compute_shader_version,
+      .override_graphics_shader_version = pdev->drirc.misc.override_graphics_shader_version,
+      .override_ray_tracing_shader_version = pdev->drirc.misc.override_ray_tracing_shader_version,
+      .override_compute_shader_version = pdev->drirc.misc.override_compute_shader_version,
       /* Descriptors */
       .sampled_image_desc_size = radv_get_sampled_image_desc_size(pdev),
       .combined_image_sampler_desc_size = radv_get_combined_image_sampler_desc_size(pdev),
