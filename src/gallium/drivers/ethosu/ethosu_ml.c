@@ -454,6 +454,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                                         operation->pad.after_z;
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_SCATTER_ND:
+      supported = ethosu_scatter_nd_as_pad(operation, NULL);
+      break;
    case PIPE_ML_OPERATION_TYPE_SOFTMAX: {
       struct pipe_tensor *input = operation->input_tensors[0];
       struct pipe_tensor *output = operation->output_tensors[0];

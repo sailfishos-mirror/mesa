@@ -21,6 +21,83 @@ is_depthwise(const struct pipe_ml_operation *poperation)
           output_channels > 1;
 }
 
+bool
+ethosu_scatter_nd_as_pad(const struct pipe_ml_operation *scatter,
+                         struct pipe_ml_operation *pad)
+{
+   const struct pipe_tensor *indices;
+   const struct pipe_tensor *updates;
+   const struct pipe_tensor *shape;
+   const struct pipe_tensor *output;
+   const int32_t *index_data;
+   const int32_t *shape_data;
+   unsigned updates_elements = 1;
+   int start[4];
+
+   if (scatter->input_count != 3 || scatter->output_count != 1)
+      return false;
+
+   indices = scatter->input_tensors[0];
+   updates = scatter->input_tensors[1];
+   shape = scatter->input_tensors[2];
+   output = scatter->output_tensors[0];
+   if (updates->rank != 4 || output->rank != 4 || indices->rank != 5 ||
+       shape->rank != 1 || !indices->is_constant || !shape->is_constant ||
+       !indices->data || !shape->data || indices->type_size != 4 ||
+       shape->type_size != 4 || !indices->is_signed || !shape->is_signed ||
+       indices->dims[0] != updates->dims[1] ||
+       indices->dims[1] != updates->dims[2] ||
+       indices->dims[2] != updates->dims[3] || indices->dims[3] != 4 ||
+       updates->dims[0] != 1 || output->dims[0] != 1 ||
+       updates->type_size != output->type_size ||
+       updates->is_signed != output->is_signed || updates->scale != output->scale ||
+       updates->zero_point != output->zero_point)
+      return false;
+
+   index_data = (const int32_t *)indices->data;
+   shape_data = (const int32_t *)shape->data;
+   for (unsigned axis = 0; axis < 4; axis++) {
+      if (shape_data[axis] != output->dims[axis] || !updates->dims[axis])
+         return false;
+
+      updates_elements *= updates->dims[axis];
+      start[axis] = index_data[axis];
+      if (start[axis] < 0 ||
+          start[axis] + updates->dims[axis] > output->dims[axis])
+         return false;
+   }
+
+   for (unsigned i = 0; i < updates_elements; i++) {
+      unsigned coordinate = i;
+
+      for (int axis = 3; axis >= 0; axis--) {
+         int expected = start[axis] + coordinate % updates->dims[axis];
+
+         if (index_data[i * 4 + axis] != expected)
+            return false;
+         coordinate /= updates->dims[axis];
+      }
+   }
+
+   if (start[0])
+      return false;
+
+   if (pad) {
+      *pad = *scatter;
+      pad->type = PIPE_ML_OPERATION_TYPE_PAD;
+      pad->input_count = 1;
+      pad->pad.before_y = start[1];
+      pad->pad.after_y = output->dims[1] - start[1] - updates->dims[1];
+      pad->pad.before_x = start[2];
+      pad->pad.after_x = output->dims[2] - start[2] - updates->dims[2];
+      pad->pad.before_z = start[3];
+      pad->pad.after_z = output->dims[3] - start[3] - updates->dims[3];
+      pad->pad.raw_zero = true;
+   }
+
+   return true;
+}
+
 static const struct pipe_ml_operation *
 ethosu_find_first_producer(const struct pipe_ml_operation *poperations,
                            unsigned count,
@@ -1588,13 +1665,13 @@ ethosu_append_pool_nop(struct ethosu_subgraph *subgraph,
 
 static void
 ethosu_lower_pad(struct ethosu_subgraph *subgraph,
-                 const struct pipe_ml_operation *poperation)
+                 const struct pipe_ml_operation *poperation,
+                 struct pipe_tensor *input)
 {
    struct ethosu_feature_map input_fm = {0};
    struct ethosu_feature_map inner_ofm = {0};
    struct ethosu_feature_map pad_ifm = {0};
    struct ethosu_feature_map pad_ofm = {0};
-   const struct pipe_tensor *input = poperation->input_tensors[0];
    const struct pipe_tensor *output = poperation->output_tensors[0];
    unsigned oh = output->dims[1];
    unsigned ow = output->dims[2];
@@ -1614,13 +1691,12 @@ ethosu_lower_pad(struct ethosu_subgraph *subgraph,
                        poperation->pad.raw_zero ? 0 : output->zero_point,
                        &constant, &address);
 
-   if (poperation->input_tensors[0]->data) {
+   if (input->data) {
       set_constant_tensor_data_feature_map(subgraph,
-                                           poperation->input_tensors[0],
-                                           poperation->input_tensors[0]->data,
+                                           input, input->data,
                                            &input_fm);
    } else {
-      set_feature_map(subgraph, poperation->input_tensors[0], &input_fm);
+      set_feature_map(subgraph, input, &input_fm);
    }
    set_pad_ofm(subgraph, poperation,
                poperation->pad.before_y, poperation->pad.before_x,
@@ -3661,6 +3737,9 @@ register_tensors(struct ethosu_subgraph *subgraph,
       for (unsigned j = 0; j < poperation->input_count; j++) {
          struct pipe_tensor *ptensor = poperation->input_tensors[j];
 
+         if (poperation->type == PIPE_ML_OPERATION_TYPE_SCATTER_ND && j != 1)
+            continue;
+
          ethosu_register_tensor(subgraph, ptensor);
       }
 
@@ -3672,6 +3751,7 @@ register_tensors(struct ethosu_subgraph *subgraph,
          if (!ptensor->is_external_output &&
              !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16) &&
              poperation->type != PIPE_ML_OPERATION_TYPE_BATCH_MATMUL &&
+             poperation->type != PIPE_ML_OPERATION_TYPE_SCATTER_ND &&
              poperation->type != PIPE_ML_OPERATION_TYPE_TRANSPOSE &&
              poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
@@ -4070,7 +4150,17 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
                 poperations, count, poperations[i].output_tensors[0]->index))
             break;
 
-         ethosu_lower_pad(subgraph, &poperations[i]);
+         ethosu_lower_pad(subgraph, &poperations[i],
+                          poperations[i].input_tensors[0]);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_SCATTER_ND: {
+         struct pipe_ml_operation pad;
+         ASSERTED bool ok = ethosu_scatter_nd_as_pad(&poperations[i], &pad);
+
+         assert(ok);
+         ethosu_lower_pad(subgraph, &pad, poperations[i].input_tensors[1]);
          break;
       }
 
