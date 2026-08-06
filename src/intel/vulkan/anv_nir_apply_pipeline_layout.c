@@ -904,51 +904,6 @@ build_res_reindex(nir_builder *b, nir_def *orig, nir_def *delta)
                    nir_iadd(b, nir_channel(b, orig, 3), delta));
 }
 
-/** Get the address for a descriptor given its resource index
- *
- * Because of the re-indexing operations, we can't bounds check descriptor
- * array access until we have the final index.  That means we end up doing the
- * bounds check here, if needed.  See unpack_res_index() for more details.
- *
- * This function takes both a bind_layout and a desc_type which are used to
- * determine the descriptor stride for array descriptors.  The bind_layout is
- * optional for buffer descriptor types.
- */
-static nir_def *
-build_desc_addr_for_res_index(nir_builder *b,
-                              nir_def *index, nir_address_format addr_format,
-                              struct apply_pipeline_layout_state *state)
-{
-   struct res_index_defs res = unpack_res_index(b, index);
-
-   nir_def *desc_offset = nir_iadd(b,
-                                   res.desc_offset_base,
-                                   nir_imul(b, res.array_index, res.desc_stride));
-   return build_desc_address32(b, res.set, UINT32_MAX, desc_offset, state);
-}
-
-static nir_def *
-build_desc_addr_for_binding(nir_builder *b,
-                            unsigned set, unsigned binding,
-                            nir_def *array_index, unsigned plane,
-                            const struct apply_pipeline_layout_state *state)
-{
-   const struct anv_descriptor_set_binding_layout *bind_layout =
-      &state->set_layouts[set]->binding[binding];
-
-   nir_def *desc_offset =
-      nir_iadd_imm(b,
-                   nir_imul_imm(b,
-                                array_index,
-                                bind_layout->descriptor_surface_stride),
-                   bind_layout->descriptor_surface_offset);
-   if (plane != 0) {
-      desc_offset = nir_iadd_imm(
-         b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
-   }
-   return build_desc_address32(b, NULL, set, desc_offset, state);
-}
-
 static unsigned
 binding_descriptor_offset(const struct apply_pipeline_layout_state *state,
                           const struct anv_descriptor_set_binding_layout *bind_layout,
@@ -1652,39 +1607,6 @@ lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
 }
 
 static bool
-lower_get_ssbo_size(nir_builder *b, nir_intrinsic_instr *intrin,
-                    struct apply_pipeline_layout_state *state)
-{
-   if (_mesa_set_search(state->lowered_instrs, intrin))
-      return false;
-
-   b->cursor = nir_before_instr(&intrin->instr);
-
-   const nir_address_format addr_format =
-      nir_address_format_64bit_bounded_global;
-
-   nir_def *res_index =
-      build_desc_addr_for_res_index(b,
-                                    intrin->src[0].ssa,
-                                    addr_format, state);
-   nir_def *desc_range;
-   if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
-      /* Load the anv_address_range_descriptor */
-      desc_range = build_load_descriptor_mem_from_res_index(b, res_index, 0, 4, 32, state);
-   } else {
-      /* Build a vec4 similar to anv_address_range_descriptor using the
-       * RENDER_SURFACE_STATE.
-       */
-      desc_range = build_load_render_surface_state_address(b, res_index, state);
-   }
-
-   nir_def *size = nir_channel(b, desc_range, 2);
-   nir_def_replace(&intrin->def, size);
-
-   return true;
-}
-
-static bool
 lower_image_load_intel_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
                                  struct apply_pipeline_layout_state *state)
 {
@@ -2019,8 +1941,6 @@ apply_pipeline_layout(nir_builder *b, nir_instr *instr, void *_state)
          return lower_res_reindex_intrinsic(b, intrin, state);
       case nir_intrinsic_load_vulkan_descriptor:
          return lower_load_vulkan_descriptor(b, intrin, state);
-      case nir_intrinsic_get_ssbo_size:
-         return lower_get_ssbo_size(b, intrin, state);
       case nir_intrinsic_image_deref_load:
       case nir_intrinsic_image_deref_store:
       case nir_intrinsic_image_deref_atomic:
