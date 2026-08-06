@@ -1250,6 +1250,12 @@ struct pipe_ml_operation
           * Channel after padding.
           */
          unsigned after_z;
+
+         /**
+          * Fill the padded area with raw zero rather than the output tensor's
+          * quantized zero value.
+          */
+         bool raw_zero;
       } pad;
 
       struct {
