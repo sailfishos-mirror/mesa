@@ -269,6 +269,8 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceShaderUniformBufferUnsizedArrayFeaturesEXT
          shader_uniform_buffer_unsized_array;
       VkPhysicalDeviceTransformFeedbackFeaturesEXT transform_feedback;
+      VkPhysicalDeviceVertexAttributeRobustnessFeaturesEXT
+         vertex_attribute_robustness;
       VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT
          vertex_input_dynamic_state;
       VkPhysicalDeviceYcbcrImageArraysFeaturesEXT ycbcr_image_arrays;
@@ -429,6 +431,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, SHADER_TILE_IMAGE_FEATURES_EXT, local_feats.shader_tile_image, exts->EXT_shader_tile_image);
    VN_ADD_PNEXT_EXT(feats2, SHADER_UNIFORM_BUFFER_UNSIZED_ARRAY_FEATURES_EXT, local_feats.shader_uniform_buffer_unsized_array, exts->EXT_shader_uniform_buffer_unsized_array);
    VN_ADD_PNEXT_EXT(feats2, TRANSFORM_FEEDBACK_FEATURES_EXT, local_feats.transform_feedback, exts->EXT_transform_feedback);
+   VN_ADD_PNEXT_EXT(feats2, VERTEX_ATTRIBUTE_ROBUSTNESS_FEATURES_EXT, local_feats.vertex_attribute_robustness, exts->EXT_vertex_attribute_robustness);
    VN_ADD_PNEXT_EXT(feats2, VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT, local_feats.vertex_input_dynamic_state, exts->EXT_vertex_input_dynamic_state);
    VN_ADD_PNEXT_EXT(feats2, YCBCR_IMAGE_ARRAYS_FEATURES_EXT, local_feats.ycbcr_image_arrays, exts->EXT_ycbcr_image_arrays);
 
@@ -1421,6 +1424,7 @@ vn_physical_device_get_passthrough_extensions(
       .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_transform_feedback = true,
       .EXT_vertex_attribute_divisor = true,
+      .EXT_vertex_attribute_robustness = true,
       .EXT_vertex_input_dynamic_state = true,
       .EXT_ycbcr_image_arrays = true,
 
