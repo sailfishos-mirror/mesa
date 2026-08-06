@@ -114,6 +114,44 @@ lower_any_hit_for_intersection(nir_shader *any_hit)
    return impl;
 }
 
+/* Returns true if block is nested inside a loop. */
+static bool
+block_is_in_loop(nir_block *block)
+{
+   for (nir_cf_node *node = block->cf_node.parent; node != NULL;
+        node = node->parent) {
+      if (node->type == nir_cf_node_loop) {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+static bool
+has_multiple_report_ray_intersection(nir_function_impl *impl)
+{
+   bool found_report_ray_isec = false;
+
+   nir_foreach_block(block, impl) {
+      nir_foreach_instr(instr, block) {
+         if (instr->type != nir_instr_type_intrinsic)
+            continue;
+
+         nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+         if (intrin->intrinsic == nir_intrinsic_report_ray_intersection) {
+            /* A single call in a loop may execute multiple times. */
+            if (found_report_ray_isec || block_is_in_loop(block))
+               return true;
+
+            found_report_ray_isec = true;
+         }
+      }
+   }
+
+   return false;
+}
+
 static void
 build_accept_ray(nir_builder *b,
                  const struct intel_device_info *devinfo)
@@ -145,6 +183,9 @@ brw_nir_lower_intersection_shader(nir_shader *intersection,
    }
 
    nir_function_impl *impl = nir_shader_get_entrypoint(intersection);
+
+   const bool multiple_report_calls =
+      has_multiple_report_ray_intersection(impl);
 
    nir_builder build = nir_builder_at(nir_before_impl(impl));
    nir_builder *b = &build;
@@ -277,13 +318,15 @@ brw_nir_lower_intersection_shader(nir_shader *intersection,
                       * accept the hit now. The lowering of
                       * accept_ray_intersection will handle the rest.
                       */
-                     nir_def *terminate = nir_test_mask(b, nir_load_ray_flags(b),
-                                                        BRW_RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
-                     nir_push_if(b, terminate);
-                     {
-                        build_accept_ray(b, devinfo);
+                     if (multiple_report_calls) {
+                        nir_def *terminate = nir_test_mask(b, nir_load_ray_flags(b),
+                                                           BRW_RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+                        nir_push_if(b, terminate);
+                        {
+                           build_accept_ray(b, devinfo);
+                        }
+                        nir_pop_if(b, NULL);
                      }
-                     nir_pop_if(b, NULL);
                   }
                   nir_pop_if(b, NULL);
                }
