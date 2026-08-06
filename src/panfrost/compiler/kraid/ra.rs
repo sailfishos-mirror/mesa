@@ -1733,7 +1733,7 @@ impl Shader<'_> {
         let max_live = live.calc_max_live_bytes(self);
         assert!(
             max_live.reg <= u32::from(reg_limit),
-            "Not enough registers: max_live = {}",
+            "Not enough registers: max_live = {} B, should be <= {reg_limit} B",
             max_live.reg
         );
 
