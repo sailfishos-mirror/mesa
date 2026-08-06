@@ -253,24 +253,6 @@ alu_funclike_precise(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
    } while (0)
 
 static void
-alu_fcmp_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
-                const char *op)
-{
-   /* KK_WORKAROUND_14 Since comparison operations must always preserve NANs,
-    * this is always applied */
-   if (!(ctx->disabled_workarounds & BITFIELD64_BIT(14))) {
-      /* fneu is unordered (true on NaN), the others are ordered. */
-      bool ordered = instr->op != nir_op_fneu;
-      for (unsigned i = 0; i < 2; i++) {
-         P(ctx, ordered ? "!isnan(" : "isnan(");
-         alu_src_to_msl(ctx, instr, i);
-         P(ctx, ordered ? ") && " : ") || ");
-      }
-   }
-   ALU_BINOP(op);
-}
-
-static void
 alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
 {
    switch (instr->op) {
@@ -320,14 +302,14 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       ALU_BINOP(">=");
       break;
    case nir_op_fge:
-      alu_fcmp_to_msl(ctx, instr, ">=");
+      ALU_BINOP(">=");
       break;
    case nir_op_ilt:
    case nir_op_ult:
       ALU_BINOP("<");
       break;
    case nir_op_flt:
-      alu_fcmp_to_msl(ctx, instr, "<");
+      ALU_BINOP("<");
       break;
    case nir_op_iand:
       ALU_BINOP("&");
@@ -364,7 +346,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         alu_fcmp_to_msl(ctx, instr, "==");
+         ALU_BINOP("==");
       break;
    case nir_op_ine:
       ALU_BINOP("!=");
@@ -376,7 +358,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         alu_fcmp_to_msl(ctx, instr, "!=");
+         ALU_BINOP("!=");
       break;
    case nir_op_umax:
    case nir_op_imax:
@@ -500,7 +482,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       if (nir_alu_instr_is_signed_zero_preserve(instr)) {
          const char *ftype = msl_type_for_def(ctx->types, &instr->def);
          const char *utype = msl_uint_type(instr->def.bit_size, 1);
-         alu_fcmp_to_msl(ctx, instr, "==");
+         ALU_BINOP("==");
          P(ctx, " ? as_type<%s>(%s(as_type<%s>(", ftype, utype, utype);
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ") %s as_type<%s>(", is_min ? "|" : "&", utype);
@@ -2020,7 +2002,7 @@ jump_instr_to_msl(struct nir_to_msl_ctx *ctx, nir_jump_instr *jump)
 }
 
 static const char *
-alu_fp_math_mode_pragma(const nir_alu_instr *alu)
+alu_fp_math_mode_pragma(struct nir_to_msl_ctx *ctx, const nir_alu_instr *alu)
 {
    unsigned fp_math_ctrl = alu->fp_math_ctrl;
 
@@ -2033,6 +2015,15 @@ alu_fp_math_mode_pragma(const nir_alu_instr *alu)
             fp_math_ctrl |= src_alu->fp_math_ctrl;
          }
       }
+   }
+
+   /* KK_WORKAROUND_14 Since comparison operations must always preserve NANs,
+    * this is always applied */
+   if (!(ctx->disabled_workarounds & BITFIELD64_BIT(14))) {
+      bool is_min_max_sz = (alu->op == nir_op_fmin || alu->op == nir_op_fmax) &&
+                           (fp_math_ctrl & nir_fp_preserve_signed_zero);
+      if (is_min_max_sz || nir_alu_instr_is_comparison(alu))
+         return "safe";
    }
 
    if (fp_math_ctrl & (nir_fp_no_contract | nir_fp_no_reassoc))
@@ -2053,7 +2044,7 @@ instr_to_msl(struct nir_to_msl_ctx *ctx, nir_instr *instr)
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
-      const char *math_mode = alu_fp_math_mode_pragma(alu);
+      const char *math_mode = alu_fp_math_mode_pragma(ctx, alu);
       if (math_mode) {
          P_IND(ctx, "{\n");
          P_IND(ctx, "#pragma METAL fp math_mode(%s)\n", math_mode);
