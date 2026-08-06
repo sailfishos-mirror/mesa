@@ -56,6 +56,11 @@ struct apply_pipeline_layout_state {
 
    const uint32_t *dynamic_offset_start;
 
+   /* Address format used when we can reach a binding from the load/store
+    * operations.
+    */
+   nir_address_format direct_addr_format;
+
    nir_address_format ssbo_addr_format;
    nir_address_format ubo_addr_format;
 
@@ -838,6 +843,7 @@ build_desc_address32(nir_builder *b,
                      nir_def *offset,
                      const struct apply_pipeline_layout_state *state)
 {
+
    return nir_vec2(b,
                    nir_load_array_var(b, state->set_idx_to_bti,
                                       set < MAX_SETS ?
@@ -1180,7 +1186,7 @@ build_direct_buffer_addr_for_res_index(nir_builder *b,
                                        nir_address_format addr_format,
                                        struct apply_pipeline_layout_state *state)
 {
-   if (addr_format == nir_address_format_32bit_index_offset) {
+   if (addr_format == state->direct_addr_format) {
       struct res_index_defs res = unpack_res_index(b, res_index);
 
       return build_desc_address32(b, res.set, UINT32_MAX,
@@ -1260,7 +1266,7 @@ build_buffer_addr_for_binding(nir_builder *b,
       }
    }
 
-   if (addr_format != nir_address_format_32bit_index_offset)
+   if (addr_format != state->direct_addr_format)
       return build_buffer_addr_for_res_index(b, res_index, addr_format, state);
 
    struct res_index_defs res = unpack_res_index(b, res_index);
@@ -1457,7 +1463,7 @@ try_lower_direct_buffer_intrinsic(nir_builder *b,
    addr_format =
       (!state->pdevice->info.has_lsc && state->is_device_bindable) ?
       nir_address_format_64bit_bounded_global :
-      nir_address_format_32bit_index_offset;
+      state->direct_addr_format;
 
    nir_def *addr =
       build_direct_buffer_addr_for_deref(b, deref, addr_format, state);
@@ -2603,6 +2609,8 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
       .set_layouts = set_layouts,
       .set_count = set_count,
       .dynamic_offset_start = dynamic_offset_start,
+      /* Use vec2 index for the 64bit mode */
+      .direct_addr_format = nir_address_format_32bit_index_offset,
       .ssbo_addr_format = anv_nir_ssbo_addr_format(pdevice, robust_flags),
       .ubo_addr_format = anv_nir_ubo_addr_format(pdevice, robust_flags),
       .is_device_bindable = device_bindable,
