@@ -1037,6 +1037,10 @@ struct pipe_tensor {
     */
    unsigned dims[4];
    /**
+    * Number of dimensions before normalization to four dimensions.
+    */
+   unsigned rank;
+   /**
     * Scale used to quantize this tensor, per-tensor quantization.
     */
    float scale;
@@ -1057,6 +1061,10 @@ struct pipe_tensor {
     */
    bool is_signed;
    /**
+    * Whether the tensor data is immutable model data.
+    */
+   bool is_constant;
+   /**
     * Whether the tensor is exported from the current ML subgraph.
     */
    bool is_external_output;
@@ -1075,6 +1083,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_SPLIT,
    PIPE_ML_OPERATION_TYPE_UNPACK,
    PIPE_ML_OPERATION_TYPE_PAD,
+   PIPE_ML_OPERATION_TYPE_SCATTER_ND,
    PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED,
    PIPE_ML_OPERATION_TYPE_BATCH_MATMUL,
    PIPE_ML_OPERATION_TYPE_RESHAPE,
