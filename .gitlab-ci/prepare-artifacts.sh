@@ -54,6 +54,7 @@ for f in \
   .gitlab-ci/*-runner.sh \
   .gitlab-ci/bin/structured_logger.py \
   .gitlab-ci/bin/custom_logger.py \
+  src/amd/ci/radv-validate-cache.sh \
 ; do
   cp -Rp "$f" install/
 done

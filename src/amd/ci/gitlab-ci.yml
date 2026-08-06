@@ -360,6 +360,17 @@ radv-gfx1201-fluster:
     DEQP_SUITE: radv-fluster
 
 ############### Fossilize
+radv-validate-cache:
+  stage: code-validation
+  timeout: 5m
+  extends:
+    - .test-vk
+    - .radv-rules
+  variables:
+    VK_DRIVER: radeon
+  script:
+    - ./install/radv-validate-cache.sh
+
 radv-fossils:
   extends:
     - .radv-valve-rules
