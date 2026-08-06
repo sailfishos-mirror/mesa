@@ -1158,8 +1158,8 @@ radv_device_init_compiler_info(struct radv_device *device)
       nggc_max_ps_params = pdev->info.has_dedicated_vram ? 12 : 8;
    }
 
-   bool image_2d_view_of_3d = device->vk.enabled_features.image2DViewOf3D && pdev->info.gfx_level == GFX9;
-   bool mesh_shader_queries = device->vk.enabled_features.meshShaderQueries && pdev->emulate_mesh_shader_queries;
+   bool image_2d_view_of_3d = device->vk.enabled_features.image2DViewOf3D;
+   bool mesh_shader_queries = device->vk.enabled_features.meshShaderQueries;
    bool primitives_generated_query = radv_uses_primitives_generated_query(device);
    struct vk_pipeline_robustness_state robustness_state = device->vk.robustness_state;
 
@@ -1172,7 +1172,7 @@ radv_device_init_compiler_info(struct radv_device *device)
     * enabled, regardless of what features are actually enabled on the logical device.
     */
    if (device->vk.enabled_features.shaderObject) {
-      image_2d_view_of_3d = pdev->info.gfx_level == GFX9;
+      image_2d_view_of_3d = true;
       mesh_shader_queries = true;
       primitives_generated_query = true;
       robustness_state.storage_buffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2;
@@ -1221,8 +1221,8 @@ radv_device_init_compiler_info(struct radv_device *device)
             .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
             .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
             .primitives_generated_query = primitives_generated_query,
-            .mesh_shader_queries = mesh_shader_queries,
-            .image_2d_view_of_3d = image_2d_view_of_3d,
+            .mesh_shader_queries = mesh_shader_queries && pdev->emulate_mesh_shader_queries,
+            .image_2d_view_of_3d = image_2d_view_of_3d && pdev->info.gfx_level == GFX9,
             .use_fmask = pdev->use_fmask,
             .force_64_byte_sampled_image = pdev->force_64_byte_sampled_image,
             .robust_buffer_access = pdev->use_llvm && (device->vk.enabled_features.robustBufferAccess2 ||
