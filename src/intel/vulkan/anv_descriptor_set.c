@@ -191,7 +191,11 @@ anv_direct_descriptor_data_for_type(const struct anv_physical_device *device,
       UNREACHABLE("Unsupported descriptor type");
    }
 
-   if (binding_mode == ANV_SHADER_BINDING_MODE_BUFFER) {
+   if (device->uses_efficient_64bit) {
+      /* BTI doesn't exist in 64bit mode */
+      data &= ~(ANV_DESCRIPTOR_BTI_SURFACE_STATE |
+                ANV_DESCRIPTOR_BTI_SAMPLER_STATE);
+   } else if (binding_mode == ANV_SHADER_BINDING_MODE_BUFFER) {
       if (set_flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) {
          /* Push descriptors are special with descriptor buffers. On Gfx12.5+
           * they have their own pool and are not reachable by the binding
@@ -448,6 +452,10 @@ anv_descriptor_requires_bindless(const struct anv_physical_device *pdevice,
                                  const struct anv_descriptor_set_layout *set,
                                  const struct anv_descriptor_set_binding_layout *binding)
 {
+   /* No binding table in efficient 64bit mode, always bindless */
+   if (pdevice->uses_efficient_64bit)
+      return true;
+
    if (pdevice->drirc.features.always_bindless)
       return anv_descriptor_supports_bindless(pdevice, set, binding);
 
