@@ -8,14 +8,14 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- state.xml     (  30841 bytes, from 2026-08-04 21:35:23)
+- state.xml     (  30841 bytes, from 2026-08-06 20:34:59)
 - common.xml    (  35664 bytes, from 2026-07-29 06:39:05)
 - common_3d.xml (  15069 bytes, from 2026-07-29 06:39:05)
 - state_hi.xml  (  35909 bytes, from 2026-07-29 06:39:05)
 - copyright.xml (   1597 bytes, from 2026-03-02 22:49:28)
 - state_2d.xml  (  52271 bytes, from 2026-03-02 22:49:28)
-- state_3d.xml  (  92718 bytes, from 2026-08-04 19:09:21)
-- state_blt.xml (  15932 bytes, from 2026-08-04 21:35:07)
+- state_3d.xml  (  92765 bytes, from 2026-08-06 20:37:58)
+- state_blt.xml (  15932 bytes, from 2026-08-06 20:34:59)
 - state_vg.xml  (   5975 bytes, from 2026-03-02 22:49:28)
 
 Copyright (C) 2012-2026 by the following authors:
@@ -83,6 +83,7 @@ DEALINGS IN THE SOFTWARE.
 #define RS_FORMAT_YUY2						0x00000007
 #define RS_FORMAT_S8						0x00000010
 #define RS_FORMAT_64BPP_CLEAR					0x00000015
+#define RS_FORMAT_A2R10G10B10					0x00000016
 #define RS_FORMAT_D32						0x00000017
 #define RS_FORMAT_D16						0x00000018
 #define PE_FORMAT_X4R4G4B4					0x00000000
