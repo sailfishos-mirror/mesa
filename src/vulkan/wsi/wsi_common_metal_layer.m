@@ -144,7 +144,7 @@ VkResult
 wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
    uint32_t width, uint32_t height, uint32_t image_count,
    VkFormat format, VkColorSpaceKHR color_space,
-   bool enable_opaque, bool enable_immediate)
+   bool enable_opaque, bool enable_immediate, bool framebuffer_only)
 {
    @autoreleasepool {
       MTLPixelFormat metal_format;
@@ -163,8 +163,7 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
 
       /* So acquire timeout works */
       metal_layer.allowsNextDrawableTimeout = YES;
-      /* So we can blit to the drawable */
-      metal_layer.framebufferOnly = NO;
+      metal_layer.framebufferOnly = framebuffer_only;
 
       /* Force recommended 3 drawables for smoother presentation */
       metal_layer.maximumDrawableCount = 3u;
