@@ -2848,3 +2848,11 @@ vn_CmdPushDataEXT(VkCommandBuffer commandBuffer,
 {
    VN_CMD_ENQUEUE(vkCmdPushDataEXT, commandBuffer, pPushDataInfo);
 }
+
+VKAPI_ATTR void VKAPI_CALL
+vn_CmdSetPrimitiveRestartIndexEXT(VkCommandBuffer commandBuffer,
+                                  uint32_t primitiveRestartIndex)
+{
+   VN_CMD_ENQUEUE(vkCmdSetPrimitiveRestartIndexEXT, commandBuffer,
+                  primitiveRestartIndex);
+}
