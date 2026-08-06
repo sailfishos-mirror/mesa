@@ -265,6 +265,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceShaderReplicatedCompositesFeaturesEXT
          shader_replicated_composites;
       VkPhysicalDeviceShaderSplitBarrierFeaturesEXT shader_split_barrier;
+      VkPhysicalDeviceShaderTileImageFeaturesEXT shader_tile_image;
       VkPhysicalDeviceShaderUniformBufferUnsizedArrayFeaturesEXT
          shader_uniform_buffer_unsized_array;
       VkPhysicalDeviceTransformFeedbackFeaturesEXT transform_feedback;
@@ -425,6 +426,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT, local_feats.shader_image_atomic_int64, exts->EXT_shader_image_atomic_int64);
    VN_ADD_PNEXT_EXT(feats2, SHADER_REPLICATED_COMPOSITES_FEATURES_EXT, local_feats.shader_replicated_composites, exts->EXT_shader_replicated_composites);
    VN_ADD_PNEXT_EXT(feats2, SHADER_SPLIT_BARRIER_FEATURES_EXT, local_feats.shader_split_barrier, exts->EXT_shader_split_barrier);
+   VN_ADD_PNEXT_EXT(feats2, SHADER_TILE_IMAGE_FEATURES_EXT, local_feats.shader_tile_image, exts->EXT_shader_tile_image);
    VN_ADD_PNEXT_EXT(feats2, SHADER_UNIFORM_BUFFER_UNSIZED_ARRAY_FEATURES_EXT, local_feats.shader_uniform_buffer_unsized_array, exts->EXT_shader_uniform_buffer_unsized_array);
    VN_ADD_PNEXT_EXT(feats2, TRANSFORM_FEEDBACK_FEATURES_EXT, local_feats.transform_feedback, exts->EXT_transform_feedback);
    VN_ADD_PNEXT_EXT(feats2, VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT, local_feats.vertex_input_dynamic_state, exts->EXT_vertex_input_dynamic_state);
@@ -677,6 +679,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceProvokingVertexPropertiesEXT provoking_vertex;
       VkPhysicalDeviceSampleLocationsPropertiesEXT sample_locations;
       VkPhysicalDeviceShaderSplitBarrierPropertiesEXT shader_split_barrier;
+      VkPhysicalDeviceShaderTileImagePropertiesEXT shader_tile_image;
       VkPhysicalDeviceTransformFeedbackPropertiesEXT transform_feedback;
       VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT
          vertex_attribute_divisor_ext;
@@ -772,6 +775,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(props2, PROVOKING_VERTEX_PROPERTIES_EXT, local_props.provoking_vertex, exts->EXT_provoking_vertex);
    VN_ADD_PNEXT_EXT(props2, SAMPLE_LOCATIONS_PROPERTIES_EXT, local_props.sample_locations, exts->EXT_sample_locations);
    VN_ADD_PNEXT_EXT(props2, SHADER_SPLIT_BARRIER_PROPERTIES_EXT, local_props.shader_split_barrier, exts->EXT_shader_split_barrier);
+   VN_ADD_PNEXT_EXT(props2, SHADER_TILE_IMAGE_PROPERTIES_EXT, local_props.shader_tile_image, exts->EXT_shader_tile_image);
    VN_ADD_PNEXT_EXT(props2, TRANSFORM_FEEDBACK_PROPERTIES_EXT, local_props.transform_feedback, exts->EXT_transform_feedback);
    VN_ADD_PNEXT_EXT(props2, VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT, local_props.vertex_attribute_divisor_ext, !exts->KHR_vertex_attribute_divisor && exts->EXT_vertex_attribute_divisor);
 
@@ -859,6 +863,7 @@ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)
    VN_SET_VK_PROPS_EXT(props, &local_props.provoking_vertex, exts->EXT_provoking_vertex);
    VN_SET_VK_PROPS_EXT(props, &local_props.sample_locations, exts->EXT_sample_locations);
    VN_SET_VK_PROPS_EXT(props, &local_props.shader_split_barrier, exts->EXT_shader_split_barrier);
+   VN_SET_VK_PROPS_EXT(props, &local_props.shader_tile_image, exts->EXT_shader_tile_image);
    VN_SET_VK_PROPS_EXT(props, &local_props.transform_feedback, exts->EXT_transform_feedback);
    VN_SET_VK_PROPS_EXT(props, &local_props.vertex_attribute_divisor_ext, !exts->KHR_vertex_attribute_divisor && exts->EXT_vertex_attribute_divisor);
 
@@ -1412,6 +1417,7 @@ vn_physical_device_get_passthrough_extensions(
       .EXT_shader_stencil_export = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+      .EXT_shader_tile_image = true,
       .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_transform_feedback = true,
       .EXT_vertex_attribute_divisor = true,
