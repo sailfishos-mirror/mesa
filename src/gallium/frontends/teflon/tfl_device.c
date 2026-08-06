@@ -385,6 +385,9 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->pad.after_z = after[3];
       break;
    }
+   case kTfLiteBuiltinScatterNd:
+      operation->type = PIPE_ML_OPERATION_TYPE_SCATTER_ND;
+      break;
    case kTfLiteBuiltinFullyConnected: {
       TfLiteFullyConnectedParams *params = node->builtin_data;
 
@@ -688,6 +691,8 @@ tensor_data_size(TfLiteTensor tensor)
 static void
 fill_tensor_dims(struct pipe_tensor *tensor, const TfLiteTensor *tf_tensor)
 {
+   tensor->rank = tf_tensor->dims->size;
+
    for (int out_dim = 0; out_dim < 4; out_dim++) {
       int in_dim = tf_tensor->dims->size - 4 + out_dim;
 
@@ -710,6 +715,7 @@ fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct 
    }
 
    tensor->type_size = tf_format_to_size(tf_tensor.type);
+   tensor->is_constant = tf_tensor.allocation_type == kTfLiteMmapRo;
    tensor->index = index;
    fill_tensor_dims(tensor, &tf_tensor);
 
@@ -803,6 +809,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_PAD:
          teflon_debug("%-15s ", "PAD");
+         break;
+      case PIPE_ML_OPERATION_TYPE_SCATTER_ND:
+         teflon_debug("%-15s ", "SCATTER_ND");
          break;
       case PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED:
          teflon_debug("%-15s ", "FCON");
@@ -1232,6 +1241,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "MUL";
    case kTfLiteBuiltinPad:
       return "PAD";
+   case kTfLiteBuiltinScatterNd:
+      return "SCATTER_ND";
    case kTfLiteBuiltinQuantize:
       return "QUANT";
    case kTfLiteBuiltinReshape:
