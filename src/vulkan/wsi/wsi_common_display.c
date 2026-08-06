@@ -3502,6 +3502,7 @@ wsi_display_surface_create_swapchain(
                                       create_info,
                                       drm_format,
                                       &chain->images[image]);
+      const bool image_inited = result == VK_SUCCESS;
 
       /* Check that we could actually possibly atomic commit to this plane. This
        * catches cases where the swapchain exceeds some limits of the hardware
@@ -3525,6 +3526,9 @@ wsi_display_surface_create_swapchain(
       }
 
       if (result != VK_SUCCESS) {
+         if (image_inited)
+            wsi_display_image_finish(&chain->base, &chain->images[image]);
+
          while (image > 0) {
             --image;
             wsi_display_image_finish(&chain->base,
