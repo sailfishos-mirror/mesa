@@ -274,6 +274,8 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
       VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT
          vertex_input_dynamic_state;
       VkPhysicalDeviceYcbcrImageArraysFeaturesEXT ycbcr_image_arrays;
+      VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT
+         zero_initialize_device_memory;
    } local_feats;
 
    /* Clear the struct so that all unqueried features will be VK_FALSE. */
@@ -434,6 +436,7 @@ vn_physical_device_init_features(struct vn_physical_device *physical_dev)
    VN_ADD_PNEXT_EXT(feats2, VERTEX_ATTRIBUTE_ROBUSTNESS_FEATURES_EXT, local_feats.vertex_attribute_robustness, exts->EXT_vertex_attribute_robustness);
    VN_ADD_PNEXT_EXT(feats2, VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT, local_feats.vertex_input_dynamic_state, exts->EXT_vertex_input_dynamic_state);
    VN_ADD_PNEXT_EXT(feats2, YCBCR_IMAGE_ARRAYS_FEATURES_EXT, local_feats.ycbcr_image_arrays, exts->EXT_ycbcr_image_arrays);
+   VN_ADD_PNEXT_EXT(feats2, ZERO_INITIALIZE_DEVICE_MEMORY_FEATURES_EXT, local_feats.zero_initialize_device_memory, exts->EXT_zero_initialize_device_memory);
 
    /* clang-format on */
 
@@ -1427,6 +1430,7 @@ vn_physical_device_get_passthrough_extensions(
       .EXT_vertex_attribute_robustness = true,
       .EXT_vertex_input_dynamic_state = true,
       .EXT_ycbcr_image_arrays = true,
+      .EXT_zero_initialize_device_memory = true,
 
       /* vendor */
       .ARM_rasterization_order_attachment_access = true,
