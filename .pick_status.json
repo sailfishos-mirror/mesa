@@ -6524,7 +6524,7 @@
         "description": "etnaviv: Derive the shadow compare shader key from current sampler state",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "be5b0e08fa4fda9c747901a19d86b1862eecf6cd",
         "notes": null
