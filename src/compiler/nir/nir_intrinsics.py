@@ -2888,7 +2888,7 @@ store("urb_vec4_intel", [1, 1, 1], [BASE])
 # add a constant offset ("base") to the total offset.
 #
 # src[] = { value, address }.
-store("urb_lsc_intel", [1], [BASE])
+store("urb_lsc_intel", [1], [BASE, ACCESS])
 
 # Load from indirect address delivered in the thread payloads in compute, mesh
 # & task shaders on Gfx12.5+

@@ -599,7 +599,8 @@ emit_urb_writes(nir_builder *b,
                 const struct intel_device_info *devinfo,
                 nir_scalar *outputs,
                 unsigned num_slots,
-                nir_def *offset)
+                nir_def *offset,
+                enum gl_access_qualifier access)
 {
    nir_def *undef = nir_undef(b, 1, 32);
 
@@ -628,7 +629,8 @@ emit_urb_writes(nir_builder *b,
       if (devinfo->ver >= 20) {
          nir_def *addr = nir_iadd(b, output_handle(b),
                                   nir_imul_imm(b, offset, 16));
-         nir_store_urb_lsc_intel(b, val, addr, .base = 16 * slot);
+         nir_store_urb_lsc_intel(b, val, addr, .base = 16 * slot,
+                                 .access = access);
       } else {
          nir_store_urb_vec4_intel(b, val, output_handle(b), offset,
                                   nir_imm_int(b, vec8 ? 0xff : 0xf),
@@ -651,6 +653,7 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
       .varying_to_slot = vue_map->varying_to_slot,
    };
    nir_scalar *outputs = calloc(vue_map->num_slots, 4 * sizeof(nir_scalar));
+   bool vs_pull_inputs = false;
 
    nir_function_impl *impl = nir_shader_get_entrypoint(nir);
 
@@ -661,6 +664,10 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
 
          nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
          switch (intrin->intrinsic) {
+         case nir_intrinsic_load_urb_input_handle_intel:
+            if (nir->info.stage == MESA_SHADER_VERTEX)
+               vs_pull_inputs = true;
+            break;
          case nir_intrinsic_store_output:
          case nir_intrinsic_store_per_view_output: {
             nir_src *view_index = nir_get_io_arrayed_index_src(intrin);
@@ -703,7 +710,8 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
                                                  gs_vertex_stride),
                             extra_urb_slot_offset);
 
-            emit_urb_writes(&b, devinfo, outputs, vue_map->num_slots, offset);
+            emit_urb_writes(&b, devinfo, outputs, vue_map->num_slots,
+                            offset, 0);
             /* After EmitVertex() all outputs are undefined */
             memset(outputs, 0, 4 * vue_map->num_slots * sizeof(nir_scalar));
 
@@ -720,7 +728,8 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
    if (nir->info.stage != MESA_SHADER_GEOMETRY) {
       nir_builder b = nir_builder_at(nir_after_impl(impl));
       emit_urb_writes(&b, devinfo, outputs, vue_map->num_slots,
-                      nir_imm_int(&b, 0));
+                      nir_imm_int(&b, 0),
+                      vs_pull_inputs ? 0 : ACCESS_CAN_REORDER);
    }
 
    free(outputs);
