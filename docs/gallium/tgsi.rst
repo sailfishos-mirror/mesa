@@ -2403,49 +2403,6 @@ after lookup.
    with rcpfloat modifier which requires some swizzle handling in the state
    tracker anyway).
 
-.. opcode:: SAMPLE_POS
-
-   Query the position of a sample in the given resource or render target
-   when per-sample fragment shading is in effect.
-
-   Syntax: ``SAMPLE_POS dst, source, sample_index``
-
-   dst receives float4 (x, y, undef, undef) indicated where the sample is
-   located. Sample locations are in the range [0, 1] where 0.5 is the center
-   of the fragment.
-
-   source is either a sampler view (to indicate a shader resource) or temp
-   register (to indicate the render target).  The source register may have
-   an optional swizzle to apply to the returned result
-
-   sample_index is an integer scalar indicating which sample position is to
-   be queried.
-
-   If per-sample shading is not in effect or the source resource or render
-   target is not multisampled, the result is (0.5, 0.5, undef, undef).
-
-   NOTE: no driver has implemented this opcode yet (and no gallium frontend
-   emits it).  This information is subject to change.
-
-.. opcode:: SAMPLE_INFO
-
-   Query the number of samples in a multisampled resource or render target.
-
-   Syntax: ``SAMPLE_INFO dst, source``
-
-   dst receives int4 (n, 0, 0, 0) where n is the number of samples in a
-   resource or the render target.
-
-   source is either a sampler view (to indicate a shader resource) or temp
-   register (to indicate the render target).  The source register may have
-   an optional swizzle to apply to the returned result
-
-   If per-sample shading is not in effect or the source resource or render
-   target is not multisampled, the result is (1, 0, 0, 0).
-
-   NOTE: no driver has implemented this opcode yet (and no gallium frontend
-   emits it).  This information is subject to change.
-
 
 .. _resourceopcodes:
 

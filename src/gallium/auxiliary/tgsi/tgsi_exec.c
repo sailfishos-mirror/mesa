@@ -5434,14 +5434,6 @@ exec_instruction(
       exec_txq(mach, inst);
       break;
 
-   case TGSI_OPCODE_SAMPLE_POS:
-      assert(0);
-      break;
-
-   case TGSI_OPCODE_SAMPLE_INFO:
-      assert(0);
-      break;
-
    case TGSI_OPCODE_UARL:
       exec_vector_unary(mach, inst, micro_uarl, TGSI_EXEC_DATA_UINT);
       break;

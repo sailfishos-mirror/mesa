@@ -496,8 +496,8 @@ enum tgsi_opcode {
    TGSI_OPCODE_SAMPLE_L           = 152,
    TGSI_OPCODE_GATHER4            = 153,
    TGSI_OPCODE_SVIEWINFO          = 154,
-   TGSI_OPCODE_SAMPLE_POS         = 155,
-   TGSI_OPCODE_SAMPLE_INFO        = 156,
+   /* gap */
+   /* gap */
 
    TGSI_OPCODE_UARL               = 157,
    TGSI_OPCODE_UCMP               = 158,
