@@ -310,6 +310,13 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          pass_descriptor, framebuffer_extent.width);
       mtl_render_pass_descriptor_set_render_target_height(
          pass_descriptor, framebuffer_extent.height);
+      /* Applications may set maximal extents for attachment-less rendering, for
+       * example DXVK. This can cause device loss from exceeding memory limits.
+       * We can get around this by ignoring the layer count, without any known
+       * impact on the resulting fragment invocations and side effects. */
+      mtl_render_pass_descriptor_set_render_target_array_length(pass_descriptor,
+                                                                0u);
+
       mtl_render_pass_descriptor_set_default_raster_sample_count(
          pass_descriptor, 1u);
    } else {
@@ -317,6 +324,10 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          pass_descriptor, render->area.extent.width + render->area.offset.x);
       mtl_render_pass_descriptor_set_render_target_height(
          pass_descriptor, render->area.extent.height + render->area.offset.y);
+
+      /* Render targets are always arrays */
+      mtl_render_pass_descriptor_set_render_target_array_length(
+         pass_descriptor, layer_count ? layer_count : 1u);
    }
 
    /* Check if we are rendering to the whole framebuffer. Required to understand
@@ -375,10 +386,6 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          attachment_descriptor,
          pRenderingInfo->pStencilAttachment->clearValue.depthStencil.stencil);
    }
-
-   /* Render targets are always arrays */
-   mtl_render_pass_descriptor_set_render_target_array_length(
-      pass_descriptor, layer_count ? layer_count : 1u);
 
    /* Set global visibility buffer */
    mtl_render_pass_descriptor_set_visibility_buffer(
