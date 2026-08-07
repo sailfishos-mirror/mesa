@@ -3964,7 +3964,7 @@
         "description": "pvr: fix sampler handle dereference with immutable samplers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eb04027350e506440f74d1b447ac28b5a1184530",
         "notes": null
