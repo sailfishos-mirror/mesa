@@ -563,7 +563,8 @@ struct tu_cmd_state
       struct tu_framebuffer *framebuffer;
       VkRect2D render_areas[MAX_VIEWS];
       bool per_layer_render_area;
-      bool fdm_subsampled;
+      bool fdm_any_subsampled;
+      bool fdm_custom_resolve_subsampled;
       enum tu_gmem_layout gmem_layout;
       uint32_t gmem_layout_divisor;
 
@@ -574,7 +575,8 @@ struct tu_cmd_state
    } suspended_pass;
 
    bool fdm_enabled;
-   bool fdm_subsampled;
+   bool fdm_any_subsampled;
+   bool fdm_custom_resolve_subsampled;
 
    bool tessfactor_addr_set;
    bool predication_active;

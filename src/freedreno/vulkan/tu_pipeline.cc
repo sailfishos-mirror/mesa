@@ -2781,7 +2781,7 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        */
       VkOffset2D tile_start = common_bin_offset;
       if (state->custom_resolve && !binning) {
-         if (tile->subsampled)
+         if (tile->custom_resolve_subsampled)
             tile_start = tile->subsampled_pos[view].offset;
          else
             tile_start = bin.offset;
@@ -2792,7 +2792,8 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        * this, so we have to keep applying the transform for binning.
        */
       if (state->custom_resolve &&
-          !(tile->subsampled_views & (1u << view)) && !binning) {
+          (!(tile->subsampled_views & (1u << view)) ||
+           !tile->custom_resolve_subsampled) && !binning) {
          frag_area = (VkExtent2D) {1, 1};
       }
 
@@ -2911,7 +2912,7 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
 
       VkOffset2D tile_start = common_bin_offset;
       if (state->custom_resolve && !binning) {
-         if (tile->subsampled)
+         if (tile->custom_resolve_subsampled)
             tile_start = tile->subsampled_pos[view].offset;
          else
             tile_start = bin.offset;
@@ -2921,7 +2922,8 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        * and not in the binning pass, because we use framebuffer coordinates.
        */
       if (state->custom_resolve &&
-          !(tile->subsampled_views & (1u << view)) && !binning) {
+          (!(tile->subsampled_views & (1u << view)) ||
+           !tile->custom_resolve_subsampled) && !binning) {
          frag_area = (VkExtent2D) {1, 1};
       }
 
