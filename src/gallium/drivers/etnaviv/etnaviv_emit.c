@@ -606,6 +606,9 @@ etna_emit_state(struct etna_context *ctx)
             const uint8_t rt = i - 1;
             /*01500*/ EMIT_STATE_RELOC(PE_RT_ADDR_4_PIPE(rt, 0), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
             /*01504*/ EMIT_STATE_RELOC(PE_RT_ADDR_4_PIPE(rt, 1), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][1]);
+         }
+         for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+            const uint8_t rt = i - 1;
             /*01580*/ EMIT_STATE(PE_RT_CONFIG_4(rt), ctx->framebuffer.PE_RT_CONFIG[rt]);
          }
       } else if (screen->specs.num_rts == 8) {
@@ -613,19 +616,33 @@ etna_emit_state(struct etna_context *ctx)
             const uint8_t rt = i - 1;
             /*14800*/ EMIT_STATE_RELOC(PE_RT_ADDR_8_PIPE(rt, 0), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
             /*14804*/ EMIT_STATE_RELOC(PE_RT_ADDR_8_PIPE(rt, 1), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][1]);
+         }
+         for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+            const uint8_t rt = i - 1;
             /*14900*/ EMIT_STATE(PE_RT_CONFIG_8(rt), ctx->framebuffer.PE_RT_CONFIG[rt]);
          }
       }
    }
 
    if (unlikely(dirty & (ETNA_DIRTY_FRAMEBUFFER | ETNA_DIRTY_TS))) {
+      /* Index 0 is not used by the binary blob. */
       for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
          const uint8_t rt = i - 1;
-         /* Index 0 is not used by the binary blob. */
          /*017A0*/ EMIT_STATE(TS_RT_CONFIG(i), ctx->framebuffer.RT_TS_MEM_CONFIG[rt]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+         const uint8_t rt = i - 1;
          /*01A00*/ EMIT_STATE(TS_RT_CLEAR_VALUE(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[rt]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+         const uint8_t rt = i - 1;
          /*01A20*/ EMIT_STATE(TS_RT_CLEAR_VALUE2(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[rt]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+         const uint8_t rt = i - 1;
          /*017C0*/ EMIT_STATE_RELOC(TS_RT_STATUS_BASE(i), &ctx->framebuffer.RT_TS_COLOR_STATUS_BASE[rt]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
          /*017E0*/ EMIT_STATE_RELOC(TS_RT_SURFACE_BASE(i), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
       }
    }
