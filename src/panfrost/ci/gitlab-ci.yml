@@ -234,6 +234,9 @@ panfrost-g610-vk-asan:arm64:
     PANVK_DEBUG: "sync,cs,coherent_before_cached"
     DEQP_SUITE: panfrost-g610-vk-asan
     LAVA_TAGS: at-least-8gb
+    # Limit the number of runners this job can run on to one to prevent it
+    # from monopolising all five "at-least-8gb" RK3588 runners.
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3588-rock-5b-serial
 
 panfrost-g925-vk:arm64:
   parallel: 2
