@@ -337,25 +337,47 @@ nv30_screen_is_format_supported(struct pipe_screen *pscreen,
    return (nv30_format_info(pscreen, format)->bindings & bindings) == bindings;
 }
 
-static const nir_shader_compiler_options nv30_base_compiler_options = {
-   .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
-   .lower_bitops = true,
-   .lower_extract_byte = true,
-   .lower_extract_word = true,
-   .lower_fdiv = true,
+#define NIR_OPTIONS_COMMONS \
+   .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,\
+   .lower_bitops = true,\
+   .lower_extract_byte = true,\
+   .lower_extract_word = true,\
+   .lower_fdiv = true,\
+   .lower_insert_byte = true,\
+   .lower_insert_word = true,\
+   .lower_fdph = true,\
+   .lower_flrp32 = true,\
+   .lower_flrp64 = true,\
+   .lower_fmod = true, \
+   .lower_uniforms_to_ubo = true,\
+   .force_indirect_unrolling = nir_var_all,\
+   .force_indirect_unrolling_sampler = true,\
+   .max_unroll_iterations = 32,\
+   .no_integers = true
+
+// VERTEX
+
+static const nir_shader_compiler_options nv30_vs_compiler_options = {
+   NIR_OPTIONS_COMMONS,
    .lower_fsat = true,
-   .lower_insert_byte = true,
-   .lower_insert_word = true,
-   .lower_fdph = true,
-   .lower_flrp32 = true,
-   .lower_flrp64 = true,
-   .lower_fmod = true,
-   .lower_fpow = true, /* In hardware as of nv40 FS */
-   .lower_uniforms_to_ubo = true,
-   .force_indirect_unrolling = nir_var_all,
-   .force_indirect_unrolling_sampler = true,
-   .max_unroll_iterations = 32,
-   .no_integers = true,
+   .lower_fpow = true,
+};
+
+static const nir_shader_compiler_options nv40_vs_compiler_options = {
+   NIR_OPTIONS_COMMONS,
+   .lower_fsat = true,
+   .lower_fpow = true,
+};
+
+// FRAGMENT
+
+static const nir_shader_compiler_options nv30_fs_compiler_options = {
+   NIR_OPTIONS_COMMONS,
+   .lower_fpow = true,
+};
+
+static const nir_shader_compiler_options nv40_fs_compiler_options = {
+   NIR_OPTIONS_COMMONS
 };
 
 static void
@@ -490,8 +512,8 @@ nv30_screen_create(struct nouveau_device *dev)
    pscreen->context_create = nv30_context_create;
    pscreen->is_format_supported = nv30_screen_is_format_supported;
 
-   pscreen->nir_options[MESA_SHADER_VERTEX] = &nv30_base_compiler_options;
-   pscreen->nir_options[MESA_SHADER_FRAGMENT] = &screen->fs_compiler_options;
+   pscreen->nir_options[MESA_SHADER_VERTEX] = oclass < NV40_3D_CLASS ? &nv30_vs_compiler_options : &nv40_vs_compiler_options;
+   pscreen->nir_options[MESA_SHADER_FRAGMENT] = oclass < NV40_3D_CLASS ? &nv30_fs_compiler_options : &nv40_fs_compiler_options;
 
    nv30_resource_screen_init(pscreen);
    nouveau_screen_init_vdec(&screen->base);
@@ -509,11 +531,6 @@ nv30_screen_create(struct nouveau_device *dev)
       screen->base.vidmem_bindings |= PIPE_BIND_INDEX_BUFFER;
       screen->base.sysmem_bindings |= PIPE_BIND_INDEX_BUFFER;
    }
-
-   screen->fs_compiler_options = nv30_base_compiler_options;
-   screen->fs_compiler_options.lower_fsat = false;
-   if (oclass >= NV40_3D_CLASS)
-      screen->fs_compiler_options.lower_fpow = false;
 
    fifo = screen->base.channel->data;
    push = screen->base.pushbuf;
