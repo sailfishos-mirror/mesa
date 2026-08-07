@@ -484,6 +484,9 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
          if (translate_blt_format(format) == ETNA_NO_MATCH)
             return false;
       } else {
+         if (util_format_is_pure_integer(format) &&
+             !VIV_FEATURE(screen, ETNA_FEATURE_HALTI5))
+            return false;
          if (translate_rs_format(format) == ETNA_NO_MATCH)
             return false;
       }
