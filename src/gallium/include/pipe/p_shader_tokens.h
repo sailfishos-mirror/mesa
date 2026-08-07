@@ -611,8 +611,8 @@ enum tgsi_opcode {
 
    TGSI_OPCODE_LOD                = 249,
 
-   TGSI_OPCODE_ATOMINC_WRAP       = 250,
-   TGSI_OPCODE_ATOMDEC_WRAP       = 251,
+   /* gap */
+   /* gap */
 
    TGSI_OPCODE_LAST               = 252,
 };
