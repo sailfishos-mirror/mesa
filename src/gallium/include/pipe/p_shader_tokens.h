@@ -609,7 +609,7 @@ enum tgsi_opcode {
 
    TGSI_OPCODE_DDIV               = 248,
 
-   TGSI_OPCODE_LOD                = 249,
+   /* gap */
 
    /* gap */
    /* gap */
