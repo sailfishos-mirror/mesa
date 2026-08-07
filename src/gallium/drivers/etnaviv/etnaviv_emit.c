@@ -632,24 +632,37 @@ etna_emit_state(struct etna_context *ctx)
       }
       for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
          const uint8_t rt = i - 1;
+         /*017C0*/ EMIT_STATE_RELOC(TS_RT_STATUS_BASE(i), &ctx->framebuffer.RT_TS_COLOR_STATUS_BASE[rt]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+         /*017E0*/ EMIT_STATE_RELOC(TS_RT_SURFACE_BASE(i), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
+      }
+      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
+         const uint8_t rt = i - 1;
          /*01A00*/ EMIT_STATE(TS_RT_CLEAR_VALUE(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[rt]);
       }
       for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
          const uint8_t rt = i - 1;
          /*01A20*/ EMIT_STATE(TS_RT_CLEAR_VALUE2(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[rt]);
       }
-      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
-         const uint8_t rt = i - 1;
-         /*017C0*/ EMIT_STATE_RELOC(TS_RT_STATUS_BASE(i), &ctx->framebuffer.RT_TS_COLOR_STATUS_BASE[rt]);
-      }
-      for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
-         /*017E0*/ EMIT_STATE_RELOC(TS_RT_SURFACE_BASE(i), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
-      }
    }
 
    if (unlikely(VIV_FEATURE(screen, ETNA_FEATURE_HWTFB))) {
       if (unlikely(dirty & ETNA_DIRTY_RASTERIZER)) {
          /*1C000*/ EMIT_STATE(TFB_CONFIG, etna_rasterizer_state(ctx->rasterizer)->TFB_CONFIG);
+      }
+
+      if (unlikely(dirty & ETNA_DIRTY_STREAMOUT_CMD)) {
+         struct etna_streamout *so = &ctx->streamout;
+
+         if (so->xfb_should_be_active && so->xfb_hw_state != ETNA_XFB_HW_ACTIVE) {
+            uint32_t cmd = (so->xfb_hw_state == ETNA_XFB_HW_PAUSED) ?
+                           TFB_COMMAND_RESUME :
+                           TFB_COMMAND_ENABLE;
+
+            /*1C004*/ EMIT_STATE(TFB_COMMAND, cmd);
+            so->xfb_hw_state = ETNA_XFB_HW_ACTIVE;
+         }
       }
 
       if (unlikely(dirty & ETNA_DIRTY_STREAMOUT)) {
@@ -675,19 +688,6 @@ etna_emit_state(struct etna_context *ctx)
 
          for (int i = 0; i < ctx->streamout.num_descriptors; i++) {
             /*1C800*/ EMIT_STATE(TFB_DESCRIPTOR(i), ctx->streamout.TFB_DESCRIPTOR[i]);
-         }
-      }
-
-      if (unlikely(dirty & ETNA_DIRTY_STREAMOUT_CMD)) {
-         struct etna_streamout *so = &ctx->streamout;
-
-         if (so->xfb_should_be_active && so->xfb_hw_state != ETNA_XFB_HW_ACTIVE) {
-            uint32_t cmd = (so->xfb_hw_state == ETNA_XFB_HW_PAUSED) ?
-                           TFB_COMMAND_RESUME :
-                           TFB_COMMAND_ENABLE;
-
-            /*1C004*/ EMIT_STATE(TFB_COMMAND, cmd);
-            so->xfb_hw_state = ETNA_XFB_HW_ACTIVE;
          }
       }
    }
