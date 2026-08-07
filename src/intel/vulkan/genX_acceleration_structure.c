@@ -343,7 +343,7 @@ anv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_st
    if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
        (state->build_info->mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR ||
         state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR ||
-        device->physical->instance->drirc.debug.write_lookup_maps_unconditionally)) {
+        device->physical->drirc.debug.write_lookup_maps_unconditionally)) {
       state->config.build_flags |= ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE;
    }
 
@@ -885,7 +885,7 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
 
    if (!flushed_compute)
       vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
-   
+
    vk_build_stage(anv_encode_as, commandBuffer, device, meta, args, states, build_count, ANV_ENCODE_BUILD_FLAGS, false);
 
    /* Add a barrier to ensure the writes from encode.comp is ready to be
