@@ -1140,14 +1140,6 @@ radv_BindVideoSessionMemoryKHR(VkDevice _device, VkVideoSessionKHR videoSession,
    return VK_SUCCESS;
 }
 
-static const uint8_t h264_levels[] = {10, 11, 12, 13, 20, 21, 22, 30, 31, 32, 40, 41, 42, 50, 51, 52, 60, 61, 62};
-static uint8_t
-get_h264_level(StdVideoH264LevelIdc level)
-{
-   assert(level <= STD_VIDEO_H264_LEVEL_IDC_6_2);
-   return h264_levels[level];
-}
-
 static void
 update_h264_scaling(unsigned char scaling_list_4x4[6][16], unsigned char scaling_list_8x8[2][64],
                     const StdVideoH264ScalingLists *scaling_lists)
@@ -1252,7 +1244,7 @@ get_h264_param(struct radv_video_session *vid, struct vk_video_session_parameter
    avc->pic_flags.chroma_format_idc = sps->chroma_format_idc;
 
    avc->profile_idc = sps->profile_idc;
-   avc->level_idc = get_h264_level(sps->level_idc);
+   avc->level_idc = vk_video_get_h264_level(sps->level_idc);
    avc->pic_width_in_mbs_minus1 = sps->pic_width_in_mbs_minus1;
    avc->pic_height_in_mbs_minus1 = sps->pic_height_in_map_units_minus1;
    avc->bit_depth_luma_minus8 = sps->bit_depth_luma_minus8;
