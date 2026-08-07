@@ -1416,7 +1416,11 @@ pub fn gen_encoder(
         .add_meta_enum(
             "src_swizzle",
             SRC_SWIZZLE_ENUMS.iter().cloned(),
-            ["h01", "b0123"],
+            [
+                (("swiz_m", "h01"), "none"),
+                (("swiz_int_m", "h01"), "none"),
+                (("lanes_int_m", "b0123"), "none"),
+            ],
         )
         .expect("Failed to create src_swizzle meta-enum");
     isa.enums
