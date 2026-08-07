@@ -285,11 +285,6 @@ void main()
    vk_aabb leaf_bounds = build_and_encode_leaf(leaf_local, leaf_block);
    DEREF(INDEX(vk_aabb, args.aabb_scratch, leaf_block)) = leaf_bounds;
 
-   /* Ensure scratch update and leaf encoding is visible before atomic in
-    * following loop.
-    */
-   memoryBarrierBuffer();
-
    BLOCK current_block = leaf_block;
    vk_aabb current_bounds = leaf_bounds;
 
@@ -318,11 +313,6 @@ void main()
 
       /* Store parent bounds for next level */
       DEREF(INDEX(vk_aabb, args.aabb_scratch, parent)) = parent_bounds;
-
-      /* Ensure scratch write and parent encoding is visible in the next
-       * iteration of this loop.
-       */
-      memoryBarrierBuffer();
 
       /* Check whether this parent is the root internal node */
       uint32_t grandparent_raw = DEREF(INDEX(uint32_t, args.parent_child_map, parent));
