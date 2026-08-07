@@ -41,3 +41,4 @@ fragmentStoresAndAtomics on pvr
 VK_EXT_cooperative_matrix_maintenance1 on radv, lavapipe
 VK_KHR_device_address_commands on nvk
 Support for G715 and G615 GPUs on Panfrost and PanVK
+GL_ARB_texture_multisample on etnaviv/HALTI5

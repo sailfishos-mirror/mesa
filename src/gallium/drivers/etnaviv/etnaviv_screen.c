@@ -319,7 +319,8 @@ etna_init_screen_caps(struct etna_screen *screen)
       (VIV_FEATURE(screen, ETNA_FEATURE_HALTI5) && DBG_ENABLED(ETNA_DBG_DEQP)) ? 4 : 0;
    caps->seamless_cube_map_per_texture =
    caps->seamless_cube_map = VIV_FEATURE(screen, ETNA_FEATURE_SEAMLESS_CUBE_MAP);
-   caps->texture_multisample = DBG_ENABLED(ETNA_DBG_DEQP);
+   caps->texture_multisample = gpu_supports_msaa(screen, ETNA_MAX_SAMPLES) &&
+                               gpu_supports_texture_desc(screen);
 
    /* Render targets. */
    caps->max_render_targets = VIV_FEATURE(screen, ETNA_FEATURE_HALTI2) ?
@@ -608,7 +609,15 @@ etna_screen_is_format_supported(struct pipe_screen *pscreen,
       if (!gpu_supports_texture_format(screen, fmt, format))
          fmt = ETNA_NO_MATCH;
 
-      if (sample_count < 2 && fmt != ETNA_NO_MATCH)
+      /* lower_txf_ms_dynamic(..) always fetches four samples, so 4x is the
+       * only multisample layout that can be sampled.
+       */
+      if (sample_count > 1 &&
+          (sample_count != ETNA_MAX_SAMPLES ||
+           !gpu_supports_texture_desc(screen)))
+         fmt = ETNA_NO_MATCH;
+
+      if (fmt != ETNA_NO_MATCH)
          allowed |= PIPE_BIND_SAMPLER_VIEW;
    }
 
