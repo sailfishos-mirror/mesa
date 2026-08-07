@@ -129,8 +129,6 @@ tgsi_opcode_infer_type(enum tgsi_opcode opcode)
    case TGSI_OPCODE_UBFE:
    case TGSI_OPCODE_BFI:
    case TGSI_OPCODE_BREV:
-   case TGSI_OPCODE_IMG2HND:
-   case TGSI_OPCODE_SAMP2HND:
       return TGSI_TYPE_UNSIGNED;
    case TGSI_OPCODE_ARL:
    case TGSI_OPCODE_ARR:
