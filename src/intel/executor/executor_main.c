@@ -1116,7 +1116,15 @@ handle_param_hw_regs(executor_run *run, slice name, slice args)
    if (!parse_int64(value, &v))
       failf("@param %.*s must be an integer", SLICE_FMT(name));
 
-   if (!intel_register_blocks_supported(run->ec->devinfo, v))
+   const struct intel_device_info *devinfo = run->ec->devinfo;
+   bool valid;
+   if (devinfo->verx10 >= 125 && devinfo->ver < 30) {
+      valid = v == 128 || v == 256; /* Large GRF supports 128 or 256 regs */
+   } else {
+      valid = intel_register_blocks_supported(devinfo, v);
+   }
+
+   if (!valid)
       failf("@param %.*s %u is not supported", SLICE_FMT(name), (unsigned)v);
 
    run->hw_regs = (uint32_t)v;

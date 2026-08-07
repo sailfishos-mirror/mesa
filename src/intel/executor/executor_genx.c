@@ -398,6 +398,9 @@ genX(emit_execute)(const executor_run *run)
 #if GFX_VERx10 >= 125
    executor_batch_emit(GENX(STATE_COMPUTE_MODE), cm) {
       cm.Mask1 = 0xffff;
+#if GFX_VER < 30
+      cm.LargeGRFMode = run->hw_regs == 256;
+#endif
 #if GFX_VERx10 >= 200
       cm.Mask2 = 0xffff;
 #endif
