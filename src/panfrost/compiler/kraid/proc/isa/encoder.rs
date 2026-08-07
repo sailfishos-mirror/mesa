@@ -1424,7 +1424,15 @@ pub fn gen_encoder(
         )
         .expect("Failed to create src_swizzle meta-enum");
     isa.enums
-        .add_meta_enum("dst_lanes", DST_LANES_ENUMS.iter().cloned(), [])
+        .add_meta_enum(
+            "dst_lanes",
+            DST_LANES_ENUMS.iter().cloned(),
+            [
+                (("dest_width_narrow_m", "h01"), "hf01"),
+                (("dest_width_narrow_m", "h0"), "hf0"),
+                (("dest_width_narrow_m", "h1"), "hf1"),
+            ],
+        )
         .expect("Failed to create dst_lanes meta-enum");
     isa.enums
         .add_meta_enum(

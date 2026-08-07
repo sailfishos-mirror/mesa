@@ -998,8 +998,14 @@ impl V9Instr for OpF32ToF16 {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let mut dst = op_encode_dst(self, &self.dst);
+        dst.lanes = match dst.lanes {
+            v9::DstLanes::H0 => v9::DstLanes::Hf0,
+            v9::DstLanes::H1 => v9::DstLanes::Hf1,
+            _ => panic!("Invalid dst.lanes"),
+        };
         e.encode(F32ToF16 {
-            dst: op_encode_dst(self, &self.dst),
+            dst,
             src0: op_encode_src(self, &self.src),
             round: self.round.into(),
             clamp: self.clamp.into(),
@@ -3054,6 +3060,10 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
         return lanes;
     }
 
+    if matches!(op, Op::F32ToF16(_)) {
+        return ir::DstLanes::ALL_H;
+    }
+
     let mut lanes = DstLanesSet::new();
     for l in dst_info.allowed_lanes.iter() {
         match l {
@@ -3084,7 +3094,12 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
                 lanes.insert(ir::DstLanes::AnyH);
                 lanes.insert(ir::DstLanes::H1);
             }
-            v9::DstLanes::H01 | v9::DstLanes::W0 | v9::DstLanes::D0 => {
+            v9::DstLanes::H01
+            | v9::DstLanes::Hf01
+            | v9::DstLanes::Hf0
+            | v9::DstLanes::Hf1
+            | v9::DstLanes::W0
+            | v9::DstLanes::D0 => {
                 // Not currently supported
             }
         }
