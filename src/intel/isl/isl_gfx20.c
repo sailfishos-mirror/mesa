@@ -256,6 +256,7 @@ isl_gfx20_choose_image_alignment_el(const struct isl_device *dev,
        */
       if (!INTEL_DEBUG(DEBUG_NO_FAST_CLEAR) &&
           _isl_surf_info_supports_ccs(dev, info->format, info->usage) &&
+          !isl_format_is_compressed(info->format) &&
           tiling == ISL_TILING_4 &&
           info->dim != ISL_SURF_DIM_3D) {
          assert(intel_needs_workaround(dev->info, 22018390030) ||
