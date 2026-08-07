@@ -4232,6 +4232,19 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
       return false;
    }
 
+   /* Wa_22018390030 (Xe2+), Bspec 57340, and HSD 22021327133 (Xe3P+) say that
+    * we can't fast clear surfaces that are color, non-volumetric, Tile4, and
+    * have a VALIGN of 4.
+    */
+   if (cmd_buffer->device->info->ver >= 20 &&
+       anv_surf->isl.dim != ISL_SURF_DIM_3D &&
+       anv_surf->isl.image_alignment_el.h == 4) {
+      assert(anv_surf->isl.tiling == ISL_TILING_4);
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Wa_2201839003: Don't fast-clear on VALIGN_4.");
+      return false;
+   }
+
    return true;
 }
 
