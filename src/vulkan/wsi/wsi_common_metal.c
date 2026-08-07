@@ -59,7 +59,10 @@ wsi_metal_surface_get_capabilities(VkIcdSurfaceBase *surface,
    if (!caps->surfaceCapabilities.currentExtent.width && !caps->surfaceCapabilities.currentExtent.height)
       caps->surfaceCapabilities.currentExtent.width = caps->surfaceCapabilities.currentExtent.height = UINT32_MAX;
 
-   caps->surfaceCapabilities.minImageCount = 2;
+   /* Force recommended 3 drawables, otherwise the OS frame pacing may slow
+    * down presentation.
+    */
+   caps->surfaceCapabilities.minImageCount = 3;
    caps->surfaceCapabilities.maxImageCount = 3;
 
    caps->surfaceCapabilities.minImageExtent = (VkExtent2D) { 1, 1 };

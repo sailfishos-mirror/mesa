@@ -165,8 +165,7 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
       metal_layer.allowsNextDrawableTimeout = YES;
       metal_layer.framebufferOnly = framebuffer_only;
 
-      /* Force recommended 3 drawables for smoother presentation */
-      metal_layer.maximumDrawableCount = 3u;
+      metal_layer.maximumDrawableCount = image_count;
       metal_layer.drawableSize = (CGSize){.width = width, .height = height};
       metal_layer.opaque = enable_opaque;
       metal_layer.displaySyncEnabled = !enable_immediate;
