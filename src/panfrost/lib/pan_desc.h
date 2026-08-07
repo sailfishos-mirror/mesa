@@ -398,6 +398,9 @@ struct pan_clean_tile
 void GENX(pan_emit_tls)(const struct pan_tls_info *info,
                         struct mali_local_storage_packed *out);
 
+bool GENX(pan_image_view_can_crc)(const struct pan_image_view *view,
+                                  unsigned tile_size_px);
+
 int GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size);
 
 struct pan_attachment_info {

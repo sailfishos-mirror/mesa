@@ -97,17 +97,16 @@ pan_warn_on_afbc_reverse_issue_order(const struct pan_attachment_info *att,
 }
 #endif
 
-static bool
-pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
-                                   unsigned tile_size)
+bool
+GENX(pan_image_view_can_crc)(const struct pan_image_view *view,
+                             unsigned tile_size_px)
 {
    uint64_t mod;
 
-   if (!rt->view || rt->discard || !rt->crc_state ||
-       !pan_image_view_has_crc(rt->view))
+   if (!view || !pan_image_view_has_crc(view))
       return false;
 
-   mod = pan_image_view_get_first_plane(rt->view).image->props.modifier;
+   mod = pan_image_view_get_first_plane(view).image->props.modifier;
 
    if (!drm_is_afbc(mod))
       return true;
@@ -120,10 +119,18 @@ pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
    assert(mod & AFBC_FORMAT_MOD_SPARSE);
 
    /* AFBC render block size must fit in a single pass. */
-   if (pan_afbc_superblock_exceeds_tile_size(mod, tile_size))
+   if (pan_afbc_superblock_exceeds_tile_size(mod, tile_size_px))
       return false;
 
    return true;
+}
+
+static bool
+pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
+                                   unsigned tile_size)
+{
+   return !rt->discard && rt->crc_state &&
+          GENX(pan_image_view_can_crc)(rt->view, tile_size);
 }
 
 int
