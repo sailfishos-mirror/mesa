@@ -137,12 +137,13 @@ kk_fill_common_attachment_description(
 
    /* STORE_OP_NONE behaves like DONT_CARE if there are writes
     * (CLEAR or DONT_CARE are writes).
-   * If there are no writes, we need to preserve the contents. */
-   force_attachment_load |= (info->load_op == VK_ATTACHMENT_LOAD_OP_LOAD
-      || info->load_op == VK_ATTACHMENT_LOAD_OP_NONE)
-      && info->store_op == VK_ATTACHMENT_STORE_OP_NONE;
+    * If there are no writes, we need to preserve the contents. */
+   force_attachment_load |= (info->load_op == VK_ATTACHMENT_LOAD_OP_LOAD ||
+                             info->load_op == VK_ATTACHMENT_LOAD_OP_NONE) &&
+                            info->store_op == VK_ATTACHMENT_STORE_OP_NONE;
 
-   enum mtl_load_action load_action = force_attachment_load
+   enum mtl_load_action load_action =
+      force_attachment_load
          ? MTL_LOAD_ACTION_LOAD
          : vk_attachment_load_op_to_mtl_load_action(info->load_op);
 
@@ -332,12 +333,10 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
     * that the attachments won't get touched outside the area
     * so just checking for offset = 0 doesn't cut it. */
    bool force_attachment_load =
-      !is_whole_framebuffer ||
-      (render->flags & VK_RENDERING_RESUMING_BIT);
+      !is_whole_framebuffer || (render->flags & VK_RENDERING_RESUMING_BIT);
 
    render->force_attachment_store =
-      !is_whole_framebuffer ||
-      (render->flags & VK_RENDERING_SUSPENDING_BIT);
+      !is_whole_framebuffer || (render->flags & VK_RENDERING_SUSPENDING_BIT);
 
    kk_set_color_attachments(pass_descriptor, render, dyn,
                             force_attachment_load);
