@@ -229,21 +229,21 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
 #endif
 
    if (indirect_set == NULL &&
-       (cmd_buffer->state.push_constants_dirty & VK_SHADER_STAGE_COMPUTE_BIT)) {
-      if (bind_state->push_constants_state.alloc_size == 0) {
-         bind_state->push_constants_state =
-            anv_cmd_buffer_cs_push_constants(cmd_buffer);
-      }
+       bind_state->push_constants_state.alloc_size == 0) {
+      bind_state->push_constants_state =
+         anv_cmd_buffer_cs_push_constants(cmd_buffer);
+      cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_COMPUTE_BIT;
+   }
 
+   if (cmd_buffer->state.push_constants_dirty & VK_SHADER_STAGE_COMPUTE_BIT) {
 #if GFX_VERx10 < 125
-      if (bind_state->push_constants_state.alloc_size) {
+      if (bind_state->push_constants_state.alloc_size > 0) {
          anv_batch_emit(&cmd_buffer->batch, GENX(MEDIA_CURBE_LOAD), curbe) {
             curbe.CURBETotalDataLength    = bind_state->push_constants_state.alloc_size;
             curbe.CURBEDataStartAddress   = bind_state->push_constants_state.offset;
          }
       }
 #endif
-
       cmd_buffer->state.push_constants_dirty &= ~VK_SHADER_STAGE_COMPUTE_BIT;
    }
 
