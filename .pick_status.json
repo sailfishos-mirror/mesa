@@ -1294,7 +1294,7 @@
         "description": "tu: Use correct pointer for vis stream patchpoint cs fence",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "50aa66a7c1defe5b79af85d6eb025d32e525efa3",
         "notes": null
