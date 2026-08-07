@@ -433,6 +433,13 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
 
    trace_intel_begin_as_encode(&cmd_buffer->trace);
 
+   /* TODO: Current encode.comp spilling a lot. Once we flip the swtich to Jay,
+    * let's set the subgroup size to 32 on Xe2+.
+    */
+   struct anv_device *device = cmd_buffer->device;
+   device->accel_struct_build.build_args.subgroup_size =
+      device->info->ver >= 20 ? 16 : 8;
+
    anv_bvh_build_bind_pipeline(commandBuffer, ANV_OBJECT_KEY_BVH_ENCODE, encode_spv, sizeof(encode_spv),
                                sizeof(struct encode_args), build_flags);
 
@@ -847,7 +854,7 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
       (struct vk_acceleration_structure_build_args) {
          .emit_markers = u_trace_enabled(&device->ds.trace_context),
          .has_update = true,
-         .subgroup_size = device->info->ver >= 20 ? 16 : 8,
+         .subgroup_size = device->info->ver >= 20 ? 32 : 16,
          .radix_sort_64 = device->accel_struct_build.radix_sort_64,
          .radix_sort_96 = device->accel_struct_build.radix_sort_96,
          /* See struct anv_accel_struct_header from anv_bvh_defines.h
