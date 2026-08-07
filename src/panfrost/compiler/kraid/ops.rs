@@ -859,7 +859,8 @@ impl fmt::Display for FRound {
     }
 }
 
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+#[repr(u8)]
+#[derive(Clone, Copy, Default, EnumAsU8, Eq, Hash, PartialEq)]
 pub enum FClamp {
     #[default]
     None,
@@ -878,6 +879,44 @@ impl FClamp {
             FClamp::ZeroToOne => (0.0, 1.0),
         };
         x.ieee_max(lo).ieee_min(hi)
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, FClamp::None)
+    }
+
+    /// Take the maximum of two clamps and produce the least restrictive clamp
+    pub fn max(self, other: FClamp) -> FClamp {
+        use FClamp::*;
+        match self {
+            None => None,
+            ZeroToInf => match other {
+                ZeroToInf | ZeroToOne => ZeroToInf,
+                None | NegOneToOne => None,
+            },
+            NegOneToOne => match other {
+                ZeroToOne | NegOneToOne => NegOneToOne,
+                None | ZeroToInf => None,
+            },
+            ZeroToOne => other,
+        }
+    }
+
+    /// Take the minimum of two clamps and produce the most restrictive clamp
+    pub fn min(self, other: FClamp) -> FClamp {
+        use FClamp::*;
+        match self {
+            None => other,
+            ZeroToInf => match other {
+                None | ZeroToInf => ZeroToInf,
+                NegOneToOne | ZeroToOne => ZeroToOne,
+            },
+            NegOneToOne => match other {
+                None | NegOneToOne => NegOneToOne,
+                ZeroToInf | ZeroToOne => ZeroToOne,
+            },
+            ZeroToOne => ZeroToOne,
+        }
     }
 }
 
@@ -3911,5 +3950,23 @@ impl Op {
                 | Op::Store(_)
                 | Op::StCvt(_)
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clamp_min_max() {
+        for a in FClamp::VARIANTS.iter() {
+            assert!(a.min(a) == a);
+            assert!(a.max(a) == a);
+            for b in FClamp::VARIANTS.iter() {
+                assert!(a.min(b) == b.min(a));
+                assert!(a.max(b) == b.max(a));
+                assert!(a.min(a.max(b)) == a);
+            }
+        }
     }
 }
