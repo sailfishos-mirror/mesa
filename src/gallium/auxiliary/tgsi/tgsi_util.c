@@ -164,13 +164,6 @@ tgsi_util_get_src_usage_mask(enum tgsi_opcode opcode,
       }
       break;
 
-   case TGSI_OPCODE_READ_INVOC:
-      if (src_idx == 0)
-         read_mask = write_mask;
-      else
-         read_mask = TGSI_WRITEMASK_X;
-      break;
-
    case TGSI_OPCODE_FBFETCH:
       read_mask = 0; /* not a real register read */
       break;

@@ -2856,26 +2856,6 @@ is treated as a boolean and produce a 64-bit value.
    are used to compute derivatives).
 
 
-.. opcode:: READ_FIRST - Broadcast the value from the first active
-            invocation to all active lanes
-
-   Syntax: ``READ_FIRST dst, value``
-
-   Example: ``READ_FIRST TEMP[0], TEMP[1]``
-
-
-.. opcode:: READ_INVOC - Retrieve the value from the given invocation
-            (need not be uniform)
-
-   Syntax: ``READ_INVOC dst, value, invocation``
-
-   Example: ``READ_INVOC TEMP[0].xy, TEMP[1].xy, TEMP[2].x``
-
-   invocation.x controls the invocation number to read from for all channels.
-   The invocation number must be the same across all active invocations in a
-   sub-group; otherwise, the results are undefined.
-
-
 Explanation of symbols used
 ------------------------------
 

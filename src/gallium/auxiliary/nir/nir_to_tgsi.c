@@ -2604,12 +2604,6 @@ ntt_emit_intrinsic(struct ntt_compile *c, nir_intrinsic_instr *instr)
    case nir_intrinsic_ballot:
       ntt_BALLOT(c, ntt_get_dest(c, &instr->def), ntt_get_src(c, instr->src[0]));
       return;
-   case nir_intrinsic_read_first_invocation:
-      ntt_READ_FIRST(c, ntt_get_dest(c, &instr->def), ntt_get_src(c, instr->src[0]));
-      return;
-   case nir_intrinsic_read_invocation:
-      ntt_READ_INVOC(c, ntt_get_dest(c, &instr->def), ntt_get_src(c, instr->src[0]), ntt_get_src(c, instr->src[1]));
-      return;
 
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddx_coarse:

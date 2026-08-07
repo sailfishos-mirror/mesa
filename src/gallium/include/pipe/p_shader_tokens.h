@@ -416,7 +416,7 @@ enum tgsi_opcode {
    TGSI_OPCODE_BRK                = 73,
    TGSI_OPCODE_IF                 = 74,
    TGSI_OPCODE_UIF                = 75,
-   TGSI_OPCODE_READ_INVOC         = 76,
+   /* gap */
    TGSI_OPCODE_ELSE               = 77,
    TGSI_OPCODE_ENDIF              = 78,
    TGSI_OPCODE_DDX_FINE           = 79,
@@ -445,7 +445,7 @@ enum tgsi_opcode {
    TGSI_OPCODE_ATOMFADD           = 103,
    TGSI_OPCODE_TXQS               = 104,
    TGSI_OPCODE_RESQ               = 105,
-   TGSI_OPCODE_READ_FIRST         = 106,
+   /* gap */
    TGSI_OPCODE_NOP                = 107,
 
    TGSI_OPCODE_FSEQ               = 108,
