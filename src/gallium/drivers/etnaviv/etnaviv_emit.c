@@ -622,11 +622,11 @@ etna_emit_state(struct etna_context *ctx)
       for (int i = 1; i < ctx->framebuffer.num_rt; i++) {
          const uint8_t rt = i - 1;
          /* Index 0 is not used by the binary blob. */
-         EMIT_STATE(TS_RT_CONFIG(i), ctx->framebuffer.RT_TS_MEM_CONFIG[rt]);
-         EMIT_STATE(TS_RT_CLEAR_VALUE(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[rt]);
-         EMIT_STATE(TS_RT_CLEAR_VALUE2(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[rt]);
-         EMIT_STATE_RELOC(TS_RT_STATUS_BASE(i), &ctx->framebuffer.RT_TS_COLOR_STATUS_BASE[rt]);
-         EMIT_STATE_RELOC(TS_RT_SURFACE_BASE(i), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
+         /*017A0*/ EMIT_STATE(TS_RT_CONFIG(i), ctx->framebuffer.RT_TS_MEM_CONFIG[rt]);
+         /*01A00*/ EMIT_STATE(TS_RT_CLEAR_VALUE(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[rt]);
+         /*01A20*/ EMIT_STATE(TS_RT_CLEAR_VALUE2(i), ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[rt]);
+         /*017C0*/ EMIT_STATE_RELOC(TS_RT_STATUS_BASE(i), &ctx->framebuffer.RT_TS_COLOR_STATUS_BASE[rt]);
+         /*017E0*/ EMIT_STATE_RELOC(TS_RT_SURFACE_BASE(i), &ctx->framebuffer.PE_RT_PIPE_COLOR_ADDR[i][0]);
       }
    }
 
