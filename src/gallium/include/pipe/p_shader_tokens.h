@@ -427,7 +427,7 @@ enum tgsi_opcode {
    TGSI_OPCODE_NOT                = 85,
    TGSI_OPCODE_TRUNC              = 86,
    TGSI_OPCODE_SHL                = 87,
-   TGSI_OPCODE_BALLOT             = 88,
+   /* gap */
    TGSI_OPCODE_AND                = 89,
    TGSI_OPCODE_OR                 = 90,
    TGSI_OPCODE_MOD                = 91,
@@ -576,9 +576,9 @@ enum tgsi_opcode {
    TGSI_OPCODE_DROUND             = 221 /* nvc0 */,
    TGSI_OPCODE_DSSG               = 222,
 
-   TGSI_OPCODE_VOTE_ANY           = 223,
-   TGSI_OPCODE_VOTE_ALL           = 224,
-   TGSI_OPCODE_VOTE_EQ            = 225,
+   /* gap */
+   /* gap */
+   /* gap */
 
    TGSI_OPCODE_U64SEQ             = 226,
    TGSI_OPCODE_U64SNE             = 227,

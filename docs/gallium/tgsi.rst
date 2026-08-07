@@ -2812,50 +2812,6 @@ These atomic operations may only be used with 32-bit integer image formats.
       \end{array}
       \right.
 
-.. _interlaneopcodes:
-
-Inter-lane opcodes
-^^^^^^^^^^^^^^^^^^
-
-These opcodes reduce the given value across the shader invocations
-running in the current SIMD group. Every thread in the subgroup will receive
-the same result. The BALLOT operations accept a single-channel argument that
-is treated as a boolean and produce a 64-bit value.
-
-.. opcode:: VOTE_ANY - Value is set in any of the active invocations
-
-   Syntax: ``VOTE_ANY dst, value``
-
-   Example: ``VOTE_ANY TEMP[0].x, TEMP[1].x``
-
-
-.. opcode:: VOTE_ALL - Value is set in all of the active invocations
-
-   Syntax: ``VOTE_ALL dst, value``
-
-   Example: ``VOTE_ALL TEMP[0].x, TEMP[1].x``
-
-
-.. opcode:: VOTE_EQ - Value is the same in all of the active invocations
-
-   Syntax: ``VOTE_EQ dst, value``
-
-   Example: ``VOTE_EQ TEMP[0].x, TEMP[1].x``
-
-
-.. opcode:: BALLOT - Lanemask of whether the value is set in each active
-            invocation
-
-   Syntax: ``BALLOT dst, value``
-
-   Example: ``BALLOT TEMP[0].xy, TEMP[1].x``
-
-   When the argument is a constant true, this produces a bitmask of active
-   invocations. In fragment shaders, this can include helper invocations
-   (invocations whose outputs and writes to memory are discarded, but which
-   are used to compute derivatives).
-
-
 Explanation of symbols used
 ------------------------------
 

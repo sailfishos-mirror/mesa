@@ -104,7 +104,6 @@ tgsi_util_get_src_usage_mask(enum tgsi_opcode opcode,
    case TGSI_OPCODE_UP4B:
    case TGSI_OPCODE_UP4UB:
    case TGSI_OPCODE_MEMBAR:
-   case TGSI_OPCODE_BALLOT:
       read_mask = TGSI_WRITEMASK_X;
       break;
 
