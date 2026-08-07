@@ -621,9 +621,15 @@ pass(jay_function *f)
             block->demand_max[UGPR] + block->demand_max[FLAG];
          unsigned demand_gpr = block->demand_max[GPR];
 
-         if (((demand_gpr * jay_ugpr_per_gpr(f->shader)) + demand_ugpr) >=
-             (120 * jay_ugpr_per_grf(f->shader))) {
-            f->prioritize_pressure = true;
+         unsigned sched_at = f->shader->devinfo->ver >= 30 ? 64 : 120;
+         unsigned prioritize_at = f->shader->devinfo->ver >= 30 ? 90 : 120;
+
+         unsigned demand =
+            (demand_gpr * jay_ugpr_per_gpr(f->shader)) + demand_ugpr;
+
+         if (demand >= sched_at * jay_ugpr_per_grf(f->shader)) {
+            f->prioritize_pressure =
+               demand >= prioritize_at * jay_ugpr_per_grf(f->shader);
             schedule_block(block, &sctx, memctx, BACKWARD | PRESSURE);
          }
       } else if (sctx.phase == POSTSPILL) {
