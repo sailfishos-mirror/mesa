@@ -485,7 +485,6 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
       return false;
 
    if (sample_count > 1) {
-      /* BLT/RS supports the format. */
       if (screen->specs.use_blt) {
          if (translate_blt_format(format) == ETNA_NO_MATCH)
             return false;
@@ -493,7 +492,14 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
          if (util_format_is_pure_integer(format) &&
              !VIV_FEATURE(screen, ETNA_FEATURE_HALTI5))
             return false;
-         if (translate_rs_format(format) == ETNA_NO_MATCH)
+
+         /* RS format or u_blitter fallback support */
+         if (translate_rs_format(format) == ETNA_NO_MATCH &&
+             (util_format_get_blocksize(format) > 4 ||
+              (!util_format_is_unorm(format) &&
+               !util_format_is_pure_integer(format)) ||
+              sample_count != ETNA_MAX_SAMPLES ||
+              !screen->base.caps.texture_multisample))
             return false;
       }
    }
