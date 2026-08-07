@@ -699,6 +699,11 @@ struct tu_cmd_buffer
    struct tu_subpass_attachment dynamic_color_attachments[MAX_RTS];
    struct tu_subpass_attachment dynamic_input_attachments[MAX_RTS + 1];
    struct tu_subpass_attachment dynamic_resolve_attachments[MAX_RTS + 1];
+   /* The color attachments of the custom resolve subpass, which cannot share
+    * dynamic_resolve_attachments: the main subpass still needs its resolve
+    * list for any fixed-function resolves mixed into the pass.
+    */
+   struct tu_subpass_attachment dynamic_custom_resolve_attachments[MAX_RTS];
    struct tu_subpass_attachment dynamic_unresolve_attachments[MAX_RTS + 1];
    const struct tu_image_view *dynamic_attachments[3 * (MAX_RTS + 1) + 2];
    VkClearValue dynamic_clear_values[3 * (MAX_RTS + 1)];
