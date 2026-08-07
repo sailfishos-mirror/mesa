@@ -1858,12 +1858,17 @@ impl Shader<'_> {
         }
     }
 
-    pub fn run_pass(&mut self, name: &str, pass: impl FnOnce(&mut Self)) {
-        pass(self);
+    pub fn run_pass<R>(
+        &mut self,
+        name: &str,
+        pass: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let res = pass(self);
         if DEBUG.contains(DebugFlags::PRINT) {
             eprintln!("Kraid shader after {name}:\n{self}");
         }
         self.validate();
+        res
     }
 }
 
