@@ -1103,6 +1103,7 @@ void st_init_extensions(struct pipe_screen *screen,
    EXT_CAP(EXT_depth_bounds_test,            depth_bounds_test);
    EXT_CAP(EXT_disjoint_timer_query,         query_timestamp);
    EXT_CAP(EXT_draw_buffers2,                indep_blend_enable);
+   EXT_CAP(EXT_frag_depth,                   fragment_shader_depth);
    EXT_CAP(EXT_memory_object,                memobj);
 #ifndef _WIN32
    EXT_CAP(EXT_memory_object_fd,             memobj);
