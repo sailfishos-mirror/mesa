@@ -5494,7 +5494,7 @@
         "description": "ac/video: Don't take codec level from kernel",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "280cb489aec21215dc8dca03b8050c5b24efe723",
         "notes": null
