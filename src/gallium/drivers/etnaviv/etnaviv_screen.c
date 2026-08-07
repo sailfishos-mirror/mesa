@@ -210,6 +210,32 @@ etna_init_shader_caps(struct etna_screen *screen)
    etna_init_single_shader_caps(screen, MESA_SHADER_FRAGMENT);
 }
 
+static bool
+gpu_supports_texture_desc(struct etna_screen *screen)
+{
+   return VIV_FEATURE(screen, ETNA_FEATURE_HALTI5) &&
+          !DBG_ENABLED(ETNA_DBG_NO_TEXDESC);
+}
+
+static bool
+gpu_supports_msaa(struct etna_screen *screen, unsigned sample_count)
+{
+   if (DBG_ENABLED(ETNA_DBG_NO_MSAA))
+      return false;
+
+   if (!VIV_FEATURE(screen, ETNA_FEATURE_MSAA))
+      return false;
+
+   if (!translate_samples_to_xyscale(sample_count, NULL, NULL))
+      return false;
+
+   /* On SMALL_MSAA hardware 2x MSAA does not work. */
+   if (sample_count == 2 && VIV_FEATURE(screen, ETNA_FEATURE_SMALL_MSAA))
+      return false;
+
+   return true;
+}
+
 static void
 etna_init_screen_caps(struct etna_screen *screen)
 {
@@ -435,8 +461,7 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 
    if (format == PIPE_FORMAT_S8X24_UINT ||
        format == PIPE_FORMAT_X32_S8X24_UINT)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI5) &&
-                  !DBG_ENABLED(ETNA_DBG_NO_TEXDESC);
+      supported = gpu_supports_texture_desc(screen);
 
    if (etna_format_needs_yuv_tiler(format))
       supported = VIV_FEATURE(screen, ETNA_FEATURE_YUV420_TILER);
@@ -446,25 +471,6 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 
    if (texture_format_needs_swiz(format))
       return VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
-
-   return true;
-}
-
-static bool
-gpu_supports_msaa(struct etna_screen *screen, unsigned sample_count)
-{
-   if (DBG_ENABLED(ETNA_DBG_NO_MSAA))
-      return false;
-
-   if (!VIV_FEATURE(screen, ETNA_FEATURE_MSAA))
-      return false;
-
-   if (!translate_samples_to_xyscale(sample_count, NULL, NULL))
-      return false;
-
-   /* On SMALL_MSAA hardware 2x MSAA does not work. */
-   if (sample_count == 2 && VIV_FEATURE(screen, ETNA_FEATURE_SMALL_MSAA))
-      return false;
 
    return true;
 }
