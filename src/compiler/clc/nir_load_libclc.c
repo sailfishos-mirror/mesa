@@ -95,52 +95,6 @@ struct clc_data {
    size_t size;
 };
 
-static bool
-open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
-{
-   memset(clc, 0, sizeof(*clc));
-   clc->file = get_libclc_file(ptr_bit_size);
-   clc->fd = -1;
-
-   if (clc->file->static_data) {
-      snprintf((char *)clc->cache_key, sizeof(clc->cache_key),
-               "libclc-spirv%d", ptr_bit_size);
-      return true;
-   }
-
-#ifdef DYNAMIC_LIBCLC_PATH
-   if (clc->file->sys_path != NULL) {
-      int fd = open(clc->file->sys_path, O_RDONLY);
-      if (fd < 0)
-         return false;
-
-      struct stat stat;
-      int ret = fstat(fd, &stat);
-      if (ret < 0) {
-         fprintf(stderr, "fstat failed on %s: %m\n", clc->file->sys_path);
-         close(fd);
-         return false;
-      }
-
-      blake3_hasher ctx;
-      _mesa_blake3_init(&ctx);
-      _mesa_blake3_update(&ctx, clc->file->sys_path, strlen(clc->file->sys_path));
-#if defined(__APPLE__) || defined(__MACOSX)
-      _mesa_blake3_update(&ctx, &stat.st_mtime, sizeof(stat.st_mtime));
-#else
-      _mesa_blake3_update(&ctx, &stat.st_mtim, sizeof(stat.st_mtim));
-#endif
-      _mesa_blake3_final(&ctx, clc->cache_key);
-
-      clc->fd = fd;
-
-      return true;
-   }
-#endif
-
-   return false;
-}
-
 #define SPIRV_WORD_SIZE 4
 
 static bool
@@ -226,6 +180,52 @@ close_clc_data(struct clc_data *clc)
       close(clc->fd);
    }
 #endif
+}
+
+static bool
+open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
+{
+   memset(clc, 0, sizeof(*clc));
+   clc->file = get_libclc_file(ptr_bit_size);
+   clc->fd = -1;
+
+   if (clc->file->static_data) {
+      snprintf((char *)clc->cache_key, sizeof(clc->cache_key),
+               "libclc-spirv%d", ptr_bit_size);
+      return true;
+   }
+
+#ifdef DYNAMIC_LIBCLC_PATH
+   if (clc->file->sys_path != NULL) {
+      int fd = open(clc->file->sys_path, O_RDONLY);
+      if (fd < 0)
+         return false;
+
+      struct stat stat;
+      int ret = fstat(fd, &stat);
+      if (ret < 0) {
+         fprintf(stderr, "fstat failed on %s: %m\n", clc->file->sys_path);
+         close(fd);
+         return false;
+      }
+
+      blake3_hasher ctx;
+      _mesa_blake3_init(&ctx);
+      _mesa_blake3_update(&ctx, clc->file->sys_path, strlen(clc->file->sys_path));
+#if defined(__APPLE__) || defined(__MACOSX)
+      _mesa_blake3_update(&ctx, &stat.st_mtime, sizeof(stat.st_mtime));
+#else
+      _mesa_blake3_update(&ctx, &stat.st_mtim, sizeof(stat.st_mtim));
+#endif
+      _mesa_blake3_final(&ctx, clc->cache_key);
+
+      clc->fd = fd;
+
+      return true;
+   }
+#endif
+
+   return false;
 }
 
 /** Returns true if libclc is found
