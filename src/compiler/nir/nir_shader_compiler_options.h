@@ -232,6 +232,13 @@ typedef enum {
     */
    nir_io_compact_to_higher_16 = BITFIELD_BIT(13),
 
+   /**
+    * Whether nir_opt_varyings should converge non-interpolated varyings to
+    * uint type instead of float. Some hardware may not preserve bit-exact
+    * representations of float varyings even when not interpolated.
+    */
+   nir_io_non_interpolated_as_uint = BITFIELD_BIT(14),
+
    /* Options affecting the GLSL compiler or Gallium are below. */
 
    /**
