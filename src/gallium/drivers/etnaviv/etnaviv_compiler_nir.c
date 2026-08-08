@@ -531,7 +531,7 @@ emit_alu(struct etna_compile *c, nir_alu_instr * alu)
    if (alu->op == nir_op_bitfield_insert_etna)
       srcs[2] = src_swizzle(get_src(c, &alu->src[2].src), SWIZZLE(X, Y, Y, Y));
 
-   etna_emit_alu(c, alu->op, dst, srcs, alu->op == nir_op_fsat);
+   etna_emit_alu(c, alu, dst, srcs);
 }
 
 static void
