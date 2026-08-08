@@ -4102,6 +4102,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 {
    jay_debug = debug_get_option_jay_debug();
    bool debug =
+      (!intel_shader_dump_filter ||
+       intel_shader_dump_filter == prog_data->base.source_hash) &&
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       (!nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
