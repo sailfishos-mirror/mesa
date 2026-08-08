@@ -5274,7 +5274,7 @@
         "description": "intel: Preserve 64-bit hashes in shader dump filter",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fd11e4b4d31adde062b9f19a8eec82f06f832f00",
         "notes": null
