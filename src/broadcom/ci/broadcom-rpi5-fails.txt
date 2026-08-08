@@ -449,6 +449,7 @@ vk_xfermodes3,Fail
 TransferPixelsTest,Fail
 
 # uprev Piglit in Mesa
+spec@ext_yuv_target@execution@rgb_2_yuv,Fail
 spec@ext_yuv_target@execution@yuv_2_rgb,Fail
 spec@glsl-1.30@execution@glsl-packed-back-color,Fail
 
