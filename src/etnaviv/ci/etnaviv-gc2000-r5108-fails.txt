@@ -327,34 +327,6 @@ spec@ext_texture_srgb@texwrap formats-s3tc bordercolor-swizzled@GL_COMPRESSED_SR
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor-swizzled@GL_COMPRESSED_SRGB_ALPHA- swizzled- border color only,Fail
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor-swizzled@GL_COMPRESSED_SRGB_S3TC_DXT1_EXT- swizzled- border color only,Fail
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor-swizzled@GL_COMPRESSED_SRGB- swizzled- border color only,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-int-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-ivec2-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-ivec3-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-ivec3-ivec3,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-ivec4-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-assign-div-ivec4-ivec4,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-int-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-int-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-int-ivec4,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-ivec2-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-ivec3-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-ivec3-ivec3,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-ivec4-int,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-ivec4-ivec4,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-int-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-ivec2-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-ivec3-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-ivec3-ivec3,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-ivec4-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-assign-div-ivec4-ivec4,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-int-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-int-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-int-ivec4,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-ivec2-ivec2,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-ivec3-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-ivec3-ivec3,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-ivec4-int,Fail
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-ivec4-ivec4,Fail
 spec@glsl-1.10@execution@clipping@clip-plane-transformation clipvert_pos,Fail
 spec@glsl-1.10@execution@clipping@clip-plane-transformation fixed,Fail
 spec@glsl-1.10@execution@clipping@clip-plane-transformation pos_clipvert,Fail
