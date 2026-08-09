@@ -220,12 +220,7 @@ open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
 
       blake3_hasher ctx;
       _mesa_blake3_init(&ctx);
-      _mesa_blake3_update(&ctx, clc->file->sys_path, strlen(clc->file->sys_path));
-#if defined(__APPLE__) || defined(__MACOSX)
-      _mesa_blake3_update(&ctx, &stat.st_mtime, sizeof(stat.st_mtime));
-#else
-      _mesa_blake3_update(&ctx, &stat.st_mtim, sizeof(stat.st_mtim));
-#endif
+      _mesa_blake3_update(&ctx, clc->data, clc->size);
       _mesa_blake3_final(&ctx, clc->cache_key);
 
       return true;
