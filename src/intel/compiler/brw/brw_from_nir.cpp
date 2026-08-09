@@ -2589,7 +2589,7 @@ emit_gs_vertex(nir_to_brw_state &ntb, const nir_src &vertex_count_nir_src,
        * effect of any call to EndPrimitive() that the shader may have
        * made before outputting its first vertex.
        */
-      abld.exec_all().MOV(s.control_data_bits, brw_imm_ud(0u));
+      abld.MOV(s.control_data_bits, brw_imm_ud(0u));
       abld.emit(BRW_OPCODE_ENDIF);
    }
 
