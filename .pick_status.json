@@ -5234,7 +5234,7 @@
         "description": "anv: Close shader dump archive on device destruction",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0a965c0bcef5e6962399aca0585161ec9ec45d7c",
         "notes": null
