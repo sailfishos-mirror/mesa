@@ -7395,7 +7395,7 @@ void genX(CmdWaitEvents2)(
       cmd_buffer_accumulate_barrier_bits(cmd_buffer, 1, &pDependencyInfos[i],
                                          &src_stages, &dst_stages, &bits);
 
-      if ((pDependencyInfos->dependencyFlags & VK_DEPENDENCY_ASYMMETRIC_EVENT_BIT_KHR) == 0) {
+      if ((pDependencyInfos[i].dependencyFlags & VK_DEPENDENCY_ASYMMETRIC_EVENT_BIT_KHR) == 0) {
          /* Only consider the invalidate bits, the signal part will do the
           * flushing.
           *
