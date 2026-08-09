@@ -100,6 +100,9 @@ struct clc_data {
 static bool
 map_clc_data(struct clc_data *clc)
 {
+   if (clc->data)
+      return true;
+
    if (clc->file->static_data) {
 #ifdef HAVE_STATIC_LIBCLC_ZSTD
       unsigned long long cmp_size =
@@ -175,6 +178,7 @@ close_clc_data(struct clc_data *clc)
    if (clc->file->sys_path != NULL) {
       if (clc->data)
          munmap((void *)clc->data, clc->size);
+      clc->data = NULL;
       close(clc->fd);
    }
 #endif
@@ -207,7 +211,12 @@ open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
          return false;
       }
 
+      clc->fd = fd;
       clc->size = stat.st_size;
+
+      if (!map_clc_data(clc)) {
+         return false;
+      }
 
       blake3_hasher ctx;
       _mesa_blake3_init(&ctx);
@@ -218,8 +227,6 @@ open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
       _mesa_blake3_update(&ctx, &stat.st_mtim, sizeof(stat.st_mtim));
 #endif
       _mesa_blake3_final(&ctx, clc->cache_key);
-
-      clc->fd = fd;
 
       return true;
    }
