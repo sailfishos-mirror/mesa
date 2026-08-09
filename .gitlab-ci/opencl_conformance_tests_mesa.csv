@@ -42,11 +42,17 @@ Device Partitioning,device_partition/test_device_partition
 Buffers,buffers/test_buffers
 Images (API Info),images/clGetInfo/test_cl_get_info
 Images (Kernel Methods),images/kernel_image_methods/test_kernel_image_methods
-Images (Kernel),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST
+Images (Kernel int),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST int
+Images (Kernel uint),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST uint
+Images (Kernel float),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST float
 Images (clCopyImage),images/clCopyImage/test_cl_copy_images
 Images (clReadWriteImage),images/clReadWriteImage/test_cl_read_write_images
-Images (clFillImage),images/clFillImage/test_cl_fill_images
-Images (Samplerless),images/samplerlessReads/test_samplerless_reads
+Images (clFillImage int),images/clFillImage/test_cl_fill_images int
+Images (clFillImage uint),images/clFillImage/test_cl_fill_images uint
+Images (clFillImage float),images/clFillImage/test_cl_fill_images float
+Images (Samplerless int),images/samplerlessReads/test_samplerless_reads int
+Images (Samplerless uint),images/samplerlessReads/test_samplerless_reads uint
+Images (Samplerless float),images/samplerlessReads/test_samplerless_reads float
 Mem (Host Flags),mem_host_flags/test_mem_host_flags
 
 # #########################################
