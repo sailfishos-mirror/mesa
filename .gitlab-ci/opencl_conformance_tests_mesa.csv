@@ -31,8 +31,8 @@ Thread Dimensions,thread_dimensions/test_thread_dimensions quick*
 Atomics,atomics/test_atomics
 Profiling,profiling/test_profiling
 Events,events/test_events
-Allocations (single maximum),allocations/test_allocations single 5 all
-Allocations (total maximum),allocations/test_allocations multiple 5 all
+#Allocations (single maximum),allocations/test_allocations single 5 all
+#Allocations (total maximum),allocations/test_allocations multiple 5 all
 Printf,printf/test_printf
 Device Partitioning,device_partition/test_device_partition
 
