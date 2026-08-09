@@ -143,14 +143,12 @@ map_clc_data(struct clc_data *clc)
 
 #ifdef DYNAMIC_LIBCLC_PATH
    if (clc->file->sys_path != NULL) {
-      off_t len = lseek(clc->fd, 0, SEEK_END);
-      if (len % SPIRV_WORD_SIZE != 0) {
+      if (clc->size % SPIRV_WORD_SIZE != 0) {
          fprintf(stderr, "File length isn't a multiple of the word size\n");
          return false;
       }
-      clc->size = len;
 
-      clc->data = mmap(NULL, len, PROT_READ, MAP_PRIVATE, clc->fd, 0);
+      clc->data = mmap(NULL, clc->size, PROT_READ, MAP_PRIVATE, clc->fd, 0);
       if (clc->data == MAP_FAILED) {
          fprintf(stderr, "Failed to mmap libclc SPIR-V: %m\n");
          return false;
@@ -208,6 +206,8 @@ open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
          close(fd);
          return false;
       }
+
+      clc->size = stat.st_size;
 
       blake3_hasher ctx;
       _mesa_blake3_init(&ctx);
