@@ -5784,7 +5784,7 @@
         "description": "anv: fix CmdWaitEvents2 dependencyFlags usage",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3520abf8a39bd1f0f8823d3b1374a7d1a5755514",
         "notes": null
