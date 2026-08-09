@@ -78,6 +78,8 @@ iris_backend_compile(const struct iris_screen *screen,
    const struct intel_device_info *devinfo = screen->devinfo;
    nir_shader *nir = params->nir;
 
+   params->prog_data->source_hash = *(uint64_t *)nir->info.source_blake3;
+
    if (intel_use_jay(devinfo, nir->info.stage)) {
       struct jay_shader_bin *bin =
          jay_compile(devinfo, mem_ctx, nir,
