@@ -386,14 +386,6 @@ dEQP-GLES2.functional.shaders.indexing.tmp_array.vec3_const_write_dynamic_read_f
 dEQP-GLES2.functional.shaders.indexing.tmp_array.vec4_const_write_dynamic_loop_read_fragment,Crash
 dEQP-GLES2.functional.shaders.indexing.tmp_array.vec4_const_write_dynamic_loop_read_vertex,Crash
 dEQP-GLES2.functional.shaders.indexing.tmp_array.vec4_const_write_dynamic_read_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_int_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec4_fragment,Fail
 dEQP-GLES2.functional.shaders.random.all_features.fragment.11,Fail
 dEQP-GLES2.functional.shaders.random.all_features.fragment.20,Fail
 dEQP-GLES2.functional.shaders.random.all_features.fragment.32,Fail

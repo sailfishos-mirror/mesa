@@ -538,7 +538,8 @@ load_input(struct ir2_context *ctx, nir_intrinsic_instr *intr)
       break;
    default:
       instr = instr_create_alu_dest(ctx, nir_op_mov, def);
-      instr->src[0] = ir2_src(idx, 0, IR2_SRC_INPUT);
+      instr->src[0] =
+         ir2_src(idx, swiz_shift(nir_intrinsic_component(intr)), IR2_SRC_INPUT);
       break;
    }
 }
@@ -551,7 +552,7 @@ output_slot(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 
 static void
 store_output(struct ir2_context *ctx, nir_src src, unsigned slot,
-             unsigned ncomp)
+             unsigned ncomp, unsigned wrmask, unsigned comp)
 {
    struct ir2_instr *instr;
    unsigned idx = 0;
@@ -579,8 +580,19 @@ store_output(struct ir2_context *ctx, nir_src src, unsigned slot,
       return;
    }
 
-   instr = instr_create_alu(ctx, nir_op_mov, ncomp);
+   /* the write mask is relative to the source and comp is the component
+    * of the varying the first source component lands in; compact the
+    * written lanes into consecutive source components and let the write
+    * mask place them at component + lane.
+    */
+   unsigned swiz = 0, i = 0;
+   u_foreach_bit (k, wrmask)
+      swiz |= swiz_set(k, i++);
+
+   instr = instr_create_alu(ctx, nir_op_mov, util_bitcount(wrmask));
    instr->src[0] = make_src(ctx, src);
+   swiz_merge_p(&instr->src[0].swizzle, swiz);
+   instr->alu.write_mask = wrmask << comp;
    instr->alu.export = idx;
 }
 
@@ -613,7 +625,8 @@ emit_intrinsic(struct ir2_context *ctx, nir_intrinsic_instr *intr)
       break;
    case nir_intrinsic_store_output:
       store_output(ctx, intr->src[0], output_slot(ctx, intr),
-                   intr->num_components);
+                   intr->num_components, nir_intrinsic_write_mask(intr),
+                   nir_intrinsic_component(intr));
       break;
    case nir_intrinsic_load_uniform:
       const_offset = nir_src_as_const_value(intr->src[0]);
