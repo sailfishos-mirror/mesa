@@ -68,7 +68,8 @@ CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR max size),images/kernel_read
 # #########################################
 # OpenGL/CL interaction
 # #########################################
-OpenCL-GL Sharing,gl/test_gl
+# Crashes deqp-runner: https://gitlab.freedesktop.org/mesa/deqp-runner/-/work_items/83
+#OpenCL-GL Sharing,gl/test_gl
 
 # #########################################
 # Thorough math and conversions tests
