@@ -1144,7 +1144,7 @@
         "description": "panvk/csf: fix layered FB barrier in secondary cmdbufs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "41b5f980eb3d967d70a99b283ead9fdaeac43748",
         "notes": null
