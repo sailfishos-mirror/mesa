@@ -384,13 +384,7 @@ translate_vertex_program(struct radeon_compiler *c, void *user)
       if (!valid_dst(compiler->code, &vpi->DstReg))
          continue;
 
-      if (info->HasDstReg) {
-         /* Neither is Saturate. */
-         if (vpi->SaturateMode != RC_SATURATE_NONE && !c->is_r500) {
-            rc_error(&compiler->Base, "Vertex program does not support the Saturate "
-                                      "modifier (yet).\n");
-         }
-      }
+      assert(!(info->HasDstReg && vpi->SaturateMode != RC_SATURATE_NONE && !c->is_r500));
 
       if (compiler->code->length >= c->max_alu_insts * 4) {
          rc_error(&compiler->Base, "Vertex program has too many instructions\n");
