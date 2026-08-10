@@ -387,7 +387,8 @@ translate_vertex_program(struct radeon_compiler *c, void *user)
       assert(!(info->HasDstReg && vpi->SaturateMode != RC_SATURATE_NONE && !c->is_r500));
 
       if (compiler->code->length >= c->max_alu_insts * 4) {
-         rc_error(&compiler->Base, "Vertex program has too many instructions\n");
+         rc_error(&compiler->Base, "Vertex program has too many instructions: %d, max: %d",
+                  rc_recompute_ips(c), c->max_alu_insts);
          return;
       }
 
@@ -504,7 +505,7 @@ translate_vertex_program(struct radeon_compiler *c, void *user)
          last_addr = (compiler->code->length / 4) - 1;
 
          if (loop_depth >= R300_VS_MAX_FC_OPS) {
-            rc_error(&compiler->Base, "Too many flow control instructions.");
+            rc_error(&compiler->Base, "Cannot add more flow control instructions.");
             return;
          }
          /* Maximum of R500_PVS_FC_LOOP_CNT_JMP_INST is 0xff, here
@@ -596,7 +597,7 @@ translate_vertex_program(struct radeon_compiler *c, void *user)
       }
 
       if (compiler->code->num_temporaries > compiler->Base.max_temp_regs) {
-         rc_error(&compiler->Base, "Too many temporaries.\n");
+         rc_error(&compiler->Base, "Ran out of temporaries.\n");
          return;
       }
 
