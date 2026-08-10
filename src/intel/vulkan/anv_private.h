@@ -2901,12 +2901,6 @@ anv_get_first_render_queue_index(struct anv_physical_device *pdevice)
 }
 
 static inline struct anv_state_pool *
-anv_device_get_general_state_pool(struct anv_device *device)
-{
-   return &device->general_state_pool;
-}
-
-static inline struct anv_state_pool *
 anv_device_get_aux_tt_pool(struct anv_device *device)
 {
    return &device->aux_tt_pool;
@@ -5008,7 +5002,6 @@ struct anv_cmd_buffer {
    /* Stream objects for storing temporary data */
    struct anv_state_stream                      surface_state_stream;
    struct anv_state_stream                      dynamic_state_stream;
-   struct anv_state_stream                      general_state_stream;
    struct anv_state_stream                      indirect_push_descriptor_stream;
    struct anv_state_stream                      push_descriptor_buffer_stream;
 
@@ -5294,9 +5287,6 @@ anv_cmd_buffer_alloc_surface_states(struct anv_cmd_buffer *cmd_buffer,
                                     uint32_t count);
 struct anv_state
 anv_cmd_buffer_alloc_dynamic_state(struct anv_cmd_buffer *cmd_buffer,
-                                   uint32_t size, uint32_t alignment);
-struct anv_state
-anv_cmd_buffer_alloc_general_state(struct anv_cmd_buffer *cmd_buffer,
                                    uint32_t size, uint32_t alignment);
 static inline struct anv_state
 anv_cmd_buffer_alloc_temporary_state(struct anv_cmd_buffer *cmd_buffer,

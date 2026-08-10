@@ -782,20 +782,6 @@ anv_cmd_buffer_alloc_dynamic_state(struct anv_cmd_buffer *cmd_buffer,
    return state;
 }
 
-struct anv_state
-anv_cmd_buffer_alloc_general_state(struct anv_cmd_buffer *cmd_buffer,
-                                   uint32_t size, uint32_t alignment)
-{
-   if (size == 0)
-      return ANV_STATE_NULL;
-   struct anv_state state =
-      anv_state_stream_alloc(&cmd_buffer->general_state_stream,
-                             size, alignment);
-   if (state.map == NULL)
-      anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_DEVICE_MEMORY);
-   return state;
-}
-
 /** Allocate space associated with a command buffer
  *
  * Some commands like vkCmdBuildAccelerationStructuresKHR() can end up needing
