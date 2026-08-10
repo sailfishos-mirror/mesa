@@ -824,7 +824,7 @@
         "description": "tu: fix R64 image clears via non-generic clear code path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9e56c7bd8f4c5ae4fab743751db0c476302e13f4",
         "notes": null
