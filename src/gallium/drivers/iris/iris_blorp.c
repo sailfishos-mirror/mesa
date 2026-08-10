@@ -510,7 +510,10 @@ genX(init_blorp)(struct iris_context *ice)
    struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
 
 #if GFX_VER >= 9
-   blorp_init_brw(&ice->blorp, ice, &screen->isl_dev, screen->brw, NULL);
+   const struct blorp_config config = {
+      .enable_tbimr = screen->driconf.enable_tbimr,
+   };
+   blorp_init_brw(&ice->blorp, ice, &screen->isl_dev, screen->brw, &config);
 #else
    blorp_init_elk(&ice->blorp, ice, &screen->isl_dev, screen->elk, NULL);
 #endif
@@ -518,7 +521,6 @@ genX(init_blorp)(struct iris_context *ice)
    ice->blorp.upload_shader = iris_blorp_upload_shader;
    ice->blorp.get_surface_address = blorp_get_surface_address;
    ice->blorp.exec = iris_blorp_exec;
-   ice->blorp.enable_tbimr = screen->driconf.enable_tbimr;
 }
 
 static void
