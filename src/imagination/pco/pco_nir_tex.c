@@ -1300,6 +1300,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
             b,
             intr->num_components,
             addr_data,
+            .access = nir_intrinsic_access(intr),
             .atomic_op = atomic_op);
          nir_def_rewrite_uses(&intr->def, atomic_swap);
          nir_instr_remove(&intr->instr);
@@ -1320,6 +1321,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
          nir_global_atomic_pco(b,
                                intr->num_components,
                                addr_data,
+                               .access = nir_intrinsic_access(intr),
                                .atomic_op = atomic_op);
       nir_def_rewrite_uses(&intr->def, atomic);
       nir_instr_remove(&intr->instr);

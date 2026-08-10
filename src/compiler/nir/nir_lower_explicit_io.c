@@ -1148,9 +1148,6 @@ build_explicit_io_atomic(nir_builder *b, nir_intrinsic_instr *intrin,
       atomic->src[src++] = nir_src_for_ssa(intrin->src[1 + i].ssa);
    }
 
-   /* Global atomics don't have access flags because they assume that the
-    * address may be non-uniform.
-    */
    if (nir_intrinsic_has_access(atomic))
       nir_intrinsic_set_access(atomic, nir_intrinsic_access(intrin));
 

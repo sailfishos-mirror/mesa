@@ -183,10 +183,11 @@ static bool lower_shared_io_to_global(nir_builder *b,
       nir_def *data = intr->src[1].ssa;
       nir_def *repl =
          nir_global_atomic_2x32(b,
-                              intr->def.bit_size,
-                              addr,
-                              data,
-                              .atomic_op = nir_intrinsic_atomic_op(intr));
+                                intr->def.bit_size,
+                                addr,
+                                data,
+                                .atomic_op = nir_intrinsic_atomic_op(intr),
+                                .access = nir_intrinsic_access(intr));
 
       nir_def_replace(&intr->def, repl);
       nir_instr_free(&intr->instr);
@@ -198,11 +199,12 @@ static bool lower_shared_io_to_global(nir_builder *b,
       nir_def *data2 = intr->src[2].ssa;
       nir_def *repl =
          nir_global_atomic_swap_2x32(b,
-                              intr->def.bit_size,
-                              addr,
-                              data,
-                              data2,
-                              .atomic_op = nir_intrinsic_atomic_op(intr));
+                                     intr->def.bit_size,
+                                     addr,
+                                     data,
+                                     data2,
+                                     .atomic_op = nir_intrinsic_atomic_op(intr),
+                                     .access = nir_intrinsic_access(intr));
 
       nir_def_replace(&intr->def, repl);
       nir_instr_free(&intr->instr);
