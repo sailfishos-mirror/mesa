@@ -6,7 +6,7 @@
 #ifndef RADEON_LIST_H
 #define RADEON_LIST_H
 
-struct memory_pool;
+struct linear_ctx;
 
 struct rc_list {
    void *Item;
@@ -14,7 +14,7 @@ struct rc_list {
    struct rc_list *Next;
 };
 
-struct rc_list *rc_list(struct memory_pool *pool, void *item);
+struct rc_list *rc_list(struct linear_ctx *pool, void *item);
 void rc_list_add(struct rc_list **list, struct rc_list *new_value);
 void rc_list_remove(struct rc_list **list, struct rc_list *rm_value);
 unsigned int rc_list_count(struct rc_list *list);

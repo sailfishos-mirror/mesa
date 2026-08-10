@@ -8,12 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "memory_pool.h"
+#include "util/ralloc.h"
 
 struct rc_list *
-rc_list(struct memory_pool *pool, void *item)
+rc_list(struct linear_ctx *pool, void *item)
 {
-   struct rc_list *new = memory_pool_malloc(pool, sizeof(struct rc_list));
+   struct rc_list *new = linear_alloc(pool, struct rc_list);
    new->Item = item;
    new->Next = NULL;
    new->Prev = NULL;

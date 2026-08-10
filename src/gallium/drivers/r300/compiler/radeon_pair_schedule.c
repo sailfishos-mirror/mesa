@@ -529,7 +529,7 @@ emit_all_tex(struct schedule_state *s, struct rc_instruction *before)
          readytex->Instruction->U.I.TexSemAcquire = 1;
          readytex->Instruction->U.I.TexSemWait = 1;
       }
-      rc_list_add(&s->PendingTEX, rc_list(&s->C->Pool, readytex));
+      rc_list_add(&s->PendingTEX, rc_list(s->C->Pool, readytex));
       readytex = readytex->NextReady;
    }
 }
@@ -1139,7 +1139,7 @@ add_tex_reader(struct schedule_state *s, struct schedule_instruction *writer,
       return;
    }
    reader->TexReadCount++;
-   rc_list_add(&writer->TexReaders, rc_list(&s->C->Pool, reader));
+   rc_list_add(&writer->TexReaders, rc_list(s->C->Pool, reader));
 }
 
 static void
@@ -1177,13 +1177,13 @@ scan_read(void *data, struct rc_instruction *inst, rc_register_file file, unsign
 
    DBG("%i: read %i[%i] chan %i\n", s->Current->Instruction->IP, file, index, chan);
 
-   reader = memory_pool_malloc(&s->C->Pool, sizeof(*reader));
+   reader = linear_alloc(s->C->Pool, struct reg_value_reader);
    reader->Reader = s->Current;
    if (!*v) {
       /* In this situation, the instruction reads from a register
        * that hasn't been written to or read from in the current
        * block. */
-      *v = memory_pool_malloc(&s->C->Pool, sizeof(struct reg_value));
+      *v = linear_alloc(s->C->Pool, struct reg_value);
       memset(*v, 0, sizeof(struct reg_value));
       (*v)->Readers = reader;
    } else {
@@ -1218,7 +1218,7 @@ scan_write(void *data, struct rc_instruction *inst, rc_register_file file, unsig
 
    DBG("%i: write %i[%i] chan %i\n", s->Current->Instruction->IP, file, index, chan);
 
-   newv = memory_pool_malloc(&s->C->Pool, sizeof(*newv));
+   newv = linear_alloc(s->C->Pool, struct reg_value);
    memset(newv, 0, sizeof(*newv));
 
    newv->Writer = s->Current;
@@ -1256,7 +1256,7 @@ schedule_block(struct schedule_state *s, struct rc_instruction *begin, struct rc
    /* Scan instructions for data dependencies */
    ip = 0;
    for (struct rc_instruction *inst = begin; inst != end; inst = inst->Next) {
-      s->Current = memory_pool_malloc(&s->C->Pool, sizeof(*s->Current));
+      s->Current = linear_alloc(s->C->Pool, struct schedule_instruction);
       memset(s->Current, 0, sizeof(struct schedule_instruction));
 
       if (inst->Type == RC_INSTRUCTION_NORMAL) {

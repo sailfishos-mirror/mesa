@@ -647,7 +647,7 @@ allocate_temporary_registers(struct radeon_compiler *c, void *user)
    /* Get list of program variables */
    variables = rc_get_variables(c);
    node_count = rc_list_count(variables);
-   node_classes = memory_pool_malloc(&c->Pool, node_count * sizeof(struct ra_class *));
+   node_classes = linear_alloc_array(c->Pool, struct ra_class *, node_count);
 
    for (var_ptr = variables, node_index = 0; var_ptr; var_ptr = var_ptr->Next, node_index++) {
       unsigned int class_index = 0;

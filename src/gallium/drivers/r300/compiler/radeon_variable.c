@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "memory_pool.h"
 #include "radeon_compiler_util.h"
 #include "radeon_dataflow.h"
 #include "radeon_list.h"
@@ -208,7 +207,7 @@ struct rc_variable *
 rc_variable(struct radeon_compiler *c, unsigned int DstFile, unsigned int DstIndex,
             unsigned int DstWriteMask, struct rc_reader_data *reader_data)
 {
-   struct rc_variable *new = memory_pool_malloc(&c->Pool, sizeof(struct rc_variable));
+   struct rc_variable *new = linear_alloc(c->Pool, struct rc_variable);
    memset(new, 0, sizeof(struct rc_variable));
    new->C = c;
    new->Dst.File = DstFile;
@@ -235,7 +234,7 @@ get_variable_helper(struct rc_list **variable_list, struct rc_variable *variable
          }
       }
    }
-   rc_list_add(variable_list, rc_list(&variable->C->Pool, variable));
+   rc_list_add(variable_list, rc_list(variable->C->Pool, variable));
 }
 
 static void
@@ -377,7 +376,7 @@ rc_get_variables(struct radeon_compiler *c)
    if (variable_list && needs_sorting) {
       unsigned int count = rc_list_count(variable_list);
       struct rc_variable **variables =
-         memory_pool_malloc(&c->Pool, sizeof(struct rc_variable *) * count);
+         linear_alloc_array(c->Pool, struct rc_variable *, count);
 
       struct rc_list *current = variable_list;
       for (unsigned int i = 0; current; i++, current = current->Next) {
@@ -447,7 +446,7 @@ rc_variable_readers_union(struct rc_variable *var)
          if (match) {
             continue;
          }
-         rc_list_add(&list, rc_list(&var->C->Pool, a));
+         rc_list_add(&list, rc_list(var->C->Pool, a));
       }
       var = var->Friend;
    }
@@ -489,10 +488,10 @@ rc_variable_list_get_writers(struct rc_list *var_list, unsigned int src_type, vo
       while (var) {
          if (variable_writes_src(var, src_type, src)) {
             struct rc_variable *friend;
-            rc_list_add(&writer_list, rc_list(&var->C->Pool, var));
+            rc_list_add(&writer_list, rc_list(var->C->Pool, var));
             for (friend = var->Friend; friend; friend = friend->Friend) {
                if (variable_writes_src(friend, src_type, src)) {
-                  rc_list_add(&writer_list, rc_list(&var->C->Pool, friend));
+                  rc_list_add(&writer_list, rc_list(var->C->Pool, friend));
                }
             }
             /* Once we have identified the variable and its

@@ -41,8 +41,6 @@ files_r300 = files(
   'r300_vs.c',
   'r300_vs_draw.c',
   'r300_vs.h',
-  'compiler/memory_pool.c',
-  'compiler/memory_pool.h',
   'compiler/nir_to_rc.c',
   'compiler/nir_to_rc.h',
   'compiler/r300_fragprog.c',

@@ -255,7 +255,7 @@ do_advanced_regalloc(struct regalloc_state *s)
    /* Get list of program variables */
    variables = rc_get_variables(s->C);
    node_count = rc_list_count(variables);
-   node_classes = memory_pool_malloc(&s->C->Pool, node_count * sizeof(struct ra_class *));
+   node_classes = linear_alloc_array(s->C->Pool, struct ra_class *, node_count);
 
    for (var_ptr = variables, node_index = 0; var_ptr; var_ptr = var_ptr->Next, node_index++) {
       unsigned int class_index;
@@ -358,11 +358,11 @@ rc_pair_regalloc(struct radeon_compiler *cc, void *user)
    memset(&s, 0, sizeof(s));
    s.C = cc;
    s.NumInputs = rc_get_max_index(cc, RC_FILE_INPUT) + 1;
-   s.Input = memory_pool_malloc(&cc->Pool, s.NumInputs * sizeof(struct register_info));
+   s.Input = linear_alloc_array(cc->Pool, struct register_info, s.NumInputs);
    memset(s.Input, 0, s.NumInputs * sizeof(struct register_info));
 
    s.NumTemporaries = rc_get_max_index(cc, RC_FILE_TEMPORARY) + 1;
-   s.Temporary = memory_pool_malloc(&cc->Pool, s.NumTemporaries * sizeof(struct register_info));
+   s.Temporary = linear_alloc_array(cc->Pool, struct register_info, s.NumTemporaries);
    memset(s.Temporary, 0, s.NumTemporaries * sizeof(struct register_info));
 
    rc_recompute_ips(s.C);
