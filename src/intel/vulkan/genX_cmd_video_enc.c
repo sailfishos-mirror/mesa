@@ -1546,22 +1546,18 @@ static const uint32_t hevc_sad_qp_lambda_tbl[3][42] =
 
 static uint8_t
 anv_h265_get_ref_poc(const VkVideoEncodeInfoKHR *enc_info,
-                     const StdVideoEncodeH265ReferenceListsInfo* ref_lists,
-                     const bool l0,
                      const uint8_t slot_num,
                      bool *long_term)
 {
    uint8_t ref_poc = 0xff;
-   unsigned ref_cnt = l0 ? ref_lists->num_ref_idx_l0_active_minus1 + 1 :
-                           ref_lists->num_ref_idx_l1_active_minus1 + 1;
 
-   for (unsigned i = 0; i < ref_cnt; i++) {
+   for (unsigned i = 0; i < enc_info->referenceSlotCount; i++) {
       const VkVideoReferenceSlotInfoKHR ref_slot_info = enc_info->pReferenceSlots[i];
       const VkVideoEncodeH265DpbSlotInfoKHR *dpb =
             vk_find_struct_const(ref_slot_info.pNext, VIDEO_ENCODE_H265_DPB_SLOT_INFO_KHR);
 
       if (!dpb)
-         return ref_poc;
+         continue;
 
       if (ref_slot_info.slotIndex == slot_num) {
          ref_poc = dpb->pStdReferenceInfo->PicOrderCntVal;
@@ -2633,21 +2629,21 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          bool long_term = false;
          uint8_t ref_slot = ref_lists->RefPicList0[0];
          uint8_t cur_poc = frame_info->pStdPictureInfo->PicOrderCntVal;
-         uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, ref_lists, true, ref_slot, &long_term);
+         uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
          int8_t diff_poc = cur_poc - ref_poc;
 
          cmd2.POCNumberForRefid0InL0 = CLAMP(diff_poc, -16, 16);
          cmd2.LongTermReferenceFlagsL0 |= long_term;
 
          ref_slot = ref_lists->RefPicList0[1];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_lists, true, ref_slot, &long_term);
+         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
          diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
 
          cmd2.POCNumberForRefid1InL0 = CLAMP(diff_poc, -16, 16);
          cmd2.LongTermReferenceFlagsL0 |= long_term;
 
          ref_slot = ref_lists->RefPicList0[2];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_lists, true, ref_slot, &long_term);
+         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
          diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
 
          cmd2.POCNumberForRefid2InL0 = CLAMP(diff_poc, -16, 16);
@@ -2655,7 +2651,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
 
          ref_slot = ref_lists->RefPicList1[0];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_lists, false, ref_slot, &long_term);
+         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
          diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
 
          cmd2.POCNumberForRefid0InL1 = CLAMP(diff_poc, -16, 16);
@@ -2707,17 +2703,18 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
             ref.NumberofReferenceIndexesActive = ref_lists->num_ref_idx_l0_active_minus1;
 
             for (uint32_t i = 0; i < ref_lists->num_ref_idx_l0_active_minus1 + 1; i++) {
-               const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
-               const VkVideoEncodeH265DpbSlotInfoKHR *dpb =
-                     vk_find_struct_const(ref_slot.pNext, VIDEO_ENCODE_H265_DPB_SLOT_INFO_KHR);
+               uint8_t slot = ref_lists->RefPicList0[i];
+               bool long_term = false;
 
-               ref.ReferenceListEntry[i].ListEntry = dpb_idx[ref_slot.slotIndex];
+               if (slot == STD_VIDEO_H265_NO_REFERENCE_PICTURE)
+                  continue;
 
-               unsigned ref_poc = dpb->pStdReferenceInfo->PicOrderCntVal;
+               uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, slot, &long_term);
                int32_t diff_poc = frame_info->pStdPictureInfo->PicOrderCntVal - ref_poc;
 
-
+               ref.ReferenceListEntry[i].ListEntry = dpb_idx[slot];
                ref.ReferenceListEntry[i].ReferencePicturetbValue = CLAMP(diff_poc, -128, 127) & 0xff;
+               ref.ReferenceListEntry[i].LongTermReference = long_term;
                ref.ReferenceListEntry[i].TopField = true;
             }
          }
@@ -2729,17 +2726,18 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
             ref.NumberofReferenceIndexesActive = ref_lists->num_ref_idx_l1_active_minus1;
 
             for (uint32_t i = 0; i < ref_lists->num_ref_idx_l1_active_minus1 + 1; i++) {
-               const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
+               uint8_t slot = ref_lists->RefPicList1[i];
+               bool long_term = false;
 
-               const VkVideoEncodeH265DpbSlotInfoKHR *dpb =
-                     vk_find_struct_const(ref_slot.pNext, VIDEO_ENCODE_H265_DPB_SLOT_INFO_KHR);
+               if (slot == STD_VIDEO_H265_NO_REFERENCE_PICTURE)
+                  continue;
 
-               ref.ReferenceListEntry[i].ListEntry = dpb_idx[ref_slot.slotIndex];
-
-               unsigned ref_poc = dpb->pStdReferenceInfo->PicOrderCntVal;
+               uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, slot, &long_term);
                int32_t diff_poc = frame_info->pStdPictureInfo->PicOrderCntVal - ref_poc;
 
+               ref.ReferenceListEntry[i].ListEntry = dpb_idx[slot];
                ref.ReferenceListEntry[i].ReferencePicturetbValue = CLAMP(diff_poc, -128, 127) & 0xff;
+               ref.ReferenceListEntry[i].LongTermReference = long_term;
                ref.ReferenceListEntry[i].TopField = true;
             }
          }
