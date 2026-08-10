@@ -46,6 +46,11 @@ algebraic_lowering = [
     (('iadd', ('iadd(is_only_used_by_iadd)', 'a(is_not_const)', 'b(is_not_const)'), '#c'),
         ('iadd3', a, b, c), 'options->has_iadd3'),
 
+    (('iadd', ('ineg(is_only_used_by_iadd)', ('iadd(is_used_once)', 'a(is_not_const)', '#b')), 'c(is_not_const)'),
+        ('iadd3', ('ineg', a), ('ineg', b), c), 'options->has_iadd3'),
+    (('iadd', ('ineg(is_only_used_by_iadd)', ('iadd(is_used_once)', 'a(is_not_const)', 'b(is_not_const)')), '#c'),
+        ('iadd3', ('ineg', a), c, ('ineg', b)), 'options->has_iadd3'),
+
     (('iadd', 'a@32', ('ishl', 'b@32', '#s@32')),
         ('lea_nv', a, b, s), 'nak->sm >= 70'),
     (('iadd', 'a@64', ('ishl', 'b@64', '#s@32')),
