@@ -3,8 +3,8 @@
 
 use crate::ir::*;
 use crate::legalize::{
-    src_is_reg, src_is_upred_reg, swap_srcs_if_not_reg, LegalizeBuildHelpers,
-    LegalizeBuilder,
+    src_is_reg, src_is_upred_reg, swap_srcs_if_both_reg, swap_srcs_if_not_reg,
+    LegalizeBuildHelpers, LegalizeBuilder,
 };
 use crate::sm70::ShaderModel70;
 use bitview::*;
@@ -1601,7 +1601,14 @@ impl SM70Op for OpIAdd3 {
         if !src0.is_unmodified() && !src1.is_unmodified() {
             assert!(self.overflow[0].is_none());
             assert!(self.overflow[1].is_none());
-            b.copy_alu_src_and_lower_ineg(src0, gpr, SrcType::I32);
+
+            if src2.is_unmodified() {
+                swap_srcs_if_both_reg(src0, src2, gpr);
+            }
+
+            if !src0.is_unmodified() {
+                b.copy_alu_src_and_lower_ineg(src0, gpr, SrcType::I32);
+            }
         }
         b.copy_alu_src_if_not_reg(src0, gpr, SrcType::I32);
         b.copy_alu_src_if_both_not_reg(src1, src2, gpr, SrcType::I32);
