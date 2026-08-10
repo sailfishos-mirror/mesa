@@ -951,6 +951,13 @@ blorp_emit_ps_config(struct blorp_batch *batch,
             batch->flags & BLORP_BATCH_FORCE_CPS_DEPENDENCY;
 #endif
 
+#if INTEL_WA_16030144090_GFX_VER
+         if (intel_needs_workaround(devinfo, 16030144090)) {
+            psx.EnablePSDependencyOnCPsizeChange =
+               prog_data->persample_dispatch;
+         }
+#endif
+
 #if GFX_VER < 20
          psx.AttributeEnable = prog_data->num_varying_inputs > 0;
 #else
