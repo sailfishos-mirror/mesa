@@ -253,6 +253,10 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
 #if INTEL_WA_18038825448_GFX_VER
       psx.EnablePSDependencyOnCPsizeChange = needs_ps_dependency;
 #endif
+
+#if INTEL_WA_16030144090_GFX_VER
+      assert(!prog_data->persample_dispatch);
+#endif
    }
 
    anv_batch_emit(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
