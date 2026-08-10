@@ -557,7 +557,7 @@ emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_bind_point_state *bind_state = comp_state->base;
    uint64_t push_addr64 = anv_address_physical(
-      anv_state_pool_state_address(anv_device_get_general_state_pool(cmd_buffer->device),
+      anv_state_pool_state_address(anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                    bind_state->push_constants_state));
    struct compute_walker_inline_params_val inline_value = {
       .bind_map = &comp_state->shader->bind_map,
@@ -617,7 +617,7 @@ emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
    compute_update_async_threads_limit(cmd_buffer, prog_data, &dispatch);
 
    uint64_t push_addr64 = anv_address_physical(
-      anv_state_pool_state_address(anv_device_get_general_state_pool(cmd_buffer->device),
+      anv_state_pool_state_address(anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                    bind_state->push_constants_state));
    struct compute_walker_inline_params_val inline_value = {
       .bind_map = &comp_state->shader->bind_map,
