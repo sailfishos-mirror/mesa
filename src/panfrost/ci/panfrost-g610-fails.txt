@@ -280,15 +280,10 @@ spec@!opengl 3.1@primitive-restart-xfb written,Fail
 spec@!opengl es 3.0@gles-3.0-transform-feedback-uniform-buffer-object,Fail
 
 # uprev Piglit in Mesa
-afbcp-spec@arb_texture_view@tex-view,Fail
 KHR-GLES31.core.draw_indirect.advanced-twoPass-transformFeedback-arrays,Fail
 spec@!opengl 1.1@large-tex,Fail
-spec@arb_texture_view@tex-view,Fail
 spec@arb_framebuffer_object@framebuffer-blit-oblong tall,Fail
-spec@ext_yuv_target@execution@rgb_2_yuv,Fail
 spec@arb_framebuffer_object@framebuffer-blit-oblong wide,Fail
-spec@ext_yuv_target@execution@yuv_2_rgb,Fail
-spec@glsl-1.30@execution@glsl-packed-back-color,Fail
 
 # OpenCL (rusticl) failures
 api@clgetextensionfunctionaddressforplatform,Fail

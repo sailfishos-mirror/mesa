@@ -1254,8 +1254,6 @@ spec@arb_internalformat_query2@max dimensions related pname checks@GL_MAX_HEIGHT
 spec@arb_internalformat_query2@max dimensions related pname checks@GL_MAX_LAYERS,Fail
 spec@arb_internalformat_query2@max dimensions related pname checks@GL_MAX_WIDTH,Fail
 vulkan@shaders@cmat-uniform-ctor,Fail
-spec@ext_yuv_target@execution@rgb_2_yuv,Fail
-spec@ext_yuv_target@execution@yuv_2_rgb,Fail
 
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_min,Fail
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_min_reverse_dst_x,Fail

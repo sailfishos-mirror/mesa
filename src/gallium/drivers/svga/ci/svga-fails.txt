@@ -1064,10 +1064,7 @@ spec@ext_texture_array@copyteximage 2d_array samples=4,Fail
 spec@ext_texture_array@copyteximage 2d_array samples=6,Fail
 spec@ext_texture_array@copyteximage 2d_array samples=8,Fail
 spec@ext_texture_integer@fbo-integer-attachments,Fail
-spec@glsl-1.30@execution@glsl-packed-back-color,Fail
 spec@glsl-1.30@execution@glsl-packed-colors-clamping,Fail
-spec@ext_yuv_target@execution@rgb_2_yuv,Fail
-spec@ext_yuv_target@execution@yuv_2_rgb,Fail
 spec@arb_sample_shading@samplemask 4@0.250000 fix,Fail
 spec@arb_sample_shading@samplemask 4@0.250000 partition,Fail
 spec@arb_sample_shading@samplemask 4@0.500000 fix,Fail

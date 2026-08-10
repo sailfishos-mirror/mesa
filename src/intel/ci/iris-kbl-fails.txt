@@ -103,6 +103,4 @@ glx@glx-visuals-depth -pixmap,Fail
 glx@glx-visuals-stencil -pixmap,Fail
 
 # uprev Piglit in Mesa
-spec@ext_yuv_target@execution@yuv_2_rgb,Fail
-spec@ext_yuv_target@execution@rgb_2_yuv,Fail
 vulkan@shaders@cmat-uniform-ctor,Fail
