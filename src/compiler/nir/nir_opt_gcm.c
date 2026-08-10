@@ -819,7 +819,15 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
     * where the total loop instruction count is less than
     * MAX_LOOP_INSTRUCTIONS.
     */
-   if (state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
+   /* What makes a small loop safe to empty out is that the instruction ends up
+    * outside every loop, where holding its result costs nothing. That isn't
+    * where it lands if the small loop is nested inside another one: it only
+    * gets as far as the outer loop, and its result is then live across every
+    * iteration of that. So a nested loop has to be weighed like any other,
+    * however few instructions it has of its own.
+    */
+   if (state->blocks[instr->block->index].loop_depth == 1 &&
+       state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
       return true;
 
    if (instr->type == nir_instr_type_load_const ||
