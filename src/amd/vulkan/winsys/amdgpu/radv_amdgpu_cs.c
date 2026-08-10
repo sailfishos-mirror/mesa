@@ -1627,7 +1627,7 @@ radv_amdgpu_ctx_set_pstate(struct radeon_winsys_ctx *rwctx, enum radeon_ctx_psta
 
    r = ac_drm_cs_ctx_stable_pstate(ctx->ws->dev, ctx->ctx_handle, AMDGPU_CTX_OP_GET_STABLE_PSTATE, 0, &current_pstate);
    if (r) {
-      fprintf(stderr, "radv/amdgpu: failed to get current pstate\n");
+      fprintf(stderr, "radv/amdgpu: failed to get current pstate. (%i)\n", r);
       return r;
    }
 
@@ -1639,7 +1639,7 @@ radv_amdgpu_ctx_set_pstate(struct radeon_winsys_ctx *rwctx, enum radeon_ctx_psta
 
    r = ac_drm_cs_ctx_stable_pstate(ctx->ws->dev, ctx->ctx_handle, AMDGPU_CTX_OP_SET_STABLE_PSTATE, new_pstate, NULL);
    if (r) {
-      fprintf(stderr, "radv/amdgpu: failed to set new pstate\n");
+      fprintf(stderr, "radv/amdgpu: failed to set new pstate. (%i)\n", r);
       return r;
    }
 
