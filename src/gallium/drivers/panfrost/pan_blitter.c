@@ -222,11 +222,9 @@ panfrost_blitter_blit(struct pipe_context *pipe,
       UNREACHABLE("Unsupported blit\n");
 
    pan_resource_modifier_legalize(ctx, pan_resource(info->src.resource),
-                                  util_format_linear(info->src.format), false,
-                                  false);
+                                  info->src.format, false, false);
    pan_resource_modifier_legalize(ctx, pan_resource(info->dst.resource),
-                                  util_format_linear(info->dst.format), true,
-                                  false);
+                                  info->dst.format, true, false);
    panfrost_blitter_blit_legalized(pipe, info);
 }
 
@@ -299,8 +297,7 @@ panfrost_blitter_clear_depth_stencil(struct pipe_context *pipe,
       return;
 
    pan_resource_modifier_legalize(ctx, pan_resource(dst->texture),
-                                  util_format_linear(dst->format), true,
-                                  false);
+                                  dst->format, true, false);
    panfrost_blitter_save(ctx, states);
    util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
                                     stencil, dstx, dsty, width, height);
@@ -325,8 +322,7 @@ panfrost_blitter_clear_render_target(struct pipe_context *pipe,
       return;
 
    pan_resource_modifier_legalize(ctx, pan_resource(dst->texture),
-                                  util_format_linear(dst->format), true,
-                                  false);
+                                  dst->format, true, false);
    panfrost_blitter_save(ctx, states);
    util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
                                     width, height);
@@ -363,8 +359,8 @@ panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
     * must be done before checking if the writeback format supports MSAA
     * averaging.
     */
-   pan_resource_modifier_legalize(ctx, pan_resource(tex),
-                                  util_format_linear(format), true, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(tex), format, true,
+                                  false);
 
    /* Mali v10+ supports downscaling of the tile buffer content to output 2
     * mipmap levels per draw. It's restricted to writeback formats supporting
@@ -463,11 +459,9 @@ panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
                                   util_format_description(src->format)))
       goto fallback;
 
-   pan_resource_modifier_legalize(ctx, pan_resource(dst),
-                                  util_format_linear(dst->format), true,
+   pan_resource_modifier_legalize(ctx, pan_resource(dst), dst->format, true,
                                   false);
-   pan_resource_modifier_legalize(ctx, pan_resource(src),
-                                  util_format_linear(src->format), false,
+   pan_resource_modifier_legalize(ctx, pan_resource(src), src->format, false,
                                   false);
    panfrost_blitter_save(ctx, states);
    ctx->has_blit_loop = dst == src;
