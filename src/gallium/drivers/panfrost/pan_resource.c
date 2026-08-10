@@ -1882,11 +1882,6 @@ pan_resource_modifier_legalize(struct panfrost_context *ctx,
    bool compatible = true;
    uint64_t dest_modifier = DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED;
 
-   if (!drm_is_afbc(rsrc->modifier) &&
-       !drm_is_afrc(rsrc->modifier) &&
-       !drm_is_mtk_tiled(rsrc->modifier))
-      return;
-
    if (drm_is_afbc(rsrc->modifier)) {
       compatible = (pan_afbc_format(dev->arch, old_format, 0) ==
                     pan_afbc_format(dev->arch, new_format, 0));
@@ -1899,6 +1894,8 @@ pan_resource_modifier_legalize(struct panfrost_context *ctx,
    } else if (drm_is_mtk_tiled(rsrc->modifier)) {
       compatible = false;
       dest_modifier = DRM_FORMAT_MOD_LINEAR;
+   } else {
+      return;
    }
 
    if (!compatible) {
