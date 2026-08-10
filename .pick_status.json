@@ -3914,7 +3914,7 @@
         "description": "anv: fix upload of shader kernels spanning more than one heap BO",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1fa327ac321ed868df948f92718d0decc25580c8",
         "notes": null
