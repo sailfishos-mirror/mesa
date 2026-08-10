@@ -4514,7 +4514,7 @@
         "description": "tu: Fix pDependencyInfos indexing and barrier emission in CmdWaitEvents2",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7171c3dd71889cfc393aece033daee8042ed4658",
         "notes": null
