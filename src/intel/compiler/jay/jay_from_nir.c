@@ -1340,7 +1340,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       data = jay_as_gpr(b, data);
    } else if (!transpose) {
       offset = jay_src_as_strided(b, offset, a64 ? 2 : 1, UGPR);
-      data = jay_src_as_strided(b, data, 1, UGPR);
+      data = jay_src_as_strided(b, data, ndata->bit_size == 64 ? 2 : 1, UGPR);
    }
 
    unsigned access =
@@ -1423,6 +1423,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    jay_def tmp = dst;
+   unsigned dst_stride = transpose ? 1 : MAX2(ndata->bit_size / 32, 1);
 
    if (dst.file == UGPR) {
       if (transpose) {
@@ -1433,7 +1434,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       } else {
          /* Without transpose we write at GRF granularity. Pad out. */
          tmp = jay_alloc_def(b, UGPR,
-                             jay_ugpr_per_grf(b->shader) * jay_num_values(dst));
+                             jay_num_values(dst) * jay_ugpr_per_grf(b->shader));
       }
    }
 
@@ -1512,7 +1513,12 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .ex_desc_imm = ex_desc_imm, .skip_helpers = skip_helpers);
 
    if (has_dest && !jay_defs_equivalent(tmp, dst)) {
-      jay_copy_strided(b, dst, tmp, !transpose);
+      unsigned src_stride = transpose ? 1 : jay_ugpr_per_grf(b->shader);
+
+      jay_foreach_comp(dst, i) {
+         unsigned c = ((i / dst_stride) * src_stride) + (i % dst_stride);
+         jay_MOV(b, jay_extract(dst, i), jay_extract(tmp, c));
+      }
    }
 }
 

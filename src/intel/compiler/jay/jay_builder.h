@@ -648,22 +648,15 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
 #define jay_SEND(b, ...) _jay_SEND(b, (struct jayb_send_params) { __VA_ARGS__ })
 
 static inline void
-jay_copy_strided(jay_builder *b, jay_def dst, jay_def src, bool src_strided)
+jay_copy(jay_builder *b, jay_def dst, jay_def src)
 {
    assert(!jay_is_null(src));
 
-   unsigned src_stride = src_strided ? jay_ugpr_per_grf(b->shader) : 1;
-   uint32_t n = MIN2(jay_num_values(dst), jay_num_values(src) / src_stride);
+   uint32_t n = MIN2(jay_num_values(dst), jay_num_values(src));
 
    for (unsigned i = 0; i < n; ++i) {
-      jay_MOV(b, jay_extract(dst, i), jay_extract(src, i * src_stride));
+      jay_MOV(b, jay_extract(dst, i), jay_extract(src, i));
    }
-}
-
-static inline void
-jay_copy(jay_builder *b, jay_def dst, jay_def src)
-{
-   jay_copy_strided(b, dst, src, false);
 }
 
 static inline jay_def
