@@ -253,7 +253,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
             Some(_) => unreachable!(),
         };
 
-        if *clamp == (*clamp).min(def_clamp) {
+        if def_clamp == def_clamp.min(*clamp) {
             *clamp = FClamp::None;
             true
         } else {
