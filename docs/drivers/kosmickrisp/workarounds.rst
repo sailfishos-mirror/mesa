@@ -140,7 +140,7 @@ KK_WORKAROUND_11
 ----------------
 | macOS version: 26.5
 | Metal ticket: FB22683138
-| Metal ticket status: Waiting resolution
+| Metal ticket status: Resolved in macOS 27 beta 5
 | CTS test failure: ``dEQP-VK.api.object_management.multithreaded_per_thread_device.merged_pipeline_cache``
 | Comments:
 
@@ -158,6 +158,10 @@ ensure that each device only has one compiler instance to share. `MTLDevice`
 instances are unique within the process, so no matter how many Vulkan devices
 we create, the same GPU uses the same `MTLDevice`. Each `MTL4Compiler` instance
 is still capable of performing concurrent compilation.
+
+| Log:
+| 2026-05-28: Workaround implemented
+| 2026-08-10: Resolved in macOS 27 beta 5
 
 KK_WORKAROUND_10
 ----------------
@@ -213,7 +217,7 @@ KK_WORKAROUND_8
 ---------------
 | macOS version: 26.4.1
 | Metal ticket: FB22579201 (@squidbus)
-| Metal ticket status: Waiting resolution
+| Metal ticket status: Resolved between macOS 26.5 and macOS 27 beta 5
 | CTS test failure: N/A
 | Comments:
 
@@ -236,6 +240,7 @@ minimum of 16K, prevening this scenario from occurring.
 
 | Log:
 | 2026-04-27: Workaround implemented
+| 2026-08-10: Confirmed fixed as of macOS 27 beta 5
 
 KK_WORKAROUND_7
 ---------------

@@ -1084,7 +1084,8 @@ kk_parse_environment_options(struct kk_physical_device *pdev)
 
    /* Workarounds resolved on macOS 27 */
    if (ns_is_os_version_at_least(27, 0, 0)) {
-      settings->disabled_workarounds |= BITFIELD64_MASK(7);
+      settings->disabled_workarounds |= BITFIELD64_MASK(8);
+      settings->disabled_workarounds |= BITFIELD64_BIT(11);
       settings->disabled_workarounds |= BITFIELD64_BIT(12);
       settings->disabled_workarounds |= BITFIELD64_BIT(17);
    }
