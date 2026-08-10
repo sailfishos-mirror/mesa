@@ -4734,7 +4734,7 @@
         "description": "ac/uvd_dec: Only send SESSION_CONTEXT_BUFFER if needed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4d06fb9acd12ba3978b2732f7376c1bd73c6b7ee",
         "notes": null
