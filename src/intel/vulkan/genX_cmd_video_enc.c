@@ -1878,8 +1878,13 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, buf.OriginalUncompressedPictureSourceAddress.bo, 0),
       };
 
+      buf.StreamOutDataDestinationAddress = (struct anv_address) {
+         vid->vid_mem[ANV_VID_MEM_H265_PAK_STREAMOUT].mem->bo,
+         vid->vid_mem[ANV_VID_MEM_H265_PAK_STREAMOUT].offset
+      };
+
       buf.StreamOutDataDestinationMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
+         .MOCS = anv_mocs(cmd->device, buf.StreamOutDataDestinationAddress.bo, 0),
       };
 
       buf.DecodedPictureStatusBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
@@ -1918,8 +1923,12 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
 
+      buf.SAOStreamOutDataDestinationBufferBaseAddress = (struct anv_address) {
+         vid->vid_mem[ANV_VID_MEM_H265_SAO_STREAMOUT].mem->bo,
+         vid->vid_mem[ANV_VID_MEM_H265_SAO_STREAMOUT].offset
+      };
       buf.SAOStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
+         .MOCS = anv_mocs(cmd->device, buf.SAOStreamOutDataDestinationBufferBaseAddress.bo, 0),
       };
       buf.FrameStatisticsStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
@@ -2115,8 +2124,13 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
 
+      vdenc_buf.RowStoreScratchBuffer.Address = (struct anv_address) {
+         vid->vid_mem[ANV_VID_MEM_H265_VDENC_INTRA_ROW_STORE].mem->bo,
+         vid->vid_mem[ANV_VID_MEM_H265_VDENC_INTRA_ROW_STORE].offset
+      };
+
       vdenc_buf.RowStoreScratchBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
+         .MOCS = anv_mocs(cmd->device, vdenc_buf.RowStoreScratchBuffer.Address.bo, 0),
       };
 
       const struct anv_image_view *ref_iv[3] = { 0, };

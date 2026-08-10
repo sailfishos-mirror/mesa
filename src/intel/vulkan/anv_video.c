@@ -723,6 +723,20 @@ get_h265_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
       size = 2 * ((CACHELINE_SIZE * (4 + 4)) << 1) * (width_in_ctb + 3 * max_tile_cols);
       return size;
    }
+   case ANV_VID_MEM_H265_PAK_STREAMOUT: {
+      uint32_t width_in_min_cb = DIV_ROUND_UP(vid->vk.max_coded.width, 8);
+      uint32_t height_in_min_cb = DIV_ROUND_UP(vid->vk.max_coded.height, 8);
+      return align64((uint64_t)width_in_min_cb * height_in_min_cb * 20, 4096);
+   }
+   case ANV_VID_MEM_H265_SAO_STREAMOUT: {
+      uint32_t width_in_min_lcu = DIV_ROUND_UP(vid->vk.max_coded.width, 16);
+      return align64((uint64_t)(align(width_in_min_lcu, 4) + 3 * 20) * 16, 4096);
+   }
+   case ANV_VID_MEM_H265_VDENC_INTRA_ROW_STORE: {
+      uint32_t width_in_max_lcu =
+         DIV_ROUND_UP(vid->vk.max_coded.width, ANV_MAX_H265_CTB_SIZE);
+      return align64((uint64_t)width_in_max_lcu * 64 * 2 * 2, 4096);
+   }
    default:
       UNREACHABLE("unknown memory");
    }
