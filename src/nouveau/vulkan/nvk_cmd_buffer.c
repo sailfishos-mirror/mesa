@@ -663,20 +663,25 @@ nvk_cmd_flush_wait_dep(struct nvk_cmd_buffer *cmd,
          assert(!"Unknown subc");
          FALLTHROUGH;
       case SUBC_NV90B5: {
-         struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
-         P_MTHD(p, NV90B5, LINE_LENGTH_IN);
-         P_NV90B5_LINE_LENGTH_IN(p, 0);
-         P_NV90B5_LINE_COUNT(p, 0);
+         if (nvk_cmd_buffer_queue_flags(cmd) & VK_QUEUE_VIDEO_DECODE_BIT_KHR) {
+            struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+            __push_immd(p, SUBC_NV90B5, NVA16F_WFI, 0);
+         } else {
+            struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+            P_MTHD(p, NV90B5, LINE_LENGTH_IN);
+            P_NV90B5_LINE_LENGTH_IN(p, 0);
+            P_NV90B5_LINE_COUNT(p, 0);
 
-         P_IMMD(p, NV90B5, LAUNCH_DMA, {
-            .data_transfer_type = DATA_TRANSFER_TYPE_NON_PIPELINED,
-            .multi_line_enable = false,
-            .flush_enable = FLUSH_ENABLE_TRUE,
-            /* Note: FLUSH_TYPE=SYS implicitly for NVC3B5+ */
-            .src_memory_layout = SRC_MEMORY_LAYOUT_PITCH,
-            .dst_memory_layout = DST_MEMORY_LAYOUT_PITCH,
-            .remap_enable = REMAP_ENABLE_TRUE,
-         });
+            P_IMMD(p, NV90B5, LAUNCH_DMA, {
+               .data_transfer_type = DATA_TRANSFER_TYPE_NON_PIPELINED,
+               .multi_line_enable = false,
+               .flush_enable = FLUSH_ENABLE_TRUE,
+               /* Note: FLUSH_TYPE=SYS implicitly for NVC3B5+ */
+               .src_memory_layout = SRC_MEMORY_LAYOUT_PITCH,
+               .dst_memory_layout = DST_MEMORY_LAYOUT_PITCH,
+               .remap_enable = REMAP_ENABLE_TRUE,
+            });
+         }
          break;
       }
       }
