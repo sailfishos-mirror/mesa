@@ -2470,6 +2470,10 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       pic.RhoDomainFrameLevelQP = pps->init_qp_minus26 + 26;
    }
 
+   uint32_t frame_qp = rc_disable ?
+      frame_info->pNaluSliceSegmentEntries[0].constantQp :
+      pps->init_qp_minus26 + 26;
+
    anv_batch_emit(&cmd->batch, GENX(VDENC_CMD2), cmd2) {
       /* Reference index mapping VDEnc hands to PAK: one byte per reference,
        * L0[0..2] followed by L1[0]. It has to agree with the list entries
@@ -2596,7 +2600,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       cmd2.Values11 |= 1u << 31;
 
       cmd2.Values16 = (cmd2.Values16 & 0xf0ff0000) | 0xf003300;
-      cmd2.QpPrimeYAc = pps->init_qp_minus26 + 26;
+      cmd2.QpPrimeYAc = frame_qp;
 
       cmd2.FrameWidthInPixelsMinusOne = width_in_pix - 1;
       cmd2.FrameHeightInPixelsMinusOne = height_in_pix - 1;
@@ -2664,7 +2668,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
 #if GFX_VERx10 < 125
       int tbl_idx = anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type);
-      cmd2.Values26 = hevc_sad_qp_lambda_tbl[tbl_idx][pps->init_qp_minus26 + 26 - 10];
+      cmd2.Values26 = hevc_sad_qp_lambda_tbl[tbl_idx][CLAMP(frame_qp, 10, 51) - 10];
 #endif
    }
 
