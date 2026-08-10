@@ -658,6 +658,16 @@ anv_shader_set_relocs(struct anv_device *device,
             device->physical, device->descriptor_view_state),
       };
    }
+   if (device->physical->uses_efficient_64bit) {
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH,
+         .value = device->physical->va.internal_surface_state_pool.addr >> 32,
+      };
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_DESCRIPTORS_APP_HIGH,
+         .value = device->physical->va.bindless_surface_state_pool.addr >> 32,
+      };
+   }
 
    if (anv_needs_printf_buffer()) {
       struct anv_bo *bo = device->printf.bo;

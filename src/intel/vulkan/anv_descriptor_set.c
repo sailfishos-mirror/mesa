@@ -1125,8 +1125,10 @@ anv_descriptor_pool_heap_init(struct anv_device *device,
       heap->size = align(size, 4096);
 
       enum anv_bo_alloc_flags alloc_flags;
-      alloc_flags = samplers ? ANV_BO_ALLOC_DYNAMIC_VISIBLE_POOL_FLAGS :
-                               ANV_BO_ALLOC_DESCRIPTOR_POOL_FLAGS;
+      alloc_flags =
+         device->physical->uses_efficient_64bit ? ANV_BO_ALLOC_DESCRIPTOR_POOL_FLAGS :
+         samplers ? ANV_BO_ALLOC_DYNAMIC_VISIBLE_POOL_FLAGS :
+         ANV_BO_ALLOC_DESCRIPTOR_POOL_FLAGS;
       VkResult result = anv_device_alloc_bo(device,
                                             bo_name, heap->size,
                                             alloc_flags,

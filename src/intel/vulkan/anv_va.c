@@ -102,7 +102,19 @@ anv_physical_device_init_va_ranges(struct anv_physical_device *device)
 
    address = va_add(&device->va.first_2mb, address, 2 * _1Mb);
 
-   if (!device->indirect_descriptors) {
+   if (device->uses_efficient_64bit) {
+      /* Xe3p+ */
+      address = align64(address, _4Gb);
+
+      /* Push descriptor surface states, blorp surface states, dynamic states */
+      address = va_add(&device->va.internal_surface_state_pool, address, _4Gb);
+      /* App descriptor surface states */
+      address = va_add(&device->va.bindless_surface_state_pool, address, _4Gb);
+      /* Shaders, we can only program a U20 in number of pages */
+      address = va_add(&device->va.shader_heap, address, 4 * _1Gb - 64 * _1Mb);
+
+      address = va_add(&device->va.null_initialized_heap, address, _1Gb * 8);
+   } else if (!device->indirect_descriptors) {
       /* Gfx12.5+ */
       address = va_add(&device->va.general_state_pool, address,
                        2 * _1Gb - address);

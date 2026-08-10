@@ -743,11 +743,14 @@ void anv_CmdBindDescriptorBuffersEXT(
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
    struct anv_cmd_state *state = &cmd_buffer->state;
+   const struct anv_va_range *desc_va_range =
+      cmd_buffer->device->physical->uses_efficient_64bit ?
+      &cmd_buffer->device->physical->va.bindless_surface_state_pool :
+      &cmd_buffer->device->physical->va.dynamic_visible_pool;
 
    for (uint32_t i = 0; i < bufferCount; i++) {
-      assert(pBindingInfos[i].address >= anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->addr &&
-             pBindingInfos[i].address < (anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->addr +
-                                         anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->size));
+      assert(pBindingInfos[i].address >= desc_va_range->addr &&
+             pBindingInfos[i].address < (desc_va_range->addr + desc_va_range->size));
 
       if (state->descriptor_buffers.address[i] != pBindingInfos[i].address) {
          state->descriptor_buffers.address[i] = pBindingInfos[i].address;

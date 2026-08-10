@@ -240,7 +240,7 @@ VkResult anv_CreateBuffer(
       if (buffer->vk.usage & (VK_BUFFER_USAGE_2_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
                               VK_BUFFER_USAGE_2_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT |
                               VK_BUFFER_USAGE_2_DESCRIPTOR_HEAP_BIT_EXT)) {
-         alloc_flags |= ANV_BO_ALLOC_DYNAMIC_VISIBLE_POOL;
+         alloc_flags |= device->physical->uses_efficient_64bit ? ANV_BO_ALLOC_DESCRIPTOR_POOL : ANV_BO_ALLOC_DYNAMIC_VISIBLE_POOL;
       }
 
       VkResult result = anv_init_sparse_bindings(device, buffer->vk.size,

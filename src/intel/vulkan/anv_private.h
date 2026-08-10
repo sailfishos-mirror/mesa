@@ -1809,10 +1809,12 @@ VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
 
 void anv_physical_device_destroy(struct vk_physical_device *vk_device);
 
-static inline uint32_t
+static inline uint64_t
 anv_physical_device_bindless_heap_size(const struct anv_physical_device *device,
                                        bool descriptor_buffer)
 {
+   if (device->uses_efficient_64bit)
+      return device->va.bindless_surface_state_pool.size;
    /* Pre-Gfx12.5, the HW bindless surface heap is only 64MB. After it's 4GB,
     * but we have some workarounds that require 2 heaps to overlap, so the
     * size is dictated by our VA allocation.
@@ -2914,7 +2916,10 @@ anv_device_get_aux_tt_pool(struct anv_device *device)
 static inline struct anv_state_pool *
 anv_device_get_dynamic_state_pool(struct anv_device *device)
 {
-   return &device->dynamic_state_pool;
+   return
+      device->physical->uses_efficient_64bit ?
+      &device->internal_surface_state_pool :
+      &device->dynamic_state_pool;
 }
 
 static inline struct anv_state_pool *
@@ -2926,6 +2931,8 @@ anv_device_get_binding_table_pool(struct anv_device *device)
 static inline struct anv_state_pool *
 anv_device_get_scratch_surface_state_pool(struct anv_device *device)
 {
+   if (device->physical->uses_efficient_64bit)
+      return &device->internal_surface_state_pool;
    return &device->scratch_surface_state_pool;
 }
 
@@ -2950,6 +2957,8 @@ anv_device_get_indirect_push_descriptor_pool(struct anv_device *device)
 static inline struct anv_state_pool *
 anv_device_get_push_descriptor_buffer_pool(struct anv_device *device)
 {
+   if (device->physical->uses_efficient_64bit)
+      return &device->internal_surface_state_pool;
    return &device->push_descriptor_buffer_pool;
 }
 

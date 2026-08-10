@@ -3401,11 +3401,13 @@ update_descriptor_set_surface_state(struct anv_cmd_buffer *cmd_buffer,
    const int32_t buffer_index =
       bind_state->descriptor_buffers[set_idx].buffer_index;
    const struct anv_va_range *push_va_range =
-      GFX_VERx10 >= 125 ?
-      anv_physical_device_get_push_descriptor_buffer_pool_va(device) :
-      anv_physical_device_get_internal_surface_state_pool_va(device);
+      device->uses_efficient_64bit ? &device->va.internal_surface_state_pool :
+      GFX_VERx10 >= 125 ? &device->va.push_descriptor_buffer_pool :
+      &device->va.internal_surface_state_pool;
    const struct anv_va_range *va_range =
-      buffer_index == -1 ? push_va_range : anv_physical_device_get_dynamic_visible_pool_va(device);
+      buffer_index == -1 ? push_va_range :
+      device->uses_efficient_64bit ? &device->va.bindless_surface_state_pool :
+      &device->va.dynamic_visible_pool;
    const uint64_t descriptor_set_addr =
       (buffer_index == -1 ? va_range->addr :
        cmd_buffer->state.descriptor_buffers.address[buffer_index]) +
@@ -3438,10 +3440,27 @@ compute_descriptor_set_surface_offset(const struct anv_cmd_buffer *cmd_buffer,
                                       const struct anv_bind_point_state *bind_state,
                                       const uint32_t set_idx)
 {
-   const struct anv_physical_device *device = cmd_buffer->device->physical;
+   UNUSED const struct anv_physical_device *device = cmd_buffer->device->physical;
    const int32_t buffer_index =
       bind_state->descriptor_buffers[set_idx].buffer_index;
 
+#if GFX_VERx10 >= 350
+   if (device->uses_efficient_64bit) {
+      const uint64_t base_heap_address =
+         buffer_index == -1 ?
+         device->va.internal_surface_state_pool.addr :
+         device->va.bindless_surface_state_pool.addr;
+      const uint64_t buffer_address =
+         buffer_index == -1 ?
+         device->va.internal_surface_state_pool.addr :
+         cmd_buffer->state.descriptor_buffers.address[buffer_index];
+
+      return (buffer_address - base_heap_address) +
+              bind_state->descriptor_buffers[set_idx].buffer_offset;
+   }
+#endif
+
+#if GFX_VERx10 >= 125
    if (intel_has_extended_bindless(&device->info)) {
       uint64_t buffer_address =
          buffer_index == -1 ?
@@ -3451,6 +3470,7 @@ compute_descriptor_set_surface_offset(const struct anv_cmd_buffer *cmd_buffer,
       return (buffer_address - anv_physical_device_get_dynamic_visible_pool_va(device)->addr) +
               bind_state->descriptor_buffers[set_idx].buffer_offset;
    }
+#endif
 
    /* Pre Gfx12.0, the push descriptor in EXT_descriptor_buffer mode is always
     * accessed through the binding table. With exception to the descriptor
@@ -3473,14 +3493,22 @@ compute_descriptor_set_sampler_offset(const struct anv_cmd_buffer *cmd_buffer,
                                       const uint32_t set_idx)
 {
    const struct anv_physical_device *device = cmd_buffer->device->physical;
-   int32_t buffer_index =
+   const int32_t buffer_index =
       bind_state->descriptor_buffers[set_idx].buffer_index;
-   uint64_t buffer_address =
+   const uint64_t base_heap_address =
+#if GFX_VERx10 >= 350
+      device->uses_efficient_64bit ?
+      (buffer_index == -1 ?
+       device->va.internal_surface_state_pool.addr :
+       device->va.bindless_surface_state_pool.addr) :
+#endif
+      device->va.dynamic_state_pool.addr;
+   const uint64_t buffer_address =
       buffer_index == -1 ?
-      anv_physical_device_get_push_descriptor_buffer_pool_va(device)->addr :
+      device->va.push_descriptor_buffer_pool.addr :
       cmd_buffer->state.descriptor_buffers.address[buffer_index];
 
-   return (buffer_address - anv_physical_device_get_dynamic_state_pool_va(device)->addr) +
+   return (buffer_address - base_heap_address) +
           bind_state->descriptor_buffers[set_idx].buffer_offset;
 }
 

@@ -2001,21 +2001,36 @@ get_properties(const struct anv_physical_device *pdevice,
       props->robustStorageBufferDescriptorSize = ANV_SURFACE_STATE_SIZE;
       props->inputAttachmentDescriptorSize = ANV_SURFACE_STATE_SIZE;
       props->accelerationStructureDescriptorSize = sizeof(struct anv_address_range_descriptor);
-      props->maxSamplerDescriptorBufferRange = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
-      props->maxResourceDescriptorBufferRange = anv_physical_device_bindless_heap_size(pdevice,
-                                                                                       true);
-      props->resourceDescriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
-      props->descriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
-      props->samplerDescriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+
+      if (pdevice->uses_efficient_64bit) {
+         props->maxSamplerDescriptorBufferRange = pdevice->va.bindless_surface_state_pool.size;
+         props->maxResourceDescriptorBufferRange = pdevice->va.bindless_surface_state_pool.size;
+         props->resourceDescriptorBufferAddressSpaceSize = pdevice->va.bindless_surface_state_pool.size;
+         props->descriptorBufferAddressSpaceSize = pdevice->va.bindless_surface_state_pool.size;
+         props->samplerDescriptorBufferAddressSpaceSize = pdevice->va.bindless_surface_state_pool.size;
+      } else {
+         props->maxSamplerDescriptorBufferRange =
+            anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+         props->maxResourceDescriptorBufferRange =
+            anv_physical_device_bindless_heap_size(pdevice, true);
+         props->resourceDescriptorBufferAddressSpaceSize =
+            anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+         props->descriptorBufferAddressSpaceSize =
+            anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+         props->samplerDescriptorBufferAddressSpaceSize =
+            anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+      }
    }
 
    /* VK_EXT_descriptor_heap */
    {
       props->samplerHeapAlignment = 64;
       props->resourceHeapAlignment = 64;
-      props->maxSamplerHeapSize = pdevice->va.dynamic_visible_pool.size;
-      props->maxResourceHeapSize = anv_physical_device_bindless_heap_size(pdevice,
-                                                                          true);
+      props->maxSamplerHeapSize = pdevice->uses_efficient_64bit ?
+         anv_physical_device_bindless_heap_size(pdevice, true) :
+         pdevice->va.dynamic_visible_pool.size;
+      props->maxResourceHeapSize =
+         anv_physical_device_bindless_heap_size(pdevice, true);
       props->minSamplerHeapReservedRange = 0;
       props->minSamplerHeapReservedRangeWithEmbedded = 0;
       props->minResourceHeapReservedRange = 0;
