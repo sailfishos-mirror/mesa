@@ -135,14 +135,13 @@ blorp_alloc_dynamic_state(struct blorp_batch *blorp_batch,
                        size, alignment, offset, NULL);
 }
 
-UNUSED static void *
-blorp_alloc_general_state(struct blorp_batch *blorp_batch,
-                          uint32_t size,
-                          uint32_t alignment,
-                          uint32_t *offset)
+static struct blorp_address
+blorp_dynamic_state_address(struct blorp_batch *batch,
+                            uint32_t offset)
 {
-   /* Use dynamic state range for general state on iris. */
-   return blorp_alloc_dynamic_state(blorp_batch, size, alignment, offset);
+   return (struct blorp_address) {
+      .offset = IRIS_MEMZONE_DYNAMIC_START + offset,
+   };
 }
 
 static bool

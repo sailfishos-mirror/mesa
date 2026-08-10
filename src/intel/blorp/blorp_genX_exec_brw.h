@@ -69,11 +69,9 @@ blorp_alloc_dynamic_state(struct blorp_batch *batch,
                           uint32_t alignment,
                           uint32_t *offset);
 
-UNUSED static void *
-blorp_alloc_general_state(struct blorp_batch *batch,
-                          uint32_t size,
-                          uint32_t alignment,
-                          uint32_t *offset);
+UNUSED static struct blorp_address
+blorp_dynamic_state_address(struct blorp_batch *batch,
+                            uint32_t offset);
 
 static uint32_t
 blorp_get_dynamic_state(struct blorp_batch *batch,
@@ -1759,9 +1757,6 @@ blorp_get_compute_push_const(struct blorp_batch *batch,
 
    uint32_t push_const_offset;
    uint32_t *push_const =
-      GFX_VERx10 >= 125 ?
-      blorp_alloc_general_state(batch, push_const_size, 64,
-                                &push_const_offset) :
       blorp_alloc_dynamic_state(batch, push_const_size, 64,
                                 &push_const_offset);
    if (push_const == NULL) {
@@ -2000,6 +1995,8 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
 
 #if GFX_VERx10 >= 125
    const bool has_vrt = devinfo->verx10 >= 300 && !INTEL_DEBUG(DEBUG_NO_VRT);
+   const uint64_t push_addr64 = _blorp_combine_address(
+      batch, NULL, blorp_dynamic_state_address(batch, push_const_offset), 0);
 
    if (!has_vrt) {
       uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
@@ -2056,6 +2053,8 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
        */
       .EmitInlineParameter            = true,
       .InlineData                     = {
+         [BLORP_INLINE_PARAM_PUSH_ADDRESS_LDW / 4]                = push_addr64 & 0xffffffff,
+         [BLORP_INLINE_PARAM_PUSH_ADDRESS_UDW / 4]                = push_addr64 >> 32,
          [BLORP_INLINE_PARAM_THREAD_GROUP_ID_Z_DIMENSION / 4 + 0] = params->num_layers,
       },
 
