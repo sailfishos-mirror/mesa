@@ -607,7 +607,7 @@ r500BuildFragmentProgramHwCode(struct radeon_compiler *c, void *user)
    }
 
    if (code->max_temp_idx >= compiler->Base.max_temp_regs)
-      rc_error(&compiler->Base, "Too many hardware temporaries used");
+      rc_error(&compiler->Base, "Ran out of temporaries");
 
    if (compiler->Base.Error)
       return;
