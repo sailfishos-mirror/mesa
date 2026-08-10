@@ -361,11 +361,6 @@ struct fd_dev_info {
       bool has_64b_ssbo_atomics;
       bool has_64b_image_atomics;
 
-      /* Blob executes a special compute dispatch at the start of each
-       * command buffers. We copy this dispatch as is.
-       */
-      bool cmdbuf_start_a725_quirk;
-
       bool load_inline_uniforms_via_preamble_ldgk;
       bool load_shader_consts_via_preamble;
 
@@ -506,6 +501,10 @@ struct fd_dev_info {
    struct {
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
+      /* Blob executes a special compute dispatch at the start of each
+       * command buffers. We copy this dispatch as is.
+       */
+      bool QCTDD09112208_cmdbuf_start_cs : 1;
       /* Need fake bary.f for (ei) if last input is flat: */
       bool QCTDD10204462_flat_ei : 1;
       /* Do not use a0 in early preamble. */

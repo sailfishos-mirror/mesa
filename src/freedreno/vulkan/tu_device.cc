@@ -2684,7 +2684,7 @@ tu_init_dbg_reg_stomper(struct tu_device *device)
 
 /* It is unknown what this workaround is for and what it fixes. */
 static VkResult
-tu_init_cmdbuf_start_a725_quirk(struct tu_device *device)
+tu_init_cmdbuf_QCTDD09112208(struct tu_device *device)
 {
    struct tu_cs shader_cs;
    VkResult result = tu_cs_begin_sub_stream(&device->sub_cs, 10, &shader_cs);
@@ -2771,7 +2771,7 @@ tu_init_cmdbuf_start_a725_quirk(struct tu_device *device)
    tu_cs_emit(&sub_cs, CP_EXEC_CS_2_NGROUPS_Y(1));
    tu_cs_emit(&sub_cs, CP_EXEC_CS_3_NGROUPS_Z(1));
 
-   device->cmdbuf_start_a725_quirk_entry =
+   device->cmdbuf_QCTDD09112208_cmdbuf_start_cs_entry =
       tu_cs_end_sub_stream(&device->sub_cs, &sub_cs);
 
    return VK_SUCCESS;
@@ -3194,10 +3194,10 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    if (result != VK_SUCCESS)
       goto fail_bin_preamble;
 
-   if (physical_device->info->props.cmdbuf_start_a725_quirk) {
-         result = tu_init_cmdbuf_start_a725_quirk(device);
+   if (FD_QUIRK(physical_device->info, QCTDD09112208_cmdbuf_start_cs)) {
+         result = tu_init_cmdbuf_QCTDD09112208(device);
          if (result != VK_SUCCESS)
-            goto fail_a725_workaround;
+            goto fail_QCTDD09112208_cmdbuf_start_cs;
    }
 
    tu_init_dbg_reg_stomper(device);
@@ -3281,7 +3281,7 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    return VK_SUCCESS;
 
 fail_timeline_cond:
-fail_a725_workaround:
+fail_QCTDD09112208_cmdbuf_start_cs:
 fail_bin_preamble:
 fail_autotune:
    delete device->autotune;

@@ -38,6 +38,7 @@ class CCUColorCacheFraction(Enum):
 
 quirk_names = {
     "QCTDD08407086": "cs_lock_unlock",
+    "QCTDD09112208": "cmdbuf_start_cs",
     "QCTDD10204462": "flat_ei",
     "QCTDD10789828": "no_a0_ep",
     "QCTDD11147232": "alias_mova",
