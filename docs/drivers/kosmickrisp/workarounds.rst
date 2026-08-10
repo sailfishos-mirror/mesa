@@ -49,6 +49,19 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_17
+----------------
+| macOS version: 26.x
+| Metal ticket: Not reported
+| Metal ticket status:
+| CTS test failure: ``dEQP-VK.spirv_assembly.instruction.compute.float_controls2.fp*.input_args.tanh_testedWithout_NotNaN_arg1_nan_arg2_one_res_nan_*``
+| Comments:
+
+Same issue as KK_WORKAROUND_14 but we need to add ``isNan`` to fix it
+
+| Log:
+| 2026-08-10: Workaround implemented
+
 KK_WORKAROUND_16
 ----------------
 | macOS version: 27.0 beta (26A5353q)

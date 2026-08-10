@@ -253,6 +253,24 @@ alu_funclike_precise(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
    } while (0)
 
 static void
+alu_fcmp_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
+                const char *op)
+{
+   /* KK_WORKAROUND_17 Follow up to KK_WORKAROUND_14 since the safe pragma is
+    * not enough in macOS26 */
+   if (!(ctx->disabled_workarounds & BITFIELD64_BIT(17))) {
+      /* fneu is unordered (true on NaN), the others are ordered. */
+      bool ordered = instr->op != nir_op_fneu;
+      for (unsigned i = 0; i < 2; i++) {
+         P(ctx, ordered ? "!isnan(" : "isnan(");
+         alu_src_to_msl(ctx, instr, i);
+         P(ctx, ordered ? ") && " : ") || ");
+      }
+   }
+   ALU_BINOP(op);
+}
+
+static void
 alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
 {
    switch (instr->op) {
@@ -302,14 +320,14 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       ALU_BINOP(">=");
       break;
    case nir_op_fge:
-      ALU_BINOP(">=");
+      alu_fcmp_to_msl(ctx, instr, ">=");
       break;
    case nir_op_ilt:
    case nir_op_ult:
       ALU_BINOP("<");
       break;
    case nir_op_flt:
-      ALU_BINOP("<");
+      alu_fcmp_to_msl(ctx, instr, "<");
       break;
    case nir_op_iand:
       ALU_BINOP("&");
@@ -346,7 +364,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         ALU_BINOP("==");
+         alu_fcmp_to_msl(ctx, instr, "==");
       break;
    case nir_op_ine:
       ALU_BINOP("!=");
@@ -358,7 +376,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         ALU_BINOP("!=");
+         alu_fcmp_to_msl(ctx, instr, "!=");
       break;
    case nir_op_umax:
    case nir_op_imax:
@@ -482,7 +500,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       if (nir_alu_instr_is_signed_zero_preserve(instr)) {
          const char *ftype = msl_type_for_def(ctx->types, &instr->def);
          const char *utype = msl_uint_type(instr->def.bit_size, 1);
-         ALU_BINOP("==");
+         alu_fcmp_to_msl(ctx, instr, "==");
          P(ctx, " ? as_type<%s>(%s(as_type<%s>(", ftype, utype, utype);
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ") %s as_type<%s>(", is_min ? "|" : "&", utype);
