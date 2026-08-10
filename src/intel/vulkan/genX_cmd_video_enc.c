@@ -2092,6 +2092,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_pipe_mode.StandardSelect = SS_HEVC;
       vdenc_pipe_mode.BitDepth = is_10bit ? 2 : 0;
       vdenc_pipe_mode.PAKChromaSubSamplingType = _420;
+      vdenc_pipe_mode.OutputRangeControlAfterColorSpaceConversion = true;
       vdenc_pipe_mode.IsRandomAccess = !is_low_delay;
       vdenc_pipe_mode.HMERegionPrefetchEnable = !vdenc_pipe_mode.TLBPrefetchEnable;
       vdenc_pipe_mode.TopPrefetchEnableMode = 1;
@@ -2395,7 +2396,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       pic.FrameWidthInMinimumCodingBlockSize = frame_width_in_min_cb - 1;
       pic.FrameHeightInMinimumCodingBlockSize = frame_height_in_min_cb - 1;
       pic.TransformSkipEnable = pps->flags.transform_skip_enabled_flag;
-      pic.TransformSkipEnable = true;
+      pic.PAKTransformSkipEnable = pps->flags.transform_skip_enabled_flag;
 
       pic.MinCUSize = sps->log2_min_luma_coding_block_size_minus3;
       pic.LCUSize = sps->log2_diff_max_min_luma_coding_block_size + sps->log2_min_luma_coding_block_size_minus3;
@@ -2432,7 +2433,6 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       pic.WeightedPredicationEnable = pps->flags.weighted_pred_flag;
       pic.FieldPic = 0;
       pic.TopField = false;
-      pic.TransformSkipEnable = pps->flags.transform_skip_enabled_flag;
       pic.AMPEnable = sps->flags.amp_enabled_flag;
       pic.TransquantBypassEnable = pps->flags.transquant_bypass_enabled_flag;
       pic.StrongIntraSmoothingEnable = sps->flags.strong_intra_smoothing_enabled_flag;
