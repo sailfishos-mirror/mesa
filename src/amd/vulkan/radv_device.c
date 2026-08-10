@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <string.h>
@@ -1412,7 +1413,8 @@ radv_destroy_device(struct radv_device *device, const VkAllocationCallbacks *pAl
 
    mtx_destroy(&device->overallocation_mutex);
    simple_mtx_destroy(&device->ctx_roll_mtx);
-   simple_mtx_destroy(&device->pstate_mtx);
+   mtx_destroy(&device->pstate_mtx);
+   cnd_destroy(&device->pstate_cond);
    simple_mtx_destroy(&device->trace_mtx);
    simple_mtx_destroy(&device->rt_handles_mtx);
    simple_mtx_destroy(&device->pso_cache_stats_mtx);
@@ -1482,7 +1484,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
 
    simple_mtx_init(&device->ctx_roll_mtx, mtx_plain);
    simple_mtx_init(&device->trace_mtx, mtx_plain);
-   simple_mtx_init(&device->pstate_mtx, mtx_plain);
+   mtx_init(&device->pstate_mtx, mtx_plain);
+   cnd_init(&device->pstate_cond);
    simple_mtx_init(&device->rt_handles_mtx, mtx_plain);
    simple_mtx_init(&device->pso_cache_stats_mtx, mtx_plain);
    simple_mtx_init(&device->blit_queue_mtx, mtx_plain);
@@ -1934,8 +1937,8 @@ radv_GetMemoryFdPropertiesKHR(VkDevice _device, VkExternalMemoryHandleTypeFlagBi
    }
 }
 
-bool
-radv_device_set_pstate(struct radv_device *device, bool enable)
+VkResult
+radv_device_set_pstate(struct radv_device *device, bool enable, uint64_t timeout)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
@@ -1944,46 +1947,75 @@ radv_device_set_pstate(struct radv_device *device, bool enable)
 
    /* pstate is per-device; setting it for one ctx is sufficient. We pick the first initialized one
     * below. */
-   for (unsigned i = 0; i < RADV_NUM_HW_CTX; i++)
-      if (device->hw_ctx[i])
-         return ws->ctx_set_pstate(device->hw_ctx[i], pstate) >= 0;
-
-   return true;
-}
-
-bool
-radv_device_acquire_performance_counters(struct radv_device *device)
-{
-   bool result = true;
-   simple_mtx_lock(&device->pstate_mtx);
-
-   if (device->pstate_cnt == 0) {
-      result = radv_device_set_pstate(device, true);
-      if (result)
-         ++device->pstate_cnt;
+   for (unsigned i = 0; i < RADV_NUM_HW_CTX; i++) {
+      if (device->hw_ctx[i]) {
+         int r = ws->ctx_set_pstate(device->hw_ctx[i], pstate, timeout);
+         if (r == -EBUSY)
+            return VK_TIMEOUT;
+         return r < 0 ? VK_ERROR_UNKNOWN : VK_SUCCESS;
+      }
    }
 
-   simple_mtx_unlock(&device->pstate_mtx);
+   return VK_SUCCESS;
+}
+
+VkResult
+radv_device_acquire_performance_counters(struct radv_device *device, uint64_t timeout)
+{
+   VkResult result = VK_SUCCESS;
+   mtx_lock(&device->pstate_mtx);
+
+   while (device->pstate_pending)
+      cnd_wait(&device->pstate_cond, &device->pstate_mtx);
+
+   if (device->pstate_cnt == 0) {
+      device->pstate_pending = true;
+      mtx_unlock(&device->pstate_mtx);
+
+      result = radv_device_set_pstate(device, true, timeout);
+
+      mtx_lock(&device->pstate_mtx);
+      device->pstate_pending = false;
+      if (result == VK_SUCCESS)
+         ++device->pstate_cnt;
+      cnd_broadcast(&device->pstate_cond);
+   } else {
+      ++device->pstate_cnt;
+   }
+
+   mtx_unlock(&device->pstate_mtx);
    return result;
 }
 
 void
 radv_device_release_performance_counters(struct radv_device *device)
 {
-   simple_mtx_lock(&device->pstate_mtx);
+   const uint64_t release_timeout_ns = 100000000ull; /* 100ms */
 
-   if (--device->pstate_cnt == 0)
-      radv_device_set_pstate(device, false);
+   mtx_lock(&device->pstate_mtx);
 
-   simple_mtx_unlock(&device->pstate_mtx);
+   while (device->pstate_pending)
+      cnd_wait(&device->pstate_cond, &device->pstate_mtx);
+
+   if (--device->pstate_cnt == 0) {
+      device->pstate_pending = true;
+      mtx_unlock(&device->pstate_mtx);
+
+      radv_device_set_pstate(device, false, release_timeout_ns);
+
+      mtx_lock(&device->pstate_mtx);
+      device->pstate_pending = false;
+      cnd_broadcast(&device->pstate_cond);
+   }
+
+   mtx_unlock(&device->pstate_mtx);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
 radv_AcquireProfilingLockKHR(VkDevice _device, const VkAcquireProfilingLockInfoKHR *pInfo)
 {
    VK_FROM_HANDLE(radv_device, device, _device);
-   bool result = radv_device_acquire_performance_counters(device);
-   return result ? VK_SUCCESS : VK_ERROR_UNKNOWN;
+   return radv_device_acquire_performance_counters(device, pInfo->timeout);
 }
 
 VKAPI_ATTR void VKAPI_CALL
