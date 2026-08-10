@@ -1871,9 +1871,10 @@ pan_resource_modifier_convert(struct panfrost_context *ctx,
  * or invalid data faults when sampling or rendering to AFBC */
 
 void
-pan_legalize_format(struct panfrost_context *ctx,
-                    struct panfrost_resource *rsrc, enum pipe_format format,
-                    bool write, bool discard)
+pan_resource_modifier_legalize(struct panfrost_context *ctx,
+                               struct panfrost_resource *rsrc,
+                               enum pipe_format format, bool write,
+                               bool discard)
 {
    struct panfrost_device *dev = pan_device(ctx->base.screen);
    enum pipe_format old_format = rsrc->base.format;
@@ -2313,8 +2314,9 @@ panfrost_ptr_unmap(struct pipe_context *pctx, struct pipe_transfer *transfer)
          } else {
             bool discard = panfrost_can_discard(&prsrc->base, &transfer->box,
                                                 transfer->usage);
-            pan_legalize_format(ctx, prsrc, prsrc->image.props.format, true,
-                                discard);
+            pan_resource_modifier_legalize(ctx, prsrc,
+                                           prsrc->image.props.format, true,
+                                           discard);
             pan_blit_from_staging(pctx, trans);
             panfrost_flush_batches_accessing_rsrc(
                ctx, pan_resource(trans->staging.rsrc),

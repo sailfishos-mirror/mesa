@@ -4413,7 +4413,8 @@ panfrost_create_sampler_view(struct pipe_context *pctx,
       rzalloc(pctx, struct panfrost_sampler_view);
    struct panfrost_resource *ptexture = pan_resource(texture);
 
-   pan_legalize_format(ctx, ptexture, template->format, false, false);
+   pan_resource_modifier_legalize(ctx, ptexture, template->format, false,
+                                  false);
    pipe_reference(NULL, &texture->reference);
 
    so->base = *template;

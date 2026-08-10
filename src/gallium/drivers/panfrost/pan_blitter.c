@@ -221,10 +221,12 @@ panfrost_blitter_blit(struct pipe_context *pipe,
    if (!util_blitter_is_blit_supported(ctx->blitter, info))
       UNREACHABLE("Unsupported blit\n");
 
-   pan_legalize_format(ctx, pan_resource(info->src.resource),
-                       util_format_linear(info->src.format), false, false);
-   pan_legalize_format(ctx, pan_resource(info->dst.resource),
-                       util_format_linear(info->dst.format), true, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(info->src.resource),
+                                  util_format_linear(info->src.format), false,
+                                  false);
+   pan_resource_modifier_legalize(ctx, pan_resource(info->dst.resource),
+                                  util_format_linear(info->dst.format), true,
+                                  false);
    panfrost_blitter_blit_legalized(pipe, info);
 }
 
@@ -296,8 +298,9 @@ panfrost_blitter_clear_depth_stencil(struct pipe_context *pipe,
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
-   pan_legalize_format(ctx, pan_resource(dst->texture),
-                       util_format_linear(dst->format), true, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(dst->texture),
+                                  util_format_linear(dst->format), true,
+                                  false);
    panfrost_blitter_save(ctx, states);
    util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
                                     stencil, dstx, dsty, width, height);
@@ -321,8 +324,9 @@ panfrost_blitter_clear_render_target(struct pipe_context *pipe,
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
-   pan_legalize_format(ctx, pan_resource(dst->texture),
-                       util_format_linear(dst->format), true, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(dst->texture),
+                                  util_format_linear(dst->format), true,
+                                  false);
    panfrost_blitter_save(ctx, states);
    util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
                                     width, height);
@@ -359,8 +363,8 @@ panfrost_blitter_generate_mipmap(struct pipe_context *pipe,
     * must be done before checking if the writeback format supports MSAA
     * averaging.
     */
-   pan_legalize_format(ctx, pan_resource(tex), util_format_linear(format),
-                       true, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(tex),
+                                  util_format_linear(format), true, false);
 
    /* Mali v10+ supports downscaling of the tile buffer content to output 2
     * mipmap levels per draw. It's restricted to writeback formats supporting
@@ -459,10 +463,12 @@ panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
                                   util_format_description(src->format)))
       goto fallback;
 
-   pan_legalize_format(ctx, pan_resource(dst),
-                       util_format_linear(dst->format), true, false);
-   pan_legalize_format(ctx, pan_resource(src),
-                       util_format_linear(src->format), false, false);
+   pan_resource_modifier_legalize(ctx, pan_resource(dst),
+                                  util_format_linear(dst->format), true,
+                                  false);
+   pan_resource_modifier_legalize(ctx, pan_resource(src),
+                                  util_format_linear(src->format), false,
+                                  false);
    panfrost_blitter_save(ctx, states);
    ctx->has_blit_loop = dst == src;
    util_blitter_copy_texture(ctx->blitter, dst, dst_level, dst_x, dst_y,
