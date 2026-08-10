@@ -635,15 +635,6 @@ used.
    Allowed in fragment shaders only.
 
 
-.. opcode:: READ_HELPER - Reads Invocation Helper Status
-
-   This is identical to ``TGSI_SEMANTIC_HELPER_INVOCATION``, except
-   this will read the current value, which might change as a result of
-   a ``DEMOTE`` instruction.
-
-   Allowed in fragment shaders only.
-
-
 .. opcode:: TXB - Texture Lookup With Bias
 
    for cube map array textures and shadow cube maps, the bias value

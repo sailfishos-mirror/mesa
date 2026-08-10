@@ -2588,10 +2588,6 @@ ntt_emit_intrinsic(struct ntt_compile *c, nir_intrinsic_instr *instr)
       break;
    }
 
-   case nir_intrinsic_is_helper_invocation:
-      ntt_READ_HELPER(c, ntt_get_dest(c, &instr->def));
-      break;
-
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddx_coarse:
       ntt_DDX(c, ntt_get_dest(c, &instr->def), ntt_get_src(c, instr->src[0]));

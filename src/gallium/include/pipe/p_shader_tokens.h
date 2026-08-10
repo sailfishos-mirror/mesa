@@ -375,7 +375,7 @@ enum tgsi_opcode {
    TGSI_OPCODE_U2I64              = 32,
    TGSI_OPCODE_CLOCK              = 33,
    TGSI_OPCODE_I2I64              = 34,
-   TGSI_OPCODE_READ_HELPER        = 35,
+   /* gap */
    TGSI_OPCODE_COS                = 36,
    TGSI_OPCODE_DDX                = 37,
    TGSI_OPCODE_DDY                = 38,
