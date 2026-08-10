@@ -122,6 +122,11 @@ get_embedded_size(struct ac_uvd_decoder *dec)
 
    size += sizeof(struct ruvd_msg);
 
+   if (!dec->sw_ctx_size) {
+      size = align(size, 256);
+      size += sizeof(struct ruvd_msg);
+   }
+
    switch (dec->base.param.codec) {
    case AC_VIDEO_CODEC_AVC:
       it_probs_size = IT_SCALING_TABLE_SIZE;
@@ -171,16 +176,8 @@ static int
 uvd_build_create_cmd(struct ac_video_dec *decoder, struct ac_video_dec_create_cmd *cmd)
 {
    struct ac_uvd_decoder *dec = (struct ac_uvd_decoder *)decoder;
-
-   struct ruvd_msg *msg = cmd->embedded_ptr;
-   memset(msg, 0, sizeof(*msg));
-   msg->size = sizeof(*msg);
-   msg->msg_type = RUVD_MSG_CREATE;
-   msg->stream_handle = dec->stream_handle;
-
-   msg->body.create.stream_type = dec->stream_type;
-   msg->body.create.width_in_samples = decoder->param.max_width;
-   msg->body.create.height_in_samples = decoder->param.max_height;
+   uint8_t *emb = cmd->embedded_ptr;
+   uint64_t msg_va = cmd->embedded_va;
 
    struct cmd_buffer cmd_buf = {
       .dec = dec,
@@ -190,9 +187,32 @@ uvd_build_create_cmd(struct ac_video_dec *decoder, struct ac_video_dec_create_cm
       }
    };
 
+   struct ruvd_msg *msg = (struct ruvd_msg *)emb;
+   memset(msg, 0, sizeof(*msg));
+
+   if (!dec->sw_ctx_size) {
+      msg->size = sizeof(*msg);
+      msg->msg_type = RUVD_MSG_DESTROY;
+      msg->stream_handle = dec->stream_handle;
+
+      send_cmd(&cmd_buf, RUVD_CMD_MSG_BUFFER, msg_va);
+
+      msg_va = cmd->embedded_va + align(sizeof(struct ruvd_msg), 256);
+      msg = (struct ruvd_msg *)(emb + align(sizeof(struct ruvd_msg), 256));
+      memset(msg, 0, sizeof(*msg));
+   }
+
+   msg->size = sizeof(*msg);
+   msg->msg_type = RUVD_MSG_CREATE;
+   msg->stream_handle = dec->stream_handle;
+
+   msg->body.create.stream_type = dec->stream_type;
+   msg->body.create.width_in_samples = decoder->param.max_width;
+   msg->body.create.height_in_samples = decoder->param.max_height;
+
    if (dec->sw_ctx_size)
       send_cmd(&cmd_buf, RUVD_CMD_SESSION_CONTEXT_BUFFER, cmd->session_va);
-   send_cmd(&cmd_buf, RUVD_CMD_MSG_BUFFER, cmd->embedded_va);
+   send_cmd(&cmd_buf, RUVD_CMD_MSG_BUFFER, msg_va);
 
    cmd->out.cmd_dw = cmd_buf.cs.cdw;
    return 0;
