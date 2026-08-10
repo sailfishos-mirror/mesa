@@ -276,12 +276,12 @@ jay_print_block(FILE *fp, jay_block *block)
    fprintf(fp, "}");
    first = true;
    jay_foreach_successor(block, succ, GPR) {
-      fprintf(fp, "%s B%d", first ? " ->" : "", succ->index);
+      fprintf(fp, "%s B%d", first ? " ->" : "", (*succ)->index);
       first = false;
    }
    first = true;
    jay_foreach_successor(block, succ, UGPR) {
-      fprintf(fp, "%s B%d", first ? " =>" : "", succ->index);
+      fprintf(fp, "%s B%d", first ? " =>" : "", (*succ)->index);
       first = false;
    }
    fprintf(fp, "\n\n");

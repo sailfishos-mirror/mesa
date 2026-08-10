@@ -841,7 +841,7 @@ jay_lower_scoreboard(jay_shader *shader)
                       sizeof(regdists[0]) * shader->num_regs[f]);
             }
 
-            next[f] = jay_successors(block, f)[0];
+            next[f] = jay_first_successor(block, f);
          }
 
          jay_foreach_inst_in_block_safe(block, I) {

@@ -149,15 +149,21 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
             /* The split block either falls through or jumps to the exit */
             for (unsigned file = GPR; file <= UGPR; ++file) {
                jay_foreach_predecessor(block, pred, file) {
-                  jay_block **succs = jay_successors(*pred, file);
-                  unsigned idx = succs[0] == block ? 0 : 1;
-                  succs[idx] = split;
+                  jay_foreach_successor(*pred, succ, file) {
+                     if (block == *succ) {
+                        *succ = split;
+                        break;
+                     }
+                  }
                }
             }
-            typed_memcpy(&split->physical_preds, &block->physical_preds, 1);
-            typed_memcpy(&split->logical_preds, &block->logical_preds, 1);
-            util_dynarray_init(&block->physical_preds, block);
-            util_dynarray_init(&block->logical_preds, block);
+
+            util_dynarray_append_dynarray(jay_predecessors(split, UGPR),
+                                          jay_predecessors(block, UGPR));
+            util_dynarray_append_dynarray(jay_predecessors(split, GPR),
+                                          jay_predecessors(block, GPR));
+            util_dynarray_clear(jay_predecessors(block, UGPR));
+            util_dynarray_clear(jay_predecessors(block, GPR));
 
             jay_block_add_successor(split, block, GPR);
             jay_block_add_successor(split, jay_last_block(b->func), GPR);

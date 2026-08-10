@@ -894,7 +894,8 @@ jay_spill(jay_function *func, enum jay_file file, unsigned k)
       min_algorithm(&ctx, block, sb, next_ips, nu_cursor);
 
       /* Handle loop back edges */
-      struct jay_block *loop_head = block->logical_succs[0];
+      struct jay_block *loop_head =
+         *util_dynarray_element(jay_successors(block, GPR), jay_block *, 0);
 
       if ((loop_head && loop_head->loop_header) &&
           loop_head->index < block->index) {
@@ -910,7 +911,7 @@ jay_spill(jay_function *func, enum jay_file file, unsigned k)
          jay_foreach_block_from(func, loop_head, inside) {
             bool is_break_block = true;
             jay_foreach_successor(inside, succ, file) {
-               is_break_block &= succ->index > block->index;
+               is_break_block &= (*succ)->index > block->index;
             }
 
             /* Remap to use our phis inside the loop */

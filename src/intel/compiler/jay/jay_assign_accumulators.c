@@ -55,7 +55,7 @@ postra_liveness(jay_function *func)
       /* Calculate liveness locally */
       jay_foreach_successor(blk, succ, GPR) {
          BITSET_OR(blk->postra_gpr_live_out, blk->postra_gpr_live_out,
-                   succ->postra_gpr_live_in);
+                   (*succ)->postra_gpr_live_in);
       }
 
       BITSET_DECLARE(live, JAY_MAX_PHYS_GRF);

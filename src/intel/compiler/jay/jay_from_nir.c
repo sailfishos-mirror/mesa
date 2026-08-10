@@ -107,6 +107,11 @@ struct nir_to_jay_state {
    jay_builder bld;
    jay_block *current_block, *after_block, *break_block, *exit_block;
 
+   /* Reconvergence tracking for break and halt instructions */
+   jay_block *converge_block;
+   struct util_dynarray converge_blocks;
+   unsigned loop_converge_block;
+
    /* Bitset of defs optimized for ballots */
    BITSET_WORD *zero_inactive;
 
@@ -3554,6 +3559,44 @@ jay_emit_instr(struct nir_to_jay_state *nj, jay_block *block, nir_instr *instr)
    }
 }
 
+static inline void
+jay_block_reconverge(struct nir_to_jay_state *nj,
+                     jay_block *current_block,
+                     jay_block *after_block)
+{
+   if (jay_num_predecessors(current_block, GPR) == 0) {
+      /* Don't insert edges from unreachable blocks, cleaning the dead
+       * reconvergence edges that result from this code after NIR->Jay
+       * translation is not practical.
+       */
+      return;
+   }
+
+   jay_inst *jump = jay_block_ending_jump(current_block);
+   if (jump && jump->op == JAY_OPCODE_BREAK) {
+      util_dynarray_foreach_reverse(&nj->converge_blocks, jay_block *, conv) {
+         /* Break statements don't reconverge outside the current loop */
+         if (nj->loop_converge_block &&
+             util_dynarray_element(&nj->converge_blocks, jay_block *,
+                                   nj->loop_converge_block - 1) == conv) {
+            break;
+         }
+
+         jay_block_add_successor(current_block, *conv, UGPR);
+      }
+   } else if (jump && jump->op == JAY_OPCODE_HALT) {
+      util_dynarray_foreach_reverse(&nj->converge_blocks, jay_block *, conv) {
+         /* Even though halt instructions skip the remainder of the program in
+          * the logical CFG, we could still reconverge physically
+          */
+         jay_block_add_successor(current_block, *conv, UGPR);
+      }
+   } else {
+      assert(!jump);
+      jay_block_add_successor(current_block, after_block, GPR);
+   }
+}
+
 static jay_block *
 jay_create_block(struct nir_to_jay_state *nj)
 {
@@ -3567,50 +3610,67 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 {
    jay_builder *b = &nj->bld;
    jay_def condition = nj_src(nif->condition);
+   bool uniform = jay_is_uniform(condition);
 
+   jay_block *converge_block = nj->converge_block;
    jay_block *before_block = nj->current_block;
    jay_block *after_block = jay_create_block(nj);
 
    /* Push */
    ++nj->indent;
 
+   if (converge_block) {
+      util_dynarray_append(&nj->converge_blocks, converge_block);
+   }
+
    jay_block *else_first = jay_create_block(nj);
+
+   /* Break and halt instructions in the then block may reconverge at the
+    * else block for a non-uniform IF.
+    */
+   nj->converge_block = !uniform ? else_first : NULL;
 
    jay_block *then_first = jay_emit_cf_list(nj, &nif->then_list);
    jay_block *then_last = nj->current_block;
 
    nj->after_block = else_first;
 
+   /* Break and halt instructions in the else block may reconverge at the
+    * after block for a non-uniform IF, unless the then block always ends
+    * with break or halt.
+    */
+   if (!uniform &&
+       jay_num_predecessors(then_last, GPR) > 0 &&
+       !jay_block_ending_jump(then_last)) {
+      nj->converge_block = after_block;
+   } else {
+      nj->converge_block = NULL;
+   }
+
    jay_block *else_first_2 = jay_emit_cf_list(nj, &nif->else_list);
    jay_block *else_last = nj->current_block;
    assert(else_first == else_first_2);
-
-   /* Pop */
-   --nj->indent;
-
-   bool uniform = jay_is_uniform(condition);
 
    /* Logical CFG edges */
    jay_block_add_successor(before_block, then_first, GPR);
    jay_block_add_successor(before_block, else_first, GPR);
 
-   if (!jay_block_ending_jump(then_last))
-      jay_block_add_successor(then_last, after_block, GPR);
-
-   if (!jay_block_ending_jump(else_last))
-      jay_block_add_successor(else_last, after_block, GPR);
+   jay_block_reconverge(nj, then_last, after_block);
+   jay_block_reconverge(nj, else_last, after_block);
 
    if (!uniform) {
       /* For a non-uniform IF, we fall through both sides in the physical CFG */
       jay_block_add_successor(then_last, else_first, UGPR);
-
-      /* Even if the else block logically ends in an unconditional jump,
-       * physically we will still reconverge. Add the physical edge.
-       */
-      jay_block_add_successor(else_last, after_block, UGPR);
    }
 
+   /* Pop */
+   --nj->indent;
    nj->after_block = after_block;
+   nj->converge_block = converge_block;
+
+   if (converge_block) {
+      (void) util_dynarray_pop_ptr(&nj->converge_blocks, jay_block *);
+   }
 
    /* Emit the if-else-endif sequence */
    b->cursor = jay_after_block(before_block);
@@ -3630,10 +3690,23 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
 
    jay_builder *b = &nj->bld;
    jay_block *saved_break = nj->break_block;
+   jay_block *converge_block = nj->converge_block;
+   unsigned saved_loop_converge = nj->loop_converge_block;
 
    /* Make the block that will be after the loop exit */
    nj->break_block = jay_create_block(nj);
    ++nj->indent;
+
+   if (converge_block) {
+      util_dynarray_append(&nj->converge_blocks, converge_block);
+   }
+
+   /* Halt instructions inside the loop node could reconverge at the break
+    * block if the loop node contains any divergent break instructions.
+    */
+   nj->converge_block = nir_loop_is_divergent(nloop) ? nj->break_block : NULL;
+   nj->loop_converge_block =
+      util_dynarray_num_elements(&nj->converge_blocks, jay_block *);
 
    /* Make a block for the loop body, which is also the loop header */
    jay_block *loop_header = jay_create_block(nj);
@@ -3647,21 +3720,32 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    jay_emit_cf_list(nj, &nloop->body);
 
    /* Emit the backedge */
+   jay_block_reconverge(nj, nj->current_block, loop_header);
+
    jay_inst *jump = jay_block_ending_jump(nj->current_block);
    if (jump && jump->op == JAY_OPCODE_BREAK) {
       jump->op = JAY_OPCODE_LOOP_ONCE;
    } else if (jump && jump->op == JAY_OPCODE_HALT) {
       jump->op = JAY_OPCODE_LOOP_ONCE_HALT;
    } else {
-      jay_block_add_successor(nj->current_block, loop_header, GPR);
+      assert(!jump);
       jay_WHILE(b);
-      loop_header->loop_header = true;
+
+      if (jay_cfg_has_edge(nj->current_block, loop_header, GPR)) {
+         loop_header->loop_header = true;
+      }
    }
 
    /* Pop */
    --nj->indent;
    nj->after_block = nj->break_block;
    nj->break_block = saved_break;
+   nj->loop_converge_block = saved_loop_converge;
+   nj->converge_block = converge_block;
+
+   if (converge_block) {
+      (void) util_dynarray_pop_ptr(&nj->converge_blocks, jay_block *);
+   }
 
    b->cursor = jay_after_block(nj->after_block);
 }
@@ -4468,20 +4552,19 @@ jay_remove_unreachable_blocks(jay_function *func)
                    jay_num_successors(pred, cfg) > 0) {
 
                   jay_foreach_successor(pred, succ, cfg) {
-                     util_dynarray_delete_unordered(jay_predecessors(succ, cfg),
+                     util_dynarray_delete_unordered(jay_predecessors(*succ, cfg),
                                                     jay_block *, pred);
 
                      /* If we are removing the backedge of a loop, the loop is
                       * no longer a loop. Update to avoid validation issues.
                       */
-                     if (succ->index <= pred->index) {
-                        assert(succ->physical_loop_header);
-                        succ->loop_header = false;
+                     if ((*succ)->index <= pred->index) {
+                        assert((*succ)->physical_loop_header);
+                        (*succ)->loop_header = false;
                      }
                   }
 
-                  jay_successors(pred, cfg)[0] = NULL;
-                  jay_successors(pred, cfg)[1] = NULL;
+                  util_dynarray_clear(jay_successors(pred, cfg));
                   progress = true;
                }
             }
@@ -4507,6 +4590,10 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       .bld = (jay_builder){ .shader = s, .func = f },
    };
 
+   nir_block *conv_blocks_storage[32];
+   util_dynarray_init_from_stack(&nj.converge_blocks, conv_blocks_storage,
+                                 sizeof(conv_blocks_storage));
+
    /* Jay indices match NIR indices. Therefore the first impl->ssa_alloc
     * indices are reserved. Our own temporaries go after.
     */
@@ -4525,6 +4612,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
    jay_emit_task_mesh_fence_workaround(&nj);
    jay_emit_eot(&nj);
    free(nj.zero_inactive);
+   util_dynarray_fini(&nj.converge_blocks);
 }
 
 static void

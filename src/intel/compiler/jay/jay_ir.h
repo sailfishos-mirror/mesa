@@ -1196,6 +1196,21 @@ struct jay_temp_regs {
    jay_reg gpr, gpr2, ugpr;
 };
 
+/** Optimized dynamic array for storing predecessors/successors */
+struct jay_cfg_edge {
+   struct util_dynarray arr;
+   void *_storage[2];
+};
+
+/** Indices of jay_block::cfg_edges */
+enum jay_cfg_edge_type {
+   JAY_LOGICAL_PREDS  = 0x00,
+   JAY_PHYSICAL_PREDS = JAY_LOGICAL_PREDS | JAY_UNIFORM,
+   JAY_LOGICAL_SUCCS  = 0x02,
+   JAY_PHYSICAL_SUCCS = JAY_LOGICAL_SUCCS | JAY_UNIFORM,
+   JAY_CFG_EDGE_MAX,
+};
+
 /**
  * A basic block representation
  */
@@ -1204,8 +1219,7 @@ typedef struct jay_block {
    struct list_head instructions;
 
    /** Control flow graph */
-   struct jay_block *logical_succs[2], *physical_succs[2];
-   struct util_dynarray logical_preds, physical_preds;
+   struct jay_cfg_edge cfg_edges[JAY_CFG_EDGE_MAX];
 
    /** Index of the block in source order */
    unsigned index;
@@ -1253,13 +1267,27 @@ typedef struct jay_block {
    unsigned demand_out[JAY_NUM_SSA_FILES];
 } jay_block;
 
+static void
+_jay_block_destructor(void *_block)
+{
+   jay_block *block = (jay_block *) _block;
+   for (unsigned i = 0; i < JAY_CFG_EDGE_MAX; ++i) {
+      util_dynarray_fini(&block->cfg_edges[i].arr);
+   }
+}
+
 static inline jay_block *
 jay_new_block(jay_function *f)
 {
    jay_block *block = rzalloc(f, jay_block);
+   ralloc_set_destructor(block, &_jay_block_destructor);
 
-   util_dynarray_init(&block->logical_preds, block);
-   util_dynarray_init(&block->physical_preds, block);
+   for (unsigned i = 0; i < JAY_CFG_EDGE_MAX; ++i) {
+      util_dynarray_init_from_stack(&block->cfg_edges[i].arr,
+                                    block->cfg_edges[i]._storage,
+                                    sizeof(block->cfg_edges[i]._storage));
+   }
+
    list_inithead(&block->instructions);
 
    block->index = f->num_blocks++;
@@ -1287,13 +1315,13 @@ jay_block_ending_jump(jay_block *block)
 static inline struct util_dynarray *
 jay_predecessors(jay_block *blk, enum jay_file file)
 {
-   return file & JAY_UNIFORM ? &blk->physical_preds : &blk->logical_preds;
+   return &blk->cfg_edges[JAY_LOGICAL_PREDS | (file & JAY_UNIFORM)].arr;
 }
 
-static inline jay_block **
+static inline struct util_dynarray *
 jay_successors(jay_block *blk, enum jay_file file)
 {
-   return file & JAY_UNIFORM ? blk->physical_succs : blk->logical_succs;
+   return &blk->cfg_edges[JAY_LOGICAL_SUCCS | (file & JAY_UNIFORM)].arr;
 }
 
 static inline unsigned
@@ -1303,12 +1331,9 @@ jay_num_predecessors(jay_block *blk, enum jay_file file)
 }
 
 static inline unsigned
-jay_num_successors(jay_block *block, enum jay_file file)
+jay_num_successors(jay_block *blk, enum jay_file file)
 {
-   static_assert(ARRAY_SIZE(block->logical_succs) == 2);
-   static_assert(ARRAY_SIZE(block->physical_succs) == 2);
-
-   return !!jay_successors(block, file)[0] + !!jay_successors(block, file)[1];
+   return util_dynarray_num_elements(jay_successors(blk, file), jay_block *);
 }
 
 static inline jay_block *
@@ -1395,20 +1420,8 @@ jay_first_predecessor(jay_block *block, enum jay_file file)
    jay_foreach_function(s, func)                                               \
       jay_foreach_inst_in_func_safe(func, v_block, inst)
 
-/*
- * Get the next successor, using the fact that there are at most 2 successors
- * and NULL successors cannot precede non-NULL successors.
- */
-static inline jay_block *
-jay_next_successor(jay_block *parent, enum jay_file file, jay_block *it)
-{
-   jay_block **succs = jay_successors(parent, file);
-   return succs[0] == it ? succs[1] : NULL;
-}
-
 #define jay_foreach_successor(blk, v, file)                                    \
-   for (jay_block *v = jay_successors(blk, file)[0]; v != NULL;                \
-        v = jay_next_successor(blk, file, v))
+   util_dynarray_foreach(jay_successors(blk, file), jay_block *, v)
 
 #define jay_foreach_predecessor(blk, v, file)                                  \
    util_dynarray_foreach(jay_predecessors(blk, file), jay_block *, v)
@@ -1493,6 +1506,16 @@ jay_first_inst(jay_block *block)
 }
 
 static inline jay_block *
+jay_first_successor(jay_block *block, enum jay_file file)
+{
+   if (!jay_num_successors(block, file))
+      return NULL;
+   else
+      return *util_dynarray_element(jay_successors(block, file),
+                                    jay_block *, 0);
+}
+
+static inline jay_block *
 jay_last_block(jay_function *f)
 {
    if (list_is_empty(&f->blocks))
@@ -1525,32 +1548,36 @@ jay_next_block(jay_block *block)
    return list_first_entry(&(block->link), jay_block, link);
 }
 
+static inline bool
+jay_cfg_has_edge(jay_block *pred, jay_block *succ, enum jay_file file)
+{
+   jay_foreach_successor(pred, existing_succ, file) {
+      if (succ == *existing_succ) {
+         return true;
+      }
+   }
+
+   return false;
+}
+
 static inline void
 jay_block_add_successor(jay_block *block, jay_block *succ, enum jay_file file)
 {
    /* Prune duplicate successors so the caller doesn't need to worry */
-   jay_block **succs = jay_successors(block, file);
-   if (succs[0] == succ || succs[1] == succ) {
+   if (jay_cfg_has_edge(block, succ, file)) {
       return;
    }
 
-   unsigned i = succs[0] ? 1 : 0;
-   assert(succ && succs[i] == NULL && "at most 2 successors");
+   assert(((file & JAY_UNIFORM) || jay_num_successors(block, file) < 2) &&
+          "at most 2 logical successors");
 
-   succs[i] = succ;
+   util_dynarray_append(jay_successors(block, file), succ);
    util_dynarray_append(jay_predecessors(succ, file), block);
 
    /* All logical CFG edges are also physical CFG edges */
    if (file == GPR) {
       jay_block_add_successor(block, succ, UGPR);
    }
-}
-
-static inline bool
-jay_cfg_has_edge(jay_block *pred, jay_block *succ, enum jay_file file)
-{
-   return jay_successors(pred, file)[0] == succ ||
-          jay_successors(pred, file)[1] == succ;
 }
 
 static inline unsigned
