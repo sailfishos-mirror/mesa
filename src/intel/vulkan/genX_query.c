@@ -2003,7 +2003,6 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
       .device               = cmd_buffer->device,
       .cmd_buffer           = cmd_buffer,
       .dynamic_state_stream = &cmd_buffer->dynamic_state_stream,
-      .general_state_stream = &cmd_buffer->general_state_stream,
       .batch                = &cmd_buffer->batch,
       .kernel               = copy_kernel,
    };

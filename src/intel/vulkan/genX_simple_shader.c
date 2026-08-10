@@ -436,9 +436,7 @@ genX(simple_shader_alloc_push)(struct anv_simple_shader *state, uint32_t size)
       s = anv_state_stream_alloc(state->dynamic_state_stream,
                                  size, ANV_UBO_ALIGNMENT);
    } else {
-      s = anv_state_stream_alloc(GFX_VERx10 >= 125 ?
-                                 state->general_state_stream :
-                                 state->dynamic_state_stream,
+      s = anv_state_stream_alloc(state->dynamic_state_stream,
                                  align(size, 64), 64);
    }
 
@@ -455,18 +453,8 @@ struct anv_address
 genX(simple_shader_push_state_address)(struct anv_simple_shader *state,
                                        struct anv_state push_state)
 {
-   if (state->kernel->stage == MESA_SHADER_FRAGMENT) {
-      return anv_state_pool_state_address(
-         anv_device_get_dynamic_state_pool(state->device), push_state);
-   } else {
-#if GFX_VERx10 >= 125
-      return anv_state_pool_state_address(
-         anv_device_get_general_state_pool(state->device), push_state);
-#else
-      return anv_state_pool_state_address(
-         anv_device_get_dynamic_state_pool(state->device), push_state);
-#endif
-   }
+   return anv_state_pool_state_address(
+      anv_device_get_dynamic_state_pool(state->device), push_state);
 }
 
 /** Emit a simple shader dispatch */
@@ -579,6 +567,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
          brw_cs_get_dispatch_info(devinfo, prog_data, NULL);
 
 #if GFX_VERx10 >= 125
+      const uint64_t push_addr64 = anv_address_physical(push_addr);
       const bool has_vrt = devinfo->verx10 >= 300 && !INTEL_DEBUG(DEBUG_NO_VRT);
       if (!has_vrt) {
          uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
@@ -615,8 +604,6 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
       struct GENX(COMPUTE_WALKER_BODY) body = {
          .SIMDSize                       = dispatch.simd_size / 16,
          .MessageSIMD                    = dispatch.simd_size / 16,
-         .IndirectDataStartAddress       = push_state.offset,
-         .IndirectDataLength             = push_state.alloc_size,
          .LocalXMaximum                  = prog_data->local_size[0] - 1,
          .LocalYMaximum                  = prog_data->local_size[1] - 1,
          .LocalZMaximum                  = prog_data->local_size[2] - 1,
@@ -648,6 +635,11 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
             .RegistersPerThread =
                intel_register_blocks(devinfo, prog_data->base.grf_used),
 #endif
+         },
+         .EmitInlineParameter            = true,
+         .InlineData                     = {
+            [0] = push_addr64 & 0xffffffff,
+            [1] = push_addr64 >> 32,
          },
       };
 
