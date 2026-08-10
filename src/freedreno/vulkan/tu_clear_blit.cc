@@ -3875,6 +3875,9 @@ clear_image_cp_blit(struct tu_cmd_buffer *cmd,
    } else {
       format = tu_aspects_to_plane(image->vk.format, aspect_mask);
    }
+   if (format == PIPE_FORMAT_R64_SINT || format == PIPE_FORMAT_R64_UINT) {
+      format = PIPE_FORMAT_R32G32_UINT;
+   }
 
    if (image->layout[0].depth0 > 1) {
       assert(layer_count == 1);
