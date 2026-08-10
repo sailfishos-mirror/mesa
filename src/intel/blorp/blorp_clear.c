@@ -70,7 +70,8 @@ blorp_params_get_clear_kernel_fs(struct blorp_batch *batch,
    struct blorp_context *blorp = batch->blorp;
 
    struct blorp_const_color_prog_key blorp_key;
-   BLORP_KEY_INIT(blorp_key, BLORP_SHADER_TYPE_CLEAR,
+   BLORP_KEY_INIT(blorp_key, blorp,
+                  BLORP_SHADER_TYPE_CLEAR,
                   BLORP_SHADER_PIPELINE_RENDER);
    blorp_key.is_fast_clear = is_fast_clear;
    blorp_key.use_simd16_replicated_data = use_replicated_data;
@@ -134,7 +135,8 @@ blorp_params_get_clear_kernel_cs(struct blorp_batch *batch,
    struct blorp_context *blorp = batch->blorp;
 
    struct blorp_const_color_prog_key blorp_key;
-   BLORP_KEY_INIT(blorp_key, BLORP_SHADER_TYPE_CLEAR,
+   BLORP_KEY_INIT(blorp_key, blorp,
+                  BLORP_SHADER_TYPE_CLEAR,
                   BLORP_SHADER_PIPELINE_COMPUTE);
    blorp_key.use_simd16_replicated_data = false;
    blorp_key.clear_rgb_as_red = clear_rgb_as_red;
@@ -189,16 +191,35 @@ blorp_params_get_clear_kernel_cs(struct blorp_batch *batch,
                          nir_imm_int(&b, 0));
    }
 
-   nir_image_store(&b, nir_imm_int(&b, 0),
-                   nir_pad_vector_imm_int(&b, dst_pos, 0, 4),
-                   sample_idx,
-                   nir_pad_vector_imm_int(&b, color, 0, 4),
-                   nir_imm_int(&b, 0),
-                   .image_dim = params->num_samples > 1 ?
-                                GLSL_SAMPLER_DIM_MS :
-                                GLSL_SAMPLER_DIM_2D,
-                   .image_array = true,
-                   .access = ACCESS_NON_READABLE);
+   if (blorp->config.use_efficient_64bit) {
+      nir_bindless_image_store(&b,
+                               b.shader->info.stage == MESA_SHADER_FRAGMENT ?
+                               nir_load_push_data_intel(
+                                  &b, 2, 32, nir_imm_int(&b, 0), .base = 0, .range = 8) :
+                               nir_load_inline_data_intel(
+                                  &b, 2, 32, nir_imm_int(&b, 0),
+                                  .base = BLORP_INLINE_PARAM_SURFACES_LDW, .range = 8),
+                               nir_pad_vector_imm_int(&b, dst_pos, 0, 4),
+                               sample_idx,
+                               nir_pad_vector_imm_int(&b, color, 0, 4),
+                               nir_imm_int(&b, 0),
+                               .image_dim = params->num_samples > 1 ?
+                                            GLSL_SAMPLER_DIM_MS :
+                                            GLSL_SAMPLER_DIM_2D,
+                               .image_array = true,
+                               .access = ACCESS_NON_READABLE);
+   } else {
+      nir_image_store(&b, nir_imm_int(&b, 0),
+                      nir_pad_vector_imm_int(&b, dst_pos, 0, 4),
+                      sample_idx,
+                      nir_pad_vector_imm_int(&b, color, 0, 4),
+                      nir_imm_int(&b, 0),
+                      .image_dim = params->num_samples > 1 ?
+                                   GLSL_SAMPLER_DIM_MS :
+                                   GLSL_SAMPLER_DIM_2D,
+                      .image_array = true,
+                      .access = ACCESS_NON_READABLE);
+   }
 
    nir_pop_if(&b, NULL);
 
@@ -1515,7 +1536,8 @@ blorp_params_get_mcs_partial_resolve_kernel(struct blorp_batch *batch,
    struct blorp_context *blorp = batch->blorp;
 
    struct blorp_mcs_partial_resolve_key blorp_key;
-   BLORP_KEY_INIT(blorp_key, BLORP_SHADER_TYPE_MCS_PARTIAL_RESOLVE,
+   BLORP_KEY_INIT(blorp_key, blorp,
+                  BLORP_SHADER_TYPE_MCS_PARTIAL_RESOLVE,
                   BLORP_SHADER_PIPELINE_RENDER);
    blorp_key.indirect_clear_color = params->dst.clear_color_addr.buffer != NULL;
    blorp_key.int_format = isl_format_has_int_channel(params->dst.view.format);

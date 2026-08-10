@@ -71,6 +71,7 @@ struct blorp_config {
    bool use_mesh_shading;
    bool use_unrestricted_depth_range;
    bool use_cached_dynamic_states;
+   bool use_efficient_64bit;
 };
 
 enum blorp_dynamic_state {

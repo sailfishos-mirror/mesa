@@ -284,6 +284,7 @@ blorp_params_init(struct blorp_params *params,
    params->num_samples = 1;
    params->num_draw_buffers = 1;
    params->num_layers = 1;
+   params->use_efficient_64bit = blorp->config.use_efficient_64bit;
 }
 
 void

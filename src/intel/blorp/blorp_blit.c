@@ -173,6 +173,9 @@ struct blorp_builder {
    const struct blorp_context *blorp;
    const struct blorp_blit_prog_key *key;
 
+   nir_def *surface_states;
+   nir_def *sampler_state;
+
    /* Input values from blorp_wm_inputs */
    nir_variable *v_bounds_rect;
    nir_variable *v_rect_grid;
@@ -193,6 +196,24 @@ blorp_builder_init(struct blorp_builder *bb,
 {
    bb->key = key;
    bb->blorp = blorp;
+
+   if (blorp->config.use_efficient_64bit) {
+      if (b->shader->info.stage == MESA_SHADER_FRAGMENT) {
+         bb->surface_states =
+            nir_load_push_data_intel(b, 2, 32, nir_imm_int(b, 0),
+                                     .base = 0, .range = 8);
+         bb->sampler_state =
+            nir_load_push_data_intel(b, 2, 32, nir_imm_int(b, 0),
+                                     .base = 8, .range = 8);
+      } else {
+         bb->surface_states =
+            nir_load_inline_data_intel(b, 2, 32, nir_imm_int(b, 0),
+                                       .base = BLORP_INLINE_PARAM_SURFACES_LDW, .range = 8);
+         bb->sampler_state =
+            nir_load_inline_data_intel(b, 2, 32, nir_imm_int(b, 0),
+                                       .base = BLORP_INLINE_PARAM_SAMPLER_LDW, .range = 8);
+      }
+   }
 
 #define LOAD_INPUT(name, type)\
    bb->v_##name = BLORP_CREATE_NIR_INPUT(b->shader, blit.name, type);
@@ -301,12 +322,27 @@ blorp_create_nir_tex_instr(nir_builder *b, struct blorp_builder *bb,
    unsigned src_idx = 0;
    if (src.src.ssa != NULL)
       tex->src[src_idx++] = src;
-   tex->src[src_idx++] = nir_tex_src_for_ssa(
-      nir_tex_src_texture_offset,
-      nir_imm_int(b, binding));
-   tex->src[src_idx++] = nir_tex_src_for_ssa(
-      nir_tex_src_sampler_offset,
-      nir_imm_int(b, BLORP_SAMPLER_INDEX));
+   if (bb->key->base.efficient_64bit) {
+      tex->src[src_idx++] = nir_tex_src_for_ssa(
+         nir_tex_src_texture_handle,
+         nir_vec2(b,
+                  nir_iadd_imm(b,
+                               nir_channel(b, bb->surface_states, 0),
+                               align(bb->blorp->isl_dev->ss.size,
+                                     bb->blorp->isl_dev->ss.align) *
+                               binding),
+                  nir_channel(b, bb->surface_states, 1)));
+      tex->src[src_idx++] = nir_tex_src_for_ssa(
+         nir_tex_src_sampler_handle,
+         bb->sampler_state);
+   } else {
+      tex->src[src_idx++] = nir_tex_src_for_ssa(
+         nir_tex_src_texture_offset,
+         nir_imm_int(b, binding));
+      tex->src[src_idx++] = nir_tex_src_for_ssa(
+         nir_tex_src_sampler_offset,
+         nir_imm_int(b, BLORP_SAMPLER_INDEX));
+   }
 
    /* To properly handle 3-D and 2-D array textures, we pull the Z component
     * from an input.  TODO: This is a bit magic; we should probably make this
@@ -1680,16 +1716,29 @@ blorp_build_nir_shader(struct blorp_context *blorp,
 
          store_pos = nir_vector_insert_imm(&b, store_pos, z_pos, 2);
       }
-      nir_image_store(&b, nir_imm_int(&b, 0),
-                      nir_pad_vector_imm_int(&b, store_pos, 0, 4),
-                      sample_idx,
-                      nir_pad_vector_imm_int(&b, color, 0, 4),
-                      nir_imm_int(&b, 0),
-                      .image_dim = key->dst_samples > 1 ?
-                                   GLSL_SAMPLER_DIM_MS:
-                                   GLSL_SAMPLER_DIM_2D,
-                      .image_array = true,
-                      .access = ACCESS_NON_READABLE);
+      if (key->base.efficient_64bit) {
+         nir_bindless_image_store(&b, bb.surface_states,
+                                  nir_pad_vector_imm_int(&b, store_pos, 0, 4),
+                                  sample_idx,
+                                  nir_pad_vector_imm_int(&b, color, 0, 4),
+                                  nir_imm_int(&b, 0),
+                                  .image_dim = key->dst_samples > 1 ?
+                                               GLSL_SAMPLER_DIM_MS:
+                                  GLSL_SAMPLER_DIM_2D,
+                                  .image_array = true,
+                                  .access = ACCESS_NON_READABLE);
+      } else {
+         nir_image_store(&b, nir_imm_int(&b, 0),
+                         nir_pad_vector_imm_int(&b, store_pos, 0, 4),
+                         sample_idx,
+                         nir_pad_vector_imm_int(&b, color, 0, 4),
+                         nir_imm_int(&b, 0),
+                         .image_dim = key->dst_samples > 1 ?
+                                      GLSL_SAMPLER_DIM_MS:
+                                      GLSL_SAMPLER_DIM_2D,
+                         .image_array = true,
+                         .access = ACCESS_NON_READABLE);
+      }
    } else if (key->dst_usage == ISL_SURF_USAGE_RENDER_TARGET_BIT) {
       nir_variable *color_out =
          nir_variable_create(b.shader, nir_var_shader_out,
@@ -2974,7 +3023,7 @@ blorp_blit(struct blorp_batch *batch,
       isl_format_get_layout(params.src.view.format);
 
    struct blorp_blit_prog_key key;
-   BLORP_KEY_INIT(key, BLORP_SHADER_TYPE_BLIT,
+   BLORP_KEY_INIT(key, batch->blorp, BLORP_SHADER_TYPE_BLIT,
                   (compute ? BLORP_SHADER_PIPELINE_COMPUTE :
                              BLORP_SHADER_PIPELINE_RENDER));
    key.filter = filter;
@@ -3527,7 +3576,7 @@ blorp_copy(struct blorp_batch *batch,
                            dst_layer, ISL_FORMAT_UNSUPPORTED, true);
 
    struct blorp_blit_prog_key key;
-   BLORP_KEY_INIT(key, BLORP_SHADER_TYPE_COPY,
+   BLORP_KEY_INIT(key, batch->blorp, BLORP_SHADER_TYPE_COPY,
                   (compute ? BLORP_SHADER_PIPELINE_COMPUTE :
                              BLORP_SHADER_PIPELINE_RENDER));
    key.filter = BLORP_FILTER_NONE;
