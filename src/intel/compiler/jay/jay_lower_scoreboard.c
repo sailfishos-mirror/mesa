@@ -517,10 +517,8 @@ struct swsb_regdist_state {
    unsigned ip[GEN_NUM_PIPES];
    unsigned last_shape[GEN_NUM_PIPES];
 
-   /* finished_ip[X / GEN_NUM_PIPES + SBID][Y] = ip means from the perspective
-    * of pipe X or send SBID X, ip on pipe Y has already been waited on.
-    */
-   unsigned finished_ip[GEN_NUM_PIPES + NUM_TOKENS][GEN_NUM_PIPES];
+   /* finished_ip[X] = ip means ip on pipe X has already been waited on. */
+   unsigned finished_ip[GEN_NUM_PIPES];
    u32_per_pipe *access;
 
    jay_inst *last_sync;
@@ -580,36 +578,6 @@ depend_on_writer(struct swsb_regdist_state *state,
 static void
 lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
 {
-   if (I->op == JAY_OPCODE_SYNC) {
-      ctx->last_sync = I;
-      uint32_t sbid_mask = 0;
-      if (jay_sync_op(I) == TGL_SYNC_NOP) {
-         /* The SYNC.nops added by this function that are RegDist-only, are
-          * added *before* the instruction so are not seen here.
-          */
-         assert(I->dep.mode != GEN_SBID_NULL);
-         sbid_mask = BITFIELD_BIT(I->dep.sbid);
-      } else if (jay_sync_op(I) == TGL_SYNC_ALLRD ||
-                 jay_sync_op(I) == TGL_SYNC_ALLWR) {
-         sbid_mask = jay_as_uint(I->src[0]);
-      }
-
-      /* Syncs execute on all pipes, so any regdist that the synced SEND waited
-       * on gets cleared for all pipes. This reduces annotations.
-       */
-      u_foreach_bit(sbid, sbid_mask) {
-         jay_foreach_pipe(p) {
-            jay_foreach_pipe(q) {
-               ctx->finished_ip[p][q] =
-                  MAX2(ctx->finished_ip[p][q],
-                       ctx->finished_ip[GEN_NUM_PIPES + sbid][q]);
-            }
-         }
-      }
-
-      return;
-   }
-
    gen_pipe exec_pipe = jay_inst_exec_pipe(func->shader->devinfo, I);
    unsigned dep[GEN_NUM_PIPES] = { 0 };
    jay_def dsts[3] = { I->dst, I->cond_flag };
@@ -648,42 +616,19 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
                        exec_pipe, except_pipe);
    }
 
-   /* If dependency P implies dependency Q, drop dependency Q to avoid
-    * unnecessary annotations.
-    */
-   jay_foreach_pipe(p) {
-      if (dep[p]) {
-         jay_foreach_pipe(q) {
-            if (p != q && dep[q] && ctx->finished_ip[p][q] >= dep[q]) {
-               dep[q] = 0;
-            }
-         }
-      }
-   }
-
    uint32_t wait_pipes = 0;
    unsigned min_delta = 7;
 
    jay_foreach_pipe(p) {
-      if (dep[p] && (exec_pipe == GEN_PIPE_NONE ||
-                     dep[p] > ctx->finished_ip[exec_pipe][p])) {
-
+      if (dep[p] && dep[p] > ctx->finished_ip[p]) {
          min_delta = MIN2(min_delta, ctx->ip[p] - dep[p] + 1);
          wait_pipes |= BITFIELD_BIT(p);
       }
    }
 
-   /* Unordered instructions are modelled as a pipe per SBID for
-    * finished_ip purposes.
-    */
-   unsigned generalized_pipe = exec_pipe;
-   if (jay_inst_is_unordered(I)) {
-      generalized_pipe = GEN_NUM_PIPES + jay_inst_sbid(I);
-   }
-
    /* We'll wait on the unioned dependency. Update the tracking for that. */
    u_foreach_bit(p, wait_pipes) {
-      ctx->finished_ip[generalized_pipe][p] = ctx->ip[p] + 1 - min_delta;
+      ctx->finished_ip[p] = ctx->ip[p] + 1 - min_delta;
    }
 
    uint32_t last_pipe = util_logbase2(wait_pipes);
@@ -896,7 +841,17 @@ jay_lower_scoreboard(jay_shader *shader)
          }
 
          jay_foreach_inst_in_block_safe(block, I) {
-            lower_regdist(f, I, &regdist_state);
+            if (I->op == JAY_OPCODE_SYNC) {
+               regdist_state.last_sync = I;
+
+               /* RegDist-only syncs are added only by lower_regdist, before
+                * the instruction, so are not seen here.
+                */
+               assert(jay_sync_op(I) != TGL_SYNC_NOP ||
+                      I->dep.mode != GEN_SBID_NULL);
+            } else {
+               lower_regdist(f, I, &regdist_state);
+            }
          }
       }
    }
