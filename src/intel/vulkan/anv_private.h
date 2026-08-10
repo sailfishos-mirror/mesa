@@ -1359,6 +1359,9 @@ struct anv_shader {
          struct {
             uint32_t                 compute_walker_body[39];
          } gfx125;
+         struct {
+            uint32_t                 compute_walker_body_2[63];
+         } gfx350;
       } cs;
    };
 
@@ -2173,9 +2176,9 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_PS */
    struct {
-      uint32_t KernelStartPointer0;
-      uint32_t KernelStartPointer1;
-      uint32_t KernelStartPointer2;
+      uint64_t KernelStartPointer0;
+      uint64_t KernelStartPointer1;
+      uint64_t KernelStartPointer2;
 
       uint32_t DispatchGRFStartRegisterForConstantSetupData0;
       uint32_t DispatchGRFStartRegisterForConstantSetupData1;
@@ -2195,6 +2198,9 @@ struct anv_gfx_dynamic_state {
       uint8_t  Kernel1SIMDWidth;
       uint8_t  Kernel0PolyPackingPolicy;
       uint8_t  Kernel0MaximumPolysperThread;
+
+      /* Gfx35+ only */
+      uint16_t RegistersperThreadforKSP1;
    } ps;
 
    /* 3DSTATE_PS_EXTRA */
@@ -2501,9 +2507,9 @@ struct anv_gfx_dynamic_state {
       uint32_t so_decl_list_len;
       uint32_t clip[4];
       uint32_t clip_mesh[2];
-      uint32_t sf_clip[2];
-      uint32_t cc_viewport[2];
-      uint32_t scissor[2];
+      uint32_t sf_clip[3];
+      uint32_t cc_viewport[3];
+      uint32_t scissor[3];
       uint32_t mesh_control[3];
       uint32_t task_control[3];
       uint32_t mesh_shader[8];
@@ -2533,8 +2539,8 @@ struct anv_gfx_dynamic_state {
       uint32_t ps_extra[2];
       uint32_t ps_extra_dep[2];
       uint32_t ps_blend[2];
-      uint32_t blend_state[2];
-      uint32_t cc_state[2];
+      uint32_t blend_state[3];
+      uint32_t cc_state[3];
       uint32_t tbimr[4];
    } packed;
 
@@ -5210,6 +5216,24 @@ anv_cmd_buffer_ensure_bind_point_state(struct anv_cmd_buffer *cmd_buffer,
    return anv_cmd_buffer_alloc_bind_point_state(cmd_buffer, out_state);
 }
 
+static inline void
+anv_cmd_buffer_ensure_valid_binding_mode(struct anv_cmd_buffer *cmd_buffer)
+{
+   if (cmd_buffer->state.pending_binding_mode != ANV_SHADER_BINDING_MODE_UNKNOWN)
+      return;
+
+   /* If no API entry point selected the current mode (this can happen if the
+    * first operation in the command buffer is a transfer operation, select
+    * BUFFER if EXT_descriptor_buffer is enabled, otherwise LEGACY.
+    */
+   cmd_buffer->state.pending_binding_mode =
+      cmd_buffer->device->vk.enabled_extensions.EXT_descriptor_heap ?
+      ANV_SHADER_BINDING_MODE_HEAP :
+      cmd_buffer->device->vk.enabled_extensions.EXT_descriptor_buffer ?
+      ANV_SHADER_BINDING_MODE_BUFFER :
+      ANV_SHADER_BINDING_MODE_LEGACY;
+}
+
 static inline struct anv_bind_point_state *
 anv_cmd_buffer_get_bind_point_state(struct anv_cmd_buffer *cmd_buffer,
                                     VkPipelineBindPoint bind_point)
@@ -5537,6 +5561,24 @@ static inline void
 anv_shader_internal_unref(struct anv_device *device, struct anv_shader_internal *shader)
 {
    vk_pipeline_cache_object_unref(&device->vk, &shader->base);
+}
+
+static inline uint64_t
+anv_shader_get_pointer(const struct anv_device *device,
+                       const struct anv_shader *shader)
+{
+   return device->physical->uses_efficient_64bit ?
+      (device->physical->va.shader_heap.addr + shader->kernel.offset) :
+      shader->kernel.offset;
+}
+
+static inline uint64_t
+anv_shader_internal_get_pointer(const struct anv_device *device,
+                                const struct anv_shader_internal *shader)
+{
+   return device->physical->uses_efficient_64bit ?
+      (device->physical->va.shader_heap.addr + shader->kernel.offset) :
+      shader->kernel.offset;
 }
 
 struct anv_pipeline_executable {

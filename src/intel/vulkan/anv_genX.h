@@ -384,11 +384,6 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
 })
 #endif
 
-#define anv_shader_get_pointer(device, shader) \
-   ((GFX_VERx10 >= 350 && (device)->physical->uses_efficient_64bit) ? \
-    ((device)->physical->va.shader_heap.addr + (shader)->kernel.offset) : \
-    (shader)->kernel.offset)
-
 void
 genX(batch_set_preemption)(struct anv_batch *batch,
                            struct anv_device *device,
@@ -635,3 +630,5 @@ genX(anv_get_btd_dispatch_timeout_counter)(uint32_t dispatch_timeout_counter)
 
    return clamped_timeout_counter;
 }
+
+uint32_t genX(compute_walker2_get_stack_id_control_value)(const struct anv_device *device);

@@ -43,7 +43,7 @@ lookup_blorp_shader(struct blorp_batch *batch,
     */
    anv_shader_internal_unref(device, bin);
 
-   *kernel_out = bin->kernel.offset;
+   *kernel_out = anv_shader_internal_get_pointer(device, bin);
    *(const struct brw_stage_prog_data **)prog_data_out = bin->prog_data;
 
    return true;
@@ -85,7 +85,7 @@ upload_blorp_shader(struct blorp_batch *batch, uint32_t stage,
     */
    anv_shader_internal_unref(device, bin);
 
-   *kernel_out = bin->kernel.offset;
+   *kernel_out = anv_shader_internal_get_pointer(device, bin);
    *(const struct brw_stage_prog_data **)prog_data_out = bin->prog_data;
 
    return true;

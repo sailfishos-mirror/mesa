@@ -3019,8 +3019,17 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
          GENX(SF_CLIP_VIEWPORT_pack)(NULL, sf_clip_state.map + i * 64, &sfv);
       }
 
-      anv_gfx_pack(sf_clip, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), clip) {
-         clip.SFClipViewportPointer = sf_clip_state.offset;
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_gfx_pack(sf_clip, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP_2), clip) {
+            clip.SFClipViewportPointer = anv_cmd_buffer_dynamic_state_address(
+               cmd_buffer, sf_clip_state);
+         }
+#endif
+      } else  {
+         anv_gfx_pack(sf_clip, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), clip) {
+            clip.SFClipViewportPointer = sf_clip_state.offset;
+         }
       }
    }
 
@@ -3038,9 +3047,19 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
                                 &cc_viewport);
       }
 
-      anv_gfx_pack(cc_viewport,
-                   GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
-         cc.CCViewportPointer = hw_state->vp_cc.state.offset;
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_gfx_pack(cc_viewport,
+                      GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2), cc) {
+            cc.CCViewportPointer = anv_cmd_buffer_dynamic_state_address(
+               cmd_buffer, hw_state->vp_cc.state);
+         }
+#endif
+      } else {
+         anv_gfx_pack(cc_viewport,
+                      GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
+            cc.CCViewportPointer = hw_state->vp_cc.state.offset;
+         }
       }
    }
 
@@ -3066,8 +3085,17 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
          GENX(SCISSOR_RECT_pack)(NULL, scissor_state.map + i * 8, &scissor);
       }
 
-      anv_gfx_pack(scissor, GENX(3DSTATE_SCISSOR_STATE_POINTERS), ssp) {
-         ssp.ScissorRectPointer = scissor_state.offset;
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_gfx_pack(scissor, GENX(3DSTATE_SCISSOR_STATE_POINTERS_2), ssp) {
+            ssp.ScissorRectPointer = anv_cmd_buffer_dynamic_state_address(
+               cmd_buffer, scissor_state);
+         }
+#endif
+      } else {
+         anv_gfx_pack(scissor, GENX(3DSTATE_SCISSOR_STATE_POINTERS), ssp) {
+            ssp.ScissorRectPointer = scissor_state.offset;
+         }
       }
    }
 
@@ -3324,9 +3352,19 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
       };
       GENX(COLOR_CALC_STATE_pack)(NULL, hw_state->cc.state.map, &cc);
 
-      anv_gfx_pack(cc_state, GENX(3DSTATE_CC_STATE_POINTERS), ccp) {
-         ccp.ColorCalcStatePointer = hw_state->cc.state.offset;
-         ccp.ColorCalcStatePointerValid = true;
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_gfx_pack(cc_state, GENX(3DSTATE_CC_STATE_POINTERS_2), ccp) {
+            ccp.ColorCalcStatePointer = anv_cmd_buffer_dynamic_state_address(
+               cmd_buffer, hw_state->cc.state);
+            ccp.ColorCalcStatePointerValid = true;
+         }
+#endif
+      } else {
+         anv_gfx_pack(cc_state, GENX(3DSTATE_CC_STATE_POINTERS), ccp) {
+            ccp.ColorCalcStatePointer = hw_state->cc.state.offset;
+            ccp.ColorCalcStatePointerValid = true;
+         }
       }
    }
 
@@ -3377,9 +3415,19 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
          dws += GENX(BLEND_STATE_ENTRY_length);
       }
 
-      anv_gfx_pack(blend_state, GENX(3DSTATE_BLEND_STATE_POINTERS), bsp) {
-         bsp.BlendStatePointer      = hw_state->blend.state.offset;
-         bsp.BlendStatePointerValid = true;
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_gfx_pack(blend_state, GENX(3DSTATE_BLEND_STATE_POINTERS_2), bsp) {
+            bsp.BlendStatePointer      = anv_cmd_buffer_dynamic_state_address(
+               cmd_buffer, hw_state->blend.state);
+            bsp.BlendStatePointerValid = true;
+         }
+#endif
+      } else {
+         anv_gfx_pack(blend_state, GENX(3DSTATE_BLEND_STATE_POINTERS), bsp) {
+            bsp.BlendStatePointer      = hw_state->blend.state.offset;
+            bsp.BlendStatePointerValid = true;
+         }
       }
    }
 
@@ -3975,16 +4023,36 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       anv_batch_emit_gfx(batch, GENX(3DSTATE_STREAMOUT), so);
    }
 
-   if (IS_DIRTY(VIEWPORT_SF_CLIP))
-      anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), sf_clip);
+   if (IS_DIRTY(VIEWPORT_SF_CLIP)) {
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP_2), sf_clip);
+#endif
+      } else {
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), sf_clip);
+      }
+   }
 
    if (IS_DIRTY(VIEWPORT_CC)) {
-      anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc_viewport);
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2), cc_viewport);
+#endif
+      } else {
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc_viewport);
+      }
       cmd_buffer->state.gfx.viewport_set = true;
    }
 
-   if (IS_DIRTY(SCISSOR))
-      anv_batch_emit_gfx(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS), scissor);
+   if (IS_DIRTY(SCISSOR)) {
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS_2), scissor);
+#endif
+      } else {
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS), scissor);
+      }
+   }
 
    if (IS_DIRTY(VF_TOPOLOGY))
       anv_batch_emit_gfx(batch, GENX(3DSTATE_VF_TOPOLOGY), vft);
@@ -4040,8 +4108,15 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
    if (IS_DIRTY(MULTISAMPLE))
       anv_batch_emit_gfx(batch, GENX(3DSTATE_MULTISAMPLE), ms);
 
-   if (IS_DIRTY(CC_STATE))
-      anv_batch_emit_gfx(batch, GENX(3DSTATE_CC_STATE_POINTERS), cc_state);
+   if (IS_DIRTY(CC_STATE)) {
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_CC_STATE_POINTERS_2), cc_state);
+#endif
+      } else {
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_CC_STATE_POINTERS), cc_state);
+      }
+   }
 
    if (IS_DIRTY(SAMPLE_MASK))
       anv_batch_emit_gfx(batch, GENX(3DSTATE_SAMPLE_MASK), sm);
@@ -4097,8 +4172,15 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
    if (IS_DIRTY(PS_BLEND))
       anv_batch_emit_gfx(batch, GENX(3DSTATE_PS_BLEND), ps_blend);
 
-   if (IS_DIRTY(BLEND_STATE))
-      anv_batch_emit_gfx(batch, GENX(3DSTATE_BLEND_STATE_POINTERS), blend_state);
+   if (IS_DIRTY(BLEND_STATE)) {
+      if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_BLEND_STATE_POINTERS_2), blend_state);
+#endif
+      } else {
+         anv_batch_emit_gfx(batch, GENX(3DSTATE_BLEND_STATE_POINTERS), blend_state);
+      }
+   }
 
 #if INTEL_WA_18019816803_GFX_VER
    if (IS_DIRTY(WA_18019816803)) {

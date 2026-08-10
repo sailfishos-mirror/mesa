@@ -79,6 +79,7 @@ blorp_emit_reloc(struct blorp_batch *batch,
       .bo = address.buffer,
       .offset = address.offset,
    };
+   anv_batch_emit_ensure_space(&cmd_buffer->batch, 4);
    anv_reloc_list_add_bo(cmd_buffer->batch.relocs, anv_addr.bo);
    return anv_address_physical(anv_address_add(anv_addr, delta));
 }

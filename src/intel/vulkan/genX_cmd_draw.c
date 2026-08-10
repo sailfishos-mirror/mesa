@@ -713,6 +713,8 @@ cmd_buffer_maybe_flush_rt_writes(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
+   need_rt_flush &= GFX_VERx10 < 350 || !cmd_buffer->device->physical->uses_efficient_64bit;
+
    if (need_rt_flush) {
       anv_cmd_buffer_dirty_descriptors(cmd_buffer,
                                        VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -990,6 +992,7 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
 static inline void
 cmd_buffer_flush_gfx_pointers(struct anv_cmd_buffer *cmd_buffer)
 {
+   struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_graphics_state *gfx = &cmd_buffer->state.gfx;
 
    assert(gfx->base != NULL);
@@ -1024,7 +1027,8 @@ cmd_buffer_flush_gfx_pointers(struct anv_cmd_buffer *cmd_buffer)
     * emitting push constants, on SKL+ we have to emit the corresponding
     * 3DSTATE_BINDING_TABLE_POINTER_* for the push constants to take effect.
     */
-   if (descriptors_dirty) {
+   if (descriptors_dirty &&
+       !(GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit)) {
       cmd_buffer->state.descriptors_pointers_dirty |=
          genX(cmd_buffer_flush_descriptor_sets)(
             cmd_buffer,

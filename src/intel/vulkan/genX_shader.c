@@ -32,6 +32,8 @@ get_surface_count(const struct anv_device *device,
                   const struct anv_shader *shader)
 {
 #if GFX_VERx10 >= 125
+   if (device->physical->uses_efficient_64bit)
+      return 0;
    if (shader->vk.stage == MESA_SHADER_COMPUTE &&
        !device->physical->drirc.perf.cs_surface_prefetch)
       return 0;
@@ -52,6 +54,8 @@ get_sampler_count(const struct anv_device *device,
     */
    return 0;
 #else
+   if (device->physical->uses_efficient_64bit)
+      return 0;
    if (!device->physical->drirc.perf.sampler_prefetch)
       return 0;
 
@@ -1145,118 +1149,179 @@ emit_cs_shader(struct anv_batch *batch,
    const struct intel_cs_dispatch_info dispatch =
       brw_cs_get_dispatch_info(devinfo, cs_prog_data, NULL);
 
+   if (GFX_VERx10 >= 350 && device->physical->uses_efficient_64bit) {
+#if GFX_VERx10 >= 350
+      uint8_t pixel_async_compute_thread_limit;
+      uint8_t z_pass_async_compute_thread_limit;
+      uint8_t np_z_async_throttle_settings;
+      const bool slm_or_barrier_enabled =
+         cs_prog_data->base.total_shared != 0 ||
+         cs_prog_data->uses_barrier;
+
+      intel_compute_engine_async_threads_limit(device->info, dispatch.threads,
+                                               slm_or_barrier_enabled,
+                                               cs_prog_data->uses_fence,
+                                               &pixel_async_compute_thread_limit,
+                                               &z_pass_async_compute_thread_limit,
+                                               &np_z_async_throttle_settings);
+
+      struct GENX(COMPUTE_WALKER_BODY_2) walker =  {
+         .MaximumNumberofThreads = devinfo->max_cs_threads * devinfo->subslice_total,
+         .StackIDControl         = genX(compute_walker2_get_stack_id_control_value)(device),
+         .SIMDSize               = dispatch.simd_size / 16,
+         .MessageSIMD            = dispatch.simd_size / 16,
+         .GenerateLocalID        = cs_prog_data->generate_local_id != 0,
+         .EmitLocal              = cs_prog_data->generate_local_id,
+         .EmitInlineParameter    = true,
+         .WalkOrder              = cs_prog_data->walk_order,
+         .TileLayout             = cs_prog_data->walk_order == INTEL_WALK_ORDER_YXZ ?
+                                   TL_TileY32bpe : TL_Linear,
+         .StatCountDisable       = true,/* TODO: should it be enabled? */
+         .DispatchWalkOrder      = cs_prog_data->uses_sampler ? DWO_Morton2x2XYWalk : DWO_LinearWalk,
+         .ThreadGroupBatchSize   = cs_prog_data->uses_sampler ? TGBS_TG_BATCH_4 : TGBS_TG_BATCH_1,
+         .ExecutionMask          = dispatch.right_mask,
+         .LocalXMaximum          = cs_prog_data->local_size[0] - 1,
+         .LocalYMaximum          = cs_prog_data->local_size[1] - 1,
+         .LocalZMaximum          = cs_prog_data->local_size[2] - 1,
+         .Post_sync_opn0.MOCS    = anv_mocs(device, NULL, 0),
+         .Post_sync_opn1.MOCS    = anv_mocs(device, NULL, 0),
+         .Post_sync_opn2.MOCS    = anv_mocs(device, NULL, 0),
+         .Post_sync_opn3.MOCS    = anv_mocs(device, NULL, 0),
+         .InterfaceDescriptor    = (struct GENX(INTERFACE_DESCRIPTOR_DATA_2)) {
+            .KernelStartPointer                 = anv_shader_get_pointer(device, shader),
+            .RegistersPerThread                 = intel_register_blocks(devinfo,
+                                                                        cs_prog_data->base.grf_used),
+            .NumberofThreadsinGPGPUThreadGroup  = dispatch.threads,
+            .ThreadGroupDispatchSize            = intel_compute_threads_group_dispatch_size(dispatch.threads),
+            .SharedLocalMemorySize              = intel_compute_slm_encode_size(GFX_VER, cs_prog_data->base.total_shared),
+            .PreferredSLMAllocationSize         = intel_compute_preferred_slm_calc_encode_size(
+               devinfo, cs_prog_data->base.total_shared, dispatch.group_size, dispatch.simd_size),
+            .NumberOfBarriers                   = cs_prog_data->uses_barrier,
+            .PSAsyncThreadLimit                 = pixel_async_compute_thread_limit,
+            .ZPassAsyncComputeThreadLimit       = z_pass_async_compute_thread_limit,
+            .NP_ZAsyncThrottlesettings          = np_z_async_throttle_settings,
+         },
+      };
+
+      assert(ARRAY_SIZE(shader->cs.gfx350.compute_walker_body_2) >=
+             GENX(COMPUTE_WALKER_BODY_2_length));
+      GENX(COMPUTE_WALKER_BODY_2_pack)(NULL,
+                                       shader->cs.gfx350.compute_walker_body_2,
+                                       &walker);
+#endif /* GFX_VERx10 >= 350 */
+   } else {
 #if GFX_VERx10 >= 125
-   struct GENX(COMPUTE_WALKER_BODY) walker =  {
-      /* HSD 14016252163: Use of Morton walk order (and batching using a batch
-       * size of 4) is expected to increase sampler cache hit rates by
-       * increasing sample address locality within a subslice.
-       */
+      struct GENX(COMPUTE_WALKER_BODY) walker =  {
+         /* HSD 14016252163: Use of Morton walk order (and batching using a batch
+          * size of 4) is expected to increase sampler cache hit rates by
+          * increasing sample address locality within a subslice.
+          */
 #if GFX_VER >= 30
-      .DispatchWalkOrder        = cs_prog_data->uses_sampler ?
-                                  MortonWalk : LinearWalk,
-      .ThreadGroupBatchSize     = cs_prog_data->uses_sampler ?
-                                  TG_BATCH_4 : TG_BATCH_1,
+         .DispatchWalkOrder        = cs_prog_data->uses_sampler ?
+         MortonWalk : LinearWalk,
+         .ThreadGroupBatchSize     = cs_prog_data->uses_sampler ?
+         TG_BATCH_4 : TG_BATCH_1,
 #endif
-      .SIMDSize                       = dispatch.simd_size / 16,
-      .MessageSIMD                    = dispatch.simd_size / 16,
-      .GenerateLocalID                = cs_prog_data->generate_local_id != 0,
-      .EmitLocal                      = cs_prog_data->generate_local_id,
-      .WalkOrder                      = cs_prog_data->walk_order,
-      .TileLayout                     = cs_prog_data->walk_order == INTEL_WALK_ORDER_YXZ ?
-                                        TileY32bpe : Linear,
-      .LocalXMaximum                  = cs_prog_data->local_size[0] - 1,
-      .LocalYMaximum                  = cs_prog_data->local_size[1] - 1,
-      .LocalZMaximum                  = cs_prog_data->local_size[2] - 1,
-      .PostSync                       = {
-         .MOCS                        = anv_mocs(device, NULL, 0),
-      },
-      .InterfaceDescriptor            = {
-         .KernelStartPointer                = anv_shader_get_pointer(device, shader),
-         .SamplerCount                      = get_sampler_count(device, shader),
-         .BindingTableEntryCount            = MIN2(get_surface_count(device, shader), 31),
-         .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
-         .SharedLocalMemorySize             = intel_compute_slm_encode_size(
-            GFX_VER, cs_prog_data->base.total_shared),
-         .PreferredSLMAllocationSize        = intel_compute_preferred_slm_calc_encode_size(
-            devinfo, cs_prog_data->base.total_shared,
-            dispatch.group_size, dispatch.simd_size),
-         .NumberOfBarriers                  = cs_prog_data->uses_barrier,
+         .SIMDSize                       = dispatch.simd_size / 16,
+         .MessageSIMD                    = dispatch.simd_size / 16,
+         .GenerateLocalID                = cs_prog_data->generate_local_id != 0,
+         .EmitLocal                      = cs_prog_data->generate_local_id,
+         .WalkOrder                      = cs_prog_data->walk_order,
+         .TileLayout                     = cs_prog_data->walk_order == INTEL_WALK_ORDER_YXZ ?
+         TileY32bpe : Linear,
+         .LocalXMaximum                  = cs_prog_data->local_size[0] - 1,
+         .LocalYMaximum                  = cs_prog_data->local_size[1] - 1,
+         .LocalZMaximum                  = cs_prog_data->local_size[2] - 1,
+         .PostSync                       = {
+            .MOCS                        = anv_mocs(device, NULL, 0),
+         },
+         .InterfaceDescriptor            = {
+            .KernelStartPointer                = anv_shader_get_pointer(device, shader),
+            .SamplerCount                      = get_sampler_count(device, shader),
+            .BindingTableEntryCount            = MIN2(get_surface_count(device, shader), 31),
+            .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
+            .SharedLocalMemorySize             = intel_compute_slm_encode_size(
+               GFX_VER, cs_prog_data->base.total_shared),
+            .PreferredSLMAllocationSize        = intel_compute_preferred_slm_calc_encode_size(
+               devinfo, cs_prog_data->base.total_shared,
+               dispatch.group_size, dispatch.simd_size),
+            .NumberOfBarriers                  = cs_prog_data->uses_barrier,
 #if GFX_VER >= 30
-         .RegistersPerThread                =
+            .RegistersPerThread                =
             intel_register_blocks(devinfo, cs_prog_data->base.grf_used),
 #endif
-      },
-      .EmitInlineParameter            = shader->bind_map.inline_dwords_count > 0,
-   };
+         },
+         .EmitInlineParameter            = shader->bind_map.inline_dwords_count > 0,
+      };
 
-   assert(ARRAY_SIZE(shader->cs.gfx125.compute_walker_body) >=
-          GENX(COMPUTE_WALKER_BODY_length));
-   GENX(COMPUTE_WALKER_BODY_pack)(NULL,
-                                  shader->cs.gfx125.compute_walker_body,
-                                  &walker);
+      assert(ARRAY_SIZE(shader->cs.gfx125.compute_walker_body) >=
+             GENX(COMPUTE_WALKER_BODY_length));
+      GENX(COMPUTE_WALKER_BODY_pack)(NULL,
+                                     shader->cs.gfx125.compute_walker_body,
+                                     &walker);
 #else
-   const uint32_t vfe_curbe_allocation =
-      align(cs_prog_data->push.per_thread.regs * dispatch.threads +
-            cs_prog_data->push.cross_thread.regs, 2);
+      const uint32_t vfe_curbe_allocation =
+         align(cs_prog_data->push.per_thread.regs * dispatch.threads +
+               cs_prog_data->push.cross_thread.regs, 2);
 
-   anv_shader_emit(batch, shader, cs.gfx9.vfe, GENX(MEDIA_VFE_STATE), vfe) {
-      vfe.StackSize              = 0;
-      vfe.MaximumNumberofThreads =
-         devinfo->max_cs_threads * devinfo->subslice_total - 1;
-      vfe.NumberofURBEntries     = 2;
+      anv_shader_emit(batch, shader, cs.gfx9.vfe, GENX(MEDIA_VFE_STATE), vfe) {
+         vfe.StackSize              = 0;
+         vfe.MaximumNumberofThreads = devinfo->max_cs_threads * devinfo->subslice_total - 1;
+         vfe.NumberofURBEntries     = 2;
 #if GFX_VER < 11
-      vfe.ResetGatewayTimer      = true;
+         vfe.ResetGatewayTimer      = true;
 #endif
-      vfe.URBEntryAllocationSize = 2;
-      vfe.CURBEAllocationSize    = vfe_curbe_allocation;
+         vfe.URBEntryAllocationSize = 2;
+         vfe.CURBEAllocationSize    = vfe_curbe_allocation;
 
-      if (cs_prog_data->base.total_scratch) {
-         /* Broadwell's Per Thread Scratch Space is in the range [0, 11]
-          * where 0 = 1k, 1 = 2k, 2 = 4k, ..., 11 = 2M.
-          */
-         vfe.PerThreadScratchSpace = ffs(cs_prog_data->base.total_scratch) - 11;
-         vfe.ScratchSpaceBasePointer = get_scratch_address(device, shader);
+         if (cs_prog_data->base.total_scratch) {
+            /* Broadwell's Per Thread Scratch Space is in the range [0, 11]
+             * where 0 = 1k, 1 = 2k, 2 = 4k, ..., 11 = 2M.
+             */
+            vfe.PerThreadScratchSpace = ffs(cs_prog_data->base.total_scratch) - 11;
+            vfe.ScratchSpaceBasePointer = get_scratch_address(device, shader);
+         }
       }
-   }
 
-   struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
-      .KernelStartPointer     =
-         anv_shader_get_pointer(device, shader) +
-         brw_cs_prog_data_prog_offset(cs_prog_data, dispatch.simd_size),
+      struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
+         .KernelStartPointer     =
+            anv_shader_get_pointer(device, shader) +
+            brw_cs_prog_data_prog_offset(cs_prog_data, dispatch.simd_size),
 
-      .SamplerCount           = get_sampler_count(device, shader),
-      .BindingTableEntryCount = MIN2(get_surface_count(device, shader), 31),
-      .BarrierEnable          = cs_prog_data->uses_barrier,
-      .SharedLocalMemorySize  =
-         intel_compute_slm_encode_size(GFX_VER, cs_prog_data->base.total_shared),
+         .SamplerCount           = get_sampler_count(device, shader),
+         .BindingTableEntryCount = MIN2(get_surface_count(device, shader), 31),
+         .BarrierEnable          = cs_prog_data->uses_barrier,
+         .SharedLocalMemorySize  = intel_compute_slm_encode_size(
+            GFX_VER, cs_prog_data->base.total_shared),
 
-      .ConstantURBEntryReadOffset = 0,
-      .ConstantURBEntryReadLength = cs_prog_data->push.per_thread.regs,
-      .CrossThreadConstantDataReadLength =
+         .ConstantURBEntryReadOffset = 0,
+         .ConstantURBEntryReadLength = cs_prog_data->push.per_thread.regs,
+         .CrossThreadConstantDataReadLength =
          cs_prog_data->push.cross_thread.regs,
 #if GFX_VER >= 12
-      /* TODO: Check if we are missing workarounds and enable mid-thread
-       * preemption.
-       *
-       * We still have issues with mid-thread preemption (it was already
-       * disabled by the kernel on gfx11, due to missing workarounds). It's
-       * possible that we are just missing some workarounds, and could enable
-       * it later, but for now let's disable it to fix a GPU in compute in Car
-       * Chase (and possibly more).
-       */
-      .ThreadPreemptionDisable = true,
+         /* TODO: Check if we are missing workarounds and enable mid-thread
+          * preemption.
+          *
+          * We still have issues with mid-thread preemption (it was already
+          * disabled by the kernel on gfx11, due to missing workarounds). It's
+          * possible that we are just missing some workarounds, and could enable
+          * it later, but for now let's disable it to fix a GPU in compute in Car
+          * Chase (and possibly more).
+          */
+         .ThreadPreemptionDisable = true,
 #endif
 #if GFX_VERx10 >= 125
-      .ThreadGroupDispatchSize =
+         .ThreadGroupDispatchSize =
          intel_compute_threads_group_dispatch_size(dispatch.threads),
 #endif
 
-      .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
-   };
-   GENX(INTERFACE_DESCRIPTOR_DATA_pack)(batch,
-                                        shader->cs.gfx9.idd,
-                                        &desc);
+         .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
+      };
+      GENX(INTERFACE_DESCRIPTOR_DATA_pack)(batch,
+                                           shader->cs.gfx9.idd,
+                                           &desc);
 #endif
+   }
 }
 
 void
