@@ -42,10 +42,18 @@ Device Partitioning,device_partition/test_device_partition
 Buffers,buffers/test_buffers
 Images (API Info),images/clGetInfo/test_cl_get_info
 Images (Kernel Methods),images/kernel_image_methods/test_kernel_image_methods
-Images (Kernel int),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST int
-Images (Kernel uint),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST uint
-Images (Kernel float),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST float
-Images (clCopyImage),images/clCopyImage/test_cl_copy_images
+Images (Kernel 1D int),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST int 1D 1Darray
+Images (Kernel 2D int),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST int 2D 2Darray
+Images (Kernel 3D int),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST int 3D
+Images (Kernel 1D uint),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST uint 1D 1Darray
+Images (Kernel 2D uint),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST uint 2D 2Darray
+Images (Kernel 3D uint),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST uint 3D
+Images (Kernel 1D float),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST float 1D 1Darray
+Images (Kernel 2D float),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST float 2D 2Darray
+Images (Kernel 3D float),images/kernel_read_write/test_image_streams CL_FILTER_NEAREST float 3D
+Images (clCopyImage 1D),images/clCopyImage/test_cl_copy_images 1D 1DTo1Dbuffer 1Darray 1Dbuffer 1DbufferTo1D
+Images (clCopyImage 2D),images/clCopyImage/test_cl_copy_images 2D 2Darray 2Darrayto2D 2Darrayto3D 2Dto2Darray 2Dto3D
+Images (clCopyImage 3D),images/clCopyImage/test_cl_copy_images 3D 3Dto2D 3Dto2Darray
 Images (clReadWriteImage),images/clReadWriteImage/test_cl_read_write_images
 Images (clFillImage int),images/clFillImage/test_cl_fill_images int
 Images (clFillImage uint),images/clFillImage/test_cl_fill_images uint
