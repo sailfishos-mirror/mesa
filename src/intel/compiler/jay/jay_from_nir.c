@@ -1332,8 +1332,11 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       uniform &= !urb;
    }
 
-   /* Per bspec 57330, 8-bit/16-bit are not supported for transpose */
-   bool transpose = uniform && !cmask && ndata->bit_size >= 32;
+   /* Per bspec 57330, 8-bit/16-bit/unaligned are not supported for transpose */
+   bool transpose = (uniform && !cmask) &&
+                    ndata->bit_size >= 32 &&
+                    (!nir_intrinsic_has_align(intr) ||
+                     nir_intrinsic_align(intr) >= ndata->bit_size / 8);
 
    if (!uniform) {
       offset = jay_as_gpr(b, offset);
