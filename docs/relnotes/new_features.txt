@@ -36,3 +36,4 @@ cl_khr_semaphore on iris
 cl_khr_external_semaphore on iris
 cl_khr_external_semaphore_sync_fd on iris
 VK_EXT_inline_uniform_block on pvr
+VK_KHR_shader_fma on pvr
