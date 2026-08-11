@@ -7490,25 +7490,22 @@ VkResult genX(CmdSetPerformanceStreamMarkerINTEL)(
     const VkPerformanceStreamMarkerInfoINTEL*   pMarkerInfo)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+   bool success = false;
+   uint32_t cmds_size = 0;
 
-   if (cmd_buffer->device->physical->perf->use_metrics_library) {
-      bool success = false;
-      uint32_t cmds_size = 0;
+   if (intel_perf_metrics_library_get_stream_marker_cmds(
+          cmd_buffer->device->physical->perf, pMarkerInfo->marker,
+          NULL, &cmds_size)) {
+      void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
 
-      if (intel_perf_metrics_library_get_stream_marker_cmds(
-             cmd_buffer->device->physical->perf, pMarkerInfo->marker,
-             NULL, &cmds_size)) {
-         void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
+      success = cmds && intel_perf_metrics_library_get_stream_marker_cmds(
+         cmd_buffer->device->physical->perf, pMarkerInfo->marker,
+         cmds, &cmds_size);
+   }
 
-         success = cmds && intel_perf_metrics_library_get_stream_marker_cmds(
-            cmd_buffer->device->physical->perf, pMarkerInfo->marker,
-            cmds, &cmds_size);
-      }
-
-      if (!success) {
-         anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_HOST_MEMORY);
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
-      }
+   if (!success) {
+      anv_batch_set_error(&cmd_buffer->batch, VK_ERROR_OUT_OF_HOST_MEMORY);
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
    return VK_SUCCESS;

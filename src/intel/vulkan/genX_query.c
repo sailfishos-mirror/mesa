@@ -184,25 +184,12 @@ VkResult genX(CreateQueryPool)(
       uint64s_per_slot = 1 + 4;
       break;
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      if (pdevice->perf->use_metrics_library) {
-         uint64s_per_slot = pdevice->perf->metrics_library.gpu_report_size / sizeof(uint64_t);
+      uint64s_per_slot = pdevice->perf->metrics_library.gpu_report_size / sizeof(uint64_t);
 
-         metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pCreateInfo->queryCount);
+      metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pCreateInfo->queryCount);
 
-         if (!metrics_library_query_pool)
-            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-      } else {
-         const struct intel_perf_query_field_layout *layout =
-            &pdevice->perf->query_layout;
-
-         uint64s_per_slot = 2; /* availability + marker */
-         /* Align to the requirement of the layout */
-         uint64s_per_slot = align(uint64s_per_slot,
-                                 DIV_ROUND_UP(layout->alignment, sizeof(uint64_t)));
-         data_offset = uint64s_per_slot * sizeof(uint64_t);
-         /* Add the query data for begin & end commands */
-         uint64s_per_slot += 2 * DIV_ROUND_UP(layout->size, sizeof(uint64_t));
-      }
+      if (!metrics_library_query_pool)
+         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
       break;
    }
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR: {
@@ -372,7 +359,7 @@ void genX(DestroyQueryPool)(
    if (!pool)
       return;
 
-   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL && device->physical->perf->use_metrics_library) {
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
       if (!intel_perf_metrics_library_destroy_query_pool(device->physical->perf, pool->metrics_library_query_pool))
          vk_error(device, VK_ERROR_UNKNOWN);
    }
@@ -516,8 +503,7 @@ query_is_available(struct anv_device *device,
                    struct anv_query_pool *pool,
                    uint32_t query)
 {
-   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL &&
-       device->physical->perf->use_metrics_library) {
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
       /* Dealt with metrics_library */
       return true;
    } else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
@@ -539,8 +525,7 @@ wait_for_available(struct anv_device *device,
 {
    /* By default we leave a 2s timeout before declaring the device lost. */
    uint64_t rel_timeout = 2 * NSEC_PER_SEC;
-   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL &&
-       device->physical->perf->use_metrics_library) {
+   if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
       return VK_SUCCESS;
    } else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
       /* With performance queries, there is an additional 500us reconfiguration
@@ -743,28 +728,12 @@ VkResult genX(GetQueryPoolResults)(
       case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
          if (!write_results)
             break;
-         if (device->physical->perf->use_metrics_library) {
-            if (!intel_perf_metrics_library_get_query_results(device->physical->perf,
-                                                              pool->metrics_library_query_pool,
-                                                              pData, firstQuery + i,
-                                                              &write_results)) {
-               i = queryCount;
-               status = VK_ERROR_UNKNOWN;
-            }
-         } else {
-            const void *query_data = query_slot(pool, firstQuery + i);
-            const struct intel_perf_query_info *query = &device->physical->perf->queries[0];
-            struct intel_perf_query_result result;
-            intel_perf_query_result_clear(&result);
-            intel_perf_query_result_accumulate_fields(&result, query,
-                                                      query_data + intel_perf_query_data_offset(pool, false),
-                                                      query_data + intel_perf_query_data_offset(pool, true),
-                                                      false /* no_oa_accumulate */);
-            intel_perf_query_result_write_mdapi(pData, stride,
-                                                device->info,
-                                                query, &result);
-            const uint64_t *marker = query_data + intel_perf_marker_offset();
-            intel_perf_query_mdapi_write_marker(pData, stride, device->info, *marker);
+         if (!intel_perf_metrics_library_get_query_results(device->physical->perf,
+                                                           pool->metrics_library_query_pool,
+                                                           pData, firstQuery + i,
+                                                           &write_results)) {
+            i = queryCount;
+            status = VK_ERROR_UNKNOWN;
          }
          break;
       }
@@ -1345,38 +1314,28 @@ void genX(CmdBeginQueryIndexedEXT)(
    }
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      if (cmd_buffer->device->physical->perf->use_metrics_library) {
-         uint32_t cmds_size = 0;
+      uint32_t cmds_size = 0;
+      if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                         pool->metrics_library_query_pool,
+                                                         anv_address_physical(query_addr),
+                                                         query_slot(pool, query),
+                                                         query,
+                                                         cmd_buffer->intel_perf_marker,
+                                                         true,
+                                                         NULL,
+                                                         &cmds_size)) {
+         void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
 
-         if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
-                                                            pool->metrics_library_query_pool,
-                                                            anv_address_physical(query_addr),
-                                                            query_slot(pool, query),
-                                                            query,
-                                                            cmd_buffer->intel_perf_marker,
-                                                            true,
-                                                            NULL,
-                                                            &cmds_size)) {
-            void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
-
-            if (cmds)
-               intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
-                                                              pool->metrics_library_query_pool,
-                                                              anv_address_physical(query_addr),
-                                                              query_slot(pool, query),
-                                                              query,
-                                                              cmd_buffer->intel_perf_marker,
-                                                              true,
-                                                              cmds,
-                                                              &cmds_size);
-         }
-      } else {
-         genx_batch_emit_pipe_control(&cmd_buffer->batch,
-                                      cmd_buffer->device->info,
-                                      cmd_buffer->state.current_pipeline,
-                                      ANV_PIPE_CS_STALL_BIT |
-                                      ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
-         emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, false);
+         if (cmds)
+            intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                           pool->metrics_library_query_pool,
+                                                           anv_address_physical(query_addr),
+                                                           query_slot(pool, query),
+                                                           query,
+                                                           cmd_buffer->intel_perf_marker,
+                                                           true,
+                                                           cmds,
+                                                           &cmds_size);
       }
       break;
    }
@@ -1573,42 +1532,28 @@ void genX(CmdEndQueryIndexedEXT)(
    }
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      if (cmd_buffer->device->physical->perf->use_metrics_library) {
-         uint32_t cmds_size = 0;
+      uint32_t cmds_size = 0;
+      if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                         pool->metrics_library_query_pool,
+                                                         anv_address_physical(query_addr),
+                                                         query_slot(pool, query),
+                                                         query,
+                                                         cmd_buffer->intel_perf_marker,
+                                                         false,
+                                                         NULL,
+                                                         &cmds_size)) {
+         void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
 
-         if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
-                                                            pool->metrics_library_query_pool,
-                                                            anv_address_physical(query_addr),
-                                                            query_slot(pool, query),
-                                                            query,
-                                                            cmd_buffer->intel_perf_marker,
-                                                            false,
-                                                            NULL,
-                                                            &cmds_size)) {
-            void* cmds = anv_batch_emit_dwords(&cmd_buffer->batch, cmds_size);
-
-            if (cmds)
-               intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
-                                                              pool->metrics_library_query_pool,
-                                                              anv_address_physical(query_addr),
-                                                              query_slot(pool, query),
-                                                              query,
-                                                              cmd_buffer->intel_perf_marker,
-                                                              false,
-                                                              cmds,
-                                                              &cmds_size);
-         }
-      } else {
-         genx_batch_emit_pipe_control(&cmd_buffer->batch,
-                                      cmd_buffer->device->info,
-                                      cmd_buffer->state.current_pipeline,
-                                      ANV_PIPE_CS_STALL_BIT |
-                                      ANV_PIPE_STALL_AT_SCOREBOARD_BIT);
-         uint32_t marker_offset = intel_perf_marker_offset();
-         mi_store(&b, mi_mem64(anv_address_add(query_addr, marker_offset)),
-                  mi_imm(cmd_buffer->intel_perf_marker));
-         emit_perf_intel_query(cmd_buffer, pool, &b, query_addr, true);
-         emit_query_mi_availability(&b, query_addr, true);
+         if (cmds)
+            intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
+                                                           pool->metrics_library_query_pool,
+                                                           anv_address_physical(query_addr),
+                                                           query_slot(pool, query),
+                                                           query,
+                                                           cmd_buffer->intel_perf_marker,
+                                                           false,
+                                                           cmds,
+                                                           &cmds_size);
       }
       break;
    }

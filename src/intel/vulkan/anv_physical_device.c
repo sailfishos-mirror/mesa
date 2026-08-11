@@ -457,8 +457,7 @@ get_device_extensions(const struct anv_physical_device *device,
 #endif
       .GOOGLE_hlsl_functionality1            = true,
       .GOOGLE_user_type                      = true,
-      .INTEL_performance_query               = device->perf &&
-                                               intel_perf_has_hold_preemption(device->perf),
+      .INTEL_performance_query               = device->perf && device->perf->use_metrics_library,
       .INTEL_shader_integer_functions2       = true,
       .MESA_image_alignment_control          = true,
       .NV_compute_shader_derivatives         = true,
