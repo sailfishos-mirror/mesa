@@ -262,6 +262,13 @@ bool pan_nir_lower_texel_buffer_fetch_index(nir_shader *shader,
                                             unsigned attrib_offset);
 bool pan_nir_lower_divergent_scratch(nir_shader *shader, unsigned arch);
 
+#define PAN_AS_U32(x) ({\
+   static_assert(sizeof(x) == 4, "x must be 4 bytes"); \
+   uint32_t _u; \
+   memcpy(&_u, &(x), 4); \
+   _u; \
+})
+
 PRAGMA_DIAGNOSTIC_PUSH
 PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
 struct pan_bi_tex_flags {
