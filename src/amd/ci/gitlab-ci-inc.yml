@@ -38,6 +38,7 @@
         - src/amd/ci/$GPU_VERSION-vkd3d-fails.txt
         - src/amd/ci/$GPU_VERSION-vkd3d-flakes.txt
         - src/amd/ci/$GPU_VERSION-vkd3d-skips.txt
+        - src/amd/ci/radv-validate-cache.sh
         - src/amd/common/**/*
         - src/amd/common/nir/**/*
         - src/amd/compiler/**/*
