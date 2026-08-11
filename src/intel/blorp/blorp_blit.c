@@ -285,19 +285,28 @@ tex_needs_16bits(nir_texop op, struct blorp_builder *bb)
 
 static nir_tex_instr *
 blorp_create_nir_tex_instr(nir_builder *b, struct blorp_builder *bb,
-                           nir_texop op, nir_def *pos, unsigned num_srcs,
-                           nir_alu_type dst_type)
+                           nir_texop op, nir_def *pos, nir_tex_src src,
+                           nir_alu_type dst_type,
+                           enum blorp_binding binding)
 {
-   nir_tex_instr *tex = nir_tex_instr_create(b->shader, num_srcs);
+   /* Add 3 sources for : coord, texture & sampler */
+   nir_tex_instr *tex = nir_tex_instr_create(
+      b->shader, (src.src.ssa != NULL ? 1 : 0) + 3);
 
    tex->op = op;
-
    tex->dest_type = dst_type | 32;
    tex->is_array = false;
    tex->is_shadow = false;
 
-   tex->texture_index = BLORP_TEXTURE_BT_INDEX;
-   tex->sampler_index = BLORP_SAMPLER_INDEX;
+   unsigned src_idx = 0;
+   if (src.src.ssa != NULL)
+      tex->src[src_idx++] = src;
+   tex->src[src_idx++] = nir_tex_src_for_ssa(
+      nir_tex_src_texture_offset,
+      nir_imm_int(b, binding));
+   tex->src[src_idx++] = nir_tex_src_for_ssa(
+      nir_tex_src_sampler_offset,
+      nir_imm_int(b, BLORP_SAMPLER_INDEX));
 
    /* To properly handle 3-D and 2-D array textures, we pull the Z component
     * from an input.  TODO: This is a bit magic; we should probably make this
@@ -313,12 +322,13 @@ blorp_create_nir_tex_instr(nir_builder *b, struct blorp_builder *bb,
                         nir_load_var(b, bb->v_src_z));
    }
 
-   tex->src[0] = nir_tex_src_for_ssa(
+   tex->src[src_idx++] = nir_tex_src_for_ssa(
       nir_tex_src_coord,
       tex_needs_16bits(op, bb) ? nir_u2u16(b, pos) : pos);
    tex->coord_components = 3;
 
    nir_def_init(&tex->instr, &tex->def, 4, 32);
+   nir_builder_instr_insert(b, &tex->instr);
 
    return tex;
 }
@@ -334,15 +344,14 @@ blorp_nir_tex(nir_builder *b, struct blorp_builder *bb, nir_def *pos)
       pos = nir_fmul(b, pos, nir_load_var(b, bb->v_src_inv_size));
 
    nir_tex_instr *tex = blorp_create_nir_tex_instr(
-      b, bb, nir_texop_txl, pos, 2, bb->key->texture_data_type);
+      b, bb, nir_texop_txl, pos,
+      nir_tex_src_for_ssa(nir_tex_src_lod,
+                          nir_imm_intN_t(b, 0, tex_needs_16bits(nir_texop_txl, bb) ? 16 : 32)),
+      bb->key->texture_data_type,
+      BLORP_TEXTURE_BT_INDEX);
 
    assert(pos->num_components == 2);
    tex->sampler_dim = GLSL_SAMPLER_DIM_2D;
-   tex->src[1] = nir_tex_src_for_ssa(
-      nir_tex_src_lod,
-      nir_imm_intN_t(b, 0, tex_needs_16bits(nir_texop_txl, bb) ? 16 : 32));
-
-   nir_builder_instr_insert(b, &tex->instr);
 
    return &tex->def;
 }
@@ -351,13 +360,12 @@ static nir_def *
 blorp_nir_txf(nir_builder *b, struct blorp_builder *bb,
               nir_def *pos, nir_alu_type dst_type)
 {
-   nir_tex_instr *tex =
-      blorp_create_nir_tex_instr(b, bb, nir_texop_txf, pos, 2, dst_type);
+   nir_tex_instr *tex = blorp_create_nir_tex_instr(
+      b, bb, nir_texop_txf, pos,
+      nir_tex_src_for_ssa(nir_tex_src_lod, nir_imm_int(b, 0)),
+      dst_type, BLORP_TEXTURE_BT_INDEX);
 
    tex->sampler_dim = GLSL_SAMPLER_DIM_3D;
-   tex->src[1] = nir_tex_src_for_ssa(nir_tex_src_lod, nir_imm_int(b, 0));
-
-   nir_builder_instr_insert(b, &tex->instr);
 
    return &tex->def;
 }
@@ -392,12 +400,11 @@ blorp_nir_txf_buf(nir_builder *b, struct blorp_builder *bb,
                               nir_channel(b, pos, 0)),
                      nir_imm_int(b, 0));
 
-      buf = blorp_create_nir_tex_instr(b, bb, nir_texop_txf, pos, 1, dst_type);
+      buf = blorp_create_nir_tex_instr(b, bb, nir_texop_txf, pos,
+                                       (nir_tex_src) {},
+                                       dst_type, BLORP_TEXBUF_BT_INDEX);
 
-      buf->texture_index = BLORP_TEXBUF_BT_INDEX;
       buf->sampler_dim = GLSL_SAMPLER_DIM_BUF;
-
-      nir_builder_instr_insert(b, &buf->instr);
    }
    nir_pop_if(b, NULL);
    return nir_if_phi(b, tex, &buf->def);
@@ -407,24 +414,17 @@ static nir_def *
 blorp_nir_txf_ms(nir_builder *b, struct blorp_builder *bb,
                  nir_def *pos, nir_alu_type dst_type)
 {
+   const unsigned bit_size = tex_needs_16bits(nir_texop_txf_ms, bb) ? 16 : 32;
    nir_tex_instr *tex = blorp_create_nir_tex_instr(
-      b, bb, nir_texop_txf_ms, pos, 2, dst_type);
+      b, bb, nir_texop_txf_ms, pos,
+      nir_tex_src_for_ssa(
+         nir_tex_src_ms_index,
+         pos->num_components == 2 ?
+         nir_imm_intN_t(b, 0, bit_size) :
+         nir_u2uN(b, nir_channel(b, pos, 2), bit_size)),
+      dst_type, BLORP_TEXTURE_BT_INDEX);
 
    tex->sampler_dim = GLSL_SAMPLER_DIM_MS;
-
-   tex->src[1].src_type = nir_tex_src_ms_index;
-   if (pos->num_components == 2) {
-      tex->src[1].src = nir_src_for_ssa(
-         nir_imm_intN_t(b, 0, tex_needs_16bits(nir_texop_txf_ms, bb) ? 16 : 32));
-   } else {
-      assert(pos->num_components == 3);
-      tex->src[1].src = nir_src_for_ssa(
-         tex_needs_16bits(nir_texop_txf_ms, bb) ?
-         nir_u2u16(b, nir_channel(b, pos, 2)) :
-         nir_channel(b, pos, 2));
-   }
-
-   nir_builder_instr_insert(b, &tex->instr);
 
    return &tex->def;
 }
@@ -433,11 +433,10 @@ static nir_def *
 blorp_blit_txf_ms_mcs(nir_builder *b, struct blorp_builder *bb, nir_def *pos)
 {
    nir_tex_instr *tex = blorp_create_nir_tex_instr(
-      b, bb, nir_texop_txf_ms_mcs_intel, pos, 1, nir_type_int);
+      b, bb, nir_texop_txf_ms_mcs_intel, pos,
+      (nir_tex_src) {}, nir_type_int, BLORP_TEXTURE_BT_INDEX);
 
    tex->sampler_dim = GLSL_SAMPLER_DIM_MS;
-
-   nir_builder_instr_insert(b, &tex->instr);
 
    return &tex->def;
 }

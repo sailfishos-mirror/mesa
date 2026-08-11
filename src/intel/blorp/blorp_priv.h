@@ -75,7 +75,7 @@ struct blorp_compiler {
 /**
  * Binding table indices used by BLORP.
  */
-enum {
+enum blorp_binding {
    BLORP_RENDERBUFFER_BT_INDEX,
    BLORP_TEXTURE_BT_INDEX,
    BLORP_TEXBUF_BT_INDEX,
