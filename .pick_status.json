@@ -4354,7 +4354,7 @@
         "description": "kk: Fix host imported buffer offsets",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "94295fda67e2acbf216b57b29660d5c1c962ab68",
         "notes": null
