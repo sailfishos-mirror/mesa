@@ -1,4 +1,5 @@
 /*
+ * Copyright © 2026 NXP
  * Copyright © 2022 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -176,6 +177,17 @@ vk_gralloc_to_drm_explicit_layout(
    for (size_t i = 0; i < info.num_planes; i++) {
       out_layouts[i].offset = info.offsets[i];
       out_layouts[i].rowPitch = info.strides[i];
+   }
+
+   /* Compute arrayPitch for multi-layer buffers. The gralloc HAL does not
+    * expose a per-layer stride directly, but we can derive it from the
+    * total allocation size and layer count. Disjoint multi-plane buffers
+    * are rejected above, so alloc_size / layer_count is valid here.
+    */
+   if (info.layer_count > 1 && info.alloc_size > 0) {
+      uint64_t array_pitch = info.alloc_size / info.layer_count;
+      for (size_t i = 0; i < info.num_planes; i++)
+         out_layouts[i].arrayPitch = array_pitch;
    }
 
    if (info.drm_fourcc == DRM_FORMAT_YVU420) {
