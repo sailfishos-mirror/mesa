@@ -123,6 +123,9 @@ struct nir_to_jay_state {
    jay_def msg_header[16];
    jay_def msg_header_unmoved[16];
 
+   /* Likewise the barrier message */
+   jay_def signal_barrier;
+
    /* These defs contain the extracted payload. They are only valid while
     * translating NIR->Jay since they aren't maintained by Jay passes.
     */
@@ -934,19 +937,25 @@ jay_emit_signal_barrier(jay_builder *b, struct nir_to_jay_state *nj)
     * Source 0 is the number of subgroups in [31:24], which comes from the u0.2
     * payload in [31:24]. Mask out the other bits, then replicate to [23:15].
     */
-   jay_def m2;
-   jay_def a = jay_AND_u32(b, jay_extract(nj->payload.u0, 2), 0xff000000);
-   jay_def shr = jay_SHR_u32(b, a, 8);
+   if (jay_is_null(nj->signal_barrier)) {
+      jay_cursor pushed = b->cursor;
+      b->cursor = jay_before_function(b->func);
 
-   /* Set bit 8 for an active threads only barrier on Xe2 */
-   if (b->shader->devinfo->ver >= 20) {
-      m2 = jay_ADD3_u32(b, a, shr, BITFIELD_BIT(8));
-   } else {
-      m2 = jay_ADD_u32(b, a, shr);
+      jay_def a = jay_AND_u32(b, jay_extract(nj->payload.u0, 2), 0xff000000);
+      jay_def shr = jay_SHR_u32(b, a, 8);
+
+      /* Set bit 8 for an active threads only barrier on Xe2 */
+      if (b->shader->devinfo->ver >= 20) {
+         nj->signal_barrier = jay_ADD3_u32(b, a, shr, BITFIELD_BIT(8));
+      } else {
+         nj->signal_barrier = jay_ADD_u32(b, a, shr);
+      }
+
+      b->cursor = pushed;
    }
 
    uint32_t indices[JAY_MAX_DEF_LENGTH] = { 0 };
-   indices[2] = jay_index(m2);
+   indices[2] = jay_index(nj->signal_barrier);
    jay_def zipped = jay_collect(b, UGPR, indices, 3);
 
    jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY,
