@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "bi_opcodes.h"
 #include "pan_nir.h"
 #include "nir_builder.h"
 
@@ -31,6 +32,7 @@ lower_fs_input_load(struct nir_builder *b,
    /* Indirect array varyings are not yet supported (num_slots > 1) */
    assert(sem.num_slots == 1);
    assert(nir_src_as_uint(*nir_get_io_offset_src(load)) == 0);
+   bool is_nopersp = false;
 
    nir_intrinsic_instr *bary;
    switch (load->intrinsic) {
@@ -41,6 +43,7 @@ lower_fs_input_load(struct nir_builder *b,
       /* Cannot interpolate ints */
       assert(nir_alu_type_get_base_type(dest_type) == nir_type_float);
       bary = nir_src_as_intrinsic(load->src[0]);
+      is_nopersp = nir_intrinsic_interp_mode(bary) == INTERP_MODE_NOPERSPECTIVE;
       break;
    default:
       UNREACHABLE("Already handled");
@@ -100,6 +103,21 @@ lower_fs_input_load(struct nir_builder *b,
       res = nir_swizzle(b, res, swiz, load->num_components);
    }
 
+   if (is_nopersp) {
+      /* Multiply all noperspective varying loads by gl_FragCoord.w */
+      nir_def *fragcoord_w =
+         nir_load_var_special_pan(b, 1, &bary->def,
+                                  .flags = BI_VARYING_NAME_FRAG_W);
+      if (res->bit_size == 16)
+         fragcoord_w = nir_f2f16(b, fragcoord_w);
+
+      res = nir_fmul(b, res, fragcoord_w);
+      if (sem.location >= VARYING_SLOT_VAR0) {
+         unsigned loc = sem.location - VARYING_SLOT_VAR0;
+         ctx->info->varyings.noperspective |= BITFIELD_RANGE(loc, sem.num_slots);
+      }
+   }
+
    nir_def_replace(&load->def, res);
    return true;
 }
@@ -114,6 +132,7 @@ pan_nir_lower_fs_inputs(nir_shader *shader, uint64_t gpu_id,
       .varying_layout = varying_layout,
       .info = info,
    };
+   info->varyings.noperspective = 0;
    return nir_shader_intrinsics_pass(shader, lower_fs_input_load,
                                      nir_metadata_control_flow,
                                      (void *)&ctx);

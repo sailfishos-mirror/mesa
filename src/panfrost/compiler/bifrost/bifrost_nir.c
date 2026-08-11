@@ -840,8 +840,6 @@ bifrost_postprocess_nir(nir_shader *nir,
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
       NIR_PASS(_, nir, pan_nir_lower_helper_invocation);
       NIR_PASS(_, nir, pan_nir_lower_sample_pos);
-      NIR_PASS(_, nir, pan_nir_lower_noperspective_fs,
-               &info->varyings.noperspective);
       NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
       NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 
