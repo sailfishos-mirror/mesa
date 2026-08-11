@@ -12,7 +12,9 @@ dEQP-VK.synchronization2.internally_synchronized_queues.*wsi*
 # These tests require PCIe atomics, causing random hangs
 dEQP-VK.video.synchronization.*.basic.event.*
 
-# These tests hang when running in parallel (border color on compute queues).
+# These tests hang when running in parallel (custom border color on compute
+# queues). They are now undefined per the Vulkan spec but a workaround might be
+# needed to make them fail instead.
 dEQP-VK.pipeline.*.sampler.*_compute
 
 # These tests cause segmentation fault: https://github.com/KhronosGroup/VK-GL-CTS/issues/603
