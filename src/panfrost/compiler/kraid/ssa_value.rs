@@ -397,6 +397,77 @@ impl AllocSSA for SSAValueAllocator {
     }
 }
 
+#[derive(Clone)]
+pub struct SSAValueIndexedVec<T: Default>(Vec<T>);
+
+impl<T: Default> SSAValueIndexedVec<T> {
+    pub fn with_count(count: u32) -> SSAValueIndexedVec<T> {
+        let mut vec = Vec::new();
+        vec.resize_with(count.try_into().unwrap(), Default::default);
+        SSAValueIndexedVec(vec)
+    }
+
+    pub fn get(&self, ssa: SSAValue) -> &T {
+        self.get_by_idx(ssa.idx())
+    }
+
+    pub fn get_by_idx(&self, idx: u32) -> &T {
+        let idx = usize::try_from(idx).unwrap();
+        &self.0[idx]
+    }
+
+    pub fn get_mut(&mut self, ssa: SSAValue) -> &mut T {
+        self.get_mut_by_idx(ssa.idx())
+    }
+
+    pub fn get_mut_by_idx(&mut self, idx: u32) -> &mut T {
+        let idx = usize::try_from(idx).unwrap();
+        &mut self.0[idx]
+    }
+}
+
+impl<T: Default> std::ops::Index<SSAValue> for SSAValueIndexedVec<T> {
+    type Output = T;
+
+    fn index(&self, ssa: SSAValue) -> &T {
+        self.get_by_idx(ssa.idx())
+    }
+}
+
+impl<T: Default> std::ops::Index<&SSAValue> for SSAValueIndexedVec<T> {
+    type Output = T;
+
+    fn index(&self, ssa: &SSAValue) -> &T {
+        self.get_by_idx(ssa.idx())
+    }
+}
+
+impl<T: Default> std::ops::Index<u32> for SSAValueIndexedVec<T> {
+    type Output = T;
+
+    fn index(&self, ssa: u32) -> &T {
+        self.get_by_idx(ssa)
+    }
+}
+
+impl<T: Default> std::ops::IndexMut<SSAValue> for SSAValueIndexedVec<T> {
+    fn index_mut(&mut self, ssa: SSAValue) -> &mut T {
+        self.get_mut_by_idx(ssa.idx())
+    }
+}
+
+impl<T: Default> std::ops::IndexMut<&SSAValue> for SSAValueIndexedVec<T> {
+    fn index_mut(&mut self, ssa: &SSAValue) -> &mut T {
+        self.get_mut_by_idx(ssa.idx())
+    }
+}
+
+impl<T: Default> std::ops::IndexMut<u32> for SSAValueIndexedVec<T> {
+    fn index_mut(&mut self, ssa: u32) -> &mut T {
+        self.get_mut_by_idx(ssa)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
