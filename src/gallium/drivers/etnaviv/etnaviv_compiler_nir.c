@@ -1450,6 +1450,10 @@ compile_shader(struct etna_shader_variant *v, bool spill_constants)
    NIR_PASS(_, s, nir_lower_vars_to_ssa);
    NIR_PASS(_, s, nir_lower_indirect_derefs_to_if_else_trees, nir_var_all,
             UINT32_MAX);
+
+   if (v->key.use_xfb_emu)
+      NIR_PASS(_, s, etna_nir_lower_xfb);
+
    NIR_PASS(_, s, etna_nir_lower_texture, &v->key, v->shader->info);
    NIR_PASS(_, s, etna_nir_lower_128bit, &v->key);
    NIR_PASS(_, s, nir_lower_alu_width, alu_width_cb, NULL);
