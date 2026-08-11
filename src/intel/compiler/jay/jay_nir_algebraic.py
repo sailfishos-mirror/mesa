@@ -27,7 +27,16 @@ lower_fsign = [
     (('u2f32', ('extract_u16', a, 0)), ('u2f32', ('u2u16', a))),
     (('i2f32', ('extract_i8', a, 0)), ('i2f32', ('i2i8', a))),
     (('i2f32', ('extract_i16', a, 0)), ('i2f32', ('i2i16', a))),
+]
 
+for s in range(1, 31):
+    mask = 0xffffffff << s
+    lower_fsign.extend([
+        (('iadd', ('ishl', 'a@32', s), ('iand', 'b@32', ~mask)),
+         ('bfi', mask, a, b))
+    ])
+
+lower_fsign.extend([
     # Late multiplication handling
     (('iadd', ('imul_32x16(is_only_used_by_iadd)', a, b), c),
      ('imad_32x16_intel', a, b, c)),
@@ -45,7 +54,7 @@ lower_fsign = [
 
     (('pack_half_2x16_split', a, b),
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
-]
+])
 
 for i in range(2, 15):
     lower_fsign.extend([
