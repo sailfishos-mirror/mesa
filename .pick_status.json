@@ -4314,7 +4314,7 @@
         "description": "ac/virtio: Fix VIRTIO_SHARED flag masking",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6c0e4a0ece1ab50bcbeb074bf827ed0f8278296a",
         "notes": null
