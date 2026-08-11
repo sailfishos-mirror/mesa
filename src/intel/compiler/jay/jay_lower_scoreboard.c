@@ -825,24 +825,17 @@ jay_lower_scoreboard(jay_shader *shader)
        * implement that backwards: state is preserved (correctness), except we
        * clear regdists[] when entering blocks that are unreachable by falling
        * through from the previous source-order block and hence must be branch
-       * targets coming in with a clear scoreboard. next[] tracks the
-       * fallthrough block for the logical & physical CFGs respectively.
+       * targets coming in with a clear scoreboard.
        */
-      jay_block *next[UGPR + 1] = { NULL };
+      jay_block *next = NULL;
 
       jay_foreach_block(f, block) {
-         /* Clear regdists[] for GPRs according to the logical CFG and for UGPRs
-          * according to the physical CFG. This is a bit pedantic but it ensures
-          * we keep the dependencies for UGPRs across halves of if-else.
-          */
-         for (unsigned f = GPR; f <= UGPR; f++) {
-            if (!list_is_empty(&block->instructions) && next[f] != block) {
-               memset(regdists + (f ? shader->num_regs[GPR] : 0), 0,
-                      sizeof(regdists[0]) * shader->num_regs[f]);
-            }
-
-            next[f] = jay_first_successor(block, f);
+         if (!list_is_empty(&block->instructions) && next != block) {
+            memset(regdists, 0,
+                   sizeof(*regdists) * jay_range_base(shader, ~0));
          }
+
+         next = jay_first_successor(block, UGPR);
 
          jay_foreach_inst_in_block_safe(block, I) {
             if (I->op == JAY_OPCODE_SYNC) {
