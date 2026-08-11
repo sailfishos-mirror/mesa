@@ -23,6 +23,8 @@
 
 #include "nir.h"
 #include "nir_instr_set.h"
+#include "util/sparse_bitset.h"
+
 
 /*
  * Implements Global Code Motion.  A description of GCM can be found in
@@ -36,10 +38,27 @@
 /* This is used to stop GCM moving instruction out of a loop if the loop
  * contains too many instructions and moving them would create excess spilling.
  *
- * TODO: Figure out a better way to decide if we should remove instructions from
- * a loop.
+ * This is the fallback for drivers that don't set max_gcm_loop_pressure, which
+ * measures what a loop actually holds instead of guessing it from how much code
+ * is in there.
  */
 #define MAX_LOOP_INSTRUCTIONS 100
+
+/* Register pressure bookkeeping for a single loop.  Kept in the gcm_block_info
+ * of the loop's header block, which is the one block every loop has to itself.
+ */
+struct gcm_loop_pressure {
+   /* Highest pressure seen at any instruction inside the loop, including its
+    * nested loops. Computed once, before anything is moved.
+    */
+   unsigned peak;
+
+   /* Pressure added to the loop by the hoists we have already committed to.
+    * The results of those hoists are live across the whole loop, so they push
+    * against the same limit the loop's own peak does.
+    */
+   unsigned hoisted;
+};
 
 struct gcm_block_info {
    /* Number of loops this block is inside */
@@ -49,6 +68,18 @@ struct gcm_block_info {
    unsigned if_depth;
 
    unsigned loop_instr_count;
+
+   /* Register pressure at the end of this block, which is where instructions
+    * moved here land. Only filled in when the driver asked for the pressure
+    * heuristic.
+    */
+   unsigned tail_pressure;
+
+   /* Only valid if the block is the header block of a loop, i.e. the block
+    * gcm_loop_pressure_info() looks it up by, and only filled in when the
+    * driver asked for the pressure heuristic.
+    */
+   struct gcm_loop_pressure loop_pressure;
 
    /* The loop the block is nested inside or NULL */
    nir_loop *loop;
@@ -71,6 +102,7 @@ enum {
    GCM_INSTR_SCHEDULED_EARLY = (1 << 2),
    GCM_INSTR_SCHEDULED_LATE = (1 << 3),
    GCM_INSTR_PLACED = (1 << 4),
+   GCM_INSTR_CHARGED = (1 << 5),
 };
 
 struct gcm_state {
@@ -87,6 +119,11 @@ struct gcm_state {
     * skip straight to a single run.
     */
    bool has_loop;
+
+   /* Pressure a loop can be under and still absorb a hoist for free, or zero to
+    * decide that from the loop's instruction count instead.
+    */
+   unsigned max_loop_pressure;
 
    /* The list of non-pinned instructions.  As we do the late scheduling,
     * we pull non-pinned instructions out of their blocks and place them in
@@ -163,7 +200,8 @@ gcm_build_block_info(struct exec_list *cf_list, struct gcm_state *state,
          assert(!nir_loop_has_continue_construct(loop));
          state->has_loop = true;
          gcm_build_block_info(&loop->body, state, loop, loop_depth + 1, if_depth,
-                              get_loop_instr_count(&loop->body));
+                              state->max_loop_pressure ?
+                                 0 : get_loop_instr_count(&loop->body));
          break;
       }
       default:
@@ -453,6 +491,344 @@ static unsigned
 gcm_def_reg_size(const nir_def *def)
 {
    return def->num_components * DIV_ROUND_UP(def->bit_size, 32);
+}
+
+/* The loop immediately containing the given loop, or NULL if it is outermost. */
+static nir_loop *
+gcm_parent_loop(nir_loop *loop)
+{
+   for (nir_cf_node *node = loop->cf_node.parent; node; node = node->parent) {
+      if (node->type == nir_cf_node_loop)
+         return nir_cf_node_as_loop(node);
+   }
+
+   return NULL;
+}
+
+static struct gcm_loop_pressure *
+gcm_loop_pressure_info(struct gcm_state *state, nir_loop *loop)
+{
+   return &state->blocks[nir_loop_first_block(loop)->index].loop_pressure;
+}
+
+/* Scratch the pressure walk reuses for every block, so that walking a function
+ * full of loops doesn't allocate once per block.
+ */
+struct gcm_pressure_scratch {
+   /* The defs live at the point the walk has reached, one bit per def.  A plain
+    * bitset rather than the sparse one liveness itself uses: the walk tests and
+    * flips a bit for every source and def it passes, and here that is an index
+    * into an array rather than a tree lookup.
+    */
+   BITSET_WORD *live;
+
+   /* The bits set in `live' since the last reset, so that clearing it again
+    * costs what the block touched rather than the size of the function.  Bits
+    * the walk has since cleared are in here too, which does no harm.
+    */
+   unsigned *touched;
+   unsigned num_touched;
+
+   /* Every def in the function, indexed by def->index, so that a bit in a live
+    * set can be turned back into the size of what it stands for.
+    */
+   nir_def **defs;
+};
+
+struct gcm_pressure_state {
+   struct gcm_pressure_scratch *scratch;
+
+   unsigned pressure;
+};
+
+static void
+gcm_pressure_set_live(struct gcm_pressure_scratch *scratch, unsigned index)
+{
+   /* A def is only ever made live once per block: within a block every use of
+    * it comes after it is defined, so walking backwards we are done with it by
+    * the time the walk kills it.  That is what bounds `touched' by the number
+    * of defs in the function.
+    */
+   assert(!BITSET_TEST(scratch->live, index));
+
+   BITSET_SET(scratch->live, index);
+   scratch->touched[scratch->num_touched++] = index;
+}
+
+static void
+gcm_pressure_reset_live(struct gcm_pressure_scratch *scratch)
+{
+   for (unsigned i = 0; i < scratch->num_touched; i++)
+      BITSET_CLEAR(scratch->live, scratch->touched[i]);
+
+   scratch->num_touched = 0;
+}
+
+static bool
+gcm_record_def(nir_def *def, void *void_defs)
+{
+   nir_def **defs = void_defs;
+   defs[def->index] = def;
+
+   return true;
+}
+
+/* Walking backwards, a def stops being live at the instruction that produces
+ * it.  A def nothing goes on to read is not in the live set at all and never
+ * counted against pressure.
+ */
+static bool
+gcm_pressure_kill_def(nir_def *def, void *void_state)
+{
+   struct gcm_pressure_state *state = void_state;
+
+   if (BITSET_TEST(state->scratch->live, def->index)) {
+      BITSET_CLEAR(state->scratch->live, def->index);
+      state->pressure -= gcm_def_reg_size(def);
+   }
+
+   return true;
+}
+
+/* Walking backwards, a def becomes live at the last instruction that reads it.
+ * Instructions that read the same def twice only make it live once.
+ */
+static bool
+gcm_pressure_gen_src(nir_src *src, void *void_state)
+{
+   struct gcm_pressure_state *state = void_state;
+
+   if (!BITSET_TEST(state->scratch->live, src->ssa->index)) {
+      gcm_pressure_set_live(state->scratch, src->ssa->index);
+      state->pressure += gcm_def_reg_size(src->ssa);
+   }
+
+   return true;
+}
+
+/* What is still live when the block ends, which is what an instruction placed
+ * here has to fit alongside.  Seeds the scratch live set with it, since the
+ * walk below starts from exactly the same place.
+ */
+static unsigned
+gcm_block_tail_pressure(nir_block *block, struct gcm_pressure_scratch *scratch)
+{
+   unsigned pressure = 0;
+
+   U_SPARSE_BITSET_FOREACH_SET(&block->live_out, index) {
+      assert(scratch->defs[index] != NULL);
+      pressure += gcm_def_reg_size(scratch->defs[index]);
+      gcm_pressure_set_live(scratch, index);
+   }
+
+   return pressure;
+}
+
+/* Highest register pressure reached at any point in the block.  This walks the
+ * block backwards from its live out set, the same way liveness itself is
+ * computed, so that pressure peaks in the middle of a long block are seen and
+ * not just the pressure at its edges.
+ */
+static unsigned
+gcm_block_peak_pressure(nir_block *block, struct gcm_pressure_scratch *scratch)
+{
+   struct gcm_pressure_state state = {
+      .scratch = scratch,
+      .pressure = gcm_block_tail_pressure(block, scratch),
+   };
+
+   unsigned peak = state.pressure;
+
+   nir_foreach_instr_reverse(instr, block) {
+      /* Phis don't read their sources in this block, they read them in the
+       * predecessors, so liveness stops at them.  As they come first we can
+       * just stop walking.
+       */
+      if (instr->type == nir_instr_type_phi)
+         break;
+
+      nir_foreach_def(instr, gcm_pressure_kill_def, &state);
+      nir_foreach_src(instr, gcm_pressure_gen_src, &state);
+
+      peak = MAX2(peak, state.pressure);
+   }
+
+   gcm_pressure_reset_live(scratch);
+
+   return peak;
+}
+
+/* Records the peak pressure of every loop in the function, before we have moved
+ * anything.  A loop's peak has to account for its nested loops too, because a
+ * value hoisted into it is held across those as well.
+ */
+static void
+gcm_compute_loop_pressure(struct gcm_state *state)
+{
+   nir_function_impl *impl = state->impl;
+
+   /* Liveness sizes a bitset per block from impl->ssa_alloc, which is a high
+    * water mark: it counts every index ever handed out, including those of
+    * instructions long since deleted.  By the time we get here that can be
+    * several times the number of defs the function still has, which spreads the
+    * live sets over far more sparse bitset nodes than they need.  Renumbering
+    * first costs one walk and is paid back many times over.
+    */
+   nir_index_ssa_defs(impl);
+
+   nir_metadata_require(impl, nir_metadata_live_defs);
+
+   void *mem_ctx = ralloc_context(NULL);
+   struct gcm_pressure_scratch scratch = {
+      .live = rzalloc_array(mem_ctx, BITSET_WORD, BITSET_WORDS(impl->ssa_alloc)),
+      .touched = ralloc_array(mem_ctx, unsigned, impl->ssa_alloc),
+      .defs = rzalloc_array(mem_ctx, nir_def *, impl->ssa_alloc),
+   };
+
+   nir_foreach_block(block, impl) {
+      nir_foreach_instr(instr, block)
+         nir_foreach_def(instr, gcm_record_def, scratch.defs);
+   }
+
+   nir_foreach_block(block, impl) {
+      nir_loop *loop = state->blocks[block->index].loop;
+
+      if (loop == NULL) {
+         state->blocks[block->index].tail_pressure =
+            gcm_block_tail_pressure(block, &scratch);
+         gcm_pressure_reset_live(&scratch);
+         continue;
+      }
+
+      unsigned peak = gcm_block_peak_pressure(block, &scratch);
+
+      for (; loop != NULL; loop = gcm_parent_loop(loop)) {
+         struct gcm_loop_pressure *pressure =
+            gcm_loop_pressure_info(state, loop);
+         pressure->peak = MAX2(pressure->peak, peak);
+      }
+   }
+
+   ralloc_free(mem_ctx);
+}
+
+/* The loops a move from the instruction's block to the given block would lift
+ * the result out of, from the innermost outwards.  The result becomes live
+ * across every one of them.
+ */
+#define gcm_foreach_loop_hoisted_out_of(loop, state, instr, block)     \
+   for (nir_loop *loop = (state)->blocks[(instr)->block->index].loop;  \
+        loop != NULL && !gcm_loop_contains_block(loop, block);         \
+        loop = gcm_parent_loop(loop))
+
+/* Whether the loops the move would lift the instruction out of can hold its
+ * result without being pushed past what their registers can take.  A loop with
+ * room to spare absorbs the result without issue, so there is no need to make
+ * the move pay for itself out of the sources it frees.
+ *
+ * Drivers that haven't set a pressure limit get the old heuristics instead:
+ * A loop with few enough instructions in it is assumed to have room.  What
+ * makes such a loop safe to empty out is that the instruction ends up outside
+ * every loop, where holding its result costs nothing, so only a loop that
+ * isn't nested inside another one qualifies.
+ */
+static bool
+gcm_loops_have_room_for_instr(struct gcm_state *state, nir_instr *instr,
+                              nir_block *block)
+{
+   struct gcm_block_info *info = &state->blocks[instr->block->index];
+
+   if (!state->max_loop_pressure) {
+      return info->loop_depth == 1 &&
+             info->loop_instr_count < MAX_LOOP_INSTRUCTIONS;
+   }
+
+   nir_def *def = nir_instr_def(instr);
+   if (!def)
+      return false;
+
+   unsigned cost = gcm_def_reg_size(def);
+
+   /* Where it lands has to have room for it too. Landing inside another loop
+    * means being held across that one from now on, so what matters there is its
+    * peak; landing outside every loop, it only has to fit alongside what is
+    * still live where it is put, which is the end of the block.
+    */
+   nir_loop *landing_loop = state->blocks[block->index].loop;
+   unsigned landing = landing_loop != NULL ?
+                      gcm_loop_pressure_info(state, landing_loop)->peak :
+                      state->blocks[block->index].tail_pressure;
+
+   gcm_foreach_loop_hoisted_out_of(loop, state, instr, block) {
+      struct gcm_loop_pressure *pressure = gcm_loop_pressure_info(state, loop);
+      unsigned held = MAX2(pressure->peak, landing);
+
+      if (held + pressure->hoisted + cost > state->max_loop_pressure)
+         return false;
+   }
+
+   return true;
+}
+
+/* Moves a hoist on or off the loops it takes the result out of, so that later
+ * moves see the pressure it added. Instructions that are let out on their type
+ * rather than on what they cost count the same as any other: a texture result
+ * held across a loop takes a register whether or not anything weighed it.
+ */
+static void
+gcm_move_loop_pressure(struct gcm_state *state, nir_instr *instr,
+                       nir_block *block, bool charge)
+{
+   if (!state->max_loop_pressure)
+      return;
+
+   nir_def *def = nir_instr_def(instr);
+   if (def == NULL)
+      return;
+
+   /* Landing after a loop rather than above it leaves nothing held across the
+    * loop, so there is nothing for it to pay. Only a result computed before the
+    * loop and read from inside it occupies a register for the whole of it.
+    *
+    * The loops the move leaves are nested, so asking this of the innermost one
+    * answers it for all of them: a block that doesn't dominate its header can't
+    * dominate the header of a loop that contains it either.
+    */
+   nir_loop *innermost = state->blocks[instr->block->index].loop;
+   if (innermost == NULL ||
+       !nir_block_dominates(block, nir_loop_first_block(innermost)))
+      return;
+
+   unsigned def_reg_size = gcm_def_reg_size(def);
+
+   gcm_foreach_loop_hoisted_out_of(loop, state, instr, block) {
+      struct gcm_loop_pressure *pressure = gcm_loop_pressure_info(state, loop);
+
+      if (charge) {
+         pressure->hoisted += def_reg_size;
+      } else {
+         assert(pressure->hoisted >= def_reg_size);
+         pressure->hoisted -= def_reg_size;
+      }
+   }
+}
+
+static void
+gcm_charge_loop_hoist(struct gcm_state *state, nir_instr *instr,
+                      nir_block *block)
+{
+   gcm_move_loop_pressure(state, instr, block, true);
+}
+
+/* Hands back what a move was charged, for when it turns out not to be the move
+ * that gets made. Asking the same question of the same blocks as the charge did
+ * gives back exactly what it took.
+ */
+static void
+gcm_refund_loop_hoist(struct gcm_state *state, nir_instr *instr,
+                      nir_block *block)
+{
+   gcm_move_loop_pressure(state, instr, block, false);
 }
 
 struct gcm_first_read_state {
@@ -779,10 +1155,17 @@ gcm_move_frees_registers_for_use(struct gcm_state *state, nir_instr *instr,
    return best_surplus && best_surplus >= cost;
 }
 
+/* Decides whether the instruction can be moved to the given block. Sets
+ * *pays_for_itself when the move is one the cost model let out because it frees
+ * up at least as much as it takes, which is what tells the loops it leaves that
+ * they are no worse off holding the result.
+ */
 static bool
 set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
-                         nir_block *block)
+                         nir_block *block, bool *pays_for_itself)
 {
+   *pays_for_itself = false;
+
    /* If the instruction wasn't in a loop to begin with we don't want to push
     * it down into one.
     */
@@ -808,39 +1191,31 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
        nir_block_ends_in_break(nir_loop_last_block(loop)))
       return false;
 
-   /* Being too aggressive with how we pull instructions out of loops can
-    * result in extra register pressure and spilling. For example its fairly
-    * common for loops in compute shaders to calculate SSBO offsets using
-    * the workgroup id, subgroup id and subgroup invocation, pulling all
-    * these calculations outside the loop causes register pressure.
-    *
-    * To work around these issues for now we only allow constant and texture
-    * instructions to be moved outside their original loops, or instructions
-    * where the total loop instruction count is less than
-    * MAX_LOOP_INSTRUCTIONS.
-    */
-   /* What makes a small loop safe to empty out is that the instruction ends up
-    * outside every loop, where holding its result costs nothing. That isn't
-    * where it lands if the small loop is nested inside another one: it only
-    * gets as far as the outer loop, and its result is then live across every
-    * iteration of that. So a nested loop has to be weighed like any other,
-    * however few instructions it has of its own.
-    */
-   if (state->blocks[instr->block->index].loop_depth == 1 &&
-       state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
-      return true;
-
    if (instr->type == nir_instr_type_load_const ||
        instr->type == nir_instr_type_tex ||
        (instr->type == nir_instr_type_intrinsic &&
         nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_resource_intel))
       return true;
 
-   /* Move instructions outside the loop if doing so would free up at least as
-    * much register pressure as it costs. Hoisting the instruction extends the
-    * live range of its result across the loop, so the sources that stop being
-    * live after the block it would be moved to have to be worth at least as
-    * much as the result we are hoisting.
+   /* Being too aggressive with how we pull instructions out of loops can
+    * result in extra register pressure and spilling. For example its fairly
+    * common for loops in compute shaders to calculate SSBO offsets using
+    * the workgroup id, subgroup id and subgroup invocation, pulling all
+    * these calculations outside the loop causes register pressure.
+    *
+    * What we spend to move an instruction out is a register held across every
+    * loop it leaves, so a loop that isn't using the registers it has can hand
+    * one over for nothing.
+    */
+   if (gcm_loops_have_room_for_instr(state, instr, block))
+      return true;
+
+   /* The loops are full, so from here the move has to pay its own way: it is
+    * only worth making if it would free up at least as much register pressure
+    * as it costs. Hoisting the instruction extends the live range of its
+    * result across the loop, so the sources that stop being live after the
+    * block it would be moved to have to be worth at least as much as the
+    * result we are hoisting.
     *
     * This is what keeps wide results in the loop. A vec4 load_ubo built from a
     * couple of scalar sources, for example, would trade two registers for four
@@ -866,19 +1241,25 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
    /* Moving out something that frees up more than it costs always leaves the
     * loop better off.
     */
-   if (freed_srcs.reg_size > def_reg_size)
+   if (freed_srcs.reg_size > def_reg_size) {
+      *pays_for_itself = true;
       return true;
+   }
 
    /* Nothing else uses what this frees up, so unlike a break even move in
     * general it really does hand the loop back as much as it takes.
     */
-   if (!freed_srcs.shared)
+   if (!freed_srcs.shared) {
+      *pays_for_itself = true;
       return true;
+   }
 
    /* The rest only break even on their own, so they are worth moving out only
     * when they let one of their uses out too.
     */
-   return gcm_move_frees_registers_for_use(state, instr, block);
+   *pays_for_itself = gcm_move_frees_registers_for_use(state, instr, block);
+
+   return *pays_for_itself;
 }
 
 static void
@@ -962,10 +1343,22 @@ gcm_schedule_early_instr(nir_instr *instr, struct gcm_state *state)
     */
    if (state->second_early_run) {
       struct gcm_instr_info *info = &state->instr_infos[instr->index];
+      bool pays_for_itself;
       if (state->blocks[instr->block->index].loop &&
-          info->early_block != instr->block &&
-          !set_block_for_loop_instr(state, instr, info->early_block)) {
-         info->early_block = instr->block;
+          info->early_block != instr->block) {
+         if (set_block_for_loop_instr(state, instr, info->early_block,
+                                      &pays_for_itself)) {
+            /* Spend what letting this one out costs. Marking it charged keeps
+             * the second early run from charging the loop a second time for
+             * the same register.
+             */
+            if (!pays_for_itself) {
+               gcm_charge_loop_hoist(state, instr, info->early_block);
+               instr->pass_flags |= GCM_INSTR_CHARGED;
+            }
+         } else {
+            info->early_block = instr->block;
+         }
       }
    }
 }
@@ -990,8 +1383,11 @@ set_block_to_if_block(struct gcm_state *state, nir_instr *instr,
 
 static nir_block *
 gcm_choose_block_for_instr(nir_instr *instr, nir_block *early_block,
-                           nir_block *late_block, struct gcm_state *state)
+                           nir_block *late_block, struct gcm_state *state,
+                           bool *pays_for_itself)
 {
+   *pays_for_itself = false;
+
    /* We might have tried to force the the instruction to stay inside a loop in
     * gcm_schedule_early_instr() but if GVN has already moved the LCA higher
     * then we need to fix it up here.
@@ -1044,8 +1440,11 @@ gcm_choose_block_for_instr(nir_instr *instr, nir_block *early_block,
    for (nir_block *block = late_block; block != NULL; block = block->imm_dom) {
       if (state->blocks[block->index].loop_depth <
           state->blocks[best->index].loop_depth) {
-         if (set_block_for_loop_instr(state, instr, block)) {
+         bool block_pays_for_itself;
+         if (set_block_for_loop_instr(state, instr, block,
+                                      &block_pays_for_itself)) {
             best = block;
+            *pays_for_itself = block_pays_for_itself;
          } else if (block == instr->block) {
             if (!block_set)
                best = block;
@@ -1113,21 +1512,30 @@ gcm_schedule_late_def(nir_def *def, void *void_state)
       lca = nir_dominance_lca(lca, pred_block);
    }
 
-   nir_block *early_block =
-      state->instr_infos[nir_def_instr(def)->index].early_block;
+   nir_instr *instr = nir_def_instr(def);
+   nir_block *early_block = state->instr_infos[instr->index].early_block;
+
+   /* Refund the early run's provisional charge before deciding anything.  A
+    * dead instruction never pays it back, and choosing a block while it still
+    * stands counts this instruction's cost twice.  The move we settle on is
+    * charged below.
+    */
+   if (instr->pass_flags & GCM_INSTR_CHARGED) {
+      gcm_refund_loop_hoist(state, instr, early_block);
+      instr->pass_flags &= ~GCM_INSTR_CHARGED;
+   }
 
    /* Some instructions may never be used.  Flag them and the instruction
     * placement code will get rid of them for us.
     */
    if (lca == NULL) {
-      nir_def_instr(def)->block = NULL;
+      instr->block = NULL;
       return true;
    }
 
-   if (nir_def_instr(def)->pass_flags & GCM_INSTR_SCHEDULE_EARLIER_ONLY &&
-       lca != nir_def_block(def) &&
-       nir_block_dominates(nir_def_block(def), lca)) {
-      lca = nir_def_block(def);
+   if (instr->pass_flags & GCM_INSTR_SCHEDULE_EARLIER_ONLY &&
+       lca != instr->block && nir_block_dominates(instr->block, lca)) {
+      lca = instr->block;
    }
 
    /* We now have the LCA of all of the uses.  If our invariants hold,
@@ -1135,13 +1543,24 @@ gcm_schedule_late_def(nir_def *def, void *void_state)
     * We now walk up the dominance tree and pick the lowest block that is
     * as far outside loops as we can get.
     */
+   bool pays_for_itself;
    nir_block *best_block =
-      gcm_choose_block_for_instr(nir_def_instr(def), early_block, lca, state);
+      gcm_choose_block_for_instr(instr, early_block, lca, state,
+                                 &pays_for_itself);
 
-   if (nir_def_block(def) != best_block)
+   if (nir_def_block(def) != best_block) {
+      /* Make the loops it leaves pay for holding the result, so the moves we
+       * look at after this one see the registers this one used up. A move that
+       * frees up as much as it takes leaves them no worse off, so there is
+       * nothing to charge it for.
+       */
+      if (!pays_for_itself)
+         gcm_charge_loop_hoist(state, instr, best_block);
+
       state->progress = true;
+   }
 
-   nir_def_instr(def)->block = best_block;
+   instr->block = best_block;
 
    return true;
 }
@@ -1273,10 +1692,17 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number)
    state.progress = false;
    state.second_early_run = false;
    state.has_loop = false;
+   state.max_loop_pressure = shader->options->max_gcm_loop_pressure;
    exec_list_make_empty(&state.instrs);
    state.blocks = rzalloc_array(NULL, struct gcm_block_info, impl->num_blocks);
 
    gcm_build_block_info(&impl->body, &state, NULL, 0, 0, ~0u);
+
+   /* Only loops give us anything to weigh a move against, and computing
+    * liveness for a function without any of them is pure overhead.
+    */
+   if (state.has_loop && state.max_loop_pressure)
+      gcm_compute_loop_pressure(&state);
 
    gcm_pin_instructions(impl, &state);
 
@@ -1342,7 +1768,8 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number)
       nir_progress(true, impl, nir_metadata_control_flow);
    } else {
       nir_progress(true, impl,
-                   nir_metadata_control_flow | nir_metadata_loop_analysis);
+                   nir_metadata_control_flow | nir_metadata_loop_analysis |
+                   nir_metadata_live_defs);
    }
 
    return state.progress;
