@@ -1569,10 +1569,10 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .shaderFloat8CooperativeMatrix = radv_cooperative_matrix_enabled(pdev),
 
       /* VK_NV_cooperative_matrix2 */
-      .cooperativeMatrixConversions = true,
+      .cooperativeMatrixConversionsNV = true,
       .cooperativeMatrixFlexibleDimensions = true,
-      .cooperativeMatrixReductions = true,
-      .cooperativeMatrixPerElementOperations = true,
+      .cooperativeMatrixReductionsNV = true,
+      .cooperativeMatrixPerElementOperationsNV = true,
       .cooperativeMatrixTensorAddressing = true,
       .cooperativeMatrixBlockLoads = true,
 

@@ -910,9 +910,9 @@ lvp_get_features(const struct lvp_physical_device *pdevice,
       .cooperativeMatrixRobustBufferAccess = has_cooperative_matrix(),
 
       .cooperativeMatrixFlexibleDimensions = true,
-      .cooperativeMatrixConversions = true,
-      .cooperativeMatrixReductions = true,
-      .cooperativeMatrixPerElementOperations = true,
+      .cooperativeMatrixConversionsNV = true,
+      .cooperativeMatrixReductionsNV = true,
+      .cooperativeMatrixPerElementOperationsNV = true,
       .cooperativeMatrixTensorAddressing = true,
       .cooperativeMatrixBlockLoads = true,
 
