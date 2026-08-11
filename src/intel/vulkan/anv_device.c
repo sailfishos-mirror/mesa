@@ -911,7 +911,7 @@ VkResult anv_CreateDevice(
 
    if (intel_needs_workaround(device->info, 14019708328)) {
       result = anv_device_alloc_bo(device, "dummy_aux", 4096,
-                                   0 /* alloc_flags */,
+                                   ANV_BO_ALLOC_INTERNAL /* alloc_flags */,
                                    0 /* explicit_address */,
                                    &device->dummy_aux_bo);
       ANV_DMR_BO_ALLOC(&device->vk.base, device->dummy_aux_bo, result);
@@ -930,8 +930,8 @@ VkResult anv_CreateDevice(
     */
    if (device->info->verx10 >= 200) {
       result = anv_device_alloc_bo(device, "mem_fence", 4096,
-                                   ANV_BO_ALLOC_NO_LOCAL_MEM, 0,
-                                   &device->mem_fence_bo);
+                                   ANV_BO_ALLOC_NO_LOCAL_MEM | ANV_BO_ALLOC_INTERNAL,
+                                   0, &device->mem_fence_bo);
       ANV_DMR_BO_ALLOC(&device->vk.base, device->mem_fence_bo, result);
       if (result != VK_SUCCESS)
          goto fail_alloc_device_bo;
