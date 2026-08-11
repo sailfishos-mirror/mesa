@@ -1955,7 +1955,8 @@ impl<'a> ShaderFromNir<'a> {
             | nir_intrinsic_load_instance_id
             | nir_intrinsic_load_draw_id
             | nir_intrinsic_load_layer_id
-            | nir_intrinsic_load_idvs_output_buf_index_pan => {
+            | nir_intrinsic_load_idvs_output_buf_index_pan
+            | nir_intrinsic_load_raster_sample_centroid_pan => {
                 assert_eq!(intrin.def.bit_size, 32);
                 assert_eq!(intrin.def.num_components, 1);
 
@@ -1967,6 +1968,9 @@ impl<'a> ShaderFromNir<'a> {
                     nir_intrinsic_load_layer_id => PreloadReg::FrameArgLow,
                     nir_intrinsic_load_idvs_output_buf_index_pan => {
                         PreloadReg::InternalId
+                    }
+                    nir_intrinsic_load_raster_sample_centroid_pan => {
+                        PreloadReg::RasterizerSampleCentroid
                     }
                     _ => unreachable!(),
                 };

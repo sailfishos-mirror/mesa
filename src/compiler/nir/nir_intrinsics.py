@@ -1905,6 +1905,12 @@ load("clear_value_pan", [], [IO_SEMANTICS, DEST_TYPE],
 # Cumulative coverage mask, the start of the atest/zt/blend chain
 system_value("cumulative_coverage_pan", 1, bit_sizes=[32])
 system_value("blend_descriptor_pan", 1, bit_sizes=[64], indices=[BASE])
+# Bundle of system values that v9+ architectures always package together
+# in a preloaded register:
+# 0 ..16: Rasterizer coverage bitmap
+# 16..24: Sample ID
+# 24..32: Centroid sample ID
+system_value("raster_sample_centroid_pan", 1, bit_sizes=[32])
 
 load("blend_input_pan", [], [IO_SEMANTICS, DEST_TYPE],
      [CAN_ELIMINATE, CAN_REORDER])
