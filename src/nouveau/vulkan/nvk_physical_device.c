@@ -114,9 +114,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
                           bool has_tiled_bos,
                           struct vk_device_extension_table *ext)
 {
-   const bool video_hw = (instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) &&
-                         info->has_video;
-   const bool h264dec = video_hw && VIDEO_CODEC_H264DEC;
+   const bool h264dec = nvk_video_enabled(instance, info);
    /* The queue and the maintenance extensions are not codec specific, so
     * they follow whether any decode codec is built.
     */
@@ -1400,8 +1398,7 @@ nvk_get_device_properties(const struct nvk_instance *instance,
    };
 
    uint32_t supported_layout_count = ARRAY_SIZE(supported_layouts);
-   if (!(instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) ||
-       !info->has_video || !VIDEO_CODEC_H264DEC)
+   if (!nvk_video_enabled(instance, info))
       supported_layout_count -= 3;
 
    properties->pCopySrcLayouts = (VkImageLayout *)supported_layouts;
@@ -1718,8 +1715,7 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
          .queue_count = 2,
       };
    }
-   if ((instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) &&
-       pdev->info.has_video && VIDEO_CODEC_H264DEC) {
+   if (nvk_video_enabled(instance, &pdev->info)) {
       pdev->queue_families[pdev->queue_family_count++] = (struct nvk_queue_family) {
          .queue_flags = VK_QUEUE_VIDEO_DECODE_BIT_KHR |
                         VK_QUEUE_SPARSE_BINDING_BIT,
