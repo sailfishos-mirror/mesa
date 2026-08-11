@@ -775,6 +775,20 @@ emit_intrinsic(struct etna_compile *c, nir_intrinsic_instr * intr)
          .src[1] = const_src(c, &CONST_VAL(ETNA_UNIFORM_CONSTANT_DATA_ADDR, nir_intrinsic_base(intr)), 1),
       });
    } break;
+   case nir_intrinsic_store_global_offset:
+      emit_inst(c, &(struct etna_inst) {
+         .opcode = ISA_OPC_STORE,
+         .type = ISA_TYPE_U32,
+         .denorm = 1,
+         .dst = {
+            .use = 1,
+            .write_mask = nir_intrinsic_write_mask(intr),
+         },
+         .src[0] = get_src(c, &intr->src[1]),
+         .src[1] = get_src(c, &intr->src[2]),
+         .src[2] = get_src(c, &intr->src[0]),
+      });
+      break;
    case nir_intrinsic_load_front_face:
    case nir_intrinsic_load_frag_coord:
       break;
@@ -1167,6 +1181,15 @@ emit_shader(struct etna_compile *c, unsigned *num_temps, unsigned *num_consts)
                for (unsigned i = 0; i < intr->def.num_components; i++)
                   value[i] = SAMPLERLOD(sampler, i);
             } break;
+            case nir_intrinsic_load_xfb_address:
+               value[0] = CONST_VAL(ETNA_UNIFORM_XFB_ADDR, nir_intrinsic_base(intr));
+               break;
+            case nir_intrinsic_load_num_vertices:
+               value[0] = CONST_VAL(ETNA_UNIFORM_XFB_NUM_VERTICES, 0);
+               break;
+            case nir_intrinsic_load_first_vertex:
+               value[0] = CONST_VAL(ETNA_UNIFORM_XFB_FIRST_VERTEX, 0);
+               break;
             default:
                continue;
             }
