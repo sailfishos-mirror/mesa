@@ -1497,6 +1497,13 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    }
 
    info->userq_ip_mask = debug_get_bool_option("AMD_USERQ", false) ? device_info.userq_ip_mask : 0;
+   /* Incomplete userq syncobj timeline support until .65 */
+   if (info->userq_ip_mask && info->drm_minor < 65) {
+      fprintf(stderr, "amdgpu: DRM version is %u.%u.%u, but userq support "
+                      "requires 3.65.0 or later.\n",
+              info->drm_major, info->drm_minor, info->drm_patchlevel);
+      return AC_QUERY_GPU_INFO_FAIL;
+   }
 
    for (unsigned ip_type = 0; ip_type < AMD_NUM_IP_TYPES; ip_type++) {
       struct drm_amdgpu_info_hw_ip ip_info = {0};
