@@ -1724,19 +1724,21 @@ intrinsic("resbase_ir3", src_comp=[1], dest_comp=2, flags=[CAN_ELIMINATE, CAN_RE
 load("attr_pan", [1, 1, 1], [DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 
 # src[] = { idx, bary }
-load("var_pan", [1, 2], [DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
+# FLAGS is enum pan_bi_sample_loc
+load("var_pan", [1, 1], [DEST_TYPE, IO_SEMANTICS, FLAGS], [CAN_ELIMINATE, CAN_REORDER])
 # src[] = { idx }
 load("var_flat_pan", [1], [DEST_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 # src[] = { offset, bary }
-load("var_buf_pan", [1, 2], [SRC_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
+# FLAGS is enum pan_bi_sample_loc
+load("var_buf_pan", [1, 1], [SRC_TYPE, IO_SEMANTICS, FLAGS], [CAN_ELIMINATE, CAN_REORDER])
 # src[] = { offset }
 load("var_buf_flat_pan", [1], [SRC_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 
 # Panfrost-specific intrinsic to load special varyings, can load point coords
 # and frag_[zw] at specific barycentric coordinates.
 # src[] = { barycoord }
-# FLAGS is enum bi_varying_name
-intrinsic("load_var_special_pan", src_comp=[2], dest_comp=0, bit_sizes=[32],
+# FLAGS is enum pan_bi_var_special_flags
+intrinsic("load_var_special_pan", src_comp=[1], dest_comp=0, bit_sizes=[32],
           indices=[FLAGS], flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # Panfrost-specific intrinsic to load the shader_output special-FAU value on 5th Gen.

@@ -308,6 +308,29 @@ struct pan_va_tex_flags {
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
 
+enum pan_bi_sample_loc {
+   PAN_SAMPLE_LOC_CENTER,
+   PAN_SAMPLE_LOC_CENTROID,
+   PAN_SAMPLE_LOC_SAMPLE,
+   PAN_SAMPLE_LOC_EXPLICIT,
+};
+
+enum pan_bi_varying_name {
+   PAN_VARYING_NAME_POINT = 0,
+   PAN_VARYING_NAME_FRAG_W = 2,
+   PAN_VARYING_NAME_FRAG_Z = 3,
+};
+
+PRAGMA_DIAGNOSTIC_PUSH
+PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
+struct pan_bi_var_special_flags {
+   enum pan_bi_varying_name name : 2;
+   enum pan_bi_sample_loc sample_loc : 2;
+   unsigned _pad : 28;
+};
+PRAGMA_DIAGNOSTIC_POP
+static_assert(sizeof(struct pan_bi_var_special_flags) == 4, "Must fit in uint32_t");
+
 void pan_nir_lower_mediump_io(nir_shader *nir);
 
 bool pan_nir_lower_tex(nir_shader *nir, uint64_t gpu_id);

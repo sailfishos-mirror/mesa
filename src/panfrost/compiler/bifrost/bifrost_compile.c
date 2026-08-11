@@ -279,104 +279,6 @@ bi_f32_to_f16_to(bi_builder *b, bi_index dest, bi_index src)
    return I;
 }
 
-static bi_index
-bi_varying_src0_for_barycentric(bi_builder *b, nir_intrinsic_instr *intr)
-{
-   switch (intr->intrinsic) {
-   case nir_intrinsic_load_barycentric_centroid:
-      return bi_preload(b, BI_PRELOAD_CENTROID_ID);
-   case nir_intrinsic_load_barycentric_sample:
-      return bi_preload(b, BI_PRELOAD_SAMPLE_ID);
-
-   /* Need to put the sample ID in the top 16-bits */
-   case nir_intrinsic_load_barycentric_at_sample:
-      return bi_mkvec_v2i16(b, bi_half(bi_dontcare(b), false),
-                            bi_half(bi_src_index(&intr->src[0]), false));
-
-   /* Interpret as 8:8 signed fixed point positions in pixels along X and
-    * Y axes respectively, relative to top-left of pixel. In NIR, (0, 0)
-    * is the center of the pixel so we first fixup and then convert. For
-    * fp16 input:
-    *
-    * f2i16(((x, y) + (0.5, 0.5)) * 2**8) =
-    * f2i16((256 * (x, y)) + (128, 128)) =
-    * V2F16_TO_V2S16(FMA.v2f16((x, y), #256, #128))
-    *
-    * For fp32 input, that lacks enough precision for MSAA 16x, but the
-    * idea is the same. FIXME: still doesn't pass
-    */
-   case nir_intrinsic_load_barycentric_at_offset: {
-      bi_index offset = bi_src_index(&intr->src[0]);
-      bi_index f16 = bi_null();
-      unsigned sz = nir_src_bit_size(intr->src[0]);
-
-      if (sz == 16) {
-         f16 = bi_fma_v2f16(b, offset, bi_imm_f16(256.0), bi_imm_f16(128.0));
-      } else {
-         assert(sz == 32);
-         bi_index f[2];
-         for (unsigned i = 0; i < 2; ++i) {
-            f[i] =
-               bi_fadd_rscale_f32(b, bi_extract(b, offset, i), bi_imm_f32(0.5),
-                                  bi_imm_u32(8), BI_SPECIAL_NONE);
-         }
-
-         /* On v11+, V2F32_TO_V2F16 is gone */
-         if (b->shader->arch >= 11) {
-            bi_index tmp[2];
-
-            for (int i = 0; i < 2; i++) {
-               tmp[i] = bi_half(bi_temp(b->shader), false);
-               bi_f32_to_f16_to(b, tmp[i], f[i]);
-            }
-
-            f16 = bi_mkvec_v2i16(b, tmp[0], tmp[1]);
-         } else {
-            f16 = bi_v2f32_to_v2f16(b, f[0], f[1]);
-         }
-      }
-
-      /* v11 removed V2F16_TO_V2S16 */
-      if (b->shader->arch >= 11) {
-         bi_index f[2];
-
-         for (int i = 0; i < 2; i++) {
-            bi_index tmp = bi_half(f16, i == 1);
-            tmp = bi_f16_to_f32(b, tmp);
-            tmp = bi_f32_to_s32(b, tmp);
-            f[i] = bi_half(tmp, false);
-         }
-
-         return bi_mkvec_v2i16(b, f[0], f[1]);
-      } else {
-         return bi_v2f16_to_v2s16(b, f16);
-      }
-   }
-
-   case nir_intrinsic_load_barycentric_pixel:
-   default:
-      return b->shader->arch >= 9 ? bi_preload(b, BI_PRELOAD_CENTROID_ID)
-                                  : bi_dontcare(b);
-   }
-}
-
-static enum bi_sample
-bi_interp_for_intrinsic(nir_intrinsic_op op)
-{
-   switch (op) {
-   case nir_intrinsic_load_barycentric_centroid:
-      return BI_SAMPLE_CENTROID;
-   case nir_intrinsic_load_barycentric_sample:
-   case nir_intrinsic_load_barycentric_at_sample:
-      return BI_SAMPLE_SAMPLE;
-   case nir_intrinsic_load_barycentric_at_offset:
-      return BI_SAMPLE_EXPLICIT;
-   case nir_intrinsic_load_barycentric_pixel:
-   default:
-      return BI_SAMPLE_CENTER;
-   }
-}
-
 /* auto, 64-bit omitted */
 static enum bi_register_format
 bi_reg_fmt_for_nir(nir_alu_type T)
@@ -612,6 +514,19 @@ bi_emit_lea_buf(bi_builder *b, nir_intrinsic_instr *intr)
    bi_split_def(b, &intr->def);
 }
 
+static enum bi_sample
+bi_sample_from_nir(enum pan_bi_sample_loc loc)
+{
+   switch (loc) {
+   case PAN_SAMPLE_LOC_CENTER:   return BI_SAMPLE_CENTER;
+   case PAN_SAMPLE_LOC_CENTROID: return BI_SAMPLE_CENTROID;
+   case PAN_SAMPLE_LOC_SAMPLE:   return BI_SAMPLE_SAMPLE;
+   case PAN_SAMPLE_LOC_EXPLICIT: return BI_SAMPLE_EXPLICIT;
+   }
+   UNREACHABLE("Invalid sample loc");
+   return BI_SAMPLE_CENTER;
+}
+
 static void
 bi_emit_load_var(bi_builder *b, nir_intrinsic_instr *intr)
 {
@@ -635,9 +550,10 @@ bi_emit_load_var(bi_builder *b, nir_intrinsic_instr *intr)
       assert(base_type == nir_type_float || sz == 32);
       regfmt = bi_reg_fmt_for_nir(dest_type);
    } else {
-      nir_intrinsic_instr *bary = nir_src_as_intrinsic(intr->src[1]);
-      sample = bi_interp_for_intrinsic(bary->intrinsic);
-      src0 = bi_varying_src0_for_barycentric(b, bary);
+      sample = bi_sample_from_nir(nir_intrinsic_flags(intr));
+      src0 = bi_src_index(&intr->src[1]);
+      if (sample == BI_SAMPLE_CENTER)
+         src0 = bi_dontcare(b);
 
       /* Smooth ints don't exist */
       assert(base_type == nir_type_float);
@@ -716,9 +632,10 @@ bi_emit_load_var_buf(bi_builder *b, nir_intrinsic_instr *intr)
       /* Gather info as we go */
       b->shader->info.bifrost->uses_flat_shading = true;
    } else {
-      nir_intrinsic_instr *bary = nir_src_as_intrinsic(intr->src[1]);
-      sample = bi_interp_for_intrinsic(bary->intrinsic);
-      src0 = bi_varying_src0_for_barycentric(b, bary);
+      sample = bi_sample_from_nir(nir_intrinsic_flags(intr));
+      src0 = bi_src_index(&intr->src[1]);
+      if (sample == BI_SAMPLE_CENTER)
+         src0 = bi_dontcare(b);
    }
 
    enum bi_source_format source_format;
@@ -1386,15 +1303,31 @@ bi_emit_atomic_i32_to(bi_builder *b, bi_index dst, bi_index addr, bi_index arg,
    }
 }
 
+static enum bi_varying_name
+bi_varying_name_from_nir(enum pan_bi_varying_name name)
+{
+   switch (name) {
+      case PAN_VARYING_NAME_POINT:  return BI_VARYING_NAME_POINT;
+      case PAN_VARYING_NAME_FRAG_W: return BI_VARYING_NAME_FRAG_W;
+      case PAN_VARYING_NAME_FRAG_Z: return BI_VARYING_NAME_FRAG_Z;
+   }
+   UNREACHABLE("Invalid varying name");
+   return BI_VARYING_NAME_POINT;
+}
+
 static void
 bi_emit_load_var_special_pan(bi_builder *b, nir_intrinsic_instr *instr)
 {
    bi_index dst = bi_def_index(&instr->def);
-   enum bi_varying_name var_name = nir_intrinsic_flags(instr);
-   nir_intrinsic_instr *bary = nir_src_as_intrinsic(instr->src[0]);
+   uint32_t flags_raw = nir_intrinsic_flags(instr);
+   struct pan_bi_var_special_flags flags;
+   memcpy(&flags, &flags_raw, sizeof(flags));
 
-   enum bi_sample sample = bi_interp_for_intrinsic(bary->intrinsic);
-   bi_index src0 = bi_varying_src0_for_barycentric(b, bary);
+   enum bi_varying_name var_name = bi_varying_name_from_nir(flags.name);
+   enum bi_sample sample = bi_sample_from_nir(flags.sample_loc);
+   bi_index src0 = bi_src_index(&instr->src[0]);
+   if (sample == BI_SAMPLE_CENTER)
+      src0 = bi_dontcare(b);
    unsigned nr = instr->num_components;
    assert(instr->def.bit_size == 32);
 
