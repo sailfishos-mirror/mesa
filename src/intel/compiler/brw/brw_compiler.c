@@ -174,6 +174,12 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
    struct nir_shader_compiler_options *nir_options = &compiler->nir_options[0];
    *nir_options = brw_scalar_nir_options;
 
+   /* Weigh gcm loop hoist pressure against the same number the backend uses
+    * to decide a shader is under too much pressure.
+    */
+   nir_options->max_gcm_loop_pressure = compiler->register_pressure_threshold;
+   nir_options->gcm_divergent_pressure_scale = devinfo->ver >= 30 ? 2 : 1;
+
    /* Gfx11 loses LRP. */
    nir_options->lower_flrp32 = devinfo->ver >= 11;
 
