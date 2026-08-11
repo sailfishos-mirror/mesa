@@ -3506,11 +3506,13 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          genX(cmd_buffer_emit_state_base_address)(cmd_buffer);
          sba_emitted_changed = true;
       }
+      cmd_buffer->state.descriptor_buffers.dirty = false;
 #else
       if (cmd_buffer->state.current_binding_mode != ANV_SHADER_BINDING_MODE_BUFFER ||
           cmd_buffer->state.descriptor_buffers.dirty) {
          genX(cmd_buffer_emit_state_base_address)(cmd_buffer);
          sba_emitted_changed = true;
+         cmd_buffer->state.descriptor_buffers.dirty = false;
       }
 #endif
       break;
@@ -3521,11 +3523,13 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          genX(cmd_buffer_emit_state_base_address)(cmd_buffer);
          sba_emitted_changed = true;
       }
+      cmd_buffer->state.descriptor_heap.dirty = false;
 #else
       if (cmd_buffer->state.current_binding_mode != ANV_SHADER_BINDING_MODE_HEAP ||
           cmd_buffer->state.descriptor_heap.dirty) {
          genX(cmd_buffer_emit_state_base_address)(cmd_buffer);
          sba_emitted_changed = true;
+         cmd_buffer->state.descriptor_heap.dirty = false;
       }
 #endif
       break;
@@ -3546,10 +3550,7 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
    } while (0)
 
    switch (cmd_buffer->state.current_binding_mode) {
-   case ANV_SHADER_BINDING_MODE_HEAP:
-      if (!sba_emitted_changed && !cmd_buffer->state.descriptor_heap.dirty)
-         break;
-
+   case ANV_SHADER_BINDING_MODE_HEAP: {
 #if GFX_VERx10 < 125
       struct anv_device *device = cmd_buffer->device;
       UPDATE_PUSH(push->heap.surfaces_offset,
@@ -3572,12 +3573,11 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          cmd_buffer->state.push_constants_dirty |= active_stages;
          bind_state->push_constants_state = ANV_STATE_NULL;
       }
-      cmd_buffer->state.descriptor_heap.dirty = false;
       break;
+   }
 
    case ANV_SHADER_BINDING_MODE_BUFFER:
       if (sba_emitted_changed ||
-          cmd_buffer->state.descriptor_buffers.dirty ||
           (active_stages & cmd_buffer->state.descriptor_buffers.offsets_dirty) != 0) {
          for (uint32_t i = 0; i < bind_state->max_bound_descriptors; i++) {
             update_descriptor_set_surface_state(cmd_buffer, bind_state, i);
@@ -3607,7 +3607,6 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          }
          cmd_buffer->state.descriptor_buffers.offsets_dirty &= ~active_stages;
       }
-      cmd_buffer->state.descriptor_buffers.dirty = false;
       break;
 
    case ANV_SHADER_BINDING_MODE_LEGACY:
