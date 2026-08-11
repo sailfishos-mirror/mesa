@@ -249,7 +249,7 @@ pub trait Liveness {
                 live = pred_out
                     .iter()
                     .cloned()
-                    .filter(|ssa| !ssa.is_mem() && bl.is_live_in(ssa))
+                    .filter(|ssa| bl.is_live_in(ssa))
                     .collect();
             }
 
