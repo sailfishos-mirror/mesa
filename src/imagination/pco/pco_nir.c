@@ -594,8 +594,6 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       };
       NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
       NIR_PASS(_, nir, nir_lower_system_values);
-      if (!nir->info.internal)
-         NIR_PASS(_, nir, nir_lower_helper_writes, true);
       NIR_PASS(_, nir, nir_lower_terminate_to_demote);
       NIR_PASS(_, nir, nir_lower_halt_to_return);
       NIR_PASS(_, nir, nir_lower_returns);
@@ -1009,6 +1007,9 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    NIR_PASS(_, nir, nir_opt_dce);
    NIR_PASS(_, nir, nir_opt_constant_folding);
 
+   if (nir->info.stage == MESA_SHADER_FRAGMENT && !internal)
+      NIR_PASS(_, nir, nir_lower_helper_writes, true);
+
    /* Internal shaders will be using invalid32 types at this stage. */
    if (!internal)
       NIR_PASS(_, nir, nir_unlower_io_to_vars, true);
@@ -1028,7 +1029,6 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    NIR_PASS(_, nir, pco_nir_lower_tex, data, ctx);
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-
       if (!internal)
          NIR_PASS(_, nir, pco_nir_lower_alpha_to_coverage);
 
