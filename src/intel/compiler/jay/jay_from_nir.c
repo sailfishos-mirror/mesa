@@ -3497,12 +3497,10 @@ jay_emit_jump(struct nir_to_jay_state *nj, nir_jump_instr *instr)
 {
    switch (instr->type) {
    case nir_jump_break:
-      jay_block_add_successor(nj->current_block, nj->break_block, GPR);
       jay_BREAK(&nj->bld);
       break;
    case nir_jump_halt:
       nj->needs_final_halt = true;
-      jay_block_add_successor(nj->current_block, nj->exit_block, GPR);
       jay_HALT(&nj->bld, false);
       break;
    case nir_jump_return:
@@ -3574,6 +3572,8 @@ jay_block_reconverge(struct nir_to_jay_state *nj,
 
    jay_inst *jump = jay_block_ending_jump(current_block);
    if (jump && jump->op == JAY_OPCODE_BREAK) {
+      jay_block_add_successor(current_block, nj->break_block, GPR);
+
       util_dynarray_foreach_reverse(&nj->converge_blocks, jay_block *, conv) {
          /* Break statements don't reconverge outside the current loop */
          if (nj->loop_converge_block &&
@@ -3585,6 +3585,8 @@ jay_block_reconverge(struct nir_to_jay_state *nj,
          jay_block_add_successor(current_block, *conv, UGPR);
       }
    } else if (jump && jump->op == JAY_OPCODE_HALT) {
+      jay_block_add_successor(current_block, nj->exit_block, GPR);
+
       util_dynarray_foreach_reverse(&nj->converge_blocks, jay_block *, conv) {
          /* Even though halt instructions skip the remainder of the program in
           * the logical CFG, we could still reconverge physically
@@ -3651,17 +3653,17 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    jay_block *else_last = nj->current_block;
    assert(else_first == else_first_2);
 
+   if (!uniform) {
+      /* For a non-uniform IF, we fall through both sides in the physical CFG */
+      jay_block_add_successor(then_last, else_first, UGPR);
+   }
+
    /* Logical CFG edges */
    jay_block_add_successor(before_block, then_first, GPR);
    jay_block_add_successor(before_block, else_first, GPR);
 
    jay_block_reconverge(nj, then_last, after_block);
    jay_block_reconverge(nj, else_last, after_block);
-
-   if (!uniform) {
-      /* For a non-uniform IF, we fall through both sides in the physical CFG */
-      jay_block_add_successor(then_last, else_first, UGPR);
-   }
 
    /* Pop */
    --nj->indent;

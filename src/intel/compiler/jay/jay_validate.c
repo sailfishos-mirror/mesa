@@ -365,6 +365,18 @@ jay_validate_function(struct validate_state *validate)
 
       CHECK(block->index < validate->func->num_blocks);
 
+      /* If the block has a fall-through edge, it must be the first block in
+       * the successors list.
+       */
+      jay_block *next_block = jay_next_block(block);
+      for (enum jay_file file = GPR; file <= UGPR; ++file) {
+         bool is_first_successor = true;
+         jay_foreach_successor(block, succ, file) {
+            CHECK(*succ != next_block || is_first_successor);
+            is_first_successor = false;
+         }
+      }
+
       /* Loop headers have a single forward edge and a single back edge. There
        * are no other back edges.
        */
