@@ -16,6 +16,9 @@ dEQP-VK.video.synchronization.*.basic.event.*
 # queues). They are now undefined per the Vulkan spec but a workaround might be
 # needed to make them fail instead.
 dEQP-VK.pipeline.*.sampler.*_compute
+dEQP-VK.binding_model.descriptor_buffer.*.capture_replay.compute_comp_.*_custom_border_color
+dEQP-VK.binding_model.descriptor_heap.concurrent_queues.compute.sampler_custom_border
+dEQP-VK.binding_model.descriptor_heap.concurrent_queues.raygen.sampler_custom_border
 
 # These tests cause segmentation fault: https://github.com/KhronosGroup/VK-GL-CTS/issues/603
 dEQP-VK.api.image_compression_control.swapchain.direct.*
