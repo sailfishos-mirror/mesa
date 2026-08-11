@@ -12,7 +12,6 @@
 
 #include "radeon_compiler_util.h"
 #include "radeon_dataflow.h"
-#include "radeon_list.h"
 #include "radeon_program.h"
 #include "radeon_program_alu.h"
 #include "radeon_regalloc.h"
@@ -637,8 +636,7 @@ allocate_temporary_registers(struct radeon_compiler *c, void *user)
 {
    unsigned int node_count, node_index;
    struct ra_class **node_classes;
-   struct rc_list *var_ptr;
-   struct rc_list *variables;
+   struct util_dynarray *variables;
    struct ra_graph *graph;
    const struct rc_regalloc_state *ra_state = c->regalloc_state;
 
@@ -646,21 +644,22 @@ allocate_temporary_registers(struct radeon_compiler *c, void *user)
 
    /* Get list of program variables */
    variables = rc_get_variables(c);
-   node_count = rc_list_count(variables);
+   node_count = util_dynarray_num_elements(variables, struct rc_variable *);
    node_classes = linear_alloc_array(c->Pool, struct ra_class *, node_count);
 
-   for (var_ptr = variables, node_index = 0; var_ptr; var_ptr = var_ptr->Next, node_index++) {
+   for (node_index = 0; node_index < node_count; node_index++) {
       unsigned int class_index = 0;
       int index;
+      struct rc_variable *var = rc_variable_list_element(variables, node_index);
       /* Compute the live intervals */
-      rc_variable_compute_live_intervals(var_ptr->Item);
-      unsigned int writemask = rc_variable_writemask_sum(var_ptr->Item);
+      rc_variable_compute_live_intervals(var);
+      unsigned int writemask = rc_variable_writemask_sum(var);
       index = rc_find_class(c->regalloc_state->class_list, writemask, 6);
       if (index > -1) {
          class_index = c->regalloc_state->class_list[index].ID;
       } else {
          rc_error(c, "Could not find class for index=%u mask=%u\n",
-                  ((struct rc_variable *)var_ptr->Item)->Dst.Index, writemask);
+                  var->Dst.Index, writemask);
       }
       node_classes[node_index] = ra_state->classes[class_index];
    }
@@ -680,11 +679,11 @@ allocate_temporary_registers(struct radeon_compiler *c, void *user)
    }
 
    /* Rewrite the registers */
-   for (var_ptr = variables, node_index = 0; var_ptr; var_ptr = var_ptr->Next, node_index++) {
+   for (node_index = 0; node_index < node_count; node_index++) {
       int reg = ra_get_node_reg(graph, node_index);
       unsigned int writemask = reg_get_writemask(reg);
       unsigned int index = reg_get_index(reg);
-      struct rc_variable *var = var_ptr->Item;
+      struct rc_variable *var = rc_variable_list_element(variables, node_index);
 
       rc_variable_change_dst(var, index, writemask);
    }

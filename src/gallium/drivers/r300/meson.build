@@ -68,8 +68,6 @@ files_r300 = files(
   'compiler/radeon_dataflow.h',
   'compiler/radeon_dataflow_swizzles.c',
   'compiler/radeon_inline_literals.c',
-  'compiler/radeon_list.c',
-  'compiler/radeon_list.h',
   'compiler/radeon_opcodes.c',
   'compiler/radeon_opcodes.h',
   'compiler/radeon_optimize.c',
