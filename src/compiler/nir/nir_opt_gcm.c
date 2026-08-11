@@ -1226,6 +1226,14 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
        nir_block_ends_in_break(nir_loop_last_block(loop)))
       return false;
 
+   /* A loop that runs at most twice saves at most one repeat of the
+    * instruction, which isn't worth holding its result across the loop for. A
+    * trip count of zero means we don't know how many times it runs, which is
+    * no reason to keep anything in.
+    */
+   if (loop->info->max_trip_count != 0 && loop->info->max_trip_count <= 2)
+      return false;
+
    if (instr->type == nir_instr_type_load_const ||
        instr->type == nir_instr_type_tex ||
        (instr->type == nir_instr_type_intrinsic &&
