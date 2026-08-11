@@ -1070,6 +1070,14 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
       unsupported_modes |= ~((nir->info.max_subgroup_size << 1) - 1);
    }
 
+   /* We don't have a way to deal with scratch overflow so limit SIMD width */
+   for (unsigned w = 16; w <= 32; w *= 2) {
+      if (align(nir->scratch_size, 4) * w >
+          devinfo->max_scratch_size_per_thread) {
+         unsupported_modes |= w;
+      }
+   }
+
    /* Step 2: Apply heuristics to mark SIMD mode preferences */
 
    /* SIMD splitting of ray queries is inefficient, avoid it when possible */
