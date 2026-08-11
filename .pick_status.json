@@ -4914,7 +4914,7 @@
         "description": "broadcom/compiler: handle 16-bit fsat",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4c5b0fa7f42d141c6970769e946b29a866d2577c",
         "notes": null
