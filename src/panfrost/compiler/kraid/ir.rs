@@ -1766,6 +1766,32 @@ impl BasicBlock {
         self.instrs = instrs.into_iter().flat_map(map).collect();
     }
 
+    // SAFETY: The caller must guarantee that:
+    //
+    //  - For each `i in 0..instrs.len()`, `remap_idx(i)` returns `None` or
+    //    `Some(j)` where `(0..count).contains(j)`
+    //
+    //  - For each `j in 0..count`, `Some(j)` is returned exactly once
+    //
+    pub unsafe fn reorder_instrs(
+        &mut self,
+        remap_ip: impl Fn(usize) -> Option<usize>,
+        count: usize,
+    ) {
+        let instrs = std::mem::take(&mut self.instrs);
+
+        self.instrs.reserve(count);
+        let uninit = self.instrs.spare_capacity_mut();
+
+        for (ip, instr) in instrs.into_iter().enumerate() {
+            if let Some(r) = remap_ip(ip) {
+                uninit[r].write(instr);
+            }
+        }
+
+        unsafe { self.instrs.set_len(count) };
+    }
+
     pub fn is_prelude_instr(instr: &Instr) -> bool {
         matches!(&instr.op, Op::PhiDst(_) | Op::RegIn(_))
     }
@@ -1802,6 +1828,13 @@ impl BasicBlock {
             }
         }
         0
+    }
+
+    /// Returns the IP range of the instructions that make up this block's body.
+    /// These are all the instructions after the prelude but before the
+    /// postlude.
+    pub fn body_ip_range(&self) -> Range<usize> {
+        self.prelude_end_ip()..self.postlude_start_ip()
     }
 
     /// Returns the ip of the OpBranch or the end of the block.

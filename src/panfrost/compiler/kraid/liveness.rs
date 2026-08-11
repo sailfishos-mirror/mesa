@@ -30,7 +30,7 @@ impl LiveBytes {
         if is_mem { &mut self.mem } else { &mut self.reg }
     }
 
-    fn max(self, other: LiveBytes) -> LiveBytes {
+    pub fn max(self, other: LiveBytes) -> LiveBytes {
         LiveBytes {
             reg: self.reg.max(other.reg),
             mem: self.mem.max(other.mem),

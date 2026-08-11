@@ -33,6 +33,7 @@ mod ra;
 mod reconvergence;
 mod remat_constants;
 mod repair_ssa;
+mod schedule;
 mod small_constants;
 mod spill;
 mod ssa_value;
