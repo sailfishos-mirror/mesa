@@ -12,9 +12,9 @@ set -o xtrace
 CROSS_FILE=/cross_file-"$CROSS".txt
 
 if [ -d install/bin ]; then
-  # Keep pps-producer binary for tests that need it.
+  # Keep pps-producer and amdgpu_list_devices binaries for tests that need them.
   # Remove all other binaries to save space.
-  find install/bin -type f -not -name 'pps-producer' -delete
+  find install/bin -type f -not -name 'pps-producer' -not -name 'amdgpu_list_devices' -delete
 fi
 
 # Delete unused includes from artifacts to save space.

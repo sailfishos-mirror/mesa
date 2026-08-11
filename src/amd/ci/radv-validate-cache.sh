@@ -14,18 +14,7 @@ export VK_DRIVER_FILES="$INSTALL"/share/vulkan/icd.d/"$VK_DRIVER"_icd."$ARCH".js
 
 export LD_PRELOAD=$PWD/install/lib/libamdgpu_noop_drm_shim.so
 
-# TODO: Get a list of available drm-shim GPUs instead of hardcoding this.
-families=("PITCAIRN"
-          "BONAIRE"
-          "POLARIS10"
-          "VEGA10"
-          "NAVI10"
-          "NAVI21"
-          "VANGOGH"
-          "NAVI31"
-          "NAVI33"
-          "STRIX1"
-          "GFX1201")
+mapfile -t families < <("$INSTALL"/bin/amdgpu_list_devices)
 for family in "${families[@]}"
 do
     export AMDGPU_GPU_ID=$family
