@@ -496,6 +496,18 @@ emit_alu(struct ir2_context *ctx, nir_alu_instr *alu)
    }
 }
 
+/* an access can start at any component of a slot: build the swizzle that
+ * reads component comp + i in channel i
+ */
+static unsigned
+swiz_shift(unsigned comp)
+{
+   unsigned swiz = 0;
+   for (int i = 0; i < 4; i++)
+      swiz |= swiz_set(comp + i, i);
+   return swiz;
+}
+
 static void
 load_input(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 {
@@ -534,7 +546,8 @@ load_input(struct ir2_context *ctx, nir_intrinsic_instr *intr)
 
       unsigned reg_idx = instr->reg - ctx->reg; /* XXX */
       instr = instr_create_alu_dest(ctx, nir_op_mov, def);
-      instr->src[0] = ir2_src(reg_idx, 0, IR2_SRC_REG);
+      instr->src[0] = ir2_src(reg_idx, swiz_shift(nir_intrinsic_component(intr)),
+                              IR2_SRC_REG);
       break;
    default:
       instr = instr_create_alu_dest(ctx, nir_op_mov, def);
