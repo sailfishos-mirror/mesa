@@ -61,8 +61,8 @@ kk_DestroyBuffer(VkDevice device, VkBuffer _buffer,
    if (!buffer)
       return;
 
-   if (buffer->mtl_handle)
-      mtl_release(buffer->mtl_handle);
+   if (buffer->metal.handle)
+      mtl_release(buffer->metal.handle);
 
    vk_buffer_destroy(&dev->vk, pAllocator, &buffer->vk);
 }
@@ -156,22 +156,22 @@ kk_bind_buffer_memory(struct kk_device *dev, const VkBindBufferMemoryInfo *info)
    VK_FROM_HANDLE(kk_buffer, buffer, info->buffer);
 
    if (mem->bo->mtl_handle) {
-      buffer->mtl_handle = mtl_new_buffer_with_length(
+      buffer->metal.handle = mtl_new_buffer_with_length(
          mem->bo->mtl_handle, buffer->vk.size, info->memoryOffset);
-      buffer->offset = 0u;
+      buffer->metal.offset = 0u;
    } else {
       /* If the memory is not heap backed, for example if we imported a host
        * pointer, use the mapped buffer directly and retain a reference */
-      buffer->mtl_handle = mem->bo->map;
-      buffer->offset = info->memoryOffset;
-      mtl_retain(buffer->mtl_handle);
+      buffer->metal.handle = mem->bo->map;
+      buffer->metal.offset = info->memoryOffset;
+      mtl_retain(buffer->metal.handle);
    }
 
    buffer->vk.device_address =
-      mtl_buffer_get_gpu_address(buffer->mtl_handle) + buffer->offset;
+      mtl_buffer_get_gpu_address(buffer->metal.handle) + buffer->metal.offset;
    /* We need Metal to give us a CPU mapping so it correctly captures the
     * data in the GPU debugger... */
-   mtl_get_contents(buffer->mtl_handle);
+   mtl_get_contents(buffer->metal.handle);
 
    return VK_SUCCESS;
 }
