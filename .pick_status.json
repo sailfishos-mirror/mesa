@@ -6364,7 +6364,7 @@
         "description": "panfrost: Always emit vertex attribute descriptors for arch < v9",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3db963a13592c5b215bb776e0365d4c0d70d5286",
         "notes": null
