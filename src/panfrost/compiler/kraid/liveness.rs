@@ -187,6 +187,9 @@ pub trait BlockLiveness {
     /// Returns true if @val is live-out of this block
     fn live_out_set(&self) -> &BitSet<u32>;
 
+    /// Returns the maximum number of bytes live in this block
+    fn max_live_bytes(&self) -> LiveBytes;
+
     /// Returns true if @val is live-in to this block
     fn is_live_in(&self, val: &SSAValue) -> bool {
         self.live_in_set().contains(val.idx())
@@ -234,36 +237,8 @@ pub trait Liveness {
 
     fn block(&self, idx: usize) -> &Self::PerBlock;
 
-    fn calc_max_live_bytes(&self, s: &Shader) -> LiveBytes {
-        let mut max_live: LiveBytes = Default::default();
-        let mut block_live_out: Vec<LiveSet> = Vec::new();
-
-        for (bi, bb) in s.blocks.iter().enumerate() {
-            let bl = self.block(bi);
-            let mut live = LiveSet::new();
-
-            // Predecessors are added block order so we can just grab the first
-            // one (if any) and it will be a block we've processed.
-            if let Some(pred_idx) = s.blocks.pred_indices(bi).first() {
-                let pred_out = &block_live_out[*pred_idx];
-                live = pred_out
-                    .iter()
-                    .cloned()
-                    .filter(|ssa| bl.is_live_in(ssa))
-                    .collect();
-            }
-
-            for (ip, instr) in bb.instrs.iter().enumerate() {
-                let live_at_instr = live.insert_instr_top_down(ip, instr, bl);
-                max_live = max_live.max(live_at_instr);
-            }
-
-            assert!(block_live_out.len() == bi);
-            block_live_out.push(live);
-        }
-
-        max_live
-    }
+    /// Returns the maximum number of bytes live in the shader
+    fn max_live_bytes(&self) -> LiveBytes;
 }
 
 #[derive(Default)]
@@ -273,6 +248,7 @@ pub struct SimpleBlockLiveness {
     last_use: FxHashMap<SSAValue, usize>,
     live_in: BitSet<u32>,
     live_out: BitSet<u32>,
+    max_live: LiveBytes,
 }
 
 impl SimpleBlockLiveness {
@@ -308,11 +284,16 @@ impl BlockLiveness for SimpleBlockLiveness {
     fn live_out_set(&self) -> &BitSet<u32> {
         &self.live_out
     }
+
+    fn max_live_bytes(&self) -> LiveBytes {
+        self.max_live
+    }
 }
 
 pub struct SimpleLiveness {
     ssa_block_ip: FxHashMap<SSAValue, (usize, usize)>,
     blocks: Vec<SimpleBlockLiveness>,
+    max_live: LiveBytes,
 }
 
 impl SimpleLiveness {
@@ -320,6 +301,7 @@ impl SimpleLiveness {
         let mut l = SimpleLiveness {
             ssa_block_ip: Default::default(),
             blocks: Vec::new(),
+            max_live: Default::default(),
         };
 
         for (bi, b) in s.blocks.iter().enumerate() {
@@ -369,6 +351,34 @@ impl SimpleLiveness {
             bl.live_out = b_live_out;
         }
 
+        // Now that we have live sets, compute the max live per-block and
+        // for the whold shader.
+        let mut block_live_out: Vec<LiveSet> = Vec::new();
+        for (bi, bb) in s.blocks.iter().enumerate() {
+            let bl = &mut l.blocks[bi];
+            let mut live = LiveSet::new();
+
+            // Predecessors are added block order so we can just grab the first
+            // one (if any) and it will be a block we've processed.
+            if let Some(pred_idx) = s.blocks.pred_indices(bi).first() {
+                let pred_out = &block_live_out[*pred_idx];
+                live = pred_out
+                    .iter()
+                    .cloned()
+                    .filter(|ssa| bl.is_live_in(ssa))
+                    .collect();
+            }
+
+            for (ip, instr) in bb.instrs.iter().enumerate() {
+                let live_at_instr = live.insert_instr_top_down(ip, instr, bl);
+                bl.max_live = bl.max_live.max(live_at_instr);
+            }
+            l.max_live = l.max_live.max(bl.max_live);
+
+            assert!(block_live_out.len() == bi);
+            block_live_out.push(live);
+        }
+
         l
     }
 }
@@ -395,5 +405,9 @@ impl Liveness for SimpleLiveness {
 
     fn block(&self, idx: usize) -> &SimpleBlockLiveness {
         &self.blocks[idx]
+    }
+
+    fn max_live_bytes(&self) -> LiveBytes {
+        self.max_live
     }
 }

@@ -2468,7 +2468,7 @@ impl Shader<'_> {
         pass!(self.lower_repeated_phi_srcs());
 
         let mut live = SimpleLiveness::for_shader(self);
-        let max_live = live.calc_max_live_bytes(self);
+        let max_live = live.max_live_bytes();
         assert_eq!(max_live.mem, 0);
         if max_live.reg > u32::from(reg_limit) {
             // If we spill, we have to reduce registers by 2 to make room for
@@ -2487,7 +2487,7 @@ impl Shader<'_> {
             live = SimpleLiveness::for_shader(self)
         }
 
-        let max_live = live.calc_max_live_bytes(self);
+        let max_live = live.max_live_bytes();
         assert!(
             max_live.reg <= u32::from(reg_limit),
             "Not enough registers: max_live = {} B, should be <= {reg_limit} B",
