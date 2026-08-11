@@ -1647,7 +1647,7 @@ anv_queue_submit(struct vk_queue *vk_queue,
    if (result != VK_SUCCESS)
       return result;
 
-   if (device->physical->perf->use_metrics_library && queue->metrics_library_configuration) {
+   if (device->physical->perf && device->physical->perf->use_metrics_library && queue->metrics_library_configuration) {
       if (!intel_perf_metrics_library_activate_configuration(device->physical->perf,
                                                              queue->metrics_library_configuration)) {
          return VK_ERROR_UNKNOWN;
