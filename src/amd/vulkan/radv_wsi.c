@@ -121,6 +121,9 @@ radv_finish_wsi(struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
+   if (!pdev->vk.wsi_device)
+      return;
+
    pdev->vk.wsi_device = NULL;
    wsi_device_finish(&pdev->wsi_device, &instance->vk.alloc);
 }
