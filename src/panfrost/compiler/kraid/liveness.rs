@@ -94,6 +94,36 @@ impl LiveSet {
         }
     }
 
+    pub fn insert_instr_bottom_up(&mut self, instr: &Instr) -> LiveBytes {
+        if let Op::Copy(op) = &instr.op {
+            // Copy is a special case and we always lower it to something
+            // that has exact copy semantics and is able to fully handle
+            // 8 and 16-bit destinations.  As such, we can treat it as
+            // killing its sources before making its destinaion live.
+            for ssa in op.iter_ssa_defs() {
+                self.remove(ssa);
+            }
+            for ssa in op.iter_ssa_uses() {
+                self.insert(*ssa);
+            }
+            self.bytes
+        } else {
+            for ssa in instr.iter_ssa_uses() {
+                self.insert(*ssa);
+            }
+            let mut live = self.bytes;
+            for ssa in instr.iter_ssa_defs() {
+                if self.remove(ssa) {
+                    *live.get_mut(ssa.is_mem()) +=
+                        4_u32.saturating_sub(ssa.bytes().into());
+                } else {
+                    *live.get_mut(ssa.is_mem()) += 4;
+                }
+            }
+            live
+        }
+    }
+
     pub fn insert_instr_top_down<L: BlockLiveness>(
         &mut self,
         ip: usize,
