@@ -782,16 +782,12 @@ vk_common_CmdDispatchIndirect(
       });
 }
 
-VKAPI_ATTR void VKAPI_CALL
-vk_common_CmdCopyBuffer2(
-    VkCommandBuffer                             commandBuffer,
-    const VkCopyBufferInfo2*                    pCopyBufferInfo)
+VkCopyDeviceMemoryInfoKHR
+vk_upgrade_copy_buffer2(const VkCopyBufferInfo2* pCopyBufferInfo,
+                        VkDeviceMemoryCopyKHR *regions)
 {
-   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_buffer, src_buffer, pCopyBufferInfo->srcBuffer);
    VK_FROM_HANDLE(vk_buffer, dst_buffer, pCopyBufferInfo->dstBuffer);
-
-   STACK_ARRAY(VkDeviceMemoryCopyKHR, regions, pCopyBufferInfo->regionCount);
 
    for (uint32_t r = 0; r < pCopyBufferInfo->regionCount; r++) {
       regions[r] = (VkDeviceMemoryCopyKHR) {
@@ -808,15 +804,28 @@ vk_common_CmdCopyBuffer2(
       };
    }
 
+   return (VkCopyDeviceMemoryInfoKHR){
+      .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_INFO_KHR,
+      .regionCount = pCopyBufferInfo->regionCount,
+      .pRegions = pCopyBufferInfo->regionCount > 0 ? regions : NULL,
+   };
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vk_common_CmdCopyBuffer2(
+    VkCommandBuffer                             commandBuffer,
+    const VkCopyBufferInfo2*                    pCopyBufferInfo)
+{
+   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
+
+   STACK_ARRAY(VkDeviceMemoryCopyKHR, regions, pCopyBufferInfo->regionCount);
+
+   VkCopyDeviceMemoryInfoKHR info =
+      vk_upgrade_copy_buffer2(pCopyBufferInfo, regions);
+
    const struct vk_device_dispatch_table *disp =
       &cmd_buffer->base.device->dispatch_table;
-   disp->CmdCopyMemoryKHR(
-      commandBuffer,
-      &(VkCopyDeviceMemoryInfoKHR) {
-         .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_INFO_KHR,
-         .regionCount = pCopyBufferInfo->regionCount,
-         .pRegions = pCopyBufferInfo->regionCount > 0 ? regions : NULL,
-      });
+   disp->CmdCopyMemoryKHR(commandBuffer, &info);
 
    STACK_ARRAY_FINISH(regions);
 }
