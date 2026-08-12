@@ -260,12 +260,9 @@ isl_gfx20_choose_image_alignment_el(const struct isl_device *dev,
        *    - 64bpe and 128bpe Surfaces Must Be HALIGN=64Bytes or 128Bytes (4,
        *      8 texels or 16 texels)
        *
-       *    HALIGN=16Bytes(8 texels) is allowed only for 16b Depth, Stencil
-       *    Surfaces (8b) and Tiled 24bpp, 48bpp and 96bpp surfaces
-       *
        * Use the smallest alignment possible for the given format.
        */
-      const uint32_t halign_B = fmtl->bpb >= 64 ? 64 : 32;
+      const uint32_t halign_B = fmtl->bpb >= 64 ? 64 : 16;
       *image_align_el = isl_extent3d(halign_B * 8 / fmtl->bpb, 4, 1);
    }
 }
