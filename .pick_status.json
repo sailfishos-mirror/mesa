@@ -3984,7 +3984,7 @@
         "description": "tu: Fix condition for implicit dep of separate DS resolve",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ddb3d30d4749e744a667ea7835b0648a5c94ca72",
         "notes": null
