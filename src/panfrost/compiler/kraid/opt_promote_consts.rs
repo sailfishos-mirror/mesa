@@ -4,11 +4,9 @@
 use crate::ir::*;
 use kraid_bindings::*;
 use rustc_hash::FxHashMap;
-use std::num::NonZeroU32;
 
 #[derive(Debug)]
 struct FauConst {
-    imm: NonZeroU32,
     weight: u32,
     fau_idx: Option<u16>,
 }
@@ -34,7 +32,6 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
                         .entry(*v)
                         .and_modify(|fc: &mut FauConst| fc.weight += 1)
                         .or_insert(FauConst {
-                            imm: *v,
                             weight: 1,
                             fau_idx: None,
                         });
@@ -43,15 +40,15 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
         }
     }
 
-    let mut weighted: Vec<&mut FauConst> = fau_consts.values_mut().collect();
-    weighted.sort_by(|a, b| a.weight.cmp(&b.weight).reverse());
+    let mut weighted: Vec<_> = fau_consts.iter_mut().collect();
+    weighted.sort_by(|a, b| a.1.weight.cmp(&b.1.weight).reverse());
 
-    for fc in weighted {
+    for (imm, fc) in weighted {
         if fau_available(fau) == 0 {
             break;
         }
 
-        fc.fau_idx = Some(fau_emit_const(fau, u32::from(fc.imm)));
+        fc.fau_idx = Some(fau_emit_const(fau, (*imm).into()));
     }
 
     for block in s.blocks.iter_mut() {
