@@ -182,6 +182,9 @@ radv_shader_object_init_graphics(struct radv_shader_object *shader_obj, struct r
 
    gfx_state.vs.has_prolog = true;
    gfx_state.ps.color_outputs_need_epilog = true;
+   gfx_state.ps.depth_output_needs_epilog = true;
+   gfx_state.ps.stencil_output_needs_epilog = true;
+   gfx_state.ps.sample_mask_output_needs_epilog = true;
    gfx_state.dynamic_rasterization_samples = true;
    gfx_state.dynamic_provoking_vtx_mode = true;
    gfx_state.smooth_lines_may_be_enabled = true;
