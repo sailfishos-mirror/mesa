@@ -47,6 +47,7 @@
 #include "etnaviv_translate.h"
 #include "etnaviv_zsa.h"
 
+#include "nir/nir_xfb_info.h"
 #include "pipe/p_context.h"
 #include "pipe/p_state.h"
 #include "util/hash_table.h"
@@ -224,6 +225,8 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
 {
    const struct etna_shader_variant *old = ctx->shader.fs;
    struct etna_shader *fs = ctx->shader.bind_fs;
+
+   key->use_xfb_emu = false;
 
    /* update the key if we need to run nir_lower_sample_tex_compare(..).
     * halti < 2 has no HW shadow compare. halti >= 2 has it, but depth32f is
@@ -429,10 +432,24 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       for (i = 0; i < ARRAY_SIZE(key->rt_companion); i++)
          key->rt_companion[i] = ctx->framebuffer_s.rt_companion[i];
 
+      const struct etna_shader *bind_vs = ctx->shader.bind_vs;
+      key->use_xfb_emu = !VIV_FEATURE(screen, ETNA_FEATURE_HWTFB) &&
+                         ctx->streamout.num_targets > 0 &&
+                         bind_vs->nir->xfb_info;
+
       if (!etna_get_vs(ctx, key) || !etna_get_fs(ctx, key)) {
          BUG("compiled shaders are not okay");
          return;
       }
+   }
+
+   const bool xfb_emu = ctx->shader.vs->key.use_xfb_emu;
+
+   if (xfb_emu) {
+      ctx->streamout.num_vertices = draws[0].count;
+      ctx->streamout.first_vertex = info->index_size ? draws[0].index_bias
+                                                     : draws[0].start;
+      ctx->dirty |= ETNA_DIRTY_STREAMOUT;
    }
 
    /* Update any derived state */
@@ -624,6 +641,25 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
        * debug of GPU hang conditions, as the FE will indicate which
        * draw op has caused the hang. */
       etna_stall(ctx->stream, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+   }
+
+   /* A later draw in this submit may read the capture buffer, flush the
+    * shader L1 writeback cache first.
+    */
+   if (xfb_emu) {
+      struct etna_streamout *so = &ctx->streamout;
+      const nir_xfb_info *xfb_info = ctx->shader.vs->shader->nir->xfb_info;
+      const unsigned captured =
+         u_stream_outputs_for_vertices(info->mode, draws[0].count) *
+         info->instance_count;
+
+      etna_set_state(ctx->stream, VIVS_GL_FLUSH_CACHE, VIVS_GL_FLUSH_CACHE_SHADER_L1);
+      etna_stall(ctx->stream, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+
+      u_foreach_bit(buffer, xfb_info->buffers_written) {
+         if (so->targets[buffer])
+            so->captured_bytes[buffer] += captured * xfb_info->buffers[buffer].stride;
+      }
    }
 
    if (DBG_ENABLED(ETNA_DBG_FLUSH_ALL))

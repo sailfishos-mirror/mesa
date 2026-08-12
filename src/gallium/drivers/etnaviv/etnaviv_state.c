@@ -858,7 +858,7 @@ etna_stream_output_target_destroy(UNUSED struct pipe_context *ctx,
 static void
 etna_set_stream_output_targets(struct pipe_context *pctx,
       unsigned num_targets, struct pipe_stream_output_target **targets,
-      UNUSED const unsigned *offsets,
+      const unsigned *offsets,
       UNUSED enum mesa_prim output_prim)
 {
    struct etna_context *ctx = etna_context(pctx);
@@ -870,6 +870,9 @@ etna_set_stream_output_targets(struct pipe_context *pctx,
       pipe_so_target_reference(&so->targets[i], targets[i]);
 
       if (targets[i]) {
+         if (offsets[i] != (unsigned)-1)
+            so->captured_bytes[i] = 0;
+
          so->TFB_BUFFER_SIZE[i] = targets[i]->buffer_size;
          so->TFB_BUFFER_ADDR[i].bo = etna_buffer_resource(targets[i]->buffer)->bo;
          so->TFB_BUFFER_ADDR[i].offset = targets[i]->buffer_offset;
@@ -885,6 +888,10 @@ etna_set_stream_output_targets(struct pipe_context *pctx,
       so->TFB_BUFFER_SIZE[i] = 0;
       so->TFB_BUFFER_ADDR[i].bo = NULL;
    }
+
+   if (!VIV_FEATURE(ctx->screen, ETNA_FEATURE_HWTFB) &&
+       (so->num_targets > 0) != (num_targets > 0))
+      ctx->dirty |= ETNA_DIRTY_SHADER;
 
    so->num_targets = num_targets;
 
