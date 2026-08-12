@@ -174,7 +174,7 @@ static inline bool pco_opt_lower_mods(pco_shader *shader,
          pco_builder_create(mod->parent_func, pco_cursor_before_instr(mod));
 
       if (mod->src[0].flr)
-         pco_fadd(&b, mod->dest[0], mod->src[0], pco_zero);
+         pco_fadd(&b, mod->dest[0], mod->src[0], pco_nzero);
       else
          pco_mbyp(&b, mod->dest[0], mod->src[0]);
 

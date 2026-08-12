@@ -3231,6 +3231,8 @@ static inline bool pco_should_skip_pass(const char *pass)
 #define pco_zero pco_ref_hwreg(0, PCO_REG_CLASS_CONST)
 #define pco_false pco_zero
 
+#define pco_nzero pco_ref_hwreg(141, PCO_REG_CLASS_CONST)
+
 /** Integer one. */
 #define pco_one pco_ref_hwreg(1, PCO_REG_CLASS_CONST)
 
