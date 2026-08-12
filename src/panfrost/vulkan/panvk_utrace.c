@@ -1,6 +1,7 @@
 /*
  * Copyright 2024 Google LLC
  * Copyright 2025 Arm Ltd.
+ * Copyright 2026 NXP
  * SPDX-License-Identifier: MIT
  */
 
@@ -113,10 +114,9 @@ panvk_utrace_delete_flush_data(struct u_trace_context *utctx, void *flush_data)
 {
    struct panvk_utrace_flush_data *data = flush_data;
 
-   if (data->clone_cs_root) {
-      panvk_utrace_delete_buffer(utctx, data->clone_cs_root);
-      data->clone_cs_root = NULL;
-   }
+   util_dynarray_foreach(&data->clone_cs_bufs, struct panvk_utrace_buf *, buf)
+      panvk_utrace_delete_buffer(utctx, *buf);
+   util_dynarray_fini(&data->clone_cs_bufs);
 
    if (data->free_self)
       free(data);
