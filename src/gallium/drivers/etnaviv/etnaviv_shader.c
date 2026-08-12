@@ -404,8 +404,9 @@ etna_shader_update_vs_inputs(struct compiled_shader_state *cs,
    cs->VS_TEMP_REGISTER_CONTROL =
       VIVS_VS_TEMP_REGISTER_CONTROL_NUM_TEMPS(num_temps);
 
-   /* vs inputs (attributes) */
-   DEFINE_ETNA_BITARRAY(vs_input, 16, 8) = {0};
+   /* vs inputs (attributes). VS_HALTI5_INPUT has 32 mapping slots, the
+    * pre-HALTI5 VS_INPUT only the first 16. */
+   DEFINE_ETNA_BITARRAY(vs_input, 32, 8) = {0};
    for (int idx = 0; idx < num_vs_inputs; ++idx) {
       if (idx < vs->infile.num_reg)
          etna_bitarray_set(vs_input, 8, idx, vs->infile.reg[idx].reg);

@@ -145,7 +145,7 @@ emit_halti5_only_state(struct etna_context *ctx, int vs_output_count)
       }
    }
    if (unlikely(dirty & (ETNA_DIRTY_VERTEX_ELEMENTS | ETNA_DIRTY_SHADER))) {
-      for (int x = 0; x < 4; ++x) {
+      for (int x = 0; x < VIVS_VS_HALTI5_INPUT__LEN; ++x) {
          /*008C0*/ EMIT_STATE(VS_HALTI5_INPUT(x), ctx->shader_state.VS_INPUT[x]);
       }
    }
