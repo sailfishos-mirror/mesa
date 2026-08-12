@@ -60,6 +60,11 @@ panvk_utrace_create_buffer(struct u_trace_context *utctx, uint64_t size_B)
 void
 panvk_utrace_delete_buffer(struct u_trace_context *utctx, void *buffer)
 {
+   /* u_trace_fini() frees the NULL container stored when a clone allocation
+    * failed; nothing to release in that case. */
+   if (!buffer)
+      return;
+
    struct panvk_device *dev = to_dev(utctx);
    struct panvk_utrace_buf *buf = buffer;
 
