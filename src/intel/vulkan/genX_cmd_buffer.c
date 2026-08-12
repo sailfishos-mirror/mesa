@@ -4047,6 +4047,35 @@ end_command_buffer(struct anv_cmd_buffer *cmd_buffer)
                                 "query clear flush prior command buffer end");
    }
 
+   /* Flush L1/L2 caches before ending the command buffer. Some applications
+    * like Llama.cpp seems to rely on this.
+    *
+    * The kernel driver should insert flushes at the end of the command buffer
+    * as well so it's a bit repetitive. Xe actually flushes the HDC (L2 data
+    * cache) but not the untyped cache (L1 data cache). There is a requirement
+    * in the documentation flush L1 if L2 is flushed too, so sounds like a bit
+    * of a kernel driver bug.
+    */
+   if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+      if (anv_cmd_buffer_is_render_queue(cmd_buffer)) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                   ANV_PIPE_DEPTH_CACHE_FLUSH_BIT |
+                                   ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT,
+                                   "end render command buffer L1/L2 flush");
+      }
+      if (anv_cmd_buffer_is_render_or_compute_queue(cmd_buffer)) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                   ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
+                                   ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT,
+                                   "end render command buffer L1/L2 flush");
+      }
+   }
+
    /* Flush any in-progress CCS/MCS operations in preparation for chaining. */
    genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
