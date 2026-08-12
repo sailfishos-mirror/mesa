@@ -431,7 +431,7 @@ etna_emit_new_texture_state(struct etna_context *ctx)
             uint32_t log_size = sv->log_size;
 
             if (texture_use_int_filter(&sv->base, &ss->base, false))
-               log_size |= VIVS_TE_SAMPLER_LOG_SIZE_INT_FILTER;
+               log_size |= VIVS_NTE_SAMPLER_LOG_SIZE_INT_FILTER;
 
             /*10100*/ EMIT_STATE(NTE_SAMPLER_LOG_SIZE(x), log_size);
          }
@@ -447,8 +447,8 @@ etna_emit_new_texture_state(struct etna_context *ctx)
             /* min and max lod is determined both by the sampler and the view */
             /*10180*/ EMIT_STATE(NTE_SAMPLER_LOD_CONFIG(x),
                                  ss->config_lod |
-                                 VIVS_TE_SAMPLER_LOD_CONFIG_MAX(max_lod) |
-                                 VIVS_TE_SAMPLER_LOD_CONFIG_MIN(min_lod));
+                                 VIVS_NTE_SAMPLER_LOD_CONFIG_MAX(max_lod) |
+                                 VIVS_NTE_SAMPLER_LOD_CONFIG_MIN(min_lod));
          }
       }
    }
@@ -481,7 +481,7 @@ etna_emit_new_texture_state(struct etna_context *ctx)
 
             /*10380*/ EMIT_STATE(NTE_SAMPLER_CONFIG1(x), ss->config1 |
                                                          sv->config1 |
-                                                         COND(sv->ts.enable, VIVS_TE_SAMPLER_CONFIG1_USE_TS));
+                                                         COND(sv->ts.enable, VIVS_NTE_SAMPLER_CONFIG1_USE_TS));
          }
       }
    }
@@ -538,14 +538,14 @@ etna_emit_new_texture_state(struct etna_context *ctx)
          unsigned min_lod = MIN2(MAX2(ss->min_lod + sv->min_lod, sv->min_lod), max_lod);
 
          if (texture_use_int_filter(&sv->base, &ss->base, false))
-            log_size |= VIVS_TE_SAMPLER_LOG_SIZE_INT_FILTER;
+            log_size |= VIVS_NTE_SAMPLER_LOG_SIZE_INT_FILTER;
 
          EMIT_STATE(NTE_SAMPLER_CONFIG0(y), config0);
          EMIT_STATE(NTE_SAMPLER_SIZE(y), sv->size);
          EMIT_STATE(NTE_SAMPLER_LOG_SIZE(y), log_size);
          EMIT_STATE(NTE_SAMPLER_LOD_CONFIG(y), ss->config_lod |
-                    VIVS_TE_SAMPLER_LOD_CONFIG_MAX(max_lod) |
-                    VIVS_TE_SAMPLER_LOD_CONFIG_MIN(min_lod));
+                    VIVS_NTE_SAMPLER_LOD_CONFIG_MAX(max_lod) |
+                    VIVS_NTE_SAMPLER_LOD_CONFIG_MIN(min_lod));
          EMIT_STATE(NTE_SAMPLER_LINEAR_STRIDE(0, y), sv->linear_stride);
          EMIT_STATE(NTE_SAMPLER_3D_CONFIG(y), ss->config_3d | sv->config_3d);
          EMIT_STATE(NTE_SAMPLER_CONFIG1(y), ss->config1 | sv->config1);
