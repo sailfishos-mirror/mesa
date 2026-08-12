@@ -461,10 +461,10 @@ void nvk_cmd_fill_memory_ce(struct nvk_cmd_buffer *cmd,
 
 void nvk_cmd_copy_buffer_ce(struct nvk_cmd_buffer *cmd,
                             const VkCopyBufferInfo2 *pCopyBufferInfo);
-void nvk_cmd_copy_buffer_to_image_ce(struct nvk_cmd_buffer *cmd,
-                                     const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo);
-void nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,
-                                     const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo);
+void nvk_cmd_copy_memory_to_image_ce(struct nvk_cmd_buffer *cmd,
+                                     const VkCopyDeviceMemoryImageInfoKHR *pCopyMemoryInfo);
+void nvk_cmd_copy_image_to_memory_ce(struct nvk_cmd_buffer *cmd,
+                                     const VkCopyDeviceMemoryImageInfoKHR *pCopyMemoryInfo);
 void nvk_cmd_copy_image_ce(struct nvk_cmd_buffer *cmd,
                            const VkCopyImageInfo2 *pCopyImageInfo);
 

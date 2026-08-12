@@ -52,12 +52,11 @@ struct nouveau_copy {
 };
 
 static struct nouveau_copy_buffer
-nouveau_copy_rect_buffer(struct nvk_buffer *buf,
-                         VkDeviceSize offset,
+nouveau_copy_rect_buffer(VkDeviceAddress addr,
                          struct vk_image_buffer_layout buffer_layout)
 {
    return (struct nouveau_copy_buffer) {
-      .base_addr = vk_buffer_address(&buf->vk, offset),
+      .base_addr = addr,
       .image_type = VK_IMAGE_TYPE_2D,
       .bpp = buffer_layout.element_size_B,
       .row_stride = buffer_layout.row_stride_B,
@@ -472,16 +471,15 @@ nvk_remap_insert_aspect(struct nouveau_copy *copy,
 }
 
 void
-nvk_cmd_copy_buffer_to_image_ce(struct nvk_cmd_buffer *cmd,
-                                const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)
+nvk_cmd_copy_memory_to_image_ce(struct nvk_cmd_buffer *cmd,
+                                const VkCopyDeviceMemoryImageInfoKHR *pCopyMemoryInfo)
 {
-   VK_FROM_HANDLE(nvk_buffer, src, pCopyBufferToImageInfo->srcBuffer);
-   VK_FROM_HANDLE(nvk_image, dst, pCopyBufferToImageInfo->dstImage);
+   VK_FROM_HANDLE(nvk_image, dst, pCopyMemoryInfo->image);
 
-   for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
-      const VkBufferImageCopy2 *region = &pCopyBufferToImageInfo->pRegions[r];
+   for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+      const VkDeviceMemoryImageCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
       struct vk_image_buffer_layout buffer_layout =
-         vk_image_buffer_copy_layout(&dst->vk, region);
+         vk_image_memory_copy_layout(&dst->vk, region);
 
       const VkExtent3D extent_px =
          vk_image_sanitize_extent(&dst->vk, region->imageExtent);
@@ -498,7 +496,7 @@ nvk_cmd_copy_buffer_to_image_ce(struct nvk_cmd_buffer *cmd,
          dst->planes[dst_plane].nil.sample_layout;
 
       struct nouveau_copy copy = {
-         .src = nouveau_copy_rect_buffer(src, region->bufferOffset,
+         .src = nouveau_copy_rect_buffer(region->addressRange.address,
                                          buffer_layout),
          .dst = nouveau_copy_rect_image(dst, &dst->planes[dst_plane],
                                         region->imageOffset,
@@ -531,7 +529,7 @@ nvk_cmd_copy_buffer_to_image_ce(struct nvk_cmd_buffer *cmd,
       }
    }
 
-   vk_foreach_struct_const(ext, pCopyBufferToImageInfo->pNext) {
+   vk_foreach_struct_const(ext, pCopyMemoryInfo->pNext) {
       switch (ext->sType) {
       default:
          vk_debug_ignored_stype(ext->sType);
@@ -598,16 +596,15 @@ nvk_remap_extract_aspect(struct nouveau_copy *copy,
 }
 
 void
-nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,
-                                const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
+nvk_cmd_copy_image_to_memory_ce(struct nvk_cmd_buffer *cmd,
+                                const VkCopyDeviceMemoryImageInfoKHR *pCopyMemoryInfo)
 {
-   VK_FROM_HANDLE(nvk_image, src, pCopyImageToBufferInfo->srcImage);
-   VK_FROM_HANDLE(nvk_buffer, dst, pCopyImageToBufferInfo->dstBuffer);
+   VK_FROM_HANDLE(nvk_image, src, pCopyMemoryInfo->image);
 
-   for (unsigned r = 0; r < pCopyImageToBufferInfo->regionCount; r++) {
-      const VkBufferImageCopy2 *region = &pCopyImageToBufferInfo->pRegions[r];
+   for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+      const VkDeviceMemoryImageCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
       struct vk_image_buffer_layout buffer_layout =
-         vk_image_buffer_copy_layout(&src->vk, region);
+         vk_image_memory_copy_layout(&src->vk, region);
 
       const VkExtent3D extent_px =
          vk_image_sanitize_extent(&src->vk, region->imageExtent);
@@ -627,7 +624,7 @@ nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,
          .src = nouveau_copy_rect_image(src, &src->planes[src_plane],
                                         region->imageOffset,
                                         &region->imageSubresource),
-         .dst = nouveau_copy_rect_buffer(dst, region->bufferOffset,
+         .dst = nouveau_copy_rect_buffer(region->addressRange.address,
                                          buffer_layout),
          .extent_el = nil_extent4d_px_to_el(extent4d_px, format, sample_layout),
       };
@@ -657,7 +654,7 @@ nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,
       }
    }
 
-   vk_foreach_struct_const(ext, pCopyImageToBufferInfo->pNext) {
+   vk_foreach_struct_const(ext, pCopyMemoryInfo->pNext) {
       switch (ext->sType) {
       default:
          vk_debug_ignored_stype(ext->sType);
