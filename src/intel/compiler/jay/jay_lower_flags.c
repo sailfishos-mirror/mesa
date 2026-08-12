@@ -23,6 +23,7 @@ pass(jay_function *f)
    /* Determine which booleans need to be in ARF. Otherwise, we prefer UGPR. */
    BITSET_WORD *arf = BITSET_CALLOC(f->ssa_alloc);
    jay_def *as_ugpr = calloc(f->ssa_alloc, sizeof(jay_def));
+   BITSET_WORD *read_as_ugpr = BITSET_CALLOC(f->ssa_alloc);
 
    jay_foreach_inst_in_func(f, block, I) {
       /* Conditional modifiers, except CMPs that can write a UGPR */
@@ -106,9 +107,13 @@ pass(jay_function *f)
          fix_file(arf, &I->src[i]);
       }
 
-      /* Source 0 can read ARF, source 1 can't, so commute where we can */
+      /* Source 0 can read ARF, source 1 can't, so commute where we can. If we
+       * already materialized a move for one source, try to reuse it.
+       */
       if ((I->op >= JAY_OPCODE_AND && I->op <= JAY_OPCODE_XOR) &&
-          (!jay_is_flag(I->src[0]) && jay_is_flag(I->src[1]))) {
+          jay_is_flag(I->src[1]) &&
+          (!jay_is_flag(I->src[0]) ||
+           BITSET_TEST(read_as_ugpr, jay_index(I->src[0])))) {
 
          SWAP(I->src[0], I->src[1]);
       }
@@ -122,6 +127,7 @@ pass(jay_function *f)
              !(i == I->num_srcs - I->predication + 1 &&
                I->predication == JAY_PREDICATED_DEFAULT)) {
 
+            BITSET_SET(read_as_ugpr, jay_index(I->src[i]));
             jay_replace_src(&I->src[i], as_ugpr[jay_index(I->src[i])]);
          }
       }
@@ -211,6 +217,7 @@ pass(jay_function *f)
 
    free(arf);
    free(as_ugpr);
+   free(read_as_ugpr);
 }
 
 JAY_DEFINE_FUNCTION_PASS(jay_lower_flags, pass)
