@@ -1417,19 +1417,9 @@ void anv_CmdFillMemoryKHR(
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
-   /* From the Vulkan spec:
-    *
-    *    "size is the number of bytes to fill, and must be either a multiple
-    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
-    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
-    *    buffer is not a multiple of 4, then the nearest smaller multiple is
-    *    used."
-    */
-   const VkDeviceSize size = pDstRange->size & ~3ull;
-
    anv_cmd_buffer_fill_area(cmd_buffer,
                             anv_address_from_range_flags(*pDstRange, dstFlags),
-                            size, data);
+                            pDstRange->size, data);
 
    anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");
 

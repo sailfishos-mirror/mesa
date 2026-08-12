@@ -935,8 +935,19 @@ vk_common_CmdFillBuffer(
 
    const struct vk_device_dispatch_table *disp =
       &cmd_buffer->base.device->dispatch_table;
-   const VkDeviceAddressRangeKHR addr_range =
+   VkDeviceAddressRangeKHR addr_range =
       vk_device_address_range(buffer, dstOffset, size);
+
+   /* From the Vulkan spec:
+    *
+    *    "size is the number of bytes to fill, and must be either a multiple
+    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
+    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
+    *    buffer is not a multiple of 4, then the nearest smaller multiple is
+    *    used."
+    */
+   addr_range.size &= ~3ull;
+
    disp->CmdFillMemoryKHR(commandBuffer, &addr_range,
                           buffer->address_flags, data);
 }
