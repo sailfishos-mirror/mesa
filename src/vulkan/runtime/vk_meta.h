@@ -381,6 +381,10 @@ VkDeviceAddress vk_meta_buffer_address(struct vk_device *device,
                                        VkBuffer buffer, uint64_t offset,
                                        uint64_t range);
 
+void vk_meta_copy_memory(struct vk_command_buffer *cmd,
+                         struct vk_meta_device *meta,
+                         const VkCopyDeviceMemoryInfoKHR *info);
+
 void vk_meta_copy_buffer(struct vk_command_buffer *cmd,
                          struct vk_meta_device *meta,
                          const VkCopyBufferInfo2 *info);

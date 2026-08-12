@@ -2426,8 +2426,8 @@ get_copy_buffer_pipeline(struct vk_device *device, struct vk_meta_device *meta,
 }
 
 static void
-copy_buffer_region(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
-                   VkBuffer src, VkBuffer dst, const VkBufferCopy2 *region)
+copy_memory_region(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+                   const VkDeviceMemoryCopyKHR *region)
 {
    struct vk_device *dev = cmd->base.device;
    const struct vk_physical_device *pdev = dev->physical;
@@ -2438,11 +2438,15 @@ copy_buffer_region(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
       .key_type = VK_META_OBJECT_KEY_COPY_BUFFER,
    };
 
-   VkDeviceSize size = region->size;
-   VkDeviceAddress src_addr =
-      vk_meta_buffer_address(dev, src, region->srcOffset, size);
-   VkDeviceAddress dst_addr =
-      vk_meta_buffer_address(dev, dst, region->dstOffset, size);
+   /*
+    * srcRange is the right size to use here due to
+    * VUID-VkDeviceMemoryCopyKHR-size-13016
+    * The size member of dstRange must be greater than or equal to the
+    * size member of srcRange
+    */
+   VkDeviceSize size = region->srcRange.size;
+   VkDeviceAddress src_addr = region->srcRange.address;
+   VkDeviceAddress dst_addr = region->dstRange.address;
 
    /* Combine the size and src/dst address to extract the alignment. */
    uint64_t align = src_addr | dst_addr | size;
@@ -2495,14 +2499,28 @@ copy_buffer_region(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
 }
 
 void
-vk_meta_copy_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
-                    const VkCopyBufferInfo2 *info)
+vk_meta_copy_memory(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+                    const VkCopyDeviceMemoryInfoKHR *info)
 {
    for (unsigned i = 0; i < info->regionCount; i++) {
-      const VkBufferCopy2 *region = &info->pRegions[i];
+      const VkDeviceMemoryCopyKHR *region = &info->pRegions[i];
 
-      copy_buffer_region(cmd, meta, info->srcBuffer, info->dstBuffer, region);
+      copy_memory_region(cmd, meta, region);
    }
+}
+
+void
+vk_meta_copy_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+                    const VkCopyBufferInfo2 *pCopyBufferInfo)
+{
+   STACK_ARRAY(VkDeviceMemoryCopyKHR, regions, pCopyBufferInfo->regionCount);
+
+   VkCopyDeviceMemoryInfoKHR info =
+      vk_common_lower_copy_buffer2(pCopyBufferInfo, regions);
+
+   vk_meta_copy_memory(cmd, meta, &info);
+
+   STACK_ARRAY_FINISH(regions);
 }
 
 void
