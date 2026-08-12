@@ -227,6 +227,15 @@ panvk_per_arch(utrace_copy_buffer)(struct u_trace_context *utctx,
    struct cs_builder *b = cmdstream;
    const struct panvk_utrace_buf *src_buf = ts_from;
    const struct panvk_utrace_buf *dst_buf = ts_to;
+
+   /* u_trace_clone_append() may store a NULL buffer when the copy heap is
+    * exhausted; skip the copy instead of dereferencing NULL. */
+   if (!src_buf || !dst_buf) {
+      mesa_loge("utrace: timestamp clone buffer allocation failed; "
+                "skipping copy, affected trace points have no timestamp");
+      return;
+   }
+
    const uint64_t src_addr = src_buf->dev + from_offset;
    const uint64_t dst_addr = dst_buf->dev + to_offset;
 

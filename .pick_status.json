@@ -904,7 +904,7 @@
         "description": "panvk/utrace: skip clone copy when timestamp buffer allocation fails",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "05006c21dd95d850dd464cb92cbc0e2c33c75ded",
         "notes": null
