@@ -345,15 +345,15 @@ panvk_per_arch(CmdClearColorImage)(VkCommandBuffer commandBuffer, VkImage image,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-panvk_per_arch(CmdCopyBuffer2)(VkCommandBuffer commandBuffer,
-                               const VkCopyBufferInfo2 *pCopyBufferInfo)
+panvk_per_arch(CmdCopyMemoryKHR)(VkCommandBuffer commandBuffer,
+                                 const VkCopyDeviceMemoryInfoKHR* pCopyMemoryInfo)
 {
    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
    struct panvk_cmd_meta_compute_save_ctx save = {0};
 
    meta_compute_start(cmdbuf, &save);
-   vk_meta_copy_buffer(&cmdbuf->vk, &dev->meta, pCopyBufferInfo);
+   vk_meta_copy_memory(&cmdbuf->vk, &dev->meta, pCopyMemoryInfo);
    meta_compute_end(cmdbuf, &save);
 }
 
