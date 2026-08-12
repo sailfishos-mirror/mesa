@@ -427,6 +427,12 @@ void vk_meta_fill_buffer(struct vk_command_buffer *cmd,
                          struct vk_meta_device *meta, VkBuffer buffer,
                          VkDeviceSize offset, VkDeviceSize size, uint32_t data);
 
+void vk_meta_fill_memory(struct vk_command_buffer *cmd,
+                         struct vk_meta_device *meta,
+                         const VkDeviceAddressRangeKHR* dst_range,
+                         const VkAddressCommandFlagsKHR dstFlags,
+                         const uint32_t data);
+
 static inline enum glsl_sampler_dim
 vk_image_view_type_to_sampler_dim(VkImageViewType view_type)
 {

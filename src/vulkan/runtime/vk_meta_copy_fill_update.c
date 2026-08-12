@@ -35,6 +35,7 @@
 #include "vk_pipeline.h"
 
 #include "util/format/u_format.h"
+#include "vulkan/vulkan_core.h"
 
 struct vk_meta_fill_buffer_key {
    enum vk_meta_object_key_type key_type;
@@ -2622,11 +2623,11 @@ get_fill_buffer_pipeline(struct vk_device *device, struct vk_meta_device *meta,
 }
 
 void
-vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
-                    VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size,
-                    uint32_t data)
+vk_meta_fill_memory(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+                    const VkDeviceAddressRangeKHR* dst_range,
+                    const VkAddressCommandFlagsKHR dstFlags,
+                    const uint32_t data)
 {
-   VK_FROM_HANDLE(vk_buffer, buf, buffer);
    struct vk_device *dev = cmd->base.device;
    const struct vk_physical_device *pdev = dev->physical;
    const struct vk_device_dispatch_table *disp = &dev->dispatch_table;
@@ -2648,14 +2649,8 @@ vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
    disp->CmdBindPipeline(vk_command_buffer_to_handle(cmd),
                          VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-   /* From the Vulkan 1.3.290 spec:
-    *
-    *   "If VK_WHOLE_SIZE is used and the remaining size of the buffer is not a
-    *    multiple of 4, then the nearest smaller multiple is used."
-    *
-    * hence the mask to align the size on 4 bytes here.
-    */
-   size = vk_buffer_range(buf, offset, size) & ~3u;
+   VkDeviceAddress addr = dst_range->address;
+   VkDeviceSize size = dst_range->size;
 
    const uint32_t optimal_wg_size = vk_meta_buffer_access_wg_size(meta, 4);
    const uint32_t per_wg_copy_size = optimal_wg_size * 4;
@@ -2665,7 +2660,7 @@ vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
    while (size > 0) {
       struct vk_meta_fill_buffer_info args = {
          .size = MIN2(size, max_per_dispatch_size),
-         .buf_addr = vk_meta_buffer_address(dev, buffer, offset, size),
+         .buf_addr = addr,
          .data = data,
       };
       uint32_t wg_count = DIV_ROUND_UP(args.size, per_wg_copy_size);
@@ -2676,7 +2671,30 @@ vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
 
       disp->CmdDispatch(vk_command_buffer_to_handle(cmd), wg_count, 1, 1);
 
-      offset += args.size;
+      addr += args.size;
       size -= args.size;
    }
+}
+
+void
+vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+                    VkBuffer dstBuffer, VkDeviceSize offset, VkDeviceSize size,
+                    uint32_t data)
+{
+   VK_FROM_HANDLE(vk_buffer, buffer, dstBuffer);
+
+   VkDeviceAddressRangeKHR addr_range =
+      vk_device_address_range(buffer, offset, size);
+
+   /* From the Vulkan spec:
+    *
+    *    "size is the number of bytes to fill, and must be either a multiple
+    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
+    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
+    *    buffer is not a multiple of 4, then the nearest smaller multiple is
+    *    used."
+    */
+   addr_range.size &= ~3ull;
+
+   vk_meta_fill_memory(cmd, meta, &addr_range, buffer->address_flags, data);
 }
