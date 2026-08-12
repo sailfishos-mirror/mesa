@@ -385,10 +385,21 @@ void vk_meta_copy_buffer(struct vk_command_buffer *cmd,
                          struct vk_meta_device *meta,
                          const VkCopyBufferInfo2 *info);
 
+void vk_meta_copy_image_to_memory(
+   struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+   const VkCopyDeviceMemoryImageInfoKHR *info,
+   const struct vk_meta_copy_image_properties *img_props);
+
 void vk_meta_copy_image_to_buffer(
    struct vk_command_buffer *cmd, struct vk_meta_device *meta,
    const VkCopyImageToBufferInfo2 *info,
    const struct vk_meta_copy_image_properties *img_props);
+
+void vk_meta_copy_memory_to_image(
+   struct vk_command_buffer *cmd, struct vk_meta_device *meta,
+   const VkCopyDeviceMemoryImageInfoKHR *info,
+   const struct vk_meta_copy_image_properties *img_props,
+   VkPipelineBindPoint bind_point);
 
 void vk_meta_copy_buffer_to_image(
    struct vk_command_buffer *cmd, struct vk_meta_device *meta,
