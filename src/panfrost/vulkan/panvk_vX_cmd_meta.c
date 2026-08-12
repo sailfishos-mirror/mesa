@@ -358,11 +358,11 @@ panvk_per_arch(CmdCopyBuffer2)(VkCommandBuffer commandBuffer,
 }
 
 static bool
-lower_copy_buffer_to_image(
+lower_copy_memory_to_image(
    VkCommandBuffer commandBuffer,
-   const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)
+   const VkCopyDeviceMemoryImageInfoKHR* pCopyMemoryInfo)
 {
-   VK_FROM_HANDLE(panvk_image, dst_img, pCopyBufferToImageInfo->dstImage);
+   VK_FROM_HANDLE(panvk_image, dst_img, pCopyMemoryInfo->image);
 
    const VkImageAspectFlags zs_mask =
       (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
@@ -372,9 +372,9 @@ lower_copy_buffer_to_image(
       return false;
 
    uint32_t num_depth_regions = 0, num_stencil_regions = 0;
-   for (uint32_t i = 0; i < pCopyBufferToImageInfo->regionCount; i++) {
+   for (uint32_t i = 0; i < pCopyMemoryInfo->regionCount; i++) {
       const VkImageAspectFlags aspect_mask =
-         pCopyBufferToImageInfo->pRegions[i].imageSubresource.aspectMask;
+         pCopyMemoryInfo->pRegions[i].imageSubresource.aspectMask;
       assert((aspect_mask & ~zs_mask) == 0);
       if (aspect_mask & VK_IMAGE_ASPECT_DEPTH_BIT)
          num_depth_regions++;
@@ -389,24 +389,24 @@ lower_copy_buffer_to_image(
    if (!lowering_needed)
       return false;
 
-   VkCopyBufferToImageInfo2 adjusted_info = *pCopyBufferToImageInfo;
-   STACK_ARRAY(VkBufferImageCopy2, depth_regions, num_depth_regions);
-   STACK_ARRAY(VkBufferImageCopy2, stencil_regions, num_stencil_regions);
+   VkCopyDeviceMemoryImageInfoKHR adjusted_info = *pCopyMemoryInfo;
+   STACK_ARRAY(VkDeviceMemoryImageCopyKHR, depth_regions, num_depth_regions);
+   STACK_ARRAY(VkDeviceMemoryImageCopyKHR, stencil_regions, num_stencil_regions);
 
    uint32_t depth_idx = 0, stencil_idx = 0;
-   for (uint32_t i = 0; i < pCopyBufferToImageInfo->regionCount; i++) {
+   for (uint32_t i = 0; i < pCopyMemoryInfo->regionCount; i++) {
       const VkImageAspectFlags aspect_mask =
-         pCopyBufferToImageInfo->pRegions[i].imageSubresource.aspectMask;
+         pCopyMemoryInfo->pRegions[i].imageSubresource.aspectMask;
 
       if (aspect_mask & VK_IMAGE_ASPECT_DEPTH_BIT)
-         depth_regions[depth_idx++] = pCopyBufferToImageInfo->pRegions[i];
+         depth_regions[depth_idx++] = pCopyMemoryInfo->pRegions[i];
       else
-         stencil_regions[stencil_idx++] = pCopyBufferToImageInfo->pRegions[i];
+         stencil_regions[stencil_idx++] = pCopyMemoryInfo->pRegions[i];
    }
 
    adjusted_info.regionCount = num_depth_regions;
    adjusted_info.pRegions = depth_regions;
-   panvk_per_arch(CmdCopyBufferToImage2)(commandBuffer, &adjusted_info);
+   panvk_per_arch(CmdCopyMemoryToImageKHR)(commandBuffer, &adjusted_info);
 
    const VkMemoryBarrier2 mem_barrier = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -423,7 +423,7 @@ lower_copy_buffer_to_image(
 
    adjusted_info.regionCount = num_stencil_regions;
    adjusted_info.pRegions = stencil_regions;
-   panvk_per_arch(CmdCopyBufferToImage2)(commandBuffer, &adjusted_info);
+   panvk_per_arch(CmdCopyMemoryToImageKHR)(commandBuffer, &adjusted_info);
 
    STACK_ARRAY_FINISH(depth_regions);
    STACK_ARRAY_FINISH(stencil_regions);
@@ -432,16 +432,16 @@ lower_copy_buffer_to_image(
 }
 
 VKAPI_ATTR void VKAPI_CALL
-panvk_per_arch(CmdCopyBufferToImage2)(
+panvk_per_arch(CmdCopyMemoryToImageKHR)(
    VkCommandBuffer commandBuffer,
-   const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)
+   const VkCopyDeviceMemoryImageInfoKHR* pCopyMemoryInfo)
 {
    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
-   VK_FROM_HANDLE(panvk_image, img, pCopyBufferToImageInfo->dstImage);
+   VK_FROM_HANDLE(panvk_image, img, pCopyMemoryInfo->image);
 
    /* Early out if this operation was lowered. */
-   if (lower_copy_buffer_to_image(commandBuffer, pCopyBufferToImageInfo))
+   if (lower_copy_memory_to_image(commandBuffer, pCopyMemoryInfo))
       return;
 
    const bool use_gfx_pipeline = copy_to_image_use_gfx_pipeline(img);
@@ -452,35 +452,35 @@ panvk_per_arch(CmdCopyBufferToImage2)(
       struct panvk_cmd_meta_graphics_save_ctx save = {0};
 
       meta_gfx_start(cmdbuf, &save);
-      vk_meta_copy_buffer_to_image(&cmdbuf->vk, &dev->meta,
-                                   pCopyBufferToImageInfo, &img_props,
+      vk_meta_copy_memory_to_image(&cmdbuf->vk, &dev->meta,
+                                   pCopyMemoryInfo, &img_props,
                                    VK_PIPELINE_BIND_POINT_GRAPHICS);
       meta_gfx_end(cmdbuf, &save);
    } else {
       struct panvk_cmd_meta_compute_save_ctx save = {0};
 
       meta_compute_start(cmdbuf, &save);
-      vk_meta_copy_buffer_to_image(&cmdbuf->vk, &dev->meta,
-                                   pCopyBufferToImageInfo, &img_props,
+      vk_meta_copy_memory_to_image(&cmdbuf->vk, &dev->meta,
+                                   pCopyMemoryInfo, &img_props,
                                    VK_PIPELINE_BIND_POINT_COMPUTE);
       meta_compute_end(cmdbuf, &save);
    }
 }
 
 VKAPI_ATTR void VKAPI_CALL
-panvk_per_arch(CmdCopyImageToBuffer2)(
+panvk_per_arch(CmdCopyImageToMemoryKHR)(
    VkCommandBuffer commandBuffer,
-   const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
+   const VkCopyDeviceMemoryImageInfoKHR* pCopyMemoryInfo)
 {
    VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
-   VK_FROM_HANDLE(panvk_image, img, pCopyImageToBufferInfo->srcImage);
+   VK_FROM_HANDLE(panvk_image, img, pCopyMemoryInfo->image);
    struct vk_meta_copy_image_properties img_props =
       panvk_meta_copy_get_image_properties(img, false, false);
    struct panvk_cmd_meta_compute_save_ctx save = {0};
 
    meta_compute_start(cmdbuf, &save);
-   vk_meta_copy_image_to_buffer(&cmdbuf->vk, &dev->meta, pCopyImageToBufferInfo,
+   vk_meta_copy_image_to_memory(&cmdbuf->vk, &dev->meta, pCopyMemoryInfo,
                                 &img_props);
    meta_compute_end(cmdbuf, &save);
 }
