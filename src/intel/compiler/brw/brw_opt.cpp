@@ -212,7 +212,8 @@ brw_optimize(brw_shader &s)
    if (s.devinfo->ver >= 30)
       OPT(brw_opt_send_gather_to_send);
 
-   OPT(brw_lower_uniform_pull_constant_loads);
+   if (!s.devinfo->has_lsc)
+      OPT(brw_lower_uniform_pull_constant_loads);
 
    /* Do this before brw_lower_send_descriptors. */
    OPT(brw_workaround_memory_fence_before_eot);

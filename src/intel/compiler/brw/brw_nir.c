@@ -4035,6 +4035,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_load_shared_uniform_block_intel:
    case nir_intrinsic_load_ssbo_block_intel:
    case nir_intrinsic_load_ssbo_uniform_block_intel:
+   case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_ubo_uniform_block_intel:
    case nir_intrinsic_load_scratch:
    case nir_intrinsic_load_scratch_intel:
