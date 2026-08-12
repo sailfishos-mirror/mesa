@@ -1493,6 +1493,12 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    assert(base_offset == 0 || sfid != GEN_SFID_TGM);
 
    unsigned nr = ndata->num_components;
+
+   if (transpose) {
+      /* TODO: Overhaul the NIR passes so this isn't necessary */
+      nr = brw_uniform_block_size(devinfo, nr);
+   }
+
    uint64_t desc =
       lsc_msg_desc(devinfo, op, surf_type, addr_size,
                    lsc_bits_to_data_size(ndata->bit_size),
