@@ -1264,7 +1264,7 @@
         "description": "pan/bi: Fix vector phis from spilling",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7606854f43972c780f03cbd851080edbf75114ec",
         "notes": null
