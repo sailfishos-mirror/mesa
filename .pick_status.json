@@ -3364,7 +3364,7 @@
         "description": "Revert \"freedreno: Don't re-bind global buffers\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9892e333d008834398aece726bdddf169b6e9fc0",
         "notes": null
