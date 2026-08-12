@@ -83,6 +83,14 @@ panvk_utrace_read_ts(struct u_trace_context *utctx, void *timestamps,
 
    assert(props->timestamp_frequency);
 
+   /* The buffer may be NULL if its clone-time allocation failed; the trace
+    * point has no valid timestamp. */
+   if (!buf) {
+      mesa_loge("utrace: missing timestamp buffer (clone alloc failed); "
+                "reporting no timestamp for this trace point");
+      return U_TRACE_NO_TIMESTAMP;
+   }
+
    /* wait for the submit */
    if (data->sync) {
       if (vk_sync_wait(&dev->vk, data->sync, data->wait_value,
@@ -106,6 +114,15 @@ panvk_utrace_get_data(struct u_trace_context *utctx, void *buffer,
                       uint64_t offset_B, uint32_t size_B)
 {
    const struct panvk_utrace_buf *buf = buffer;
+
+   /* The buffer may be NULL if its clone-time allocation failed; report
+    * no data rather than dereferencing NULL. */
+   if (!buf) {
+      mesa_loge("utrace: missing indirect data buffer (clone alloc failed); "
+                "reporting no data for this trace point");
+      return NULL;
+   }
+
    return buf->host + offset_B;
 }
 
