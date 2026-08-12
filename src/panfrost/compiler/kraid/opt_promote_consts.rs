@@ -31,6 +31,10 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
                     continue;
                 };
 
+                if s.model.op_src_supports_imm32(&instr.op, src, (*v).into()) {
+                    continue;
+                }
+
                 fau_consts
                     .entry(*v)
                     .and_modify(|fc: &mut FauConst| fc.weight += 1)
@@ -60,8 +64,7 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
                     continue;
                 };
 
-                let entry = fau_consts.get(v).unwrap();
-                if let Some(idx) = entry.fau_idx {
+                if let Some(idx) = fau_consts.get(v).and_then(|e| e.fau_idx) {
                     src.src_ref = SrcRef::FAU(FAURef::user_i32(idx));
                 }
             }
