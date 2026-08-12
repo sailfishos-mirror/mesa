@@ -566,7 +566,6 @@ static void
 etna_emit_texture_state(struct etna_context *ctx)
 {
    struct etna_cmd_stream *stream = ctx->stream;
-   struct etna_screen *screen = ctx->screen;
    uint32_t active_samplers = active_samplers_bits(ctx);
    uint32_t dirty = ctx->dirty;
    struct etna_coalesce coalesce;
@@ -675,14 +674,6 @@ etna_emit_texture_state(struct etna_context *ctx)
          if ((1 << x) & active_samplers) {
             struct etna_sampler_view *sv = etna_sampler_view(ctx->sampler_view[x]);
             /*02C00*/ EMIT_STATE(TE_SAMPLER_LINEAR_STRIDE(0, x), sv->linear_stride);
-         }
-      }
-   }
-   if (unlikely(screen->specs.tex_astc && (dirty & (ETNA_DIRTY_SAMPLER_VIEWS)))) {
-      for (int x = 0; x < VIVS_TE_SAMPLER__LEN; ++x) {
-         if ((1 << x) & active_samplers) {
-            struct etna_sampler_view *sv = etna_sampler_view(ctx->sampler_view[x]);
-            /*10500*/ EMIT_STATE(NTE_SAMPLER_ASTC0(x), sv->astc0);
          }
       }
    }
