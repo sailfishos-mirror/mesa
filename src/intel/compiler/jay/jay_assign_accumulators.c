@@ -222,7 +222,7 @@ pass(jay_function *func)
 
    /* in_use[acc][IP] set if acc is in-use /before/ executing instruction IP */
    BITSET_WORD *in_use[JAY_MAX_ACCUMS];
-   unsigned nr_accums = func->shader->dispatch_width == 32 ? 2 : 4;
+   unsigned nr_accums = jay_num_accums(func->shader);
 
    for (unsigned i = 0; i < nr_accums; ++i) {
       in_use[i] = BITSET_LINEAR_ZALLOC(linctx, ip_bound);

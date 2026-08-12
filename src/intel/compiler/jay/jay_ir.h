@@ -1153,6 +1153,14 @@ jay_num_flags(jay_shader *shader)
 }
 
 static inline unsigned
+jay_num_accums(jay_shader *shader)
+{
+   /* TODO: Adjust for older platforms */
+   unsigned total_grf = 4;
+   return total_grf / jay_grf_per_gpr(shader);
+}
+
+static inline unsigned
 jay_num_regs(jay_shader *shader, enum jay_file file)
 {
    assert(file < JAY_NUM_SSA_FILES);
