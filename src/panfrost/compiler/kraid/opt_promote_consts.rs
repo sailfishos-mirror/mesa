@@ -27,15 +27,17 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
     for block in s.blocks.iter() {
         for instr in block.instrs.iter() {
             for src in instr.srcs() {
-                if let SrcRef::Imm32(v) = &src.src_ref {
-                    fau_consts
-                        .entry(*v)
-                        .and_modify(|fc: &mut FauConst| fc.weight += 1)
-                        .or_insert(FauConst {
-                            weight: 1,
-                            fau_idx: None,
-                        });
-                }
+                let SrcRef::Imm32(v) = &src.src_ref else {
+                    continue;
+                };
+
+                fau_consts
+                    .entry(*v)
+                    .and_modify(|fc: &mut FauConst| fc.weight += 1)
+                    .or_insert(FauConst {
+                        weight: 1,
+                        fau_idx: None,
+                    });
             }
         }
     }
@@ -54,11 +56,13 @@ fn promote_consts(s: &mut Shader, fau: &mut pan_fau_layout) {
     for block in s.blocks.iter_mut() {
         for instr in block.instrs.iter_mut() {
             for src in instr.srcs_mut() {
-                if let SrcRef::Imm32(v) = &src.src_ref {
-                    let entry = fau_consts.get(v).unwrap();
-                    if let Some(idx) = entry.fau_idx {
-                        src.src_ref = SrcRef::FAU(FAURef::user_i32(idx));
-                    }
+                let SrcRef::Imm32(v) = &src.src_ref else {
+                    continue;
+                };
+
+                let entry = fau_consts.get(v).unwrap();
+                if let Some(idx) = entry.fau_idx {
+                    src.src_ref = SrcRef::FAU(FAURef::user_i32(idx));
                 }
             }
         }
