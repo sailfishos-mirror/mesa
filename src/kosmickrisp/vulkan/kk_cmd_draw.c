@@ -963,7 +963,7 @@ kk_flush_render_pass(struct kk_cmd_buffer *cmd)
    }
    /* If render pass state changes and the pass is currently active, end the
     * current encoder and prepare to restart it */
-   bool active_render = cmd->gfx.encoder != NULL;
+   bool active_render = cmd->metal.render != NULL;
    if (needs_restart && active_render) {
       if (!color_attachment_map_changed) {
          /* Sample locations changed and color attachment map didn't. */
@@ -1058,9 +1058,16 @@ kk_heap(struct kk_cmd_buffer *cmd)
    if (!cmd->uses_heap) {
       uint64_t addr = dev->heap->gpu;
 
-      /* Zeroing the allocated index frees everything */
+      /* Zeroing the allocated index frees everything. Force compute encoder
+       * since this path is only taken by tessellation and unroll which already
+       * force a compute encoder break */
+      mtl_compute_encoder *encoder = cs_get_compute(cmd);
       kk_cmd_write(cmd, (struct libkk_imm_write){
                            addr + offsetof(struct poly_heap, bottom), 0});
+
+      /* Ensure heap is set to 0 before we allocate anything. */
+      mtl_barrier_after_encoder_stages(encoder, MTL_STAGE_DISPATCH,
+                                       MTL_STAGE_DISPATCH);
 
       cmd->uses_heap = true;
    }
@@ -1969,7 +1976,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
 
    /* First launch the VS and TCS */
 
-   mtl_compute_encoder *enc = cs_get_compute(cmd, true);
+   mtl_compute_encoder *enc = cs_get_compute(cmd);
    {
       mtl_compute_pipeline_state *pipeline = vs->pipeline.gfx.pre_render[0];
       struct mtl_size local_size = {64, 1, 1};
@@ -2077,6 +2084,12 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
 
       if (tess)
          draw_data = kk_launch_tess(cmd, draw_data);
+
+      /* TODO_KOSMICKRISP Remove this once unroll, tess and any compute does not
+       * split render pass */
+      if (cmd->state.gfx.need_to_start_render_pass)
+         kk_flush_gfx_state(cmd);
+
       kk_dispatch_draw(cmd, draw_data);
    }
 }

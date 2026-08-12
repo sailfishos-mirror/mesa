@@ -26,7 +26,7 @@ kk_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(kk_buffer, src, pCopyBufferInfo->srcBuffer);
    VK_FROM_HANDLE(kk_buffer, dst, pCopyBufferInfo->dstBuffer);
 
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
    for (uint32_t i = 0; i < pCopyBufferInfo->regionCount; i++) {
       const VkBufferCopy2 *region = &pCopyBufferInfo->pRegions[i];
       mtl_copy_from_buffer_to_buffer(
@@ -91,7 +91,7 @@ kk_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(kk_buffer, buffer, pCopyBufferToImageInfo->srcBuffer);
    VK_FROM_HANDLE(kk_image, image, pCopyBufferToImageInfo->dstImage);
 
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
    for (int r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
       const VkBufferImageCopy2 *region = &pCopyBufferToImageInfo->pRegions[r];
       const uint8_t plane_index = kk_image_memory_aspects_to_plane(
@@ -121,7 +121,7 @@ kk_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(kk_image, image, pCopyImageToBufferInfo->srcImage);
    VK_FROM_HANDLE(kk_buffer, buffer, pCopyImageToBufferInfo->dstBuffer);
 
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
    for (unsigned r = 0; r < pCopyImageToBufferInfo->regionCount; r++) {
       const VkBufferImageCopy2 *region = &pCopyImageToBufferInfo->pRegions[r];
       const uint8_t plane_index = kk_image_memory_aspects_to_plane(
@@ -180,7 +180,7 @@ copy_through_buffer(struct kk_cmd_buffer *cmd, struct kk_image *src,
    bool is_src_compressed = util_format_is_compressed(src_format);
    bool is_dst_compressed = util_format_is_compressed(dst_format);
 
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
 
    const uint32_t buffer_stride_B =
       util_format_get_stride(src_format, region->extent.width);
@@ -297,7 +297,7 @@ static void
 copy_image(struct kk_cmd_buffer *cmd, struct kk_image *src, uint32_t src_index,
            struct kk_image *dst, uint32_t dst_index, const VkImageCopy2 *region)
 {
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
    struct kk_image_plane *src_plane = &src->planes[src_index];
    struct kk_image_plane *dst_plane = &dst->planes[dst_index];
 

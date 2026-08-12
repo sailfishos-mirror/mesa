@@ -215,23 +215,19 @@ struct kk_ts_resolve {
    uint64_t dst_addr;
 };
 
-struct kk_encoder_state {
-   /* either a mtl_compute_encoder or a mtl_render_encoder */
-   mtl_command_encoder *encoder;
-   mtl_command_allocator *allocator;
-   mtl_command_buffer *cmd_buf;
-   /* Pending timestamp resolves (struct kk_ts_resolve), flushed at cs_end. */
-   struct util_dynarray ts_resolves;
-};
-
 struct kk_cmd_buffer {
    struct vk_command_buffer vk;
 
-   struct kk_encoder_state gfx;
-   /* pre and post gfx encoder states swap after every gfx encoder is committed */
-   struct kk_encoder_state cmp[2];
-   struct kk_encoder_state *pre_gfx;
-   struct kk_encoder_state *post_gfx;
+   struct {
+      mtl_command_allocator *allocator;
+      mtl_command_buffer *cmd_buf;
+      mtl_render_encoder *render;
+      mtl_compute_encoder *compute;
+   } metal;
+   /* Pending timestamp resolves (struct kk_ts_resolve), flushed at cs_end. */
+   struct util_dynarray ts_resolves;
+   /* Deferred writes due to being mid render encoder */
+   struct util_dynarray post_render_writes;
 
    void *drawable;
    mtl_argument_table *argument_table;
@@ -249,8 +245,6 @@ struct kk_cmd_buffer {
    } state;
 
    struct kk_uploader uploader;
-
-   struct util_dynarray submit_cmd_bufs;
 
    /* Owned large BOs */
    struct util_dynarray large_bos;
@@ -296,10 +290,9 @@ kk_get_descriptors_state(struct kk_cmd_buffer *cmd,
    }
 };
 
-void kk_reset_cmd_buffer_internal(struct kk_cmd_buffer *cmd);
 void cs_start_render(struct kk_cmd_buffer *cmd);
 mtl_render_encoder *cs_get_render(struct kk_cmd_buffer *cmd);
-mtl_compute_encoder *cs_get_compute(struct kk_cmd_buffer *cmd, bool pre_gfx);
+mtl_compute_encoder *cs_get_compute(struct kk_cmd_buffer *cmd);
 void cs_end(struct kk_cmd_buffer *cmd);
 void kk_cmd_bind_root_to_argument_table(struct kk_cmd_buffer *cmd,
                                         uint64_t addr);
@@ -403,7 +396,6 @@ void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
 
 void kk_cmd_write(struct kk_cmd_buffer *cmd, struct libkk_imm_write write);
 
-void kk_encoder_state_set_label(struct kk_encoder_state *state,
-                                const char *label);
 void kk_cmd_buffer_set_label(struct kk_cmd_buffer *cb, const char *label);
+
 #endif

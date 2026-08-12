@@ -263,7 +263,7 @@ static uint32_t
 kk_mv_query_count(struct kk_cmd_buffer *cmd)
 {
    struct kk_rendering_state *render = &cmd->state.gfx.render;
-   return cmd->gfx.encoder && render->view_mask
+   return cmd->metal.render && render->view_mask
              ? util_bitcount(render->view_mask)
              : 1;
 }
@@ -275,13 +275,12 @@ kk_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool,
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(kk_query_pool, pool, queryPool);
 
-   assert(cmd->gfx.encoder == NULL);
+   assert(cmd->metal.render == NULL);
 
    /* A prior timestamp write may have a resolve still pending. Land it before
     * the reset zeroes the pool BO, otherwise the deferred resolve would clobber
     * the reset and leave the query spuriously available. */
-   if (util_dynarray_num_elements(&cmd->pre_gfx->ts_resolves,
-                                  struct kk_ts_resolve) > 0)
+   if (util_dynarray_num_elements(&cmd->ts_resolves, struct kk_ts_resolve) > 0)
       cs_end(cmd);
 
    emit_zero_queries(cmd, pool, firstQuery, queryCount, false);
@@ -337,8 +336,8 @@ kk_pipeline_stages_to_mtl_render_stage(VkPipelineStageFlags2 vk_flags)
       }
    }
 
-   /* There are currently no restrictions on non-renderpass stages being passed to
-    * vkCmdWriteTimestamp*() in a renderpass, map them to the last stage */
+   /* There are currently no restrictions on non-renderpass stages being passed
+    * to vkCmdWriteTimestamp*() in a renderpass, map them to the last stage */
    return MTL_RENDER_STAGE_TILE;
 }
 
@@ -365,54 +364,50 @@ kk_CmdWriteTimestamp2(VkCommandBuffer commandBuffer,
       .dst_addr = kk_query_report_addr(dev, pool, query),
    };
 
-   /* non-gfx or not found*/
-   if (cmd->gfx.encoder) {
-      uint64_t addr = kk_query_available_addr(pool, query);
-      for (uint32_t i = 0; i < count; i++) {
-         libkk_write_u32(cmd, kk_grid_1d(1), false, addr, true);
-         addr += sizeof(uint32_t);
-      }
+   uint64_t available_addr = kk_query_available_addr(pool, query);
 
+   /* non-gfx or not found*/
+   if (cmd->metal.render) {
       /* If we've already issued a timestamp write for a render stage, reuse it
        * because reissuing might return a 0 timestamp
        */
+      bool reused = false;
       util_dynarray_foreach(&pool->ts.stage_map, struct kk_ts_stage_entry,
                             entry) {
-         if (entry->stage == mtl_stage && entry->pass == cmd->gfx.encoder) {
+         if (entry->stage == mtl_stage && entry->pass == cmd->metal.render) {
             uint16_t *remap_index = kk_pool_index_ptr(pool);
             remap_index[query] = entry->index;
-            return;
+            reused = true;
+            break;
          }
       }
-      struct kk_ts_stage_entry entry = {.stage = mtl_stage,
-                                        .pass = cmd->gfx.encoder,
-                                        .index = query};
-      util_dynarray_append(&pool->ts.stage_map, entry);
 
-      mtl_render_write_timestamp(cmd->gfx.encoder, mtl_stage, pool->ts.heap,
-                                 query);
-      util_dynarray_append(&cmd->gfx.ts_resolves, resolve);
-   } else {
-      bool top = true;
-      struct kk_encoder_state *es;
+      if (!reused) {
+         struct kk_ts_stage_entry entry = {.stage = mtl_stage,
+                                           .pass = cmd->metal.render,
+                                           .index = query};
+         util_dynarray_append(&pool->ts.stage_map, entry);
 
-      const VkPipelineStageFlagBits2 bottom_mask =
-         VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
-      if (cmd->gfx.encoder && ((stage & bottom_mask) != 0)) {
-         top = false;
+         mtl_render_write_timestamp(cmd->metal.render, mtl_stage, pool->ts.heap,
+                                    query);
+         util_dynarray_append(&cmd->ts_resolves, resolve);
       }
-      es = top ? cmd->pre_gfx : cmd->post_gfx;
 
+      for (uint32_t i = 0; i < count; i++) {
+         kk_cmd_write(cmd, (struct libkk_imm_write){available_addr, true});
+         available_addr += sizeof(uint32_t);
+      }
+   } else {
       /* write the availability markers. For compute, this must happen before the
        * timestamp write to ensure that there is compute work to trigger it. */
-      uint64_t addr = kk_query_available_addr(pool, query);
       for (uint32_t i = 0; i < count; i++) {
-         libkk_write_u32(cmd, kk_grid_1d(1), top, addr, true);
-         addr += sizeof(uint32_t);
+         libkk_write_u32(cmd, kk_grid_1d(1), true, available_addr, true);
+         available_addr += sizeof(uint32_t);
       }
 
-      mtl_compute_write_timestamp(es->encoder, pool->ts.heap, query);
-      util_dynarray_append(&es->ts_resolves, resolve);
+      mtl_compute_encoder *encoder = cs_get_compute(cmd);
+      mtl_compute_write_timestamp(encoder, pool->ts.heap, query);
+      util_dynarray_append(&cmd->ts_resolves, resolve);
    }
 }
 
@@ -561,11 +556,10 @@ kk_CmdCopyQueryPoolResultsToMemoryKHR(
    /* Timestamp results are resolved into the pool BO on a deferred command
     * buffer; make sure any pending resolve lands before this copy reads it.
     * This also gives VK_QUERY_RESULT_WAIT_BIT its meaning for timestamps. */
-   if (util_dynarray_num_elements(&cmd->pre_gfx->ts_resolves,
-                                  struct kk_ts_resolve) > 0)
+   if (util_dynarray_num_elements(&cmd->ts_resolves, struct kk_ts_resolve) > 0)
       cs_end(cmd);
 
-   mtl_compute_encoder *encoder = cs_get_compute(cmd, true);
+   mtl_compute_encoder *encoder = cs_get_compute(cmd);
    /* The resolveCounterHeap runs on the blit stage and it needs to be available
     * for the compute job to copy results to the bo. */
    mtl_barrier_after_queue_stages(encoder, MTL_STAGE_BLIT, MTL_STAGE_DISPATCH);

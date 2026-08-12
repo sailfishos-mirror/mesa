@@ -294,7 +294,7 @@ kk_CmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount,
 
    uint32_t view_mask = cmd->state.gfx.render.view_mask;
    uint32_t layer_ids[KK_MAX_MULTIVIEW_VIEW_COUNT] = {};
-   mtl_set_vertex_amplification_count(cmd->gfx.encoder, layer_ids, 1u);
+   mtl_set_vertex_amplification_count(cs_get_render(cmd), layer_ids, 1u);
 
    /* Preserve conditional rendering state for clearing attachments */
    struct kk_conditional_rendering_state cond_render = cmd->state.cond_render;
@@ -313,7 +313,7 @@ kk_CmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount,
    if (view_mask == 0u) {
       layer_ids[count++] = 0;
    }
-   mtl_set_vertex_amplification_count(cmd->gfx.encoder, layer_ids, count);
+   mtl_set_vertex_amplification_count(cs_get_render(cmd), layer_ids, count);
 }
 
 void
