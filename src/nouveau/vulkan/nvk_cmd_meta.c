@@ -540,38 +540,31 @@ nvk_CmdCopyMemoryKHR(VkCommandBuffer commandBuffer,
 }
 
 static void
-nvk_cmd_fill_buffer_meta(struct nvk_cmd_buffer *cmd,
-                         VkBuffer dstBuffer,
-                         VkDeviceSize dstOffset,
-                         VkDeviceSize size,
+nvk_cmd_fill_memory_meta(struct nvk_cmd_buffer *cmd,
+                         const VkDeviceAddressRangeKHR* pDstRange,
+                         VkAddressCommandFlagsKHR dstFlags,
                          uint32_t data)
 {
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
    struct nvk_meta_save_compute save;
    nvk_meta_begin_compute(cmd, &save);
-   vk_meta_fill_buffer(&cmd->vk, &dev->meta, dstBuffer, dstOffset, size, data);
+   vk_meta_fill_memory(&cmd->vk, &dev->meta, pDstRange, dstFlags, data);
    nvk_meta_end_compute(cmd, &save);
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdFillBuffer(VkCommandBuffer commandBuffer,
-                  VkBuffer dstBuffer,
-                  VkDeviceSize dstOffset,
-                  VkDeviceSize size,
-                  uint32_t data)
+nvk_CmdFillMemoryKHR(VkCommandBuffer commandBuffer,
+                     const VkDeviceAddressRangeKHR* pDstRange,
+                     VkAddressCommandFlagsKHR dstFlags,
+                     uint32_t data)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
 
    VkQueueFlags queue_flags = nvk_cmd_buffer_queue_flags(cmd);
    if (queue_flags & VK_QUEUE_COMPUTE_BIT) {
-      nvk_cmd_fill_buffer_meta(cmd, dstBuffer, dstOffset, size, data);
+      nvk_cmd_fill_memory_meta(cmd, pDstRange, dstFlags, data);
    } else {
-      VK_FROM_HANDLE(nvk_buffer, dst_buffer, dstBuffer);
-
-      uint64_t dst_addr = vk_buffer_address(&dst_buffer->vk, dstOffset);
-      size = vk_buffer_range(&dst_buffer->vk, dstOffset, size);
-
-      nvk_cmd_fill_memory_ce(cmd, dst_addr, size, data);
+      nvk_cmd_fill_memory_ce(cmd, pDstRange->address, pDstRange->size, data);
    }
 }
