@@ -257,6 +257,10 @@ VkCopyDeviceMemoryImageInfoKHR
 vk_upgrade_copy_buffer_to_image2(const VkCopyBufferToImageInfo2* pCopyBufferToImageInfo,
                                  VkDeviceMemoryImageCopyKHR* regions);
 
+VkCopyDeviceMemoryImageInfoKHR
+vk_upgrade_copy_image_to_buffer2(const VkCopyImageToBufferInfo2* pCopyImageToBufferInfo,
+                                 VkDeviceMemoryImageCopyKHR* regions);
+
 #ifdef __cplusplus
 }
 #endif
