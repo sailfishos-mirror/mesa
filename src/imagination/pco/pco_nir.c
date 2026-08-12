@@ -54,10 +54,10 @@ static const nir_shader_compiler_options nir_options = {
    .lower_find_lsb = true,
    .lower_fquantize2f16 = true,
    .lower_flrp32 = true,
+   .lower_fminmax_signed_zero = true,
    .lower_fmod = true,
    .lower_fpow = true,
    .lower_fsqrt = true,
-   .lower_ftrunc = true,
    .lower_iadd_sat = true,
    .lower_ifind_msb = true,
    .lower_layer_fs_input_to_sysval = true,
@@ -529,6 +529,7 @@ static void pco_nir_opt(pco_ctx *ctx, nir_shader *nir, pco_data *data, bool alge
 
       NIR_PASS(progress, nir, nir_opt_phi_precision);
       NIR_PASS(progress, nir, nir_lower_alu);
+      NIR_PASS(progress, nir, pco_nir_lower_alu);
       NIR_PASS(progress, nir, nir_lower_pack);
 
       if (algebraic) {
