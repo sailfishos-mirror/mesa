@@ -1292,6 +1292,33 @@ static nir_def *alu_iter(nir_builder *b,
    return result;
 }
 
+static nir_def *fs_is_single_sampled_covmsk(nir_builder *b)
+{
+   nir_def *msaa_samples = nir_bit_count(
+      b,
+      nir_u2u32(b, nir_alpha_to_coverage(b, nir_imm_float(b, 1.0f))));
+
+   return nir_ieq_imm(b, msaa_samples, 1);
+}
+
+static nir_def *fs_is_single_sampled_meta(nir_builder *b)
+{
+   return nir_ieq_imm(
+      b,
+      nir_ubitfield_extract_imm(b,
+                                nir_load_fs_meta_pco(b),
+                                PVR_FS_META_SAMPLE_SHADING,
+                                PVR_FS_META_SAMPLE_SHADING_LENGTH),
+      0);
+}
+
+/* TODO: revisit */
+static nir_def *fs_is_single_sampled(nir_builder *b)
+{
+   return b->shader->info.internal ? fs_is_single_sampled_covmsk(b)
+                                   : fs_is_single_sampled_meta(b);
+}
+
 static bool
 lower_sample_pos(nir_builder *b, nir_intrinsic_instr *intr, pco_fs_data *fs)
 {
@@ -1325,7 +1352,7 @@ lower_sample_pos(nir_builder *b, nir_intrinsic_instr *intr, pco_fs_data *fs)
    sample_location = nir_u2f32(b, sample_location);
    sample_location = nir_fdiv_imm(b, sample_location, 16.0f);
    sample_location = nir_bcsel(b,
-                               nir_ieq_imm(b, msaa_samples, 1),
+                               fs_is_single_sampled(b),
                                nir_imm_vec2(b, 0.5f, 0.5f),
                                sample_location);
 

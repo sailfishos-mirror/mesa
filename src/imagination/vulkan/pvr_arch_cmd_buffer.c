@@ -5789,6 +5789,12 @@ static VkResult pvr_setup_descriptor_mappings(
                    .alpha_to_coverage_enable)
                fs_meta |= BITFIELD_BIT(PVR_FS_META_ALPHA_TO_COVERAGE_OFFSET);
 
+            if (data->fs.uses.sample_shading &&
+                cmd_buffer->vk.dynamic_graphics_state.ms.rasterization_samples >
+                   VK_SAMPLE_COUNT_1_BIT) {
+               fs_meta |= BITFIELD_BIT(PVR_FS_META_SAMPLE_SHADING);
+            }
+
             struct pvr_suballoc_bo *fs_meta_bo;
             result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
                                                         &fs_meta,
@@ -7232,7 +7238,6 @@ setup_pds_fragment_program(struct pvr_cmd_buffer *const cmd_buffer,
       &pds_fragment_program_buffer[program->doutu_offset],
       &doutu_src);
 
-   /* TODO: VkPipelineMultisampleStateCreateInfo.sampleShadingEnable? */
    doutu_src.sample_rate = dynamic_state->ms.rasterization_samples >
                                  VK_SAMPLE_COUNT_1_BIT
                               ? ROGUE_PDSINST_DOUTU_SAMPLE_RATE_FULL

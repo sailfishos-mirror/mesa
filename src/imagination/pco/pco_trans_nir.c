@@ -15,6 +15,7 @@
 #include "pco.h"
 #include "pco_builder.h"
 #include "pco_internal.h"
+#include "pvr_iface.h"
 #include "util/bitset.h"
 #include "util/list.h"
 #include "util/macros.h"
@@ -370,10 +371,8 @@ static inline pco_instr *build_itr(pco_builder *b,
    return instr;
 }
 
-static pco_ref fs_is_single_sampled(trans_ctx *tctx)
+static pco_ref fs_is_single_sampled_covmsk(trans_ctx *tctx)
 {
-   assert(tctx->stage == MESA_SHADER_FRAGMENT);
-
    /* n samples = ...
     * 1 = 0b00000001
     * 2 = 0b00000011
@@ -405,6 +404,51 @@ static pco_ref fs_is_single_sampled(trans_ctx *tctx)
             .tst_type_main = PCO_TST_TYPE_MAIN_U32);
 
    return is_single_sampled;
+}
+
+static pco_ref fs_is_single_sampled_meta(trans_ctx *tctx)
+{
+   assert(tctx->shader->data.fs.meta.count > 0);
+   pco_ref fs_meta = pco_ref_new_ssa32(tctx->func);
+   pco_mov(&tctx->b,
+           fs_meta,
+           pco_ref_hwreg(tctx->shader->data.fs.meta.start,
+                         PCO_REG_CLASS_SHARED));
+
+   pco_ref sample_shading_bit = pco_ref_new_ssa32(tctx->func);
+   pco_movi32(&tctx->b,
+              sample_shading_bit,
+              pco_ref_imm32(PVR_FS_META_SAMPLE_SHADING));
+
+   pco_ref sample_shading_len = pco_ref_new_ssa32(tctx->func);
+   pco_movi32(&tctx->b,
+              sample_shading_len,
+              pco_ref_imm32(PVR_FS_META_SAMPLE_SHADING_LENGTH));
+
+   pco_ref sample_shading = pco_ref_new_ssa32(tctx->func);
+   pco_ubfe(&tctx->b,
+            sample_shading,
+            fs_meta,
+            sample_shading_bit,
+            sample_shading_len);
+
+   pco_ref is_single_sampled = pco_ref_new_ssa32(tctx->func);
+   pco_tstz(&tctx->b,
+            is_single_sampled,
+            pco_ref_null(),
+            sample_shading,
+            .tst_type_main = PCO_TST_TYPE_MAIN_U32);
+
+   return is_single_sampled;
+}
+
+/* TODO: revisit */
+static pco_ref fs_is_single_sampled(trans_ctx *tctx)
+{
+   assert(tctx->stage == MESA_SHADER_FRAGMENT);
+
+   return tctx->shader->is_internal ? fs_is_single_sampled_covmsk(tctx)
+                                    : fs_is_single_sampled_meta(tctx);
 }
 
 /**

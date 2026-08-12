@@ -2700,6 +2700,9 @@ pvr_preprocess_shader_data(pco_data *data,
          data->fs.meta_present.color_write_enable = true;
       }
 
+      if (state->ms)
+         nir->info.fs.uses_sample_shading |= state->ms->sample_shading_enable;
+
       /* TODO: push consts, dynamic state, etc. */
       break;
    }

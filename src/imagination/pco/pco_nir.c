@@ -288,6 +288,7 @@ static void gather_fs_data(nir_shader *nir, pco_data *data)
    data->fs.uses.fbfetch |= data->fs.meta_present.color_write_enable;
 
    data->fs.uses.sample_shading |= nir->info.fs.uses_sample_shading;
+   data->fs.uses.sample_shading |= data->fs.uses.sample_locations;
 }
 
 /**
