@@ -1011,7 +1011,8 @@ radv_get_image_format_properties(struct radv_physical_device *pdev, const VkPhys
    if (tiling == VK_IMAGE_TILING_OPTIMAL && info->type == VK_IMAGE_TYPE_2D &&
        (format_feature_flags &
         (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
-       !(image_flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) &&
+       (!(image_flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) ||
+        (image_flags & VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT)) &&
        !(image_usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR)) {
       sampleCounts |= VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT;
    }

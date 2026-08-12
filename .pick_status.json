@@ -1084,7 +1084,7 @@
         "description": "radv: allow multisampling with 2D CUBE_COMPATIBLE images with MSRTSS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "122eed44ca85ad649e7716464241f50fc760e219",
         "notes": null
