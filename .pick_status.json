@@ -2544,7 +2544,7 @@
         "description": "tu: Don't force R32_UINT when clearing MSAA E5B9G9R9 images",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9dc3410512dc7b89db02439d798635f96585c7b0",
         "notes": null
