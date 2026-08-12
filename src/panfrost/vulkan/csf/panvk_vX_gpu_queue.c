@@ -1,5 +1,6 @@
 /*
  * Copyright © 2024 Collabora Ltd.
+ * Copyright © 2026 NXP
  * SPDX-License-Identifier: MIT
  */
 
@@ -1090,30 +1091,26 @@ panvk_queue_submit_init_cmdbufs(struct panvk_queue_submit *submit,
          struct u_trace clone_ut;
          if (!(cmdbuf->flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)) {
             u_trace_init(&clone_ut, &dev->utrace.utctx);
-
-            const uint64_t root_buf_size = sizeof(uint64_t) * 1024;
-            struct panvk_utrace_buf *cs_root_buf =
-               panvk_utrace_create_buffer(&dev->utrace.utctx, root_buf_size);
-            assert(cs_root_buf);
             /* For every sq, the cs buffer needs to be freed. */
             free_data = true;
 
-            const struct cs_buffer cs_root = (struct cs_buffer){
-               .cpu = cs_root_buf->host,
-               .gpu = cs_root_buf->dev,
-               .capacity = root_buf_size / sizeof(uint64_t),
+            /* The clone CS builder allocates all of its chunks (including the
+             * root) from the utrace copy heap via alloc_clone_cs_buffer(). */
+            struct panvk_utrace_clone_cs_ctx clone_ctx = {
+               .dev = dev,
             };
-
-            submit->utrace.data[j]->clone_cs_root = cs_root_buf;
+            util_dynarray_init(&clone_ctx.cs_bufs, NULL);
             struct cs_builder clone_builder;
             panvk_per_arch(utrace_clone_init_builder)(&clone_builder, dev,
-                                                      &cs_root);
+                                                      &clone_ctx);
 
             u_trace_clone_append(
                u_trace_begin_iterator(ut), u_trace_end_iterator(ut), &clone_ut,
                &clone_builder, panvk_per_arch(utrace_copy_buffer));
 
             panvk_per_arch(utrace_clone_finish_builder)(&clone_builder);
+
+            submit->utrace.data[j]->clone_cs_bufs = clone_ctx.cs_bufs;
 
             submit->qsubmits[submit->qsubmit_count++] =
                (struct drm_panthor_queue_submit){
