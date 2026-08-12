@@ -2517,7 +2517,7 @@ vk_meta_copy_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
    STACK_ARRAY(VkDeviceMemoryCopyKHR, regions, pCopyBufferInfo->regionCount);
 
    VkCopyDeviceMemoryInfoKHR info =
-      vk_common_lower_copy_buffer2(pCopyBufferInfo, regions);
+      vk_upgrade_copy_buffer2(pCopyBufferInfo, regions);
 
    vk_meta_copy_memory(cmd, meta, &info);
 

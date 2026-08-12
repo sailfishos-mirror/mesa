@@ -370,18 +370,15 @@ nouveau_copy_rect(struct nvk_cmd_buffer *cmd,
 }
 
 void
-nvk_cmd_copy_buffer_ce(struct nvk_cmd_buffer *cmd,
-                       const VkCopyBufferInfo2 *pCopyBufferInfo)
+nvk_cmd_copy_memory_ce(struct nvk_cmd_buffer *cmd,
+                       const VkCopyDeviceMemoryInfoKHR *pCopyMemoryInfo)
 {
-   VK_FROM_HANDLE(nvk_buffer, src, pCopyBufferInfo->srcBuffer);
-   VK_FROM_HANDLE(nvk_buffer, dst, pCopyBufferInfo->dstBuffer);
+   for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+      const VkDeviceMemoryCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
 
-   for (unsigned r = 0; r < pCopyBufferInfo->regionCount; r++) {
-      const VkBufferCopy2 *region = &pCopyBufferInfo->pRegions[r];
-
-      uint64_t src_addr = vk_buffer_address(&src->vk, region->srcOffset);
-      uint64_t dst_addr = vk_buffer_address(&dst->vk, region->dstOffset);
-      uint64_t size = region->size;
+      uint64_t src_addr = region->srcRange.address;
+      uint64_t dst_addr = region->dstRange.address;
+      uint64_t size = region->srcRange.size;
 
       while (size) {
          struct nv_push *p = nvk_cmd_buffer_push(cmd, 10);
