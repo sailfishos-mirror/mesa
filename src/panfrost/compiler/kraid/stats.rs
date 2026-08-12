@@ -33,7 +33,7 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
         // The cost of a spill/fill is 10*depth for now.  This matches the old
         // Bifrost compiler
         let per_spill_cost =
-            u32::try_from(s.blocks.loop_depth(i) * 10).unwrap();
+            u32::try_from(10 * (s.blocks.loop_depth(i) + 1)).unwrap();
 
         for instr in &block.instrs {
             for src in instr.srcs() {
