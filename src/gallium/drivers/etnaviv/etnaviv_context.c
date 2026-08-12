@@ -660,6 +660,8 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
          if (so->targets[buffer])
             so->captured_bytes[buffer] += captured * xfb_info->buffers[buffer].stride;
       }
+
+      ctx->stats.prims_emitted += prims * info->instance_count;
    }
 
    if (DBG_ENABLED(ETNA_DBG_FLUSH_ALL))
