@@ -20,7 +20,7 @@ include:
 
 variables:
   DEBIAN_BUILD_BASE_TAG: "20260805-spirv-llvm"
-  DEBIAN_BUILD_TAG: "20260621-sdl3"
+  DEBIAN_BUILD_TAG: "20260812-cbindgen"
 
   DEBIAN_TEST_BASE_TAG: "20260805-spirv-llvm"
   DEBIAN_TEST_ANDROID_TAG: "20260809-angle-be"
@@ -30,7 +30,7 @@ variables:
 
   ALPINE_X86_64_BUILD_TAG: "20260604-rust196"
 
-  FEDORA_X86_64_BUILD_TAG: "20260703-flatbuffers"
+  FEDORA_X86_64_BUILD_TAG: "20260812-cbindgen"
 
   KERNEL_TAG: "v7.1-mesa-3b43"
   KERNEL_REPO: "gfx-ci/linux"
