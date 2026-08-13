@@ -278,6 +278,17 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
       info.num_operands = 2;
       info.can_be_opx = false;
       break;
+   case aco_opcode::v_cvt_u32_u16:
+      if (!instr->operands[0].isOfType(RegType::vgpr) || instr->valu().opsel)
+         return VOPDInfo();
+
+      info.op = aco_opcode::v_dual_and_b32;
+      info.has_literal = true;
+      info.literal = 0xffff;
+      info.operand_swizzle = 0b00'11;
+      info.num_operands = 2;
+      info.can_be_opx = false;
+      break;
    default: return VOPDInfo();
    }
 
