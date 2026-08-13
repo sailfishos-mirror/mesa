@@ -267,6 +267,10 @@ struct radv_llvm_compiler_options {
 #define PS_STATE_FRONT_FACE_SELECT__SHIFT 30 /* 0=sysval, 1=front, -1=back; sign-extended */
 #define PS_STATE_FRONT_FACE_SELECT__MASK  0x3
 
+/* For AC_UD_CS_STATE */
+#define CS_STATE_IS_COMPUTE_QUEUE__SHIFT 0
+#define CS_STATE_IS_COMPUTE_QUEUE__MASK  0x1
+
 struct radv_shader_layout {
    uint32_t num_sets;
 

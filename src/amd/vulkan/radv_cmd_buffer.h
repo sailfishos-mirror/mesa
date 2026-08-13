@@ -855,7 +855,7 @@ struct radv_vbo_info {
 void radv_get_vbo_info(const struct radv_cmd_buffer *cmd_buffer, uint32_t vbo_idx, struct radv_vbo_info *vbo_info);
 
 void radv_emit_compute_shader(const struct radv_physical_device *pdev, struct radv_cmd_stream *cs,
-                              const struct radv_shader *shader);
+                              const struct radv_shader *shader, bool emit_cs_state);
 
 void radv_upload_indirect_descriptor_sets(struct radv_cmd_buffer *cmd_buffer,
                                           struct radv_descriptor_state *descriptors_state);

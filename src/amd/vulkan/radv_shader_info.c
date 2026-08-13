@@ -361,6 +361,9 @@ gather_tex_info(const nir_shader *nir, const nir_tex_instr *instr, struct radv_s
          break;
       }
    }
+
+   if (nir_tex_instr_need_sampler(instr))
+      info->uses_sampler = true;
 }
 
 static void

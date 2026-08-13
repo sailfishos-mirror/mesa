@@ -117,6 +117,7 @@ struct radv_shader_info {
    bool force_indirect_descriptors : 1;
    bool ngg_wave_id_en : 1;
    bool descriptor_heap : 1;
+   bool uses_sampler : 1;
 
    struct {
       uint64_t tcs_inputs_via_temp;

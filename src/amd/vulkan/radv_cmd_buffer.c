@@ -2921,9 +2921,29 @@ radv_emit_ps_epilog_state(struct radv_cmd_buffer *cmd_buffer)
       radv_save_ps_epilog(cmd_buffer, ps_epilog);
 }
 
+static void
+radv_emit_compute_shader_state(const struct radv_physical_device *pdev, struct radv_cmd_stream *cs,
+                               const struct radv_shader *shader)
+{
+   const uint32_t cs_state_offset = radv_get_user_sgpr_loc(shader, AC_UD_CS_STATE);
+
+   if (!cs_state_offset)
+      return;
+
+   const uint32_t cs_state = SET_SGPR_FIELD(CS_STATE_IS_COMPUTE_QUEUE, cs->hw_ip == AMD_IP_COMPUTE);
+
+   radeon_begin(cs);
+   if (pdev->info.gfx_level >= GFX12) {
+      gfx12_push_sh_reg(cs_state_offset, cs_state);
+   } else {
+      radeon_set_sh_reg(cs_state_offset, cs_state);
+   }
+   radeon_end();
+}
+
 void
 radv_emit_compute_shader(const struct radv_physical_device *pdev, struct radv_cmd_stream *cs,
-                         const struct radv_shader *shader)
+                         const struct radv_shader *shader, bool emit_cs_state)
 {
    uint64_t va = radv_shader_get_va(shader);
 
@@ -2952,6 +2972,9 @@ radv_emit_compute_shader(const struct radv_physical_device *pdev, struct radv_cm
       radeon_emit(shader->regs.cs.compute_num_thread_z);
    }
    radeon_end();
+
+   if (shader->info.stage == MESA_SHADER_COMPUTE && emit_cs_state)
+      radv_emit_compute_shader_state(pdev, cs, shader);
 }
 
 static void
@@ -4012,7 +4035,7 @@ radv_emit_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
          radv_emit_mesh_shader(cmd_buffer);
          break;
       case MESA_SHADER_TASK:
-         radv_emit_compute_shader(pdev, cmd_buffer->gang.cs, cmd_buffer->state.shaders[MESA_SHADER_TASK]);
+         radv_emit_compute_shader(pdev, cmd_buffer->gang.cs, cmd_buffer->state.shaders[MESA_SHADER_TASK], false);
          break;
       default:
          UNREACHABLE("invalid bind stage");
@@ -8584,7 +8607,7 @@ radv_emit_ray_tracing_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_r
 
    radeon_check_space(device->ws, cs->b, pdev->info.gfx_level >= GFX10 ? 25 : 22);
 
-   radv_emit_compute_shader(pdev, cs, rt_prolog);
+   radv_emit_compute_shader(pdev, cs, rt_prolog, false);
 
    const uint32_t ray_dynamic_callback_stack_base_offset =
       radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_RAY_DYNAMIC_CALLABLE_STACK_BASE);
@@ -8626,9 +8649,9 @@ radv_emit_compute_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_compu
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
 
-   radeon_check_space(device->ws, cs->b, pdev->info.gfx_level >= GFX10 ? 25 : 22);
+   radeon_check_space(device->ws, cs->b, pdev->info.gfx_level >= GFX10 ? 28 : 25);
 
-   radv_emit_compute_shader(pdev, cs, cmd_buffer->state.shaders[MESA_SHADER_COMPUTE]);
+   radv_emit_compute_shader(pdev, cs, cmd_buffer->state.shaders[MESA_SHADER_COMPUTE], true);
 
    if (radv_device_fault_detection_enabled(device))
       radv_save_pipeline(cmd_buffer, &pipeline->base);
@@ -16915,7 +16938,7 @@ radv_bind_compute_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader_
 
    ASSERTED const unsigned cdw_max = radeon_check_space(device->ws, cs->b, 128);
 
-   radv_emit_compute_shader(pdev, cs, shader);
+   radv_emit_compute_shader(pdev, cs, shader, true);
 
    /* Update push constants/indirect descriptors state. */
    struct radv_descriptor_state *descriptors_state =
