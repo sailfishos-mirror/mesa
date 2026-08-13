@@ -892,9 +892,13 @@ kk_CmdWriteMarkerToMemoryAMD(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(kk_cmd_buffer, cmd_buffer, commandBuffer);
    struct libkk_imm_write write;
 
-   /* Kosmickrisp doesn't have fine grained barriers.
-    * This should handle all pipeline stages. */
-   cs_end(cmd_buffer);
+   /* If we are not in a render, we can just insert a cheap barrier */
+   if (!cmd_buffer->gfx.encoder) {
+      mtl_barrier_after_encoder_stages(cs_get_compute(cmd_buffer, true),
+                                       MTL_STAGE_DISPATCH | MTL_STAGE_BLIT,
+                                       MTL_STAGE_DISPATCH | MTL_STAGE_BLIT);
+   } else
+      cs_end(cmd_buffer);
 
    write.value = pInfo->marker;
    write.address = pInfo->dstRange.address;
