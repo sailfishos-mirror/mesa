@@ -401,6 +401,63 @@ opt_uub_shr(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
    return false;
 }
 
+static bool
+alu_op_nuw(nir_op op, unsigned bit_size, uint32_t src0, uint32_t src1)
+{
+   uint32_t max = u_uintN_max(bit_size);
+   switch (op) {
+   case nir_op_iadd:
+      return max - src0 >= src1;
+   case nir_op_ishl:
+      return src1 <= bit_size - util_last_bit(src0);
+   case nir_op_imul:
+      return src0 == 0 || src1 <= (max / src0);
+   case nir_op_iand:
+   case nir_op_ior:
+   case nir_op_ixor:
+      return true;
+   default:
+      UNREACHABLE("unexpected op");
+   }
+}
+
+static bool
+is_u2u64(nir_scalar scalar, nir_scalar *src)
+{
+   /* We generally don't want to move constants into the 32-bit additions
+    * because it can currently make load/store vectorization less effective.
+    */
+   if (nir_scalar_is_alu(scalar) && nir_scalar_alu_op(scalar) == nir_op_u2u64) {
+      *src = nir_scalar_chase_alu_src(scalar, 0);
+      return src->def->bit_size == 32;
+   }
+   return false;
+}
+
+/* op(u2u64(src0@32), u2u64(src1@32)): if nuw(src0 op src1) -> u2u64(op(src0, src1)) */
+static bool
+opt_uub_alu_u2u64(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+{
+   nir_scalar srcs[2];
+   get_srcs(alu, srcs);
+   if (!is_u2u64(srcs[0], &srcs[0]) ||
+       (alu->op != nir_op_ishl && !is_u2u64(srcs[1], &srcs[1])))
+      return false;
+
+   if (alu_op_nuw(alu->op, 32, uub(state, srcs[0]), uub(state, srcs[1]))) {
+      b->cursor = nir_after_instr(&alu->instr);
+      nir_def *def = nir_build_alu2(b, alu->op, nir_mov_scalar(b, srcs[0]),
+                                    nir_mov_scalar(b, srcs[1]));
+      if (nir_def_is_alu(def) &&
+          (alu->op == nir_op_iadd || alu->op == nir_op_imul || alu->op == nir_op_ishl))
+         nir_def_as_alu(def)->no_unsigned_wrap = true;
+      nir_def_replace(&alu->def, nir_u2u64(b, def));
+      return true;
+   }
+
+   return false;
+}
+
 /* i2i64 -> u2u64 */
 static bool
 opt_uub_i2i64(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
@@ -445,7 +502,12 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
 
    switch (alu->op) {
    case nir_op_iand:
-      return alu->def.bit_size <= 32 && opt_uub_iand(b, alu, state);
+      if (alu->def.bit_size <= 32)
+         return opt_uub_iand(b, alu, state);
+      FALLTHROUGH;
+   case nir_op_ior:
+   case nir_op_ixor:
+      return alu->def.bit_size == 64 && opt_uub_alu_u2u64(b, alu, state);
    case nir_op_ult:
    case nir_op_uge:
    case nir_op_ilt:
@@ -456,11 +518,16 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
    case nir_op_imin:
    case nir_op_imax:
       return alu->def.bit_size <= 32 && opt_uub_minmax(b, alu, state);
-   case nir_op_imul:
-      return alu->def.bit_size <= 32 && opt_uub_imul(b, alu, state);
    case nir_op_ishr:
    case nir_op_ushr:
       return alu->def.bit_size <= 32 && opt_uub_shr(b, alu, state);
+   case nir_op_imul:
+      if (alu->def.bit_size <= 32)
+         return opt_uub_imul(b, alu, state);
+      FALLTHROUGH;
+   case nir_op_iadd:
+   case nir_op_ishl:
+      return alu->def.bit_size == 64 && opt_uub_alu_u2u64(b, alu, state);
    case nir_op_i2i64:
       return opt_uub_i2i64(b, alu, state);
    default:
