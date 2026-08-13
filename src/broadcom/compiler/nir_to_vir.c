@@ -2435,6 +2435,9 @@ ntq_setup_fs_inputs(struct v3d_compile *c)
                          * but varyings replaced through GL_COORD_REPLACE
                          * don't go through this lowering, so we need to
                          * handle them here.
+                         *
+                         * Also Gallium requires the texture coordinate be of
+                         * the form (s, t, 0, 1).
                          */
                         c->inputs[loc * 4 + 0] = c->point_x;
                         if (var->data.location != VARYING_SLOT_PNTC &&
@@ -2444,6 +2447,8 @@ ntq_setup_fs_inputs(struct v3d_compile *c)
                         } else {
                                 c->inputs[loc * 4 + 1] = c->point_y;
                         }
+                        c->inputs[loc * 4 + 2] = vir_uniform_f(c, 0.0);
+                        c->inputs[loc * 4 + 3] = vir_uniform_f(c, 1.0);
                 } else if (var->data.compact) {
                         for (int j = 0; j < var_len; j++)
                                 emit_compact_fragment_input(c, loc, var, j);
