@@ -1359,7 +1359,7 @@ radv_determine_ngg_settings(const struct radv_compiler_info *compiler_info, stru
 
    unsigned num_vertices_per_prim = 0;
    if (ngg_stage->stage == MESA_SHADER_VERTEX) {
-      num_vertices_per_prim = radv_get_num_vertices_per_prim(gfx_state);
+      num_vertices_per_prim = radv_get_num_vertices_per_prim(compiler_info->ac->gfx_level, gfx_state);
    } else if (ngg_stage->stage == MESA_SHADER_TESS_EVAL) {
       num_vertices_per_prim = ngg_stage->nir->info.tess.point_mode                                   ? 1
                               : ngg_stage->nir->info.tess._primitive_mode == TESS_PRIMITIVE_ISOLINES ? 2

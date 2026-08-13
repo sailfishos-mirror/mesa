@@ -2315,7 +2315,7 @@ radv_pipeline_load_retained_shaders(const struct radv_device *device, const VkGr
 }
 
 static unsigned
-radv_get_num_raster_vertices_per_prim(const struct radv_shader_stage *stages,
+radv_get_num_raster_vertices_per_prim(enum amd_gfx_level gfx_level, const struct radv_shader_stage *stages,
                                       const struct radv_graphics_state_key *gfx_state)
 {
    unsigned vgt_outprim_type;
@@ -2341,7 +2341,7 @@ radv_get_num_raster_vertices_per_prim(const struct radv_shader_stage *stages,
       if (gfx_state->ia.topology == V_008958_DI_PT_NONE)
          return 0; /* unknown */
 
-      vgt_outprim_type = radv_conv_prim_to_gs_out(gfx_state->ia.topology, false);
+      vgt_outprim_type = radv_conv_prim_to_gs_out(gfx_level, gfx_state->ia.topology, false);
    }
 
    /* The rasterized primitive type is determined from the pre-raster primitive type and the polygon mode. */
@@ -2549,7 +2549,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       merge_tess_info(&stages[MESA_SHADER_TESS_EVAL].nir->info, &stages[MESA_SHADER_TESS_CTRL].nir->info);
    }
 
-   unsigned num_raster_vertices_per_prim = radv_get_num_raster_vertices_per_prim(stages, gfx_state);
+   unsigned num_raster_vertices_per_prim =
+      radv_get_num_raster_vertices_per_prim(compiler_info->ac->gfx_level, stages, gfx_state);
 
    if (stages[MESA_SHADER_FRAGMENT].nir) {
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_fs_barycentric, gfx_state,

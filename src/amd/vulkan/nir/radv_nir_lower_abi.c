@@ -314,7 +314,7 @@ lower_abi_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          unsigned provoking_vertex = 0;
          if (s->gfx_state->rs.provoking_vtx_last) {
             if (stage == MESA_SHADER_VERTEX) {
-               provoking_vertex = radv_get_num_vertices_per_prim(s->gfx_state) - 1;
+               provoking_vertex = radv_get_num_vertices_per_prim(s->gfx_level, s->gfx_state) - 1;
             } else if (stage == MESA_SHADER_GEOMETRY) {
                provoking_vertex = b->shader->info.gs.vertices_in - 1;
             } else {
@@ -386,7 +386,7 @@ lower_abi_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          if (s->info->vs.dynamic_num_verts_per_prim) {
             replacement = GET_SGPR_FIELD_NIR(s->args->ngg_state, NGG_STATE_NUM_VERTS_PER_PRIM);
          } else {
-            replacement = nir_imm_int(b, radv_get_num_vertices_per_prim(s->gfx_state));
+            replacement = nir_imm_int(b, radv_get_num_vertices_per_prim(s->gfx_level, s->gfx_state));
          }
       } else if (stage == MESA_SHADER_TESS_EVAL) {
          if (s->info->tes.point_mode) {

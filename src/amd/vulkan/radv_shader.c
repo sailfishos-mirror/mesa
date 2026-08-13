@@ -988,7 +988,7 @@ radv_lower_ngg(const struct radv_compiler_info *compiler_info, struct radv_shade
          BITSET_SET(nir->info.system_values_read, SYSTEM_VALUE_PRIMITIVE_ID);
 
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {
-      num_vertices_per_prim = radv_get_num_vertices_per_prim(gfx_state);
+      num_vertices_per_prim = radv_get_num_vertices_per_prim(compiler_info->ac->gfx_level, gfx_state);
 
       /* Manually mark the instance ID used, so the shader can repack it. */
       if (gfx_state->vi.instance_rate_inputs)

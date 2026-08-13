@@ -197,8 +197,12 @@ radv_pipeline_has_stage(const struct radv_graphics_pipeline *pipeline, mesa_shad
 }
 
 static inline uint32_t
-radv_conv_prim_to_gs_out(uint32_t topology, bool is_ngg)
+radv_conv_prim_to_gs_out(enum amd_gfx_level gfx_level, uint32_t topology, bool is_ngg)
 {
+   static_assert(V_028A6C_POINTLIST == V_030998_POINTLIST && V_028A6C_LINESTRIP == V_030998_LINESTRIP &&
+                    V_028A6C_TRISTRIP == V_030998_TRISTRIP,
+                 "Some VGT_GS_OUTPRIM_TYPE values don't match");
+
    switch (topology) {
    case V_008958_DI_PT_POINTLIST:
    case V_008958_DI_PT_PATCH:
@@ -215,7 +219,7 @@ radv_conv_prim_to_gs_out(uint32_t topology, bool is_ngg)
    case V_008958_DI_PT_TRISTRIP_ADJ:
       return V_028A6C_TRISTRIP;
    case V_008958_DI_PT_RECTLIST:
-      return is_ngg ? V_028A6C_RECTLIST : V_028A6C_TRISTRIP;
+      return is_ngg ? (gfx_level >= GFX11 ? V_030998_RECT_2D : V_028A6C_RECTLIST) : V_028A6C_TRISTRIP;
    default:
       assert(0);
       return 0;
@@ -349,7 +353,7 @@ radv_primitive_topology_is_line_list(unsigned primitive_topology)
 }
 
 static inline unsigned
-radv_get_num_vertices_per_prim(const struct radv_graphics_state_key *gfx_state)
+radv_get_num_vertices_per_prim(enum amd_gfx_level gfx_level, const struct radv_graphics_state_key *gfx_state)
 {
    if (gfx_state->ia.topology == V_008958_DI_PT_NONE) {
       /* When the topology is unknown (with graphics pipeline library), return the maximum number of
@@ -360,7 +364,7 @@ radv_get_num_vertices_per_prim(const struct radv_graphics_state_key *gfx_state)
       return 3;
    } else {
       /* Need to add 1, because: V_028A6C_POINTLIST=0, V_028A6C_LINESTRIP=1, V_028A6C_TRISTRIP=2, etc. */
-      return radv_conv_prim_to_gs_out(gfx_state->ia.topology, false) + 1;
+      return radv_conv_prim_to_gs_out(gfx_level, gfx_state->ia.topology, false) + 1;
    }
 }
 

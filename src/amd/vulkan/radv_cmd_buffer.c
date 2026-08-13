@@ -1993,6 +1993,8 @@ radv_emit_descriptors_per_stage(const struct radv_device *device, struct radv_cm
 static unsigned
 radv_get_vgt_outprim_type(const struct radv_cmd_buffer *cmd_buffer)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader *last_vgt_shader = cmd_buffer->state.last_vgt_shader;
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
@@ -2015,7 +2017,7 @@ radv_get_vgt_outprim_type(const struct radv_cmd_buffer *cmd_buffer)
       }
    }
 
-   return radv_conv_prim_to_gs_out(d->vk.ia.primitive_topology, last_vgt_shader->info.is_ngg);
+   return radv_conv_prim_to_gs_out(pdev->info.gfx_level, d->vk.ia.primitive_topology, last_vgt_shader->info.is_ngg);
 }
 
 static ALWAYS_INLINE VkLineRasterizationModeEXT
