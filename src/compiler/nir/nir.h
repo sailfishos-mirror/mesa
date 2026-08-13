@@ -7286,6 +7286,12 @@ bool
 nir_addition_might_overflow(nir_shader *shader, struct hash_table *range_ht,
                             nir_scalar ssa, unsigned const_val);
 
+bool
+nir_is_op_nuw(nir_shader *shader, struct hash_table *range_ht, nir_op op, nir_scalar src0, nir_scalar src1);
+
+bool
+nir_is_scalar_nuw(nir_shader *shader, struct hash_table *range_ht, nir_scalar scalar);
+
 typedef struct nir_opt_preamble_options {
    /* True if gl_DrawID is considered uniform, i.e. if the preamble is run
     * at least once per "internal" draw rather than per user-visible draw.

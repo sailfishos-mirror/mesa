@@ -2204,6 +2204,55 @@ nir_addition_might_overflow(nir_shader *shader, struct hash_table *range_ht,
    return const_val + ub < const_val;
 }
 
+bool
+nir_is_op_nuw(nir_shader *shader, struct hash_table *range_ht, nir_op op, nir_scalar src0, nir_scalar src1)
+{
+   assert(src0.def->bit_size <= 32);
+   assert(src0.def->bit_size == src1.def->bit_size);
+
+   uint32_t ub0 = nir_unsigned_upper_bound(shader, range_ht, src0);
+   uint32_t ub1 = nir_unsigned_upper_bound(shader, range_ht, src1);
+
+   uint32_t max = u_uintN_max(src0.def->bit_size);
+   switch (op) {
+   case nir_op_iadd:
+      return max - ub0 >= ub1;
+      break;
+   case nir_op_ishl:
+      return ub1 <= src0.def->bit_size - util_last_bit(ub0);
+      break;
+   case nir_op_imul:
+      return ub0 == 0 || ub1 <= (max / ub0);
+   default:
+      UNREACHABLE("");
+   }
+}
+
+bool
+nir_is_scalar_nuw(nir_shader *shader, struct hash_table *range_ht, nir_scalar scalar)
+{
+   if (!nir_scalar_is_alu(scalar))
+      return false;
+
+   nir_alu_instr *alu = nir_def_as_alu(scalar.def);
+   switch (alu->op) {
+   case nir_op_iadd:
+   case nir_op_ishl:
+   case nir_op_imul:
+      break;
+   default:
+      return false;
+   }
+
+   if (!alu->no_unsigned_wrap && alu->def.bit_size <= 32) {
+      nir_scalar src0 = nir_scalar_chase_alu_src(scalar, 0);
+      nir_scalar src1 = nir_scalar_chase_alu_src(scalar, 1);
+      return nir_is_op_nuw(shader, range_ht, alu->op, src0, src1);
+   }
+
+   return alu->no_unsigned_wrap;
+}
+
 static uint64_t
 ssa_def_bits_used(const nir_def *def, unsigned comp, int recur)
 {
