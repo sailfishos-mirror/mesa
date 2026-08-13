@@ -1054,12 +1054,12 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_builder *b = &nj->bld;
    const struct brw_fs_prog_data *prog_data = &nj->s->prog_data->fs;
    const struct intel_device_info *devinfo = b->shader->devinfo;
-   jay_def colour = nj_src(intr->src[0]);
+   jay_def colour = nj_src(intr->src[1]);
    jay_def dual_colour = jay_null();
-   jay_def src0_alpha = optional_src(intr->src[2]);
-   jay_def omask = optional_src(intr->src[3]);
-   jay_def depth = optional_src(intr->src[4]);
-   jay_def stencil = optional_src(intr->src[5]);
+   jay_def src0_alpha = optional_src(intr->src[3]);
+   jay_def omask = optional_src(intr->src[4]);
+   jay_def depth = optional_src(intr->src[5]);
+   jay_def stencil = optional_src(intr->src[6]);
 
    int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
@@ -1081,13 +1081,13 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    /* If our alpha happens to match src0_alpha, we can skip sending it,
     * as the hardware will use our alpha in that case.
     */
-   if (scalars_equal(nir_scalar_resolved(intr->src[2].ssa, 0),
-                     nir_scalar_resolved(intr->src[0].ssa, 3)))
+   if (scalars_equal(nir_scalar_resolved(intr->src[3].ssa, 0),
+                     nir_scalar_resolved(intr->src[1].ssa, 3)))
       src0_alpha = jay_null();
 
    if (prog_data->dual_src_blend) {
       assert(b->shader->dispatch_width == 16);
-      dual_colour = nj_src(intr->src[1]);
+      dual_colour = nj_src(intr->src[2]);
       src0_alpha = jay_null();
    }
 

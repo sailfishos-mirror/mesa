@@ -4037,25 +4037,25 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          ntb.bld.emit(SHADER_OPCODE_HALT_TARGET);
 
       brw_reg sources[FB_WRITE_LOGICAL_NUM_SRCS];
-      sources[FB_WRITE_LOGICAL_SRC_COLOR0] = get_nir_src(ntb, instr->src[0], -1);
-      if (!nir_src_is_undef(instr->src[1]))
-          sources[FB_WRITE_LOGICAL_SRC_COLOR1] = get_nir_src(ntb, instr->src[1], -1);
+      sources[FB_WRITE_LOGICAL_SRC_COLOR0] = get_nir_src(ntb, instr->src[1], -1);
+      if (!nir_src_is_undef(instr->src[2]))
+          sources[FB_WRITE_LOGICAL_SRC_COLOR1] = get_nir_src(ntb, instr->src[2], -1);
 
       /* If our alpha happens to match src0_alpha, we can skip sending it, as
        * the hardware will use our alpha in that case.
        */
-      if (!nir_src_is_undef(instr->src[2]) &&
+      if (!nir_src_is_undef(instr->src[3]) &&
           nir_intrinsic_target(instr) != 0 &&
-          !scalars_equal(nir_scalar_resolved(instr->src[2].ssa, 0),
-                         nir_scalar_resolved(instr->src[0].ssa, 3)))
-         sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] = get_nir_src(ntb, instr->src[2], 0);
+          !scalars_equal(nir_scalar_resolved(instr->src[3].ssa, 0),
+                         nir_scalar_resolved(instr->src[1].ssa, 3)))
+         sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] = get_nir_src(ntb, instr->src[3], 0);
 
-      if (!nir_src_is_undef(instr->src[3]) && fs_prog_data->uses_omask)
-         sources[FB_WRITE_LOGICAL_SRC_OMASK] = get_nir_src(ntb, instr->src[3], 0);
-      if (!nir_src_is_undef(instr->src[4]))
-         sources[FB_WRITE_LOGICAL_SRC_SRC_DEPTH] = get_nir_src(ntb, instr->src[4], 0);
+      if (!nir_src_is_undef(instr->src[4]) && fs_prog_data->uses_omask)
+         sources[FB_WRITE_LOGICAL_SRC_OMASK] = get_nir_src(ntb, instr->src[4], 0);
       if (!nir_src_is_undef(instr->src[5]))
-         sources[FB_WRITE_LOGICAL_SRC_SRC_STENCIL] = get_nir_src(ntb, instr->src[5], 0);
+         sources[FB_WRITE_LOGICAL_SRC_SRC_DEPTH] = get_nir_src(ntb, instr->src[5], 0);
+      if (!nir_src_is_undef(instr->src[6]))
+         sources[FB_WRITE_LOGICAL_SRC_SRC_STENCIL] = get_nir_src(ntb, instr->src[6], 0);
 
       brw_fb_write_inst *write = bld.emit(FS_OPCODE_FB_WRITE_LOGICAL, brw_reg(),
                                           sources, ARRAY_SIZE(sources))->as_fb_write();

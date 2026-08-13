@@ -933,7 +933,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
                    key->fs.alpha_test_replicate_alpha ||
                    (key->fs.nr_color_regions > 1 &&
                     alpha_to_coverage_enabled(nir, key->fs.alpha_to_coverage) &&
-                    !(nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))));
+                    !(nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))),
+                   NULL, NULL);
 
       /* nir_lower_terminate_to_demote will hamper our ability to schedule
        * terminates (since it turns them into real control flow), so run

@@ -1299,7 +1299,9 @@ brw_compile_fs(const struct brw_compiler *compiler,
                 key->alpha_test_replicate_alpha ||
                 (key->nr_color_regions > 1 &&
                  alpha_to_coverage_enabled(nir, key->alpha_to_coverage) &&
-                 !(nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))));
+                 !(nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))),
+                params->rt_write_cb,
+                params->rt_write_data);
 
    int per_primitive_offsets[VARYING_SLOT_MAX];
    memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));

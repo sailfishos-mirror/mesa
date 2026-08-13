@@ -18,6 +18,7 @@
 #include "util/shader_stats.h"
 #include "util/u_math.h"
 #include "brw_isa_info.h"
+#include "compiler/intel_nir.h"
 #include "compiler/intel_shader_enums.h"
 #include "compiler/intel_nir.h"
 #include "nir_shader_compiler_options.h"
@@ -1363,6 +1364,9 @@ struct brw_compile_fs_params {
     */
    void *wa_18019110168_data;
    nir_def *(*wa_18019110168_load_per_primitive_remap_table_offset)(nir_builder *b, void *data);
+
+   void *rt_write_data;
+   intel_nir_rt_write_cb rt_write_cb;
 };
 
 /**

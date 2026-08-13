@@ -18,6 +18,8 @@ struct intel_device_info;
                              INTEL_TESS_CONFIG_##field##_OFFSET,        \
                              INTEL_TESS_CONFIG_##field##_SIZE)
 
+typedef nir_def *(*intel_nir_rt_write_cb)(nir_builder *, signed rt, void *data);
+
 void intel_nir_apply_tcs_quads_workaround(nir_shader *nir);
 bool intel_nir_rebase_const_offset_ubo_loads(nir_shader *shader);
 bool intel_nir_blockify_uniform_loads(nir_shader *shader,
@@ -28,7 +30,9 @@ bool intel_nir_cleanup_resource_intel(nir_shader *shader);
 
 bool intel_nir_lower_fragment_outputs(nir_shader *shader,
                                       unsigned nr_colour_regions,
-                                      bool replicate_alpha);
+                                      bool replicate_alpha,
+                                      intel_nir_rt_write_cb cb,
+                                      void *cb_data);
 bool intel_nir_lower_non_uniform_barycentric_at_sample(nir_shader *nir);
 bool intel_nir_lower_non_uniform_resource_intel(nir_shader *shader);
 bool intel_nir_lower_patch_vertices_in(nir_shader *shader,
