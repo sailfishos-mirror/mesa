@@ -1,6 +1,8 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use std::ptr;
+
 use crate::encode_v9::*;
 use crate::ir::*;
 use crate::isa::ExecUnit;
@@ -82,6 +84,10 @@ pub trait Model {
     fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool {
         self.op_dst_supported_lanes(op).contains(lanes)
     }
+
+    fn op_fixed_src_reg(&self, op: &Op, src: &Src) -> Option<RegRef>;
+
+    fn op_fixed_dst_reg(&self, op: &Op, dst: &Dst) -> Option<RegRef>;
 
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef>;
 
@@ -270,6 +276,51 @@ impl Model for ValhallModel {
             vop.dst_supported_lanes()
         } else {
             v9_op_dst_supported_lanes(op, self.arch)
+        }
+    }
+
+    fn op_fixed_src_reg(&self, op: &Op, src: &Src) -> Option<RegRef> {
+        let preg = |p| Some(self.preload_reg(p).unwrap());
+        let coverage = preg(PreloadReg::CumulativeCoverage);
+        match op {
+            Op::ATest(op) if ptr::eq(&op.coverage, src) => coverage,
+            Op::ZSEmit(op) if ptr::eq(&op.coverage, src) => coverage,
+            Op::Blend(op) if ptr::eq(&op.coverage, src) => coverage,
+            Op::BlendCall(op) => {
+                if ptr::eq(&op.color, src) {
+                    preg(PreloadReg::BlendInputSrc0)
+                } else if ptr::eq(&op.second_color, src) {
+                    if op.has_second_color {
+                        preg(PreloadReg::BlendInputSrc1)
+                    } else {
+                        assert!(op.second_color.src_ref == SrcRef::Zero);
+                        None
+                    }
+                } else if ptr::eq(&op.coverage, src) {
+                    coverage
+                } else if ptr::eq(&op.sample_id, src) {
+                    preg(PreloadReg::SampleCentroidId)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn op_fixed_dst_reg(&self, op: &Op, dst: &Dst) -> Option<RegRef> {
+        let coverage =
+            Some(self.preload_reg(PreloadReg::CumulativeCoverage).unwrap());
+        match op {
+            Op::ATest(op) => {
+                assert!(ptr::eq(&op.dst, dst));
+                coverage
+            }
+            Op::ZSEmit(op) => {
+                assert!(ptr::eq(&op.dst, dst));
+                coverage
+            }
+            _ => None,
         }
     }
 

@@ -703,6 +703,17 @@ impl AffinityMapBuilder<'_> {
                         continue;
                     };
 
+                    if self.arena.contains_ref(vec) {
+                        if let Some(reg) =
+                            self.model.op_fixed_src_reg(&instr.op, src)
+                        {
+                            let bytes = self.arena.reg_to_bytes(&reg);
+                            for (ssa, bytes) in vec.iter_zip_bytes(bytes) {
+                                self.ssa_affinities[ssa].reg_byte = bytes.start;
+                            }
+                        }
+                    }
+
                     if vec.comps() > 1 {
                         let repr = SSAVecRepr::for_ssa_ref(vec, def_order);
                         for (i, ssa) in vec.iter().enumerate() {
@@ -1330,6 +1341,18 @@ impl LocalRegAlloc<'_> {
         }
     }
 
+    fn choose_fixed_bytes(
+        &self,
+        reg: RegRef,
+        bytes: u8,
+        align: RegAlignConstraint,
+    ) -> Range<u16> {
+        assert!(reg.bytes() >= bytes);
+        let b = self.arena.reg_to_bytes(&reg).start;
+        assert!(align.satisfied(b.into()));
+        b..(b + u16::from(bytes))
+    }
+
     fn choose_src_bytes(
         &self,
         bl: &impl BlockLiveness,
@@ -1419,6 +1442,7 @@ impl LocalRegAlloc<'_> {
             mask: u8,
             bytes: u8,
             align: RegAlignConstraint,
+            fixed_reg: Option<RegRef>,
             /// Byte range assigned to the SSARef
             ssa_bytes: Range<u16>,
             /// Byte range allocated
@@ -1448,6 +1472,12 @@ impl LocalRegAlloc<'_> {
             let align =
                 RegAlignConstraint::for_op_src(self.model, &instr.op, src);
 
+            let fixed_reg = if self.arena.is_reg() {
+                self.model.op_fixed_src_reg(&instr.op, src)
+            } else {
+                None
+            };
+
             let mut first_seen = true;
             for src_dst in srcs_dsts.iter_mut() {
                 if &src_dst.vec == vec {
@@ -1456,6 +1486,10 @@ impl LocalRegAlloc<'_> {
                     src_dst.mask |= 1 << i;
                     debug_assert_eq!(src_dst.bytes, bytes);
                     src_dst.align &= align;
+                    if fixed_reg.is_some() {
+                        assert!(src_dst.fixed_reg.is_none());
+                        src_dst.fixed_reg = fixed_reg;
+                    }
                     break;
                 }
             }
@@ -1481,6 +1515,7 @@ impl LocalRegAlloc<'_> {
                     mask: 1 << i,
                     bytes,
                     align,
+                    fixed_reg,
                     ssa_bytes: 0..0,
                     ra_bytes: 0..0,
                     vec: vec.clone(),
@@ -1500,11 +1535,18 @@ impl LocalRegAlloc<'_> {
             let (bytes, align) =
                 RegAlignConstraint::for_op_dst(self.model, &instr.op, dst);
 
+            let fixed_reg = if self.arena.is_reg() {
+                self.model.op_fixed_dst_reg(&instr.op, dst)
+            } else {
+                None
+            };
+
             srcs_dsts.push(SrcDst {
                 is_src: false,
                 mask: 1 << i,
                 bytes,
                 align,
+                fixed_reg,
                 ssa_bytes: 0..0,
                 ra_bytes: 0..0,
                 vec: vec.clone(),
@@ -1513,10 +1555,16 @@ impl LocalRegAlloc<'_> {
 
         // Sort by size in descending order.  sort_by_key() is guaranteed to be
         // stable so this also ensures that sources get processed first.
-        srcs_dsts.sort_by_key(|a| std::cmp::Reverse(a.bytes));
+        // Constrained registers have higher priority (otherwise other sources
+        // would steal their place)
+        srcs_dsts.sort_by_key(|a| {
+            std::cmp::Reverse((a.fixed_reg.is_some(), a.bytes))
+        });
 
         for src_dst in &mut srcs_dsts {
-            let ssa_bytes = if src_dst.is_src {
+            let ssa_bytes = if let Some(reg) = src_dst.fixed_reg {
+                self.choose_fixed_bytes(reg, src_dst.bytes, src_dst.align)
+            } else if src_dst.is_src {
                 debug_assert_eq!(src_dst.bytes, src_dst.vec.bytes());
                 self.choose_src_bytes(
                     bl,

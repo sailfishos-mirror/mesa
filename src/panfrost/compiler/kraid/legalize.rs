@@ -11,13 +11,8 @@ use compiler::enum_as_u8::EnumAsU8;
 use compiler::smallvec::SmallVec;
 use kraid_proc_macros::EnumAsU8;
 
-fn move_src_to_tmp(b: &mut impl SSABuilder, src: &mut Src) {
-    // SrcRef::bytes() isn't totally accurate for zero but that's okay since
-    // we should never copy it anyway.
-    assert!(!matches!(&src.src_ref, SrcRef::Zero));
-
-    let bytes = src.src_ref.bytes_read();
-    debug_assert!(bytes <= 8);
+fn move_src_to_tmp(b: &mut impl SSABuilder, src: &mut Src, bytes: u8) {
+    debug_assert!(bytes > 0 && bytes <= 8);
     let tmp = b.alloc_ref((bytes * 8).into());
     let src_ref = std::mem::replace(&mut src.src_ref, tmp.clone().into());
     b.copy_to(tmp.into(), DataType::i(bytes * 8), src_ref.into());
@@ -29,7 +24,8 @@ fn legalize_imm_src(b: &mut impl SSABuilder, op: &mut Op, src_idx: usize) {
         return;
     };
     if !b.model().op_src_supports_imm32(op, src, (*imm32).into()) {
-        move_src_to_tmp(b, &mut op.srcs_mut()[src_idx]);
+        let bytes = src.src_ref.bytes_read();
+        move_src_to_tmp(b, &mut op.srcs_mut()[src_idx], bytes);
     }
 }
 
@@ -62,6 +58,51 @@ impl SSAValueSet {
             false
         }
     }
+}
+
+/// Legalizes fixed-reg sources by ensuring the following:
+///
+///  1. For the given instruction, ensure that no SSAValue is used multiple
+///     times in fixed sources.  It's fine if an SSAValue is used in a fixed
+///     source and also in a non-fixed source as the fixed source takes
+///     priority.
+///
+///  2. For all fixed-reg sources, they must consume SSA values so we have
+///     something to fix.  Fixed-reg sources cannot consume immediates or FAU.
+fn legalize_fixed_srcs(
+    b: &mut impl SSABuilder,
+    instr: &mut Instr,
+    ssa_used: &mut SSAValueSet,
+) {
+    debug_assert!(ssa_used.is_empty());
+
+    for src_idx in 0..instr.srcs().len() {
+        let src = &instr.srcs()[src_idx];
+        let src_type = instr.src_type(src);
+
+        if b.model().op_fixed_src_reg(&instr.op, src).is_none() {
+            continue;
+        }
+
+        let src = &mut instr.srcs_mut()[src_idx];
+        if let SrcRef::SSA(vec) = &mut src.src_ref {
+            for ssa in vec {
+                if !ssa_used.insert(*ssa) {
+                    *ssa = b.copy_ssa(*ssa);
+                }
+            }
+        } else {
+            let bytes = if src_type == DataType::SR {
+                assert!(src.src_ref != SrcRef::Zero);
+                src.src_ref.bytes_read()
+            } else {
+                src_type.total_bytes()
+            };
+            move_src_to_tmp(b, src, bytes);
+        }
+    }
+
+    ssa_used.clear();
 }
 
 /// Legalizes vector sources by ensuring the following
@@ -248,7 +289,7 @@ impl LegalizeFAU<'_> {
                 continue;
             };
             if self.inval_src.contains(src_idx) || !self.fau_retained(fau) {
-                move_src_to_tmp(b, src);
+                move_src_to_tmp(b, src, src.src_ref.bytes_read());
             } else if self.src64_w1.contains(src_idx) {
                 // We already checked that this swizzle is supported
                 fau.idx &= !1;
@@ -411,8 +452,9 @@ impl Shader<'_> {
         self.map_instrs(|mut instr, ssa_alloc| {
             let mut b = SSAInstrBuilder::new(model, ssa_alloc);
             legalize_vec_srcs(&mut b, &mut instr, &mut ssa_used);
+            legalize_fixed_srcs(&mut b, &mut instr, &mut ssa_used);
             for src_idx in 0..instr.srcs().len() {
-                legalize_imm_src(&mut b, &mut instr, src_idx)
+                legalize_imm_src(&mut b, &mut instr, src_idx);
             }
             legalize_fau_srcs(&mut b, fau, &mut instr);
             b.push_instr(instr);
