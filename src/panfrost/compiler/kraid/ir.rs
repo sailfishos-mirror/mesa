@@ -2087,6 +2087,8 @@ pub struct ShaderInfo {
     pub register_preload: u64,
     /// True if we have OpLdGclk
     pub has_ld_gclk: bool,
+    /// True if we have any flat load
+    pub uses_flat_shading: bool,
 }
 
 impl ShaderInfo {

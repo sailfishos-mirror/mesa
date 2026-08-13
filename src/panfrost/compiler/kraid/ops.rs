@@ -2577,6 +2577,251 @@ impl DisplayOp for OpLdTex {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum SamplePosition {
+    Center,
+    Centroid,
+    Sample,
+    Explicit,
+    None,
+}
+
+impl fmt::Display for SamplePosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Center => write!(f, ".center"),
+            Self::Centroid => write!(f, ".centroid"),
+            Self::Sample => write!(f, ".sample"),
+            Self::Explicit => write!(f, ".explicit"),
+            Self::None => Ok(()),
+        }
+    }
+}
+
+/// The LdVar* family of instructions updates a hidden register in hardware with
+/// computations about the interpolated position.  If a preceding LdVar instr
+/// used the same interpolated position we can skip the computation and load
+/// the old value (acting as a cache).  This enum describes how the instruction
+/// uses the hidden register
+#[derive(Clone, Copy, PartialEq)]
+pub enum VaryingUpdateMode {
+    /// Compute varying-calculations and store it to a hidden register
+    Store,
+    /// Retrieve varying-data from the hidden register (less compute used)
+    Retrieve,
+    /// Overwrites the hidden register with undefined data
+    Clobber,
+    /// Ignore hidden register (neither read nor written)
+    None,
+}
+
+impl fmt::Display for VaryingUpdateMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Store => write!(f, ".store"),
+            Self::Retrieve => write!(f, ".retrieve"),
+            Self::Clobber => write!(f, ".clobber"),
+            Self::None => write!(f, ".none"),
+        }
+    }
+}
+
+/// Loads an interpolated varying through the descriptor (loaded by `handle`)
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpLdVar {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+
+    /// This field depends on sample_position and update
+    #[src_type(I32)]
+    pub src: Src,
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl DisplayOp for OpLdVar {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_VAR.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {}",
+            self.sample_position,
+            self.update,
+            self.fmt_src(&self.src),
+            self.fmt_handle_src(&self.handle),
+        )
+    }
+}
+
+/// Loads an interpolated varying without reading descriptors, it needs both
+/// a dst_type and a mem_type to handle conversions.  Only usable when we know
+/// the layout of varyings in memory.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    F32, V2F32, V3F32, V4F32,
+])]
+pub struct OpLdVarBuf {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    /// Type stored in memory (either f32 of f16)
+    pub mem_type: DataType,
+    pub sample_position: SamplePosition,
+    /// Ignored for flat shading
+    pub update: VaryingUpdateMode,
+
+    /// This field depends on sample_position and update
+    #[src_type(I32)]
+    pub src: Src,
+    #[src_type(I32)]
+    pub offset: Src,
+}
+
+impl DisplayOp for OpLdVarBuf {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_VAR_BUF.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, ".src_{}{}", self.mem_type, self.sample_position)?;
+
+        write!(
+            f,
+            " {} {}",
+            self.fmt_src(&self.src),
+            self.fmt_src(&self.offset),
+        )
+    }
+}
+
+/// Loads a flat varying without reading descriptors, cannot perform conversion.
+///
+/// On v14+, this maps directly to the hardware LD_VAR_BUF_FLAT instruction.
+/// On v13 and earlier, it maps to LD_VAR_BUF.fN.src_fN.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    I16, V2I16, V3I16, V4I16,
+    I32, V2I32, V3I32, V4I32,
+])]
+pub struct OpLdVarBufFlat {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    // TODO: .explicit_vertex
+    #[src_type(I32)]
+    pub offset: Src,
+}
+
+impl DisplayOp for OpLdVarBufFlat {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_VAR_BUF_FLAT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_src(&self.offset))
+    }
+}
+
+/// Loads a flat varying through the descriptor (loaded by `handle`), cannot
+/// perform conversion.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpLdVarFlat {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl DisplayOp for OpLdVarFlat {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_VAR_FLAT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.fmt_handle_src(&self.handle))
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum VarSpecialName {
+    /// Point coordinate (x,y from 0.0 to 1.0)
+    Point,
+    /// Barycentric coords
+    Bary,
+    /// Fragment W (fixed function)
+    FragW,
+    /// Fragment Z (fixed function, doesn't support "explicit" position type)
+    FragZ,
+}
+
+impl fmt::Display for VarSpecialName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Point => write!(f, ".point"),
+            Self::Bary => write!(f, ".bary"),
+            Self::FragW => write!(f, ".frag_w"),
+            Self::FragZ => write!(f, ".frag_z"),
+        }
+    }
+}
+
+/// Loads a special varying
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [F32, V2F32])]
+pub struct OpLdVarSpecial {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    #[src_type(I32)]
+    pub src: Src,
+
+    pub name: VarSpecialName,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+}
+
+impl DisplayOp for OpLdVarSpecial {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_VAR_SPECIAL.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{} {}",
+            self.name,
+            self.sample_position,
+            self.update,
+            self.fmt_src(&self.src)
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpLeaBuf {
@@ -3981,6 +4226,11 @@ pub enum Op {
     LdGClk(Box<OpLdGClk>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
+    LdVar(Box<OpLdVar>),
+    LdVarBuf(Box<OpLdVarBuf>),
+    LdVarBufFlat(Box<OpLdVarBufFlat>),
+    LdVarFlat(Box<OpLdVarFlat>),
+    LdVarSpecial(Box<OpLdVarSpecial>),
     LeaBuf(Box<OpLeaBuf>),
     LeaPka(Box<OpLeaPka>),
     LeaTex(Box<OpLeaTex>),
@@ -4071,7 +4321,11 @@ impl Op {
             Op::LdPka(op) => read_with_access(op.access),
             Op::Load(op) => read_with_access(op.access),
             Op::LdTex(_) => MemoryEffect::Read,
-            Op::TexFetch(_)
+            Op::LdVar(_)
+            | Op::LdVarBuf(_)
+            | Op::LdVarBufFlat(_)
+            | Op::LdVarFlat(_)
+            | Op::TexFetch(_)
             | Op::TexGather(_)
             | Op::TexGradient(_)
             | Op::TexSingle(_) => MemoryEffect::ConstRead,

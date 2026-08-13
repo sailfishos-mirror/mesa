@@ -86,6 +86,20 @@ fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
                     | Op::Store(_) => {
                         ls += 1.0;
                     }
+                    Op::LdVarSpecial(op)
+                        if op.name == VarSpecialName::FragZ => {}
+                    Op::LdVar(_)
+                    | Op::LdVarBuf(_)
+                    | Op::LdVarBufFlat(_)
+                    | Op::LdVarFlat(_)
+                    | Op::LdVarSpecial(_) => {
+                        let total_bytes = if let Op::LdVarBuf(op) = &instr.op {
+                            (op.mem_type.bits() / 8) * op.dst_type.comps()
+                        } else {
+                            dst_bytes
+                        };
+                        v += f32::from(total_bytes.div_ceil(4));
+                    }
                     Op::TexFetch(_)
                     | Op::TexGather(_)
                     | Op::TexGradient(_)

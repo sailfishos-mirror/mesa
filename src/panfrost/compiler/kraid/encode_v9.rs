@@ -9,7 +9,7 @@ use crate::ir::*;
 use crate::isa::v9::*;
 use crate::isa::v9::{InstructionDstInfo, InstructionInfo, InstructionSrcInfo};
 use crate::isa::*;
-use crate::ops::*;
+use crate::ops::{self, *};
 use crate::swizzle::*;
 
 use compiler::{as_slice::AsArray, index_of};
@@ -2061,6 +2061,313 @@ impl V9Instr for OpLdTex {
     }
 }
 
+impl From<ops::SamplePosition> for v9::SamplePosition {
+    fn from(value: ops::SamplePosition) -> Self {
+        match value {
+            ops::SamplePosition::Center => Self::Center,
+            ops::SamplePosition::Centroid => Self::Centroid,
+            ops::SamplePosition::Sample => Self::Sample,
+            ops::SamplePosition::Explicit => Self::Explicit,
+            ops::SamplePosition::None => Self::None,
+        }
+    }
+}
+
+impl From<VaryingUpdateMode> for UpdateMode {
+    fn from(value: VaryingUpdateMode) -> Self {
+        match value {
+            VaryingUpdateMode::Store => Self::Store,
+            VaryingUpdateMode::Retrieve => Self::Retrieve,
+            VaryingUpdateMode::Clobber => Self::Clobber,
+            VaryingUpdateMode::None => Self::None,
+        }
+    }
+}
+
+impl V9Instr for OpLdVar {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdVar::get_info((), arch),
+            src_map! {
+                src0: src,
+                src1: handle,
+            },
+        )
+    }
+
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(6)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(
+            self.update == VaryingUpdateMode::Retrieve,
+            self.sample_position == ops::SamplePosition::None
+        );
+        assert!(
+            self.update != VaryingUpdateMode::Retrieve || self.src.is_zero()
+        );
+        if let Ok(varying) = ResHandle::try_from(&self.handle) {
+            assert!(varying.fits_imm_op(6));
+            e.encode(LdVarImm {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sample_position: self.sample_position.into(),
+                update: self.update.into(),
+                src0: op_encode_src(self, &self.src),
+                varying_index: varying.index as u8,
+                varying_table_index: varying.table,
+            })
+        } else {
+            e.encode(LdVar {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sample_position: self.sample_position.into(),
+                update: self.update.into(),
+                src0: op_encode_src(self, &self.src),
+                src1: op_encode_src(self, &self.handle),
+            })
+        }
+    }
+}
+
+impl V9Instr for OpLdVarBuf {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdVarBuf::get_info(self.dst_type.scalar_type(), arch),
+            src_map! {
+                src0: src,
+                src1: offset,
+            },
+        )
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8, imm: u32) -> bool {
+        let max_imm = if arch >= 11 { 2048 } else { 256 };
+        ptr_eq(src, &self.offset) && (imm < max_imm)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert!(
+            self.update != VaryingUpdateMode::Retrieve || self.src.is_zero()
+        );
+        assert!(self.update != VaryingUpdateMode::None);
+        assert_eq!(
+            self.update == VaryingUpdateMode::Retrieve,
+            self.sample_position == ops::SamplePosition::None
+        );
+        let source_format = match self.mem_type {
+            DataType::F32 => LdVarBufSourceFormatM::SrcF32,
+            DataType::F16 => LdVarBufSourceFormatM::SrcF16,
+            _ => panic!("Invalid mem_type"),
+        };
+        if let Ok(offset) = u32::try_from(&self.offset.src_ref) {
+            e.encode(LdVarBufImm {
+                variant: self.dst_type.scalar_type().try_into().unwrap(),
+                source_format,
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sample_position: self.sample_position.into(),
+                update: self.update.into(),
+                src0: op_encode_src(self, &self.src),
+                offset: offset.try_into().unwrap(),
+            })
+        } else {
+            e.encode(LdVarBuf {
+                variant: self.dst_type.scalar_type().try_into().unwrap(),
+                source_format,
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sample_position: self.sample_position.into(),
+                update: self.update.into(),
+                src0: op_encode_src(self, &self.src),
+                src1: op_encode_src(self, &self.offset),
+            })
+        }
+    }
+}
+
+impl TryFrom<DataType> for LdVarBufFlatFormatM {
+    type Error = &'static str;
+
+    fn try_from(value: DataType) -> Result<Self, Self::Error> {
+        match value.scalar_type() {
+            DataType::I32 => Ok(Self::Flat32),
+            DataType::I16 => Ok(Self::Flat16),
+            _ => Err("Invalid flat data type"),
+        }
+    }
+}
+
+impl V9Instr for OpLdVarBufFlat {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        if arch >= 14 {
+            V9InstrInfo::from_isa(
+                LdVarBufFlat::get_info((), arch),
+                src_map! {
+                    src0: offset,
+                },
+            )
+        } else {
+            let variant = DataType::f(self.dst_type.bits());
+            V9InstrInfo::from_isa(
+                LdVarBuf::get_info(variant, arch),
+                src_map! {
+                    src1: offset,
+                },
+            )
+        }
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8, imm: u32) -> bool {
+        let max_imm = if arch >= 11 { 2048 } else { 256 };
+        ptr_eq(src, &self.offset) && (imm < max_imm)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if e.arch >= 14 {
+            if let Ok(offset) = u32::try_from(&self.offset.src_ref) {
+                e.encode(LdVarBufFlatImm {
+                    register_format: self.dst_type.try_into().unwrap(),
+                    message_slot_index: e.get_msg_slot_idx().unwrap(),
+                    sr_dst: op_encode_sr_write(self, &self.dst),
+                    vertex: VertexM::None,
+                    offset: offset.try_into().unwrap(),
+                })
+            } else {
+                e.encode(LdVarBufFlat {
+                    register_format: self.dst_type.try_into().unwrap(),
+                    message_slot_index: e.get_msg_slot_idx().unwrap(),
+                    sr_dst: op_encode_sr_write(self, &self.dst),
+                    vertex_type: VertexTypeM::None,
+                    src0: op_encode_src(self, &self.offset),
+                })
+            }
+        } else {
+            // We use .f32.src_flat32 or .f16.src_flat16 to load flats
+            let (variant, source_format) = match self.dst_type.bits() {
+                32 => (DataType::F32, LdVarBufSourceFormatM::SrcFlat32),
+                16 => (DataType::F16, LdVarBufSourceFormatM::SrcFlat16),
+                _ => panic!("Invalid dst_type"),
+            };
+            if let Ok(offset) = u32::try_from(&self.offset.src_ref) {
+                e.encode(LdVarBufImm {
+                    variant: variant.try_into().unwrap(),
+                    source_format,
+                    message_slot_index: e.get_msg_slot_idx().unwrap(),
+                    sr_dst: op_encode_sr_write(self, &self.dst),
+                    sample_position: v9::SamplePosition::None,
+                    update: UpdateMode::None,
+                    src0: encode_typed_src(&Src::from(0u32), DataType::I32),
+                    offset: offset.try_into().unwrap(),
+                })
+            } else {
+                e.encode(LdVarBuf {
+                    variant: variant.try_into().unwrap(),
+                    source_format,
+                    message_slot_index: e.get_msg_slot_idx().unwrap(),
+                    sr_dst: op_encode_sr_write(self, &self.dst),
+                    sample_position: v9::SamplePosition::None,
+                    update: UpdateMode::None,
+                    src0: encode_typed_src(&Src::from(0u32), DataType::I32),
+                    src1: op_encode_src(self, &self.offset),
+                })
+            }
+        }
+    }
+}
+
+impl V9Instr for OpLdVarFlat {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdVarFlat::get_info((), arch),
+            src_map! {
+                src0: handle,
+            },
+        )
+    }
+
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(8)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if let Ok(handle) = ResHandle::try_from(&self.handle) {
+            assert!(handle.fits_imm_op(8));
+            e.encode(LdVarFlatImm {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                vertex: VertexM::None,
+                varying_index: handle.index as u8,
+                varying_table_index: handle.table,
+            })
+        } else {
+            e.encode(LdVarFlat {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                vertex_type: VertexTypeM::None,
+                src0: op_encode_src(self, &self.handle),
+            })
+        }
+    }
+}
+
+impl From<VarSpecialName> for VaryingNameM {
+    fn from(value: VarSpecialName) -> Self {
+        match value {
+            VarSpecialName::Point => Self::Point,
+            VarSpecialName::Bary => Self::Bary,
+            VarSpecialName::FragW => Self::FragW,
+            VarSpecialName::FragZ => Self::FragZ,
+        }
+    }
+}
+
+impl V9Instr for OpLdVarSpecial {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdVarSpecial::get_info((), arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(
+            self.update == VaryingUpdateMode::Retrieve,
+            self.sample_position == ops::SamplePosition::None
+        );
+        let num_comps = self.dst_type.comps();
+        match self.name {
+            VarSpecialName::Bary => {
+                assert_eq!(num_comps, 2);
+                assert!(self.update != VaryingUpdateMode::None);
+            }
+            VarSpecialName::Point => {
+                assert_eq!(num_comps, 2);
+                assert!(self.update == VaryingUpdateMode::Clobber);
+            }
+            VarSpecialName::FragW => {
+                assert_eq!(num_comps, 1);
+                assert!(self.update == VaryingUpdateMode::Clobber);
+            }
+            VarSpecialName::FragZ => {
+                assert_eq!(num_comps, 1);
+                assert!(self.update == VaryingUpdateMode::None);
+            }
+        }
+        e.encode(LdVarSpecial {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            varying_name: self.name.into(),
+            sample_position: self.sample_position.into(),
+            update: self.update.into(),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 impl V9Instr for OpLeaBuf {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2945,6 +3252,11 @@ macro_rules! v9_op_match_else {
             Op::LdGClk($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
+            Op::LdVar($x) => $y,
+            Op::LdVarBuf($x) => $y,
+            Op::LdVarBufFlat($x) => $y,
+            Op::LdVarFlat($x) => $y,
+            Op::LdVarSpecial($x) => $y,
             Op::LeaBuf($x) => $y,
             Op::LeaPka($x) => $y,
             Op::LeaTex($x) => $y,

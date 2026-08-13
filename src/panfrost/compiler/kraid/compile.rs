@@ -141,6 +141,7 @@ fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
 }
 
 fn write_back_info(
+    model: &dyn Model,
     src: &ShaderInfo,
     nir: &nir_shader,
     dst: &mut pan_shader_info,
@@ -149,6 +150,13 @@ fn write_back_info(
     dst.tls_size = src.tls_size;
     dst.preload = src.register_preload;
     dst.has_shader_clk_instr = src.has_ld_gclk;
+
+    if model.arch() >= 9 {
+        let bifrost_info = unsafe { dst.__bindgen_anon_2.bifrost.as_mut() };
+        bifrost_info.uses_flat_shading = src.uses_flat_shading;
+    } else {
+        panic!("Unsupported GPU generation");
+    }
 
     if nir.info.stage() == MESA_SHADER_VERTEX {
         // TODO: only for BI_IDVS_ALL (only one supported right now)
@@ -252,6 +260,6 @@ pub extern "C" fn kraid_compile_nir(
         info.stats = pan_stats::default();
     }
 
-    write_back_info(&s.info, nir, info);
+    write_back_info(model.as_ref(), &s.info, nir, info);
     unsafe { pan_shader_update_info(info, nir, inputs) };
 }

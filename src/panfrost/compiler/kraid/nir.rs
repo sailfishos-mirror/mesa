@@ -92,6 +92,16 @@ impl From<ALUType> for NumericType {
     }
 }
 
+fn sample_position_from_pan(n: u32) -> SamplePosition {
+    match n {
+        PAN_SAMPLE_LOC_CENTER => SamplePosition::Center,
+        PAN_SAMPLE_LOC_CENTROID => SamplePosition::Centroid,
+        PAN_SAMPLE_LOC_EXPLICIT => SamplePosition::Explicit,
+        PAN_SAMPLE_LOC_SAMPLE => SamplePosition::Sample,
+        _ => panic!("Invalid sample_pos: {n}"),
+    }
+}
+
 struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
@@ -2011,6 +2021,127 @@ impl<'a> ShaderFromNir<'a> {
                 let fau = self.special_fau(SpecialFAU::ShaderOutput);
                 let dst = b.copy_i32(fau.word(0).into());
                 self.set_ssa(&intrin.def, vec![dst]);
+            }
+            nir_intrinsic_load_var_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    intrin.dest_type().into(),
+                    intrin.def.bit_size,
+                );
+
+                let handle = self.get_src(&srcs[0]);
+                let src = self.get_src(&srcs[1]);
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdVar {
+                    dst,
+                    dst_type,
+                    src,
+                    handle,
+                    sample_position: sample_position_from_pan(intrin.flags()),
+                    update: VaryingUpdateMode::Store,
+                });
+            }
+            nir_intrinsic_load_var_flat_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    intrin.dest_type().into(),
+                    intrin.def.bit_size,
+                );
+                // Flat varyings with i16/u16 aren't encodable
+                debug_assert!(
+                    dst_type.num_type() == NumericType::Float
+                        || dst_type.bits() == 32
+                );
+                let handle = self.get_src(&srcs[0]);
+
+                self.info.uses_flat_shading = true;
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdVarFlat {
+                    dst,
+                    dst_type,
+                    handle,
+                });
+            }
+            nir_intrinsic_load_var_buf_pan => {
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+                assert!(intrin.src_type().base_type() == ALUType::FLOAT);
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    NumericType::Float,
+                    intrin.def.bit_size,
+                );
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdVarBuf {
+                    dst,
+                    dst_type,
+                    src: self.get_src(&srcs[1]),
+                    offset: self.get_src(&srcs[0]),
+                    mem_type: DataType::f(intrin.src_type().bit_size()),
+                    sample_position: sample_position_from_pan(intrin.flags()),
+                    update: VaryingUpdateMode::Store,
+                });
+            }
+            nir_intrinsic_load_var_buf_flat_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.src_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    NumericType::Integer,
+                    intrin.def.bit_size,
+                );
+
+                self.info.uses_flat_shading = true;
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdVarBufFlat {
+                    dst,
+                    dst_type,
+                    offset: self.get_src(&srcs[0]),
+                });
+            }
+            nir_intrinsic_load_var_special_pan => {
+                let flags: pan_bi_var_special_flags =
+                    unsafe { std::mem::transmute(intrin.flags()) };
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    NumericType::Float,
+                    intrin.def.bit_size,
+                );
+
+                let name = match flags.name() {
+                    PAN_VARYING_NAME_POINT => VarSpecialName::Point,
+                    PAN_VARYING_NAME_FRAG_Z => VarSpecialName::FragZ,
+                    PAN_VARYING_NAME_FRAG_W => VarSpecialName::FragW,
+                    _ => panic!("Invalid varying name"),
+                };
+                let update = match name {
+                    VarSpecialName::Point => VaryingUpdateMode::Clobber,
+                    VarSpecialName::Bary => VaryingUpdateMode::Store,
+                    VarSpecialName::FragW => VaryingUpdateMode::Clobber,
+                    VarSpecialName::FragZ => VaryingUpdateMode::None,
+                };
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdVarSpecial {
+                    dst,
+                    dst_type,
+                    src: self.get_src(&srcs[0]),
+                    name,
+                    sample_position: sample_position_from_pan(
+                        flags.sample_loc(),
+                    ),
+                    update,
+                });
             }
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
