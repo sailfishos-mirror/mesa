@@ -832,6 +832,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_color_write_enable = true,
       .EXT_conditional_rendering = true,
       .EXT_conservative_rasterization = pdev->info.gfx_level >= GFX9,
+      .EXT_cooperative_matrix_maintenance1 = radv_cooperative_matrix_enabled(pdev),
       .EXT_custom_border_color = true,
       .EXT_custom_resolve = true,
       .EXT_debug_marker = instance->vk.trace_mode & RADV_TRACE_MODE_RGP,
@@ -1460,6 +1461,13 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       /* VK_KHR_cooperative_matrix */
       .cooperativeMatrix = radv_cooperative_matrix_enabled(pdev),
       .cooperativeMatrixRobustBufferAccess = false,
+
+      /* VK_EXT_cooperative_matrix_maintenance1 */
+      .cooperativeMatrixProperties2 = true,
+      .cooperativeMatrixReductions = true,
+      .cooperativeMatrixConversions = true,
+      .cooperativeMatrixPerElementOperations = true,
+      .cooperativeMatrixGetCoordinate = true,
 
       /* VK_EXT_image_compression_control */
       .imageCompressionControl = radv_compression_control_enabled(pdev),
@@ -3564,7 +3572,7 @@ struct matrix_prop {
 };
 
 static void
-fill_matrix_prop_khr(struct __vk_outarray *base, struct matrix_prop *prop)
+fill_matrix_prop_khr(struct __vk_outarray *base, struct matrix_prop *prop, void *fill_data)
 {
    vk_outarray(VkCooperativeMatrixPropertiesKHR) *out = (void *)base;
 
@@ -3584,7 +3592,33 @@ fill_matrix_prop_khr(struct __vk_outarray *base, struct matrix_prop *prop)
 }
 
 static void
-fill_flexible_matrix_prop_nv(struct __vk_outarray *base, struct matrix_prop *prop)
+fill_matrix_prop2_ext(struct __vk_outarray *base, struct matrix_prop *prop, void *fill_data)
+{
+   vk_outarray(VkCooperativeMatrixProperties2EXT) *out = (void *)base;
+   bool saturate_flag = *(bool *)fill_data;
+
+   if (prop->saturate && !saturate_flag)
+      return;
+   if (!prop->saturate && saturate_flag)
+      return;
+
+   vk_outarray_append_typed(VkCooperativeMatrixProperties2EXT, out, p)
+   {
+      *p = (struct VkCooperativeMatrixProperties2EXT){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_2_EXT,
+         .MGranularity = 16,
+         .NGranularity = 16,
+         .KGranularity = 16,
+         .AType = prop->a_type,
+         .BType = prop->b_type,
+         .CType = prop->c_type,
+         .ResultType = prop->r_type
+      };
+   }
+}
+
+static void
+fill_flexible_matrix_prop_nv(struct __vk_outarray *base, struct matrix_prop *prop, void *fill_data)
 {
    vk_outarray(VkCooperativeMatrixFlexibleDimensionsPropertiesNV) *out = (void *)base;
 
@@ -3606,7 +3640,8 @@ fill_flexible_matrix_prop_nv(struct __vk_outarray *base, struct matrix_prop *pro
 
 static void
 fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_outarray *base,
-                         void (*array_size_cb)(struct __vk_outarray *base, struct matrix_prop *prop))
+                         void (*array_size_cb)(struct __vk_outarray *base, struct matrix_prop *prop, void *fill_data),
+                         void *fill_data)
 {
    /* The Vulkan spec says:
     * If some types are preferred over other types (e.g. for performance),
@@ -3622,7 +3657,7 @@ fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_ou
             prop.a_type = e5m2_a ? VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT : VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT;
             prop.b_type = e5m2_b ? VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT : VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT;
             prop.c_type = prop.r_type = VK_COMPONENT_TYPE_FLOAT32_KHR;
-            (*array_size_cb)(base, &prop);
+            (*array_size_cb)(base, &prop, fill_data);
          }
       }
    }
@@ -3639,7 +3674,7 @@ fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_ou
                prop.b_type = bsigned ? VK_COMPONENT_TYPE_SINT8_KHR : VK_COMPONENT_TYPE_UINT8_KHR;
                prop.c_type = prop.r_type = csigned ? VK_COMPONENT_TYPE_SINT32_KHR : VK_COMPONENT_TYPE_UINT32_KHR;
 
-               (*array_size_cb)(base, &prop);
+               (*array_size_cb)(base, &prop, fill_data);
             }
          }
       }
@@ -3654,7 +3689,7 @@ fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_ou
          if (!radv_bfloat16_enabled(pdev) && bfloat)
             continue;
 
-         (*array_size_cb)(base, &prop);
+         (*array_size_cb)(base, &prop, fill_data);
       }
    }
 }
@@ -3665,7 +3700,21 @@ radv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(VkPhysicalDevice physicalDe
 {
    VK_FROM_HANDLE(radv_physical_device, pdev, physicalDevice);
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties, pPropertyCount);
-   fill_array_sizes_structs(pdev, &out.base, fill_matrix_prop_khr);
+   fill_array_sizes_structs(pdev, &out.base, fill_matrix_prop_khr, NULL);
+   return vk_outarray_status(&out);
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+radv_GetPhysicalDeviceCooperativeMatrixProperties2EXT(VkPhysicalDevice physicalDevice,
+                                                      const VkPhysicalDeviceCooperativeMatrixInfo2EXT *info,
+                                                      uint32_t *pPropertyCount,
+                                                      VkCooperativeMatrixProperties2EXT *pProperties)
+{
+   VK_FROM_HANDLE(radv_physical_device, pdev, physicalDevice);
+   VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixProperties2EXT, out, pProperties, pPropertyCount);
+   bool saturate_flag = !!(info->flags & VK_COOPERATIVE_MATRIX_SATURATING_ACCUMULATION_BIT_EXT);
+   if (info->scope == VK_SCOPE_SUBGROUP_KHR)
+      fill_array_sizes_structs(pdev, &out.base, fill_matrix_prop2_ext, (void *)&saturate_flag);
    return vk_outarray_status(&out);
 }
 
@@ -3676,7 +3725,7 @@ radv_GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
 {
    VK_FROM_HANDLE(radv_physical_device, pdev, physicalDevice);
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixFlexibleDimensionsPropertiesNV, out, pProperties, pPropertyCount);
-   fill_array_sizes_structs(pdev, &out.base, fill_flexible_matrix_prop_nv);
+   fill_array_sizes_structs(pdev, &out.base, fill_flexible_matrix_prop_nv, NULL);
    return vk_outarray_status(&out);
 }
 

@@ -816,7 +816,7 @@ lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lo
    src_element_type = glsl_apply_signedness_to_base_type(src_element_type, cmat_signed_mask & NIR_CMAT_A_SIGNED);
 
    if (transpose) {
-      /* NV_cmat2 only support acc -> b transpose, but we can handle any transpose except acc -> acc. */
+      /* SPIR-V supports acc -> b/a and a/b -> acc transposes */
       if (dst_use == GLSL_CMAT_USE_A) {
          dst_use = GLSL_CMAT_USE_B;
       } else if (dst_use == GLSL_CMAT_USE_B) {
@@ -1247,6 +1247,28 @@ lower_cmat_per_element_op(nir_builder *b, nir_cmat_call_instr *call, const lower
    return true;
 }
 
+static bool
+lower_cmat_get_coordinate(nir_builder *b, nir_intrinsic_instr *intr, const lower_cmat_params *params)
+{
+   struct glsl_cmat_description desc = nir_intrinsic_cmat_desc(intr);
+
+   nir_def *comps[2];
+   nir_def *local_idx = nir_load_subgroup_invocation(b);
+   nir_def *inner_idx = nir_iand_imm(b, local_idx, 15);
+   nir_def *base_row = radv_get_base_row(b, desc, params, local_idx);
+   uint32_t row_increase = params->gfx_level < GFX11_7 && desc.use == GLSL_CMAT_USE_ACCUMULATOR ? params->wave_size / 16 : 1;
+
+   comps[0] = nir_iadd(b, base_row, nir_imul_imm(b, intr->src[0].ssa, row_increase));
+   comps[1] = inner_idx;
+
+   if (desc.use == GLSL_CMAT_USE_A) {
+      SWAP(comps[0], comps[1]);
+   }
+   nir_def *val = nir_vec(b, comps, 2);
+   nir_def_replace(&intr->def, val);
+   return true;
+}
+
 bool
 radv_nir_lower_cooperative_matrix(nir_shader *shader, enum amd_gfx_level gfx_level, unsigned wave_size)
 {
@@ -1327,6 +1349,9 @@ radv_nir_lower_cooperative_matrix(nir_shader *shader, enum amd_gfx_level gfx_lev
                break;
             case nir_intrinsic_cmat_copy:
                progress |= lower_cmat_copy(&b, intr);
+               break;
+            case nir_intrinsic_cmat_get_coordinate:
+               progress |= lower_cmat_get_coordinate(&b, intr, &params);
                break;
             default:
                continue;
