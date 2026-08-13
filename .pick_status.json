@@ -2944,7 +2944,7 @@
         "description": "v3dv: report correct TMU spill and fill counts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "43392c2ea0fb12e4843a36c969b1819e2be5668b",
         "notes": null
