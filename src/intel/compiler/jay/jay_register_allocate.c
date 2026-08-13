@@ -247,7 +247,7 @@ add_copy(struct util_dynarray *copies, jay_reg dst, jay_reg src)
 {
    if (dst != src) {
       assert(r_file(dst) == r_file(src));
-      util_dynarray_append(copies, ((struct jay_parallel_copy) { dst, src }));
+      util_dynarray_append(copies, ((struct jay_parallel_copy){ dst, src }));
    }
 }
 
@@ -638,7 +638,7 @@ find_temp_regs(jay_ra_state *ra)
    /* For efficiency we only bother using stride=4 temporaries */
    jay_reg gpr = try_find_free_reg(ra, GPR, ~0, true);
 
-   return (struct jay_temp_regs) {
+   return (struct jay_temp_regs){
       .gpr = gpr,
       .ugpr = try_find_free_reg(ra, UGPR, ~0, false),
       .gpr2 = try_find_free_reg(ra, GPR, gpr, true),
@@ -914,7 +914,7 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
             BITSET_SET(ra->sources[r_file(reg)], r_reg(reg));
 
             eviction_indices[nr_copies] = index;
-            copies[nr_copies++] = (struct jay_parallel_copy) { .src = reg };
+            copies[nr_copies++] = (struct jay_parallel_copy){ .src = reg };
             release_reg(ra, reg);
          }
       }
@@ -1243,7 +1243,7 @@ static void
 construct_phi_webs(struct phi_web_node *web, jay_function *f)
 {
    for (unsigned i = 0; i < f->ssa_alloc; ++i) {
-      web[i] = (struct phi_web_node) { .parent = i, .reg = NO_REG };
+      web[i] = (struct phi_web_node){ .parent = i, .reg = NO_REG };
    }
 
    jay_foreach_block(f, block) {

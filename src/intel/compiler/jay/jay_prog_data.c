@@ -5,9 +5,9 @@
 #include "compiler/brw/brw_compiler.h"
 #include "compiler/brw/brw_nir.h"
 #include "compiler/intel_nir.h"
+#include "compiler/intel_prim.h"
 #include "jay_private.h"
 #include "nir.h"
-#include "compiler/intel_prim.h"
 
 static inline enum intel_barycentric_mode
 brw_barycentric_mode(const struct brw_fs_prog_data *prog_data,
@@ -533,22 +533,23 @@ populate_tcs_prog_data(nir_shader *nir,
 }
 
 /* TODO: this is copied in two places right now. probably dedup it? */
-static const uint32_t gl_prim_to_hw_prim[MESA_PRIM_TRIANGLE_STRIP_ADJACENCY + 1] = {
-   [MESA_PRIM_POINTS] = _3DPRIM_POINTLIST,
-   [MESA_PRIM_LINES] = _3DPRIM_LINELIST,
-   [MESA_PRIM_LINE_LOOP] = _3DPRIM_LINELOOP,
-   [MESA_PRIM_LINE_STRIP] = _3DPRIM_LINESTRIP,
-   [MESA_PRIM_TRIANGLES] = _3DPRIM_TRILIST,
-   [MESA_PRIM_TRIANGLE_STRIP] = _3DPRIM_TRISTRIP,
-   [MESA_PRIM_TRIANGLE_FAN] = _3DPRIM_TRIFAN,
-   [MESA_PRIM_QUADS] = _3DPRIM_QUADLIST,
-   [MESA_PRIM_QUAD_STRIP] = _3DPRIM_QUADSTRIP,
-   [MESA_PRIM_POLYGON] = _3DPRIM_POLYGON,
-   [MESA_PRIM_LINES_ADJACENCY] = _3DPRIM_LINELIST_ADJ,
-   [MESA_PRIM_LINE_STRIP_ADJACENCY] = _3DPRIM_LINESTRIP_ADJ,
-   [MESA_PRIM_TRIANGLES_ADJACENCY] = _3DPRIM_TRILIST_ADJ,
-   [MESA_PRIM_TRIANGLE_STRIP_ADJACENCY] = _3DPRIM_TRISTRIP_ADJ,
-};
+static const uint32_t
+   gl_prim_to_hw_prim[MESA_PRIM_TRIANGLE_STRIP_ADJACENCY + 1] = {
+      [MESA_PRIM_POINTS] = _3DPRIM_POINTLIST,
+      [MESA_PRIM_LINES] = _3DPRIM_LINELIST,
+      [MESA_PRIM_LINE_LOOP] = _3DPRIM_LINELOOP,
+      [MESA_PRIM_LINE_STRIP] = _3DPRIM_LINESTRIP,
+      [MESA_PRIM_TRIANGLES] = _3DPRIM_TRILIST,
+      [MESA_PRIM_TRIANGLE_STRIP] = _3DPRIM_TRISTRIP,
+      [MESA_PRIM_TRIANGLE_FAN] = _3DPRIM_TRIFAN,
+      [MESA_PRIM_QUADS] = _3DPRIM_QUADLIST,
+      [MESA_PRIM_QUAD_STRIP] = _3DPRIM_QUADSTRIP,
+      [MESA_PRIM_POLYGON] = _3DPRIM_POLYGON,
+      [MESA_PRIM_LINES_ADJACENCY] = _3DPRIM_LINELIST_ADJ,
+      [MESA_PRIM_LINE_STRIP_ADJACENCY] = _3DPRIM_LINESTRIP_ADJ,
+      [MESA_PRIM_TRIANGLES_ADJACENCY] = _3DPRIM_TRILIST_ADJ,
+      [MESA_PRIM_TRIANGLE_STRIP_ADJACENCY] = _3DPRIM_TRISTRIP_ADJ,
+   };
 
 static void
 populate_gs_prog_data(nir_shader *nir,

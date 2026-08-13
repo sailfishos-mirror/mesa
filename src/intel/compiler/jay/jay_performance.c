@@ -18,7 +18,7 @@
 #define XE_LATENCY_DELTA      1  /* Extra cycles for wider SIMD sizes */
 #define XE_LATENCY_DELTA_MATH 4
 #define XE_LATENCY_ARF        16 /* Latency for ARF dependencies */
-#define XE_LATENCY_DPAS 21 /* Latency for DPAS 8x1 */
+#define XE_LATENCY_DPAS       21 /* Latency for DPAS 8x1 */
 
 /* Latency for SIMD16 SLM messages. If accessing the same location it takes 28
  * cycles. For the sequential access pattern it takes 26 cycles.

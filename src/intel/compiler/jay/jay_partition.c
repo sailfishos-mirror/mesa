@@ -89,7 +89,7 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
    unsigned base_grf = 0, base_gpr[JAY_NUM_RA_FILES] = { 0 };
    struct jay_partition *p = &shader->partition;
 
-   *p = (struct jay_partition) {
+   *p = (struct jay_partition){
       .units_x16[UGPR] = jay_ugpr_per_grf(shader) * 16,
       .units_x16[GPR] = 16 / jay_grf_per_gpr(shader),
       .units_x16[MEM] = 16 / jay_grf_per_gpr(shader),
@@ -121,7 +121,7 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
       bool grf = file < JAY_NUM_GRF_FILES;
       assert(p->nr_blocks[file] < JAY_PARTITION_BLOCKS);
 
-      p->blocks[file][p->nr_blocks[file]++] = (struct jay_register_block) {
+      p->blocks[file][p->nr_blocks[file]++] = (struct jay_register_block){
          .start_grf = grf ? base_grf : 0,
          .start_gpr = base_gpr[file],
          .len_gpr = (b[i].len_grf * p->units_x16[file]) / 16,

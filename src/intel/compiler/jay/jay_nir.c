@@ -423,7 +423,8 @@ emit_gs_vertex(nir_builder *b,
       nir_def *should_push_vertex = nir_ieq_imm(
          b,
          nir_iand_imm(b, vertex_count_src->ssa,
-                      (1 << (6 - calc_control_data_bits_per_vertex(progdata))) - 1),
+                      (1 << (6 - calc_control_data_bits_per_vertex(progdata))) -
+                         1),
          0);
       nir_push_if(b, should_push_vertex);
       {
@@ -751,10 +752,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
          nir_variable_create(nir, nir_var_shader_temp, glsl_uint_type(),
                              "final_gs_vertex_count");
 
-      nir_builder at_start = nir_builder_at(nir_before_impl(
-         nir_shader_get_entrypoint(nir)
-      ));
-      nir_store_var(&at_start, control_data_bits, nir_imm_int(&at_start, 0), ~0);
+      nir_builder at_start =
+         nir_builder_at(nir_before_impl(nir_shader_get_entrypoint(nir)));
+      nir_store_var(&at_start, control_data_bits, nir_imm_int(&at_start, 0),
+                    ~0);
 
       struct intel_vue_map input_vue_map = { 0 };
       brw_compute_vue_map(devinfo, &input_vue_map, nir->info.inputs_read,

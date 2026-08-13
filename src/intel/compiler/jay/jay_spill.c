@@ -554,7 +554,7 @@ compute_w_entry_loop_header(struct spill_ctx *ctx, jay_block *block)
 
    jay_foreach_phi_dst_in_block(block, I) {
       if (I->dst.file == ctx->file) {
-         ctx->candidates[j++] = (struct next_use) {
+         ctx->candidates[j++] = (struct next_use){
             .index = jay_index(I->dst),
             .dist = ctx->next_uses[jay_index(I->dst)],
          };
@@ -606,7 +606,7 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
 
    jay_foreach_phi_dst_in_block(block, I) {
       if (I->dst.file == ctx->file) {
-         ctx->candidates[j++] = (struct next_use) {
+         ctx->candidates[j++] = (struct next_use){
             .index = jay_index(I->dst),
             .dist = ctx->next_uses[jay_index(I->dst)],
          };

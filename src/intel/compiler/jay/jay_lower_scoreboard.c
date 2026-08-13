@@ -77,7 +77,7 @@ init_sbid_state(struct swsb_sbid_state *sbid_state,
                 uint32_t nr_sbid_keys,
                 unsigned max_sbids)
 {
-   *sbid_state = (struct swsb_sbid_state) {
+   *sbid_state = (struct swsb_sbid_state){
       .words = BITSET_WORDS(nr_sbid_keys),
       .max_sbids = max_sbids,
       .mem_ctx = ralloc_context(NULL),
@@ -214,10 +214,8 @@ merge_sbid_edges(const struct swsb_sbid_edge *a,
       uint32_t dst_has = out->tokens_busy[type];
 
       u_foreach_bit(sbid, a_has & b_has) {
-         __bitset_or(bitset_for(out, sbid, type),
-                     bitset_for(a, sbid, type),
-                     bitset_for(b, sbid, type),
-                     out->ctx->words);
+         __bitset_or(bitset_for(out, sbid, type), bitset_for(a, sbid, type),
+                     bitset_for(b, sbid, type), out->ctx->words);
       }
 
       u_foreach_bit(sbid, a_has ^ b_has) {
@@ -706,7 +704,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
    }
 
    bool has_sbid = jay_inst_has_sbid(I);
-   I->dep = (gen_swsb) {
+   I->dep = (gen_swsb){
       .sbid = has_sbid ? jay_inst_sbid(I) : 0,
       .mode = has_sbid ? GEN_SBID_SET : GEN_SBID_NULL,
       .regdist = wait_pipes ? min_delta : 0,

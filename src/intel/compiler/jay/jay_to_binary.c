@@ -468,7 +468,7 @@ emit(struct jay_codegen *jc,
 
    case JAY_OPCODE_RELOC: {
       util_dynarray_append(&jc->relocs,
-                           ((struct intel_shader_reloc) {
+                           ((struct intel_shader_reloc){
                               .id = jay_reloc_param(I),
                               .type = INTEL_SHADER_RELOC_TYPE_MOV_IMM,
                               .offset = GEN_INST_BYTES * (jc->num_insts - 1),
