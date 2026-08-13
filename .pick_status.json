@@ -3184,7 +3184,7 @@
         "description": "kms-dri-sw: Use size and offset from whandle in create_mapped()",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

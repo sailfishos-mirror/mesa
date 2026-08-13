@@ -233,7 +233,6 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
 {
    struct kms_sw_winsys *kms_sw = kms_sw_winsys(ws);
    struct kms_sw_displaytarget *kms_sw_dt;
-   unsigned nblocksy, size;
 
    kms_sw_dt = CALLOC_STRUCT(kms_sw_displaytarget);
    if (!kms_sw_dt)
@@ -248,12 +247,10 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
 
    mtx_init(&kms_sw_dt->map_lock, mtx_plain);
 
-   nblocksy = util_format_get_nblocksy(format, height);
-   size = stride * nblocksy;
-   kms_sw_dt->size = size;
+   kms_sw_dt->size = whandle->size;
    kms_sw_dt->handle = -1;
    struct kms_sw_plane *plane = get_plane(kms_sw_dt, format, width, height,
-                                          stride, 0);
+                                          stride, whandle->offset);
    if (!plane) {
       FREE(kms_sw_dt);
       return NULL;
