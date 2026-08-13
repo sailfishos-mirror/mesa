@@ -1110,18 +1110,16 @@ nvk_meta_copy_query_pool_results(struct nvk_cmd_buffer *cmd,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer,
-                            VkQueryPool queryPool,
-                            uint32_t firstQuery,
-                            uint32_t queryCount,
-                            VkBuffer dstBuffer,
-                            VkDeviceSize dstOffset,
-                            VkDeviceSize stride,
-                            VkQueryResultFlags flags)
+nvk_CmdCopyQueryPoolResultsToMemoryKHR(VkCommandBuffer commandBuffer,
+                                       VkQueryPool queryPool,
+                                       uint32_t firstQuery,
+                                       uint32_t queryCount,
+                                       const VkStridedDeviceAddressRangeKHR* pDstRange,
+                                       VkAddressCommandFlagsKHR dstFlags,
+                                       VkQueryResultFlags flags)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
-   VK_FROM_HANDLE(nvk_buffer, dst_buffer, dstBuffer);
 
    if (unlikely(!queryCount))
       return;
@@ -1143,9 +1141,9 @@ nvk_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer,
       }
    }
 
-   uint64_t dst_addr = vk_buffer_address(&dst_buffer->vk, dstOffset);
    nvk_meta_copy_query_pool_results(cmd, pool, firstQuery, queryCount,
-                                    dst_addr, stride, flags);
+                                    pDstRange->address, pDstRange->stride,
+                                    flags);
 }
 
 void
