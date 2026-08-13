@@ -111,9 +111,12 @@ radv_transfer_queue_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
-   /* Check if the GPU has SDMA support and transfer queues are allowed. */
+   /* Check if the GPU has SDMA support and transfer queues are allowed. The queue
+    * is exposed when the experimental flag is set or when a per-application drirc
+    * profile opts in (radv_enable_transfer_queue). */
    if (pdev->info.sdma_ip_version == SDMA_UNKNOWN || !pdev->info.ip[AMD_IP_SDMA].num_queues ||
-       !(instance->experimental_flags & RADV_EXPERIMENTAL_TRANSFER_QUEUE))
+       (!(instance->experimental_flags & RADV_EXPERIMENTAL_TRANSFER_QUEUE) &&
+        !pdev->drirc.performance.enable_transfer_queue))
       return false;
 
    if (!radv_compute_queue_enabled(pdev))
