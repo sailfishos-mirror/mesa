@@ -2534,7 +2534,7 @@
         "description": "radv/video: Fix out of bounds reads of AV1 tile params",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6aed906410403f98f1bcf268c706573057296950",
         "notes": null
