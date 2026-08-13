@@ -23,6 +23,13 @@ fn slot_wait_bit(slot: usize) -> FlowWaitBit {
     }
 }
 
+fn fixed_wait_slot(i: &Instr) -> Option<usize> {
+    match i.op {
+        Op::ATest(_) => Some(0),
+        _ => None,
+    }
+}
+
 fn calc_message_deadlines_in_bb(
     model: &dyn Model,
     block: &BasicBlock,
@@ -178,14 +185,17 @@ impl Shader<'_> {
 
                 // Prefer a slot with the same wait point, otherwise choose the least-used slot.
                 let deadline = deadlines[ip];
-                let slot_idx = slots
-                    .iter()
-                    .enumerate()
-                    .min_by_key(|(_, slot)| {
-                        (Reverse(slot.wait_ip == deadline), slot.count)
-                    })
-                    .map(|(idx, _)| idx)
-                    .unwrap();
+                let slot_idx = fixed_wait_slot(&block.instrs[ip])
+                    .unwrap_or_else(|| {
+                        slots
+                            .iter()
+                            .enumerate()
+                            .min_by_key(|(_, slot)| {
+                                (Reverse(slot.wait_ip == deadline), slot.count)
+                            })
+                            .map(|(idx, _)| idx)
+                            .unwrap()
+                    });
 
                 block.instrs[ip].flow.set_msg_slot_idx(slot_idx as u8);
 

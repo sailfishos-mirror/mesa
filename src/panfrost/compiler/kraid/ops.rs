@@ -139,6 +139,38 @@ impl DisplayOp for OpAdr {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpATest {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    #[src_type(I32)]
+    pub coverage: Src,
+
+    #[src_type(F32)]
+    pub alpha: Src,
+
+    #[src_type(I32)]
+    pub datum: Src,
+}
+
+impl DisplayOp for OpATest {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ATEST")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.coverage),
+            self.fmt_src(&self.alpha),
+            self.fmt_src(&self.datum),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum AtomOp {
     // TODO: Model 64-bit atomics with 32-bit data
@@ -4177,6 +4209,7 @@ impl DisplayOp for OpWMask {
 pub enum Op {
     ACmpXchg(Box<OpACmpXchg>),
     Adr(Box<OpAdr>),
+    ATest(Box<OpATest>),
     Atom(Box<OpAtom>),
     Atom1(Box<OpAtom1>),
     Barrier(OpBarrier),
@@ -4296,6 +4329,7 @@ impl Op {
         !matches!(
             self,
             Op::ACmpXchg(_)
+                | Op::ATest(_)
                 | Op::Atom(_)
                 | Op::Atom1(_)
                 | Op::Barrier(_)

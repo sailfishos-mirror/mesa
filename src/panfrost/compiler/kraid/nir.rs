@@ -2154,6 +2154,15 @@ impl<'a> ShaderFromNir<'a> {
                     update,
                 });
             }
+            nir_intrinsic_atest_pan => {
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpATest {
+                    dst,
+                    coverage: self.get_src(&srcs[0]),
+                    alpha: self.get_f32_src(&srcs[1]),
+                    datum: self.special_fau(SpecialFAU::ATestDatum).into(),
+                });
+            }
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
                 assert!(intrin.range() == 0);

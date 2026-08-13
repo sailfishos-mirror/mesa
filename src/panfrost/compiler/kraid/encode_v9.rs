@@ -590,6 +590,31 @@ impl V9Instr for OpAdr {
     }
 }
 
+impl V9Instr for OpATest {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Atest::get_info((), arch),
+            src_map! {
+                src0: coverage,
+                src1: alpha,
+                src2: datum,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert!(e.get_msg_slot_idx() == Some(MessageSlotIndexM::Slot0));
+        assert_eq!(self.coverage.src_ref.as_reg().unwrap().idx, 60);
+        assert_eq!(self.dst.dst_ref.as_reg().unwrap().idx, 60);
+        e.encode(Atest {
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.coverage),
+            src1: op_encode_src(self, &self.alpha),
+            src2: op_encode_src(self, &self.datum),
+        })
+    }
+}
+
 impl TryFrom<AtomOp> for AtomOperationM {
     type Error = &'static str;
 
@@ -3204,6 +3229,7 @@ macro_rules! v9_op_match_else {
         match $op {
             Op::ACmpXchg($x) => $y,
             Op::Adr($x) => $y,
+            Op::ATest($x) => $y,
             Op::Atom($x) => $y,
             Op::Atom1($x) => $y,
             Op::Barrier($x) => $y,
