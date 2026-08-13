@@ -197,7 +197,15 @@ fdl6_lrz_get_max_fdm_extra_size(const struct fd_dev_info *dev_info,
 {
    constexpr uint32_t MIN_TILE_SIZE_FOR_FDM_OFFSET = 192;
 
-   if (fdl6_lrz_get_fc_size<CHIP>(width, height, nr_samples, array_layers) == 0) {
+   struct fdl_layout layout = {
+      .width0 = width,
+      .height0 = height,
+      .nr_samples = nr_samples,
+   };
+   struct fdl_lrz_layout lrz_layout;
+   fdl6_lrz_layout_init<CHIP>(&lrz_layout, &layout, 0, 0, dev_info, 0,
+                              array_layers);
+   if (lrz_layout.lrz_fc_size == 0) {
       return {dev_info->tile_max_w, dev_info->tile_max_h};
    }
 
@@ -206,10 +214,9 @@ fdl6_lrz_get_max_fdm_extra_size(const struct fd_dev_info *dev_info,
    uint32_t min_extra_size = MAX2(step, MIN_TILE_SIZE_FOR_FDM_OFFSET);
 
    while (max_extra_size > min_extra_size) {
-      if (fdl6_lrz_get_fc_size<CHIP>(width + max_extra_size,
-                                     height + max_extra_size, nr_samples,
-                                     array_layers) != 0) {
-
+      fdl6_lrz_layout_init<CHIP>(&lrz_layout, &layout, max_extra_size,
+                                 max_extra_size, dev_info, 0, array_layers);
+      if (lrz_layout.lrz_fc_size != 0) {
          return {util_round_down_npot(max_extra_size, dev_info->gmem_align_w),
                  util_round_down_npot(max_extra_size, dev_info->gmem_align_h)};
       }
