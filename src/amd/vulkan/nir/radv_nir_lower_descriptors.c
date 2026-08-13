@@ -329,6 +329,22 @@ get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr
       comp[0] = nir_iand_imm(b, comp[0], C_008F30_TRUNC_COORD);
 
       return nir_vec(b, comp, 4);
+   } else if (desc_type == AC_DESC_SAMPLER && b->shader->info.stage == MESA_SHADER_TASK) {
+      nir_def *comp[4];
+      for (unsigned i = 0; i < 4; i++)
+         comp[i] = nir_channel(b, desc, i);
+
+      /* Replace custom border color by transparent black to prevent GPU hangs when task shaders are
+       * executed on the compute queue because the hw is fundamentally broken and it can't support
+       * multiple color palettes.
+       */
+      nir_def *border_color_type = nir_iand_imm(b, comp[3], ~C_008F3C_BORDER_COLOR_TYPE);
+      nir_def *is_custom_border_color =
+         nir_ieq_imm(b, border_color_type, S_008F3C_BORDER_COLOR_TYPE(V_008F3C_SQ_TEX_BORDER_COLOR_REGISTER));
+
+      comp[3] = nir_bcsel(b, is_custom_border_color, nir_iand_imm(b, comp[3], C_008F3C_BORDER_COLOR_TYPE), comp[3]);
+
+      return nir_vec(b, comp, 4);
    }
 
    return desc;
