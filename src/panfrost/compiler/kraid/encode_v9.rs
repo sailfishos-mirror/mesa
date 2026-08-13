@@ -743,6 +743,30 @@ impl V9Instr for OpBarrier {
     }
 }
 
+impl V9Instr for OpBlend {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Blend::get_info((), arch),
+            src_map! {
+                sr_src: color,
+                src0: descr,
+                src2: coverage,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.coverage.src_ref.as_reg().unwrap().idx, 60);
+        e.encode(Blend {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_src: op_encode_sr_read(self, &self.color),
+            src0: op_encode_src(self, &self.descr),
+            offset: self.offset.into(),
+            src2: op_encode_src(self, &self.coverage),
+        })
+    }
+}
+
 impl V9Instr for OpBranch {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(Branch::get_info((), arch), src_map! {src0: cond})
@@ -3234,6 +3258,7 @@ macro_rules! v9_op_match_else {
             Op::Atom1($x) => $y,
             Op::Barrier($x) => $y,
             Op::BitRev($x) => $y,
+            Op::Blend($x) => $y,
             Op::Branch($x) => $y,
             Op::Clper($x) => $y,
             Op::Clz($x) => $y,

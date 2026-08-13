@@ -1846,7 +1846,7 @@ pub struct Instr {
 }
 
 impl Instr {
-    pub const MAX_SRC_COUNT: usize = 4;
+    pub const MAX_SRC_COUNT: usize = 5;
 }
 
 impl Deref for Instr {
@@ -2093,6 +2093,10 @@ pub struct ShaderInfo {
     pub has_ld_gclk: bool,
     /// True if we have any flat load
     pub uses_flat_shading: bool,
+
+    /// Fragment shaders blend (and blend2) types
+    pub blend_types: [Option<DataType>; 8],
+    pub blend1_type: Option<DataType>,
 }
 
 impl ShaderInfo {

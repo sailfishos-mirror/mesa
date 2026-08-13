@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::data_type::NumericType;
 use crate::debug::*;
 use crate::ir::*;
 use crate::model::model_for_gpu_id;
@@ -154,6 +155,26 @@ fn write_back_info(
     if model.arch() >= 9 {
         let bifrost_info = unsafe { dst.__bindgen_anon_2.bifrost.as_mut() };
         bifrost_info.uses_flat_shading = src.uses_flat_shading;
+
+        if nir.info.stage() == MESA_SHADER_FRAGMENT {
+            let translate_color = |dt: &Option<DataType>| {
+                let Some(dt) = dt else {
+                    return nir_type_invalid;
+                };
+                let num_type = match dt.num_type() {
+                    NumericType::SignedInteger => nir_type_int,
+                    NumericType::UnsignedInteger => nir_type_uint,
+                    NumericType::Float => nir_type_float,
+                    _ => panic!("Invalid color data type"),
+                };
+                num_type | dt.bits()
+            };
+
+            for (i, btype) in src.blend_types.iter().enumerate() {
+                bifrost_info.blend[i].type_ = translate_color(btype);
+            }
+            bifrost_info.blend_src1_type = translate_color(&src.blend1_type);
+        }
     } else {
         panic!("Unsupported GPU generation");
     }

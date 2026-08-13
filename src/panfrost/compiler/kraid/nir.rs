@@ -2163,6 +2163,70 @@ impl<'a> ShaderFromNir<'a> {
                     datum: self.special_fau(SpecialFAU::ATestDatum).into(),
                 });
             }
+            nir_intrinsic_blend_pan | nir_intrinsic_blend2_pan => {
+                let coverage = self.get_src(&srcs[0]);
+                let descr = self.get_src(&srcs[1]);
+                let color = self.get_src(&srcs[2]);
+
+                assert_eq!(srcs[2].num_components(), 4);
+
+                let mut color_type = DataType::get(
+                    srcs[2].num_components(),
+                    intrin.src_type().into(),
+                    srcs[2].bit_size(),
+                );
+
+                let loc = intrin.io_semantics().location();
+                assert!((FRAG_RESULT_DATA0..=FRAG_RESULT_DATA7).contains(&loc));
+                let render_target_idx =
+                    (loc - FRAG_RESULT_DATA0).try_into().unwrap();
+
+                let old_blend_type = self.info.blend_types
+                    [usize::from(render_target_idx)]
+                .replace(color_type);
+                assert!(old_blend_type.is_none());
+
+                let has_second_color =
+                    intrin.intrinsic == nir_intrinsic_blend2_pan;
+                let second_color = if has_second_color {
+                    let second_color = self.get_src(&srcs[3]);
+                    let second_type = DataType::get(
+                        srcs[3].num_components(),
+                        intrin.dest_type().into(),
+                        intrin.dest_type().bit_size(),
+                    );
+                    let old_blend_type =
+                        self.info.blend1_type.replace(second_type);
+                    assert!(old_blend_type.is_none());
+
+                    second_color
+                } else {
+                    0_u32.into()
+                };
+
+                let untyped_color = unsafe {
+                    self.nir.info.__bindgen_anon_1.fs.untyped_color_outputs()
+                };
+                if untyped_color {
+                    color_type = DataType::get(
+                        color_type.comps(),
+                        NumericType::Auto,
+                        color_type.bits(),
+                    );
+                }
+
+                let sample_id = self.preload(b, PreloadReg::SampleCentroidId);
+                b.push_op(OpBlendCall {
+                    color_type,
+                    descr,
+                    coverage,
+                    sample_id: sample_id.into(),
+                    color,
+                    second_color,
+                    render_target_idx,
+                    has_second_color,
+                });
+            }
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
                 assert!(intrin.range() == 0);

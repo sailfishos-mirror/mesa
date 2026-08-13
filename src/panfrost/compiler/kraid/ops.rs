@@ -353,6 +353,123 @@ impl Foldable for OpBitRev {
     }
 }
 
+/// Performs blending
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(color_type in [V4F16, V4F32, V4S16, V4S32, V4U16, V4U32, V4A32])]
+pub struct OpBlend {
+    pub color_type: DataType,
+
+    #[src_type(I64)]
+    pub descr: Src,
+
+    #[src_type(I32)]
+    pub coverage: Src,
+
+    /// Color, pinned to r0
+    pub color: Src,
+
+    /// N. of bytes to jump if no blend call is needed
+    /// Must be set by lower_blend_call.rs or be set to 0 if no blend calls are
+    /// expected.
+    pub offset: u32,
+
+    /// What render target is this blending?
+    pub render_target_idx: u8,
+}
+
+impl DisplayOp for OpBlend {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BLEND.{}", self.color_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.descr),
+            self.fmt_src(&self.coverage),
+            self.fmt_src(&self.color)
+        )?;
+
+        if self.offset != 0 {
+            write!(f, " {}", self.offset)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents a call to a Blend shader (BLEND + jump call)
+/// treated as a separate instruction for easier RA handling
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(color_type in [V4F16, V4F32, V4S16, V4S32, V4U16, V4U32, V4A32])]
+pub struct OpBlendCall {
+    pub color_type: DataType,
+
+    #[src_type(I64)]
+    pub descr: Src,
+
+    #[src_type(I32)]
+    pub coverage: Src,
+
+    /// This might be used by blend shaders so the preloaded register must be
+    /// kept clean
+    #[src_type(I32)]
+    pub sample_id: Src,
+
+    /// Color, pinned to r0
+    #[src_type(SR)]
+    pub color: Src,
+
+    /// Optional secondary color, pinned to r4
+    /// only present when has_second_color is true
+    #[src_type(SR)]
+    pub second_color: Src,
+
+    /// What render target is this blending?
+    pub render_target_idx: u8,
+    /// Is second_color present? (otherwise it's SrcRef::Zero)
+    pub has_second_color: bool,
+}
+
+impl DisplayOp for OpBlendCall {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BLEND_CALL.{}", self.color_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.descr),
+            self.fmt_src(&self.coverage),
+            self.fmt_src(&self.color)
+        )?;
+
+        if self.has_second_color {
+            write!(f, " {}", self.fmt_src(&self.second_color))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl VirtualOpcode for OpBlendCall {
+    fn is_message(&self) -> bool {
+        true
+    }
+
+    fn src_is_staging_reg(&self, src: &Src) -> bool {
+        std::ptr::eq(src, &self.color) || std::ptr::eq(src, &self.second_color)
+    }
+
+    fn src_is_64bit(&self, src: &Src) -> bool {
+        std::ptr::eq(src, &self.descr)
+    }
+}
+
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum BranchCombineOp {
     /// Branch if != 0
@@ -4214,6 +4331,8 @@ pub enum Op {
     Atom1(Box<OpAtom1>),
     Barrier(OpBarrier),
     BitRev(Box<OpBitRev>),
+    Blend(Box<OpBlend>),
+    BlendCall(Box<OpBlendCall>),
     Branch(Box<OpBranch>),
     Clper(Box<OpClper>),
     Clz(Box<OpClz>),
@@ -4312,6 +4431,7 @@ pub enum MemoryEffect {
 impl Op {
     pub fn as_virtual(&self) -> Option<&dyn VirtualOpcode> {
         match self {
+            Op::BlendCall(op) => Some(op.as_ref()),
             Op::Copy(op) => Some(op.as_ref()),
             Op::MkVecV2I8(op) => Some(op.as_ref()),
             Op::MkVecV4I8(op) => Some(op.as_ref()),
@@ -4333,6 +4453,8 @@ impl Op {
                 | Op::Atom(_)
                 | Op::Atom1(_)
                 | Op::Barrier(_)
+                | Op::Blend(_)
+                | Op::BlendCall(_)
                 | Op::Branch(_)
                 | Op::RegOut(_)
                 | Op::ScheduleBarrier(_)
@@ -4363,7 +4485,9 @@ impl Op {
             | Op::TexGather(_)
             | Op::TexGradient(_)
             | Op::TexSingle(_) => MemoryEffect::ConstRead,
-            Op::Store(_) | Op::StCvt(_) => MemoryEffect::Write,
+            Op::Blend(_) | Op::BlendCall(_) | Op::StCvt(_) | Op::Store(_) => {
+                MemoryEffect::Write
+            }
             Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
                 MemoryEffect::ReadWrite
             }
