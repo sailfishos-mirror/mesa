@@ -8326,13 +8326,33 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 
 #if GFX_VERx10 >= 125
    if (dirty & IRIS_DIRTY_VFG) {
-      iris_emit_cmd(batch, GENX(3DSTATE_VFG), vfg) {
-         /* Gfx12.5: If 3DSTATE_TE: TE Enable == 1 then RR_STRICT else RR_FREE */
-         vfg.DistributionMode =
+
+      /* Gfx12.5: If 3DSTATE_TE: TE Enable == 1 then RR_STRICT else RR_FREE */
+      unsigned distribution_mode =
 #if GFX_VER < 20
             ice->shaders.prog[MESA_SHADER_TESS_EVAL] == NULL ? RR_FREE :
 #endif
                                                                RR_STRICT;
+#if INTEL_WA_16029281427_GFX_VER
+   /* Make sure that if we have cutindex enabled and use any strip primitive
+    * then VFG distribution mode must not be RR_FREE, use RR_STRICT instead.
+    */
+   const unsigned primitive_topology =
+      translate_prim_type(draw->mode, ice->state.vertices_per_patch);
+   if (draw->restart_index &&
+       (primitive_topology == _3DPRIM_TRISTRIP ||
+        primitive_topology == _3DPRIM_TRISTRIP_ADJ ||
+        primitive_topology == _3DPRIM_QUADSTRIP ||
+        primitive_topology == _3DPRIM_LINESTRIP ||
+        primitive_topology == _3DPRIM_LINESTRIP_ADJ ||
+        primitive_topology == _3DPRIM_LINESTRIP_CONT ||
+        primitive_topology == _3DPRIM_LINESTRIP_BF ||
+        primitive_topology == _3DPRIM_LINESTRIP_CONT_BF))
+      distribution_mode = RR_STRICT;
+#endif
+
+      iris_emit_cmd(batch, GENX(3DSTATE_VFG), vfg) {
+         vfg.DistributionMode = distribution_mode;
          if (intel_needs_workaround(batch->screen->devinfo, 14019166699) &&
              program_uses_primitive_id)
             vfg.DistributionGranularity = InstanceLevelGranularity;
