@@ -602,6 +602,19 @@ nvk_cmd_flush_wait_dep(struct nvk_cmd_buffer *cmd,
          barriers |= NVK_BARRIER_HOST_WFI_INVALIDATE_SYSMEM;
    }
 
+   const VkMemoryRangeBarriersInfoKHR *mem_barriers_info =
+      vk_find_struct_const(dep->pNext, MEMORY_RANGE_BARRIERS_INFO_KHR);
+   if (mem_barriers_info) {
+      for (uint32_t i = 0; i < mem_barriers_info->memoryRangeBarrierCount; i++) {
+         const VkMemoryRangeBarrierKHR *bar = &mem_barriers_info->pMemoryRangeBarriers[i];
+         barriers |= nvk_barrier_flushes_waits(bar->srcStageMask,
+                                            bar->srcAccessMask);
+
+         if (bar->srcQueueFamilyIndex == VK_QUEUE_FAMILY_FOREIGN_EXT)
+            barriers |= NVK_BARRIER_HOST_WFI_INVALIDATE_SYSMEM;
+      }
+   }
+
    if (!(engines & (NVKMD_ENGINE_3D | NVKMD_ENGINE_COMPUTE)))
       barriers &= ~NVK_BARRIER_FLUSH_SHADER_DATA;
 
@@ -724,6 +737,19 @@ nvk_cmd_invalidate_deps(struct nvk_cmd_buffer *cmd,
 
          if (bar->dstQueueFamilyIndex == VK_QUEUE_FAMILY_FOREIGN_EXT)
             barriers |= NVK_BARRIER_HOST_WFI_FLUSH_SYSMEM;
+      }
+
+      const VkMemoryRangeBarriersInfoKHR *mem_barriers_info =
+         vk_find_struct_const(dep->pNext, MEMORY_RANGE_BARRIERS_INFO_KHR);
+      if (mem_barriers_info) {
+         for (uint32_t i = 0; i < mem_barriers_info->memoryRangeBarrierCount; i++) {
+            const VkMemoryRangeBarrierKHR *bar = &mem_barriers_info->pMemoryRangeBarriers[i];
+            barriers |= nvk_barrier_invalidates(bar->dstStageMask,
+                                                bar->dstAccessMask);
+
+            if (bar->dstQueueFamilyIndex == VK_QUEUE_FAMILY_FOREIGN_EXT)
+               barriers |= NVK_BARRIER_HOST_WFI_FLUSH_SYSMEM;
+         }
       }
    }
 
