@@ -68,7 +68,10 @@ struct anv_accel_struct_header {
 
    uint32_t instance_leaves_offset;
 
-   uint32_t padding[42];
+   /* Copy of the root node's box flags */
+   uint32_t root_flags;
+
+   uint32_t padding[41];
 };
 
 /* Mixed internal node with type per child */

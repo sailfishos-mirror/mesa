@@ -382,6 +382,7 @@ main()
       /* Tracks BLOCK where the next children should be encoded. */
       DEREF(args.header).dst_node_offset = 1;
       DEREF(header).instance_count = 0;
+      DEREF(header).root_flags = src.flags;
       if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE && args.parent_child_map != 0) {
          DEREF(INDEX(uint32_t, args.parent_child_map, 0)) = VK_NULL_BVH_OFFSET;
       }

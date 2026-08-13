@@ -981,12 +981,14 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
       (struct vk_acceleration_structure_build_args) {
          .emit_markers = u_trace_enabled(&device->ds.trace_context),
          .has_update = true,
+         .propagate_cull_flags = true,
          .subgroup_size = device->info->ver >= 20 ? 32 : 16,
          .radix_sort_64 = device->accel_struct_build.radix_sort_64,
          .radix_sort_96 = device->accel_struct_build.radix_sort_96,
          /* See struct anv_accel_struct_header from anv_bvh_defines.h
           */
          .bvh_bounds_offset = 0,
+         .root_flags_offset = offsetof(struct anv_accel_struct_header, root_flags),
    };
 
 exit:
