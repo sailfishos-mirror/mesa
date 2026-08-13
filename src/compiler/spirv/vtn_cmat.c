@@ -221,8 +221,10 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
    }
 
    case SpvOpCooperativeMatrixConvertNV: {
+      struct vtn_value *val = vtn_untyped_value(b, w[2]);
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
+      const bool transpose = vtn_has_decoration(b, val, SpvDecorationCooperativeMatrixTransposeEXT);
       unsigned signed_mask = 0;
 
       if (desc_type_is_signed(dst_type->type))
@@ -232,7 +234,10 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
          signed_mask |= NIR_CMAT_A_SIGNED;
 
       nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_convert_nv");
-      nir_cmat_convert(&b->nb, &dst->def, &src->def, .cmat_signed_mask = signed_mask);
+      if (transpose)
+         nir_cmat_transpose(&b->nb, &dst->def, &src->def, .cmat_signed_mask = signed_mask);
+      else
+         nir_cmat_convert(&b->nb, &dst->def, &src->def, .cmat_signed_mask = signed_mask);
       vtn_push_var_ssa(b, w[2], dst->var);
       break;
    }
@@ -462,9 +467,14 @@ vtn_handle_cooperative_alu(struct vtn_builder *b, struct vtn_value *dest_val,
             (vtn_convert_op_dst_type(opcode) == nir_type_int ? NIR_CMAT_RESULT_SIGNED : 0);
 
          const bool saturate = vtn_has_decoration(b, dest_val, SpvDecorationSaturatedToLargestFloat8NormalConversionEXT);
+         const bool transpose = vtn_has_decoration(b, dest_val, SpvDecorationCooperativeMatrixTransposeEXT);
 
          nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_convert");
-         nir_cmat_convert(&b->nb, &dst->def, &src->def, .saturate = saturate, .cmat_signed_mask = signed_mask);
+
+         if (transpose)
+            nir_cmat_transpose(&b->nb, &dst->def, &src->def, .saturate = saturate, .cmat_signed_mask = signed_mask);
+         else
+            nir_cmat_convert(&b->nb, &dst->def, &src->def, .saturate = saturate, .cmat_signed_mask = signed_mask);
          vtn_push_var_ssa(b, w[2], dst->var);
 
          break;
