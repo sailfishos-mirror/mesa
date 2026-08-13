@@ -1157,6 +1157,15 @@ update_ps_extra_kills_pixel(struct anv_gfx_dynamic_state *hw_state,
                        FRAGMENT);
 }
 
+ALWAYS_INLINE static uint8_t
+get_primitive_topology(const struct anv_cmd_graphics_state *gfx,
+                       const struct vk_dynamic_graphics_state *dyn)
+{
+   return gfx->shaders[MESA_SHADER_TESS_EVAL] != NULL ?
+          _3DPRIM_PATCHLIST(dyn->ts.patch_control_points) :
+          vk_to_intel_primitive_type[dyn->ia.primitive_topology];
+}
+
 #if GFX_VERx10 >= 125
 ALWAYS_INLINE static bool
 geom_or_tess_prim_id_used(const struct anv_cmd_graphics_state *gfx)
@@ -1175,6 +1184,7 @@ geom_or_tess_prim_id_used(const struct anv_cmd_graphics_state *gfx)
 
 ALWAYS_INLINE static void
 update_vfg_distribution_mode(struct anv_gfx_dynamic_state *hw_state,
+                             const struct vk_dynamic_graphics_state *dyn,
                              const struct anv_device *device,
                              const struct anv_cmd_graphics_state *gfx)
 {
@@ -1186,6 +1196,25 @@ update_vfg_distribution_mode(struct anv_gfx_dynamic_state *hw_state,
    SET(VFG, vfg.DistributionMode, (GFX_VER < 20 &&
                                    !anv_gfx_has_stage(gfx, MESA_SHADER_TESS_EVAL)) ?
                                   RR_FREE : RR_STRICT);
+
+#if INTEL_WA_16029281427_GFX_VER
+   /* Make sure that if we have cutindex enabled and use any strip primitive
+    * then VFG distribution mode must not be RR_FREE, use RR_STRICT instead.
+    */
+   const uint8_t primitive_topology = get_primitive_topology(gfx, dyn);
+   if (dyn->ia.primitive_restart_index &&
+       (primitive_topology == _3DPRIM_TRISTRIP ||
+        primitive_topology == _3DPRIM_TRISTRIP_ADJ ||
+        primitive_topology == _3DPRIM_QUADSTRIP ||
+        primitive_topology == _3DPRIM_LINESTRIP ||
+        primitive_topology == _3DPRIM_LINESTRIP_ADJ ||
+        primitive_topology == _3DPRIM_LINESTRIP_CONT ||
+        primitive_topology == _3DPRIM_LINESTRIP_BF ||
+        primitive_topology == _3DPRIM_LINESTRIP_CONT_BF)) {
+      SET(VFG, vfg.DistributionMode, RR_STRICT);
+   }
+#endif
+
    SET(VFG, vfg.DistributionGranularity, needs_instance_granularity ?
                                          InstanceLevelGranularity :
                                          BatchLevelGranularity);
@@ -1299,11 +1328,7 @@ update_topology(struct anv_gfx_dynamic_state *hw_state,
                 const struct vk_dynamic_graphics_state *dyn,
                 const struct anv_cmd_graphics_state *gfx)
 {
-   uint32_t topology =
-      gfx->shaders[MESA_SHADER_TESS_EVAL] != NULL ?
-      _3DPRIM_PATCHLIST(dyn->ts.patch_control_points) :
-      vk_to_intel_primitive_type[dyn->ia.primitive_topology];
-
+   const uint8_t topology = get_primitive_topology(gfx, dyn);
    SET(VF_TOPOLOGY, vft.PrimitiveTopologyType, topology);
 }
 
@@ -2501,8 +2526,12 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
       BITSET_SET(hw_state->pack_dirty, ANV_GFX_STATE_INDEX_BUFFER);
 
 #if GFX_VERx10 >= 125
-   if (gfx->dirty & ANV_CMD_DIRTY_PRERASTER_SHADERS)
-      update_vfg_distribution_mode(hw_state, device, gfx);
+   if (gfx->dirty & ANV_CMD_DIRTY_PRERASTER_SHADERS ||
+       (INTEL_WA_16029281427_GFX_VER &&
+        (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE) ||
+         BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY)))) {
+      update_vfg_distribution_mode(hw_state, dyn, device, gfx);
+   }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE))
       update_vfg_list_cut_index(hw_state, dyn);
