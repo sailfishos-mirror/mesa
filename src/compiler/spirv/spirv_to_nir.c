@@ -56,6 +56,7 @@ static const struct spirv_capabilities implemented_capabilities = {
    .ComputeDerivativeGroupQuadsKHR = true,
    .ConstantDataKHR = true,
    .CooperativeMatrixKHR = true,
+   .CooperativeMatrixGetCoordinateEXT = true,
    .CooperativeMatrixConversionsNV = true,
    .CooperativeMatrixReductionsNV = true,
    .CooperativeMatrixPerElementOperationsNV = true,
@@ -7516,6 +7517,7 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpCooperativeMatrixStoreKHR:
    case SpvOpCooperativeMatrixLengthKHR:
    case SpvOpCooperativeMatrixMulAddKHR:
+   case SpvOpCooperativeMatrixGetCoordinateEXT:
    case SpvOpCooperativeMatrixConvertNV:
    case SpvOpCooperativeMatrixTransposeNV:
    case SpvOpCooperativeMatrixReduceNV:

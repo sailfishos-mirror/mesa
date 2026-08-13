@@ -212,6 +212,14 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
+   case SpvOpCooperativeMatrixGetCoordinateEXT: {
+      nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
+      nir_def *coord = vtn_get_nir_ssa(b, w[4]);
+      nir_def *def = nir_cmat_get_coordinate(&b->nb, coord, .cmat_desc = src->type->cmat_desc);
+      vtn_push_nir_ssa(b, w[2], def);
+      break;
+   }
+
    case SpvOpCooperativeMatrixConvertNV: {
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
