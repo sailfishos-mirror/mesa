@@ -605,7 +605,7 @@ lower_fragment_outputs(nir_function_impl *impl,
 }
 
 static inline bool
-nir_phi_merges_divergent_control_flow(nir_phi_instr *phi)
+phi_merges_divergent_cf(nir_phi_instr *phi)
 {
    nir_cf_node *prev = nir_cf_node_prev(&phi->instr.block->cf_node);
 
@@ -621,9 +621,13 @@ nir_phi_merges_divergent_control_flow(nir_phi_instr *phi)
 }
 
 static bool
-lower_1bit_phi(nir_builder *b, nir_phi_instr *phi, void *_)
+lower_after_lcssa(nir_builder *b, nir_phi_instr *phi, void *_)
 {
-   if (phi->def.bit_size == 1 && nir_phi_merges_divergent_control_flow(phi)) {
+   if (!phi->def.divergent && exec_list_is_singular(&phi->srcs)) {
+      nir_phi_src *src = exec_node_data_head(nir_phi_src, &phi->srcs, node);
+      nir_def_replace(&phi->def, src->src.ssa);
+      return true;
+   } else if (phi->def.bit_size == 1 && phi_merges_divergent_cf(phi)) {
       nir_foreach_phi_src(src, phi) {
          b->cursor = nir_after_block_before_jump(src->pred);
          nir_src_rewrite(&src->src, nir_b2b32(b, src->src.ssa));
@@ -1228,8 +1232,8 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
    JAY_NIR_PASS(intel_nir_opt_peephole_imul32x16);
 
    nir_divergence_analysis(nir);
-   JAY_NIR_PASS(nir_shader_phi_pass, lower_1bit_phi, nir_metadata_control_flow,
-                NULL);
+   JAY_NIR_PASS(nir_shader_phi_pass, lower_after_lcssa,
+                nir_metadata_control_flow, NULL);
 
    /* Late postprocess while remaining in SSA */
    /* Run fsign lowering again after the last time brw_nir_optimize is called.
@@ -1268,8 +1272,8 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
     */
    JAY_NIR_PASS(nir_convert_to_lcssa, true, true);
    nir_divergence_analysis(nir);
-   JAY_NIR_PASS(nir_shader_phi_pass, lower_1bit_phi, nir_metadata_control_flow,
-                NULL);
+   JAY_NIR_PASS(nir_shader_phi_pass, lower_after_lcssa,
+                nir_metadata_control_flow, NULL);
    JAY_NIR_PASS(jay_nir_lower_bool);
 
    /* Run divergence analysis at the end */
