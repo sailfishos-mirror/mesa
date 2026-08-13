@@ -143,11 +143,6 @@ public:
    /** Byte-offset for the next logical, non-reused spill slot. */
    unsigned last_logical_scratch;
 
-   brw_reg frag_depth;
-   brw_reg frag_stencil;
-   brw_reg sample_mask;
-   brw_reg outputs[VARYING_SLOT_MAX];
-   brw_reg dual_src_output;
    brw_reg subgroup_barrier_index;
    /* This includes HW thread payload + push constants + URB(after brw_assign_xs_urb_setup()) */
    int first_non_payload_grf;
@@ -207,6 +202,9 @@ public:
       /* Offset of per-primitive locations in bytes */
       int per_primitive_offsets[VARYING_SLOT_MAX];
    } fs;
+
+   /* Whether we've seen an RT write already */
+   bool seen_rt_write;
 
    unsigned grf_used;
    bool spilled_any_registers;

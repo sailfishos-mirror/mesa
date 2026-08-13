@@ -275,8 +275,6 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    const bool null_rt = write->null_rt;
    const bool last_rt = write->last_rt;
 
-   assert(target != 0 || src0_alpha.file == BAD_FILE);
-
    brw_reg sources[15];
    int header_size = 2, payload_header_size;
    unsigned length = 0;
