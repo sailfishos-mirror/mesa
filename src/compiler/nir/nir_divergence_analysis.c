@@ -349,6 +349,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_debug_log_desc_amd:
    case nir_intrinsic_load_xfb_state_address_gfx12_amd:
    case nir_intrinsic_cmat_length:
+   case nir_intrinsic_cmat_get_coordinate:
    case nir_intrinsic_load_vs_primitive_stride_ir3:
    case nir_intrinsic_load_vs_vertex_stride_ir3:
    case nir_intrinsic_load_hs_patch_stride_ir3:
