@@ -80,6 +80,18 @@ fn mem_access_from_nir(intrin: &nir_intrinsic_instr) -> MemAccess {
     }
 }
 
+impl From<ALUType> for NumericType {
+    fn from(value: ALUType) -> Self {
+        match value.base_type() {
+            ALUType::FLOAT => NumericType::Float,
+            ALUType::INT => NumericType::SignedInteger,
+            ALUType::UINT => NumericType::UnsignedInteger,
+            ALUType::INVALID => NumericType::Auto,
+            _ => panic!("Invalid NIR ALU type"),
+        }
+    }
+}
+
 struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
@@ -1718,16 +1730,9 @@ impl<'a> ShaderFromNir<'a> {
                 assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
                 assert_eq!(intrin.def.num_components, intrin.num_components);
 
-                let num_type = match intrin.dest_type().base_type() {
-                    ALUType::FLOAT => NumericType::Float,
-                    ALUType::INT => NumericType::SignedInteger,
-                    ALUType::UINT => NumericType::UnsignedInteger,
-                    ALUType::INVALID => NumericType::Auto,
-                    _ => panic!("Invalid NIR ALU type"),
-                };
                 let dst_type = DataType::get(
                     intrin.def.num_components,
-                    num_type,
+                    intrin.dest_type().into(),
                     intrin.def.bit_size,
                 );
 
@@ -1811,16 +1816,9 @@ impl<'a> ShaderFromNir<'a> {
                 assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
                 assert_eq!(intrin.def.num_components, intrin.num_components);
 
-                let num_type = match intrin.dest_type().base_type() {
-                    ALUType::FLOAT => NumericType::Float,
-                    ALUType::INT => NumericType::SignedInteger,
-                    ALUType::UINT => NumericType::UnsignedInteger,
-                    ALUType::INVALID => NumericType::Auto,
-                    _ => panic!("Invalid NIR ALU type"),
-                };
                 let dst_type = DataType::get(
                     intrin.def.num_components,
-                    num_type,
+                    intrin.dest_type().into(),
                     intrin.def.bit_size,
                 );
 
@@ -1889,16 +1887,9 @@ impl<'a> ShaderFromNir<'a> {
                 assert_eq!(srcs[0].num_components(), intrin.num_components);
                 let bits = srcs[0].bit_size() * srcs[0].num_components();
 
-                let num_type = match intrin.src_type().base_type() {
-                    ALUType::FLOAT => NumericType::Float,
-                    ALUType::INT => NumericType::SignedInteger,
-                    ALUType::UINT => NumericType::UnsignedInteger,
-                    ALUType::INVALID => NumericType::Auto,
-                    _ => panic!("Invalid NIR ALU type"),
-                };
                 let src_type = DataType::get(
                     srcs[0].num_components(),
-                    num_type,
+                    intrin.src_type().into(),
                     srcs[0].bit_size(),
                 );
 
@@ -1960,16 +1951,9 @@ impl<'a> ShaderFromNir<'a> {
                 assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
                 assert_eq!(intrin.def.num_components, intrin.num_components);
 
-                let num_type = match intrin.dest_type().base_type() {
-                    ALUType::FLOAT => NumericType::Float,
-                    ALUType::INT => NumericType::SignedInteger,
-                    ALUType::UINT => NumericType::UnsignedInteger,
-                    ALUType::INVALID => NumericType::Auto,
-                    _ => panic!("Invalid NIR ALU type"),
-                };
                 let dst_type = DataType::get(
                     intrin.def.num_components,
-                    num_type,
+                    intrin.dest_type().into(),
                     intrin.def.bit_size,
                 );
 
