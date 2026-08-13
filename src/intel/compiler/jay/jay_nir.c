@@ -1269,8 +1269,14 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
    /* Jay requires LCSSA for correctness reading convergent loop-dependent
     * values outside of a divergent loop. Converting to LCSSA inserts the
     * required divergent 1-source phi after the loop.
+    *
+    * Additionally we require LCSSA phis for loop-invariant divergent booleans
+    * since those turn into uniform registers - so we need to replicate out the
+    * bits from the breaking lane with the phi. That will insert some convergent
+    * 1-bit phis in divergent control flow which Jay cannot handle, but
+    * lower_after_lcssa will eliminate these (required for correctness).
     */
-   JAY_NIR_PASS(nir_convert_to_lcssa, true, true);
+   JAY_NIR_PASS(nir_convert_to_lcssa, true, false);
    nir_divergence_analysis(nir);
    JAY_NIR_PASS(nir_shader_phi_pass, lower_after_lcssa,
                 nir_metadata_control_flow, NULL);
