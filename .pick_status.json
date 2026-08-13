@@ -924,7 +924,7 @@
         "description": "radv: disable nir_opt_reassociate_for_fma for VS if it's not the last pre FS shader",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fb774cf7a1ee4640b820427384e4085b2e6f1086",
         "notes": null
