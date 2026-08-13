@@ -51,18 +51,19 @@ fdl6_lrz_get_super_sampled_size(uint32_t *width, uint32_t *height,
    }
 }
 
+static uint32_t
+fdl6_lrz_get_fc_layer_pitch(uint32_t lrz_layer_pitch)
+{
+   return align(lrz_layer_pitch >> 7, 512) / 8;
+}
+
 template <chip CHIP>
 static uint32_t
-fdl6_lrz_get_fc_size(uint32_t width, uint32_t height, uint32_t nr_samples,
-                     uint32_t array_layers)
+fdl6_lrz_get_fc_size(uint32_t lrz_layer_pitch, uint32_t array_layers)
 {
-   fdl6_lrz_get_super_sampled_size(&width, &height, nr_samples);
+   unsigned fc_layer_byte_pitch = fdl6_lrz_get_fc_layer_pitch(lrz_layer_pitch);
 
-   unsigned nblocksx = DIV_ROUND_UP(DIV_ROUND_UP(width, 8), 16);
-   unsigned nblocksy = DIV_ROUND_UP(DIV_ROUND_UP(height, 8), 4);
-
-   uint32_t lrz_fc_size =
-      DIV_ROUND_UP(nblocksx * nblocksy, 8) * array_layers;
+   uint32_t lrz_fc_size = fc_layer_byte_pitch * array_layers;
 
    /* Fast-clear buffer cannot be larger than 512 bytes on A6XX and 1024 bytes
     * on A7XX (HW limitation)
@@ -152,9 +153,8 @@ fdl6_lrz_layout_init(struct fdl_lrz_layout *lrz_layout,
    lrz_layout->lrz_buffer_size = lrz_layout->lrz_layer_size * array_layers;
 
    /* Fast-clear buffer is 1bit/block */
-   lrz_layout->lrz_fc_size = fdl6_lrz_get_fc_size<CHIP>(
-      layout->width0 + extra_width, layout->height0 + extra_height,
-      layout->nr_samples, array_layers);
+   lrz_layout->lrz_fc_size =
+      fdl6_lrz_get_fc_size<CHIP>(lrz_layout->lrz_layer_size, array_layers);
 
    if (!dev_info->props.enable_lrz_fast_clear) {
       lrz_layout->lrz_fc_size = 0;
