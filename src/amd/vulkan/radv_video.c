@@ -1686,17 +1686,19 @@ get_av1_param(struct radv_video_session *vid, struct vk_video_session_parameters
    }
 
    if (pi->pTileInfo) {
+      const unsigned sb_shift = seq_hdr->flags.use_128x128_superblock ? 5 : 4;
       av1->tile_info.tile_cols = pi->pTileInfo->TileCols;
       av1->tile_info.tile_rows = pi->pTileInfo->TileRows;
       av1->tile_info.context_update_tile_id = pi->pTileInfo->context_update_tile_id;
-      for (unsigned i = 0; i < AV1_MAX_TILE_COLS + 1; ++i) {
-         const unsigned sb_shift = seq_hdr->flags.use_128x128_superblock ? 5 : 4;
+      for (unsigned i = 0; i < pi->pTileInfo->TileCols; ++i) {
          av1->tile_info.tile_col_start_sb[i] = pi->pTileInfo->pMiColStarts[i] >> sb_shift;
-         av1->tile_info.tile_row_start_sb[i] = pi->pTileInfo->pMiRowStarts[i] >> sb_shift;
+         av1->tile_info.width_in_sbs[i] = pi->pTileInfo->pWidthInSbsMinus1[i];
       }
-      memcpy(av1->tile_info.width_in_sbs, pi->pTileInfo->pWidthInSbsMinus1, sizeof(av1->tile_info.width_in_sbs));
-      memcpy(av1->tile_info.height_in_sbs, pi->pTileInfo->pHeightInSbsMinus1, sizeof(av1->tile_info.height_in_sbs));
-      for (unsigned i = 0; i < AV1_MAX_NUM_TILES; ++i) {
+      for (unsigned i = 0; i < pi->pTileInfo->TileRows; ++i) {
+         av1->tile_info.tile_row_start_sb[i] = pi->pTileInfo->pMiRowStarts[i] >> sb_shift;
+         av1->tile_info.height_in_sbs[i] = pi->pTileInfo->pHeightInSbsMinus1[i];
+      }
+      for (unsigned i = 0; i < MIN2(av1_pic_info->tileCount, AV1_MAX_NUM_TILES); ++i) {
          av1->tile_info.tile_offset[i] = av1_pic_info->pTileOffsets[i];
          av1->tile_info.tile_size[i] = av1_pic_info->pTileSizes[i];
       }
