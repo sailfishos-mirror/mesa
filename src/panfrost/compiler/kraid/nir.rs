@@ -2051,7 +2051,10 @@ impl<'a> ShaderFromNir<'a> {
             | nir_intrinsic_load_instance_id
             | nir_intrinsic_load_draw_id
             | nir_intrinsic_load_idvs_output_buf_index_pan
-            | nir_intrinsic_load_sample_centroid_pan => {
+            | nir_intrinsic_load_sample_centroid_pan
+            | nir_intrinsic_load_cumulative_coverage_pan
+            | nir_intrinsic_load_sample_mask
+            | nir_intrinsic_load_primitive_id => {
                 assert_eq!(intrin.def.bit_size, 32);
                 assert_eq!(intrin.def.num_components, 1);
 
@@ -2066,6 +2069,11 @@ impl<'a> ShaderFromNir<'a> {
                     nir_intrinsic_load_sample_centroid_pan => {
                         PreloadReg::SampleCentroidId
                     }
+                    nir_intrinsic_load_cumulative_coverage_pan
+                    | nir_intrinsic_load_sample_mask => {
+                        PreloadReg::CumulativeCoverage
+                    }
+                    nir_intrinsic_load_primitive_id => PreloadReg::PrimitiveId,
                     _ => unreachable!(),
                 };
                 let ssa = self.preload(b, reg);
