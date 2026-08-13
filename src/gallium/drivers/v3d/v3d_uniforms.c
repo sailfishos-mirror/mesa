@@ -458,7 +458,6 @@ v3d_set_shader_uniform_dirty_flags(struct v3d_compiled_shader *shader)
 
                 case QUNIFORM_TMU_CONFIG_P0:
                 case QUNIFORM_TMU_CONFIG_P1:
-                case QUNIFORM_TEXTURE_CONFIG_P1:
                 case QUNIFORM_TEXTURE_FIRST_LEVEL:
                 case QUNIFORM_TEXRECT_SCALE_X:
                 case QUNIFORM_TEXRECT_SCALE_Y:
@@ -513,9 +512,7 @@ v3d_set_shader_uniform_dirty_flags(struct v3d_compiled_shader *shader)
                         break;
 
                 default:
-                        assert(quniform_contents_is_texture_p0(shader->prog_data.base->uniforms.contents[i]));
-                        dirty |= V3D_DIRTY_FRAGTEX | V3D_DIRTY_VERTTEX |
-                                 V3D_DIRTY_GEOMTEX | V3D_DIRTY_COMPTEX;
+                        UNREACHABLE("Unknown QUNIFORM");
                         break;
                 }
         }
