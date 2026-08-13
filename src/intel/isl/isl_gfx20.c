@@ -254,28 +254,18 @@ isl_gfx20_choose_image_alignment_el(const struct isl_device *dev,
                 ISL_GFX_VER(dev) >= 35);
          image_align_el->h = 8;
       }
-   } else if (fmtl->bpb >= 64) {
-      assert(fmtl->bpb == 64 || fmtl->bpb == 128);
+   } else {
       /* From RENDER_SURFACE_STATE::SurfaceHorizontalAlignment,
        *
        *    - 64bpe and 128bpe Surfaces Must Be HALIGN=64Bytes or 128Bytes (4,
        *      8 texels or 16 texels)
        *
-       * HALIGN=128 is used for losslessly compressed or linear surfaces. For
-       * other surface types, pick the smaller alignment of HALIGN=64 to save
-       * space.
-       */
-      *image_align_el = isl_extent3d(64 * 8 / fmtl->bpb, 4, 1);
-   } else {
-      /* From RENDER_SURFACE_STATE::SurfaceHorizontalAlignment,
-       *
        *    HALIGN=16Bytes(8 texels) is allowed only for 16b Depth, Stencil
        *    Surfaces (8b) and Tiled 24bpp, 48bpp and 96bpp surfaces
        *
-       * HALIGN=16 would save the most space, but it is reserved for the cases
-       * handled earlier in this if-ladder. Choose the next smallest alignment
-       * possible, HALIGN=32.
+       * Use the smallest alignment possible for the given format.
        */
-      *image_align_el = isl_extent3d(32 * 8 / fmtl->bpb, 4, 1);
+      const uint32_t halign_B = fmtl->bpb >= 64 ? 64 : 32;
+      *image_align_el = isl_extent3d(halign_B * 8 / fmtl->bpb, 4, 1);
    }
 }
