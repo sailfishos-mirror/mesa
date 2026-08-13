@@ -129,6 +129,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_depth_clamp_zero_one = true,
       .KHR_depth_stencil_resolve = true,
       .KHR_descriptor_update_template = true,
+      .KHR_device_address_commands = true,
       .KHR_device_group = true,
       .KHR_draw_indirect_count = info->cls_eng3d >= TURING_A,
       .KHR_driver_properties = true,
@@ -502,6 +503,9 @@ nvk_get_device_features(const struct nv_device_info *info,
       /* VK_KHR_compute_shader_derivatives */
       .computeDerivativeGroupQuads = info->cls_eng3d >= TURING_A,
       .computeDerivativeGroupLinear = info->cls_eng3d >= TURING_A,
+
+      /* VK_KHR_device_address_commands */
+      .deviceAddressCommands = true,
 
       /* VK_KHR_fragment_shader_barycentric */
       .fragmentShaderBarycentric = info->cls_eng3d >= TURING_A,
