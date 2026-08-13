@@ -321,6 +321,52 @@ impl RegAlignConstraint {
         RegAlignConstraint(mask)
     }
 
+    fn for_op_src(model: &dyn Model, op: &Op, src: &Src) -> Self {
+        let src_type = op.src_type(src);
+        let bytes = src.src_ref.bytes_read();
+
+        if src_type == DataType::SR {
+            assert!(src.swizzle.is_none());
+            assert!(bytes % 4 == 0);
+        }
+
+        if bytes > 4 {
+            // Valhall requires that 64-bit sources and staging registers
+            // reading more than a single register use an even register.
+            Self::for_align(8, 0)
+        } else if src_type == DataType::SR {
+            debug_assert!(bytes == 4);
+            Self::for_align(4, 0)
+        } else {
+            let swizzles: &[(u8, Swizzle)] = match bytes {
+                1 => &[
+                    (0, Swizzle::B0000),
+                    (1, Swizzle::B1111),
+                    (2, Swizzle::B2222),
+                    (3, Swizzle::B3333),
+                ],
+                2 => &[(0, Swizzle::H00), (2, Swizzle::H11)],
+                4 => {
+                    &[(0, Swizzle::NONE), (0, Swizzle::W00), (4, Swizzle::W11)]
+                }
+                _ => panic!("Invalid SSA value size"),
+            };
+
+            let align_mul = if model.op_src_is_64bit(op, src) { 8 } else { 4 };
+
+            let mut align = Self::new();
+            for &(b, s) in swizzles {
+                let Some(s) = s.swizzle(src.swizzle) else {
+                    continue;
+                };
+                if model.op_src_supports_swizzle(op, src, s) {
+                    align |= Self::for_align(align_mul, b);
+                }
+            }
+            align
+        }
+    }
+
     fn is_empty(&self) -> bool {
         self.0 == 0
     }
@@ -691,56 +737,9 @@ impl LocalRegAlloc<'_> {
                 continue;
             }
 
-            let src_type = instr.src_type(src);
             let bytes = vec.bytes();
-
-            if src_type == DataType::SR {
-                assert!(src.swizzle.is_none());
-                assert!(bytes % 4 == 0);
-            }
-
-            let bytes = vec.bytes();
-            let align = if bytes > 4 {
-                // Valhall requires that 64-bit sources and staging registers
-                // reading more than a single register use an even register.
-                RegAlignConstraint::for_align(8, 0)
-            } else if src_type == DataType::SR {
-                debug_assert!(bytes == 4);
-                RegAlignConstraint::for_align(4, 0)
-            } else {
-                let swizzles: &[(u8, Swizzle)] = match bytes {
-                    1 => &[
-                        (0, Swizzle::B0000),
-                        (1, Swizzle::B1111),
-                        (2, Swizzle::B2222),
-                        (3, Swizzle::B3333),
-                    ],
-                    2 => &[(0, Swizzle::H00), (2, Swizzle::H11)],
-                    4 => &[
-                        (0, Swizzle::NONE),
-                        (0, Swizzle::W00),
-                        (4, Swizzle::W11),
-                    ],
-                    _ => panic!("Invalid SSA value size"),
-                };
-
-                let align_mul = if self.model.op_src_is_64bit(&instr.op, src) {
-                    8
-                } else {
-                    4
-                };
-
-                let mut align = RegAlignConstraint::new();
-                for &(b, s) in swizzles {
-                    let Some(s) = s.swizzle(src.swizzle) else {
-                        continue;
-                    };
-                    if self.model.op_src_supports_swizzle(&instr.op, src, s) {
-                        align |= RegAlignConstraint::for_align(align_mul, b);
-                    }
-                }
-                align
-            };
+            let align =
+                RegAlignConstraint::for_op_src(self.model, &instr.op, src);
 
             let mut first_seen = true;
             for src_dst in srcs_dsts.iter_mut() {
