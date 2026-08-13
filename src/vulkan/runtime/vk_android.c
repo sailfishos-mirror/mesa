@@ -814,20 +814,14 @@ vk_image_usage_to_ahb_usage(const VkImageCreateFlags2KHR vk_create,
 }
 
 static bool
-vk_ahb_probe_format(VkFormat vk_format,
-                    VkImageCreateFlags vk_create,
-                    VkImageUsageFlags vk_usage)
+vk_ahb_probe_format(uint32_t ahb_format, uint64_t ahb_usage)
 {
-   const uint32_t ahb_format = vk_image_format_to_ahb_format(vk_format);
-   if (!ahb_format)
-      return false;
-
    AHardwareBuffer_Desc desc = {
       .width = 16,
       .height = 16,
       .layers = 1,
       .format = ahb_format,
-      .usage = vk_image_usage_to_ahb_usage(vk_create, vk_usage),
+      .usage = ahb_usage,
    };
 #if ANDROID_API_LEVEL >= 29
    return AHardwareBuffer_isSupported(&desc);
@@ -1169,7 +1163,7 @@ vk_android_get_ahb_image_properties(
 {
    VK_FROM_HANDLE(vk_physical_device, pdevice, pdev_handle);
    VkExternalImageFormatProperties *external_props;
-   VkAndroidHardwareBufferUsageANDROID *ahb_usage;
+   VkAndroidHardwareBufferUsageANDROID *ahb_usage_props;
 
    ASSERTED const VkPhysicalDeviceExternalImageFormatInfo *external_info =
       vk_find_struct_const(info->pNext,
@@ -1184,11 +1178,31 @@ vk_android_get_ahb_image_properties(
                        "type (%u) unsupported for AHB", info->type);
    }
 
-   if (!vk_ahb_probe_format(info->format, info->flags, info->usage)) {
-      return vk_errorf(
-         pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED,
-         "format (%u) flags (0x%x) usage (0x%x) unsupported for AHB",
-         info->format, info->flags, info->usage);
+   const uint32_t ahb_format = vk_image_format_to_ahb_format(info->format);
+   if (!ahb_format) {
+      return vk_errorf(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED,
+                       "format (%u) unsupported for AHB", info->format);
+   }
+
+   const VkImageCreateFlags2KHR vk_flags = vk_image_format_info_2_flags(info);
+   const VkImageUsageFlags2KHR vk_usage = vk_image_format_info_2_usage(info);
+   uint64_t ahb_usage = vk_image_usage_to_ahb_usage(vk_flags, vk_usage);
+
+   /* Keep this in sync with the usage bits vk_alloc_ahardware_buffer()
+    * actually requests for a dedicated allocation, so apps querying
+    * support see the same usage that will be used at allocation time.
+    */
+   const VkImageCompressionControlEXT *compression_control =
+      vk_find_struct_const(info->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
+   if (compression_control &&
+       (compression_control->flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
+       !vk_format_is_depth_or_stencil(info->format))
+      ahb_usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
+
+   if (!vk_ahb_probe_format(ahb_format, ahb_usage)) {
+      return vk_errorf(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED,
+                       "ahb_format (%u) ahb_usage (0x%" PRIx64 ") unsupported",
+                       ahb_format, ahb_usage);
    }
 
    external_props =
@@ -1206,28 +1220,10 @@ vk_android_get_ahb_image_properties(
       };
    }
 
-   ahb_usage =
+   ahb_usage_props =
       vk_find_struct(props->pNext, ANDROID_HARDWARE_BUFFER_USAGE_ANDROID);
-   if (ahb_usage) {
-      VkImageCreateFlags2KHR image_flags = vk_image_format_info_2_flags(info);
-      VkImageUsageFlags2KHR image_usage = vk_image_format_info_2_usage(info);
-
-      ahb_usage->androidHardwareBufferUsage =
-         vk_image_usage_to_ahb_usage(image_flags, image_usage);
-
-      /* Keep this in sync with the usage bits vk_alloc_ahardware_buffer()
-       * actually requests for a dedicated allocation, so apps querying
-       * support see the same usage that will be used at allocation time.
-       */
-      const VkImageCompressionControlEXT *compression_control =
-         vk_find_struct_const(info->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
-      if (compression_control &&
-          (compression_control->flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
-          !vk_format_is_depth_or_stencil(info->format)) {
-         ahb_usage->androidHardwareBufferUsage |=
-            AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
-      }
-   }
+   if (ahb_usage_props)
+      ahb_usage_props->androidHardwareBufferUsage = ahb_usage;
 
    return VK_SUCCESS;
 }
