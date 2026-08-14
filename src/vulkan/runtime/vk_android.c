@@ -822,6 +822,37 @@ vk_image_info_to_ahb_usage(VkFormat vk_format,
    uint64_t ahb_usage = vk_image_usage_to_ahb_usage(vk_create, vk_usage);
    bool force_linear = false;
 
+   /* Optimal tiling can be assumed for mutability only between unorm and srgb
+    * variants. For anything beyond that, force AHB alloc with linear tiling.
+    * This should cover most practical usages without perf impact. Ideally, a
+    * new gralloc query is needed to precisely instruct the allocation, but the
+    * shape could vary a lot across different vendors.
+    *
+    * To be noted: Android 16 and 17 have missed to forward the app provided
+    * image format list to AHB usage query for VK_KHR_swapchain_mutable_format
+    * support in the platform loader. The lucky part is the exact list does get
+    * forwarded to the actual ANB image creation. So we additionally workaround
+    * to assume optimal tiling when there's no format list provided.
+    */
+   if (vk_create & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) {
+      const VkImageFormatListCreateInfo *format_list =
+         vk_find_struct_const(image_info_pnext, IMAGE_FORMAT_LIST_CREATE_INFO);
+      if (format_list && format_list->viewFormatCount > 1) {
+         /* vk_format_srgb_to_linear returns the original format if not srgb */
+         const VkFormat src_fmt =
+            vk_format_srgb_to_linear(format_list->pViewFormats[0]);
+
+         for (uint32_t i = 1; i < format_list->viewFormatCount; i++) {
+            const VkFormat dst_fmt =
+               vk_format_srgb_to_linear(format_list->pViewFormats[i]);
+            if (src_fmt != dst_fmt) {
+               force_linear = true;
+               break;
+            }
+         }
+      }
+   }
+
    /* VK_IMAGE_COMPRESSION_DISABLED_EXT means the app doesn't want an
     * implicit compressed/tiled layout for this image. Use
     * CPU_WRITE_RARELY to implicitly force LINEAR, preventing gralloc from
