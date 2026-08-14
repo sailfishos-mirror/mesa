@@ -299,6 +299,12 @@ fn fold_lanes(alloc_lanes: DstLanes, dst_lanes: DstLanes) -> DstLanes {
     }
 }
 
+fn aligned_u16_range(start: u16, len: u16) -> Range<u16> {
+    debug_assert!(len.is_power_of_two());
+    let start = start & !(len - 1);
+    start..(start + len)
+}
+
 /// A register alignment constraint, specified as an 8-bit bitfield of possible
 /// offsets from an even register.  For registers which do not need to be even-
 /// aligned, they simply repeat the constraint in both halves of the u8.
@@ -319,6 +325,88 @@ impl RegAlignConstraint {
             _ => panic!("Invalid register alignment multiplier"),
         };
         RegAlignConstraint(mask)
+    }
+
+    fn for_dst_lanes(dst_lanes: DstLanes) -> Self {
+        let (align_mul, align_off) = dst_lanes.align();
+        RegAlignConstraint::for_align(align_mul, align_off)
+    }
+
+    fn for_dst_lanes_set(dst_lanes_set: DstLanesSet) -> Self {
+        let mut align = RegAlignConstraint::new();
+        for lanes in dst_lanes_set.iter() {
+            align |= RegAlignConstraint::for_dst_lanes(lanes);
+        }
+        align
+    }
+
+    fn for_op_dst(model: &dyn Model, op: &Op, dst: &Dst) -> (u8, Self) {
+        let supported_lanes = model.op_dst_supported_lanes(op);
+        let b_lanes = DstLanesSet::from_array([
+            DstLanes::B0,
+            DstLanes::B1,
+            DstLanes::B2,
+            DstLanes::B3,
+        ]);
+        let h_lanes = DstLanesSet::from_array([DstLanes::H0, DstLanes::H1]);
+
+        let bytes = dst.dst_ref.bytes_written();
+        if bytes > 4 {
+            // Valhall requires that 64-bit destinations and staging
+            // registers writing more than a single register use an even
+            // register.
+            debug_assert_eq!(dst.lanes, DstLanes::All);
+            debug_assert!(supported_lanes.contains(DstLanes::All));
+            (bytes, RegAlignConstraint::for_align(8, 0))
+        } else if model.op_dst_is_staging_reg(op) {
+            // Staging register writes generally can't be widened.
+            debug_assert!(supported_lanes.contains(dst.lanes));
+
+            let align = if dst.lanes == DstLanes::AnyB {
+                RegAlignConstraint::for_dst_lanes_set(supported_lanes & b_lanes)
+            } else if dst.lanes == DstLanes::AnyH {
+                RegAlignConstraint::for_dst_lanes_set(supported_lanes & h_lanes)
+            } else {
+                RegAlignConstraint::for_dst_lanes(dst.lanes)
+            };
+
+            // Staging register writes respect lanes in the sense that that's
+            // where they put the data but they may not do partial writes
+            // correctly.  We need to request a whole register, regardless of
+            // destination size or alignment.
+            (4, align)
+        } else {
+            // For ALU ops, 8 and 16-bit destinations might need to be widened
+            let mut alloc_lanes = dst.lanes;
+            while !supported_lanes.contains(alloc_lanes) {
+                alloc_lanes = widen_lanes(alloc_lanes);
+            }
+            let alloc_bytes = alloc_lanes.bytes(4);
+            debug_assert!(alloc_bytes >= bytes);
+
+            // Take the align from the original destination and mask off any
+            // alignments that the op disallows.  In the common case, nothing
+            // is masked off because the ops we widen typically support both
+            // DstLanes::H0 and DstLanes::H1.
+            let mut align = RegAlignConstraint::for_dst_lanes(dst.lanes);
+            if alloc_lanes == DstLanes::AnyB {
+                for lanes in (b_lanes - supported_lanes).iter() {
+                    let byte_range = lanes.as_byte_range().unwrap();
+                    debug_assert!(byte_range.start < 4);
+                    debug_assert_eq!(byte_range.len(), 1);
+                    align.0 &= !(0b00010001 << byte_range.start);
+                }
+            } else if alloc_lanes == DstLanes::AnyH {
+                for lanes in (h_lanes - supported_lanes).iter() {
+                    let byte_range = lanes.as_byte_range().unwrap();
+                    debug_assert!(byte_range.start < 4);
+                    debug_assert_eq!(byte_range.len(), 2);
+                    align.0 &= !(0b00110011 << byte_range.start);
+                }
+            }
+            debug_assert!(!align.is_empty());
+            (alloc_bytes, align)
+        }
     }
 
     fn for_op_src(model: &dyn Model, op: &Op, src: &Src) -> Self {
@@ -702,9 +790,25 @@ impl LocalRegAlloc<'_> {
         bytes: u8,
         align: RegAlignConstraint,
     ) -> Range<u16> {
-        debug_assert!(bytes >= vec.bytes());
-        let b = self.find_unpinned_bytes(bytes, align, |_| 0).unwrap();
-        b..(b + u16::from(bytes))
+        let ssa_bytes = vec.bytes();
+        let b = if vec.comps() == 1 {
+            debug_assert!(ssa_bytes <= bytes && bytes <= 4);
+
+            let cost_fn = |b: u16| {
+                let bytes = aligned_u16_range(b, bytes.into());
+                debug_assert!(b + u16::from(ssa_bytes) <= bytes.end);
+                self.used
+                    .count_set_in_range(bytes.start.into()..bytes.end.into())
+                    .try_into()
+                    .unwrap_or(u8::MAX)
+            };
+
+            self.find_unpinned_bytes(ssa_bytes, align, cost_fn).unwrap()
+        } else {
+            debug_assert_eq!(ssa_bytes, bytes);
+            self.find_unpinned_bytes(bytes, align, |_| 0).unwrap()
+        };
+        b..(b + u16::from(ssa_bytes))
     }
 
     fn alloc_regs_instr(
@@ -795,56 +899,13 @@ impl LocalRegAlloc<'_> {
                 continue;
             }
 
-            let supported_lanes = self.model.op_dst_supported_lanes(&instr.op);
-
-            let mut alloc_lanes = dst.lanes;
-            while !supported_lanes.contains(alloc_lanes) {
-                alloc_lanes = widen_lanes(alloc_lanes);
-            }
-
-            let bytes = vec.bytes();
-            let align = if bytes > 4 {
-                // Valhall requires that 64-bit destinations and staging
-                // registers writing more than a single register use an even
-                // register.
-                debug_assert_eq!(alloc_lanes, DstLanes::All);
-                RegAlignConstraint::for_align(8, 0)
-            } else if self.model.op_dst_is_staging_reg(&instr.op) {
-                // Staging register writes respect lanes in the sense that
-                // that's where they put the data but they may not do
-                // partial writes correctly.
-                RegAlignConstraint::for_align(4, 0)
-            } else if alloc_lanes == DstLanes::AnyB {
-                let mut align = RegAlignConstraint::new();
-                for lanes in
-                    [DstLanes::B0, DstLanes::B1, DstLanes::B2, DstLanes::B3]
-                {
-                    if supported_lanes.contains(lanes) {
-                        let (align_mul, align_off) = lanes.align();
-                        debug_assert_eq!(align_mul, 4);
-                        align |= RegAlignConstraint::for_align(4, align_off);
-                    }
-                }
-                align
-            } else if alloc_lanes == DstLanes::AnyH {
-                let mut align = RegAlignConstraint::new();
-                for lanes in [DstLanes::H0, DstLanes::H1] {
-                    if supported_lanes.contains(lanes) {
-                        let (align_mul, align_off) = lanes.align();
-                        debug_assert_eq!(align_mul, 4);
-                        align |= RegAlignConstraint::for_align(4, align_off);
-                    }
-                }
-                align
-            } else {
-                let (align_mul, align_off) = alloc_lanes.align();
-                RegAlignConstraint::for_align(align_mul, align_off)
-            };
+            let (bytes, align) =
+                RegAlignConstraint::for_op_dst(self.model, &instr.op, dst);
 
             srcs_dsts.push(SrcDst {
                 is_src: false,
                 mask: 1 << i,
-                bytes: alloc_lanes.bytes(bytes),
+                bytes,
                 align,
                 vec: vec.clone(),
             });
@@ -855,7 +916,8 @@ impl LocalRegAlloc<'_> {
         srcs_dsts.sort_by_key(|a| std::cmp::Reverse(a.bytes));
 
         for src_dst in &srcs_dsts {
-            let bytes = if src_dst.is_src {
+            let ssa_bytes = if src_dst.is_src {
+                debug_assert_eq!(src_dst.bytes, src_dst.vec.bytes());
                 self.choose_src_bytes(&src_dst.vec, src_dst.align, &src_bytes)
             } else {
                 self.choose_dst_bytes(
@@ -863,6 +925,18 @@ impl LocalRegAlloc<'_> {
                     src_dst.bytes,
                     src_dst.align,
                 )
+            };
+
+            // Expand the byte range, if needed.  This can happen for ALU dsts
+            // if we had to widen the ALU op.
+            let bytes = if ssa_bytes.len() < usize::from(src_dst.bytes) {
+                let aligned =
+                    aligned_u16_range(ssa_bytes.start, src_dst.bytes.into());
+                debug_assert!(ssa_bytes.end <= aligned.end);
+                aligned
+            } else {
+                debug_assert_eq!(ssa_bytes.len(), usize::from(src_dst.bytes));
+                ssa_bytes.clone()
             };
 
             // Evict anything that currently lives in the selected range.
@@ -881,29 +955,8 @@ impl LocalRegAlloc<'_> {
             // Pin the range
             self.pin_bytes(bytes.clone());
 
-            // For destinations, we may allocate more space than needed by the
-            // SSARef.  This can happen if for instance, we have a byte SSARef
-            // but the instruction only supports half-word write masks.  In this
-            // case, we need to pin and evict the whole range because that's
-            // what the instruction will write but we only want to assign a
-            // subset of that range to the SSARef.
-            let ssa_bytes = if src_dst.is_src {
-                bytes.clone()
-            } else {
-                debug_assert!(src_dst.mask.is_power_of_two());
-                let i = usize::try_from(src_dst.mask.trailing_zeros()).unwrap();
-                let dst = &instr.dsts()[i];
-
-                let (dst_mul, dst_off) = dst.lanes.align();
-                let ssa_b = (bytes.start & !(u16::from(dst_mul) - 1))
-                    | u16::from(dst_off);
-                let ssa_bytes = ssa_b..(ssa_b + u16::from(src_dst.vec.bytes()));
-                debug_assert!(bytes.start <= ssa_bytes.start);
-                debug_assert!(ssa_bytes.end <= bytes.end);
-                ssa_bytes
-            };
-
-            for (ssa, bytes) in iter_ssa_bytes(&src_dst.vec, ssa_bytes) {
+            for (ssa, bytes) in iter_ssa_bytes(&src_dst.vec, ssa_bytes.clone())
+            {
                 // Assign the SSA value to the byte range
                 self.assign_ssa_bytes(ssa, bytes.clone());
 
@@ -955,11 +1008,18 @@ impl LocalRegAlloc<'_> {
                 debug_assert!(src_dst.mask.is_power_of_two());
                 let i = usize::try_from(src_dst.mask.trailing_zeros()).unwrap();
 
-                // Assign the dst to the whole byte range
-                let dst = &mut instr.dsts_mut()[i];
-                let ra_dst = self.arena.dst_for_bytes(bytes);
-                dst.dst_ref = ra_dst.dst_ref;
-                dst.lanes = fold_lanes(ra_dst.lanes, dst.lanes);
+                if self.model.op_dst_is_staging_reg(&instr.op) {
+                    // Staging registers respect lanes.  We just widened the
+                    // destination to avoid data races.
+                    let dst = &mut instr.dsts_mut()[i];
+                    *dst = self.arena.dst_for_bytes(ssa_bytes);
+                } else {
+                    // For ALU ops, we need to widen the destination as needed
+                    let dst = &mut instr.dsts_mut()[i];
+                    let ra_dst = self.arena.dst_for_bytes(bytes);
+                    dst.dst_ref = ra_dst.dst_ref;
+                    dst.lanes = fold_lanes(ra_dst.lanes, dst.lanes);
+                }
             }
         }
 
