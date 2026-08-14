@@ -2781,6 +2781,53 @@ impl DisplayOp for OpLdTex {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpLdTile {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    #[src_type(I32)]
+    pub pixel: Src,
+    #[src_type(I32)]
+    pub coverage: Src,
+
+    /// Ignored if z_stencil
+    #[src_type(I32)]
+    pub conversion: Src,
+
+    pub is_resource: bool,
+    pub z_stencil: bool,
+    pub z_last_read: bool,
+}
+
+impl DisplayOp for OpLdTile {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_TILE.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {} {}",
+            bool_as_mod_str!(self.z_stencil),
+            bool_as_mod_str!(self.z_last_read),
+            self.fmt_src(&self.pixel),
+            self.fmt_src(&self.coverage),
+            self.fmt_handle_src(&self.conversion),
+        )
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum SamplePosition {
     Center,
@@ -3975,6 +4022,47 @@ impl DisplayOp for OpStore {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(src_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpStTile {
+    pub src_type: DataType,
+
+    pub data: Src,
+
+    #[src_type(I32)]
+    pub pixel: Src,
+    #[src_type(I32)]
+    pub coverage: Src,
+    #[src_type(I32)]
+    pub conversion: Src,
+}
+
+impl DisplayOp for OpStTile {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ST_TILE.{}", self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {} {}",
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.pixel),
+            self.fmt_src(&self.coverage),
+            self.fmt_handle_src(&self.conversion),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [
     I8, S8, U8,
     V2I8, V2S8, V2U8,
     V4I8, V4S8, V4U8,
@@ -4478,6 +4566,7 @@ pub enum Op {
     LdGClk(Box<OpLdGClk>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
+    LdTile(Box<OpLdTile>),
     LdVar(Box<OpLdVar>),
     LdVarBuf(Box<OpLdVarBuf>),
     LdVarBufFlat(Box<OpLdVarBufFlat>),
@@ -4506,6 +4595,7 @@ pub enum Op {
     ShiftLop(Box<OpShiftLop>),
     StCvt(Box<OpStCvt>),
     Store(Box<OpStore>),
+    StTile(Box<OpStTile>),
     Swz(Box<OpSwz>),
     TexFetch(Box<OpTexFetch>),
     TexGather(Box<OpTexGather>),
@@ -4563,6 +4653,7 @@ impl Op {
                 | Op::ScheduleBarrier(_)
                 | Op::Store(_)
                 | Op::StCvt(_)
+                | Op::StTile(_)
                 | Op::ZSEmit(_)
         )
     }
@@ -4580,7 +4671,7 @@ impl Op {
             Op::LdCvt(op) => read_with_access(op.access),
             Op::LdPka(op) => read_with_access(op.access),
             Op::Load(op) => read_with_access(op.access),
-            Op::LdTex(_) => MemoryEffect::Read,
+            Op::LdTex(_) | Op::LdTile(_) => MemoryEffect::Read,
             Op::LdVar(_)
             | Op::LdVarBuf(_)
             | Op::LdVarBufFlat(_)
@@ -4593,6 +4684,7 @@ impl Op {
             | Op::BlendCall(_)
             | Op::StCvt(_)
             | Op::Store(_)
+            | Op::StTile(_)
             | Op::ZSEmit(_) => MemoryEffect::Write,
             Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
                 MemoryEffect::ReadWrite

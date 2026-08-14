@@ -2165,6 +2165,31 @@ impl V9Instr for OpLdTex {
     }
 }
 
+impl V9Instr for OpLdTile {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdTile::get_info((), arch),
+            src_map! {
+                src0: pixel,
+                src1: coverage,
+                src2: conversion,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LdTile {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.pixel),
+            src1: op_encode_src(self, &self.coverage),
+            src2: op_encode_src(self, &self.conversion),
+            z_stencil: self.z_stencil.into(),
+            z_last_read: self.z_last_read.into(),
+        })
+    }
+}
+
 impl From<ops::SamplePosition> for v9::SamplePosition {
     fn from(value: ops::SamplePosition) -> Self {
         match value {
@@ -3068,6 +3093,30 @@ impl V9Instr for OpStore {
     }
 }
 
+impl V9Instr for OpStTile {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            StTile::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: pixel,
+                src1: coverage,
+                src2: conversion,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(StTile {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.pixel),
+            src1: op_encode_src(self, &self.coverage),
+            src2: op_encode_src(self, &self.conversion),
+        })
+    }
+}
+
 impl From<TexCoordMode> for TexCoordinateModeM {
     fn from(coord_mode: TexCoordMode) -> Self {
         match coord_mode {
@@ -3387,6 +3436,7 @@ macro_rules! v9_op_match_else {
             Op::LdGClk($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
+            Op::LdTile($x) => $y,
             Op::LdVar($x) => $y,
             Op::LdVarBuf($x) => $y,
             Op::LdVarBufFlat($x) => $y,
@@ -3408,6 +3458,7 @@ macro_rules! v9_op_match_else {
             Op::ShiftLop($x) => $y,
             Op::StCvt($x) => $y,
             Op::Store($x) => $y,
+            Op::StTile($x) => $y,
             Op::TexFetch($x) => $y,
             Op::TexGather($x) => $y,
             Op::TexGradient($x) => $y,

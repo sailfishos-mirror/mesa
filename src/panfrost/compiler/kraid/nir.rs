@@ -1728,6 +1728,61 @@ impl<'a> ShaderFromNir<'a> {
                     handle,
                 });
             }
+            nir_intrinsic_load_tile_pan | nir_intrinsic_load_tile_res_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    intrin.dest_type().into(),
+                    intrin.def.bit_size,
+                );
+
+                let pixel = self.get_src(&srcs[0]);
+                let coverage = self.get_src(&srcs[1]);
+                let conversion = self.get_src(&srcs[2]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+
+                let is_resource =
+                    intrin.intrinsic == nir_intrinsic_load_tile_res_pan;
+                let z_stencil = matches!(
+                    intrin.io_semantics().location(),
+                    FRAG_RESULT_DEPTH | FRAG_RESULT_STENCIL
+                );
+
+                b.push_op(OpLdTile {
+                    dst,
+                    dst_type,
+                    pixel,
+                    coverage,
+                    conversion,
+                    is_resource,
+                    z_stencil,
+                    z_last_read: false, // TODO: optimize???
+                });
+            }
+            nir_intrinsic_store_tile_pan => {
+                assert_eq!(srcs[0].bit_size(), intrin.src_type().bit_size());
+
+                let src_type = DataType::get(
+                    srcs[0].num_components(),
+                    intrin.src_type().into(),
+                    srcs[0].bit_size(),
+                );
+
+                let data = self.get_src(&srcs[0]);
+                let pixel = self.get_src(&srcs[1]);
+                let coverage = self.get_src(&srcs[2]);
+                let conversion = self.get_src(&srcs[3]);
+
+                b.push_op(OpStTile {
+                    src_type,
+                    data,
+                    pixel,
+                    coverage,
+                    conversion,
+                });
+            }
             nir_intrinsic_load_global | nir_intrinsic_load_global_constant => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let (addr, offset) = self.get_src_add_imm(&srcs[0], 16, true);

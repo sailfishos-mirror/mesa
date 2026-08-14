@@ -109,6 +109,8 @@ fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
                     Op::ATest(_)
                     | Op::Barrier(_)
                     | Op::Blend(_)
+                    | Op::LdTile(_)
+                    | Op::StTile(_)
                     | Op::ZSEmit(_) => {
                         // These aren't counted
                     }
