@@ -222,6 +222,26 @@ kms_sw_displaytarget_create(struct sw_winsys *ws,
    return NULL;
 }
 
+static struct kms_sw_displaytarget *
+kms_sw_displaytarget_find_and_ref(struct kms_sw_winsys *kms_sw,
+                                  unsigned int kms_handle)
+{
+   struct kms_sw_displaytarget *kms_sw_dt;
+
+   LIST_FOR_EACH_ENTRY(kms_sw_dt, &kms_sw->bo_list, link) {
+      if (kms_sw_dt->handle == kms_handle) {
+         kms_sw_dt->ref_count++;
+
+         DEBUG_PRINT("KMS-DEBUG: imported buffer %u (size %u)\n",
+                     kms_sw_dt->handle, kms_sw_dt->size);
+
+         return kms_sw_dt;
+      }
+   }
+
+   return NULL;
+}
+
 static struct sw_displaytarget *
 kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
                                    unsigned tex_usage,
@@ -344,26 +364,6 @@ kms_sw_displaytarget_map(struct sw_winsys *ws,
    return *ptr + plane->offset;
 fail_locked:
    mtx_unlock(&kms_sw_dt->map_lock);
-   return NULL;
-}
-
-static struct kms_sw_displaytarget *
-kms_sw_displaytarget_find_and_ref(struct kms_sw_winsys *kms_sw,
-                                  unsigned int kms_handle)
-{
-   struct kms_sw_displaytarget *kms_sw_dt;
-
-   LIST_FOR_EACH_ENTRY(kms_sw_dt, &kms_sw->bo_list, link) {
-      if (kms_sw_dt->handle == kms_handle) {
-         kms_sw_dt->ref_count++;
-
-         DEBUG_PRINT("KMS-DEBUG: imported buffer %u (size %u)\n",
-                     kms_sw_dt->handle, kms_sw_dt->size);
-
-         return kms_sw_dt;
-      }
-   }
-
    return NULL;
 }
 
