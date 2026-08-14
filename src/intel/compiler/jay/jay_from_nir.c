@@ -3412,16 +3412,16 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
 
          /* TODO: We should probably lower this in NIR. */
          if (is_high_sampler) {
+            const int sampler_state_size_B = 16;
             if (jay_is_imm(sampler)) {
                unsigned s = jay_as_uint(sampler);
-               const int sampler_state_size_B = 16;
                unsigned offs_B = ROUND_DOWN_TO(s, 16) * sampler_state_size_B;
                assert(offs_B > 0 && "since s > 0");
                sampler_ptr = jay_ADD_u32(b, sampler_ptr, offs_B);
             } else {
-               jay_def offs_B =
-                  jay_SHL_u32(b, jay_AND_u32(b, sampler, 0xf0), 4);
-               sampler_ptr = jay_ADD_u32(b, sampler_ptr, offs_B);
+               jay_def offs_samplers = jay_AND_u32(b, sampler, 0xf0);
+               sampler_ptr = jay_MAD_u32(b, sampler_ptr, offs_samplers,
+                                         sampler_state_size_B);
             }
          }
 
