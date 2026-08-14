@@ -2089,6 +2089,67 @@ impl<'a> ShaderFromNir<'a> {
                 let ssa = self.preload(b, PreloadReg::ViewId);
                 self.set_ssa(&intrin.def, ssa.to_vec());
             }
+            nir_intrinsic_load_sample_id => {
+                // sample_id is in bits 16..24, Upper bits seem to read garbage
+                // (despite being architecturally defined as zero), so use a
+                // 5-bit mask instead of 8-bits
+                let raw_reg = self.preload(b, PreloadReg::SampleCentroidId);
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpShiftLop {
+                    dst,
+                    dst_type: DataType::U32,
+                    shift_op: ShiftOp::RShift,
+                    logic_op: LogicOp::And,
+                    not_result: false,
+                    src0: raw_reg.into(),
+                    shift: 16_u8.into(),
+                    src2: 0x1f_u32.into(),
+                });
+            }
+            nir_intrinsic_load_sample_positions_pan => {
+                assert_eq!(intrin.def.bit_size, 64);
+                assert_eq!(intrin.def.num_components, 1);
+                let fau = self.special_fau(SpecialFAU::Sample);
+                let dst = b.copy_i64(fau.into());
+                self.set_ssa(&intrin.def, dst.to_vec());
+            }
+            nir_intrinsic_load_sample_mask_in => {
+                assert_eq!(intrin.def.bit_size, 32);
+                assert_eq!(intrin.def.num_components, 1);
+                let reg = self.preload(b, PreloadReg::RasterizerCoverage);
+                let dst =
+                    b.copy_i32(Src::from(reg).swizzle(Swizzle::widen_u16(0)));
+                self.set_ssa(&intrin.def, vec![dst]);
+            }
+            nir_intrinsic_load_pixel_coord => {
+                assert_eq!(intrin.def.bit_size, 16);
+                assert_eq!(intrin.def.num_components, 2);
+                let ssa = self.preload(b, PreloadReg::PositionXY);
+                self.set_ssa(&intrin.def, ssa.to_vec());
+            }
+            nir_intrinsic_load_front_face => {
+                assert_eq!(intrin.def.bit_size, 32);
+                assert_eq!(intrin.def.num_components, 1);
+
+                let raw = self.preload(b, PreloadReg::PrimitiveFlags);
+
+                // Facing is the only field in the low byte, so select it
+                // rather than masking: (primitive_flags & 1) == 0 is front
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpICmp {
+                    dst,
+                    src_type: DataType::U32,
+                    res_type: CmpResultType::M1,
+                    cmp_op: CmpOp::Eq,
+                    srcs: [
+                        Src::from(raw).swizzle(Swizzle::widen_u8(0)),
+                        0_u32.into(),
+                    ],
+                    accum: 0_u32.into(),
+                    accum_op: CmpAccumOp::None,
+                });
+            }
             nir_intrinsic_load_shader_output_pan => {
                 assert_eq!(intrin.def.bit_size, 32);
                 assert_eq!(intrin.def.num_components, 1);

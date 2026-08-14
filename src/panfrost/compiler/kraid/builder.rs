@@ -111,6 +111,12 @@ pub trait SSABuilder: Builder + AllocSSA {
         def
     }
 
+    fn copy_i64(&mut self, src: Src) -> SSARef {
+        let def = self.alloc_ref(64);
+        self.copy_i64_to(def.clone().into(), src);
+        def
+    }
+
     fn copy_ssa(&mut self, src: SSAValue) -> SSAValue {
         let def = self.alloc_ssa(src.bits());
         self.copy_to(def.into(), DataType::i(src.bits()), src.into());
