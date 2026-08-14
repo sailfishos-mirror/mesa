@@ -73,10 +73,10 @@ get_pipeline(struct radv_device *device, const struct radv_image_view *src_iview
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_BLIT;
-   key.aspects = src_image->vk.aspects;
+   key.aspects = aspect;
    key.image_type = src_image->vk.image_type;
 
-   if (src_image->vk.aspects == VK_IMAGE_ASPECT_COLOR_BIT)
+   if (aspect == VK_IMAGE_ASPECT_COLOR_BIT)
       key.format = dst_image->vk.format;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
@@ -288,7 +288,7 @@ meta_emit_blit(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_i
    };
 
    VkRenderingAttachmentInfo color_att;
-   if (src_image->vk.aspects == VK_IMAGE_ASPECT_COLOR_BIT) {
+   if (src_iview->vk.aspects == VK_IMAGE_ASPECT_COLOR_BIT) {
       color_att = (VkRenderingAttachmentInfo){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
          .imageView = radv_image_view_to_handle(dst_iview),
@@ -301,7 +301,7 @@ meta_emit_blit(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_i
    }
 
    VkRenderingAttachmentInfo depth_att;
-   if (src_image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
+   if (src_iview->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
       depth_att = (VkRenderingAttachmentInfo){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
          .imageView = radv_image_view_to_handle(dst_iview),
@@ -313,7 +313,7 @@ meta_emit_blit(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_i
    }
 
    VkRenderingAttachmentInfo stencil_att;
-   if (src_image->vk.aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+   if (src_iview->vk.aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
       stencil_att = (VkRenderingAttachmentInfo){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
          .imageView = radv_image_view_to_handle(dst_iview),
