@@ -1544,20 +1544,21 @@ impl GlobalRegAlloc<'_> {
 
         cfg[bi].instrs = instrs;
     }
+}
 
-    fn alloc_regs(&mut self, s: &mut Shader, live: impl Liveness) {
-        let phi_map = PhiMap::for_shader(s);
+fn alloc_regs(s: &mut Shader, arena: &Arena, live: impl Liveness) {
+    let phi_map = PhiMap::for_shader(s);
 
-        self.live_out.resize_with(s.blocks.len(), Default::default);
-        for bi in 0..s.blocks.len() {
-            self.alloc_regs_block(
-                &mut s.blocks,
-                &live,
-                &mut s.ssa_alloc,
-                bi,
-                &phi_map,
-            );
-        }
+    let mut ra = GlobalRegAlloc::new(s.model, arena);
+    ra.live_out.resize_with(s.blocks.len(), Default::default);
+    for bi in 0..s.blocks.len() {
+        ra.alloc_regs_block(
+            &mut s.blocks,
+            &live,
+            &mut s.ssa_alloc,
+            bi,
+            &phi_map,
+        );
     }
 }
 
@@ -1786,8 +1787,7 @@ impl Shader<'_> {
                 self.info.tls_size.try_into().unwrap(),
             );
             self.run_pass("allocating spills", |s| {
-                let mut ra = GlobalRegAlloc::new(self.model, &mem_arena);
-                ra.alloc_regs(s, live);
+                alloc_regs(s, &mem_arena, live);
             });
             self.info.tls_size = mem_arena.bytes_used().into();
 
@@ -1797,8 +1797,7 @@ impl Shader<'_> {
         let live_reg_bytes = max_live.reg.try_into().unwrap();
         let reg_arena = Arena::new_reg(self.model, live_reg_bytes);
         self.run_pass("allocating registers", |s| {
-            let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
-            ra.alloc_regs(s, live);
+            alloc_regs(s, &reg_arena, live);
         });
         self.info.registers_used = reg_arena.regs_used();
     }
