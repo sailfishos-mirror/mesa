@@ -300,7 +300,7 @@ enum anv_bo_alloc_flags {
    /** Specifies that the BO may be shared externally */
    ANV_BO_ALLOC_EXTERNAL =                (1 << 1),
 
-   /** Specifies that the BO should be mapped */
+   /** Specifies that the BO should be mapped, only set internally in the driver */
    ANV_BO_ALLOC_MAPPED =                  (1 << 2),
 
    /** Specifies that the BO should be coherent.
