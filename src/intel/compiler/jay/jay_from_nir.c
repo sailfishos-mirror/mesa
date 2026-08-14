@@ -3410,13 +3410,6 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
          /* Select the default dynamic state base address + offset */
          jay_def sampler_ptr = nj->payload.sampler_state_pointer;
 
-         /* Gfx11+ sampler message headers include bits in 4:0 which conflict
-          * with the ones included in g0.3 bits 4:0.  Mask them out.
-          */
-         if (b->shader->devinfo->ver >= 11) {
-            sampler_ptr = jay_AND_u32(b, sampler_ptr, INTEL_MASK(31, 5));
-         }
-
          /* TODO: We should probably lower this in NIR. */
          if (is_high_sampler) {
             if (jay_is_imm(sampler)) {
@@ -4584,6 +4577,14 @@ jay_setup_payload(struct nir_to_jay_state *nj)
             push_data[base + c] = jay_extract(dst, c);
          }
       }
+   }
+
+   /* Gfx11+ sampler message headers include bits in 4:0 which conflict
+    * with the ones included in g0.3 bits 4:0. Mask them out ahead-of-time.
+    */
+   if (b->shader->devinfo->ver >= 11) {
+      nj->payload.sampler_state_pointer =
+         jay_AND_u32(b, nj->payload.sampler_state_pointer, INTEL_MASK(31, 5));
    }
 }
 
