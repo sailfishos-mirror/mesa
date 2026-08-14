@@ -1949,6 +1949,48 @@ wsi_wl_surface_check_presentation(VkIcdSurfaceBase *icd_surface,
 }
 
 static VkResult
+wsi_wl_surface_get_present_modes(VkIcdSurfaceBase *icd_surface,
+                                 struct wsi_device *wsi_device,
+                                 uint32_t* pPresentModeCount,
+                                 VkPresentModeKHR* pPresentModes)
+{
+   VkIcdSurfaceWayland *surface = (VkIcdSurfaceWayland *)icd_surface;
+   struct wsi_wayland *wsi =
+      (struct wsi_wayland *)wsi_device->wsi[VK_ICD_WSI_PLATFORM_WAYLAND];
+
+   struct wsi_wl_display display;
+   if (wsi_wl_display_init(wsi, &display, surface->display, true,
+                           wsi_device->sw, "mesa present modes query"))
+      return VK_ERROR_SURFACE_LOST_KHR;
+
+   VkPresentModeKHR present_modes[3];
+   uint32_t present_modes_count = 0;
+
+   /* The following two modes are always supported */
+   present_modes[present_modes_count++] = VK_PRESENT_MODE_MAILBOX_KHR;
+   present_modes[present_modes_count++] = VK_PRESENT_MODE_FIFO_KHR;
+
+   if (display.tearing_control_manager)
+      present_modes[present_modes_count++] = VK_PRESENT_MODE_IMMEDIATE_KHR;
+
+   assert(present_modes_count <= ARRAY_SIZE(present_modes));
+   wsi_wl_display_finish(&display);
+
+   if (pPresentModes == NULL) {
+      *pPresentModeCount = present_modes_count;
+      return VK_SUCCESS;
+   }
+
+   *pPresentModeCount = MIN2(*pPresentModeCount, present_modes_count);
+   typed_memcpy(pPresentModes, present_modes, *pPresentModeCount);
+
+   if (*pPresentModeCount < present_modes_count)
+      return VK_INCOMPLETE;
+   else
+      return VK_SUCCESS;
+}
+
+static VkResult
 wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
                                  struct wsi_device *wsi_device,
                                  const void *info_next,
@@ -2195,48 +2237,6 @@ wsi_wl_surface_get_formats2(VkIcdSurfaceBase *icd_surface,
    wsi_wl_display_finish(&display);
 
    return vk_outarray_status(&out);
-}
-
-static VkResult
-wsi_wl_surface_get_present_modes(VkIcdSurfaceBase *icd_surface,
-                                 struct wsi_device *wsi_device,
-                                 uint32_t* pPresentModeCount,
-                                 VkPresentModeKHR* pPresentModes)
-{
-   VkIcdSurfaceWayland *surface = (VkIcdSurfaceWayland *)icd_surface;
-   struct wsi_wayland *wsi =
-      (struct wsi_wayland *)wsi_device->wsi[VK_ICD_WSI_PLATFORM_WAYLAND];
-
-   struct wsi_wl_display display;
-   if (wsi_wl_display_init(wsi, &display, surface->display, true,
-                           wsi_device->sw, "mesa present modes query"))
-      return VK_ERROR_SURFACE_LOST_KHR;
-
-   VkPresentModeKHR present_modes[3];
-   uint32_t present_modes_count = 0;
-
-   /* The following two modes are always supported */
-   present_modes[present_modes_count++] = VK_PRESENT_MODE_MAILBOX_KHR;
-   present_modes[present_modes_count++] = VK_PRESENT_MODE_FIFO_KHR;
-
-   if (display.tearing_control_manager)
-      present_modes[present_modes_count++] = VK_PRESENT_MODE_IMMEDIATE_KHR;
-
-   assert(present_modes_count <= ARRAY_SIZE(present_modes));
-   wsi_wl_display_finish(&display);
-
-   if (pPresentModes == NULL) {
-      *pPresentModeCount = present_modes_count;
-      return VK_SUCCESS;
-   }
-
-   *pPresentModeCount = MIN2(*pPresentModeCount, present_modes_count);
-   typed_memcpy(pPresentModes, present_modes, *pPresentModeCount);
-
-   if (*pPresentModeCount < present_modes_count)
-      return VK_INCOMPLETE;
-   else
-      return VK_SUCCESS;
 }
 
 static VkResult
