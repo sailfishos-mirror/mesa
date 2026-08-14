@@ -3962,6 +3962,14 @@ const _: () = {
     assert!(size_of::<Op>() == 16);
 };
 
+#[derive(PartialEq)]
+pub enum MemoryEffect {
+    None,
+    Read,
+    Write,
+    ReadWrite,
+}
+
 impl Op {
     pub fn as_virtual(&self) -> Option<&dyn VirtualOpcode> {
         match self {
@@ -3989,6 +3997,28 @@ impl Op {
                 | Op::Store(_)
                 | Op::StCvt(_)
         )
+    }
+
+    pub fn memory_effect(&self) -> MemoryEffect {
+        match self {
+            Op::LdAttr(_)
+            | Op::LdCvt(_)
+            | Op::LdPka(_)
+            | Op::LdTex(_)
+            | Op::LeaBuf(_)
+            | Op::LeaPka(_)
+            | Op::LeaTex(_)
+            | Op::Load(_)
+            | Op::TexFetch(_)
+            | Op::TexGather(_)
+            | Op::TexGradient(_)
+            | Op::TexSingle(_) => MemoryEffect::Read,
+            Op::Store(_) | Op::StCvt(_) => MemoryEffect::Write,
+            Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
+                MemoryEffect::ReadWrite
+            }
+            _ => MemoryEffect::None,
+        }
     }
 }
 
