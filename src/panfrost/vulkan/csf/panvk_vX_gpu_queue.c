@@ -19,6 +19,7 @@
 #include "pan_trace.h"
 
 #include "util/bitscan.h"
+#include "util/log.h"
 #include "vk_drm_syncobj.h"
 #include "vk_log.h"
 
@@ -1112,15 +1113,23 @@ panvk_queue_submit_init_cmdbufs(struct panvk_queue_submit *submit,
 
             submit->utrace.data[j]->clone_cs_bufs = clone_ctx.cs_bufs;
 
-            submit->qsubmits[submit->qsubmit_count++] =
-               (struct drm_panthor_queue_submit){
-                  .queue_index = j,
-                  .stream_size = cs_root_chunk_size(&clone_builder),
-                  .stream_addr = cs_root_chunk_gpu_addr(&clone_builder),
-                  .latest_flush = flush_id,
-               };
+            /* A mid-build overflow allocation failure leaves the builder
+             * invalid; flush the original instead of submitting a broken CS. */
+            if (!cs_is_valid(&clone_builder)) {
+               mesa_loge("utrace: clone CS builder invalid (allocation failed "
+                         "mid-build); dropping trace for this submit");
+               u_trace_fini(&clone_ut);
+            } else {
+               submit->qsubmits[submit->qsubmit_count++] =
+                  (struct drm_panthor_queue_submit){
+                     .queue_index = j,
+                     .stream_size = cs_root_chunk_size(&clone_builder),
+                     .stream_addr = cs_root_chunk_gpu_addr(&clone_builder),
+                     .latest_flush = flush_id,
+                  };
 
-            ut = &clone_ut;
+               ut = &clone_ut;
+            }
          }
 
          u_trace_flush(ut, submit->utrace.data[j], dev->vk.current_frame,
