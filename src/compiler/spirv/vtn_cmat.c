@@ -98,6 +98,16 @@ vtn_cast_pointer_to_byte_pointer(struct vtn_builder *b, struct vtn_pointer *p)
    return vtn_cast_pointer(b, p, t);
 }
 
+static bool
+desc_type_is_signed(const struct glsl_type *type)
+{
+   if (type->cmat_desc.element_type == GLSL_TYPE_INT8 ||
+       type->cmat_desc.element_type == GLSL_TYPE_INT16 ||
+       type->cmat_desc.element_type == GLSL_TYPE_INT)
+      return true;
+   return false;
+}
+
 void
 vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
                                    const uint32_t *w, unsigned count)
@@ -205,9 +215,16 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpCooperativeMatrixConvertNV: {
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
+      unsigned signed_mask = 0;
+
+      if (desc_type_is_signed(dst_type->type))
+         signed_mask |= NIR_CMAT_RESULT_SIGNED;
+
+      if (desc_type_is_signed(src->type))
+         signed_mask |= NIR_CMAT_A_SIGNED;
 
       nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_convert_nv");
-      nir_cmat_convert(&b->nb, &dst->def, &src->def);
+      nir_cmat_convert(&b->nb, &dst->def, &src->def, .cmat_signed_mask = signed_mask);
       vtn_push_var_ssa(b, w[2], dst->var);
       break;
    }
@@ -215,9 +232,16 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpCooperativeMatrixTransposeNV: {
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
+      unsigned signed_mask = 0;
+
+      if (desc_type_is_signed(dst_type->type))
+         signed_mask |= NIR_CMAT_RESULT_SIGNED;
+
+      if (desc_type_is_signed(src->type))
+         signed_mask |= NIR_CMAT_A_SIGNED;
 
       nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_transpose_nv");
-      nir_cmat_transpose(&b->nb, &dst->def, &src->def);
+      nir_cmat_transpose(&b->nb, &dst->def, &src->def, .cmat_signed_mask = signed_mask);
       vtn_push_var_ssa(b, w[2], dst->var);
       break;
    }

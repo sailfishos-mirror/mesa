@@ -800,7 +800,7 @@ lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lo
    struct glsl_cmat_description src_desc = *glsl_get_cmat_description(src_deref->type);
    nir_def *src = radv_nir_load_cmat(b, params, intr->src[1].ssa);
 
-   bool sat = false;
+   bool sat = nir_intrinsic_saturate(intr);
    const bool transpose = intr->intrinsic == nir_intrinsic_cmat_transpose;
 
    enum glsl_cmat_use dst_use = dst_desc.use;
@@ -808,6 +808,12 @@ lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lo
 
    enum glsl_base_type dst_element_type = dst_desc.element_type;
    enum glsl_base_type src_element_type = src_desc.element_type;
+
+   nir_cmat_signed cmat_signed_mask = nir_intrinsic_cmat_signed_mask(intr);
+
+   dst_element_type =
+      glsl_apply_signedness_to_base_type(dst_element_type, cmat_signed_mask & NIR_CMAT_RESULT_SIGNED);
+   src_element_type = glsl_apply_signedness_to_base_type(src_element_type, cmat_signed_mask & NIR_CMAT_A_SIGNED);
 
    if (transpose) {
       /* NV_cmat2 only support acc -> b transpose, but we can handle any transpose except acc -> acc. */
@@ -823,13 +829,6 @@ lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lo
          else
             UNREACHABLE("unsupported transpose");
       }
-   } else {
-      sat = nir_intrinsic_saturate(intr);
-      nir_cmat_signed cmat_signed_mask = nir_intrinsic_cmat_signed_mask(intr);
-
-      dst_element_type =
-         glsl_apply_signedness_to_base_type(dst_element_type, cmat_signed_mask & NIR_CMAT_RESULT_SIGNED);
-      src_element_type = glsl_apply_signedness_to_base_type(src_element_type, cmat_signed_mask & NIR_CMAT_A_SIGNED);
    }
 
    unsigned dst_mul = radv_nir_cmat_length_mul(dst_desc, params);
