@@ -72,7 +72,8 @@ genX(cmd_buffer_ensure_cfe_state)(struct anv_cmd_buffer *cmd_buffer,
 #endif
 
 #if GFX_VER >= 30
-      cfe.DynamicStackIDControl = true;
+      cfe.DynamicStackIDControl =
+         cmd_buffer->device->physical->instance->drirc.perf.dynamic_stack_id_control;
 #endif
 
       cfe.OverDispatchControl = 2; /* 50% overdispatch */
