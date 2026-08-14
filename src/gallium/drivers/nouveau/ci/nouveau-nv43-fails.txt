@@ -715,13 +715,27 @@ dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_linear,Fail
 dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_nearest,Fail
 dEQP-GLES2.functional.texture.mipmap.cube.bias.nearest_linear,Fail
 dEQP-GLES2.functional.texture.mipmap.cube.bias.nearest_nearest,Fail
+
+# caused by nv30_transfer_rect_sifm
 dEQP-GLES2.functional.texture.mipmap.cube.generate.rgb888_nicest,Fail
 
+# additional note about nv30_transfer_rect_sifm
+# with disabled m2mf (so it passes to sifm), then this test becomes flakey:
+# dEQP-GLES2.functional.texture.mipmap.cube.generate.l8_nicest
+
+# caused by nv30_transfer_rect_blit
 dEQP-GLES2.functional.texture.specification.basic_copyteximage2d.2d_rgb,Fail
 dEQP-GLES2.functional.texture.specification.basic_copyteximage2d.2d_rgba,Fail
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.2d_rgb,Fail
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.2d_rgba,Fail
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.cube_rgb,Fail
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.cube_rgba,Fail
+
+# additional note about nv30_transfer_rect_blit:
+# if m2mf and sifm are disabled (so it passes to rect_blit),
+# then these tests also fail:
+# dEQP-GLES2.functional.texture.filtering.2d.linear_linear_mirror_rgba4444_pot,Fail
+# dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_linear_linear_repeat_rgba8888,Fail
+# dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_nearest_clamp,Fail
 
 # todo add KHR and piglit
