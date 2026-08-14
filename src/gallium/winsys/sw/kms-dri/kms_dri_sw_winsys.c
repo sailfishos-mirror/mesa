@@ -234,10 +234,13 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
    struct kms_sw_winsys *kms_sw = kms_sw_winsys(ws);
    struct kms_sw_displaytarget *kms_sw_dt;
    uint32_t kms_handle = -1;
+   int ret;
 
    assert(kms_sw && whandle);
 
-   drmPrimeFDToHandle(kms_sw->fd, whandle->handle, &kms_handle);
+   ret = drmPrimeFDToHandle(kms_sw->fd, whandle->handle, &kms_handle);
+   if (ret)
+      return NULL;
 
    kms_sw_dt = CALLOC_STRUCT(kms_sw_displaytarget);
    if (!kms_sw_dt)
