@@ -998,7 +998,7 @@ impl DisplayOp for OpF32ToI32 {
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, " {}", self.fmt_src(&self.src))
+        write!(f, "{} {}", self.round, self.fmt_src(&self.src))
     }
 }
 
