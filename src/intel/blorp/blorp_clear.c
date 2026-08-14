@@ -468,7 +468,7 @@ fast_clear_surf(struct blorp_batch *batch,
                 uint32_t level, uint32_t start_layer, uint32_t num_layers)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.num_layers = num_layers;
    assert((batch->flags & BLORP_BATCH_USE_COMPUTE) == 0);
 
@@ -800,7 +800,7 @@ blorp_clear(struct blorp_batch *batch,
             uint8_t color_write_disable)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    /* Linear clears are tracked separately so fill-buffer style paths don't
     * get mislabeled as generic slow color clears.
     */
@@ -1037,7 +1037,7 @@ blorp_clear_stencil_as_rgba(struct blorp_batch *batch,
       return false;
 
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_FAST_STENCIL_CLEAR;
 
    if (!blorp_params_get_clear_kernel(batch, &params, false, true, false)) {
@@ -1121,7 +1121,7 @@ blorp_clear_depth_stencil(struct blorp_batch *batch,
       return;
 
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = !clear_depth ? BLORP_OP_SLOW_STENCIL_CLEAR :
                !stencil_mask ? BLORP_OP_SLOW_DEPTH_CLEAR :
                BLORP_OP_SLOW_DEPTH_STENCIL_CLEAR;
@@ -1233,7 +1233,7 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
                               bool clear_stencil, uint8_t stencil_value)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = clear_stencil ? BLORP_OP_HIZ_STENCIL_CLEAR :
                BLORP_OP_HIZ_CLEAR;
 
@@ -1307,7 +1307,7 @@ blorp_clear_attachments(struct blorp_batch *batch,
                         uint8_t stencil_mask, uint8_t stencil_value)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
 
    assert((batch->flags & BLORP_BATCH_USE_COMPUTE) == 0);
    assert(batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL);
@@ -1377,7 +1377,7 @@ blorp_ccs_resolve(struct blorp_batch *batch,
    assert((batch->flags & BLORP_BATCH_USE_COMPUTE) == 0);
    struct blorp_params params;
 
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    switch(resolve_op) {
    case ISL_AUX_OP_AMBIGUATE:
       params.op = BLORP_OP_CCS_AMBIGUATE;
@@ -1589,7 +1589,7 @@ blorp_mcs_partial_resolve(struct blorp_batch *batch,
                           uint32_t start_layer, uint32_t num_layers)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_MCS_PARTIAL_RESOLVE;
 
    assert(batch->blorp->isl_dev->info->ver >= 7);
@@ -1663,7 +1663,7 @@ blorp_mcs_ambiguate(struct blorp_batch *batch,
    assert((batch->flags & BLORP_BATCH_USE_COMPUTE) == 0);
 
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_MCS_AMBIGUATE;
 
    assert(ISL_GFX_VER(batch->blorp->isl_dev) >= 7);
@@ -1746,7 +1746,7 @@ blorp_ccs_ambiguate(struct blorp_batch *batch,
    }
 
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_CCS_AMBIGUATE;
 
    assert(ISL_GFX_VER(batch->blorp->isl_dev) >= 7);

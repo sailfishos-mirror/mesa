@@ -361,7 +361,7 @@ blorp_op_to_intel_measure_snapshot(enum blorp_op op);
 
 const char *blorp_op_to_name(enum blorp_op op);
 
-void blorp_params_init(struct blorp_params *params);
+void blorp_params_init(struct blorp_params *params, struct blorp_context *blorp);
 
 #pragma pack(push, 1)
 struct blorp_base_key

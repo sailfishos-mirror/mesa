@@ -2938,7 +2938,7 @@ blorp_blit(struct blorp_batch *batch,
            bool mirror_x, bool mirror_y)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_BLIT;
    const bool compute = batch->flags & BLORP_BATCH_USE_COMPUTE;
    if (compute) {
@@ -3506,7 +3506,7 @@ blorp_copy(struct blorp_batch *batch,
    if (src_width == 0 || src_height == 0)
       return;
 
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
    params.op = BLORP_OP_COPY;
 
    const bool compute = batch->flags & BLORP_BATCH_USE_COMPUTE;

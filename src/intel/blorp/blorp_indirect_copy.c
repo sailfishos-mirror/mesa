@@ -260,7 +260,7 @@ blorp_copy_memory_indirect(struct blorp_batch *batch,
                            uint64_t stride)
 {
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
 
    params.op = BLORP_OP_COPY_INDIRECT;
    params.shader_type = BLORP_SHADER_TYPE_COPY_INDIRECT;
@@ -310,7 +310,7 @@ blorp_copy_memory_to_image_indirect(struct blorp_batch *batch,
    key.format_bd = fmtl->bd;
 
    struct blorp_params params;
-   blorp_params_init(&params);
+   blorp_params_init(&params, batch->blorp);
 
    params.op = BLORP_OP_COPY_IMAGE_INDIRECT;
    params.shader_type = BLORP_SHADER_TYPE_COPY_INDIRECT;
