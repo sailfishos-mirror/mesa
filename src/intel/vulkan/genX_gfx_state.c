@@ -3711,6 +3711,13 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
 
 #define IS_DIRTY(name) BITSET_TEST(hw_state->emit_dirty, ANV_GFX_STATE_##name)
 
+#if INTEL_WA_14024997852_GFX_VER
+   if (IS_DIRTY(WA_14024997852) &&
+       intel_needs_workaround(device->info, 14024997852)) {
+      genX(setup_autostrip_state)(cmd_buffer, !hw_state->autostrip_disabled);
+   }
+#endif
+
    /*
     * Values provided by push constants
     */
@@ -3721,13 +3728,6 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
                                                 VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
       gfx->base->push_constants_state = ANV_STATE_NULL;
    }
-
-#if INTEL_WA_14024997852_GFX_VER
-   if (IS_DIRTY(WA_14024997852) &&
-       intel_needs_workaround(device->info, 14024997852)) {
-      genX(setup_autostrip_state)(cmd_buffer, !hw_state->autostrip_disabled);
-   }
-#endif
 
    if (IS_DIRTY(FS_CONFIG)) {
       push_consts->drv_data.gfx.fs_config = hw_state->fs_config;
