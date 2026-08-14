@@ -1082,6 +1082,7 @@ impl V9Instr for OpFAdd {
             && self.srcs[0].src_mod.is_none()
             && self.round == FRound::NearestEven
             && self.clamp == FClamp::None
+            && !self.dst.lanes.is_f16_narrow()
             && FaddImm::is_supported(self.dst_type, arch)
     }
 
