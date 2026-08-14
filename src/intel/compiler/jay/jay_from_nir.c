@@ -3093,7 +3093,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
          jay_resource_handle(b, &tex->src[i].src, &x, NULL, &sampler_bindless);
       if (jay_is_null(sampler))
          sampler = jay_imm(x + tex->sampler_index);
-      else
+      else if (tex->sampler_index)
          sampler = jay_ADD_u32(b, sampler, tex->sampler_index);
    } else {
       sampler = jay_imm(tex->sampler_index);
