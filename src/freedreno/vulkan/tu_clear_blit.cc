@@ -2243,6 +2243,7 @@ tu6_clear_lrz(struct tu_cmd_buffer *cmd,
     * writing whole cache lines we assume to be 64 bytes.
     */
    tu_emit_event_write<CHIP>(cmd, &cmd->cs, FD_CACHE_CLEAN);
+   tu_cs_emit_wfi(cs);
 
    const unsigned lrz_buffers = CHIP >= A7XX ? 2 : 1;
    for (unsigned i = 0; i < lrz_buffers; i++) {
