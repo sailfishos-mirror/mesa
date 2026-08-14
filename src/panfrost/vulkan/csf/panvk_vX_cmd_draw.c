@@ -3112,14 +3112,37 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
 
    uint32_t idvs_count = DIV_ROUND_UP(cmdbuf->state.gfx.render.layer_count,
                                       MAX_LAYERS_PER_TILER_DESC);
+   bool dynamic_idvs_count = false;
+
+   if (idvs_count == 0 && inherits_render_ctx(cmdbuf)) {
+      /* The layer count is not part of inherited render state */
+#if PAN_ARCH >= 14
+      /* All layers always fit in one TD on v14+ */
+      idvs_count = 1;
+#else
+      dynamic_idvs_count = true;
+#endif
+   }
 
    panvk_cond_render(cmdbuf, b)
    {
-      if (idvs_count > 1) {
+      if (idvs_count > 1 || dynamic_idvs_count) {
          struct cs_index counter_reg = cs_scratch_reg32(b, 4);
          struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
+         struct cs_index tiler_ctx_addr_tmp = cs_scratch_reg64(b, 6);
 
-         cs_move32_to(b, counter_reg, idvs_count);
+         if (dynamic_idvs_count) {
+#if PAN_ARCH < 14
+            cs_load32_to(b, counter_reg, cs_subqueue_ctx_reg(b),
+                        offsetof(struct panvk_cs_subqueue_context,
+                                 render.td_count));
+            cs_add_imm64(b, tiler_ctx_addr_tmp, tiler_ctx_addr, 0);
+#else
+            UNREACHABLE("IDVS count is always static on v14+");
+#endif
+         } else {
+            cs_move32_to(b, counter_reg, idvs_count);
+         }
 
          cs_while(b, MALI_CS_CONDITION_GREATER, counter_reg) {
 #if PAN_ARCH >= 12
@@ -3141,8 +3164,11 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
          }
 
          cs_update_vt_ctx(b) {
-            cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
-                         -(idvs_count * pan_size(TILER_CONTEXT)));
+            if (dynamic_idvs_count)
+               cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr_tmp, 0);
+            else
+               cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
+                            -(idvs_count * pan_size(TILER_CONTEXT)));
          }
       } else {
 #if PAN_ARCH >= 12
@@ -3282,13 +3308,30 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
    struct cs_index max_draw_count = cs_scratch_reg32(b, 7);
    struct cs_index draw_id = cs_scratch_reg32(b, 7);
    struct cs_index idvs_count_reg = cs_scratch_reg32(b, 8);
+   struct cs_index idvs_count_reg_tmp = cs_scratch_reg32(b, 9);
    struct cs_index vs_fau_addr = cs_scratch_reg64(b, 10);
-   struct cs_index tracing_scratch_regs = cs_scratch_reg_tuple(b, 12, 4);
+   struct cs_index tiler_ctx_addr_tmp = cs_scratch_reg64(b, 12);
+   struct cs_index tracing_scratch_regs = cs_scratch_reg_tuple(b, 14, 4);
    struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
    uint32_t vs_fau_count = vs->fau.total_count;
 
    uint32_t idvs_count = DIV_ROUND_UP(cmdbuf->state.gfx.render.layer_count,
                                       MAX_LAYERS_PER_TILER_DESC);
+   bool dynamic_idvs_count = false;
+
+   if (idvs_count == 0 && inherits_render_ctx(cmdbuf)) {
+      /* The layer count is not part of inherited render state */
+#if PAN_ARCH >= 14
+      /* All layers always fit in one TD on v14+ */
+      idvs_count = 1;
+#else
+      dynamic_idvs_count = true;
+      cs_add_imm64(b, tiler_ctx_addr_tmp, tiler_ctx_addr, 0);
+      cs_load32_to(b, idvs_count_reg_tmp, cs_subqueue_ctx_reg(b),
+                   offsetof(struct panvk_cs_subqueue_context,
+                            render.td_count));
+#endif
+   }
 
    if (draw->indirect.count_buffer_dev_addr) {
       cs_move32_to(b, max_draw_count, draw->indirect.draw_count);
@@ -3338,8 +3381,12 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
       cs_update_vt_ctx(b)
          cs_move32_to(b, cs_sr_reg32(b, IDVS, INSTANCE_OFFSET), 0);
 
-      if (idvs_count > 1) {
-         cs_move32_to(b, idvs_count_reg, idvs_count);
+      if (idvs_count > 1 || dynamic_idvs_count) {
+         if (dynamic_idvs_count) {
+            cs_add_imm32(b, idvs_count_reg, idvs_count_reg_tmp, 0);
+         } else {
+            cs_move32_to(b, idvs_count_reg, idvs_count);
+         }
 
          cs_while(b, MALI_CS_CONDITION_GREATER, idvs_count_reg) {
 #if PAN_ARCH >= 12
@@ -3361,8 +3408,11 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
          }
 
          cs_update_vt_ctx(b) {
-            cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
-                         -(idvs_count * pan_size(TILER_CONTEXT)));
+            if (dynamic_idvs_count)
+               cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr_tmp, 0);
+            else
+               cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
+                            -(idvs_count * pan_size(TILER_CONTEXT)));
          }
       } else {
 #if PAN_ARCH >= 12
