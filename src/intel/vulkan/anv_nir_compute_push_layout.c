@@ -72,6 +72,20 @@ adjust_driver_push_values(nir_shader *nir,
          assert(anv_drv_const_size(drv_data.gfx.wa_18019110168) <= 4);
          BITSET_SET(data->push_dwords, fs_per_prim_remap_start / 4);
       }
+
+      if (push_info->use_fs_color_offset) {
+         const uint32_t fs_color_offset_start =
+            anv_drv_const_offset(drv_data.gfx.fs_color_offset);
+         assert(anv_drv_const_size(drv_data.gfx.fs_color_offset) <= 4);
+         BITSET_SET(data->push_dwords, fs_color_offset_start / 4);
+      }
+
+      if (push_info->use_fs_color_map) {
+         const uint32_t fs_color_map_start =
+            anv_drv_const_offset(drv_data.gfx.fs_color_map);
+         assert(anv_drv_const_size(drv_data.gfx.fs_color_map) <= 4);
+         BITSET_SET(data->push_dwords, fs_color_map_start / 4);
+      }
    }
 
    if (nir->info.stage == MESA_SHADER_MESH &&

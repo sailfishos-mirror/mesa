@@ -129,6 +129,8 @@ struct anv_nir_push_layout_info {
    bool separate_tessellation;
    bool fragment_dynamic;
    bool mesh_dynamic;
+   bool use_fs_color_offset;
+   bool use_fs_color_map;
 };
 
 bool anv_nir_shrink_push_constant_ranges(nir_shader *nir);

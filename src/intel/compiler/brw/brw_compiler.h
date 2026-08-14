@@ -611,6 +611,18 @@ struct brw_fs_prog_data {
    /** Whether this shader uses the FS config push data value */
    bool uses_fs_config;
 
+   /** Whether this shader uses the FS color offset push data value
+    *
+    * Efficient 64bit mode only
+    */
+   bool uses_fs_color_offset;
+
+   /** Whether this shader uses the FS color map push data value
+    *
+    * Efficient 64bit mode only
+    */
+   bool uses_fs_color_map;
+
    /** Should this shader be dispatched per-sample */
    bool persample_dispatch;
 

@@ -2341,6 +2341,46 @@ compute_mesh_provoking_vertex(const struct brw_mesh_prog_data *mesh_prog_data,
 }
 #endif
 
+#if GFX_VERx10 >= 350
+static inline void
+update_fs_color_offset(struct anv_gfx_dynamic_state *hw_state,
+                       const struct anv_cmd_graphics_state *gfx)
+{
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (fs_prog_data == NULL || !fs_prog_data->uses_fs_color_offset)
+      return;
+
+   SET(FS_COLOR_OFFSET, fs_color_offset, gfx->att_states.offset);
+}
+
+static inline void
+update_fs_color_map(struct anv_gfx_dynamic_state *hw_state,
+                    const struct vk_dynamic_graphics_state *dyn,
+                    const struct anv_cmd_graphics_state *gfx)
+{
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (fs_prog_data == NULL || !fs_prog_data->uses_fs_color_map)
+      return;
+
+    /* The surface states are layed out this way :
+     *   - null surface
+     *   - color attachment 0
+     *   - color attachment 1
+     *   - ...
+     *
+     * Hence we leave 0 if MESA_VK_ATTACHMENT_UNUSED and otherwise add 1 to
+     * the index.
+     */
+   uint32_t map = 0;
+   for (uint32_t i = 0; i < MAX_RTS; i++) {
+      if (dyn->cal.color_map[i] != MESA_VK_ATTACHMENT_UNUSED)
+         map |= (1 + dyn->cal.color_map[i]) << (i * 4);
+   }
+
+   SET(FS_COLOR_MAP, fs_color_map, map);
+}
+#endif
+
 /**
  * This function takes the vulkan runtime values & dirty states and updates
  * the values in anv_gfx_dynamic_state, flagging HW instructions for
@@ -2374,6 +2414,18 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_CONSERVATIVE_MODE) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_FSR))
       update_fs_config(hw_state, dyn, gfx);
+
+#if GFX_VERx10 >= 350
+   if (device->physical->uses_efficient_64bit) {
+      if (gfx->dirty & (ANV_CMD_DIRTY_PS |
+                        ANV_CMD_DIRTY_RENDER_TARGETS))
+         update_fs_color_offset(hw_state, gfx);
+
+      if ((gfx->dirty & ANV_CMD_DIRTY_PS) ||
+          BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_COLOR_ATTACHMENT_MAP))
+         update_fs_color_map(hw_state, dyn, gfx);
+   }
+#endif
 
    if (gfx->dirty & ANV_CMD_DIRTY_PRERASTER_SHADERS)
       update_urb_config(hw_state, gfx, device);
@@ -3736,6 +3788,20 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_FRAGMENT_BIT;
       gfx->base->push_constants_state = ANV_STATE_NULL;
    }
+
+#if GFX_VERx10 >= 350
+   if (IS_DIRTY(FS_COLOR_OFFSET)) {
+      push_consts->drv_data.gfx.fs_color_offset = hw_state->fs_color_offset;
+      cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_FRAGMENT_BIT;
+      gfx->base->push_constants_state = ANV_STATE_NULL;
+   }
+
+   if (IS_DIRTY(FS_COLOR_MAP)) {
+      push_consts->drv_data.gfx.fs_color_map = hw_state->fs_color_map;
+      cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_FRAGMENT_BIT;
+      gfx->base->push_constants_state = ANV_STATE_NULL;
+   }
+#endif
 
 #if INTEL_WA_18019110168_GFX_VER
    if (IS_DIRTY(WA_18019110168)) {

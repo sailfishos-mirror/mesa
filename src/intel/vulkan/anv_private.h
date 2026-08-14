@@ -2025,6 +2025,8 @@ enum anv_gfx_state_bits {
    ANV_GFX_STATE_WA_18019110168, /* Fake state to implement workaround */
    ANV_GFX_STATE_TBIMR_TILE_PASS_INFO,
    ANV_GFX_STATE_FS_CONFIG,
+   ANV_GFX_STATE_FS_COLOR_MAP,
+   ANV_GFX_STATE_FS_COLOR_OFFSET,
    ANV_GFX_STATE_TESS_CONFIG,
    ANV_GFX_STATE_MESH_PROVOKING_VERTEX,
 
@@ -2469,6 +2471,16 @@ struct anv_gfx_dynamic_state {
     * State tracking for Wa_14024997852.
     */
    bool autostrip_disabled;
+
+   /**
+    * Attachments' RENDER_SURFACE_STATE offset in internal heap (Gfx35+)
+    */
+   uint32_t fs_color_offset;
+
+   /**
+    * Color output to attachmene mapping (Gfx35+)
+    */
+   uint32_t fs_color_map;
 
    /** Dirty bits of what needs to be repacked */
    BITSET_DECLARE(pack_dirty, ANV_GFX_STATE_MAX);

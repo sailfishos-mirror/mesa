@@ -1045,6 +1045,41 @@ populate_compile_params_mesh(union brw_any_compile_params *params,
    params->mesh.wa_18019110168_data = (void *)&shader_data->bind_map;
 }
 
+static nir_def *
+rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
+{
+   struct anv_shader_data *shader_data = data;
+   const struct anv_pipeline_bind_map *bind_map = &shader_data->bind_map;
+   const struct vk_color_attachment_location_state *cal = shader_data->fs_color_map;
+
+   nir_def *color_offset =
+      nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                               .base = anv_drv_const_offset(drv_data.gfx.fs_color_offset) -
+                                       bind_map->push_ranges[0].start * 32,
+                               .range = anv_drv_const_size(drv_data.gfx.fs_color_offset));
+   if (rt >= 0) {
+      if (cal != NULL) {
+         color_offset = nir_iadd_imm(
+            b, color_offset, (cal->color_map[rt] + 1) * ANV_SURFACE_STATE_SIZE);
+      } else {
+         nir_def *map =
+            nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                                     .base = anv_drv_const_offset(drv_data.gfx.fs_color_map) -
+                                             bind_map->push_ranges[0].start * 32,
+                                     .range = anv_drv_const_size(drv_data.gfx.fs_color_map));
+         nir_def *index = nir_ubitfield_extract_imm(b, map, rt * 4, 4);
+         color_offset = nir_iadd(b, color_offset, nir_imul_imm(b, index, ANV_SURFACE_STATE_SIZE));
+         shader_data->prog_data.fs.uses_fs_color_map = true;
+      }
+   }
+
+   shader_data->prog_data.fs.uses_fs_color_offset = true;
+   return nir_pack_64_2x32_split(
+      b,
+      color_offset,
+      nir_load_reloc_const_intel(b, BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH));
+}
+
 static void
 populate_compile_params_fs(union brw_any_compile_params *params,
                            struct anv_shader_data *shader_data,
@@ -1070,6 +1105,11 @@ populate_compile_params_fs(union brw_any_compile_params *params,
    params->fs.wa_18019110168_load_per_primitive_remap_table_offset =
       wa_18019110168_load_per_primitive_remap_table;
    params->fs.wa_18019110168_data = (void *)&shader_data->bind_map;
+
+   if (shader_data->key.base.use_efficient_64bit) {
+      params->fs.rt_write_cb = rt_write_efficient_64bit;
+      params->fs.rt_write_data = (void *)shader_data;
+   }
 }
 
 static bool
@@ -1629,6 +1669,13 @@ anv_shader_lower_nir(struct anv_device *device,
                                            brw_fs_prog_key_is_dynamic(&shader_data->key.fs),
                   .mesh_dynamic          = nir->info.stage == MESA_SHADER_FRAGMENT &&
                                            shader_data->key.fs.mesh_input == INTEL_SOMETIMES,
+                  .use_fs_color_offset   = pdevice->uses_efficient_64bit &&
+                                           shader_data->bind_map.surface_count > 0 &&
+                                           shader_data->bind_map.surface_to_descriptor[0].set == ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS,
+                  .use_fs_color_map      = pdevice->uses_efficient_64bit &&
+                                           shader_data->bind_map.surface_count > 0 &&
+                                           shader_data->bind_map.surface_to_descriptor[0].set == ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS &&
+                                           shader_data->fs_color_map == NULL,
                },
                &shader_data->key.base,
                &shader_data->prog_data.base,
@@ -2233,6 +2280,7 @@ anv_shader_compile(struct vk_device *vk_device,
          shader_data->key.fs.prefer_simd32 =
             shader_data->workaround != NULL &&
             shader_data->workaround->prefer_simd32_fs;
+         shader_data->fs_color_map = state != NULL ? state->cal : NULL;
          break;
       case MESA_SHADER_COMPUTE:
          populate_cs_prog_key(&shader_data->key.cs, vk_device->physical,
