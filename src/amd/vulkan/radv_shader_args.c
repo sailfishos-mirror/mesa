@@ -619,30 +619,30 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
    case MESA_SHADER_TASK:
       declare_global_input_sgprs(state, gfx_level, info, user_sgpr_info);
 
-      if (info->cs.uses_grid_size) {
-         if (compiler_info->key.load_grid_size_from_user_sgpr)
-            RADV_ADD_UD_ARG(state, 3, AC_ARG_VALUE, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
-         else
-            RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
-      }
-
       if (info->type == RADV_SHADER_TYPE_RT_PROLOG) {
          RADV_ADD_UD_ARG(state, 1, AC_ARG_CONST_ADDR, ac.rt.traversal_shader_addr, AC_UD_CS_TRAVERSAL_SHADER_ADDR);
          RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.rt.sbt_descriptors, AC_UD_CS_SBT_DESCRIPTORS);
          RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.rt.launch_size_addr, AC_UD_CS_RAY_LAUNCH_SIZE_ADDR);
          RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.rt.dynamic_callable_stack_base,
                          AC_UD_CS_RAY_DYNAMIC_CALLABLE_STACK_BASE);
-      }
+      } else {
+         if (info->cs.uses_grid_size) {
+            if (compiler_info->key.load_grid_size_from_user_sgpr)
+               RADV_ADD_UD_ARG(state, 3, AC_ARG_VALUE, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
+            else
+               RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
+         }
 
-      if (info->vs.needs_draw_id) {
-         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_CS_TASK_DRAW_ID);
-      }
+         if (info->vs.needs_draw_id) {
+            RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_CS_TASK_DRAW_ID);
+         }
 
-      if (stage == MESA_SHADER_TASK) {
-         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.task_ring_entry, AC_UD_TASK_RING_ENTRY);
+         if (stage == MESA_SHADER_TASK) {
+            RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.task_ring_entry, AC_UD_TASK_RING_ENTRY);
 
-         if (has_shader_query) {
-            RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, task_state, AC_UD_TASK_STATE);
+            if (has_shader_query) {
+               RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, task_state, AC_UD_TASK_STATE);
+            }
          }
       }
 
