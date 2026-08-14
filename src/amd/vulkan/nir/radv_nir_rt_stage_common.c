@@ -265,7 +265,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
    stage->nir = b.shader;
    stage->info.stage = MESA_SHADER_COMPUTE;
    stage->info.loads_push_constants = true;
-   stage->info.loads_dynamic_offsets = true;
+   stage->info.loads_dynamic_offsets = !uses_descriptor_heap;
    stage->info.force_indirect_descriptors = true;
    stage->info.descriptor_heap = uses_descriptor_heap;
    stage->info.wave_size = compiler_info->key.rt_wave_size;
