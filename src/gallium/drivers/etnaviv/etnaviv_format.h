@@ -85,8 +85,7 @@ translate_format_128bit_to_64bit(enum pipe_format fmt)
 static inline bool
 resolve_copies_one_sample(enum pipe_format format)
 {
-   return util_format_is_pure_integer(format) &&
-          !util_format_is_depth_or_stencil(format);
+   return util_format_is_pure_integer(format);
 }
 
 static inline bool
