@@ -3031,6 +3031,32 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
          break;
       }
 
+      case SpvOpSelect: {
+         struct vtn_value *cond = vtn_value(b, w[4], vtn_value_type_constant);
+         vtn_fail_if(!glsl_type_is_boolean(cond->type->type),
+                     "Condition of OpSelect must be a Boolean");
+
+         if (glsl_type_is_scalar(cond->type->type)) {
+            const uint32_t obj = cond->constant->values[0].b ? w[5] : w[6];
+            val->constant = vtn_value(b, obj, vtn_value_type_constant)->constant;
+         } else {
+            vtn_fail_if(glsl_get_vector_elements(cond->type->type) !=
+                        glsl_get_vector_elements(val->type->type),
+                        "Vector Condition of OpSelect must have the same "
+                        "number of components as the Result Type");
+
+            nir_constant *c1 = vtn_value(b, w[5], vtn_value_type_constant)->constant;
+            nir_constant *c2 = vtn_value(b, w[6], vtn_value_type_constant)->constant;
+
+            unsigned num_components = glsl_get_vector_elements(val->type->type);
+            for (unsigned i = 0; i < num_components; i++) {
+               val->constant->values[i] = cond->constant->values[i].b ?
+                  c1->values[i] : c2->values[i];
+            }
+         }
+         break;
+      }
+
       default: {
          const glsl_type *dst_type = val->type->type;
 
