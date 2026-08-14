@@ -1020,6 +1020,27 @@ impl V9Instr for OpCubeSel {
     }
 }
 
+impl V9Instr for OpDiscard {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Discard::get_info(DiscardVariant::F32, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Discard {
+            variant: DiscardVariant::F32,
+            cmpf: self.cmp_op.try_into().unwrap(),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+        })
+    }
+}
+
 impl V9Instr for OpF16ToF32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -3266,6 +3287,7 @@ macro_rules! v9_op_match_else {
             Op::CubeFaceIdx($x) => $y,
             Op::CubeFaceMax($x) => $y,
             Op::CubeSel($x) => $y,
+            Op::Discard($x) => $y,
             Op::F16ToF32($x) => $y,
             Op::F32ToF16($x) => $y,
             Op::F32ToI32($x) => $y,

@@ -2227,6 +2227,18 @@ impl<'a> ShaderFromNir<'a> {
                     has_second_color,
                 });
             }
+            nir_intrinsic_demote_if => {
+                b.push_op(OpDiscard {
+                    cmp_op: CmpOp::Ne,
+                    srcs: [self.get_f32_src(&srcs[0]), 0_u32.into()],
+                });
+            }
+            nir_intrinsic_demote => {
+                b.push_op(OpDiscard {
+                    cmp_op: CmpOp::Eq,
+                    srcs: [0_u32.into(), 0_u32.into()],
+                });
+            }
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
                 assert!(intrin.range() == 0);

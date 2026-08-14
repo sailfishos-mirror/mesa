@@ -967,6 +967,31 @@ impl DisplayOp for OpCubeSel {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpDiscard {
+    pub cmp_op: CmpOp,
+
+    #[src_type(F32)]
+    pub srcs: [Src; 2],
+}
+
+impl DisplayOp for OpDiscard {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DISCARD.f32")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {}",
+            self.cmp_op,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpF16ToF32 {
     #[dst_type(F32)]
     pub dst: Dst,
@@ -4341,6 +4366,7 @@ pub enum Op {
     CubeFaceIdx(Box<OpCubeFaceIdx>),
     CubeFaceMax(Box<OpCubeFaceMax>),
     CubeSel(Box<OpCubeSel>),
+    Discard(Box<OpDiscard>),
     F16ToF32(Box<OpF16ToF32>),
     F32ToF16(Box<OpF32ToF16>),
     F32ToI32(Box<OpF32ToI32>),
@@ -4456,6 +4482,7 @@ impl Op {
                 | Op::Blend(_)
                 | Op::BlendCall(_)
                 | Op::Branch(_)
+                | Op::Discard(_)
                 | Op::RegOut(_)
                 | Op::ScheduleBarrier(_)
                 | Op::Store(_)
