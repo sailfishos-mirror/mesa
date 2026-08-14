@@ -813,6 +813,51 @@ vk_image_usage_to_ahb_usage(const VkImageCreateFlags2KHR vk_create,
    return ahb_usage;
 }
 
+static uint64_t
+vk_image_info_to_ahb_usage(VkFormat vk_format,
+                           VkImageCreateFlags2KHR vk_create,
+                           VkImageUsageFlags2KHR vk_usage,
+                           const void *image_info_pnext)
+{
+   uint64_t ahb_usage = vk_image_usage_to_ahb_usage(vk_create, vk_usage);
+   bool force_linear = false;
+
+   /* VK_IMAGE_COMPRESSION_DISABLED_EXT means the app doesn't want an
+    * implicit compressed/tiled layout for this image. Use
+    * CPU_WRITE_RARELY to implicitly force LINEAR, preventing gralloc from
+    * allocating a compressed buffer and silently violating
+    * VK_IMAGE_COMPRESSION_DISABLED_EXT.
+    */
+   const VkImageCompressionControlEXT *compression_control =
+      vk_find_struct_const(image_info_pnext, IMAGE_COMPRESSION_CONTROL_EXT);
+   if (compression_control &&
+       (compression_control->flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
+       !vk_format_is_depth_or_stencil(vk_format))
+      force_linear = true;
+
+   if (force_linear)
+      ahb_usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
+
+   return ahb_usage;
+}
+
+static inline uint64_t
+vk_image_format_info_to_ahb_usage(const VkPhysicalDeviceImageFormatInfo2 *info)
+{
+
+   const VkImageCreateFlags2KHR flags = vk_image_format_info_2_flags(info);
+   const VkImageUsageFlags2KHR usage = vk_image_format_info_2_usage(info);
+   return vk_image_info_to_ahb_usage(info->format, flags, usage, info->pNext);
+}
+
+static inline uint64_t
+vk_image_create_info_to_ahb_usage(const VkImageCreateInfo *info)
+{
+   const VkImageCreateFlags2KHR flags = vk_image_create_flags(info);
+   const VkImageUsageFlags2KHR usage = vk_image_usage_flags(info);
+   return vk_image_info_to_ahb_usage(info->format, flags, usage, info->pNext);
+}
+
 static bool
 vk_ahb_probe_format(uint32_t ahb_format, uint64_t ahb_usage)
 {
@@ -863,18 +908,20 @@ vk_alloc_ahardware_buffer(const VkMemoryAllocateInfo *pAllocateInfo)
       h = image->extent.height;
       layers = image->array_layers;
       format = image->ahb_format;
-      usage = vk_image_usage_to_ahb_usage(image->create_flags,
-                                          image->usage);
 
-      /* VK_IMAGE_COMPRESSION_DISABLED_EXT means the app doesn't want an
-       * implicit compressed/tiled layout for this image. Use
-       * CPU_WRITE_RARELY to implicitly force LINEAR, preventing gralloc from
-       * allocating a compressed buffer and silently violating
-       * VK_IMAGE_COMPRESSION_DISABLED_EXT.
+      /* Populate more accurate AHB usage via vk_image_create_info_to_ahb_usage
+       * if vk_android_init_deferred_image has been adopted. Otherwise, fallback
+       * to vk_image_usage_to_ahb_usage.
        */
-      if ((image->compr_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
-          !vk_format_is_depth_or_stencil(image->format))
-         usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
+      if (image->android_deferred_create_info) {
+         usage = vk_image_create_info_to_ahb_usage(
+            image->android_deferred_create_info);
+      } else {
+         usage = vk_image_usage_to_ahb_usage(image->create_flags, image->usage);
+         if ((image->compr_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
+             !vk_format_is_depth_or_stencil(image->format))
+            usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
+      }
    } else {
       /* AHB export allocation for VkBuffer requires a valid allocationSize */
       assert(pAllocateInfo->allocationSize);
@@ -1184,21 +1231,7 @@ vk_android_get_ahb_image_properties(
                        "format (%u) unsupported for AHB", info->format);
    }
 
-   const VkImageCreateFlags2KHR vk_flags = vk_image_format_info_2_flags(info);
-   const VkImageUsageFlags2KHR vk_usage = vk_image_format_info_2_usage(info);
-   uint64_t ahb_usage = vk_image_usage_to_ahb_usage(vk_flags, vk_usage);
-
-   /* Keep this in sync with the usage bits vk_alloc_ahardware_buffer()
-    * actually requests for a dedicated allocation, so apps querying
-    * support see the same usage that will be used at allocation time.
-    */
-   const VkImageCompressionControlEXT *compression_control =
-      vk_find_struct_const(info->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
-   if (compression_control &&
-       (compression_control->flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) &&
-       !vk_format_is_depth_or_stencil(info->format))
-      ahb_usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY;
-
+   const uint64_t ahb_usage = vk_image_format_info_to_ahb_usage(info);
    if (!vk_ahb_probe_format(ahb_format, ahb_usage)) {
       return vk_errorf(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED,
                        "ahb_format (%u) ahb_usage (0x%" PRIx64 ") unsupported",
