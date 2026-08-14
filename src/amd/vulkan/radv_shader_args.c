@@ -633,11 +633,11 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
                RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
          }
 
-         if (info->vs.needs_draw_id) {
-            RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_CS_TASK_DRAW_ID);
-         }
-
          if (stage == MESA_SHADER_TASK) {
+            if (info->vs.needs_draw_id) {
+               RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_CS_TASK_DRAW_ID);
+            }
+
             RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.task_ring_entry, AC_UD_TASK_RING_ENTRY);
 
             if (has_shader_query) {
