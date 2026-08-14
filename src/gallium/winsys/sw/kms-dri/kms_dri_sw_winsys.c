@@ -262,6 +262,17 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
    if (ret)
       return NULL;
 
+   kms_sw_dt = kms_sw_displaytarget_find_and_ref(kms_sw, kms_handle);
+   if (kms_sw_dt) {
+      struct kms_sw_plane *plane;
+
+      plane = get_plane(kms_sw_dt, format, width, height, stride,
+                        whandle->offset);
+      if (!plane)
+         kms_sw_dt->ref_count--;
+      return sw_displaytarget(plane);
+   }
+
    kms_sw_dt = CALLOC_STRUCT(kms_sw_displaytarget);
    if (!kms_sw_dt)
       return NULL;
