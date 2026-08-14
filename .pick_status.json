@@ -2854,7 +2854,7 @@
         "description": "kms-dri-sw: Deduplicate displaytargets by handle in create_mapped()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5cc0d1b681be7535a00739cbb47c4373d2b6e5f0",
         "notes": null
