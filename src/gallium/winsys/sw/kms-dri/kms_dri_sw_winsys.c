@@ -233,6 +233,11 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
 {
    struct kms_sw_winsys *kms_sw = kms_sw_winsys(ws);
    struct kms_sw_displaytarget *kms_sw_dt;
+   uint32_t kms_handle = -1;
+
+   assert(kms_sw && whandle);
+
+   drmPrimeFDToHandle(kms_sw->fd, whandle->handle, &kms_handle);
 
    kms_sw_dt = CALLOC_STRUCT(kms_sw_displaytarget);
    if (!kms_sw_dt)
@@ -248,7 +253,7 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
    mtx_init(&kms_sw_dt->map_lock, mtx_plain);
 
    kms_sw_dt->size = whandle->size;
-   kms_sw_dt->handle = -1;
+   kms_sw_dt->handle = kms_handle;
    struct kms_sw_plane *plane = get_plane(kms_sw_dt, format, width, height,
                                           stride, whandle->offset);
    if (!plane) {
@@ -257,13 +262,6 @@ kms_sw_displaytarget_create_mapped(struct sw_winsys *ws,
    }
 
    list_add(&kms_sw_dt->link, &kms_sw->bo_list);
-
-   if (whandle) {
-      uint32_t handle = -1;
-
-      drmPrimeFDToHandle(kms_sw->fd, whandle->handle, &handle);
-      kms_sw_dt->handle = handle;
-   }
 
    return sw_displaytarget(plane);
 }
