@@ -106,7 +106,10 @@ fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
                     | Op::TexSingle(_) => {
                         t += 1.0;
                     }
-                    Op::ATest(_) | Op::Barrier(_) | Op::Blend(_) => {
+                    Op::ATest(_)
+                    | Op::Barrier(_)
+                    | Op::Blend(_)
+                    | Op::ZSEmit(_) => {
                         // These aren't counted
                     }
                     _ => panic!("Unknown message instruction"),

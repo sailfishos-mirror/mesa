@@ -4377,6 +4377,49 @@ impl DisplayOp for OpWMask {
     }
 }
 
+/// Emit Z and/or stencil values for the current thread
+/// MUST be executed after DISCARD and ATEST
+/// Highly recommended to always wait on slot 0 after this, preceding instr must
+/// wait on slot 6
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpZSEmit {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    #[src_type(I32)]
+    pub depth: Src,
+
+    #[src_type(I32)]
+    pub stencil: Src,
+
+    #[src_type(I32)]
+    pub coverage: Src,
+
+    /// Use depth from this instruction (otherwise fixed-function Z is used)
+    pub use_depth: bool,
+    /// Use stencil from this instruction (otherwise fixed-function is used)
+    pub use_stencil: bool,
+}
+
+impl DisplayOp for OpZSEmit {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ZS_EMIT")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {} {}",
+            bool_as_mod_str!(self.use_depth, ".depth"),
+            bool_as_mod_str!(self.use_stencil, ".stencil"),
+            self.fmt_src(&self.depth),
+            self.fmt_src(&self.stencil),
+            self.fmt_src(&self.coverage),
+        )
+    }
+}
+
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     ACmpXchg(Box<OpACmpXchg>),
@@ -4469,6 +4512,7 @@ pub enum Op {
     TexGradient(Box<OpTexGradient>),
     TexSingle(Box<OpTexSingle>),
     WMask(Box<OpWMask>),
+    ZSEmit(Box<OpZSEmit>),
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -4519,6 +4563,7 @@ impl Op {
                 | Op::ScheduleBarrier(_)
                 | Op::Store(_)
                 | Op::StCvt(_)
+                | Op::ZSEmit(_)
         )
     }
 
@@ -4544,9 +4589,11 @@ impl Op {
             | Op::TexGather(_)
             | Op::TexGradient(_)
             | Op::TexSingle(_) => MemoryEffect::ConstRead,
-            Op::Blend(_) | Op::BlendCall(_) | Op::StCvt(_) | Op::Store(_) => {
-                MemoryEffect::Write
-            }
+            Op::Blend(_)
+            | Op::BlendCall(_)
+            | Op::StCvt(_)
+            | Op::Store(_)
+            | Op::ZSEmit(_) => MemoryEffect::Write,
             Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
                 MemoryEffect::ReadWrite
             }

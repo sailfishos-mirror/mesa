@@ -3303,6 +3303,33 @@ impl V9Instr for OpWMask {
     }
 }
 
+impl V9Instr for OpZSEmit {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            ZsEmit::get_info((), arch),
+            src_map! {
+                src0: depth,
+                src1: stencil,
+                src2: coverage,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert!(self.use_depth || self.use_stencil);
+        assert_eq!(self.coverage.src_ref.as_reg().unwrap().idx, 60);
+        assert_eq!(self.dst.dst_ref.as_reg().unwrap().idx, 60);
+        e.encode(ZsEmit {
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.depth),
+            src1: op_encode_src(self, &self.stencil),
+            src2: op_encode_src(self, &self.coverage),
+            z: self.use_depth.into(),
+            stencil: self.use_stencil.into(),
+        })
+    }
+}
+
 macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
@@ -3386,6 +3413,7 @@ macro_rules! v9_op_match_else {
             Op::TexGradient($x) => $y,
             Op::TexSingle($x) => $y,
             Op::WMask($x) => $y,
+            Op::ZSEmit($x) => $y,
             _ => $z,
         }
     };

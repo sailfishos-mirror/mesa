@@ -2163,6 +2163,35 @@ impl<'a> ShaderFromNir<'a> {
                     datum: self.special_fau(SpecialFAU::ATestDatum).into(),
                 });
             }
+            nir_intrinsic_zs_emit_pan => {
+                let coverage = self.get_src(&srcs[0]);
+                let flags = intrin.flags();
+                let use_depth = (flags & (1 << FRAG_RESULT_DEPTH)) != 0;
+                let use_stencil = (flags & (1 << FRAG_RESULT_STENCIL)) != 0;
+                debug_assert!(use_depth || use_stencil);
+
+                let depth = if use_depth {
+                    self.get_src(&srcs[1])
+                } else {
+                    0_u32.into()
+                };
+
+                let stencil = if use_stencil {
+                    self.get_src(&srcs[2])
+                } else {
+                    0_u32.into()
+                };
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpZSEmit {
+                    dst,
+                    depth,
+                    stencil,
+                    coverage,
+                    use_depth,
+                    use_stencil,
+                });
+            }
             nir_intrinsic_blend_pan | nir_intrinsic_blend2_pan => {
                 let coverage = self.get_src(&srcs[0]);
                 let descr = self.get_src(&srcs[1]);
