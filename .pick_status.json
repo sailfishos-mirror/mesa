@@ -1464,7 +1464,7 @@
         "description": "wsi/wayland: send tearing hints when present mode changes to IMMEDIATE",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ad71d584cfbe588c54b2b3eaa2e6aa94af68e305",
         "notes": null
