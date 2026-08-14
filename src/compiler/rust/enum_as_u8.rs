@@ -3,6 +3,10 @@
 
 use crate::bitset::ConstBitSet;
 use std::fmt;
+use std::ops::{
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub,
+    SubAssign,
+};
 
 /// A trait for enums which are `#[repr(u8)]` which provides some extra sugar
 /// on top.  By deriving this trait with `#[derive(EnumAsU8)]`, you get
@@ -114,3 +118,38 @@ impl<E: EnumAsU8 + fmt::Debug, const N: usize> fmt::Debug for U8EnumSet<E, N> {
         write!(f, "}}")
     }
 }
+
+macro_rules! impl_u8_enum_set_binop {
+    (
+        $BinOp:ident,
+        $bin_op:ident,
+        $AssignBinOp:ident,
+        $assign_bin_op:ident
+    ) => {
+        impl<E: EnumAsU8, const N: usize> $BinOp<U8EnumSet<E, N>>
+            for U8EnumSet<E, N>
+        {
+            type Output = U8EnumSet<E, N>;
+
+            fn $bin_op(self, other: U8EnumSet<E, N>) -> U8EnumSet<E, N> {
+                U8EnumSet {
+                    set: self.set.$bin_op(&other.set),
+                    phantom: std::marker::PhantomData,
+                }
+            }
+        }
+
+        impl<E: EnumAsU8, const N: usize> $AssignBinOp<U8EnumSet<E, N>>
+            for U8EnumSet<E, N>
+        {
+            fn $assign_bin_op(&mut self, other: U8EnumSet<E, N>) {
+                self.set.$assign_bin_op(&other.set);
+            }
+        }
+    };
+}
+
+impl_u8_enum_set_binop!(BitAnd, bitand, BitAndAssign, bitand_assign);
+impl_u8_enum_set_binop!(BitOr, bitor, BitOrAssign, bitor_assign);
+impl_u8_enum_set_binop!(BitXor, bitxor, BitXorAssign, bitxor_assign);
+impl_u8_enum_set_binop!(Sub, sub, SubAssign, sub_assign);
