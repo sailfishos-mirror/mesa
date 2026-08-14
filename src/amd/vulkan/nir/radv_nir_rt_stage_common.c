@@ -311,6 +311,9 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
    nir_def *traversal_addr =
       nir_pack_64_2x32_split(&b, ac_nir_load_arg(&b, &stage->args.ac, stage->args.ac.rt.traversal_shader_addr),
                              nir_imm_int(&b, compiler_info->hw.address32_hi));
+   nir_def *is_compute_queue =
+      ac_nir_unpack_arg(&b, &stage->args.ac, stage->args.cs_state, CS_STATE_IS_COMPUTE_QUEUE__SHIFT,
+                        util_bitcount(CS_STATE_IS_COMPUTE_QUEUE__MASK));
 
    nir_def *raygen_sbt = nir_pack_64_2x32(&b, ac_nir_load_smem(&b, 2, sbt_desc, nir_imm_int(&b, 0), 4, 0));
    nir_def *launch_sizes = ac_nir_load_smem(&b, 3, launch_size_addr, nir_imm_int(&b, 0), 4, 0);
@@ -422,6 +425,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
       }
       params[RT_ARG_PUSH_CONSTANTS] = push_constants;
       params[RT_ARG_SBT_DESCRIPTORS] = sbt_desc;
+      params[RT_ARG_IS_COMPUTE_QUEUE] = is_compute_queue;
       params[RAYGEN_ARG_SHADER_RECORD_PTR] = shader_record_ptr;
       params[RAYGEN_ARG_TRAVERSAL_ADDR] = traversal_addr;
       params[CPS_ARG_PAYLOAD_SCRATCH_OFFSET] = nir_undef(&b, 1, 32);
@@ -455,6 +459,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
       }
       params[RT_ARG_PUSH_CONSTANTS] = push_constants;
       params[RT_ARG_SBT_DESCRIPTORS] = sbt_desc;
+      params[RT_ARG_IS_COMPUTE_QUEUE] = is_compute_queue;
       params[RAYGEN_ARG_SHADER_RECORD_PTR] = shader_record_ptr;
       params[RAYGEN_ARG_TRAVERSAL_ADDR] = traversal_addr;
 

@@ -8605,9 +8605,9 @@ radv_emit_ray_tracing_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_r
    const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   radeon_check_space(device->ws, cs->b, pdev->info.gfx_level >= GFX10 ? 25 : 22);
+   radeon_check_space(device->ws, cs->b, pdev->info.gfx_level >= GFX10 ? 28 : 25);
 
-   radv_emit_compute_shader(pdev, cs, rt_prolog, false);
+   radv_emit_compute_shader(pdev, cs, rt_prolog, true);
 
    const uint32_t ray_dynamic_callback_stack_base_offset =
       radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_RAY_DYNAMIC_CALLABLE_STACK_BASE);

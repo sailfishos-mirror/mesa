@@ -419,6 +419,10 @@ lower_rt_instruction_monolithic(nir_builder *b, nir_intrinsic_instr *intr, void 
       nir_def_replace(&intr->def, nir_load_param(b, RT_ARG_SBT_DESCRIPTORS));
       return true;
    }
+   case nir_intrinsic_load_rt_is_compute_queue_amd: {
+      nir_def_replace(&intr->def, nir_load_param(b, RT_ARG_IS_COMPUTE_QUEUE));
+      return true;
+   }
    case nir_intrinsic_load_scratch: {
       nir_src_rewrite(&intr->src[0], nir_iadd_nuw(b, nir_load_var(b, vars->stack_ptr), intr->src[0].ssa));
       return true;

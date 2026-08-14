@@ -375,6 +375,10 @@ radv_lower_rt_instruction(nir_builder *b, nir_instr *instr, void *_data)
       ret = nir_load_param(b, RT_ARG_SBT_DESCRIPTORS);
       break;
    }
+   case nir_intrinsic_load_rt_is_compute_queue_amd: {
+      ret = nir_load_param(b, RT_ARG_IS_COMPUTE_QUEUE);
+      break;
+   }
    case nir_intrinsic_load_sbt_offset_amd: {
       ret = nir_load_var(b, vars->sbt_offset);
       break;
@@ -647,6 +651,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    }
    next_args[RT_ARG_PUSH_CONSTANTS] = nir_load_param(&b, RT_ARG_PUSH_CONSTANTS);
    next_args[RT_ARG_SBT_DESCRIPTORS] = nir_load_param(&b, RT_ARG_SBT_DESCRIPTORS);
+   next_args[RT_ARG_IS_COMPUTE_QUEUE] = nir_load_param(&b, RT_ARG_IS_COMPUTE_QUEUE);
    next_args[RAYGEN_ARG_TRAVERSAL_ADDR] = nir_load_var(&b, vars.traversal_addr);
    next_args[RAYGEN_ARG_SHADER_RECORD_PTR] = nir_load_var(&b, vars.shader_record_ptr);
    next_args[CPS_ARG_PAYLOAD_SCRATCH_OFFSET] = nir_load_var(&b, vars.arg);

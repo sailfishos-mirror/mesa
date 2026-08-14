@@ -635,6 +635,7 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
          RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.rt.launch_size_addr, AC_UD_CS_RAY_LAUNCH_SIZE_ADDR);
          RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.rt.dynamic_callable_stack_base,
                          AC_UD_CS_RAY_DYNAMIC_CALLABLE_STACK_BASE);
+         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, cs_state, AC_UD_CS_STATE);
       } else {
          if (info->cs.uses_grid_size) {
             if (compiler_info->key.load_grid_size_from_user_sgpr)
