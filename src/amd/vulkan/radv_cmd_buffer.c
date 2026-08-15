@@ -1646,12 +1646,28 @@ radv_flush_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_st
 
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 12);
 
-   if (cs->hw_ip == AMD_IP_SDMA)
+   if (cs->hw_ip == AMD_IP_SDMA) {
       ac_emit_sdma_fence(cs->b, cmd_buffer->gang.sem.va + va_off, value);
-   else
-      radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
-                                   EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT,
-                                   cmd_buffer->gang.sem.va + va_off, value, cmd_buffer->gfx9_eop_bug_va);
+   } else {
+      const uint64_t fence_va = cmd_buffer->gang.sem.va + va_off;
+      uint32_t ace_fence_flags = 0;
+
+      if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
+         /* Wait for L2 cache writeback on ACE because it isn't coherent with SDMA.
+          * Note that SDMA can use L2 on GFX10+ but doesn't use it by default.
+          */
+         if (pdev->info.gfx_level >= GFX10)
+            ace_fence_flags = S_491_GL2_WB(1);
+         else if (pdev->info.gfx_level >= GFX8)
+            ace_fence_flags = EVENT_TC_WB_ACTION_ENA | EVENT_TC_NC_ACTION_ENA;
+         else
+            ace_fence_flags = EVENT_TC_ACTION_ENA;
+      }
+
+      radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, ace_fence_flags,
+                                   EOP_DST_SEL_MEM, EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT,
+                                   fence_va, value, cmd_buffer->gfx9_eop_bug_va);
+   }
 
    assert(cs->b->cdw <= cdw_max);
    return true;
@@ -8550,6 +8566,10 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
 
    /* Finalize the internal compute command stream, if it exists. */
    if (ace_cs) {
+      /* Transfer command buffers wait for the ACE follower to avoid coherency issues. */
+      if (cmd_buffer->qf == RADV_QUEUE_TRANSFER && radv_flush_gang_follower_semaphore(cmd_buffer))
+         radv_wait_gang_follower(cmd_buffer);
+
       VkResult result = radv_gang_finalize(cmd_buffer);
       if (result != VK_SUCCESS)
          return vk_error(cmd_buffer, result);
