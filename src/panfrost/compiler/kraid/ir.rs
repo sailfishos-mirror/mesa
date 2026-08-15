@@ -289,12 +289,21 @@ pub enum PreloadReg {
     /// 24..32 -> centroid_id
     SampleCentroidId,
     FrameArg,
+
+    /* Blend Shader ABI */
+    /// Components of the first color (max 4x32 bits)
+    BlendInputSrc0,
+    /// Components of the second color (for double-source blending)
+    BlendInputSrc1,
+    /// Return address (where to jump when the blend shader finishes)
+    BlendReturnAddr,
 }
 
 impl PreloadReg {
     pub fn reg_size(&self) -> u8 {
         match self {
             Self::FrameArg => 2,
+            Self::BlendInputSrc0 | Self::BlendInputSrc1 => 4,
             _ => 1,
         }
     }
@@ -324,6 +333,9 @@ impl fmt::Display for PreloadReg {
             RasterizerCoverage => "RASTERIZER_COVERAGE",
             SampleCentroidId => "SAMPLE_CENTROID_ID",
             FrameArg => "FRAME_ARG",
+            BlendInputSrc0 => "BLEND_IN_SRC0",
+            BlendInputSrc1 => "BLEND_IN_SRC1",
+            BlendReturnAddr => "BLEND_RETURN_ADDR",
         };
         write!(f, "{name}")
     }

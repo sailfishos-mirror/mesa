@@ -297,6 +297,9 @@ impl Model for ValhallModel {
             RasterizerCoverage => 61,
             SampleCentroidId => 61,
             FrameArg => 62,
+            BlendInputSrc0 => 0,
+            BlendInputSrc1 => 4,
+            BlendReturnAddr => 48,
         };
 
         Some(RegRef {
