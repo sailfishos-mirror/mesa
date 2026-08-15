@@ -1966,6 +1966,40 @@ impl V9Instr for OpIToF32 {
     }
 }
 
+impl V9Instr for OpJump {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Jump::get_info((), arch),
+            src_map! {
+                src0: cond,
+                src1: address,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let address_mode = if e.arch < 11 {
+            Some(JumpAddressModeM::Absolute)
+        } else {
+            None
+        };
+        e.encode(Jump {
+            not: self.not.into(),
+            src0: op_encode_src(self, &self.cond),
+            src1: op_encode_src(self, &self.address),
+            address_mode,
+            combine: match self.combine_op {
+                BranchCombineOp::None => BranchCombineM::None,
+                BranchCombineOp::H0 => BranchCombineM::H0,
+                BranchCombineOp::H1 => BranchCombineM::H1,
+                BranchCombineOp::And => BranchCombineM::And,
+                BranchCombineOp::LowBits => BranchCombineM::Lowbits,
+            },
+            conservative: false.into(),
+        })
+    }
+}
+
 impl V9Instr for OpLdAttr {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -3319,6 +3353,7 @@ macro_rules! v9_op_match_else {
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,
+            Op::Jump($x) => $y,
             Op::LdAttr($x) => $y,
             Op::LdCvt($x) => $y,
             Op::LdExp($x) => $y,

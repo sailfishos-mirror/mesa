@@ -2517,6 +2517,36 @@ impl DisplayOp for OpIToF32 {
     }
 }
 
+/// Jump to address in register
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpJump {
+    pub not: bool,
+    #[src_type(I32)]
+    pub cond: Src,
+    #[src_type(S32)]
+    pub address: Src,
+
+    pub combine_op: BranchCombineOp,
+}
+
+impl DisplayOp for OpJump {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "JUMP")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {}",
+            bool_as_mod_str!(self.not),
+            self.combine_op,
+            self.fmt_src(&self.cond),
+            self.fmt_src(&self.address),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum MemAccess {
     None,
@@ -4398,6 +4428,7 @@ pub enum Op {
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
+    Jump(Box<OpJump>),
     LdAttr(Box<OpLdAttr>),
     LdCvt(Box<OpLdCvt>),
     LdExp(Box<OpLdExp>),
@@ -4483,6 +4514,7 @@ impl Op {
                 | Op::BlendCall(_)
                 | Op::Branch(_)
                 | Op::Discard(_)
+                | Op::Jump(_)
                 | Op::RegOut(_)
                 | Op::ScheduleBarrier(_)
                 | Op::Store(_)
