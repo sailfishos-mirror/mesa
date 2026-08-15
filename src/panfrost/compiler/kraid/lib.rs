@@ -17,6 +17,7 @@ mod jump_thread;
 mod legalize;
 mod legalize_src_swizzles;
 mod liveness;
+mod lower_blend_call;
 mod lower_copy;
 mod lower_mkvec_swz;
 mod message_slots;

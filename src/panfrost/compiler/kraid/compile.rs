@@ -268,6 +268,7 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.assign_message_slots());
     pass!(s.mark_reconvergence());
     pass!(s.opt_end());
+    pass!(s.lower_blend_call());
 
     if !s.is_empty() {
         let bin = model.encode_shader(&s);
