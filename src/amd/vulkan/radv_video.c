@@ -1535,9 +1535,9 @@ get_av1_param(struct radv_video_session *vid, struct vk_video_session_parameters
       av1->quantization.delta_q_v_dc = pi->pQuantization->DeltaQVDc;
       av1->quantization.delta_q_v_ac = pi->pQuantization->DeltaQVAc;
       if (pi->pQuantization->flags.using_qmatrix) {
-         av1->quantization.qm_y = pi->pQuantization->qm_y | 0xf0;
-         av1->quantization.qm_u = pi->pQuantization->qm_u | 0xf0;
-         av1->quantization.qm_v = pi->pQuantization->qm_v | 0xf0;
+         av1->quantization.qm_y = pi->pQuantization->qm_y;
+         av1->quantization.qm_u = pi->pQuantization->qm_u;
+         av1->quantization.qm_v = pi->pQuantization->qm_v;
       } else {
          av1->quantization.qm_y = 0xff;
          av1->quantization.qm_u = 0xff;
