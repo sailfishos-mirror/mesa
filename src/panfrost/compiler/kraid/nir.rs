@@ -1188,27 +1188,29 @@ impl<'a> ShaderFromNir<'a> {
                     }
                 };
 
-                let logic_op = if src_is_zero(2) {
-                    LogicOp::None
-                } else {
-                    match alu.op {
-                        nir_op_arshift_and_pan
-                        | nir_op_lshift_and_pan
-                        | nir_op_rshift_and_pan
-                        | nir_op_lrot_and_pan
-                        | nir_op_rrot_and_pan => LogicOp::And,
-                        nir_op_arshift_or_pan
-                        | nir_op_lshift_or_pan
-                        | nir_op_rshift_or_pan
-                        | nir_op_lrot_or_pan
-                        | nir_op_rrot_or_pan => LogicOp::Or,
-                        nir_op_arshift_xor_pan
-                        | nir_op_lshift_xor_pan
-                        | nir_op_rshift_xor_pan
-                        | nir_op_lrot_xor_pan
-                        | nir_op_rrot_xor_pan => LogicOp::Xor,
-                        _ => unreachable!(),
-                    }
+                let logic_op = match alu.op {
+                    nir_op_arshift_and_pan
+                    | nir_op_lshift_and_pan
+                    | nir_op_rshift_and_pan
+                    | nir_op_lrot_and_pan
+                    | nir_op_rrot_and_pan => LogicOp::And,
+                    nir_op_arshift_or_pan
+                    | nir_op_lshift_or_pan
+                    | nir_op_rshift_or_pan
+                    | nir_op_lrot_or_pan
+                    | nir_op_rrot_or_pan => LogicOp::Or,
+                    nir_op_arshift_xor_pan
+                    | nir_op_lshift_xor_pan
+                    | nir_op_rshift_xor_pan
+                    | nir_op_lrot_xor_pan
+                    | nir_op_rrot_xor_pan => LogicOp::Xor,
+                    _ => unreachable!(),
+                };
+
+                // Zero is the identity for OR/XOR
+                let logic_op = match (logic_op, src_is_zero(2)) {
+                    (LogicOp::Or | LogicOp::Xor, true) => LogicOp::None,
+                    (x, _) => x,
                 };
 
                 b.push_op(OpShiftLop {
