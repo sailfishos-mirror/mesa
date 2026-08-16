@@ -480,6 +480,28 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 }
 
 static bool
+gpu_supports_multisampled_blitter_resolve(const struct etna_screen *screen,
+                                          enum pipe_format format, unsigned sample_count)
+{
+   if (sample_count != ETNA_MAX_SAMPLES ||
+       !screen->base.caps.texture_multisample)
+      return false;
+
+   switch (format) {
+   case PIPE_FORMAT_R16_FLOAT:
+   case PIPE_FORMAT_R16G16_FLOAT:
+   case PIPE_FORMAT_R11G11B10_FLOAT:
+      /* handled by u_blitter */
+      return true;
+   default:
+      return !screen->specs.use_blt &&
+             util_format_get_blocksize(format) <= 4 &&
+             (util_format_is_unorm(format) ||
+              util_format_is_pure_integer(format));
+   }
+}
+
+static bool
 gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
                            unsigned sample_count)
 {
@@ -490,7 +512,8 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 
    if (sample_count > 1) {
       if (screen->specs.use_blt) {
-         if (translate_blt_format(format) == ETNA_NO_MATCH)
+         if (translate_blt_format(format) == ETNA_NO_MATCH &&
+             !gpu_supports_multisampled_blitter_resolve(screen, format, sample_count))
             return false;
       } else {
          if (util_format_is_pure_integer(format) &&
@@ -499,11 +522,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 
          /* RS format or u_blitter fallback support */
          if (translate_rs_format(format, screen->info->halti >= 5) == ETNA_NO_MATCH &&
-             (util_format_get_blocksize(format) > 4 ||
-              (!util_format_is_unorm(format) &&
-               !util_format_is_pure_integer(format)) ||
-              sample_count != ETNA_MAX_SAMPLES ||
-              !screen->base.caps.texture_multisample))
+             !gpu_supports_multisampled_blitter_resolve(screen, format, sample_count))
             return false;
       }
    }
