@@ -5764,7 +5764,10 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       if (!binding_type.has_value())
          binding_type = LSC_ADDR_SURFTYPE_BTI;
 
-      srcs[MEMORY_LOGICAL_ADDRESS] = get_nir_src(ntb, instr->src[1], 0);
+      /* Payload lowering uses MEMORY_LOGICAL_ADDRESS as a vector, so don't
+       * select a channel here.
+       */
+      srcs[MEMORY_LOGICAL_ADDRESS] = get_nir_src(ntb, instr->src[1], -1);
       break;
 
    case nir_intrinsic_load_ubo:
