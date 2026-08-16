@@ -412,8 +412,11 @@ nak_preprocess_nir(nir_shader *nir, const struct nak_compiler *nak)
    OPT(nir, nir_lower_system_values);
    OPT(nir, nir_lower_compute_system_values, NULL);
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
+      OPT(nir, nir_opt_move_discards_to_top);
       OPT(nir, nir_lower_terminate_to_demote);
+   }
 }
 
 uint16_t
