@@ -981,7 +981,6 @@ spec@arb_direct_state_access@texture-buffer,Fail
 spec@arb_enhanced_layouts@arb_enhanced_layouts-transform-feedback-layout-qualifiers_gs,Crash
 spec@arb_enhanced_layouts@arb_enhanced_layouts-transform-feedback-layout-qualifiers_gs_max,Crash
 spec@arb_enhanced_layouts@arb_enhanced_layouts-transform-feedback-layout-qualifiers_vs,Crash
-spec@arb_enhanced_layouts@arb_enhanced_layouts-transform-feedback-layout-qualifiers_vs_interface,Crash
 
 spec@arb_es2_compatibility@texwrap formats,Fail
 spec@arb_es2_compatibility@texwrap formats offset,Fail
@@ -1061,13 +1060,9 @@ spec@arb_texture_rg@texwrap formats offset@GL_RG8- NPOT,Fail
 spec@arb_texture_rg@texwrap formats-float,Fail
 spec@arb_texture_rg@texwrap formats-float offset,Fail
 spec@arb_texture_rg@texwrap formats-float offset@GL_R16F- NPOT,Fail
-spec@arb_texture_rg@texwrap formats-float offset@GL_R32F- NPOT,Fail
 spec@arb_texture_rg@texwrap formats-float offset@GL_RG16F- NPOT,Fail
-spec@arb_texture_rg@texwrap formats-float offset@GL_RG32F- NPOT,Fail
 spec@arb_texture_rg@texwrap formats-float@GL_R16F- NPOT,Fail
-spec@arb_texture_rg@texwrap formats-float@GL_R32F- NPOT,Fail
 spec@arb_texture_rg@texwrap formats-float@GL_RG16F- NPOT,Fail
-spec@arb_texture_rg@texwrap formats-float@GL_RG32F- NPOT,Fail
 spec@arb_texture_rg@texwrap formats@GL_R16- NPOT,Fail
 spec@arb_texture_rg@texwrap formats@GL_R8- NPOT,Fail
 spec@arb_texture_rg@texwrap formats@GL_RG16- NPOT,Fail

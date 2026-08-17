@@ -632,7 +632,6 @@ spec@!opengl 1.1@push-pop-color-material,Fail
 spec@arb_fragment_program@sparse-samplers,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
-spec@glsl-1.10@execution@samplers@glsl-fs-sampler-numbering-3,Fail
 
 # Nightly run expectations update
 KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component,Fail

@@ -117,9 +117,6 @@ spec@glsl-1.30@execution@texelfetch fs sampler3d 98x1x9-98x129x9,Fail
 spec@glsl-1.50@execution@primitive-id-no-gs-quads,Fail
 spec@glsl-1.50@execution@primitive-id-no-gs-quad-strip,Fail
 
-# "ir3_shader.h:923:ir3_link_add: Assertion `i < ARRAY_SIZE(l->var)' failed"
-spec@glsl-1.50@execution@variable-indexing@gs-output-array-vec4-index-wr,Crash
-
 spec@khr_texture_compression_astc@array-gl@12x12 Block Dim,Fail
 spec@khr_texture_compression_astc@array-gl@5x5 Block Dim,Fail
 spec@khr_texture_compression_astc@array-gles@12x12 Block Dim,Fail

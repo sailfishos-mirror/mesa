@@ -846,7 +846,6 @@ spec@glsl-1.50@execution@geometry@tri-strip-ordering-with-prim-restart gl_triang
 spec@glsl-1.50@execution@geometry@tri-strip-ordering-with-prim-restart gl_triangle_strip_adjacency other,Fail
 spec@glsl-1.50@execution@primitive-id-no-gs-quad-strip,Fail
 spec@glsl-1.50@execution@primitive-id-no-gs-quads,Fail
-spec@glsl-1.50@execution@variable-indexing@gs-output-array-vec4-index-wr,Fail
 spec@glsl-1.50@gs-max-output,Fail
 spec@glsl-1.50@gs-max-output-components,Fail
 spec@glsl-es-3.10@execution@cs-image-atomic-if-else,Fail
@@ -1065,16 +1064,4 @@ spec@ext_texture_array@copyteximage 2d_array samples=6,Fail
 spec@ext_texture_array@copyteximage 2d_array samples=8,Fail
 spec@ext_texture_integer@fbo-integer-attachments,Fail
 spec@glsl-1.30@execution@glsl-packed-colors-clamping,Fail
-spec@arb_sample_shading@samplemask 4@0.250000 fix,Fail
-spec@arb_sample_shading@samplemask 4@0.250000 partition,Fail
-spec@arb_sample_shading@samplemask 4@0.500000 fix,Fail
-spec@arb_sample_shading@samplemask 4@0.500000 partition,Fail
-spec@arb_sample_shading@samplemask 4@1.000000 fix,Fail
-spec@arb_sample_shading@samplemask 4@1.000000 partition,Fail
-spec@arb_sample_shading@samplemask 4@noms fix,Fail
-spec@arb_sample_shading@samplemask 4@sample fix,Fail
-spec@arb_sample_shading@samplemask 4@sample partition,Fail
-spec@arb_tessellation_shader@execution@tcs-input@tcs-input-ivec2,Fail
-spec@glsl-1.30@execution@clipping@vs-clip-distance-primitives,Fail
-spec@glsl-1.50@execution@geometry@primitive-id-in,Fail
 vulkan@shaders@cmat-uniform-ctor,Fail

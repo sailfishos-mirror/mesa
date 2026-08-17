@@ -138,10 +138,6 @@ spec@glsl-1.50@execution@geometry@point-size-out,Fail
 spec@glsl-1.50@execution@geometry@primitive-id-restart gl_line_strip_adjacency other,Fail
 spec@glsl-1.50@execution@redeclare-pervertex-out-subset-gs,Fail
 
-# shader_runner: ../src/freedreno/ir3/ir3_shader.h:1363: void ir3_link_add(ir3_shader_linkage*, uint8_t, uint8_t, uint8_t, uint8_t): Assertion `i < ARRAY_SIZE(l->var)' failed.
-# Also crashes on freedreno gallium.
-spec@glsl-1.50@execution@variable-indexing@gs-output-array-vec4-index-wr,Crash
-
 spec@khr_texture_compression_astc@array-gl,Fail
 spec@khr_texture_compression_astc@array-gl@12x12 Block Dim,Fail
 spec@khr_texture_compression_astc@array-gl@5x5 Block Dim,Fail
