@@ -326,7 +326,6 @@ lsc_msg_desc(const struct intel_device_info *devinfo,
 {
    assert(devinfo->has_lsc);
    assert(!transpose || lsc_opcode_has_transpose(opcode));
-   assert(intel_device_info_has_64bit_addressing(devinfo) == false);
 
    gen_lsc_desc desc = {};
    desc.op = opcode;

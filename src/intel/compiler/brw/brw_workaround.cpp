@@ -199,7 +199,7 @@ brw_workaround_memory_fence_before_eot(brw_shader &s)
       dummy_fence->mlen = reg_unit(s.devinfo);
       dummy_fence->ex_mlen = 0;
       dummy_fence->sfid = GEN_SFID_UGM;
-      assert(intel_device_info_has_64bit_addressing(s.devinfo) == false);
+      assert(!s.key->use_efficient_64bit);
       dummy_fence->size_written = REG_SIZE * reg_unit(s.devinfo);
       dummy_fence->desc = lsc_fence_msg_desc(s.devinfo, LSC_FENCE_TILE,
                                              LSC_FLUSH_TYPE_NONE_6, false) |

@@ -130,6 +130,7 @@ anv_device_init_blorp(struct anv_device *device)
          device->vk.enabled_extensions.EXT_depth_range_unrestricted,
       .use_cached_dynamic_states = true,
       .enable_tbimr = device->physical->drirc.debug.tbimr,
+      .use_efficient_64bit = device->physical->uses_efficient_64bit,
    };
 
    blorp_init_brw(&device->blorp.context, device, &device->isl_dev,
