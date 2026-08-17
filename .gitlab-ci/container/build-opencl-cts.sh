@@ -11,7 +11,7 @@ section_start opencl-cts "Building OpenCL-CTS"
 
 ci_tag_build_time_check "OPENCL_CTS_TAG"
 
-REV="349973878bd92be01eefc489206d73bdbe5e7aed"
+REV="43111c0c7c7ffcdbacc5775a6baff8016bada9e2"
 MESA_SOURCE_DIR="$PWD"
 OPENCL_CTS_S3_ARTIFACT="opencl-cts.tar.zst"
 ARTIFACT_PATH="${DATA_STORAGE_PATH}/opencl-cts/${DEBIAN_ARCH}/${OPENCL_CTS_TAG}.tar.zst"

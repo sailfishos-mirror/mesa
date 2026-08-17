@@ -119,3 +119,11 @@ Profiling@write_array_ushort,Fail
 Profiling@write_image_char,Fail
 Profiling@write_image_float,Fail
 Profiling@write_image_uchar,Fail
+
+#
+# OpenCL-CTS uprev
+#
+
+# https://github.com/KhronosGroup/OpenCL-CTS/issues/2765
+Basic,Fail
+Basic@bufferreadwriterect,Fail

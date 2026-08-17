@@ -299,9 +299,8 @@ program@execute@vector-conversion,Fail
 # OpenCL-CTS quick profile
 Images (clCopyImage 1D),Fail
 Images (clCopyImage 1D)@1D,Fail
-Images (clCopyImage 1D)@1DTo1Dbuffer,Fail
 Images (clCopyImage 1D)@1Darray,Fail
-Images (clCopyImage 2D),Fail
+Images (clCopyImage 2D),Crash
 Images (clCopyImage 2D)@2D,Fail
 Images (clCopyImage 2D)@2Darrayto2D,Fail
 Images (clCopyImage 2D)@2Darrayto3D,Fail
@@ -315,3 +314,10 @@ Images (clCopyImage 3D)@3Dto2Darray,Fail
 Basic@get_enqueued_local_size,Fail
 Basic@get_global_linear_id,Fail
 Basic@get_local_linear_id,Fail
+
+#
+# OpenCL-CTS uprev
+#
+
+Basic,Fail
+Basic@enqueue_map_image,Fail
