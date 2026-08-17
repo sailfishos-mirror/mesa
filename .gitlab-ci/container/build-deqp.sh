@@ -24,7 +24,7 @@ set -x
 # - the GLES release produces `deqp-gles*` and `deqp-egl`
 
 DEQP_MAIN_COMMIT=634a3fc62d82c34de68c3b1add25e6b7f5777524
-DEQP_VK_VERSION=1.4.6.1
+DEQP_VK_VERSION=1.4.6.2
 DEQP_GL_VERSION=4.6.8.1
 DEQP_GLES_VERSION=3.2.14.1
 
@@ -52,10 +52,10 @@ vk_cts_commits_to_backport=(
   6368ee8503dd9ca46eabfa2df293075d9034a214
   # Check requirements in checkSupport, part 11 (binding_model module)
   541ed0874565d642069c59fe3b31fc42f495a470
-  # Enable VK_KHR_display when needed in compression control tests
-  629745a58d31bc5c810f014c0975e176e2791ae0
   # Use -frounding-math by default with GCC
   ded32883bf36e5bdf7ac6b0512d5314adc0849d4
+  # Check requirements in checkSupport, part 12 (conditional_rendering module)
+  b1a2490aaa2cc0429dca4f8efcce7e0d4a9e619f
 )
 
 # shellcheck disable=SC2034
