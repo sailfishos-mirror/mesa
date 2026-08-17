@@ -1558,6 +1558,12 @@ struct anv_physical_device {
      */
     bool                                        indirect_descriptors;
 
+    /**
+     * Gfx35+ only mode where HW descriptor are addresses using a 64bit
+     * address.
+     */
+    bool                                        uses_efficient_64bit;
+
     bool                                        uses_relocs;
 
     /** Can the platform support cooperative matrices and is it enabled? */

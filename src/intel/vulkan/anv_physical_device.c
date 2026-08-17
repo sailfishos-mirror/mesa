@@ -3179,6 +3179,10 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       !intel_has_extended_bindless(&devinfo) ||
       device->drirc.debug.force_indirect_descriptors;
 
+   device->uses_efficient_64bit =
+      device->info.verx10 >= 350 &&
+      device->drirc.debug.enable_efficient_64bit;
+
    device->alloc_aux_tt_mem =
       device->info.has_aux_map && device->info.verx10 >= 125;
 

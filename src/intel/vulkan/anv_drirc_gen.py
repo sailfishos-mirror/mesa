@@ -84,6 +84,9 @@ def declare_options(android_version):
         # Workaround various driver
         B("always_flush_cache", False,
           "Enable flushing GPU caches with each draw call", c_name="always_flush_cache"),
+        B("anv_enable_efficient_64bit", False,
+          "Enable efficient 64bit mode on Gfx35+",
+          c_name="enable_efficient_64bit"),
         B("anv_force_filter_addr_rounding", False,
           "Force min/mag filter address rounding to be enabled even for NEAREST sampling",
           c_name="force_filter_addr_rounding"),
