@@ -67,7 +67,9 @@ struct affinity {
    unsigned align     :7;
    unsigned align_offs:7;
    unsigned nr        :8;
-   unsigned padding   :2;
+
+   /** Preferred SIMD split for the block */
+   unsigned split     :2;
 };
 static_assert(sizeof(struct affinity) == 8, "packed");
 
@@ -584,14 +586,19 @@ is_block_compatible(struct jay_register_block block,
                     enum jay_file file,
                     enum jay_stride min_stride,
                     enum jay_stride max_stride,
+                    unsigned split,
                     bool eot,
-                    bool allow_accum)
+                    bool allow_accum,
+                    bool allow_split)
 {
    return block.type != JAY_BLOCK_SPILL &&
           (file != GPR ||
            (min_stride <= block.stride && block.stride <= max_stride)) &&
           (!eot || block.type == JAY_BLOCK_EOT) &&
-          (allow_accum || block.type != JAY_BLOCK_ACCUM);
+          (allow_accum || block.type != JAY_BLOCK_ACCUM) &&
+          (file != GPR ||
+           block.split == split ||
+           (block.split > split && allow_split));
 }
 
 static jay_reg
@@ -604,7 +611,8 @@ try_find_free_reg(jay_ra_state *ra,
       struct jay_register_block B = ra->b.shader->partition.blocks[file][b];
 
       if (is_block_compatible(B, file, stride4 ? JAY_STRIDE_4 : 0,
-                              stride4 ? JAY_STRIDE_4 : ~0, false, !stride4)) {
+                              stride4 ? JAY_STRIDE_4 : ~0, 0, false, !stride4,
+                              !stride4)) {
 
          for (unsigned i = B.start_gpr; i < B.start_gpr + B.len_gpr; ++i) {
             if (BITSET_TEST(ra->available_regs[file], i) && i != except) {
@@ -661,8 +669,13 @@ pick_regs_from_block(jay_ra_state *ra,
 {
    /* Cross-lane access cannot be SIMD split if the source/destination registers
     * overlap, but as long as we don't tie those destinations, we're ok.
+    *
+    * SIMD splitting ray queries has a similar issue due to our late fixup.
     */
-   bool may_tie = !jay_is_shuffle_like(I);
+   bool may_tie = !jay_is_shuffle_like(I) &&
+                  !(I->op == JAY_OPCODE_SEND &&
+                    jay_send_sfid(I) == GEN_SFID_RAY_TRACE_ACCELERATOR &&
+                    I->simd_split);
 
    /* GPRs stay within their lane, but UGPRs do not. So if UGPR strides are
     * mixed between source & destination, we cannot tie for a similar reason,
@@ -782,6 +795,10 @@ pick_regs(jay_ra_state *ra,
 {
    struct jay_partition *partition = &ra->b.shader->partition;
    bool eot = jay_is_early_eot_send(ra->b.shader, I) && file != FLAG;
+   bool allow_split = !jay_is_send_like(I) &&
+                      I->op != JAY_OPCODE_DPAS &&
+                      I->op != JAY_OPCODE_SLICE_REPACK;
+   unsigned split = I->simd_split;
 
    /* If possible, keep sources in place to avoid shuffles. */
    if (is_src && jay_channel(var, 0) != 0) {
@@ -791,8 +808,8 @@ pick_regs(jay_ra_state *ra,
       if (cur + size <= ra->num_regs[file] &&
           !BITSET_TEST_COUNT(ra->pinned[file], cur, size) &&
           util_is_aligned(cur - block.start_gpr, alignment) &&
-          is_block_compatible(block, file, min_stride, max_stride, eot,
-                              false) &&
+          is_block_compatible(block, file, min_stride, max_stride, split, eot,
+                              false, allow_split) &&
           cur + size <= (block.start_gpr + block.len_gpr)) {
          return cur;
       }
@@ -837,8 +854,8 @@ pick_regs(jay_ra_state *ra,
 
       struct jay_register_block block = partition->blocks[file][b];
 
-      if (is_block_compatible(block, file, min_stride, max_stride, eot,
-                              false)) {
+      if (is_block_compatible(block, file, min_stride, max_stride, split, eot,
+                              false, allow_split)) {
          unsigned r = b_ == rr->block ? rr->gpr : 0;
 
          if (affinity.repr == jay_channel(var, 0) && b_ == rr->block) {
@@ -854,6 +871,11 @@ pick_regs(jay_ra_state *ra,
           * register, we will need to insert 1 copy per channel at the end.
           */
          if (affinity.eot && block.type != JAY_BLOCK_EOT) {
+            block_cost += size;
+         }
+
+         /* Likewise for SIMD splitting */
+         if (affinity.split != block.split) {
             block_cost += size;
          }
 
@@ -1391,6 +1413,10 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].repr = repr;
             ra.affinities[index].offset = repr == index ? c : c - repr_c;
             ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 255);
+         }
+
+         if (I->op == JAY_OPCODE_SEND) {
+            ra.affinities[index].split = I->simd_split;
          }
 
          if (jay_is_early_eot_send(shader, I) && I->src[s].file != FLAG) {
