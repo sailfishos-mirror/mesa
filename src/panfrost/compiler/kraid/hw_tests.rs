@@ -325,11 +325,15 @@ impl<'a> TestShaderBuilder<'a> {
 
         let invoc_id: SSAValue = b.alloc_ssa(32);
         let global_id_reg = model.preload_reg(PreloadReg::GlobalId0).unwrap();
-        info.register_preload |= 1 << global_id_reg.idx;
+        info.add_preload(&global_id_reg);
         b.push_op(OpRegIn {
             dst: invoc_id.into(),
             dst_type: DataType::I32,
             reg: global_id_reg,
+            preload: Some(PreloadInfo {
+                set: PreloadRegSet::from_array([PreloadReg::GlobalId0]),
+                comp: 0,
+            }),
         });
 
         let data_offset = b.alloc_ssa(32);
