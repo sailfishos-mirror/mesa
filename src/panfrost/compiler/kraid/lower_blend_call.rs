@@ -64,6 +64,10 @@ impl Shader<'_> {
     /// After this pass no other pass should add/remove or reoder instructions
     /// as it can mess up the crafted prologue.  This must be the last pass.
     pub fn lower_blend_call(&mut self) {
+        if self.info.is_blend {
+            // Blend shaders cannot have blend calls
+            return;
+        }
         let model = self.model;
         self.map_instrs(|instr, _| match instr.op {
             Op::BlendCall(op) => {

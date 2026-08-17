@@ -86,6 +86,21 @@ impl Arena {
         }
     }
 
+    /// Creates a new register arena for blend shaders
+    pub fn new_blend(model: &dyn Model) -> Arena {
+        let limit = 16 * 4;
+        Arena {
+            limit: limit.into(),
+            used: 0.into(),
+            granularity: limit,
+            is_mem: false,
+            round_robin: true,
+            tls_offset: 0,
+            is_v9_32reg: model.arch() < 15,
+            is_v9_64reg: false,
+        }
+    }
+
     /// Returns the number of bytes used from this arena.  This will be updated
     /// as we allocate and can be queried after RA is complete to know the
     /// final amount we need to report to the driver.
@@ -2652,13 +2667,29 @@ impl Shader<'_> {
             return ra_trivial(self);
         }
 
+        pass!(self.lower_repeated_phi_srcs());
+
+        if self.info.is_blend {
+            let arena = Arena::new_blend(self.model);
+
+            let live = SimpleLiveness::for_shader(self);
+            assert!(
+                live.max_live_bytes().reg <= u32::from(arena.limit()),
+                "Blend shaders cannot spill"
+            );
+
+            self.run_pass("allocating registers", |s| {
+                alloc_regs(s, &arena, live);
+            });
+            self.info.registers_used = arena.regs_used();
+            return;
+        }
+
         let mut reg_limit: u16 = if DEBUG.contains(DebugFlags::SPILL) {
             16 * 4
         } else {
             u16::from(self.model.max_reg_count()) * 4
         };
-
-        pass!(self.lower_repeated_phi_srcs());
 
         let mut live = SimpleLiveness::for_shader(self);
         let max_live = live.max_live_bytes();

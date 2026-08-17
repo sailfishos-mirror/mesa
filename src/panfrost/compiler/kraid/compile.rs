@@ -236,7 +236,7 @@ pub extern "C" fn kraid_compile_nir(
         eprint!("{}", nir.to_string().unwrap());
     }
 
-    let mut s = Shader::from_nir(model.as_ref(), nir);
+    let mut s = Shader::from_nir(model.as_ref(), nir, inputs);
     s.run_pass("after translation from NIR", |_| {});
 
     pass!(s.remat_constants());

@@ -116,7 +116,11 @@ struct ShaderFromNir<'a> {
 }
 
 impl<'a> ShaderFromNir<'a> {
-    fn new(model: &'a dyn Model, nir: &'a nir_shader) -> Self {
+    fn new(
+        model: &'a dyn Model,
+        nir: &'a nir_shader,
+        inputs: &pan_compile_inputs,
+    ) -> Self {
         let fc = nir.info.float_controls_execution_mode;
         let rtz_fp16 = (fc & FLOAT_CONTROLS_ROUNDING_MODE_RTZ_FP16) != 0;
         let rtz_fp32 = (fc & FLOAT_CONTROLS_ROUNDING_MODE_RTZ_FP32) != 0;
@@ -132,6 +136,7 @@ impl<'a> ShaderFromNir<'a> {
             ftz_fp32,
             info: ShaderInfo {
                 tls_size: nir.scratch_size,
+                is_blend: inputs.is_blend,
                 ..ShaderInfo::default()
             },
             constant_pool_label: None,
@@ -2157,6 +2162,45 @@ impl<'a> ShaderFromNir<'a> {
                 let dst = b.copy_i32(fau.word(0).into());
                 self.set_ssa(&intrin.def, vec![dst]);
             }
+            nir_intrinsic_load_blend_descriptor_pan => {
+                assert_eq!(intrin.def.bit_size, 64);
+                assert_eq!(intrin.def.num_components, 1);
+                let rt = intrin.base();
+                let fau = SpecialFAU::blend_descriptor(rt.try_into().unwrap());
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.copy_i64_to(dst, self.special_fau(fau).into());
+            }
+            nir_intrinsic_load_blend_input_pan => {
+                let is_primary =
+                    intrin.io_semantics().dual_source_blend_index() == 0;
+                let bits = intrin.def.bit_size;
+                let comps = intrin.def.num_components();
+                debug_assert!(bits == 16 || bits == 32);
+
+                let regs = if is_primary {
+                    PreloadReg::BlendInputSrc0
+                } else {
+                    PreloadReg::BlendInputSrc1
+                };
+
+                // We already know that the preloaded registers match whatever
+                // format we have, so just cast the source to the correct n. of
+                // SSAs
+                let mut ssa = self.preload(b, regs).to_vec();
+                let reg_count = (bits * comps).div_ceil(32);
+                ssa.truncate(reg_count.into());
+                self.set_ssa(&intrin.def, ssa);
+            }
+            nir_intrinsic_blend_return_pan => {
+                let addr = self.preload(b, PreloadReg::BlendReturnAddr);
+                // Jump only if addr != 0, otherwise continue into a .end
+                b.push_op(OpJump {
+                    not: false,
+                    cond: addr.clone().into(),
+                    address: addr.into(),
+                    combine_op: BranchCombineOp::None,
+                });
+            }
             nir_intrinsic_load_var_pan => {
                 assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
                 assert_eq!(intrin.def.num_components, intrin.num_components);
@@ -2368,17 +2412,30 @@ impl<'a> ShaderFromNir<'a> {
                     );
                 }
 
-                let sample_id = self.preload(b, PreloadReg::SampleCentroidId);
-                b.push_op(OpBlendCall {
-                    color_type,
-                    descr,
-                    coverage,
-                    sample_id: sample_id.into(),
-                    color,
-                    second_color,
-                    render_target_idx,
-                    has_second_color,
-                });
+                if self.info.is_blend {
+                    assert!(second_color.is_zero());
+                    b.push_op(OpBlend {
+                        color_type,
+                        descr,
+                        coverage,
+                        color,
+                        render_target_idx,
+                        offset: 0,
+                    });
+                } else {
+                    let sample_id =
+                        self.preload(b, PreloadReg::SampleCentroidId);
+                    b.push_op(OpBlendCall {
+                        color_type,
+                        descr,
+                        coverage,
+                        sample_id: sample_id.into(),
+                        color,
+                        second_color,
+                        render_target_idx,
+                        has_second_color,
+                    });
+                }
             }
             nir_intrinsic_demote_if => {
                 b.push_op(OpDiscard {
@@ -2680,7 +2737,11 @@ impl<'a> ShaderFromNir<'a> {
 }
 
 impl<'a> Shader<'a> {
-    pub fn from_nir(model: &'a dyn Model, nir: &'a nir_shader) -> Self {
-        ShaderFromNir::new(model, nir).parse_shader()
+    pub fn from_nir(
+        model: &'a dyn Model,
+        nir: &'a nir_shader,
+        inputs: &pan_compile_inputs,
+    ) -> Self {
+        ShaderFromNir::new(model, nir, inputs).parse_shader()
     }
 }

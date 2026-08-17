@@ -2109,6 +2109,8 @@ pub struct ShaderInfo {
     /// Fragment shaders blend (and blend2) types
     pub blend_types: [Option<DataType>; 8],
     pub blend1_type: Option<DataType>,
+    /// Is this a blend shader?
+    pub is_blend: bool,
 }
 
 impl ShaderInfo {
