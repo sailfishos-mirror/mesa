@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <math.h>
 #include "util/u_math.h"
 #include "jay_ir.h"
-#include "jay_opcodes.h"
 #include "jay_private.h"
 #include "shader_enums.h"
 
