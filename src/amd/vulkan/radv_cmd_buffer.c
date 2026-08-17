@@ -1148,20 +1148,12 @@ radv_cmd_buffer_uses_mec(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void
-radv_write_data(struct radv_cmd_buffer *cmd_buffer, const unsigned engine_sel, const uint64_t va, const unsigned count,
-                const uint32_t *data, const bool predicating)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-
-   radv_cs_write_data(device, cmd_buffer->cs, engine_sel, va, count, data, predicating);
-}
-
-static void
 radv_emit_clear_data(struct radv_cmd_buffer *cmd_buffer, unsigned engine_sel, uint64_t va, unsigned size)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    uint32_t *zeroes = alloca(size);
    memset(zeroes, 0, size);
-   radv_write_data(cmd_buffer, engine_sel, va, size / 4, zeroes, false);
+   radv_cs_write_data(device, cmd_buffer->cs, engine_sel, va, size / 4, zeroes, false);
 }
 
 static void
@@ -1501,7 +1493,7 @@ radv_cmd_buffer_trace_emit(struct radv_cmd_buffer *cmd_buffer)
       va += offsetof(struct radv_trace_data, secondary_id);
 
    ++cmd_buffer->state.trace_id;
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 1, &cmd_buffer->state.trace_id, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 1, &cmd_buffer->state.trace_id, false);
 
    radeon_check_space(device->ws, cs->b, 2);
 
@@ -1747,7 +1739,7 @@ radv_gang_finalize(struct radv_cmd_buffer *cmd_buffer)
       radv_cs_write_data(device, ace_cs, V_371_MICRO_ENGINE, leader2follower_va, 1, &zero, false);
 
       /* Leader: write 0 to the follower->leader semaphore. */
-      radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, follower2leader_va, 1, &zero, false);
+      radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, follower2leader_va, 1, &zero, false);
    }
 
    return radv_finalize_cmd_stream(device, cmd_buffer->gang.cs);
@@ -1825,7 +1817,7 @@ radv_save_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_pipeline *pip
    data[0] = pipeline_address;
    data[1] = pipeline_address >> 32;
 
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 2, data, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 2, data, false);
 }
 
 static void
@@ -1840,7 +1832,7 @@ radv_save_vertex_descriptors(struct radv_cmd_buffer *cmd_buffer, uint64_t vb_ptr
    data[0] = vb_ptr;
    data[1] = vb_ptr >> 32;
 
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 2, data, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 2, data, false);
 }
 
 static void
@@ -1856,7 +1848,7 @@ radv_save_vs_prolog(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader
    data[0] = prolog_address;
    data[1] = prolog_address >> 32;
 
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 2, data, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 2, data, false);
 }
 
 static void
@@ -1872,7 +1864,7 @@ radv_save_ps_epilog(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader
    data[0] = epilog_address;
    data[1] = epilog_address >> 32;
 
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 2, data, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 2, data, false);
 }
 
 void
@@ -1902,7 +1894,7 @@ radv_save_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoint bi
       data[i * 2 + 1] = (uint64_t)(uintptr_t)set >> 32;
    }
 
-   radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, MAX_SETS * 2, data, false);
+   radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, MAX_SETS * 2, data, false);
 }
 
 static void
@@ -5147,7 +5139,8 @@ radv_set_ds_clear_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image
             value = ds_clear_value.stencil;
          }
 
-         radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 1, &value, cmd_buffer->state.cond_render.enabled);
+         radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 1, &value,
+                            cmd_buffer->state.cond_render.enabled);
       }
    }
 
@@ -16026,10 +16019,10 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    if (!(stageMask & ~top_of_pipe_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
       /* Just need to sync the PFP engine. */
-      radv_write_data(cmd_buffer, V_371_PREFETCH_PARSER, va, 1, &value, false);
+      radv_cs_write_data(device, cmd_buffer->cs, V_371_PREFETCH_PARSER, va, 1, &value, false);
    } else if (!(stageMask & ~post_index_fetch_flags)) {
       /* Sync ME because PFP reads index and indirect buffers. */
-      radv_write_data(cmd_buffer, V_371_MICRO_ENGINE, va, 1, &value, false);
+      radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 1, &value, false);
    } else {
       unsigned event_type;
 
