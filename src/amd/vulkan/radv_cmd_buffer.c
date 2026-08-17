@@ -253,27 +253,13 @@ radv_get_raster_prim(const struct radv_cmd_buffer *cmd_buffer)
 }
 
 ALWAYS_INLINE static void
-radv_update_guardband_raster_prim(struct radv_cmd_buffer *cmd_buffer)
-{
-   struct radv_cmd_state *state = &cmd_buffer->state;
-   unsigned raster_prim = radv_get_raster_prim(cmd_buffer);
-
-   if (raster_prim != cmd_buffer->state.guardband_raster_prim) {
-      state->guardband_raster_prim = raster_prim;
-      state->dirty |= RADV_CMD_DIRTY_GUARDBAND;
-   }
-}
-
-ALWAYS_INLINE static void
 radv_cmd_set_polygon_mode(struct radv_cmd_buffer *cmd_buffer, VkPolygonMode polygon_mode)
 {
    struct radv_cmd_state *state = &cmd_buffer->state;
 
-   /* This must be set before calling radv_update_guardband_raster_prim. */
    state->dynamic.vk.rs.polygon_mode = polygon_mode;
 
    state->dirty_dynamic |= RADV_DYNAMIC_POLYGON_MODE;
-   radv_update_guardband_raster_prim(cmd_buffer);
 }
 
 ALWAYS_INLINE static void
@@ -13524,14 +13510,19 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
       const uint32_t vgt_outprim_type = radv_get_vgt_outprim_type(cmd_buffer);
 
       if (cmd_buffer->state.vgt_outprim_type != vgt_outprim_type) {
-         /* This must be set before calling radv_update_guardband_raster_prim. */
+         /* This must be set before computing the guardband raster prim. */
          cmd_buffer->state.vgt_outprim_type = vgt_outprim_type;
 
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE | RADV_CMD_DIRTY_NGG_STATE | RADV_CMD_DIRTY_NGGC_SETTINGS |
                                     RADV_CMD_DIRTY_VGT_PRIM_STATE;
       }
 
-      radv_update_guardband_raster_prim(cmd_buffer);
+      const uint32_t raster_prim = radv_get_raster_prim(cmd_buffer);
+
+      if (cmd_buffer->state.guardband_raster_prim != raster_prim) {
+         cmd_buffer->state.guardband_raster_prim = raster_prim;
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GUARDBAND;
+      }
 
       const VkLineRasterizationModeEXT line_rast_mode = radv_get_line_mode(cmd_buffer);
 
