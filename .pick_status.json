@@ -5174,7 +5174,7 @@
         "description": "turnip: scale the transform feedback counter offset on a6xx",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20e12d9ef4e29bd64964c3c22fc8876d1c1c2977",
         "notes": null
