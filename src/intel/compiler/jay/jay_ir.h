@@ -744,7 +744,7 @@ enum jay_stride jay_src_stride_minmax(jay_inst *I, unsigned s, bool do_max);
 #define jay_foreach_ra_file(file)                                              \
    for (enum jay_file file = 0; file < JAY_NUM_RA_FILES; ++file)
 
-#define JAY_PARTITION_BLOCKS (6)
+#define JAY_PARTITION_BLOCKS (7)
 
 enum jay_block_type {
    JAY_BLOCK_NORMAL,
