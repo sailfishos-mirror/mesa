@@ -4969,8 +4969,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    if (debug) {
       fprintf(stdout, "Jay shader (post-RA):\n\n");
       jay_print(stdout, s);
-
-      jay_print_partition(&s->partition);
+      jay_print_partition(s);
    }
 
    if (INTEL_DEBUG(DEBUG_SHADER_HASH)) {

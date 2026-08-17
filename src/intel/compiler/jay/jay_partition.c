@@ -84,6 +84,7 @@ struct jay_partition_builder {
    enum jay_stride stride;
    signed len_grf;
    enum jay_block_type type;
+   unsigned split;
 };
 
 static void
@@ -114,7 +115,8 @@ build_partition(jay_shader *shader,
       if (j >= 0 &&
           B.file == b[j].file &&
           B.stride == b[j].stride &&
-          B.type == b[j].type) {
+          B.type == b[j].type &&
+          B.split == b[j].split) {
 
          b[j].len_grf += B.len_grf;
       } else if (B.len_grf) {
@@ -135,6 +137,7 @@ build_partition(jay_shader *shader,
          .len_gpr = (b[i].len_grf * p->units_x16[file]) / 16,
          .stride = b[i].stride,
          .type = b[i].type,
+         .split = b[i].split,
       };
 
       if (file < JAY_NUM_GRF_FILES) {
@@ -542,13 +545,15 @@ static const char *jay_files[JAY_NUM_RA_FILES] = {
 };
 
 void
-jay_print_partition(struct jay_partition *p)
+jay_print_partition(jay_shader *s)
 {
+   struct jay_partition *p = &s->partition;
+
    jay_foreach_ra_file(file) {
       if (p->nr_blocks[file]) {
          printf("%s" ANSI_BOLD "    GRF      %s%s" ANSI_END "\n",
                 file ? "\n" : "", jay_files[file],
-                file == GPR ? "    Stride" : "");
+                file == GPR ? "    Stride   Split" : "");
       }
 
       for (unsigned b = 0; b < p->nr_blocks[file]; ++b) {
@@ -559,7 +564,8 @@ jay_print_partition(struct jay_partition *p)
                 B.start_gpr, B.start_gpr + B.len_gpr - 1);
 
          if (file == GPR) {
-            printf("  %u-bit", jay_stride_to_bits(B.stride));
+            printf("  %u-bit   SIMD%u", jay_stride_to_bits(B.stride),
+                   s->dispatch_width >> B.split);
          }
 
          const char *types[JAY_BLOCK_TYPES] = { "", " EOT", " Spill",

@@ -768,6 +768,9 @@ struct jay_register_block {
 
    /** Special feature of the block */
    enum jay_block_type type:3;
+
+   /** Logarithmic split index. 0 full SIMD, 1 half-SIMD, 2 quarter */
+   unsigned split:3;
 };
 static_assert(sizeof(struct jay_register_block) == 8, "packed");
 
