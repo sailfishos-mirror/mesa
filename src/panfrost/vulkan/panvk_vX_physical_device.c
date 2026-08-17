@@ -424,7 +424,7 @@ panvk_per_arch(get_physical_device_features)(
       .vulkanMemoryModelDeviceScope = true,
       .vulkanMemoryModelAvailabilityVisibilityChains = true,
       .shaderOutputViewportIndex = false,
-      .shaderOutputLayer = false,
+      .shaderOutputLayer = PAN_ARCH >= 10,
       .subgroupBroadcastDynamicId = true,
 
       /* Vulkan 1.3 */
