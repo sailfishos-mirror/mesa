@@ -160,11 +160,25 @@ to_gen_operand(
          }
       }
    } else if (d.file == GPR || d.file == ACCUM) {
+      struct jay_register_block block = { 0 };
       enum jay_stride def_stride =
          d.file == GPR ? jay_def_stride(f->shader, d) : JAY_STRIDE_4;
       uint32_t type_bits = jay_type_size_bits(type);
       unsigned stride_bits = jay_stride_to_bits(def_stride);
-      unsigned simd_width = jay_simd_width_physical(f->shader, I);
+      unsigned simd_width_instr = jay_simd_width_physical(f->shader, I);
+      unsigned simd_width_block = f->shader->dispatch_width;
+
+      if (d.file == GPR) {
+         block = jay_lookup_block(&f->shader->partition, d.reg, d.file);
+         simd_width_block >>= block.split;
+      }
+
+      assert(!(block.split && def_stride == JAY_STRIDE_2) &&
+             "todo: handle this case");
+      assert(simd_width_block >= simd_width_instr);
+
+      unsigned subblock_grf =
+         jay_grf_per_gpr_at_width(f->shader, simd_width_block);
 
       if (def_stride == JAY_STRIDE_2) {
          /* Select between lo/hi halves of the GPR */
@@ -174,17 +188,31 @@ to_gen_operand(
          /* Treat low bits as an offset in 2-byte words into the GRF */
          unsigned r = (reg * 2) + hi;
          unsigned mask = BITFIELD_MASK(stride_bits / 32);
-         grf += ((r & ~mask) / 2) * jay_grf_per_gpr(f->shader);
+         grf += ((r & ~mask) / 2) * subblock_grf;
          offset_B = (r & mask) * 2;
       }
 
       R = d.file == GPR ? gen_grf(grf, 0) : gen_accumulator(grf / 2);
       R = gen_restride(R, 1, 1, 0);
 
-      if (!(I->op == JAY_OPCODE_MUL_32_PART && d.file == ACCUM)) {
-         R = gen_byte_offset(devinfo, R,
-                             simd_offs * simd_width * stride_bits / 8);
+      /* SIMD split multiplication always uses acc0, so skip the usual SIMD
+       * offsetting for this case. Other accumulators use the zero-initialized
+       * (split = 0) default block per the data model.
+       */
+      if (I->op == JAY_OPCODE_MUL_32_PART && d.file == ACCUM) {
+         simd_offs = 0;
       }
+
+      unsigned simd_offs_lanes = simd_offs * simd_width_instr;
+      unsigned offs_in_subblock_lanes = simd_offs_lanes % simd_width_block;
+      unsigned subblock_idx = simd_offs_lanes / simd_width_block;
+
+      unsigned grf_size_B = jay_ugpr_per_grf(f->shader) * 4;
+      unsigned subblock_B = block.len_gpr * subblock_grf * grf_size_B;
+      unsigned subblock_offs_B = subblock_idx * subblock_B;
+      unsigned local_offs_B = offs_in_subblock_lanes * (stride_bits / 8);
+
+      R = gen_byte_offset(devinfo, R, subblock_offs_B + local_offs_B);
 
       if (stride_bits == (type_bits * 4)) {
          R = gen_restride(R, 8, 2, 4);
@@ -197,7 +225,7 @@ to_gen_operand(
       /* Broadcast is equivalent to <8, 8, 1> for SIMD1 instructions. Use that
        * instead due to regioning restrictions.
        */
-      if (simd_width == 1) {
+      if (simd_width_instr == 1) {
          R = gen_restride(R, 0, 1, 0);
       }
    } else if (d.file == FLAG) {
