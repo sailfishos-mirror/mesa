@@ -1576,6 +1576,9 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
          }
       }
 
+      /* Color attachments in the main subpass may be used as input attachments in the custom resolve subpass */
+      att->last_subpass_idx = (info->flags & VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT) ? 1 : 0;
+
       if (att_is_msrtss)
          pass->has_msrtss = true;
    }
@@ -1692,6 +1695,9 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
                att->will_be_resolved = false;
             }
          }
+
+         /* Color attachments in the main subpass may be used as input attachments in the custom resolve subpass */
+         att->last_subpass_idx = (info->flags & VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT) ? 1 : 0;
 
          if (att_is_msrtss)
             pass->has_msrtss = true;
