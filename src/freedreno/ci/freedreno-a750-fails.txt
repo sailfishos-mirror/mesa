@@ -69,12 +69,6 @@ vkd3d-test_sampler_feedback_implicit_lod_aniso,Fail
 
 vkd3d-test_buffer_descriptor_byte_offset,Fail
 
-# VKCTS 1.4.5.3 -> 1.4.6.1 uprev
-# deqp-vk: ../src/freedreno/ir3/ir3_image.c:101: ir3_get_type_for_image_intrinsic: Assertion `bit_size != 64 || instr->intrinsic == nir_intrinsic_bindless_image_atomic || instr->intrinsic == nir_intrinsic_bindless_image_atomic_swap' failed.
-dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.storage_texel_buffer_sparse_read_size_2_10_r64ui_strict,Crash
-dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.storage_texel_buffer_sparse_read_size_2_16_r64ui,Crash
-dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.storage_texel_buffer_sparse_read_size_2_16_r64ui_strict,Crash
-
 #
 # OpenCL-CTS
 #
