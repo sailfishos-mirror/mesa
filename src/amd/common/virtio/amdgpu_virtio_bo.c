@@ -76,10 +76,11 @@ alloc_host_blob(amdvgpu_bo_handle bo,
                 uint32_t blob_flags)
 {
       uint32_t kms_handle, res_id;
+      uint32_t blob_hints = DRM_VIRTGPU_BLOB_FLAG_HINT_DEFER_MAPPING;
 
       /* Create the host blob requires 2 steps. First create the host blob... */
       kms_handle = vdrm_bo_create(bo->dev->vdev, req->r.alloc_size, blob_flags,
-                                  req->blob_id, 0, &req->hdr);
+                                  req->blob_id, blob_hints, &req->hdr);
 
       /* 0 is an invalid handle and is used by vdrm_bo_create to signal an error. */
       if (kms_handle == 0)
