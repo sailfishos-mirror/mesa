@@ -47,18 +47,22 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
        */
       if ((I->dst.file == GPR &&
            jay_def_stride(shader, I->dst) == JAY_STRIDE_8) ||
-          jay_type_size_bits(I->type) == 64) {
+          jay_type_size_bits(I->type) == 64 ||
+          (I->dst.file == GPR &&
+           jay_lookup_block(&shader->partition, I->dst.reg, GPR).split)) {
          return 16;
       }
 
       jay_foreach_src(I, s) {
          if (I->src[s].file == GPR &&
-             jay_def_stride(shader, I->src[s]) == JAY_STRIDE_8) {
+             (jay_def_stride(shader, I->src[s]) == JAY_STRIDE_8 ||
+              jay_lookup_block(&shader->partition, I->src[s].reg, GPR).split)) {
             return 16;
          }
       }
    } else {
-      /* TODO: Split SENDs, needs RA work */
+      /* Sends are split elsewhere */
+      return 32;
    }
 
    /* Bspec 56797 (r62012):
