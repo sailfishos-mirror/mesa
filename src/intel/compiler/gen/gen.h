@@ -44,6 +44,8 @@ typedef struct gen_encode_params {
    /* Use compacted encoded form for all instructions that support it. */
    bool compact_all;
 
+   bool use_efficient_64bit;
+
    bool skip_validation;
 
    const gen_inst *insts;
@@ -89,6 +91,8 @@ typedef struct gen_decode_params {
 
    gen_inst *insts;
    int       num_insts;
+
+   bool use_efficient_64bit;
 
    gen_error *errors;
    int        num_errors;
@@ -322,6 +326,7 @@ lsc_msg_desc(const struct intel_device_info *devinfo,
 {
    assert(devinfo->has_lsc);
    assert(!transpose || lsc_opcode_has_transpose(opcode));
+   assert(intel_device_info_has_64bit_addressing(devinfo) == false);
 
    gen_lsc_desc desc = {};
    desc.op = opcode;

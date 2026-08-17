@@ -315,6 +315,8 @@ gen_swizzle4(unsigned x, unsigned y, unsigned z, unsigned w)
 
 #ifndef INTEL_MASK
 #define INTEL_MASK(high, low) (((1u<<((high)-(low)+1))-1)<<(low))
+#define INTEL_MASK_64(high, low) (((1ull<<((high)-(low)+1))-1)<<(low))
+
 #define SET_BITS(value, high, low)                                      \
    ({                                                                   \
       const uint32_t fieldval = (uint32_t)(value) << (low);             \
@@ -322,7 +324,15 @@ gen_swizzle4(unsigned x, unsigned y, unsigned z, unsigned w)
       fieldval & INTEL_MASK(high, low);                                 \
    })
 
+#define SET_BITS_64(value, high, low)                                   \
+   ({                                                                   \
+      const uint64_t fieldval = (uint64_t)(value) << (low);             \
+      assert((fieldval & ~INTEL_MASK_64(high, low)) == 0);              \
+      fieldval & INTEL_MASK_64(high, low);                              \
+   })
+
 #define GET_BITS(data, high, low) ((data & INTEL_MASK((high), (low))) >> (low))
+#define GET_BITS_64(data, high, low) ((data & INTEL_MASK_64((high), (low))) >> (low))
 #endif
 
 static inline bool
@@ -488,6 +498,160 @@ lsc_vect_size(unsigned vect_size)
    }
 }
 
+static inline uint64_t
+lsc_64bit_msg_desc(const struct intel_device_info *devinfo,
+                   gen_sfid sfid,
+                   enum lsc_opcode opcode,
+                   enum lsc_addr_size addr_sz,
+                   enum lsc_data_size data_sz,
+                   unsigned num_channels_or_cmask,
+                   bool transpose,
+                   unsigned cache_ctrl,
+                   unsigned scale_offset,
+                   unsigned global_offset,
+                   unsigned surface_state_index)
+{
+   /*
+    * Stateful descriptor format        : BSpec 72045
+    * Stateless descriptor format       : BSpec 71885
+    * Stateful CMASK descriptor format  : BSpec 71882
+    * Stateless CMASK descriptor format : BSpec 71874
+    */
+   const bool is_stateless =
+      sfid == GEN_SFID_SLM || sfid == GEN_SFID_URB ||
+      (sfid == GEN_SFID_UGM && addr_sz == LSC_ADDR_SIZE_A64);
+
+   assert(devinfo->has_lsc);
+   assert(!transpose || lsc_opcode_has_transpose(opcode));
+
+   unsigned address_type_size;
+   switch (sfid) {
+   case GEN_SFID_URB:
+      address_type_size =
+         addr_sz == LSC_ADDR_SIZE_A64 ?
+         LSC_URB_ADDR_TYPE_SIZE_A64 :
+         LSC_URB_ADDR_TYPE_SIZE_A32_A32_INDEX;
+     break;
+   case GEN_SFID_SLM:
+      assert(addr_sz == LSC_ADDR_SIZE_A32);
+      address_type_size = 0;
+      break;
+   case GEN_SFID_UGM:
+      /* TODO: enable LSC_ADDR_TYPE_SIZE_FLAT_A64_UA32_INDEX, need to figure
+       * out if the base address is uniform and can be put into the IND0
+       * register with an additional 32bit offset per lane. This needs backend
+       * work.
+       */
+      address_type_size =
+         addr_sz == LSC_ADDR_SIZE_A64 ?
+         LSC_ADDR_TYPE_SIZE_FLAT_A64_A64_INDEX :
+         LSC_ADDR_TYPE_SIZE_STATEFUL_A32_INDEX;
+      break;
+   case GEN_SFID_TGM:
+      /* DataPortTypedCMaskDescriptor: address input format(bit 14) needs to
+       * be 32bit for TGM.
+       * DataPortTypedCMaskDescriptor: data return format(bit 15) needs to
+       * be 32bit for TGM.
+       */
+      address_type_size = 0;
+      break;
+   default:
+      UNREACHABLE("invalid sfid");
+   }
+
+   uint64_t msg_desc =
+      SET_BITS_64(opcode, 5, 0) |
+      SET_BITS_64(data_sz, 13, 11) |
+      SET_BITS_64(address_type_size, 15, 14) |
+      SET_BITS_64(cache_ctrl, 19, 16) |
+      SET_BITS_64(scale_offset, 45, 44);
+
+   switch (opcode) {
+   case LSC_OP_LOAD:
+   case LSC_OP_STORE:
+   case LSC_OP_ATOMIC_INC:
+   case LSC_OP_ATOMIC_DEC:
+   case LSC_OP_ATOMIC_LOAD:
+   case LSC_OP_ATOMIC_STORE:
+   case LSC_OP_ATOMIC_ADD:
+   case LSC_OP_ATOMIC_SUB:
+   case LSC_OP_ATOMIC_MIN:
+   case LSC_OP_ATOMIC_MAX:
+   case LSC_OP_ATOMIC_UMIN:
+   case LSC_OP_ATOMIC_UMAX:
+   case LSC_OP_ATOMIC_CMPXCHG:
+   case LSC_OP_ATOMIC_FADD:
+   case LSC_OP_ATOMIC_FSUB:
+   case LSC_OP_ATOMIC_FMIN:
+   case LSC_OP_ATOMIC_FMAX:
+   case LSC_OP_ATOMIC_FCMPXCHG:
+   case LSC_OP_ATOMIC_AND:
+   case LSC_OP_ATOMIC_OR:
+   case LSC_OP_ATOMIC_XOR:
+      /* opcode supported */
+      msg_desc |= SET_BITS_64(lsc_vect_size(num_channels_or_cmask), 9, 7) |
+                  SET_BITS_64(transpose, 10, 10);
+      break;
+   case LSC_OP_LOAD_CMASK:
+   case LSC_OP_STORE_CMASK:
+   case LSC_OP_LOAD_CMASK_MSRT:
+   case LSC_OP_STORE_CMASK_MSRT:
+      msg_desc |= SET_BITS_64(num_channels_or_cmask, 10, 7);
+      /* TODO: missing U, V and R offsets for TGM messages */
+      break;
+   default:
+      UNREACHABLE("invalid sfid");
+   }
+
+   if (is_stateless) {
+      assert(surface_state_index == 0);
+      msg_desc |= SET_BITS_64(global_offset, 43, 22);
+   } else {
+      msg_desc |= SET_BITS_64(surface_state_index, 26, 22);
+      msg_desc |= SET_BITS_64(global_offset, 43, 27);
+   }
+
+   return msg_desc;
+}
+
+static inline uint8_t
+gen_64bit_msg_desc_get_opcode(uint64_t combined_desc)
+{
+   return GET_BITS_64(combined_desc, 5, 0);
+}
+
+static inline enum lsc_data_size
+gen_lsc_64bit_msg_desc_get_data_size(uint64_t combined_desc)
+{
+   return (enum lsc_data_size)GET_BITS_64(combined_desc, 13, 11);
+}
+
+static inline uint8_t
+gen_lsc_64bit_msg_desc_get_num_channels_or_cmaks(uint64_t combined_desc, bool get_cmask)
+{
+   if (get_cmask)
+      return GET_BITS_64(combined_desc, 10, 7);
+   return GET_BITS_64(combined_desc, 9, 7);
+}
+
+static inline bool
+gen_lsc_64bit_msg_desc_get_transpose(uint64_t combined_desc)
+{
+   return GET_BITS_64(combined_desc, 10, 10);
+}
+
+static inline enum lsc_addr_type_size
+gen_lsc_64bit_msg_desc_get_addr_size_and_type(uint64_t combined_desc)
+{
+   return (enum lsc_addr_type_size)GET_BITS_64(combined_desc, 15, 14);
+}
+
+static inline unsigned
+gen_lsc_64bit_msg_desc_get_cache_ctrl(uint64_t combined_desc)
+{
+   return GET_BITS_64(combined_desc, 19, 16);
+}
+
 static inline uint32_t
 gen_message_desc_encode(const struct intel_device_info *devinfo,
                         const gen_message_desc *desc)
@@ -617,6 +781,27 @@ lsc_fence_msg_desc_flush_type(const struct intel_device_info *devinfo,
    return (enum lsc_flush_type)GET_BITS(desc, 14, 12);
 }
 
+static inline uint64_t
+lsc_fence_64bit_msg_desc(enum lsc_fence_scope scope,
+                         enum lsc_flush_type flush_type)
+{
+   return SET_BITS_64(LSC_OP_FENCE, 5, 0) |
+          SET_BITS_64(flush_type, 10, 8) |
+          SET_BITS_64(scope, 13, 11);
+}
+
+static inline enum lsc_fence_scope
+lsc_fence_64bit_msg_desc_get_fence_scope(uint64_t desc)
+{
+   return (enum lsc_fence_scope)GET_BITS_64(desc, 13, 11);
+}
+
+static inline enum lsc_flush_type
+lsc_fence_64bit_msg_desc_get_fence_flush_type(uint64_t desc)
+{
+   return (enum lsc_flush_type)GET_BITS_64(desc, 10, 8);
+}
+
 static inline enum lsc_backup_fence_routing
 lsc_fence_msg_desc_backup_routing(const struct intel_device_info *devinfo,
                                   uint32_t desc)
@@ -687,9 +872,27 @@ gen_swsb_src_dep(gen_swsb swsb)
 static inline int
 gen_inst_send_src0_len(const gen_inst *inst)
 {
+   if (inst->opcode == GEN_OP_SENDG)
+      return inst->send.src0_len;
+
    if (inst->send.desc_is_reg)
       return -1;
    return (inst->send.desc_imm >> 25) & 0xF;
+}
+
+static inline bool
+gen_is_lsc_translated_sfid(const struct intel_device_info *devinfo, gen_sfid sfid)
+{
+   switch (sfid) {
+   case GEN_SFID_SLM:
+   case GEN_SFID_TGM:
+   case GEN_SFID_UGM:
+      return devinfo->has_lsc;
+   case GEN_SFID_URB:
+      return devinfo->has_lsc && devinfo->ver >= 20;
+   default:
+      return false;
+   }
 }
 
 /*
@@ -698,8 +901,19 @@ gen_inst_send_src0_len(const gen_inst *inst)
  * print as ':N'). Returns -1 when the descriptor is indirect.
  */
 static inline int
-gen_inst_send_dst_len(const gen_inst *inst)
+gen_inst_send_dst_len(const struct intel_device_info *devinfo, const gen_inst *inst)
 {
+   if (inst->opcode == GEN_OP_SENDG) {
+      if (gen_is_lsc_translated_sfid(devinfo, inst->send.sfid)) {
+         enum lsc_data_size data_size = gen_lsc_64bit_msg_desc_get_data_size(inst->send.combined_desc);
+         uint32_t data_size_bytes = lsc_data_size_bytes(data_size);
+
+         return DIV_ROUND_UP(data_size_bytes * inst->exec_size, devinfo->grf_size);
+      }
+
+      return -1;
+   }
+
    if (inst->send.desc_is_reg)
       return -1;
    return (inst->send.desc_imm >> 20) & 0x1F;
@@ -709,6 +923,9 @@ static inline int
 gen_inst_send_src1_len(const struct intel_device_info *devinfo,
                        const gen_inst *inst)
 {
+   if (inst->opcode == GEN_OP_SENDG)
+      return inst->send.src1_len;
+
    if (inst->send.src1_len)
       return inst->send.src1_len;
    if (inst->send.ex_desc_is_reg)

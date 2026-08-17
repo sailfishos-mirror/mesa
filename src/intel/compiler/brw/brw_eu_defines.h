@@ -18,6 +18,7 @@
  * intel/compiler and i965 codebase. */
 
 #define INTEL_MASK(high, low) (((1u<<((high)-(low)+1))-1)<<(low))
+#define INTEL_MASK_64(high, low) (((1ull<<((high)-(low)+1))-1)<<(low))
 /* Using the GNU statement expression extension */
 #define SET_FIELD(value, field)                                         \
    ({                                                                   \
@@ -33,8 +34,16 @@
       fieldval & INTEL_MASK(high, low);                                 \
    })
 
+#define SET_BITS_64(value, high, low)                                   \
+   ({                                                                   \
+      const uint64_t fieldval = (uint64_t)(value) << (low);             \
+      assert((fieldval & ~INTEL_MASK_64(high, low)) == 0);              \
+      fieldval & INTEL_MASK_64(high, low);                              \
+   })
+
 #define GET_BITS(data, high, low) ((data & INTEL_MASK((high), (low))) >> (low))
 #define GET_FIELD(word, field) (((word)  & field ## _MASK) >> field ## _SHIFT)
+#define GET_BITS_64(data, high, low) ((data & INTEL_MASK_64((high), (low))) >> (low))
 
 # define GFX7_GS_CONTROL_DATA_FORMAT_GSCTL_CUT		0
 # define GFX7_GS_CONTROL_DATA_FORMAT_GSCTL_SID		1
@@ -1055,4 +1064,3 @@ enum ENUM_PACKED brw_rnd_mode {
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_BYTE     0
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_WORD     1
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_DWORD    2
-

@@ -1914,11 +1914,22 @@ private:
       /* TODO: Add TGM 2D block message restrictions. */
    }
 
+   static void
+   sendg_descriptor_restrictions()
+   {
+      /* TODO: add sendg validations */
+   }
+
    void
    send_descriptor_restrictions()
    {
       if (!gen_inst_is_send(inst) || inst->send.desc_is_reg)
          return;
+
+      if (inst->opcode == GEN_OP_SENDG) {
+         sendg_descriptor_restrictions();
+         return;
+      }
 
       const uint32_t desc = inst->send.desc_imm;
 

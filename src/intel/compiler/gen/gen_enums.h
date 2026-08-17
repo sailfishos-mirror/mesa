@@ -290,6 +290,18 @@ enum ENUM_PACKED lsc_addr_size {
   LSC_ADDR_SIZE_A64 = 3,    /* 64-bit address offset */
 };
 
+enum ENUM_PACKED lsc_addr_type_size {
+   LSC_ADDR_TYPE_SIZE_FLAT_A64_UA32_INDEX = 0,
+   LSC_ADDR_TYPE_SIZE_FLAT_A64_IA32_INDEX = 1,
+   LSC_ADDR_TYPE_SIZE_FLAT_A64_A64_INDEX = 2,
+   LSC_ADDR_TYPE_SIZE_STATEFUL_A32_INDEX = 3,
+};
+
+enum ENUM_PACKED lsc_urb_addr_type_size {
+   LSC_URB_ADDR_TYPE_SIZE_A32_A32_INDEX = 0,
+   LSC_URB_ADDR_TYPE_SIZE_A64 = 1
+};
+
 /*
  * Specifies the type of the address payload item in a dataport message. The
  * address type specifies how the dataport message decodes the Extended
@@ -777,6 +789,10 @@ enum {
    GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG          = 4,
    GEN_MESSAGE_GATEWAY_SFID_UPDATE_GATEWAY_STATE = 5,
    GEN_MESSAGE_GATEWAY_SFID_MMIO_READ_WRITE      = 6,
+};
+
+enum gen_gateway_64bit_opcode {
+   GEN_MESSAGE_GATEWAY_64BIT_SFID_SIGNAL_EOT     = 0,
 };
 
 /* Pixel-interpolator msg_type (desc[13:12]). */

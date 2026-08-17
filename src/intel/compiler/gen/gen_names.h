@@ -36,6 +36,9 @@ const char *gen_lsc_flush_type_to_string(enum lsc_flush_type flush_type);
 const char *gen_lsc_cache_ctrl_to_string(const struct intel_device_info *devinfo,
                                          enum lsc_opcode op,
                                          unsigned cache_ctrl);
+const char *gen_lsc_addr_type_size_to_string(enum lsc_addr_type_size);
+const char *gen_lsc_urb_addr_type_size_to_string(enum lsc_urb_addr_type_size);
+const char *gen_gateway_64bit_opcode_to_string(enum gen_gateway_64bit_opcode);
 
 const char *gen_sampler_msg_type_to_string(const struct intel_device_info *devinfo,
                                            unsigned msg_type);
@@ -75,6 +78,9 @@ enum lsc_flush_type gen_lsc_flush_type_from_string(const char *str, int size,
 unsigned gen_lsc_cache_ctrl_from_string(const struct intel_device_info *devinfo,
                                         enum lsc_opcode op,
                                         const char *str, int size, bool *valid);
+enum lsc_addr_type_size gen_lsc_addr_type_size_from_string(const char *str, int size, bool *valid);
+enum lsc_urb_addr_type_size gen_lsc_urb_addr_type_size_from_string(const char *str, int size, bool *valid);
+enum gen_gateway_64bit_opcode gen_gateway_64bit_opcode_from_string(const char *str, int size, bool *valid);
 
 unsigned gen_sampler_msg_type_from_string(const struct intel_device_info *devinfo,
                                           const char *str, int size,
