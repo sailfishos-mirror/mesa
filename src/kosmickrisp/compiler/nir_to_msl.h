@@ -122,5 +122,5 @@ static const nir_shader_compiler_options kk_nir_options = {
    /* Metal does not support double. */
    .lower_doubles_options = (nir_lower_doubles_options)(~0),
    .lower_int64_options = nir_lower_ufind_msb64 | nir_lower_subgroup_shuffle64,
-   .io_options = nir_io_mediump_is_32bit,
+   .io_options = nir_io_mediump_is_32bit | nir_io_non_interpolated_as_uint,
 };

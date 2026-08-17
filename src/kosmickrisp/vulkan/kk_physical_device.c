@@ -265,8 +265,8 @@ kk_get_device_features(
       .shaderDrawParameters = true,
       .storageBuffer16BitAccess = true,
       /* TODO KOSMICKRISP
-       * Disabled due to failing tests (vertex fragment interface mismatch):
-       * dEQP-VK.spirv_assembly.instruction.graphics.16bit_storage.*
+       * Disabled due to failing tests (TCS/TES patch I/O):
+       * dEQP-VK.tessellation.tess_io.max_in_out.with_f16.*.tcs_patch_*reads*
        */
       .storageInputOutput16 = false,
       .storagePushConstant16 = true,
