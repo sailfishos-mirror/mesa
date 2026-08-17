@@ -314,8 +314,18 @@ struct brw_tex_inst : brw_inst {
           * brw_opt_zero_samples()
           */
          uint16_t required_params:13;
+         /**
+          * Texture index Gfx35+ only
+          */
+         uint8_t texture_index:5;
+         /**
+          * Sampler index Gfx35+ only
+          */
+         uint8_t sampler_index:3;
+
+         uint32_t pad:24;
       };
-      uint32_t bits;
+      uint64_t bits;
    };
 
    /**

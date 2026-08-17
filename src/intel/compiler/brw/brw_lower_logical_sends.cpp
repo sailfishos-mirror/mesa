@@ -804,6 +804,10 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
       v_offset = tex->const_offsets[1] & 0xf;
       u_offset = tex->const_offsets[0] & 0xf;
    }
+   const unsigned texture_index = tex->texture_index;
+   const unsigned sampler_index = tex->sampler_index;
+   assert(bld.shader->key->use_efficient_64bit ||
+          (tex->texture_index == 0 && tex->sampler_index == 0));
 
    /* 16-bit payloads are available only on gfx11+ */
    assert(payload_type_bit_size != 16 || devinfo->ver >= 11);
@@ -1014,7 +1018,8 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
 
       send->combined_desc = brw_sampler_64bit_desc(devinfo,
                                                    msg_type,
-                                                   0, 0,
+                                                   texture_index,
+                                                   sampler_index,
                                                    sampler_ret_type,
                                                    simd_mode,
                                                    r_offset,

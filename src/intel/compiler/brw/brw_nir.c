@@ -3623,6 +3623,9 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
 
    OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)devinfo);
 
+   if (pt->key->use_efficient_64bit)
+      OPT(intel_nir_lower_vec2_surface_sampler);
+
    OPT(nir_opt_combine_barriers, combine_all_memory_barriers, NULL);
 
    while (OPT(nir_opt_algebraic_before_ffma)) {}

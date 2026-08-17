@@ -6134,6 +6134,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
    int src_idx;
    {
       if ((src_idx = nir_tex_instr_src_index(instr, nir_tex_src_texture_handle)) >= 0) {
+         assert(ntb.s.key->use_efficient_64bit || instr->texture_index == 0);
          srcs[TEX_LOGICAL_SRC_SURFACE] = bld.emit_uniformize(
             get_nir_src(ntb, instr->src[src_idx].src, -1));
          surface_bindless = true;
@@ -6147,6 +6148,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
       }
 
       if ((src_idx = nir_tex_instr_src_index(instr, nir_tex_src_sampler_handle)) >= 0) {
+         assert(ntb.s.key->use_efficient_64bit || instr->sampler_index == 0);
          srcs[TEX_LOGICAL_SRC_SAMPLER] = bld.emit_uniformize(
             get_nir_src(ntb, instr->src[src_idx].src, -1));
          sampler_bindless = true;
@@ -6330,6 +6332,11 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
    tex->coord_components = instr->coord_components;
    tex->fused_eu_disable = (instr->backend_flags & BRW_TEX_INSTR_FUSED_EU_DISABLE) != 0;
    tex->gather_component = instr->component;
+
+   if (ntb.s.key->use_efficient_64bit) {
+      tex->texture_index = instr->texture_index;
+      tex->sampler_index = instr->sampler_index;
+   }
 
    /* If the NIR instruction has an offset param but the sampler payload
     * doesn't, we can put the offset into the header of the message.

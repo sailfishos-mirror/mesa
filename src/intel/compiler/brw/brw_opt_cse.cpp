@@ -373,11 +373,11 @@ hash_inst(const void *v)
          (uint8_t)tex->const_offsets[1],
          (uint8_t)tex->const_offsets[2],
       };
-      const uint32_t tex_u32data[] = {
+      const uint64_t tex_u64data[] = {
          tex->bits,
       };
       hash = HASH(hash, tex_u8data);
-      hash = HASH(hash, tex_u32data);
+      hash = HASH(hash, tex_u64data);
       break;
    }
 
