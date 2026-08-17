@@ -657,11 +657,8 @@ emit_blit_dst(fd_ncrb<CHIP> &ncrb, struct pipe_resource *prsc,
    ));
    ncrb.add(A6XX_RB_A2D_DEST_BUFFER_PITCH(pitch));
 
-   /* Only two-plane 4:2:0 formats (NV12/NV21) are handled here; a 3-plane
-    * format would need a third base/pitch pair for the V plane.
-    */
-   if (util_format_is_yuv(pfmt) && util_format_get_num_planes(pfmt) == 2) {
-      struct fd_resource *uv_rsc = dst->b.b.next ? fd_resource(dst->b.b.next) : dst;
+   if (fd_format_is_planar_yuv(pfmt)) {
+      struct fd_resource *uv_rsc = fd_resource_plane(prsc, 1);
       uint32_t uv_pitch = fd_resource_pitch(uv_rsc, level);
       unsigned uv_off = fd_resource_offset(uv_rsc, level, layer);
 
@@ -727,13 +724,8 @@ emit_blit_src(fd_ncrb<CHIP> &ncrb, const struct pipe_blit_info *info,
    ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE(CHIP, .bo = src->bo, .bo_offset = soff));
    ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = pitch));
 
-   if (util_format_is_yuv(info->src.format) &&
-       util_format_get_num_planes(info->src.format) == 2) {
-      /* Only two-plane 4:2:0 formats (NV12/NV21) are handled here; a 3-plane
-       * format would need a third base/pitch pair for the V plane. The UV
-       * resource is linked via rsc->b.b.next.
-       */
-      struct fd_resource *uv_rsc = src->b.b.next ? fd_resource(src->b.b.next) : src;
+   if (fd_format_is_planar_yuv(info->src.format)) {
+      struct fd_resource *uv_rsc = fd_resource_plane(info->src.resource, 1);
       uint32_t uv_pitch = fd_resource_pitch(uv_rsc, info->src.level);
       unsigned uv_off = fd_resource_offset(uv_rsc, info->src.level, layer);
 

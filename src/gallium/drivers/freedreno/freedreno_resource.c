@@ -1430,6 +1430,29 @@ fd_resource_allocate_and_resolve(struct pipe_screen *pscreen,
 }
 
 /**
+ * A resource whose format has more than one plane must end up with one
+ * pipe_resource per plane, chained via ->next (see fd_resource_plane()).
+ * Check that once allocation is done, rather than assuming in advance which
+ * mechanism produced it: the dri frontend can build the chain itself
+ * (importing an EGLImage plane by plane), or a driver hook can self-allocate
+ * every plane in one call.  Either is fine; a resource left short a plane is
+ * not.
+ */
+static bool
+resource_missing_planes(struct pipe_resource *prsc)
+{
+   unsigned nplanes = util_format_get_num_planes(prsc->format);
+
+   if (util_resource_num(prsc) >= nplanes)
+      return false;
+
+   perf_debug("%" PRSC_FMT ": multi-planar resource is missing %u of %u planes",
+              PRSC_ARGS(prsc), nplanes - util_resource_num(prsc), nplanes);
+
+   return true;
+}
+
+/**
  * Create a new texture object, using the given template info.
  */
 static struct pipe_resource *
@@ -1470,6 +1493,11 @@ fd_resource_create_with_modifiers(struct pipe_screen *pscreen,
       if (!rsc)
          return NULL;
 
+      if (resource_missing_planes(&rsc->b.b)) {
+         fd_resource_destroy(pscreen, &rsc->b.b);
+         return NULL;
+      }
+
       return &rsc->b.b;
    }
 
@@ -1481,6 +1509,9 @@ fd_resource_create_with_modifiers(struct pipe_screen *pscreen,
 
    realloc_bo(rsc, size);
    if (!rsc->bo)
+      goto fail;
+
+   if (resource_missing_planes(prsc))
       goto fail;
 
    return prsc;
@@ -1741,6 +1772,11 @@ fd_resource_from_memobj(struct pipe_screen *pscreen,
     * gracefully.
     */
    if (fd_bo_size(memobj->bo) < size) {
+      fd_resource_destroy(pscreen, prsc);
+      return NULL;
+   }
+
+   if (resource_missing_planes(prsc)) {
       fd_resource_destroy(pscreen, prsc);
       return NULL;
    }

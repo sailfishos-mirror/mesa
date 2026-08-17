@@ -535,17 +535,13 @@ gmem_key_init(struct fd_batch *batch, bool assume_zs, bool no_scis_opt)
       /* if MSAA, color buffers are super-sampled in GMEM: */
       key->cbuf_cpp[i] *= pfb->samples;
 
-      /* Multi-planar YUV: reserve GMEM space for the chroma plane.
-       * RB treats each plane as separate render target, but framebuffer
-       * only exposes single cbuf. Reserve matching GMEM region for UV plane.
-       * Only supported when the YUV cbuf is the sole color attachment,
-       * otherwise reserving cbuf_cpp[i + 1] would clobber another MRT.
-       * Packed YUV (YUYV & friends) keeps chroma in the same plane and needs
-       * no extra GMEM. */
+      /* NV12 needs a second GMEM region for the chroma plane, RB treats it
+       * as a separate render target.  Only when it's the sole cbuf, else
+       * cbuf_cpp[i + 1] would clobber another MRT.  YUYV needs no extra
+       * GMEM.
+       */
       if (pfb->cbufs[i].texture &&
-          util_format_is_yuv(pfb->cbufs[i].format) &&
-          util_format_get_num_planes(pfb->cbufs[i].format) >= 2 &&
-          pfb->cbufs[i].texture->next &&
+          fd_format_is_planar_yuv(pfb->cbufs[i].format) &&
           i == 0 && pfb->nr_cbufs == 1) {
          key->cbuf_cpp[i + 1] = key->cbuf_cpp[i];
          key->has_yuv_uv_plane = true;
