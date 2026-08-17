@@ -700,6 +700,8 @@ populate_cs_prog_key(struct brw_cs_prog_key *key,
 
    key->base.divergent_atomics_flags |=
       pdevice->drirc.perf.opt_divergent_atomics_compute_only;
+   key->base.atomic_branch_flags |=
+      pdevice->drirc.perf.opt_atomic_branch_compute_only;
 }
 
 static void

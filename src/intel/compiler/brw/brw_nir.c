@@ -3581,8 +3581,8 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
     * lowered image deref atomics, but before the late optimization/lowering
     * sequence so the inserted control flow can still be cleaned up.
     */
-   const unsigned enabled_cases = debug_get_num_option("INTEL_ATOMIC_BRANCH", 0);
-   if (enabled_cases != 0 && nir->info.stage == MESA_SHADER_COMPUTE)
+   const unsigned enabled_cases = pt->key->atomic_branch_flags;
+   if (enabled_cases != 0)
       OPT(intel_nir_opt_atomic_branch, enabled_cases);
 
    const nir_lower_tex_options tex_options = {

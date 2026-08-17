@@ -19,6 +19,7 @@
 #include "util/u_math.h"
 #include "brw_isa_info.h"
 #include "compiler/intel_shader_enums.h"
+#include "compiler/intel_nir.h"
 #include "nir_shader_compiler_options.h"
 
 #ifdef __cplusplus
@@ -240,7 +241,9 @@ struct brw_base_prog_key {
 
    enum brw_divergent_atomics_flags divergent_atomics_flags:2;
 
-   uint32_t padding:25;
+   enum intel_atomic_branch_cases atomic_branch_flags:3;
+
+   uint32_t padding:22;
 };
 
 /**
