@@ -1397,12 +1397,18 @@ radv_determine_ngg_settings(const struct radv_compiler_info *compiler_info, stru
       ngg_stage->info.has_ngg_early_prim_export =
          compiler_info->ac->gfx_level < GFX11 && exec_list_is_singular(&impl->body);
 
-      /* NGG passthrough mode should be disabled when culling and when the vertex shader
-       * exports the primitive ID.
+      /* NGG passthrough requires that the input and output topologies, vertex counts, and primitive
+       * counts are the same. NGG passthrough doesn't care about anything else the shader does,
+       * and the shader can still cull by flipping the cull bit in primitive exports.
+       *
+       * Behavior:
+       * - VGT_ESGS_RING_ITEMSIZE is ignored (behaving as if it was equal to 1)
+       * - vertex indices are packed into 1 VGPR to be passed as-is to the prim export
+       * - Navi23 and later chips can optionally skip the gs_alloc_req message
+       *
+       * If switching NGG passthrough on/off leads to unnecessary context rolls, we should stop using it.
        */
-      ngg_stage->info.is_ngg_passthrough =
-         !ngg_stage->info.has_ngg_culling &&
-         !(ngg_stage->stage == MESA_SHADER_VERTEX && ngg_stage->info.outinfo.export_prim_id);
+      ngg_stage->info.is_ngg_passthrough = !ngg_stage->info.has_ngg_culling;
    }
 }
 
