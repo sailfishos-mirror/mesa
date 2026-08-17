@@ -1302,6 +1302,9 @@ for name in ["bary1", "bary2", "rhw"]:
 intrinsic("plane_eqn_origin_intel", src_comp=[], dest_comp=2,
           flags=[CAN_ELIMINATE, CAN_REORDER], indices=[INTERP_MODE], bit_sizes=[32])
 
+# Raw sample_pos payload, does not imply per-sample shading.
+system_value("sample_pos_intel", 1, bit_sizes=[16])
+
 # Load operations pull data from some piece of GPU memory.  All load
 # operations operate in terms of offsets into some piece of theoretical
 # memory.  Loads from externally visible memory (UBO and SSBO) simply take a
