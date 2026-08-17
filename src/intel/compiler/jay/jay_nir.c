@@ -76,6 +76,13 @@ lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
       nir_def_replace(&intr->def, nir_fmul_imm(b, pos, 1.0f / 16.0f));
       return true;
+   } else if (intr->intrinsic == nir_intrinsic_load_sample_pos ||
+              intr->intrinsic == nir_intrinsic_load_sample_pos_or_center) {
+      nir_def *raw = nir_load_sample_pos_intel(b);
+      nir_def *floats = nir_u2f32(b, nir_unpack_bits(b, raw, 8));
+
+      nir_def_replace(&intr->def, nir_fmul_imm(b, floats, 1.0 / 16.0f));
+      return true;
    } else if (intr->intrinsic == nir_intrinsic_load_max_polygon_intel) {
       /* TODO: Support multipolygon */
       nir_def_replace(&intr->def, nir_imm_int(b, 1));

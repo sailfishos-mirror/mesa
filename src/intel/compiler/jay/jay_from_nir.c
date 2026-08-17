@@ -2564,29 +2564,14 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
-   case nir_intrinsic_load_sample_pos:
-   case nir_intrinsic_load_sample_pos_or_center:
-      assert(fs);
-      jay_def gpr = jay_alloc_def(b, GPR, 1);
-      jay_CVT(b, JAY_TYPE_U32, gpr, fs->sample_pos, JAY_TYPE_U16, JAY_ROUND, 0);
-
-      jay_foreach_comp(dst, c) {
-         /* We do this in two steps because regioning restrictions forbid
-          * g14.1<4>:u8 as an operand to a float instruction.
-          */
-         if (c) {
-            gpr = jay_CVT_u32(b, gpr, JAY_TYPE_U8, JAY_ROUND, 1);
-         }
-
-         jay_MUL(b, JAY_TYPE_F32, jay_extract(dst, c),
-                 jay_CVT_f32(b, gpr, JAY_TYPE_U8, JAY_ROUND, 0),
-                 jay_imm_f(1 / 16.0f));
-      }
-      break;
-
    case nir_intrinsic_load_sample_positions_intel:
       assert(fs);
       jay_copy(b, dst, jay_collect_vectors(b, fs->sample_offsets, 2));
+      break;
+
+   case nir_intrinsic_load_sample_pos_intel:
+      assert(fs);
+      jay_MOV(b, dst, fs->sample_pos)->type = JAY_TYPE_U16;
       break;
 
    case nir_intrinsic_load_tess_coord:
