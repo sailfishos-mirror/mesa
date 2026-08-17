@@ -1508,6 +1508,7 @@ anv_shader_lower_nir(struct anv_device *device,
    cleanup_nir(nir);
 
    NIR_PASS(_, nir, nir_lower_vars_to_ssa);
+   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
    cleanup_nir(nir);
 
