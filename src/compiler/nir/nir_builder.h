@@ -2084,6 +2084,12 @@ nir_memcpy_deref(nir_builder *build, nir_deref_instr *dest,
 }
 
 static inline nir_def *
+nir_load_struct_field(nir_builder *build, nir_deref_instr *deref, int field)
+{
+   return nir_load_deref(build, nir_build_deref_struct(build, deref, field));
+}
+
+static inline nir_def *
 nir_load_var(nir_builder *build, nir_variable *var)
 {
    return nir_load_deref(build, nir_build_deref_var(build, var));

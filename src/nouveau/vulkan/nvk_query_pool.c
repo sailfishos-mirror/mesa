@@ -995,14 +995,6 @@ struct nvk_copy_query_push {
    uint32_t flags;
 };
 
-static nir_def *
-load_struct_var(nir_builder *b, nir_variable *var, uint32_t field)
-{
-   nir_deref_instr *deref =
-      nir_build_deref_struct(b, nir_build_deref_var(b, var), field);
-   return nir_load_deref(b, deref);
-}
-
 static nir_shader *
 build_copy_queries_shader(void)
 {
@@ -1029,14 +1021,14 @@ build_copy_queries_shader(void)
                           false /* row_major */, "push");
    nir_variable *push = nir_variable_create(b->shader, nir_var_mem_push_const,
                                             push_iface_type, "push");
-
+   nir_deref_instr *push_deref = nir_build_deref_var(b, push);
    b->shader->info.workgroup_size[0] = 32;
 
-   nvk_copy_queries(b, load_struct_var(b, push, 0), load_struct_var(b, push, 1),
-                    load_struct_var(b, push, 2), load_struct_var(b, push, 3),
-                    load_struct_var(b, push, 4), load_struct_var(b, push, 5),
-                    load_struct_var(b, push, 6), load_struct_var(b, push, 7),
-                    load_struct_var(b, push, 8), load_struct_var(b, push, 9));
+   nvk_copy_queries(b, nir_load_struct_field(b, push_deref, 0), nir_load_struct_field(b, push_deref, 1),
+                    nir_load_struct_field(b, push_deref, 2), nir_load_struct_field(b, push_deref, 3),
+                    nir_load_struct_field(b, push_deref, 4), nir_load_struct_field(b, push_deref, 5),
+                    nir_load_struct_field(b, push_deref, 6), nir_load_struct_field(b, push_deref, 7),
+                    nir_load_struct_field(b, push_deref, 8), nir_load_struct_field(b, push_deref, 9));
 
    return build.shader;
 }

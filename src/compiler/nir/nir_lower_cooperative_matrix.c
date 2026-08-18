@@ -1113,12 +1113,6 @@ find_decode_deref(nir_function_impl *impl)
    return NULL;
 }
 
-static inline nir_def *
-nir_load_struct_field(nir_builder *build, nir_deref_instr *deref, int field)
-{
-   return nir_load_deref(build, nir_build_deref_struct(build, deref, field));
-}
-
 void
 nir_calc_tensor_derefs_init(nir_builder *b, struct nir_calc_tensor_info *info,
                             nir_cmat_call_instr *call)

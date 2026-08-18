@@ -3401,8 +3401,7 @@ lower_64bit_vars_function(nir_shader *shader, nir_function_impl *impl, nir_varia
                      unsigned comp_idx = 0;
                      for (unsigned i = 0; i < num_components; member++) {
                         assert(member < glsl_get_length(var_deref->type));
-                        nir_deref_instr *strct = nir_build_deref_struct(&b, var_deref, member);
-                        nir_def *load = nir_load_deref(&b, strct);
+                        nir_def *load = nir_load_struct_field(&b, var_deref, member);
                         unsigned incr = MIN2(remaining, 4);
                         /* repack the loads to 64bit */
                         for (unsigned c = 0; c < incr / 2; c++, comp_idx++)
@@ -3431,8 +3430,7 @@ lower_64bit_vars_function(nir_shader *shader, nir_function_impl *impl, nir_varia
                } else {
                   /* writing > 4 components: access the struct and load the appropriate vec4 members */
                   for (unsigned i = 0; i < 2; i++, num_components -= 4) {
-                     nir_deref_instr *strct = nir_build_deref_struct(&b, deref, i);
-                     nir_def *load = nir_load_deref(&b, strct);
+                     nir_def *load = nir_load_struct_field(&b, deref, i);
                      comp[i * 2] = nir_pack_64_2x32(&b,
                                                     nir_trim_vector(&b, load, 2));
                      if (num_components > 2)
