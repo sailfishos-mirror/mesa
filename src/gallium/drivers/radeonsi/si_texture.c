@@ -1480,6 +1480,7 @@ si_texture_create_with_modifier(struct pipe_screen *screen,
    /* Compute texture or plane layouts and offsets. */
    for (unsigned i = 0; i < num_planes; i++) {
       plane_templ[i] = *templ;
+      plane_templ[i].next = NULL;
       plane_templ[i].format = si_get_plane_format(templ->format, i);
       plane_templ[i].width0 = util_format_get_plane_width(templ->format, i, templ->width0);
       plane_templ[i].height0 = util_format_get_plane_height(templ->format, i, templ->height0);
