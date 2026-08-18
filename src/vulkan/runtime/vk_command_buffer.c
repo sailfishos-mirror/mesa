@@ -821,16 +821,11 @@ vk_common_CmdCopyBuffer2(
    STACK_ARRAY_FINISH(regions);
 }
 
-VKAPI_ATTR void VKAPI_CALL
-vk_common_CmdCopyBufferToImage2(
-    VkCommandBuffer                             commandBuffer,
-    const VkCopyBufferToImageInfo2*             pCopyBufferToImageInfo)
+VkCopyDeviceMemoryImageInfoKHR
+vk_upgrade_copy_buffer_to_image2(const VkCopyBufferToImageInfo2* pCopyBufferToImageInfo,
+                                 VkDeviceMemoryImageCopyKHR* regions)
 {
-   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_buffer, buffer, pCopyBufferToImageInfo->srcBuffer);
-
-   STACK_ARRAY(VkDeviceMemoryImageCopyKHR, regions,
-               pCopyBufferToImageInfo->regionCount);
 
    for (uint32_t r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
       regions[r] = (VkDeviceMemoryImageCopyKHR) {
@@ -848,16 +843,30 @@ vk_common_CmdCopyBufferToImage2(
       };
    }
 
+   return (VkCopyDeviceMemoryImageInfoKHR) {
+      .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
+      .image = pCopyBufferToImageInfo->dstImage,
+      .regionCount = pCopyBufferToImageInfo->regionCount,
+      .pRegions = pCopyBufferToImageInfo->regionCount > 0 ? regions : NULL,
+   };
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vk_common_CmdCopyBufferToImage2(
+    VkCommandBuffer                             commandBuffer,
+    const VkCopyBufferToImageInfo2*             pCopyBufferToImageInfo)
+{
+   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
+
+   STACK_ARRAY(VkDeviceMemoryImageCopyKHR, regions,
+               pCopyBufferToImageInfo->regionCount);
+
+   VkCopyDeviceMemoryImageInfoKHR info =
+      vk_upgrade_copy_buffer_to_image2(pCopyBufferToImageInfo, regions);
+
    const struct vk_device_dispatch_table *disp =
       &cmd_buffer->base.device->dispatch_table;
-   disp->CmdCopyMemoryToImageKHR(
-      commandBuffer,
-      &(VkCopyDeviceMemoryImageInfoKHR) {
-         .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
-         .image = pCopyBufferToImageInfo->dstImage,
-         .regionCount = pCopyBufferToImageInfo->regionCount,
-         .pRegions = pCopyBufferToImageInfo->regionCount > 0 ? regions : NULL,
-      });
+   disp->CmdCopyMemoryToImageKHR(commandBuffer, &info);
 
    STACK_ARRAY_FINISH(regions);
 }
