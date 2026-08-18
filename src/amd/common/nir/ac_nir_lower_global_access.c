@@ -11,8 +11,8 @@
 
 typedef struct {
    nir_builder *b;
-   struct hash_table *range_ht;
-   struct hash_table *numlsb_ht;
+   struct hash_table range_ht;
+   struct hash_table numlsb_ht;
    enum amd_gfx_level gfx_level;
    nir_cursor addr_cursor;
    uint8_t required_align; /* Required alignment for offsets and final address */
@@ -47,11 +47,8 @@ offset_add_might_overflow(nir_shader *shader, lower_state *state)
    if (state->out_const > UINT32_MAX)
       return true;
 
-   if (!state->range_ht)
-      state->range_ht = _mesa_pointer_hash_table_create(NULL);
-
    nir_scalar offset_scalar = nir_get_scalar(state->out_offset, 0);
-   return nir_addition_might_overflow(shader, state->range_ht, offset_scalar, state->out_const);
+   return nir_addition_might_overflow(shader, &state->range_ht, offset_scalar, state->out_const);
 }
 
 static bool
@@ -60,12 +57,9 @@ is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
    if (alu && alu->no_unsigned_wrap)
       return true;
 
-   if (!state->range_ht)
-      state->range_ht = _mesa_pointer_hash_table_create(NULL);
-
    assert(src0.def->bit_size == 32 && src1.def->bit_size == 32);
-   uint32_t ub0 = nir_unsigned_upper_bound(state->b->shader, state->range_ht, src0);
-   uint32_t ub1 = nir_unsigned_upper_bound(state->b->shader, state->range_ht, src1);
+   uint32_t ub0 = nir_unsigned_upper_bound(state->b->shader, &state->range_ht, src0);
+   uint32_t ub1 = nir_unsigned_upper_bound(state->b->shader, &state->range_ht, src1);
    if ((UINT32_MAX - ub0) < ub1)
       return false;
 
@@ -83,10 +77,7 @@ scalar_is_aligned(nir_scalar src, lower_state *state, uint64_t mul)
    if (nir_scalar_is_const(src))
       return util_is_aligned(nir_scalar_as_uint(src) * mul, state->required_align);
 
-   if (!state->numlsb_ht)
-      state->numlsb_ht = _mesa_pointer_hash_table_create(NULL);
-
-   unsigned num_lsb_zero = nir_def_num_lsb_zero(state->numlsb_ht, src) + util_logbase2(mul);
+   unsigned num_lsb_zero = nir_def_num_lsb_zero(&state->numlsb_ht, src) + util_logbase2(mul);
    return num_lsb_zero >= util_logbase2(state->required_align);
 }
 
@@ -301,15 +292,15 @@ bool
 ac_nir_lower_global_access(nir_shader *shader, enum amd_gfx_level gfx_level)
 {
    lower_state state;
-   state.range_ht = NULL;
-   state.numlsb_ht = NULL;
+   _mesa_pointer_hash_table_init(&state.range_ht, NULL);
+   _mesa_pointer_hash_table_init(&state.numlsb_ht, NULL);
    state.gfx_level = gfx_level;
 
    bool progress = nir_shader_intrinsics_pass(shader, process_instr,
                                               nir_metadata_control_flow, &state);
 
-   _mesa_hash_table_destroy(state.range_ht, NULL);
-   _mesa_hash_table_destroy(state.numlsb_ht, NULL);
+   _mesa_hash_table_fini(&state.range_ht, NULL);
+   _mesa_hash_table_fini(&state.numlsb_ht, NULL);
 
    return progress;
 }
