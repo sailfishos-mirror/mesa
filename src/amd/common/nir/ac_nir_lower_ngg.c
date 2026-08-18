@@ -1482,6 +1482,12 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    assert(options->max_workgroup_size && options->wave_size);
    assert(!(options->can_cull && options->passthrough));
 
+   /* rasterizer_discard assumes that some paths are never taken. */
+   assert(!(options->rasterizer_discard && (options->passthrough || options->can_cull ||
+                                            options->export_primitive_id ||
+                                            options->export_primitive_id_per_prim ||
+                                            options->has_param_exports)));
+
    nir_variable *position_value_var = nir_local_variable_create(impl, glsl_vec4_type(), "position_value");
    nir_variable *prim_exp_arg_var = nir_local_variable_create(impl, glsl_uint_type(), "prim_exp_arg");
    nir_variable *es_accepted_var =
@@ -1584,15 +1590,20 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
          /* Allocate export space on wave 0 - confirm to the HW that we want to use all possible space */
          nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
          {
-            nir_def *vtx_cnt = nir_load_workgroup_num_input_vertices_amd(b);
-            nir_def *prim_cnt = nir_load_workgroup_num_input_primitives_amd(b);
-            ac_nir_ngg_alloc_vertices_and_primitives(b, vtx_cnt, prim_cnt, false);
+            if (options->rasterizer_discard) {
+               ac_nir_ngg_alloc_vertices_and_primitives(b, nir_imm_int(b, 0), nir_imm_int(b, 0),
+                                                        options->compiler_info->has_ngg_fully_culled_bug);
+            } else {
+               nir_def *vtx_cnt = nir_load_workgroup_num_input_vertices_amd(b);
+               nir_def *prim_cnt = nir_load_workgroup_num_input_primitives_amd(b);
+               ac_nir_ngg_alloc_vertices_and_primitives(b, vtx_cnt, prim_cnt, false);
+            }
          }
          nir_pop_if(b, if_wave_0);
       }
 
       /* Take care of early primitive export, otherwise just pack the primitive export argument */
-      if (state.early_prim_export)
+      if (state.early_prim_export && !options->rasterizer_discard)
          emit_ngg_nogs_prim_export(b, &state, NULL);
       else
          nir_store_var(b, prim_exp_arg_var, emit_ngg_nogs_prim_exp_arg(b, &state), 0x1u);
@@ -1678,7 +1689,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
 
    /* Take care of late primitive export */
    nir_if *if_late_prim_export = NULL;
-   if (!state.early_prim_export) {
+   if (!state.early_prim_export && !options->rasterizer_discard) {
       b->cursor = nir_after_impl(impl);
 
       if (wait_attr_ring && options->export_primitive_id_per_prim) {
@@ -1713,9 +1724,11 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
       b->cursor = nir_after_cf_list(&if_es_thread->then_list);
    }
 
-   ac_nir_export_position(b, state.ac->gfx_level, options->export_clipdist_mask, options->can_cull,
-                          options->write_pos_to_clipvertex, !options->has_param_exports,
-                          options->force_vrs, export_outputs, &state.out, NULL);
+   if (!options->rasterizer_discard) {
+      ac_nir_export_position(b, state.ac->gfx_level, options->export_clipdist_mask, options->can_cull,
+                             options->write_pos_to_clipvertex, !options->has_param_exports,
+                             options->force_vrs, export_outputs, &state.out, NULL);
+   }
 
    if (options->has_param_exports && !options->compiler_info->has_attr_ring) {
       ac_nir_export_parameters(b, options->vs_output_param_offset,
