@@ -12415,10 +12415,30 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
-   /* Disable shader culling entirely when conservative overestimate is used.
-    * The face culling algorithm can delete very tiny triangles (even if unintended).
+   /* When overestimated conservative rasterization is enabled, zero-area triangles are treated
+    * as back faces with degenerateTrianglesRasterized and culled if back-face culling is enabled.
+    * It's possible to enable NGG culling for that without changing the shader: if back face culling
+    * is enabled, enable the NGG shader face culling.
+    *
+    * Since the shader doesn't determine facedness and zero-area identically to the rasterizer,
+    * it's disabled by default since visual errors could be very large even if they are extremely
+    * rare. Some apps could enable NGG culling fine while others may have to leave it disabled with
+    * overestimated conservative rasterization.
+    *
+    * It may be worth enabling NGG culling but without face culling to get only frustum culling.
+    *
+    * There is one case worth considering:
+    *    If overestimated conservative rasterization is enabled, VRS is disabled, the FS discards
+    *    pixels that are not fully covered (SV_InnerCoverage==0), doesn't change memory, doesn't use
+    *    non-quad subgroup ops or subgroup sysvals, and early_fragment_tests==0, then
+    *    the rasterization is effectively identical to underestimated, therefore NGG culling can be
+    *    enabled, and we can also change the rasterization to underestimated in registers and remove
+    *    the discard. That would give us NGG culling, early Z/S if the discard was preventing it,
+    *    and fewer FS invocations. Note that overestimated+discard is the only way to get
+    *    underestimated rasterization in DX12 since DX12 can't do it any other way.
     */
-   if (d->vk.rs.conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT)
+   if (d->vk.rs.conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT &&
+       !d->vk.rs.rasterizer_discard_enable)
       return radv_nggc_none;
 
    /* With graphics pipeline library, NGG culling is unconditionally compiled into shaders
