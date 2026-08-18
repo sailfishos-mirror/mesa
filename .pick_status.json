@@ -544,7 +544,7 @@
         "description": "svga: Remove erroneous else-if in surface_get_handle()",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b460cff22a56043e48e9ba083a8314b9a52840b4",
         "notes": null
