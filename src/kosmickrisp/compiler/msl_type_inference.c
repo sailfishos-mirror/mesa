@@ -405,6 +405,7 @@ infer_types_from_intrinsic(struct hash_table *types, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_point_coord:
    case nir_intrinsic_load_sample_pos:
    case nir_intrinsic_load_frag_coord:
+   case nir_intrinsic_load_barycentric_coord_pixel:
       set_type(types, &instr->def, TYPE_FLOAT);
       break;
    case nir_intrinsic_load_front_face:

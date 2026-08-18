@@ -294,6 +294,72 @@ msl_lower_static_sample_mask(nir_shader *nir, uint32_t sample_mask)
    return true;
 }
 
+static bool
+is_color_output(const nir_intrinsic_instr *intr)
+{
+   if (intr->intrinsic != nir_intrinsic_store_output)
+      return false;
+
+   const unsigned location = nir_intrinsic_io_semantics(intr).location;
+   return location == FRAG_RESULT_COLOR ||
+          (location >= FRAG_RESULT_DATA0 && location <= FRAG_RESULT_DATA7);
+}
+
+/* See issue: https://github.com/KhronosGroup/Vulkan-Portability/issues/54
+ * Writing sample mask is more expensive than using barycentric coordinates.
+ * Find a color store and "rewrite" store value to be a bcsel based on a false
+ * value using barycentric coordinates so the MSL compiler does not optimise it.
+ * Use sample mask write as a fallback when no color is present.
+ */
+bool
+msl_disable_triangle_merge(nir_shader *nir)
+{
+   assert(nir->info.stage == MESA_SHADER_FRAGMENT);
+
+   nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
+
+   nir_intrinsic_instr *store = NULL;
+   nir_foreach_block(block, entrypoint) {
+      nir_foreach_instr(instr, block) {
+         if (instr->type != nir_instr_type_intrinsic)
+            continue;
+         nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+         if (is_color_output(intr)) {
+            store = intr;
+            break;
+         }
+      }
+      if (store)
+         break;
+   }
+
+   if (store == NULL)
+      return msl_lower_static_sample_mask(nir, 0xFFFFFFFF);
+
+   nir_builder b = nir_builder_at(nir_before_impl(entrypoint));
+
+   nir_def *barycentric = nir_load_barycentric_coord_pixel(
+      &b, 32u, .interp_mode = INTERP_MODE_SMOOTH);
+   BITSET_SET(nir->info.system_values_read,
+              SYSTEM_VALUE_BARYCENTRIC_PERSP_COORD);
+
+   nir_def *all_negative =
+      nir_flt_imm(&b, nir_channel(&b, barycentric, 0u), 0.0);
+   for (unsigned i = 1u; i < 3u; ++i) {
+      nir_def *weight = nir_channel(&b, barycentric, i);
+      all_negative = nir_iand(&b, all_negative, nir_flt_imm(&b, weight, 0.0));
+   }
+
+   b.cursor = nir_before_instr(&store->instr);
+   nir_def *value = store->src[0u].ssa;
+   nir_def *unchanged = nir_bcsel(
+      &b, all_negative,
+      nir_imm_zero(&b, value->num_components, value->bit_size), value);
+   nir_src_rewrite(&store->src[0u], unchanged);
+
+   return nir_progress(true, entrypoint, nir_metadata_control_flow);
+}
+
 bool
 msl_ensure_depth_write(nir_shader *nir)
 {
