@@ -86,15 +86,15 @@ radv_set_mutable_tex_desc_fields(struct radv_device *device, struct radv_image *
 }
 
 /**
- * Build the sampler view descriptor for a texture (GFX10).
+ * Build the sampler view descriptor for a texture.
  */
-static void
-gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *image, bool is_storage_image,
-                              VkImageViewType view_type, VkFormat vk_format, const VkComponentMapping *mapping,
-                              unsigned first_level, unsigned last_level, unsigned first_layer, unsigned last_layer,
-                              unsigned width, unsigned height, unsigned depth, float min_lod, uint32_t *state,
-                              uint32_t *fmask_state, const struct ac_surf_nbc_view *nbc_view,
-                              const VkImageViewSlicedCreateInfoEXT *sliced_3d)
+void
+radv_make_texture_descriptor(struct radv_device *device, struct radv_image *image, bool is_storage_image,
+                             VkImageViewType view_type, VkFormat vk_format, const VkComponentMapping *mapping,
+                             unsigned first_level, unsigned last_level, unsigned first_layer, unsigned last_layer,
+                             unsigned width, unsigned height, unsigned depth, float min_lod, uint32_t *state,
+                             uint32_t *fmask_state, const struct ac_surf_nbc_view *nbc_view,
+                             const VkImageViewSlicedCreateInfoEXT *sliced_3d)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool create_2d_view_of_3d =
@@ -118,7 +118,8 @@ gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *ima
 
    radv_compose_swizzle(desc, mapping, swizzle);
 
-   if (create_2d_view_of_3d) {
+   /* GFX6-8 supports 2D views of 3D images with 2D array. */
+   if (pdev->info.gfx_level >= GFX9 && create_2d_view_of_3d) {
       assert(image->vk.image_type == VK_IMAGE_TYPE_3D);
       type = V_008F1C_SQ_RSRC_IMG_3D;
    } else {
@@ -135,12 +136,13 @@ gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *ima
    } else if (type == V_008F1C_SQ_RSRC_IMG_CUBE)
       depth = image->vk.array_layers / 6;
 
-   if (create_2d_view_of_3d) {
+   /* 3D UAV slicing and 2D views of 3D images are GFX10+ only. */
+   if (pdev->info.gfx_level >= GFX10 && create_2d_view_of_3d) {
       assert(type == V_008F1C_SQ_RSRC_IMG_3D);
 
       depth = !is_storage_image ? depth : u_minify(depth, first_level);
       array_pitch = is_storage_image;
-   } else if (sliced_3d) {
+   } else if (pdev->info.gfx_level >= GFX10 && sliced_3d) {
       assert(type == V_008F1C_SQ_RSRC_IMG_3D && is_storage_image);
 
       const unsigned total = u_minify(depth, first_level);
@@ -159,7 +161,7 @@ gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *ima
       .img_format = radv_format_to_pipe_format(image->vk.format),
       .width = width,
       .height = height,
-      .depth = type == V_008F1C_SQ_RSRC_IMG_3D ? depth - 1 : last_layer,
+      .depth = pdev->info.gfx_level >= GFX10 ? (type == V_008F1C_SQ_RSRC_IMG_3D ? depth - 1 : last_layer) : depth,
       .type = type,
       .swizzle =
          {
@@ -183,6 +185,7 @@ gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *ima
          },
       .dcc_enabled = radv_dcc_enabled(image, first_level),
       .tc_compat_htile_enabled = radv_tc_compat_htile_enabled(image, first_level),
+      .aniso_single_level = !pdev->drirc.debug.disable_aniso_single_level,
    };
 
    ac_build_texture_descriptor(&pdev->info, &tex_state, &state[0]);
@@ -209,130 +212,6 @@ gfx10_make_texture_descriptor(struct radv_device *device, struct radv_image *ima
          ac_build_fmask_descriptor(pdev->info.gfx_level, &ac_state, &fmask_state[0]);
       } else
          memset(fmask_state, 0, 8 * 4);
-   }
-}
-
-/**
- * Build the sampler view descriptor for a texture (SI-GFX9)
- */
-static void
-gfx6_make_texture_descriptor(struct radv_device *device, struct radv_image *image, bool is_storage_image,
-                             VkImageViewType view_type, VkFormat vk_format, const VkComponentMapping *mapping,
-                             unsigned first_level, unsigned last_level, unsigned first_layer, unsigned last_layer,
-                             unsigned width, unsigned height, unsigned depth, float min_lod, uint32_t *state,
-                             uint32_t *fmask_state)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   enum pipe_format format = radv_format_to_pipe_format(vk_format);
-   const bool create_2d_view_of_3d =
-      (image->vk.create_flags & VK_IMAGE_CREATE_2_2D_VIEW_COMPATIBLE_BIT_EXT) && view_type == VK_IMAGE_VIEW_TYPE_2D;
-   const struct util_format_description *desc;
-   enum pipe_swizzle swizzle[4];
-   unsigned type;
-
-   /* For emulated ETC2 without alpha we need to override the format to a 3-componenent format, so
-    * that border colors work correctly (alpha forced to 1). Since Vulkan has no such format,
-    * this uses the Gallium formats to set the description. */
-   if (image->vk.format == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK && format == PIPE_FORMAT_R8G8B8A8_UNORM) {
-      format = PIPE_FORMAT_R8G8B8X8_UNORM;
-   } else if (image->vk.format == VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK && format == PIPE_FORMAT_R8G8B8A8_SRGB) {
-      format = PIPE_FORMAT_R8G8B8X8_SRGB;
-   }
-
-   desc = util_format_description(format);
-
-   radv_compose_swizzle(desc, mapping, swizzle);
-
-   if (pdev->info.gfx_level == GFX9 && create_2d_view_of_3d) {
-      assert(image->vk.image_type == VK_IMAGE_TYPE_3D);
-      type = V_008F1C_SQ_RSRC_IMG_3D;
-   } else {
-      type = radv_tex_dim(image->vk.image_type, view_type, image->vk.array_layers, image->vk.samples, is_storage_image,
-                          pdev->info.gfx_level == GFX9);
-   }
-
-   if (type == V_008F1C_SQ_RSRC_IMG_1D_ARRAY) {
-      height = 1;
-      depth = image->vk.array_layers;
-   } else if (type == V_008F1C_SQ_RSRC_IMG_2D_ARRAY || type == V_008F1C_SQ_RSRC_IMG_2D_MSAA_ARRAY) {
-      if (view_type != VK_IMAGE_VIEW_TYPE_3D)
-         depth = image->vk.array_layers;
-   } else if (type == V_008F1C_SQ_RSRC_IMG_CUBE)
-      depth = image->vk.array_layers / 6;
-
-   const struct ac_texture_state tex_state = {
-      .surf = &image->planes[0].surface,
-      .format = format,
-      .img_format = radv_format_to_pipe_format(image->vk.format),
-      .width = width,
-      .height = height,
-      .depth = depth,
-      .type = type,
-      .swizzle =
-         {
-            swizzle[0],
-            swizzle[1],
-            swizzle[2],
-            swizzle[3],
-         },
-      .num_samples = image->vk.samples,
-      .num_storage_samples = image->vk.samples,
-      .first_level = first_level,
-      .last_level = last_level,
-      .num_levels = image->vk.mip_levels,
-      .first_layer = first_layer,
-      .last_layer = last_layer,
-      .min_lod = min_lod,
-      .dcc_enabled = radv_dcc_enabled(image, first_level),
-      .tc_compat_htile_enabled = radv_tc_compat_htile_enabled(image, first_level),
-      .aniso_single_level = !pdev->drirc.debug.disable_aniso_single_level,
-   };
-
-   ac_build_texture_descriptor(&pdev->info, &tex_state, &state[0]);
-
-   /* Initialize the sampler view for FMASK. */
-   if (fmask_state) {
-      if (radv_image_has_fmask(image)) {
-         assert(image->plane_count == 1);
-
-         const struct ac_fmask_state ac_fmask_state = {
-            .surf = &image->planes[0].surface,
-            .va = image->bindings[0].addr,
-            .width = width,
-            .height = height,
-            .depth = depth,
-            .type = radv_tex_dim(image->vk.image_type, view_type, image->vk.array_layers, 0, false, false),
-            .first_layer = first_layer,
-            .last_layer = last_layer,
-            .num_samples = image->vk.samples,
-            .num_storage_samples = image->vk.samples,
-            .tc_compat_cmask = radv_image_is_tc_compat_cmask(image),
-         };
-
-         ac_build_fmask_descriptor(pdev->info.gfx_level, &ac_fmask_state, &fmask_state[0]);
-      } else
-         memset(fmask_state, 0, 8 * 4);
-   }
-}
-
-void
-radv_make_texture_descriptor(struct radv_device *device, struct radv_image *image, bool is_storage_image,
-                             VkImageViewType view_type, VkFormat vk_format, const VkComponentMapping *mapping,
-                             unsigned first_level, unsigned last_level, unsigned first_layer, unsigned last_layer,
-                             unsigned width, unsigned height, unsigned depth, float min_lod, uint32_t *state,
-                             uint32_t *fmask_state, const struct ac_surf_nbc_view *nbc_view,
-                             const VkImageViewSlicedCreateInfoEXT *sliced_3d)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (pdev->info.gfx_level >= GFX10) {
-      gfx10_make_texture_descriptor(device, image, is_storage_image, view_type, vk_format, mapping, first_level,
-                                    last_level, first_layer, last_layer, width, height, depth, min_lod, state,
-                                    fmask_state, nbc_view, sliced_3d);
-   } else {
-      gfx6_make_texture_descriptor(device, image, is_storage_image, view_type, vk_format, mapping, first_level,
-                                   last_level, first_layer, last_layer, width, height, depth, min_lod, state,
-                                   fmask_state);
    }
 }
 
