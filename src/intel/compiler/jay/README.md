@@ -52,9 +52,8 @@ Reposting the checklist earlier this summer:
   (`JAY_DEBUG=sync,strict,noopt,nosched` is a "safe" set).
 * can you bisect it down to a specific shader hash, by selecting between brw and
   Jay with `nir_shader_bisect_select()` and the `nir_shader_bisect.py` script?
-  Pick the patches from
-  <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44246> ... comment
-  out the select call, and use the script to narrow to a single shader.
+  See the comment in the `intel_use_jay()` function in
+  `src/intel/dev/intel_debug.c` for how to enable this.
 * can you dump the affected shader with INTEL_DEBUG=(vs|fs|cs)?
 * can you dump the assembly of that shader with brw?
 * can you diff the before/after assembly to see what Jay is doing different?

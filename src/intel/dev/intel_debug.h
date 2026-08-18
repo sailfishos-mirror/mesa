@@ -239,8 +239,10 @@ extern uint64_t intel_debug_flag_for_shader_stage(mesa_shader_stage stage);
 struct intel_device_info;
 struct nir_shader;
 
-extern bool intel_use_jay(const struct intel_device_info *devinfo,
+extern bool intel_use_jay_for_stage(const struct intel_device_info *devinfo,
                           mesa_shader_stage stage);
+extern bool intel_use_jay(const struct intel_device_info *devinfo,
+                          struct nir_shader *nir);
 extern void process_intel_debug_variable(void);
 
 #ifdef __cplusplus

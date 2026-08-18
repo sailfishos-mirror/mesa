@@ -34,11 +34,14 @@
 #include <string.h>
 
 #include "dev/intel_debug.h"
+#include "compiler/shader_enums.h"
 #include "dev/intel_device_info.h"
 #include "util/macros.h"
 #include "util/u_debug.h"
 #include "util/u_math.h"
 #include "c11/threads.h"
+#include "compiler/nir/nir.h"
+#include "intel_device_info_gen.h"
 
 BITSET_WORD intel_debug[BITSET_WORDS(INTEL_DEBUG_MAX)] = {0};
 
@@ -281,8 +284,14 @@ static const struct debug_named_value use_jay_options[] = {
 DEBUG_GET_ONCE_FLAGS_OPTION(use_jay, "INTEL_JAY", use_jay_options, 0);
 static int use_jay = 0;
 
+/* This is a separate function so we can use it in shader cache keys. We
+ * couldn't easily use intel_use_jay for shader caching because that takes a
+ * nir_shader, which implies a lot of work has already been done to compile
+ * the shader, which would make caching pointless.
+ */
 bool
-intel_use_jay(const struct intel_device_info *devinfo, mesa_shader_stage stage)
+intel_use_jay_for_stage(const struct intel_device_info *devinfo,
+                        mesa_shader_stage stage)
 {
    if (stage == MESA_SHADER_KERNEL)
       stage = MESA_SHADER_COMPUTE;
@@ -300,6 +309,15 @@ intel_use_jay(const struct intel_device_info *devinfo, mesa_shader_stage stage)
     */
    return ((allowed && (use_jay & BITFIELD_BIT(stage))) ||
            (by_default && !INTEL_DEBUG(DEBUG_NO_JAY)));
+}
+
+bool
+intel_use_jay(const struct intel_device_info *devinfo, nir_shader *nir)
+{
+   /* For using nir_shader_bisect.py with toggling jay/brw: */
+   // return nir_shader_bisect_select(nir);
+
+   return intel_use_jay_for_stage(devinfo, nir->info.stage);
 }
 
 void
