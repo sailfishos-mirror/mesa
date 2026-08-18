@@ -538,15 +538,17 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
    iview->plane_id = radv_plane_from_aspect(pCreateInfo->subresourceRange.aspectMask);
    iview->nbc_view.valid = false;
 
-   /* Split out the right aspect. Note that for internal meta code we sometimes
-    * use an equivalent color format for the aspect so we first have to check
-    * if we actually got depth/stencil formats. */
-   if (iview->vk.aspects == VK_IMAGE_ASPECT_STENCIL_BIT) {
-      if (vk_format_has_stencil(iview->vk.view_format))
-         iview->vk.view_format = vk_format_stencil_only(iview->vk.view_format);
-   } else if (iview->vk.aspects == VK_IMAGE_ASPECT_DEPTH_BIT) {
-      if (vk_format_has_depth(iview->vk.view_format))
-         iview->vk.view_format = vk_format_depth_only(iview->vk.view_format);
+   if (pCreateInfo->flags & VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA) {
+      /* Split out the right aspect. Note that for internal meta code we sometimes
+       * use an equivalent color format for the aspect so we first have to check
+       * if we actually got depth/stencil formats. */
+      if (iview->vk.aspects == VK_IMAGE_ASPECT_STENCIL_BIT) {
+         if (vk_format_has_stencil(iview->vk.view_format))
+            iview->vk.view_format = vk_format_stencil_only(iview->vk.view_format);
+      } else if (iview->vk.aspects == VK_IMAGE_ASPECT_DEPTH_BIT) {
+         if (vk_format_has_depth(iview->vk.view_format))
+            iview->vk.view_format = vk_format_depth_only(iview->vk.view_format);
+      }
    }
 
    if (vk_format_get_plane_count(image->vk.format) > 1 &&
