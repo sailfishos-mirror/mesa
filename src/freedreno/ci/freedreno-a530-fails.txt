@@ -50,7 +50,6 @@ spec@!opengl 2.1@pbo@test_polygon_stip,Fail
 spec@!opengl 3.1@primitive-restart-xfb generated,Fail
 spec@!opengl 3.1@primitive-restart-xfb written,Fail
 
-spec@arb_depth_buffer_float@fbo-depthstencil-gl_depth32f_stencil8-copypixels,Fail
 spec@arb_draw_indirect@gl_vertexid used with gldrawarraysindirect,Fail
 spec@arb_draw_indirect@gl_vertexid used with gldrawelementsindirect,Fail
 spec@arb_enhanced_layouts@linker@component-layout@intrastage-vs,Fail
@@ -109,9 +108,6 @@ spec@khr_texture_compression_astc@miptree-gles hdr@HDR Profile,Fail
 spec@khr_texture_compression_astc@miptree-gles hdr,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-sd@sRGB skip decode,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-sd,Fail
-
-spec@nv_copy_image@nv_copy_image-formats,Fail
-spec@nv_copy_image@nv_copy_image-formats@Source: GL_DEPTH32F_STENCIL8/Destination: GL_DEPTH32F_STENCIL8,Fail
 
 # https://gitlab.freedesktop.org/mesa/mesa/-/issues/7159
 spec@arb_uniform_buffer_object@execution@shared-array-struct-array-struct,Fail
