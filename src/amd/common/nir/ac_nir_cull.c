@@ -299,6 +299,7 @@ call_accept_func(nir_builder *b, nir_def *accepted, ac_nir_cull_accepted accept_
 
 static nir_def *
 ac_nir_cull_triangle(nir_builder *b,
+                     bool skip_face_culling,
                      bool skip_viewport_state_culling,
                      bool use_point_tri_intersection,
                      nir_def *initially_accepted,
@@ -309,7 +310,9 @@ ac_nir_cull_triangle(nir_builder *b,
 {
    nir_def *accepted = initially_accepted;
    accepted = nir_iand(b, accepted, nir_inot(b, w_info->all_w_negative_or_zero_or_nan));
-   accepted = nir_iand(b, accepted, nir_inot(b, cull_face_triangle(b, pos, w_info)));
+
+   if (!skip_face_culling)
+      accepted = nir_iand(b, accepted, nir_inot(b, cull_face_triangle(b, pos, w_info)));
 
    nir_def *bbox_accepted = NULL;
 
@@ -512,6 +515,7 @@ ac_nir_cull_line(nir_builder *b,
 
 nir_def *
 ac_nir_cull_primitive(nir_builder *b,
+                      bool skip_face_culling,
                       bool skip_viewport_state_culling,
                       bool use_point_tri_intersection,
                       nir_def *initially_accepted,
@@ -524,8 +528,9 @@ ac_nir_cull_primitive(nir_builder *b,
    analyze_position_w(b, pos, num_vertices, &w_info);
 
    if (num_vertices == 3) {
-      return ac_nir_cull_triangle(b, skip_viewport_state_culling, use_point_tri_intersection,
-                                  initially_accepted, pos, &w_info, accept_func, state);
+      return ac_nir_cull_triangle(b, skip_face_culling, skip_viewport_state_culling,
+                                  use_point_tri_intersection, initially_accepted, pos, &w_info,
+                                  accept_func, state);
    } else if (num_vertices == 2) {
       return ac_nir_cull_line(b, skip_viewport_state_culling, initially_accepted, pos, &w_info,
                               accept_func, state);

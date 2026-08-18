@@ -1744,6 +1744,17 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
       if (!BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_CULL_MODE))
          key.rs.cull_mode = state->rs->cull_mode;
 
+      /* Don't generate face culling code if face culling is disabled and rasterization is enabled.
+       * The only thing the face culling would do is cull zero-area triangles.
+       *
+       * When rasterizer discard is dynamic, the driver dynamically enables both front and back face culling
+       * through a user SGPR.
+       */
+      key.rs.skip_ngg_cull_face = compiler_info->key.use_ngg_culling &&
+                                  !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_CULL_MODE) &&
+                                  !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
+                                  !state->rs->cull_mode && !state->rs->rasterizer_discard_enable;
+
       key.rs.rasterizer_discard = !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
                                   state->rs->rasterizer_discard_enable;
    }

@@ -165,6 +165,7 @@ struct radv_graphics_state_key {
    struct {
       uint32_t provoking_vtx_last : 1;
       uint32_t cull_mode : 2;
+      bool skip_ngg_cull_face : 1;
       bool rasterizer_discard : 1;
       bool polygon_mode_unknown : 1;
       uint8_t polygon_mode : 2; /* VK_POLYGON_MODE_FILL/LINE_POINT */

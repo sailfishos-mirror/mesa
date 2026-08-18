@@ -227,6 +227,7 @@ typedef struct {
    bool has_gs_primitives_query;
    bool force_vrs;
    bool compact_primitives;
+   bool skip_face_culling;
    /* Skip culling dependent on the viewport state, which is frustum culling and small prim
     * culling. Set this when the shader writes the viewport index.
     */
