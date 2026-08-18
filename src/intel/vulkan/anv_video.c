@@ -775,10 +775,14 @@ get_vp9_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
    case ANV_VID_MEM_VP9_PROBABILITY_1:
    case ANV_VID_MEM_VP9_PROBABILITY_2:
    case ANV_VID_MEM_VP9_PROBABILITY_3:
-      size = 32;
+      size = 64;
       break;
    case ANV_VID_MEM_VP9_SEGMENT_ID:
+   case ANV_VID_MEM_VP9_SEGMENT_ID_RESET:
       size = (uint64_t)width_in_ctb * height_in_ctb;
+      return align64(size * 64, 4096);
+   case ANV_VID_MEM_VP9_INTER_PROB_SAVED:
+      size = 64;
       break;
    case ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE:
    case ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE:
@@ -1165,6 +1169,22 @@ copy_bind(struct anv_vid_mem *dst,
    dst->size = src->memorySize;
 }
 
+static VkResult
+anv_video_zero_mem(struct anv_device *device, struct anv_vid_mem *mem)
+{
+   void *map;
+   VkResult result = anv_device_map_bo(device, mem->mem->bo, mem->offset,
+                                       mem->size, NULL, &map);
+
+   if (result != VK_SUCCESS)
+      return result;
+
+   memset(map, 0, mem->size);
+   anv_device_unmap_bo(device, mem->mem->bo, map, mem->size, false);
+
+   return VK_SUCCESS;
+}
+
 VkResult
 anv_BindVideoSessionMemoryKHR(VkDevice _device,
                               VkVideoSessionKHR videoSession,
@@ -1423,18 +1443,38 @@ anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
    }
 }
 
+void
+anv_init_vp9_segment_id_reset(struct anv_cmd_buffer *cmd,
+                              struct anv_video_session *vid)
+{
+   VkResult result =
+      anv_video_zero_mem(cmd->device,
+                         &vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET]);
+
+   if (result != VK_SUCCESS)
+      anv_batch_set_error(&cmd->batch, result);
+}
+
 #define VP9_CTX_DEFAULT(field) {                                \
    assert(sizeof(ctx.field) == sizeof(default_##field));        \
    memcpy(ctx.field, default_##field, sizeof(default_##field)); \
 }
 
-static void
-vp9_prob_buf_update(struct anv_video_session *vid,
-                    void *ptr,
-                    bool key_frame,
-                    const StdVideoVP9Segmentation *seg)
+uint32_t
+anv_vp9_fill_prob_staging(struct anv_video_session *vid,
+                          void *staging,
+                          bool key_frame,
+                          const StdVideoVP9Segmentation *seg,
+                          struct anv_vp9_prob_copy *copies,
+                          bool *save_inter_probs,
+                          bool *restore_inter_probs)
 {
    vp9_frame_context ctx = { 0, };
+   uint32_t num_copies = 0;
+   uint32_t staging_offset = 0;
+
+   *save_inter_probs = BITSET_TEST(vid->prob_tbl_set, 4);
+   *restore_inter_probs = BITSET_TEST(vid->prob_tbl_set, 5);
 
    /* Reset all */
    if (BITSET_TEST(vid->prob_tbl_set, 0)) {
@@ -1464,7 +1504,13 @@ vp9_prob_buf_update(struct anv_video_session *vid,
          VP9_CTX_DEFAULT(uv_mode_probs);
       }
 
-      memcpy(ptr, &ctx, sizeof(vp9_frame_context));
+      memcpy(staging + staging_offset, &ctx, sizeof(vp9_frame_context));
+
+      copies[num_copies].staging_offset = staging_offset;
+      copies[num_copies].dst_offset = 0;
+      copies[num_copies].size = sizeof(vp9_frame_context);
+      num_copies++;
+      staging_offset += align(sizeof(vp9_frame_context), 64);
    }
 
    /* Reset partially */
@@ -1487,8 +1533,14 @@ vp9_prob_buf_update(struct anv_video_session *vid,
          VP9_CTX_DEFAULT(uv_mode_probs);
       }
 
-      memcpy(ptr + INTER_MODE_PROBS_OFFSET, (void *)&ctx.inter_mode_probs,
-             INTER_MODE_PROBS_SIZE);
+      memcpy(staging + staging_offset, (void *)&ctx.inter_mode_probs,
+             ANV_VP9_INTER_MODE_PROBS_SIZE);
+
+      copies[num_copies].staging_offset = staging_offset;
+      copies[num_copies].dst_offset = ANV_VP9_INTER_MODE_PROBS_OFFSET;
+      copies[num_copies].size = ANV_VP9_INTER_MODE_PROBS_SIZE;
+      num_copies++;
+      staging_offset += align(ANV_VP9_INTER_MODE_PROBS_SIZE, 64);
    }
 
    /* Copy seg probs */
@@ -1497,50 +1549,28 @@ vp9_prob_buf_update(struct anv_video_session *vid,
              sizeof(ctx.seg_tree_probs));
       memcpy(ctx.seg_pred_probs, seg->segmentation_pred_prob,
              sizeof(ctx.seg_pred_probs));
-      memcpy(ptr + SEG_PROBS_OFFSET, (void *)&ctx.seg_tree_probs,
-             SEG_TREE_PROBS + PREDICTION_PROBS);
    } else if (BITSET_TEST(vid->prob_tbl_set, 3)) {
       VP9_CTX_DEFAULT(seg_tree_probs);
       VP9_CTX_DEFAULT(seg_pred_probs);
-      memcpy(ptr + SEG_PROBS_OFFSET, (void *)&ctx.seg_tree_probs,
+   }
+
+   if (BITSET_TEST(vid->prob_tbl_set, 2) ||
+       BITSET_TEST(vid->prob_tbl_set, 3)) {
+      memcpy(staging + staging_offset, (void *)&ctx.seg_tree_probs,
              SEG_TREE_PROBS + PREDICTION_PROBS);
+
+      copies[num_copies].staging_offset = staging_offset;
+      copies[num_copies].dst_offset = ANV_VP9_SEG_PROBS_OFFSET;
+      copies[num_copies].size = SEG_TREE_PROBS + PREDICTION_PROBS;
+      num_copies++;
+      staging_offset += align(SEG_TREE_PROBS + PREDICTION_PROBS, 64);
    }
-
-   /* TODO for 4, 5 */
-}
-
-void
-anv_update_vp9_tables(struct anv_cmd_buffer *cmd,
-                      struct anv_video_session *vid,
-                      uint32_t prob_id,
-                      bool key_frame,
-                      const StdVideoVP9Segmentation *seg)
-{
-   void *prob_map;
-
-   VkResult result =
-      anv_device_map_bo(cmd->device,
-                        vid->vid_mem[prob_id].mem->bo,
-                        vid->vid_mem[prob_id].offset,
-                        vid->vid_mem[prob_id].size,
-                        NULL /* placed_addr */,
-                        &prob_map);
-
-   if (result != VK_SUCCESS) {
-      anv_batch_set_error(&cmd->batch, result);
-      return;
-   }
-
-   vp9_prob_buf_update(vid, prob_map, key_frame, seg);
 
    /* Clear probability setting table */
    for (int i = 0; i < 6; i++)
       BITSET_CLEAR(vid->prob_tbl_set, i);
 
-   anv_device_unmap_bo(cmd->device,
-                       vid->vid_mem[prob_id].mem->bo,
-                       prob_map,
-                       vid->vid_mem[prob_id].size, false);
+   return num_copies;
 }
 
 void
@@ -1565,31 +1595,6 @@ anv_calculate_qmul(const struct VkVideoDecodeVP9PictureInfoKHR *vp9_pic,
    qmul[1][1] = vp9_ac_qlookup[bpp_index][quvac];
 
    memcpy(ptr, qmul, sizeof(qmul));
-}
-
-void
-anv_vp9_reset_segment_id(struct anv_cmd_buffer *cmd, struct anv_video_session *vid)
-{
-   void *map;
-
-   VkResult result =
-      anv_device_map_bo(cmd->device,
-                        vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
-                        vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].offset,
-                        vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size,
-                        NULL,
-                        &map);
-
-   if (result != VK_SUCCESS) {
-      anv_batch_set_error(&cmd->batch, result);
-      return;
-   }
-
-   memset(map, 0, vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size);
-   anv_device_unmap_bo(cmd->device,
-                       vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
-                       map,
-                       vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size, NULL);
 }
 
 uint32_t

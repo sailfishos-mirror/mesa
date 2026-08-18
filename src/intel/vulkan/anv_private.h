@@ -6987,6 +6987,10 @@ struct anv_vid_mem {
 #define ANV_MAX_H265_CTB_SIZE 64
 #define ANV_MAX_VP9_CTB_SIZE 64
 #define ANV_VP9_SCALE_FACTOR_SHIFT 14
+#define ANV_VP9_PROB_MAX_COPIES 3
+#define ANV_VP9_INTER_MODE_PROBS_OFFSET 1667
+#define ANV_VP9_INTER_MODE_PROBS_SIZE 343
+#define ANV_VP9_SEG_PROBS_OFFSET 2010
 
 enum anv_vid_mem_h264_types {
    ANV_VID_MEM_H264_INTRA_ROW_STORE,
@@ -7030,6 +7034,8 @@ enum anv_vid_mem_vp9_types {
    ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE,
    ANV_VID_MEM_VP9_MV_1,
    ANV_VID_MEM_VP9_MV_2,
+   ANV_VID_MEM_VP9_SEGMENT_ID_RESET,
+   ANV_VID_MEM_VP9_INTER_PROB_SAVED,
    ANV_VID_MEM_VP9_DEC_MAX,
 };
 
@@ -7111,6 +7117,9 @@ struct anv_video_session {
    /* Indicate if inter probs saved for prob 0 */
    bool saved_inter_probs;
 
+   /* Indicate if the segment id reset buffer is zero-initialized */
+   bool segid_reset_initialized;
+
    /*
     * The prob_tbl_set can have the following:
     *
@@ -7133,19 +7142,27 @@ struct anv_video_session {
 void anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
                              struct anv_video_session *vid);
 
-void anv_update_vp9_tables(struct anv_cmd_buffer *cmd,
-                           struct anv_video_session *video,
-                           uint32_t prob_id,
-                           bool key_frame,
-                           const StdVideoVP9Segmentation *seg);
+void anv_init_vp9_segment_id_reset(struct anv_cmd_buffer *cmd,
+                                   struct anv_video_session *vid);
+
+struct anv_vp9_prob_copy {
+   uint32_t staging_offset;
+   uint32_t dst_offset;
+   uint32_t size;
+};
+
+uint32_t anv_vp9_fill_prob_staging(struct anv_video_session *vid,
+                                   void *staging,
+                                   bool key_frame,
+                                   const StdVideoVP9Segmentation *seg,
+                                   struct anv_vp9_prob_copy *copies,
+                                   bool *save_inter_probs,
+                                   bool *restore_inter_probs);
 
 void anv_calculate_qmul(const struct VkVideoDecodeVP9PictureInfoKHR *vp9_pic,
                         uint32_t qyac,
                         uint32_t seg_id,
                         int16_t *ptr);
-
-void anv_vp9_reset_segment_id(struct anv_cmd_buffer *cmd,
-                              struct anv_video_session *vid);
 
 uint32_t anv_video_get_image_mv_size(struct anv_device *device,
                                      struct anv_image *image,

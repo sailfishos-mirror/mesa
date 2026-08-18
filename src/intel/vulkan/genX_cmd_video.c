@@ -42,6 +42,14 @@ genX(CmdBeginVideoCodingKHR)(VkCommandBuffer commandBuffer,
    cmd_buffer->video.vid = vid;
    cmd_buffer->video.params = params;
 
+   if (vid->vk.op == VK_VIDEO_CODEC_OPERATION_DECODE_VP9_BIT_KHR) {
+      if (!vid->segid_reset_initialized) {
+         anv_init_vp9_segment_id_reset(cmd_buffer, vid);
+         vid->segid_reset_initialized = true;
+      }
+      return;
+   }
+
    if (vid->vk.op != VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR &&
        vid->vk.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR)
       return;
@@ -3280,6 +3288,88 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
 }
 
 static void
+anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
+                             struct anv_video_session *vid,
+                             uint32_t prob_id,
+                             bool key_frame,
+                             bool reset_segment_id,
+                             const StdVideoVP9Segmentation *segmentation)
+{
+   struct anv_vp9_prob_copy copies[ANV_VP9_PROB_MAX_COPIES];
+   bool save_inter_probs = false, restore_inter_probs = false;
+
+   struct anv_state staging_state =
+      anv_cmd_buffer_alloc_temporary_state(cmd_buffer, 4096, 4096);
+
+   if (staging_state.map == NULL)
+      return;
+
+   uint32_t num_copies =
+      anv_vp9_fill_prob_staging(vid, staging_state.map, key_frame,
+                                segmentation, copies,
+                                &save_inter_probs, &restore_inter_probs);
+
+   struct anv_address staging_addr =
+      anv_cmd_buffer_temporary_state_address(cmd_buffer, staging_state);
+
+   struct anv_address prob_addr = {
+      vid->vid_mem[prob_id].mem->bo,
+      vid->vid_mem[prob_id].offset
+   };
+
+   struct anv_address saved_addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].offset
+   };
+
+#if GFX_VER >= 12
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FORCE_WAKEUP), wake) {
+      wake.HEVCPowerWellControl = 1;
+      wake.MaskBits = 768;
+   }
+#endif
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
+      flush.VideoPipelineCacheInvalidate = 1;
+   }
+
+   if (save_inter_probs) {
+      anv_huc_emit_copy(cmd_buffer, saved_addr,
+                        anv_address_add(prob_addr, ANV_VP9_INTER_MODE_PROBS_OFFSET),
+                        ANV_VP9_INTER_MODE_PROBS_SIZE);
+   }
+
+   for (uint32_t i = 0; i < num_copies; i++) {
+      anv_huc_emit_copy(cmd_buffer,
+                        anv_address_add(prob_addr, copies[i].dst_offset),
+                        anv_address_add(staging_addr, copies[i].staging_offset),
+                        copies[i].size);
+   }
+
+   if (restore_inter_probs) {
+      anv_huc_emit_copy(cmd_buffer,
+                        anv_address_add(prob_addr, ANV_VP9_INTER_MODE_PROBS_OFFSET),
+                        saved_addr,
+                        ANV_VP9_INTER_MODE_PROBS_SIZE);
+   }
+
+   if (reset_segment_id) {
+      struct anv_address seg_id_addr = {
+         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
+         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].offset
+      };
+
+      struct anv_address seg_id_reset_addr = {
+         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET].mem->bo,
+         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET].offset
+      };
+
+      anv_huc_emit_copy(cmd_buffer, seg_id_addr, seg_id_reset_addr,
+                        vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size);
+   }
+}
+
+static void
 anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
                      const VkVideoDecodeInfoKHR *frame_info)
 {
@@ -3300,6 +3390,24 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
    bool is_10bit = std_pic->pColorConfig->BitDepth > 8;
    uint32_t prob_id = ANV_VID_MEM_VP9_PROBABILITY_0 + std_pic->frame_context_idx;
    bool is_scaling = false;
+
+   uint32_t frame_width = frame_info->dstPictureResource.codedExtent.width;
+   uint32_t frame_height = frame_info->dstPictureResource.codedExtent.height;
+
+   if (vid->vp9_last_frame.width != 0 &&
+         (frame_width != vid->vp9_last_frame.width ||
+          frame_height != vid->vp9_last_frame.height)) {
+      is_scaling = true;
+   }
+
+   const bool reset_segment_id = key_frame_or_intra_only || is_scaling ||
+                                 std_pic->flags.error_resilient_mode;
+
+   anv_vp9_decide_prob_tbl_set(vid, std_pic);
+
+   anv_vp9_emit_gpu_prob_update(cmd_buffer, vid, prob_id,
+                                key_frame_or_intra_only, reset_segment_id,
+                                segmentation);
 
 #if GFX_VER >= 12
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FORCE_WAKEUP), wake) {
@@ -3338,21 +3446,6 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       frame_info->dstPictureResource.baseArrayLayer;
 
    const struct anv_image *img = iv->image;
-
-   uint32_t frame_width = frame_info->dstPictureResource.codedExtent.width;
-   uint32_t frame_height = frame_info->dstPictureResource.codedExtent.height;
-
-   if (vid->vp9_last_frame.width != 0 &&
-         (frame_width != vid->vp9_last_frame.width ||
-          frame_height != vid->vp9_last_frame.height)) {
-      is_scaling = true;
-   }
-
-   anv_vp9_decide_prob_tbl_set(vid, std_pic);
-   anv_update_vp9_tables(cmd_buffer, vid, prob_id, key_frame_or_intra_only, segmentation);
-
-   if (key_frame_or_intra_only || is_scaling || std_pic->flags.error_resilient_mode)
-      anv_vp9_reset_segment_id(cmd_buffer, vid);
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_SURFACE_STATE), ss) {
       ss.SurfacePitch = img->planes[0].primary_surface.isl.row_pitch_B - 1;

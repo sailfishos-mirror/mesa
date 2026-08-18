@@ -532,4 +532,61 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
    }
 }
 
+static void
+anv_huc_emit_copy(struct anv_cmd_buffer *cmd_buffer,
+                  struct anv_address dst_addr,
+                  struct anv_address src_addr,
+                  uint32_t size)
+{
+   struct anv_device *device = cmd_buffer->device;
+   uint32_t src_offset = src_addr.offset & 4095;
+   uint32_t dst_offset = dst_addr.offset & 4095;
+   struct anv_address src_base = { src_addr.bo, src_addr.offset - src_offset };
+   struct anv_address dst_base = { dst_addr.bo, dst_addr.offset - dst_offset };
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MFX_WAIT), mfx) {
+      mfx.MFXSyncControlFlag = 1;
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(HUC_PIPE_MODE_SELECT), sel) {
+      sel.IndirectStreamOutEnable = true;
+      sel.MediaSoftResetCounter = 2400;
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MFX_WAIT), mfx) {
+      mfx.MFXSyncControlFlag = 1;
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(HUC_IND_OBJ_BASE_ADDR_STATE), ind) {
+      ind.HUCIndirectStreamInObjectAddress = src_base;
+
+      ind.HUCIndirectStreamInObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+         .MOCS = anv_mocs(device, src_base.bo, 0),
+      };
+
+      ind.HUCIndirectStreamInObjectAccessUpperBound =
+         anv_address_add(src_base, align64(src_offset + size, 4096));
+
+      ind.HUCIndirectStreamOutObjectAddress = dst_base;
+
+      ind.HUCIndirectStreamOutObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+         .MOCS = anv_mocs(device, dst_base.bo, 0),
+      };
+
+      ind.HUCIndirectStreamOutObjectAccessUpperBound =
+         anv_address_add(dst_base, align64(dst_offset + size, 4096));
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(HUC_STREAM_OBJECT), so) {
+      so.IndirectStreamInDataLength = size;
+      so.IndirectStreamInAddress = src_offset;
+      so.HUCProcessing = true;
+      so.IndirectStreamOutAddress = dst_offset;
+      so.StreamOut = true;
+      so.HUCBitstreamEnable = true;
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush);
+}
+
 #endif
