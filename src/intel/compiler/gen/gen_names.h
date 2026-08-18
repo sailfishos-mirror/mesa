@@ -39,6 +39,7 @@ const char *gen_lsc_cache_ctrl_to_string(const struct intel_device_info *devinfo
 const char *gen_lsc_addr_type_size_to_string(enum lsc_addr_type_size);
 const char *gen_lsc_urb_addr_type_size_to_string(enum lsc_urb_addr_type_size);
 const char *gen_gateway_64bit_opcode_to_string(enum gen_gateway_64bit_opcode);
+const char *gen_rt_64bit_opcode_to_string(uint8_t);
 
 const char *gen_sampler_msg_type_to_string(const struct intel_device_info *devinfo,
                                            unsigned msg_type);
@@ -81,6 +82,7 @@ unsigned gen_lsc_cache_ctrl_from_string(const struct intel_device_info *devinfo,
 enum lsc_addr_type_size gen_lsc_addr_type_size_from_string(const char *str, int size, bool *valid);
 enum lsc_urb_addr_type_size gen_lsc_urb_addr_type_size_from_string(const char *str, int size, bool *valid);
 enum gen_gateway_64bit_opcode gen_gateway_64bit_opcode_from_string(const char *str, int size, bool *valid);
+uint8_t gen_rt_64bit_opcode_from_string(const char *str, int size, bool *valid);
 
 unsigned gen_sampler_msg_type_from_string(const struct intel_device_info *devinfo,
                                           const char *str, int size,

@@ -524,6 +524,15 @@ static const char * const gen_gateway_64bit_opcode_names[] = {
 DEFINE_TO_STRING(gen_gateway_64bit_opcode_to_string, enum gen_gateway_64bit_opcode, gen_gateway_64bit_opcode_names)
 DEFINE_FROM_STRING(gen_gateway_64bit_opcode_from_string, enum gen_gateway_64bit_opcode, gen_gateway_64bit_opcode_names)
 
+static const char * const gen_rt_64bit_opcode_names[] = {
+   [GFX35_RENDER_TARGET_WRITE] = "write",
+   [GFX35_RENDER_TARGET_READ] = "read",
+   [GFX35_RENDER_TARGET_DUAL_SOURCE_WRITE] = "dual_source_write",
+};
+
+DEFINE_TO_STRING(gen_rt_64bit_opcode_to_string, uint8_t, gen_rt_64bit_opcode_names)
+DEFINE_FROM_STRING(gen_rt_64bit_opcode_from_string, uint8_t, gen_rt_64bit_opcode_names)
+
 struct gen_sampler_msg_type_name {
    const char *name;
    unsigned min_ver;

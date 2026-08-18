@@ -735,6 +735,13 @@ enum {
    GEN_XE2_RT_WRITE_SUBTYPE_SIMD16_DUALSRC = 2,
 };
 
+/* GFX 35 + 64bits Render target opcodes */
+enum {
+   GFX35_RENDER_TARGET_WRITE             = 6,
+   GFX35_RENDER_TARGET_READ              = 2,
+   GFX35_RENDER_TARGET_DUAL_SOURCE_WRITE = 5,
+};
+
 /* Atomic op codes (msg_ctrl[3:0] of HDC untyped_atomic / similar). */
 enum {
    GEN_AOP_AND     = 1,

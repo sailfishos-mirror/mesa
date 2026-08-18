@@ -264,6 +264,9 @@ bool
 brw_inst::is_control_source(unsigned arg) const
 {
    switch (opcode) {
+   case FS_OPCODE_FB_WRITE_LOGICAL:
+      return arg == FB_WRITE_LOGICAL_SRC_BINDING;
+
    case FS_OPCODE_UNIFORM_PULL_CONSTANT_LOAD:
       return arg == 0;
 
@@ -511,7 +514,8 @@ brw_inst::components_read(unsigned i) const
 
    case FS_OPCODE_FB_WRITE_LOGICAL:
       /* First/second FB write color. */
-      if (i < 2)
+      if (i == FB_WRITE_LOGICAL_SRC_COLOR0 ||
+          i == FB_WRITE_LOGICAL_SRC_COLOR1)
          return as_fb_write()->components;
       else
          return 1;

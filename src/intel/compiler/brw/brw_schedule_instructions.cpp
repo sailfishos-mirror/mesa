@@ -346,7 +346,26 @@ schedule_node::set_latency(const struct brw_isa_info *isa)
          break;
 
       case GEN_SFID_RENDER_CACHE:
-         /* TODO: 64bit */
+         if (send->efficient_64bit) {
+            switch (gen_64bit_msg_desc_get_opcode(send->combined_desc)) {
+            case GFX35_RENDER_TARGET_WRITE:
+            case GFX35_RENDER_TARGET_READ:
+               /* completely fabricated number like below */
+               latency = 600;
+               break;
+            case GFX35_RENDER_TARGET_DUAL_SOURCE_WRITE:
+               /* TODO: find the correct value, just got largest latency from
+                * the else block
+                */
+               latency = 14000;
+               break;
+            default:
+               UNREACHABLE("Unknown render cache message");
+            }
+
+            break;
+         }
+
          switch (brw_fb_desc_msg_type(isa->devinfo, send->desc)) {
          case GFX7_DATAPORT_RC_TYPED_SURFACE_WRITE:
          case GFX7_DATAPORT_RC_TYPED_SURFACE_READ:

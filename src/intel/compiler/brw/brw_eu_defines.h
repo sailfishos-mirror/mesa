@@ -570,6 +570,7 @@ enum send_gather_srcs {
 };
 
 enum fb_write_logical_srcs {
+   FB_WRITE_LOGICAL_SRC_BINDING,     /* Optional Gfx35+ */
    FB_WRITE_LOGICAL_SRC_COLOR0,      /* REQUIRED */
    FB_WRITE_LOGICAL_SRC_COLOR1,      /* for dual source blend messages */
    FB_WRITE_LOGICAL_SRC_SRC0_ALPHA,

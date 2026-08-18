@@ -680,6 +680,30 @@ brw_fb_write_desc_last_render_target(const struct intel_device_info *devinfo,
    return GET_BITS(desc, 12, 12);
 }
 
+static inline uint64_t
+brw_64bit_render_target_msg_desc(const struct intel_device_info *devinfo,
+                                 uint8_t msg_type,
+                                 bool last_render_target,
+                                 bool null_rt,
+                                 brw_reg sample_mask,
+                                 brw_reg src_depth,
+                                 brw_reg src_stencil,
+                                 brw_reg src0_alpha,
+                                 unsigned components)
+{
+   uint8_t component_mask = (1 << components) - 1;
+   uint64_t msg = SET_BITS_64(msg_type, 5, 0) |
+                  SET_BITS_64(component_mask, 10, 7) |
+                  SET_BITS_64(last_render_target, 14, 14) |
+                  SET_BITS_64(null_rt, 21, 21) |
+                  SET_BITS_64((sample_mask.file != BAD_FILE), 34, 34) |
+                  SET_BITS_64((src_depth.file != BAD_FILE), 35, 35) |
+                  SET_BITS_64((src_stencil.file != BAD_FILE), 36, 36) |
+                  SET_BITS_64((src0_alpha.file != BAD_FILE), 37, 37);
+
+   return msg;
+}
+
 static inline bool
 brw_fb_write_desc_coarse_write(const struct intel_device_info *devinfo,
                                uint32_t desc)

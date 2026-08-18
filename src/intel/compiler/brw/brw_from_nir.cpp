@@ -1826,6 +1826,9 @@ brw_from_nir_emit_load_const(nir_to_brw_state &ntb,
 static bool
 get_nir_src_bindless(nir_to_brw_state &ntb, const nir_src &src)
 {
+   /* Everything is bindless in efficient 64bit mode */
+   if (ntb.s.key->use_efficient_64bit)
+      return true;
    return ntb.ssa_bind_infos[src.ssa->index].bindless;
 }
 
@@ -4037,6 +4040,11 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          ntb.bld.emit(SHADER_OPCODE_HALT_TARGET);
 
       brw_reg sources[FB_WRITE_LOGICAL_NUM_SRCS];
+      if (ntb.s.key->use_efficient_64bit) {
+         sources[FB_WRITE_LOGICAL_SRC_BINDING] =
+            bld.emit_uniformize(get_nir_src(ntb, instr->src[0], 0));
+      }
+
       sources[FB_WRITE_LOGICAL_SRC_COLOR0] = get_nir_src(ntb, instr->src[1], -1);
       if (!nir_src_is_undef(instr->src[2]))
           sources[FB_WRITE_LOGICAL_SRC_COLOR1] = get_nir_src(ntb, instr->src[2], -1);

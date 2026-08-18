@@ -1318,6 +1318,12 @@ private:
          format("%s.%s", op_name, sfid_name);
          break;
       }
+      case GEN_SFID_RENDER_CACHE: {
+         const char *op_name = gen_rt_64bit_opcode_to_string(op);
+
+         format("%s.%s", op_name, sfid_name);
+         break;
+      }
       default:
          unknown();
          return false;

@@ -602,7 +602,13 @@ namespace {
             return calculate_desc(info, EU_UNIT_DP_CC, 2, 0, 0, 0, 16 /* XXX */,
                                   10 /* XXX */, 100 /* XXX */, 0, 0, 0, 0);
          case GEN_SFID_RENDER_CACHE:
-            /* TODO: 64bit */
+            if (info.efficient_64bit) {
+               return calculate_desc(info, EU_UNIT_DP_RC, 2, 0, 0,
+                                     0, 400 /* XXX */,
+                                     10 /* XXX */, 300 /* XXX */, 0, 0,
+                                     0, 0);
+            }
+
             switch (brw_dp_desc_msg_type(devinfo, info.desc)) {
             case GFX7_DATAPORT_RC_TYPED_ATOMIC_OP:
                return calculate_desc(info, EU_UNIT_DP_RC, 2, 0, 0,

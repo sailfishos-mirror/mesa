@@ -316,6 +316,7 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
                             const brw_fs_thread_payload &fs_payload)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
+   const brw_reg binding = write->src[FB_WRITE_LOGICAL_SRC_BINDING];
    const brw_reg color0 = write->src[FB_WRITE_LOGICAL_SRC_COLOR0];
    const brw_reg color1 = write->src[FB_WRITE_LOGICAL_SRC_COLOR1];
    const brw_reg src0_alpha = write->src[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA];
@@ -473,44 +474,10 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    payload.nr = brw_allocate_vgrf_units(*bld.shader, regs_written(load)).nr;
    load->dst = payload;
 
-   uint32_t msg_ctl = brw_fb_write_msg_control(write, prog_data);
-
-   /* XXX - Bit 13 Per-sample PS enable */
-   uint32_t desc =
-      (write->group / 16) << 11 | /* rt slot group */
-      brw_fb_write_desc(devinfo, target, msg_ctl, last_rt,
-                        0 /* coarse_rt_write */);
-
-   brw_reg desc_reg = brw_imm_ud(0);
-   desc |= prog_data->coarse_pixel_dispatch ? (1 << 18) : 0;
-
-   uint32_t ex_desc = 0;
-   if (devinfo->ver >= 20) {
-      ex_desc = target << 21 |
-                null_rt << 20 |
-                (src0_alpha.file != BAD_FILE) << 15 |
-                (src_stencil.file != BAD_FILE) << 14 |
-                (src_depth.file != BAD_FILE) << 13 |
-                (sample_mask.file != BAD_FILE) << 12;
-   } else if (devinfo->ver >= 11) {
-      /* Set the "Render Target Index" and "Src0 Alpha Present" fields
-       * in the extended message descriptor, in lieu of using a header.
-       */
-      ex_desc = target << 12 |
-                null_rt << 20 |
-                (src0_alpha.file != BAD_FILE) << 15;
-   }
-
    brw_send_inst *send = brw_transform_inst_to_send(bld, write);
    write = NULL;
 
-   send->desc = desc;
-   send->ex_desc = ex_desc;
-
    send->sfid = GEN_SFID_RENDER_CACHE;
-
-   send->src[SEND_SRC_DESC] = desc_reg;
-   send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
    send->src[SEND_SRC_PAYLOAD1] = payload;
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
    send->mlen = regs_written(load);
@@ -518,6 +485,55 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    send->header_size = header_size;
    send->check_tdr = true;
    send->has_side_effects = true;
+
+   if (bld.shader->key->use_efficient_64bit) {
+      uint8_t msg_type = prog_data->dual_src_blend ? GFX35_RENDER_TARGET_DUAL_SOURCE_WRITE :
+                                                     GFX35_RENDER_TARGET_WRITE;
+      send->combined_desc = brw_64bit_render_target_msg_desc(devinfo,
+                                                             msg_type,
+                                                             last_rt,
+                                                             null_rt,
+                                                             sample_mask,
+                                                             src_depth,
+                                                             src_stencil,
+                                                             src0_alpha,
+                                                             components);
+      assert(brw_type_size_bits(binding.type) == 64);
+      send->src[SENDG_SRC_IND_0_DESC] = retype(binding, BRW_TYPE_UQ);
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      uint32_t msg_ctl = brw_fb_write_msg_control(send, prog_data);
+
+      /* XXX - Bit 13 Per-sample PS enable */
+      uint32_t desc =
+         (send->group / 16) << 11 | /* rt slot group */
+         brw_fb_write_desc(devinfo, target, msg_ctl, last_rt,
+                           0 /* coarse_rt_write */) |
+         (prog_data->coarse_pixel_dispatch ? (1 << 18) : 0);
+
+      uint32_t ex_desc = 0;
+      if (devinfo->ver >= 20) {
+         ex_desc = target << 21 |
+            null_rt << 20 |
+            (src0_alpha.file != BAD_FILE) << 15 |
+            (src_stencil.file != BAD_FILE) << 14 |
+            (src_depth.file != BAD_FILE) << 13 |
+            (sample_mask.file != BAD_FILE) << 12;
+      } else if (devinfo->ver >= 11) {
+         /* Set the "Render Target Index" and "Src0 Alpha Present" fields
+          * in the extended message descriptor, in lieu of using a header.
+          */
+         ex_desc = target << 12 |
+            null_rt << 20 |
+            (src0_alpha.file != BAD_FILE) << 15;
+      }
+
+      send->desc = desc;
+      send->ex_desc = ex_desc;
+      send->src[SEND_SRC_DESC] = brw_imm_ud(0);
+      send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
+   }
 }
 
 static void
