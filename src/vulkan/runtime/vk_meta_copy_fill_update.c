@@ -2675,26 +2675,3 @@ vk_meta_fill_memory(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
       size -= args.size;
    }
 }
-
-void
-vk_meta_fill_buffer(struct vk_command_buffer *cmd, struct vk_meta_device *meta,
-                    VkBuffer dstBuffer, VkDeviceSize offset, VkDeviceSize size,
-                    uint32_t data)
-{
-   VK_FROM_HANDLE(vk_buffer, buffer, dstBuffer);
-
-   VkDeviceAddressRangeKHR addr_range =
-      vk_device_address_range(buffer, offset, size);
-
-   /* From the Vulkan spec:
-    *
-    *    "size is the number of bytes to fill, and must be either a multiple
-    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
-    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
-    *    buffer is not a multiple of 4, then the nearest smaller multiple is
-    *    used."
-    */
-   addr_range.size &= ~3ull;
-
-   vk_meta_fill_memory(cmd, meta, &addr_range, buffer->address_flags, data);
-}
