@@ -47,7 +47,7 @@ static unsigned split_alloc_vars(struct split_mat *split)
 static struct split_mat *find_split(struct hash_table *split_mats,
                                     nir_intrinsic_instr *intr, int idx)
 {
-   nir_variable *var = nir_deref_instr_get_variable(nir_src_as_deref(intr->src[idx]));
+   nir_variable *var = nir_intrinsic_get_var(intr, idx);
    struct hash_entry *entry = _mesa_hash_table_search(split_mats, var);
    return entry ? entry->data : NULL;
 }
@@ -647,7 +647,7 @@ split_cmat_call_reduce(nir_builder *b,
          src_splits = get_num_splits(src_split);
       nir_deref_instr **temp_derefs = ralloc_array(NULL, nir_deref_instr *, src_splits);
 
-      const struct glsl_type *temp_type = nir_deref_instr_get_variable(nir_src_as_deref(call->params[1]))->type;
+      const struct glsl_type *temp_type = nir_cmat_call_get_var(call, 1)->type;
       if (src_splits > 1)
          temp_type = src_split->split_vars[0]->type;
       for (unsigned i = 0; i < src_splits; i++) {
@@ -755,7 +755,7 @@ split_cmat_load_store(nir_builder *b,
    nir_instr *instr = &intr->instr;
    const bool is_load = intr->intrinsic == nir_intrinsic_cmat_load;
    enum glsl_matrix_layout layout = nir_intrinsic_matrix_layout(intr);
-   nir_variable *var = nir_deref_instr_get_variable(nir_src_as_deref(intr->src[!is_load]));
+   nir_variable *var = nir_intrinsic_get_var(intr, !is_load);
    struct hash_entry *entry = _mesa_hash_table_search(info->split_mats, var);
    if (!entry)
       return false;

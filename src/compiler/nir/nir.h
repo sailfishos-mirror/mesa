@@ -4458,6 +4458,12 @@ nir_intrinsic_get_var(const nir_intrinsic_instr *intrin, unsigned i)
    return nir_deref_instr_get_variable(nir_src_as_deref(intrin->src[i]));
 }
 
+static inline nir_variable *
+nir_cmat_call_get_var(const nir_cmat_call_instr *call, unsigned i)
+{
+   return nir_deref_instr_get_variable(nir_src_as_deref(call->params[i]));
+}
+
 /*
  * After all functions are forcibly inlined, these passes remove redundant
  * functions from a shader and library respectively.
