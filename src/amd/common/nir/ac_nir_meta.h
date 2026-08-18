@@ -165,6 +165,7 @@ typedef union {
       bool is_clear:1;
       unsigned dwords_per_thread:3; /* 1..4 allowed */
       bool clear_value_size_is_12:1;
+      bool clear_value_size_is_4:1;
       bool src_scalarize_for_sparse:1;
       /* Unaligned clears and copies. */
       unsigned src_align_offset:2; /* how much is the source address unaligned */
