@@ -218,7 +218,7 @@ struct vectorize_ctx {
    nir_shader *shader;
    const nir_load_store_vectorize_options *options;
    unsigned (*round_up_components)(unsigned);
-   struct hash_table *numlsb_ht;
+   struct hash_table numlsb_ht;
    struct list_head entries[nir_num_variable_modes];
    struct hash_table *loads[nir_num_variable_modes];
    struct hash_table *stores[nir_num_variable_modes];
@@ -554,7 +554,7 @@ fill_in_offset_defs(struct vectorize_ctx *ctx, struct entry *entry,
       key->offset_defs[i] = terms[i].s;
       key->offset_defs_mul[i] = terms[i].mul;
 
-      unsigned lsb_zero = nir_def_num_lsb_zero(ctx->numlsb_ht, terms[i].s);
+      unsigned lsb_zero = nir_def_num_lsb_zero(&ctx->numlsb_ht, terms[i].s);
       if (terms[i].add32)
          lsb_zero = MIN2(lsb_zero, ffsll(terms[i].add32) - 1);
       key->offset_def_num_lsbz[i] = lsb_zero;
@@ -2008,7 +2008,7 @@ nir_opt_load_store_vectorize(nir_shader *shader, const nir_load_store_vectorize_
    struct vectorize_ctx *ctx = rzalloc(NULL, struct vectorize_ctx);
    ctx->linear_mem_ctx = linear_context(ctx);
    ctx->shader = shader;
-   ctx->numlsb_ht = _mesa_pointer_hash_table_create(ctx);
+   _mesa_pointer_hash_table_init(&ctx->numlsb_ht, ctx);
    ctx->options = options;
 
    /* By default, we round up load/store components to the next valid
@@ -2062,8 +2062,8 @@ bool
 nir_opt_load_store_update_alignments(nir_shader *shader)
 {
    struct vectorize_ctx ctx;
-   ctx.numlsb_ht = _mesa_pointer_hash_table_create(NULL);
-   ctx.linear_mem_ctx = linear_context(ctx.numlsb_ht);
+   _mesa_pointer_hash_table_init(&ctx.numlsb_ht, NULL);
+   ctx.linear_mem_ctx = linear_context(NULL);
 
    bool progress = nir_shader_intrinsics_pass(shader,
                                               opt_load_store_update_alignments_callback,
@@ -2071,6 +2071,8 @@ nir_opt_load_store_update_alignments(nir_shader *shader)
                                                  nir_metadata_live_defs |
                                                  nir_metadata_instr_index,
                                               &ctx);
-   ralloc_free(ctx.numlsb_ht);
+
+   _mesa_hash_table_fini(&ctx.numlsb_ht, NULL);
+   ralloc_free(ctx.linear_mem_ctx);
    return progress;
 }
