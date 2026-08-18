@@ -567,13 +567,15 @@ v3d_emit_spill_tmua(struct v3d_compile *c,
          * spilled temp except for postponed spills). Something that ends at ip
          * won't be affected either.
          */
-        for (int i = 0; i < c->spill_start_num_temps; i++) {
-                bool thrsw_cross = fill_dst ?
-                        c->temp_start[i] < ip && c->temp_end[i] >= ip :
-                        c->temp_start[i] <= ip && c->temp_end[i] > ip;
-                if (thrsw_cross) {
-                        ra_set_node_class(c->g, temp_to_node(c, i),
-                                          choose_reg_class(c, CLASS_BITS_PHYS));
+        if (c->devinfo->has_accumulators) {
+                for (int i = 0; i < c->spill_start_num_temps; i++) {
+                        bool thrsw_cross = fill_dst ?
+                                c->temp_start[i] < ip && c->temp_end[i] >= ip :
+                                c->temp_start[i] <= ip && c->temp_end[i] > ip;
+                        if (thrsw_cross) {
+                                ra_set_node_class(c->g, temp_to_node(c, i),
+                                                  choose_reg_class(c, CLASS_BITS_PHYS));
+                        }
                 }
         }
 }
