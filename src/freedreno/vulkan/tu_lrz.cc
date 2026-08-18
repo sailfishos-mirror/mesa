@@ -454,6 +454,16 @@ tu_lrz_begin_renderpass(struct tu_cmd_buffer *cmd)
          struct tu_image *image = cmd->state.attachments[a]->image;
          tu_disable_lrz<CHIP>(cmd, &cmd->cs, image);
       }
+
+      if (subpass->resolve_depth_stencil) {
+         for (unsigned i = 0; i < subpass->resolve_count; i++) {
+            uint32_t a = subpass->resolve_attachments[i].attachment;
+            if (a == VK_ATTACHMENT_UNUSED || cmd->state.attachments[a]->image->lrz_layout.lrz_total_size == 0)
+               continue;
+
+            tu_disable_lrz<CHIP>(cmd, &cmd->cs, cmd->state.attachments[a]->image);
+         }
+      }
    }
 
     /* Track LRZ valid state */
