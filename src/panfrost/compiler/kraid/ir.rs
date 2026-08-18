@@ -1909,7 +1909,8 @@ impl fmt::Display for Shader<'_> {
         }
 
         // Pad to correct width
-        let max_eq = buf.lines().filter_map(|l| l.find('=')).max().unwrap_or(0);
+        let eq_pos = |s: &str| s.chars().position(|c| c == '=');
+        let max_eq = buf.lines().filter_map(eq_pos).max().unwrap_or(0);
 
         for line in buf.lines() {
             let line = line.trim_end();
@@ -1917,7 +1918,7 @@ impl fmt::Display for Shader<'_> {
                 writeln!(f)?;
             } else if line.starts_with("__") {
                 writeln!(f, "{line}")?;
-            } else if let Some(pos) = line.find('=') {
+            } else if let Some(pos) = eq_pos(line) {
                 writeln!(f, "{:pad$}{line}", "", pad = max_eq - pos)?;
             } else {
                 writeln!(
