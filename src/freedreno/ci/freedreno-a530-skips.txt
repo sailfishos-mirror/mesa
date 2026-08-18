@@ -5,23 +5,6 @@
 # no Vulkan support
 spec@ext_external_objects@vk.*
 
-# Intermittent timeouts in CI (~1/month)
-dEQP-GLES3.functional.shaders.builtin_functions.precision.cosh.mediump_fragment.vec3
-dEQP-GLES3.functional.shaders.builtin_functions.precision.faceforward.lowp_fragment.vec4
-dEQP-GLES3.functional.shaders.builtin_functions.precision.sinh.mediump_vertex.vec3
-dEQP-GLES3.functional.shaders.builtin_functions.precision.tanh.highp_fragment.vec3
-dEQP-GLES31.functional.shaders.builtin_functions.precision.distance.lowp_compute.vec4
-dEQP-GLES31.functional.shaders.builtin_functions.precision.pow.highp_compute.vec3
-dEQP-GLES31.functional.shaders.builtin_functions.precision.sqrt.highp_compute.vec3
-dEQP-GLES31.functional.shaders.builtin_functions.precision.tanh.lowp_compute.vec3
-
-# Takes more than a few minutes, time is spent in batch_draw_tracking().
-KHR-GLES31.core.shader_image_load_store.basic-allFormats-store-fs
-
-# Intermittent timeouts
-spec@ext_texture_lod_bias@lodbias
-spec@!opengl 1.0@gl-1.0-blend-func
-
 # Skip over a bunch of extensions since we don't have extension fast skipping yet.
 spec@glsl-1.50
 spec@glsl-4.*
@@ -34,14 +17,7 @@ spec@arb_tessellation_shader
 arb_texture_multisample
 ext_framebuffer_multisample
 
-# 1.5 minutes
-spec@!opengl 1.2@tex3d-maxsize
-
 # ~1 minute
-glx@glx-multithread-texture
-spec@!opengl 1.1@draw-sync
-spec@arb_uniform_buffer_object@execution@shared-struct-array-array-array-struct
-spec@arb_uniform_buffer_object@execution@std140-struct-array-array-array-struct
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-refcount-multithread
 
 # This one seems to be triggering faults and causing random other fails
@@ -59,14 +35,7 @@ arb_texture_buffer_object@max-size
 fbo-maxsize
 max-texture-size
 copypixels-draw-sync
-
-# Hangchecks (copied from a307-skips, first hang matches)
-tex-miplevel-selection
-spec@arb_point_sprite@arb_point_sprite-interactions
-gles-3.0-transform-feedback-uniform-buffer-object
-
-# additional hangs
-spec@arb_texture_gather@texturegather.*
+spec@!opengl 1.2@tex3d-maxsize
 
 # resets the board: texelFetch fs sampler3d 98x129x1-98x129x9
 spec@glsl-1.30@execution@texelfetch fs sampler3d.*
