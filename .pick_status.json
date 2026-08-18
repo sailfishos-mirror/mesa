@@ -784,7 +784,7 @@
         "description": "tu: Set MSM_SUBMIT_SYNCOBJ_* when there are only internal syncobjs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0cc0e786e096dca8cfd88d7088ab7e1a0147d045",
         "notes": null
