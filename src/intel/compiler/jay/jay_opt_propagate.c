@@ -295,10 +295,6 @@ fuse_flag_op(jay_function *f, jay_inst *I, jay_inst *use, BITSET_WORD *defined)
    unsigned i = jay_defs_equivalent(use->src[0], I->cond_flag) ? 0 : 1;
    jay_def other = use->src[1 - i];
 
-   /* XXX: we want to handle things like and.u1 flag 0x1 differently */
-   if (jay_is_imm(other))
-      return false;
-
    assert(jay_is_null(I->dst) && !I->predication);
    assert(jay_defs_equivalent(use->src[i], I->cond_flag));
 
@@ -307,7 +303,7 @@ fuse_flag_op(jay_function *f, jay_inst *I, jay_inst *use, BITSET_WORD *defined)
     * that means we ensure that `other` has NOT yet been defined when processing
     * I - because we propagate backwards.
     */
-   if (BITSET_TEST(defined, jay_index(other))) {
+   if (jay_is_imm(other) || BITSET_TEST(defined, jay_index(other))) {
       return false;
    }
 
