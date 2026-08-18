@@ -356,6 +356,7 @@ lower_mem_access_cb(nir_intrinsic_op intrin, uint8_t bytes, uint8_t bit_size, ui
 
    /* Lower 8/16-bit loads to 32-bit, unless it's a scalar load. */
    const bool supported_subdword = res.num_components == 1 &&
+                                   intrin != nir_intrinsic_load_push_constant &&
                                    (!cb_data->use_llvm || intrin != nir_intrinsic_load_ubo);
 
    if (res.bit_size >= 32 || supported_subdword)
