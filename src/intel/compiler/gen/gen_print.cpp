@@ -1324,6 +1324,12 @@ private:
          format("%s.%s", op_name, sfid_name);
          break;
       }
+      case GEN_SFID_SAMPLER: {
+         const char *op_name = gen_sampler_msg_type_to_string(devinfo, op);
+
+         format("%s.%s", op_name, sfid_name);
+         break;
+      }
       default:
          unknown();
          return false;

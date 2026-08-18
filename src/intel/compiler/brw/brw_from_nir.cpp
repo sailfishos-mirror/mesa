@@ -6142,6 +6142,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
             bld.ADD(get_nir_src(ntb, instr->src[src_idx].src, -1),
                     brw_imm_ud(instr->texture_index)));
       } else {
+         assert(!ntb.s.key->use_efficient_64bit);
          srcs[TEX_LOGICAL_SRC_SURFACE] = brw_imm_ud(instr->texture_index);
       }
 
@@ -6153,7 +6154,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
          srcs[TEX_LOGICAL_SRC_SAMPLER] = bld.emit_uniformize(
             bld.ADD(get_nir_src(ntb, instr->src[src_idx].src, -1),
                     brw_imm_ud(instr->sampler_index)));
-      } else {
+      } else if (!ntb.s.key->use_efficient_64bit) {
          srcs[TEX_LOGICAL_SRC_SAMPLER] = brw_imm_ud(instr->sampler_index);
       }
    }

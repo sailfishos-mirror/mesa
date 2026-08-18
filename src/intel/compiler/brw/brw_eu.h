@@ -115,6 +115,75 @@ brw_urb_fence_desc(const struct intel_device_info *devinfo)
    return brw_urb_desc(devinfo, GEN_GFX125_URB_OPCODE_FENCE, false, false, 0);
 }
 
+static inline bool
+brw_sampler_message_is_gather4(unsigned msg_type)
+{
+   switch (msg_type) {
+   case GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4:
+   case GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L:
+   case GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_B:
+   case GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I:
+   case GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_C:
+   case GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO:
+   case GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C:
+   case GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I_C:
+   case GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L_C:
+      return true;
+   default:
+      return false;
+   }
+}
+
+static inline uint64_t
+brw_sampler_64bit_desc(const struct intel_device_info *devinfo,
+                       unsigned msg_type,
+                       unsigned surface_state_index,
+                       unsigned sampler_state_index,
+                       unsigned data_return_format,
+                       unsigned simd_mode,
+                       unsigned r_offset,
+                       unsigned v_offset,
+                       unsigned u_offset,
+                       uint8_t write_channel_mask,
+                       bool trtt_null,
+                       uint8_t gather_component)
+{
+   /* TODO: optimization that can be enabled later */
+   bool enable_lsc_backing = false;
+   /* TODO: support gather4 */
+   bool is_gather4 = brw_sampler_message_is_gather4(msg_type);
+   bool address_input_format;
+   /* Sampler doesn't support CacheMode overwrite Field MBZ */
+   unsigned cache_mode_load = 0;
+   /* TODO: support feedback message */
+   bool feedback_message = false;
+   uint64_t msg_desc = SET_BITS_64(msg_type, 5, 0) |
+                       SET_BITS_64(enable_lsc_backing, 6, 6) |
+                       SET_BITS_64(data_return_format, 15, 15) |
+                       SET_BITS_64(cache_mode_load, 19, 16) |
+                       SET_BITS_64(trtt_null, 20, 20) |
+                       SET_BITS_64(feedback_message, 21, 21) |
+                       SET_BITS_64(surface_state_index, 26, 22) |
+                       SET_BITS_64(sampler_state_index, 29, 27) |
+                       SET_BITS_64(r_offset, 33, 30) |
+                       SET_BITS_64(v_offset, 37, 34) |
+                       SET_BITS_64(u_offset, 41, 38);
+
+   if (is_gather4)
+      msg_desc |= SET_BITS_64(gather_component, 10, 9);
+   else
+      msg_desc |= SET_BITS_64(write_channel_mask, 10, 7);
+
+   if (simd_mode == GEN_XE2_SAMPLER_SIMD_MODE_SIMD16H ||
+       simd_mode == GEN_XE2_SAMPLER_SIMD_MODE_SIMD32H)
+      address_input_format = 1;
+   else
+      address_input_format = 0;
+   msg_desc |= SET_BITS_64(address_input_format, 14, 14);
+
+   return msg_desc;
+}
+
 /**
  * Construct a message descriptor immediate with the specified sampler
  * function controls.

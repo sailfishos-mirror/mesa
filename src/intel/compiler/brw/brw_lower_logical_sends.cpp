@@ -794,6 +794,17 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    const unsigned payload_type_bit_size =
       get_sampler_msg_payload_type_bit_size(devinfo, tex);
 
+   const bool residency = tex->residency;
+   const uint8_t gather_component = tex->gather_component;
+   uint8_t write_channel_mask = sampler_calc_channel_mask(devinfo, tex);
+   const bool has_const_offsets = tex->has_const_offsets;
+   unsigned r_offset = 0, v_offset = 0, u_offset = 0;
+   if (has_const_offsets) {
+      r_offset = tex->const_offsets[2] & 0xf;
+      v_offset = tex->const_offsets[1] & 0xf;
+      u_offset = tex->const_offsets[0] & 0xf;
+   }
+
    /* 16-bit payloads are available only on gfx11+ */
    assert(payload_type_bit_size != 16 || devinfo->ver >= 11);
 
@@ -804,11 +815,12 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
       brw_type_with_size(BRW_TYPE_UD, payload_type_bit_size);
 
    const bool needs_header =
-      sampler_op_needs_header(op, devinfo) ||
-      tex->has_const_offsets ||
-      packed_offsets.file != BAD_FILE ||
-      sampler_bindless || is_high_sampler(devinfo, sampler) ||
-      tex->residency;
+      !bld.shader->key->use_efficient_64bit &&
+      (sampler_op_needs_header(op, devinfo) ||
+       has_const_offsets ||
+       packed_offsets.file != BAD_FILE ||
+       sampler_bindless || is_high_sampler(devinfo, sampler) ||
+       residency);
 
    unsigned header_size = 0, length = 0;
    brw_reg sources[1 + MAX_SAMPLER_MESSAGE_SIZE];
@@ -816,7 +828,32 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    for (unsigned i = 0; i < ARRAY_SIZE(sources); i++)
       sources[i] = bld.vgrf((i == 0 && needs_header) ? BRW_TYPE_UD : payload_type);
 
-   if (needs_header) {
+   /* Setup sampler header if needed */
+   if (bld.shader->key->use_efficient_64bit) {
+      /* From 3D Sampler::Message Header/BSpec 56986(r50439):
+       *
+       *    "Noted that the 64bit efficiency header is use exclusively for
+       *     Feedback Surface, while when not in efficiency send the header is
+       *     picked based on header present bit."
+       * TODO: implement feedback surface support if needed
+       */
+      bool has_feedback_surface = false;
+
+      if (has_feedback_surface ||
+          op == BRW_SAMPLER_OPCODE_SAMPLEINFO) {
+         /* Sampler header definition on BSpec 57024 */
+         brw_reg header = retype(sources[0], BRW_TYPE_UD);
+
+         for (header_size = 0; header_size < reg_unit(devinfo); header_size++) {
+            sources[length++] = byte_offset(header, REG_SIZE * header_size);
+         }
+
+         const brw_builder ubld = bld.exec_all().group(8 * reg_unit(devinfo), 0);
+         const brw_builder ubld1 = ubld.group(1, 0);
+         for (unsigned i = 0; i < 8; i++)
+            ubld1.MOV(component(header, i), brw_imm_ud(0));
+      }
+   } else if (needs_header) {
       /* For general texture offsets (no txf workaround), we need a header to
        * put them in.
        *
@@ -830,17 +867,17 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
          sources[length++] = byte_offset(header, REG_SIZE * header_size);
 
       uint32_t g0_2 = 0;
-      if (tex->gather_component)
-         g0_2 |= tex->gather_component << 16;
-      if (tex->residency)
+      if (gather_component)
+         g0_2 |= gather_component << 16;
+      if (residency)
          g0_2 |= 1 << 23; /* g0.2 bit23 : Pixel Null Mask Enable */
 
       g0_2 |= sampler_calc_channel_mask(devinfo, tex) << 12;
 
-      if (tex->has_const_offsets) {
-         g0_2 |= ((tex->const_offsets[2] & 0xf) << 0) |
-                 ((tex->const_offsets[1] & 0xf) << 4) |
-                 ((tex->const_offsets[0] & 0xf) << 8);
+      if (has_const_offsets) {
+         g0_2 |= (r_offset << 0) |
+                 (v_offset << 4) |
+                 (u_offset << 8);
       }
 
       /* Build the actual header */
@@ -968,7 +1005,28 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    uint sampler_ret_type = brw_type_size_bits(send->dst.type) == 16
       ? GFX8_SAMPLER_RETURN_FORMAT_16BITS
       : GFX8_SAMPLER_RETURN_FORMAT_32BITS;
-   if (!surface_bindless && surface.file == IMM &&
+
+   if (bld.shader->key->use_efficient_64bit) {
+      assert(brw_type_size_bits(surface.type) == 64);
+      assert(sampler.file == BAD_FILE || brw_type_size_bits(sampler.type) == 64);
+
+      write_channel_mask = (~write_channel_mask) & 0xF;
+
+      send->combined_desc = brw_sampler_64bit_desc(devinfo,
+                                                   msg_type,
+                                                   0, 0,
+                                                   sampler_ret_type,
+                                                   simd_mode,
+                                                   r_offset,
+                                                   v_offset,
+                                                   u_offset,
+                                                   write_channel_mask,
+                                                   residency, /* trtt_null */
+                                                   gather_component);
+      send->src[SENDG_SRC_IND_0_DESC] = retype(surface, BRW_TYPE_UQ);
+      send->src[SENDG_SRC_IND_1_DESC] = retype(sampler, BRW_TYPE_UQ);
+      send->efficient_64bit = true;
+   } else if (!surface_bindless && surface.file == IMM &&
        (sampler.file == IMM || sampler_bindless)) {
       send->desc = brw_sampler_desc(devinfo, surface.ud,
                                     (sampler.file == IMM && !sampler_bindless) ?
@@ -1032,8 +1090,6 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
       send->src[SEND_SRC_DESC]    = component(desc, 0);
       send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
    }
-
-   send->ex_desc = 0;
 
    send->src[SEND_SRC_PAYLOAD1] = src_payload;
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
