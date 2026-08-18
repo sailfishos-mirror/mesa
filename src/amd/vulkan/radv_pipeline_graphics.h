@@ -40,6 +40,8 @@ struct radv_sample_locations_state {
    int8_t hw_locations[4][8][2]; /* [pixel in quad][sample][dim] */
    bool xmax_right_exclusion;
    bool ymax_bottom_exclusion;
+   bool allow_small_prim_ngg_culling;
+   uint8_t log2_small_prim_ngg_culling_scaling_factor;
 };
 
 struct radv_viewport_xform_state {

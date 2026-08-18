@@ -701,25 +701,29 @@ radv_cmd_set_rendering_input_attachment_indices(struct radv_cmd_buffer *cmd_buff
 }
 
 void
-radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *state)
+radv_precompute_hw_sample_location_state(const struct radv_physical_device *pdev,
+                                         struct radv_sample_locations_state *state)
 {
    assert(state->count);
 
    state->xmax_right_exclusion = true;
    state->ymax_bottom_exclusion = true;
+   state->allow_small_prim_ngg_culling = pdev->use_ngg_culling;
+
+   int common_ctz = -1;
 
    /* Convert sample locations to the 4-bit HW representation that will be written to
     * PA_SC_AA_SAMPLE_LOCS_PIXEL_*.
     *
     * This only applies to custom sample locations.
     */
-   for (unsigned x = 0; x < 2; x++) {
-      for (unsigned y = 0; y < 2; y++) {
-         const uint32_t x_offset = x % state->grid_size.width;
-         const uint32_t y_offset = y % state->grid_size.height;
+   for (unsigned x_in_quad = 0; x_in_quad < 2; x_in_quad++) {
+      for (unsigned y_in_quad = 0; y_in_quad < 2; y_in_quad++) {
+         const uint32_t x_offset = x_in_quad % state->grid_size.width;
+         const uint32_t y_offset = y_in_quad % state->grid_size.height;
          const uint32_t num_samples = state->per_pixel;
          const uint32_t pixel_offset = (x_offset + y_offset * state->grid_size.width) * num_samples;
-         const uint32_t pixel_in_quad = y * 2 + x;
+         const uint32_t pixel_in_quad = y_in_quad * 2 + x_in_quad;
 
          assert(pixel_offset <= MAX_SAMPLE_LOCATIONS);
          const VkSampleLocationEXT *user_locs = &state->locations[pixel_offset];
@@ -743,8 +747,79 @@ radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *sta
                state->xmax_right_exclusion = false;
             if (loc_y == -8)
                state->ymax_bottom_exclusion = false;
+
+            if (state->allow_small_prim_ngg_culling) {
+               /* The following code computes the scaling factor for small primitive culling
+                * in the shader with custom sample locations.
+                *
+                * The shader only culls against pixel centers. MSAA is supported by scaling vertex
+                * positions up such that sample locations line up exactly with pixel centers, so that
+                * the same culling code works the same for all MSAA modes. The scaling factor is baked
+                * into the viewport terms passed to the shader.
+                *
+                * TODO: Move this paragraph to a better place. (it's only indirectly relevant)
+                * An additional subpixel precision term representing the rounding uncertainty of
+                * float-to-fixed conversion of the rasterizer is passed to the shader, which prevents
+                * culling those small primitives that are so close to pixel centers that the rasterizer
+                * may treat them as visible. If this wasn't done, incorrect culling would be very
+                * easily reproducible with any dense geometry. The scaling factor must scale this
+                * precision term too.
+                *
+                * The scaling factor is determined as follows:
+                *
+                * 1. If the default sample locations are used (which are equivalent to the DX sample
+                *    locations), the scaling factor is equal to the number of rasterization samples,
+                *    which can be proven by passing default sample locations to the algorithm for
+                *    custom sample locations and getting the resulting scaling factor.
+                *
+                * 2. If custom sample locations are used, the scaling factor is determined from
+                *    the divisibility of the 4-bit sample location coordinates.
+                *
+                *    To calculate the scaling factor, all sample location coordinates in the 4-bit
+                *    representation must have the same greatest power-of-two divisor, which means
+                *    2^ctz(x) must be the same for all coordinates x. With that, we can equivalently
+                *    say that ctz() must be equal for all sample coordinates.
+                *
+                *    If the common ctz is n, the smallest integer scaling factor that aligns all
+                *    sample locations with pixel centers is 2^(3 - n), or equivalently 8 >> n.
+                */
+               if (loc_x == -8 || loc_y == -8) {
+                  /* No scaling factor exists if the location is 0 (on the pixel edge) because
+                   * multiplying 0 by anything can never yield a result whose fractional part is 0.5.
+                   *
+                   * This will also stop the common CTZ computation for later iterations.
+                   */
+                  state->allow_small_prim_ngg_culling = false;
+               } else {
+                  int8_t locs[2] = {loc_x, loc_y};
+
+                  for (unsigned l = 0; l < 2; l++) {
+                     uint8_t uint_loc = locs[l] + 8; /* maps [-7, 7] to [1, 15]. */
+
+#if HAVE___BUILTIN_CTZ
+                     int ctz = __builtin_ctz(uint_loc);
+#else
+                     /* 4-bit CTZ for range [1, 15]. */
+                     int ctz = uint_loc & 0x1 ? 0 : uint_loc & 0x2 ? 1 : uint_loc & 0x4 ? 2 : 3;
+#endif
+
+                     /* Update the common trailing-zero count (ctz). */
+                     if (common_ctz == -1) {
+                        common_ctz = ctz; /* first iteration, just save it */
+                     } else if (common_ctz != ctz) {
+                        state->allow_small_prim_ngg_culling = false;
+                        break;
+                     }
+                  }
+               }
+            }
          }
       }
+   }
+
+   if (state->allow_small_prim_ngg_culling) {
+      assert(common_ctz >= 0 && common_ctz <= 3);
+      state->log2_small_prim_ngg_culling_scaling_factor = 3 - common_ctz;
    }
 }
 
@@ -752,13 +827,15 @@ ALWAYS_INLINE static void
 radv_cmd_set_sample_locations(struct radv_cmd_buffer *cmd_buffer, VkSampleCountFlagBits per_pixel, VkExtent2D grid_size,
                               uint32_t count, const VkSampleLocationEXT *sample_locations)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_state *state = &cmd_buffer->state;
 
    state->dynamic.sample_location.per_pixel = per_pixel;
    state->dynamic.sample_location.grid_size = grid_size;
    state->dynamic.sample_location.count = count;
    typed_memcpy(&state->dynamic.sample_location.locations[0], sample_locations, count);
-   radv_precompute_hw_sample_location_state(&state->dynamic.sample_location);
+   radv_precompute_hw_sample_location_state(pdev, &state->dynamic.sample_location);
 
    state->dirty_dynamic |= RADV_DYNAMIC_SAMPLE_LOCATIONS;
 }
@@ -12334,19 +12411,19 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer, bool vp_y_inverted)
    if (d->vk.rs.cull_mode & VK_CULL_MODE_BACK_BIT)
       nggc_settings |= radv_nggc_back_face;
 
-   /* Small primitive culling assumes a sample position at (0.5, 0.5)
-    * so don't enable it with user sample locations.
-    */
-   if (!d->vk.ms.sample_locations_enable) {
+   if (!d->vk.ms.sample_locations_enable || d->sample_location.allow_small_prim_ngg_culling) {
+      const unsigned log2_scaling_factor = d->vk.ms.sample_locations_enable
+                                              ? d->sample_location.log2_small_prim_ngg_culling_scaling_factor
+                                              : util_logbase2(cmd_buffer->state.num_rast_samples);
+
       nggc_settings |= radv_nggc_small_primitives;
 
       /* small_prim_precision = num_samples / 2^subpixel_bits
        * num_samples is also always a power of two, so the small prim precision can only be
        * a power of two between 2^-2 and 2^-6, therefore it's enough to remember the exponent.
        */
-      unsigned rasterization_samples = cmd_buffer->state.num_rast_samples;
-      unsigned subpixel_bits = 256;
-      int32_t small_prim_precision_log2 = util_logbase2(rasterization_samples) - util_logbase2(subpixel_bits);
+      const unsigned subpixel_bits = 256;
+      const int32_t small_prim_precision_log2 = log2_scaling_factor - util_logbase2(subpixel_bits);
       nggc_settings |= ((uint32_t)small_prim_precision_log2 << 24u);
    }
 
@@ -12608,10 +12685,14 @@ radv_emit_nggc_viewport(struct radv_cmd_buffer *cmd_buffer)
       vp_translate[1] = -vp_translate[1];
    }
 
+   unsigned scaling_factor = d->vk.ms.sample_locations_enable
+                                ? 1 << d->sample_location.log2_small_prim_ngg_culling_scaling_factor
+                                : d->vk.ms.rasterization_samples;
+
    /* Correction for number of samples per pixel. */
    for (unsigned i = 0; i < 2; ++i) {
-      vp_scale[i] *= (float)d->vk.ms.rasterization_samples;
-      vp_translate[i] *= (float)d->vk.ms.rasterization_samples;
+      vp_scale[i] *= scaling_factor;
+      vp_translate[i] *= scaling_factor;
    }
 
    const uint32_t vp_reg_values[4] = {fui(vp_scale[0]), fui(vp_scale[1]), fui(vp_translate[0]), fui(vp_translate[1])};
@@ -13562,12 +13643,14 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
    if (dynamic_states & RADV_DYNAMIC_PROVOKING_VERTEX_MODE)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGG_STATE;
 
-   if (dynamic_states & (RADV_DYNAMIC_CULL_MODE | RADV_DYNAMIC_FRONT_FACE | RADV_DYNAMIC_RASTERIZER_DISCARD_ENABLE |
-                         RADV_DYNAMIC_VIEWPORT | RADV_DYNAMIC_VIEWPORT_WITH_COUNT |
-                         RADV_DYNAMIC_CONSERVATIVE_RAST_MODE | RADV_DYNAMIC_SAMPLE_LOCATIONS_ENABLE))
+   if (dynamic_states &
+       (RADV_DYNAMIC_CULL_MODE | RADV_DYNAMIC_FRONT_FACE | RADV_DYNAMIC_RASTERIZER_DISCARD_ENABLE |
+        RADV_DYNAMIC_VIEWPORT | RADV_DYNAMIC_VIEWPORT_WITH_COUNT | RADV_DYNAMIC_CONSERVATIVE_RAST_MODE |
+        RADV_DYNAMIC_SAMPLE_LOCATIONS_ENABLE | RADV_DYNAMIC_SAMPLE_LOCATIONS))
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGGC_SETTINGS;
 
-   if (dynamic_states & (RADV_DYNAMIC_VIEWPORT | RADV_DYNAMIC_VIEWPORT_WITH_COUNT))
+   if (dynamic_states & (RADV_DYNAMIC_VIEWPORT | RADV_DYNAMIC_VIEWPORT_WITH_COUNT |
+                         RADV_DYNAMIC_SAMPLE_LOCATIONS_ENABLE | RADV_DYNAMIC_SAMPLE_LOCATIONS))
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGGC_VIEWPORT;
 
    if (dynamic_states & RADV_DYNAMIC_RASTERIZATION_SAMPLES) {
