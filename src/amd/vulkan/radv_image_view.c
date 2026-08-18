@@ -538,13 +538,6 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
    iview->plane_id = radv_plane_from_aspect(pCreateInfo->subresourceRange.aspectMask);
    iview->nbc_view.valid = false;
 
-   /* If the image has an Android external format, pCreateInfo->format will be
-    * VK_FORMAT_UNDEFINED. */
-   if (iview->vk.format == VK_FORMAT_UNDEFINED) {
-      iview->vk.format = image->vk.format;
-      iview->vk.view_format = image->vk.format;
-   }
-
    /* Split out the right aspect. Note that for internal meta code we sometimes
     * use an equivalent color format for the aspect so we first have to check
     * if we actually got depth/stencil formats. */
