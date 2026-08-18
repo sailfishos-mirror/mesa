@@ -863,7 +863,10 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
       for (uint32_t i = 0; i < argc; i++) {
          struct vtn_ssa_value *arg = vtn_ssa_value(b, w[6 + i]);
 
-         fields[i].type = glsl_intN_t_type(arg->def->bit_size);
+         if (arg->def->bit_size == 1)
+            fields[i].type = glsl_bool_type();
+         else
+            fields[i].type = glsl_intN_t_type(arg->def->bit_size);
          if (arg->def->num_components > 1)
             fields[i].type = glsl_vector_type(fields[i].type->base_type, arg->def->num_components);
 
@@ -873,7 +876,8 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
          unsigned num_components =
             arg->def->num_components == 3 ? 4 : arg->def->num_components;
 
-         int size = (int) arg->def->bit_size * num_components / 8;
+         unsigned bit_size = arg->def->bit_size == 1 ? 32 : arg->def->bit_size;
+         int size = (int) bit_size * num_components / 8;
          info->arg_sizes[i] = size;
 
          /* Match u_printf_impl, which 4-aligns each argument as it reads. */
