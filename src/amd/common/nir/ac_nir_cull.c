@@ -49,10 +49,8 @@ cull_face_triangle(nir_builder *b, nir_def *pos[3][4], const position_w_info *w_
 
    det = nir_bcsel(b, w_info->w_reflection, nir_fneg(b, det), det);
 
-   nir_def *front_facing_ccw = nir_fgt_imm(b, det, 0.0f);
+   nir_def *front_facing = nir_flt_imm(b, det, 0.0f);
    nir_def *zero_area = nir_feq_imm(b, det, 0.0f);
-   nir_def *ccw = nir_load_cull_ccw_amd(b);
-   nir_def *front_facing = nir_ieq(b, front_facing_ccw, ccw);
    nir_def *cull_front = nir_load_cull_front_face_enabled_amd(b);
    nir_def *cull_back = nir_load_cull_back_face_enabled_amd(b);
 

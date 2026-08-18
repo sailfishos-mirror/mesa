@@ -416,10 +416,6 @@ static bool lower_intrinsic(nir_builder *b, nir_instr *instr, struct lower_abi_s
    case nir_intrinsic_load_num_vertices_per_primitive_amd:
       replacement = get_num_vertices_per_prim(b, s);
       break;
-   case nir_intrinsic_load_cull_ccw_amd:
-      /* radeonsi embed cw/ccw info into front/back face enabled */
-      replacement = nir_imm_false(b);
-      break;
    case nir_intrinsic_load_cull_any_enabled_amd:
       /* If culling is enabled at compile time, it's always enabled at runtime. */
       assert(si_shader_culling_enabled(shader));
