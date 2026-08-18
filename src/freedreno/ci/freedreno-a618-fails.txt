@@ -489,12 +489,12 @@ gmem-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.mono
 # OpenCL-CTS
 #
 
-# float controls?
+# Test bug, doesn't check for CL_FP_DENORM:
 SPIRV new,Fail
 SPIRV new@op_neg_half,Fail
 SPIRV new@op_spec_constant_half_simple,Fail
 
-# crashes with wave128, passes with wave64 (and gen8+)
+# Test bug, doesn't properly compute wave divergence point with wave128:
 Subgroups,Fail
 Subgroups@subgroup_functions_ballot,Fail
 

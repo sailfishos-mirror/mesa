@@ -131,12 +131,12 @@ gmem-dEQP-VK.renderpasses.renderpass2.custom_resolve.fast_lib.fdm_nonsubsampled_
 # OpenCL-CTS
 #
 
-# float controls?
+# Test bug, doesn't check for CL_FP_DENORM:
 SPIRV new,Fail
 SPIRV new@op_neg_half,Fail
 SPIRV new@op_spec_constant_half_simple,Fail
 
-# crashes with wave128, passes with wave64 (and gen8+)
+# Test bug, doesn't properly compute wave divergence point with wave128:
 Subgroups,Fail
 Subgroups@subgroup_functions_clustered_reduce,Fail
 Subgroups@subgroup_functions_ballot,Fail
