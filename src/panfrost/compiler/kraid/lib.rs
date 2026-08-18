@@ -47,6 +47,7 @@ mod debug {
             const PRINT = 1 << 0;
             const VALIDATE = 1 << 1;
             const SPILL = 1 << 2;
+            const SERIAL = 1 << 3;
         }
     }
 
@@ -62,6 +63,7 @@ mod debug {
                 "print" => flags |= DebugFlags::PRINT,
                 "validate" => flags |= DebugFlags::VALIDATE,
                 "spill" => flags |= DebugFlags::SPILL,
+                "serial" => flags |= DebugFlags::SERIAL,
                 unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
             }
         }

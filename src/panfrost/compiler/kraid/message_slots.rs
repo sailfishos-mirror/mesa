@@ -2,6 +2,7 @@
 // Copyright © 2026 Arm Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::debug::{DEBUG, DebugFlags};
 use crate::flow::FlowWaitBit;
 use crate::ir::*;
 use crate::ops::MemoryEffect;
@@ -89,6 +90,24 @@ fn calc_message_deadlines_in_bb(
 
 impl Shader<'_> {
     pub fn assign_message_slots(&mut self) {
+        if DEBUG.contains(DebugFlags::SERIAL) {
+            for b in self.blocks.iter_mut() {
+                for i in b.instrs.iter_mut() {
+                    if matches!(&i.op, Op::Barrier(_)) {
+                        i.flow.set_wait_bit(FlowWaitBit::Barrier);
+                    } else if self.model.op_is_message(&i.op) {
+                        i.flow.set_msg_slot_idx(0);
+                        i.flow.set_wait_bit(FlowWaitBit::Slot0);
+                    }
+                }
+                // Remove virtual schedule barriers.
+                b.instrs.retain(|instr| {
+                    !matches!(&instr.op, Op::ScheduleBarrier(_))
+                });
+            }
+            return;
+        }
+
         for block in self.blocks.iter_mut() {
             // Track whole registers as HW can have race conditions when a
             // pending message read/writes part of a register that is accessed
