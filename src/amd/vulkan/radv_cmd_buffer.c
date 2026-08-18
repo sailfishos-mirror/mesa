@@ -705,6 +705,9 @@ radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *sta
 {
    assert(state->count);
 
+   state->xmax_right_exclusion = true;
+   state->ymax_bottom_exclusion = true;
+
    /* Convert sample locations to the 4-bit HW representation that will be written to
     * PA_SC_AA_SAMPLE_LOCS_PIXEL_*.
     *
@@ -732,6 +735,14 @@ radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *sta
 
             state->hw_locations[pixel_in_quad][i][0] = loc_x;
             state->hw_locations[pixel_in_quad][i][1] = loc_y;
+
+            /* The exclusion bits improve rasterization efficiency if no sample lies on the pixel boundary
+             * (-8 sample offset).
+             */
+            if (loc_x == -8)
+               state->xmax_right_exclusion = false;
+            if (loc_y == -8)
+               state->ymax_bottom_exclusion = false;
          }
       }
    }
@@ -2343,18 +2354,8 @@ radv_emit_sample_locations_state(struct radv_cmd_buffer *cmd_buffer)
    radeon_emit(centroid_priority >> 32);
 
    if (pdev->info.gfx_level >= GFX7 && pdev->info.gfx_level < GFX12) {
-      /* The exclusion bits can be set to improve rasterization efficiency if no sample lies on the pixel boundary
-       * (-8 sample offset).
-       */
-      uint32_t pa_su_prim_filter_cntl = S_02882C_XMAX_RIGHT_EXCLUSION(1) | S_02882C_YMAX_BOTTOM_EXCLUSION(1);
-      for (uint32_t i = 0; i < 4; ++i) {
-         for (uint32_t j = 0; j < num_samples; ++j) {
-            if (d->sample_location.hw_locations[i][j][0] <= -8)
-               pa_su_prim_filter_cntl &= C_02882C_XMAX_RIGHT_EXCLUSION;
-            if (d->sample_location.hw_locations[i][j][1] <= -8)
-               pa_su_prim_filter_cntl &= C_02882C_YMAX_BOTTOM_EXCLUSION;
-         }
-      }
+      uint32_t pa_su_prim_filter_cntl = S_02882C_XMAX_RIGHT_EXCLUSION(d->sample_location.xmax_right_exclusion) |
+                                        S_02882C_YMAX_BOTTOM_EXCLUSION(d->sample_location.ymax_bottom_exclusion);
 
       radeon_set_context_reg(R_02882C_PA_SU_PRIM_FILTER_CNTL, pa_su_prim_filter_cntl);
    }
