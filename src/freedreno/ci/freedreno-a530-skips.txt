@@ -60,10 +60,6 @@ fbo-maxsize
 max-texture-size
 copypixels-draw-sync
 
-# multiple succ/fail
-KHR-GLES31.core.pixelstoragemodes.teximage2d.*
-KHR-GLES31.core.pixelstoragemodes.teximage3d.*
-
 # Hangchecks (copied from a307-skips, first hang matches)
 tex-miplevel-selection
 spec@arb_point_sprite@arb_point_sprite-interactions
