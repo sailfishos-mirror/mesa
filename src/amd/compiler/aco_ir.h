@@ -2502,7 +2502,7 @@ void combine_delay_alu(Program* program);
 void insert_NOPs(Program* program);
 void form_hard_clauses(Program* program);
 unsigned emit_program(Program* program, std::vector<uint32_t>& code,
-                      std::vector<struct aco_symbol>* symbols = NULL, bool append_endpgm = true);
+                      std::vector<struct aco_symbol>& symbols, bool append_endpgm);
 /**
  * Returns true if print_asm can disassemble the given program for the current build/runtime
  * configuration

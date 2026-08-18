@@ -187,7 +187,7 @@ finish_program(Program* program, bool append_endpgm, const std::string& ir,
 {
    std::vector<uint32_t> code;
    std::vector<struct aco_symbol> symbols;
-   unsigned exec_size = emit_program(program, code, &symbols, append_endpgm);
+   unsigned exec_size = emit_program(program, code, symbols, append_endpgm);
 
    if (program->collect_statistics)
       collect_postasm_stats(program, code);
