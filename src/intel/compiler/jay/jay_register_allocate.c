@@ -1295,7 +1295,7 @@ insert_parallel_copies_for_phis(jay_function *f)
 static void
 map_gpr_to_acc(jay_shader *shader, jay_def *x)
 {
-   if (x->file == GPR) {
+   if (!jay_is_null(*x) && x->file == GPR) {
       struct jay_register_block B =
          jay_lookup_block(&shader->partition, x->reg, GPR);
 
