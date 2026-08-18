@@ -1763,6 +1763,9 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
 
       if (!BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_CULL_MODE))
          key.rs.cull_mode = state->rs->cull_mode;
+
+      key.rs.rasterizer_discard = !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
+                                  state->rs->rasterizer_discard_enable;
    }
 
    key.dynamic_rasterization_samples = BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
@@ -2677,6 +2680,11 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
        */
       if (num_raster_vertices_per_prim > 1)
          remove_as_sysval |= VARYING_BIT_PSIZ;
+
+      if (gfx_state->rs.rasterizer_discard) {
+         remove_as_sysval |= ~0ull;
+         remove_as_varying |= ~0ull;
+      }
 
       NIR_PASS(_, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, remove_as_varying, remove_as_sysval);
       break;
