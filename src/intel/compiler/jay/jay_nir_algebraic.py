@@ -9,18 +9,27 @@ a = 'a'
 b = 'b'
 c = 'c'
 
+opt_bool = [
+   # inot is free on xor sources but not dests.
+   (('inot', ('ixor(is_used_once)', ('inot', a), b)), ('ixor', a, b)),
+   (('inot', ('ixor(is_used_once)', a, b)), ('ixor', ('inot', a), b)),
+]
+
+for sz in (16, 32, 64):
+    # For integers, inot is free on iand/ior sources but not destinations, so
+    # apply De Morgan's. For booleans, this is harmful since we want iand/inot
+    # to have no modifiers for our fusing to kick in.
+    opt_bool.extend([
+        (('inot', ('iand(is_used_once)', ('inot', f'a@{sz}'), b)), ('ior', a, ('inot', b))),
+        (('inot', ('ior(is_used_once)', ('inot', f'a@{sz}'), b)), ('iand', a, ('inot', b))),
+        (('inot', ('iand(is_used_once)', f'a@{sz}', b)), ('ior', ('inot', a), ('inot', b))),
+        (('inot', ('ior(is_used_once)', f'a@{sz}', b)), ('iand', ('inot', a), ('inot', b))),
+    ])
+
 lower_fsign = [
     (('fsign', a), ('bcsel', ('!flt', 0, a), +1.0,
                     ('bcsel', ('!flt', a, 0), -1.0, 0.0))),
     (('fceil', a), ('fneg', ('ffloor', ('fneg', a)))),
-
-    # inot is free on and/or/xor sources but not dests. Apply De Morgan's.
-    (('inot', ('iand(is_used_once)', ('inot', a), b)), ('ior', a, ('inot', b))),
-    (('inot', ('ior(is_used_once)', ('inot', a), b)), ('iand', a, ('inot', b))),
-    (('inot', ('ixor(is_used_once)', ('inot', a), b)), ('ixor', a, b)),
-    (('inot', ('iand(is_used_once)', a, b)), ('ior', ('inot', a), ('inot', b))),
-    (('inot', ('ior(is_used_once)', a, b)), ('iand', ('inot', a), ('inot', b))),
-    (('inot', ('ixor(is_used_once)', a, b)), ('ixor', ('inot', a), b)),
 
     # Remove the zeroing. Down-conversion is free but extracts are not.
     (('u2f32', ('extract_u8', a, 0)), ('u2f32', ('u2u8', a))),
@@ -124,7 +133,7 @@ def main() -> None:
         f.write('#include "jay_private.h"')
 
         f.write(nir_algebraic.AlgebraicPass(
-            "jay_nir_lower_fsign", lower_fsign,
+            "jay_nir_lower_fsign", opt_bool + lower_fsign,
             [("unsigned", "verx10")]).render())
         f.write(nir_algebraic.AlgebraicPass(
             "jay_nir_lower_bool", lower_bool).render())
