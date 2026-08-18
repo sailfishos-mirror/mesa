@@ -2446,10 +2446,23 @@ with_teflon = get_option('teflon')
 
 with_torx = get_option('torx')
 dep_executorch = null_dep
+dep_executorch_portable_ops = null_dep
+dep_executorch_quantized_ops = null_dep
 if with_torx
   py_mod = import('python')
   py = py_mod.find_installation(prog_python.full_path(), pure: false)
   dep_executorch = dependency('executorch', required : with_torx)
+  _et_libdir = dep_executorch.get_variable(pkgconfig : 'libdir', default_value : '')
+  # The Torx test suite needs the operators registered by these libraries, but libexecutorch
+  # doesn't link to them, so Torx needs to link to them explicitly.
+  dep_executorch_portable_ops = cc.find_library('executorch_portable_ops',
+    dirs : _et_libdir)
+  dep_executorch_quantized_ops = cc.find_library('executorch_kernels_quantized',
+    dirs : _et_libdir, required : false)
+  if not dep_executorch_quantized_ops.found()
+    dep_executorch_quantized_ops = cc.find_library('executorch_quantized_ops',
+      dirs : _et_libdir)
+  endif
 endif
 
 with_gpuvis = get_option('gpuvis')
