@@ -57,8 +57,7 @@ enum radv_nggc_settings {
    radv_nggc_none = 0,
    radv_nggc_front_face = 1 << 0,
    radv_nggc_back_face = 1 << 1,
-   radv_nggc_face_is_ccw = 1 << 2,
-   radv_nggc_small_primitives = 1 << 3,
+   radv_nggc_small_primitives = 1 << 2,
 };
 
 enum radv_shader_query_state {

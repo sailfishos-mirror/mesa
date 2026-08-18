@@ -12396,20 +12396,28 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer, bool vp_y_inverted)
 
    uint32_t nggc_settings = radv_nggc_none;
 
-   /* The culling code needs to know whether face is CW or CCW. */
+   /* The culling code needs to know whether to cull positive or negative determinants in NDC space.
+    * The front face state and viewports that invert the Y axis affect whether a positive determinant
+    * is treated as front facing or back facing.
+    */
    bool ccw = d->vk.rs.front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
    /* Take inverted viewport into account. */
    ccw ^= vp_y_inverted;
-
-   if (ccw)
-      nggc_settings |= radv_nggc_face_is_ccw;
 
    /* Face culling settings. */
    if (d->vk.rs.cull_mode & VK_CULL_MODE_FRONT_BIT)
       nggc_settings |= radv_nggc_front_face;
    if (d->vk.rs.cull_mode & VK_CULL_MODE_BACK_BIT)
       nggc_settings |= radv_nggc_back_face;
+
+   if (ccw) {
+      bool cull_front = nggc_settings & radv_nggc_front_face;
+      bool cull_back = nggc_settings & radv_nggc_back_face;
+
+      nggc_settings &= ~(radv_nggc_front_face | radv_nggc_back_face);
+      nggc_settings |= (cull_front ? radv_nggc_back_face : 0) | (cull_back ? radv_nggc_front_face : 0);
+   }
 
    if (!d->vk.ms.sample_locations_enable || d->sample_location.allow_small_prim_ngg_culling) {
       const unsigned log2_scaling_factor = d->vk.ms.sample_locations_enable
