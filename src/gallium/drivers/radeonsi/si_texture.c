@@ -1499,12 +1499,6 @@ si_texture_create_with_modifier(struct pipe_screen *screen,
       plane_templ[i].width0 = util_format_get_plane_width(templ->format, i, templ->width0);
       plane_templ[i].height0 = util_format_get_plane_height(templ->format, i, templ->height0);
 
-      /* Multi-plane allocations need PIPE_BIND_SHARED, because we can't
-       * reallocate the storage to add PIPE_BIND_SHARED, because it's
-       * shared by 3 pipe_resources.
-       */
-      if (num_planes > 1)
-         plane_templ[i].bind |= PIPE_BIND_SHARED;
       /* Setting metadata on suballocated buffers is impossible. So use PIPE_BIND_CUSTOM to
        * request a non-suballocated buffer.
        */
