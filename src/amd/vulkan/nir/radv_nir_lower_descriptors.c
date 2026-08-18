@@ -492,7 +492,12 @@ load_push_constant(nir_builder *b, lower_descriptors_state *state, nir_intrinsic
       if (size < (count - start) && can_increase_load_size(intrin, start * 4, size, size * 2))
          size *= 2;
 
-      data[num_loads++] = ac_nir_load_smem(b, size, addr, nir_iadd_imm_nuw(b, offset, start * 4), 4, 0);
+      nir_def *load_offset = nir_iadd_imm_nuw(b, offset, start * 4);
+      nir_def *load_addr = nir_iadd(b, addr, nir_u2u64(b, load_offset));
+
+      data[num_loads++] =
+         nir_load_global(b, size, 32, load_addr, .align_mul = 4,
+                         .access = nir_intrinsic_access(intrin) | ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE);
       start += size;
    }
    return nir_extract_bits(b, data, num_loads, 0, intrin->def.num_components, bit_size);
