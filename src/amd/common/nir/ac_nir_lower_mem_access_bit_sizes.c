@@ -60,6 +60,7 @@ set_smem_access_flags(nir_builder *b, nir_intrinsic_instr *intrin, void *cb_data
          return false;
       break;
    case nir_intrinsic_load_ubo:
+   case nir_intrinsic_load_push_constant:
       break;
    default:
       return false;
