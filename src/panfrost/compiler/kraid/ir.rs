@@ -526,6 +526,11 @@ impl RegRef {
             range: RegRange::Regs(1),
         }
     }
+
+    pub fn reg_range(&self) -> Range<u16> {
+        let bytes = self.byte_range();
+        u16::from(self.idx)..u16::from(bytes.end.div_ceil(4))
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -1532,6 +1537,14 @@ pub trait Opcode:
                 (&mut []).iter_mut()
             }
         })
+    }
+
+    fn iter_reg_uses(&self) -> impl DoubleEndedIterator<Item = &RegRef> {
+        self.srcs().iter().filter_map(|src| src.src_ref.as_reg())
+    }
+
+    fn iter_reg_defs(&self) -> impl DoubleEndedIterator<Item = &RegRef> {
+        self.dsts().iter().filter_map(|dst| dst.dst_ref.as_reg())
     }
 
     fn fmt_src<'a>(&self, src: &'a Src) -> FmtSrc<'a> {
