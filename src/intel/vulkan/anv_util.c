@@ -424,6 +424,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
       struct brw_cs_prog_key key;
    } trampoline_key = {
       .name = "rt-trampoline",
+      .key.base.use_efficient_64bit = device->physical->uses_efficient_64bit,
    };
 
    device->rt_trampoline =

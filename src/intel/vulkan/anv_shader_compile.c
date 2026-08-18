@@ -386,6 +386,7 @@ populate_base_prog_key(struct brw_base_prog_key *key,
    if (rs != NULL)
       key->robust_flags = anv_get_robust_flags(rs);
    key->divergent_atomics_flags = pdevice->drirc.perf.opt_divergent_atomics;
+   key->use_efficient_64bit = pdevice->uses_efficient_64bit;
 }
 
 static void
