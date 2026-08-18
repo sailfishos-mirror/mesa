@@ -1488,6 +1488,9 @@ struct anv_physical_device {
     /** True if we can create protected contexts. */
     bool                                        has_protected_contexts;
 
+    /** True if HuC firmware is loaded and authenticated. */
+    bool                                        has_huc;
+
     /** Whether KMD has the ability to create VM objects */
     bool                                        has_vm_control;
 
