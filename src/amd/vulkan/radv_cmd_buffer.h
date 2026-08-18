@@ -739,6 +739,8 @@ enum radv_cmd_flush_bits radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffe
                                                VkAccessFlags2 dst_flags, VkAccessFlags3KHR dst3_flags,
                                                const struct radv_image *image, const VkImageSubresourceRange *range);
 
+void radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *state);
+
 struct radv_resolve_barrier {
    VkPipelineStageFlags2 src_stage_mask;
    VkPipelineStageFlags2 dst_stage_mask;

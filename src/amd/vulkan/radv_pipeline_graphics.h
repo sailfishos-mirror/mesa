@@ -35,6 +35,9 @@ struct radv_sample_locations_state {
    VkExtent2D grid_size;
    uint32_t count;
    VkSampleLocationEXT locations[MAX_SAMPLE_LOCATIONS];
+
+   /* Derived state. */
+   int8_t hw_locations[4][8][2]; /* [pixel in quad][sample][dim] */
 };
 
 struct radv_viewport_xform_state {

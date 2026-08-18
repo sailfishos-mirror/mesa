@@ -700,6 +700,43 @@ radv_cmd_set_rendering_input_attachment_indices(struct radv_cmd_buffer *cmd_buff
    state->dirty_dynamic |= RADV_DYNAMIC_INPUT_ATTACHMENT_MAP;
 }
 
+void
+radv_precompute_hw_sample_location_state(struct radv_sample_locations_state *state)
+{
+   assert(state->count);
+
+   /* Convert sample locations to the 4-bit HW representation that will be written to
+    * PA_SC_AA_SAMPLE_LOCS_PIXEL_*.
+    *
+    * This only applies to custom sample locations.
+    */
+   for (unsigned x = 0; x < 2; x++) {
+      for (unsigned y = 0; y < 2; y++) {
+         const uint32_t x_offset = x % state->grid_size.width;
+         const uint32_t y_offset = y % state->grid_size.height;
+         const uint32_t num_samples = state->per_pixel;
+         const uint32_t pixel_offset = (x_offset + y_offset * state->grid_size.width) * num_samples;
+         const uint32_t pixel_in_quad = y * 2 + x;
+
+         assert(pixel_offset <= MAX_SAMPLE_LOCATIONS);
+         const VkSampleLocationEXT *user_locs = &state->locations[pixel_offset];
+
+         for (uint32_t i = 0; i < num_samples; i++) {
+            float shifted_pos_x = user_locs[i].x - 0.5;
+            float shifted_pos_y = user_locs[i].y - 0.5;
+
+            int32_t scaled_pos_x = floorf(shifted_pos_x * 16);
+            int32_t scaled_pos_y = floorf(shifted_pos_y * 16);
+            int8_t loc_x = CLAMP(scaled_pos_x, -8, 7);
+            int8_t loc_y = CLAMP(scaled_pos_y, -8, 7);
+
+            state->hw_locations[pixel_in_quad][i][0] = loc_x;
+            state->hw_locations[pixel_in_quad][i][1] = loc_y;
+         }
+      }
+   }
+}
+
 ALWAYS_INLINE static void
 radv_cmd_set_sample_locations(struct radv_cmd_buffer *cmd_buffer, VkSampleCountFlagBits per_pixel, VkExtent2D grid_size,
                               uint32_t count, const VkSampleLocationEXT *sample_locations)
@@ -710,6 +747,7 @@ radv_cmd_set_sample_locations(struct radv_cmd_buffer *cmd_buffer, VkSampleCountF
    state->dynamic.sample_location.grid_size = grid_size;
    state->dynamic.sample_location.count = count;
    typed_memcpy(&state->dynamic.sample_location.locations[0], sample_locations, count);
+   radv_precompute_hw_sample_location_state(&state->dynamic.sample_location);
 
    state->dirty_dynamic |= RADV_DYNAMIC_SAMPLE_LOCATIONS;
 }
@@ -2179,47 +2217,17 @@ radv_get_ps_iter_samples(struct radv_cmd_buffer *cmd_buffer)
 }
 
 /**
- * Convert the user sample locations to hardware sample locations (the values
- * that will be emitted by PA_SC_AA_SAMPLE_LOCS_PIXEL_*).
- */
-static void
-radv_convert_user_sample_locs(const struct radv_sample_locations_state *state, uint32_t x, uint32_t y,
-                              VkOffset2D *sample_locs)
-{
-   uint32_t x_offset = x % state->grid_size.width;
-   uint32_t y_offset = y % state->grid_size.height;
-   uint32_t num_samples = (uint32_t)state->per_pixel;
-   uint32_t pixel_offset;
-
-   pixel_offset = (x_offset + y_offset * state->grid_size.width) * num_samples;
-
-   assert(pixel_offset <= MAX_SAMPLE_LOCATIONS);
-   const VkSampleLocationEXT *user_locs = &state->locations[pixel_offset];
-
-   for (uint32_t i = 0; i < num_samples; i++) {
-      float shifted_pos_x = user_locs[i].x - 0.5;
-      float shifted_pos_y = user_locs[i].y - 0.5;
-
-      int32_t scaled_pos_x = floorf(shifted_pos_x * 16);
-      int32_t scaled_pos_y = floorf(shifted_pos_y * 16);
-
-      sample_locs[i].x = CLAMP(scaled_pos_x, -8, 7);
-      sample_locs[i].y = CLAMP(scaled_pos_y, -8, 7);
-   }
-}
-
-/**
  * Compute the PA_SC_AA_SAMPLE_LOCS_PIXEL_* mask based on hardware sample
  * locations.
  */
 static void
-radv_compute_sample_locs_pixel(uint32_t num_samples, VkOffset2D *sample_locs, uint32_t *sample_locs_pixel)
+radv_compute_sample_locs_pixel(uint32_t num_samples, const int8_t *sample_locs, uint32_t *sample_locs_pixel)
 {
    for (uint32_t i = 0; i < num_samples; i++) {
       uint32_t sample_reg_idx = i / 4;
       uint32_t sample_loc_idx = i % 4;
-      int32_t pos_x = sample_locs[i].x;
-      int32_t pos_y = sample_locs[i].y;
+      int32_t pos_x = sample_locs[i * 2];
+      int32_t pos_y = sample_locs[i * 2 + 1];
 
       uint32_t shift_x = 8 * sample_loc_idx;
       uint32_t shift_y = shift_x + 4;
@@ -2234,7 +2242,7 @@ radv_compute_sample_locs_pixel(uint32_t num_samples, VkOffset2D *sample_locs, ui
  * sample locations.
  */
 static uint64_t
-radv_compute_centroid_priority(struct radv_cmd_buffer *cmd_buffer, VkOffset2D *sample_locs, uint32_t num_samples)
+radv_compute_centroid_priority(struct radv_cmd_buffer *cmd_buffer, const int8_t *sample_locs, uint32_t num_samples)
 {
    uint32_t *centroid_priorities = alloca(num_samples * sizeof(*centroid_priorities));
    uint32_t sample_mask = num_samples - 1;
@@ -2243,7 +2251,10 @@ radv_compute_centroid_priority(struct radv_cmd_buffer *cmd_buffer, VkOffset2D *s
 
    /* Compute the distances from center for each sample. */
    for (int i = 0; i < num_samples; i++) {
-      distances[i] = (sample_locs[i].x * sample_locs[i].x) + (sample_locs[i].y * sample_locs[i].y);
+      const int32_t x = sample_locs[i * 2];
+      const int32_t y = sample_locs[i * 2 + 1];
+
+      distances[i] = (x * x) + (y * y);
    }
 
    /* Compute the centroid priorities by looking at the distances array. */
@@ -2279,25 +2290,19 @@ radv_emit_sample_locations_state(struct radv_cmd_buffer *cmd_buffer)
    uint32_t num_samples = (uint32_t)d->sample_location.per_pixel;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t sample_locs_pixel[4][2] = {0};
-   VkOffset2D sample_locs[4][8]; /* 8 is the max. sample count supported */
    uint64_t centroid_priority;
 
    if (!d->sample_location.count || !d->vk.ms.sample_locations_enable)
       return;
 
-   /* Convert the user sample locations to hardware sample locations. */
-   radv_convert_user_sample_locs(&d->sample_location, 0, 0, sample_locs[0]);
-   radv_convert_user_sample_locs(&d->sample_location, 1, 0, sample_locs[1]);
-   radv_convert_user_sample_locs(&d->sample_location, 0, 1, sample_locs[2]);
-   radv_convert_user_sample_locs(&d->sample_location, 1, 1, sample_locs[3]);
-
    /* Compute the PA_SC_AA_SAMPLE_LOCS_PIXEL_* mask. */
    for (uint32_t i = 0; i < 4; i++) {
-      radv_compute_sample_locs_pixel(num_samples, sample_locs[i], sample_locs_pixel[i]);
+      radv_compute_sample_locs_pixel(num_samples, &d->sample_location.hw_locations[i][0][0], sample_locs_pixel[i]);
    }
 
    /* Compute the PA_SC_CENTROID_PRIORITY_* mask. */
-   centroid_priority = radv_compute_centroid_priority(cmd_buffer, sample_locs[0], num_samples);
+   centroid_priority =
+      radv_compute_centroid_priority(cmd_buffer, &d->sample_location.hw_locations[0][0][0], num_samples);
 
    radeon_begin(cs);
 
@@ -2344,9 +2349,9 @@ radv_emit_sample_locations_state(struct radv_cmd_buffer *cmd_buffer)
       uint32_t pa_su_prim_filter_cntl = S_02882C_XMAX_RIGHT_EXCLUSION(1) | S_02882C_YMAX_BOTTOM_EXCLUSION(1);
       for (uint32_t i = 0; i < 4; ++i) {
          for (uint32_t j = 0; j < num_samples; ++j) {
-            if (sample_locs[i][j].x <= -8)
+            if (d->sample_location.hw_locations[i][j][0] <= -8)
                pa_su_prim_filter_cntl &= C_02882C_XMAX_RIGHT_EXCLUSION;
-            if (sample_locs[i][j].y <= -8)
+            if (d->sample_location.hw_locations[i][j][1] <= -8)
                pa_su_prim_filter_cntl &= C_02882C_YMAX_BOTTOM_EXCLUSION;
          }
       }
@@ -13356,19 +13361,14 @@ radv_emit_msaa_state(struct radv_cmd_buffer *cmd_buffer)
       max_sample_dist = radv_get_default_max_sample_dist(log_samples);
    } else {
       uint32_t num_samples = (uint32_t)d->sample_location.per_pixel;
-      VkOffset2D sample_locs[4][8]; /* 8 is the max. sample count supported */
-
-      /* Convert the user sample locations to hardware sample locations. */
-      radv_convert_user_sample_locs(&d->sample_location, 0, 0, sample_locs[0]);
-      radv_convert_user_sample_locs(&d->sample_location, 1, 0, sample_locs[1]);
-      radv_convert_user_sample_locs(&d->sample_location, 0, 1, sample_locs[2]);
-      radv_convert_user_sample_locs(&d->sample_location, 1, 1, sample_locs[3]);
 
       /* Compute the maximum sample distance from the specified locations. */
       for (unsigned i = 0; i < 4; ++i) {
          for (uint32_t j = 0; j < num_samples; j++) {
-            VkOffset2D offset = sample_locs[i][j];
-            max_sample_dist = MAX2(max_sample_dist, MAX2(abs(offset.x), abs(offset.y)));
+            unsigned abs_x = abs(d->sample_location.hw_locations[i][j][0]);
+            unsigned abs_y = abs(d->sample_location.hw_locations[i][j][1]);
+
+            max_sample_dist = MAX3(max_sample_dist, abs_x, abs_y);
          }
       }
    }
