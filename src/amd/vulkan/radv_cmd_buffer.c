@@ -8378,15 +8378,14 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
                    inheritance_info->stencilAttachmentFormat == VK_FORMAT_UNDEFINED ||
                    inheritance_info->depthAttachmentFormat == inheritance_info->stencilAttachmentFormat);
             render->ds_att = (struct radv_attachment){.iview = NULL};
-            if (inheritance_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+            if (inheritance_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED) {
                render->ds_att.format = inheritance_info->depthAttachmentFormat;
-            if (inheritance_info->stencilAttachmentFormat != VK_FORMAT_UNDEFINED)
-               render->ds_att.format = inheritance_info->stencilAttachmentFormat;
-
-            if (vk_format_has_depth(render->ds_att.format))
                render->ds_att_aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
-            if (vk_format_has_stencil(render->ds_att.format))
+            }
+            if (inheritance_info->stencilAttachmentFormat != VK_FORMAT_UNDEFINED) {
+               render->ds_att.format = inheritance_info->stencilAttachmentFormat;
                render->ds_att_aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
 
             if (pdev->info.gfx_level >= GFX12 && pdev->use_hiz && render->ds_att.format) {
                /* For inherited rendering with secondary commands buffers, assume HiZ/HiS is enabled if
