@@ -428,10 +428,10 @@ radv_ps_needs_state_sgpr(const struct radv_shader_info *info, const struct radv_
 }
 
 static bool
-radv_cs_needs_state_sgpr(const struct radv_shader_info *info)
+radv_cs_needs_state_sgpr(const struct radv_shader_info *info, const struct radv_compiler_info *compiler_info)
 {
    /* To clear the border color pointer to prevent GPU hangs on compute queue. */
-   if (info->uses_sampler)
+   if (!compiler_info->key.enable_custom_border_on_compute_queue && info->uses_sampler)
       return true;
 
    return false;
@@ -645,7 +645,7 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
          }
 
          if (stage == MESA_SHADER_COMPUTE) {
-            if (radv_cs_needs_state_sgpr(info))
+            if (radv_cs_needs_state_sgpr(info, compiler_info))
                RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, cs_state, AC_UD_CS_STATE);
          } else {
             assert(stage == MESA_SHADER_TASK);

@@ -1250,6 +1250,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .lower_terminate_to_discard = pdev->drirc.debug.lower_terminate_to_discard,
             .no_implicit_varying_subgroup_size = pdev->drirc.debug.no_implicit_varying_subgroup_size,
             .force_nan_preserve_min_max = pdev->drirc.debug.force_nan_preserve_min_max,
+            .enable_custom_border_on_compute_queue = pdev->drirc.features.enable_custom_border_on_compute_queue,
             .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */

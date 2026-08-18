@@ -123,6 +123,9 @@ def declare_options():
         B("radv_enable_float16_gfx8", False,
           "Expose float16 on GFX8, where it's supported but usually not beneficial.",
           c_name="enable_float16_gfx8"),
+        B("radv_enable_custom_border_on_compute_queue", False,
+          "Force enable custom border color on compute queue.",
+          c_name="enable_custom_border_on_compute_queue"),
     ]
 
     misc_options = [

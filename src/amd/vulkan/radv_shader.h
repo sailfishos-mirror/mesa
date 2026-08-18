@@ -577,8 +577,9 @@ struct radv_compiler_info {
       uint32_t lower_terminate_to_discard : 1;
       uint32_t no_implicit_varying_subgroup_size : 1;
       uint32_t force_nan_preserve_min_max : 1;
+      uint32_t enable_custom_border_on_compute_queue : 1;
       uint32_t nir_debug_info : 1;
-      uint32_t padding : 29;
+      uint32_t padding : 28;
 
       int32_t force_aniso;
 

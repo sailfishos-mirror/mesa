@@ -24,6 +24,7 @@ typedef struct {
    bool has_image_load_dcc_bug;
    bool disable_tg4_trunc_coord;
    bool has_desc_resource_level;
+   bool enable_custom_border_on_compute_queue;
 
    const struct radv_shader_args *args;
    const struct radv_shader_info *info;
@@ -329,7 +330,7 @@ get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr
       comp[0] = nir_iand_imm(b, comp[0], C_008F30_TRUNC_COORD);
 
       return nir_vec(b, comp, 4);
-   } else if (desc_type == AC_DESC_SAMPLER &&
+   } else if (!state->enable_custom_border_on_compute_queue && desc_type == AC_DESC_SAMPLER &&
               (b->shader->info.stage == MESA_SHADER_COMPUTE || b->shader->info.stage == MESA_SHADER_TASK ||
                mesa_shader_stage_is_rt(b->shader->info.stage))) {
       nir_def *comp[4];
@@ -768,6 +769,7 @@ radv_nir_lower_descriptors(nir_shader *shader, const struct radv_compiler_info *
       .has_image_load_dcc_bug = compiler_info->ac->has_image_load_dcc_bug,
       .disable_tg4_trunc_coord = !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,
       .has_desc_resource_level = compiler_info->ac->has_desc_resource_level,
+      .enable_custom_border_on_compute_queue = compiler_info->key.enable_custom_border_on_compute_queue,
       .args = &stage->args,
       .info = &stage->info,
       .layout = &stage->layout,
