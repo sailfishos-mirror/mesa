@@ -99,6 +99,12 @@ class TorxSupportedOperators(OperatorSupportBase):
             return (isinstance(producer, torch.fx.Node) and
                     fused_activation(producer) is node)
 
+        # A clone fed directly by a graph input could end up passing that
+        # input straight to the partition output once removed, leaving the
+        # delegate's IO entries unresolvable.
+        if is_identity_clone(node) and node.args[0].op != "placeholder":
+            return True
+
         ml_device = get_ml_device()
         return is_torx_supported(node, ml_device)
 
