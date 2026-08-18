@@ -1623,18 +1623,24 @@ nir_src_is_always_uniform(nir_src src)
    if (nir_src_is_intrinsic(src)) {
       nir_intrinsic_instr *intr = nir_src_as_intrinsic(src);
       /* As are uniform variables */
-      if (intr->intrinsic == nir_intrinsic_load_uniform &&
+      if ((intr->intrinsic == nir_intrinsic_load_uniform ||
+           intr->intrinsic == nir_intrinsic_load_push_constant) &&
           nir_src_is_always_uniform(intr->src[0]))
          return true;
-      /* From the Vulkan specification 15.6.1. Push Constant Interface:
-       * "Any member of a push constant block that is declared as an array must
-       * only be accessed with dynamically uniform indices."
-       */
-      if (intr->intrinsic == nir_intrinsic_load_push_constant)
-         return true;
+
       if (intr->intrinsic == nir_intrinsic_load_deref &&
-          nir_deref_mode_is(nir_src_as_deref(intr->src[0]), nir_var_mem_push_const))
+          nir_deref_mode_is(nir_src_as_deref(intr->src[0]), nir_var_mem_push_const)) {
+         nir_deref_instr *deref = nir_src_as_deref(intr->src[0]);
+         while (deref->deref_type != nir_deref_type_var) {
+            if (nir_deref_instr_is_arr(deref) &&
+                !nir_src_is_always_uniform(deref->arr.index))
+               return false;
+            deref = nir_deref_instr_parent(deref);
+            if (!deref)
+               return false;
+         }
          return true;
+      }
    }
 
    /* Operating together uniform expressions produces a uniform result */
