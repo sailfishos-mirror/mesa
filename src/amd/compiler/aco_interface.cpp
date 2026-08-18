@@ -180,6 +180,17 @@ aco_postprocess_shader(const struct aco_compiler_options* options,
    return llvm_ir;
 }
 
+static aco_callback_params
+create_callback_params(Program* program)
+{
+   aco_callback_params params = {};
+   params.config = *program->config;
+   params.stats = program->collect_statistics ? &program->statistics : NULL;
+   params.debug_info = program->debug_info.data();
+   params.debug_info_count = program->debug_info.size();
+   return params;
+}
+
 typedef void(select_shader_part_callback)(Program* program, void* pinfo, ac_shader_config* config,
                                           const struct aco_compiler_options* options,
                                           const struct aco_shader_info* info,
@@ -189,8 +200,7 @@ static void
 aco_compile_shader_part(const struct aco_compiler_options* options,
                         const struct aco_shader_info* info, const struct ac_shader_args* args,
                         select_shader_part_callback select_shader_part, void* pinfo,
-                        aco_shader_part_callback* build_binary, void** binary,
-                        bool is_prolog = false)
+                        aco_callback* build_binary, void** binary, bool is_prolog = false)
 {
    init();
 
@@ -217,8 +227,13 @@ aco_compile_shader_part(const struct aco_compiler_options* options,
    if (options->record_asm)
       disasm = get_disasm_string(program.get(), options->family, code, exec_size);
 
-   (*build_binary)(binary, config.num_sgprs, config.num_vgprs, exec_size, code.data(), code.size(),
-                   disasm.data(), disasm.size());
+   aco_callback_params params = create_callback_params(program.get());
+   params.code = code.data();
+   params.code_dw = code.size();
+   params.exec_size = exec_size;
+   params.disasm_str = disasm.data();
+   params.disasm_size = disasm.size();
+   (*build_binary)(binary, &params);
 }
 
 } /* end namespace */
@@ -257,16 +272,23 @@ aco_compile_shader(const struct aco_compiler_options* options, const struct aco_
    if (options->record_asm)
       disasm = get_disasm_string(program.get(), options->family, code, exec_size);
 
-   (*build_binary)(binary, &config, llvm_ir.c_str(), llvm_ir.size(), disasm.c_str(), disasm.size(),
-                   &program->statistics, exec_size, code.data(), code.size(), symbols.data(),
-                   symbols.size(), program->debug_info.data(), program->debug_info.size());
+   aco_callback_params params = create_callback_params(program.get());
+   params.code = code.data();
+   params.code_dw = code.size();
+   params.exec_size = exec_size;
+   params.ir_str = llvm_ir.c_str();
+   params.ir_size = llvm_ir.size();
+   params.disasm_str = disasm.c_str();
+   params.disasm_size = disasm.size();
+   params.symbols = symbols.data();
+   params.num_symbols = symbols.size();
+   (*build_binary)(binary, &params);
 }
 
 void
 aco_compile_vs_prolog(const struct aco_compiler_options* options,
                       const struct aco_shader_info* info, const struct aco_vs_prolog_info* pinfo,
-                      const struct ac_shader_args* args, aco_shader_part_callback* build_prolog,
-                      void** binary)
+                      const struct ac_shader_args* args, aco_callback* build_prolog, void** binary)
 {
    init();
 
@@ -296,15 +318,19 @@ aco_compile_vs_prolog(const struct aco_compiler_options* options,
    if (options->record_asm)
       disasm = get_disasm_string(program.get(), options->family, code, exec_size);
 
-   (*build_prolog)(binary, config.num_sgprs, config.num_vgprs, exec_size, code.data(), code.size(),
-                   disasm.data(), disasm.size());
+   aco_callback_params params = create_callback_params(program.get());
+   params.code = code.data();
+   params.code_dw = code.size();
+   params.exec_size = exec_size;
+   params.disasm_str = disasm.data();
+   params.disasm_size = disasm.size();
+   (*build_prolog)(binary, &params);
 }
 
 void
 aco_compile_ps_epilog(const struct aco_compiler_options* options,
                       const struct aco_shader_info* info, const struct aco_ps_epilog_info* pinfo,
-                      const struct ac_shader_args* args, aco_shader_part_callback* build_epilog,
-                      void** binary)
+                      const struct ac_shader_args* args, aco_callback* build_epilog, void** binary)
 {
    aco_compile_shader_part(options, info, args, select_ps_epilog, (void*)pinfo, build_epilog,
                            binary);
@@ -313,8 +339,7 @@ aco_compile_ps_epilog(const struct aco_compiler_options* options,
 void
 aco_compile_ps_prolog(const struct aco_compiler_options* options,
                       const struct aco_shader_info* info, const struct aco_ps_prolog_info* pinfo,
-                      const struct ac_shader_args* args, aco_shader_part_callback* build_prolog,
-                      void** binary)
+                      const struct ac_shader_args* args, aco_callback* build_prolog, void** binary)
 {
    aco_compile_shader_part(options, info, args, select_ps_prolog, (void*)pinfo, build_prolog,
                            binary, true);
@@ -358,8 +383,13 @@ aco_compile_trap_handler(const struct aco_compiler_options* options,
    if (options->record_asm)
       disasm = get_disasm_string(program.get(), options->family, code, exec_size);
 
-   (*build_binary)(binary, &config, NULL, 0, disasm.c_str(), disasm.size(), NULL, exec_size,
-                   code.data(), code.size(), NULL, 0, NULL, 0);
+   aco_callback_params params = create_callback_params(program.get());
+   params.disasm_str = disasm.c_str();
+   params.disasm_size = disasm.size();
+   params.exec_size = exec_size;
+   params.code = code.data();
+   params.code_dw = code.size();
+   (*build_binary)(binary, &params);
 }
 
 uint64_t

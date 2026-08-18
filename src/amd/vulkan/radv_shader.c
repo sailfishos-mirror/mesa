@@ -3385,24 +3385,18 @@ radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir
 }
 
 static void
-radv_aco_build_shader_binary(void **bin, const struct ac_shader_config *config, const char *llvm_ir_str,
-                             unsigned llvm_ir_size, const char *disasm_str, unsigned disasm_size,
-                             struct amd_stats *statistics, uint32_t exec_size, const uint32_t *code, uint32_t code_dw,
-                             const struct aco_symbol *symbols, unsigned num_symbols,
-                             const struct ac_shader_debug_info *debug_info, unsigned debug_info_count)
+radv_aco_build_shader_binary(void **bin, const aco_callback_params *params)
 {
    struct radv_shader_binary **binary = (struct radv_shader_binary **)bin;
 
-   uint32_t debug_info_size = debug_info_count * sizeof(struct ac_shader_debug_info);
-   uint32_t stats_size = statistics ? sizeof(struct amd_stats) : 0;
+   uint32_t debug_info_size = params->debug_info_count * sizeof(struct ac_shader_debug_info);
+   uint32_t stats_size = params->stats ? sizeof(struct amd_stats) : 0;
 
-   size_t size = llvm_ir_size;
-
+   size_t size = params->ir_size;
    size += debug_info_size;
-   size += disasm_size;
+   size += params->disasm_size;
    size += stats_size;
-
-   size += code_dw * sizeof(uint32_t) + sizeof(struct radv_shader_binary_legacy);
+   size += params->code_dw * sizeof(uint32_t) + sizeof(struct radv_shader_binary_legacy);
 
    /* We need to calloc to prevent uninitialized data because this will be used
     * directly for the disk cache. Uninitialized data can appear because of
@@ -3411,29 +3405,29 @@ radv_aco_build_shader_binary(void **bin, const struct ac_shader_config *config, 
    struct radv_shader_binary_legacy *legacy_binary = (struct radv_shader_binary_legacy *)calloc(size, 1);
    legacy_binary->base.type = RADV_BINARY_TYPE_LEGACY;
    legacy_binary->base.total_size = size;
-   legacy_binary->base.config = *config;
+   legacy_binary->base.config = params->config;
    legacy_binary->stats_size = stats_size;
-   legacy_binary->exec_size = exec_size;
-   legacy_binary->code_size = code_dw * sizeof(uint32_t);
-   legacy_binary->ir_size = llvm_ir_size;
-   legacy_binary->disasm_size = disasm_size;
+   legacy_binary->exec_size = params->exec_size;
+   legacy_binary->code_size = params->code_dw * sizeof(uint32_t);
+   legacy_binary->ir_size = params->ir_size;
+   legacy_binary->disasm_size = params->disasm_size;
    legacy_binary->debug_info_size = debug_info_size;
 
    struct radv_shader_binary_layout layout = radv_shader_binary_get_layout(legacy_binary);
 
    if (stats_size)
-      amd_stats_serialize(layout.stats, statistics);
+      amd_stats_serialize(layout.stats, params->stats);
 
-   memcpy(layout.code, code, code_dw * sizeof(uint32_t));
+   memcpy(layout.code, params->code, params->code_dw * sizeof(uint32_t));
 
-   if (llvm_ir_size)
-      memcpy(layout.ir, llvm_ir_str, llvm_ir_size);
+   if (params->ir_size)
+      memcpy(layout.ir, params->ir_str, params->ir_size);
 
-   if (disasm_size)
-      memcpy(layout.disasm, disasm_str, disasm_size);
+   if (params->disasm_size)
+      memcpy(layout.disasm, params->disasm_str, params->disasm_size);
 
    if (debug_info_size)
-      memcpy(layout.debug_info, debug_info, debug_info_size);
+      memcpy(layout.debug_info, params->debug_info, debug_info_size);
 
    *binary = (struct radv_shader_binary *)legacy_binary;
 }
@@ -3611,24 +3605,23 @@ radv_create_trap_handler_shader(struct radv_device *device)
 }
 
 static void
-radv_aco_build_shader_part(void **bin, uint32_t num_sgprs, uint32_t num_vgprs, uint32_t exec_size, const uint32_t *code,
-                           uint32_t code_size, const char *disasm_str, uint32_t disasm_size)
+radv_aco_build_shader_part(void **bin, const aco_callback_params *params)
 {
    struct radv_shader_part_binary **binary = (struct radv_shader_part_binary **)bin;
-   size_t size = code_size * sizeof(uint32_t) + sizeof(struct radv_shader_part_binary);
+   size_t size = params->code_dw * sizeof(uint32_t) + sizeof(struct radv_shader_part_binary);
 
-   size += disasm_size;
+   size += params->disasm_size;
    struct radv_shader_part_binary *part_binary = (struct radv_shader_part_binary *)calloc(size, 1);
 
-   part_binary->num_sgprs = num_sgprs;
-   part_binary->num_vgprs = num_vgprs;
+   part_binary->num_sgprs = params->config.num_sgprs;
+   part_binary->num_vgprs = params->config.num_vgprs;
    part_binary->total_size = size;
-   part_binary->code_size = code_size * sizeof(uint32_t);
-   part_binary->exec_size = exec_size;
-   memcpy(part_binary->data, code, part_binary->code_size);
-   if (disasm_size) {
-      memcpy((char *)part_binary->data + part_binary->code_size, disasm_str, disasm_size);
-      part_binary->disasm_size = disasm_size;
+   part_binary->code_size = params->code_dw * sizeof(uint32_t);
+   part_binary->exec_size = params->exec_size;
+   memcpy(part_binary->data, params->code, part_binary->code_size);
+   if (params->disasm_size) {
+      memcpy((char *)part_binary->data + part_binary->code_size, params->disasm_str, params->disasm_size);
+      part_binary->disasm_size = params->disasm_size;
    }
 
    *binary = part_binary;

@@ -12,6 +12,7 @@
 #include "nir_defines.h"
 #include "util/shader_stats.h"
 
+#include "ac_binary.h"
 #include "ac_shader_debug_info.h"
 #include "amd_family.h"
 #ifdef __cplusplus
@@ -20,22 +21,33 @@ extern "C" {
 
 struct nir_parameter;
 typedef struct nir_parameter nir_parameter;
-struct ac_shader_config;
 struct aco_shader_info;
 struct aco_vs_prolog_info;
 struct aco_ps_epilog_info;
 struct radeon_info;
 
-typedef void(aco_callback)(void** priv_ptr, const struct ac_shader_config* config,
-                           const char* llvm_ir_str, unsigned llvm_ir_size, const char* disasm_str,
-                           unsigned disasm_size, struct amd_stats* stats, uint32_t exec_size,
-                           const uint32_t* code, uint32_t code_dw, const struct aco_symbol* symbols,
-                           unsigned num_symbols, const struct ac_shader_debug_info* debug_info,
-                           unsigned debug_info_count);
+typedef struct {
+   struct ac_shader_config config;
+   const struct amd_stats *stats;
 
-typedef void(aco_shader_part_callback)(void** priv_ptr, uint32_t num_sgprs, uint32_t num_vgprs,
-                                       uint32_t exec_size, const uint32_t* code, uint32_t code_size,
-                                       const char* disasm_str, uint32_t disasm_size);
+   const uint32_t* code;
+   uint32_t code_dw;
+   uint32_t exec_size;
+
+   const char* ir_str;
+   unsigned ir_size;
+
+   const char* disasm_str;
+   unsigned disasm_size;
+
+   const struct aco_symbol* symbols;
+   unsigned num_symbols;
+
+   const struct ac_shader_debug_info* debug_info;
+   unsigned debug_info_count;
+} aco_callback_params;
+
+typedef void(aco_callback)(void** priv_ptr, const aco_callback_params* params);
 
 void aco_compile_shader(const struct aco_compiler_options* options,
                         const struct aco_shader_info* info, unsigned shader_count,
@@ -45,20 +57,20 @@ void aco_compile_shader(const struct aco_compiler_options* options,
 void aco_compile_vs_prolog(const struct aco_compiler_options* options,
                            const struct aco_shader_info* info,
                            const struct aco_vs_prolog_info* prolog_info,
-                           const struct ac_shader_args* args,
-                           aco_shader_part_callback* build_prolog, void** binary);
+                           const struct ac_shader_args* args, aco_callback* build_prolog,
+                           void** binary);
 
 void aco_compile_ps_epilog(const struct aco_compiler_options* options,
                            const struct aco_shader_info* info,
                            const struct aco_ps_epilog_info* epilog_info,
-                           const struct ac_shader_args* args,
-                           aco_shader_part_callback* build_epilog, void** binary);
+                           const struct ac_shader_args* args, aco_callback* build_epilog,
+                           void** binary);
 
 void aco_compile_ps_prolog(const struct aco_compiler_options* options,
                            const struct aco_shader_info* info,
                            const struct aco_ps_prolog_info* pinfo,
-                           const struct ac_shader_args* args,
-                           aco_shader_part_callback* build_prolog, void** binary);
+                           const struct ac_shader_args* args, aco_callback* build_prolog,
+                           void** binary);
 
 void aco_compile_trap_handler(const struct aco_compiler_options* options,
                               const struct aco_shader_info* info, const struct ac_shader_args* args,
