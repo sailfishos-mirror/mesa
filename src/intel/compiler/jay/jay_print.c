@@ -50,7 +50,7 @@ jay_print_def(
    unsigned len = jay_num_values(def);
    const char *file = jay_file_prefix(def.file);
    bool has_lu =
-      jay_is_ssa(def) && !jay_is_null(def) && block->last_use && lu && src >= 0;
+      jay_is_ssa(def) && !jay_is_null(def) && lu && block->last_use && src >= 0;
 
    bool has_index = jay_channel(def, 0) != JAY_SENTINEL;
    bool has_reg = (!def.collect && def.reg && def.file != J_ARF) || !has_index;
