@@ -2462,16 +2462,21 @@ static void emit_demote(struct ac_nir_context *ctx, const nir_intrinsic_instr *i
    ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.wqm.demote", ctx->ac.voidt, &cond, 1, 0);
 }
 
-static LLVMValueRef visit_first_invocation(struct ac_nir_context *ctx)
+static LLVMValueRef visit_first_last_invocation(struct ac_nir_context *ctx, bool last)
 {
    LLVMValueRef active_set = ac_build_ballot(&ctx->ac, ctx->ac.i1true);
    const char *intr = ctx->ac.wave_size == 32 ? "llvm.cttz.i32" : "llvm.cttz.i64";
+   if (last)
+      intr = ctx->ac.wave_size == 32 ? "llvm.ctlz.i32" : "llvm.ctlz.i64";
 
-   /* The second argument is whether cttz(0) should be defined, but we do not care. */
+   /* The second argument is whether cttz(0)/ctlz(0) should be defined, but we do not care. */
    LLVMValueRef args[] = {active_set, ctx->ac.i1false};
    LLVMValueRef result = ac_build_intrinsic(&ctx->ac, intr, ctx->ac.iN_wavemask, args, 2, 0);
+   result = LLVMBuildTrunc(ctx->ac.builder, result, ctx->ac.i32, "");
 
-   return LLVMBuildTrunc(ctx->ac.builder, result, ctx->ac.i32, "");
+   if (last)
+      result = LLVMBuildSub(ctx->ac.builder, LLVMConstInt(ctx->ac.i32, ctx->ac.wave_size - 1, 0), result, "");
+   return result;
 }
 
 static LLVMValueRef visit_load_shared2_amd(struct ac_nir_context *ctx,
@@ -2686,7 +2691,10 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.wave.id", ctx->ac.i32, NULL, 0, 0);
       break;
    case nir_intrinsic_first_invocation:
-      result = visit_first_invocation(ctx);
+      result = visit_first_last_invocation(ctx, false);
+      break;
+   case nir_intrinsic_last_invocation:
+      result = visit_first_last_invocation(ctx, true);
       break;
    case nir_intrinsic_store_ssbo:
       visit_store_ssbo(ctx, instr);
@@ -3084,7 +3092,7 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       break;
    }
    case nir_intrinsic_elect:
-      result = LLVMBuildICmp(ctx->ac.builder, LLVMIntEQ, visit_first_invocation(ctx),
+      result = LLVMBuildICmp(ctx->ac.builder, LLVMIntEQ, visit_first_last_invocation(ctx, false),
                              ac_get_thread_id(&ctx->ac), "");
       break;
    case nir_intrinsic_lane_permute_16_amd: {
