@@ -1794,7 +1794,8 @@ impl Shader<'_> {
             live = SimpleLiveness::for_shader(self)
         }
 
-        let reg_arena = Arena::new_reg(self.model, reg_limit);
+        let live_reg_bytes = max_live.reg.try_into().unwrap();
+        let reg_arena = Arena::new_reg(self.model, live_reg_bytes);
         self.run_pass("allocating registers", |s| {
             let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
             ra.alloc_regs(s, live);
