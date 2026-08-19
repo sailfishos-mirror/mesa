@@ -43,9 +43,9 @@ extern "C" {
 #include <vulkan/vulkan_core.h>
 
 struct vk_pnext_iterator {
-   VkBaseOutStructure *pos;
+   void *pos;
 #ifndef NDEBUG
-   VkBaseOutStructure *half_pos;
+   void *half_pos;
    unsigned idx;
 #endif
    bool done;
@@ -72,9 +72,9 @@ vk_pnext_iterator_init(void *start)
 {
    struct vk_pnext_iterator iter;
 
-   iter.pos = (VkBaseOutStructure *)start;
+   iter.pos = start;
 #ifndef NDEBUG
-   iter.half_pos = (VkBaseOutStructure *)start;
+   iter.half_pos = start;
    iter.idx = 0;
 #endif
    iter.done = false;
@@ -88,10 +88,10 @@ vk_pnext_iterator_init_const(const void *start)
    return vk_pnext_iterator_init((void *)start);
 }
 
-static inline VkBaseOutStructure *
+static inline void *
 vk_pnext_iterator_next(struct vk_pnext_iterator *iter)
 {
-   iter->pos = iter->pos->pNext;
+   iter->pos = vk_pnext_get_next(iter->pos);
 
 #ifndef NDEBUG
    if (iter->idx++ & 1) {
@@ -103,7 +103,7 @@ vk_pnext_iterator_next(struct vk_pnext_iterator *iter)
        * this distance will be an integer multiple of the loop length, at
        * which point the two pointers will be equal.
        */
-      iter->half_pos = iter->half_pos->pNext;
+      iter->half_pos = vk_pnext_get_next(iter->half_pos);
       if (iter->half_pos == iter->pos)
          assert(!"Vulkan input pNext chain has a loop!");
    }
@@ -120,7 +120,7 @@ vk_pnext_iterator_next(struct vk_pnext_iterator *iter)
    for (struct vk_pnext_iterator __iter = vk_pnext_iterator_init(__start); \
         !__iter.done; __iter.done = true) \
       for (VkBaseOutStructure *__e = __iter.pos; \
-           __e; __e = vk_pnext_iterator_next(&__iter))
+           __e; __e = (VkBaseOutStructure *)vk_pnext_iterator_next(&__iter))
 
 #define vk_foreach_struct_const(__e, __start) \
    for (struct vk_pnext_iterator __iter = \
