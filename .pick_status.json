@@ -5734,7 +5734,7 @@
         "description": "va: Compare file descriptions to deduplicate objects when exporting surface",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f419a8be904d9aac52186252920b30b82fdad406",
         "notes": null
