@@ -55,6 +55,11 @@ typedef struct {
 
 typedef void(aco_callback)(void** priv_ptr, const aco_callback_params* params);
 
+/* Note that this doesn't include the aco_symbol list or any debug info. */
+size_t aco_create_elf(const struct ac_compiler_info* compiler_info,
+                      const aco_callback_params* params, size_t size_before, size_t size_after,
+                      void** data);
+
 void aco_compile_shader(const struct aco_compiler_options* options,
                         const struct aco_shader_info* info, unsigned shader_count,
                         struct nir_shader* const* shaders, const struct ac_shader_args* args,
