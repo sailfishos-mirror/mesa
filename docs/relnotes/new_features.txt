@@ -38,3 +38,4 @@ cl_khr_external_semaphore_sync_fd on iris
 VK_EXT_inline_uniform_block on pvr
 VK_KHR_shader_fma on pvr
 fragmentStoresAndAtomics on pvr
+VK_EXT_cooperative_matrix_maintenance1 on radv, lavapipe
