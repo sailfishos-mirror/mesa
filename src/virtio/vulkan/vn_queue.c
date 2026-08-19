@@ -347,9 +347,9 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
    struct vn_queue_submission_pnext *pnext = submit->temp.pnext;
    VkBaseOutStructure *cur = (void *)submit->temp.submit_batch;
 
-   vk_foreach_struct_const(src, submit->submit_batch->pNext) {
+   vk_foreach_struct_const(sType, src, submit->submit_batch->pNext) {
       void *next = NULL;
-      switch (src->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO: {
          memcpy(&pnext->group, src, sizeof(pnext->group));
          next = &pnext->group;

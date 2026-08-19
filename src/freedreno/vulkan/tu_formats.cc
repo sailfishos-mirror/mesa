@@ -814,9 +814,9 @@ tu_GetPhysicalDeviceImageFormatProperties2(
       return result;
 
    /* Extract input structs */
-   vk_foreach_struct_const(s, base_info->pNext)
+   vk_foreach_struct_const(sType, s, base_info->pNext)
    {
-      switch (s->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO:
          external_info = (const VkPhysicalDeviceExternalImageFormatInfo *) s;
          break;
@@ -840,9 +840,9 @@ tu_GetPhysicalDeviceImageFormatProperties2(
        drm_info && drm_info->drmFormatModifier == DRM_FORMAT_MOD_LINEAR);
 
    /* Extract output structs */
-   vk_foreach_struct(s, base_props->pNext)
+   vk_foreach_struct(sType, s, base_props->pNext)
    {
-      switch (s->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES:
          external_props = (VkExternalImageFormatProperties *) s;
          break;

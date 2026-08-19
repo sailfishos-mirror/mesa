@@ -2008,10 +2008,10 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
       wsi_wl_surface_get_capabilities(surface, wsi_device, present_mode,
                                       caps);
 
-   vk_foreach_struct(ext, caps->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, caps->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_SURFACE_PROTECTED_CAPABILITIES_KHR: {
-         VkSurfaceProtectedCapabilitiesKHR *protected = (void *)ext;
+         VkSurfaceProtectedCapabilitiesKHR *protected = ext;
          protected->supportsProtected =
             wsi_device->supports_protected[VK_ICD_WSI_PLATFORM_WAYLAND];
          break;
@@ -2019,7 +2019,7 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
 
       case VK_STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_KHR: {
          /* Unsupported. */
-         VkSurfacePresentScalingCapabilitiesKHR *scaling = (void *)ext;
+         VkSurfacePresentScalingCapabilitiesKHR *scaling = ext;
          scaling->supportedPresentScaling = 0;
          scaling->supportedPresentGravityX = 0;
          scaling->supportedPresentGravityY = 0;
@@ -2030,7 +2030,7 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
 
       case VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR: {
          /* All present modes are compatible with each other. */
-         VkSurfacePresentModeCompatibilityKHR *compat = (void *)ext;
+         VkSurfacePresentModeCompatibilityKHR *compat = ext;
 
          if (compat->pPresentModes) {
             assert(present_mode);
@@ -2078,7 +2078,7 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
       }
 
       case VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR: {
-         VkSurfaceCapabilitiesPresentId2KHR *pid2 = (void *)ext;
+         VkSurfaceCapabilitiesPresentId2KHR *pid2 = ext;
          bool has_feedback;
 
          result = wsi_wl_surface_check_presentation(surface, wsi_device,
@@ -2091,7 +2091,7 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
       }
 
       case VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR: {
-         VkSurfaceCapabilitiesPresentWait2KHR *pwait2 = (void *)ext;
+         VkSurfaceCapabilitiesPresentWait2KHR *pwait2 = ext;
          bool has_feedback;
 
          result = wsi_wl_surface_check_presentation(surface, wsi_device,
@@ -2104,7 +2104,7 @@ wsi_wl_surface_get_capabilities2(VkIcdSurfaceBase *surface,
       }
 
       case VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT: {
-         VkPresentTimingSurfaceCapabilitiesEXT *wait = (void *)ext;
+         VkPresentTimingSurfaceCapabilitiesEXT *wait = ext;
          bool has_feedback, has_commit_timing, has_fifo;
 
          wait->presentStageQueries = 0;

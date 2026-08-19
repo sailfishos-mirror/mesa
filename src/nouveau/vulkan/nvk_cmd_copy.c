@@ -517,19 +517,19 @@ nvk_cmd_copy_memory_to_image_ce(struct nvk_cmd_buffer *cmd,
          nouveau_copy_rect(cmd, &copy2,
                            NV90B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_NON_PIPELINED);
 
-      vk_foreach_struct_const(ext, region->pNext) {
-         switch (ext->sType) {
+      vk_foreach_struct_const(sType, ext, region->pNext) {
+         switch (sType) {
          default:
-            vk_debug_ignored_stype(ext->sType);
+            vk_debug_ignored_stype(sType);
             break;
          }
       }
    }
 
-   vk_foreach_struct_const(ext, pCopyMemoryInfo->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct_const(sType, ext, pCopyMemoryInfo->pNext) {
+      switch (sType) {
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -642,19 +642,19 @@ nvk_cmd_copy_image_to_memory_ce(struct nvk_cmd_buffer *cmd,
          nouveau_copy_rect(cmd, &copy2,
                            NV90B5_LAUNCH_DMA_DATA_TRANSFER_TYPE_NON_PIPELINED);
 
-      vk_foreach_struct_const(ext, region->pNext) {
-         switch (ext->sType) {
+      vk_foreach_struct_const(sType, ext, region->pNext) {
+         switch (sType) {
          default:
-            vk_debug_ignored_stype(ext->sType);
+            vk_debug_ignored_stype(sType);
             break;
          }
       }
    }
 
-   vk_foreach_struct_const(ext, pCopyMemoryInfo->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct_const(sType, ext, pCopyMemoryInfo->pNext) {
+      switch (sType) {
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

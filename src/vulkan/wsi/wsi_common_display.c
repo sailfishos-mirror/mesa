@@ -1235,10 +1235,10 @@ wsi_GetDisplayPlaneCapabilities2KHR(VkPhysicalDevice physicalDevice,
                                          pDisplayPlaneInfo->planeIndex,
                                          &pCapabilities->capabilities);
 
-   vk_foreach_struct(ext, pCapabilities->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pCapabilities->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_SURFACE_PROTECTED_CAPABILITIES_KHR: {
-         VkSurfaceProtectedCapabilitiesKHR *protected = (void *)ext;
+         VkSurfaceProtectedCapabilitiesKHR *protected = ext;
          protected->supportsProtected =
             wsi_device->supports_protected[VK_ICD_WSI_PLATFORM_DISPLAY];
          break;
@@ -1373,17 +1373,17 @@ wsi_display_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
       result = wsi_display_surface_get_surface_counters(&counters->supported_surface_counters);
    }
 
-   vk_foreach_struct(ext, caps->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, caps->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_SURFACE_PROTECTED_CAPABILITIES_KHR: {
-         VkSurfaceProtectedCapabilitiesKHR *protected = (void *)ext;
+         VkSurfaceProtectedCapabilitiesKHR *protected = ext;
          protected->supportsProtected = VK_FALSE;
          break;
       }
 
       case VK_STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_KHR: {
          /* Unsupported. */
-         VkSurfacePresentScalingCapabilitiesKHR *scaling = (void *)ext;
+         VkSurfacePresentScalingCapabilitiesKHR *scaling = ext;
          scaling->supportedPresentScaling = 0;
          scaling->supportedPresentGravityX = 0;
          scaling->supportedPresentGravityY = 0;
@@ -1394,7 +1394,7 @@ wsi_display_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
 
       case VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR: {
          /* We only support FIFO. */
-         VkSurfacePresentModeCompatibilityKHR *compat = (void *)ext;
+         VkSurfacePresentModeCompatibilityKHR *compat = ext;
          if (compat->pPresentModes) {
             if (compat->presentModeCount) {
                assert(present_mode);
@@ -1408,21 +1408,21 @@ wsi_display_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
       }
 
       case VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR: {
-         VkSurfaceCapabilitiesPresentId2KHR *pid2 = (void *)ext;
+         VkSurfaceCapabilitiesPresentId2KHR *pid2 = ext;
 
          pid2->presentId2Supported = VK_TRUE;
          break;
       }
 
       case VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR: {
-         VkSurfaceCapabilitiesPresentWait2KHR *pwait2 = (void *)ext;
+         VkSurfaceCapabilitiesPresentWait2KHR *pwait2 = ext;
 
          pwait2->presentWait2Supported = VK_TRUE;
          break;
       }
 
       case VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT: {
-         VkPresentTimingSurfaceCapabilitiesEXT *wait = (void *)ext;
+         VkPresentTimingSurfaceCapabilitiesEXT *wait = ext;
 
          wait->presentStageQueries = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
          wait->presentTimingSupported = VK_TRUE;

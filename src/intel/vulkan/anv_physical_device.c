@@ -3230,8 +3230,8 @@ void anv_GetPhysicalDeviceQueueFamilyProperties2(
          p->queueFamilyProperties =
             anv_device_physical_get_queue_properties(pdevice, i);
 
-         vk_foreach_struct(ext, p->pNext) {
-            switch (ext->sType) {
+         vk_foreach_struct(sType, ext, p->pNext) {
+            switch (sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES_KHR: {
                VkQueueFamilyGlobalPriorityPropertiesKHR *properties =
                   (VkQueueFamilyGlobalPriorityPropertiesKHR *)ext;
@@ -3298,7 +3298,7 @@ void anv_GetPhysicalDeviceQueueFamilyProperties2(
             }
 
             default:
-               vk_debug_ignored_stype(ext->sType);
+               vk_debug_ignored_stype(sType);
             }
          }
       }
@@ -3409,13 +3409,13 @@ void anv_GetPhysicalDeviceMemoryProperties2(
    anv_GetPhysicalDeviceMemoryProperties(physicalDevice,
                                          &pMemoryProperties->memoryProperties);
 
-   vk_foreach_struct(ext, pMemoryProperties->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT:
-         anv_get_memory_budget(physicalDevice, (void*)ext);
+         anv_get_memory_budget(physicalDevice, ext);
          break;
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -3444,8 +3444,8 @@ void anv_GetPhysicalDeviceMultisamplePropertiesEXT(
    }
    pMultisampleProperties->maxSampleLocationGridSize = grid_size;
 
-   vk_foreach_struct(ext, pMultisampleProperties->pNext)
-      vk_debug_ignored_stype(ext->sType);
+   vk_foreach_struct(sType, ext, pMultisampleProperties->pNext)
+      vk_debug_ignored_stype(sType);
 }
 
 VkResult anv_GetPhysicalDeviceFragmentShadingRatesKHR(

@@ -1363,17 +1363,17 @@ void anv_GetPhysicalDeviceFormatProperties2(
       .bufferFeatures = vk_format_features2_to_features(buffer2),
    };
 
-   vk_foreach_struct(ext, pFormatProperties->pNext) {
+   vk_foreach_struct(sType, ext, pFormatProperties->pNext) {
       /* Use unsigned since some cases are not in the VkStructureType enum. */
-      switch ((unsigned)ext->sType) {
+      switch ((unsigned)sType) {
       case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
          get_drm_format_modifier_properties_list(physical_device, vk_format,
-                                                 (void *)ext);
+                                                 ext);
          break;
 
       case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_2_EXT:
          get_drm_format_modifier_properties_list_2(physical_device, vk_format,
-                                                   (void *)ext);
+                                                   ext);
          break;
 
       case VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3: {
@@ -1387,7 +1387,7 @@ void anv_GetPhysicalDeviceFormatProperties2(
          /* don't have any thing to use this for yet */
          break;
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -1670,55 +1670,55 @@ anv_get_image_format_properties(
    const bool is_sparse = info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
 
    /* Extract input structs */
-   vk_foreach_struct_const(s, info->pNext) {
-      switch ((unsigned)s->sType) {
+   vk_foreach_struct_const(sType, s, info->pNext) {
+      switch ((unsigned)sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO:
-         external_info = (const void *) s;
+         external_info = s;
          break;
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT:
-         modifier_info = (const void *)s;
+         modifier_info = s;
          break;
       case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO:
-         format_list_info = (const void *)s;
+         format_list_info = s;
          break;
       case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO:
          /* Ignore but don't warn */
          break;
       case VK_STRUCTURE_TYPE_WSI_IMAGE_CREATE_INFO_MESA:
-         wsi_info = (const void *)s;
+         wsi_info = s;
          break;
       case VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR:
          /* Ignore but don't warn */
          break;
       case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_CONTROL_EXT:
-         comp_info = (const void *)s;
+         comp_info = s;
          break;
       default:
-         vk_debug_ignored_stype(s->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
 
    /* Extract output structs */
-   vk_foreach_struct(s, props->pNext) {
-      switch (s->sType) {
+   vk_foreach_struct(sType, s, props->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES:
-         external_props = (void *) s;
+         external_props = s;
          break;
       case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES:
-         ycbcr_props = (void *) s;
+         ycbcr_props = s;
          break;
       case VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD:
-         texture_lod_gather_props = (void *) s;
+         texture_lod_gather_props = s;
          break;
       case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_PROPERTIES_EXT:
-         comp_props = (void *) s;
+         comp_props = s;
          break;
       case VK_STRUCTURE_TYPE_HOST_IMAGE_COPY_DEVICE_PERFORMANCE_QUERY_EXT:
-         host_props = (void *) s;
+         host_props = s;
          break;
       default:
-         vk_debug_ignored_stype(s->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2229,8 +2229,8 @@ void anv_GetPhysicalDeviceSparseImageFormatProperties2(
       return;
    }
 
-   vk_foreach_struct_const(ext, pFormatInfo->pNext)
-      vk_debug_ignored_stype(ext->sType);
+   vk_foreach_struct_const(sType, ext, pFormatInfo->pNext)
+      vk_debug_ignored_stype(sType);
 
    /* Check if the image is supported at all (regardless of being Sparse). */
    const VkPhysicalDeviceImageFormatInfo2 img_info = {

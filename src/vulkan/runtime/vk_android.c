@@ -1140,16 +1140,16 @@ vk_common_GetAndroidHardwareBufferPropertiesANDROID(
    VkAndroidHardwareBufferFormatProperties2ANDROID *format_prop2 = NULL;
    VkAndroidHardwareBufferFormatResolvePropertiesANDROID *format_resolve = NULL;
 
-   vk_foreach_struct(ext, pProperties->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID:
-         format_prop = (void *)ext;
+         format_prop = ext;
          break;
       case VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_2_ANDROID:
-         format_prop2 = (void *)ext;
+         format_prop2 = ext;
          break;
       case VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_RESOLVE_PROPERTIES_ANDROID:
-         format_resolve = (void *)ext;
+         format_resolve = ext;
          break;
       default:
          break;

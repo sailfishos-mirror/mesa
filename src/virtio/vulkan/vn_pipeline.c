@@ -1411,9 +1411,9 @@ vn_multisample_info_pnext_init(
 
    VkBaseOutStructure *cur = (void *)fix_tmp->infos[index].pMultisampleState;
 
-   vk_foreach_struct_const(src, info->pNext) {
+   vk_foreach_struct_const(sType, src, info->pNext) {
       void *next = NULL;
-      switch (src->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT:
          memcpy(sl, src, sizeof(*sl));
          next = sl;
@@ -1519,9 +1519,9 @@ vn_graphics_pipeline_create_info_pnext_init(
 
    VkBaseOutStructure *cur = (void *)&fix_tmp->infos[index];
 
-   vk_foreach_struct_const(src, info->pNext) {
+   vk_foreach_struct_const(sType, src, info->pNext) {
       void *next = NULL;
-      switch (src->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT:
          memcpy(gpl, src, sizeof(*gpl));
          next = gpl;

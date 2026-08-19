@@ -2099,8 +2099,8 @@ vn_GetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
    VN_COPY_STRUCT_GUTS(&layered_vk_props->properties,
                        &layered_props->vk.properties,
                        sizeof(layered_props->vk.properties));
-   vk_foreach_struct(layered_vk_pnext, layered_vk_props->properties.pNext) {
-      switch (layered_vk_pnext->sType) {
+   vk_foreach_struct(sType, layered_vk_pnext, layered_vk_props->properties.pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES:
          VN_COPY_STRUCT_GUTS(layered_vk_pnext, &layered_props->driver,
                              sizeof(layered_props->driver));
@@ -2123,8 +2123,8 @@ vn_fill_queue_family_properties(struct vn_physical_device *physical_dev,
    VN_COPY_STRUCT_GUTS(props, &physical_dev->qfp[qfi],
                        sizeof(*physical_dev->qfp));
 
-   vk_foreach_struct(pnext, props->pNext) {
-      switch (pnext->sType) {
+   vk_foreach_struct(sType, pnext, props->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES:
          VN_COPY_STRUCT_GUTS(pnext, &physical_dev->qfgpp[qfi],
                              sizeof(*physical_dev->qfgpp));
@@ -2244,8 +2244,8 @@ vn_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
 
    bool cacheable = true;
    uint64_t key = (uint64_t)format;
-   vk_foreach_struct_const(src, pFormatProperties->pNext) {
-      switch (src->sType) {
+   vk_foreach_struct_const(sType, src, pFormatProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3:
          props3 = (VkFormatProperties3 *)src;
          key |= 1ull << 32;
@@ -2308,9 +2308,9 @@ vn_physical_device_fix_image_format_info(
    local_info->format = *info;
    VkBaseOutStructure *dst = (void *)&local_info->format;
 
-   vk_foreach_struct_const(src, info->pNext) {
+   vk_foreach_struct_const(sType, src, info->pNext) {
       void *pnext = NULL;
-      switch (src->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO:
          memcpy(&local_info->external, src, sizeof(local_info->external));
          local_info->external.handleType = renderer_handle_type;
@@ -2375,8 +2375,8 @@ vn_image_get_image_format_key(
     * Exclude VkOpticalFlowImageFormatInfoNV and VkVideoProfileListInfoKHR
     */
    if (format_info->pNext) {
-      vk_foreach_struct_const(src, format_info->pNext) {
-         switch (src->sType) {
+      vk_foreach_struct_const(sType, src, format_info->pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_CONTROL_EXT: {
             VkImageCompressionControlEXT *compression_control =
                (VkImageCompressionControlEXT *)src;
@@ -2456,14 +2456,14 @@ vn_image_get_image_format_key(
     * VkTextureLODGatherFormatPropertiesAMD are not supported
     */
    if (format_props->pNext) {
-      vk_foreach_struct_const(src, format_props->pNext) {
-         switch (src->sType) {
+      vk_foreach_struct_const(sType, src, format_props->pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES:
          case VK_STRUCTURE_TYPE_HOST_IMAGE_COPY_DEVICE_PERFORMANCE_QUERY:
          case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_PROPERTIES_EXT:
          case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES:
          case VK_STRUCTURE_TYPE_FILTER_CUBIC_IMAGE_VIEW_IMAGE_FORMAT_PROPERTIES_EXT:
-            _mesa_blake3_update(&blake3_ctx, &src->sType,
+            _mesa_blake3_update(&blake3_ctx, &sType,
                               sizeof(VkStructureType));
             break;
          default:
@@ -2512,8 +2512,8 @@ vn_image_init_format_from_cache(
       *cached_result = cache_entry->properties.cached_result;
 
       if (pImageFormatProperties->pNext) {
-         vk_foreach_struct_const(src, pImageFormatProperties->pNext) {
-            switch (src->sType) {
+         vk_foreach_struct_const(sType, src, pImageFormatProperties->pNext) {
+            switch (sType) {
             case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES: {
                VkExternalImageFormatProperties *ext_image =
                   (VkExternalImageFormatProperties *)src;
@@ -2614,8 +2614,8 @@ vn_image_store_format_in_cache(
    }
 
    if (pImageFormatProperties->pNext) {
-      vk_foreach_struct_const(src, pImageFormatProperties->pNext) {
-         switch (src->sType) {
+      vk_foreach_struct_const(sType, src, pImageFormatProperties->pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES: {
             cache_entry->properties.ext_image =
                *((VkExternalImageFormatProperties *)src);

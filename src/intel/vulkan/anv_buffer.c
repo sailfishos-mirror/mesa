@@ -128,17 +128,17 @@ anv_get_buffer_memory_requirements(struct anv_device *device,
 
    pMemoryRequirements->memoryRequirements.memoryTypeBits = memory_types;
 
-   vk_foreach_struct(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
-         VkMemoryDedicatedRequirements *requirements = (void *)ext;
+         VkMemoryDedicatedRequirements *requirements = ext;
          requirements->prefersDedicatedAllocation = false;
          requirements->requiresDedicatedAllocation = false;
          break;
       }
 
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

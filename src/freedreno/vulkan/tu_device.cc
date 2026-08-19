@@ -2090,8 +2090,8 @@ tu_GetPhysicalDeviceQueueFamilyProperties2(
          if (pdevice->emulate_second_queue == (int) i)
             p->queueFamilyProperties.queueCount = 2;
 
-         vk_foreach_struct(ext, p->pNext) {
-            switch (ext->sType) {
+         vk_foreach_struct(sType, ext, p->pNext) {
+            switch (sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES_KHR: {
                VkQueueFamilyGlobalPriorityPropertiesKHR *props =
                   (VkQueueFamilyGlobalPriorityPropertiesKHR *) ext;
@@ -2167,9 +2167,9 @@ tu_GetPhysicalDeviceMemoryProperties2(VkPhysicalDevice pdev,
       };
    }
 
-   vk_foreach_struct(ext, props2->pNext)
+   vk_foreach_struct(sType, ext, props2->pNext)
    {
-      switch (ext->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
          VkPhysicalDeviceMemoryBudgetPropertiesEXT *memory_budget_props =
             (VkPhysicalDeviceMemoryBudgetPropertiesEXT *) ext;
@@ -2821,8 +2821,8 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    bool border_color_without_format = false;
    bool autotune_disable_preempt_optimize = false;
 
-   vk_foreach_struct_const (ext, pCreateInfo->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct_const (sType, ext, pCreateInfo->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT:
          border_color_without_format =
             ((const VkPhysicalDeviceCustomBorderColorFeaturesEXT *) ext)

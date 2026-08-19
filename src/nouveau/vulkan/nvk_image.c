@@ -641,10 +641,10 @@ nvk_GetPhysicalDeviceImageFormatProperties2(
       .maxResourceSize = UINT32_MAX, /* TODO */
    };
 
-   vk_foreach_struct(s, pImageFormatProperties->pNext) {
-      switch (s->sType) {
+   vk_foreach_struct(sType, s, pImageFormatProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES: {
-         VkExternalImageFormatProperties *p = (void *)s;
+         VkExternalImageFormatProperties *p = s;
          /* From the Vulkan 1.3.256 spec:
           *
           *    "If handleType is 0, vkGetPhysicalDeviceImageFormatProperties2
@@ -659,18 +659,18 @@ nvk_GetPhysicalDeviceImageFormatProperties2(
          break;
       }
       case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES: {
-         VkSamplerYcbcrConversionImageFormatProperties *ycbcr_props = (void *) s;
+         VkSamplerYcbcrConversionImageFormatProperties *ycbcr_props = s;
          ycbcr_props->combinedImageSamplerDescriptorCount = plane_count;
          break;
       }
       case VK_STRUCTURE_TYPE_HOST_IMAGE_COPY_DEVICE_PERFORMANCE_QUERY_EXT: {
-         VkHostImageCopyDevicePerformanceQueryEXT *host_props = (void *) s;
+         VkHostImageCopyDevicePerformanceQueryEXT *host_props = s;
          host_props->optimalDeviceAccess = true;
          host_props->identicalMemoryLayout = true;
          break;
       }
       default:
-         vk_debug_ignored_stype(s->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -1354,10 +1354,10 @@ nvk_get_image_memory_requirements(struct nvk_device *dev,
    pMemoryRequirements->memoryRequirements.alignment = align_B;
    pMemoryRequirements->memoryRequirements.size = size_B;
 
-   vk_foreach_struct_const(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
-         VkMemoryDedicatedRequirements *dedicated = (void *)ext;
+         VkMemoryDedicatedRequirements *dedicated = ext;
          if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
              image->vk.drm_format_mod != DRM_FORMAT_MOD_LINEAR) {
             dedicated->prefersDedicatedAllocation = true;
@@ -1379,7 +1379,7 @@ nvk_get_image_memory_requirements(struct nvk_device *dev,
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

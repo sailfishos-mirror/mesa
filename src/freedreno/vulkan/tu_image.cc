@@ -1213,8 +1213,8 @@ tu_get_image_memory_requirements(struct tu_device *dev, struct tu_image *image,
       .memoryTypeBits = (1 << type_count) - 1,
    };
 
-   vk_foreach_struct(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
          VkMemoryDedicatedRequirements *req =
             (VkMemoryDedicatedRequirements *) ext;

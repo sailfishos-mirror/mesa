@@ -1746,11 +1746,11 @@ nvk_GetPhysicalDeviceMemoryProperties2(
       pMemoryProperties->memoryProperties.memoryTypes[i] = pdev->mem_types[i];
    }
 
-   vk_foreach_struct(ext, pMemoryProperties->pNext)
+   vk_foreach_struct(sType, ext, pMemoryProperties->pNext)
    {
-      switch (ext->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
-         VkPhysicalDeviceMemoryBudgetPropertiesEXT *p = (void *)ext;
+         VkPhysicalDeviceMemoryBudgetPropertiesEXT *p = ext;
          const struct nvk_instance *instance =
             nvk_physical_device_instance(pdev);
 
@@ -1802,7 +1802,7 @@ nvk_GetPhysicalDeviceMemoryProperties2(
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -1834,29 +1834,29 @@ nvk_GetPhysicalDeviceQueueFamilyProperties2(
          p->queueFamilyProperties.minImageTransferGranularity =
             (VkExtent3D){1, 1, 1};
 
-         vk_foreach_struct(ext, p->pNext) {
-            switch (ext->sType) {
+         vk_foreach_struct(sType, ext, p->pNext) {
+            switch (sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
-               VkQueueFamilyGlobalPriorityProperties *p = (void *)ext;
+               VkQueueFamilyGlobalPriorityProperties *p = ext;
                p->priorityCount = 1;
                p->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
                break;
             }
 
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_QUERY_RESULT_STATUS_PROPERTIES_KHR: {
-                VkQueueFamilyQueryResultStatusPropertiesKHR *p = (void *)ext;
+                VkQueueFamilyQueryResultStatusPropertiesKHR *p = ext;
                 p->queryResultStatusSupport = VK_FALSE;
                 break;
             }
 
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR: {
-               VkQueueFamilyOwnershipTransferPropertiesKHR *p = (void *)ext;
+               VkQueueFamilyOwnershipTransferPropertiesKHR *p = ext;
                p->optimalImageTransferToQueueFamilies = ~0;
                break;
             }
 
             default:
-               vk_debug_ignored_stype(ext->sType);
+               vk_debug_ignored_stype(sType);
                break;
             }
          }

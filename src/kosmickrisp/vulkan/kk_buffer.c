@@ -85,16 +85,16 @@ kk_GetDeviceBufferMemoryRequirements(
       .memoryTypeBits = BITFIELD_MASK(pdev->mem_type_count),
    };
 
-   vk_foreach_struct_const(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
-         VkMemoryDedicatedRequirements *dedicated = (void *)ext;
+         VkMemoryDedicatedRequirements *dedicated = ext;
          dedicated->prefersDedicatedAllocation = false;
          dedicated->requiresDedicatedAllocation = false;
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

@@ -293,8 +293,8 @@ void PVR_PER_ARCH(UpdateDescriptorSets)(
       binding = &layout->bindings[write->dstBinding];
 
       const VkWriteDescriptorSetInlineUniformBlock *write_iub = NULL;
-      vk_foreach_struct_const (ext, write->pNext) {
-         switch (ext->sType) {
+      vk_foreach_struct_const (sType, ext, write->pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK:
             write_iub = (const VkWriteDescriptorSetInlineUniformBlock *)ext;
             continue;
@@ -303,7 +303,7 @@ void PVR_PER_ARCH(UpdateDescriptorSets)(
             break;
          }
 
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
       }
 
       if (!binding->stage_flags)
@@ -418,8 +418,8 @@ void PVR_PER_ARCH(UpdateDescriptorSets)(
       src_binding = &src_layout->bindings[copy->srcBinding];
       dst_binding = &dst_layout->bindings[copy->dstBinding];
 
-      vk_foreach_struct_const (ext, copy->pNext) {
-         vk_debug_ignored_stype(ext->sType);
+      vk_foreach_struct_const (sType, ext, copy->pNext) {
+         vk_debug_ignored_stype(sType);
       }
 
       assert(src_binding->stage_flags == dst_binding->stage_flags);

@@ -1324,8 +1324,8 @@ void pvr_GetPhysicalDeviceQueueFamilyProperties2(
    vk_outarray_append_typed (VkQueueFamilyProperties2, &out, p) {
       p->queueFamilyProperties = pvr_queue_family_properties;
 
-      vk_foreach_struct (ext, p->pNext) {
-         switch (ext->sType) {
+      vk_foreach_struct (sType, ext, p->pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
             VkQueueFamilyGlobalPriorityProperties
                *pvr_queue_global_family_properties =
@@ -1340,7 +1340,7 @@ void pvr_GetPhysicalDeviceQueueFamilyProperties2(
             break;
          }
          default:
-            vk_debug_ignored_stype(ext->sType);
+            vk_debug_ignored_stype(sType);
             break;
          }
       }
@@ -1355,8 +1355,8 @@ void pvr_GetPhysicalDeviceMemoryProperties2(
 
    pMemoryProperties->memoryProperties = pdevice->memory;
 
-   vk_foreach_struct (ext, pMemoryProperties->pNext) {
-      vk_debug_ignored_stype(ext->sType);
+   vk_foreach_struct (sType, ext, pMemoryProperties->pNext) {
+      vk_debug_ignored_stype(sType);
    }
 }
 

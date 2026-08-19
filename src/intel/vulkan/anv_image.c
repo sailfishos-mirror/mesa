@@ -2696,10 +2696,10 @@ anv_image_get_memory_requirements(struct anv_device *device,
       }
    }
 
-   vk_foreach_struct(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
-         VkMemoryDedicatedRequirements *requirements = (void *)ext;
+         VkMemoryDedicatedRequirements *requirements = ext;
          if (image->vk.wsi_legacy_scanout ||
              image->from_ahb ||
              (isl_drm_modifier_has_aux(image->vk.drm_format_mod) &&
@@ -2724,7 +2724,7 @@ anv_image_get_memory_requirements(struct anv_device *device,
       }
 
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2766,8 +2766,8 @@ void anv_GetImageMemoryRequirements2(
 
    VkImageAspectFlags aspects = image->vk.aspects;
 
-   vk_foreach_struct_const(ext, pInfo->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct_const(sType, ext, pInfo->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO: {
          assert(image->disjoint);
          const VkImagePlaneMemoryRequirementsInfo *plane_reqs =
@@ -2777,7 +2777,7 @@ void anv_GetImageMemoryRequirements2(
       }
 
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -3114,8 +3114,8 @@ anv_bind_image_memory(struct anv_device *device,
    if (mem && mem->vk.ahardware_buffer)
       resolve_ahb_image(device, image, mem);
 
-   vk_foreach_struct_const(s, bind_info->pNext) {
-      switch (s->sType) {
+   vk_foreach_struct_const(sType, s, bind_info->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO: {
          const VkBindImagePlaneMemoryInfo *plane_info =
             (const VkBindImagePlaneMemoryInfo *) s;
@@ -3212,7 +3212,7 @@ anv_bind_image_memory(struct anv_device *device,
          break;
       }
       default:
-         vk_debug_ignored_stype(s->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

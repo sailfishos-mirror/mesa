@@ -1264,10 +1264,10 @@ kk_GetPhysicalDeviceMemoryProperties2(
       pMemoryProperties->memoryProperties.memoryTypes[i] = pdev->mem_types[i];
    }
 
-   vk_foreach_struct(ext, pMemoryProperties->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
-         VkPhysicalDeviceMemoryBudgetPropertiesEXT *p = (void *)ext;
+         VkPhysicalDeviceMemoryBudgetPropertiesEXT *p = ext;
 
          for (unsigned i = 0; i < pdev->mem_heap_count; i++) {
             const struct kk_memory_heap *heap = &pdev->mem_heaps[i];
@@ -1290,7 +1290,7 @@ kk_GetPhysicalDeviceMemoryProperties2(
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -1316,10 +1316,10 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
          p->queueFamilyProperties.minImageTransferGranularity =
             (VkExtent3D){1, 1, 1};
 
-         vk_foreach_struct(ext, p->pNext) {
-            switch (ext->sType) {
+         vk_foreach_struct(sType, ext, p->pNext) {
+            switch (sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
-               VkQueueFamilyGlobalPriorityProperties *pSub = (void *)ext;
+               VkQueueFamilyGlobalPriorityProperties *pSub = ext;
                pSub->priorityCount = 1;
                pSub->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
                break;
@@ -1327,14 +1327,14 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
 
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OPTIMAL_IMAGE_TRANSFER_GRANULARITY_PROPERTIES_KHR: {
                VkQueueFamilyOptimalImageTransferGranularityPropertiesKHR *pSub =
-                  (void *)ext;
+                  ext;
                pSub->optimalImageTransferGranularity =
                   p->queueFamilyProperties.minImageTransferGranularity;
                break;
             }
 
             default:
-               vk_debug_ignored_stype(ext->sType);
+               vk_debug_ignored_stype(sType);
                break;
             }
          }

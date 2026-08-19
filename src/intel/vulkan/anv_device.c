@@ -1670,11 +1670,11 @@ VkResult anv_AllocateMemory(
    const struct wsi_memory_allocate_info *wsi_info = NULL;
    uint64_t client_address = 0;
 
-   vk_foreach_struct_const(ext, pAllocateInfo->pNext) {
+   vk_foreach_struct_const(sType, ext, pAllocateInfo->pNext) {
       /* VK_STRUCTURE_TYPE_WSI_MEMORY_ALLOCATE_INFO_MESA isn't a real enum
        * value, so use cast to avoid compiler warn
        */
-      switch ((uint32_t)ext->sType) {
+      switch ((uint32_t)sType) {
       case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO:
       case VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID:
       case VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT:
@@ -1684,11 +1684,11 @@ VkResult anv_AllocateMemory(
          break;
 
       case VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR:
-         fd_info = (void *)ext;
+         fd_info = ext;
          break;
 
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
-         dedicated_info = (void *)ext;
+         dedicated_info = ext;
          break;
 
       case VK_STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO: {
@@ -1699,11 +1699,11 @@ VkResult anv_AllocateMemory(
       }
 
       case VK_STRUCTURE_TYPE_WSI_MEMORY_ALLOCATE_INFO_MESA:
-         wsi_info = (void *)ext;
+         wsi_info = ext;
          break;
 
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

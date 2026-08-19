@@ -1026,17 +1026,17 @@ panvk_GetImageMemoryRequirements2(VkDevice device,
    pMemoryRequirements->memoryRequirements.alignment = alignment;
    pMemoryRequirements->memoryRequirements.size = size;
 
-   vk_foreach_struct_const(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
-         VkMemoryDedicatedRequirements *dedicated = (void *)ext;
+         VkMemoryDedicatedRequirements *dedicated = ext;
          dedicated->requiresDedicatedAllocation =
             vk_image_is_android_hardware_buffer(&image->vk);
          dedicated->prefersDedicatedAllocation = dedicated->requiresDedicatedAllocation;
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

@@ -1803,8 +1803,8 @@ v3dv_GetPhysicalDeviceQueueFamilyProperties2(VkPhysicalDevice physicalDevice,
    vk_outarray_append_typed(VkQueueFamilyProperties2, &out, p) {
       p->queueFamilyProperties = v3dv_queue_family_properties;
 
-      vk_foreach_struct(s, p->pNext) {
-         vk_debug_ignored_stype(s->sType);
+      vk_foreach_struct(sType, s, p->pNext) {
+         vk_debug_ignored_stype(sType);
       }
    }
 }
@@ -1826,8 +1826,8 @@ v3dv_GetPhysicalDeviceMemoryProperties2(VkPhysicalDevice physicalDevice,
    v3dv_GetPhysicalDeviceMemoryProperties(physicalDevice,
                                           &pMemoryProperties->memoryProperties);
 
-   vk_foreach_struct(ext, pMemoryProperties->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryProperties->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
          VkPhysicalDeviceMemoryBudgetPropertiesEXT *p =
             (VkPhysicalDeviceMemoryBudgetPropertiesEXT *) ext;
@@ -1844,7 +1844,7 @@ v3dv_GetPhysicalDeviceMemoryProperties2(VkPhysicalDevice physicalDevice,
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2474,16 +2474,16 @@ v3dv_AllocateMemory(VkDevice _device,
    const struct wsi_memory_allocate_info *wsi_info = NULL;
    const VkImportMemoryFdInfoKHR *fd_info = NULL;
    const VkMemoryAllocateFlagsInfo *flags_info = NULL;
-   vk_foreach_struct_const(ext, pAllocateInfo->pNext) {
-      switch ((unsigned)ext->sType) {
+   vk_foreach_struct_const(sType, ext, pAllocateInfo->pNext) {
+      switch ((unsigned)sType) {
       case VK_STRUCTURE_TYPE_WSI_MEMORY_ALLOCATE_INFO_MESA:
-         wsi_info = (void *)ext;
+         wsi_info = ext;
          break;
       case VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR:
-         fd_info = (void *)ext;
+         fd_info = ext;
          break;
       case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
-         flags_info = (void *)ext;
+         flags_info = ext;
          break;
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
          /* We don't have particular optimizations associated with memory
@@ -2500,7 +2500,7 @@ v3dv_AllocateMemory(VkDevice _device,
          /* This case is handled in the common code */
          break;
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2651,8 +2651,8 @@ get_image_memory_requirements(struct v3dv_image *image,
       mem_reqs->size = image->planes[plane].size + V3D_TFU_READAHEAD_SIZE;
    }
 
-   vk_foreach_struct(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
          VkMemoryDedicatedRequirements *req =
             (VkMemoryDedicatedRequirements *) ext;
@@ -2661,7 +2661,7 @@ get_image_memory_requirements(struct v3dv_image *image,
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2675,8 +2675,8 @@ v3dv_GetImageMemoryRequirements2(VkDevice device,
    V3DV_FROM_HANDLE(v3dv_image, image, pInfo->image);
 
    VkImageAspectFlagBits planeAspect = VK_IMAGE_ASPECT_NONE;
-   vk_foreach_struct_const(ext, pInfo->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct_const(sType, ext, pInfo->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO: {
          VkImagePlaneMemoryRequirementsInfo *req =
             (VkImagePlaneMemoryRequirementsInfo *) ext;
@@ -2684,7 +2684,7 @@ v3dv_GetImageMemoryRequirements2(VkDevice device,
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }
@@ -2895,8 +2895,8 @@ get_buffer_memory_requirements(struct v3dv_buffer *buffer,
       .size = align64(buffer->size + V3D_TFU_READAHEAD_SIZE, buffer->alignment),
    };
 
-   vk_foreach_struct(ext, pMemoryRequirements->pNext) {
-      switch (ext->sType) {
+   vk_foreach_struct(sType, ext, pMemoryRequirements->pNext) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS: {
          VkMemoryDedicatedRequirements *req =
             (VkMemoryDedicatedRequirements *) ext;
@@ -2905,7 +2905,7 @@ get_buffer_memory_requirements(struct v3dv_buffer *buffer,
          break;
       }
       default:
-         vk_debug_ignored_stype(ext->sType);
+         vk_debug_ignored_stype(sType);
          break;
       }
    }

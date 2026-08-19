@@ -273,8 +273,8 @@ static void unmap_object(uint64_t obj)
 static VkLayerInstanceCreateInfo *get_instance_chain_info(const VkInstanceCreateInfo *pCreateInfo,
                                                           VkLayerFunction func)
 {
-   vk_foreach_struct_const(item, pCreateInfo->pNext) {
-      if (item->sType == VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO &&
+   vk_foreach_struct_const(sType, item, pCreateInfo->pNext) {
+      if (sType == VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO &&
           ((VkLayerInstanceCreateInfo *) item)->function == func)
          return (VkLayerInstanceCreateInfo *) item;
    }
@@ -285,8 +285,8 @@ static VkLayerInstanceCreateInfo *get_instance_chain_info(const VkInstanceCreate
 static VkLayerDeviceCreateInfo *get_device_chain_info(const VkDeviceCreateInfo *pCreateInfo,
                                                       VkLayerFunction func)
 {
-   vk_foreach_struct_const(item, pCreateInfo->pNext) {
-      if (item->sType == VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO &&
+   vk_foreach_struct_const(sType, item, pCreateInfo->pNext) {
+      if (sType == VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO &&
           ((VkLayerDeviceCreateInfo *) item)->function == func)
          return (VkLayerDeviceCreateInfo *)item;
    }
@@ -309,8 +309,8 @@ clone_chain(const void *chain)
 {
    void *head = NULL, *tail = NULL;
 
-   vk_foreach_struct_const(item, chain) {
-      size_t item_size = vk_structure_type_size(item->sType);
+   vk_foreach_struct_const(sType, item, chain) {
+      size_t item_size = vk_structure_type_size(sType);
       if (item_size == 0) {
          free_chain(head);
          return NULL;

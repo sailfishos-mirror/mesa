@@ -991,9 +991,9 @@ vn_fix_command_buffer_begin_info(struct vn_command_buffer *cmd,
     */
    VkBaseOutStructure *head = NULL;
    VkBaseOutStructure *tail = NULL;
-   vk_foreach_struct_const(src, local->inheritance.pNext) {
+   vk_foreach_struct_const(sType, src, local->inheritance.pNext) {
       void *pnext = NULL;
-      switch (src->sType) {
+      switch (sType) {
       case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT:
          memcpy(
             &local->conditional_rendering, src,

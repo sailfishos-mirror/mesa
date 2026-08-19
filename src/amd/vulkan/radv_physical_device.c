@@ -3108,8 +3108,8 @@ radv_GetPhysicalDeviceQueueFamilyProperties2(VkPhysicalDevice physicalDevice, ui
    assert(*pCount <= 6);
 
    for (uint32_t i = 0; i < *pCount; i++) {
-      vk_foreach_struct (ext, pQueueFamilyProperties[i].pNext) {
-         switch (ext->sType) {
+      vk_foreach_struct (sType, ext, pQueueFamilyProperties[i].pNext) {
+         switch (sType) {
          case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
             VkQueueFamilyGlobalPriorityProperties *prop = (VkQueueFamilyGlobalPriorityProperties *)ext;
 
