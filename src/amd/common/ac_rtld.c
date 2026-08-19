@@ -310,6 +310,8 @@ bool ac_rtld_read_config(const struct ac_compiler_info *compiler_info,
 
       config->mem_ordered |= c.mem_ordered;
 
+      config->lds_size = MAX2(config->lds_size, c.lds_size);
+
       /* TODO: Should we combine these somehow? It's currently only
        * used for radeonsi's compute, where multiple parts aren't used. */
       assert(config->rsrc1 == 0 && config->rsrc2 == 0);
