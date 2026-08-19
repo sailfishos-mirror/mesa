@@ -366,7 +366,8 @@ nv30_screen_is_format_supported(struct pipe_screen *pscreen,
    .force_indirect_unrolling = nir_var_all,\
    .force_indirect_unrolling_sampler = true,\
    .max_unroll_iterations = 32,\
-   .no_integers = true
+   .no_integers = true, \
+   .fdot_replicates = true
 
 // VERTEX
 
