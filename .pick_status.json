@@ -404,7 +404,7 @@
         "description": "wsi/metal: fix memoryTypeIndex in image memory allocation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "39a7d65113c6df7d1da6e88b16fab0686db6fc83",
         "notes": null
