@@ -2374,7 +2374,7 @@ impl DisplayOp for OpLdAttr {
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} {} {}",
+            " {} {} {}",
             self.fmt_src(&self.vertex_index),
             self.fmt_src(&self.instance_index),
             self.fmt_handle_src(&self.handle),
@@ -2656,7 +2656,7 @@ impl DisplayOp for OpLoad {
         write!(
             f,
             "{}{} {} #{}",
-            bool_as_mod_str!(self.is_tls, "tls"),
+            bool_as_mod_str!(self.is_tls, ".tls"),
             self.access,
             self.fmt_src(&self.addr),
             self.offset,
@@ -3460,8 +3460,8 @@ impl DisplayOp for OpStore {
         write!(
             f,
             "{}{}{} {} {} #{}",
-            bool_as_mod_str!(self.is_tls, "tls"),
-            bool_as_mod_str!(self.is_psiz, "psiz"),
+            bool_as_mod_str!(self.is_tls, ".tls"),
+            bool_as_mod_str!(self.is_psiz, ".psiz"),
             self.access,
             self.fmt_src(&self.data),
             self.fmt_src(&self.addr),

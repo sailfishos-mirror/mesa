@@ -455,7 +455,7 @@ pub struct RegRef {
 
 impl fmt::Display for RegRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "r{}", self.idx)?;
+        self.fmt_base(f)?;
 
         match &self.range {
             RegRange::Byte0 => write!(f, ".b0"),
@@ -475,6 +475,10 @@ impl fmt::Display for RegRef {
 }
 
 impl RegRef {
+    fn fmt_base(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "r{}", self.idx)
+    }
+
     pub fn bytes(&self) -> u8 {
         self.range.bytes()
     }
@@ -835,7 +839,11 @@ pub struct FmtSrc<'a> {
 impl fmt::Display for FmtSrc<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let lu = if self.src.last_use { "^" } else { "" };
-        write!(f, "{}{lu}", self.src.src_ref)?;
+        match &self.src.src_ref {
+            SrcRef::Reg(reg) => reg.fmt_base(f)?,
+            src_ref => write!(f, "{src_ref}")?,
+        }
+        write!(f, "{lu}")?;
         if let Some(asm_swz) =
             AsmSwizzleWiden::from_swizzle(self.src_type, self.src.swizzle)
         {
@@ -1315,7 +1323,11 @@ pub struct Dst {
 
 impl fmt::Display for Dst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", &self.dst_ref, &self.lanes)
+        match &self.dst_ref {
+            DstRef::Reg(reg) => reg.fmt_base(f)?,
+            dst_ref => write!(f, "{dst_ref}")?,
+        }
+        write!(f, "{}", self.lanes)
     }
 }
 
