@@ -51,6 +51,14 @@ struct vk_pnext_iterator {
    bool done;
 };
 
+#define VK_PNEXT_OFFSET offsetof(VkBaseOutStructure, pNext)
+
+static inline void
+vk_pnext_set_next(void *s, void *next)
+{
+   memcpy((char *)s + VK_PNEXT_OFFSET, &next, sizeof(next));
+}
+
 static inline struct vk_pnext_iterator
 vk_pnext_iterator_init(void *start)
 {
@@ -278,13 +286,11 @@ __vk_find_struct(void *start, VkStructureType sType)
 static inline void
 __vk_append_struct(void *start, void *element)
 {
-   vk_foreach_struct(s, start) {
-      if (s->pNext)
-         continue;
-
-      s->pNext = (struct VkBaseOutStructure *) element;
-      break;
-   }
+   void *tail = NULL;
+   vk_foreach_struct(s, start)
+      tail = s;
+   assert(tail);
+   vk_pnext_set_next(tail, element);
 }
 
 uint32_t vk_get_driver_version(void);
