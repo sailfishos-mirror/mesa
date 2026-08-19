@@ -34,6 +34,9 @@ struct Arena {
     /// True if this is a memory register file
     is_mem: bool,
 
+    /// True if this arena wants round-robin allocation
+    round_robin: bool,
+
     /// For memory, the offset into the TLS where we can start allocating
     tls_offset: u16,
 
@@ -56,6 +59,7 @@ impl Arena {
             used: 0.into(),
             granularity,
             is_mem: false,
+            round_robin: true,
             tls_offset: 0,
             is_v9_32reg: model.arch() < 15 && limit <= 32 * 4,
             is_v9_64reg: model.arch() < 15 && limit > 32 * 4,
@@ -73,6 +77,7 @@ impl Arena {
             used: 0.into(),
             granularity,
             is_mem: true,
+            round_robin: false,
             tls_offset: tls_start.next_multiple_of(granularity.into()),
             is_v9_32reg: false,
             is_v9_64reg: false,
@@ -492,6 +497,47 @@ impl std::ops::BitOrAssign for RegAlignConstraint {
     }
 }
 
+struct WrapOnceCounter {
+    start: usize,
+    limit: usize,
+    cur: usize,
+}
+
+impl WrapOnceCounter {
+    fn new(mut start: usize, limit: usize) -> WrapOnceCounter {
+        if start >= limit {
+            assert!(start == limit);
+            start = 0;
+        }
+        WrapOnceCounter {
+            start,
+            limit,
+            cur: start,
+        }
+    }
+
+    fn get(&self) -> Option<usize> {
+        if self.limit == 0 {
+            None
+        } else {
+            Some(self.cur)
+        }
+    }
+
+    /// Advance the counter forwards, returns false if we hit the end
+    fn advance(&mut self, val: usize) {
+        debug_assert!(val > self.cur);
+        if val < self.limit {
+            self.cur = val;
+        } else {
+            // Otherwise, wrap around
+            self.limit = self.start;
+            self.start = 0;
+            self.cur = 0;
+        }
+    }
+}
+
 struct LocalRegAlloc<'a> {
     model: &'a dyn Model,
 
@@ -508,6 +554,9 @@ struct LocalRegAlloc<'a> {
     /// marked used.
     byte_idx: Vec<u32>,
 
+    /// When searching for a free byte range, the byte to start at.
+    search_start: std::cell::Cell<u16>,
+
     /// Bitset of bytes currently pinned.
     pinned: BitSet<usize>,
 }
@@ -522,6 +571,7 @@ impl LocalRegAlloc<'_> {
             used: Default::default(),
             idx_bytes: Default::default(),
             byte_idx,
+            search_start: 0.into(),
             pinned: Default::default(),
         }
     }
@@ -682,19 +732,22 @@ impl LocalRegAlloc<'_> {
         // First, loop through unused registers in the hopes that one of them
         // ends up having cost 0
         let (align_mul, align_offset) = align.max_align();
-        let max = usize::from(self.arena.limit()) - usize::from(bytes);
-        let mut start = 0;
-        loop {
+        let mut cur = WrapOnceCounter::new(
+            usize::from(self.search_start.get()),
+            usize::from(self.arena.limit()),
+        );
+        while let Some(start) = cur.get() {
             let b = self.find_aligned_unused_unpinned_range(
                 start,
                 usize::from(bytes),
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
-            if b > max {
-                break;
+            cur.advance(b + usize::from(align_mul));
+
+            if b + usize::from(bytes) > usize::from(self.arena.limit()) {
+                continue;
             }
-            start = b + usize::from(align_mul);
 
             if !align.satisfied(b) {
                 continue;
@@ -715,18 +768,22 @@ impl LocalRegAlloc<'_> {
 
         // This is the bad case.  Loop through all unpinned bytes, ignoring
         // used bytes and check them all.
-        let mut start = 0;
-        loop {
+        let mut cur = WrapOnceCounter::new(
+            usize::from(self.search_start.get()),
+            usize::from(self.arena.limit()),
+        );
+        while let Some(start) = cur.get() {
             let b = self.pinned.find_aligned_unset_range(
                 start,
                 usize::from(bytes),
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
-            if b > max {
-                break;
+            cur.advance(b + usize::from(align_mul));
+
+            if b + usize::from(bytes) > usize::from(self.arena.limit()) {
+                continue;
             }
-            start = b + usize::from(align_mul);
 
             if !align.satisfied(b) {
                 continue;
@@ -759,6 +816,9 @@ impl LocalRegAlloc<'_> {
         let b = self
             .find_unpinned_bytes(bytes, align, cost_fn)
             .expect("Out of registers!");
+        if self.arena.round_robin {
+            self.search_start.set(b + u16::from(bytes));
+        }
         b..(b + u16::from(bytes))
     }
 
