@@ -1737,12 +1737,8 @@ impl Shader<'_> {
 
         let mut reg_limit: u16 = if DEBUG.contains(DebugFlags::SPILL) {
             16 * 4
-        } else if self.model.arch() >= 15 {
-            128 * 4
-        } else if self.model.arch() >= 9 {
-            64 * 4
         } else {
-            panic!("Unknown GPU generation");
+            u16::from(self.model.max_reg_count()) * 4
         };
 
         let mut live = SimpleLiveness::for_shader(self);

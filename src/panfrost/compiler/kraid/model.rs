@@ -88,6 +88,8 @@ pub trait Model {
     }
 
     fn max_threads(&self, registers_used: u8) -> u8;
+
+    fn max_reg_count(&self) -> u8;
 }
 
 struct ValhallModel {
@@ -298,6 +300,11 @@ impl Model for ValhallModel {
 
     fn max_threads(&self, registers_used: u8) -> u8 {
         64 / registers_used.max(32)
+    }
+
+    fn max_reg_count(&self) -> u8 {
+        debug_assert!(self.arch() >= 9, "Unknown GPU generation");
+        if self.arch() >= 15 { 128 } else { 64 }
     }
 }
 
