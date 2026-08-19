@@ -675,7 +675,7 @@ impl LocalRegAlloc<'_> {
         &self,
         bytes: u8,
         align: RegAlignConstraint,
-        cost: impl Fn(u16) -> u8,
+        cost_fn: impl Fn(u16) -> u8,
     ) -> Option<u16> {
         let mut best = (u16::MAX, u8::MAX);
 
@@ -705,7 +705,7 @@ impl LocalRegAlloc<'_> {
                 continue;
             }
 
-            let c = cost(b);
+            let c = cost_fn(b);
             if c == 0 {
                 return Some(b);
             } else if c < best.1 {
@@ -737,7 +737,7 @@ impl LocalRegAlloc<'_> {
                 continue;
             }
 
-            let c = cost(b);
+            let c = cost_fn(b);
             if c < best.1 {
                 best = (b, c);
             }
@@ -750,12 +750,30 @@ impl LocalRegAlloc<'_> {
         }
     }
 
-    fn choose_aligned_bytes(&self, bytes: u8) -> Range<u16> {
-        let align = RegAlignConstraint::for_align(bytes, 0);
+    fn choose_bytes(
+        &self,
+        bytes: u8,
+        align: RegAlignConstraint,
+        cost_fn: impl Fn(u16) -> u8,
+    ) -> Range<u16> {
         let b = self
-            .find_unpinned_bytes(bytes, align, |_| 0)
+            .find_unpinned_bytes(bytes, align, cost_fn)
             .expect("Out of registers!");
         b..(b + u16::from(bytes))
+    }
+
+    fn choose_aligned_bytes(&self, bytes: u8) -> Range<u16> {
+        let align = RegAlignConstraint::for_align(bytes, 0);
+        self.choose_bytes(bytes, align, |_| 0)
+    }
+
+    fn choose_ssa_ref_bytes(
+        &self,
+        vec: &SSARef,
+        align: RegAlignConstraint,
+        cost_fn: impl Fn(u16) -> u8,
+    ) -> Range<u16> {
+        self.choose_bytes(vec.bytes(), align, cost_fn)
     }
 
     fn choose_src_bytes(
@@ -772,16 +790,13 @@ impl LocalRegAlloc<'_> {
         }
 
         let bytes = vec.bytes();
-        let cost_fn = |b: u16| {
+        self.choose_ssa_ref_bytes(vec, align, |b| {
             let bytes = b..(b + u16::from(bytes));
             src_bytes
                 .count_set_in_range(bytes.start.into()..bytes.end.into())
                 .try_into()
                 .unwrap_or(u8::MAX)
-        };
-
-        let b = self.find_unpinned_bytes(bytes, align, cost_fn).unwrap();
-        b..(b + u16::from(bytes))
+        })
     }
 
     fn choose_dst_bytes(
@@ -791,24 +806,20 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
     ) -> Range<u16> {
         let ssa_bytes = vec.bytes();
-        let b = if vec.comps() == 1 {
+        if vec.comps() == 1 {
             debug_assert!(ssa_bytes <= bytes && bytes <= 4);
-
-            let cost_fn = |b: u16| {
+            self.choose_ssa_ref_bytes(vec, align, |b| {
                 let bytes = aligned_u16_range(b, bytes.into());
                 debug_assert!(b + u16::from(ssa_bytes) <= bytes.end);
                 self.used
                     .count_set_in_range(bytes.start.into()..bytes.end.into())
                     .try_into()
                     .unwrap_or(u8::MAX)
-            };
-
-            self.find_unpinned_bytes(ssa_bytes, align, cost_fn).unwrap()
+            })
         } else {
             debug_assert_eq!(ssa_bytes, bytes);
-            self.find_unpinned_bytes(bytes, align, |_| 0).unwrap()
-        };
-        b..(b + u16::from(ssa_bytes))
+            self.choose_ssa_ref_bytes(vec, align, |_| 0)
+        }
     }
 
     fn alloc_regs_instr(
