@@ -25,10 +25,10 @@ interpolated_src_from_intrin(struct nir_builder *b, nir_intrinsic_instr *bary,
          return nir_imm_zero(b, 1, 32);
       case nir_intrinsic_load_barycentric_centroid:
          *loc = PAN_SAMPLE_LOC_CENTROID;
-         return nir_load_raster_sample_centroid_pan(b);
+         return nir_load_sample_centroid_pan(b);
       case nir_intrinsic_load_barycentric_sample:
          *loc = PAN_SAMPLE_LOC_SAMPLE;
-         return nir_load_raster_sample_centroid_pan(b);
+         return nir_load_sample_centroid_pan(b);
       case nir_intrinsic_load_barycentric_at_sample:
          *loc = PAN_SAMPLE_LOC_SAMPLE;
 

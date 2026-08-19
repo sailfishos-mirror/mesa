@@ -1518,9 +1518,9 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_CUMULATIVE_COVERAGE));
       break;
 
-   case nir_intrinsic_load_raster_sample_centroid_pan:
-      /* They're all the same register */
-      bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_RASTERIZER_COVERAGE));
+   case nir_intrinsic_load_sample_centroid_pan:
+      /* They're the same register */
+      bi_mov_i32_to(b, dst, bi_preload(b, BI_PRELOAD_SAMPLE_ID));
       break;
 
    case nir_intrinsic_load_blend_descriptor_pan: {
