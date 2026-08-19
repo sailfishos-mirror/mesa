@@ -445,9 +445,12 @@ radv_set_vs_output_param(enum amd_gfx_level gfx_level, const struct nir_shader *
    struct radv_vs_output_info *outinfo = &info->outinfo;
    uint64_t per_vtx_mask, per_prim_mask;
 
-   radv_get_output_masks(nir, gfx_state, &per_vtx_mask, &per_prim_mask);
-
    memset(outinfo->vs_output_param_offset, AC_EXP_PARAM_UNDEFINED, sizeof(outinfo->vs_output_param_offset));
+
+   if (gfx_state->rs.rasterizer_discard)
+      return;
+
+   radv_get_output_masks(nir, gfx_state, &per_vtx_mask, &per_prim_mask);
 
    /* Implicit primitive ID for VS and TES is added by ac_nir_lower_legacy_vs / ac_nir_lower_ngg,
     * it can be configured as either a per-vertex or per-primitive output depending on the GPU.
