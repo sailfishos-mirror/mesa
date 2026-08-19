@@ -259,7 +259,7 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
-   case SpvOpCooperativeMatrixReduceNV: {
+   case SpvOpCooperativeMatrixReduceEXT: {
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
 
@@ -267,7 +267,7 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
 
       reduce_fn->referenced = true;
       reduce_fn->nir_func->cmat_call = true;
-      nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_reduce_nv");
+      nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_reduce");
       nir_cmat_call_instr *call = nir_cmat_call_instr_create(b->nb.shader, nir_cmat_call_op_reduce, reduce_fn->nir_func);
       call->params[0] = nir_src_for_ssa(&dst->def);
       call->params[1] = nir_src_for_ssa(&src->def);
@@ -277,7 +277,7 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
-   case SpvOpCooperativeMatrixPerElementOpNV: {
+   case SpvOpCooperativeMatrixPerElementOpEXT: {
       struct vtn_type *dst_type = vtn_get_type(b, w[1]);
       nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
 
@@ -285,7 +285,7 @@ vtn_handle_cooperative_instruction(struct vtn_builder *b, SpvOp opcode,
 
       per_element_fn->referenced = true;
       per_element_fn->nir_func->cmat_call = true;
-      nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_per_element_nv");
+      nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_per_element");
 
       nir_cmat_call_instr *call = nir_cmat_call_instr_create(b->nb.shader, nir_cmat_call_op_per_element_op, per_element_fn->nir_func);
       call->params[0] = nir_src_for_ssa(&dst->def);

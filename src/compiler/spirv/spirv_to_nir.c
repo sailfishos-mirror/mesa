@@ -7524,10 +7524,10 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpCooperativeMatrixLengthKHR:
    case SpvOpCooperativeMatrixMulAddKHR:
    case SpvOpCooperativeMatrixGetCoordinateEXT:
+   case SpvOpCooperativeMatrixReduceEXT:
+   case SpvOpCooperativeMatrixPerElementOpEXT:
    case SpvOpCooperativeMatrixConvertNV:
    case SpvOpCooperativeMatrixTransposeNV:
-   case SpvOpCooperativeMatrixReduceNV:
-   case SpvOpCooperativeMatrixPerElementOpNV:
    case SpvOpCooperativeMatrixLoadTensorNV:
    case SpvOpCooperativeMatrixStoreTensorNV:
       vtn_handle_cooperative_instruction(b, opcode, w, count);
