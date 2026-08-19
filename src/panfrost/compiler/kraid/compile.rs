@@ -234,6 +234,7 @@ pub extern "C" fn kraid_compile_nir(
     // they've completed.
     pass!(s.assign_message_slots());
     pass!(s.mark_reconvergence());
+    pass!(s.opt_end());
 
     info.stats = s.get_stats();
 
