@@ -59,6 +59,14 @@ vk_pnext_set_next(void *s, void *next)
    memcpy((char *)s + VK_PNEXT_OFFSET, &next, sizeof(next));
 }
 
+static inline void *
+vk_pnext_get_next(const void *s)
+{
+   void *next;
+   memcpy(&next, (const char *)s + VK_PNEXT_OFFSET, sizeof(next));
+   return next;
+}
+
 static inline struct vk_pnext_iterator
 vk_pnext_iterator_init(void *start)
 {
