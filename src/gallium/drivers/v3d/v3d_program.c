@@ -578,6 +578,39 @@ v3d_setup_shared_key(struct v3d_context *v3d, struct v3d_key *key,
         key->robust_storage_access = v3d->robust_buffer;
 }
 
+/* Returns the polygon mode the primitive will be rasterized with.
+ *
+ * The hardware only supports a single polygon mode for both faces, and
+ * v3dX(emit_state) uses the front one unless front faces are culled, so do
+ * the same here.
+ */
+static unsigned
+v3d_polygon_mode(struct v3d_context *v3d, uint8_t prim_mode)
+{
+        if (u_reduced_prim(prim_mode) != MESA_PRIM_TRIANGLES)
+                return PIPE_POLYGON_MODE_FILL;
+
+        const struct pipe_rasterizer_state *rast = &v3d->rasterizer->base;
+
+        return (rast->cull_face & PIPE_FACE_FRONT) ? rast->fill_back
+                                                   : rast->fill_front;
+}
+
+static bool
+v3d_rasterizes_points(struct v3d_context *v3d, uint8_t prim_mode)
+{
+        return prim_mode == MESA_PRIM_POINTS ||
+               v3d_polygon_mode(v3d, prim_mode) == PIPE_POLYGON_MODE_POINT;
+}
+
+static bool
+v3d_rasterizes_lines(struct v3d_context *v3d, uint8_t prim_mode)
+{
+        return (prim_mode >= MESA_PRIM_LINES &&
+                prim_mode <= MESA_PRIM_LINE_STRIP) ||
+               v3d_polygon_mode(v3d, prim_mode) == PIPE_POLYGON_MODE_LINE;
+}
+
 static void
 v3d_update_compiled_fs(struct v3d_context *v3d, enum mesa_prim prim_mode)
 {
@@ -601,9 +634,8 @@ v3d_update_compiled_fs(struct v3d_context *v3d, enum mesa_prim prim_mode)
         memset(key, 0, sizeof(*key));
         v3d_setup_shared_key(v3d, &key->base, &v3d->tex[MESA_SHADER_FRAGMENT]);
         key->ucp_enables = v3d->rasterizer->base.clip_plane_enable;
-        key->is_points = (prim_mode == MESA_PRIM_POINTS);
-        key->is_lines = (prim_mode >= MESA_PRIM_LINES &&
-                         prim_mode <= MESA_PRIM_LINE_STRIP);
+        key->is_points = v3d_rasterizes_points(v3d, prim_mode);
+        key->is_lines = v3d_rasterizes_lines(v3d, prim_mode);
         key->line_smoothing = (key->is_lines &&
                                v3d_line_smoothing_enabled(v3d));
         key->has_gs = v3d->prog.bind_gs != NULL;
