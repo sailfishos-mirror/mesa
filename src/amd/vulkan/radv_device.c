@@ -1269,6 +1269,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .gfx10_descriptor_alias_robust =
                pdev->drirc.debug.gfx10_descriptor_alias_robust && pdev->info.gfx_level == GFX10,
             .nir_debug_info = RADV_DEBUG(instance, NIR_DEBUG_INFO),
+            .use_elf = !!(instance->experimental_flags & RADV_EXPERIMENTAL_ELF) && AMD_LLVM_AVAILABLE,
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */
             .family = pdev->use_llvm ? pdev->info.family : CHIP_UNKNOWN,

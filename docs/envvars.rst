@@ -1642,6 +1642,8 @@ RADV driver environment variables
       enable experimental video decoding support on GFX6-9
    ``video_encode``
       enable experimental video encoding support on GFX6-9
+   ``elf``
+      Use the ELF format internally for shader binaries. Requires RADV to be compiled with LLVM support.
 
 .. envvar:: RADV_TEX_ANISO
 

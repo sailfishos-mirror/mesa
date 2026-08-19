@@ -2287,8 +2287,10 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
          return false;
       }
 
-      /* Calculate LDS allocation requirements. */
-      config->lds_size = radv_calculate_lds_size(&binary->info, compiler_info->ac->gfx_level);
+      /* Calculate LDS allocation requirements. The ELF's LDS size can be too small for LLVM, but ACO might use LDS for
+       * VGPR spilling. */
+      unsigned lds_size = radv_calculate_lds_size(&binary->info, compiler_info->ac->gfx_level);
+      config->lds_size = MAX2(config->lds_size, lds_size);
 
       ac_rtld_close(&rtld_binary);
 #endif
@@ -3052,15 +3054,20 @@ radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, con
 
       const char *disasm_data;
       size_t disasm_size;
-      if (!ac_rtld_get_section_by_name(&rtld_binary, ".AMDGPU.disasm", &disasm_data, &disasm_size)) {
-         ac_rtld_close(&rtld_binary);
-         return VK_ERROR_UNKNOWN;
+      if (ac_rtld_get_section_by_name(&rtld_binary, ".AMDGPU.disasm", &disasm_data, &disasm_size)) {
+         dbg->disasm_string = malloc(disasm_size + 1);
+         memcpy(dbg->disasm_string, disasm_data, disasm_size);
+         dbg->disasm_string[disasm_size] = 0;
+      }
+
+      const char *stats_data;
+      size_t stats_size;
+      if (ac_rtld_get_section_by_name(&rtld_binary, ".ACO.stats", &stats_data, &stats_size)) {
+         dbg->statistics = malloc(stats_size);
+         memcpy(dbg->statistics, stats_data, stats_size);
       }
 
       dbg->ir_string = bin->llvm_ir_size ? strdup((const char *)(bin->data + bin->elf_size)) : NULL;
-      dbg->disasm_string = malloc(disasm_size + 1);
-      memcpy(dbg->disasm_string, disasm_data, disasm_size);
-      dbg->disasm_string[disasm_size] = 0;
 
       ac_rtld_close(&rtld_binary);
 #endif
@@ -3432,6 +3439,26 @@ radv_aco_build_shader_binary(void **bin, const aco_callback_params *params)
    *binary = (struct radv_shader_binary *)legacy_binary;
 }
 
+struct build_binary_elf_args {
+   const struct ac_compiler_info *compiler_info;
+   struct radv_shader_binary_rtld *binary;
+};
+
+static void
+radv_aco_build_shader_binary_elf(void **bin, const aco_callback_params *params)
+{
+   struct build_binary_elf_args *args = (struct build_binary_elf_args *)bin;
+
+   size_t size = aco_create_elf(args->compiler_info, params, sizeof(struct radv_shader_binary_rtld), params->ir_size,
+                                (void **)&args->binary);
+
+   args->binary->base.type = RADV_BINARY_TYPE_RTLD;
+   args->binary->base.total_size = sizeof(struct radv_shader_binary_rtld) + size + params->ir_size;
+   args->binary->elf_size = size;
+   args->binary->llvm_ir_size = params->ir_size;
+   memcpy(args->binary->data + args->binary->elf_size, params->ir_str, params->ir_size);
+}
+
 static void
 radv_fill_llvm_compiler_options(struct radv_llvm_compiler_options *options,
                                 const struct radv_compiler_info *compiler_info, bool should_use_wgp,
@@ -3517,8 +3544,17 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
       struct aco_compiler_options ac_opts;
       radv_aco_fill_compiler_options(&ac_opts, compiler_info, &pl_stage->key, gfx_state, wgp_mode, dump_shader);
       radv_aco_convert_shader_info(&ac_info, info, args, compiler_info);
-      aco_compile_shader(&ac_opts, &ac_info, shader_count, shaders, &args->ac, &radv_aco_build_shader_binary,
-                         (void **)&binary);
+
+      if (compiler_info->key.use_elf) {
+         struct build_binary_elf_args elf;
+         elf.compiler_info = compiler_info->ac;
+         aco_compile_shader(&ac_opts, &ac_info, shader_count, shaders, &args->ac, &radv_aco_build_shader_binary_elf,
+                            (void **)&elf);
+         binary = &elf.binary->base;
+      } else {
+         aco_compile_shader(&ac_opts, &ac_info, shader_count, shaders, &args->ac, &radv_aco_build_shader_binary,
+                            (void **)&binary);
+      }
    }
 
    binary->info = *info;
