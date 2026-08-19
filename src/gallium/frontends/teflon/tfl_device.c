@@ -400,10 +400,32 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->type = PIPE_ML_OPERATION_TYPE_SUBTRACT;
       break;
    case kTfLiteBuiltinTranspose: {
-      int32_t *perm = tf_context->tensors[node->inputs->data[1]].data.data;
+      TfLiteTensor *input_tensor;
+      TfLiteTensor *perm_tensor;
+      int32_t *perm;
+      unsigned rank;
+
+      if (node->inputs->size != 2 || node->outputs->size != 1)
+         return false;
+
+      input_tensor = &tf_context->tensors[node->inputs->data[0]];
+      perm_tensor = &tf_context->tensors[node->inputs->data[1]];
+      rank = input_tensor->dims->size;
+      if (rank < 1 || rank > 4 || perm_tensor->type != kTfLiteInt32 ||
+          !perm_tensor->data.i32 || perm_tensor->bytes < rank * sizeof(int32_t) ||
+          tensor_data_size(*perm_tensor) != rank * sizeof(int32_t))
+         return false;
+
+      perm = perm_tensor->data.i32;
 
       operation->type = PIPE_ML_OPERATION_TYPE_TRANSPOSE;
-      memcpy(operation->transpose.perm, perm, 4 * sizeof(*operation->transpose.perm));
+      for (unsigned i = 0; i < 4 - rank; i++)
+         operation->transpose.perm[i] = i;
+      for (unsigned i = 0; i < rank; i++) {
+         if (perm[i] < 0 || perm[i] >= rank)
+            return false;
+         operation->transpose.perm[4 - rank + i] = perm[i] + 4 - rank;
+      }
       break;
    }
    case kTfLiteBuiltinStridedSlice: {
