@@ -573,6 +573,16 @@ impl LocalRegAlloc<'_> {
         unused
     }
 
+    fn is_aligned_unpinned_range(
+        &self,
+        bytes: Range<u16>,
+        align: RegAlignConstraint,
+    ) -> bool {
+        align.satisfied(bytes.start.into())
+            && self.arena.is_contiguous(bytes.clone())
+            && self.bytes_are_unpinned(bytes)
+    }
+
     fn find_unpinned_bytes(
         &self,
         bytes: u8,
@@ -668,10 +678,7 @@ impl LocalRegAlloc<'_> {
     ) -> Range<u16> {
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
-            if align.satisfied(vec_bytes.start.into())
-                && self.arena.is_contiguous(vec_bytes.clone())
-                && self.bytes_are_unpinned(vec_bytes.clone())
-            {
+            if self.is_aligned_unpinned_range(vec_bytes.clone(), align) {
                 return vec_bytes;
             }
         }
