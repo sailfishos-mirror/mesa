@@ -111,6 +111,9 @@ def declare_options():
         S("radv_gfx12_hiz_wa",
           description="Choose the specific HiZ workaround to apply on GFX12 (RDNA4). Accepted values are: disabled, partial or full",
           c_name="gfx12_hiz_wa"),
+        B("radv_force_exclusive_image", False,
+          description="Force using exclusive images for apps that incorrectly use concurrent for everything.",
+          c_name="force_exclusive_image"),
     ]
 
     features_options = [
