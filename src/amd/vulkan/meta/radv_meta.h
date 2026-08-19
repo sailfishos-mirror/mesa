@@ -200,7 +200,7 @@ void radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBi
                                 VkPipelineLayout _layout, uint32_t num_descriptors,
                                 const VkDescriptorGetInfoEXT *descriptors);
 
-VkImageViewType radv_meta_get_view_type(const struct radv_image *image);
+VkImageViewType radv_meta_get_view_type(const struct radv_image *image, bool use_2d_array_for_3d);
 
 static inline VkFormat
 radv_meta_get_96bit_channel_format(VkFormat format)
