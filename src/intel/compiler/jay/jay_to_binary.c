@@ -463,8 +463,11 @@ emit(struct jay_codegen *jc,
       /* Quad swizzle can get split down to SIMD4 even on Xe2 where we don't
        * have NibCtrl, but those cases use NoMask so it doesn't matter.
        */
-      assert(gen->chan_offset == 0 || gen->no_mask);
-      gen->chan_offset = 0;
+      if (gen->chan_offset % 8) {
+         assert(gen->no_mask);
+         gen->chan_offset = 0;
+      }
+
       gen->src[0] = quad_swizzle(jc->devinfo, gen->src[0], I);
       break;
 
