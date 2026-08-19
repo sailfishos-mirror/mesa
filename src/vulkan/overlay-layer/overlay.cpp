@@ -310,7 +310,7 @@ clone_chain(const void *chain)
    void *head = NULL, *tail = NULL;
 
    vk_foreach_struct_const(item, chain) {
-      size_t item_size = vk_structure_type_size(item);
+      size_t item_size = vk_structure_type_size(item->sType);
       if (item_size == 0) {
          free_chain(head);
          return NULL;
