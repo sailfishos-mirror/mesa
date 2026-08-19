@@ -124,6 +124,10 @@ struct kk_fs_key {
    uint16_t static_sample_mask;
    bool sample_shading_enable;
    bool has_depth;
+   bool has_stencil;
+   bool dynamic_input_attachment_map;
+   uint8_t depth_input_att;
+   uint8_t stencil_input_att;
 };
 
 static void
@@ -152,6 +156,16 @@ kk_populate_fs_key(struct kk_fs_key *key,
 
    /* Depth writes are removed unless there's an actual attachment */
    key->has_depth = state->rp->depth_attachment_format != VK_FORMAT_UNDEFINED;
+   key->has_stencil =
+      state->rp->stencil_attachment_format != VK_FORMAT_UNDEFINED;
+
+   /* Values that modify if a forced depth is present or not */
+   key->depth_input_att =
+      state->ial ? state->ial->depth_att : MESA_VK_ATTACHMENT_NO_INDEX;
+   key->stencil_input_att =
+      state->ial ? state->ial->stencil_att : MESA_VK_ATTACHMENT_NO_INDEX;
+   key->dynamic_input_attachment_map =
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_INPUT_ATTACHMENT_MAP);
 }
 
 enum kk_feature_key {
@@ -579,6 +593,82 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
    }
 }
 
+static bool
+kk_fs_reads_input_attachment(const nir_shader *nir, uint32_t depth_att,
+                             uint32_t stencil_att, bool indices_known)
+{
+   nir_foreach_function_impl(impl, nir) {
+      nir_foreach_block(block, impl) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            const nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+            if (intr->intrinsic != nir_intrinsic_image_deref_load &&
+                intr->intrinsic != nir_intrinsic_image_deref_sparse_load)
+               continue;
+
+            nir_deref_instr *deref = nir_src_as_deref(intr->src[0u]);
+            enum glsl_sampler_dim dim = glsl_get_sampler_dim(deref->type);
+            if (dim != GLSL_SAMPLER_DIM_SUBPASS &&
+                dim != GLSL_SAMPLER_DIM_SUBPASS_MS)
+               continue;
+
+            nir_variable *var = nir_deref_instr_get_variable(deref);
+            if (!indices_known || var == NULL || var->data.index == depth_att ||
+                var->data.index == stencil_att)
+               return true;
+         }
+      }
+   }
+
+   return false;
+}
+
+static bool
+kk_fs_needs_forced_depth_write(const nir_shader *nir,
+                               const struct vk_graphics_pipeline_state *state)
+{
+   const struct vk_input_attachment_location_state *ial = state->ial;
+   if (ial == NULL)
+      return false;
+
+   const bool has_depth_ia =
+      state->rp->depth_attachment_format != VK_FORMAT_UNDEFINED &&
+      ial->depth_att != MESA_VK_ATTACHMENT_NO_INDEX;
+   const bool has_stencil_ia =
+      state->rp->stencil_attachment_format != VK_FORMAT_UNDEFINED &&
+      ial->stencil_att != MESA_VK_ATTACHMENT_NO_INDEX;
+
+   if (!has_depth_ia && !has_stencil_ia)
+      return false;
+
+   if (has_static_depth_stencil_state(state)) {
+      const struct vk_depth_stencil_state *ds = state->ds;
+
+      const bool writes_depth =
+         has_depth_ia && ds->depth.test_enable && ds->depth.write_enable;
+      const bool writes_stencil =
+         has_stencil_ia && ds->stencil.test_enable &&
+         ds->stencil.write_enable &&
+         (ds->stencil.front.write_mask | ds->stencil.back.write_mask);
+
+      if (!writes_depth && !writes_stencil)
+         return false;
+   }
+
+   const uint32_t depth_att =
+      has_depth_ia ? ial->depth_att : NIR_VARIABLE_NO_INDEX;
+   const uint32_t stencil_att =
+      has_stencil_ia ? ial->stencil_att : NIR_VARIABLE_NO_INDEX;
+
+   const bool indices_known =
+      !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_INPUT_ATTACHMENT_MAP);
+
+   return kk_fs_reads_input_attachment(nir, depth_att, stencil_att,
+                                       indices_known);
+}
+
 static void
 kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
              const struct vk_pipeline_robustness_state *rs,
@@ -613,10 +703,13 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, kk_nir_lower_fs_multiview, state->mv->view_mask);
 
-      if (state->rp->depth_attachment_format != VK_FORMAT_UNDEFINED &&
-          state->ial && state->ial->depth_att != MESA_VK_ATTACHMENT_NO_INDEX) {
+      /* Run before nir_lower_input_attachments() below, which rewrites the
+       * subpass loads it looks for. */
+      if (kk_fs_needs_forced_depth_write(nir, state))
          NIR_PASS(_, nir, msl_ensure_depth_write);
-      }
+
+      const nir_input_attachment_options input_attachment_options = {};
+      NIR_PASS(_, nir, nir_lower_input_attachments, &input_attachment_options);
    }
 
    const struct lower_ycbcr_state ycbcr_state = {

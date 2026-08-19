@@ -2249,10 +2249,6 @@ msl_preprocess_nir(struct nir_shader *nir)
     * PositiveShaderImageAccess.UndefImage */
    NIR_PASS(_, nir, nir_opt_dce);
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      nir_input_attachment_options input_attachment_options = {};
-      NIR_PASS(_, nir, nir_lower_input_attachments, &input_attachment_options);
-   }
    NIR_PASS(_, nir, nir_opt_combine_barriers, NULL, NULL);
    NIR_PASS(_, nir, nir_lower_var_copies);
    NIR_PASS(_, nir, nir_split_var_copies);
