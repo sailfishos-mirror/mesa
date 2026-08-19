@@ -3267,20 +3267,6 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
 
-   /* Layered indirect draw (VK_EXT_shader_viewport_index_layer) needs
-    * additional changes. We allow layer_count == 0 because that happens
-    * when mixing dynamic rendering and secondary command buffers. Once
-    * we decide to support layared+indirect, we'll need to pass the
-    * layer_count info through the tiler descriptor, for instance by
-    * re-using one of the word that's flagged 'ignored' in the descriptor
-    * (word 14:23).
-    *
-    * Multiview layer count is always lower or equal than the amount of
-    * layers one TD can fit. Therefore, layered rendering is allowed with
-    * multiview. */
-   assert(cmdbuf->state.gfx.render.layer_count <= 1 ||
-          cmdbuf->state.gfx.render.view_mask);
-
    struct mali_primitive_flags_packed flags_override =
       get_tiler_flags_override(draw);
 
@@ -3293,9 +3279,14 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
    struct cs_index draw_count = cs_scratch_reg32(b, 6);
    struct cs_index max_draw_count = cs_scratch_reg32(b, 7);
    struct cs_index draw_id = cs_scratch_reg32(b, 7);
-   struct cs_index vs_fau_addr = cs_scratch_reg64(b, 8);
-   struct cs_index tracing_scratch_regs = cs_scratch_reg_tuple(b, 10, 4);
+   struct cs_index idvs_count_reg = cs_scratch_reg32(b, 8);
+   struct cs_index vs_fau_addr = cs_scratch_reg64(b, 10);
+   struct cs_index tracing_scratch_regs = cs_scratch_reg_tuple(b, 12, 4);
+   struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
    uint32_t vs_fau_count = vs->fau.total_count;
+
+   uint32_t idvs_count = DIV_ROUND_UP(cmdbuf->state.gfx.render.layer_count,
+                                      MAX_LAYERS_PER_TILER_DESC);
 
    if (draw->indirect.count_buffer_dev_addr) {
       cs_move32_to(b, max_draw_count, draw->indirect.draw_count);
@@ -3345,15 +3336,44 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
       cs_update_vt_ctx(b)
          cs_move32_to(b, cs_sr_reg32(b, IDVS, INSTANCE_OFFSET), 0);
 
+      if (idvs_count > 1) {
+         cs_move32_to(b, idvs_count_reg, idvs_count);
+
+         cs_while(b, MALI_CS_CONDITION_GREATER, idvs_count_reg) {
 #if PAN_ARCH >= 12
-      cs_trace_run_idvs2(b, tracing_ctx, tracing_scratch_regs,
-                         flags_override.opaque[0], true, draw_id,
-                         MALI_IDVS_SHADING_MODE_EARLY);
+            cs_trace_run_idvs2(b, tracing_ctx, tracing_scratch_regs,
+                               flags_override.opaque[0], true, draw_id,
+                               MALI_IDVS_SHADING_MODE_EARLY);
 #else
-      cs_trace_run_idvs(
-         b, tracing_ctx, tracing_scratch_regs, flags_override.opaque[0], true,
-         cs_shader_res_sel(0, 0, 1, 0), cs_shader_res_sel(2, 2, 2, 0), draw_id);
+            cs_trace_run_idvs(
+               b, tracing_ctx, tracing_scratch_regs, flags_override.opaque[0],
+               true, cs_shader_res_sel(0, 0, 1, 0),
+               cs_shader_res_sel(2, 2, 2, 0), draw_id);
 #endif
+
+            cs_add_imm32(b, idvs_count_reg, idvs_count_reg, -1);
+            cs_update_vt_ctx(b) {
+               cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
+                            pan_size(TILER_CONTEXT));
+            }
+         }
+
+         cs_update_vt_ctx(b) {
+            cs_add_imm64(b, tiler_ctx_addr, tiler_ctx_addr,
+                         -(idvs_count * pan_size(TILER_CONTEXT)));
+         }
+      } else {
+#if PAN_ARCH >= 12
+         cs_trace_run_idvs2(b, tracing_ctx, tracing_scratch_regs,
+                            flags_override.opaque[0], true, draw_id,
+                            MALI_IDVS_SHADING_MODE_EARLY);
+#else
+         cs_trace_run_idvs(
+            b, tracing_ctx, tracing_scratch_regs, flags_override.opaque[0],
+            true, cs_shader_res_sel(0, 0, 1, 0),
+            cs_shader_res_sel(2, 2, 2, 0), draw_id);
+#endif
+      }
 
       cs_add_imm32(b, draw_count, draw_count, -1);
       cs_add_imm32(b, draw_id, draw_id, 1);
