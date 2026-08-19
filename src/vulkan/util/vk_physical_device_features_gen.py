@@ -259,8 +259,9 @@ vk_physical_device_check_device_features(struct vk_physical_device *physical_dev
 % endfor
 
    vk_foreach_struct_const(features, pCreateInfo->pNext) {
-      VkBaseOutStructure *supported = NULL;
-      switch (features->sType) {
+      const VkStructureType stype = *(const VkStructureType *)features;
+      void *supported = NULL;
+      switch (stype) {
 % for f in feature_structs:
 % if f.guard != None:
 #ifdef ${f.guard}
@@ -270,7 +271,21 @@ vk_physical_device_check_device_features(struct vk_physical_device *physical_dev
          if (!${f.condition("physical_device")})
             break;
 % endif
-         supported = (VkBaseOutStructure *) &supported_${f.c_type};
+
+         /* Ignore duplicated structs instead of failing to create the device. */
+         if (supported_${f.c_type}.sType != 0) {
+            vk_logw(VK_LOG_OBJS(physical_device),
+                    "WARNING: Duplicate sType %s in the device creation chain.\\n",
+                    vk_StructureType_to_str(stype));
+            continue;
+         }
+
+         /* Check for cycles in the list */
+         if (supported_${f.c_type}.pNext != NULL)
+            return VK_ERROR_UNKNOWN;
+
+         supported_${f.c_type}.sType = stype;
+         supported = &supported_${f.c_type};
          break;
 % if f.guard != None:
 #endif
@@ -284,19 +299,6 @@ vk_physical_device_check_device_features(struct vk_physical_device *physical_dev
       if (!supported)
          continue;
 
-      /* Ignore duplicated structs instead of failing to create the device. */
-      if (supported->sType != 0) {
-         vk_logw(VK_LOG_OBJS(physical_device),
-                 "WARNING: Duplicate sType %s in the device creation chain.\\n",
-                 vk_StructureType_to_str(features->sType));
-         continue;
-      }
-
-      /* Check for cycles in the list */
-      if (supported->pNext != NULL)
-         return VK_ERROR_UNKNOWN;
-
-      supported->sType = features->sType;
       __vk_append_struct(&supported_features2, supported);
    }
 
