@@ -5164,7 +5164,7 @@
         "description": "freedreno/a6xx: subtract the transform feedback buffer offset in CP_DRAW_AUTO",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3a5bdd6cf77511ae8a219db6f1aa6d8e46c26fe4",
         "notes": null
