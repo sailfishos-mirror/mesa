@@ -1208,12 +1208,20 @@ parse_mul_add_chain(nir_scalar scalar, uint32_t *factors, uint32_t mul, uint32_t
 
 /* Returns whether scalar is equal to
  * subgroup_id * subgroup_size + subgroup_invocation_id
+ * if invocation_mask is NULL
+ *
+ * Returns the invocation_mask bitfield and whether scalar is equal to
+ * subgroup_id * subgroup_size + (subgroup_invocation_id & *invocation_mask)
+ * if invocation_mask is not NULL.
  */
 static bool
 is_linear_invocation_index(struct var_to_shuffle_state *state,
-                           nir_scalar scalar)
+                           nir_scalar scalar, uint32_t *invocation_mask)
 {
    nir_shader *shader = state->b.shader;
+
+   if (invocation_mask)
+      *invocation_mask = -1;
 
    uint32_t factors[INDEX_SRC_COUNT] = { 0 };
    if (!parse_mul_add_chain(scalar, factors, 1, 0))
@@ -1247,7 +1255,22 @@ is_linear_invocation_index(struct var_to_shuffle_state *state,
          if (shader->info.workgroup_size[i] == 1) {
             continue; /* local_id[i] is always zero in this case. */
          } else if (expected_factor != factors[SRC_LOCAL_ID_X + i]) {
-            return false;
+            if (!invocation_mask)
+               return false;
+
+            /* The component must only change the value inside the subgroup. */
+            if (expected_factor * shader->info.workgroup_size[i] > shader->info.min_subgroup_size)
+               return false;
+
+            /* Check if we can cleanly represent the difference with a mask. */
+            if (factors[SRC_LOCAL_ID_X + i] != 0)
+               return false; /* XXX Maybe we could improve this case? */
+            if (!util_is_power_of_two_nonzero(expected_factor))
+               return false;
+            if (!util_is_power_of_two_nonzero(shader->info.workgroup_size[i]))
+               return false;
+
+            *invocation_mask &= ~((shader->info.workgroup_size[i] - 1) * expected_factor);
          }
          expected_factor *= shader->info.workgroup_size[i];
       }
@@ -1255,10 +1278,10 @@ is_linear_invocation_index(struct var_to_shuffle_state *state,
    }
 
    /* Check if scalar is subgroup_id/subgroup_invocation based. */
-   if (factors[SRC_SUBGROUP_INVOCATION] != 1)
+   if (factors[SRC_SUBGROUP_INVOCATION] > 1)
       return false;
 
-   if (has_single_subgroup_workgroup(shader))
+   if (factors[SRC_SUBGROUP_INVOCATION] == 1 && has_single_subgroup_workgroup(shader))
       return true;
 
    if (shader->info.min_subgroup_size != shader->info.max_subgroup_size)
@@ -1267,6 +1290,14 @@ is_linear_invocation_index(struct var_to_shuffle_state *state,
    if (factors[SRC_SUBGROUP_ID] != shader->info.max_subgroup_size)
       return false;
 
+   if (factors[SRC_SUBGROUP_INVOCATION] == 1)
+      return true;
+
+   if (!invocation_mask)
+      return false;
+
+   /* This expression computes subgroup_id * subgroup_size */
+   *invocation_mask = 0;
    return true;
 }
 
@@ -1329,6 +1360,87 @@ move_to_block_cb(nir_src *src, void *_state)
    return true;
 }
 
+struct shuffle_idx_op {
+   nir_op op;
+   nir_scalar src;
+};
+
+static bool
+parse_iand(struct var_to_shuffle_state *state, nir_scalar *src, struct shuffle_idx_op *res)
+{
+   if (nir_scalar_alu_op(*src) != nir_op_iand)
+      return false;
+
+   nir_shader *shader = state->b.shader;
+
+   unsigned max_workgroup_size = nir_static_workgroup_size(shader);
+   if (shader->info.workgroup_size_variable) {
+      if (shader->options->max_workgroup_invocations)
+         max_workgroup_size = shader->options->max_workgroup_invocations;
+      else
+         max_workgroup_size = UINT16_MAX;
+   }
+
+   uint32_t required_bits = (util_next_power_of_two(max_workgroup_size) - 1) &
+                            ~(shader->info.min_subgroup_size - 1);
+
+   for (unsigned i = 0; i < 2; i++) {
+      nir_scalar other = nir_scalar_chase_alu_src(*src, i);
+      if (!nir_scalar_is_const(other))
+         continue;
+
+      /* Check that the iand keeps the high bits intact. */
+      if ((nir_scalar_as_uint(other) & required_bits) != required_bits)
+         return false;
+
+      res->src = other;
+      res->op = nir_op_iand;
+      *src = nir_scalar_chase_alu_src(*src, !i);
+      return true;
+   }
+
+   return false;
+}
+
+static bool
+parse_ior_ixor(struct var_to_shuffle_state *state, nir_scalar *src, struct shuffle_idx_op *res)
+{
+   nir_op op = nir_scalar_alu_op(*src);
+   if (op != nir_op_ior && op != nir_op_ixor && op != nir_op_iadd)
+      return false;
+
+   nir_shader *shader = state->b.shader;
+
+   for (unsigned i = 0; i < 2; i++) {
+      nir_scalar other = nir_scalar_chase_alu_src(*src, i);
+      nir_scalar next = nir_scalar_chase_alu_src(*src, !i);
+      uint32_t uub = nir_unsigned_upper_bound(shader, state->range_ht, other);
+
+      /* If the upper bound is larger than the subgroup size, we could modify
+       * the high bits.
+       */
+      if (uub >= shader->info.min_subgroup_size)
+         continue;
+
+      if (op == nir_op_iadd) {
+         /* If the zero lsb cover all of the uub bits, this iadd is effectively an ior
+          * and we know it doesn't overflow into the high bits
+          */
+         unsigned required_num_lsb = util_last_bit(uub);
+         unsigned num_lsb = nir_def_num_lsb_zero(state->num_lsb_zero_ht, next);
+         if (required_num_lsb > num_lsb)
+            return false;
+      }
+
+      res->src = other;
+      res->op = op;
+      *src = next;
+      return true;
+   }
+
+   return false;
+}
+
 static nir_def *
 load_deref_shuffle_index(struct var_to_shuffle_state *state,
                          nir_deref_instr *deref,
@@ -1360,7 +1472,57 @@ load_deref_shuffle_index(struct var_to_shuffle_state *state,
             return NULL;
       }
    } else {
-      return NULL; /* TODO detect loads that stay within each subgroup. */
+      struct shuffle_idx_op index_ops[6];
+
+      uint32_t invocation_mask = 0;
+      nir_scalar src = nir_scalar_resolved(shuffle_idx, 0);
+
+      /* Check that the index stays within each subgroup. */
+      unsigned num_ops = 0;
+      for (;; num_ops++) {
+         if (is_linear_invocation_index(state, src, &invocation_mask))
+            break;
+
+         if (num_ops >= ARRAY_SIZE(index_ops))
+            return NULL;
+
+         if (!nir_scalar_is_alu(src))
+            return NULL;
+
+         /* Allow an arbitrary chain of iand/ior/ixor/iadd as long as
+          * the upper bits (subgroup_id * subgroup_size) remain intact.
+          */
+         if (!parse_iand(state, &src, &index_ops[num_ops]) &&
+             !parse_ior_ixor(state, &src, &index_ops[num_ops]))
+            return NULL;
+      }
+
+      state->b.cursor = nir_before_instr(&deref->instr);
+
+      /* Reconstruct the shuffle_idx, based on subgroup invocation id,
+       * with the upper bits (subgroup_id * subgroup_size) masked out
+       * and the ALU-chain re-applied.
+       */
+      if (invocation_mask != 0) {
+         /* is_linear_invocation_index() guarantees that for the invocation_mask
+          * at least all bits > min_subgroup_size are being set and the resulting
+          * shuffle_idx will always remain within each part of min_subgroup_size.
+          */
+         shuffle_idx = nir_load_subgroup_invocation(&state->b);
+         shuffle_idx = nir_iand_imm(&state->b, shuffle_idx, invocation_mask);
+      } else {
+         /* is_linear_invocation_index() guarantees that the upper bits
+          * of the shuffle_idx are exactly subgroup_id * subgroup_size
+          * and min_subgroup_size == max_subgroup_size.
+          * The reconstructed shuffle_idx is solely composed of the ALU-chain.
+          */
+         shuffle_idx = nir_imm_int(&state->b, 0);
+      }
+
+      for (int i = num_ops - 1; i >= 0; i--) {
+         nir_def *other = nir_mov_scalar(&state->b, index_ops[i].src);
+         shuffle_idx = nir_build_alu2(&state->b, index_ops[i].op, shuffle_idx, other);
+      }
    }
 
    move_instr_to_block(shuffle_idx, shuffle_block);
@@ -1409,13 +1571,13 @@ store_deref_can_use_shuffle(struct var_to_shuffle_state *state,
       nir_scalar src1 = nir_scalar_chase_alu_src(if_cond, 1);
 
       if (nir_scalar_equal(array_idx, src0))
-         return is_linear_invocation_index(state, src1);
+         return is_linear_invocation_index(state, src1, NULL);
       if (nir_scalar_equal(array_idx, src1))
-         return is_linear_invocation_index(state, src0);
+         return is_linear_invocation_index(state, src0, NULL);
       return false;
    }
 
-   return is_linear_invocation_index(state, array_idx);
+   return is_linear_invocation_index(state, array_idx, NULL);
 }
 
 static void
