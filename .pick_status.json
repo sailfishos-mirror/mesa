@@ -10954,7 +10954,7 @@
         "description": "broadcom/compiler: keep robust SSBO stores scalar for bounds checking",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6e3c92cd63c9d46a3f39778f1b605752d8f7977e",
         "notes": null
