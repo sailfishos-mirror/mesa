@@ -602,7 +602,7 @@ struct v3d_context {
 
         struct v3d_compiler_state *compiler_state;
 
-        uint8_t prim_mode;
+        enum mesa_prim prim_mode;
 
         /** Maximum index buffer valid for the current shader_rec. */
         uint32_t max_index;
@@ -840,7 +840,7 @@ void v3d_flush_jobs_reading_resource(struct v3d_context *v3d,
                                      struct pipe_resource *prsc,
                                      enum v3d_flush_cond flush_cond,
                                      bool is_compute_pipeline);
-void v3d_update_compiled_shaders(struct v3d_context *v3d, uint8_t prim_mode);
+void v3d_update_compiled_shaders(struct v3d_context *v3d, enum mesa_prim prim_mode);
 void v3d_update_compiled_cs(struct v3d_context *v3d);
 
 bool v3d_rt_format_is_emulated(enum pipe_format f);

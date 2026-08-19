@@ -579,7 +579,7 @@ v3d_setup_shared_key(struct v3d_context *v3d, struct v3d_key *key,
 }
 
 static void
-v3d_update_compiled_fs(struct v3d_context *v3d, uint8_t prim_mode)
+v3d_update_compiled_fs(struct v3d_context *v3d, enum mesa_prim prim_mode)
 {
         struct v3d_job *job = v3d->job;
         struct v3d_fs_key local_key;
@@ -752,7 +752,7 @@ v3d_update_compiled_fs(struct v3d_context *v3d, uint8_t prim_mode)
 }
 
 static void
-v3d_update_compiled_gs(struct v3d_context *v3d, uint8_t prim_mode)
+v3d_update_compiled_gs(struct v3d_context *v3d, enum mesa_prim prim_mode)
 {
         struct v3d_gs_key local_key;
         struct v3d_gs_key *key = &local_key;
@@ -828,7 +828,7 @@ v3d_update_compiled_gs(struct v3d_context *v3d, uint8_t prim_mode)
 }
 
 static void
-v3d_update_compiled_vs(struct v3d_context *v3d, uint8_t prim_mode)
+v3d_update_compiled_vs(struct v3d_context *v3d, enum mesa_prim prim_mode)
 {
         struct v3d_vs_key local_key;
         struct v3d_vs_key *key = &local_key;
@@ -938,7 +938,7 @@ v3d_update_compiled_vs(struct v3d_context *v3d, uint8_t prim_mode)
 }
 
 void
-v3d_update_compiled_shaders(struct v3d_context *v3d, uint8_t prim_mode)
+v3d_update_compiled_shaders(struct v3d_context *v3d, enum mesa_prim prim_mode)
 {
         v3d_update_compiled_fs(v3d, prim_mode);
         v3d_update_compiled_gs(v3d, prim_mode);
