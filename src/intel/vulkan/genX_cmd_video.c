@@ -3955,18 +3955,13 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          pic.SegmentationTemporalUpdate =pic.SegmentationUpdateMap ?
             segmentation->flags.segmentation_temporal_update : 0;
 
-         bool use_pre_frame_mvs = !((std_pic->flags.error_resilient_mode) ||
-                                   (frame_width != vid->vp9_last_frame.width) ||
-                                   (frame_height != vid->vp9_last_frame.height) ||
-                                   vid->vp9_last_frame.key_frame ||
-                                   !vid->vp9_last_frame.show_frame);
-
-         if (is_scaling)
-            use_pre_frame_mvs = false;
+         bool use_prev_frame_mvs = std_pic->flags.UsePrevFrameMvs &&
+                                   !std_pic->flags.error_resilient_mode &&
+                                   !is_scaling;
 
          pic.ReferenceFrameSignBias = std_pic->ref_frame_sign_bias_mask >> 1;
-         pic.LastFrameType = vid->vp9_last_frame.frame_type;
-         pic.UsePrevinFindMVReferences = use_pre_frame_mvs;
+         pic.LastFrameType = STD_VIDEO_VP9_FRAME_TYPE_NON_KEY;
+         pic.UsePrevinFindMVReferences = use_prev_frame_mvs;
 
          pic.HorizontalScaleFactorforLAST = (last_frame_width << ANV_VP9_SCALE_FACTOR_SHIFT) / frame_width;
          pic.VerticalScaleFactorforLAST = (last_frame_height << ANV_VP9_SCALE_FACTOR_SHIFT) / frame_height;
@@ -3984,11 +3979,8 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
-   vid->vp9_last_frame.frame_type = std_pic->frame_type;
    vid->vp9_last_frame.width = frame_width;
    vid->vp9_last_frame.height = frame_height;
-   vid->vp9_last_frame.key_frame = key_frame_or_intra_only;
-   vid->vp9_last_frame.show_frame = std_pic->flags.show_frame;
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_BSD_OBJECT), bsd) {
       bsd.IndirectBSDDataLength = frame_info->srcBufferRange - vp9_pic_info->compressedHeaderOffset;

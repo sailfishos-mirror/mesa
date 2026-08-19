@@ -7095,9 +7095,6 @@ struct anv_av1_video_refs_info {
 struct anv_vp9_last_frame_info {
    uint32_t width;
    uint32_t height;
-   StdVideoVP9FrameType frame_type;
-   bool key_frame;
-   bool show_frame;
 };
 
 struct anv_video_session {
