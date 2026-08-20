@@ -416,6 +416,14 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_multiview                         = true,
       .KHR_performance_query =
          device->perf &&
+         /* The KHR profiling lock's OA stream and a metrics-library
+          * configuration activation (VK_INTEL_performance_query, advertised
+          * below when INTEL_USE_METRICS_LIBRARY is set) reprogram the same OA
+          * unit, so the two paths would silently corrupt each other's
+          * counters. The metrics library is an explicit per-process opt-in,
+          * so advertise only one of the two.
+          */
+         !device->perf->use_metrics_library &&
          (intel_perf_has_hold_preemption(device->perf) ||
           INTEL_DEBUG(DEBUG_NO_OACONFIG)) &&
          !ANV_DEBUG(NO_SECONDARY_CALL),
