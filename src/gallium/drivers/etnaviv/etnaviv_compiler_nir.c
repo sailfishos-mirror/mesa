@@ -1320,6 +1320,7 @@ etna_compile_shader(struct etna_shader_variant *v)
 
    NIR_PASS(_, s, etna_lower_io, v);
    NIR_PASS(_, s, nir_lower_pack);
+   NIR_PASS(_, s, nir_opt_combine_stores, nir_var_shader_out);
    etna_optimize_loop(s);
 
    if (v->shader->specs->vs_need_z_div)

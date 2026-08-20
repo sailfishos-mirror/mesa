@@ -570,26 +570,7 @@ spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
 spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
 
 # Added on 2025-01-30
-dEQP-GLES2.functional.shaders.operator.selection.highp_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_int_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_ivec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.selection.highp_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.sequence.no_side_effects.highp_bool_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.sequence.side_effects.highp_bool_vec2_fragment,Fail
-spec@!opengl 1.0@gl-1.0-dlist-materials,Fail
-spec@!opengl 1.0@gl-1.0-spot-light,Fail
-spec@!opengl 1.1@dlist-color-material,Fail
-spec@!opengl 1.1@draw-arrays-colormaterial,Fail
-spec@!opengl 1.1@gl-1.1-color-material-array,Fail
-spec@!opengl 1.1@infinite-spot-light,Fail
-spec@!opengl 1.2@draw-elements-vs-inputs,Fail
-spec@!opengl 1.2@gl-1.2-rescale-normal,Fail
 spec@!opengl 1.4@gl-1.4-polygon-offset,Fail
-spec@!opengl 1.5@normal3b3s-invariance-byte,Fail
 spec@arb_draw_buffers@fbo-mrt-alphatest,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 2,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 4,Fail
@@ -599,7 +580,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 # uprev Piglit in Mesa
 spec@!opengl 1.1@polygon-mode-offset@config 3: Expected blue pixel in center,Fail
 spec@!opengl 1.1@polygon-mode-offset@config 4: Expected blue pixel in center,Fail
-spec@!opengl 1.1@push-pop-color-material,Fail
 spec@arb_fragment_program@sparse-samplers,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
