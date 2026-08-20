@@ -62,6 +62,13 @@ enum {
    RADV_PREFETCH_GRAPHICS = RADV_PREFETCH_GFX_SHADERS,
 };
 
+typedef enum {
+   radv_viewports_y_inversion_na,
+   radv_viewports_y_inversion_none,
+   radv_viewports_y_inversion_all,
+   radv_viewports_y_inversion_mixed, /* Some viewports are regular, others are Y-inverted. */
+} radv_viewports_y_inversion;
+
 static void radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                                          VkImageLayout src_layout, VkImageLayout dst_layout, uint32_t src_family_index,
                                          uint32_t dst_family_index, const VkImageSubresourceRange *range,
@@ -12371,8 +12378,40 @@ radv_need_late_scissor_emission(struct radv_cmd_buffer *cmd_buffer, const struct
    return false;
 }
 
+static bool
+radv_is_viewport_y_inverted(const struct radv_cmd_buffer *cmd_buffer, unsigned viewport_index)
+{
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const float y_scale = d->vp_xform[viewport_index].scale[1];
+   const float y_translate = d->vp_xform[viewport_index].translate[1];
+
+   return -y_scale + y_translate > y_scale + y_translate;
+}
+
+/* Scan all viewports and return whether all are regular, Y-inverted, or a mix of both. */
+static radv_viewports_y_inversion
+radv_get_viewport_y_inversion(const struct radv_cmd_buffer *cmd_buffer)
+{
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const struct radv_shader *last_vgt_shader = cmd_buffer->state.last_vgt_shader;
+   const unsigned num_viewports = last_vgt_shader->info.outinfo.writes_viewport_index ? d->vk.vp.viewport_count : 1;
+   radv_viewports_y_inversion result = radv_viewports_y_inversion_na;
+
+   for (unsigned i = 0; i < num_viewports; i++) {
+      const radv_viewports_y_inversion o =
+         radv_is_viewport_y_inverted(cmd_buffer, i) ? radv_viewports_y_inversion_all : radv_viewports_y_inversion_none;
+
+      if (result == radv_viewports_y_inversion_na)
+         result = o;
+      else if (result != o)
+         return radv_viewports_y_inversion_mixed;
+   }
+
+   return result;
+}
+
 ALWAYS_INLINE static uint32_t
-radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer, bool vp_y_inverted)
+radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
@@ -12394,22 +12433,23 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer, bool vp_y_inverted)
    if (d->vk.rs.rasterizer_discard_enable)
       return radv_nggc_front_face | radv_nggc_back_face;
 
+   const radv_viewports_y_inversion vp_y_inversion = radv_get_viewport_y_inversion(cmd_buffer);
    uint32_t nggc_settings = radv_nggc_none;
 
    /* The culling code needs to know whether to cull positive or negative determinants in NDC space.
     * The front face state and viewports that invert the Y axis affect whether a positive determinant
     * is treated as front facing or back facing.
     */
-   bool ccw = d->vk.rs.front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
+   const bool ccw =
+      (d->vk.rs.front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE) != (vp_y_inversion == radv_viewports_y_inversion_all);
 
-   /* Take inverted viewport into account. */
-   ccw ^= vp_y_inverted;
-
-   /* Face culling settings. */
-   if (d->vk.rs.cull_mode & VK_CULL_MODE_FRONT_BIT)
-      nggc_settings |= radv_nggc_front_face;
-   if (d->vk.rs.cull_mode & VK_CULL_MODE_BACK_BIT)
-      nggc_settings |= radv_nggc_back_face;
+   /* All viewports should agree on whether Y is inverted. */
+   if (vp_y_inversion != radv_viewports_y_inversion_mixed) {
+      if (d->vk.rs.cull_mode & VK_CULL_MODE_FRONT_BIT)
+         nggc_settings |= radv_nggc_front_face;
+      if (d->vk.rs.cull_mode & VK_CULL_MODE_BACK_BIT)
+         nggc_settings |= radv_nggc_back_face;
+   }
 
    if (ccw) {
       bool cull_front = nggc_settings & radv_nggc_front_face;
@@ -12645,16 +12685,6 @@ radv_emit_ngg_state(struct radv_cmd_buffer *cmd_buffer)
    radeon_end();
 }
 
-static bool
-radv_is_viewport_y_inverted(struct radv_cmd_buffer *cmd_buffer)
-{
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-   const float y_scale = d->vp_xform[0].scale[1];
-   const float y_translate = d->vp_xform[0].translate[1];
-
-   return (-y_scale + y_translate) > (y_scale + y_translate);
-}
-
 static void
 radv_emit_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -12664,8 +12694,7 @@ radv_emit_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
    if (!nggc_settings_offset)
       return;
 
-   const bool vp_y_inverted = radv_is_viewport_y_inverted(cmd_buffer);
-   const uint32_t nggc_settings = radv_get_nggc_settings(cmd_buffer, vp_y_inverted);
+   const uint32_t nggc_settings = radv_get_nggc_settings(cmd_buffer);
 
    radeon_begin(cmd_buffer->cs);
    radeon_set_sh_reg(nggc_settings_offset, nggc_settings);
@@ -12688,7 +12717,7 @@ radv_emit_nggc_viewport(struct radv_cmd_buffer *cmd_buffer)
    memcpy(vp_translate, d->vp_xform[0].translate, 2 * sizeof(float));
 
    /* Correction for inverted Y */
-   if (radv_is_viewport_y_inverted(cmd_buffer)) {
+   if (radv_get_viewport_y_inversion(cmd_buffer) == radv_viewports_y_inversion_all) {
       vp_scale[1] = -vp_scale[1];
       vp_translate[1] = -vp_translate[1];
    }
