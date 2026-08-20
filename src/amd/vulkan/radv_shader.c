@@ -3555,7 +3555,7 @@ radv_create_trap_handler_shader(struct radv_device *device)
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_shader_stage_key stage_key = {0};
    struct radv_shader_stage stage = {0};
-   const bool dump_shader = !!(instance->debug_flags & RADV_DEBUG_DUMP_TRAP_HANDLER);
+   const bool dump_shader = !!(RADV_DEBUG(instance, DUMP_TRAP_HANDLER));
 
    nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "meta_trap_handler");
 
@@ -3634,7 +3634,7 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_instance *instance = radv_physical_device_instance(pdev);
-   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS;
+   bool dump_shader = RADV_DEBUG(instance, DUMP_PROLOGS);
    bool keep_shader_info = radv_device_fault_detection_enabled(device);
 
    struct radv_shader *prolog;
@@ -3684,7 +3684,7 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS;
+   bool dump_shader = RADV_DEBUG(instance, DUMP_PROLOGS);
    bool keep_shader_info = radv_device_fault_detection_enabled(device);
 
    struct radv_shader_part *prolog;
@@ -3755,7 +3755,7 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_EPILOGS;
+   bool dump_shader = RADV_DEBUG(instance, DUMP_EPILOGS);
    bool keep_shader_info = radv_device_fault_detection_enabled(device);
 
    struct radv_shader_part *epilog;

@@ -36,8 +36,7 @@ radv_pipeline_skip_shaders_cache(const struct radv_device *device, const struct 
     * - shaders are dumped for debugging (RADV_DEBUG=shaders)
     * - binaries are captured (driver shouldn't store data to an internal cache)
     */
-   return (instance->debug_flags & RADV_DEBUG_DUMP_SHADERS) ||
-          (pipeline->create_flags & VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR);
+   return RADV_DEBUG_DUMP_SHADERS(instance) || (pipeline->create_flags & VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR);
 }
 
 void
@@ -1218,7 +1217,7 @@ radv_pipeline_report_pso_history(const struct radv_device *device, struct radv_p
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    FILE *output = instance->pso_history_logfile ? instance->pso_history_logfile : stderr;
 
-   if (!(instance->debug_flags & RADV_DEBUG_PSO_HISTORY))
+   if (!(RADV_DEBUG(instance, PSO_HISTORY)))
       return;
 
    /* Only report PSO history for application pipelines. */

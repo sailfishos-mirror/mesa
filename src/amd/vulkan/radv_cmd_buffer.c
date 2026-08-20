@@ -1762,10 +1762,10 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
 
-   if (instance->debug_flags & (RADV_DEBUG_SYNC_SHADERS | RADV_DEBUG_FULL_SYNC)) {
+   if (RADV_DEBUG(instance, SYNC_SHADERS) || RADV_DEBUG(instance, FULL_SYNC)) {
       enum rgp_flush_bits sqtt_flush_bits = 0;
 
-      if (instance->debug_flags & RADV_DEBUG_FULL_SYNC) {
+      if (RADV_DEBUG(instance, FULL_SYNC)) {
          flags |= RADV_CMD_FLUSH_ALL_COMPUTE & ~RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
          if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
@@ -3971,7 +3971,7 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       mode = V_028064_SC_VRS_COMB_MODE_MIN;
       vrs_surface_enable = false;
    } else if (ps && ps->info.ps.allow_flat_shading &&
-              !(radv_physical_device_instance(pdev)->debug_flags & RADV_DEBUG_NO_VRS_FLAT_SHADING)) {
+              !RADV_DEBUG(radv_physical_device_instance(pdev), NO_VRS_FLAT_SHADING)) {
       /* Enable VRS 2x2 if doing flat shading. */
       mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
       rate_x = rate_y = 1;
@@ -13204,7 +13204,7 @@ radv_emit_msaa_state(struct radv_cmd_buffer *cmd_buffer)
          db_eqaa |= S_028804_OVERRASTERIZATION_AMOUNT(log_samples);
    }
 
-   if (instance->debug_flags & RADV_DEBUG_NO_ATOC_DITHERING) {
+   if (RADV_DEBUG(instance, NO_ATOC_DITHERING)) {
       db_alpha_to_mask = S_028B70_ALPHA_TO_MASK_OFFSET0(2) | S_028B70_ALPHA_TO_MASK_OFFSET1(2) |
                          S_028B70_ALPHA_TO_MASK_OFFSET2(2) | S_028B70_ALPHA_TO_MASK_OFFSET3(2) |
                          S_028B70_OFFSET_ROUND(0);
@@ -15201,7 +15201,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (instance->debug_flags & RADV_DEBUG_NO_RT)
+   if (RADV_DEBUG(instance, NO_RT))
       return;
 
    radv_suspend_conditional_rendering(cmd_buffer);
