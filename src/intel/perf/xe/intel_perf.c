@@ -6,6 +6,7 @@
 #include "perf/xe/intel_perf.h"
 
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include "perf/intel_perf.h"
@@ -311,6 +312,30 @@ xe_perf_stream_set_state(int perf_stream_fd, bool enable)
                                  DRM_XE_OBSERVATION_IOCTL_DISABLE;
 
    return intel_ioctl(perf_stream_fd, uapi, 0);
+}
+
+/* The kernel only accepts a read-only private mapping of the whole buffer at
+ * offset 0, gated by the same paranoid check as opening a global stream, and
+ * marks it VM_DONTCOPY (see xe_oa_mmap()).
+ */
+void *
+xe_perf_stream_map_oa_buffer(int perf_stream_fd, uint64_t *size)
+{
+   struct drm_xe_oa_stream_info info = {};
+   void *map;
+
+   if (intel_ioctl(perf_stream_fd, DRM_XE_OBSERVATION_IOCTL_INFO, &info) < 0)
+      return NULL;
+
+   if (info.oa_buf_size == 0 || info.oa_buf_size > SIZE_MAX)
+      return NULL;
+
+   map = mmap(NULL, info.oa_buf_size, PROT_READ, MAP_PRIVATE, perf_stream_fd, 0);
+   if (map == MAP_FAILED)
+      return NULL;
+
+   *size = info.oa_buf_size;
+   return map;
 }
 
 int

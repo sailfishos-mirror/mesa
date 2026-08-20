@@ -749,6 +749,15 @@ int intel_perf_stream_set_metrics_id(struct intel_perf_config *perf_config,
                                      uint64_t metrics_set_id,
                                      struct intel_bind_timeline *timeline);
 
+/* Map the kernel side OA circular buffer of an opened stream read-only, giving
+ * random access to the reports the OA unit writes. Returns NULL if the KMD
+ * cannot map it. A mapped stream must not also be drained with
+ * intel_perf_stream_read_samples(), which clears the records it consumes.
+ */
+void *intel_perf_stream_map_oa_buffer(struct intel_perf_config *perf_config,
+                                      int perf_stream_fd, uint64_t *size);
+void intel_perf_stream_unmap_oa_buffer(void *map, uint64_t size);
+
 int intel_perf_eustall_stream_open(struct intel_device_info *devinfo, int drm_fd,
                                    uint32_t sample_rate, uint32_t min_event_count);
 int intel_perf_eustall_stream_set_state(struct intel_device_info *devinfo,
