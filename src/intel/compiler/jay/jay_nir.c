@@ -1120,6 +1120,7 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
       intel_simd_debug_allowed_modes(nir->info.stage) << 3;
    unsigned undesirable_modes = ~simd_debug_modes;
    unsigned unsupported_modes = ~(32 | 16 | (devinfo->ver < 20 ? 8 : 0));
+   unsigned smallest_mode = devinfo->ver >= 20 ? 16 : 8;
 
    /* Step 1: Discard SIMD modes we cannot dispatch */
 
@@ -1173,8 +1174,9 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
        !nir->info.workgroup_size_variable) {
       unsigned work_size = nir_static_workgroup_size(nir);
       unsigned pot_work_size = util_next_power_of_two(work_size);
-      if (pot_work_size & ~unsupported_modes)
-         undesirable_modes |= ~pot_work_size;
+      unsigned too_big = ~((MAX2(pot_work_size, smallest_mode) << 1) - 1);
+
+      undesirable_modes |= too_big;
    }
 
    /* Step 3: Handle SIMD overrides.  Undesirable modes become allowed,
