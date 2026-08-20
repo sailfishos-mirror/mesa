@@ -372,10 +372,9 @@ radv_use_htile_for_image(const struct radv_device *device, const struct radv_ima
    assert(!(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR));
 
    /* TODO:
-    * - Investigate about mips+layers.
     * - Enable on other gens.
     */
-   bool use_htile_for_mips = image->vk.array_layers == 1 && pdev->info.gfx_level >= GFX10;
+   bool use_htile_for_mips = pdev->info.gfx_level >= GFX10;
 
    if (pdev->info.has_htile_stencil_mipmap_bug && image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT &&
        image->vk.mip_levels > 1)
