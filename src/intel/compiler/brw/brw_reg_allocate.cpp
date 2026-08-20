@@ -1291,10 +1291,12 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
    ra_set_node_spill_cost(g, first_vgrf_node + spill_reg, 0);
    ra_reset_node_interference(g, first_vgrf_node + spill_reg);
 
-   /* Track which registers of the spilled VGRF hold a defined value, so that
-    * we don't fill undefined data back from scratch.  Initialized at each
-    * block from livein, cleared by SHADER_OPCODE_UNDEF and set by any other
-    * write.
+   /* Track which registers of the spilled VGRF may have been defined before
+    * the current write, so that only their first definition can skip filling
+    * the destination.  At block boundaries use reaching definitions rather
+    * than liveness: Inactive channels from a divergent path or a prior loop
+    * iteration may need to be preserved even though the value is not live-in.
+    * SHADER_OPCODE_UNDEF does not clear this state for the same reason.
     */
    const unsigned vgrf_size = fs->alloc.sizes[spill_reg];
    uint64_t defined_regs = 0;
@@ -1315,23 +1317,14 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
       if (block != cur_block) {
          cur_block = block;
 
-         const BITSET_WORD *livein = live.block_data[block->num].livein;
+         const BITSET_WORD *defin = live.block_data[block->num].defin;
          const unsigned first_var = live.var_from_vgrf[spill_reg];
 
          defined_regs = 0;
          for (unsigned i = 0; i < vgrf_size; i++) {
-            if (BITSET_TEST(livein, first_var + i))
+            if (BITSET_TEST(defin, first_var + i))
                defined_regs |= (uint64_t)1 << i;
          }
-      }
-
-      if (inst->opcode == SHADER_OPCODE_UNDEF &&
-          inst->dst.file == VGRF && inst->dst.nr == spill_reg) {
-         const unsigned first_reg = inst->dst.offset / REG_SIZE;
-         assert(first_reg < vgrf_size);
-         defined_regs &= ~reg_range(first_reg,
-                                    MIN2(regs_written(inst),
-                                         vgrf_size - first_reg));
       }
 
       for (unsigned int i = 0; i < inst->sources; i++) {
@@ -1429,8 +1422,11 @@ brw_reg_alloc::spill_reg(unsigned spill_reg)
           * write, there should be no need for the unspill since the
           * instruction will be overwriting the whole destination in any case.
           *
-          * There's also no need to unspill when the value is completely
-          * undefined.
+          * A masked instruction whose spill cannot be per-channel also needs
+          * to preserve inactive channels whenever a definition can reach it.
+          *
+          * When no definition can reach the write, the scratch contents are
+          * undefined and the unspill can be skipped.
 	  */
          const unsigned first_reg = aligned_offset / REG_SIZE;
          assert(first_reg < vgrf_size);
