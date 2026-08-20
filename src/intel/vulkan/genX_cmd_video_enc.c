@@ -1255,25 +1255,25 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    } else {
       anv_batch_emit(&cmd->batch, GENX(MFX_FQM_STATE), fqm) {
          fqm.AVC = AVC_4x4_Intra_MATRIX;
-         for (unsigned q = 0; q < 64; q++)
+         for (unsigned q = 0; q < 96; q++)
             if (q % 2 == 1)
               fqm.QuantizerMatrix8x8[q] = 0x10;
       }
       anv_batch_emit(&cmd->batch, GENX(MFX_FQM_STATE), fqm) {
          fqm.AVC = AVC_4x4_Inter_MATRIX;
-         for (unsigned q = 0; q < 64; q++)
+         for (unsigned q = 0; q < 96; q++)
             if (q % 2 == 1)
               fqm.QuantizerMatrix8x8[q] = 0x10;
       }
       anv_batch_emit(&cmd->batch, GENX(MFX_FQM_STATE), fqm) {
          fqm.AVC = AVC_8x8_Intra_MATRIX;
-         for (unsigned q = 0; q < 64; q++)
+         for (unsigned q = 0; q < 128; q++)
             if (q % 2 == 1)
                fqm.QuantizerMatrix8x8[q] = 0x10;
       }
       anv_batch_emit(&cmd->batch, GENX(MFX_FQM_STATE), fqm) {
          fqm.AVC = AVC_8x8_Inter_MATRIX;
-         for (unsigned q = 0; q < 64; q++)
+         for (unsigned q = 0; q < 128; q++)
             if (q % 2 == 1)
                fqm.QuantizerMatrix8x8[q] = 0x10;
       }

@@ -2730,7 +2730,7 @@
       <value name="JPEG_Chroma_Cb_QUANTIZER_MATRIX (or G)" value="1" />
       <value name="JPEG_Chroma_Cr_QUANTIZER_MATRIX (or B)" value="2" />
     </field>
-    <group count="64" dword="2" size="8">
+    <group count="128" dword="2" size="8">
       <field name="Quantizer Matrix 8x8" dword="0" bits="7:0" type="uint" />
     </group>
   </instruction>
