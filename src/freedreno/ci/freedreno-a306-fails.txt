@@ -236,78 +236,6 @@ spec@arb_framebuffer_object@framebuffer-blit-levels read stencil,Fail
 spec@arb_occlusion_query@occlusion_query_meta_no_fragments,Crash
 spec@arb_point_sprite@arb_point_sprite-interactions 1.0,Fail
 spec@arb_seamless_cube_map@arb_seamless_cubemap,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 8 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 8 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 1,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 8 8 8,Fail
 spec@arb_texture_buffer_object@minmax,Fail
 spec@arb_texture_rectangle@1-1-linear-texture,Fail
 spec@arb_texture_rg@fbo-alphatest-formats,Fail
@@ -318,7 +246,6 @@ spec@arb_transform_feedback2@change objects while paused (gles3),Fail
 spec@arb_transform_feedback3@gl_nextbuffer-gl_nextbuffer,Fail
 spec@arb_transform_feedback_instanced@draw-auto instanced,Fail
 spec@arb_uniform_buffer_object@rendering-array,Fail
-spec@egl 1.4@eglterminate then unbind context,Fail
 spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_framebuffer_object@fbo-stencil-gl_stencil_index1-blit,Fail
@@ -768,6 +695,7 @@ spec@arb_texture_buffer_object@texture-buffer-size-clamp@rgba8ui_texture_buffer_
 spec@arb_texture_rg@fbo-blending-formats,Fail
 spec@arb_texture_rg@fbo-blending-formats@GL_R8,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-refcount,Fail
+spec@ext_transform_feedback2@draw-auto offset,Fail
 
 # new failures since 2023/02/08 (CTS uprevs, regressions etc.)
 spec@!opengl 1.1@line-smooth-stipple,Fail
@@ -856,66 +784,6 @@ spec@arb_internalformat_query2@max dimensions related pname checks@GL_MAX_WIDTH,
 spec@arb_occlusion_query@occlusion_query,Fail
 spec@arb_occlusion_query@occlusion_query_conform,Fail
 spec@arb_occlusion_query@occlusion_query_conform@GetObjivAval_multi2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 1 1 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 32 42 1 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 1 8 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 128 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 128 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 128 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 128 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 128 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 64 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 64 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 64 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 64 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 64 8,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 8 2,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 8 3,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 8 4,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 8 7,Fail
-spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 42 1 8 8,Fail
 spec@arb_texture_compression@texwrap formats,Fail
 spec@arb_texture_compression@texwrap formats@GL_COMPRESSED_ALPHA- NPOT,Fail
 spec@arb_texture_compression_bptc@texwrap formats,Fail

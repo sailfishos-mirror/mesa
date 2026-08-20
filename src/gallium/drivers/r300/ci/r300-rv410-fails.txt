@@ -630,8 +630,6 @@ spec@arb_texture_rg@texwrap formats-float bordercolor@GL_RG32F- border color onl
 
 spec@arb_vertex_program@big-param,Fail
 
-spec@egl 1.4@eglterminate then unbind context,Fail
-
 spec@egl_khr_surfaceless_context@viewport,Fail
 
 spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail

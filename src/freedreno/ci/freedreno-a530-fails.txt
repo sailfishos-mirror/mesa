@@ -127,7 +127,6 @@ spec@arb_transform_feedback3@gl_skipcomponents3,Fail
 spec@arb_transform_feedback3@gl_skipcomponents4,Fail
 spec@arb_transform_feedback_instanced@draw-auto instanced,Fail
 spec@arb_vertex_type_2_10_10_10_rev@attrib-p-type-size-match,Fail
-spec@egl 1.4@eglterminate then unbind context,Fail
 spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_framebuffer_object@fbo-alphatest-nocolor,Fail
@@ -240,6 +239,7 @@ spec@arb_framebuffer_object@execution@msaa-alpha-to-coverage_alpha-to-one,Fail
 spec@arb_framebuffer_object@execution@msaa-alpha-to-one,Fail
 spec@arb_framebuffer_object@framebuffer-blit-oblong tall,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-refcount,Fail
+spec@ext_transform_feedback2@draw-auto offset,Fail
 
 spec@!opengl 1.1@polygon-mode-facing,Fail
 spec@!opengl 1.1@polygon-mode-offset,Fail

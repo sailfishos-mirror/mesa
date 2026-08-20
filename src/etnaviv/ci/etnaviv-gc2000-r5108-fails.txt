@@ -233,7 +233,6 @@ spec@arb_texture_rectangle@texwrap rect proj bordercolor@GL_RGBA8- projected- bo
 spec@arb_vertex_program@big-param,Fail
 spec@arb_vertex_program@clip-plane-transformation arb,Fail
 
-spec@egl 1.4@eglterminate then unbind context,Fail
 spec@egl_khr_surfaceless_context@viewport,Fail
 # segfault around starting the CopyMultiTexSubImage tests.
 spec@ext_direct_state_access@multi-texture,Crash
@@ -604,6 +603,8 @@ spec@!opengl 1.1@push-pop-color-material,Fail
 spec@arb_fragment_program@sparse-samplers,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
+spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
+spec@glsl-1.10@execution@samplers@glsl-fs-sampler-numbering-2,Fail
 
 # Nightly run expectations update
 KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component,Fail

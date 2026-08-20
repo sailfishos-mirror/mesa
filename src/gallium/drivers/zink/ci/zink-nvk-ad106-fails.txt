@@ -4130,7 +4130,6 @@ spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-vec3-i
 spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-vec3-index-wr-before-barrier,Crash
 spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-vec4-index-wr,Crash
 spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-vec4-index-wr-before-barrier,Crash
-vulkan@shaders@cmat-uniform-ctor,Fail
 
 # uprev Piglit in Mesa
 spec@arb_tessellation_shader@execution@tesslevels-indirect,Fail

@@ -4126,7 +4126,6 @@ program@execute@vstore@vstorea_half-float-private@vector storea_half private off
 # Nightly run expectations update
 api@clsetkernelarg@Trigger CL_INVALID_ARG_SIZE if arg_size is zero and the argument is declared with the __local qualifier,Fail
 spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-dvec4-index-wr,Crash
-vulkan@shaders@cmat-uniform-ctor,Fail
 
 # uprev Piglit in Mesa
 spec@arb_tessellation_shader@execution@tesslevels-indirect,Fail
