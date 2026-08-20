@@ -406,7 +406,8 @@ VkResult anv_AcquireProfilingLockKHR(
    struct intel_perf_query_info *first_metric_set = &perf->queries[0];
    int fd = -1;
 
-   assert(device->perf_fd == -1);
+   if (device->perf_fd != -1)
+      return VK_TIMEOUT;
 
    if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
       struct anv_queue *queue = anv_device_get_perf_queue(device);
