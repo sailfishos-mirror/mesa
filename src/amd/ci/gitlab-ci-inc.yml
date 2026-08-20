@@ -303,6 +303,13 @@
     KERNEL_TAG: "v6.6.21-mesa-c236"
 
 
+############### Common
+.amdgpu.ko-common:
+  variables:
+    # Increase the timeout for GFX/COMPUTE to 10s to avoid spurious GPU hangs.
+    AMDGPU_COMMON_CMDLINE: 'amdgpu.lockup_timeout=10000,10000,0,0'
+
+
 ############### LAVA
 # job prefixes: radeonsi (OpenGL), radv (Vulkan), amd (radeonsi+radv)
 .stoney-test:x86_64:
@@ -312,6 +319,7 @@
 
 .radeonsi-stoney-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .stoney-test:x86_64
     - .lava-acer-R721T-grunt:x86_64
     - .radeonsi-collabora-rules
@@ -320,36 +328,44 @@
     DRIVER_NAME: radeonsi
     PIGLIT_PLATFORM: mixed_glx_egl
     ACO_DEBUG: validateir,validatera
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 .radv-stoney-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .stoney-test:x86_64
     - .lava-hp-14-db0003na-grunt:x86_64
     - .radv-collabora-rules
   variables:
     DRIVER_NAME: radv
     GPU_VERSION: radv-stoney
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 .radeonsi-raven-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .radeonsi-collabora-rules
   variables:
     GPU_VERSION: radeonsi-raven
     DRIVER_NAME: radeonsi
     LAVA_FIRMWARE: amdgpu-lava
     ACO_DEBUG: validateir,validatera
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 .radv-raven-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .radv-collabora-rules
   variables:
     DRIVER_NAME: radv
     GPU_VERSION: radv-raven
     VK_DRIVER: radeon
     LAVA_FIRMWARE: amdgpu-lava
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 .amd-raven-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .radeonsi+radv-rules
   variables:
     DRIVER_NAME: radeonsi
@@ -357,16 +373,21 @@
     VK_DRIVER: radeon
     LAVA_FIRMWARE: amdgpu-lava
     ACO_DEBUG: validateir,validatera
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 .radv-cezanne-test:x86_64:
   extends:
+    - .amdgpu.ko-common
     - .lava-acer-cp514-3wh-r0qs-guybrush:x86_64
   variables:
     DRIVER_NAME: radv
     GPU_VERSION: radv-cezanne
+    LAVA_CMDLINE: "${AMDGPU_COMMON_CMDLINE}"
 
 ############### CI-tron
 .ci-tron-test-amdgpu:
+  extends:
+    - .amdgpu.ko-common
   variables:
     CI_TRON_PATTERN__JOB_WARN__REGEX: 'ring .* timeout'
     CI_TRON_KERNEL__URL: "https://fs.mupuf.org/radv/linux-6.17.3_w_buddy_fixes/linux-x86_64"
@@ -374,6 +395,7 @@
     CI_TRON_INITRAMFS__GPU__URL: "https://fs.mupuf.org/radv/linux-6.17.3_w_buddy_fixes/linux-x86_64.gpu_amdgpu.cpio"
     CI_TRON_INITRAMFS__GPU__FORMAT__0__ARCHIVE__KEEP__0__PATH: "(lib/(modules|firmware/amdgpu)/.*)"
     CI_TRON_KERNEL_CMDLINE__LOAD_MODULES: 'modules_load=amdgpu'
+    CI_TRON_KERNEL_CMDLINE__AMDGPU_COMMON: "${AMDGPU_COMMON_CMDLINE}"
   tags:
     - farm:$RUNNER_FARM_LOCATION
     - $CI_TRON_DUT_SETUP_TAGS
