@@ -800,6 +800,15 @@ struct zink_clientptr_heap {
    /* former clientptr-backed cpu_storage ranges to be freed through clientptr_reclaim */
    struct list_head free_ranges;
    simple_mtx_t free_ranges_lock;
+
+   /* Held during the lifetime of direct bo mappings
+    * of any bo in bos used for the purpose of a simple
+    * download/upload, such as subdata.
+    *
+    * write-lock this to enable remapping a bo, otherwise
+    * the underlying memory object could already be mapped.
+    */
+   struct u_rwlock short_lived_lock;
 };
 
 static inline struct zink_clientptr_heap *
@@ -1406,6 +1415,7 @@ struct zink_transfer {
    uint8_t *clientptr;
    unsigned clientptr_refcnt;
    struct pipe_transfer *clientptr_upload;
+   bool short_lived;
 };
 
 

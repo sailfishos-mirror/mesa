@@ -2797,7 +2797,15 @@ tc_improve_map_buffer_flags(struct threaded_context *tc,
    if (usage & PIPE_MAP_UNSYNCHRONIZED) {
       usage &= ~PIPE_MAP_DISCARD_RANGE;
       usage |= TC_TRANSFER_MAP_THREADED_UNSYNC; /* notify the driver */
+
+      /* Allow driver to lock client pointer remaps on short lived unsynchronized calls */
+      if (tres->b.clientptr_heap && (usage & PIPE_MAP_SHORT_LIVED))
+         usage |= PIPE_MAP_THREAD_SAFE;
    }
+
+   /* If buffer_unmap is queued, SHORT_LIVED isn't valid */
+   if (!(usage & PIPE_MAP_THREAD_SAFE))
+      usage &= ~PIPE_MAP_SHORT_LIVED;
 
    return usage;
 }
@@ -2815,8 +2823,11 @@ tc_buffer_map(struct pipe_context *_pipe,
 
    /* PIPE_MAP_THREAD_SAFE is for glthread, which shouldn't use the CPU storage and
     * this shouldn't normally be necessary because glthread only uses large buffers.
+    *
+    * PIPE_MAP_THREAD_SAFE | PIPE_MAP_SHORT_LIVED on the other hand just means we're
+    * in the tc_buffer_subdata path for a client pointer resource
     */
-   if (usage & PIPE_MAP_THREAD_SAFE)
+   if (usage & PIPE_MAP_THREAD_SAFE && !(usage & PIPE_MAP_SHORT_LIVED))
       tc_buffer_disable_cpu_storage(resource);
 
    usage = tc_improve_map_buffer_flags(tc, tres, usage, box->x, box->width);

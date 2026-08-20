@@ -2700,9 +2700,13 @@ zink_buffer_map(struct pipe_context *pctx,
     * client pointer, we can't directly map the underlying resource,
     * as Vulkan doesn't allow multiple mappings at the same time,
     * and this would block a client pointer map.
+    *
+    * PIPE_MAP_SHORT_LIVED overrides this behavior for short-lived
+    * driver-internal download-upload maps, during whose lifetime we
+    * block all remaps to a client pointer range. (short_lived_lock)
     */
    bool force_staging = res->base.b.clientptr_heap &&
-                        !(usage & PIPE_MAP_CLIENT_POINTER);
+                        !(usage & (PIPE_MAP_CLIENT_POINTER | PIPE_MAP_SHORT_LIVED));
 
    /* If a buffer in VRAM is too large and the range is discarded, don't
     * map it directly. This makes sure that the buffer stays in VRAM.
@@ -2849,6 +2853,13 @@ overwrite:
       if (res->base.b.clientptr_heap) {
          if (usage & PIPE_MAP_CLIENT_POINTER) {
             ptr = PIPE_TRANSFER_CLIENT_POINTER;
+         } else if (usage & PIPE_MAP_SHORT_LIVED) {
+            /* short lived mappings can bypass the client pointer route by
+             * blocking all client pointer remaps of underlying BOs */
+            trans->short_lived = true;
+            u_rwlock_rdlock(&clientptr_heap->short_lived_lock);
+
+            ptr = trans->clientptr = map_resource(screen, res);
          } else {
             UNREACHABLE("zink: expected staging buffer for resource in client pointer heap");
          }
@@ -2898,6 +2909,8 @@ success:
    return ptr;
 
 fail:
+   if (trans->short_lived)
+      u_rwlock_rdunlock(&clientptr_heap->short_lived_lock);
    if (ctx == screen->copy_context)
       zink_screen_unlock_context(screen);
    destroy_transfer(ctx, trans);
@@ -3410,10 +3423,23 @@ zink_resource_copies_reset(struct zink_resource *res)
 }
 
 static void
+do_unmap_clientptr_resource(struct zink_screen *screen, struct zink_transfer *trans);
+
+static void
 transfer_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
 {
    struct zink_context *ctx = zink_context(pctx);
+   struct zink_screen *screen = zink_screen(pctx->screen);
    struct zink_transfer *trans = (struct zink_transfer *)ptrans;
+   struct zink_clientptr_heap *clientptr_heap = zink_clientptr_heap(trans->base.b.resource->clientptr_heap);
+
+   assert(trans->clientptr_refcnt == 0);
+
+   if (trans->short_lived) {
+      do_unmap_clientptr_resource(screen, trans);
+      u_rwlock_rdunlock(&clientptr_heap->short_lived_lock);
+      assert(!trans->staging_res);
+   }
 
    assert(trans->clientptr_refcnt == 0);
 
@@ -3664,6 +3690,8 @@ zink_clientptr_heap_create(struct pipe_screen *pscreen)
       return NULL;
    }
 
+   u_rwlock_init(&obj->short_lived_lock);
+
    pipe_reference_init(&obj->b.b.reference, 1);
 
    return &obj->b.b;
@@ -3688,6 +3716,8 @@ zink_clientptr_heap_destroy(struct pipe_screen *pscreen, struct pipe_clientptr_h
 
    tc_clientptr_heap_deinit(&clientptr_heap->b);
    zink_bo_clientptr_heap_deinit(clientptr_heap);
+
+   u_rwlock_destroy(&clientptr_heap->short_lived_lock);
 
    FREE(clientptr_heap);
 }
@@ -3733,9 +3763,18 @@ zink_transfer_map_clientptr_range(struct pipe_context *pctx, struct pipe_transfe
    if (!trans->clientptr) {
       assert(trans->clientptr_refcnt == 0);
 
+      /* In order to ensure that the potential remap into the client range succeeds,
+       * make sure there are no current (short lived) direct
+       */
+      if (clientptr_range)
+         u_rwlock_wrlock(&clientptr_heap->short_lived_lock);
+
       uint8_t *ptr = NULL;
       uint32_t range_size = 0;
       bool ret = zink_bo_map_clientptr(screen, buf, clientptr_range, &ptr, &range_size);
+
+      if (clientptr_range)
+         u_rwlock_wrunlock(&clientptr_heap->short_lived_lock);
 
       if (!ret)
          return NULL;

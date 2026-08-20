@@ -324,10 +324,22 @@ enum pipe_map_flags
    PIPE_MAP_CLIENT_POINTER = 1 << 14,
 
    /**
+    * Short lived internal mapping used for data upload/download.
+    *
+    * buffer_unmap must be called in finite time, as the driver may lock
+    * PIPE_MAP_CLIENT_POINTER maps until buffer_unmap is called, enabling
+    * the driver to remap the buffer into the client address range.
+    *
+    * Note for threaded context implementations: when set, buffer_map and
+    * buffer_unmap are called from the same thread.
+    */
+   PIPE_MAP_SHORT_LIVED = 1 << 15,
+
+   /**
     * This and higher bits are reserved for private use by drivers. Drivers
     * should use this as (PIPE_MAP_DRV_PRV << i).
     */
-   PIPE_MAP_DRV_PRV = 1 << 15,
+   PIPE_MAP_DRV_PRV = 1 << 16,
 };
 
 /*
