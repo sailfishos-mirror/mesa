@@ -6984,7 +6984,7 @@
         "description": "intel/compiler: Fix cooperative matrix conversion signedness",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6d786a0e4bbf541e0014528693ce17e94723761c",
         "notes": null
