@@ -4724,7 +4724,7 @@
         "description": "radv: fix copying VRS rates with a non-zero base layer correctly",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a5a7acb6579b8d40537c85d5bde80effb0b59f3e",
         "notes": null
