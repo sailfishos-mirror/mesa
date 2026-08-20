@@ -417,9 +417,18 @@ private:
    {
       assert(inst->opcode == GEN_OP_MATH);
 
+      if (inst->math.func == GEN_MATH_FDIV || inst->math.func == GEN_MATH_TANH) {
+         /* Same value as GEN_MATH_TANH but TANH is only supported in GFX35+
+          * while FDIV is only supported up to GFX12.5.
+          * TAHN don't require src1 while FDIV requries.
+          */
+         if (devinfo->verx10 >= 350)
+            return false;
+         return true;
+      }
+
       switch (inst->math.func) {
       case GEN_MATH_POW:
-      case GEN_MATH_FDIV:
       case GEN_MATH_INT_DIV_BOTH:
       case GEN_MATH_INT_DIV_QUOTIENT:
       case GEN_MATH_INT_DIV_REMAINDER:
@@ -435,6 +444,8 @@ private:
       case GEN_MATH_COS:
       case GEN_MATH_RSQRTM:
          return false;
+      default:
+         UNREACHABLE("unhandles math function");
       }
 
       return true;
@@ -1589,11 +1600,13 @@ private:
             const bool two_srcs =
                inst->math.func == GEN_MATH_INVM ||
                inst->math.func == GEN_MATH_POW ||
-               inst->math.func == GEN_MATH_FDIV;
+               (inst->math.func == GEN_MATH_FDIV && devinfo->verx10 < 350);
 
             ERROR_IF(devinfo->verx10 >= 125 &&
-                     (inst->math.func == GEN_MATH_POW ||
-                      inst->math.func == GEN_MATH_FDIV),
+                     inst->math.func == GEN_MATH_POW,
+                     "MATH POW and FDIV are not supported on Gfx12.5+.");
+            ERROR_IF(devinfo->verx10 >= 125 && devinfo->verx10 < 350 &&
+                     inst->math.func == GEN_MATH_FDIV,
                      "MATH POW and FDIV are not supported on Gfx12.5+.");
 
             if (ieee_macro && devinfo->verx10 >= 125) {

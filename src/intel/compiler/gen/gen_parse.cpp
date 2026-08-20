@@ -440,7 +440,7 @@ struct gen_parser {
       if (consume('.')) {
          if (inst.opcode == GEN_OP_MATH) {
             auto func = consume_ident_token();
-            inst.math.func = gen_math_function_from_string(SV_ARGS(func), &valid);
+            inst.math.func = gen_math_function_from_string(devinfo, SV_ARGS(func), &valid);
             if (!valid)
                return errorf("invalid math function '%.*s'", SV_FMT(func));
 

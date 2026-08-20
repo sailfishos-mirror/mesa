@@ -189,7 +189,6 @@ static const char *const gen_math_function_names[] = {
    [GEN_MATH_RSQ]               = "rsq",
    [GEN_MATH_SIN]               = "sin",
    [GEN_MATH_COS]               = "cos",
-   [GEN_MATH_FDIV]              = "fdiv",
    [GEN_MATH_POW]               = "pow",
    [GEN_MATH_INT_DIV_BOTH]      = "intdiv_qr",
    [GEN_MATH_INT_DIV_QUOTIENT]  = "intdiv_q",
@@ -198,9 +197,36 @@ static const char *const gen_math_function_names[] = {
    [GEN_MATH_RSQRTM]            = "rsqrtm",
 };
 
-DEFINE_TO_STRING(gen_math_function_to_string, gen_math, gen_math_function_names)
-DEFINE_FROM_STRING(gen_math_function_from_string, gen_math, gen_math_function_names)
+const char *
+gen_math_function_to_string(const struct intel_device_info *devinfo, gen_math value)
+{
+   if (value == GEN_MATH_FDIV) {
+      if (devinfo->verx10 >= 350)
+         return "tanh";
+      return "fdiv";
+   }
 
+   return gen_math_function_names[value];
+}
+
+gen_math
+gen_math_function_from_string(const struct intel_device_info *devinfo, const char *str, int size, bool *valid)
+{
+   assert(valid);
+
+   if (string_matches("fdiv", str, size)) {
+      *valid = true;
+      return GEN_MATH_FDIV;
+   }
+   if (string_matches("tanh", str, size)) {
+      *valid = devinfo->verx10 >= 350;
+      return GEN_MATH_TANH;
+   }
+
+   const int v = LOOKUP_BY_NAME(gen_math_function_names, str, size);
+   *valid = v >= 0;
+   return *valid ? (gen_math)v : (gen_math)0;
+}
 
 static const char *const gen_sync_function_names[] = {
    [GEN_SYNC_NOP] = "nop",

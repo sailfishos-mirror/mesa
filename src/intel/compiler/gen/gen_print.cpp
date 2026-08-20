@@ -377,7 +377,7 @@ private:
       switch (inst->opcode) {
       case GEN_OP_MATH: {
          text(".");
-         text(gen_math_function_to_string(inst->math.func));
+         text(gen_math_function_to_string(devinfo, inst->math.func));
          break;
       }
 

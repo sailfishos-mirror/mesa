@@ -1500,13 +1500,13 @@ static const struct {
    },
    { "math.fdiv (8) r0:f r1:f r2<16;8,2>:hf", VALID, { .lt = 125 } },
    { "math.fdiv (8) r0:f r1:f r2<16;8,2>:hf",
-     "MATH POW and FDIV are not supported on Gfx12.5+.", { .ge = 125 }
+     "MATH POW and FDIV are not supported on Gfx12.5+.", { .ge = 125, .lt = 350 }
    },
    { "math.fdiv (8) r0:f r1:f r2",
      "Before Gfx12.5, 2-source MATH src1 type must be F or HF.", { .lt = 125 }
    },
    { "math.fdiv (8) r0:f r1:f r2",
-     "MATH POW and FDIV are not supported on Gfx12.5+.", { .ge = 125 }
+     "MATH POW and FDIV are not supported on Gfx12.5+.", { .ge = 125, .lt = 350 }
    },
 
 

@@ -121,7 +121,8 @@ typedef enum ENUM_PACKED gen_math {
    GEN_MATH_SIN               = 6,
    GEN_MATH_COS               = 7,
    /* 8 is reserved. */
-   GEN_MATH_FDIV              = 9,
+   GEN_MATH_FDIV              = 9, /* Older than GFX12.5 */
+   GEN_MATH_TANH              = 9, /* GFX35+ */
    GEN_MATH_POW               = 10,
    GEN_MATH_INT_DIV_BOTH      = 11,
    GEN_MATH_INT_DIV_QUOTIENT  = 12,
