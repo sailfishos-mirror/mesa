@@ -297,6 +297,25 @@ tu_lrz_init_state(struct tu_cmd_buffer *cmd,
 
    cmd->state.lrz.gpu_dir_tracking = has_gpu_tracking;
    cmd->state.lrz.reuse_previous_state = !clears_depth;
+
+   if (clears_depth) {
+      const uint32_t render_area_count = cmd->state.per_layer_render_area ? cmd->state.pass->num_views : 1;
+
+      for (uint32_t i = 0; i < render_area_count; i++) {
+         const VkRect2D *render_area = &cmd->state.render_areas[i];
+
+         /* The LRZ clear doesn't take render area into account and clears the whole LRZ image.
+          * If the render area is smaller than the depth image, then clear corrupts the LRZ outside
+          * of the render area and we won't be able to reuse LRZ in the next render pass.
+          */
+         if (render_area->offset.x != 0 || render_area->offset.y != 0 ||
+             render_area->extent.width != view->vk.extent.width ||
+             render_area->extent.height != view->vk.extent.height) {
+            cmd->state.rp.lrz_disable_for_next_rp = true;
+            break;
+         }
+      }
+   }
 }
 
 /* Note: if we enable LRZ here, then tu_lrz_init_state() must at least set
