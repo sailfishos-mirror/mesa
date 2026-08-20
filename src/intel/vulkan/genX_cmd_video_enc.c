@@ -1296,9 +1296,12 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          anv_batch_emit(&cmd->batch, GENX(MFX_AVC_REF_IDX_STATE), ref) {
             ref.ReferencePictureListSelect = 0;
 
-            for (uint32_t i = 0; i < ref_list_info->num_ref_idx_l0_active_minus1 + 1; i++) {
-               const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
-               ref.ReferenceListEntry[i] = dpb_idx[ref_slot.slotIndex];
+            for (uint32_t i = 0; i < 32; i++) {
+               uint8_t slot = i < ref_list_info->num_ref_idx_l0_active_minus1 + 1u ?
+                              ref_list_info->RefPicList0[i] :
+                              STD_VIDEO_H264_NO_REFERENCE_PICTURE;
+               ref.ReferenceListEntry[i] =
+                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : dpb_idx[slot];
             }
          }
       }
@@ -1307,9 +1310,12 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          anv_batch_emit(&cmd->batch, GENX(MFX_AVC_REF_IDX_STATE), ref) {
             ref.ReferencePictureListSelect = 1;
 
-            for (uint32_t i = 0; i < ref_list_info->num_ref_idx_l1_active_minus1 + 1; i++) {
-               const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
-               ref.ReferenceListEntry[i] = dpb_idx[ref_slot.slotIndex];
+            for (uint32_t i = 0; i < 32; i++) {
+               uint8_t slot = i < ref_list_info->num_ref_idx_l1_active_minus1 + 1u ?
+                              ref_list_info->RefPicList1[i] :
+                              STD_VIDEO_H264_NO_REFERENCE_PICTURE;
+               ref.ReferenceListEntry[i] =
+                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : dpb_idx[slot];
             }
          }
       }
