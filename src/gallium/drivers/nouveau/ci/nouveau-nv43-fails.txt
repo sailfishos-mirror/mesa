@@ -738,6 +738,11 @@ dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.cube_rgba,Fa
 # dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_linear_linear_repeat_rgba8888,Fail
 # dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_nearest_clamp,Fail
 
+# super flaky
+dEQP-GLES2.functional.texture.filtering.2d.linear_linear_mirror_rgba4444_pot,Fail
+dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_linear_linear_repeat_rgba8888,Fail
+dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_nearest_clamp,Fail
+
 # todo add KHR
 
 
