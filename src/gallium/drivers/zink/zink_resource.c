@@ -3517,7 +3517,7 @@ zink_buffer_subdata(struct pipe_context *ctx, struct pipe_resource *buffer,
    uint8_t *map = NULL;
 
    res->subdata = true;
-   usage |= PIPE_MAP_WRITE;
+   usage |= PIPE_MAP_WRITE | PIPE_MAP_SHORT_LIVED;
 
    if (!(usage & PIPE_MAP_DIRECTLY))
       usage |= PIPE_MAP_DISCARD_RANGE;
