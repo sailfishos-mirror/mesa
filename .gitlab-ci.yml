@@ -384,6 +384,7 @@ include:
     - if: *is-merge-attempt
       changes: &all_paths
         - VERSION
+        - .gitattributes
         - bin/git_sha1_gen.py
         - bin/install_megadrivers.py
         - bin/symbols-check.py
