@@ -261,15 +261,11 @@ nvk_CmdWaitEvents2(VkCommandBuffer commandBuffer,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdWriteBufferMarker2AMD(VkCommandBuffer commandBuffer,
-                             VkPipelineStageFlags2 stage,
-                             VkBuffer _buffer,
-                             VkDeviceSize offset,
-                             uint32_t marker)
+nvk_CmdWriteMarkerToMemoryAMD(VkCommandBuffer commandBuffer,
+                              const VkMemoryMarkerInfoAMD* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   const uint64_t marker_addr = vk_buffer_address(&buffer->vk, offset);
 
-   nvk_event_report_semaphore(cmd, stage, marker_addr, marker);
+   nvk_event_report_semaphore(cmd, pInfo->stage, pInfo->dstRange.address,
+                              pInfo->marker);
 }
