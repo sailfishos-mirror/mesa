@@ -648,21 +648,10 @@ etna_emit_state(struct etna_context *ctx)
    }
 
    if (unlikely(VIV_FEATURE(screen, ETNA_FEATURE_HWTFB))) {
+      /* The emit order is important: TFB_COMMAND needs to emitted always last. */
+
       if (unlikely(dirty & ETNA_DIRTY_RASTERIZER)) {
          /*1C000*/ EMIT_STATE(TFB_CONFIG, etna_rasterizer_state(ctx->rasterizer)->TFB_CONFIG);
-      }
-
-      if (unlikely(dirty & ETNA_DIRTY_STREAMOUT_CMD)) {
-         struct etna_streamout *so = &ctx->streamout;
-
-         if (so->xfb_should_be_active && so->xfb_hw_state != ETNA_XFB_HW_ACTIVE) {
-            uint32_t cmd = (so->xfb_hw_state == ETNA_XFB_HW_PAUSED) ?
-                           TFB_COMMAND_RESUME :
-                           TFB_COMMAND_ENABLE;
-
-            /*1C004*/ EMIT_STATE(TFB_COMMAND, cmd);
-            so->xfb_hw_state = ETNA_XFB_HW_ACTIVE;
-         }
       }
 
       if (unlikely(dirty & ETNA_DIRTY_STREAMOUT)) {
@@ -688,6 +677,19 @@ etna_emit_state(struct etna_context *ctx)
 
          for (int i = 0; i < ctx->streamout.num_descriptors; i++) {
             /*1C800*/ EMIT_STATE(TFB_DESCRIPTOR(i), ctx->streamout.TFB_DESCRIPTOR[i]);
+         }
+      }
+
+      if (unlikely(dirty & ETNA_DIRTY_STREAMOUT_CMD)) {
+         struct etna_streamout *so = &ctx->streamout;
+
+         if (so->xfb_should_be_active && so->xfb_hw_state != ETNA_XFB_HW_ACTIVE) {
+            uint32_t cmd = (so->xfb_hw_state == ETNA_XFB_HW_PAUSED) ?
+                           TFB_COMMAND_RESUME :
+                           TFB_COMMAND_ENABLE;
+
+            /*1C004*/ EMIT_STATE(TFB_COMMAND, cmd);
+            so->xfb_hw_state = ETNA_XFB_HW_ACTIVE;
          }
       }
    }
