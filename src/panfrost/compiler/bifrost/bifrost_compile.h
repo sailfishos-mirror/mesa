@@ -167,6 +167,8 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
       .lower_mediump_io = pan_nir_lower_mediump_io,                            \
       /* Skip unlowering IO to vars */                                         \
       .io_options = nir_io_has_intrinsics | nir_io_non_interpolated_as_uint,   \
+      /* Valhall (arch >= 9) fp32 FLOG2/FEXP2 meet the CL ULP budget. */       \
+      .has_cl_log2_exp2 = arch >= 9,                                           \
    };
 
 DEFINE_OPTIONS(bifrost_nir_options_v6, 6, false);
