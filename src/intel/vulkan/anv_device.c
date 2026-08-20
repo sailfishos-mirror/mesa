@@ -1390,6 +1390,7 @@ VkResult anv_CreateDevice(
  fail_queues:
    for (uint32_t i = 0; i < device->queue_count; i++)
       anv_queue_finish(&device->queues[i]);
+   anv_device_perf_finish(device);
    anv_device_finish_descriptors_view(device);
    anv_device_finish_embedded_samplers(device);
    anv_device_finish_blorp(device);
@@ -1528,6 +1529,8 @@ void anv_DestroyDevice(
    vk_pipeline_cache_destroy(device->vk.mem_cache, NULL);
 
    anv_device_finish_embedded_samplers(device);
+
+   anv_device_perf_finish(device);
 
    if (ANV_SUPPORT_RT && device->info->has_ray_tracing) {
       ANV_DMR_BO_FREE(&device->vk.base, device->btd_fifo_bo);

@@ -1358,10 +1358,13 @@ anv_queue_exec_locked(struct anv_queue *queue,
     * perf-capable family may legally submit performance queries, so a
     * mismatch is not a reason to lose an otherwise valid device. With no
     * stream open at all (INTEL_DEBUG=no-oaconfig) there is nothing to warn
-    * about.
+    * about, and in OAG mode it is not even suspect: the stream is global and
+    * the metric-set reconfiguration targets the submitting queue's exec
+    * queue.
     */
    if (perf_query_pool && device->perf_queue &&
-       device->perf_queue != queue) {
+       device->perf_queue != queue &&
+       !device->physical->perf->oag_global_enable) {
       debug_warn_once("Mismatch between the queue the OA stream was opened "
                       "against and the queue the performance query is "
                       "executed on.");
