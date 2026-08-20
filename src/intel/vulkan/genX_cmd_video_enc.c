@@ -378,6 +378,9 @@ static void update_costs(uint8_t *mode_cost, uint8_t *mv_cost, uint8_t *hme_mv_c
 {
    int frame_type = anv_vdenc_h264_picture_type(pic_type);
 
+   if (frame_type > 1)
+      frame_type = 1;
+
    memset(mode_cost, 0, 12 * sizeof(uint8_t));
    memset(mv_cost, 0, 8 * sizeof(uint8_t));
    memset(hme_mv_cost, 0, 8 * sizeof(uint8_t));
@@ -386,6 +389,19 @@ static void update_costs(uint8_t *mode_cost, uint8_t *mv_cost, uint8_t *hme_mv_c
    mode_cost[VDENC_LUTMODE_INTRA_16x16] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTRA_16x16][qp]), 0x8f);
    mode_cost[VDENC_LUTMODE_INTRA_8x8] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTRA_8x8][qp]), 0x8f);
    mode_cost[VDENC_LUTMODE_INTRA_4x4] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTRA_4x4][qp]), 0x8f);
+
+   if (frame_type == 1) {
+      mode_cost[VDENC_LUTMODE_INTER_16x16] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTER_16x16][qp]), 0x8f);
+      mode_cost[VDENC_LUTMODE_INTER_16x8] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTER_16x8][qp]), 0x8f);
+      mode_cost[VDENC_LUTMODE_INTER_8X8Q] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTER_8X8Q][qp]), 0x6f);
+      mode_cost[VDENC_LUTMODE_INTER_8X4Q] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTER_8X4Q][qp]), 0x6f);
+      mode_cost[VDENC_LUTMODE_INTER_4X4Q] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_INTER_4X4Q][qp]), 0x6f);
+      mode_cost[VDENC_LUTMODE_REF_ID] = map_44_lut_value((uint32_t)(vdenc_mode_const[frame_type][VDENC_LUTMODE_REF_ID][qp]), 0x6f);
+
+      /* TODO. LoadMvCost/LoadHmeMvCost equivalents (AVC_MV_Cost tables) are not
+       * ported yet; MV costs stay at the mhw defaults set in VDENC_IMG_STATE.
+       */
+   }
 }
 #endif
 
@@ -1103,21 +1119,18 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_img.QpPrimeY = slice_qp;
       vdenc_img.MaxVerticalMVRange = anv_get_max_vmv_range(sps->level_idc);
 
-      /* TODO. Update Mode/MV cost conditinally. */
-      if (1) {
-         vdenc_img.Mode0Cost = mode_cost[0];
-         vdenc_img.Mode1Cost = mode_cost[1];
-         vdenc_img.Mode2Cost = mode_cost[2];
-         vdenc_img.Mode3Cost = mode_cost[3];
-         vdenc_img.Mode4Cost = mode_cost[4];
-         vdenc_img.Mode5Cost = mode_cost[5];
-         vdenc_img.Mode6Cost = mode_cost[6];
-         vdenc_img.Mode7Cost = mode_cost[7];
-         vdenc_img.Mode8Cost = mode_cost[8];
-         vdenc_img.Mode9Cost = mode_cost[9];
-         vdenc_img.RefIDCost = mode_cost[10];
-         vdenc_img.ChromaIntraModeCost = mode_cost[11];
-      }
+      vdenc_img.Mode0Cost = mode_cost[0];
+      vdenc_img.Mode1Cost = mode_cost[1];
+      vdenc_img.Mode2Cost = mode_cost[2];
+      vdenc_img.Mode3Cost = mode_cost[3];
+      vdenc_img.Mode4Cost = mode_cost[4];
+      vdenc_img.Mode5Cost = mode_cost[5];
+      vdenc_img.Mode6Cost = mode_cost[6];
+      vdenc_img.Mode7Cost = mode_cost[7];
+      vdenc_img.Mode8Cost = mode_cost[8];
+      vdenc_img.Mode9Cost = mode_cost[9];
+      vdenc_img.RefIDCost = mode_cost[10];
+      vdenc_img.ChromaIntraModeCost = mode_cost[11];
    }
 #endif
 
