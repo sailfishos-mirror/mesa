@@ -242,7 +242,10 @@ fn encode_typed_src(src: &Src, src_type: DataType) -> v9::EncodedSrc {
             assert_eq!(src_type.num_type(), NumericType::Float);
         }
         SrcMod::BNot => {
-            assert_eq!(src_type.num_type(), NumericType::Integer);
+            assert!(matches!(
+                src_type.num_type(),
+                NumericType::Integer | NumericType::UnsignedInteger
+            ));
         }
     }
 
