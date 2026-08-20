@@ -19,3 +19,6 @@ spec@arb_query_buffer_object@qbo@query-GL_GEOMETRY_SHADER_INVOCATIONS-SYNC-GL_UN
 
 # Nightly run expectations update
 vulkan@shaders@cmat-uniform-ctor,Fail
+
+# RADV bug https://gitlab.freedesktop.org/mesa/mesa/-/work_items/16148
+spec@arb_texture_view@tex-view,Fail
