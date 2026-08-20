@@ -447,3 +447,31 @@ TransferPixelsTest,Fail
 dEQP-VK.robustness.buffer_access.through_pointers.graphics.writes.vertex.4B_in_memory_with_scalar_f32,Fail
 dEQP-VK.robustness.buffer_access.through_pointers.graphics.writes.vertex.4B_in_memory_with_scalar_s32,Fail
 dEQP-VK.robustness.buffer_access.through_pointers.graphics.writes.vertex.4B_in_memory_with_scalar_u32,Fail
+
+# OpenCL CTS tests
+API,Fail
+API@get_command_queue_info,Fail
+API@get_command_queue_info_compatibility,Fail
+API@negative_set_immutable_memory_to_writeable_kernel_arg,Fail
+API@queue_properties,Fail
+API@queue_properties_queries,Fail
+Basic,Fail
+Basic@bufferreadwriterect,Fail
+Basic@enqueued_local_size,Fail
+Basic@get_global_linear_id,Fail
+Basic@get_local_linear_id,Fail
+Contractions,Fail
+Contractions@contractions_float_0,Fail
+Contractions@contractions_float_1,Fail
+Contractions@contractions_float_2,Fail
+Contractions@contractions_float_3,Fail
+Contractions@contractions_float_4,Fail
+Contractions@contractions_float_5,Fail
+Contractions@contractions_float_6,Fail
+Contractions@contractions_float_7,Fail
+Device timer,Fail
+Device timer@device_and_host_timers,Fail
+Math,Fail
+Math@atan2,Fail
+Math@atan2pi,Fail
+Profiling,Fail
