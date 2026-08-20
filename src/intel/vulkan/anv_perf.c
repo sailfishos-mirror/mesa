@@ -120,6 +120,7 @@ anv_device_perf_init(struct anv_device *device)
    device->perf_queue = NULL;
    simple_mtx_init(&device->perf_oag.mutex, mtx_plain);
    device->perf_oag.next_query_id = ANV_OAG_QUERY_ID_FIRST;
+   list_inithead(&device->perf_oag.pools);
 }
 
 void
@@ -154,6 +155,7 @@ anv_oag_alloc_query_ids(struct anv_device *device, struct anv_query_pool *pool)
       pool->oag_query_id_base = device->perf_oag.next_query_id;
       device->perf_oag.next_query_id += id_count;
       device->perf_oag.n_query_pools++;
+      list_addtail(&pool->oag_link, &device->perf_oag.pools);
    }
    simple_mtx_unlock(&device->perf_oag.mutex);
 
@@ -175,6 +177,7 @@ anv_oag_free_query_ids(struct anv_device *device, struct anv_query_pool *pool)
       return;
 
    simple_mtx_lock(&device->perf_oag.mutex);
+   list_del(&pool->oag_link);
    assert(device->perf_oag.n_query_pools > 0);
    if (--device->perf_oag.n_query_pools == 0)
       device->perf_oag.next_query_id = ANV_OAG_QUERY_ID_FIRST;
@@ -264,23 +267,57 @@ anv_oag_resolve_boundary(struct anv_device *device,
    return false;
 }
 
+/* Latch the boundary reports of every live performance query pool out of the
+ * OA buffer. Called with perf_oag.mutex held, right before the mapping goes
+ * away: vkGetQueryPoolResults() stays legal after vkReleaseProfilingLockKHR(),
+ * so whatever has been executed but not read back must be resolved now or it
+ * never will be.
+ */
+static void
+anv_oag_resolve_all_pools_locked(struct anv_device *device)
+{
+   list_for_each_entry(struct anv_query_pool, pool,
+                       &device->perf_oag.pools, oag_link) {
+      /* Registered at ID allocation time, which precedes the BO allocation:
+       * a pool still being created has no snapshots to resolve.
+       */
+      if (!pool->bo)
+         continue;
+
+      for (uint32_t q = 0; q < pool->vk.query_count; q++) {
+         for (uint32_t p = 0; p < pool->n_passes; p++) {
+            for (uint32_t end = 0; end < 2; end++) {
+               void *snapshot = pool->bo->map +
+                  khr_perf_query_data_offset(pool, q, p, end);
+               anv_oag_resolve_boundary(device, pool, snapshot,
+                                        anv_oag_query_id(pool, q, p, end));
+            }
+         }
+      }
+   }
+}
+
 void
 anv_device_perf_close(struct anv_device *device)
 {
+   simple_mtx_lock(&device->perf_oag.mutex);
+   if (device->perf_oag.oa_buffer) {
+      anv_oag_resolve_all_pools_locked(device);
+      intel_perf_stream_unmap_oa_buffer(device->perf_oag.oa_buffer,
+                                        device->perf_oag.oa_buffer_size);
+      device->perf_oag.oa_buffer = NULL;
+      device->perf_oag.oa_buffer_size = 0;
+      device->perf_oag.oa_buffer_circ_size = 0;
+   }
+   simple_mtx_unlock(&device->perf_oag.mutex);
+
    if (device->perf_fd != -1) {
       if (intel_bind_timeline_get_syncobj(&device->perf_timeline))
          intel_bind_timeline_finish(&device->perf_timeline, device->fd);
       close(device->perf_fd);
       device->perf_fd = -1;
    }
-
-   simple_mtx_lock(&device->perf_oag.mutex);
-   intel_perf_stream_unmap_oa_buffer(device->perf_oag.oa_buffer,
-                                     device->perf_oag.oa_buffer_size);
-   device->perf_oag.oa_buffer = NULL;
-   device->perf_oag.oa_buffer_size = 0;
-   device->perf_oag.oa_buffer_circ_size = 0;
-   simple_mtx_unlock(&device->perf_oag.mutex);
+   device->perf_queue = NULL;
 }
 
 static uint32_t

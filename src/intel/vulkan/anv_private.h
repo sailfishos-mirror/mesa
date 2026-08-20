@@ -2816,6 +2816,11 @@ struct anv_device {
         * allocator is only rewound when this drops back to zero.
         */
        uint32_t                                 n_query_pools;
+       /* Every pool holding a marker range, so that releasing the profiling
+        * lock can resolve their outstanding boundaries before the OA buffer
+        * mapping goes away.
+        */
+       struct list_head                         pools;
     }                                           perf_oag;
 
     struct intel_aux_map_context                *aux_map_ctx;
@@ -6889,6 +6894,8 @@ struct anv_query_pool {
    struct intel_perf_query_info                 **pass_query;
    /** First MMIO-trigger query ID; each query owns begin/end IDs. */
    uint32_t                                     oag_query_id_base;
+   /** Link in anv_device::perf_oag.pools while holding a marker range. */
+   struct list_head                             oag_link;
 
    /* Video encoding queries */
    VkVideoCodecOperationFlagsKHR                codec;
