@@ -3949,10 +3949,17 @@ tu_pipeline_builder_emit_state(struct tu_pipeline_builder *builder,
               builder->graphics_state.vi);
    /* If (a) per-view viewport is used or (b) we don't know yet, then we need
     * to set viewport and stencil state dynamically.
+    *
+    * The same applies whenever the fragment shader uses FDM, even with a
+    * single viewport.  This matters on a6xx gens without
+    * has_per_view_viewport, where per_view_viewport is false even though
+    * FDM is in use.
     */
+   const struct tu_shader *fs = pipeline->shaders[MESA_SHADER_FRAGMENT];
    bool no_per_view_viewport = pipeline_contains_all_shader_state(pipeline) &&
       !pipeline->program.per_view_viewport &&
-      !pipeline->program.per_layer_viewport;
+      !pipeline->program.per_layer_viewport &&
+      !(fs && fs->fs.has_fdm);
    DRAW_STATE_COND(viewport, TU_DYNAMIC_STATE_VIEWPORT, no_per_view_viewport,
                    builder->graphics_state.vp,
                    builder->graphics_state.rs);
