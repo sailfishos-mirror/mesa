@@ -75,6 +75,7 @@ etna_query_feature_db(struct etna_core_info *info)
    ETNA_FEATURE(REG_BugFixes8, BUG_FIXES8);
 
    ETNA_FEATURE(REG_BugFixes15, PE_DITHER_FIX);
+   ETNA_FEATURE(PE_32BPC_COLORMASK_FIX, PE_32BPC_COLORMASK_FIX);
    ETNA_FEATURE(REG_InstructionCache, INSTRUCTION_CACHE);
    ETNA_FEATURE(REG_ExtraShaderInstructions2, HAS_FAST_TRANSCENDENTALS);
 
