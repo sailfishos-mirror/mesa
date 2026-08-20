@@ -1392,8 +1392,8 @@ radv_determine_ngg_settings(const struct radv_compiler_info *compiler_info, stru
       num_vertices_per_prim = mesa_vertices_per_prim(ngg_stage->nir->info.gs.output_primitive);
    }
 
-   ngg_stage->info.has_ngg_culling =
-      radv_consider_culling(compiler_info, ngg_stage->nir, ps_inputs_read, num_vertices_per_prim, &ngg_stage->info);
+   ngg_stage->info.has_ngg_culling = radv_consider_culling(compiler_info, ngg_stage->nir, ps_inputs_read,
+                                                           num_vertices_per_prim, &ngg_stage->info, gfx_state);
 
    if (ngg_stage->stage != MESA_SHADER_GEOMETRY) {
       nir_function_impl *impl = nir_shader_get_entrypoint(ngg_stage->nir);
@@ -1404,6 +1404,9 @@ radv_determine_ngg_settings(const struct radv_compiler_info *compiler_info, stru
        * counts are the same. NGG passthrough doesn't care about anything else the shader does,
        * and the shader can still cull by flipping the cull bit in primitive exports.
        *
+       * Since we reduce exported primitives and vertices to 0 with static rasterizer discard, NGG
+       * passthrough must be disabled with it.
+       *
        * Behavior:
        * - VGT_ESGS_RING_ITEMSIZE is ignored (behaving as if it was equal to 1)
        * - vertex indices are packed into 1 VGPR to be passed as-is to the prim export
@@ -1411,7 +1414,7 @@ radv_determine_ngg_settings(const struct radv_compiler_info *compiler_info, stru
        *
        * If switching NGG passthrough on/off leads to unnecessary context rolls, we should stop using it.
        */
-      ngg_stage->info.is_ngg_passthrough = !ngg_stage->info.has_ngg_culling;
+      ngg_stage->info.is_ngg_passthrough = !ngg_stage->info.has_ngg_culling && !gfx_state->rs.rasterizer_discard;
    }
 }
 

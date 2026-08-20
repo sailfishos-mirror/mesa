@@ -814,7 +814,7 @@ void radv_lower_ngg(const struct radv_compiler_info *compiler_info, struct radv_
 
 bool radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir_shader *nir,
                            uint64_t ps_inputs_read, unsigned num_vertices_per_primitive,
-                           const struct radv_shader_info *info);
+                           const struct radv_shader_info *info, const struct radv_graphics_state_key *gfx_state);
 
 void radv_get_nir_options(struct radv_compiler_info *compiler_info);
 

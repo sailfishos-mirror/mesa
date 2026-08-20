@@ -932,7 +932,8 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
 bool
 radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir_shader *nir, uint64_t ps_inputs_read,
-                      unsigned num_vertices_per_primitive, const struct radv_shader_info *info)
+                      unsigned num_vertices_per_primitive, const struct radv_shader_info *info,
+                      const struct radv_graphics_state_key *gfx_state)
 {
    /* Culling doesn't make sense for meta shaders. */
    if (is_meta_shader(nir))
@@ -961,6 +962,12 @@ radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir
     * then may be okay to keep the memory stores in the 1st shader part, and delete them from the 2nd.
     */
    if (nir->info.writes_memory)
+      return false;
+
+   /* NGG lowering exports 0 primitives and vertices with rasterizer discard. There's nothing
+    * to cull.
+    */
+   if (gfx_state->rs.rasterizer_discard)
       return false;
 
    /* When the shader relies on the subgroup invocation ID, we'd break it, because the ID changes after the culling.
@@ -1036,6 +1043,7 @@ radv_lower_ngg(const struct radv_compiler_info *compiler_info, struct radv_shade
    options.has_gs_primitives_query = compiler_info->ac->gfx_level < GFX11;
    options.force_vrs = info->force_vrs_per_vertex;
    options.skip_viewport_state_culling = nir->info.outputs_written & (VARYING_BIT_VIEWPORT | VARYING_BIT_VIEWPORT_MASK);
+   options.rasterizer_discard = gfx_state->rs.rasterizer_discard;
 
    if (nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL) {
       assert(info->is_ngg);
