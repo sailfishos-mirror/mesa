@@ -3563,7 +3563,7 @@ tc_buffer_subdata(struct pipe_context *_pipe,
    if (!size)
       return;
 
-   usage |= PIPE_MAP_WRITE;
+   usage |= PIPE_MAP_WRITE | PIPE_MAP_SHORT_LIVED;
 
    /* PIPE_MAP_DIRECTLY supresses implicit DISCARD_RANGE. */
    if (!(usage & PIPE_MAP_DIRECTLY))
