@@ -3869,6 +3869,9 @@ tu_emit_subsampled(struct tu_cmd_buffer *cmd,
 {
    struct tu_cs *cs = &cmd->cs;
 
+   if (cmd->state.rp.shared_viewport)
+      fdm_offsets = NULL;
+
    for (unsigned i = 0; i < cmd->state.pass->attachment_count; i++) {
       if (i != cmd->state.pass->fragment_density_map.attachment &&
           (cmd->state.pass->attachments[i].store ||
