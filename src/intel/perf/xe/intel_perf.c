@@ -266,6 +266,9 @@ xe_perf_stream_open(struct intel_perf_config *perf_config, int drm_fd,
    uint32_t i = 0;
    int fd, flags;
 
+   /* exec_id 0 opens the global OAG unit; EXEC_QUEUE_ID and NO_PREEMPT are
+    * context-scoped and must be omitted (the kernel rejects EXEC_QUEUE_ID 0).
+    */
    if (exec_id)
       oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID, exec_id);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_DISABLED, !enable);
@@ -273,8 +276,8 @@ xe_perf_stream_open(struct intel_perf_config *perf_config, int drm_fd,
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_METRIC_SET, metrics_set_id);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_FORMAT, report_format);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, period_exponent);
-   if (hold_preemption)
-      oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_NO_PREEMPT, hold_preemption);
+   if (exec_id && hold_preemption)
+      oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_NO_PREEMPT, true);
 
    if (timeline && intel_bind_timeline_get_syncobj(timeline)) {
       oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_NUM_SYNCS, 1);
