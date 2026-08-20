@@ -22,7 +22,6 @@ dEQP-GLES2.functional.uniform_api.random.3,Fail
 dEQP-GLES2.functional.uniform_api.random.79,Fail
 
 dEQP-GLES2.functional.clipping.triangle_vertex.clip_three.clip_neg_x_and_pos_x_and_pos_y_pos_z,Fail
-dEQP-GLES2.functional.clipping.triangle_vertex.clip_three.clip_neg_x_and_pos_x_neg_y_pos_z_and_neg_x_pos_y_neg_z,Fail
 
 # Sampling grid slightly off in test 2?
 dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_linear_linear_mirror_rgba8888,Fail
