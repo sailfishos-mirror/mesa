@@ -1287,6 +1287,7 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       bool is_last = (slice_id == frame_info->naluSliceEntryCount - 1);
       uint32_t slice_type = slice_header->slice_type % 5;
       uint32_t slice_qp = rc_disable ? nalu->constantQp : pps->pic_init_qp_minus26 + 26;
+      uint32_t first_mb = slice_id == 0 ? 0 : slice_header->first_mb_in_slice;
 
       if (!is_last)
          next_slice_header = slice_header + 1;
@@ -1334,10 +1335,12 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
       uint8_t slice_header_data[256] = { 0, };
       size_t slice_header_data_len_in_bits = 0;
+      StdVideoEncodeH264SliceHeader slice_header_tmp = *slice_header;
+      slice_header_tmp.first_mb_in_slice = first_mb;
       vk_video_encode_h264_slice_header(frame_info->pStdPictureInfo,
                                         sps,
                                         pps,
-                                        slice_header,
+                                        &slice_header_tmp,
                                         slice_qp - (pps->pic_init_qp_minus26 + 26),
                                         &slice_header_data_len_in_bits,
                                         &slice_header_data);
@@ -1364,11 +1367,9 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
             pps->flags.deblocking_filter_control_present_flag ? slice_header->disable_deblocking_filter_idc : 0;
          avc_slice.DirectPredictionType = slice_header->flags.direct_spatial_mv_pred_flag;
 
-         avc_slice.SliceStartMBNumber = slice_header->first_mb_in_slice;
-         avc_slice.SliceHorizontalPosition =
-            slice_header->first_mb_in_slice % (w_in_mb);
-         avc_slice.SliceVerticalPosition =
-            slice_header->first_mb_in_slice / (w_in_mb);
+         avc_slice.SliceStartMBNumber = first_mb;
+         avc_slice.SliceHorizontalPosition = first_mb % (w_in_mb);
+         avc_slice.SliceVerticalPosition = first_mb / (w_in_mb);
 
          if (is_last) {
             avc_slice.NextSliceHorizontalPosition = 0;
