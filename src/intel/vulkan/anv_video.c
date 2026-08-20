@@ -421,7 +421,7 @@ anv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice,
          ext->maxSliceCount = 1;
          ext->maxPPictureL0ReferenceCount = 8;
          ext->maxBPictureL0ReferenceCount = 8;
-         ext->maxL1ReferenceCount = 0;
+         ext->maxL1ReferenceCount = 1;
          ext->maxTemporalLayerCount = 0;
          ext->expectDyadicTemporalLayerPattern = false;
          ext->prefersGopRemainingFrames = 0;
