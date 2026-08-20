@@ -51,6 +51,10 @@ va_count_instr_stats(bi_instr *I, struct va_stats *stats)
 
    /* Varying is counted int loaded 32-bit components */
    case VA_UNIT_V: {
+      /* LD_VAR_SPECIAL.frag_z is free */
+      if (I->op == BI_OPCODE_LD_VAR_SPECIAL &&
+          I->varying_name == BI_VARYING_NAME_FRAG_Z)
+         return;
       bool src16;
       if (I->op == BI_OPCODE_LD_VAR_BUF_F16 ||
           I->op == BI_OPCODE_LD_VAR_BUF_F32 ||
