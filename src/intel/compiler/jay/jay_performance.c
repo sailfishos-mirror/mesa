@@ -216,7 +216,7 @@ fifo_get(struct alu_fifo *fifo, unsigned index)
 static unsigned
 estimate_block_cycles(jay_function *f, jay_block *block)
 {
-   unsigned cycles = 0;
+   unsigned cycle = 0;
    jay_inst *prev = NULL;
    jay_shader *shader = f->shader;
 
@@ -227,7 +227,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
 
    jay_foreach_inst_in_block(block, I) {
       if (prev) {
-         cycles += jay_occupancy(shader, prev);
+         cycle += jay_occupancy(shader, prev);
       }
 
       if (I->dep.mode && sbid[I->dep.pipe]) {
@@ -244,7 +244,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
             sbid[I->dep.pipe] = NULL;
          }
 
-         cycles = MAX2(cycles, sbid_time[I->dep.sbid] + latency);
+         cycle = MAX2(cycle, sbid_time[I->dep.sbid] + latency);
       }
 
       if (I->dep.regdist) {
@@ -253,19 +253,19 @@ estimate_block_cycles(jay_function *f, jay_block *block)
                              BITFIELD_BIT(I->dep.pipe);
 
          u_foreach_bit(pipe, pipes) {
-            cycles = MAX2(cycles, fifo_get(&alu[pipe], I->dep.regdist));
+            cycle = MAX2(cycle, fifo_get(&alu[pipe], I->dep.regdist));
          }
       }
 
       jay_foreach_src(I, s) {
          if (I->src[s].file == ACCUM) {
-            cycles = MAX2(cycles, acc[I->src[s].reg]);
+            cycle = MAX2(cycle, acc[I->src[s].reg]);
          } else if (jay_is_flag(I->src[s])) {
-            cycles = MAX2(cycles, flag[I->src[s].reg]);
+            cycle = MAX2(cycle, flag[I->src[s].reg]);
          }
       }
 
-      unsigned ready_cycle = cycles + jay_latency(shader, I, false);
+      unsigned ready_cycle = cycle + jay_latency(shader, I, false);
       fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
 
       jay_foreach_dst(I, dst) {
@@ -284,7 +284,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       prev = I;
    }
 
-   return cycles;
+   return cycle;
 }
 
 unsigned
