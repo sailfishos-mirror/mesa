@@ -4794,6 +4794,14 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_register_allocate);
    JAY_PASS(s, jay_lower_post_ra);
+
+   /* jay_opt_postra_vectorize works on back-to-back moves, which we get coming
+    * out of RA but scheduling will reorder. Vectorize before scheduling.
+    */
+   if (!(jay_debug & JAY_DBG_NOOPT)) {
+      JAY_PASS(s, jay_opt_postra_vectorize);
+   }
+
    JAY_PASS(s, jay_schedule);
    JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
             nir->info.bit_sizes_float);
@@ -4807,8 +4815,6 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    }
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {
-      JAY_PASS(s, jay_opt_postra_vectorize);
-
       /* jay_assign_accumulators uses a conservative liveness analysis for
        * predication, so assign accumulators before predicating for better
        * results.
