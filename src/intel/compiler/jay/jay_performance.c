@@ -223,7 +223,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
    struct alu_fifo alu[GEN_PIPE_ALL] = { 0 };
    unsigned acc[8] = { 0 }, flag[8] = { 0 };
    jay_inst *sbid[32] = { NULL };
-   unsigned sbid_time[32] = { 0 };
+   unsigned sbid_issue[32] = { 0 };
 
    jay_foreach_inst_in_block(block, I) {
       if (prev) {
@@ -244,7 +244,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
             sbid[I->dep.sbid] = NULL;
          }
 
-         cycle = MAX2(cycle, sbid_time[I->dep.sbid] + latency);
+         cycle = MAX2(cycle, sbid_issue[I->dep.sbid] + latency);
       }
 
       if (I->dep.regdist) {
@@ -283,7 +283,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
 
       if (I->dep.mode == GEN_SBID_SET) {
          sbid[I->dep.sbid] = I;
-         sbid_time[I->dep.sbid] = ready_cycle;
+         sbid_issue[I->dep.sbid] = cycle;
       }
 
       prev = I;
