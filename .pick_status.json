@@ -5574,7 +5574,7 @@
         "description": "anv: don't forget to hash render pass color attachments",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0a3f3fd193d06330e9f196c6b3dd45ba350980a0",
         "notes": null
