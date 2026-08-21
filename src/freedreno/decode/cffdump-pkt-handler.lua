@@ -2,6 +2,11 @@
 
 -- `r` is predefined in the environment and is the equivalent of rnn.init(<gpu>)
 
+local SCRATCH = {}
+for i = 1, 8 do
+	SCRATCH[i] = 0
+end
+
 function CP_REG_RMW(pkt, size)
 	local dst_reg		= pkt[0].DST_REG
 	local dst_scratch	= pkt[0].DST_SCRATCH
@@ -62,5 +67,24 @@ function CP_MEM_WRITE(pkt, size)
 		dbg("write: %x %x\n", addr, pkt[i])
 		bos.write(addr, pkt[i])
 		addr = addr + 4
+	end
+end
+
+
+function CP_REG_TO_SCRATCH(pkt, size)
+	local reg = pkt.REG
+	local idx = pkt.SCRATCH + 1
+	local cnt = pkt.CNT
+	for i = 0, cnt do
+		SCRATCH[idx + i] = regs.val(reg + i)
+	end
+end
+
+function CP_SCRATCH_TO_REG(pkt, size)
+	local reg = pkt.REG
+	local idx = pkt.SCRATCH + 1
+	local cnt = pkt.CNT
+	for i = 0, cnt do
+		priv.reg_set(reg + i, SCRATCH[idx + i])
 	end
 end

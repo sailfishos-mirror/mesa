@@ -2859,6 +2859,20 @@ cp_fixed_stride_draw_table(const uint32_t *dwords, uint32_t sizedwords,
 }
 
 static void
+cp_reg_to_scratch(const uint32_t *dwords, uint32_t sizedwords, int level)
+{
+   struct rnndomain *domain = rnn_finddomain(rnn->db, "CP_REG_TO_SCRATCH");
+   internal_packet(dwords, sizedwords, rnn, domain);
+}
+
+static void
+cp_scratch_to_reg(const uint32_t *dwords, uint32_t sizedwords, int level)
+{
+   struct rnndomain *domain = rnn_finddomain(rnn->db, "CP_SCRATCH_TO_REG");
+   internal_packet(dwords, sizedwords, rnn, domain);
+}
+
+static void
 cp_wfi(const uint32_t *dwords, uint32_t sizedwords, int level)
 {
    needs_wfi = false;
@@ -3356,6 +3370,9 @@ static const struct type3_op {
    CP(START_BIN, cp_start_bin),
 
    CP(FIXED_STRIDE_DRAW_TABLE, cp_fixed_stride_draw_table),
+
+   CP(REG_TO_SCRATCH, cp_reg_to_scratch),
+   CP(SCRATCH_TO_REG, cp_scratch_to_reg),
 
    /* for a7xx */
    CP(THREAD_CONTROL, cp_set_thread_control),
