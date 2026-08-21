@@ -279,7 +279,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
                     // (possibly no-op) FADD.f16
                     instr.op = Op::from(OpFAdd {
                         dst: op.dst.clone(),
-                        dst_type: DataType::F16,
+                        dst_type: DataType::V2F16,
                         round: op.round,
                         clamp: op.clamp,
                         srcs: [(*ssa_f16).into(), Src::fneg_zero(16)],
@@ -315,7 +315,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
                         DstLanes::HF1 => DstLanes::H1,
                         _ => panic!("Must be a f16 narrow"),
                     };
-                    op.dst_type = DataType::F16;
+                    op.dst_type = DataType::V2F16;
                     src.src_ref = (*ssa_f16).into();
                     src.swizzle = Swizzle::H00;
                     true
