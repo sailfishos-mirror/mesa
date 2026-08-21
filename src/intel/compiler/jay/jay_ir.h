@@ -1072,7 +1072,6 @@ jay_macro_length(const jay_inst *I)
    case JAY_OPCODE_MUL_32:
    case JAY_OPCODE_SHUFFLE:
    case JAY_OPCODE_VECTOR_EXTRACT:
-   case JAY_OPCODE_LOOP_ONCE:
       return 2;
 
    case JAY_OPCODE_SLICE_REPACK:
