@@ -229,8 +229,6 @@ spec@ext_texture_array@copyteximage 1d_array samples=4,Fail
 spec@ext_texture_array@copyteximage 1d_array samples=6,Fail
 spec@ext_texture_array@copyteximage 1d_array samples=8,Fail
 
-# Nightly run expectations update
-vulkan@shaders@cmat-uniform-ctor,Fail
-
-# RADV bug https://gitlab.freedesktop.org/mesa/mesa/-/work_items/16148
+# uprev Piglit in Mesa
 spec@arb_texture_view@tex-view,Fail
+vulkan@shaders@cmat-uniform-ctor,Fail
