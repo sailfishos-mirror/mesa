@@ -846,6 +846,7 @@ texture_index_for_type(const struct glsl_type *type)
    case GLSL_SAMPLER_DIM_BUF:
       return TEXTURE_BUFFER_INDEX;
    case GLSL_SAMPLER_DIM_EXTERNAL:
+   case GLSL_SAMPLER_DIM_EXTERNAL_2D_Y2Y:
       return TEXTURE_EXTERNAL_INDEX;
    case GLSL_SAMPLER_DIM_MS:
       return sampler_array ? TEXTURE_2D_MULTISAMPLE_ARRAY_INDEX :
