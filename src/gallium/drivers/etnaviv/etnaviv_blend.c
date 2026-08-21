@@ -121,6 +121,7 @@ etna_update_blend(struct etna_context *ctx)
    struct etna_blend_state *blend = etna_blend_state(pblend);
    unsigned current_rt = 0;
    bool dither_allow = true;
+   bool all_overwrite = true;
 
    for (unsigned i = 0; i < pfb->nr_cbufs; i++) {
       if (!pfb->cbufs[i].texture)
@@ -175,13 +176,13 @@ etna_update_blend(struct etna_context *ctx)
 
       if (current_rt == 0) {
          blend->rt[0].PE_COLOR_FORMAT =
-                  VIVS_PE_COLOR_FORMAT_COMPONENTS(colormask) |
-                  COND(full_overwrite, VIVS_PE_COLOR_FORMAT_OVERWRITE);
+                  VIVS_PE_COLOR_FORMAT_COMPONENTS(colormask);
       } else {
          blend->rt[current_rt].PE_HALTI5_COLORMASK =
-                  VIVS_PE_HALTI5_RT_COLORMASK_COMPONENTS(colormask) |
-                  COND(full_overwrite, VIVS_PE_HALTI5_RT_COLORMASK_OVERWRITE);
+                  VIVS_PE_HALTI5_RT_COLORMASK_COMPONENTS(colormask);
       }
+
+      all_overwrite &= full_overwrite;
 
       if (blend->rt[i].alpha_enable) {
          blend->rt[current_rt].PE_ALPHA_CONFIG =
@@ -202,6 +203,16 @@ etna_update_blend(struct etna_context *ctx)
 
    if (current_rt == 0)
       blend->rt[0].PE_COLOR_FORMAT = VIVS_PE_COLOR_FORMAT_OVERWRITE;
+
+   /* On some cores the overwrite bit skips the destination read for every
+    * target, so set it only when all render targets are fully overwritten.
+    */
+   if (all_overwrite) {
+      blend->rt[0].PE_COLOR_FORMAT |= VIVS_PE_COLOR_FORMAT_OVERWRITE;
+
+      for (unsigned i = 1; i < current_rt; i++)
+         blend->rt[i].PE_HALTI5_COLORMASK |= VIVS_PE_HALTI5_RT_COLORMASK_OVERWRITE;
+   }
 
    /* Use same dither pattern as the blob */
    if (blend->base.dither && dither_allow) {
