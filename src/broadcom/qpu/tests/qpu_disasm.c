@@ -43,6 +43,7 @@ static const struct {
 
         /* 32-bit input unpacks */
         { 71, 0x38000411f9190250ull, "fmov rf17, rf9.sat            ; fmov rf16, rf6.sat" },
+        { 71, 0x3800000af503f168ull, "ffloor rf10, rf5.l            ; nop" },
 
         /* vfmul input packing */
         { 42, 0x101e8b6e8aad4000ull, "fmax.nornn rf46, r4.l, r2.l   ; vfmul.ifnb rf45, r3, r5" },
