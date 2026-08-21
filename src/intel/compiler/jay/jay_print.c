@@ -43,8 +43,12 @@ jay_file_prefix(enum jay_file file)
 }
 
 static void
-jay_print_def(
-   FILE *fp, jay_block *block, const jay_inst *I, int src, unsigned *lu)
+jay_print_def(FILE *fp,
+              jay_function *func,
+              jay_block *block,
+              const jay_inst *I,
+              int src,
+              unsigned *lu)
 {
    jay_def def = src == -2 ? I->cond_flag : src == -1 ? I->dst : I->src[src];
    unsigned len = jay_num_values(def);
@@ -53,7 +57,9 @@ jay_print_def(
       jay_is_ssa(def) && !jay_is_null(def) && lu && block->last_use && src >= 0;
 
    bool has_index = jay_channel(def, 0) != JAY_SENTINEL;
-   bool has_reg = (!def.collect && def.reg && def.file != J_ARF) || !has_index;
+   bool has_reg =
+      (!def.collect && func->shader->post_ra && def.file != J_ARF) ||
+      !has_index;
 
    if (jay_is_null(def)) {
       has_reg = false;
@@ -113,7 +119,12 @@ jay_print_def(
 }
 
 static void
-jay_print_src(FILE *fp, jay_block *block, jay_inst *I, unsigned s, unsigned *lu)
+jay_print_src(FILE *fp,
+              jay_function *func,
+              jay_block *block,
+              jay_inst *I,
+              unsigned s,
+              unsigned *lu)
 {
    jay_def src = I->src[s];
    fprintf(fp, "%s%s", src.negate ? "-" : "", src.abs ? "(abs)" : "");
@@ -125,7 +136,7 @@ jay_print_src(FILE *fp, jay_block *block, jay_inst *I, unsigned s, unsigned *lu)
          fprintf(fp, fabs(f) >= 1000000.0 ? " (%e)" : " (%f)", f);
       }
    } else {
-      jay_print_def(fp, block, I, s, lu);
+      jay_print_def(fp, func, block, I, s, lu);
    }
 }
 
@@ -136,13 +147,13 @@ jay_print_inst_with_lu(
    const char *sep = "";
 
    if (!jay_is_null(I->dst)) {
-      jay_print_def(fp, block, I, -1, lu);
+      jay_print_def(fp, func, block, I, -1, lu);
       sep = ", ";
    }
 
    if (!jay_is_null(I->cond_flag)) {
       fprintf(fp, "%s", sep);
-      jay_print_def(fp, block, I, -2, lu);
+      jay_print_def(fp, func, block, I, -2, lu);
    }
 
    if (I->zero_inactive) {
@@ -155,7 +166,7 @@ jay_print_inst_with_lu(
 
    if (I->predication) {
       fprintf(fp, "(");
-      jay_print_src(fp, block, I, jay_inst_get_predicate(I) - I->src, lu);
+      jay_print_src(fp, func, block, I, jay_inst_get_predicate(I) - I->src, lu);
       fprintf(fp, ")");
    }
 
@@ -180,7 +191,7 @@ jay_print_inst_with_lu(
 
    for (unsigned i = 0; i < I->num_srcs - I->predication; i++) {
       fprintf(fp, "%s", sep);
-      jay_print_src(fp, block, I, i, lu);
+      jay_print_src(fp, func, block, I, i, lu);
 
       enum jay_type T = jay_src_type(I, i);
       if (T != I->type && !(T == JAY_TYPE_U1 && jay_is_flag(I->src[i]))) {
@@ -200,7 +211,7 @@ jay_print_inst_with_lu(
 
       for (signed i = I->predication - 1; i > 0; --i) {
          fprintf(fp, "%s", sep);
-         jay_print_src(fp, block, I, I->num_srcs - i, lu);
+         jay_print_src(fp, func, block, I, I->num_srcs - i, lu);
          sep = ", ";
       }
    }
@@ -258,7 +269,7 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    first = true;
    jay_foreach_phi_dst_in_block(block, phi) {
       comma_separate(fp, block, &first);
-      jay_print_def(fp, block, phi, -1, NULL);
+      jay_print_def(fp, func, block, phi, -1, NULL);
    }
    fprintf(fp, "%s", first ? "" : " = 𝜙\n");
 
@@ -274,7 +285,7 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    jay_foreach_phi_src_in_block(block, phi) {
       comma_separate(fp, block, &first);
       fprintf(fp, "𝜙%u = ", jay_phi_src_index(phi));
-      jay_print_def(fp, block, phi, 0, NULL);
+      jay_print_def(fp, func, block, phi, 0, NULL);
    }
    fprintf(fp, "%s", first ? "" : "\n");
 
