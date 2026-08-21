@@ -2974,7 +2974,7 @@
         "description": "va: Fix parsing HEVC decode slice_temporal_mvp_enabled_flag",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "779edc07598399435d83874e7f0086be9d28317e",
         "notes": null
