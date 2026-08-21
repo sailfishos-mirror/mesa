@@ -147,9 +147,19 @@ etna_compatible_blt_format(enum pipe_format fmt)
 }
 
 static inline uint32_t
+blt_tiling_bits(const struct blt_imginfo *img)
+{
+   switch (img->tiling) {
+   case ETNA_LAYOUT_LINEAR: return BLT_TILING_LINEAR;
+   case ETNA_LAYOUT_TILED: return BLT_TILING_TILED;
+   default: return BLT_TILING_SUPER_TILED;
+   }
+}
+
+static inline uint32_t
 blt_compute_stride_bits(const struct blt_imginfo *img)
 {
-   return VIVS_BLT_DEST_STRIDE_TILING(img->tiling == ETNA_LAYOUT_LINEAR ? 0 : 3) | /* 1/3? */
+   return VIVS_BLT_DEST_STRIDE_TILING(blt_tiling_bits(img)) |
           VIVS_BLT_DEST_STRIDE_FORMAT(img->format) |
           VIVS_BLT_DEST_STRIDE_STRIDE(img->stride) |
           COND(img->downsample_x, VIVS_BLT_SRC_STRIDE_DOWNSAMPLE_X) |
