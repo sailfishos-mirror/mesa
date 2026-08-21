@@ -1537,7 +1537,7 @@ v3d71_qpu_mul_unpack(const struct v3d_device_info *devinfo, uint64_t packed_inst
         case V3D_QPU_M_FMOV:
                 instr->alu.mul.output_pack = raddr_d & 0x3;
 
-                if (!v3d_qpu_float32_unpack_unpack(devinfo, (raddr_d >> 2) & 0x3,
+                if (!v3d_qpu_float32_unpack_unpack(devinfo, (raddr_d >> 2) & 0x7,
                                                    &instr->alu.mul.a.unpack)) {
                         return false;
                 }

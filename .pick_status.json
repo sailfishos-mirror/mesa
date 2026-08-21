@@ -5024,7 +5024,7 @@
         "description": "broadcom/qpu: decode fully the input unpack from mul FMOV",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fa959c299316b2d223bd9f5f00e1950d424de31e",
         "notes": null
