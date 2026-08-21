@@ -5014,7 +5014,7 @@
         "description": "broadcom/qpu: decode the fround-group input unpack from raddr_b on V3D 7.1",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3b20208f03f69bab3dd22d28344cc3a01c321d28",
         "notes": null
