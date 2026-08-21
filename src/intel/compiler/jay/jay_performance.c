@@ -234,7 +234,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       if (I->dep.mode && sbid[I->dep.pipe]) {
          unsigned latency = 0;
          if (I->dep.mode == GEN_SBID_SRC) {
-            if (I->op == JAY_OPCODE_SEND) {
+            if (sbid[I->dep.pipe]->op == JAY_OPCODE_SEND) {
                latency = jay_send_src_latency(shader, sbid[I->dep.pipe]);
             } else {
                /* IGC uses occupancy for this. Hit only by DPAS */
