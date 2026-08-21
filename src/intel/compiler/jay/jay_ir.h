@@ -516,20 +516,6 @@ jay_type_is_any_float(enum jay_type t)
    return jay_base_type(t) == JAY_TYPE_F || jay_base_type(t) == JAY_TYPE_BF;
 }
 
-enum jay_predication : uint8_t {
-   /** No predication. */
-   JAY_NOT_PREDICATED = 0,
-
-   /**
-    * Predicated with no default value. Used post-RA and for instructions that
-    * do not write a destination.
-    */
-   JAY_PREDICATED = 1,
-
-   /** Predicated with 1 default value. Used pre-RA. */
-   JAY_PREDICATED_DEFAULT = 2,
-};
-
 /**
  * Representation of a shader instruction in the Jay IR.
  */
@@ -544,6 +530,12 @@ typedef struct jay_inst {
 
    /** Number of sources */
    uint8_t num_srcs;
+
+   /**
+    * Number of sources used for predication. 0 means unpredicated, 1 means
+    * predicated with no default values, 2/3 indicates default values.
+    */
+   uint8_t predication:2;
 
    /**
     * Indicates a uniform instruction executing on behalf of all active lanes.
@@ -582,9 +574,8 @@ typedef struct jay_inst {
     */
    bool replicate_dep:1;
    bool decrement_dep:1;
-   uint8_t padding   :1;
+   uint8_t padding   :7;
 
-   enum jay_predication predication;
    gen_condition conditional_mod;
 
    jay_def cond_flag; /**< conditional flag */
@@ -631,24 +622,11 @@ jay_has_src_mods(jay_inst *I, unsigned s)
    return jay_opcode_infos[I->op].src_mods & BITFIELD_BIT(s);
 }
 
-static inline bool
-jay_inst_has_default(jay_inst *I)
-{
-   return I->predication >= JAY_PREDICATED_DEFAULT;
-}
-
 static inline jay_def *
 jay_inst_get_predicate(jay_inst *I)
 {
    assert(I->predication);
    return &I->src[I->num_srcs - I->predication];
-}
-
-static inline jay_def *
-jay_inst_get_default(jay_inst *I)
-{
-   assert(jay_inst_has_default(I));
-   return &I->src[I->num_srcs - 1];
 }
 
 /* Must be included late since it depends on jay_inst but the rest of this file

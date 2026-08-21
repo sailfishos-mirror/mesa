@@ -193,10 +193,15 @@ jay_print_inst(FILE *fp, jay_block *block, jay_inst *I, unsigned *lu)
       sep = jay_print_inst_info(fp, I, sep);
    }
 
-   if (jay_inst_has_default(I)) {
-      fprintf(fp, "%sdefault ", sep);
-      jay_print_src(fp, block, I, jay_inst_get_default(I) - I->src, lu);
-      sep = ", ";
+   if (I->predication > 1) {
+      fprintf(fp, "%s", sep);
+      sep = "default ";
+
+      for (signed i = I->predication - 1; i > 0; --i) {
+         fprintf(fp, "%s", sep);
+         jay_print_src(fp, block, I, I->num_srcs - i, lu);
+         sep = ", ";
+      }
    }
 
    /* Software scoreboard dependency info */

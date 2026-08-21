@@ -278,10 +278,12 @@ validate_inst(struct validate_state *validate, jay_inst *I)
    if (I->predication) {
       CHECK(num_srcs >= I->predication);
 
-      if (jay_inst_has_default(I)) {
-         jay_def dst = jay_is_null(I->dst) ? I->cond_flag : I->dst;
-         CHECK(jay_normalize_uflag(jay_inst_get_default(I)->file) ==
-               jay_normalize_uflag(dst.file));
+      jay_def dsts[] = { jay_is_null(I->dst) ? I->cond_flag : I->dst,
+                         I->cond_flag };
+      for (unsigned i = 1; i < I->predication; ++i) {
+         jay_def def = I->src[I->num_srcs - I->predication + i];
+         CHECK(jay_normalize_uflag(def.file) ==
+               jay_normalize_uflag(dsts[i - 1].file));
       }
 
       CHECK(jay_is_flag(*jay_inst_get_predicate(I)));

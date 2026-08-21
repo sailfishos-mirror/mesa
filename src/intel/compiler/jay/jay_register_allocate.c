@@ -679,9 +679,10 @@ pick_regs_from_block(jay_ra_state *ra,
       if (I->predication && !is_src) {
          if (var.file == FLAG && jay_inst_get_predicate(I)->reg != r) {
             continue;
-         } else if (I->predication == JAY_PREDICATED_DEFAULT &&
-                    jay_inst_get_default(I)->reg != r) {
-            cost++;
+         }
+
+         for (unsigned i = 0; i < (I->predication - 1); ++i) {
+            cost += (I->src[I->num_srcs - i].reg != r);
          }
       }
 

@@ -359,10 +359,10 @@ jay_add_predicate_else(jay_builder *b,
    assert(jay_is_flag(predicate) && jay_is_ssa(default_value));
 
    unsigned pred_index = I->num_srcs;
-   I = jay_grow_sources(b, I, pred_index + 2);
+   I->predication = 2;
+   I = jay_grow_sources(b, I, pred_index + I->predication);
    I->src[pred_index] = predicate;
    I->src[pred_index + 1] = default_value;
-   I->predication = JAY_PREDICATED_DEFAULT;
    return I;
 }
 
@@ -373,9 +373,9 @@ jay_add_predicate(jay_builder *b, jay_inst *I, jay_def predicate)
    assert(jay_is_flag(predicate));
 
    unsigned pred_index = I->num_srcs;
-   I = jay_grow_sources(b, I, pred_index + 1);
+   I->predication = 1;
+   I = jay_grow_sources(b, I, pred_index + I->predication);
    I->src[pred_index] = predicate;
-   I->predication = JAY_PREDICATED;
    return I;
 }
 
