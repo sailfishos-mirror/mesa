@@ -141,8 +141,6 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
             ctx->halted = true;
 
             jay_block *split = jay_new_block(b->func);
-            split->indent = block->indent;
-
             list_partition(&block->instructions, &split->instructions,
                            &halt->link);
             list_addtail(&split->link, &block->link);

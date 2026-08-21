@@ -118,7 +118,6 @@ struct nir_to_jay_state {
    /* Bitset of defs optimized for ballots */
    BITSET_WORD *zero_inactive;
 
-   unsigned indent;
    bool needs_final_halt;
 
    /* We cache ballot(true), ctz(ballot(true)), and 4*ctz(ballot(true)) within a
@@ -3625,14 +3624,6 @@ jay_block_reconverge(struct nir_to_jay_state *nj,
    }
 }
 
-static jay_block *
-jay_create_block(struct nir_to_jay_state *nj)
-{
-   jay_block *block = jay_new_block(nj->f);
-   block->indent = nj->indent;
-   return block;
-}
-
 static void
 jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 {
@@ -3642,16 +3633,14 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 
    jay_block *converge_block = nj->converge_block;
    jay_block *before_block = nj->current_block;
-   jay_block *after_block = jay_create_block(nj);
+   jay_block *after_block = jay_new_block(nj->f);
 
    /* Push */
-   ++nj->indent;
-
    if (converge_block) {
       util_dynarray_append(&nj->converge_blocks, converge_block);
    }
 
-   jay_block *else_first = jay_create_block(nj);
+   jay_block *else_first = jay_new_block(nj->f);
 
    /* Break and halt instructions in the then block may reconverge at the
     * else block for a non-uniform IF.
@@ -3692,7 +3681,6 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    jay_block_reconverge(nj, else_last, after_block);
 
    /* Pop */
-   --nj->indent;
    nj->after_block = after_block;
    nj->converge_block = converge_block;
 
@@ -3722,8 +3710,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    unsigned saved_loop_converge = nj->loop_converge_block;
 
    /* Make the block that will be after the loop exit */
-   nj->break_block = jay_create_block(nj);
-   ++nj->indent;
+   nj->break_block = jay_new_block(nj->f);
 
    if (converge_block) {
       util_dynarray_append(&nj->converge_blocks, converge_block);
@@ -3737,7 +3724,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
       util_dynarray_num_elements(&nj->converge_blocks, jay_block *);
 
    /* Make a block for the loop body, which is also the loop header */
-   jay_block *loop_header = jay_create_block(nj);
+   jay_block *loop_header = jay_new_block(nj->f);
    loop_header->physical_loop_header = true;
 
    /* The current block falls through to the start of the loop */
@@ -3765,7 +3752,6 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    }
 
    /* Pop */
-   --nj->indent;
    nj->after_block = nj->break_block;
    nj->break_block = saved_break;
    nj->loop_converge_block = saved_loop_converge;
@@ -3791,7 +3777,7 @@ jay_emit_block(struct nir_to_jay_state *nj, nir_block *nb)
       nj->current_block = nj->after_block;
       nj->after_block = NULL;
    } else {
-      nj->current_block = jay_create_block(nj);
+      nj->current_block = jay_new_block(nj->f);
    }
 
    jay_block *block = nj->current_block;
@@ -4456,7 +4442,7 @@ jay_setup_payload(struct nir_to_jay_state *nj)
 {
    jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
-   nj->after_block = jay_create_block(nj);
+   nj->after_block = jay_new_block(nj->f);
    b->cursor = jay_after_block(nj->after_block);
 
    struct payload_builder p = { .b = &nj->bld };
@@ -4653,7 +4639,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       jay_setup_payload(&nj);
    }
 
-   nj.exit_block = jay_create_block(&nj);
+   nj.exit_block = jay_new_block(f);
    nj.zero_inactive = BITSET_CALLOC(f->ssa_alloc);
    jay_emit_cf_list(&nj, &impl->body);
    jay_block_add_successor(nj.current_block, nj.exit_block, GPR);

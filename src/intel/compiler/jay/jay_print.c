@@ -227,18 +227,11 @@ jay_print_inst_with_lu(
    fprintf(fp, "\n");
 }
 
-static inline void
-indent(FILE *fp, jay_block *block, bool interior)
-{
-   for (unsigned i = 0; i < block->indent + interior; i++)
-      fprintf(fp, "   ");
-}
-
 static void
 comma_separate(FILE *fp, jay_block *block, bool *first)
 {
    if (*first) {
-      indent(fp, block, true);
+      fprintf(fp, "   ");
       *first = false;
    } else {
       fprintf(fp, ", ");
@@ -248,7 +241,6 @@ comma_separate(FILE *fp, jay_block *block, bool *first)
 void
 jay_print_block(FILE *fp, jay_function *func, jay_block *block)
 {
-   indent(fp, block, false);
    fprintf(fp, "B%d%s%s", block->index, block->uniform ? " [uniform]" : "",
            block->loop_header          ? " [loop header]" :
            block->physical_loop_header ? " [physical loop header]" :
@@ -276,7 +268,7 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    unsigned lu = 0;
    jay_foreach_inst_in_block(block, inst) {
       if (inst->op != JAY_OPCODE_PHI_DST && inst->op != JAY_OPCODE_PHI_SRC) {
-         indent(fp, block, true);
+         fprintf(fp, "   ");
          jay_print_inst_with_lu(fp, func, block, inst, &lu);
       }
    }
@@ -289,7 +281,6 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    }
    fprintf(fp, "%s", first ? "" : "\n");
 
-   indent(fp, block, false);
    fprintf(fp, "}");
    first = true;
    jay_foreach_successor(block, succ, GPR) {
