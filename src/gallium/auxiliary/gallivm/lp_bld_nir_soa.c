@@ -351,8 +351,10 @@ mask_vec(struct lp_build_nir_soa_context *bld)
 static LLVMValueRef
 mask_vec_with_helpers(struct lp_build_nir_soa_context *bld)
 {
-   if (bld->shader->info.stage != MESA_SHADER_FRAGMENT)
+   if (bld->shader->info.stage != MESA_SHADER_FRAGMENT ||
+       !bld->shader->info.fs.needs_coarse_quad_helper_invocations) {
       return mask_vec(bld); /* No helper invocations needed. */
+   }
 
    struct lp_exec_mask *exec_mask = &bld->exec_mask;
    if (exec_mask->has_mask)
