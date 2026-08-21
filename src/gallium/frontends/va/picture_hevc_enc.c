@@ -775,7 +775,7 @@ static void parseEncVpsParamsH265(vlVaContext *context, struct vl_rbsp *rbsp)
    }
    vid->vps_max_layer_id = vl_rbsp_u(rbsp, 6);
    vid->vps_num_layer_sets_minus1 = vl_rbsp_ue(rbsp);
-   for (unsigned i = 0; i <= vid->vps_num_layer_sets_minus1; i++) {
+   for (unsigned i = 1; i <= vid->vps_num_layer_sets_minus1; i++) {
       for (unsigned j = 0; j <= vid->vps_max_layer_id; j++)
          vl_rbsp_u(rbsp, 1); /* layer_id_included_flag[i][j] */
    }
