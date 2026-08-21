@@ -378,10 +378,78 @@ emit_intrinsic_atomic_image(struct ir3_context *ctx, nir_intrinsic_instr *intr)
    return atomic;
 }
 
+/* An atomic.s whose UAV operand is a register rather than an immediate
+ * addresses memory directly instead of through a descriptor, and then the
+ * operands mean something else: src0 is the 64b address, src1 the data, and
+ * the src2 field an immediate byte offset.  The UAV register itself is not
+ * read, so point it at the address to avoid tying up another.
+ */
+static struct ir3_instruction *
+emit_atomic_global(struct ir3_builder *b, nir_atomic_op op,
+                   struct ir3_instruction *addr, struct ir3_instruction *data,
+                   struct ir3_instruction *off)
+{
+   switch (op) {
+   case nir_atomic_op_iadd:
+      return ir3_ATOMIC_S_ADD(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_imin:
+   case nir_atomic_op_umin:
+      return ir3_ATOMIC_S_MIN(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_imax:
+   case nir_atomic_op_umax:
+      return ir3_ATOMIC_S_MAX(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_iand:
+      return ir3_ATOMIC_S_AND(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_ior:
+      return ir3_ATOMIC_S_OR(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_ixor:
+      return ir3_ATOMIC_S_XOR(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_xchg:
+      return ir3_ATOMIC_S_XCHG(b, addr, 0, addr, 0, data, 0, off, 0);
+   case nir_atomic_op_cmpxchg:
+      return ir3_ATOMIC_S_CMPXCHG(b, addr, 0, addr, 0, data, 0, off, 0);
+   default:
+      UNREACHABLE("Unknown global atomic op");
+   }
+}
+
 static struct ir3_instruction *
 emit_intrinsic_atomic_global(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 {
-   UNREACHABLE("Global atomic are unimplemented on A5xx");
+   struct ir3_builder *b = &ctx->build;
+   nir_atomic_op op = nir_intrinsic_atomic_op(intr);
+   type_t type = nir_atomic_op_type(op) == nir_type_int ? TYPE_S32 : TYPE_U32;
+   struct ir3_instruction *value = ir3_get_src(ctx, &intr->src[1])[0];
+   struct ir3_instruction *data;
+
+   /* only measured on a5xx; a4xx encodes the instruction differently and its
+    * own compiler never emits one
+    */
+   assert(ctx->compiler->gen >= 5);
+
+   struct ir3_instruction *addr =
+      ir3_collect(b, ir3_get_src(ctx, &intr->src[0])[0]);
+
+   if (op == nir_atomic_op_cmpxchg) {
+      struct ir3_instruction *compare = ir3_get_src(ctx, &intr->src[2])[0];
+      data = ir3_collect(b, compare, value);
+   } else {
+      data = value;
+   }
+
+   struct ir3_instruction *atomic =
+      emit_atomic_global(b, op, addr, data, create_immed(b, 0));
+
+   atomic->cat6.iim_val = 1;
+   atomic->cat6.d = 1;
+   atomic->cat6.type = type;
+   atomic->barrier_class = IR3_BARRIER_BUFFER_W;
+   atomic->barrier_conflict = IR3_BARRIER_BUFFER_R | IR3_BARRIER_BUFFER_W;
+
+   /* even if nothing consume the result, we can't DCE the instruction: */
+   array_insert(ctx->block, ctx->block->keeps, atomic);
+
+   return atomic;
 }
 
 /* a5xx shares a6xx's register-offset ldg.a/stg.a; a constant offset that
