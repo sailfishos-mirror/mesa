@@ -235,6 +235,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    unsigned rt_output[PIPE_MAX_COLOR_BUFS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
    ctx->framebuffer_s.rt_is_128bit = 0;
+   ctx->framebuffer_s.rt_pack_rgba16 = 0;
    memset(ctx->framebuffer_s.rt_companion, 0, sizeof(ctx->framebuffer_s.rt_companion));
    memset(ctx->framebuffer_s.companion_src, -1, sizeof(ctx->framebuffer_s.companion_src));
 
@@ -257,7 +258,16 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       struct etna_resource_level *level = &res->levels[surf->level];
 
       bool color_supertiled = (res->layout & ETNA_LAYOUT_BIT_SUPER) != 0;
-      uint32_t fmt = translate_pe_format(surf->format, screen);
+
+      enum pipe_format pe_format = surf->format;
+      if ((surf->format == PIPE_FORMAT_R16G16B16A16_UINT ||
+           surf->format == PIPE_FORMAT_R16G16B16A16_SINT) &&
+          !VIV_FEATURE(screen, ETNA_FEATURE_PE_RGBA16I_FIX)) {
+         ctx->framebuffer_s.rt_pack_rgba16 |= 1u << i;
+         pe_format = PIPE_FORMAT_R32G32_UINT;
+      }
+
+      uint32_t fmt = translate_pe_format(pe_format, screen);
       bool rt_use_ts = etna_framebuffer_rt_use_ts(ctx, i);
 
       /* Resolve TS if this target cannot use it */
@@ -386,7 +396,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       static_assert((VIVS_PS_CONTROL_EXT_OUTPUT_MODE0__MASK << 28) == VIVS_PS_CONTROL_EXT_OUTPUT_MODE7__MASK, "VIVS_PS_CONTROL_EXT_OUTPUT_MODE7__MASK");
 
       cs->PS_CONTROL_EXT |=
-         translate_output_mode(surf->format, screen->info->halti >= 5) << (4 * rt);
+         translate_output_mode(pe_format, screen->info->halti >= 5) << (4 * rt);
 
       /* When there are null render targets we need to modify the fragment
        * shader output mapping.

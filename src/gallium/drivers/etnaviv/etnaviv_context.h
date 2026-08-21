@@ -153,6 +153,7 @@ struct etna_framebuffer_state {
    struct pipe_framebuffer_state base;
 
    unsigned rt_is_128bit : ETNA_MAX_128BIT_RTS;
+   unsigned rt_pack_rgba16 : PIPE_MAX_COLOR_BUFS;
    unsigned rt_companion[ETNA_MAX_128BIT_RTS];
    int8_t companion_src[PIPE_MAX_COLOR_BUFS];
    uint32_t rt_ts_mask;

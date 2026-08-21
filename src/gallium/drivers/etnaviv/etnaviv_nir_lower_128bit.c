@@ -5,6 +5,7 @@
 
 #include "etnaviv_nir.h"
 #include "nir.h"
+#include "nir_format_convert.h"
 
 struct lower_128bit_data
 {
@@ -104,6 +105,36 @@ lower_128bit_output(nir_builder *b, nir_intrinsic_instr *intr, void *_data)
 }
 
 static bool
+lower_rgba16_output(nir_builder *b, nir_intrinsic_instr *intr, void *_data)
+{
+   struct lower_128bit_data *data = _data;
+   unsigned rt_index;
+
+   nir_variable *var =
+      rt_output_store_var(intr, PIPE_MAX_COLOR_BUFS, &rt_index);
+   if (!var)
+      return false;
+
+   if (!(data->key->rt_pack_rgba16 & (1 << rt_index)))
+      return false;
+
+   b->cursor = nir_before_instr(&intr->instr);
+
+   const unsigned wm = nir_intrinsic_write_mask(intr);
+   static const unsigned bits[4] = { 16, 16, 16, 16 };
+   nir_def *color = nir_pad_vector_imm_int(b, intr->src[1].ssa, 0, 4);
+   nir_def *packed =
+      nir_format_bitcast_uvec_unmasked(b, nir_format_mask_uvec(b, color, bits), 16, 32);
+   const unsigned packed_wm = (wm & 0x3 ? 0x1 : 0) | (wm & 0xc ? 0x2 : 0);
+
+   nir_store_var(b, var, nir_pad_vector_imm_int(b, packed, 0, 4), packed_wm);
+
+   remove_output_store(intr);
+
+   return true;
+}
+
+static bool
 lower_128bit_sampler(nir_builder *b, nir_tex_instr *tex, void *_data)
 {
    struct lower_128bit_data *data = _data;
@@ -196,8 +227,9 @@ etna_nir_lower_128bit(nir_shader *s, struct etna_shader_key *key)
       return false;
 
    const bool has_rt = is_fs && key->has_128bit_rt;
+   const bool has_pack = is_fs && key->rt_pack_rgba16;
 
-   if (!has_rt && !key->tex_is_128bit)
+   if (!has_rt && !has_pack && !key->tex_is_128bit)
       return false;
 
    struct lower_128bit_data data = {
@@ -220,6 +252,21 @@ etna_nir_lower_128bit(nir_shader *s, struct etna_shader_key *key)
       }
 
       NIR_PASS(progress, s, nir_shader_intrinsics_pass, lower_128bit_output,
+         nir_metadata_control_flow, &data);
+   }
+
+   if (has_pack) {
+      /* The shader may declare an output narrower than G32R32F, for example
+       * "out int" for an RGBA16I target.
+       */
+      nir_foreach_shader_out_variable(var, s) {
+         const int rt_index = var->data.location - FRAG_RESULT_DATA0;
+
+         if (rt_index >= 0 && (key->rt_pack_rgba16 & (1 << rt_index)))
+            var->type = vec4_of_same_base(var->type);
+      }
+
+      NIR_PASS(progress, s, nir_shader_intrinsics_pass, lower_rgba16_output,
          nir_metadata_control_flow, &data);
    }
 

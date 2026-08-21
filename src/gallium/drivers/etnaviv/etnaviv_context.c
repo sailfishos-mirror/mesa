@@ -227,6 +227,7 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
    struct etna_shader *fs = ctx->shader.bind_fs;
 
    key->use_xfb_emu = false;
+   key->rt_pack_rgba16 = ctx->framebuffer_s.rt_pack_rgba16;
 
    /* update the key if we need to run nir_lower_sample_tex_compare(..).
     * halti < 2 has no HW shadow compare. halti >= 2 has it, but depth32f is
