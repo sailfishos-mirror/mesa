@@ -125,8 +125,7 @@ op('dp4a_su',    3, 's32', Props.SAT)
 op('rndd',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('rndz',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('rnde',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
-op('math', 1, 'f16 f32',     Props.NEGATE | Props.SAT,
-   ['enum jay_math op', 'uint8_t sbid'])
+op('math', 1, 'f16 f32',     Props.NEGATE | Props.SAT, ['enum jay_math op'])
 
 op('rol', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)
 op('ror', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)
@@ -147,7 +146,6 @@ op('halt', 0, None, Props.NO_DEST, ['bool predicate_all'])
 
 op('send', 4, None, Props.SIDE_EFFECTS, [
     'gen_sfid sfid',
-    'uint8_t sbid',
     'bool eot',
     'bool check_tdr',
     'bool bindless',
@@ -157,7 +155,7 @@ op('send', 4, None, Props.SIDE_EFFECTS, [
     'enum jay_type type_1',
     'uint8_t mlen',
     'uint8_t ex_mlen',
-    'bool pad[1]',
+    'bool pad[2]',
     'uint32_t ex_desc_imm',
 ])
 
@@ -241,8 +239,6 @@ op('dpas', 3, 'u32', Props.NO_MASK, [
     'uint8_t rcount',
     'enum jay_type acc_type',
     'enum jay_type src_type',
-    'uint8_t sbid',
-    'uint8_t pad[3]',
 ])
 
 # Pack/unpack multiple sources to/from a single 32-bit def.

@@ -413,7 +413,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
 #define MATH(nir, jay_op)                                                      \
    case nir_op_##nir:                                                          \
-      jay_MATH(b, type, dst, src[0], JAY_MATH_##jay_op, 0);                    \
+      jay_MATH(b, type, dst, src[0], JAY_MATH_##jay_op);                       \
       break;
 
 #define UNOP_UNTYPED(nir, jay_op)                                              \
@@ -2118,8 +2118,7 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_DPAS(b, dst, src[0], src[1], src[2], nir_intrinsic_systolic_depth(intr),
             nir_intrinsic_repeat_count(intr),
             jay_type_for_glsl_base_type(nir_intrinsic_dest_base_type(intr)),
-            jay_type_for_glsl_base_type(nir_intrinsic_src_base_type(intr)),
-            /* sbid */ 0)
+            jay_type_for_glsl_base_type(nir_intrinsic_src_base_type(intr)))
       ->saturate = nir_intrinsic_saturate(intr);
 
    nj->s->prog_data->cs.uses_systolic = true;
