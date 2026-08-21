@@ -308,6 +308,11 @@ enum mtl_math_floating_point_functions {
    MTL_MATH_FLOATING_POINT_FUNCTIONS_PRECISE = 1,
 };
 
+enum mtl_language_version {
+   MTL_LANGUAGE_VERSION_4_0 = 0x40000,
+   MTL_LANGUAGE_VERSION_4_1 = 0x40001,
+};
+
 /** STRUCTURES */
 struct mtl_range {
    size_t offset;

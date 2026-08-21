@@ -1049,6 +1049,13 @@ get_metal_limits(struct kk_physical_device *pdev)
    pdev->info.gpu_apple_family =
       mtl_device_get_gpu_apple_family(pdev->mtl_dev_handle);
 
+   /* Determine the supported MSL version based on the OS. The version used to
+    * compile determines what features are available. */
+   if (ns_is_os_version_at_least(27, 0, 0))
+      pdev->info.msl_version = MTL_LANGUAGE_VERSION_4_1;
+   else
+      pdev->info.msl_version = MTL_LANGUAGE_VERSION_4_0;
+
    /* See Metal Feature Set Tables. Note that for certain MSAA sample counts the
     * tile size will actually be restricted to a width and/or height of 16, but
     * we typically don't know the actual sample count when querying granularity
