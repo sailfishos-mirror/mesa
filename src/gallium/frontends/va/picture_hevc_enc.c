@@ -1096,16 +1096,6 @@ vlVaHandleVAEncPackedHeaderDataBufferTypeHEVC(vlVaContext *context, vlVaBuffer *
       vl_rbsp_init(&rbsp, &vlc, ~0, context->packed_header_emulation_bytes);
 
       switch (nal_unit_type) {
-      case PIPE_H265_NAL_TRAIL_N:
-      case PIPE_H265_NAL_TRAIL_R:
-      case PIPE_H265_NAL_TSA_N:
-      case PIPE_H265_NAL_TSA_R:
-      case PIPE_H265_NAL_IDR_W_RADL:
-      case PIPE_H265_NAL_IDR_N_LP:
-      case PIPE_H265_NAL_CRA_NUT:
-         is_slice = true;
-         parseEncSliceParamsH265(context, &rbsp, nal_unit_type, temporal_id);
-         break;
       case PIPE_H265_NAL_VPS:
          parseEncVpsParamsH265(context, &rbsp);
          break;
@@ -1119,6 +1109,12 @@ vlVaHandleVAEncPackedHeaderDataBufferTypeHEVC(vlVaContext *context, vlVaBuffer *
          parseEncSeiH265(context, &rbsp);
          break;
       default:
+         /* Ignore RSV_VCL 10-15 reserved NALs */
+         if (nal_unit_type <= PIPE_H265_NAL_CRA_NUT &&
+             !(nal_unit_type >= 10 && nal_unit_type <= 15)) {
+            is_slice = true;
+            parseEncSliceParamsH265(context, &rbsp, nal_unit_type, temporal_id);
+         }
          break;
       }
 
