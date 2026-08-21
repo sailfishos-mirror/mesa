@@ -175,7 +175,7 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
          mov->type = jay_flag_type(b->func);
          jay_remove_instruction(I);
       } else if (I->op == JAY_OPCODE_SEND && jay_send_skip_helpers(I)) {
-         if (jay_is_no_mask(I)) {
+         if (I->uniform) {
             /* I->cond_flag has been reserved for our use */
             jay_inst *not = jay_NOT(b, jay_null(), ctx->helper_flag);
             not->type = jay_flag_type(b->func);
