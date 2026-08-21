@@ -40,48 +40,65 @@ get_or_create_companion_var(nir_shader *s, nir_variable *orig, unsigned companio
    return companion;
 }
 
+static nir_variable *
+rt_output_store_var(nir_intrinsic_instr *intr, unsigned num_rts,
+                    unsigned *rt_index)
+{
+   if (intr->intrinsic != nir_intrinsic_store_deref)
+      return NULL;
+
+   nir_variable *var = nir_intrinsic_get_var(intr, 0);
+   if (!var || var->data.mode != nir_var_shader_out)
+      return NULL;
+
+   if (var->data.location < FRAG_RESULT_DATA0 ||
+       var->data.location >= FRAG_RESULT_DATA0 + num_rts)
+      return NULL;
+
+   *rt_index = var->data.location - FRAG_RESULT_DATA0;
+
+   return var;
+}
+
+static void
+remove_output_store(nir_intrinsic_instr *intr)
+{
+   nir_deref_instr *deref = nir_src_as_deref(intr->src[0]);
+   nir_instr_remove(&intr->instr);
+   nir_deref_instr_remove_if_unused(deref);
+}
+
 static bool
 lower_128bit_output(nir_builder *b, nir_intrinsic_instr *intr, void *_data)
 {
    struct lower_128bit_data *data = _data;
+   unsigned rt_index;
 
-   if (intr->intrinsic != nir_intrinsic_store_deref)
+   nir_variable *var =
+      rt_output_store_var(intr, ETNA_MAX_128BIT_RTS, &rt_index);
+   if (!var)
       return false;
 
-   nir_variable *var = nir_intrinsic_get_var(intr, 0);
-   if (!var || var->data.mode != nir_var_shader_out)
-      return false;
-
-   if (var->data.location < FRAG_RESULT_DATA0 ||
-       var->data.location >= FRAG_RESULT_DATA0 + ETNA_MAX_128BIT_RTS)
-      return false;
-
-   nir_variable *companion =
-      data->companion_var[var->data.location - FRAG_RESULT_DATA0];
+   nir_variable *companion = data->companion_var[rt_index];
    if (!companion)
       return false;
 
    b->cursor = nir_before_instr(&intr->instr);
 
    const unsigned wm = nir_intrinsic_write_mask(intr);
-   nir_def *color = intr->src[1].ssa;
+   nir_def *color = nir_pad_vector_imm_int(b, intr->src[1].ssa, 0, 4);
    nir_def *zero = nir_imm_zero(b, 1, color->bit_size);
-   nir_def *ch[4];
-   for (unsigned i = 0; i < 4; i++)
-      ch[i] = i < color->num_components ? nir_channel(b, color, i) : zero;
-
-   nir_def *rg_output = nir_vec4(b, ch[0], ch[1], zero, zero);
-   nir_def *ba_output = nir_vec4(b, ch[2], ch[3], zero, zero);
+   nir_def *rg_output = nir_vec4(b, nir_channel(b, color, 0),
+                                 nir_channel(b, color, 1), zero, zero);
+   nir_def *ba_output = nir_vec4(b, nir_channel(b, color, 2),
+                                 nir_channel(b, color, 3), zero, zero);
 
    if (wm & 0x3)
       nir_store_var(b, var, rg_output, wm & 0x3);
    if (wm >> 2)
       nir_store_var(b, companion, ba_output, wm >> 2);
 
-   nir_instr *orig_deref = nir_def_instr(intr->src[0].ssa);
-   nir_instr_remove(&intr->instr);
-   if (nir_def_is_unused(&nir_instr_as_deref(orig_deref)->def))
-      nir_instr_remove(orig_deref);
+   remove_output_store(intr);
 
    return true;
 }
