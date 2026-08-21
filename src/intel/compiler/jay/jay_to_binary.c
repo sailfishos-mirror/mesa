@@ -361,7 +361,7 @@ emit(struct jay_codegen *jc,
    }
 
    gen->exec_size = jay_simd_width_physical(f->shader, I);
-   gen->no_mask = jay_is_no_mask(I);
+   gen->no_mask = I->uniform || jay_opcode_infos[I->op].no_mask;
    gen->chan_offset = simd_offs * gen->exec_size;
    gen->swsb = dep;
    gen->saturate = I->saturate;

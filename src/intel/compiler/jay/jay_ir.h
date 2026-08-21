@@ -1082,12 +1082,6 @@ jay_macro_length(const jay_inst *I)
    }
 }
 
-static inline bool
-jay_is_no_mask(const jay_inst *I)
-{
-   return I->uniform || jay_opcode_infos[I->op].no_mask;
-}
-
 /**
  * Representation of an (implemented) function in the Jay IR. This corresponds
  * to nir_function_impl in NIR.
