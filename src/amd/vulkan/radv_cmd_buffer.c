@@ -1772,13 +1772,16 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
             flags |= RADV_CMD_FLUSH_AND_INV_FRAMEBUFFER | RADV_CMD_FLAG_INV_L2_METADATA;
       }
 
-      assert(flags & (RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH));
+      assert((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) ==
+                (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH) ||
+             flags & RADV_CMD_FLAG_CS_PARTIAL_FLUSH);
 
       /* Force wait for graphics or compute engines to be idle. */
       radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
                                cmd_buffer->gfx9_fence_va, flags, &sqtt_flush_bits, cmd_buffer->gfx9_eop_bug_va);
 
-      if ((flags & RADV_CMD_FLAG_PS_PARTIAL_FLUSH) && radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
+      if ((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) &&
+          radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
          /* Force wait for compute engines to be idle on the internal cmdbuf. */
          radv_cs_emit_cache_flush(device->ws, cmd_buffer->gang.cs, pdev->info.gfx_level, NULL, 0,
                                   RADV_CMD_FLAG_CS_PARTIAL_FLUSH, &sqtt_flush_bits, 0);
@@ -14020,7 +14023,7 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VGT_STREAMOUT_SYNC;
    }
 
-   radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_PS_PARTIAL_FLUSH);
+   radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH);
 }
 
 VKAPI_ATTR void VKAPI_CALL
