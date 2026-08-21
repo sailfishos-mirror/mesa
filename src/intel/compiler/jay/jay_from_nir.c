@@ -3702,7 +3702,7 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 
    /* Emit the if-else-endif sequence */
    b->cursor = jay_after_block(before_block);
-   jay_add_predicate(b, jay_IF(b), condition);
+   jay_add_predicate(b, jay_IF(b), condition, jay_null());
 
    b->cursor = jay_before_block(else_first);
    jay_ELSE(b);
@@ -3960,7 +3960,7 @@ jay_emit_eot(struct nir_to_jay_state *nj)
          I = jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = srcs,
                       .nr_srcs = 2, .type = JAY_TYPE_U32, .uniform = true,
                       .eot = true);
-         I = jay_add_predicate(b, I, never);
+         I = jay_add_predicate(b, I, never, jay_null());
       } else {
          /* As above but for HDC URB platforms */
          jay_def data = jay_alloc_def(b, GPR, 1);

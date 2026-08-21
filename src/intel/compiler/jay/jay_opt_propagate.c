@@ -315,7 +315,7 @@ fuse_flag_op(jay_function *f, jay_inst *I, jay_inst *use, BITSET_WORD *defined)
    I->uniform = jay_is_uniform(use->dst);
    jay_def pred = use->op == JAY_OPCODE_OR ? jay_negate(other) : other;
    jay_builder b = jay_init_builder(f, jay_before_inst(I));
-   jay_add_predicate_else(&b, I, pred, other);
+   jay_add_predicate(&b, I, pred, other);
    return true;
 }
 

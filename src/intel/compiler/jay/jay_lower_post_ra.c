@@ -32,7 +32,7 @@ lower_non_tied_default(jay_builder *b, jay_inst *I, jay_def default_)
 
          jay_inst *mov = jay_MOV(b, dst, src);
          mov->type = I->type;
-         jay_add_predicate(b, mov, not_pred);
+         jay_add_predicate(b, mov, not_pred, jay_null());
       }
    }
 }

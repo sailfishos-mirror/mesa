@@ -45,7 +45,7 @@ predicate_block(jay_builder *b,
     */
    jay_foreach_inst_in_block_safe(block, I) {
       if (I->op != JAY_OPCODE_ENDIF && I->op != JAY_OPCODE_ELSE) {
-         I = jay_add_predicate(b, I, condition);
+         I = jay_add_predicate(b, I, condition, jay_null());
 
          if (I->op == JAY_OPCODE_BREAK) {
             return false;
@@ -109,8 +109,8 @@ predicate_if(jay_function *f, jay_block *if_block, jay_inst *if_)
          jay_remove_instruction(endif);
 
          if (whl && whl->op == JAY_OPCODE_WHILE && brk->predication) {
-            jay_add_predicate(&b, whl,
-                              jay_negate(*jay_inst_get_predicate(brk)));
+            jay_add_predicate(&b, whl, jay_negate(*jay_inst_get_predicate(brk)),
+                              jay_null());
             jay_remove_instruction(brk);
          }
       }
