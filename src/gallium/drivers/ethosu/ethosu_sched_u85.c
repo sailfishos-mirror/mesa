@@ -309,10 +309,8 @@ area_fit_u85(struct find_config_common common,
       }
 
       /* Nothing fitted at this depth */
-      if (!fitted) {
-         mesa_loge("area_fit_u85: no solution found");
+      if (!fitted)
          break;
-      }
    }
 
    return fit_shape;
