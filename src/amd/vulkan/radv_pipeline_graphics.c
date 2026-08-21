@@ -1755,6 +1755,12 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
                                   !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
                                   !state->rs->cull_mode && !state->rs->rasterizer_discard_enable;
 
+      key.rs.skip_all_ngg_culling = compiler_info->key.use_ngg_culling &&
+                                    !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
+                                    !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_CONSERVATIVE_MODE) &&
+                                    !state->rs->rasterizer_discard_enable &&
+                                    state->rs->conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
+
       key.rs.rasterizer_discard = !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE) &&
                                   state->rs->rasterizer_discard_enable;
    }

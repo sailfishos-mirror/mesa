@@ -948,6 +948,9 @@ radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir
    if (!compiler_info->key.use_ngg_culling)
       return false;
 
+   if (gfx_state->rs.skip_all_ngg_culling)
+      return false;
+
    /* TODO: consider other heuristics here, such as PS execution time */
    assert(compiler_info->key.nggc_max_ps_params);
    if (util_bitcount64(ps_inputs_read) > compiler_info->key.nggc_max_ps_params)
