@@ -354,7 +354,8 @@ choose_inst(struct sched_ctx *s, enum sched_mode mode)
       }
 
       if (latency_weight) {
-         score += latency_weight * ready_cycle(s, mode & BACKWARD, *head);
+         score += latency_weight *
+                  (ready_cycle(s, mode & BACKWARD, *head) - s->cycle);
       }
 
       if (score <= min_score) {
