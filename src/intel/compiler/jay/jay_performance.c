@@ -230,7 +230,6 @@ estimate_block_cycles(jay_function *f, jay_block *block)
          cycles += jay_occupancy(shader, prev);
       }
 
-      unsigned dep_cycles = 0;
       if (I->dep.mode && sbid[I->dep.pipe]) {
          unsigned latency = 0;
          if (I->dep.mode == GEN_SBID_SRC) {
@@ -245,7 +244,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
             sbid[I->dep.pipe] = NULL;
          }
 
-         dep_cycles = sbid_time[I->dep.sbid] + latency;
+         cycles = MAX2(cycles, sbid_time[I->dep.sbid] + latency);
       }
 
       if (I->dep.regdist) {
@@ -254,19 +253,18 @@ estimate_block_cycles(jay_function *f, jay_block *block)
                              BITFIELD_BIT(I->dep.pipe);
 
          u_foreach_bit(pipe, pipes) {
-            dep_cycles = MAX2(dep_cycles, fifo_get(&alu[pipe], I->dep.regdist));
+            cycles = MAX2(cycles, fifo_get(&alu[pipe], I->dep.regdist));
          }
       }
 
       jay_foreach_src(I, s) {
          if (I->src[s].file == ACCUM) {
-            dep_cycles = MAX2(dep_cycles, acc[I->src[s].reg]);
+            cycles = MAX2(cycles, acc[I->src[s].reg]);
          } else if (jay_is_flag(I->src[s])) {
-            dep_cycles = MAX2(dep_cycles, flag[I->src[s].reg]);
+            cycles = MAX2(cycles, flag[I->src[s].reg]);
          }
       }
 
-      cycles = MAX2(cycles, dep_cycles);
       unsigned ready_cycle = cycles + jay_latency(shader, I, false);
       fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
 
