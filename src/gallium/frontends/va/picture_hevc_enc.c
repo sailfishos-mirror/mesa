@@ -686,6 +686,8 @@ static void parseEncSliceParamsH265(vlVaContext *context,
                slice->delta_poc_msb_cycle_lt[i] = vl_rbsp_ue(rbsp);
          }
       }
+      if (seq->sps_temporal_mvp_enabled_flag)
+         slice->slice_temporal_mvp_enabled_flag = vl_rbsp_u(rbsp, 1);
    }
 
    if (context->desc.h265enc.seq.sample_adaptive_offset_enabled_flag) {
