@@ -509,6 +509,8 @@ kk_get_device_features(
       .shaderBufferFloat32Atomics = true,
       .shaderBufferFloat32AtomicAdd = true,
       .shaderSharedFloat32Atomics = true,
+      .shaderSharedFloat32AtomicAdd =
+         pdev->info.msl_version >= MTL_LANGUAGE_VERSION_4_1,
 
       /* VK_EXT_vertex_attribute_robustness */
       .vertexAttributeRobustness = true,
