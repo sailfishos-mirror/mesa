@@ -1085,12 +1085,7 @@ jay_macro_length(const jay_inst *I)
 static inline bool
 jay_is_no_mask(const jay_inst *I)
 {
-   return I->uniform ||
-          I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
-          I->op == JAY_OPCODE_DESWIZZLE_ODD ||
-          I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS ||
-          I->op == JAY_OPCODE_DPAS ||
-          I->op == JAY_OPCODE_SLICE_REPACK;
+   return I->uniform || jay_opcode_infos[I->op].no_mask;
 }
 
 /**
