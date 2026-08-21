@@ -510,7 +510,7 @@ anv_state_pools_init(struct anv_device *device)
 
    result = anv_shader_heap_init(&device->shader_heap, device,
                                  device->physical->va.shader_heap,
-                                 21 /* 2MiB */, 27 /* 64MiB */);
+                                 21 /* 2MiB */, 26 /* 64MiB */);
    if (result != VK_SUCCESS)
       goto fail_custom_border_color_pool;
 
