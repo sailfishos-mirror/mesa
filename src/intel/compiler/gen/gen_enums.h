@@ -815,6 +815,11 @@ enum {
    GEN_RT_BTD_MESSAGE_SPAWN  = 1,
 };
 
+enum {
+   GFX35_BTD_MSG_NORMAL_BTD_SPAWN = 0,
+   GFX35_BTD_MSG_STACK_ID_RELEASE = 1,
+};
+
 /* Ray trace accelerator trace-ray control (desc[9:8]). */
 enum {
    GEN_RT_TRACE_RAY_INITIAL   = 0,

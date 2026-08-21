@@ -2074,6 +2074,68 @@ lower_btd_logical_send(const brw_builder &bld, brw_inst *inst)
    send->src[SEND_SRC_PAYLOAD2] = payload;
 }
 
+static inline void
+lower_btd_logical_64bit_send(const brw_builder &bld, brw_inst *inst)
+{
+   const intel_device_info *devinfo = bld.shader->devinfo;
+   const brw_builder ubld = bld.exec_all();
+   brw_reg payload = ubld.vgrf(BRW_TYPE_UB, devinfo->grf_size);
+   brw_reg payload2 = brw_reg();
+   unsigned ex_mlen = 0;
+   brw_reg global_addr = brw_reg();
+   uint8_t opcode;
+
+   /* Stack IDs are always in R1 regardless of whether we're coming from a
+    * bindless shader or a regular compute shader.
+    */
+   brw_reg stack_ids = retype(payload, BRW_TYPE_UW);
+   bld.MOV(stack_ids, retype(brw_vec8_grf(reg_unit(devinfo), 0), BRW_TYPE_UW));
+
+   switch (inst->opcode) {
+   case SHADER_OPCODE_BTD_SPAWN_LOGICAL: {
+      opcode = GFX35_BTD_MSG_NORMAL_BTD_SPAWN;
+
+      assert(brw_type_size_bytes(inst->src[0].type) == 8 &&
+             inst->src[0].stride == 0);
+      global_addr = retype(inst->src[0], BRW_TYPE_UQ);
+
+      /* Shader Record Identifiers */
+      const brw_reg btd_record = inst->src[1];
+      payload2 = bld.move_to_vgrf(btd_record, 1);
+      ex_mlen = (inst->exec_size * sizeof(uint64_t)) / REG_SIZE;
+
+      break;
+   }
+
+   case SHADER_OPCODE_BTD_RETIRE_LOGICAL:
+      opcode = GFX35_BTD_MSG_STACK_ID_RELEASE;
+      break;
+
+   default:
+      UNREACHABLE("Invalid BTD message");
+   }
+
+   brw_send_inst *send = brw_transform_inst_to_send(bld, inst);
+   inst = NULL;
+
+   send->has_side_effects = true;
+   send->is_volatile = false;
+   send->sfid = GEN_SFID_BINDLESS_THREAD_DISPATCH;
+   send->mlen = devinfo->grf_size / REG_SIZE;
+   send->ex_mlen = ex_mlen;
+
+   send->combined_desc = brw_btd_64bit_spawn_desc(devinfo, opcode);
+   send->src[SENDG_SRC_IND_0_DESC] = global_addr;
+   /* Indirect 1 Descriptor is not SW accessible. Post Sync ID (GWID)
+    * contained in the descriptor is populated automatically by EU HW.
+    */
+   send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+   send->efficient_64bit = true;
+
+   send->src[SEND_SRC_PAYLOAD1] = payload;
+   send->src[SEND_SRC_PAYLOAD2] = payload2;
+}
+
 static void
 lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
 {
@@ -2330,7 +2392,10 @@ brw_lower_logical_sends(brw_shader &s)
 
       case SHADER_OPCODE_BTD_SPAWN_LOGICAL:
       case SHADER_OPCODE_BTD_RETIRE_LOGICAL:
-         lower_btd_logical_send(ibld, inst);
+         if (s.key->use_efficient_64bit)
+            lower_btd_logical_64bit_send(ibld, inst);
+         else
+            lower_btd_logical_send(ibld, inst);
          break;
 
       case RT_OPCODE_TRACE_RAY_LOGICAL:

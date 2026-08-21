@@ -870,6 +870,16 @@ brw_mdc_sm2_exec_size(uint32_t sm2)
    return 8 << sm2;
 }
 
+static inline uint64_t
+brw_btd_64bit_spawn_desc(ASSERTED const struct intel_device_info *devinfo,
+                         uint8_t opcode)
+{
+   assert(devinfo->has_ray_tracing);
+   return SET_BITS_64(opcode, 3, 0) |
+          SET_BITS_64(1, 5, 4) | /* Message Family = BTD_SPAWN_MSG */
+          SET_BITS_64(0, 13, 12); /* Ordinary Spawn: This is a callable mode. */
+}
+
 static inline uint32_t
 brw_btd_spawn_desc(ASSERTED const struct intel_device_info *devinfo,
                    unsigned exec_size, unsigned msg_type)
