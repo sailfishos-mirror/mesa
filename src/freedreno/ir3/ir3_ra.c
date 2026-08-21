@@ -2540,7 +2540,8 @@ handle_block(struct ra_ctx *ctx, struct ir3_block *block)
 }
 
 static unsigned
-calc_target_full_pressure(struct ir3_shader_variant *v, unsigned pressure)
+calc_target_full_pressure(struct ir3_shader_variant *v, unsigned pressure,
+                          unsigned limit)
 {
    /* Registers are allocated in units of vec4, so switch from units of
     * half-regs to vec4.
@@ -2557,7 +2558,7 @@ calc_target_full_pressure(struct ir3_shader_variant *v, unsigned pressure)
    unsigned target_waves =
       MIN2(reg_independent_max_waves, reg_dependent_max_waves);
 
-   while (target <= RA_FULL_SIZE / (2 * 4) &&
+   while (target <= limit / (2 * 4) &&
           ir3_should_double_threadsize(v, target) == double_threadsize &&
           ir3_get_reg_dependent_max_waves(v->compiler, target,
                                           double_threadsize) >= target_waves)
@@ -2867,6 +2868,20 @@ ir3_ra(struct ir3_shader_variant *v)
       ir3_debug_print(v->ir, "AFTER: shared register allocation");
    }
 
+   /* Both banks come out of one file, in half-units. */
+   unsigned phys_file_size = v->compiler->reg_size_vec4 * 4 * 2;
+
+   if (!v->mergedregs &&
+       limit_pressure.full + limit_pressure.half > phys_file_size) {
+      /* a whole register is reserved even for a single component of it */
+      limit_pressure.half =
+         MIN2(ALIGN_POT(max_pressure.half, 4), limit_pressure.half);
+      /* the footprint rounds up, so the budget rounds down */
+      limit_pressure.full =
+         MIN2(limit_pressure.full,
+              ROUND_DOWN_TO(phys_file_size - limit_pressure.half, 4 * 2));
+   }
+
    bool spilled = false;
    if (max_pressure.full > limit_pressure.full ||
        max_pressure.half > limit_pressure.half) {
@@ -2902,12 +2917,14 @@ ir3_ra(struct ir3_shader_variant *v)
       rzalloc_array(ctx, struct ra_interval, live->definitions_count);
    ctx->blocks = rzalloc_array(ctx, struct ra_block_state, live->block_count);
 
-   ctx->full.size = calc_target_full_pressure(v, max_pressure.full);
-   assert(ctx->full.size <= RA_FULL_SIZE);
+   unsigned full_limit = v->mergedregs ? RA_FULL_SIZE : limit_pressure.full;
+
+   ctx->full.size = calc_target_full_pressure(v, max_pressure.full, full_limit);
+   assert(ctx->full.size <= full_limit);
    d("full size: %u", ctx->full.size);
 
    if (!v->mergedregs)
-      ctx->half.size = RA_HALF_SIZE;
+      ctx->half.size = MIN2(RA_HALF_SIZE, phys_file_size - ctx->full.size);
 
    ctx->shared.size = RA_SHARED_SIZE;
 
