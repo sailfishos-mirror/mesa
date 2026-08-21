@@ -8570,7 +8570,7 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
        * it while our shaders are busy.
        */
       if (cmd_buffer->queue_state.gds_needed)
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH;
+         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
    }
 
    /* Finalize the internal compute command stream, if it exists. */

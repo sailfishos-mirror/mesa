@@ -48,22 +48,17 @@ gfx10_copy_shader_query_gfx(struct radv_cmd_buffer *cmd_buffer, bool use_gds, ui
    uint32_t src_sel;
    uint64_t src_va;
 
-   if (use_gds) {
-      /* Make sure GDS is idle before copying the value. */
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH;
+   /* Make sure GE and/or GDS is idle before copying the value. */
+   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2;
+   radv_emit_cache_flush(cmd_buffer);
 
+   if (use_gds) {
       src_sel = COPY_DATA_GDS;
       src_va = src_offset;
    } else {
-      /* Make sure GE is idle before copying the value. */
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
-
       src_sel = COPY_DATA_SRC_MEM;
       src_va = cmd_buffer->state.shader_query_buf_va + src_offset;
    }
-
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2;
-   radv_emit_cache_flush(cmd_buffer);
 
    gfx10_copy_shader_query(cmd_buffer->cs, src_sel, src_va, dst_va);
 }
