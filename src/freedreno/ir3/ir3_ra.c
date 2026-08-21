@@ -2874,6 +2874,15 @@ ir3_ra(struct ir3_shader_variant *v)
          d("max pressure exceeded!");
          goto fail;
       }
+      /* the spiller cannot get below one instruction's own footprint */
+      struct ir3_pressure min_pressure;
+      calc_min_limit_pressure(v, live, &min_pressure);
+      if (limit_pressure.full < min_pressure.full ||
+          limit_pressure.half < min_pressure.half) {
+         mesa_loge("Shader (%s) needs more registers than its register "
+                   "limit allows.", v->name);
+         goto fail;
+      }
       d("max pressure exceeded, spilling!");
       IR3_PASS(v->ir, ir3_spill, v, &live, &limit_pressure);
       ir3_calc_pressure(v, live, &max_pressure);
