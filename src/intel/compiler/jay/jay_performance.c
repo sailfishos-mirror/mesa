@@ -268,14 +268,12 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       unsigned ready_cycle = cycles + jay_latency(shader, I, false);
       fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
 
-      if (I->dst.file == ACCUM) {
-         acc[I->dst.reg] = ready_cycle;
-      } else if (jay_is_flag(I->dst)) {
-         flag[I->dst.reg] = ready_cycle;
-      }
-
-      if (jay_is_flag(I->cond_flag)) {
-         flag[I->cond_flag.reg] = ready_cycle;
+      jay_foreach_dst(I, dst) {
+         if (dst.file == ACCUM) {
+            acc[dst.reg] = ready_cycle;
+         } else if (jay_is_flag(dst)) {
+            flag[dst.reg] = ready_cycle;
+         }
       }
 
       if (I->dep.mode == GEN_SBID_SET) {
