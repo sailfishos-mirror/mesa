@@ -130,7 +130,8 @@ jay_print_src(FILE *fp, jay_block *block, jay_inst *I, unsigned s, unsigned *lu)
 }
 
 void
-jay_print_inst(FILE *fp, jay_block *block, jay_inst *I, unsigned *lu)
+jay_print_inst(
+   FILE *fp, jay_function *func, jay_block *block, jay_inst *I, unsigned *lu)
 {
    const char *sep = "";
 
@@ -234,7 +235,7 @@ comma_separate(FILE *fp, jay_block *block, bool *first)
 }
 
 void
-jay_print_block(FILE *fp, jay_block *block)
+jay_print_block(FILE *fp, jay_function *func, jay_block *block)
 {
    indent(fp, block, false);
    fprintf(fp, "B%d%s%s", block->index, block->uniform ? " [uniform]" : "",
@@ -265,7 +266,7 @@ jay_print_block(FILE *fp, jay_block *block)
    jay_foreach_inst_in_block(block, inst) {
       if (inst->op != JAY_OPCODE_PHI_DST && inst->op != JAY_OPCODE_PHI_SRC) {
          indent(fp, block, true);
-         jay_print_inst(fp, block, inst, &lu);
+         jay_print_inst(fp, func, block, inst, &lu);
       }
    }
 
@@ -297,7 +298,7 @@ jay_print_func(FILE *fp, jay_function *f)
 {
    fprintf(fp, "Jay function: \n\n");
    jay_foreach_block(f, block) {
-      jay_print_block(fp, block);
+      jay_print_block(fp, f, block);
    }
 }
 

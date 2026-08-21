@@ -709,7 +709,7 @@ emit(struct jay_codegen *jc,
 
    static_assert(GEN_OP_ILLEGAL == 0);
    if (!gen->opcode) {
-      jay_print_inst(stderr, NULL, (jay_inst *) I, NULL);
+      jay_print_inst(stderr, f, NULL, (jay_inst *) I, NULL);
       UNREACHABLE("Unhandled opcode");
    }
 }
@@ -776,7 +776,7 @@ jay_to_binary(jay_shader *s,
          }
 
          jay_foreach_inst_in_block(block, I) {
-            // jay_print_inst(stdout, (jay_inst *) I);
+            // jay_print_inst(stdout, f, (jay_inst *) I);
 
             for (unsigned i = 0; i < (1 << jay_simd_split(s, I)); ++i) {
                for (unsigned j = 0; j < jay_macro_length(I); ++j) {
