@@ -265,6 +265,11 @@ estimate_block_cycles(jay_function *f, jay_block *block)
          }
       }
 
+      if (0) {
+         printf("%4u: ", cycle);
+         jay_print_inst(stdout, f, I);
+      }
+
       unsigned ready_cycle = cycle + jay_latency(shader, I, false);
       fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
 
