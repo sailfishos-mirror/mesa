@@ -230,18 +230,18 @@ estimate_block_cycles(jay_function *f, jay_block *block)
          cycle += jay_occupancy(shader, prev);
       }
 
-      if (I->dep.mode && sbid[I->dep.pipe]) {
+      if (I->dep.mode && sbid[I->dep.sbid]) {
          unsigned latency = 0;
          if (I->dep.mode == GEN_SBID_SRC) {
-            if (sbid[I->dep.pipe]->op == JAY_OPCODE_SEND) {
-               latency = jay_send_src_latency(shader, sbid[I->dep.pipe]);
+            if (sbid[I->dep.sbid]->op == JAY_OPCODE_SEND) {
+               latency = jay_send_src_latency(shader, sbid[I->dep.sbid]);
             } else {
                /* IGC uses occupancy for this. Hit only by DPAS */
-               latency = jay_occupancy(shader, sbid[I->dep.pipe]);
+               latency = jay_occupancy(shader, sbid[I->dep.sbid]);
             }
          } else {
-            latency = jay_latency(shader, sbid[I->dep.pipe], false);
-            sbid[I->dep.pipe] = NULL;
+            latency = jay_latency(shader, sbid[I->dep.sbid], false);
+            sbid[I->dep.sbid] = NULL;
          }
 
          cycle = MAX2(cycle, sbid_time[I->dep.sbid] + latency);
