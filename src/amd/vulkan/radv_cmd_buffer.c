@@ -16027,32 +16027,49 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
       stageMask |= VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
    }
 
-   /* Flags that only require a top-of-pipe event. */
-   VkPipelineStageFlags2 top_of_pipe_flags = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+   /* Flags that can be signaled from a PFP write. */
+   VkPipelineStageFlags2 post_pfp_flags = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
 
-   /* Flags that only require a post-index-fetch event. */
-   VkPipelineStageFlags2 post_index_fetch_flags =
-      top_of_pipe_flags | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+   /* Flags that can be signaled from an ME write.
+    *
+    * DRAW_INDIRECT_BIT in Vulkan includes compute dispatch indirect, mesh dispatch indirect, and
+    * trace rays indirect.
+    *
+    * Task shaders are implemented as "draw ring wait + mesh dispatch indirect" on the gfx queue.
+    */
+   VkPipelineStageFlags2 post_me_flags = post_pfp_flags | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
+                                         VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
+                                         VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
 
-   /* Flags that only require signaling post PS. */
-   VkPipelineStageFlags2 post_ps_flags =
-      post_index_fetch_flags | VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+   VkPipelineStageFlags2 post_pre_raster_flags =
+      post_me_flags | VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT | VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
+      VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
       VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
       VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
-      VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
-      VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR | VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-      VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+
+   VkPipelineStageFlags2 post_ps_flags = post_me_flags | VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
+                                         VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                                         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+
+   /* PS_DONE doesn't wait for GS waves that send "gs_alloc_req 0" on GFX10-11.7.
+    * Only BOTTOM_OF_PIPE_TS does.
+    */
+   if (!(pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7))
+      post_ps_flags |= post_pre_raster_flags;
 
    /* Flags that only require signaling post CS. */
-   VkPipelineStageFlags2 post_cs_flags = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+   VkPipelineStageFlags2 post_cs_flags =
+      post_me_flags | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT |
+      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
+      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+      VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR;
 
    radv_cp_dma_wait_for_stages(cmd_buffer, stageMask);
 
-   if (!(stageMask & ~top_of_pipe_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
-      /* Just need to sync the PFP engine. */
+   if (!(stageMask & ~post_pfp_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_PREFETCH_PARSER, va, 1, &value, false);
-   } else if (!(stageMask & ~post_index_fetch_flags)) {
-      /* Sync ME because PFP reads index and indirect buffers. */
+   } else if (!(stageMask & ~post_me_flags)) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 1, &value, false);
    } else {
       unsigned event_type;
