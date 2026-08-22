@@ -94,6 +94,10 @@ struct tu_reg_value {
 
 #define fd_reg_pair tu_reg_value
 
+struct tu_scratch_slot {
+   unsigned slot;
+};
+
 struct tu_cs
 {
    uint32_t *start;
@@ -129,7 +133,14 @@ struct tu_cs
 
    tu_pkt *pkt;
 
+   /*
+    * Helpers for various pm4 pkt building:
+    */
+
    tu_crb crb(uint32_t nregs);
+
+   void scratch_to_reg(struct fd_reg_pair reg, struct tu_scratch_slot scratch, unsigned cnt);
+   void reg_to_scratch(struct tu_scratch_slot scratch, struct fd_reg_pair reg, unsigned cnt);
 };
 
 void

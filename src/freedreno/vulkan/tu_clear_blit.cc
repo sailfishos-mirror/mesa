@@ -24,6 +24,7 @@
 #include "tu_formats.h"
 #include "tu_image.h"
 #include "tu_lrz.h"
+#include "tu_scratch_ram.h"
 #include "tu_tracepoints.h"
 
 static const VkOffset2D blt_no_coord = { ~0, ~0 };
@@ -5740,15 +5741,10 @@ store_3d_blit(struct tu_cmd_buffer *cmd,
     * the end of the renderpass in the future. Use the scratch space to
     * save/restore them dynamically.
     */
-   tu_cs_emit_pkt7(cs, CP_REG_TO_SCRATCH, 1);
-   tu_cs_emit(cs, CP_REG_TO_SCRATCH_0_REG(RB_CNTL(CHIP).reg) |
-                  CP_REG_TO_SCRATCH_0_SCRATCH(0) |
-                  CP_REG_TO_SCRATCH_0_CNT(1 - 1));
+   cs->reg_to_scratch(tu_scratch(store_3d_blit.RB_CNTL), RB_CNTL(CHIP), 1);
+
    if (CHIP >= A7XX) {
-      tu_cs_emit_pkt7(cs, CP_REG_TO_SCRATCH, 1);
-      tu_cs_emit(cs, CP_REG_TO_SCRATCH_0_REG(RB_BUFFER_CNTL(CHIP).reg) |
-                     CP_REG_TO_SCRATCH_0_SCRATCH(1) |
-                     CP_REG_TO_SCRATCH_0_CNT(1 - 1));
+      cs->reg_to_scratch(tu_scratch(store_3d_blit.RB_BUFFER_CNTL), RB_BUFFER_CNTL(CHIP), 1);
    }
 
    r3d_setup<CHIP>(cmd, cs, src_format, dst_format, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -5778,21 +5774,11 @@ store_3d_blit(struct tu_cmd_buffer *cmd,
    tu_emit_event_write<CHIP>(cmd, cs, FD_CCU_CLEAN_COLOR);
 
    /* Restore RB_CNTL/GRAS_SC_BIN_CNTL saved above. */
-   tu_cs_emit_pkt7(cs, CP_SCRATCH_TO_REG, 1);
-   tu_cs_emit(cs, CP_SCRATCH_TO_REG_0_REG(RB_CNTL(CHIP).reg) |
-                  CP_SCRATCH_TO_REG_0_SCRATCH(0) |
-                  CP_SCRATCH_TO_REG_0_CNT(1 - 1));
-
-   tu_cs_emit_pkt7(cs, CP_SCRATCH_TO_REG, 1);
-   tu_cs_emit(cs, CP_SCRATCH_TO_REG_0_REG(GRAS_SC_BIN_CNTL(CHIP).reg) |
-                  CP_SCRATCH_TO_REG_0_SCRATCH(0) |
-                  CP_SCRATCH_TO_REG_0_CNT(1 - 1));
+   cs->scratch_to_reg(RB_CNTL(CHIP), tu_scratch(store_3d_blit.RB_CNTL), 1);
+   cs->scratch_to_reg(GRAS_SC_BIN_CNTL(CHIP), tu_scratch(store_3d_blit.RB_CNTL), 1);
 
    if (CHIP >= A7XX) {
-      tu_cs_emit_pkt7(cs, CP_SCRATCH_TO_REG, 1);
-      tu_cs_emit(cs, CP_SCRATCH_TO_REG_0_REG(RB_BUFFER_CNTL(CHIP).reg) |
-                        CP_SCRATCH_TO_REG_0_SCRATCH(1) |
-                        CP_SCRATCH_TO_REG_0_CNT(1 - 1));
+      cs->scratch_to_reg(RB_BUFFER_CNTL(CHIP), tu_scratch(store_3d_blit.RB_BUFFER_CNTL), 1);
    }
 }
 
