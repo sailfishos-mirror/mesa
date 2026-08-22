@@ -1894,10 +1894,15 @@ ir3_nir_scan_driver_consts(struct ir3_compiler *compiler, nir_shader *shader,
                case nir_intrinsic_image_load:
                case nir_intrinsic_image_store:
                case nir_intrinsic_image_size:
-                  /* a4xx gets these supplied by the hw directly (maybe CP?) */
-                  if (compiler->gen == 5 &&
-                     !(intr->intrinsic == nir_intrinsic_image_load &&
-                        !(nir_intrinsic_access(intr) & ACCESS_COHERENT))) {
+                  /* a4xx gets these supplied by the hw directly (maybe CP?).
+                   *
+                   * Every image intrinsic still present here is emitted with
+                   * ldib/stib, which needs the dimensions to compute its byte
+                   * offset: an image_load that could have used the texture
+                   * path was turned into a tex instruction by
+                   * nir_lower_readonly_images_to_tex long before this runs.
+                   */
+                  if (compiler->gen == 5) {
                      idx = nir_src_as_uint(intr->src[0]);
                      if (image_dims->mask & (1 << idx))
                         break;
