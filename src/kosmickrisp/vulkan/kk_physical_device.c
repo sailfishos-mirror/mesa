@@ -217,6 +217,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
 static void
 kk_get_device_features(
+   const struct kk_physical_device *pdev,
    const struct vk_device_extension_table *supported_extensions,
    struct vk_features *features)
 {
@@ -224,6 +225,7 @@ kk_get_device_features(
       /* Vulkan 1.0 */
       .alphaToOne = true,
       .depthBiasClamp = true,
+      .depthBounds = pdev->info.gpu_apple_family >= 10,
       .depthClamp = true,
       .drawIndirectFirstInstance = true,
       .dualSrcBlend = true,
@@ -1132,7 +1134,7 @@ kk_enumerate_physical_devices(struct vk_instance *_instance)
    kk_get_device_extensions(instance, &pdev->settings, &supported_extensions);
 
    struct vk_features supported_features;
-   kk_get_device_features(&supported_extensions, &supported_features);
+   kk_get_device_features(pdev, &supported_extensions, &supported_features);
 
    struct vk_properties properties;
    kk_get_device_properties(pdev, instance, &properties);
