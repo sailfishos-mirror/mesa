@@ -2584,7 +2584,7 @@
         "description": "ir3: reserve image dimensions for read-write images on a5xx",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1cc8523c5cc5730b7b38bf25424b12b3220d151e",
         "notes": null
