@@ -3946,12 +3946,29 @@ isl_surf_init_interleaved_arrays(const struct isl_device *dev,
 static int64_t
 find_next_divisor(int64_t divisor, int64_t num)
 {
-   if (divisor >= num) {
+   if (divisor >= num)
       return divisor + 1;
-   } else {
-      while (num % ++divisor != 0);
-      return divisor;
+
+   /* Go from 'divisor + 1' up to sqrt(num). If we find a factor, it's the
+    * first one, so just return it.
+    */
+   for (int64_t i = divisor + 1; i <= num / i; i++) {
+      if (num % i == 0)
+         return i;
    }
+
+   /* Since our previous search didn't work, the next divisor is bigger than
+    * sqrt(num). Instead of continuing to go up with 'i', we go down: we're
+    * interested in cofactors of 'i', and as we decrement 'i', the possible
+    * cofactors get bigger.
+    */
+   int64_t upper_bound = MIN2(divisor, num / divisor);
+   for (int64_t i = upper_bound; i > 1; i--) {
+      if ((num % i == 0) && (num / i > divisor))
+         return num / i;
+   }
+
+   return num;
 }
 
 /* Return an extent which holds at most the given number of tiles and has a
