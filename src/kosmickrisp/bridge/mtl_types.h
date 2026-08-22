@@ -196,6 +196,12 @@ enum mtl_sampler_mip_filter {
    MTL_SAMPLER_MIP_FILTER_LINEAR = 2,
 };
 
+enum mtl_sampler_reduction_mode {
+   MTL_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE = 0,
+   MTL_SAMPLER_REDUCTION_MODE_MINIMUM = 1,
+   MTL_SAMPLER_REDUCTION_MODE_MAXIMUM = 2,
+};
+
 enum mtl_compare_function {
    MTL_COMPARE_FUNCTION_NEVER = 0,
    MTL_COMPARE_FUNCTION_LESS = 1,
