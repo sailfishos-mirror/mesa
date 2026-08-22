@@ -834,7 +834,7 @@
         "description": "freedreno/a4xx+a5xx: clear PIPE_BIND_OPENCL before checking format support",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d48735852779cfef2c68dd01733532a2580b9bd8",
         "notes": null
