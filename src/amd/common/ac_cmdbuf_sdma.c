@@ -204,8 +204,8 @@ ac_sdma_get_tiled_header_dword(enum sdma_version sdma_ip_version,
 }
 
 static enum gfx9_resource_type
-ac_sdma_get_tiled_resource_dim(enum sdma_version sdma_ip_version,
-                               const struct ac_sdma_surf *tiled)
+ac_sdma_get_tiled_resource_dim_gfx9(enum sdma_version sdma_ip_version,
+                                    const struct ac_sdma_surf *tiled)
 {
    if (sdma_ip_version >= SDMA_5_0) {
       /* Use the 2D resource type for rotated or Z swizzles. */
@@ -223,20 +223,21 @@ static uint32_t
 ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
                              const struct ac_sdma_surf *tiled)
 {
-   const uint32_t swizzle_mode =
-      tiled->is_stencil ? tiled->surf->u.gfx9.zs.stencil_swizzle_mode
-                        : tiled->surf->u.gfx9.swizzle_mode;
-   const uint16_t epitch =
-      tiled->is_stencil ? tiled->surf->u.gfx9.zs.stencil_epitch
-                        : tiled->surf->u.gfx9.epitch;
-   const enum gfx9_resource_type dimension =
-      ac_sdma_get_tiled_resource_dim(info->sdma_ip_version, tiled);
    const uint32_t mip_max = MAX2(tiled->num_levels, 1);
    const uint32_t mip_id = tiled->first_level;
    const uint32_t element_size = util_logbase2(tiled->bpp);
    uint32_t info_dword = 0;
 
    if (info->sdma_ip_version >= SDMA_4_0) {
+      const uint32_t swizzle_mode =
+         tiled->is_stencil ? tiled->surf->u.gfx9.zs.stencil_swizzle_mode
+                           : tiled->surf->u.gfx9.swizzle_mode;
+      const uint16_t epitch =
+         tiled->is_stencil ? tiled->surf->u.gfx9.zs.stencil_epitch
+                           : tiled->surf->u.gfx9.epitch;
+      const enum gfx9_resource_type dimension =
+         ac_sdma_get_tiled_resource_dim_gfx9(info->sdma_ip_version, tiled);
+
       info_dword |= element_size;
       info_dword |= swizzle_mode << 3;
 
