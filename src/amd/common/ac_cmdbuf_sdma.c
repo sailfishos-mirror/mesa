@@ -249,7 +249,7 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
          return info_dword | dimension << 9 | epitch << 16;
       }
    } else {
-      const uint32_t tile_index = tiled->surf->u.legacy.tiling_index[0];
+      const uint32_t tile_index = ac_surface_get_legacy_tiling_index(tiled->surf, tiled->first_level, tiled->is_stencil);
       const uint32_t macro_tile_index = tiled->surf->u.legacy.macro_tile_index;
       const uint32_t tile_mode = info->si_tile_mode_array[tile_index];
       const uint32_t macro_tile_mode = info->cik_macrotile_mode_array[macro_tile_index];
