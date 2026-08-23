@@ -15,6 +15,7 @@ supported_ops = {
     exir_ops.edge.aten.convolution.default: gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION,
     exir_ops.edge.aten.add.Tensor: gallium.PIPE_ML_OPERATION_TYPE_ADD,
     exir_ops.edge.aten.cat.default: gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION,
+    exir_ops.edge.aten.sigmoid.default: gallium.PIPE_ML_OPERATION_TYPE_LOGISTIC,
     exir_ops.edge.aten.upsample_nearest2d.vec: gallium.PIPE_ML_OPERATION_TYPE_RESIZE,
 }
 

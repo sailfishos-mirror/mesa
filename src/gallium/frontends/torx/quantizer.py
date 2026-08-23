@@ -7,6 +7,7 @@ from typing import List, cast
 from torch import fx, per_channel_symmetric, per_tensor_affine, qint8, qint32
 import torch
 from torchao.quantization.pt2e import (
+    FixedQParamsObserver,
     HistogramObserver,
     PerChannelMinMaxObserver,
 )
@@ -98,6 +99,14 @@ class TorxQuantizer(Quantizer):
             qscheme=per_channel_symmetric,
             ch_axis=0)
 
+        self.unit_interval_spec = QuantizationSpec(
+            dtype=qint8,
+            quant_min=-128,
+            quant_max=127,
+            observer_or_fake_quant_ctr=FixedQParamsObserver.with_args(
+                scale=1.0 / 256.0, zero_point=-128),
+            qscheme=per_tensor_affine)
+
     def _annotate_io(
         self,
         model: fx.GraphModule,
@@ -156,6 +165,13 @@ class TorxQuantizer(Quantizer):
             _annotated=True,
         )
 
+    def _sigmoid_output_spec(self, node: fx.Node) -> QuantizationSpec:
+        """Return sigmoid's output spec, pinned to [0, 1] unless a consumer
+        would make other tensors share that range."""
+        if any(_shares_input_quantization(user) for user in node.users):
+            return self.io_spec
+        return self.unit_interval_spec
+
     def _annotate_operations(self, model: fx.GraphModule):
         for node in model.graph.nodes:
             if is_annotated(node):
@@ -202,6 +218,15 @@ class TorxQuantizer(Quantizer):
                 elif node.target == torch.ops.aten.upsample_nearest2d.vec:
                     if _shares_input_quantization(node):
                         self._annotate_shared_io(node, [node.args[0]])
+
+                elif node.target == torch.ops.aten.sigmoid.default:
+                    output = node.meta.get("val")
+                    if isinstance(output, torch.Tensor) and output.dim() == 4:
+                        node.meta[Q_ANNOTATION_KEY] = QuantizationAnnotation(
+                            input_qspec_map={node.args[0]: self.io_spec},
+                            output_qspec=self._sigmoid_output_spec(node),
+                            _annotated=True,
+                        )
 
     def annotate(self, model):
         # Annotate operations first, then only add I/O quantisation if at
