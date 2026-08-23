@@ -1,6 +1,8 @@
 # Copyright © 2026 Tomeu Vizoso <tomeu@tomeuvizoso.net>
 # SPDX-License-Identifier: MIT
 
+import operator
+
 import torch
 
 from executorch.exir.backend.backend_details import ExportedProgram
@@ -22,6 +24,7 @@ from .exir_to_gallium import (
     is_identity_clone,
     is_torx_convertible,
     is_torx_supported,
+    max_pool_values,
 )
 
 
@@ -110,6 +113,13 @@ class TorxSupportedOperators(OperatorSupportBase):
             producer = node.args[0]
             return (isinstance(producer, torch.fx.Node) and
                     fused_activation(producer) is node)
+
+        # Max pooling's values getitem carries the operation's output tensor,
+        # so it is delegated together with the pooling that produces it.
+        if node.target is operator.getitem:
+            producer = node.args[0]
+            return (isinstance(producer, torch.fx.Node) and
+                    max_pool_values(producer) is node)
 
         # A clone fed directly by a graph input could end up passing that
         # input straight to the partition output once removed, leaving the

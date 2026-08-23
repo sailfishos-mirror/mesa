@@ -5,8 +5,8 @@
 """Split whole-model .pt2 files into per-op .pt2 files and float references.
 
 This is the first (fast, sequential) step of test artifact generation.
-For each conv2d chain, add, concatenation, sigmoid and upsample in the
-model it:
+For each conv2d chain, add, concatenation, sigmoid, max pooling and
+upsample in the model it:
 
   1. Builds a standalone nn.Module with copied parameters.
   2. Exports it as a per-op .pt2 file.
@@ -241,13 +241,46 @@ def _build_add_module(torch, act_node=None):
     return AddModule()
 
 
+# Ethos-U pooling accepts strides 1..3 on both axes; mirrors
+# POOLING_STRIDE_MAX in the torx frontend, which this script cannot import.
+POOLING_STRIDE_MAX = 3
+
+
+def _spatial_pair(value, default):
+    """Normalise an aten int-or-list spatial argument to (height, width)."""
+    if value is None:
+        return default
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return default
+        return (value[0], value[-1])
+    return (value, value)
+
+
+def _build_max_pool_module(torch, node):
+    """Build a standalone nn.Module for a max pooling, or None when the torx
+    lowering would decline it and the test would fall back to CPU."""
+    kernel = _spatial_pair(node.args[1], (1, 1))
+    stride = _spatial_pair(node.args[2] if len(node.args) > 2 else None, kernel)
+    padding = _spatial_pair(node.args[3] if len(node.args) > 3 else None, (0, 0))
+    dilation = _spatial_pair(node.args[4] if len(node.args) > 4 else None, (1, 1))
+    ceil_mode = node.args[5] if len(node.args) > 5 else False
+
+    if dilation != (1, 1) or ceil_mode:
+        return None
+    if not all(1 <= s <= POOLING_STRIDE_MAX for s in stride):
+        return None
+
+    return torch.nn.MaxPool2d(kernel, stride=stride, padding=padding)
+
+
 def split_model(pt2_path, torch):
     """Load a whole-model .pt2 and split into per-op submodules.
 
     Returns a list of ``(index_name, module, example_inputs)`` tuples.
     ``example_inputs`` holds one tensor per input the module takes: one for
-    a conv chain, a sigmoid or an upsample, two for an add, and one per
-    concatenated tensor for a cat.
+    a conv chain, a sigmoid, a max pooling or an upsample, two for an add,
+    and one per concatenated tensor for a cat.
     """
     ep = torch.export.load(str(pt2_path))
     gm = ep.module()
@@ -391,6 +424,29 @@ def split_model(pt2_path, torch):
             continue
 
         mod = _build_upsample_module(torch)
+        mod.eval()
+
+        torch.manual_seed(42 + idx)
+        example_input = torch.randn(input_meta.shape)
+
+        ops.append((f"{idx:03d}", mod, (example_input,)))
+        idx += 1
+
+    # --- MAX POOL ops ---------------------------------------------------
+    for node in gm.graph.nodes:
+        if node.op != "call_function":
+            continue
+        if str(node.target) != "aten.max_pool2d.default":
+            continue
+
+        input_meta = (node.args[0].meta.get("val")
+                      if isinstance(node.args[0], torch.fx.Node) else None)
+        if input_meta is None or input_meta.dim() != 4:
+            continue
+
+        mod = _build_max_pool_module(torch, node)
+        if mod is None:
+            continue
         mod.eval()
 
         torch.manual_seed(42 + idx)

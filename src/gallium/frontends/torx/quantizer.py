@@ -41,6 +41,8 @@ def _shares_input_quantization(node: fx.Node) -> bool:
         return output.dim() == 4
     if target == torch.ops.aten.upsample_nearest2d.vec:
         return is_2x_resize(node)
+    if target == torch.ops.aten.max_pool2d.default:
+        return output.dim() == 4
     return False
 
 
@@ -227,6 +229,10 @@ class TorxQuantizer(Quantizer):
                             output_qspec=self._sigmoid_output_spec(node),
                             _annotated=True,
                         )
+
+                elif node.target == torch.ops.aten.max_pool2d.default:
+                    if _shares_input_quantization(node):
+                        self._annotate_shared_io(node, [node.args[0]])
 
     def annotate(self, model):
         # Annotate operations first, then only add I/O quantisation if at

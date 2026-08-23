@@ -3,6 +3,7 @@
 
 import ctypes
 import logging
+import operator
 from dataclasses import dataclass, field
 
 import torch
@@ -17,7 +18,10 @@ supported_ops = {
     exir_ops.edge.aten.cat.default: gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION,
     exir_ops.edge.aten.sigmoid.default: gallium.PIPE_ML_OPERATION_TYPE_LOGISTIC,
     exir_ops.edge.aten.upsample_nearest2d.vec: gallium.PIPE_ML_OPERATION_TYPE_RESIZE,
+    exir_ops.edge.aten.max_pool2d_with_indices.default: gallium.PIPE_ML_OPERATION_TYPE_POOLING,
 }
+
+POOLING_STRIDE_MAX = 3
 
 ATEN_DIM_TO_TENSOR_AXIS = [0, 3, 1, 2]
 CHANNEL_DIM = 1
@@ -406,15 +410,95 @@ def is_2x_resize(node: torch.fx.Node) -> bool:
                for dim in SPATIAL_DIMS)
 
 
+def _spatial_pair(value, default: tuple[int, int]) -> tuple[int, int]:
+    """Normalise an aten int-or-list spatial argument to (height, width)."""
+    if value is None:
+        return default
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return default
+        return (value[0], value[-1])
+    return (value, value)
+
+
+def _max_pool_geometry(node: torch.fx.Node):
+    """Return max pooling's (kernel, stride, padding) as (height, width) pairs."""
+    kernel = _spatial_pair(node.args[1], (1, 1))
+    stride = _spatial_pair(node.args[2] if len(node.args) > 2 else None, kernel)
+    padding = _spatial_pair(node.args[3] if len(node.args) > 3 else None, (0, 0))
+    return kernel, stride, padding
+
+
+def max_pool_values(node: torch.fx.Node) -> torch.fx.Node | None:
+    """Return the getitem carrying max pooling's values output, or None when
+    the node is not a max pooling this frontend can lower.
+
+    aten.max_pool2d decomposes to a two-output node whose second output is
+    the argmax indices; the Gallium pooling member expresses neither those
+    indices nor dilation nor ceil mode.
+    """
+    if node.target != exir_ops.edge.aten.max_pool2d_with_indices.default:
+        return None
+
+    _, stride, _ = _max_pool_geometry(node)
+    if not all(1 <= s <= POOLING_STRIDE_MAX for s in stride):
+        return None
+    if _spatial_pair(node.args[4] if len(node.args) > 4 else None, (1, 1)) != (1, 1):
+        return None
+    if len(node.args) > 5 and node.args[5]:
+        return None
+
+    users = list(node.users.keys())
+    if len(users) != 1:
+        return None
+    values = users[0]
+    if values.target is not operator.getitem or values.args[1] != 0:
+        return None
+    return values
+
+
+def fill_pooling(node: torch.fx.Node, output_node: torch.fx.Node,
+                 poperation: gallium.pipe_ml_operation):
+    kernel, stride, padding = _max_pool_geometry(node)
+
+    poperation.pooling.type = gallium.PIPE_ML_POOLING_TYPE_MAX
+    poperation.pooling.filter_height = kernel[0]
+    poperation.pooling.filter_width = kernel[1]
+    poperation.pooling.stride_y = stride[0]
+    poperation.pooling.stride_x = stride[1]
+    poperation.pooling.padding_top = padding[0]
+    poperation.pooling.padding_left = padding[1]
+
+    # PyTorch pads symmetrically; the NPU needs the padding each output
+    # position actually uses, so derive the trailing sides from the geometry.
+    input_shape = node.args[0].meta['val'].shape   # NCHW
+    output_shape = output_node.meta['val'].shape   # NCHW
+
+    poperation.pooling.padding_bottom = max(
+        0, (output_shape[2] - 1) * stride[0] - padding[0] + kernel[0] - input_shape[2]
+    )
+    poperation.pooling.padding_right = max(
+        0, (output_shape[3] - 1) * stride[1] - padding[1] + kernel[1] - input_shape[3]
+    )
+
+
 def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_ml_operation | None:
     if node.target not in supported_ops:
         return None
+
+    # Max pooling's tensor output is carried by a getitem, so that node — not
+    # this one — holds the output shape and the quantisation parameters.
+    output_node = node
+    if node.target == exir_ops.edge.aten.max_pool2d_with_indices.default:
+        output_node = max_pool_values(node)
+        if output_node is None:
+            return None
 
     # Qparams are populated by FoldAndAnnotateQParamsPass during preprocess().
     # During partitioning the pass hasn't run yet, so we fall back to identity
     # quantization (scale=1.0, zp=0) — enough for ml_operation_supported().
     input_qparams = node.meta.get("input_qparams", {})
-    output_qparams = node.meta.get("output_qparams", {})
+    output_qparams = output_node.meta.get("output_qparams", {})
 
     # When a fusable activation follows this node, FoldAndAnnotateQParamsPass
     # places output_qparams on the *activation* node (since Q follows it, not
@@ -426,7 +510,7 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
             output_qparams = activation.meta.get("output_qparams", {})
 
     # The runtime backend only maps 4-D delegate IO tensors.
-    output_val = node.meta.get('val')
+    output_val = output_node.meta.get('val')
     if not isinstance(output_val, torch.Tensor) or output_val.dim() != 4:
         return None
 
@@ -472,12 +556,12 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
     operation.output_count = 1
     operation.output_tensors = (ctypes.POINTER(gallium.pipe_tensor) * operation.output_count)()
 
-    output_tensor = node.meta['val']
+    output_tensor = output_val
     output_qp = output_qparams.get(0, IDENTITY_QPARAMS)
     _require_quant_args_dtype_in(output_qp, "output", (torch.qint8, torch.int8))
     operation.output_tensors[0] = ctypes.pointer(gallium.pipe_tensor())
     fill_tensor(output_tensor, operation.output_tensors[0].contents, graph, output_qp)
-    graph.node_to_tensor_idx[node] = operation.output_tensors[0].contents.index
+    graph.node_to_tensor_idx[output_node] = operation.output_tensors[0].contents.index
 
     if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION:
         weight_qp = input_qparams.get(1, IDENTITY_QPARAMS)
@@ -501,6 +585,9 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
 
     elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
         operation.conc.axis = ATEN_DIM_TO_TENSOR_AXIS[CHANNEL_DIM]
+
+    elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_POOLING:
+        fill_pooling(node, output_node, operation)
 
     return operation
 
@@ -534,6 +621,14 @@ def exir_to_gallium(nodes: list[torch.fx.Node]) -> GalliumGraph:
             raise RuntimeError(
                 f"Torx: activation '{n.name}' cannot be absorbed by its "
                 f"producer and has no standalone lowering")
+        if n.target is operator.getitem:
+            producer = n.args[0]
+            if (isinstance(producer, torch.fx.Node) and
+                    max_pool_values(producer) is n):
+                continue
+            raise RuntimeError(
+                f"Torx: '{n.name}' does not select the values output of a "
+                f"delegated max pooling and has no lowering")
         operation = exir_to_operation(n, graph)
         if operation is not None:
             if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION:
