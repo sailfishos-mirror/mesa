@@ -474,23 +474,25 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
                                  const struct ac_sdma_surf *dst,
                                  uint32_t width, uint32_t height, uint32_t depth)
 {
+   const enum sdma_version sdma_ip_version = info->sdma_ip_version;
+
+   assert(width <= ac_sdma_max_img_extent(sdma_ip_version));
+   assert(height <= ac_sdma_max_img_extent(sdma_ip_version));
+
    const uint32_t src_header_dword =
-      ac_sdma_get_tiled_header_dword(info->sdma_ip_version, src);
+      ac_sdma_get_tiled_header_dword(sdma_ip_version, src);
    const uint32_t src_info_dword = ac_sdma_get_tiled_info_dword(info, src);
    const uint32_t dst_info_dword = ac_sdma_get_tiled_info_dword(info, dst);
    uint32_t src_cp = 0, dst_cp = 0;
    bool cpv = false;
 
-   /* Sanity checks. */
-   assert(info->sdma_ip_version >= SDMA_4_0);
-
    /* On GFX10+ this supports DCC, but cannot copy a compressed surface to another compressed surface. */
    assert(!src->is_compressed || !dst->is_compressed);
 
-   if (info->sdma_ip_version >= SDMA_4_0 && info->sdma_ip_version < SDMA_5_0) {
-      /* SDMA v4 doesn't support mip_id selection in the T2T copy packet. */
+   if (sdma_ip_version < SDMA_5_0) {
+      /* SDMA v2-v4 doesn't support mip_id selection in the T2T copy packet. */
       assert(src_header_dword >> 24 == 0);
-      /* SDMA v4 doesn't support any image metadata. */
+      /* SDMA v2-v4 doesn't support any image metadata. */
       assert(!src->is_compressed);
       assert(!dst->is_compressed);
    }
@@ -529,23 +531,43 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    ac_cmdbuf_emit(src->va);
    ac_cmdbuf_emit(src->va >> 32);
    ac_cmdbuf_emit(src->offset.x | src->offset.y << 16);
-   ac_cmdbuf_emit(src->offset.z | (src->extent.width - 1) << 16);
-   ac_cmdbuf_emit((src->extent.height - 1) | (src->extent.depth - 1) << 16);
+   if (sdma_ip_version >= SDMA_4_0) {
+      ac_cmdbuf_emit(src->offset.z | (src->extent.width - 1) << 16);
+      ac_cmdbuf_emit((src->extent.height - 1) | (src->extent.depth - 1) << 16);
+   } else {
+      ac_cmdbuf_emit(src->offset.z | (ac_sdma2_get_pitch_in_tile_max(src) - 1) << 16);
+      ac_cmdbuf_emit(ac_sdma2_get_slice_pitch_in_tile_max(src) - 1);
+   }
    ac_cmdbuf_emit(src_info_dword);
    ac_cmdbuf_emit(dst->va);
    ac_cmdbuf_emit(dst->va >> 32);
    ac_cmdbuf_emit(dst->offset.x | dst->offset.y << 16);
-   ac_cmdbuf_emit(dst->offset.z | (dst->extent.width - 1) << 16);
-   ac_cmdbuf_emit((dst->extent.height - 1) | (dst->extent.depth - 1) << 16);
+   if (sdma_ip_version >= SDMA_4_0) {
+      ac_cmdbuf_emit(dst->offset.z | (dst->extent.width - 1) << 16);
+      ac_cmdbuf_emit((dst->extent.height - 1) | (dst->extent.depth - 1) << 16);
+   } else {
+      ac_cmdbuf_emit(dst->offset.z | (ac_sdma2_get_pitch_in_tile_max(dst) - 1) << 16);
+      ac_cmdbuf_emit(ac_sdma2_get_slice_pitch_in_tile_max(dst) - 1);
+   }
    ac_cmdbuf_emit(dst_info_dword);
-   ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
-   ac_cmdbuf_emit((depth - 1) |
-                  (cpv ? SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(src_cp) |
-                         SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp)
-                       : 0));
+
+   if (sdma_ip_version >= SDMA_4_0)
+      ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
+   else if (sdma_ip_version >= SDMA_2_4)
+      ac_cmdbuf_emit((width - 8) | ((height - 8) << 16));
+   else
+      ac_cmdbuf_emit(width | height << 16);
+
+   if (sdma_ip_version >= SDMA_2_4)
+      ac_cmdbuf_emit((depth - 1) |
+                     (cpv ? SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(src_cp) |
+                           SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp)
+                        : 0));
+   else
+      ac_cmdbuf_emit(depth);
 
    if (dcc) {
-      if (info->sdma_ip_version >= SDMA_7_0) {
+      if (sdma_ip_version >= SDMA_7_0) {
          const uint32_t meta_config = ac_sdma7_get_metadata_config(info, src, dst);
 
          ac_cmdbuf_emit(meta_config);
