@@ -252,7 +252,10 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
       const uint32_t tile_index = ac_surface_get_legacy_tiling_index(tiled->surf, tiled->first_level, tiled->is_stencil);
       const uint32_t macro_tile_index = tiled->surf->u.legacy.macro_tile_index;
       const uint32_t tile_mode = info->si_tile_mode_array[tile_index];
-      const uint32_t macro_tile_mode = info->cik_macrotile_mode_array[macro_tile_index];
+      const uint32_t macro_tile_mode =
+         G_009910_ARRAY_MODE(tile_mode) >= V_009910_ARRAY_2D_TILED_THIN1
+            ? info->cik_macrotile_mode_array[macro_tile_index]
+            : 0;
 
       return element_size |
              (G_009910_ARRAY_MODE(tile_mode) << 3) |
