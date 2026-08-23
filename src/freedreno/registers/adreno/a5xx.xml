@@ -2987,6 +2987,13 @@ with a better name.
 
 <domain name="A5XX_SSBO_1" width="32">
 	<reg32 offset="0" name="0">
+		<doc>
+			SWAP selects the component order a store lands in, the same
+			way COLOR_SWAP does for a render target.  Without it a store
+			to a permuted format such as B8G8R8A8 writes the components
+			in the hardware format's own order.
+		</doc>
+		<bitfield name="SWAP" low="6" high="7" type="a3xx_color_swap"/>
 		<bitfield name="FMT" low="8" high="15" type="a5xx_tex_fmt"/>
 		<bitfield name="WIDTH" low="16" high="31" type="uint"/>
 	</reg32>
