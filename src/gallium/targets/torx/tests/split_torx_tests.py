@@ -5,7 +5,7 @@
 """Split whole-model .pt2 files into per-op .pt2 files and float references.
 
 This is the first (fast, sequential) step of test artifact generation.
-For each conv2d / add chain in the model it:
+For each conv2d chain, add and concatenation in the model it:
 
   1. Builds a standalone nn.Module with copied parameters.
   2. Exports it as a per-op .pt2 file.
@@ -157,6 +157,19 @@ def _build_module(torch, gm, conv_node, chain_nodes):
     return torch.nn.Sequential(*layers)
 
 
+CHANNEL_DIM = 1
+
+
+def _build_cat_module(torch, dim):
+    """Build a standalone nn.Module concatenating its inputs along dim."""
+
+    class CatModule(torch.nn.Module):
+        def forward(self, *inputs):
+            return torch.cat(inputs, dim)
+
+    return CatModule()
+
+
 def _build_add_module(torch, act_node=None):
     """Build a standalone nn.Module for an elementwise add, optionally fused
     with an activation the driver's add can absorb: relu, or a clamp at
@@ -206,7 +219,8 @@ def split_model(pt2_path, torch):
     """Load a whole-model .pt2 and split into per-op submodules.
 
     Returns a list of ``(index_name, module, example_inputs)`` tuples.
-    ``example_inputs`` is a tuple of tensors (length 1 for conv, 2 for add).
+    ``example_inputs`` holds one tensor per input the module takes: one for
+    a conv chain, two for an add, and one per concatenated tensor for a cat.
     """
     ep = torch.export.load(str(pt2_path))
     gm = ep.module()
@@ -250,6 +264,32 @@ def split_model(pt2_path, torch):
         example_input = torch.randn(input_meta.shape)
 
         ops.append((f"{idx:03d}", mod, (example_input,)))
+        idx += 1
+
+    # --- CAT ops --------------------------------------------------------
+    for node in gm.graph.nodes:
+        if node.op != "call_function":
+            continue
+        if str(node.target) != "aten.cat.default":
+            continue
+
+        input_nodes = node.args[0]
+        if not all(isinstance(n, torch.fx.Node) for n in input_nodes):
+            continue
+        input_metas = [n.meta.get("val") for n in input_nodes]
+        if any(meta is None or meta.dim() != 4 for meta in input_metas):
+            continue
+
+        dim = node.args[1] if len(node.args) > 1 else 0
+        if dim % 4 != CHANNEL_DIM:
+            continue
+        mod = _build_cat_module(torch, dim)
+        mod.eval()
+
+        torch.manual_seed(42 + idx)
+        example_inputs = tuple(torch.randn(meta.shape) for meta in input_metas)
+
+        ops.append((f"{idx:03d}", mod, example_inputs))
         idx += 1
 
     # --- ADD ops --------------------------------------------------------

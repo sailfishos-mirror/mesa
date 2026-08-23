@@ -31,6 +31,9 @@ def _shares_input_quantization(node: fx.Node) -> bool:
     output = node.meta.get("val")
     if not isinstance(output, torch.Tensor) or not output.is_floating_point():
         return False
+    target = node.target
+    if target == torch.ops.aten.cat.default:
+        return output.dim() == 4
     return False
 
 
@@ -185,6 +188,10 @@ class TorxQuantizer(Quantizer):
                     input_qspec_map[node.args[1]] = self.io_spec
 
                     self._annotate_with_optional_fused_act(node, input_qspec_map)
+
+                elif node.target == torch.ops.aten.cat.default:
+                    if _shares_input_quantization(node):
+                        self._annotate_shared_io(node, list(node.args[0]))
 
     def annotate(self, model):
         # Annotate operations first, then only add I/O quantisation if at

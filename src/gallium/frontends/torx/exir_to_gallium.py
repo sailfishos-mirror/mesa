@@ -14,7 +14,12 @@ from .fold_qdq_with_annotated_qparams_pass import QuantArgs
 supported_ops = {
     exir_ops.edge.aten.convolution.default: gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION,
     exir_ops.edge.aten.add.Tensor: gallium.PIPE_ML_OPERATION_TYPE_ADD,
+    exir_ops.edge.aten.cat.default: gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION,
 }
+
+ATEN_DIM_TO_TENSOR_AXIS = [0, 3, 1, 2]
+CHANNEL_DIM = 1
+
 # Activation ops that are fused into the preceding convolution or add.
 # Two variants: FUSABLE_ACTIVATION_OPS uses ExIR edge-dialect op references
 # (used during lowering and partitioning); FUSABLE_ACTIVATION_OPS_ATEN uses
@@ -403,19 +408,31 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
     operation = gallium.pipe_ml_operation()
     operation.type = supported_ops[node.target]
 
-    is_add = (operation.type == gallium.PIPE_ML_OPERATION_TYPE_ADD)
-    num_inputs = 2 if is_add else 1
-    operation.input_count = num_inputs
+    if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
+        dim = node.args[1] if len(node.args) > 1 else 0
+        if dim % 4 != CHANNEL_DIM or not isinstance(node.args[0], (list, tuple)):
+            return None
+        input_nodes = list(node.args[0])
+        list_arg_qparams = input_qparams.get(0, IDENTITY_QPARAMS)
+        input_qps = [list_arg_qparams] * len(input_nodes)
+    else:
+        if operation.type == gallium.PIPE_ML_OPERATION_TYPE_ADD:
+            input_nodes = list(node.args[:2])
+        else:
+            input_nodes = [node.args[0]]
+        input_qps = [input_qparams.get(i, IDENTITY_QPARAMS)
+                     for i in range(len(input_nodes))]
+
+    operation.input_count = len(input_nodes)
     operation.input_tensors = (ctypes.POINTER(gallium.pipe_tensor) * operation.input_count)()
 
-    for inp_idx in range(num_inputs):
-        input_node = node.args[inp_idx]
+    for inp_idx, input_node in enumerate(input_nodes):
         if not isinstance(input_node, torch.fx.Node):
             return None
         input_tensor = input_node.meta['val']
         if input_tensor.dim() != 4:
             return None
-        input_qp = input_qparams.get(inp_idx, IDENTITY_QPARAMS)
+        input_qp = input_qps[inp_idx]
         _require_quant_args_dtype_in(input_qp, f"input{inp_idx}", (torch.qint8, torch.int8))
         operation.input_tensors[inp_idx] = ctypes.pointer(gallium.pipe_tensor())
         existing_idx = graph.node_to_tensor_idx.get(input_node)
@@ -452,6 +469,9 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
 
     elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_ADD:
         operation.add.relu = fused_activation(node) is not None
+
+    elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
+        operation.conc.axis = ATEN_DIM_TO_TENSOR_AXIS[CHANNEL_DIM]
 
     return operation
 
@@ -493,7 +513,9 @@ def exir_to_gallium(nodes: list[torch.fx.Node]) -> GalliumGraph:
                 if operation.conv.bias_tensor and not operation.conv.bias_tensor.contents.data:
                     raise RuntimeError(f"Torx: convolution '{n.name}' has no bias data")
             else:
-                for arg in n.args:
+                args = [a for arg in n.args
+                        for a in (arg if isinstance(arg, (list, tuple)) else [arg])]
+                for arg in args:
                     if isinstance(arg, torch.fx.Node) and 'torx_data' in arg.meta:
                         raise RuntimeError(
                             f"Torx: '{n.name}' reads constant tensor '{arg.name}', "
