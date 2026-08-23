@@ -112,6 +112,13 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
    const uint32_t bpe = radv_sdma_get_bpe(image, &subresource);
    const uint32_t blk_w = vk_format_get_blockwidth(image->vk.format);
    const VkFormat aspect_format = vk_format_get_aspect_format(image->vk.format, subresource.aspectMask);
+   const uint32_t first_level = subresource.mipLevel;
+   const uint32_t texel_scale = radv_sdma_get_texel_scale(image);
+   const bool is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT;
+   const struct legacy_surf_level *legacy_level = NULL;
+
+   if (pdev->info.gfx_level < GFX9)
+      legacy_level = ac_surface_get_legacy_level(surf, first_level, is_stencil);
 
    struct ac_sdma_surf info = {
       .surf = surf,
@@ -124,13 +131,13 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
             .height = vk_format_get_plane_height(image->vk.format, plane_idx, image->vk.extent.height),
          },
       .bpp = bpe,
-      .first_level = subresource.mipLevel,
+      .first_level = first_level,
       .num_levels = image->vk.mip_levels,
-      .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
+      .is_stencil = is_stencil,
       .is_secure = image->vk.create_flags & VK_IMAGE_CREATE_2_PROTECTED_BIT_KHR,
    };
 
-   info.offset.x = offset.x * radv_sdma_get_texel_scale(image);
+   info.offset.x = offset.x * texel_scale;
    info.offset.y = offset.y;
    info.offset.z = image->vk.image_type == VK_IMAGE_TYPE_3D ? offset.z : subresource.baseArrayLayer;
 
@@ -145,13 +152,28 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
    info.extent.height = img_extent_el.height;
    info.extent.depth = image->vk.image_type == VK_IMAGE_TYPE_3D ? image->vk.extent.depth : image->vk.array_layers;
 
-   const uint64_t surf_offset = (subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) ? surf->u.gfx9.zs.stencil_offset
-                                                                                        : surf->u.gfx9.surf_offset;
+   uint64_t surf_offset = 0;
+
+   if (pdev->info.gfx_level >= GFX9) {
+      if (is_stencil)
+         surf_offset = surf->u.gfx9.zs.stencil_offset;
+      else
+         surf_offset = surf->u.gfx9.surf_offset;
+   } else {
+      surf_offset = (uint64_t)legacy_level->offset_256B * 256;
+   }
 
    if (surf->is_linear) {
-      info.va = va + surf_offset + surf->u.gfx9.offset[subresource.mipLevel];
-      info.pitch = surf->u.gfx9.pitch[subresource.mipLevel] / blk_w;
-      info.slice_pitch = surf->u.gfx9.surf_slice_size / bpe;
+      info.va = va + surf_offset;
+
+      if (pdev->info.gfx_level >= GFX9) {
+         info.va += surf->u.gfx9.offset[first_level];
+         info.pitch = surf->u.gfx9.pitch[first_level] / blk_w;
+         info.slice_pitch = surf->u.gfx9.surf_slice_size / bpe;
+      } else {
+         info.pitch = legacy_level->nblk_x * texel_scale;
+         info.slice_pitch = legacy_level->slice_size_dw * 4 / bpe;
+      }
    } else {
       const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
       const bool htile_compressed =
@@ -160,9 +182,13 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
          radv_layout_dcc_compressed(device, image, subresource.mipLevel, image_layout, queue_mask);
 
       /* 1D resources should be linear. */
-      assert(surf->u.gfx9.resource_type != RADEON_RESOURCE_1D);
+      if (pdev->info.gfx_level >= GFX9)
+         assert(surf->u.gfx9.resource_type != RADEON_RESOURCE_1D);
 
-      info.va = (va + surf_offset) | surf->tile_swizzle << 8;
+      info.va = va + surf_offset;
+
+      if (pdev->info.gfx_level >= GFX9 || surf->u.legacy.level[first_level].mode == RADEON_SURF_MODE_2D)
+         info.va |= surf->tile_swizzle << 8;
 
       if (dcc_compressed || htile_compressed) {
          assert(pdev->info.sdma_supports_compression && pdev->info.gfx_level < GFX12);
