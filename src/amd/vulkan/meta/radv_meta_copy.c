@@ -656,6 +656,7 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
                     struct radv_image *dst_image, VkImageLayout dst_image_layout, const VkImageCopy2 *region)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    unsigned int dst_aspect_mask_remaining = region->dstSubresource.aspectMask;
    VkImageSubresourceLayers src_subresource = region->srcSubresource;
@@ -695,7 +696,7 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
          radv_sdma_get_surf(cmd_buffer, dst_image, dst_image_layout, dst_subresource, dst_offset_el);
       const VkExtent3D extent = radv_sdma_get_copy_extent(src_image, src_subresource, img_extent_el);
 
-      if (radv_sdma_use_t2t_scanline_copy(device, &src, &dst, extent)) {
+      if (ac_sdma_use_t2t_scanline_copy(&pdev->info, &src, &dst, extent.width, extent.height, extent.depth)) {
          if (!alloc_transfer_temp_bo(cmd_buffer))
             return;
 

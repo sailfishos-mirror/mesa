@@ -22,22 +22,6 @@ struct radv_sdma_chunked_copy_info {
    unsigned num_rows_per_copy;
 };
 
-static const VkExtent3D radv_sdma_t2t_alignment_2d_and_planar[] = {
-   {16, 16, 1}, /* 1 bpp */
-   {16, 8, 1},  /* 2 bpp */
-   {8, 8, 1},   /* 4 bpp */
-   {8, 4, 1},   /* 8 bpp */
-   {4, 4, 1},   /* 16 bpp */
-};
-
-static const VkExtent3D radv_sdma_t2t_alignment_3d[] = {
-   {8, 4, 8}, /* 1 bpp */
-   {4, 4, 8}, /* 2 bpp */
-   {4, 4, 4}, /* 4 bpp */
-   {4, 2, 4}, /* 8 bpp */
-   {2, 2, 4}, /* 16 bpp */
-};
-
 ALWAYS_INLINE static unsigned
 radv_sdma_pitch_alignment(const struct radv_device *device, const unsigned bpp)
 {
@@ -138,11 +122,13 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
    const uint64_t va = binding->addr;
    const uint32_t bpe = radv_sdma_get_bpe(image, &subresource);
    const uint32_t blk_w = vk_format_get_blockwidth(image->vk.format);
+   const VkFormat aspect_format = vk_format_get_aspect_format(image->vk.format, subresource.aspectMask);
 
    struct ac_sdma_surf info = {
       .surf = surf,
       .img_format = radv_format_to_pipe_format(image->vk.format),
-      .format = radv_format_to_pipe_format(vk_format_get_aspect_format(image->vk.format, subresource.aspectMask)),
+      .format = radv_format_to_pipe_format(aspect_format),
+      .is_color = vk_format_is_color(aspect_format),
       .extent =
          {
             .width = vk_format_get_plane_width(image->vk.format, plane_idx, image->vk.extent.width),
@@ -397,76 +383,6 @@ radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *c
          radv_sdma_emit_copy_t2t_sub_window(device, cs, src, dst, extent);
       }
    }
-}
-
-bool
-radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct ac_sdma_surf *src,
-                                const struct ac_sdma_surf *dst, const VkExtent3D extent)
-{
-   bool needs_3d_alignment = src->surf->u.gfx9.resource_type == RADEON_RESOURCE_3D;
-
-   /* These need a linear-to-linear / linear-to-tiled copy. */
-   if (src->surf->is_linear || dst->surf->is_linear)
-      return false;
-
-   /* SDMA can't do format conversion. */
-   assert(src->bpp == dst->bpp);
-
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const enum sdma_version ver = pdev->info.sdma_ip_version;
-   if (ver < SDMA_5_0) {
-      /* SDMA v4.x and older doesn't support proper mip level selection. */
-      if (src->num_levels > 1 || dst->num_levels > 1)
-         return true;
-   }
-
-   /* The T2T subwindow copy packet only has fields for one metadata configuration.
-    * It can either compress or decompress, or copy uncompressed images, but it
-    * can't copy from a compressed image to another.
-    */
-   if (src->is_compressed && dst->is_compressed)
-      return true;
-
-   if (ver >= SDMA_7_0) {
-      /* No support for tiling format transformation at all. */
-      if (src->surf->u.gfx9.swizzle_mode != dst->surf->u.gfx9.swizzle_mode)
-         return true;
-   } else {
-      /* The two images can have a different block size, but must have the same swizzle mode. */
-      if (src->surf->micro_tile_mode != dst->surf->micro_tile_mode)
-         return true;
-
-      /* Only for 3D standard/displayable swizzle modes. */
-      needs_3d_alignment &= (src->surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
-                             src->surf->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
-   }
-
-   const unsigned log2bpp = util_logbase2(src->bpp);
-   const VkExtent3D *const alignment =
-      needs_3d_alignment ? &radv_sdma_t2t_alignment_3d[log2bpp] : &radv_sdma_t2t_alignment_2d_and_planar[log2bpp];
-
-   if (!util_is_aligned(extent.width, alignment->width) || !util_is_aligned(extent.height, alignment->height) ||
-       !util_is_aligned(extent.depth, alignment->depth))
-      return true;
-
-   if (!util_is_aligned(src->offset.x, alignment->width) || !util_is_aligned(src->offset.y, alignment->height) ||
-       !util_is_aligned(src->offset.z, alignment->depth))
-      return true;
-
-   if (!util_is_aligned(dst->offset.x, alignment->width) || !util_is_aligned(dst->offset.y, alignment->height) ||
-       !util_is_aligned(dst->offset.z, alignment->depth))
-      return true;
-
-   if (ver < SDMA_6_0 &&
-       ((src->img_format == PIPE_FORMAT_S8_UINT && vk_format_is_color(vk_format_from_pipe_format(dst->img_format))) ||
-        (vk_format_is_color(vk_format_from_pipe_format(src->img_format)) && dst->img_format == PIPE_FORMAT_S8_UINT))) {
-      /* For weird reasons, color<->stencil only T2T subwindow copies on SDMA4-5 don't work as
-       * expected, and the driver needs to fallback to scanline copies to workaround them.
-       */
-      return true;
-   }
-
-   return false;
 }
 
 void

@@ -13,6 +13,22 @@
 
 #include "util/u_math.h"
 
+static const uint32_t ac_sdma_t2t_alignment_2d_and_planar[][3] = {
+   {16, 16, 1}, /* 1 bpp */
+   {16, 8, 1},  /* 2 bpp */
+   {8, 8, 1},   /* 4 bpp */
+   {8, 4, 1},   /* 8 bpp */
+   {4, 4, 1},   /* 16 bpp */
+};
+
+static const uint32_t ac_sdma_t2t_alignment_3d[][3] = {
+   {8, 4, 8}, /* 1 bpp */
+   {4, 4, 8}, /* 2 bpp */
+   {4, 4, 4}, /* 4 bpp */
+   {4, 2, 4}, /* 8 bpp */
+   {2, 2, 4}, /* 16 bpp */
+};
+
 static bool
 ac_sdma_5_2_uses_cpv(enum sdma_version sdma_ip_version)
 {
@@ -692,4 +708,120 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    }
 
    ac_cmdbuf_end();
+}
+
+static bool
+ac_sdma_check_t2t_alignment(const struct radeon_info *const info,
+                            const struct ac_sdma_surf *const src,
+                            const struct ac_sdma_surf *const dst,
+                            const uint32_t width,
+                            const uint32_t height,
+                            const uint32_t depth)
+{
+   const enum sdma_version ver = info->sdma_ip_version;
+   const unsigned log2bpp = util_logbase2(src->bpp);
+   uint32_t x_alignment = 1;
+   uint32_t y_alignment = 1;
+   uint32_t z_alignment = 1;
+
+   if (ver >= SDMA_4_0) {
+      bool needs_3d_alignment = src->surf->u.gfx9.resource_type == RADEON_RESOURCE_3D;
+
+      /* Only for 3D standard/displayable swizzle modes. */
+      if (ver < SDMA_7_0)
+         needs_3d_alignment &= (src->surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
+                                src->surf->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
+
+      x_alignment = needs_3d_alignment
+                    ? ac_sdma_t2t_alignment_3d[log2bpp][0]
+                    : ac_sdma_t2t_alignment_2d_and_planar[log2bpp][0];
+      y_alignment = needs_3d_alignment
+                    ? ac_sdma_t2t_alignment_3d[log2bpp][1]
+                    : ac_sdma_t2t_alignment_2d_and_planar[log2bpp][1];
+      z_alignment = needs_3d_alignment
+                    ? ac_sdma_t2t_alignment_3d[log2bpp][2]
+                    : ac_sdma_t2t_alignment_2d_and_planar[log2bpp][2];
+   }
+
+   return util_is_aligned(width, x_alignment) &&
+          util_is_aligned(height, y_alignment) &&
+          util_is_aligned(depth, z_alignment) &&
+          util_is_aligned(src->offset.x, x_alignment) &&
+          util_is_aligned(src->offset.y, y_alignment) &&
+          util_is_aligned(src->offset.z, z_alignment) &&
+          util_is_aligned(dst->offset.x, x_alignment) &&
+          util_is_aligned(dst->offset.y, y_alignment) &&
+          util_is_aligned(dst->offset.z, z_alignment);
+}
+
+/**
+ * The SDMA has severe limitations on every AMD GPU generation
+ * when copying a tiled image to another tiled image.
+ *
+ * When the HW requirements are met, we can use the built-in
+ * SDMA T2T subwindow copy packet which should be the
+ * most optimal.
+ *
+ * When the limitations are NOT met, we must use a workaround:
+ * Copy the tiled image to a temporary linear buffer,
+ * then copy the linear buffer to the destination image.
+ * This is done by small chunks ("scanlines") so that
+ * the temporary buffer doesn't have to be arbitrarily big.
+ * The workaround is called a T2T scanline copy.
+ *
+ * Return true if the T2T scanline copy workaround is required.
+ * Return false if the T2T subwindow packet can be used.
+ */
+bool
+ac_sdma_use_t2t_scanline_copy(const struct radeon_info *const info,
+                              const struct ac_sdma_surf *const src,
+                              const struct ac_sdma_surf *const dst,
+                              const uint32_t width,
+                              const uint32_t height,
+                              const uint32_t depth)
+{
+   /* These need a linear-to-linear / linear-to-tiled copy. */
+   if (src->surf->is_linear || dst->surf->is_linear)
+      return false;
+
+   /* SDMA can't do format conversion. */
+   assert(src->bpp == dst->bpp);
+
+   const enum sdma_version ver = info->sdma_ip_version;
+   if (ver < SDMA_5_0) {
+      /* SDMA v4.x and older doesn't support proper mip level selection. */
+      if (src->num_levels > 1 || dst->num_levels > 1)
+         return true;
+   }
+
+   /* The T2T subwindow copy packet only has fields for one metadata configuration.
+    * It can either compress or decompress, or copy uncompressed images, but it
+    * can't copy from a compressed image to another.
+    */
+   if (src->is_compressed && dst->is_compressed)
+      return true;
+
+   if (ver >= SDMA_7_0) {
+      /* No support for tiling format transformation at all. */
+      if (src->surf->u.gfx9.swizzle_mode != dst->surf->u.gfx9.swizzle_mode)
+         return true;
+   } else {
+      /* The two images can have a different block size, but must have the same swizzle mode. */
+      if (src->surf->micro_tile_mode != dst->surf->micro_tile_mode)
+         return true;
+   }
+
+   if (!ac_sdma_check_t2t_alignment(info, src, dst, width, height, depth))
+      return true;
+
+   if (ver < SDMA_6_0 &&
+       ((src->img_format == PIPE_FORMAT_S8_UINT && dst->is_color) ||
+        (src->is_color && dst->img_format == PIPE_FORMAT_S8_UINT))) {
+      /* Color<->stencil only T2T subwindow copies don't work on SDMA5 and older.
+       * Fallback to scanline copies as a workaround.
+       */
+      return true;
+   }
+
+   return false;
 }

@@ -59,8 +59,6 @@ void radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, str
                                            bool to_image);
 void radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *cs, const struct ac_sdma_surf *src,
                           const struct ac_sdma_surf *dst, const VkExtent3D extent);
-bool radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct ac_sdma_surf *src,
-                                     const struct ac_sdma_surf *dst, const VkExtent3D extent);
 void radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_cmd_stream *cs,
                                        const struct ac_sdma_surf *src, const struct ac_sdma_surf *dst,
                                        const VkExtent3D extent, struct radeon_winsys_bo *temp_bo);
