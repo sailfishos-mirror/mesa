@@ -2029,19 +2029,26 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
                        union brw_any_compile_params params,
                        const struct anv_shader_data *shader_data)
 {
+   /* TODO: Once jay_compile_params has all we need, stop using
+    * brw_compile_params here.
+    */
    struct brw_compile_params *compile_params = &params.base;
    const bool has_resume_shaders = mesa_shader_stage_is_rt(nir->info.stage) &&
       params.bs.num_resume_shaders > 0;
 
    set_debug_archive_filename(shader_data, has_resume_shaders, -1);
 
-   struct jay_shader_bin *main_bin =
-      jay_compile(devinfo, mem_ctx, nir,
-                  (union brw_any_prog_data *)compile_params->prog_data,
-                  (union brw_any_prog_key *)compile_params->key,
-                  shader_data->archiver,
-                  nir->info.stage == MESA_SHADER_FRAGMENT ? params.fs.mue_map
-                                                          : NULL);
+   const struct jay_compile_params jc_params = {
+      .mem_ctx = mem_ctx,
+      .nir = nir,
+      .key = (union brw_any_prog_key *)compile_params->key,
+      .prog_data = (union brw_any_prog_data *)compile_params->prog_data,
+      .fs.mue_map =
+         nir->info.stage == MESA_SHADER_FRAGMENT ? params.fs.mue_map : NULL,
+      .archiver = shader_data->archiver,
+   };
+
+   struct jay_shader_bin *main_bin = jay_compile(devinfo, &jc_params);
 
    /* Early return if there are not resume shaders to compile */
    if (params.bs.num_resume_shaders == 0 ||
@@ -2095,11 +2102,11 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
 
       set_debug_archive_filename(shader_data, has_resume_shaders, i);
 
-      resume_shader_bins[i] = jay_compile(devinfo, mem_ctx,
-                                          resume_nir,
-                                          &main_prog_data,
-                                          (union brw_any_prog_key *)compile_params->key,
-                                          shader_data->archiver, NULL);
+      struct jay_compile_params resume_params = jc_params;
+      resume_params.nir = resume_nir;
+      resume_params.prog_data = &main_prog_data;
+
+      resume_shader_bins[i] = jay_compile(devinfo, &resume_params);
 
       resume_prog_data[i] = main_prog_data;
       resume_grf_used[i] = resume_prog_data[i].base.grf_used;

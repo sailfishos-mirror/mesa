@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "jay.h"
 #include "jay_ir.h"
 #include "nir.h"
 
@@ -37,18 +38,12 @@ void jay_populate_prog_data(const struct intel_device_info *devinfo,
                             union brw_any_prog_key *key,
                             struct jay_fs_perprim_data *fs_perprim);
 void jay_process_nir(const struct intel_device_info *devinfo,
-                     nir_shader *nir,
-                     union brw_any_prog_data *prog_data,
-                     union brw_any_prog_key *key,
-                     debug_archiver *archiver,
+                     const struct jay_compile_params *params,
                      struct jay_fs_perprim_data *fs_perprim);
 unsigned jay_select_simd(const struct intel_device_info *, nir_shader *nir);
 void jay_process_nir_for_simd(const struct intel_device_info *devinfo,
-                              nir_shader *nir,
+                              const struct jay_compile_params *params,
                               unsigned simd_width,
-                              union brw_any_prog_data *prog_data,
-                              union brw_any_prog_key *key,
-                              debug_archiver *archiver,
                               bool *track_helpers);
 
 void jay_compute_liveness(jay_function *f);

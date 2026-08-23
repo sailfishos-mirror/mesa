@@ -4802,15 +4802,14 @@ simd_to_index(unsigned simd)
 
 static struct jay_shader_bin *
 jay_compile_simd(const struct intel_device_info *devinfo,
-                 void *mem_ctx,
-                 nir_shader *nir,
-                 union brw_any_prog_data *prog_data,
-                 union brw_any_prog_key *key,
-                 debug_archiver *archiver,
+                 const struct jay_compile_params *params,
                  unsigned simd_width,
                  bool bail_if_inefficient,
                  struct jay_fs_perprim_data *fs_perprim)
 {
+   nir_shader *nir = params->nir;
+   union brw_any_prog_data *prog_data = params->prog_data;
+
    jay_debug = debug_get_option_jay_debug();
    bool debug =
       (!intel_shader_dump_filter ||
@@ -4819,8 +4818,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
       (!nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
    bool track_helpers = false;
-   jay_process_nir_for_simd(devinfo, nir, simd_width, prog_data, key, archiver,
-                            &track_helpers);
+   jay_process_nir_for_simd(devinfo, params, simd_width, &track_helpers);
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */
@@ -4834,9 +4832,9 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    s->scratch_size = align(nir->scratch_size, 4) * s->dispatch_width;
    s->devinfo = devinfo;
    s->prog_data = prog_data;
-   s->archiver = archiver;
+   s->archiver = params->archiver;
    s->helpers_tracked = track_helpers;
-   s->use_efficient_64bit = key->base.use_efficient_64bit;
+   s->use_efficient_64bit = params->key->base.use_efficient_64bit;
 
    nir_foreach_function_impl(impl, nir) {
       jay_from_nir_function(devinfo, nir, s, impl, fs_perprim);
@@ -4974,7 +4972,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    struct jay_shader_bin *bin =
       jay_to_binary(s, nir->constant_data, nir->constant_data_size, debug);
    assert(bin->kernel);
-   ralloc_steal(mem_ctx, bin);
+   ralloc_steal(params->mem_ctx, bin);
 
    struct genisa_stats *stats = &bin->stats[0];
 
@@ -5032,24 +5030,22 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 
 struct jay_shader_bin *
 jay_compile(const struct intel_device_info *devinfo,
-            void *mem_ctx,
-            nir_shader *nir,
-            union brw_any_prog_data *prog_data,
-            union brw_any_prog_key *key,
-            debug_archiver *archiver,
-            const struct brw_mue_map *mue)
+            const struct jay_compile_params *params)
 {
+   void *mem_ctx = params->mem_ctx;
+   nir_shader *nir = params->nir;
+   union brw_any_prog_data *prog_data = params->prog_data;
+
    struct jay_fs_perprim_data fs_perprim = {
-      .mue = mue
+      .mue = params->fs.mue_map,
    };
 
-   jay_process_nir(devinfo, nir, prog_data, key, archiver, &fs_perprim);
+   jay_process_nir(devinfo, params, &fs_perprim);
 
    unsigned modes = jay_select_simd(devinfo, nir);
 
    if (util_bitcount(modes) == 1) {
-      return jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key, archiver,
-                              modes, false, &fs_perprim);
+      return jay_compile_simd(devinfo, params, modes, false, &fs_perprim);
    }
 
    nir_shader *orig_nir = nir;
@@ -5082,8 +5078,11 @@ jay_compile(const struct intel_device_info *devinfo,
          nir->info.min_subgroup_size = smallest;
       }
 
-      jv->bin = jay_compile_simd(devinfo, mem_ctx, nir, prog_data, key,
-                                 archiver, simd, simd != smallest, &fs_perprim);
+      struct jay_compile_params clone_params = *params;
+      clone_params.nir = nir;
+
+      jv->bin = jay_compile_simd(devinfo, &clone_params,
+                                 simd, simd != smallest, &fs_perprim);
       jv->relocs = prog_data->base.relocs;
       jv->num_relocs = prog_data->base.num_relocs;
 

@@ -580,12 +580,13 @@ alpha_to_coverage_enabled(nir_shader *shader, enum intel_sometimes alpha_to_cove
  */
 void
 jay_process_nir(const struct intel_device_info *devinfo,
-                nir_shader *nir,
-                union brw_any_prog_data *prog_data,
-                union brw_any_prog_key *key,
-                debug_archiver *archiver,
+                const struct jay_compile_params *params,
                 struct jay_fs_perprim_data *fs_perprim)
 {
+   nir_shader *nir = params->nir;
+   union brw_any_prog_data *prog_data = params->prog_data;
+   union brw_any_prog_key *key = params->key;
+
    enum mesa_shader_stage stage = nir->info.stage;
    struct brw_compiler compiler = { .devinfo = devinfo };
 
@@ -598,7 +599,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       .key = &key->base,
       .dispatch_width = 0,
       .compiler = &compiler,
-      .archiver = archiver,
+      .archiver = params->archiver,
    }, *pt = &pt_;
 
    JAY_NIR_SNAPSHOT("first");
@@ -1085,20 +1086,19 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
  */
 void
 jay_process_nir_for_simd(const struct intel_device_info *devinfo,
-                         nir_shader *nir,
+                         const struct jay_compile_params *params,
                          unsigned simd_width,
-                         union brw_any_prog_data *prog_data,
-                         union brw_any_prog_key *key,
-                         debug_archiver *archiver,
                          bool *track_helpers)
 {
+   nir_shader *nir = params->nir;
+
    struct brw_compiler compiler = { .devinfo = devinfo };
    brw_pass_tracker pt_ = {
       .nir = nir,
-      .key = &key->base,
+      .key = &params->key->base,
       .dispatch_width = simd_width,
       .compiler = &compiler,
-      .archiver = archiver,
+      .archiver = params->archiver,
    }, *pt = &pt_;
 
    /* If the API subgroup size must be draw uniform, we handle it in
@@ -1197,7 +1197,7 @@ jay_process_nir_for_simd(const struct intel_device_info *devinfo,
       };
       JAY_NIR_PASS(nir_opt_load_skip_helpers, &skip_helpers);
    } else {
-      jay_populate_prog_data(devinfo, nir, prog_data, key, NULL);
+      jay_populate_prog_data(devinfo, nir, params->prog_data, params->key, NULL);
    }
 
    /* This must be the very last pass since nir_print itself will reindex! */
