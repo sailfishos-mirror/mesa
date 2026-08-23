@@ -15,10 +15,12 @@ supported_ops = {
     exir_ops.edge.aten.convolution.default: gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION,
     exir_ops.edge.aten.add.Tensor: gallium.PIPE_ML_OPERATION_TYPE_ADD,
     exir_ops.edge.aten.cat.default: gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION,
+    exir_ops.edge.aten.upsample_nearest2d.vec: gallium.PIPE_ML_OPERATION_TYPE_RESIZE,
 }
 
 ATEN_DIM_TO_TENSOR_AXIS = [0, 3, 1, 2]
 CHANNEL_DIM = 1
+SPATIAL_DIMS = (2, 3)
 
 # Activation ops that are fused into the preceding convolution or add.
 # Two variants: FUSABLE_ACTIVATION_OPS uses ExIR edge-dialect op references
@@ -381,6 +383,28 @@ def set_conv_activation_range(node: torch.fx.Node,
         poperation.conv.activation_max = min(output_qp.qmax,
                                              zp + int(high / scale + 0.5))
 
+
+def is_2x_resize(node: torch.fx.Node) -> bool:
+    """Return whether a resize node doubles both spatial dimensions.
+
+    Shapes are in the node's own NCHW order, so the spatial dimensions are
+    2 and 3 here; fill_tensor moves them to 1 and 2 when it writes NHWC.
+    """
+    input_node = node.args[0]
+    if not isinstance(input_node, torch.fx.Node):
+        return False
+
+    input_val = input_node.meta.get('val')
+    output_val = node.meta.get('val')
+    if not isinstance(input_val, torch.Tensor) or input_val.dim() != 4:
+        return False
+    if not isinstance(output_val, torch.Tensor) or output_val.dim() != 4:
+        return False
+
+    return all(output_val.shape[dim] == 2 * input_val.shape[dim]
+               for dim in SPATIAL_DIMS)
+
+
 def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_ml_operation | None:
     if node.target not in supported_ops:
         return None
@@ -407,6 +431,10 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
 
     operation = gallium.pipe_ml_operation()
     operation.type = supported_ops[node.target]
+
+    if (operation.type == gallium.PIPE_ML_OPERATION_TYPE_RESIZE and
+            not is_2x_resize(node)):
+        return None
 
     if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
         dim = node.args[1] if len(node.args) > 1 else 0

@@ -22,7 +22,11 @@ from torchao.quantization.pt2e.quantizer import (
     annotate_output_qspec,
 )
 
-from .exir_to_gallium import FUSABLE_ACTIVATION_OPS_ATEN, activation_is_absorbable
+from .exir_to_gallium import (
+    FUSABLE_ACTIVATION_OPS_ATEN,
+    activation_is_absorbable,
+    is_2x_resize,
+)
 
 Q_ANNOTATION_KEY = "quantization_annotation"
 
@@ -34,6 +38,8 @@ def _shares_input_quantization(node: fx.Node) -> bool:
     target = node.target
     if target == torch.ops.aten.cat.default:
         return output.dim() == 4
+    if target == torch.ops.aten.upsample_nearest2d.vec:
+        return is_2x_resize(node)
     return False
 
 
@@ -192,6 +198,10 @@ class TorxQuantizer(Quantizer):
                 elif node.target == torch.ops.aten.cat.default:
                     if _shares_input_quantization(node):
                         self._annotate_shared_io(node, list(node.args[0]))
+
+                elif node.target == torch.ops.aten.upsample_nearest2d.vec:
+                    if _shares_input_quantization(node):
+                        self._annotate_shared_io(node, [node.args[0]])
 
     def annotate(self, model):
         # Annotate operations first, then only add I/O quantisation if at

@@ -5,7 +5,7 @@
 """Split whole-model .pt2 files into per-op .pt2 files and float references.
 
 This is the first (fast, sequential) step of test artifact generation.
-For each conv2d chain, add and concatenation in the model it:
+For each conv2d chain, add, concatenation and upsample in the model it:
 
   1. Builds a standalone nn.Module with copied parameters.
   2. Exports it as a per-op .pt2 file.
@@ -158,6 +158,21 @@ def _build_module(torch, gm, conv_node, chain_nodes):
 
 
 CHANNEL_DIM = 1
+SPATIAL_DIMS = (2, 3)
+
+
+def _build_upsample_module(torch):
+    """Build a standalone nn.Module doubling both spatial dimensions."""
+
+    class UpsampleModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.up = torch.nn.Upsample(scale_factor=2, mode="nearest")
+
+        def forward(self, x):
+            return self.up(x)
+
+    return UpsampleModule()
 
 
 def _build_cat_module(torch, dim):
@@ -220,7 +235,8 @@ def split_model(pt2_path, torch):
 
     Returns a list of ``(index_name, module, example_inputs)`` tuples.
     ``example_inputs`` holds one tensor per input the module takes: one for
-    a conv chain, two for an add, and one per concatenated tensor for a cat.
+    a conv chain or an upsample, two for an add, and one per concatenated
+    tensor for a cat.
     """
     ep = torch.export.load(str(pt2_path))
     gm = ep.module()
@@ -318,6 +334,35 @@ def split_model(pt2_path, torch):
         example_input1 = torch.randn(input1_meta.shape)
 
         ops.append((f"{idx:03d}", mod, (example_input0, example_input1)))
+        idx += 1
+
+    # --- UPSAMPLE ops ---------------------------------------------------
+    for node in gm.graph.nodes:
+        if node.op != "call_function":
+            continue
+        if str(node.target) != "aten.upsample_nearest2d.vec":
+            continue
+
+        input_node = node.args[0]
+        if not isinstance(input_node, torch.fx.Node):
+            continue
+        input_meta = input_node.meta.get("val")
+        output_meta = node.meta.get("val")
+        if input_meta is None or output_meta is None:
+            continue
+        if input_meta.dim() != 4 or output_meta.dim() != 4:
+            continue
+        if any(output_meta.shape[dim] != 2 * input_meta.shape[dim]
+               for dim in SPATIAL_DIMS):
+            continue
+
+        mod = _build_upsample_module(torch)
+        mod.eval()
+
+        torch.manual_seed(42 + idx)
+        example_input = torch.randn(input_meta.shape)
+
+        ops.append((f"{idx:03d}", mod, (example_input,)))
         idx += 1
 
     return ops
