@@ -256,12 +256,14 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
          G_009910_ARRAY_MODE(tile_mode) >= V_009910_ARRAY_2D_TILED_THIN1
             ? info->cik_macrotile_mode_array[macro_tile_index]
             : 0;
+      const uint32_t tile_split_bytes =
+         tiled->is_stencil ? tiled->surf->u.legacy.stencil_tile_split
+                           : tiled->surf->u.legacy.tile_split;
 
       return element_size |
              (G_009910_ARRAY_MODE(tile_mode) << 3) |
              (G_009910_MICRO_TILE_MODE_NEW(tile_mode) << 8) |
-             /* Non-depth modes don't have TILE_SPLIT set. */
-             ((util_logbase2(tiled->surf->u.legacy.tile_split >> 6)) << 11) |
+             (util_logbase2(tile_split_bytes / 64) << 11) |
              (G_009990_BANK_WIDTH(macro_tile_mode) << 15) |
              (G_009990_BANK_HEIGHT(macro_tile_mode) << 18) |
              (G_009990_NUM_BANKS(macro_tile_mode) << 21) |
