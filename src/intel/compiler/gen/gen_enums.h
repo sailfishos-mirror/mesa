@@ -828,6 +828,14 @@ enum {
    GEN_RT_TRACE_RAY_CONTINUE  = 3,
 };
 
+/* Ray trace accelerator trace-ray control (Gfx35+) */
+enum {
+   GFX35_OP_TRACE_RAY_ASYNC      = 0,
+   GFX35_OP_TRACE_RAY_SYNC       = 1,
+   GFX35_OP_RAYQUERY_CHECK       = 3,
+   GFX35_OP_RAYQUERY_RELEASE     = 4,
+};
+
 /* Bindless thread dispatch shader types. */
 enum {
    GEN_RT_BTD_SHADER_TYPE_ANY_HIT        = 0,
@@ -839,4 +847,3 @@ enum {
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-

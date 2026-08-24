@@ -2213,6 +2213,41 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
 }
 
 static void
+lower_trace_ray_logical_64bit_send(const brw_builder &bld, brw_inst *inst)
+{
+   const intel_device_info *devinfo = bld.shader->devinfo;
+   const bool synchronous = inst->synchronous;
+   const brw_reg globals_addr = inst->src[RT_LOGICAL_SRC_GLOBALS];
+   const brw_reg payload =
+      bld.move_to_vgrf(inst->src[RT_LOGICAL_SRC_PAYLOADS],
+                       inst->components_read(RT_LOGICAL_SRC_PAYLOADS));
+
+   const unsigned unit = reg_unit(devinfo);
+   const unsigned mlen = unit;
+
+   brw_send_inst *send = brw_transform_inst_to_send(bld, inst);
+   inst = NULL;
+
+   send->mlen = mlen;
+   send->ex_mlen = 0;
+   send->header_size = 0;
+   send->has_side_effects = true;
+   send->is_volatile = false;
+
+   /* Set up SFID and descriptors */
+   send->sfid = GEN_SFID_RAY_TRACE_ACCELERATOR;
+   send->combined_desc = brw_rt_trace_64bit_desc(
+      devinfo, synchronous ? GFX35_OP_TRACE_RAY_SYNC : GFX35_OP_TRACE_RAY_ASYNC);
+
+   send->src[SENDG_SRC_IND_0_DESC] = retype(globals_addr, BRW_TYPE_UQ);
+   send->src[SENDG_SRC_IND_1_DESC] = brw_reg(); /* TODO: fish out the PostSyncId, coming from the payload? */
+   send->efficient_64bit = true;
+
+   send->src[SEND_SRC_PAYLOAD1] = payload;
+   send->src[SEND_SRC_PAYLOAD2] = brw_reg();
+}
+
+static void
 lower_lsc_memory_fence_and_interlock(const brw_builder &bld, struct brw_send_inst *inst)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
@@ -2399,7 +2434,10 @@ brw_lower_logical_sends(brw_shader &s)
          break;
 
       case RT_OPCODE_TRACE_RAY_LOGICAL:
-         lower_trace_ray_logical_send(ibld, inst);
+         if (s.key->use_efficient_64bit)
+            lower_trace_ray_logical_64bit_send(ibld, inst);
+         else
+            lower_trace_ray_logical_send(ibld, inst);
          break;
 
       case SHADER_OPCODE_URB_READ_LOGICAL:

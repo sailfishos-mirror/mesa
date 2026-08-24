@@ -925,6 +925,15 @@ brw_rt_trace_ray_desc_exec_size(UNUSED const struct intel_device_info *devinfo,
    return brw_mdc_sm2_exec_size(GET_BITS(desc, 8, 8));
 }
 
+static inline uint64_t
+brw_rt_trace_64bit_desc(ASSERTED const struct intel_device_info *devinfo,
+                        uint8_t opcode)
+{
+   assert(devinfo->has_ray_tracing);
+   return SET_BITS_64(opcode, 3, 0) |
+          SET_BITS_64(0, 5, 4) /* Message Family = TRACE_RAY_MSG */;
+}
+
 /**
  * Construct a message descriptor immediate with the specified pixel
  * interpolator function controls.
