@@ -28,7 +28,7 @@ nir_builder PRINTFLIKE(2, 3) radv_meta_nir_init_shader(mesa_shader_stage stage, 
 
 /* vertex shader that generates vertices */
 nir_shader *
-radv_meta_nir_build_vs_generate_vertices()
+radv_meta_nir_build_vs_generate_vertices(bool layered)
 {
    const struct glsl_type *vec4 = glsl_vec4_type();
 
@@ -42,6 +42,14 @@ radv_meta_nir_build_vs_generate_vertices()
    v_position->data.location = VARYING_SLOT_POS;
 
    nir_store_var(&b, v_position, outvec, 0xf);
+
+   if (layered) {
+      nir_variable *v_layer = nir_variable_create(b.shader, nir_var_shader_out, glsl_int_type(), "v_layer");
+      v_layer->data.location = VARYING_SLOT_LAYER;
+      v_layer->data.interpolation = INTERP_MODE_FLAT;
+
+      nir_store_var(&b, v_layer, nir_load_instance_id(&b), 0x1);
+   }
 
    return b.shader;
 }
@@ -1307,7 +1315,7 @@ radv_meta_nir_build_resolve_fs(bool use_fmask, uint32_t samples, bool is_integer
       (aspects == VK_IMAGE_ASPECT_COLOR_BIT && is_integer) || aspects == VK_IMAGE_ASPECT_STENCIL_BIT ? GLSL_TYPE_UINT
                                                                                                      : GLSL_TYPE_FLOAT;
    const struct glsl_type *vec4 = glsl_vec4_type();
-   const struct glsl_type *sampler_type = glsl_sampler_type(GLSL_SAMPLER_DIM_MS, false, false, img_base_type);
+   const struct glsl_type *sampler_type = glsl_sampler_type(GLSL_SAMPLER_DIM_MS, false, true, img_base_type);
 
    nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_FRAGMENT, "meta_resolve_fs");
 
@@ -1341,7 +1349,9 @@ radv_meta_nir_build_resolve_fs(bool use_fmask, uint32_t samples, bool is_integer
 
    nir_def *pos_int = nir_f2i32(&b, pos_in);
 
-   nir_def *img_coord = nir_trim_vector(&b, nir_iadd(&b, pos_int, src_offset), 2);
+   nir_def *xy = nir_iadd(&b, pos_int, src_offset);
+   nir_def *layer = nir_load_layer_id(&b);
+   nir_def *img_coord = nir_vec3(&b, nir_channel(&b, xy, 0), nir_channel(&b, xy, 1), layer);
 
    nir_variable *output_var = nir_local_variable_create(b.impl, glsl_vec4_type(), "output_var");
    radv_meta_nir_build_resolve_shader_core(&b, use_fmask, samples, aspects, resolve_mode, input_img, output_var,

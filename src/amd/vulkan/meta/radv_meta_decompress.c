@@ -39,7 +39,7 @@ get_pipeline_gfx(struct radv_device *device, struct radv_image *image, VkPipelin
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices();
+   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices(false);
    nir_shader *fs_module = radv_meta_nir_build_fs_noop();
 
    const VkPipelineSampleLocationsStateCreateInfoEXT sample_locs_create_info = {

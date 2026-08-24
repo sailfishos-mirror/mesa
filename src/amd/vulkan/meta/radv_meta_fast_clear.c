@@ -110,7 +110,7 @@ get_pipeline(struct radv_device *device, enum radv_color_op op, VkPipeline *pipe
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices();
+   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices(false);
    nir_shader *fs_module = radv_meta_nir_build_fs_noop();
 
    VkGraphicsPipelineCreateInfoRADV radv_info = {
