@@ -434,7 +434,8 @@ anv_device_init_rt_shaders(struct anv_device *device)
 
       void *tmp_ctx = ralloc_context(NULL);
       nir_shader *trampoline_nir =
-         brw_nir_create_raygen_trampoline(device->physical->compiler, tmp_ctx);
+         brw_nir_create_raygen_trampoline(device->physical->compiler,
+                                          &trampoline_key.key, tmp_ctx);
 
       unsigned require_size = device->info->ver >= 20 ? 16 : 8;
       trampoline_nir->info.api_subgroup_size = require_size;
@@ -513,7 +514,8 @@ anv_device_init_rt_shaders(struct anv_device *device)
    if (device->rt_trivial_return == NULL) {
       void *tmp_ctx = ralloc_context(NULL);
       nir_shader *trivial_return_nir =
-         brw_nir_create_trivial_return_shader(device->physical->compiler, tmp_ctx);
+         brw_nir_create_trivial_return_shader(device->physical->compiler,
+                                              &return_key.key, tmp_ctx);
 
       debug_archiver *debug_archiver =
          anv_rt_debug_archiver_open(tmp_ctx, trivial_return_nir,
@@ -588,7 +590,8 @@ anv_device_init_rt_shaders(struct anv_device *device)
    if (device->rt_null_ahs == NULL) {
       void *tmp_ctx = ralloc_context(NULL);
       nir_shader *null_ahs_nir =
-         brw_nir_create_null_ahs_shader(device->physical->compiler, tmp_ctx);
+         brw_nir_create_null_ahs_shader(device->physical->compiler,
+                                        &null_return_key.key, tmp_ctx);
 
       debug_archiver *debug_archiver =
          anv_rt_debug_archiver_open(tmp_ctx, null_ahs_nir,

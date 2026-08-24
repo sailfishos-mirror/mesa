@@ -202,8 +202,9 @@ any_hit_has_reject_or_terminate(nir_shader *shader)
 bool
 brw_nir_lower_intersection_shader(nir_shader *intersection,
                                   const nir_shader *any_hit,
-                                  const struct intel_device_info *devinfo)
+                                  const struct brw_nir_lower_rt_state *state)
 {
+   const struct intel_device_info *devinfo = state->devinfo;
    void *dead_ctx = ralloc_context(intersection);
 
    nir_function_impl *any_hit_impl = NULL;

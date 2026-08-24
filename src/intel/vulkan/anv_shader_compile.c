@@ -1085,7 +1085,7 @@ populate_compile_params_bs(union brw_any_compile_params *params,
 {
    nir_shader *nir = shader_data->info->nir;
 
-   struct brw_nir_lower_shader_calls_state lowering_state = {
+   struct brw_nir_lower_rt_state lowering_state = {
       .devinfo = devinfo,
       .key = &shader_data->key.bs,
    };
@@ -1453,7 +1453,8 @@ anv_shader_lower_nir(struct anv_device *device,
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
             nir_address_format_64bit_global);
 
-   NIR_PASS(_, nir, brw_nir_lower_ray_queries, &pdevice->info);
+   NIR_PASS(_, nir, brw_nir_lower_ray_queries,
+            &pdevice->info, &shader_data->key.base);
 
    shader_data->push_desc_info.used_descriptors =
       anv_nir_compute_used_push_descriptors(
@@ -1771,29 +1772,34 @@ anv_shaders_post_lower_rt(struct anv_device *device,
                           struct anv_shader_data *shaders_data,
                           uint32_t shader_count)
 {
+
    for (uint32_t s = 0; s < shader_count; s++) {
       struct anv_shader_data *shader_data = &shaders_data[s];
+      struct brw_nir_lower_rt_state state = {
+         .devinfo = device->info,
+         .key = &shader_data->key.bs,
+      };
       nir_shader *nir = shader_data->info->nir;
 
       switch (nir->info.stage) {
       case MESA_SHADER_RAYGEN:
-         brw_nir_lower_raygen(nir, device->info);
+         brw_nir_lower_raygen(nir, &state);
          break;
 
       case MESA_SHADER_ANY_HIT:
-         brw_nir_lower_any_hit(nir, device->info);
+         brw_nir_lower_any_hit(nir, &state);
          break;
 
       case MESA_SHADER_CLOSEST_HIT:
-         brw_nir_lower_closest_hit(nir, device->info);
+         brw_nir_lower_closest_hit(nir, &state);
          break;
 
       case MESA_SHADER_MISS:
-         brw_nir_lower_miss(nir, device->info);
+         brw_nir_lower_miss(nir, &state);
          break;
 
       case MESA_SHADER_CALLABLE:
-         brw_nir_lower_callable(nir, device->info);
+         brw_nir_lower_callable(nir, &state);
          break;
 
       case MESA_SHADER_INTERSECTION:
@@ -2282,7 +2288,10 @@ anv_shader_compile(struct vk_device *vk_device,
          ordered_infos[MESA_SHADER_INTERSECTION]->nir,
          ordered_infos[MESA_SHADER_ANY_HIT] != NULL ?
          ordered_infos[MESA_SHADER_ANY_HIT]->nir : NULL,
-         device->info);
+         &(struct brw_nir_lower_rt_state) {
+            .devinfo = device->info,
+            .key = &shaders_data[0].key.bs,
+         });
    }
 
    if (mesa_shader_stage_is_graphics(shaders_data[0].info->stage))
