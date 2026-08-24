@@ -699,7 +699,7 @@ impl From<MemRef> for SrcRef {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, EnumAsU8)]
 pub enum SrcMod {
     #[default]
     None = 0,
