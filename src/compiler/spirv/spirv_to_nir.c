@@ -2925,7 +2925,8 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
          vtn_assert(bit_size == bit_size0 && bit_size == bit_size1);
          (void)bit_size0; (void)bit_size1;
 
-         nir_const_value undef = { .u64 = 0xdeadbeefdeadbeef };
+         nir_const_value undef =
+            nir_const_value_for_raw_uint(0xdeadbeefdeadbeef, bit_size);
          nir_const_value combined[NIR_MAX_VEC_COMPONENTS * 2];
 
          if (v0->value_type == vtn_value_type_constant) {
