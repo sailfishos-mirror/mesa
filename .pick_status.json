@@ -4714,7 +4714,7 @@
         "description": "freedreno, tu: Limit XFB streams on GPUs lacking multi-stream query support",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3d299bc7ef8ee2514f2c760e71d4402ead82c5de",
         "notes": null
