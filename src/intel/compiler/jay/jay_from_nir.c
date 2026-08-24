@@ -1967,19 +1967,6 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj,
 
    if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
       jay_def payload = jay_as_gpr(b, nj_src(instr->src[1]));
-
-      if (!synchronous) {
-         jay_def packed_stack_ids =
-            jay_extract_range(nj->payload.u1, 0, s->dispatch_width / 2);
-         jay_def stack_id = jay_alloc_def(b, GPR, 1);
-         jay_CVT(b, JAY_TYPE_U32, stack_id, packed_stack_ids, JAY_TYPE_U16,
-                 JAY_ROUND, 0);
-
-         payload =
-            jay_BFI2_u32(b, s->devinfo->ver >= 20 ? 0x0fff0000 : 0x07ff0000,
-                         stack_id, payload);
-      }
-
       srcs[len++] = payload;
    } else if (instr->intrinsic == nir_intrinsic_btd_retire_intel ||
               instr->intrinsic == nir_intrinsic_btd_spawn_intel) {

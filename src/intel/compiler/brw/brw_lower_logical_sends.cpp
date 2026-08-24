@@ -1980,28 +1980,6 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
 
    const unsigned ex_mlen = inst->exec_size / 8;
 
-   /* When doing synchronous traversal, the HW implicitly computes the
-    * stack_id using the following formula :
-    *
-    *    EUID[3:0] & THREAD_ID[2:0] & SIMD_LANE_ID[3:0]
-    *
-    * Only in the asynchronous case we need to set the stack_id given from the
-    * payload register.
-    */
-   if (!synchronous) {
-      /* For Xe2+, Bspec 64643:
-       * "StackID": The maximum number of StackIDs can be 2^12- 1.
-       *
-       * For platforms < Xe2, The maximum number of StackIDs can be 2^11 - 1.
-       */
-      brw_reg stack_id_mask = devinfo->ver >= 20 ?
-                              brw_imm_uw(0xfff) :
-                              brw_imm_uw(0x7ff);
-      bld.AND(subscript(payload, BRW_TYPE_UW, 1),
-              retype(brw_vec8_grf(1 * unit, 0), BRW_TYPE_UW),
-              stack_id_mask);
-   }
-
    brw_send_inst *send = brw_transform_inst_to_send(bld, inst);
    inst = NULL;
 
