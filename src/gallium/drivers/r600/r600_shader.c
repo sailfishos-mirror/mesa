@@ -19,9 +19,7 @@
 #include "pipe/p_shader_tokens.h"
 #include "tgsi/tgsi_parse.h"
 #include "tgsi/tgsi_scan.h"
-#include "tgsi/tgsi_dump.h"
 #include "tgsi/tgsi_from_mesa.h"
-#include "nir/tgsi_to_nir.h"
 #include "nir/nir_to_tgsi_info.h"
 #include "compiler/nir/nir.h"
 #include "util/macros.h"
@@ -138,16 +136,14 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 	int r;
 	const nir_shader_compiler_options *nir_options =
 		ctx->screen->nir_options[shader->shader.processor_type];
-	if (!sel->nir && !(sel->ir_type == PIPE_SHADER_IR_TGSI)) {
+	if (!sel->nir) {
 		assert(sel->nir_blob);
 		struct blob_reader blob_reader;
 		blob_reader_init(&blob_reader, sel->nir_blob, sel->nir_blob_size);
 		sel->nir = nir_deserialize(NULL, nir_options, &blob_reader);
 	}
 
-	int processor = sel->ir_type == PIPE_SHADER_IR_TGSI ?
-		tgsi_get_processor_type(sel->tokens):
-		sel->nir->info.stage;
+	int processor = sel->nir->info.stage;
 	
 	bool dump = r600_can_dump_shader(&rctx->screen->b, processor);
 
@@ -157,20 +153,7 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 	
 	{
 		glsl_type_singleton_init_or_ref();
-		if (sel->ir_type == PIPE_SHADER_IR_TGSI) {
-			ralloc_free(sel->nir);
-			if (sel->nir_blob) {
-				free(sel->nir_blob);
-				sel->nir_blob = NULL;
-			}
-			sel->nir = tgsi_to_nir(sel->tokens, ctx->screen, true);
-			/* Lower int64 ops because we have some r600 built-in shaders that use it */
-			if (nir_options->lower_int64_options) {
-				NIR_PASS(_, sel->nir, nir_lower_alu_to_scalar, r600_lower_to_scalar_instr_filter, NULL);
-				NIR_PASS(_, sel->nir, nir_lower_int64);
-			}
-			NIR_PASS(_, sel->nir, nir_lower_flrp, ~0, false);
-		}
+		assert(sel->nir);
 		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
 
 		r = r600_shader_from_nir(rctx, shader, &key);
@@ -182,11 +165,6 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 	}
 	
 	if (dump) {
-		if (sel->ir_type == PIPE_SHADER_IR_TGSI) {
-			fprintf(stderr, "--TGSI--------------------------------------------------------\n");
-			tgsi_dump(sel->tokens, 0);
-		}
-		
 		if (sel->so.num_outputs) {
 			r600_dump_streamout(&sel->so);
 		}
@@ -286,7 +264,7 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 				   shader->shader.bc.nstack);
 	}
 
-	if (!sel->nir_blob && sel->nir && sel->ir_type != PIPE_SHADER_IR_TGSI) {
+	if (!sel->nir_blob && sel->nir) {
 		struct blob blob;
 		blob_init(&blob);
 		nir_serialize(&blob, sel->nir, false);

@@ -22,7 +22,27 @@
 
 #include "nir.h"
 #include "nir_builder.h"
+#include "nir/tgsi_to_nir.h"
 #include "nir/nir_to_tgsi_info.h"
+#include "sfn/sfn_nir.h"
+
+static void r600_tgsi_to_nir(struct pipe_context *ctx,
+                             struct r600_pipe_shader_selector *sel,
+                             unsigned mesa_shader_stage)
+{
+	const nir_shader_compiler_options *nir_options =
+		ctx->screen->nir_options[mesa_shader_stage];
+
+	sel->nir = tgsi_to_nir(sel->tokens, ctx->screen, true);
+
+	/* Lower int64 ops because we have some r600 built-in shaders that use it. */
+	if (nir_options->lower_int64_options) {
+		NIR_PASS(_, sel->nir, nir_lower_alu_to_scalar,
+			 r600_lower_to_scalar_instr_filter, NULL);
+		NIR_PASS(_, sel->nir, nir_lower_int64);
+	}
+	NIR_PASS(_, sel->nir, nir_lower_flrp, ~0, false);
+}
 
 void r600_init_command_buffer(struct r600_command_buffer *cb, unsigned num_dw)
 {
@@ -933,7 +953,13 @@ struct r600_pipe_shader_selector *r600_create_shader_state_tokens(struct pipe_co
 	sel->type = mesa_shader_stage;
 	if (ir == PIPE_SHADER_IR_TGSI) {
 		sel->tokens = tgsi_dup_tokens((const struct tgsi_token *)prog);
-		tgsi_scan_shader(sel->tokens, &sel->info);
+		glsl_type_singleton_init_or_ref();
+		r600_tgsi_to_nir(ctx, sel, mesa_shader_stage);
+		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
+		glsl_type_singleton_decref();
+		FREE(sel->tokens);
+		sel->tokens = NULL;
+		ir = PIPE_SHADER_IR_NIR;
 	} else if (ir == PIPE_SHADER_IR_NIR){
 		sel->nir = (nir_shader *)prog;
 		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
@@ -1124,12 +1150,7 @@ void r600_delete_shader_selector(struct pipe_context *ctx,
 		p = c;
 	}
 
-	if (sel->ir_type == PIPE_SHADER_IR_TGSI) {
-		free(sel->tokens);
-		/* We might have converted the TGSI shader to a NIR shader */
-		ralloc_free(sel->nir);
-	}
-	else if (sel->ir_type == PIPE_SHADER_IR_NIR)
+	if (sel->ir_type == PIPE_SHADER_IR_NIR)
 		ralloc_free(sel->nir);
 	free(sel->nir_blob);
 	free(sel);
