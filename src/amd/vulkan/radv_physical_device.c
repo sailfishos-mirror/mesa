@@ -2588,13 +2588,6 @@ radv_init_dri_options(struct radv_physical_device *pdev)
 
       drirc->debug.disable_trunc_coord &= !is_d3d9;
    }
-
-   if (pdev->info.gfx_level >= GFX12) {
-      /* GFX12 isn't affected by any DCC issues from drirc. */
-      pdev->drirc.debug.disable_dcc = false;
-      pdev->drirc.debug.disable_dcc_stores = false;
-      pdev->drirc.debug.disable_dcc_mips = false;
-   }
 }
 
 static VkResult
