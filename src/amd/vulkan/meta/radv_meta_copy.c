@@ -131,60 +131,70 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
 }
 
 static void
-radv_fixup_copy_dst_htile_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                                   VkImageLayout image_layout, const VkImageSubresourceLayers *subresource,
-                                   const VkOffset3D *offset, const VkExtent3D *extent, bool before_copy)
+radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout image_layout,
+                             const VkImageSubresourceLayers *subresource, const VkOffset3D *offset,
+                             const VkExtent3D *extent, bool before_copy)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
-   if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
-      return;
+   const VkImageSubresourceRange range = {
+      .aspectMask = subresource->aspectMask,
+      .baseMipLevel = subresource->mipLevel,
+      .levelCount = 1,
+      .baseArrayLayer = subresource->baseArrayLayer,
+      .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
+   };
 
-   if (radv_image_decompress_htile_on_image_stores(device, image))
-      return;
-
-   const bool is_partial_copy = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
-                                extent->height != image->vk.extent.height || extent->depth != image->vk.extent.depth;
-
-   if (before_copy) {
-      /* For partial copies, HTILE is decompressed before because image stores don't write the
-       * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
-       * uncompressed state after the copy.
+   if (pdev->info.gfx_level >= GFX12) {
+      /* Expand HiZ to [0,1] after the copy because image stores don't update HiZ and the clear can
+       * run in parallel.
        */
-      if (is_partial_copy) {
-         radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
-
-         u_foreach_bit (i, subresource->aspectMask) {
-            unsigned aspect_mask = 1u << i;
-            radv_expand_depth_stencil(cmd_buffer, image,
-                                      &(VkImageSubresourceRange){
-                                         .aspectMask = aspect_mask,
-                                         .baseMipLevel = subresource->mipLevel,
-                                         .levelCount = 1,
-                                         .baseArrayLayer = subresource->baseArrayLayer,
-                                         .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
-                                      },
-                                      NULL);
-         }
-
-         radv_describe_barrier_end(cmd_buffer);
-      }
+      if (radv_image_has_hiz(image) && (subresource->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && !before_copy)
+         radv_expand_hiz_range(cmd_buffer, image, &range);
    } else {
-      if (!is_partial_copy) {
-         /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing the
-          * image also means that HTILE is re-initialized to its uncompressed state.
-          */
-         const VkImageSubresourceRange range = {
-            .aspectMask = subresource->aspectMask,
-            .baseMipLevel = subresource->mipLevel,
-            .levelCount = 1,
-            .baseArrayLayer = subresource->baseArrayLayer,
-            .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
-         };
-         const uint32_t htile_value = radv_get_htile_initial_value(device, image);
+      const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
+      if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
+         return;
 
-         cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+      if (radv_image_decompress_htile_on_image_stores(device, image))
+         return;
+
+      const bool is_partial_copy = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
+                                   extent->height != image->vk.extent.height || extent->depth != image->vk.extent.depth;
+
+      if (before_copy) {
+         /* For partial copies, HTILE is decompressed before because image stores don't write the
+          * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
+          * uncompressed state after the copy.
+          */
+         if (is_partial_copy) {
+            radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
+
+            u_foreach_bit (i, subresource->aspectMask) {
+               unsigned aspect_mask = 1u << i;
+               radv_expand_depth_stencil(cmd_buffer, image,
+                                         &(VkImageSubresourceRange){
+                                            .aspectMask = aspect_mask,
+                                            .baseMipLevel = subresource->mipLevel,
+                                            .levelCount = 1,
+                                            .baseArrayLayer = subresource->baseArrayLayer,
+                                            .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
+                                         },
+                                         NULL);
+            }
+
+            radv_describe_barrier_end(cmd_buffer);
+         }
+      } else {
+         if (!is_partial_copy) {
+            /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing the
+             * image also means that HTILE is re-initialized to its uncompressed state.
+             */
+            const uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+            cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+         }
       }
    }
 }
@@ -203,8 +213,8 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, VkAddres
    assert(image->vk.samples == 1);
 
    if (use_compute) {
-      radv_fixup_copy_dst_htile_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
-                                         &region->imageOffset, &region->imageExtent, true);
+      radv_fixup_copy_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
+                                   &region->imageOffset, &region->imageExtent, true);
    }
 
    /**
@@ -289,8 +299,8 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, VkAddres
    }
 
    if (use_compute) {
-      radv_fixup_copy_dst_htile_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
-                                         &region->imageOffset, &region->imageExtent, false);
+      radv_fixup_copy_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
+                                   &region->imageOffset, &region->imageExtent, false);
    }
 }
 
@@ -699,8 +709,8 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    assert(dst_image->plane_count == 1 || util_is_power_of_two_nonzero(region->dstSubresource.aspectMask));
 
    if (use_compute) {
-      radv_fixup_copy_dst_htile_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource,
-                                         &region->dstOffset, &region->extent, true);
+      radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
+                                   &region->extent, true);
    }
 
    /* Create blit surfaces */
@@ -799,8 +809,8 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    }
 
    if (use_compute) {
-      radv_fixup_copy_dst_htile_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource,
-                                         &region->dstOffset, &region->extent, false);
+      radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
+                                   &region->extent, false);
    }
 }
 

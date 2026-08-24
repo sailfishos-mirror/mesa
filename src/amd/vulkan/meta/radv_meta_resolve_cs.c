@@ -140,6 +140,7 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
                                 const VkOffset3D *offset, const VkExtent3D *extent, bool before_resolve)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
 
    const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
 
@@ -177,28 +178,36 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
             cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, &range, DCC_UNCOMPRESSED);
       }
    } else {
-      if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
-         return;
-
-      if (radv_image_decompress_htile_on_image_stores(device, image))
-         return;
-
-      if (before_resolve) {
-         if (is_partial_resolve) {
-            /* For partial resolves, HTILE is decompressed before because image stores don't write the
-             * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
-             * uncompressed state after the copy.
-             */
-            radv_expand_depth_stencil(cmd_buffer, image, &range, NULL);
-         }
-      } else {
-         /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing
-          * the image also means that HTILE is re-initialized to its uncompressed state.
+      if (pdev->info.gfx_level >= GFX12) {
+         /* Expand HiZ to [0,1] after the resolve because image stores don't update HiZ and the
+          * clear can run in parallel.
           */
-         if (!is_partial_resolve) {
-            uint32_t htile_value = radv_get_htile_initial_value(device, image);
+         if (radv_image_has_hiz(image) && (subresource->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && !before_resolve)
+            radv_expand_hiz_range(cmd_buffer, image, &range);
+      } else {
+         if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
+            return;
 
-            cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+         if (radv_image_decompress_htile_on_image_stores(device, image))
+            return;
+
+         if (before_resolve) {
+            if (is_partial_resolve) {
+               /* For partial resolves, HTILE is decompressed before because image stores don't write the
+                * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
+                * uncompressed state after the copy.
+                */
+               radv_expand_depth_stencil(cmd_buffer, image, &range, NULL);
+            }
+         } else {
+            /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing
+             * the image also means that HTILE is re-initialized to its uncompressed state.
+             */
+            if (!is_partial_resolve) {
+               uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+               cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+            }
          }
       }
    }
