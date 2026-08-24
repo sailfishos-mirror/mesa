@@ -540,6 +540,12 @@ vtn_alu_op_mediump_16bit(struct vtn_builder *b, SpvOp opcode, struct vtn_value *
    case SpvOpBitFieldSExtract:
    case SpvOpBitFieldUExtract:
       return false;
+   /* These have struct results, which can't be RelaxedPrecision. */
+   case SpvOpIAddCarry:
+   case SpvOpISubBorrow:
+   case SpvOpUMulExtended:
+   case SpvOpSMulExtended:
+      return false;
    default:
       return true;
    }
