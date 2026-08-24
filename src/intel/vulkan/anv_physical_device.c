@@ -92,9 +92,13 @@ anv_physical_device_init_drirc(struct anv_physical_device *device)
 
    device->drirc_status = VK_SUCCESS;
 
+   char verx10_str[16];
+   snprintf(verx10_str, sizeof(verx10_str), "%u", device->info.verx10);
+
    anv_parse_dri_options(&device->drirc,
                          &(driConfigFileParseParams) {
                             .driverName = "anv",
+                            .deviceVersion = verx10_str,
                             .applicationName = instance->vk.app_info.app_name,
                             .applicationVersion = instance->vk.app_info.app_version,
                             .engineName = instance->vk.app_info.engine_name,
