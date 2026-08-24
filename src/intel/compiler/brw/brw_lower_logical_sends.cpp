@@ -1930,9 +1930,7 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
    const brw_reg payload =
       bld.move_to_vgrf(inst->src[RT_LOGICAL_SRC_PAYLOADS],
                        inst->components_read(RT_LOGICAL_SRC_PAYLOADS));
-   const brw_reg synchronous_src = inst->src[RT_LOGICAL_SRC_SYNCHRONOUS];
-   assert(synchronous_src.file == IMM);
-   const bool synchronous = synchronous_src.ud;
+   const bool synchronous = inst->synchronous;
 
    const unsigned unit = reg_unit(devinfo);
    const unsigned mlen = unit;

@@ -192,7 +192,12 @@ struct brw_inst : brw_exec_node {
           */
          bool has_no_mask_send_params:1;
 
-         uint8_t pad:6;
+         /**
+          * For RT messages, whether synchronous or not.
+          */
+         bool synchronous:1;
+
+         uint8_t pad:5;
       };
       uint16_t bits;
    };
