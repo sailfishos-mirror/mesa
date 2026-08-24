@@ -2980,7 +2980,7 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
                 */
                type = type->component_type;
             } else {
-               vtn_fail_if(w[i] > type->length,
+               vtn_fail_if(w[i] >= type->length,
                            "%uth index of %s is %u but the type has only "
                            "%u elements", i - deref_start,
                            spirv_op_to_string(opcode), w[i], type->length);
