@@ -316,6 +316,19 @@ struct r600_dsa_state {
 
 struct r600_pipe_shader;
 
+struct r600_pipe_shader_selector_info {
+	unsigned images_declared;
+	bool writes_memory;
+	bool fs_early_depth_stencil;
+	int image_file_max;
+
+	enum mesa_prim tes_prim_mode;
+	unsigned tes_spacing;
+	bool tes_vertex_order_cw;
+	bool tes_point_mode;
+	unsigned tcs_vertices_out;
+};
+
 struct r600_pipe_shader_selector {
 	struct r600_pipe_shader *current;
 
@@ -327,6 +340,7 @@ struct r600_pipe_shader_selector {
 
 	struct pipe_stream_output_info  so;
 	struct tgsi_shader_info		info;
+	struct r600_pipe_shader_selector_info nir_info;
 
 	unsigned	num_shaders;
 

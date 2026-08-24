@@ -275,7 +275,6 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 	}
 	ralloc_free(sel->nir);
 	sel->nir = NULL;
-
 	return 0;
 
 error:

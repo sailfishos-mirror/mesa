@@ -3031,11 +3031,11 @@ static void evergreen_emit_shader_stages(struct r600_context *rctx, struct r600_
 
 	if (rctx->tes_shader) {
 		uint32_t type, partitioning, topology;
-		struct tgsi_shader_info *info = &rctx->tes_shader->current->selector->info;
-		unsigned tes_prim_mode = info->properties[TGSI_PROPERTY_TES_PRIM_MODE];
-		unsigned tes_spacing = info->properties[TGSI_PROPERTY_TES_SPACING];
-		bool tes_vertex_order_cw = info->properties[TGSI_PROPERTY_TES_VERTEX_ORDER_CW];
-		bool tes_point_mode = info->properties[TGSI_PROPERTY_TES_POINT_MODE];
+		struct r600_pipe_shader_selector *sel = rctx->tes_shader->current->selector;
+		unsigned tes_prim_mode = sel->nir_info.tes_prim_mode;
+		unsigned tes_spacing = sel->nir_info.tes_spacing;
+		bool tes_vertex_order_cw = sel->nir_info.tes_vertex_order_cw;
+		bool tes_point_mode = sel->nir_info.tes_point_mode;
 		switch (tes_prim_mode) {
 		case MESA_PRIM_LINES:
 			type = V_028B6C_TESS_ISOLINE;
@@ -3871,10 +3871,10 @@ void evergreen_update_ps_state(struct pipe_context *ctx, struct r600_pipe_shader
 	db_shader_control |= S_02880C_STENCIL_EXPORT_ENABLE(stencil_export);
 	db_shader_control |= S_02880C_MASK_EXPORT_ENABLE(mask_export);
 
-	if (shader->selector->info.properties[TGSI_PROPERTY_FS_EARLY_DEPTH_STENCIL]) {
+	if (shader->selector->nir_info.fs_early_depth_stencil) {
 		db_shader_control |= S_02880C_DEPTH_BEFORE_SHADER(1) |
-			S_02880C_EXEC_ON_NOOP(shader->selector->info.writes_memory);
-	} else if (shader->selector->info.writes_memory) {
+			S_02880C_EXEC_ON_NOOP(shader->selector->nir_info.writes_memory);
+	} else if (shader->selector->nir_info.writes_memory) {
 		db_shader_control |= S_02880C_EXEC_ON_HIER_FAIL(1);
 	}
 
@@ -4188,7 +4188,7 @@ void evergreen_update_db_shader_control(struct r600_context * rctx)
 	 * get a hang unless you flush the DB in between.  For now just use
 	 * LATE_Z.
 	 */
-	if (rctx->alphatest_state.sx_alpha_test_control || rctx->ps_shader->info.writes_memory) {
+	if (rctx->alphatest_state.sx_alpha_test_control || rctx->ps_shader->nir_info.writes_memory) {
 		db_shader_control |= S_02880C_Z_ORDER(V_02880C_LATE_Z);
 	} else {
 		db_shader_control |= S_02880C_Z_ORDER(V_02880C_EARLY_Z_THEN_LATE_Z);
@@ -5053,7 +5053,7 @@ void evergreen_setup_tess_constants(struct r600_context *rctx,
 
 	if (rctx->tcs_shader) {
 		num_tcs_outputs = util_last_bit64(tcs->lds_outputs_written_mask);
-		num_tcs_output_cp = tcs->info.properties[TGSI_PROPERTY_TCS_VERTICES_OUT];
+		num_tcs_output_cp = tcs->nir_info.tcs_vertices_out;
 		num_tcs_patch_outputs = util_last_bit64(tcs->lds_patch_outputs_written_mask);
 	} else {
 		num_tcs_outputs = num_tcs_inputs;
@@ -5122,7 +5122,7 @@ uint32_t evergreen_get_ls_hs_config(struct r600_context *rctx,
 		return 0;
 
 	num_output_cp = rctx->tcs_shader ?
-		rctx->tcs_shader->info.properties[TGSI_PROPERTY_TCS_VERTICES_OUT] :
+		rctx->tcs_shader->nir_info.tcs_vertices_out :
 		rctx->patch_vertices;
 
 	return S_028B58_NUM_PATCHES(num_patches) |

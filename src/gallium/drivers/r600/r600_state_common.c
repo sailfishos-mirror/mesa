@@ -17,6 +17,7 @@
 #include "util/u_memory.h"
 #include "util/u_upload_mgr.h"
 #include "util/u_math.h"
+#include "util/u_prim.h"
 #include "tgsi/tgsi_parse.h"
 #include "tgsi/tgsi_scan.h"
 
@@ -42,6 +43,24 @@ static void r600_tgsi_to_nir(struct pipe_context *ctx,
 		NIR_PASS(_, sel->nir, nir_lower_int64);
 	}
 	NIR_PASS(_, sel->nir, nir_lower_flrp, ~0, false);
+}
+
+static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
+{
+	sel->nir_info.images_declared = sel->nir->info.images_used[0];
+	sel->nir_info.writes_memory = sel->nir->info.writes_memory;
+	sel->nir_info.fs_early_depth_stencil =
+		sel->nir->info.fs.early_fragment_tests |
+		sel->nir->info.fs.post_depth_coverage;
+	sel->nir_info.image_file_max =
+		(int)BITSET_LAST_BIT(sel->nir->info.images_used) - 1;
+
+	sel->nir_info.tes_prim_mode =
+		u_tess_prim_from_shader(sel->nir->info.tess._primitive_mode);
+	sel->nir_info.tes_spacing = (sel->nir->info.tess.spacing + 1) % 3;
+	sel->nir_info.tes_vertex_order_cw = !sel->nir->info.tess.ccw;
+	sel->nir_info.tes_point_mode = sel->nir->info.tess.point_mode;
+	sel->nir_info.tcs_vertices_out = sel->nir->info.tess.tcs_vertices_out;
 }
 
 void r600_init_command_buffer(struct r600_command_buffer *cb, unsigned num_dw)
@@ -808,7 +827,7 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		key->gs.tri_strip_adj_fix = rctx->gs_tri_strip_adj_fix;
 		break;
 	case MESA_SHADER_FRAGMENT: {
-		if (rctx->ps_shader->info.images_declared)
+		if (rctx->ps_shader->nir_info.images_declared)
 			key->ps.image_size_const_offset = util_last_bit(rctx->samplers[MESA_SHADER_FRAGMENT].views.enabled_mask);
 		key->ps.color_two_side = rctx->rasterizer && rctx->rasterizer->two_side;
 		key->ps.alpha_to_one = rctx->alpha_to_one &&
@@ -828,7 +847,7 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		key->tes.as_es = (rctx->gs_shader != NULL);
 		break;
 	case MESA_SHADER_TESS_CTRL:
-		key->tcs.prim_mode = rctx->tes_shader->info.properties[TGSI_PROPERTY_TES_PRIM_MODE];
+		key->tcs.prim_mode = rctx->tes_shader->nir_info.tes_prim_mode;
 		break;
 	case MESA_SHADER_COMPUTE:
 		break;
@@ -857,7 +876,7 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 		break;
 
 	case MESA_SHADER_FRAGMENT:
-		key->ps.image_size_const_offset = sel->info.file_max[TGSI_FILE_IMAGE];
+		key->ps.image_size_const_offset = sel->nir_info.image_file_max;
 
 		/* This is used for gl_FragColor output expansion to the number
 		 * of color buffers bound, but also with sb it'll drop outputs
@@ -956,6 +975,7 @@ struct r600_pipe_shader_selector *r600_create_shader_state_tokens(struct pipe_co
 		glsl_type_singleton_init_or_ref();
 		r600_tgsi_to_nir(ctx, sel, mesa_shader_stage);
 		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
+		r600_cache_nir_selector_info(sel);
 		glsl_type_singleton_decref();
 		FREE(sel->tokens);
 		sel->tokens = NULL;
@@ -963,6 +983,7 @@ struct r600_pipe_shader_selector *r600_create_shader_state_tokens(struct pipe_co
 	} else if (ir == PIPE_SHADER_IR_NIR){
 		sel->nir = (nir_shader *)prog;
 		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
+		r600_cache_nir_selector_info(sel);
 	}
 	sel->ir_type = ir;
 	return sel;
@@ -987,11 +1008,11 @@ static void *r600_create_shader_state(struct pipe_context *ctx,
 	switch (mesa_shader_stage) {
 	case MESA_SHADER_GEOMETRY:
 		sel->gs_output_prim =
-			sel->info.properties[TGSI_PROPERTY_GS_OUTPUT_PRIM];
+			sel->nir->info.gs.output_primitive;
 		sel->gs_max_out_vertices =
-			sel->info.properties[TGSI_PROPERTY_GS_MAX_OUTPUT_VERTICES];
+			sel->nir->info.gs.vertices_out;
 		sel->gs_num_invocations =
-			sel->info.properties[TGSI_PROPERTY_GS_INVOCATIONS];
+			sel->nir->info.gs.invocations;
 		break;
 	case MESA_SHADER_VERTEX:
 	case MESA_SHADER_TESS_CTRL:
@@ -2643,7 +2664,7 @@ static void r600_draw_vbo(struct pipe_context *ctx, const struct pipe_draw_info 
 	const enum mesa_prim rast_prim = rctx->current_rast_prim;
 
 	rctx->current_rast_prim = rctx->gs_shader ? rctx->gs_shader->gs_output_prim
-		: rctx->tes_shader ? rctx->tes_shader->info.properties[TGSI_PROPERTY_TES_PRIM_MODE]
+		: rctx->tes_shader ? rctx->tes_shader->nir_info.tes_prim_mode
 		: info->mode;
 
 	if (rast_prim != rctx->current_rast_prim) {

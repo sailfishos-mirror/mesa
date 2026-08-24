@@ -104,6 +104,8 @@ r600_shader_from_nir(struct r600_context *rctx,
       shader->atomic_file_count();
    pipeshader->selector->info.writes_memory =
       shader->has_flag(r600::Shader::sh_writes_memory);
+   pipeshader->selector->nir_info.writes_memory =
+      shader->has_flag(r600::Shader::sh_writes_memory);
 
    r600_finalize_and_optimize_shader(shader);
 
