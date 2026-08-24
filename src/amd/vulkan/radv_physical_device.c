@@ -2541,14 +2541,41 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
    vk_free(&instance->vk.alloc, pdev);
 }
 
+// clang-format off
+static const uint32_t driconf_device_versions[] = {
+   [GFX6] = 60,
+   [GFX7] = 70,
+   [GFX8] = 80,
+   [GFX9] = 90,
+   [GFX10] = 100,
+   [GFX10_3] = 103,
+   [GFX11] = 110,
+   [GFX11_5] = 115,
+   [GFX11_7] = 117,
+   [GFX12] = 120,
+   [GFX12_1] = 121,
+};
+// clang-format on
+
+static uint32_t
+radv_get_driconf_device_version(const struct radv_physical_device *pdev)
+{
+   assert(pdev->info.gfx_level < ARRAY_SIZE(driconf_device_versions));
+   uint32_t device_version = driconf_device_versions[pdev->info.gfx_level];
+   assert(device_version != 0 && "Unknown gfx_level for the driconf device version");
+   return device_version;
+}
+
 static void
 radv_init_dri_options(struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   const uint32_t device_version = radv_get_driconf_device_version(pdev);
    struct radv_drirc *drirc = &pdev->drirc;
 
    radv_parse_dri_options(drirc, &(driConfigFileParseParams){
                                     .driverName = "radv",
+                                    .deviceVersion = device_version,
                                     .applicationName = instance->vk.app_info.app_name,
                                     .applicationVersion = instance->vk.app_info.app_version,
                                     .engineName = instance->vk.app_info.engine_name,
