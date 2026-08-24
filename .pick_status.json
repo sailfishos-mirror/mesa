@@ -3824,7 +3824,7 @@
         "description": "tu: Fix GMEM clears with an FDM offset on the blit-event clear path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9e632244246f7b326075e501ffc0b4e3d6293703",
         "notes": null
