@@ -910,7 +910,7 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_EXT_transform_feedback */
    features->transformFeedback = true;
-   features->geometryStreams = !pdevice->info->props.is_a702;
+   features->geometryStreams = pdevice->info->props.num_xfb_streams > 1;
 
    /* VK_EXT_vertex_input_dynamic_state */
    features->vertexInputDynamicState = true;
@@ -1395,12 +1395,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxPushDescriptors = MAX_PUSH_DESCRIPTORS;
 
    /* VK_EXT_transform_feedback */
-   if (pdevice->info->props.is_a702) {
-       /* a702 only 32 streamout ram entries.. 1 stream, 64 components */
-      props->maxTransformFeedbackStreams = 1;
-   } else {
-      props->maxTransformFeedbackStreams = IR3_MAX_SO_STREAMS;
-   }
+   props->maxTransformFeedbackStreams = pdevice->info->props.num_xfb_streams;
    props->maxTransformFeedbackBuffers = IR3_MAX_SO_BUFFERS;
    props->maxTransformFeedbackBufferSize = UINT32_MAX;
    props->maxTransformFeedbackStreamDataSize = 512;
