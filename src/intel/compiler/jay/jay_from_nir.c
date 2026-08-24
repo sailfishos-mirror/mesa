@@ -4674,6 +4674,24 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
    stats->vrt_size =
       intel_vrt_register_file_size(s->devinfo, stats->grf_registers);
    stats->vrt_threads = intel_max_vrt_threads(s->devinfo, stats->vrt_size);
+
+   /* We currently only support up to 2MB of scratch space.  If we need to
+    * support more eventually, the documentation suggests that we could allocate
+    * a larger buffer, and partition it out ourselves.  We'd just have to undo
+    * the hardware's address calculation by subtracting (FFTID * Per Thread
+    * Scratch Space) and then add FFTID * (Larger Per Thread Scratch Space).
+    *
+    * See 3D-Media-GPGPU Engine > Media GPGPU Pipeline > Thread Group Tracking >
+    * Local Memory/Scratch Space.
+    */
+   assert(s->scratch_size <= s->devinfo->max_scratch_size_per_thread &&
+          "maximum scratch size");
+
+   /* Scratch is allocated in 1KiB increments. */
+   if (s->scratch_size > 0) {
+      stats->scratch_memory_size =
+         align(util_next_power_of_two(s->scratch_size), 1024);
+   }
 }
 
 static unsigned
@@ -4887,31 +4905,12 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 
    prog_data->base.program_size = bin->size;
 
-   if (s->scratch_size > 0) {
-      /* We currently only support up to 2MB of scratch space.  If we
-       * need to support more eventually, the documentation suggests
-       * that we could allocate a larger buffer, and partition it out
-       * ourselves.  We'd just have to undo the hardware's address
-       * calculation by subtracting (FFTID * Per Thread Scratch Space)
-       * and then add FFTID * (Larger Per Thread Scratch Space).
-       *
-       * See 3D-Media-GPGPU Engine > Media GPGPU Pipeline >
-       * Thread Group Tracking > Local Memory/Scratch Space.
-       */
-      assert(s->scratch_size <= devinfo->max_scratch_size_per_thread &&
-             "maximum scratch size");
-
-      /* Take the max of any previously compiled variant of the shader. In the
-       * case of bindless shaders with return parts, this will also take the
-       * max of all parts.
-       */
-      prog_data->base.total_scratch =
-         MAX2(prog_data->base.total_scratch,
-              util_next_power_of_two(s->scratch_size));
-   }
-
-   /* Scratch is allocated in 1KiB increments. */
-   prog_data->base.total_scratch = align(prog_data->base.total_scratch, 1024);
+   /* Take the max of any previously compiled variant of the shader. In the
+    * case of bindless shaders with return parts, this will also take the
+    * max of all parts.
+    */
+   prog_data->base.total_scratch =
+      MAX2(prog_data->base.total_scratch, stats->scratch_memory_size);
 
    ralloc_free(s);
    return bin;
