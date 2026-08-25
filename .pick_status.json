@@ -2374,7 +2374,7 @@
         "description": "tu: Fix the block texel view check for force_disable_linear_fallback.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "580ce1c911c9cd4ec2b8109fea9347bf311152df",
         "notes": null
