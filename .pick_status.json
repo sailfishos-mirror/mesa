@@ -2834,7 +2834,7 @@
         "description": "pvr: use a load op for the resolve stencil load op",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "146364ab9f159a5552a1db2f44acae9127bf01ef",
         "notes": null

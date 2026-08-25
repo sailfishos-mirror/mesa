@@ -4677,7 +4677,7 @@ pvr_dynamic_render_info_create(struct pvr_cmd_buffer *cmd_buffer,
          resolve_ds_attach->store_op = ds_attach->store_op;
          resolve_ds_attach->stencil_store_op = ds_attach->stencil_store_op;
          resolve_ds_attach->load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-         resolve_ds_attach->stencil_load_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+         resolve_ds_attach->stencil_load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 
          attach_idx++;
       }
