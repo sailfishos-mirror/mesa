@@ -53,8 +53,6 @@ void *r600_create_vertex_fetch_shader(struct pipe_context *ctx,
  TGSI_INTERPOLATE_LOC_CENTER/SAMPLE/COUNT. Other input values return -1. */
 int eg_get_interpolator_index(unsigned interpolate, unsigned location);
 
-int r600_get_lds_unique_index(unsigned semantic_name, unsigned index);
-
 int generate_gs_copy_shader(struct r600_context *rctx,
                             struct r600_pipe_shader *gs,
                             struct pipe_stream_output_info *so);

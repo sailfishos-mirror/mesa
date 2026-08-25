@@ -566,51 +566,6 @@ int eg_get_interpolator_index(unsigned interpolate, unsigned location)
 	return -1;
 }
 
-int r600_get_lds_unique_index(unsigned semantic_name, unsigned index)
-{
-	switch (semantic_name) {
-	case TGSI_SEMANTIC_POSITION:
-		return 0;
-       case TGSI_SEMANTIC_PSIZE:
-		return 1;
-       case TGSI_SEMANTIC_CLIPDIST:
-		assert(index <= 1);
-		return 2 + index;
-       case TGSI_SEMANTIC_TEXCOORD:
-		return 4 + index;
-       case TGSI_SEMANTIC_COLOR:
-		return 12 + index;
-       case TGSI_SEMANTIC_BCOLOR:
-		return 14 + index;
-       case TGSI_SEMANTIC_CLIPVERTEX:
-		return 16;
-       case TGSI_SEMANTIC_GENERIC:
-		if (index <= 63-17)
-			return 17 + index;
-		else
-			/* same explanation as in the default statement,
-			 * the only user hitting this is st/nine.
-			 */
-			return 0;
-
-	/* patch indices are completely separate and thus start from 0 */
-	case TGSI_SEMANTIC_TESSOUTER:
-		return 0;
-	case TGSI_SEMANTIC_TESSINNER:
-		return 1;
-	case TGSI_SEMANTIC_PATCH:
-		return 2 + index;
-
-	default:
-		/* Don't fail here. The result of this function is only used
-		 * for LS, TCS, TES, and GS, where legacy GL semantics can't
-		 * occur, but this function is called for all vertex shaders
-		 * before it's known whether LS will be compiled or not.
-		 */
-		return 0;
-	}
-}
-
 static int emit_streamout(struct r600_shader_ctx *ctx, struct pipe_stream_output_info *so,
                           int stream, unsigned *stream_item_size UNUSED)
 {

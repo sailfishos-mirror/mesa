@@ -118,6 +118,135 @@ static bool r600_nir_writes_viewport_index(const struct nir_shader *nir)
 	return false;
 }
 
+static int r600_get_lds_varying_index(gl_varying_slot location)
+{
+	switch (location) {
+	case VARYING_SLOT_POS:
+		return 0;
+	case VARYING_SLOT_PSIZ:
+		return 1;
+	case VARYING_SLOT_CLIP_DIST0:
+	case VARYING_SLOT_CLIP_DIST1:
+		return 2 + location - VARYING_SLOT_CLIP_DIST0;
+	case VARYING_SLOT_TEX0:
+	case VARYING_SLOT_TEX1:
+	case VARYING_SLOT_TEX2:
+	case VARYING_SLOT_TEX3:
+	case VARYING_SLOT_TEX4:
+	case VARYING_SLOT_TEX5:
+	case VARYING_SLOT_TEX6:
+	case VARYING_SLOT_TEX7:
+		return 4 + location - VARYING_SLOT_TEX0;
+	case VARYING_SLOT_COL0:
+	case VARYING_SLOT_COL1:
+		return 12 + location - VARYING_SLOT_COL0;
+	case VARYING_SLOT_BFC0:
+	case VARYING_SLOT_BFC1:
+		return 14 + location - VARYING_SLOT_BFC0;
+	case VARYING_SLOT_CLIP_VERTEX:
+		return 16;
+	default:
+		if (location >= VARYING_SLOT_VAR0 && location < VARYING_SLOT_PATCH0) {
+			unsigned index = location - VARYING_SLOT_VAR0;
+
+			if (index <= 63 - 17)
+				return 17 + index;
+			else
+				/* same explanation as in the default return,
+				 * the only user hitting this is st/nine.
+				 */
+				return 0;
+		}
+
+		/* Don't fail here. The result of this function is only used
+		 * for LS, TCS, TES, and GS, where legacy GL semantics can't
+		 * occur, but this function is called for all vertex shaders
+		 * before it's known whether LS will be compiled or not.
+		 */
+		return 0;
+	}
+}
+
+static int r600_get_lds_patch_index(gl_varying_slot location)
+{
+	/* Patch indices are completely separate from per-vertex indices and
+	 * thus start from 0.
+	 */
+	if (location == VARYING_SLOT_TESS_LEVEL_OUTER)
+		return 0;
+	else if (location == VARYING_SLOT_TESS_LEVEL_INNER)
+		return 1;
+	else if (location >= VARYING_SLOT_PATCH0)
+		return 2 + location - VARYING_SLOT_PATCH0;
+
+	return 0;
+}
+
+static void r600_add_lds_output_for_location(struct r600_pipe_shader_selector *sel,
+					     gl_varying_slot location)
+{
+	if (location == VARYING_SLOT_TESS_LEVEL_INNER ||
+	    location == VARYING_SLOT_TESS_LEVEL_OUTER ||
+	    location >= VARYING_SLOT_PATCH0)
+		sel->lds_patch_outputs_written_mask |=
+			1ull << r600_get_lds_patch_index(location);
+	else
+		sel->lds_outputs_written_mask |=
+			1ull << r600_get_lds_varying_index(location);
+}
+
+static void r600_cache_lds_info_from_lowered_nir(struct r600_pipe_shader_selector *sel)
+{
+	uint64_t outputs_written = sel->nir->info.outputs_written;
+	uint32_t patch_outputs_written = sel->nir->info.patch_outputs_written;
+
+	while (outputs_written) {
+		gl_varying_slot location = u_bit_scan64(&outputs_written);
+		r600_add_lds_output_for_location(sel, location);
+	}
+
+	while (patch_outputs_written) {
+		gl_varying_slot location =
+			VARYING_SLOT_PATCH0 + u_bit_scan(&patch_outputs_written);
+		r600_add_lds_output_for_location(sel, location);
+	}
+}
+
+static void r600_cache_lds_info_from_nir_variables(struct r600_pipe_shader_selector *sel)
+{
+	nir_foreach_shader_out_variable(variable, sel->nir) {
+		const struct glsl_type *type = variable->type;
+
+		if (nir_is_arrayed_io(variable, sel->nir->info.stage)) {
+			assert(glsl_type_is_array(type));
+			type = glsl_get_array_element(type);
+		}
+
+		unsigned attrib_count = nir_variable_count_slots(variable, type);
+		for (unsigned i = 0; i < attrib_count; i++)
+			r600_add_lds_output_for_location(sel, variable->data.location + i);
+	}
+}
+
+static void r600_cache_lds_info(struct r600_pipe_shader_selector *sel)
+{
+	sel->lds_patch_outputs_written_mask = 0;
+	sel->lds_outputs_written_mask = 0;
+
+	switch (sel->type) {
+	case MESA_SHADER_VERTEX:
+	case MESA_SHADER_TESS_CTRL:
+		break;
+	default:
+		return;
+	}
+
+	if (sel->nir->info.io_lowered)
+		r600_cache_lds_info_from_lowered_nir(sel);
+	else
+		r600_cache_lds_info_from_nir_variables(sel);
+}
+
 static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 {
 	sel->nir_info.images_declared = sel->nir->info.images_used[0];
@@ -140,6 +269,7 @@ static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 	sel->nir_info.tes_vertex_order_cw = !sel->nir->info.tess.ccw;
 	sel->nir_info.tes_point_mode = sel->nir->info.tess.point_mode;
 	sel->nir_info.tcs_vertices_out = sel->nir->info.tess.tcs_vertices_out;
+	r600_cache_lds_info(sel);
 }
 
 void r600_init_command_buffer(struct r600_command_buffer *cb, unsigned num_dw)
@@ -1072,7 +1202,6 @@ static void *r600_create_shader_state(struct pipe_context *ctx,
 			       const struct pipe_shader_state *state,
 			       unsigned mesa_shader_stage)
 {
-	int i;
 	struct r600_pipe_shader_selector *sel;
 	
 	if (state->type == PIPE_SHADER_IR_TGSI)
@@ -1092,28 +1221,6 @@ static void *r600_create_shader_state(struct pipe_context *ctx,
 			sel->nir->info.gs.vertices_out;
 		sel->gs_num_invocations =
 			sel->nir->info.gs.invocations;
-		break;
-	case MESA_SHADER_VERTEX:
-	case MESA_SHADER_TESS_CTRL:
-		sel->lds_patch_outputs_written_mask = 0;
-		sel->lds_outputs_written_mask = 0;
-
-		for (i = 0; i < sel->info.num_outputs; i++) {
-			unsigned name = sel->info.output_semantic_name[i];
-			unsigned index = sel->info.output_semantic_index[i];
-
-			switch (name) {
-			case TGSI_SEMANTIC_TESSINNER:
-			case TGSI_SEMANTIC_TESSOUTER:
-			case TGSI_SEMANTIC_PATCH:
-				sel->lds_patch_outputs_written_mask |=
-					1ull << r600_get_lds_unique_index(name, index);
-				break;
-			default:
-				sel->lds_outputs_written_mask |=
-					1ull << r600_get_lds_unique_index(name, index);
-			}
-		}
 		break;
 	default:
 		break;
