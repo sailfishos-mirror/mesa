@@ -152,8 +152,8 @@ impl RunSingleton {
         self.runner.run(info)
     }
 
-    fn execute(&self, info: InvocationInfo) {
-        self.try_execute(info).expect("Error on job submission");
+    fn execute(&self, info: InvocationArgs) {
+        self.try_execute(info.0).expect("Error on job submission");
     }
 }
 
@@ -471,6 +471,16 @@ impl AllocSSA for TestShaderBuilder<'_> {
     }
 }
 
+/// Small helper struct around InvocationInfo to support builder arguments
+struct InvocationArgs<'a>(InvocationInfo<'a>);
+
+impl<'a> InvocationArgs<'a> {
+    pub fn with_fau(mut self, fau: &'a [u32]) -> Self {
+        self.0.fau = fau;
+        self
+    }
+}
+
 struct CompiledTestCase {
     code: Vec<u32>,
     info: ShaderInfo,
@@ -479,35 +489,29 @@ struct CompiledTestCase {
 }
 
 impl CompiledTestCase {
-    fn with_args_raw<'a>(
+    fn with_data_raw<'a>(
         &'a self,
-        fau: &'a [u32],
         data: &'a mut [u8],
         data_stride: u32,
         invocations: u32,
-    ) -> InvocationInfo<'a> {
-        // We need preloaded registers support to distinguish between invocations
-        InvocationInfo {
+    ) -> InvocationArgs<'a> {
+        InvocationArgs(InvocationInfo {
             code: transmute_slice_to_u8(&self.code),
-            fau,
+            fau: FAU_ONLY_ARGS,
             fau_args_offset: self.fau_args_offset,
             data,
             data_stride,
             register_preload: self.info.register_preload,
             register_count: self.info.registers_used,
             invocations,
-        }
+        })
     }
 
-    fn with_args<'a, T>(
-        &'a self,
-        fau: &'a [u32],
-        data: &'a mut [T],
-    ) -> InvocationInfo<'a> {
+    fn with_data<'a, T>(&'a self, data: &'a mut [T]) -> InvocationArgs<'a> {
         let invocations = data.len().try_into().expect("Too many invocations");
         let data_stride = size_of::<T>().try_into().unwrap();
         let data_raw = transmute_mut_slice_to_u8(data);
-        self.with_args_raw(fau, data_raw, data_stride, invocations)
+        self.with_data_raw(data_raw, data_stride, invocations)
     }
 }
 
@@ -517,7 +521,7 @@ fn test_sanity() {
     let b = TestShaderBuilder::new(&*run.model);
     let bin = b.compile();
     let mut data = [0u32; WARP_SIZE as usize];
-    let case = bin.with_args(FAU_ONLY_ARGS, &mut data);
+    let case = bin.with_data(&mut data);
     run.execute(case);
 }
 
@@ -531,7 +535,7 @@ fn test_copy_single() {
     let bin = b.compile();
     // First, do a small copy (32-bits)
     let mut data = [42, 67, 31, 41, 0, 0, 0, 0];
-    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 0, WARP_SIZE);
+    let case = bin.with_data_raw(&mut data, 0, WARP_SIZE);
 
     run.execute(case);
     assert_eq!(&data[0..4], &data[4..8]);
@@ -551,7 +555,7 @@ fn test_copy_8bit() {
     let bin = b.compile();
     // First, do a small copy (32-bits)
     let mut data = [42, 67, 31, 41, 0, 0, 0, 0];
-    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 0, WARP_SIZE);
+    let case = bin.with_data_raw(&mut data, 0, WARP_SIZE);
 
     run.execute(case);
     assert_eq!(&data[0..4], &data[4..8]);
@@ -571,7 +575,7 @@ fn test_copy_warp() {
     for i in 0..READ_SIZE {
         data[i] = (i as u8) * 4 + 1;
     }
-    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 4, WARP_SIZE);
+    let case = bin.with_data_raw(&mut data, 4, WARP_SIZE);
 
     run.execute(case);
     assert_eq!(&data[..READ_SIZE], &data[READ_SIZE..]);
@@ -583,7 +587,7 @@ fn test_copy_warp() {
         data[i] = (i as u8) * 4 + 1;
     }
     data[READ_SIZE..].fill(0);
-    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 4, WARP_SIZE / 2);
+    let case = bin.with_data_raw(&mut data, 4, WARP_SIZE / 2);
 
     run.execute(case);
     assert_eq!(
@@ -608,7 +612,7 @@ fn test_copy_large() {
     for i in 0..READ_SIZE {
         data[i] = (i as u8) * 4 + 1;
     }
-    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 4, 2 * WARP_SIZE);
+    let case = bin.with_data_raw(&mut data, 4, 2 * WARP_SIZE);
 
     run.execute(case);
     assert_eq!(&data[..READ_SIZE], &data[READ_SIZE..]);
@@ -783,8 +787,7 @@ pub fn test_foldable_op_with(
     assert!(data.len() == invocations * (src_words + dst_words));
 
     let data_bytes = transmute_mut_slice_to_u8(&mut data);
-    let case = bin.with_args_raw(
-        FAU_ONLY_ARGS,
+    let case = bin.with_data_raw(
         data_bytes,
         4 * total_words as u32,
         invocations.try_into().unwrap(),
@@ -1743,7 +1746,7 @@ mod builder {
             data.push([a.to_bits(), b.to_bits(), 0]);
         }
 
-        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        let case = shader.with_data(&mut data);
         run.execute(case);
         for arr in data {
             let [base_log2, arg, res] = arr.map(f32::from_bits);
@@ -1788,7 +1791,7 @@ mod builder {
             data.push([x.to_bits(), 0]);
         }
 
-        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        let case = shader.with_data(&mut data);
         run.execute(case);
         for arr in data {
             let [input, comp] = arr.map(f32::from_bits);
@@ -1837,7 +1840,7 @@ mod builder {
             data.push([x.to_bits(), 0, 0]);
         }
 
-        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        let case = shader.with_data(&mut data);
         run.execute(case);
         for arr in data {
             let [input, csin, ccos] = arr.map(f32::from_bits);
