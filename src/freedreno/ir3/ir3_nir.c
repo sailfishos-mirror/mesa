@@ -1523,6 +1523,17 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
       }
    }
 
+   const enum nir_lower_non_uniform_access_type non_uniform_access_types =
+      nir_lower_non_uniform_ubo_access | nir_lower_non_uniform_ssbo_access |
+      nir_lower_non_uniform_get_ssbo_size |
+      nir_lower_non_uniform_texture_access |
+      nir_lower_non_uniform_texture_offset_access |
+      nir_lower_non_uniform_texture_query | nir_lower_non_uniform_image_access |
+      nir_lower_non_uniform_image_query;
+
+   if (nir_has_non_uniform_access(s, non_uniform_access_types))
+      progress |= OPT(s, nir_opt_non_uniform_access);
+
    /* Move large constant variables to the constants attached to the NIR
     * shader, which we will upload in the immediates range.  This generates
     * amuls, so we need to clean those up after.
