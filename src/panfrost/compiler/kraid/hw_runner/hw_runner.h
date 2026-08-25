@@ -16,6 +16,11 @@ struct hw_runner_shader_args {
    uint32_t _pad;
 };
 
+struct hw_runner_buffer_descr {
+   uint64_t device_ptr;
+   uint32_t size_B;
+};
+
 /* All data required to run a compute shader, every pointer is a read-only
  * pointer in CPU-space, except for data_ptr that will be uploaded to the GPU
  * for execution and copied back when the shader has run (read-write).
@@ -35,6 +40,10 @@ struct hw_runner_invocation_info {
    uint64_t fau_size_B;
    /* Offset of hw_runner_shader_args in fau */
    uint64_t args_fau_offset;
+
+   /* Simple Buffers (for DescriptorBuffers) */
+   struct hw_runner_buffer_descr *simple_buffers;
+   uint32_t simple_buffer_count;
 
    struct hw_runner_shader_args shader_args;
 

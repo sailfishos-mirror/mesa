@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::device::{MemoryBuffer, VirtualMemory};
 use kraid_hw_runner_bindings::{
-    hw_runner_invocation_info, hw_runner_layout_info, hw_runner_new_cmd_stream,
-    hw_runner_shader_args,
+    hw_runner_buffer_descr, hw_runner_invocation_info, hw_runner_layout_info,
+    hw_runner_new_cmd_stream, hw_runner_shader_args,
 };
 
 pub struct InvocationInfo<'a> {
@@ -20,6 +20,8 @@ pub struct InvocationInfo<'a> {
     pub fau_args_offset: usize,
     pub data: &'a mut [u8],
     pub data_stride: u32,
+    // PKA buffers (for BufferDescriptors)
+    pub buffers: &'a mut [&'a mut [u8]],
 }
 
 impl<'a> InvocationInfo<'a> {
@@ -40,14 +42,18 @@ impl<'a> InvocationInfo<'a> {
     fn rw_data_layout(
         &self,
     ) -> impl Iterator<Item = (u64, &[u8])> + use<'_, 'a> {
-        std::iter::once(&*self.data).map(Self::assign_offsets())
+        std::iter::once(&*self.data)
+            .chain(self.buffers.iter().map(|b| &**b))
+            .map(Self::assign_offsets())
     }
 
     /// Returns a mutable view of rw-data with its layout
     fn rw_data_layout_mut(
         &mut self,
     ) -> impl Iterator<Item = (u64, &mut [u8])> + use<'_, 'a> {
-        std::iter::once(&mut *self.data).map(Self::assign_offsets())
+        std::iter::once(&mut *self.data)
+            .chain(self.buffers.iter_mut().map(|b| &mut **b))
+            .map(Self::assign_offsets())
     }
 
     fn rw_data_size_B(&self) -> u64 {
@@ -117,6 +123,14 @@ pub fn new_invocation_cs(
         _pad: 0,
     };
 
+    let mut buffer_descrs: Vec<_> = rw_layout
+        .map(|(off, buf)| hw_runner_buffer_descr {
+            device_ptr: data_buf.device_addr() + off,
+            size_B: buf.len().try_into().expect("Buffer too large"),
+        })
+        .collect();
+    assert_eq!(buffer_descrs.len(), info.buffers.len());
+
     let mut invoc_data = hw_runner_invocation_info {
         // Initialized later
         descr_bo_device_ptr: 0,
@@ -128,6 +142,10 @@ pub fn new_invocation_cs(
         fau_size_B: size_of_val(info.fau) as u64,
         args_fau_offset: info.fau_args_offset as u64,
         shader_args,
+
+        simple_buffers: buffer_descrs.as_mut_ptr(),
+        simple_buffer_count: info.buffers.len() as u32,
+
         register_preload: info.register_preload,
         register_count: info.register_count,
         invocations: info.invocations,

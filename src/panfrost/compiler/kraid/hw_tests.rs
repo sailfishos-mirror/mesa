@@ -479,6 +479,11 @@ impl<'a> InvocationArgs<'a> {
         self.0.fau = fau;
         self
     }
+
+    pub fn with_buffers(mut self, buffers: &'a mut [&'a mut [u8]]) -> Self {
+        self.0.buffers = buffers;
+        self
+    }
 }
 
 struct CompiledTestCase {
@@ -501,6 +506,7 @@ impl CompiledTestCase {
             fau_args_offset: self.fau_args_offset,
             data,
             data_stride,
+            buffers: &mut [],
             register_preload: self.info.register_preload,
             register_count: self.info.registers_used,
             invocations,
