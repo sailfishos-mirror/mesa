@@ -15521,6 +15521,17 @@ radv_init_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, cons
    return flush_bits;
 }
 
+uint32_t
+radv_init_display_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, uint32_t value)
+{
+   uint32_t flush_bits = 0;
+
+   flush_bits |= radv_fill_image(cmd_buffer, image, image->planes[0].surface.display_dcc_offset,
+                                 image->planes[0].surface.u.gfx9.color.display_dcc_size, value);
+
+   return flush_bits;
+}
+
 /**
  * Initialize DCC/FMASK/CMASK metadata for a color image.
  */
@@ -15578,6 +15589,9 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
 
    if (need_dcc_init) {
       flush_bits |= radv_init_dcc(cmd_buffer, image, range, dcc_init_value);
+
+      if (radv_image_has_display_dcc(image))
+         flush_bits |= radv_init_display_dcc(cmd_buffer, image, dcc_init_value);
    }
 
    if (need_metadata_init) {
@@ -15626,13 +15640,6 @@ radv_handle_color_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
       radv_init_color_image_metadata(cmd_buffer, image, src_layout, dst_layout, src_queue_mask, dst_queue_mask, range);
-
-      if (radv_image_need_retile(image)) {
-         /* Initialize displayable DCC to something sensible unless the
-          * underlying memory has already been zeroed. */
-         if (src_layout != VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT)
-            radv_retile_transition(cmd_buffer, image, src_layout, dst_layout, dst_queue_mask);
-      }
       return;
    }
 
