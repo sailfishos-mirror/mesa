@@ -252,6 +252,12 @@ def declare_options(android_version):
            EV(4096,  "4096 clocks")],
           "Force BTD child dispatches if dispatches do not happen naturally for number of clocks equal to the programmed timeout counter",
           c_name="rt_dispatch_timeout"),
+        I("anv_rt_tile_x", 0, 0, 256,
+          "Ray tracing dispatch tile width (0 for automatic)",
+          c_name="rt_tile_x"),
+        I("anv_rt_tile_y", 0, 0, 64,
+          "Ray tracing dispatch tile height (0 for automatic)",
+          c_name="rt_tile_y"),
     ]
 
     feature_options = [

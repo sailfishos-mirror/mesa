@@ -171,6 +171,20 @@ anv_physical_device_init_drirc(struct anv_physical_device *device)
       break;
    }
 
+   if (device->drirc.perf.rt_tile_x != 0 &&
+       !util_is_power_of_two_nonzero(device->drirc.perf.rt_tile_x)) {
+      mesa_logw("Invalid value provided for drirc anv_rt_tile_x=%u, reverting to 0.",
+                device->drirc.perf.rt_tile_x);
+      device->drirc.perf.rt_tile_x = 0;
+   }
+
+   if (device->drirc.perf.rt_tile_y != 0 &&
+       !util_is_power_of_two_nonzero(device->drirc.perf.rt_tile_y)) {
+      mesa_logw("Invalid value provided for drirc anv_rt_tile_y=%u, reverting to 0.",
+                device->drirc.perf.rt_tile_y);
+      device->drirc.perf.rt_tile_y = 0;
+   }
+
    return VK_SUCCESS;
 }
 
