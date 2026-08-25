@@ -3401,8 +3401,10 @@ static bool gfx12_compute_hiz_info(struct ac_addrlib *addrlib, const struct rade
    if (surf->flags & RADEON_SURF_NO_HTILE || (info->gfx_level == GFX12 && info->chip_rev == 0))
       return true;
 
+   ADDR3_MIP_INFO mip_info[RADEON_SURF_MAX_LEVELS] = {0};
    ADDR3_COMPUTE_SURFACE_INFO_OUTPUT out = {0};
    out.size = sizeof(ADDR3_COMPUTE_SURFACE_INFO_OUTPUT);
+   out.pMipInfo = mip_info;
 
    ADDR3_COMPUTE_SURFACE_INFO_INPUT in = *surf_in;
    in.flags.depth = 0;
@@ -3427,10 +3429,26 @@ static bool gfx12_compute_hiz_info(struct ac_addrlib *addrlib, const struct rade
       return false;
 
    hiz->size = out.surfSize;
+   hiz->slice_size = out.sliceSize;
    hiz->width_in_tiles = in.width;
    hiz->height_in_tiles = in.height;
    hiz->swizzle_mode = in.swizzleMode;
    hiz->alignment_log2 = out.baseAlign;
+
+   for (unsigned i = 0; i < in.numMipLevels; i++) {
+      if (i >= out.firstMipIdInTail) {
+         /* Levels inside the mip tail share only one block and they can't be
+          * addressed individually.
+          */
+         hiz->mip_levels[i].offset = mip_info[out.firstMipIdInTail].offset;
+         hiz->mip_levels[i].size = out.sliceSize - mip_info[out.firstMipIdInTail].offset;
+      } else {
+         hiz->mip_levels[i].offset = mip_info[i].offset;
+         hiz->mip_levels[i].size = (i + 1 < in.numMipLevels) ? mip_info[i + 1].offset - mip_info[i].offset
+                                                             : out.sliceSize - mip_info[i].offset;
+      }
+   }
+
    return true;
 }
 
