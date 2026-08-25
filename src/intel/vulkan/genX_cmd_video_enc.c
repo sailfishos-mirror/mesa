@@ -2940,15 +2940,6 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 #define AVP_BITSTREAM_BYTECOUNT_TILE_NOHEADER_REG 0x1C2B4C
 #define AVP_BITSTREAM_BYTECOUNT_TILE_REG          0x1C2B48
 
-static int32_t
-anv_av1_relative_dist(int32_t m, uint32_t a, uint32_t b)
-{
-   if (!m)
-      return 0;
-   int32_t diff = (int32_t)a - (int32_t)b;
-   return (diff & (m - 1)) - (diff & m);
-}
-
 static void
 anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc_info)
 {

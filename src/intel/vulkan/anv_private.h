@@ -7166,6 +7166,8 @@ struct anv_video_session {
    BITSET_DECLARE(copy_seg_probs, 4);
 };
 
+int32_t anv_av1_relative_dist(int32_t m, int32_t a, int32_t b);
+
 void anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
                              struct anv_video_session *vid);
 

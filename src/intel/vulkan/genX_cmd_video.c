@@ -1063,19 +1063,13 @@ frame_is_key_or_intra(const StdVideoAV1FrameType frame_type)
 }
 
 static int32_t
-get_relative_dist(const VkVideoDecodeAV1PictureInfoKHR *av1_pic_info,
-                  const StdVideoAV1SequenceHeader *seq_hdr,
+get_relative_dist(const StdVideoAV1SequenceHeader *seq_hdr,
                   int32_t a, int32_t b)
 {
    if (!seq_hdr->flags.enable_order_hint)
       return 0;
 
-   int32_t bits = seq_hdr->order_hint_bits_minus_1 + 1;
-   int32_t diff = a - b;
-   int32_t m = 1 << (bits - 1);
-   diff = (diff & (m - 1)) - (diff & m);
-
-   return diff;
+   return anv_av1_relative_dist(1 << seq_hdr->order_hint_bits_minus_1, a, b);
 }
 
 struct av1_refs_info {
@@ -1926,11 +1920,11 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
    for (enum av1_ref_frame r = AV1_LAST_FRAME; r <= AV1_ALTREF_FRAME; r++) {
       if (seq_hdr->flags.enable_order_hint &&
           !frame_is_key_or_intra(std_pic_info->frame_type)) {
-         if (get_relative_dist(av1_pic_info, seq_hdr,
+         if (get_relative_dist(seq_hdr,
                                ref_info[r].order_hint, ref_info[AV1_INTRA_FRAME].order_hint) > 0)
             ref_frame_sign_bias |= (1 << r);
 
-         if ((get_relative_dist(av1_pic_info, seq_hdr,
+         if ((get_relative_dist(seq_hdr,
                                 ref_info[r].order_hint, ref_info[AV1_INTRA_FRAME].order_hint) > 0) ||
              ref_info[r].order_hint == ref_info[AV1_INTRA_FRAME].order_hint)
             ref_frame_side |= (1 << r);
@@ -1959,7 +1953,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
          }
       }
 
-      if (get_relative_dist(av1_pic_info, seq_hdr,
+      if (get_relative_dist(seq_hdr,
                             ref_info[AV1_BWDREF_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
           !frame_is_key_or_intra(ref_info[AV1_BWDREF_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
@@ -1967,7 +1961,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
          mfmv_ref[num_mfmv++] = AV1_BWDREF_FRAME - AV1_LAST_FRAME;
       }
 
-      if (get_relative_dist(av1_pic_info, seq_hdr,
+      if (get_relative_dist(seq_hdr,
                             ref_info[AV1_ALTREF2_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
           !frame_is_key_or_intra(ref_info[AV1_ALTREF2_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
@@ -1976,7 +1970,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       }
 
       if (num_mfmv < total &&
-          get_relative_dist(av1_pic_info, seq_hdr,
+          get_relative_dist(seq_hdr,
                             ref_info[AV1_ALTREF_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
           !frame_is_key_or_intra(ref_info[AV1_ALTREF_FRAME - AV1_LAST_FRAME + 1].frame_type) &&

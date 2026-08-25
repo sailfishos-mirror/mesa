@@ -1420,6 +1420,18 @@ init_all_av1_entry(uint16_t *dst_ptr, int index)
    INIT_TABLE(av1_cdf_inter);
 }
 
+int32_t
+anv_av1_relative_dist(int32_t m, int32_t a, int32_t b)
+{
+   if (!m)
+      return 0;
+
+   int32_t diff = a - b;
+
+   return (diff & (m - 1)) - (diff & m);
+}
+
+
 void
 anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
                         struct anv_video_session *vid)
