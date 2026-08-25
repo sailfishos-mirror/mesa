@@ -2888,7 +2888,7 @@ cp_mem_write(const uint32_t *dwords, uint32_t sizedwords, int level)
 }
 
 static void
-cp_rmw(const uint32_t *dwords, uint32_t sizedwords, int level)
+cp_reg_rmw(const uint32_t *dwords, uint32_t sizedwords, int level)
 {
    struct rnndomain *domain;
    const char *str;
@@ -3308,7 +3308,7 @@ static const struct type3_op {
    CP(INDIRECT_BUFFER, cp_indirect),
    CP(INDIRECT_BUFFER_PFD, cp_indirect),
    CP(WAIT_FOR_IDLE, cp_wfi),
-   CP(REG_RMW, cp_rmw),
+   CP(REG_RMW, cp_reg_rmw),
    CP(REG_TO_MEM, cp_reg_mem),
    CP(MEM_TO_REG, cp_reg_mem), /* same layout as CP_REG_TO_MEM */
    CP(MEM_WRITE, cp_mem_write),
