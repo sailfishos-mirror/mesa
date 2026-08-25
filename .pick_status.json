@@ -2384,7 +2384,7 @@
         "description": "tu: Add missing reservation of the extra safe-const VPC state for GSes.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "723a1fabacda4924ba2c197a68abc597efbe8fdc",
         "notes": null
