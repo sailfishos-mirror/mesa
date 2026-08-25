@@ -320,6 +320,8 @@ struct r600_pipe_shader_selector_info {
 	unsigned images_declared;
 	bool writes_memory;
 	bool fs_early_depth_stencil;
+	bool vs_window_space;
+	bool writes_viewport_index;
 	int image_file_max;
 	unsigned ps_nr_cbufs;
 

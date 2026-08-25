@@ -95,6 +95,29 @@ static unsigned r600_get_ps_nr_cbufs(const struct nir_shader *nir)
 	return nr_cbufs;
 }
 
+static bool r600_nir_writes_viewport_index(const struct nir_shader *nir)
+{
+	if (nir->info.io_lowered)
+		return nir->info.outputs_written & VARYING_BIT_VIEWPORT;
+
+	nir_foreach_shader_out_variable(variable, nir) {
+		const struct glsl_type *type = variable->type;
+
+		if (nir_is_arrayed_io(variable, nir->info.stage)) {
+			assert(glsl_type_is_array(type));
+			type = glsl_get_array_element(type);
+		}
+
+		unsigned attrib_count = nir_variable_count_slots(variable, type);
+		for (unsigned i = 0; i < attrib_count; i++) {
+			if (variable->data.location + i == VARYING_SLOT_VIEWPORT)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 {
 	sel->nir_info.images_declared = sel->nir->info.images_used[0];
@@ -102,6 +125,11 @@ static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 	sel->nir_info.fs_early_depth_stencil =
 		sel->nir->info.fs.early_fragment_tests |
 		sel->nir->info.fs.post_depth_coverage;
+	sel->nir_info.vs_window_space =
+		sel->nir->info.stage == MESA_SHADER_VERTEX &&
+		sel->nir->info.vs.window_space_position;
+	sel->nir_info.writes_viewport_index =
+		r600_nir_writes_viewport_index(sel->nir);
 	sel->nir_info.image_file_max =
 		(int)BITSET_LAST_BIT(sel->nir->info.images_used) - 1;
 	sel->nir_info.ps_nr_cbufs = r600_get_ps_nr_cbufs(sel->nir);
@@ -1140,16 +1168,26 @@ static void r600_bind_ps_state(struct pipe_context *ctx, void *state)
 	rctx->ps_shader = (struct r600_pipe_shader_selector *)state;
 }
 
-static struct tgsi_shader_info *r600_get_vs_info(struct r600_context *rctx)
+static struct r600_pipe_shader_selector *r600_get_last_vertex_stage(struct r600_context *rctx)
 {
 	if (rctx->gs_shader)
-		return &rctx->gs_shader->info;
+		return rctx->gs_shader;
 	else if (rctx->tes_shader)
-		return &rctx->tes_shader->info;
+		return rctx->tes_shader;
 	else if (rctx->vs_shader)
-		return &rctx->vs_shader->info;
+		return rctx->vs_shader;
 	else
 		return NULL;
+}
+
+static void r600_update_last_vertex_stage_viewport_state(struct r600_context *rctx)
+{
+	struct r600_pipe_shader_selector *sel = r600_get_last_vertex_stage(rctx);
+
+	if (sel)
+		r600_update_vs_writes_viewport_index(&rctx->b,
+						       sel->nir_info.vs_window_space,
+						       sel->nir_info.writes_viewport_index);
 }
 
 static void r600_bind_vs_state(struct pipe_context *ctx, void *state)
@@ -1160,7 +1198,7 @@ static void r600_bind_vs_state(struct pipe_context *ctx, void *state)
 		return;
 
 	rctx->vs_shader = (struct r600_pipe_shader_selector *)state;
-	r600_update_vs_writes_viewport_index(&rctx->b, r600_get_vs_info(rctx));
+	r600_update_last_vertex_stage_viewport_state(rctx);
 
         if (rctx->vs_shader->so.num_outputs)
            rctx->b.streamout.stride_in_dw = rctx->vs_shader->so.stride;
@@ -1174,7 +1212,7 @@ static void r600_bind_gs_state(struct pipe_context *ctx, void *state)
 		return;
 
 	rctx->gs_shader = (struct r600_pipe_shader_selector *)state;
-	r600_update_vs_writes_viewport_index(&rctx->b, r600_get_vs_info(rctx));
+	r600_update_last_vertex_stage_viewport_state(rctx);
 
 	if (!state)
 		return;
@@ -1198,7 +1236,7 @@ static void r600_bind_tes_state(struct pipe_context *ctx, void *state)
 		return;
 
 	rctx->tes_shader = (struct r600_pipe_shader_selector *)state;
-	r600_update_vs_writes_viewport_index(&rctx->b, r600_get_vs_info(rctx));
+	r600_update_last_vertex_stage_viewport_state(rctx);
 
 	if (!state)
 		return;
