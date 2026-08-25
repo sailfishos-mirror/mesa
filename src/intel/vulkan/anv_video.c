@@ -1626,3 +1626,15 @@ anv_video_get_image_mv_size(struct anv_device *device,
    }
    return size;
 }
+
+uint32_t
+anv_h265_slice_size(const VkVideoDecodeInfoKHR *frame_info,
+                    const VkVideoDecodeH265PictureInfoKHR *h265_pic_info,
+                    unsigned s)
+{
+   if (s == h265_pic_info->sliceSegmentCount - 1)
+      return frame_info->srcBufferRange - h265_pic_info->pSliceSegmentOffsets[s];
+
+   return h265_pic_info->pSliceSegmentOffsets[s + 1] -
+          h265_pic_info->pSliceSegmentOffsets[s];
+}

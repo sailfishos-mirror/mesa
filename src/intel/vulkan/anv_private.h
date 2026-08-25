@@ -7069,6 +7069,11 @@ uint32_t anv_video_get_image_mv_size(struct anv_device *device,
                                      struct anv_image *image,
                                      const struct VkVideoProfileListInfoKHR *profile_list);
 
+uint32_t
+anv_h265_slice_size(const VkVideoDecodeInfoKHR *frame_info,
+                    const VkVideoDecodeH265PictureInfoKHR *h265_pic_info,
+                    unsigned s);
+
 static inline struct anv_address MUST_CHECK
 anv_image_dpb_address(const struct anv_image_view *iv,
                       uint32_t arrayLayer)
