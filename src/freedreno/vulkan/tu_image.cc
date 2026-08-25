@@ -1360,7 +1360,8 @@ tu_get_image_sparse_memory_requirements(
       return;
 
    if (image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      u_foreach_bit (aspect, image->vk.aspects) {
+      u_foreach_bit (b, image->vk.aspects) {
+         VkImageAspectFlags aspect = BIT(b);
          const struct fdl_layout *layout =
             &image->layout[tu6_plane_index(image->vk.format, aspect)];
          vk_outarray_append_typed(VkSparseImageMemoryRequirements2, &out, reqs) {
