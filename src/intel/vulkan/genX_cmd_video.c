@@ -2476,8 +2476,8 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
 static void
 anv_av1_tiles_info(const VkVideoDecodeInfoKHR *frame_info,
                    const StdVideoAV1SequenceHeader *seq_hdr,
-                   uint16_t (*tile_col_start_sb)[64],
-                   uint16_t (*tile_row_start_sb)[64])
+                   uint16_t (*tile_col_start_sb)[STD_VIDEO_AV1_MAX_TILE_COLS + 1],
+                   uint16_t (*tile_row_start_sb)[STD_VIDEO_AV1_MAX_TILE_ROWS + 1])
 {
    const VkVideoDecodeAV1PictureInfoKHR *av1_pic_info =
       vk_find_struct_const(frame_info->pNext, VIDEO_DECODE_AV1_PICTURE_INFO_KHR);
@@ -2620,8 +2620,8 @@ anv_av1_decode_video(struct anv_cmd_buffer *cmd_buffer,
    struct vk_video_session_parameters *params = cmd_buffer->video.params;
    const StdVideoAV1SequenceHeader *seq_hdr;
 
-   uint16_t tile_col_start_sb[64] = { 0, };
-   uint16_t tile_row_start_sb[64] = { 0, };
+   uint16_t tile_col_start_sb[STD_VIDEO_AV1_MAX_TILE_COLS + 1] = { 0, };
+   uint16_t tile_row_start_sb[STD_VIDEO_AV1_MAX_TILE_ROWS + 1] = { 0, };
 
    vk_video_get_av1_parameters(&vid->vk, params, frame_info, &seq_hdr);
 
