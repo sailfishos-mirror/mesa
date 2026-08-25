@@ -7136,9 +7136,10 @@ tu_CmdBeginRenderPass2(VkCommandBuffer commandBuffer,
                              &cmd->state.vk_mv,
                              pass, cmd->state.subpass);
    tu_renderpass_begin(cmd);
-   tu_emit_subpass_begin<CHIP>(cmd);
 
    cmd->patchpoints_ctx = ralloc_context(NULL);
+
+   tu_emit_subpass_begin<CHIP>(cmd);
 }
 TU_GENX(tu_CmdBeginRenderPass2);
 
