@@ -100,10 +100,6 @@ r600_shader_from_nir(struct r600_context *rctx,
    }
 
    pipeshader->enabled_stream_buffers_mask = shader->enabled_stream_buffers_mask();
-   pipeshader->selector->info.file_count[TGSI_FILE_HW_ATOMIC] +=
-      shader->atomic_file_count();
-   pipeshader->selector->info.writes_memory =
-      shader->has_flag(r600::Shader::sh_writes_memory);
    pipeshader->selector->nir_info.writes_memory =
       shader->has_flag(r600::Shader::sh_writes_memory);
 
