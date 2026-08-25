@@ -1454,9 +1454,7 @@ static inline jay_block *
 jay_first_block(jay_function *f)
 {
    assert(!list_is_empty(&f->blocks));
-   jay_block *first_block = list_first_entry(&f->blocks, jay_block, link);
-   assert(first_block->index == 0);
-   return first_block;
+   return list_first_entry(&f->blocks, jay_block, link);
 }
 
 static inline jay_inst *
