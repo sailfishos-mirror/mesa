@@ -4634,7 +4634,7 @@
         "description": "radv: fix lower_array_layer_round_even condition",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "200555fd3b248b9f873d349364fc691316b8a390",
         "notes": null
