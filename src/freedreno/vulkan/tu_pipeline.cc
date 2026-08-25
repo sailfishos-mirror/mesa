@@ -1958,7 +1958,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
    if (!executable_info) {
       cache_hit = true;
-      bool application_cache_hit = false;
+      bool application_cache_hit = true;
 
       unsigned char shader_blake3[BLAKE3_KEY_LEN + 1];
       memcpy(shader_blake3, pipeline_blake3, sizeof(pipeline_blake3));
