@@ -6,6 +6,8 @@ use std::{io, iter, slice};
 
 use crate::builder::*;
 use crate::data_type::NumericType;
+use crate::debug::{DEBUG, DebugFlags};
+use crate::flow::FlowWaitBit;
 use crate::foldable::{FoldData, Foldable};
 use crate::ir::*;
 use crate::model::{Model, model_for_gpu_id};
@@ -467,6 +469,162 @@ impl Builder for TestShaderBuilder<'_> {
 impl AllocSSA for TestShaderBuilder<'_> {
     fn alloc_ssa_value(&mut self, bits: u8, is_mem: bool) -> SSAValue {
         self.ssa_alloc.alloc_ssa_value(bits, is_mem)
+    }
+}
+
+/// Similar to TestShaderBuilder, but useful for creating "raw" shaders, without
+/// passing through the compiler, useful if you want to test the hardware rather
+/// than the software.  Since the compiler no longer aids us, we need to specify
+/// an ABI and do more things manually, for example, load/stores of test data
+/// need a 64-bit register to always be alive, placement of this can be
+/// configured.  You must also always specify legal non-virtual instructions,
+/// and remember to set the correct messages and wait slots.
+pub struct RawTestShaderBuilder<'a> {
+    model: &'a dyn Model,
+    b: InstrBuilder<'a>,
+    info: ShaderInfo,
+    start_block: BasicBlock,
+    data_addr: RegRef,
+    max_data_offset: u16,
+}
+
+impl<'a> RawTestShaderBuilder<'a> {
+    pub fn new(model: &'a dyn Model) -> Self {
+        let mut label_alloc = LabelAllocator::default();
+        let mut b = InstrBuilder::new(model);
+        let mut info = ShaderInfo::default();
+
+        // ABI: struct hw_runner_shader_args
+        let data_addr_base = FAURef::user_i64(0);
+        let data_stride = FAURef::user_i32(2);
+
+        let invoc_id =
+            model.preload_reg(PreloadReg::GlobalId0).unwrap().word(0);
+        info.register_preload |= 1 << invoc_id.idx;
+
+        // Those don't intersect, we can use r0 for both
+        let data_offset = RegRef::new(0, RegRange::Regs(2));
+        let data_addr = RegRef::new(0, RegRange::Regs(2));
+
+        b.push_op(OpIMul {
+            dst: data_offset.into(),
+            dst_type: DataType::U64,
+            saturate: false,
+            srcs: [
+                Src::from(data_stride).swizzle(Swizzle::widen_u32(0)),
+                Src::from(invoc_id).swizzle(Swizzle::widen_u32(0)),
+            ],
+        });
+
+        b.push_op(OpIAdd {
+            dst: data_addr.into(),
+            dst_type: DataType::U64,
+            saturate: false,
+            srcs: [data_addr_base.into(), data_offset.into()],
+        });
+
+        let start_block = BasicBlock {
+            label: label_alloc.alloc(),
+            instrs: b.into_vec(),
+        };
+
+        // Some high defaults, shaders will override this if necessary
+        info.registers_used = 64;
+
+        RawTestShaderBuilder {
+            model,
+            b: InstrBuilder::new(model),
+            info,
+            start_block,
+            data_addr,
+            max_data_offset: 0,
+        }
+    }
+
+    pub fn ld_test_data_to(&mut self, dst: Dst, offset: u16, bits: u8) {
+        self.max_data_offset = self.max_data_offset.max(offset);
+
+        let instr = self.push_op(OpLoad {
+            dst,
+            dst_type: DataType::get(1, NumericType::Integer, bits),
+            is_tls: false,
+            access: MemAccess::None,
+            addr: self.data_addr.into(),
+            offset: offset.try_into().unwrap(),
+        });
+        instr.flow.set_msg_slot_idx(0);
+        instr.flow.set_wait_bit(FlowWaitBit::Slot0);
+    }
+
+    pub fn st_test_data(&mut self, offset: u16, data: RegRef) {
+        self.max_data_offset = self.max_data_offset.max(offset);
+
+        let instr = self.push_op(OpStore {
+            src_type: DataType::get(1, NumericType::Integer, data.bytes() * 8),
+            is_tls: false,
+            is_psiz: false,
+            access: MemAccess::None,
+            data: data.into(),
+            addr: self.data_addr.into(),
+            offset: offset.try_into().unwrap(),
+        });
+        instr.flow.set_msg_slot_idx(0);
+        instr.flow.set_wait_bit(FlowWaitBit::Slot0);
+    }
+
+    fn compile(self) -> CompiledTestCase {
+        let Self {
+            model,
+            mut b,
+            info,
+            mut start_block,
+            max_data_offset,
+            ..
+        } = self;
+
+        let exit = b.push_op(OpNop {});
+        exit.flow.set_end_shader();
+
+        start_block.instrs.extend(b.into_mapped());
+        let mut cfg: CFGBuilder<Label, BasicBlock, FxBuildHasher> =
+            CFGBuilder::new();
+        cfg.add_node(start_block.label, start_block);
+
+        let s = Shader {
+            model,
+            ssa_alloc: Default::default(),
+            phi_alloc: Default::default(),
+            blocks: cfg.as_cfg(false),
+            info,
+        };
+
+        if DEBUG.contains(DebugFlags::PRINT) {
+            eprintln!("Kraid raw shader before encoding:\n{s}");
+        }
+
+        let bin = model.encode_shader(&s);
+
+        CompiledTestCase {
+            code: bin,
+            max_data_offset,
+            // ABI: we always load the CB0 args at offset 0 for now
+            fau_args_offset: 0,
+            info: s.info,
+        }
+    }
+}
+
+impl Builder for RawTestShaderBuilder<'_> {
+    fn arch(&self) -> u8 {
+        self.b.arch()
+    }
+
+    fn model(&self) -> &dyn Model {
+        self.b.model()
+    }
+
+    fn push_instr(&mut self, instr: Instr) -> &mut Instr {
+        self.b.push_instr(instr)
     }
 }
 
