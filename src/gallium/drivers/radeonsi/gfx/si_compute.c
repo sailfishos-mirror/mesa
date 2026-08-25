@@ -45,7 +45,7 @@ static void si_create_compute_state_async(void *job, void *gdata, int thread_ind
    program->shader.wave_size = si_determine_wave_size(sscreen, &program->shader);
 
    unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN];
-   si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_blake3_cache_key);
+   si_get_ir_cache_key(shader, ir_blake3_cache_key);
 
    /* Try to load the shader from the shader cache. */
    simple_mtx_lock(&sscreen->shader_cache_mutex);

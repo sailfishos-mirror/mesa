@@ -2994,12 +2994,7 @@ static void si_init_shader_selector_async(void *job, void *gdata, int thread_ind
 
       shader->wave_size = si_determine_wave_size(sscreen, shader);
 
-      if (sel->stage <= MESA_SHADER_GEOMETRY || sel->stage == MESA_SHADER_MESH) {
-         si_get_ir_cache_key(sel, shader->key.ge.as_ngg, shader->key.ge.as_es,
-                             shader->wave_size, ir_blake3_cache_key);
-      } else {
-         si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_blake3_cache_key);
-      }
+      si_get_ir_cache_key(shader, ir_blake3_cache_key);
 
       /* Try to load the shader from the shader cache. */
       simple_mtx_lock(&sscreen->shader_cache_mutex);
