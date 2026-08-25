@@ -45,6 +45,56 @@ static void r600_tgsi_to_nir(struct pipe_context *ctx,
 	NIR_PASS(_, sel->nir, nir_lower_flrp, ~0, false);
 }
 
+static unsigned r600_get_ps_nr_cbufs(const struct nir_shader *nir)
+{
+	unsigned nr_cbufs = 0;
+
+	if (nir->info.stage != MESA_SHADER_FRAGMENT)
+		return 0;
+
+	if (nir->info.io_lowered) {
+		uint64_t outputs_written = nir->info.outputs_written;
+
+		while (outputs_written) {
+			unsigned location = u_bit_scan64(&outputs_written);
+
+			if (location == FRAG_RESULT_COLOR)
+				nr_cbufs = MAX2(nr_cbufs, 1);
+			else if (location >= FRAG_RESULT_DATA0)
+				nr_cbufs = MAX2(nr_cbufs, location - FRAG_RESULT_DATA0 + 1);
+		}
+
+		return nr_cbufs;
+	}
+
+	nir_foreach_shader_out_variable(variable, nir) {
+		const struct glsl_type *type = variable->type;
+
+		if (nir_is_arrayed_io(variable, nir->info.stage)) {
+			assert(glsl_type_is_array(type));
+			type = glsl_get_array_element(type);
+		}
+
+		unsigned attrib_count = nir_variable_count_slots(variable, type);
+		for (unsigned i = 0; i < attrib_count; i++) {
+			unsigned location = variable->data.location + i;
+
+			if (location == FRAG_RESULT_COLOR) {
+				nr_cbufs = MAX2(nr_cbufs, 1);
+			} else if (location >= FRAG_RESULT_DATA0) {
+				unsigned semantic_index = location - FRAG_RESULT_DATA0;
+
+				if (variable->data.index > 0)
+					semantic_index++;
+
+				nr_cbufs = MAX2(nr_cbufs, semantic_index + 1);
+			}
+		}
+	}
+
+	return nr_cbufs;
+}
+
 static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 {
 	sel->nir_info.images_declared = sel->nir->info.images_used[0];
@@ -54,6 +104,7 @@ static void r600_cache_nir_selector_info(struct r600_pipe_shader_selector *sel)
 		sel->nir->info.fs.post_depth_coverage;
 	sel->nir_info.image_file_max =
 		(int)BITSET_LAST_BIT(sel->nir->info.images_used) - 1;
+	sel->nir_info.ps_nr_cbufs = r600_get_ps_nr_cbufs(sel->nir);
 
 	sel->nir_info.tes_prim_mode =
 		u_tess_prim_from_shader(sel->nir->info.tess._primitive_mode);
@@ -882,7 +933,7 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 		 * of color buffers bound, but also with sb it'll drop outputs
 		 * to unused cbufs.
 		 */
-		key->ps.nr_cbufs = sel->info.file_max[TGSI_FILE_OUTPUT] + 1;
+		key->ps.nr_cbufs = sel->nir_info.ps_nr_cbufs;
 		break;
 
 	case MESA_SHADER_TESS_CTRL:

@@ -321,6 +321,7 @@ struct r600_pipe_shader_selector_info {
 	bool writes_memory;
 	bool fs_early_depth_stencil;
 	int image_file_max;
+	unsigned ps_nr_cbufs;
 
 	enum mesa_prim tes_prim_mode;
 	unsigned tes_spacing;
