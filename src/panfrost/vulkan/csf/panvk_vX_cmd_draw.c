@@ -3090,6 +3090,8 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
 
+   struct cs_index tracing_scratch_regs = cs_scratch_reg_tuple(b, 0, 4);
+
    cs_update_vt_ctx(b) {
       cs_move32_to(b, cs_sr_reg32(b, IDVS, GLOBAL_ATTRIBUTE_OFFSET), 0);
       cs_move32_to(b, cs_sr_reg32(b, IDVS, INDEX_COUNT), draw->vertex.count);
@@ -3114,18 +3116,18 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
    panvk_cond_render(cmdbuf, b)
    {
       if (idvs_count > 1) {
-         struct cs_index counter_reg = cs_scratch_reg32(b, 17);
+         struct cs_index counter_reg = cs_scratch_reg32(b, 4);
          struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
 
          cs_move32_to(b, counter_reg, idvs_count);
 
          cs_while(b, MALI_CS_CONDITION_GREATER, counter_reg) {
 #if PAN_ARCH >= 12
-            cs_trace_run_idvs2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+            cs_trace_run_idvs2(b, tracing_ctx, tracing_scratch_regs,
                                flags_override.opaque[0], true, cs_undef(),
                                MALI_IDVS_SHADING_MODE_EARLY);
 #else
-            cs_trace_run_idvs(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+            cs_trace_run_idvs(b, tracing_ctx, tracing_scratch_regs,
                               flags_override.opaque[0], true,
                               cs_shader_res_sel(0, 0, 1, 0),
                               cs_shader_res_sel(2, 2, 2, 0), cs_undef());
@@ -3144,11 +3146,11 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
          }
       } else {
 #if PAN_ARCH >= 12
-         cs_trace_run_idvs2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+         cs_trace_run_idvs2(b, tracing_ctx, tracing_scratch_regs,
                             flags_override.opaque[0], true, cs_undef(),
                             MALI_IDVS_SHADING_MODE_EARLY);
 #else
-         cs_trace_run_idvs(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+         cs_trace_run_idvs(b, tracing_ctx, tracing_scratch_regs,
                            flags_override.opaque[0], true,
                            cs_shader_res_sel(0, 0, 1, 0),
                            cs_shader_res_sel(2, 2, 2, 0), cs_undef());
