@@ -4005,18 +4005,17 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
       }
 
       anv_batch_emit(&cmd->batch, GENX(VDENC_HEVC_VP9_TILE_SLICE_STATE), til) {
-         uint32_t ctb_size = 64;
          bool tile_enable = true;
-         uint32_t tile_w_pix = MIN2(tile_w_sb * ctb_size,
-                                    frame_width - col_start_sb * ctb_size);
-         uint32_t tile_h_pix = MIN2(tile_h_sb * ctb_size,
-                                    frame_height - row_start_sb * ctb_size);
+         uint32_t tile_w_pix = MIN2(tile_w_sb * sb_size,
+                                    frame_width - col_start_sb * sb_size);
+         uint32_t tile_h_pix = MIN2(tile_h_sb * sb_size,
+                                    frame_height - row_start_sb * sb_size);
 
          til.NumParEngine = 0;
          til.TileNumber = tile_idx;
          til.TileRowStoreSelect = 0;
-         til.TileStartCTBX = col_start_sb * ctb_size;
-         til.TileStartCTBY = row_start_sb * ctb_size;
+         til.TileStartCTBX = col_start_sb * sb_size;
+         til.TileStartCTBY = row_start_sb * sb_size;
          til.TileWidth = tile_w_pix - 1;
          til.TileHeight = tile_h_pix - 1;
          til.StreaminOffsetEnable = tile_enable;
