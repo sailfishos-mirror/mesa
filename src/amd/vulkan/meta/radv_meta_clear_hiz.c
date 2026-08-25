@@ -163,10 +163,22 @@ uint32_t
 radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
                uint32_t value)
 {
-   radv_compute_clear_hiz(cmd_buffer, image, range, value);
+   uint32_t flush_bits = 0;
 
-   return RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                 VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);
+   if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
+      const uint64_t hiz_offset = image->planes[0].surface.u.gfx9.zs.hiz.offset;
+      const uint32_t hiz_size = image->planes[0].surface.u.gfx9.zs.hiz.size;
+
+      radv_fill_image(cmd_buffer, image, hiz_offset, hiz_size, value);
+   } else {
+      radv_compute_clear_hiz(cmd_buffer, image, range, value);
+
+      flush_bits |=
+         RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                                VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);
+   }
+
+   return flush_bits;
 }
 
 void

@@ -15756,14 +15756,7 @@ radv_init_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, cons
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
-   if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
-      const uint64_t hiz_offset = image->planes[0].surface.u.gfx9.zs.hiz.offset;
-      const uint32_t hiz_size = image->planes[0].surface.u.gfx9.zs.hiz.size;
-
-      radv_fill_image(cmd_buffer, image, hiz_offset, hiz_size, hiz_value);
-   } else {
-      flush_bits |= radv_clear_hiz(cmd_buffer, image, range, hiz_value);
-   }
+   flush_bits |= radv_clear_hiz(cmd_buffer, image, range, hiz_value);
 
    return flush_bits;
 }
