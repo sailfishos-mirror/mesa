@@ -4821,12 +4821,6 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    }
 
    JAY_PASS(s, jay_schedule);
-   JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
-            nir->info.bit_sizes_float);
-
-   if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
-      JAY_PASS(s, jay_insert_payload_swizzle);
-   }
 
    if (s->stage == MESA_SHADER_FRAGMENT && s->helpers_tracked) {
       JAY_PASS(s, jay_lower_helpers);
@@ -4839,9 +4833,18 @@ jay_compile_simd(const struct intel_device_info *devinfo,
        */
       if (!(jay_debug & JAY_DBG_NOACC)) {
          JAY_PASS(s, jay_assign_accumulators);
+         s->post_acc = true;
       }
 
       JAY_PASS(s, jay_opt_predicate);
+   }
+
+   JAY_PASS(s, jay_schedule);
+   JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
+            nir->info.bit_sizes_float);
+
+   if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
+      JAY_PASS(s, jay_insert_payload_swizzle);
    }
 
    if (jay_debug & JAY_DBG_SYNC) {

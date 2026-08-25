@@ -824,7 +824,7 @@ typedef struct jay_shader {
    struct jay_partition partition;
 
    /** Current compilation phase (for printing & validation) */
-   bool post_ra;
+   bool post_ra, post_acc;
 } jay_shader;
 
 static inline jay_shader *

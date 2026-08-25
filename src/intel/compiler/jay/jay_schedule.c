@@ -61,7 +61,7 @@ struct sched_block {
 
 struct sched_ctx {
    /* Compilation phase. This induces a scheduler mode. */
-   enum { EARLY, POSTSPILL, POSTRA } phase;
+   enum { EARLY, POSTSPILL, POSTRA, POSTACC } phase;
 
    /* Function we are currently scheduling */
    jay_function *func;
@@ -295,8 +295,9 @@ static inline unsigned
 ready_cycle(struct sched_ctx *s, bool backward, uint32_t node)
 {
    unsigned cycle = s->cycle;
-   uint32_t lat =
-      backward ? jay_latency(s->func->shader, s->insts[node], true) : 0;
+   uint32_t lat = backward ? jay_latency(s->func->shader, s->insts[node],
+                                         s->phase < POSTACC) :
+                             0;
    struct jay_dag *dag = backward ? &s->dag_t : &s->dag;
 
    jay_dag_foreach_edge(dag, node, it) {
@@ -496,7 +497,8 @@ schedule_block(jay_block *block,
          s->cycle_ready[node] =
             s->cycle + ((mode & BACKWARD) ?
                            0 :
-                           jay_latency(s->func->shader, s->insts[node], true));
+                           jay_latency(s->func->shader, s->insts[node],
+                                       s->phase < POSTACC));
          s->cycle++;
       }
    }
@@ -554,7 +556,8 @@ pass(jay_function *f)
    }
 
    struct sched_ctx sctx = { .func = f };
-   sctx.phase = f->shader->post_ra                ? POSTRA :
+   sctx.phase = f->shader->post_acc               ? POSTACC :
+                f->shader->post_ra                ? POSTRA :
                 f->shader->partition.units_x16[0] ? POSTSPILL :
                                                     EARLY;
 
