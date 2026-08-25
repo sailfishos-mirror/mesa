@@ -81,7 +81,7 @@ typedef struct jay_tes_payload {
 } jay_tes_payload;
 
 typedef struct jay_cs_payload {
-   jay_def local_invocation_ids;
+   jay_def local_invocation_ids[3];
 } jay_cs_payload;
 
 typedef struct jay_fs_payload {
@@ -2542,8 +2542,16 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_local_invocation_id:
       assert(cs);
-      UNREACHABLE("todo: implement me from payload");
-      jay_copy(b, dst, cs->local_invocation_ids);
+
+      jay_foreach_comp(dst, c) {
+         jay_def raw = nj->payload.cs.local_invocation_ids[c];
+         if (!jay_is_null(raw)) {
+            jay_def packed = jay_extract_range(raw, 0, s->dispatch_width / 2);
+            jay_CVT(b, JAY_TYPE_U32, jay_extract(dst, c), packed, JAY_TYPE_U16,
+                    JAY_ROUND, 0);
+         }
+      }
+
       break;
 
    case nir_intrinsic_load_barycentric_pixel:
@@ -4234,10 +4242,13 @@ setup_tess_eval_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 static void
 setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
-   assert(!nj->s->prog_data->cs.generate_local_id);
-
    if (nj->s->prog_data->cs.uses_btd_stack_ids)
       nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+
+   u_foreach_bit(axis, nj->s->prog_data->cs.generate_local_id) {
+      nj->payload.cs.local_invocation_ids[axis] =
+         read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+   }
 
    for (unsigned i = 0; i < jay_ugpr_per_grf(nj->s); ++i) {
       nj->payload.inline_data[i] = read_payload(p, UGPR);
