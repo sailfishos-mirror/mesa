@@ -4434,7 +4434,7 @@
         "description": "panvk/android: avoid pNext injection of caller ANB info",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8d4fb529196cb80a948840d42636a1bb50f049e4",
         "notes": null
