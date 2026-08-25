@@ -3236,19 +3236,22 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
    const StdVideoAV1TileInfo *ti = pic_info->pTileInfo;
    uint32_t num_tile_cols = ti ? ti->TileCols : 1;
    uint32_t num_tile_rows = ti ? ti->TileRows : 1;
+   const uint32_t sb_size = seq_hdr->flags.use_128x128_superblock ? 128 : 64;
+   const uint32_t pic_width_in_sb =
+      DIV_ROUND_UP(src_img->vk.extent.width, sb_size);
+   const uint32_t pic_height_in_sb =
+      DIV_ROUND_UP(src_img->vk.extent.height, sb_size);
    /* AV1 uniform tiling (5.9.15): the requested TileCols/TileRows may not
     * divide the frame evenly, so the actual tile count derived by the decoder
     * (tileWidthSb = ceil(sb / 2^log2); num = ceil(sb / tileWidthSb)) can be
     * smaller. Recompute it so we never emit a zero-width/height tail tile. */
    if (!ti || ti->flags.uniform_tile_spacing_flag) {
-      uint32_t sb_sz = seq_hdr->flags.use_128x128_superblock ? 128 : 64;
-      uint32_t pw_sb = DIV_ROUND_UP(src_img->vk.extent.width, sb_sz);
-      uint32_t ph_sb = DIV_ROUND_UP(src_img->vk.extent.height, sb_sz);
-      uint32_t cw = 1, ch = 1;
-      while (cw < num_tile_cols) cw <<= 1;
-      while (ch < num_tile_rows) ch <<= 1;
-      num_tile_cols = DIV_ROUND_UP(pw_sb, DIV_ROUND_UP(pw_sb, cw));
-      num_tile_rows = DIV_ROUND_UP(ph_sb, DIV_ROUND_UP(ph_sb, ch));
+      uint32_t cw = util_next_power_of_two(num_tile_cols);
+      uint32_t ch = util_next_power_of_two(num_tile_rows);
+      num_tile_cols = DIV_ROUND_UP(pic_width_in_sb,
+                                   DIV_ROUND_UP(pic_width_in_sb, cw));
+      num_tile_rows = DIV_ROUND_UP(pic_height_in_sb,
+                                   DIV_ROUND_UP(pic_height_in_sb, ch));
    }
 
    uint32_t num_tiles = num_tile_cols * num_tile_rows;
@@ -3813,19 +3816,14 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
          /* TODO: super-res and loop-restoration unit size when those tools are enabled */
       }
 
-      uint32_t sb_size = seq_hdr->flags.use_128x128_superblock ? 128 : 64;
-      uint32_t pic_width_in_sb = DIV_ROUND_UP(frame_width, sb_size);
-      uint32_t pic_height_in_sb = DIV_ROUND_UP(frame_height, sb_size);
-
       uint32_t tile_col = tile_idx % num_tile_cols;
       uint32_t tile_row = tile_idx / num_tile_cols;
       uint32_t col_start_sb, row_start_sb, tile_w_sb, tile_h_sb;
       if (!ti || ti->flags.uniform_tile_spacing_flag) {
          /* Uniform spacing: pWidthInSbsMinus1/pHeightInSbsMinus1 may be NULL.
           * Tile size = ceil(pic_in_sb / next_pow2(tiles)) per AV1 5.9.15. */
-         uint32_t cols_pow2 = 1, rows_pow2 = 1;
-         while (cols_pow2 < num_tile_cols) cols_pow2 <<= 1;
-         while (rows_pow2 < num_tile_rows) rows_pow2 <<= 1;
+         uint32_t cols_pow2 = util_next_power_of_two(num_tile_cols);
+         uint32_t rows_pow2 = util_next_power_of_two(num_tile_rows);
          uint32_t tw = DIV_ROUND_UP(pic_width_in_sb, cols_pow2);
          uint32_t th = DIV_ROUND_UP(pic_height_in_sb, rows_pow2);
          col_start_sb = tile_col * tw;
