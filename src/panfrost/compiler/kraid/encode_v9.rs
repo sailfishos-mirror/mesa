@@ -3122,7 +3122,7 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
         }
     }
 
-    // B1 and B3 are broken for LD_PKA
+    // B1 and B3 are broken for LD_PKA (see hw_tests::test_ld_pka)
     if matches!(op, Op::LdPka(_)) {
         lanes.remove(ir::DstLanes::B1);
         lanes.remove(ir::DstLanes::B3);

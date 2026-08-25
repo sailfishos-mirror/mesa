@@ -781,6 +781,82 @@ fn test_copy_large() {
     assert_eq!(&data[..READ_SIZE], &data[READ_SIZE..]);
 }
 
+/// Test all lanes for LD_PKA.8/16/32
+/// Uncovers LD_PKA.b1 hardware bug
+#[test]
+fn test_ld_pka() {
+    let run = RunSingleton::get();
+
+    const PKA_VAL: [u8; 4] = [0x89, 0xAB, 0xCD, 0xEF];
+
+    let mut failures = Vec::new();
+    for range in [
+        RegRange::Byte0,
+        RegRange::Byte1,
+        RegRange::Byte2,
+        RegRange::Byte3,
+        RegRange::Half0,
+        RegRange::Half1,
+        RegRange::Regs(1),
+    ] {
+        let bin = {
+            let mut b = RawTestShaderBuilder::new(&*run.model);
+            let dst = RegRef::new(2, RegRange::Regs(1));
+            let sub_dst = RegRef::new(2, range);
+
+            b.push_op(OpMov {
+                dst: dst.into(),
+                dst_type: DataType::I32,
+                src: SrcRef::Zero.into(),
+            });
+
+            let instr = b.push_op(OpLdPka {
+                dst: sub_dst.into(),
+                dst_type: DataType::i(range.bytes() * 8),
+                access: MemAccess::None,
+                offset: 0u32.into(),
+                handle: 0u32.into(),
+            });
+            instr.flow.set_msg_slot_idx(0);
+            instr.flow.set_wait_bit(FlowWaitBit::Slot0);
+
+            b.st_test_data(0, dst);
+            b.compile()
+        };
+
+        let mut data = [0u32; 1];
+        {
+            let mut buf = PKA_VAL;
+            let mut buffers: [&mut [u8]; 1] = [&mut buf];
+            let case = bin.with_data(&mut data).with_buffers(&mut buffers);
+            run.execute(case);
+        }
+
+        let off = usize::from(range.byte_offset());
+        let len = usize::from(range.bytes());
+        let mut expected = [0u8; 4];
+        expected[off..(off + len)].copy_from_slice(&PKA_VAL[..len]);
+        let got = data[0].to_le_bytes();
+
+        let lane = DstLanes::from(range);
+        println!(
+            "lane {lane} expected {expected:02x?} got {got:02x?}: {}",
+            if got != expected { "FAIL" } else { "PASS" }
+        );
+        if got != expected {
+            failures.push(lane);
+        }
+    }
+
+    // Expectations:
+    // - v9-v15 has a hardware bug where .b1 is treated as .b0, and .b3 as .b2
+    let expected = match run.model.arch() {
+        9..=15 => failures == vec![DstLanes::B1, DstLanes::B3],
+        _ => failures.is_empty(),
+    };
+    assert!(expected, "LD_PKA assumptions wrong for lanes: {failures:?}");
+}
+
 fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
     let mut offset = 0;
     for (comp, dtype) in folded.iter_mut().zip(types) {
