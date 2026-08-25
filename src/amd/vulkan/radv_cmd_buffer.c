@@ -6944,7 +6944,6 @@ radv_get_vbo_info(const struct radv_cmd_buffer *cmd_buffer, uint32_t idx, struct
    vbo_info->stride = d->vk.vi_binding_strides[binding];
 
    vbo_info->attrib_offset = d->vertex_input.offsets[idx];
-   vbo_info->attrib_index_offset = d->vertex_input.attrib_index_offset[idx];
    vbo_info->attrib_format_size = d->vertex_input.format_sizes[idx];
    vbo_info->non_trivial_format = d->vertex_input.non_trivial_format[idx];
 }
@@ -7015,11 +7014,6 @@ radv_write_vertex_descriptor(const struct radv_cmd_buffer *cmd_buffer, const str
          num_records = 1; /* only one vertex */
       } else {
          num_records = (num_records - attrib_end) / stride + 1;
-         /* If attrib_offset>stride, then the compiler will increase the vertex index by
-          * attrib_offset/stride and decrease the offset by attrib_offset%stride. This is
-          * only allowed with static strides.
-          */
-         num_records += vbo_info.attrib_index_offset;
       }
 
       /* GFX10 uses OOB_SELECT_RAW if stride==0, so convert num_records from elements into
