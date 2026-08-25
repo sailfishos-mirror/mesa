@@ -117,6 +117,16 @@ radv_image_has_dcc(const struct radv_image *image)
 }
 
 /**
+ * Return whether the image has display DCC for scanout surfaces.
+ */
+static inline bool
+radv_image_has_display_dcc(const struct radv_image *image)
+{
+   return image->planes[0].surface.display_dcc_offset &&
+          image->planes[0].surface.display_dcc_offset != image->planes[0].surface.meta_offset;
+}
+
+/**
  * Return whether the image is TC-compatible CMASK.
  */
 static inline bool

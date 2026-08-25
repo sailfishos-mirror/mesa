@@ -15606,8 +15606,7 @@ radv_image_need_retile(const struct radv_image *image)
    if (!(image->vk.usage & RADV_IMAGE_USAGE_WRITE_BITS))
       return false;
 
-   return image->planes[0].surface.display_dcc_offset &&
-          image->planes[0].surface.display_dcc_offset != image->planes[0].surface.meta_offset;
+   return radv_image_has_display_dcc(image);
 }
 
 /**
