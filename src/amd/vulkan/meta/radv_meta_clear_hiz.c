@@ -159,6 +159,29 @@ radv_compute_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *im
    }
 }
 
+static void
+radv_sdma_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
+                    uint32_t value)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_cmd_stream *cs = cmd_buffer->cs;
+   const struct gfx12_hiz_layout *hiz = &image->planes[0].surface.u.gfx9.zs.hiz;
+   const uint32_t level_count = vk_image_subresource_level_count(&image->vk, range);
+   const uint32_t layer_count = vk_image_subresource_layer_count(&image->vk, range);
+   const uint32_t last_level = range->baseMipLevel + level_count - 1;
+   const uint64_t clear_offset = hiz->mip_levels[range->baseMipLevel].offset;
+   const uint64_t clear_end = hiz->mip_levels[last_level].offset + hiz->mip_levels[last_level].size;
+
+   radv_cs_add_buffer(device->ws, cs->b, image->bindings[0].bo);
+
+   for (uint32_t layer = 0; layer < layer_count; layer++) {
+      const uint64_t va = image->bindings[0].addr + hiz->offset +
+                          (uint64_t)(range->baseArrayLayer + layer) * hiz->slice_size + clear_offset;
+
+      radv_fill_memory(cmd_buffer, va, clear_end - clear_offset, value, 0);
+   }
+}
+
 uint32_t
 radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
                uint32_t value)
@@ -166,10 +189,7 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    uint32_t flush_bits = 0;
 
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
-      const uint64_t hiz_offset = image->planes[0].surface.u.gfx9.zs.hiz.offset;
-      const uint32_t hiz_size = image->planes[0].surface.u.gfx9.zs.hiz.size;
-
-      radv_fill_image(cmd_buffer, image, hiz_offset, hiz_size, value);
+      radv_sdma_clear_hiz(cmd_buffer, image, range, value);
    } else {
       radv_compute_clear_hiz(cmd_buffer, image, range, value);
 
