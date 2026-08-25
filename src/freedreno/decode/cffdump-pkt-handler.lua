@@ -20,7 +20,7 @@ function CP_REG_RMW(pkt, size)
 	local dst = regs.val(dst_reg)
 	local dst_reg_str = string.format("%s", rnn.regname(r, dst_reg))
 	if dst_scratch then
-		dst_reg_str = string.format("CP_SCRATCH[%s]", dst_reg)
+		dst_reg_str = string.format("SCRATCH[%s]", dst_reg)
 	end
 
 	local src0_str = string.format("0x%08x", src0)
@@ -50,7 +50,7 @@ function CP_REG_RMW(pkt, size)
 	result = (dst &~ 0xFFFFFFFF) | result & 0xFFFFFFFF
 
 	if dst_scratch then
-		io.stderr:write("WARNING: Write to CP_SCRATCH is not emulated.")
+		SCRATCH[dst_reg + 1] = result
 	else
 		priv.reg_set(dst_reg, result)
 	end

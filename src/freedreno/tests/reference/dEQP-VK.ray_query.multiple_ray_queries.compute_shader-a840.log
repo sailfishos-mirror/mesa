@@ -1263,13 +1263,13 @@
 			{ DST_REG = 0 | DST_SCRATCH | SKIP_WAIT_FOR_ME | ROTATE = 0 | SRC1_ADD | SRC0_IS_REG }
 			{ SRC0 = 43477 }
 			{ SRC1 = 4294967295 }
-		rmw CP_SCRATCH[0] = ((CP_SCRATCH[0] & SP_CS_NDRANGE_1) rot_l 0) + 0xffffffff
+		rmw SCRATCH[0] = ((SCRATCH[0] & SP_CS_NDRANGE_1) rot_l 0) + 0xffffffff
 00000001000a99f4:		0000: 70a18003 a0880000 0000a9d5 ffffffff
 		opcode: CP_REG_RMW (21) (4 dwords)
 			{ DST_REG = 0 | DST_SCRATCH | SKIP_WAIT_FOR_ME | ROTATE = 2 }
 			{ SRC0 = 127 }
 			{ SRC1 = 0 }
-		rmw CP_SCRATCH[0] = ((CP_SCRATCH[0] & 0x0000007f) rot_l 2) | 0x00000000
+		rmw SCRATCH[0] = ((SCRATCH[0] & 0x0000007f) rot_l 2) | 0x00000000
 00000001000a9a04:		0000: 70a18003 02880000 0000007f 00000000
 		opcode: CP_SCRATCH_TO_REG (4d) (2 dwords)
 			{ REG = 0xa9df | SCRATCH = 0 | CNT = 0 }
@@ -1281,13 +1281,13 @@
 			{ DST_REG = 0 | DST_SCRATCH | SKIP_WAIT_FOR_ME | ROTATE = 0 | SRC1_ADD | SRC0_IS_REG }
 			{ SRC0 = 43477 }
 			{ SRC1 = 127 }
-		rmw CP_SCRATCH[0] = ((CP_SCRATCH[0] & SP_CS_NDRANGE_1) rot_l 0) + 0x0000007f
+		rmw SCRATCH[0] = ((SCRATCH[0] & SP_CS_NDRANGE_1) rot_l 0) + 0x0000007f
 00000001000a9a28:		0000: 70a18003 a0880000 0000a9d5 0000007f
 		opcode: CP_REG_RMW (21) (4 dwords)
 			{ DST_REG = 0 | DST_SCRATCH | SKIP_WAIT_FOR_ME | ROTATE = 25 }
 			{ SRC0 = 4294967168 }
 			{ SRC1 = 0 }
-		rmw CP_SCRATCH[0] = ((CP_SCRATCH[0] & 0xffffff80) rot_l 25) | 0x00000000
+		rmw SCRATCH[0] = ((SCRATCH[0] & 0xffffff80) rot_l 25) | 0x00000000
 00000001000a9a38:		0000: 70a18003 19880000 ffffff80 00000000
 		opcode: CP_SCRATCH_TO_REG (4d) (2 dwords)
 			{ REG = 0xa9dc | SCRATCH = 0 | CNT = 0 }
