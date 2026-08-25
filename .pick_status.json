@@ -2394,7 +2394,7 @@
         "description": "tu: Fix stitching together set layouts from graphics pipeline libraries.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e9f5de11d4039f3440adbdb766189d20302ac42b",
         "notes": null

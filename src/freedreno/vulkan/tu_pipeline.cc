@@ -2269,7 +2269,7 @@ tu_pipeline_builder_parse_layout(struct tu_pipeline_builder *builder,
                                          library->num_sets);
          assert(builder->layout.num_sets <= builder->device->physical_device->usable_sets);
          for (unsigned j = 0; j < library->num_sets; j++) {
-            builder->layout.set[i].layout = library->layouts[i];
+            builder->layout.set[j].layout = library->layouts[j];
          }
 
          builder->layout.push_constant_size = library->push_constant_size;
