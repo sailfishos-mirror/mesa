@@ -205,7 +205,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
       }
 
       if (use_a0) {
-         jay_dag_add_edge(&ctx->dag, address, true);
+         jay_dag_add_edge(&ctx->dag, address, false);
          address = ctx->dag.node;
       }
 
