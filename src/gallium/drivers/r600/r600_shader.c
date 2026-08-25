@@ -17,7 +17,6 @@
 #include "sfn/sfn_nir.h"
 
 #include "pipe/p_shader_tokens.h"
-#include "tgsi/tgsi_parse.h"
 #include "compiler/nir/nir.h"
 #include "util/macros.h"
 #include "util/u_bitcast.h"

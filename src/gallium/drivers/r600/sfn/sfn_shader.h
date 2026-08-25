@@ -353,7 +353,6 @@ private:
 
    Instr *m_last_txd{nullptr};
 
-   uint32_t m_indirect_files{0};
    std::bitset<sh_flags_count> m_flags;
    uint32_t nhwatomic_ranges{0};
    std::vector<r600_shader_atomic, Allocator<r600_shader_atomic>> m_atomics;
