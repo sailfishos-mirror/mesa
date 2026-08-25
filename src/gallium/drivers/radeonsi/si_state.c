@@ -2476,10 +2476,8 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
     * when PA_SU_HARDWARE_SCREEN_OFFSET != 0 and any_scissor.BR_X/Y <= 0.
     * We could implement the full workaround here, but it's a useless case.
     */
-   if ((!state->width || !state->height) && (state->nr_cbufs || state->zsbuf.texture)) {
-      UNREACHABLE("the framebuffer shouldn't have zero area");
+   if ((!state->width || !state->height) && (state->nr_cbufs || state->zsbuf.texture))
       return;
-   }
 
    ASSERTED bool is_msaa_resolve = state->nr_cbufs == 2 &&
                                    state->cbufs[0].texture && state->cbufs[0].texture->nr_samples > 1 &&
