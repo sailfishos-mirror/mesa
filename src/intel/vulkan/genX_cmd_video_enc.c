@@ -3860,6 +3860,7 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
          til.NumberofActiveBEPipes = 1;
          til.NumofTileColumnsinFrameMinus1 = num_tile_cols - 1;
          til.NumofTileRowsinFrameMinus1 = num_tile_rows - 1;
+         til.DisableCDFUpdateFlag = pic_info->flags.disable_cdf_update;
          til.DisableFrameContextUpdateFlag =
             pic_info->flags.disable_frame_end_update_cdf ||
             (tile_idx != (ti ? ti->context_update_tile_id : 0));
