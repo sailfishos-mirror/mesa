@@ -513,7 +513,7 @@ pipeline_stats_resume(struct fd_acc_query *aq, struct fd_batch *batch)
 
    /* snapshot the start value: */
    fd_pkt7(cs, CP_REG_TO_MEM, 3)
-      .add(CP_REG_TO_MEM_0(.reg = reg, .cnt = 2, ._64b = true))
+      .add(CP_REG_TO_MEM_0(.reg = reg, .cnt = 2, .is_64b = true))
       .add(A5XX_CP_REG_TO_MEM_DEST(stats_sample(aq, start)));
 
    assert(type < ARRAY_SIZE(batch->pipeline_stats_queries_active));
@@ -536,7 +536,7 @@ pipeline_stats_pause(struct fd_acc_query *aq, struct fd_batch *batch)
 
    /* snapshot the end values: */
    fd_pkt7(cs, CP_REG_TO_MEM, 3)
-      .add(CP_REG_TO_MEM_0(.reg = reg, .cnt = 2, ._64b = true))
+      .add(CP_REG_TO_MEM_0(.reg = reg, .cnt = 2, .is_64b = true))
       .add(A5XX_CP_REG_TO_MEM_DEST(stats_sample(aq, stop)));
 
    assert(type < ARRAY_SIZE(batch->pipeline_stats_queries_active));
@@ -869,7 +869,7 @@ perfcntr_resume(struct fd_acc_query *aq, struct fd_batch *batch) assert_dt
       const struct fd_perfcntr_counter *counter = entry->counter;
 
       fd_pkt7(cs, CP_REG_TO_MEM, 3)
-         .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, ._64b = true))
+         .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, .is_64b = true))
          .add(A5XX_CP_REG_TO_MEM_DEST(query_sample_idx(aq, i, start)));
    }
 }
@@ -891,7 +891,7 @@ perfcntr_pause(struct fd_acc_query *aq, struct fd_batch *batch) assert_dt
       const struct fd_perfcntr_counter *counter = entry->counter;
 
       fd_pkt7(cs, CP_REG_TO_MEM, 3)
-         .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, ._64b = true))
+         .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, .is_64b = true))
          .add(A5XX_CP_REG_TO_MEM_DEST(query_sample_idx(aq, i, stop)));
    }
 

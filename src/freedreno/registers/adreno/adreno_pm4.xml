@@ -1292,7 +1292,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			Treat things as 64B, allowing for a 64B atomic read of
 			registers.
 		-->
-		<bitfield name="64B" pos="30" type="boolean"/>
+		<bitfield name="IS_64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
 	<stripe varset="chip" variants="A2XX-A4XX">
@@ -1313,7 +1313,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="REG" low="0" high="17" type="hex"/>
 		<!-- number of registers/dwords copied is max(CNT, 1). -->
 		<bitfield name="CNT" low="18" high="29" type="uint"/>
-		<bitfield name="64B" pos="30" type="boolean"/>
+		<bitfield name="IS_64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
 	<reg64 offset="1" name="DEST" type="waddress"/>
@@ -1333,7 +1333,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="REG" low="0" high="17" type="hex"/>
 		<!-- number of registers/dwords copied is max(CNT, 1). -->
 		<bitfield name="CNT" low="18" high="29" type="uint"/>
-		<bitfield name="64B" pos="30" type="boolean"/>
+		<bitfield name="IS_64B" pos="30" type="boolean"/>
 		<bitfield name="ACCUMULATE" pos="31" type="boolean"/>
 	</reg32>
 	<reg64 offset="1" name="DEST" type="waddress"/>

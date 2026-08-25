@@ -627,7 +627,7 @@ a6xx_emit_grid(struct kernel *kernel, uint32_t grid[3],
          const struct perfcntr *counter = &a6xx_backend->perfcntrs[i];
 
          fd_pkt7(cs, CP_REG_TO_MEM, 3)
-            .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, ._64b = true))
+            .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, .is_64b = true))
             .add(A5XX_CP_REG_TO_MEM_DEST(query_sample_idx(a6xx_backend, i, start)));
       }
    }
@@ -646,7 +646,7 @@ a6xx_emit_grid(struct kernel *kernel, uint32_t grid[3],
          const struct perfcntr *counter = &a6xx_backend->perfcntrs[i];
 
          fd_pkt7(cs, CP_REG_TO_MEM, 3)
-            .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, ._64b = true))
+            .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, .is_64b = true))
             .add(A5XX_CP_REG_TO_MEM_DEST(query_sample_idx(a6xx_backend, i, stop)));
       }
 
