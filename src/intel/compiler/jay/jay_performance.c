@@ -271,7 +271,10 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       }
 
       unsigned ready_cycle = cycle + jay_latency(shader, I, false);
-      fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
+      gen_pipe exec_pipe = jay_inst_exec_pipe(shader->devinfo, I);
+      if (exec_pipe != GEN_PIPE_NONE) {
+         fifo_add(&alu[exec_pipe], ready_cycle);
+      }
 
       jay_foreach_dst(I, dst) {
          if (dst.file == ACCUM) {
