@@ -672,8 +672,7 @@ tu_image_init(struct tu_device *device, struct tu_image *image,
          if (!device->physical_device->info->props
                  .supports_linear_mipmap_threshold_in_blocks &&
              vk_format_is_compressed(image->vk.format) &&
-             pCreateInfo->usage &
-                VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT &&
+             pCreateInfo->flags & VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT &&
              format_list_has_uncompressed_format(fmt_list)) {
             force_disable_linear_fallback = true;
          }
