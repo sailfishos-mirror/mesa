@@ -2404,7 +2404,7 @@
         "description": "tu: Fix VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a03525d8db7b0295c955aee04d1694a4a1b4493f",
         "notes": null
