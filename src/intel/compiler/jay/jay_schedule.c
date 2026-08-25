@@ -121,10 +121,10 @@ liveness_update(struct u_sparse_bitset *live, jay_inst *I)
 }
 
 static void
-add_edge(struct sched_ctx *ctx, uint32_t edge, uint32_t first_node)
+add_edge(struct sched_ctx *ctx, uint32_t edge, uint32_t first_node, bool strong)
 {
    if (edge && edge >= first_node) {
-      jay_dag_add_edge(&ctx->dag, edge);
+      jay_dag_add_edge(&ctx->dag, edge, strong);
    }
 }
 
@@ -146,7 +146,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
       if (ctx->phase < POSTRA) {
          /* Uses depend on definitions. SSA form forbids WaR and WaW hazards */
          jay_foreach_src_index(I, s, c, index) {
-            add_edge(ctx, ctx->prera.def[index], first_node);
+            add_edge(ctx, ctx->prera.def[index], first_node, true);
          }
 
          jay_foreach_dst_index(I, d, index) {
@@ -166,13 +166,14 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
             struct jay_range key = jay_def_to_range(ctx->func, I, dsts[d]);
             for (unsigned i = 0; i < key.width; ++i) {
                /* Write-after-write */
-               add_edge(ctx, ctx->postra.writer[key.base + i], first_node);
+               add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
+                        true);
                ctx->postra.writer[key.base + i] = ctx->dag.node;
 
-               /* Write-after-read */
+               /* Write-after-read, this is a weak edge */
                util_dynarray_foreach(&ctx->postra.readers[key.base + i],
                                      uint32_t, it) {
-                  add_edge(ctx, *it, first_node);
+                  add_edge(ctx, *it, first_node, false);
                }
 
                util_dynarray_clear(&ctx->postra.readers[key.base + i]);
@@ -183,7 +184,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
             struct jay_range key = jay_def_to_range(ctx->func, I, I->src[s]);
             for (unsigned i = 0; i < key.width; ++i) {
                /* Read-after-write */
-               add_edge(ctx, ctx->postra.writer[key.base + i], first_node);
+               add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
+                        true);
 
                /* Track for write-after-read but do not add a dependency, we
                 * want to reorder readers freely.
@@ -203,7 +205,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
       }
 
       if (use_a0) {
-         jay_dag_add_edge(&ctx->dag, address);
+         jay_dag_add_edge(&ctx->dag, address, true);
          address = ctx->dag.node;
       }
 
@@ -222,7 +224,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
            I->src[0].file == J_ARF &&
            jay_base_index(I->src[0]) == GEN_ARF_TIMESTAMP)) {
 
-         jay_dag_add_edge(&ctx->dag, sidefx);
+         jay_dag_add_edge(&ctx->dag, sidefx, true);
          sidefx = ctx->dag.node;
       }
 
@@ -298,7 +300,9 @@ ready_cycle(struct sched_ctx *s, bool backward, uint32_t node)
    struct jay_dag *dag = backward ? &s->dag_t : &s->dag;
 
    jay_dag_foreach_edge(dag, node, it) {
-      cycle = MAX2(cycle, s->cycle_ready[*it] + lat);
+      if (it->strong) {
+         cycle = MAX2(cycle, s->cycle_ready[it->node] + lat);
+      }
    }
 
    return cycle;
