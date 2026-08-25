@@ -1303,9 +1303,10 @@ tu_GetPhysicalDeviceSparseImageFormatProperties2(
       vk_format_to_pipe_format(pFormatInfo->format);
 
    if (pFormatInfo->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      u_foreach_bit (aspect, aspects) {
+      u_foreach_bit (b, aspects) {
+         VkImageAspectFlags aspect = BIT(b);
          enum pipe_format aspect_format =
-            tu6_plane_format(pFormatInfo->format, aspect);
+            tu6_plane_format(pFormatInfo->format, tu6_plane_index(pFormatInfo->format, aspect));
          vk_outarray_append_typed(VkSparseImageFormatProperties2, &out, props) {
             props->properties =
                tu_fill_sparse_image_fmt_props(aspect, aspect_format,
