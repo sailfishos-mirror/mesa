@@ -1048,7 +1048,6 @@ radv_lower_ngg(const struct radv_compiler_info *compiler_info, struct radv_shade
    options.has_gs_primitives_query = compiler_info->ac->gfx_level < GFX11;
    options.force_vrs = info->force_vrs_per_vertex;
    options.skip_face_culling = gfx_state->rs.skip_ngg_cull_face;
-   options.skip_viewport_state_culling = nir->info.outputs_written & VARYING_BIT_VIEWPORT;
    options.rasterizer_discard = gfx_state->rs.rasterizer_discard;
 
    if (nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL) {

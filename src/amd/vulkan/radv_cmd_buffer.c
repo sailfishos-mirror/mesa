@@ -12410,6 +12410,43 @@ radv_get_viewport_y_inversion(const struct radv_cmd_buffer *cmd_buffer)
    return result;
 }
 
+/* Return whether all viewports have the same pixel center spacing (equal scale) and positioning
+ * (equal fractional parts of translate). Both properties together imply that the width and height
+ * are equal among all viewports and viewports only differ in their integer part of translation.
+ *
+ * True allows the small prim culling via the shader, which assumes the same spacing and positioning
+ * of pixel centers among all viewports. (it uses only viewport 0 for its viewport transformation,
+ * but since it only cares about where the closest adjacent (X+0.5, Y+0.5) coordinates are for each
+ * vertex position, the integer part of the translation doesn't matter)
+ */
+static bool
+radv_viewports_have_equal_pixel_center_spacing_and_positioning(const struct radv_cmd_buffer *cmd_buffer)
+{
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const struct radv_shader *last_vgt_shader = cmd_buffer->state.last_vgt_shader;
+   const unsigned num_viewports = last_vgt_shader->info.outinfo.writes_viewport_index ? d->vk.vp.viewport_count : 1;
+
+   if (num_viewports <= 1)
+      return true;
+
+   float fract_vp0_translate[2] = {
+      fractf(d->vp_xform[0].translate[0]),
+      fractf(d->vp_xform[0].translate[1]),
+   };
+
+   for (unsigned i = 1; i < num_viewports; i++) {
+      for (unsigned axis = 0; axis < 2; axis++) {
+         if (d->vp_xform[i].scale[axis] != d->vp_xform[0].scale[axis])
+            return false;
+
+         if (fractf(d->vp_xform[i].translate[axis]) != fract_vp0_translate[axis])
+            return false;
+      }
+   }
+
+   return true;
+}
+
 ALWAYS_INLINE static uint32_t
 radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -12479,7 +12516,8 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
       nggc_settings |= (cull_front ? radv_nggc_back_face : 0) | (cull_back ? radv_nggc_front_face : 0);
    }
 
-   if (!d->vk.ms.sample_locations_enable || d->sample_location.allow_small_prim_ngg_culling) {
+   if ((!d->vk.ms.sample_locations_enable || d->sample_location.allow_small_prim_ngg_culling) &&
+       radv_viewports_have_equal_pixel_center_spacing_and_positioning(cmd_buffer)) {
       const unsigned log2_scaling_factor = d->vk.ms.sample_locations_enable
                                               ? d->sample_location.log2_small_prim_ngg_culling_scaling_factor
                                               : util_logbase2(cmd_buffer->state.num_rast_samples);
