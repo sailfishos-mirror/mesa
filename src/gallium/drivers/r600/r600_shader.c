@@ -534,25 +534,26 @@ void *r600_create_vertex_fetch_shader(struct pipe_context *ctx,
 
 }
 
-int eg_get_interpolator_index(unsigned interpolate, unsigned location)
+int eg_get_interpolator_index(enum glsl_interp_mode interpolate,
+			      enum r600_interp_location location)
 {
-	if (interpolate == TGSI_INTERPOLATE_COLOR ||
-		interpolate == TGSI_INTERPOLATE_LINEAR ||
-		interpolate == TGSI_INTERPOLATE_PERSPECTIVE)
-	{
-		int is_linear = interpolate == TGSI_INTERPOLATE_LINEAR;
+	if (interpolate == INTERP_MODE_NONE ||
+		interpolate == INTERP_MODE_SMOOTH ||
+		interpolate == INTERP_MODE_NOPERSPECTIVE) {
+		int is_linear = interpolate == INTERP_MODE_NOPERSPECTIVE;
 		int loc;
 
-		switch(location) {
-		case TGSI_INTERPOLATE_LOC_CENTER:
+		switch (location) {
+		case R600_INTERP_LOC_CENTER:
 			loc = 1;
 			break;
-		case TGSI_INTERPOLATE_LOC_CENTROID:
+		case R600_INTERP_LOC_CENTROID:
 			loc = 2;
 			break;
-		case TGSI_INTERPOLATE_LOC_SAMPLE:
+		case R600_INTERP_LOC_SAMPLE:
 		default:
-			loc = 0; break;
+			loc = 0;
+			break;
 		}
 
 		return is_linear * 3 + loc;

@@ -12,8 +12,6 @@
 #include "sfn_instr_fetch.h"
 #include "sfn_instr_tex.h"
 
-#include "pipe/p_shader_tokens.h"
-
 #include <sstream>
 
 namespace r600 {
@@ -339,8 +337,8 @@ FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
       m_sv_values.set(es_pos);
       m_pos_driver_loc = driver_location + location_offset;
       ShaderInput pos_input(m_pos_driver_loc, location);
-      pos_input.set_interpolator(TGSI_INTERPOLATE_LINEAR,
-                                 TGSI_INTERPOLATE_LOC_CENTER,
+      pos_input.set_interpolator(INTERP_MODE_NOPERSPECTIVE,
+                                 R600_INTERP_LOC_CENTER,
                                  false);
       add_input(pos_input);
       return true;
@@ -354,28 +352,26 @@ FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
       return true;
    }
 
-   tgsi_interpolate_mode tgsi_interpolate = TGSI_INTERPOLATE_CONSTANT;
-   tgsi_interpolate_loc tgsi_loc = TGSI_INTERPOLATE_LOC_CENTER;
+   glsl_interp_mode interp_mode = INTERP_MODE_FLAT;
+   r600_interp_location interp_loc = R600_INTERP_LOC_CENTER;
 
    const bool is_color =
       (location >= VARYING_SLOT_COL0 && location <= VARYING_SLOT_COL1) ||
       (location >= VARYING_SLOT_BFC0 && location <= VARYING_SLOT_BFC1);
 
    if (index_src_id > 0) {
-      glsl_interp_mode mode = INTERP_MODE_NONE;
       auto parent = nir_def_as_intrinsic(intr->src[0].ssa);
-      mode = (glsl_interp_mode)nir_intrinsic_interp_mode(parent);
       switch (parent->intrinsic) {
       case nir_intrinsic_load_barycentric_sample:
-         tgsi_loc = TGSI_INTERPOLATE_LOC_SAMPLE;
+         interp_loc = R600_INTERP_LOC_SAMPLE;
          break;
       case nir_intrinsic_load_barycentric_at_sample:
       case nir_intrinsic_load_barycentric_at_offset:
       case nir_intrinsic_load_barycentric_pixel:
-         tgsi_loc = TGSI_INTERPOLATE_LOC_CENTER;
+         interp_loc = R600_INTERP_LOC_CENTER;
          break;
       case nir_intrinsic_load_barycentric_centroid:
-         tgsi_loc = TGSI_INTERPOLATE_LOC_CENTROID;
+         interp_loc = R600_INTERP_LOC_CENTROID;
          uses_interpol_at_centroid = true;
          break;
       default:
@@ -385,20 +381,12 @@ FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
          assert(0);
       }
 
-      switch (mode) {
+      interp_mode = (glsl_interp_mode)nir_intrinsic_interp_mode(parent);
+      switch (interp_mode) {
       case INTERP_MODE_NONE:
-         if (is_color) {
-            tgsi_interpolate = TGSI_INTERPOLATE_COLOR;
-            break;
-         }
-         FALLTHROUGH;
       case INTERP_MODE_SMOOTH:
-         tgsi_interpolate = TGSI_INTERPOLATE_PERSPECTIVE;
-         break;
-      case INTERP_MODE_NOPERSPECTIVE:
-         tgsi_interpolate = TGSI_INTERPOLATE_LINEAR;
-         break;
       case INTERP_MODE_FLAT:
+      case INTERP_MODE_NOPERSPECTIVE:         
          break;
       case INTERP_MODE_EXPLICIT:
       default:
@@ -421,7 +409,7 @@ FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
    if (iinput == input_not_found()) {
       ShaderInput input(driver_location, location);
       input.set_need_lds_pos();
-      input.set_interpolator(tgsi_interpolate, tgsi_loc, uses_interpol_at_centroid);
+      input.set_interpolator(interp_mode, interp_loc, uses_interpol_at_centroid);
       sfn_log << SfnLog::io << "add IO with LDS ID at " << input.location() << "\n";
       add_input(input);
       assert(find_input(input.location()) != input_not_found());

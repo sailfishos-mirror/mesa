@@ -119,8 +119,8 @@ ShaderInput::do_print(std::ostream& os) const
 }
 
 void
-ShaderInput::set_interpolator(int interp,
-                              int interp_loc,
+ShaderInput::set_interpolator(glsl_interp_mode interp,
+                              r600_interp_location interp_loc,
                               bool uses_interpolate_at_centroid)
 {
    m_interpolator = interp;
@@ -260,8 +260,8 @@ Shader::read_input(std::istream& is)
 {
    ShaderInput input;
 
-   int interp = 0;
-   int interp_loc = 0;
+   glsl_interp_mode interp = INTERP_MODE_NONE;
+   r600_interp_location interp_loc = R600_INTERP_LOC_SAMPLE;
    bool use_centroid = false;
 
    std::string token;
@@ -275,10 +275,10 @@ Shader::read_input(std::istream& is)
          input.set_no_varying(true);
       else if (int_from_string_with_prefix_optional(token, "SYSVALUE:", value))
          input.set_system_value(static_cast<gl_system_value>(value));
-      else if (int_from_string_with_prefix_optional(token, "INTERP:", interp))
-         ;
-      else if (int_from_string_with_prefix_optional(token, "ILOC:", interp_loc))
-         ;
+      else if (token.compare(0, 7, "INTERP:") == 0)
+         interp = static_cast<glsl_interp_mode>(atoi(token.c_str() + 7));
+      else if (token.compare(0, 5, "ILOC:") == 0)
+         interp_loc = static_cast<r600_interp_location>(atoi(token.c_str() + 5));
       else if (token == "USE_CENTROID")
          use_centroid = true;
       else {

@@ -41,7 +41,7 @@ void print_shader_info(FILE *f , int id, struct r600_shader *shader)
       PRINT_INT_ARRAY_ELM(input, spi_sid);
       PRINT_UINT_ARRAY_ELM(input, interpolate);
       PRINT_UINT_ARRAY_ELM(input, ij_index);
-      PRINT_UINT_ARRAY_ELM(input, interpolate_location); //  TGSI_INTERPOLATE_LOC_CENTER, CENTROID, SAMPLE
+      PRINT_UINT_ARRAY_ELM(input, interpolate_location); // R600_INTERP_LOC_CENTER, CENTROID, SAMPLE
       PRINT_UINT_ARRAY_ELM(input, lds_pos); /* for evergreen */
       PRINT_INT_ARRAY_ELM(input, ring_offset);
       PRINT_BOOL_ARRAY_ELM(input, uses_interpolate_at_centroid);

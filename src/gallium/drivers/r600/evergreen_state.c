@@ -3806,7 +3806,7 @@ void evergreen_update_ps_state(struct pipe_context *ctx, struct r600_pipe_shader
 				if (rshader->input[i].uses_interpolate_at_centroid) {
 					k = eg_get_interpolator_index(
 						rshader->input[i].interpolate,
-						TGSI_INTERPOLATE_LOC_CENTROID);
+						R600_INTERP_LOC_CENTROID);
 					spi_baryc_cntl |= spi_baryc_enable_bit[k];
 				}
 			}
@@ -3822,8 +3822,10 @@ void evergreen_update_ps_state(struct pipe_context *ctx, struct r600_pipe_shader
 				tmp |= S_028644_DEFAULT_VAL(3);
 
 			if (varying_slot == VARYING_SLOT_POS ||
-				rshader->input[i].interpolate == TGSI_INTERPOLATE_CONSTANT ||
-				(rshader->input[i].interpolate == TGSI_INTERPOLATE_COLOR && flatshade)) {
+				rshader->input[i].interpolate == INTERP_MODE_FLAT ||
+				(rshader->input[i].interpolate == INTERP_MODE_NONE && flatshade &&
+				 ((varying_slot >= VARYING_SLOT_COL0 && varying_slot <= VARYING_SLOT_COL1) ||
+				  (varying_slot >= VARYING_SLOT_BFC0 && varying_slot <= VARYING_SLOT_BFC1)))) {
 				tmp |= S_028644_FLAT_SHADE(1);
 			}
 
@@ -3916,7 +3918,7 @@ void evergreen_update_ps_state(struct pipe_context *ctx, struct r600_pipe_shader
 	spi_input_z = 0;
 	if (pos_index != -1) {
 		spi_ps_in_control_0 |=  S_0286CC_POSITION_ENA(1) |
-			S_0286CC_POSITION_CENTROID(rshader->input[pos_index].interpolate_location == TGSI_INTERPOLATE_LOC_CENTROID) |
+			S_0286CC_POSITION_CENTROID(rshader->input[pos_index].interpolate_location == R600_INTERP_LOC_CENTROID) |
 			S_0286CC_POSITION_ADDR(rshader->input[pos_index].gpr);
 		spi_input_z |= S_0286D8_PROVIDE_Z_TO_SPI(1);
 	}

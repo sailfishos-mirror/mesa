@@ -92,13 +92,15 @@ public:
    gl_system_value system_value() const { return m_system_value; }
    void set_system_value(gl_system_value system_value) { m_system_value = system_value; }
 
-   void set_interpolator(int interp, int interp_loc, bool uses_interpolate_at_centroid);
+   void set_interpolator(glsl_interp_mode interp,
+                         r600_interp_location interp_loc,
+                         bool uses_interpolate_at_centroid);
    void set_uses_interpolate_at_centroid();
    void set_need_lds_pos() { m_need_lds_pos = true; }
    int ij_index() const { return m_ij_index; }
 
-   int interpolator() const { return m_interpolator; }
-   int interpolate_loc() const { return m_interpolate_loc; }
+   glsl_interp_mode interpolator() const { return m_interpolator; }
+   r600_interp_location interpolate_loc() const { return m_interpolate_loc; }
    bool need_lds_pos() const { return m_need_lds_pos; }
    int lds_pos() const { return m_lds_pos; }
    void set_lds_pos(int pos) { m_lds_pos = pos; }
@@ -111,8 +113,8 @@ private:
    void do_print(std::ostream& os) const override;
 
    gl_system_value m_system_value{SYSTEM_VALUE_MAX};
-   int m_interpolator{0};
-   int m_interpolate_loc{0};
+   glsl_interp_mode m_interpolator{INTERP_MODE_NONE};
+   r600_interp_location m_interpolate_loc{R600_INTERP_LOC_SAMPLE};
    int m_ij_index{0};
    bool m_uses_interpolate_at_centroid{false};
    bool m_need_lds_pos{false};
