@@ -3391,19 +3391,21 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
                          buf.IntraBCDecodedOutputFrameBufferAddress.bo,
                          .TiledResourceMode = TRMODE_TILEF);
 
-         ANV_VID_CACHE_INIT(buf, BitstreamLineRowstoreBuffer, cmd->device, 0);
+         ANV_VID_CACHE_INIT(buf, BitstreamLineRowstoreBuffer, cmd->device,
+                            ANV_AV1_ROWSTORE_BTDL_OFFSET);
          ANV_VID_CACHE_INIT(buf, IntraPredictionLineRowstoreBuffer,
-                            cmd->device, 0x6000);
+                            cmd->device, ANV_AV1_ROWSTORE_IPDL_OFFSET);
 
          ANV_VID_CACHE_INIT(buf, SpatialMotionVectorLineBuffer, cmd->device,
-                            0x2000);
+                            ANV_AV1_ROWSTORE_SMVL_OFFSET);
          ANV_VID_CACHE_INIT(buf, DeblockerFilterLineYBuffer, cmd->device,
-                            0xa000);
+                            ANV_AV1_ROWSTORE_DFLY_OFFSET);
          ANV_VID_CACHE_INIT(buf, DeblockerFilterLineUBuffer, cmd->device,
-                            0x15000);
+                            ANV_AV1_ROWSTORE_DFLU_OFFSET);
          ANV_VID_CACHE_INIT(buf, DeblockerFilterLineVBuffer, cmd->device,
-                            0x18000);
-         ANV_VID_CACHE_INIT(buf, CDEFFilterLineBuffer, cmd->device, 0x1b000);
+                            ANV_AV1_ROWSTORE_DFLV_OFFSET);
+         ANV_VID_CACHE_INIT(buf, CDEFFilterLineBuffer, cmd->device,
+                            ANV_AV1_ROWSTORE_CDEF_OFFSET);
          ANV_VID_MEM_INIT(buf, BitstreamTileLineRowstoreBuffer, cmd->device,
                           vid, ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE);
          ANV_VID_MEM_INIT(buf, IntraPredictionTileLineRowstoreBuffer,
