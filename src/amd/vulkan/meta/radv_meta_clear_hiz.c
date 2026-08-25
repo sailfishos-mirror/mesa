@@ -10,9 +10,9 @@
 #include "vk_shader_module.h"
 
 static VkResult
-get_clear_hiz_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out)
+get_compute_clear_hiz_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out)
 {
-   enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_CLEAR_HIZ;
+   enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_CLEAR_HIZ_CS;
 
    const VkDescriptorSetLayoutBinding binding = {
       .binding = 0,
@@ -37,25 +37,25 @@ get_clear_hiz_pipeline_layout(struct radv_device *device, VkPipelineLayout *layo
                                       layout_out);
 }
 
-struct radv_clear_hiz_key {
+struct radv_compute_clear_hiz_key {
    enum radv_meta_object_key_type type;
    uint8_t samples;
 };
 
 static VkResult
-get_clear_hiz_pipeline(struct radv_device *device, const struct radv_image *image, VkPipeline *pipeline_out,
-                       VkPipelineLayout *layout_out)
+get_compute_clear_hiz_pipeline(struct radv_device *device, const struct radv_image *image, VkPipeline *pipeline_out,
+                               VkPipelineLayout *layout_out)
 {
    const uint32_t samples = image->vk.samples;
-   struct radv_clear_hiz_key key;
+   struct radv_compute_clear_hiz_key key;
    VkResult result;
 
-   result = get_clear_hiz_pipeline_layout(device, layout_out);
+   result = get_compute_clear_hiz_pipeline_layout(device, layout_out);
    if (result != VK_SUCCESS)
       return result;
 
    memset(&key, 0, sizeof(key));
-   key.type = RADV_META_OBJECT_KEY_CLEAR_HIZ;
+   key.type = RADV_META_OBJECT_KEY_CLEAR_HIZ_CS;
    key.samples = samples;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
@@ -88,9 +88,9 @@ get_clear_hiz_pipeline(struct radv_device *device, const struct radv_image *imag
    return result;
 }
 
-uint32_t
-radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
-               uint32_t value)
+static void
+radv_compute_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
+                       const VkImageSubresourceRange *range, uint32_t value)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radeon_surf *surf = &image->planes[0].surface;
@@ -99,10 +99,10 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    VkPipeline pipeline;
    VkResult result;
 
-   result = get_clear_hiz_pipeline(device, image, &pipeline, &layout);
+   result = get_compute_clear_hiz_pipeline(device, image, &pipeline, &layout);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
-      return 0;
+      return;
    }
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
@@ -157,6 +157,13 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
          radv_image_view_finish(&iview);
       }
    }
+}
+
+uint32_t
+radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
+               uint32_t value)
+{
+   radv_compute_clear_hiz(cmd_buffer, image, range, value);
 
    return RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);
