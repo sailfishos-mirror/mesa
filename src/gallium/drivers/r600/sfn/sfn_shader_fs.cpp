@@ -12,6 +12,8 @@
 #include "sfn_instr_fetch.h"
 #include "sfn_instr_tex.h"
 
+#include "pipe/p_shader_tokens.h"
+
 #include <sstream>
 
 namespace r600 {

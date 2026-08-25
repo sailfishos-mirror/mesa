@@ -19,12 +19,10 @@
 #include "util/u_math.h"
 #include "util/u_prim.h"
 #include "tgsi/tgsi_parse.h"
-#include "tgsi/tgsi_scan.h"
 
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir/tgsi_to_nir.h"
-#include "nir/nir_to_tgsi_info.h"
 #include "sfn/sfn_nir.h"
 
 static void r600_tgsi_to_nir(struct pipe_context *ctx,
@@ -1183,7 +1181,6 @@ struct r600_pipe_shader_selector *r600_create_shader_state_tokens(struct pipe_co
 		sel->tokens = tgsi_dup_tokens((const struct tgsi_token *)prog);
 		glsl_type_singleton_init_or_ref();
 		r600_tgsi_to_nir(ctx, sel, mesa_shader_stage);
-		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
 		r600_cache_nir_selector_info(sel);
 		glsl_type_singleton_decref();
 		FREE(sel->tokens);
@@ -1191,7 +1188,6 @@ struct r600_pipe_shader_selector *r600_create_shader_state_tokens(struct pipe_co
 		ir = PIPE_SHADER_IR_NIR;
 	} else if (ir == PIPE_SHADER_IR_NIR){
 		sel->nir = (nir_shader *)prog;
-		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
 		r600_cache_nir_selector_info(sel);
 	}
 	sel->ir_type = ir;

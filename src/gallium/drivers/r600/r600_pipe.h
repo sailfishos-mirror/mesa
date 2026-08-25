@@ -20,8 +20,6 @@
 #include "util/u_memory.h"
 #include "util/u_framebuffer.h"
 
-#include "tgsi/tgsi_scan.h"
-
 #define R600_NUM_ATOMS 57
 
 #define R600_MAX_IMAGES 8
@@ -342,7 +340,6 @@ struct r600_pipe_shader_selector {
 	void   *nir_blob;
 
 	struct pipe_stream_output_info  so;
-	struct tgsi_shader_info		info;
 	struct r600_pipe_shader_selector_info nir_info;
 
 	unsigned	num_shaders;

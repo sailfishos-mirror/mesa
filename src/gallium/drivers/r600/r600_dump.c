@@ -6,7 +6,6 @@
 
 #include "r600_dump.h"
 #include "r600_shader.h"
-#include "tgsi/tgsi_strings.h"
 
 void print_shader_info(FILE *f , int id, struct r600_shader *shader)
 {
@@ -125,44 +124,4 @@ void print_shader_info(FILE *f , int id, struct r600_shader *shader)
    PRINT_UINT_MEMBER(image_size_const_offset);
 
    fprintf(f, "}\n");
-}
-
-void print_pipe_info(FILE *f, struct tgsi_shader_info *shader)
-{
-   PRINT_UINT_MEMBER(shader_buffers_load);
-   PRINT_UINT_MEMBER(shader_buffers_store);
-   PRINT_UINT_MEMBER(shader_buffers_atomic);
-   PRINT_UINT_MEMBER(writes_memory);
-   PRINT_UINT_MEMBER(file_mask[TGSI_FILE_HW_ATOMIC]);
-   PRINT_UINT_MEMBER(file_count[TGSI_FILE_HW_ATOMIC]);
-
-   for(unsigned int i = 0; i < TGSI_PROPERTY_COUNT; ++i) {
-      if (shader->properties[i] != 0)
-	 fprintf(stderr, "PROP: %s = %d\n", tgsi_property_names[i], shader->properties[i]);
-   }
-
-#define PRINT_UINT_ARRAY_MEMBER(M, IDX) \
-   if (shader-> M [ IDX ])  fprintf(f, #M "[%d] = %d\n",  IDX, (unsigned) shader-> M [ IDX ]);
-
-   for (int i = 0; i < shader->num_inputs; ++i) {
-      PRINT_UINT_ARRAY_MEMBER(input_semantic_name, i); /**< TGSI_SEMANTIC_x */
-      PRINT_UINT_ARRAY_MEMBER(input_semantic_index, i);
-      PRINT_UINT_ARRAY_MEMBER(input_interpolate, i);
-      PRINT_UINT_ARRAY_MEMBER(input_interpolate_loc, i);
-      PRINT_UINT_ARRAY_MEMBER(input_usage_mask, i);
-   }
-
-   for (int i = 0; i < shader->num_outputs; ++i) {
-      PRINT_UINT_ARRAY_MEMBER(output_semantic_name, i);
-      PRINT_UINT_ARRAY_MEMBER(output_semantic_index, i);
-      PRINT_UINT_ARRAY_MEMBER(output_usagemask, i);
-      PRINT_UINT_ARRAY_MEMBER(output_streams, i);
-   }
-
-   for (int i = 0; i < shader->num_system_values; ++i)
-      PRINT_UINT_ARRAY_MEMBER(system_value_semantic_name, i);
-
-   PRINT_UINT_MEMBER(reads_pervertex_outputs);
-   PRINT_UINT_MEMBER(reads_perpatch_outputs);
-   PRINT_UINT_MEMBER(reads_tessfactor_outputs);
 }

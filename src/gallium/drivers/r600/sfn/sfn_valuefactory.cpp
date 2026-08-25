@@ -10,6 +10,8 @@
 #include "sfn_debug.h"
 #include "sfn_instr.h"
 
+#include "pipe/p_shader_tokens.h"
+
 #include <algorithm>
 #include <iostream>
 #include <queue>

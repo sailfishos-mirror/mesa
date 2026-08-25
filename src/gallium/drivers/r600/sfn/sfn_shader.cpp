@@ -26,6 +26,8 @@
 #include "sfn_shader_gs.h"
 #include "sfn_shader_tess.h"
 #include "sfn_shader_vs.h"
+
+#include "pipe/p_shader_tokens.h"
 #include "util/u_math.h"
 
 #include <numeric>

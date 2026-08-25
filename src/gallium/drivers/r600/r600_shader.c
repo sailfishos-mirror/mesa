@@ -18,9 +18,6 @@
 
 #include "pipe/p_shader_tokens.h"
 #include "tgsi/tgsi_parse.h"
-#include "tgsi/tgsi_scan.h"
-#include "tgsi/tgsi_from_mesa.h"
-#include "nir/nir_to_tgsi_info.h"
 #include "compiler/nir/nir.h"
 #include "util/macros.h"
 #include "util/u_bitcast.h"
@@ -154,7 +151,6 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 	{
 		glsl_type_singleton_init_or_ref();
 		assert(sel->nir);
-		nir_tgsi_scan_shader(sel->nir, &sel->info, true);
 
 		r = r600_shader_from_nir(rctx, shader, &key);
 
@@ -185,7 +181,6 @@ int r600_pipe_shader_create(struct pipe_context *ctx,
 		fprintf(stderr, "______________________________________________________________\n");
 
                 print_shader_info(stderr, nshader++, &shader->shader);
-		print_pipe_info(stderr, &sel->info);
 	}
 
 	if (shader->gs_copy_shader) {
