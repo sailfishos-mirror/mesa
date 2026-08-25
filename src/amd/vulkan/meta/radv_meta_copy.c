@@ -82,6 +82,28 @@ static void compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, VkA
                                          struct radv_image *image, const VkDeviceMemoryImageCopyKHR *region);
 
 static void
+radv_transfer_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
+                                      const VkImageSubresourceLayers *subresource)
+{
+   if (!radv_image_has_hiz(image))
+      return;
+
+   if (!(subresource->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT))
+      return;
+
+   const VkImageSubresourceRange range = {
+      .aspectMask = subresource->aspectMask,
+      .baseMipLevel = subresource->mipLevel,
+      .levelCount = 1,
+      .baseArrayLayer = subresource->baseArrayLayer,
+      .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
+   };
+
+   /* Expand HiZ to [0,1] after the copy because HiZ is a separate image and SDMA doesn't update it. */
+   radv_expand_hiz_range(cmd_buffer, image, &range);
+}
+
+static void
 transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlagsKHR buffer_flags,
                            struct radv_image *image, const VkDeviceMemoryImageCopyKHR *region, bool to_image)
 {
@@ -124,10 +146,12 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
          return;
 
       radv_sdma_copy_buffer_image_unaligned(device, cs, &buf, &img, extent, cmd_buffer->transfer.copy_temp, to_image);
-      return;
+   } else {
+      radv_sdma_copy_buffer_image(device, cs, &buf, &img, extent, to_image);
    }
 
-   radv_sdma_copy_buffer_image(device, cs, &buf, &img, extent, to_image);
+   if (to_image)
+      radv_transfer_fixup_copy_dst_metadata(cmd_buffer, image, &region->imageSubresource);
 }
 
 static void
@@ -657,6 +681,8 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
       } else {
          radv_sdma_copy_image(device, cs, &src, &dst, extent);
       }
+
+      radv_transfer_fixup_copy_dst_metadata(cmd_buffer, dst_image, &dst_subresource);
    }
 }
 
