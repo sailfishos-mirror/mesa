@@ -734,6 +734,7 @@ custom_decodes = {
     "vkGetImageMemoryRequirements" : emit_global_state_wrapped_decoding,
     "vkGetImageMemoryRequirements2" : emit_global_state_wrapped_decoding,
     "vkGetImageMemoryRequirements2KHR" : emit_global_state_wrapped_decoding,
+    "vkGetImageSubresourceLayout" : emit_global_state_wrapped_decoding,
     "vkGetBufferMemoryRequirements" : emit_global_state_wrapped_decoding,
     "vkGetBufferMemoryRequirements2": emit_global_state_wrapped_decoding,
     "vkGetBufferMemoryRequirements2KHR": emit_global_state_wrapped_decoding,
