@@ -61,11 +61,15 @@ gather_colour_components(nir_builder *b,
 {
    bool written = false;
 
+   /* If the alpha of a render target is missing, replicate the RT0 alpha. */
    for (unsigned c = 0; c < 4; c++) {
-      if (!ctx->colour[loc][c].def)
-         ctx->colour[loc][c] = nir_get_scalar(undef, 0);
-      else
+      if (!ctx->colour[loc][c].def) {
+         ctx->colour[loc][c] = (c == 3 && loc > FRAG_RESULT_DATA0) ?
+            ctx->colour[FRAG_RESULT_DATA0][3] :
+            nir_get_scalar(undef, 0);
+      } else {
          written = true;
+      }
    }
 
    if (written)
