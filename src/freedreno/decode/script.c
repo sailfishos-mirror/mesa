@@ -216,7 +216,6 @@ pushfield(lua_State *L, struct rnntypeinfo *info, struct rnn *rnn,
       bitfieldsnum = info->bitfieldsnum;
       break;
    default:
-      printf("invalid register type: %d\n", info->type);
       return 0;
    }
 
