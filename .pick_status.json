@@ -2304,7 +2304,7 @@
         "description": "nv30: fix abs source modifier on fragment program sources 1 and 2",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a2fc42b899de22273c1df96091bfb5c636075cb0",
         "notes": null
