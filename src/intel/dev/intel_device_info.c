@@ -39,6 +39,7 @@
 
 #include "common/intel_gem.h"
 #include "util/u_debug.h"
+#include "util/u_string.h"
 #include "util/log.h"
 #include "util/macros.h"
 
@@ -1506,7 +1507,9 @@ scan_for_force_probe(int pci_id, bool *force_on, bool *force_off)
    if (dup == NULL)
       return;
 
-   for (char *entry = strtok(dup, ","); entry; entry = strtok(NULL, ","))
+   char *saveptr;
+   for (char *entry = strtok_r(dup, ",", &saveptr); entry;
+        entry = strtok_r(NULL, ",", &saveptr))
       parse_force_probe_entry(pci_id, entry, force_on, force_off);
 
    free(dup);
