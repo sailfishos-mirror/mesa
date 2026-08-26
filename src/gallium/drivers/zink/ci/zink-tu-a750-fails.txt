@@ -90,7 +90,6 @@ spec@arb_texture_rectangle@1-1-linear-texture,Fail
 spec@egl_chromium_sync_control@conformance,Fail
 spec@egl_chromium_sync_control@conformance@eglGetSyncValuesCHROMIUM_msc_and_sbc_test,Fail
 spec@egl_chromium_sync_control@conformance@eglGetSyncValuesCHROMIUM_ust_test,Fail
-spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_external_objects@vk-image-display,Fail
 spec@ext_external_objects@vk-image-display-muliple-textures,Fail

@@ -1074,7 +1074,6 @@ spec@arb_transform_feedback3@arb_transform_feedback3-ext_interleaved_two_bufs_gs
 spec@egl 1.4@eglterminate then unbind context,Fail
 
 # "eglChooseConfig() failed"
-spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 
 spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_depth_component24,Fail

@@ -398,8 +398,6 @@ spec@arb_texture_rectangle@texwrap rect proj bordercolor@GL_RGBA8- projected- bo
 spec@ati_fragment_shader@ati_fragment_shader-render-ops,Fail
 spec@ati_fragment_shader@ati_fragment_shader-render-ops@mov 8*c0,Fail
 
-spec@egl_khr_surfaceless_context@viewport,Fail
-
 spec@ext_direct_state_access@program-uniform,Fail
 spec@ext_direct_state_access@program-uniform@ProgramUniformMatrixfEXT,Fail
 spec@ext_direct_state_access@program-uniform@ProgramUniformMatrixfEXT + display list GL_COMPILE,Fail

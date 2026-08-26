@@ -477,8 +477,6 @@ spec@arb_texture_rg@texwrap formats-float bordercolor@GL_RG32F- border color onl
 
 spec@arb_vertex_program@big-param,Fail
 
-spec@egl_khr_surfaceless_context@viewport,Fail
-
 spec@ext_framebuffer_multisample@accuracy all_samples color depthstencil,Fail
 spec@ext_framebuffer_multisample@accuracy all_samples color depthstencil linear,Fail
 spec@ext_framebuffer_multisample@accuracy all_samples color small depthstencil,Fail

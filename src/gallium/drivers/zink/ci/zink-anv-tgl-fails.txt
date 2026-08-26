@@ -363,8 +363,6 @@ spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
 
 spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_depth_component24,Fail
 
-spec@egl_khr_surfaceless_context@viewport,Fail
-
 spec@ext_external_objects@vk-image-overwrite@RGB 10 A2 UINT optimal: Failed to initialize OpenGL FBO/RBO,Fail
 
 spec@ext_transform_feedback@tessellation triangle_fan flat_first,Fail
