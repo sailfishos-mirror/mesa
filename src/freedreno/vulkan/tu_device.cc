@@ -3791,10 +3791,9 @@ tu_AllocateMemory(VkDevice _device,
       if (wsi_info && wsi_info->implicit_sync)
          alloc_flags |= TU_BO_ALLOC_IMPLICIT_SYNC;
 
-      char name[64] = "vkAllocateMemory()";
+      char name[64] = "vkAlloc()";
       if (device->bo_sizes)
-         snprintf(name, ARRAY_SIZE(name), "vkAllocateMemory(%ldkb)",
-                  (long)DIV_ROUND_UP(pAllocateInfo->allocationSize, 1024));
+         snprintf(name, ARRAY_SIZE(name), "vkAlloc(%ldkb)", (long) DIV_ROUND_UP(pAllocateInfo->allocationSize, 1024));
       VkMemoryPropertyFlags mem_property =
          device->physical_device->memory.types[pAllocateInfo->memoryTypeIndex];
 
@@ -3881,10 +3880,9 @@ tu_allocate_lazy_memory(struct tu_device *dev,
    VkResult result = VK_SUCCESS;
    mtx_lock(&mem->lazy_mutex);
    if (!mem->lazy_initialized) {
-      char name[64] = "lazy vkAllocateMemory()";
+      char name[64] = "lazy vkAlloc()";
       if (dev->bo_sizes)
-         snprintf(name, ARRAY_SIZE(name), "lazy vkAllocateMemory(%ldkb)",
-                  (long)DIV_ROUND_UP(mem->size, 1024));
+         snprintf(name, ARRAY_SIZE(name), "lazy vkAlloc(%ldkb)", (long) DIV_ROUND_UP(mem->size, 1024));
       result =
          tu_bo_init_new_explicit_iova(dev, &mem->vk.base,
                                       &mem->bo, mem->size, 0, 0, 0,
