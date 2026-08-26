@@ -575,7 +575,8 @@ radv_decompress_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
 {
    struct radv_barrier_data barrier = {0};
 
-   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && cmd_buffer->qf != RADV_QUEUE_COMPUTE)
+   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && cmd_buffer->qf != RADV_QUEUE_COMPUTE &&
+       !radv_cmd_buffer_is_transfer_gang(cmd_buffer))
       return;
 
    barrier.layout_transitions.dcc_decompress = 1;
