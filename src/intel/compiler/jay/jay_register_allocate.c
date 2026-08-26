@@ -772,7 +772,8 @@ pick_regs(jay_ra_state *ra,
       unsigned cur = r_reg(ra->reg_for_index[jay_channel(var, 0)]);
       struct jay_register_block block = jay_lookup_block(partition, cur, file);
 
-      if (!BITSET_TEST_COUNT(ra->pinned[file], cur, size) &&
+      if (cur + size <= ra->num_regs[file] &&
+          !BITSET_TEST_COUNT(ra->pinned[file], cur, size) &&
           util_is_aligned(cur - block.start_gpr, alignment) &&
           is_block_compatible(block, file, min_stride, max_stride, eot,
                               false) &&
