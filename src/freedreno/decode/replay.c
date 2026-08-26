@@ -25,6 +25,7 @@
 #elif FD_REPLAY_MSM
 #include <xf86drm.h>
 #include "drm-uapi/msm_drm.h"
+#include "drm/msm/msm_common.h"
 #elif FD_REPLAY_WSL
 #define __KERNEL__
 #include "drm-uapi/d3dkmthk.h"
@@ -407,15 +408,6 @@ device_dump_wrbuf(struct device *dev)
 }
 
 #if FD_REPLAY_MSM
-static inline void
-get_abs_timeout(struct drm_msm_timespec *tv, uint64_t ns)
-{
-   struct timespec t;
-   clock_gettime(CLOCK_MONOTONIC, &t);
-   tv->tv_sec = t.tv_sec + ns / 1000000000;
-   tv->tv_nsec = t.tv_nsec + ns % 1000000000;
-}
-
 static struct device *
 device_create(uint64_t base_addr)
 {
