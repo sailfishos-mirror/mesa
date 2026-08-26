@@ -819,7 +819,7 @@ l_bo_write(lua_State *L)
 static int
 l_bo_index(lua_State *L)
 {
-   uint64_t addr = (uint64_t)lua_tonumber(L, 1);
+   uint64_t addr = (uint64_t)lua_tonumber(L, 2);
    uint32_t *ptr = hostptr(addr);
    if (!ptr)
       return 0;
@@ -838,8 +838,25 @@ static const struct luaL_Reg l_bos[] = {
 static void
 openlib(lua_State *state, const char *lib, const luaL_Reg *reg)
 {
+   lua_CFunction index_func = NULL;
+
+   for (int i = 0; reg[i].name; i++) {
+      if (!strcmp(reg[i].name, "__index")) {
+         index_func = reg[i].func;
+         break;
+      }
+   }
+
    lua_newtable(state);
    luaL_setfuncs(state, reg, 0);
+
+   if (index_func) {
+      lua_newtable(state);
+      lua_pushcfunction(state, index_func);
+      lua_setfield(state, -2, "__index");
+      lua_setmetatable(state, -2);
+   }
+
    lua_setglobal(state, lib);
 }
 
