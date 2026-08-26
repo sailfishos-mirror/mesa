@@ -78,6 +78,7 @@
 #include "c11/threads.h"
 #include "util/u_debug.h"
 #include "util/u_cpu_detect.h"
+#include "util/u_string.h"
 
 #include "lp_bld_misc.h"
 #include "lp_bld_debug.h"
@@ -118,7 +119,9 @@ void lp_bld_init_native_targets()
          char *option;
          char *options[64] = {(char *) "llc"};      // Warning without cast
          int   n;
-         for (n = 0, option = strtok(env_llc_options, " "); option; n++, option = strtok(NULL, " ")) {
+         char *saveptr;
+         for (n = 0, option = strtok_r(env_llc_options, " ", &saveptr); option;
+              n++, option = strtok_r(NULL, " ", &saveptr)) {
             options[n + 1] = option;
          }
          if (gallivm_debug & (GALLIVM_DEBUG_IR | GALLIVM_DEBUG_ASM | GALLIVM_DEBUG_DUMP_BC)) {
