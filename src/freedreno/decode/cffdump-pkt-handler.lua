@@ -70,6 +70,53 @@ function CP_MEM_WRITE(pkt, size)
 	end
 end
 
+function CP_REG_TO_MEM(pkt, size)
+	local reg = pkt.REG
+	local cnt = pkt.CNT
+	local addr = pkt.DEST
+
+	-- note: CNT in units of dwords even if IS_64B, so ignoring
+	-- ACCUMULATE we can just do the simple thing of copying
+	-- however many dwords
+	if pkt.ACCUMULATE then
+		io.stderr:write("WARNING: Write with ACCUMULATE is not emulated.")
+	end
+
+	for i = 0, cnt do
+		dbg("val: %x\n", regs.val(reg))
+		bos.write(addr, regs.val(reg))
+		reg = reg + 1
+		addr = addr + 4
+	end
+end
+
+function CP_MEM_TO_REG(pkt, size)
+	local reg = pkt.REG
+	local cnt = pkt.CNT
+	local addr = pkt.SRC
+
+	for i = 0, cnt do
+		local val = bos[addr]
+
+		-- If the memory address is not available, there is not much
+		-- we can do.  Just bail.
+		if not val then
+			dbg("address not available: %x\n", addr)
+			return
+		end
+
+		dbg("val: %x\n", val)
+
+		if pkt.SHIFT_BY_2 then
+			val = val << 2
+		end
+
+		priv.reg_set(reg, val)
+
+		reg = reg + 1
+		addr = addr + 4
+	end
+end
 
 function CP_REG_TO_SCRATCH(pkt, size)
 	local reg = pkt.REG
