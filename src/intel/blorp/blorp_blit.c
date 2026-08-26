@@ -1702,7 +1702,7 @@ blorp_build_nir_shader(struct blorp_context *blorp,
       nir_variable *color_out =
          nir_variable_create(b.shader, nir_var_shader_out,
                              glsl_vec4_type(), "gl_FragColor");
-      color_out->data.location = FRAG_RESULT_COLOR;
+      color_out->data.location = FRAG_RESULT_DATA0;
       nir_store_var(&b, color_out, color, 0xf);
    } else if (key->dst_usage == ISL_SURF_USAGE_DEPTH_BIT) {
       nir_variable *depth_out =
