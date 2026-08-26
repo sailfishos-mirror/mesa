@@ -1257,6 +1257,15 @@ nir_ishl_imm(nir_builder *build, nir_def *x, uint32_t y)
 }
 
 static inline nir_def *
+nir_ishl_nuw(nir_builder *b, nir_def *x, nir_def *y)
+{
+   nir_def *d = nir_ishl(b, x, y);
+   if (nir_def_is_alu(d))
+      nir_def_as_alu(d)->no_unsigned_wrap = true;
+   return d;
+}
+
+static inline nir_def *
 nir_ishr_imm(nir_builder *build, nir_def *x, uint32_t y)
 {
    if (y == 0) {

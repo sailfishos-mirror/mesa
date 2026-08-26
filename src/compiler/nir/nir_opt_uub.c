@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "util/u_qsort.h"
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_range_analysis.h"
@@ -421,6 +422,18 @@ alu_op_nuw(nir_op op, unsigned bit_size, uint32_t src0, uint32_t src1)
    }
 }
 
+struct u2u64_src {
+   nir_scalar scalar;
+   uint32_t uub;
+};
+
+struct reduce_bit_size_state {
+   opt_uub_state *state;
+   nir_builder *b;
+   struct util_dynarray u2u64_srcs;
+   unsigned rewritten_u2u64;
+};
+
 static bool
 is_u2u64(nir_scalar scalar, nir_scalar *src)
 {
@@ -434,23 +447,174 @@ is_u2u64(nir_scalar scalar, nir_scalar *src)
    return false;
 }
 
+/* We both gather and rewrite with the same function so that we're certain that
+ * we visit the same sources in the same order.
+ */
+static nir_scalar
+alu_u2u64_visit(nir_alu_instr *alu, unsigned depth, bool rewrite, struct reduce_bit_size_state *state)
+{
+   struct util_dynarray *u2u64_srcs = &state->u2u64_srcs;
+
+   if (depth >= 16)
+      return nir_get_scalar(&alu->def, 0);
+
+   nir_scalar srcs[2];
+   get_srcs(alu, srcs);
+   nir_scalar new_srcs[2] = { srcs[0], srcs[1] };
+   for (unsigned i = 0; i < 2; i++) {
+      nir_scalar scalar;
+      if (is_u2u64(srcs[i], &scalar)) {
+         if (rewrite) {
+            struct u2u64_src *src = util_dynarray_element(
+               &state->u2u64_srcs, struct u2u64_src, state->rewritten_u2u64++);
+            if (!src->scalar.def)
+               new_srcs[i].def = NULL;
+         } else {
+            struct u2u64_src src;
+            src.scalar = nir_scalar_chase_movs(scalar);
+            src.uub = uub(state->state, scalar);
+            util_dynarray_append(u2u64_srcs, src);
+         }
+      } else if (nir_scalar_is_alu(srcs[i]) && srcs[i].def->num_components == 1 &&
+                 nir_scalar_alu_op(srcs[i]) == alu->op) {
+         /* Checking if this instruction is only used once might avoid doing this optimization in
+          * cases where it's harmful, but in practice, it seems to work out better without the check. */
+         new_srcs[i] = alu_u2u64_visit(nir_scalar_as_alu(srcs[i]), depth + 1, rewrite, state);
+      }
+   }
+
+   if (!rewrite || (!new_srcs[0].def && !new_srcs[1].def)) {
+      return nir_get_scalar(NULL, 0);
+   } else if (!new_srcs[0].def) {
+      return new_srcs[1];
+   } else if (!new_srcs[1].def) {
+      return new_srcs[0];
+   } else if (!nir_scalar_equal(srcs[0], new_srcs[0]) ||
+              !nir_scalar_equal(srcs[1], new_srcs[1])) {
+      nir_builder *b = state->b;
+      nir_def *def = nir_build_alu2(b, alu->op, nir_mov_scalar(b, new_srcs[0]),
+                                    nir_mov_scalar(b, new_srcs[1]));
+      return nir_get_scalar(def, 0);
+   } else {
+      return nir_get_scalar(&alu->def, 0);
+   }
+}
+
+static int
+sort_u2u64(const void *a_, const void *b_, void *state_)
+{
+   const size_t *a = a_;
+   const size_t *b = b_;
+   struct reduce_bit_size_state *state = state_;
+   struct u2u64_src *srcs = util_dynarray_begin(&state->u2u64_srcs);
+   if (srcs[*a].uub < srcs[*b].uub)
+      return 1;
+   if (srcs[*a].uub > srcs[*b].uub)
+      return -1;
+   return *a > *b ? 1 : -1;
+}
+
 /* op(u2u64(src0@32), u2u64(src1@32)): if nuw(src0 op src1) -> u2u64(op(src0, src1)) */
 static bool
-opt_uub_alu_u2u64(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+opt_uub_alu_u2u64_recursive(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+{
+   /* Skip if we will process this instruction later. */
+   if (list_is_singular(&alu->def.uses)) {
+      nir_src *use = list_first_entry(&alu->def.uses, nir_src, use_link);
+      assert(!nir_src_is_if(use));
+      nir_instr *use_instr = nir_src_use_instr(use);
+      if (use_instr->type == nir_instr_type_alu && nir_instr_as_alu(use_instr)->op == alu->op)
+         return false;
+   }
+
+   struct reduce_bit_size_state reduce_state;
+   reduce_state.state = state;
+   reduce_state.b = b;
+   reduce_state.rewritten_u2u64 = 0;
+   b->cursor = nir_after_instr(&alu->instr);
+   struct u2u64_src u2u64_srcs_stack[64];
+   util_dynarray_init_from_stack(&reduce_state.u2u64_srcs, u2u64_srcs_stack,
+                                 sizeof(u2u64_srcs_stack));
+
+   /* Gather list of u2u64 sources. */
+   alu_u2u64_visit(alu, 0, false, &reduce_state);
+
+   struct u2u64_src *u2u64_srcs = util_dynarray_begin(&reduce_state.u2u64_srcs);
+   unsigned num_u2u64_srcs = util_dynarray_num_elements(&reduce_state.u2u64_srcs, struct u2u64_src);
+   if (num_u2u64_srcs <= 1) {
+      util_dynarray_fini(&reduce_state.u2u64_srcs);
+      return false;
+   }
+
+   /* Sort u2u64 sources from largest uub to smallest, since that probably improves
+    * chances of avoiding overflow in the combine loop. Keep the order of the array,
+    * because we depend on that for rewriting the expression. */
+   size_t *order = malloc(sizeof(size_t) * num_u2u64_srcs);
+   for (unsigned i = 0; i < num_u2u64_srcs; i++)
+      order[i] = i;
+   util_qsort_r(order, num_u2u64_srcs, sizeof(size_t), &sort_u2u64, &reduce_state);
+
+   /* Separate and combine 32-bit values, in 32-bit when possible. */
+   nir_def *val32 = NULL;
+   for (unsigned i = 0; i < num_u2u64_srcs; i++) {
+      struct u2u64_src *src_i = &u2u64_srcs[order[i]];
+      if (!src_i->scalar.def)
+         continue;
+      struct u2u64_src res = *src_i;
+
+      for (unsigned j = i + 1; j < num_u2u64_srcs; j++) {
+         struct u2u64_src *src_j = &u2u64_srcs[order[j]];
+         if (!src_j->scalar.def || !alu_op_nuw(alu->op, 32, res.uub, src_j->uub))
+            continue;
+
+         nir_def *def = nir_build_alu2(b, alu->op, nir_mov_scalar(b, res.scalar),
+                                       nir_mov_scalar(b, src_j->scalar));
+         if (nir_def_is_alu(def) && (alu->op == nir_op_iadd || alu->op == nir_op_imul))
+            nir_def_as_alu(def)->no_unsigned_wrap = true;
+         res.scalar = nir_get_scalar(def, 0);
+         res.uub = uub(state, res.scalar);
+
+         src_j->scalar.def = NULL;
+      }
+
+      if (res.scalar.def != src_i->scalar.def) {
+         nir_def *val32_2 = nir_u2u64(b, nir_mov_scalar(b, res.scalar));
+         if (val32)
+            val32 = nir_build_alu2(b, alu->op, val32, val32_2);
+         else
+            val32 = val32_2;
+
+         src_i->scalar.def = NULL;
+      }
+   }
+   free(order);
+
+   /* Rewrite expression. */
+   nir_scalar res = alu_u2u64_visit(alu, 0, true, &reduce_state);
+   util_dynarray_fini(&reduce_state.u2u64_srcs);
+
+   assert(res.def == &alu->def || val32);
+   if (val32 && res.def)
+      nir_def_replace(&alu->def, nir_build_alu2(b, alu->op, nir_mov_scalar(b, res), val32));
+   else if (!res.def)
+      nir_def_replace(&alu->def, val32);
+   else
+      return false;
+   return true;
+}
+
+/* ishl(u2u64(src0@32), u2u64(src1@32)): if nuw(src0 << src1) -> u2u64(ishl(src0, src1)) */
+static bool
+opt_uub_alu_u2u64_ishl(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
 {
    nir_scalar srcs[2];
    get_srcs(alu, srcs);
-   if (!is_u2u64(srcs[0], &srcs[0]) ||
-       (alu->op != nir_op_ishl && !is_u2u64(srcs[1], &srcs[1])))
+   if (!is_u2u64(srcs[0], &srcs[0]))
       return false;
 
    if (alu_op_nuw(alu->op, 32, uub(state, srcs[0]), uub(state, srcs[1]))) {
       b->cursor = nir_after_instr(&alu->instr);
-      nir_def *def = nir_build_alu2(b, alu->op, nir_mov_scalar(b, srcs[0]),
-                                    nir_mov_scalar(b, srcs[1]));
-      if (nir_def_is_alu(def) &&
-          (alu->op == nir_op_iadd || alu->op == nir_op_imul || alu->op == nir_op_ishl))
-         nir_def_as_alu(def)->no_unsigned_wrap = true;
+      nir_def *def = nir_ishl_nuw(b, nir_mov_scalar(b, srcs[0]), nir_mov_scalar(b, srcs[1]));
       nir_def_replace(&alu->def, nir_u2u64(b, def));
       return true;
    }
@@ -507,7 +671,7 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
       FALLTHROUGH;
    case nir_op_ior:
    case nir_op_ixor:
-      return alu->def.bit_size == 64 && opt_uub_alu_u2u64(b, alu, state);
+      return alu->def.bit_size == 64 && opt_uub_alu_u2u64_recursive(b, alu, state);
    case nir_op_ult:
    case nir_op_uge:
    case nir_op_ilt:
@@ -526,8 +690,9 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
          return opt_uub_imul(b, alu, state);
       FALLTHROUGH;
    case nir_op_iadd:
+      return alu->def.bit_size == 64 && opt_uub_alu_u2u64_recursive(b, alu, state);
    case nir_op_ishl:
-      return alu->def.bit_size == 64 && opt_uub_alu_u2u64(b, alu, state);
+      return alu->def.bit_size == 64 && opt_uub_alu_u2u64_ishl(b, alu, state);
    case nir_op_i2i64:
       return opt_uub_i2i64(b, alu, state);
    default:
