@@ -90,6 +90,18 @@ insert_rt_store(nir_builder *b, struct frag_out_ctx *ctx, signed target)
    nir_def *dual_colour = ctx->outputs[FRAG_RESULT_DUAL_SRC_BLEND] ?: colour;
    nir_def *src0_alpha = nir_mov_scalar(b, ctx->colour[src0_alpha_loc][3]);
 
+   /* OpenGL drivers get the jackpot of nonsense lowering, where a shader
+    * starts with :
+    *   - write to a variable FRAG_RESULT_DATA0, with color_is_dual_source=true
+    *   - io lowering turns it into store_output on location FRAG_RESULT_DUAL_SRC_BLEND
+    *   - nir_unlower_io_to_vars is run and now recreates a variable FRAG_RESULT_DUAL_SRC_BLEND
+    *   - io lowering turns it into store_output on location FRAG_RESULT_DUAL_SRC_BLEND
+    *
+    * As a result with can end up here with colour==NULL and dual_colour!=NULL.
+    */
+   if (colour == NULL && dual_colour != NULL)
+      colour = dual_colour;
+
    nir_store_render_target_intel(b, colour, dual_colour, src0_alpha,
                                  ctx->outputs[FRAG_RESULT_SAMPLE_MASK],
                                  ctx->outputs[FRAG_RESULT_DEPTH],
