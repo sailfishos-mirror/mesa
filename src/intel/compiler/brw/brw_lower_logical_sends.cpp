@@ -362,7 +362,7 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
          const brw_builder &ubld = bld.exec_all().group(8, i)
                                       .annotate("FB write src0 alpha");
          const brw_reg tmp = ubld.vgrf(BRW_TYPE_F);
-         ubld.MOV(tmp, horiz_offset(src0_alpha, i * 8));
+         ubld.MOV(retype(tmp, src0_alpha.type), horiz_offset(src0_alpha, i * 8));
          setup_color_payload(ubld, &sources[length], tmp, 1);
          length++;
       }
