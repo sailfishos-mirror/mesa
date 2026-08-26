@@ -1735,16 +1735,13 @@ radv_layout_fmask_compression(const struct radv_device *device, const struct rad
 }
 
 unsigned
-radv_image_queue_family_mask(const struct radv_image *image, enum radv_queue_family family,
-                             enum radv_queue_family queue_family)
+radv_image_queue_family_mask(const struct radv_image *image, enum radv_queue_family qf)
 {
-   if (!image->exclusive)
-      return image->queue_family_mask;
-   if (family == RADV_QUEUE_FOREIGN)
-      return ((1u << RADV_MAX_QUEUE_FAMILIES) - 1u) | (1u << RADV_QUEUE_FOREIGN);
-   if (family == RADV_QUEUE_IGNORED)
-      return 1u << queue_family;
-   return 1u << family;
+   if (image->exclusive)
+      return 1u << qf;
+
+   /* Concurrent images can be used on different queues. */
+   return image->queue_family_mask;
 }
 
 bool

@@ -693,7 +693,7 @@ radv_can_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       return false;
 
    if (!radv_layout_is_htile_compressed(device, iview->image, iview->vk.base_mip_level, image_layout,
-                                        radv_image_queue_family_mask(iview->image, cmd_buffer->qf, cmd_buffer->qf)))
+                                        radv_image_queue_family_mask(iview->image, cmd_buffer->qf)))
       return false;
 
    if (!radv_is_clear_rect_full(iview, clear_rect, view_mask))
@@ -1327,7 +1327,7 @@ radv_can_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       return false;
 
    if (!radv_layout_can_fast_clear(device, iview->image, iview->vk.base_mip_level, image_layout,
-                                   radv_image_queue_family_mask(iview->image, cmd_buffer->qf, cmd_buffer->qf)))
+                                   radv_image_queue_family_mask(iview->image, cmd_buffer->qf)))
       return false;
 
    if (!radv_is_clear_rect_full(iview, clear_rect, view_mask))

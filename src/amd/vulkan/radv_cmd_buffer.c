@@ -4625,7 +4625,7 @@ radv_gfx11_emit_fb_color_state(struct radv_cmd_buffer *cmd_buffer, int index, co
    struct radv_image *image = iview->image;
 
    if (!radv_layout_dcc_compressed(device, image, iview->vk.base_mip_level, layout,
-                                   radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf))) {
+                                   radv_image_queue_family_mask(image, cmd_buffer->qf))) {
       cb_fdcc_control &= C_028C78_FDCC_ENABLE;
    }
 
@@ -4677,12 +4677,12 @@ radv_gfx6_emit_fb_color_state(struct radv_cmd_buffer *cmd_buffer, int index, con
    struct radv_image *image = iview->image;
 
    if (!radv_layout_dcc_compressed(device, image, iview->vk.base_mip_level, layout,
-                                   radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf))) {
+                                   radv_image_queue_family_mask(image, cmd_buffer->qf))) {
       cb_color_info &= C_028C70_DCC_ENABLE;
    }
 
    const enum radv_fmask_compression fmask_comp = radv_layout_fmask_compression(
-      device, image, layout, radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf));
+      device, image, layout, radv_image_queue_family_mask(image, cmd_buffer->qf));
    if (fmask_comp == RADV_FMASK_COMPRESSION_NONE) {
       cb_color_info &= C_028C70_COMPRESSION;
    }
@@ -5703,7 +5703,7 @@ radv_emit_framebuffer_state(struct radv_cmd_buffer *cmd_buffer)
 
       radv_cs_add_buffer(device->ws, cs->b, image->bindings[0].bo);
 
-      uint32_t qf_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
+      uint32_t qf_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
 
       if (render->ds_att_aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
          assert(render->ds_att.layout);
@@ -5764,7 +5764,7 @@ radv_emit_framebuffer_state(struct radv_cmd_buffer *cmd_buffer)
       radv_cs_add_buffer(device->ws, cs->b, htile_buffer->bo);
 
       bool depth_compressed = radv_layout_is_htile_compressed(
-         device, image, 0, layout, radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf));
+         device, image, 0, layout, radv_image_queue_family_mask(image, cmd_buffer->qf));
       radv_gfx6_emit_fb_ds_state(cmd_buffer, &ds, &iview, depth_compressed, false);
 
       radv_image_view_finish(&iview);
@@ -9973,7 +9973,7 @@ radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv
       return;
 
    const struct radv_image *image = att->iview->image;
-   const uint32_t queue_mask = radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf, cmd_buffer->qf);
+   const uint32_t queue_mask = radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf);
    const bool is_dcc_compressed =
       radv_layout_dcc_compressed(device, image, att->iview->vk.base_mip_level, att->layout, queue_mask);
    const enum radv_fmask_compression fmask_comp = radv_layout_fmask_compression(device, image, att->layout, queue_mask);
@@ -10015,7 +10015,7 @@ radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv
    if (!device->vk.enabled_features.dynamicRenderingLocalRead)
       return;
 
-   const uint32_t qf_mask = radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf, cmd_buffer->qf);
+   const uint32_t qf_mask = radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf);
 
    if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
       assert(att->layout);
@@ -15713,6 +15713,21 @@ radv_handle_color_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
       radv_retile_transition(cmd_buffer, image, src_layout, dst_layout, dst_queue_mask);
 }
 
+static unsigned
+radv_transition_queue_family_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
+                                  enum radv_queue_family qf)
+{
+   /* Consider all possible queues when it's a foreign queue. */
+   if (qf == RADV_QUEUE_FOREIGN)
+      return ((1u << RADV_MAX_QUEUE_FAMILIES) - 1u) | (1u << RADV_QUEUE_FOREIGN);
+
+   /* Consider the current command buffer queue family when possible. */
+   if (qf == RADV_QUEUE_IGNORED)
+      return radv_image_queue_family_mask(image, cmd_buffer->qf);
+
+   return radv_image_queue_family_mask(image, qf);
+}
+
 static void
 radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout src_layout,
                              VkImageLayout dst_layout, uint32_t src_family_index, uint32_t dst_family_index,
@@ -15739,8 +15754,8 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
          return;
    }
 
-   unsigned src_queue_mask = radv_image_queue_family_mask(image, src_qf, cmd_buffer->qf);
-   unsigned dst_queue_mask = radv_image_queue_family_mask(image, dst_qf, cmd_buffer->qf);
+   unsigned src_queue_mask = radv_transition_queue_family_mask(cmd_buffer, image, src_qf);
+   unsigned dst_queue_mask = radv_transition_queue_family_mask(cmd_buffer, image, dst_qf);
 
    if (src_layout == dst_layout && src_queue_mask == dst_queue_mask)
       return;

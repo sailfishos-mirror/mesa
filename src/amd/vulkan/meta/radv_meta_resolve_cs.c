@@ -141,7 +141,7 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
+   const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
 
    const bool is_partial_resolve = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
                                    extent->height != image->vk.extent.height || extent->depth != image->vk.extent.depth;
