@@ -4504,8 +4504,15 @@ jay_insert_payload_swizzle(jay_shader *s)
 
    /* Odd: copy both halves to contiguous pair after payload */
    for (unsigned i = 0; i < (size / 2); ++i) {
-      jay_DESWIZZLE_ODD(&b, jay_bare_reg(GPR, size + i), jay_bare_reg(GPR, i),
-                        jay_bare_reg(GPR, i + ((size + 1) / 2)), !(size & 1));
+      for (unsigned j = 0; j < 2; ++j) {
+         jay_inst *I =
+            jay_DESWIZZLE_ODD(&b, jay_bare_reg(GPR, size + i),
+                              jay_bare_reg(GPR, i),
+                              jay_bare_reg(GPR, i + ((size + 1) / 2)),
+                              !(size & 1));
+         I->simd_split = 1;
+         I->simd_offs = j;
+      }
    }
 
    /* Even: leave the bottom half in place, copy top half. If size=1 (rare
@@ -4925,14 +4932,14 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    }
 
    JAY_PASS(s, jay_schedule);
+   JAY_PASS(s, jay_lower_simd_width);
+
    JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
             nir->info.bit_sizes_float);
 
    if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
       JAY_PASS(s, jay_insert_payload_swizzle);
    }
-
-   JAY_PASS(s, jay_lower_simd_width);
 
    if (jay_debug & JAY_DBG_SYNC) {
       JAY_PASS(s, jay_lower_scoreboard_trivial);
