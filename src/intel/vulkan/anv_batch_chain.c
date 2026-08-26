@@ -1354,6 +1354,12 @@ anv_queue_exec_locked(struct anv_queue *queue,
       }
    }
 
+   /* Latch resolvable OAG boundary reports before this submission adds
+    * more, so back-to-back perf-query submissions cannot wrap the ring.
+    */
+   if (perf_query_pool && device->physical->perf->oag_global_enable)
+      anv_oag_resolve_all_pools(device);
+
    /* The OA stream is opened against a single queue, but any queue of a
     * perf-capable family may legally submit performance queries, so a
     * mismatch is not a reason to lose an otherwise valid device. With no

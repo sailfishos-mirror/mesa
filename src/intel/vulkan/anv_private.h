@@ -7464,6 +7464,7 @@ void anv_oag_free_query_ids(struct anv_device *device,
 bool anv_oag_resolve_boundary(struct anv_device *device,
                               struct anv_query_pool *pool,
                               void *snapshot, uint32_t marker);
+void anv_oag_resolve_all_pools(struct anv_device *device);
 
 void anv_physical_device_init_va_ranges(struct anv_physical_device *device);
 void anv_physical_device_init_perf(struct anv_physical_device *device, int fd);

@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "anv_private.h"
+#include "vk_common_entrypoints.h"
 #include "vk_util.h"
 
 #include "perf/intel_perf.h"
@@ -318,6 +319,37 @@ anv_device_perf_close(struct anv_device *device)
       device->perf_fd = -1;
    }
    device->perf_queue = NULL;
+}
+
+void
+anv_oag_resolve_all_pools(struct anv_device *device)
+{
+   simple_mtx_lock(&device->perf_oag.mutex);
+   if (device->perf_oag.oa_buffer)
+      anv_oag_resolve_all_pools_locked(device);
+   simple_mtx_unlock(&device->perf_oag.mutex);
+}
+
+/* Resolving only at vkGetQueryPoolResults() time lets a long replay wrap the
+ * OA ring and overwrite boundary reports before anyone has looked at them
+ * (e.g. RenderDoc replays a frame once per counter pass and fetches every
+ * result at the end). Latch reports out at wait-idle instead: every submitted
+ * query has executed by then, so the ring only has to hold one wait-idle
+ * interval's worth of reports. vkDeviceWaitIdle() lands here too, the runtime
+ * implements it with QueueWaitIdle on every queue.
+ */
+VkResult
+anv_QueueWaitIdle(VkQueue _queue)
+{
+   ANV_FROM_HANDLE(anv_queue, queue, _queue);
+   struct anv_device *device = queue->device;
+   VkResult result = vk_common_QueueWaitIdle(_queue);
+
+   if (result == VK_SUCCESS && device->physical->perf &&
+       device->physical->perf->oag_global_enable)
+      anv_oag_resolve_all_pools(device);
+
+   return result;
 }
 
 static uint32_t

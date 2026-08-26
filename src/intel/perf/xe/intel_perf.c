@@ -270,8 +270,12 @@ xe_perf_stream_open(struct intel_perf_config *perf_config, int drm_fd,
    /* exec_id 0 opens the global OAG unit; EXEC_QUEUE_ID and NO_PREEMPT are
     * context-scoped and must be omitted (the kernel rejects EXEC_QUEUE_ID 0).
     */
-   if (exec_id)
+   if (exec_id) {
       oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID, exec_id);
+   } else {
+      /* Bump up from the 16 MiB default, nothing drains a mapped stream. */
+      oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, 128u << 20);
+   }
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_DISABLED, !enable);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_SAMPLE_OA, true);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_METRIC_SET, metrics_set_id);
