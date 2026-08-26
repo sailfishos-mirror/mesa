@@ -1570,7 +1570,7 @@ radv_gang_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *ace_cs = cmd_buffer->gang.cs;
-   const uint32_t flush_bits = cmd_buffer->gang.flush_bits;
+   const uint32_t flush_bits = cmd_buffer->gang.flush_bits & RADV_CMD_FLUSH_ALL_COMPUTE;
    enum rgp_flush_bits sqtt_flush_bits = 0;
 
    radv_cs_emit_cache_flush(device->ws, ace_cs, pdev->info.gfx_level, NULL, 0, flush_bits, &sqtt_flush_bits, 0);
@@ -15901,11 +15901,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (is_compute)
-      cmd_buffer->state.flush_bits &=
-         ~(RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META | RADV_CMD_FLAG_FLUSH_AND_INV_DB |
-           RADV_CMD_FLAG_FLUSH_AND_INV_DB_META | RADV_CMD_FLAG_INV_L2_METADATA | RADV_CMD_FLAG_PS_PARTIAL_FLUSH |
-           RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_VGT_FLUSH | RADV_CMD_FLAG_VGT_STREAMOUT_SYNC |
-           RADV_CMD_FLAG_START_PIPELINE_STATS | RADV_CMD_FLAG_STOP_PIPELINE_STATS);
+      cmd_buffer->state.flush_bits &= RADV_CMD_FLUSH_ALL_COMPUTE;
 
    if (!cmd_buffer->state.flush_bits) {
       radv_describe_barrier_end_delayed(cmd_buffer);
