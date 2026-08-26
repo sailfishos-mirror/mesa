@@ -38,8 +38,10 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
       const unsigned all_samples = BITFIELD_MASK(8);
       if (loc == FRAG_RESULT_SAMPLE_MASK &&
           nir_src_is_const(intr->src[0]) &&
-          (nir_src_as_uint(intr->src[0]) & all_samples) == all_samples)
+          (nir_src_as_uint(intr->src[0]) & all_samples) == all_samples) {
          ctx->outputs[loc] = NULL;
+         b->shader->info.outputs_written &= ~BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK);
+      }
    } else {
       u_foreach_bit(i, wrmask) {
          assert(!ctx->colour[loc][c + i].def &&
