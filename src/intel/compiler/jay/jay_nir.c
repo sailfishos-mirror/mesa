@@ -566,6 +566,15 @@ lower_load_barycentric_at_offset(nir_builder *b,
    return true;
 }
 
+static enum intel_sometimes
+alpha_to_coverage_enabled(nir_shader *shader, enum intel_sometimes alpha_to_coverage)
+{
+   return (shader->info.outputs_written &
+           (BITFIELD64_BIT(FRAG_RESULT_COLOR) |
+            BITFIELD64_BIT(FRAG_RESULT_DATA0))) != 0 ?
+      alpha_to_coverage : INTEL_NEVER;
+}
+
 /**
  * Do NIR processing that can be shared across all SIMD width variants.
  */
@@ -921,7 +930,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       JAY_NIR_PASS(intel_nir_lower_fragment_outputs,
                    key->fs.nr_color_regions,
-                   key->fs.alpha_test_replicate_alpha);
+                   key->fs.alpha_test_replicate_alpha ||
+                   (key->fs.nr_color_regions > 1 &&
+                    alpha_to_coverage_enabled(nir, key->fs.alpha_to_coverage) &&
+                    !(nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))));
 
       /* nir_lower_terminate_to_demote will hamper our ability to schedule
        * terminates (since it turns them into real control flow), so run
