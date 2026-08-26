@@ -2064,7 +2064,7 @@
         "description": "wsi/display: allocate the EDID display name only once",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "61656d744be6101fe2e807ee6feca9d61724f2bc",
         "notes": null
