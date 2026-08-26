@@ -83,7 +83,7 @@ _mesa_glsl_parse_state::_mesa_glsl_parse_state(struct gl_context *_ctx,
    this->uses_builtin_functions = false;
 
    /* Set default language version and extensions */
-   this->language_version = 110;
+   this->language_version = ctx->Const.DefaultGLSLVersion;
    this->forced_language_version = ctx->Const.ForceGLSLVersion;
    if (ctx->Const.GLSLZeroInit == 1) {
       this->zero_init = (1u << ir_var_auto) | (1u << ir_var_temporary) | (1u << ir_var_shader_out);
@@ -99,7 +99,6 @@ _mesa_glsl_parse_state::_mesa_glsl_parse_state(struct gl_context *_ctx,
 
    /* OpenGL ES 2.0 has different defaults from desktop GL. */
    if (_mesa_is_gles2(ctx)) {
-      this->language_version = 100;
       this->es_shader = true;
       this->ARB_texture_rectangle_enable = false;
    }

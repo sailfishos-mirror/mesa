@@ -534,6 +534,12 @@ struct gl_constants
    GLuint ForceGLSLVersion;
 
    /**
+    * For GLSL shaders that don't begin with "#version <version>",
+    * this version is used.
+    */
+   GLuint DefaultGLSLVersion;
+
+   /**
     * Allow GLSL #extension directives in the middle of shaders.
     */
    GLboolean AllowGLSLExtensionDirectiveMidShader;

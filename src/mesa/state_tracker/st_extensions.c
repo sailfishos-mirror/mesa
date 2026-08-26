@@ -1221,6 +1221,10 @@ void st_init_extensions(struct pipe_screen *screen,
       consts->ForceGLSLVersion = options->force_glsl_version;
    }
 
+   consts->DefaultGLSLVersion = api == API_OPENGLES2 ? 100 : 110;
+   if (options->default_glsl_version)
+      consts->DefaultGLSLVersion = options->default_glsl_version;
+
    consts->ForceCompatShaders = options->force_compat_shaders;
 
    consts->AllowExtraPPTokens = options->allow_extra_pp_tokens;
