@@ -15709,25 +15709,22 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
    cmd_buffer->state.flush_bits |= flush_bits;
 }
 
-static void
-radv_retile_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout src_layout,
-                       VkImageLayout dst_layout, unsigned dst_queue_mask)
-{
-   if (src_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
-       (dst_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR || (dst_queue_mask & (1u << RADV_QUEUE_FOREIGN))))
-      radv_retile_dcc(cmd_buffer, image);
-}
-
 static bool
-radv_image_need_retile(const struct radv_image *image)
+radv_image_need_retile(const struct radv_image *image, VkImageLayout src_layout, VkImageLayout dst_layout,
+                       unsigned dst_queue_mask)
 {
+   if (!radv_image_has_display_dcc(image))
+      return false;
+
    /* Imported read-only scanout images from compositors (like Gamescope) don't have to retile DCC
     * because it can't change.
     */
    if (!(image->vk.usage & RADV_IMAGE_USAGE_WRITE_BITS))
       return false;
 
-   return radv_image_has_display_dcc(image);
+   /* Retile DCC for present and when the image is released to compositors. */
+   return src_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
+          (dst_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR || (dst_queue_mask & (1u << RADV_QUEUE_FOREIGN)));
 }
 
 /**
@@ -15756,7 +15753,7 @@ radv_handle_color_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
          needs_dcc_decompress = true;
       }
 
-      if (radv_image_need_retile(image))
+      if (radv_image_need_retile(image, src_layout, dst_layout, dst_queue_mask))
          needs_dcc_retile = true;
    }
 
@@ -15815,7 +15812,7 @@ radv_handle_color_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
       radv_fmask_color_expand(cmd_buffer, image, range);
 
    if (needs_dcc_retile)
-      radv_retile_transition(cmd_buffer, image, src_layout, dst_layout, dst_queue_mask);
+      radv_retile_dcc(cmd_buffer, image);
 }
 
 static unsigned
