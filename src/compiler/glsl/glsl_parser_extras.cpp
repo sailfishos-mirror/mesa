@@ -31,6 +31,7 @@
 #include "main/formats.h"
 #include "main/shaderobj.h"
 #include "util/u_atomic.h" /* for p_atomic_cmpxchg */
+#include "util/u_string.h"
 #include "util/ralloc.h"
 #include "util/disk_cache.h"
 #include "util/log.h"
@@ -903,10 +904,12 @@ static const char *find_extension_alias(_mesa_glsl_parse_state *state, const cha
 {
    char *exts, *field, *ext_alias = NULL;
 
-   /* Copy alias_shader_extension because strtok() is destructive. */
+   /* Copy alias_shader_extension because strtok_r() is destructive. */
    exts = strdup(state->alias_shader_extension);
    if (exts) {
-      for (field = strtok(exts, ","); field != NULL; field = strtok(NULL, ",")) {
+      char *saveptr;
+      for (field = strtok_r(exts, ",", &saveptr); field != NULL;
+           field = strtok_r(NULL, ",", &saveptr)) {
          if(strncmp(name, field, strlen(name)) == 0) {
             field = strstr(field, ":");
             if(field) {
