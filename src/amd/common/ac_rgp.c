@@ -11,6 +11,7 @@
 #include "util/os_time.h"
 #include "util/u_process.h"
 #include "util/u_math.h"
+#include "util/u_string.h"
 
 #include "ac_shader_util.h"
 #include "ac_spm.h"
@@ -194,8 +195,9 @@ static void ac_sqtt_fill_cpu_info(struct sqtt_file_chunk_cpu_info *chunk)
       str = strstr(line, "vendor_id");
       if (str) {
          char *ptr = (char *)chunk->vendor_id;
-         char *v = strtok(str, ":");
-         v = strtok(NULL, ":");
+         char *saveptr;
+         char *v = strtok_r(str, ":", &saveptr);
+         v = strtok_r(NULL, ":", &saveptr);
          strncpy(ptr, v + 1, sizeof(chunk->vendor_id) - 1);
          ptr[sizeof(chunk->vendor_id) - 1] = '\0';
       }
@@ -204,8 +206,9 @@ static void ac_sqtt_fill_cpu_info(struct sqtt_file_chunk_cpu_info *chunk)
       str = strstr(line, "model name");
       if (str) {
          char *ptr = (char *)chunk->processor_brand;
-         char *v = strtok(str, ":");
-         v = strtok(NULL, ":");
+         char *saveptr;
+         char *v = strtok_r(str, ":", &saveptr);
+         v = strtok_r(NULL, ":", &saveptr);
          strncpy(ptr, v + 1, sizeof(chunk->processor_brand) - 1);
          ptr[sizeof(chunk->processor_brand) - 1] = '\0';
       }
