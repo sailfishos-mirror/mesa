@@ -15616,7 +15616,9 @@ radv_retile_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_image *im
 static bool
 radv_image_need_retile(const struct radv_image *image)
 {
-   /* If the image is read-only, we don't have to retile DCC because it can't change. */
+   /* Imported read-only scanout images from compositors (like Gamescope) don't have to retile DCC
+    * because it can't change.
+    */
    if (!(image->vk.usage & RADV_IMAGE_USAGE_WRITE_BITS))
       return false;
 
