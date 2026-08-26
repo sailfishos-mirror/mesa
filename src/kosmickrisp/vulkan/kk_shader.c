@@ -801,6 +801,10 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
        !(pdev->settings.disabled_workarounds & BITFIELD64_BIT(16)))
       NIR_PASS(_, nir, msl_lower_robustness2_images);
 
+   /* KK_WORKAROUND_18 */
+   if (!(pdev->settings.disabled_workarounds & BITFIELD64_BIT(18)))
+      NIR_PASS(_, nir, kk_nir_add_device_barrier_workaround);
+
    NIR_PASS(_, nir, kk_nir_lower_textures);
 
    if (features & KK_FEAT_NULL_DESCRIPTOR)

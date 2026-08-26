@@ -894,3 +894,66 @@ kk_nir_lower_poly(struct nir_shader *nir)
    return nir_shader_intrinsics_pass(nir, lower_poly, nir_metadata_control_flow,
                                      &is_compute);
 }
+
+static bool
+kk_barrier_is_device_global(mesa_scope scope, nir_variable_mode mode)
+{
+   if (scope != SCOPE_DEVICE && scope != SCOPE_QUEUE_FAMILY)
+      return false;
+
+   return mode & (nir_var_mem_global | nir_var_mem_ssbo);
+}
+
+/* Iterates over the shader to find memory barriers that target device or queue
+ * families to add a "conditional" extra barrier with a load as conditional to
+ * work around the issues in memory_model for M3+. The iteration is done in a
+ * reverse order to iterate once since we break and insert new blocks. */
+bool
+kk_nir_add_device_barrier_workaround(nir_shader *nir)
+{
+   bool progress = false;
+
+   nir_foreach_function_impl(impl, nir) {
+      bool impl_progress = false;
+      nir_builder b = nir_builder_create(impl);
+
+      nir_foreach_block_reverse_safe(block, impl) {
+         nir_foreach_instr_reverse_safe(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+
+            if (intrin->intrinsic != nir_intrinsic_barrier)
+               continue;
+
+            mesa_scope scope = nir_intrinsic_memory_scope(intrin);
+            nir_variable_mode mode = nir_intrinsic_memory_modes(intrin);
+            if (!kk_barrier_is_device_global(scope, mode))
+               continue;
+
+            b.cursor = nir_after_instr(instr);
+
+            /* The inserted load before the new barrier must not be constant */
+            nir_def *root = nir_load_buffer_ptr_kk(&b, 1, 64, .binding = 0);
+            nir_def *addr = nir_iadd_imm(
+               &b, root, kk_root_descriptor_offset(dynamic_buffers[0].zero));
+            nir_def *zero =
+               nir_build_load_global(&b, 1, 32, addr, .align_mul = 4);
+
+            nir_push_if(&b, nir_ine_imm(&b, zero, 0));
+            nir_barrier(&b, .execution_scope = SCOPE_NONE,
+                        .memory_scope = scope, .memory_modes = mode,
+                        .memory_semantics = NIR_MEMORY_ACQ_REL);
+            nir_pop_if(&b, NULL);
+
+            impl_progress = true;
+         }
+      }
+
+      progress |= impl_progress;
+      nir_progress(impl_progress, impl, nir_metadata_none);
+   }
+
+   return progress;
+}
