@@ -140,7 +140,16 @@ gather_indirect_inputs(struct nir_builder *b, nir_intrinsic_instr *intr,
       var->first_comp = MIN2(var->first_comp, first_comp);
       var->last_comp = MAX2(var->last_comp, last_comp);
    }
-   return false;
+
+   /* Return whether the index is indirect. */
+   nir_def *array_index = nir_get_io_offset_src(intr)->ssa;
+   bool indirect = !nir_scalar_is_const(nir_scalar_resolved(array_index, 0));
+
+   if (intr->intrinsic == nir_intrinsic_load_input_vertex &&
+       state->options & nir_io_indirect_loads_lower_vertex_index)
+      indirect |= !nir_scalar_is_const(nir_scalar_resolved(intr->src[0].ssa, 0));
+
+   return indirect;
 }
 
 static bool
@@ -370,8 +379,14 @@ lower_indirect_loads(nir_function_impl *impl, nir_variable_mode modes,
    state->lower_indirect_vertex_index = lower_indirect_vertex_index;
 
    if (modes & nir_var_shader_in) {
-      nir_function_intrinsics_pass(impl, gather_indirect_inputs,
-                                   nir_metadata_all, state);
+      bool has_indirect_inputs =
+         nir_function_intrinsics_pass(impl, gather_indirect_inputs,
+                                      nir_metadata_all, state);
+
+      if (modes == nir_var_shader_in && !has_indirect_inputs) {
+         free(state);
+         return false;
+      }
    }
 
    bool progress = nir_function_intrinsics_pass(impl, lower_load,
