@@ -155,6 +155,9 @@ pub struct FAURef {
 
     /// Load 64 bytes
     pub load64: bool,
+
+    /// Optional metadata to pretty print small constants
+    pub imm32: Option<u32>,
 }
 
 impl PartialEq for FAURef {
@@ -173,6 +176,7 @@ impl FAURef {
             idx,
             special: None,
             load64: false,
+            imm32: None,
         }
     }
 
@@ -183,6 +187,7 @@ impl FAURef {
             idx,
             special: None,
             load64: true,
+            imm32: None,
         }
     }
 }
@@ -191,6 +196,9 @@ impl fmt::Display for FAURef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.page == FAUPage::SmallConst {
             debug_assert!(!self.load64);
+            if let Some(imm32) = self.imm32 {
+                return write!(f, "0x{imm32:08x}");
+            };
             return write!(f, "k{}", self.idx);
         }
 
@@ -235,6 +243,7 @@ impl From<&SmallConstant> for FAURef {
             idx: sc.idx.into(),
             special: None,
             load64: false,
+            imm32: Some(sc.imm32),
         }
     }
 }
@@ -598,7 +607,7 @@ pub enum SrcRef {
 impl fmt::Display for SrcRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SrcRef::Zero => write!(f, "k0"),
+            SrcRef::Zero => write!(f, "0x0"),
             SrcRef::Imm32(u) => write!(f, "{u:#x}"),
             SrcRef::FAU(fau) => fau.fmt(f),
             SrcRef::SSA(ssa) => ssa.fmt(f),

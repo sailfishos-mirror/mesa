@@ -168,6 +168,7 @@ impl ValhallModel {
             idx: idx << 1, // FAURef::idx is in units of 32-bit words
             special: Some(special),
             load64: true,
+            imm32: None,
         })
     }
 }
