@@ -1452,11 +1452,7 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
    if (!image->exclusive) {
       assert(image->vk.sharing_mode == VK_SHARING_MODE_CONCURRENT);
       for (uint32_t i = 0; i < pCreateInfo->queueFamilyIndexCount; ++i)
-         if (pCreateInfo->pQueueFamilyIndices[i] == VK_QUEUE_FAMILY_EXTERNAL ||
-             pCreateInfo->pQueueFamilyIndices[i] == VK_QUEUE_FAMILY_FOREIGN_EXT)
-            image->queue_family_mask |= (1u << RADV_MAX_QUEUE_FAMILIES) - 1u;
-         else
-            image->queue_family_mask |= 1u << vk_queue_to_radv(pdev, pCreateInfo->pQueueFamilyIndices[i]);
+         image->queue_family_mask |= 1u << vk_queue_to_radv(pdev, pCreateInfo->pQueueFamilyIndices[i]);
 
       /* This queue never really accesses the image. */
       image->queue_family_mask &= ~(1u << RADV_QUEUE_SPARSE);
