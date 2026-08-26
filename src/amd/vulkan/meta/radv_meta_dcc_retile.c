@@ -179,14 +179,38 @@ radv_compute_retile_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *i
 void
 radv_retile_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image)
 {
-   assert(cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE);
+   const bool use_gang = cmd_buffer->qf == RADV_QUEUE_TRANSFER;
 
-   cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                                                         VK_ACCESS_2_SHADER_READ_BIT, 0, image, NULL);
+   /* Fallback to compute because retiling DCC on SDMA isn't possible. */
+   if (use_gang) {
+      if (!radv_gang_init(cmd_buffer))
+         return;
+
+      /* Wait for all pending work on SDMA. */
+      if (radv_flush_gang_leader_semaphore(cmd_buffer))
+         radv_wait_gang_leader(cmd_buffer);
+
+      /* Emit pending cache fluses on ACE. */
+      radv_gang_cache_flush(cmd_buffer);
+   }
+
+   assert(cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE ||
+          (cmd_buffer->qf == RADV_QUEUE_TRANSFER && cmd_buffer->gang.cs->hw_ip == AMD_IP_COMPUTE));
+
+   const enum radv_cmd_flush_bits dst_flush = radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                                                    VK_ACCESS_2_SHADER_READ_BIT, 0, image, NULL);
+   if (use_gang)
+      cmd_buffer->gang.flush_bits |= dst_flush;
+   else
+      cmd_buffer->state.flush_bits |= dst_flush;
 
    radv_compute_retile_dcc(cmd_buffer, image);
 
-   cmd_buffer->state.flush_bits |=
+   const enum radv_cmd_flush_bits src_flush =
       RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                              VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
+   if (use_gang)
+      cmd_buffer->gang.flush_bits |= src_flush;
+   else
+      cmd_buffer->state.flush_bits |= src_flush;
 }
