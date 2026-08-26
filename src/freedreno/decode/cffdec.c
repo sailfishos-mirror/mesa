@@ -2873,6 +2873,13 @@ cp_scratch_to_reg(const uint32_t *dwords, uint32_t sizedwords, int level)
 }
 
 static void
+cp_scratch_write(const uint32_t *dwords, uint32_t sizedwords, int level)
+{
+   struct rnndomain *domain = rnn_finddomain(rnn->db, "CP_SCRATCH_WRITE");
+   internal_packet(dwords, sizedwords, rnn, domain);
+}
+
+static void
 cp_wfi(const uint32_t *dwords, uint32_t sizedwords, int level)
 {
    needs_wfi = false;
@@ -3389,6 +3396,7 @@ static const struct type3_op {
 
    CP(REG_TO_SCRATCH, cp_reg_to_scratch),
    CP(SCRATCH_TO_REG, cp_scratch_to_reg),
+   CP(SCRATCH_WRITE, cp_scratch_write),
 
    /* for a7xx */
    CP(THREAD_CONTROL, cp_set_thread_control),

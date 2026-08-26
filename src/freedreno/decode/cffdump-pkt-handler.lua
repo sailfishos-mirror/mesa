@@ -118,6 +118,16 @@ function CP_MEM_TO_REG(pkt, size)
 	end
 end
 
+function CP_SCRATCH_WRITE(pkt, size)
+	local idx = pkt.SCRATCH + 1
+
+	for i = 1, size - 1 do
+		dbg("SCRATCH[%d] <- %x\n", idx, pkt[i])
+		SCRATCH[idx] = pkt[i]
+		idx = idx + 1
+	end
+end
+
 function CP_REG_TO_SCRATCH(pkt, size)
 	local reg = pkt.REG
 	local idx = pkt.SCRATCH + 1
