@@ -359,6 +359,10 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
    if (pan_arch(gpu_id) < 9)
       NIR_PASS(_, nir, bifrost_nir_opt_boolean_bitwise);
 
+   /* Hoist loop-invariant code out of loops */
+   NIR_PASS(_, nir, nir_opt_gcm, false /* value_number */);
+   NIR_PASS(_, nir, nir_opt_dce);
+
    NIR_PASS(_, nir, pan_nir_lower_bool_to_bitsize);
    NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_opt_vectorize, bi_vectorize_filter, &gpu_id);
