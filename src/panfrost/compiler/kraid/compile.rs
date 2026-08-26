@@ -249,6 +249,7 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.lower_mkvec_swz());
     pass!(s.opt_var());
     pass!(s.opt_dce());
+    pass!(s.opt_normalize_consts());
     pass!(s.lower_small_constants());
     if inputs.fau.promote_immediates {
         pass!(s.opt_promote_consts(&mut info.fau));
