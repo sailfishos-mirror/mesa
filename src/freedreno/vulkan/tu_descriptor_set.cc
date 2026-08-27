@@ -386,8 +386,10 @@ tu_GetDescriptorSetLayoutSupport(
             mutable_descriptor_size(device, &mutable_info->pMutableDescriptorTypeLists[i]);
       } else {
          bool has_subsampled_sampler = false;
-         if (binding->pImmutableSamplers) {
-            for (unsigned i = 0; i < binding->descriptorType; i++) {
+         if ((binding->descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+              binding->descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER) &&
+             binding->pImmutableSamplers) {
+            for (unsigned i = 0; i < binding->descriptorCount; i++) {
                VK_FROM_HANDLE(tu_sampler, sampler,
                               binding->pImmutableSamplers[i]);
                if (sampler->vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT) {
