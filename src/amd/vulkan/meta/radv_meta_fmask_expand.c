@@ -104,8 +104,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
    VkPipeline pipeline;
    VkResult result;
 
-   assert(cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE);
-
    result = get_pipeline(device, samples_log2, &pipeline, &layout);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
@@ -177,6 +175,9 @@ radv_fmask_color_expand(struct radv_cmd_buffer *cmd_buffer, struct radv_image *i
                         const VkImageSubresourceRange *subresourceRange)
 {
    struct radv_barrier_data barrier = {0};
+
+   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && cmd_buffer->qf != RADV_QUEUE_COMPUTE)
+      return;
 
    barrier.layout_transitions.fmask_color_expand = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);

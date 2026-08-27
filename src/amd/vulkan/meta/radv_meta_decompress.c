@@ -454,6 +454,10 @@ radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_barrier_data barrier = {0};
 
+   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && cmd_buffer->qf != RADV_QUEUE_COMPUTE &&
+       !radv_cmd_buffer_is_transfer_gang(cmd_buffer))
+      return;
+
    barrier.layout_transitions.depth_stencil_expand = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
@@ -462,8 +466,6 @@ radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    } else {
-      assert(cmd_buffer->qf == RADV_QUEUE_COMPUTE ||
-             (cmd_buffer->qf == RADV_QUEUE_TRANSFER && cmd_buffer->gang.cs->hw_ip == AMD_IP_COMPUTE));
       radv_expand_depth_stencil_compute(cmd_buffer, image, subresourceRange);
 
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |

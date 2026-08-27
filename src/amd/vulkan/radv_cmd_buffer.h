@@ -885,4 +885,10 @@ radv_resume_conditional_rendering(struct radv_cmd_buffer *cmd_buffer)
    cond_render->suspended = false;
 }
 
+static inline bool
+radv_cmd_buffer_is_transfer_gang(const struct radv_cmd_buffer *cmd_buffer)
+{
+   return cmd_buffer->qf == RADV_QUEUE_TRANSFER && cmd_buffer->gang.cs && cmd_buffer->gang.cs->hw_ip == AMD_IP_COMPUTE;
+}
+
 #endif /* RADV_CMD_BUFFER_H */
