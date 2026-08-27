@@ -2572,8 +2572,10 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
 
       radv_nir_lower_io(stages[i].nir);
 
-      if (!stages[i].key.optimisations_disabled) {
-         /* Scalarize all I/O, because nir_opt_varyings and nir_opt_vectorize_io expect all I/O to be scalarized. */
+      /* Scalarize all I/O, because nir_opt_varyings and nir_opt_vectorize_io expect all I/O to be scalarized.
+       * Scalar IO is also required by ac_nir_lower_fs_input_loads.
+       */
+      if (i == MESA_SHADER_FRAGMENT || !stages[i].key.optimisations_disabled) {
          NIR_PASS(_, stages[i].nir, nir_lower_io_to_scalar, nir_var_shader_in | nir_var_shader_out, NULL, NULL);
 
          /* Eliminate useless vec->mov copies resulting from scalarization. */
