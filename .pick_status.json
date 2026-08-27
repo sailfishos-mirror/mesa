@@ -1744,7 +1744,7 @@
         "description": "brw: Re-lower immediate offsets after mesh nir_opt_offsets",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8f4d469a6a3221f9e16cf569ae8a0278c2e7d5d4",
         "notes": null
