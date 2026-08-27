@@ -15337,68 +15337,37 @@ radv_CmdSetRayTracingPipelineStackSizeKHR(VkCommandBuffer commandBuffer, uint32_
    cmd_buffer->state.rt_stack_size = size;
 }
 
-/*
- * For HTILE we have the following interesting clear words:
- *   0xfffff30f: Uncompressed, full depth range, for depth+stencil HTILE
- *   0xfffc000f: Uncompressed, full depth range, for depth only HTILE.
- *   0xfffffff0: Clear depth to 1.0
- *   0x00000000: Clear depth to 0.0
- */
-static void
-radv_initialize_htile(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                      const VkImageSubresourceRange *range)
+static uint32_t
+radv_init_htile(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
 {
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_cmd_state *state = &cmd_buffer->state;
-   uint32_t htile_value = radv_get_htile_initial_value(device, image);
-   VkClearDepthStencilValue value = {0};
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const uint32_t htile_value = radv_get_htile_initial_value(device, image);
    struct radv_barrier_data barrier = {0};
 
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
-
-   /* Transitioning from LAYOUT_UNDEFINED layout not everyone is consistent
-    * in considering previous rendering work for WAW hazards. */
-   state->flush_bits |= radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                                              VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, image, range);
 
    if (image->planes[0].surface.has_stencil &&
        !(range->aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))) {
       /* Flush caches before performing a separate aspect initialization because it's a
        * read-modify-write operation.
        */
-      state->flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                                                 VK_ACCESS_2_SHADER_READ_BIT, 0, image, range);
+      cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                                            VK_ACCESS_2_SHADER_READ_BIT, 0, image, range);
    }
 
-   state->flush_bits |= radv_clear_htile(cmd_buffer, image, range, htile_value, false);
-
-   radv_set_ds_clear_metadata(cmd_buffer, image, range, value, range->aspectMask);
-
-   if (radv_tc_compat_htile_enabled(image, range->baseMipLevel) && (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)) {
-      /* Initialize the TC-compat metada value to 0 because by
-       * default DB_Z_INFO.RANGE_PRECISION is set to 1, and we only
-       * need have to conditionally update its value when performing
-       * a fast depth clear.
-       */
-      radv_set_tc_compat_zrange_metadata(cmd_buffer, image, range, 0);
-   }
+   return radv_clear_htile(cmd_buffer, image, range, htile_value, false);
 }
 
-static void
-radv_initialize_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
+static uint32_t
+radv_init_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
 {
-   struct radv_cmd_state *state = &cmd_buffer->state;
    const uint32_t hiz_value = radv_gfx12_get_hiz_initial_value();
    struct radv_barrier_data barrier = {0};
+   uint32_t flush_bits = 0;
 
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
-
-   /* Transitioning from LAYOUT_UNDEFINED layout not everyone is consistent
-    * in considering previous rendering work for WAW hazards. */
-   state->flush_bits |= radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                                              VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, image, range);
 
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
       const uint64_t hiz_offset = image->planes[0].surface.u.gfx9.zs.hiz.offset;
@@ -15406,16 +15375,61 @@ radv_initialize_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
 
       radv_fill_image(cmd_buffer, image, hiz_offset, hiz_size, hiz_value);
    } else {
-      cmd_buffer->state.flush_bits |= radv_clear_hiz(cmd_buffer, image, range, hiz_value);
+      flush_bits |= radv_clear_hiz(cmd_buffer, image, range, hiz_value);
    }
 
-   if (radv_image_has_hiz_metadata(image)) {
-      /* Allow to enable HiZ for this range because all layers are handled in the barrier. */
-      const bool enable_hiz =
-         range->baseArrayLayer == 0 && vk_image_subresource_layer_count(&image->vk, range) == image->vk.array_layers;
+   return flush_bits;
+}
 
-      radv_update_hiz_metadata(cmd_buffer, image, range, enable_hiz);
+/**
+ * Initialize metadata for a depth/stencil image.
+ */
+static void
+radv_init_depth_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
+                               const VkImageSubresourceRange *range)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   uint32_t flush_bits = 0;
+
+   /* Transitioning from LAYOUT_UNDEFINED layout not everyone is consistent
+    * in considering previous rendering work for WAW hazards. */
+   cmd_buffer->state.flush_bits |=
+      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, image, range);
+
+   if (pdev->info.gfx_level >= GFX12) {
+      assert(radv_image_has_hiz(image));
+
+      flush_bits |= radv_init_hiz(cmd_buffer, image, range);
+
+      if (radv_image_has_hiz_metadata(image)) {
+         /* Allow to enable HiZ for this range because all layers are handled in the barrier. */
+         const bool enable_hiz =
+            range->baseArrayLayer == 0 && vk_image_subresource_layer_count(&image->vk, range) == image->vk.array_layers;
+
+         radv_update_hiz_metadata(cmd_buffer, image, range, enable_hiz);
+      }
+   } else {
+      VkClearDepthStencilValue value = {0};
+
+      assert(radv_htile_enabled(image, range->baseMipLevel));
+
+      flush_bits |= radv_init_htile(cmd_buffer, image, range);
+
+      radv_set_ds_clear_metadata(cmd_buffer, image, range, value, range->aspectMask);
+
+      if (radv_tc_compat_htile_enabled(image, range->baseMipLevel) && (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)) {
+         /* Initialize the TC-compat metada value to 0 because by
+          * default DB_Z_INFO.RANGE_PRECISION is set to 1, and we only
+          * need have to conditionally update its value when performing
+          * a fast depth clear.
+          */
+         radv_set_tc_compat_zrange_metadata(cmd_buffer, image, range, 0);
+      }
    }
+
+   cmd_buffer->state.flush_bits |= flush_bits;
 }
 
 static void
@@ -15427,25 +15441,22 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   if (pdev->info.gfx_level >= GFX12) {
-      if (!radv_image_has_hiz(image))
-         return;
+   if (!radv_htile_enabled(image, range->baseMipLevel) && !radv_image_has_hiz(image))
+      return;
 
-      if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
-         radv_initialize_hiz(cmd_buffer, image, range);
-      }
-   } else {
-      if (!radv_htile_enabled(image, range->baseMipLevel))
-         return;
+   if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
+      radv_init_depth_image_metadata(cmd_buffer, image, range);
+      return;
+   }
 
-      if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
-         radv_initialize_htile(cmd_buffer, image, range);
-      } else if (radv_layout_is_htile_compressed(device, image, range->baseMipLevel, src_layout, src_queue_mask) &&
-                 !radv_layout_is_htile_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+   if (pdev->info.gfx_level >= GFX12)
+      return;
 
-         radv_expand_depth_stencil(cmd_buffer, image, range, sample_locs);
-      }
+   if (radv_layout_is_htile_compressed(device, image, range->baseMipLevel, src_layout, src_queue_mask) &&
+       !radv_layout_is_htile_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+
+      radv_expand_depth_stencil(cmd_buffer, image, range, sample_locs);
    }
 }
 
