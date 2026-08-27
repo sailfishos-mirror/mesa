@@ -15385,7 +15385,7 @@ radv_init_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, cons
  * Initialize metadata for a depth/stencil image.
  */
 static void
-radv_init_depth_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
+radv_init_depth_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout src_layout,
                                const VkImageSubresourceRange *range)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -15408,24 +15408,30 @@ radv_init_depth_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
          const bool enable_hiz =
             range->baseArrayLayer == 0 && vk_image_subresource_layer_count(&image->vk, range) == image->vk.array_layers;
 
-         radv_update_hiz_metadata(cmd_buffer, image, range, enable_hiz);
+         /* Skip redundant operations when the image is already zero-initialized. */
+         if (enable_hiz || src_layout != VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT)
+            radv_update_hiz_metadata(cmd_buffer, image, range, enable_hiz);
       }
    } else {
-      VkClearDepthStencilValue value = {0};
-
       assert(radv_htile_enabled(image, range->baseMipLevel));
 
       flush_bits |= radv_init_htile(cmd_buffer, image, range);
 
-      radv_set_ds_clear_metadata(cmd_buffer, image, range, value, range->aspectMask);
+      /* Skip redundant operations when the image is already zero-initialized. */
+      if (src_layout != VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
+         VkClearDepthStencilValue value = {0};
 
-      if (radv_tc_compat_htile_enabled(image, range->baseMipLevel) && (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)) {
-         /* Initialize the TC-compat metada value to 0 because by
-          * default DB_Z_INFO.RANGE_PRECISION is set to 1, and we only
-          * need have to conditionally update its value when performing
-          * a fast depth clear.
-          */
-         radv_set_tc_compat_zrange_metadata(cmd_buffer, image, range, 0);
+         radv_set_ds_clear_metadata(cmd_buffer, image, range, value, range->aspectMask);
+
+         if (radv_tc_compat_htile_enabled(image, range->baseMipLevel) &&
+             (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)) {
+            /* Initialize the TC-compat metada value to 0 because by
+             * default DB_Z_INFO.RANGE_PRECISION is set to 1, and we only
+             * need have to conditionally update its value when performing
+             * a fast depth clear.
+             */
+            radv_set_tc_compat_zrange_metadata(cmd_buffer, image, range, 0);
+         }
       }
    }
 
@@ -15445,7 +15451,7 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
       return;
 
    if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
-      radv_init_depth_image_metadata(cmd_buffer, image, range);
+      radv_init_depth_image_metadata(cmd_buffer, image, src_layout, range);
       return;
    }
 
