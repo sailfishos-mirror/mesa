@@ -851,13 +851,25 @@ tu_bo_init(struct tu_device *dev,
  * useful.
  */
 static void
-tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name)
+tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name, size_t length)
 {
+   char buf[32];
+
+   if (length > (sizeof(buf) - 1)) {
+      mesa_logd("Truncating BO name: %s", name);
+
+      memcpy(buf, name, sizeof(buf) - 1);
+      buf[sizeof(buf) - 1] = '\0';
+
+      name = buf;
+      length = sizeof(buf) - 1;
+   }
+
    struct drm_msm_gem_info req = {
       .handle = bo->gem_handle,
       .info = MSM_INFO_SET_NAME,
-      .value = (uintptr_t)(void *)name,
-      .len = strlen(name),
+      .value = (uintptr_t) (void *) name,
+      .len = length,
    };
 
    int ret = drmCommandWrite(dev->fd, DRM_MSM_GEM_INFO, &req, sizeof(req));
@@ -945,7 +957,7 @@ msm_bo_init(struct tu_device *dev,
    }
 
    /* We don't use bo->name here because for the !TU_DEBUG=bo case bo->name is NULL. */
-   tu_bo_set_kernel_name(dev, bo, name);
+   tu_bo_set_kernel_name(dev, bo, name, strlen(name));
 
    if (result == VK_SUCCESS &&
        (mem_property & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) &&

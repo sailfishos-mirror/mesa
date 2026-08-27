@@ -646,7 +646,7 @@ tu_bo_init(struct tu_device *dev,
  * reduce overhead.
  */
 static void
-tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name)
+tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name, size_t sz)
 {
    MESA_TRACE_FUNC();
    bool kernel_bo_names = dev->bo_sizes != NULL;
@@ -656,7 +656,16 @@ tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name)
    if (!kernel_bo_names)
       return;
 
-   size_t sz = strlen(name);
+   char name_buf[32];
+   if (sz > (sizeof(name_buf) - 1)) {
+      mesa_logd("Truncating BO name: %s", name);
+
+      memcpy(name_buf, name, sizeof(name_buf) - 1);
+      name_buf[sizeof(name_buf) - 1] = '\0';
+
+      name = name_buf;
+      sz = sizeof(name_buf) - 1;
+   }
 
    unsigned req_len = sizeof(struct msm_ccmd_gem_set_name_req) + align(sz, 4);
 
@@ -763,7 +772,7 @@ virtio_bo_init(struct tu_device *dev,
       lazy_vma->msm.backs_lazy_bo = true;
 
    /* We don't use bo->name here because for the !TU_DEBUG=bo case bo->name is NULL. */
-   tu_bo_set_kernel_name(dev, bo, name);
+   tu_bo_set_kernel_name(dev, bo, name, strlen(name));
 
    if ((mem_property & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) &&
        !(mem_property & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
