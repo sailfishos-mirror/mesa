@@ -7032,10 +7032,11 @@ enum anv_vid_mem_vp9_types {
    ANV_VID_MEM_VP9_SEGMENT_ID,
    ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE,
    ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE,
-   ANV_VID_MEM_VP9_MV_1,
-   ANV_VID_MEM_VP9_MV_2,
+   ANV_VID_MEM_VP9_MV_CUR,
+   ANV_VID_MEM_VP9_MV_PREV,
    ANV_VID_MEM_VP9_SEGMENT_ID_RESET,
    ANV_VID_MEM_VP9_INTER_PROB_SAVED,
+   ANV_VID_MEM_VP9_MV_ZERO,
    ANV_VID_MEM_VP9_DEC_MAX,
 };
 
@@ -7097,7 +7098,6 @@ struct anv_vp9_last_frame_info {
    StdVideoVP9FrameType frame_type;
    bool key_frame;
    bool show_frame;
-   bool mv_in_turn;
 };
 
 struct anv_video_session {
@@ -7113,8 +7113,8 @@ struct anv_video_session {
    /* For VP9 decoding from here */
    struct anv_vp9_last_frame_info vp9_last_frame;
 
-   /* Indicate if the segment id reset buffer is zero-initialized */
-   bool segid_reset_initialized;
+   /* Indicate if the zero-source buffers are zero-initialized */
+   bool vp9_zero_buffers_initialized;
 
    /*
     * The prob_tbl_set can have the following:
@@ -7136,8 +7136,8 @@ struct anv_video_session {
 void anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
                              struct anv_video_session *vid);
 
-void anv_init_vp9_segment_id_reset(struct anv_cmd_buffer *cmd,
-                                   struct anv_video_session *vid);
+void anv_init_vp9_zero_buffers(struct anv_cmd_buffer *cmd,
+                               struct anv_video_session *vid);
 
 struct anv_vp9_prob_copy {
    uint32_t staging_offset;

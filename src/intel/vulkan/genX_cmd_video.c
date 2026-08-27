@@ -43,9 +43,9 @@ genX(CmdBeginVideoCodingKHR)(VkCommandBuffer commandBuffer,
    cmd_buffer->video.params = params;
 
    if (vid->vk.op == VK_VIDEO_CODEC_OPERATION_DECODE_VP9_BIT_KHR) {
-      if (!vid->segid_reset_initialized) {
-         anv_init_vp9_segment_id_reset(cmd_buffer, vid);
-         vid->segid_reset_initialized = true;
+      if (!vid->vp9_zero_buffers_initialized) {
+         anv_init_vp9_zero_buffers(cmd_buffer, vid);
+         vid->vp9_zero_buffers_initialized = true;
       }
       return;
    }
@@ -3394,6 +3394,32 @@ anv_vp9_emit_restore_inter_probs(struct anv_cmd_buffer *cmd_buffer,
 }
 
 static void
+anv_vp9_emit_mv_prev_update(struct anv_cmd_buffer *cmd_buffer,
+                            struct anv_video_session *vid,
+                            bool key_frame_or_intra_only)
+{
+   const uint32_t src_id = key_frame_or_intra_only ?
+      ANV_VID_MEM_VP9_MV_ZERO : ANV_VID_MEM_VP9_MV_CUR;
+
+   struct anv_address prev_addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].offset
+   };
+
+   struct anv_address src_addr = {
+      vid->vid_mem[src_id].mem->bo,
+      vid->vid_mem[src_id].offset
+   };
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
+      flush.VideoPipelineCacheInvalidate = 1;
+   }
+
+   anv_huc_emit_copy(cmd_buffer, prev_addr, src_addr,
+                     vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].size);
+}
+
+static void
 anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
                      const VkVideoDecodeInfoKHR *frame_info)
 {
@@ -3611,28 +3637,16 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      /* For VP9 decoding, only 2 mv buffers are used alternately */
-      uint8_t cur_mv_idx = 0, col_mv_idx = 0;
-
-      if (!key_frame_or_intra_only) {
-         if (vid->vp9_last_frame.mv_in_turn) {
-            cur_mv_idx = ANV_VID_MEM_VP9_MV_1;
-            col_mv_idx = ANV_VID_MEM_VP9_MV_2;
-         } else {
-            cur_mv_idx = ANV_VID_MEM_VP9_MV_2;
-            col_mv_idx = ANV_VID_MEM_VP9_MV_1;
-         }
-      }
-
       if (!key_frame_or_intra_only) {
          buf.CurrentMVTemporalBufferAddress = (struct anv_address) {
-            vid->vid_mem[cur_mv_idx].mem->bo,
-            vid->vid_mem[cur_mv_idx].offset
+            vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo,
+            vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].offset
          };
       }
 
       buf.CurrentMVTemporalBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[cur_mv_idx].mem->bo, 0),
+         .MOCS = anv_mocs(cmd_buffer->device,
+                          vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo, 0),
       };
 
       if (!key_frame_or_intra_only) {
@@ -3674,8 +3688,8 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
       if (!key_frame_or_intra_only) {
          buf.CollocatedMVTemporalBufferAddress[0] = (struct anv_address) {
-            vid->vid_mem[col_mv_idx].mem->bo,
-            vid->vid_mem[col_mv_idx].offset
+            vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].mem->bo,
+            vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].offset
          };
       }
 
@@ -3975,7 +3989,6 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
    vid->vp9_last_frame.height = frame_height;
    vid->vp9_last_frame.key_frame = key_frame_or_intra_only;
    vid->vp9_last_frame.show_frame = std_pic->flags.show_frame;
-   vid->vp9_last_frame.mv_in_turn = !vid->vp9_last_frame.mv_in_turn;
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_BSD_OBJECT), bsd) {
       bsd.IndirectBSDDataLength = frame_info->srcBufferRange - vp9_pic_info->compressedHeaderOffset;
@@ -3999,6 +4012,8 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
    if (save_restore_inter_probs)
       anv_vp9_emit_restore_inter_probs(cmd_buffer, vid);
+
+   anv_vp9_emit_mv_prev_update(cmd_buffer, vid, key_frame_or_intra_only);
 }
 
 static void

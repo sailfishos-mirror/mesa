@@ -788,8 +788,9 @@ get_vp9_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
    case ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE:
       size = width_in_ctb;
       break;
-   case ANV_VID_MEM_VP9_MV_1:
-   case ANV_VID_MEM_VP9_MV_2:
+   case ANV_VID_MEM_VP9_MV_CUR:
+   case ANV_VID_MEM_VP9_MV_PREV:
+   case ANV_VID_MEM_VP9_MV_ZERO:
       size = ((uint64_t)width_in_ctb * height_in_ctb * 9);
       break;
    default:
@@ -1444,15 +1445,24 @@ anv_init_av1_cdf_tables(struct anv_cmd_buffer *cmd,
 }
 
 void
-anv_init_vp9_segment_id_reset(struct anv_cmd_buffer *cmd,
-                              struct anv_video_session *vid)
+anv_init_vp9_zero_buffers(struct anv_cmd_buffer *cmd,
+                          struct anv_video_session *vid)
 {
-   VkResult result =
-      anv_video_zero_mem(cmd->device,
-                         &vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET]);
+   const uint32_t bufs[3] = {
+      ANV_VID_MEM_VP9_SEGMENT_ID_RESET,
+      ANV_VID_MEM_VP9_MV_PREV,
+      ANV_VID_MEM_VP9_MV_ZERO,
+   };
 
-   if (result != VK_SUCCESS)
-      anv_batch_set_error(&cmd->batch, result);
+   for (uint32_t i = 0; i < 3; i++) {
+      VkResult result =
+         anv_video_zero_mem(cmd->device, &vid->vid_mem[bufs[i]]);
+
+      if (result != VK_SUCCESS) {
+         anv_batch_set_error(&cmd->batch, result);
+         return;
+      }
+   }
 }
 
 #define VP9_CTX_DEFAULT(field) {                                \
