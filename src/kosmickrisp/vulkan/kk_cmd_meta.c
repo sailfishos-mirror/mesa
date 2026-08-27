@@ -216,17 +216,18 @@ kk_CmdFillMemoryKHR(VkCommandBuffer commandBuffer,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-kk_CmdUpdateBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer,
-                   VkDeviceSize dstOffset, VkDeviceSize dstRange,
-                   const void *pData)
+kk_CmdUpdateMemoryKHR(VkCommandBuffer commandBuffer,
+                      const VkDeviceAddressRangeKHR *pDstRange,
+                      VkAddressCommandFlagsKHR dstFlags, VkDeviceSize dataSize,
+                      const void *pData)
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
 
    struct kk_meta_save save;
    kk_meta_begin(cmd, &save, VK_PIPELINE_BIND_POINT_COMPUTE,
-                 "meta:vkCmdUpdateBuffer");
-   vk_meta_update_buffer(&cmd->vk, &dev->meta, dstBuffer, dstOffset, dstRange,
+                 "meta:vkCmdUpdateMemoryKHR");
+   vk_meta_update_memory(&cmd->vk, &dev->meta, pDstRange, dstFlags, dataSize,
                          pData);
    kk_meta_end(cmd, &save, VK_PIPELINE_BIND_POINT_COMPUTE);
 }
