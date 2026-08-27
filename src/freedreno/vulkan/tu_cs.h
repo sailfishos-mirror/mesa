@@ -141,6 +141,11 @@ struct tu_cs
 
    void scratch_to_reg(struct fd_reg_pair reg, struct tu_scratch_slot scratch, unsigned cnt);
    void reg_to_scratch(struct tu_scratch_slot scratch, struct fd_reg_pair reg, unsigned cnt);
+   void scratch_write(struct tu_scratch_slot scratch, uint32_t *val, unsigned cnt);
+   void scratch_write(struct tu_scratch_slot scratch, uint32_t val) {
+      scratch_write(scratch, &val, 1);
+   }
+
 };
 
 void

@@ -25,6 +25,7 @@
 #include "tu_image.h"
 #include "tu_knl.h"
 #include "tu_perfetto.h"
+#include "tu_scratch_ram.h"
 #include "tu_subsampled_image.h"
 #include "tu_tile_config.h"
 #include "tu_tracepoints.h"
@@ -9658,9 +9659,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
          tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(SP_CS_NDRANGE_1(CHIP).reg));
          tu_cs_emit_qw(cs, info->indirect);
 
-         tu_cs_emit_pkt7(cs, CP_SCRATCH_WRITE, 2);
-         tu_cs_emit(cs, CP_SCRATCH_WRITE_0_SCRATCH(0));
-         tu_cs_emit(cs, ~0u);
+         cs->scratch_write(tu_scratch(tu_dispatch.scratch0), ~0);
 
          /* CP_REG_RMW and CP_REG_TO_SCRATCH implicitly do a CP_WAIT_FOR_IDLE
           * *and* CP_WAIT_FOR_ME, which is a full pipeline stall that we don't
@@ -9675,7 +9674,9 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(0) |
+                    CP_REG_RMW_0_DST_REG(
+                       tu_scratch(tu_dispatch.scratch0).slot
+                    ) |
                     CP_REG_RMW_0_DST_SCRATCH |
                     CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
                     CP_REG_RMW_0_SRC0_IS_REG |
@@ -9688,7 +9689,9 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(0) |
+                    CP_REG_RMW_0_DST_REG(
+                       tu_scratch(tu_dispatch.scratch0).slot
+                    ) |
                     CP_REG_RMW_0_DST_SCRATCH |
                     CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
                     CP_REG_RMW_0_ROTATE(A7XX_SP_CS_NDRANGE_7_LOCALSIZEX__SHIFT));
@@ -9696,14 +9699,10 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
          tu_cs_emit(cs, 0); /* SRC1 */
 
          /* write scratch0 to SP_CS_NDRANGE_7 */
-         tu_cs_emit_pkt7(cs, CP_SCRATCH_TO_REG, 1);
-         tu_cs_emit(cs,
-                    CP_SCRATCH_TO_REG_0_REG(SP_CS_NDRANGE_7(CHIP).reg) |
-                    CP_SCRATCH_TO_REG_0_SCRATCH(0));
+         cs->scratch_to_reg(SP_CS_NDRANGE_7(CHIP), tu_scratch(tu_dispatch.scratch0), 1);
 
-         tu_cs_emit_pkt7(cs, CP_SCRATCH_WRITE, 2);
-         tu_cs_emit(cs, CP_SCRATCH_WRITE_0_SCRATCH(0));
-         tu_cs_emit(cs, ~0u);
+         cs->scratch_write(tu_scratch(tu_dispatch.scratch0), ~0);
+
 
          /* scratch0 = (scratch0 & CS_NDRANGE_1) + local_size - 1
           *          = (~0u & CS_NDRANGE_1) + local_size - 1
@@ -9711,7 +9710,9 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(0) |
+                    CP_REG_RMW_0_DST_REG(
+                       tu_scratch(tu_dispatch.scratch0).slot
+                    ) |
                     CP_REG_RMW_0_DST_SCRATCH |
                     CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
                     CP_REG_RMW_0_SRC0_IS_REG |
@@ -9728,7 +9729,9 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(0) |
+                    CP_REG_RMW_0_DST_REG(
+                       tu_scratch(tu_dispatch.scratch0).slot
+                    ) |
                     CP_REG_RMW_0_DST_SCRATCH |
                     CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
                     CP_REG_RMW_0_ROTATE(32 - local_size_log2));
@@ -9736,10 +9739,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
          tu_cs_emit(cs, 0); /* SRC1 */
 
          /* write scratch0 to SP_CS_KERNEL_GROUP_X */
-         tu_cs_emit_pkt7(cs, CP_SCRATCH_TO_REG, 1);
-         tu_cs_emit(cs,
-                    CP_SCRATCH_TO_REG_0_REG(SP_CS_KERNEL_GROUP_X(CHIP).reg) |
-                    CP_SCRATCH_TO_REG_0_SCRATCH(0));
+         cs->scratch_to_reg(SP_CS_KERNEL_GROUP_X(CHIP), tu_scratch(tu_dispatch.scratch0), 1);
       } else {
          tu_cs_emit_regs(cs,
                          SP_CS_NDRANGE_0(CHIP, .kerneldim = 3,

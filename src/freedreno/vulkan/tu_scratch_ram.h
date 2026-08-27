@@ -20,6 +20,13 @@ union tu_scratch_ram {
       uint32_t RB_CNTL;
       uint32_t RB_BUFFER_CNTL;
    } store_3d_blit;
+
+   /**
+    * Used by tu_dispatch() for unaligned indirect dispatch.
+    */
+   struct {
+      uint32_t scratch0;
+   } tu_dispatch;
 };
 
 #define tu_scratch(_field) ((struct tu_scratch_slot){ \
@@ -46,6 +53,17 @@ tu_cs::reg_to_scratch(struct tu_scratch_slot scratch, struct fd_reg_pair reg, un
          .scratch = scratch.slot,
          .cnt = cnt - 1,
       ));
+}
+
+inline void
+tu_cs::scratch_write(struct tu_scratch_slot scratch, uint32_t *val, unsigned cnt)
+{
+   tu_pkt7 pkt(this, CP_SCRATCH_WRITE, cnt + 1);
+   pkt.add(CP_SCRATCH_WRITE_0(
+         .scratch = scratch.slot,
+      ));
+   for (unsigned i = 0; i < cnt; i++)
+      pkt.add(val[i]);
 }
 
 /* not called anywhere, just for build time asserts */
