@@ -2814,7 +2814,7 @@
         "description": "freedreno/computerator: attach perfcntr BO to CS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2bff78dcab4bebab633f2e36e824f806bf2d8fc2",
         "notes": null
