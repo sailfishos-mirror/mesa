@@ -3182,7 +3182,9 @@ anv_vp9_get_ref_idx(const struct VkVideoDecodeInfoKHR *frame_info, int slot_id)
 
 static void
 anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
-                            const StdVideoDecodeVP9PictureInfo *std_pic)
+                            const StdVideoDecodeVP9PictureInfo *std_pic,
+                            bool *save_restore_inter_probs,
+                            bool *follow_up_partial_reset)
 {
    const bool key_frame = std_pic->frame_type == STD_VIDEO_VP9_FRAME_TYPE_KEY;
    const bool key_frame_or_intra_only =
@@ -3201,8 +3203,9 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
    bool reset_specified = std_pic->reset_frame_context == 2 && std_pic->flags.intra_only;
    bool copy_seg_prob = false;
    bool copy_seg_prob_default = false;
-   bool do_save_interprobs = false;
-   bool do_restore_interprobs = false;
+
+   *save_restore_inter_probs = false;
+   *follow_up_partial_reset = false;
 
    if (std_pic->flags.segmentation_enabled) {
       if (segmentation->flags.segmentation_update_map) {
@@ -3225,8 +3228,6 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
     * 1: Reset partially from INTER_MODE_PROBS_OFFSET to SEG_PROBS_OFFSET
     * 2: Copy seg prob
     * 3: Copy seg prob default
-    * 4: Save inter probs
-    * 5: Restore inter probs
     */
 
    if (reset_all) {
@@ -3235,45 +3236,24 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
 
       for (int i = 1; i < 4; i++)
          BITSET_CLEAR(vid->frame_ctx_reset_mask, i);
-      vid->pending_frame_partial_reset = key_frame_or_intra_only;
-      vid->saved_inter_probs = false;
+      *follow_up_partial_reset = key_frame_or_intra_only;
    } else if (reset_specified) {
       if (std_pic->frame_context_idx == 0) {
          BITSET_SET(vid->prob_tbl_set, 0);
-         vid->pending_frame_partial_reset = true;
+         *follow_up_partial_reset = true;
       } else {
          BITSET_CLEAR(vid->frame_ctx_reset_mask, std_pic->frame_context_idx);
-         if (!vid->pending_frame_partial_reset) {
-            if (!vid->saved_inter_probs) {
-               vid->saved_inter_probs = true;
-               do_save_interprobs = true;
-            }
-            BITSET_SET(vid->prob_tbl_set, 1);
-         }
+         BITSET_SET(vid->prob_tbl_set, 1);
+         *save_restore_inter_probs = true;
       }
    } else if (std_pic->flags.intra_only) {
-      if (!vid->pending_frame_partial_reset) {
-         if (!vid->saved_inter_probs) {
-            vid->saved_inter_probs = true;
-            do_save_interprobs = true;
-         }
-         BITSET_SET(vid->prob_tbl_set, 1);
-      }
+      BITSET_SET(vid->prob_tbl_set, 1);
+      *save_restore_inter_probs = true;
    } else {
-      if (std_pic->frame_context_idx == 0) {
-         if (vid->pending_frame_partial_reset) {
-            BITSET_SET(vid->prob_tbl_set, 1);
-            vid->pending_frame_partial_reset = false;
-         } else if (vid->saved_inter_probs) {
-            vid->saved_inter_probs = false;
-            do_restore_interprobs = true;
-         }
-      } else {
-         if (!key_frame_or_intra_only &&
-             !BITSET_TEST(vid->frame_ctx_reset_mask, std_pic->frame_context_idx)) {
-            BITSET_SET(vid->frame_ctx_reset_mask, std_pic->frame_context_idx);
-            BITSET_SET(vid->prob_tbl_set, 0);
-         }
+      if (std_pic->frame_context_idx != 0 &&
+          !BITSET_TEST(vid->frame_ctx_reset_mask, std_pic->frame_context_idx)) {
+         BITSET_SET(vid->frame_ctx_reset_mask, std_pic->frame_context_idx);
+         BITSET_SET(vid->prob_tbl_set, 0);
       }
    }
 
@@ -3282,14 +3262,6 @@ anv_vp9_decide_prob_tbl_set(struct anv_video_session *vid,
    } else if (copy_seg_prob_default) {
       BITSET_SET(vid->prob_tbl_set, 3);
    }
-
-   if (do_save_interprobs) {
-      BITSET_SET(vid->prob_tbl_set, 4);
-   } else if (do_restore_interprobs) {
-      BITSET_SET(vid->prob_tbl_set, 5);
-   }
-
-   return;
 }
 
 static void
@@ -3298,10 +3270,10 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
                              uint32_t prob_id,
                              bool key_frame,
                              bool reset_segment_id,
+                             bool save_inter_probs,
                              const StdVideoVP9Segmentation *segmentation)
 {
    struct anv_vp9_prob_copy copies[ANV_VP9_PROB_MAX_COPIES];
-   bool save_inter_probs = false, restore_inter_probs = false;
 
    struct anv_state staging_state =
       anv_cmd_buffer_alloc_temporary_state(cmd_buffer, 4096, 4096);
@@ -3311,8 +3283,7 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
 
    uint32_t num_copies =
       anv_vp9_fill_prob_staging(vid, staging_state.map, key_frame,
-                                segmentation, copies,
-                                &save_inter_probs, &restore_inter_probs);
+                                segmentation, copies);
 
    struct anv_address staging_addr =
       anv_cmd_buffer_temporary_state_address(cmd_buffer, staging_state);
@@ -3351,13 +3322,6 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
                         copies[i].size);
    }
 
-   if (restore_inter_probs) {
-      anv_huc_emit_copy(cmd_buffer,
-                        anv_address_add(prob_addr, ANV_VP9_INTER_MODE_PROBS_OFFSET),
-                        saved_addr,
-                        ANV_VP9_INTER_MODE_PROBS_SIZE);
-   }
-
    if (reset_segment_id) {
       struct anv_address seg_id_addr = {
          vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
@@ -3372,6 +3336,61 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
       anv_huc_emit_copy(cmd_buffer, seg_id_addr, seg_id_reset_addr,
                         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size);
    }
+}
+
+static void
+anv_vp9_emit_followup_partial_reset(struct anv_cmd_buffer *cmd_buffer,
+                                    struct anv_video_session *vid)
+{
+   struct anv_state staging_state =
+      anv_cmd_buffer_alloc_temporary_state(cmd_buffer,
+                                           ANV_VP9_INTER_MODE_PROBS_SIZE, 64);
+
+   if (staging_state.map == NULL)
+      return;
+
+   anv_vp9_fill_inter_default_probs(staging_state.map);
+
+   struct anv_address staging_addr =
+      anv_cmd_buffer_temporary_state_address(cmd_buffer, staging_state);
+
+   struct anv_address prob0_addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].offset
+   };
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
+      flush.VideoPipelineCacheInvalidate = 1;
+   }
+
+   anv_huc_emit_copy(cmd_buffer,
+                     anv_address_add(prob0_addr, ANV_VP9_INTER_MODE_PROBS_OFFSET),
+                     staging_addr,
+                     ANV_VP9_INTER_MODE_PROBS_SIZE);
+}
+
+static void
+anv_vp9_emit_restore_inter_probs(struct anv_cmd_buffer *cmd_buffer,
+                                 struct anv_video_session *vid)
+{
+   struct anv_address prob0_addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].offset
+   };
+
+   struct anv_address saved_addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].offset
+   };
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
+      flush.VideoPipelineCacheInvalidate = 1;
+   }
+
+   anv_huc_emit_copy(cmd_buffer,
+                     anv_address_add(prob0_addr, ANV_VP9_INTER_MODE_PROBS_OFFSET),
+                     saved_addr,
+                     ANV_VP9_INTER_MODE_PROBS_SIZE);
 }
 
 static void
@@ -3413,10 +3432,15 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
    const bool reset_segment_id = key_frame_or_intra_only || is_scaling ||
                                  std_pic->flags.error_resilient_mode;
 
-   anv_vp9_decide_prob_tbl_set(vid, std_pic);
+   bool save_restore_inter_probs = false;
+   bool follow_up_partial_reset = false;
+
+   anv_vp9_decide_prob_tbl_set(vid, std_pic, &save_restore_inter_probs,
+                               &follow_up_partial_reset);
 
    anv_vp9_emit_gpu_prob_update(cmd_buffer, vid, prob_id,
                                 key_frame_or_intra_only, reset_segment_id,
+                                save_restore_inter_probs,
                                 segmentation);
 
 #if GFX_VER >= 12
@@ -3969,6 +3993,12 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       flush.HEVCPipelineCommandFlush = true;
       flush.VDCommandMessageParserDone = true;
    }
+
+   if (follow_up_partial_reset)
+      anv_vp9_emit_followup_partial_reset(cmd_buffer, vid);
+
+   if (save_restore_inter_probs)
+      anv_vp9_emit_restore_inter_probs(cmd_buffer, vid);
 }
 
 static void

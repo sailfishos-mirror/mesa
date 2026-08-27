@@ -7112,10 +7112,6 @@ struct anv_video_session {
 
    /* For VP9 decoding from here */
    struct anv_vp9_last_frame_info vp9_last_frame;
-   /* Indicate if there's pending partial reset for prob 0 */
-   bool pending_frame_partial_reset;
-   /* Indicate if inter probs saved for prob 0 */
-   bool saved_inter_probs;
 
    /* Indicate if the segment id reset buffer is zero-initialized */
    bool segid_reset_initialized;
@@ -7127,10 +7123,8 @@ struct anv_video_session {
     * 1: Reset partially from INTER_MODE_PROBS_OFFSET to SEG_PROBS_OFFSET
     * 2: Copy seg prob
     * 3: Copy seg prob default
-    * 4: Save inter probs
-    * 5: Restore inter probs
     */
-   BITSET_DECLARE(prob_tbl_set, 6);
+   BITSET_DECLARE(prob_tbl_set, 4);
 
    /* Mask for resetting all each frame context */
    BITSET_DECLARE(frame_ctx_reset_mask, 4);
@@ -7155,9 +7149,9 @@ uint32_t anv_vp9_fill_prob_staging(struct anv_video_session *vid,
                                    void *staging,
                                    bool key_frame,
                                    const StdVideoVP9Segmentation *seg,
-                                   struct anv_vp9_prob_copy *copies,
-                                   bool *save_inter_probs,
-                                   bool *restore_inter_probs);
+                                   struct anv_vp9_prob_copy *copies);
+
+void anv_vp9_fill_inter_default_probs(void *staging);
 
 void anv_calculate_qmul(const struct VkVideoDecodeVP9PictureInfoKHR *vp9_pic,
                         uint32_t qyac,

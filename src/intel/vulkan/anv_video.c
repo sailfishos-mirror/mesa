@@ -1465,16 +1465,11 @@ anv_vp9_fill_prob_staging(struct anv_video_session *vid,
                           void *staging,
                           bool key_frame,
                           const StdVideoVP9Segmentation *seg,
-                          struct anv_vp9_prob_copy *copies,
-                          bool *save_inter_probs,
-                          bool *restore_inter_probs)
+                          struct anv_vp9_prob_copy *copies)
 {
    vp9_frame_context ctx = { 0, };
    uint32_t num_copies = 0;
    uint32_t staging_offset = 0;
-
-   *save_inter_probs = BITSET_TEST(vid->prob_tbl_set, 4);
-   *restore_inter_probs = BITSET_TEST(vid->prob_tbl_set, 5);
 
    /* Reset all */
    if (BITSET_TEST(vid->prob_tbl_set, 0)) {
@@ -1567,10 +1562,29 @@ anv_vp9_fill_prob_staging(struct anv_video_session *vid,
    }
 
    /* Clear probability setting table */
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < 4; i++)
       BITSET_CLEAR(vid->prob_tbl_set, i);
 
    return num_copies;
+}
+
+void
+anv_vp9_fill_inter_default_probs(void *staging)
+{
+   vp9_frame_context ctx = { 0, };
+
+   VP9_CTX_DEFAULT(inter_mode_probs);
+   VP9_CTX_DEFAULT(switchable_interp_prob);
+   VP9_CTX_DEFAULT(intra_inter_prob);
+   VP9_CTX_DEFAULT(comp_inter_prob);
+   VP9_CTX_DEFAULT(single_ref_prob);
+   VP9_CTX_DEFAULT(comp_ref_prob);
+   VP9_CTX_DEFAULT(y_mode_prob);
+   VP9_CTX_DEFAULT(partition_probs);
+   ctx.nmvc = default_nmv_context;
+   VP9_CTX_DEFAULT(uv_mode_probs);
+
+   memcpy(staging, (void *)&ctx.inter_mode_probs, ANV_VP9_INTER_MODE_PROBS_SIZE);
 }
 
 void
