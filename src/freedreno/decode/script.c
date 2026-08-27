@@ -265,8 +265,7 @@ l_rnn_etype(lua_State *L, struct rnn *rnn, struct rnndelem *elem,
       return l_rnn_etype(L, rnn, elem->subelems[0], offset);
    default:
       /* hmm.. */
-      printf("unhandled type: %d\n", elem->type);
-      return 0;
+      return luaL_error(L, "unhandled type: %d\n", elem->type);
    }
 }
 
@@ -292,7 +291,7 @@ l_rnn_struct_meta_index(lua_State *L)
       }
    }
 
-   return 0;
+   return luaL_error(L, "no such member: %s", name);
 }
 
 static const struct luaL_Reg l_meta_rnn_struct[] = {
@@ -338,8 +337,6 @@ l_rnn_array_meta_index(lua_State *L)
    } else {
       return l_rnn_etype_struct(L, rnndoff->rnn, elem, offset);
    }
-
-   return 0;
 }
 
 static const struct luaL_Reg l_meta_rnn_array[] = {
@@ -376,7 +373,7 @@ l_rnn_reg_meta_index(lua_State *L)
    int ret = pushfield(L, info, rnndoff->rnn, rnndoff->offset, name);
 
    if (!ret)
-      printf("invalid member: %s\n", name);
+      return luaL_error(L, "No such member: %s\n", name);
 
    return ret;
 }
@@ -437,7 +434,7 @@ l_rnn_enumtype_meta_index(lua_State *L)
 
    int val = rnn_enumval(et->rnn, et->e->name, name);
    if (val < 0)
-      return 0;
+      return luaL_error(L, "no such member: %s", name);
 
    pushenum(L, et->rnn, val, et->e);
 
@@ -518,7 +515,7 @@ l_rnn_meta_dom_index(lua_State *L)
       }
    }
 
-   return 0;
+   return luaL_error(L, "No such member: %s", lua_tostring(L, 2));
 }
 
 /*
@@ -591,7 +588,7 @@ l_rnn_meta_shaderstat_index(lua_State *L)
    } else if (!strcmp(name, "cs")) {
       stage = MESA_SHADER_COMPUTE;
    } else {
-      return 0;
+      return luaL_error(L, "No such member: %s", name);
    }
 
    struct shader_stats *stats = get_shader_stats(stage);
@@ -641,7 +638,7 @@ l_rnn_meta_index(lua_State *L)
    if (e)
       return l_rnn_etype_enumtype(L, rnn, e);
 
-   return 0;
+   return luaL_error(L, "No such member: %s", name);
 }
 
 static int
