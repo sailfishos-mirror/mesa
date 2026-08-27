@@ -240,11 +240,15 @@ tu6_lazy_init_vsc(struct tu_cmd_buffer *cmd)
    uint32_t vsc_draw_overflow = global->vsc_draw_overflow;
    uint32_t vsc_prim_overflow = global->vsc_prim_overflow;
 
-   if (vsc_draw_overflow >= dev->vsc_draw_strm_pitch)
+   if (vsc_draw_overflow >= dev->vsc_draw_strm_pitch) {
       dev->vsc_draw_strm_pitch = (dev->vsc_draw_strm_pitch - VSC_PAD) * 2 + VSC_PAD;
+      perf_debug(cmd->device, "VSC draw stream overflow, increasing pitch to %u", dev->vsc_draw_strm_pitch);
+   }
 
-   if (vsc_prim_overflow >= dev->vsc_prim_strm_pitch)
+   if (vsc_prim_overflow >= dev->vsc_prim_strm_pitch) {
       dev->vsc_prim_strm_pitch = (dev->vsc_prim_strm_pitch - VSC_PAD) * 2 + VSC_PAD;
+      perf_debug(cmd->device, "VSC prim stream overflow, increasing pitch to %u", dev->vsc_prim_strm_pitch);
+   }
 
    cmd->vsc_prim_strm_pitch = dev->vsc_prim_strm_pitch;
    cmd->vsc_draw_strm_pitch = dev->vsc_draw_strm_pitch;
