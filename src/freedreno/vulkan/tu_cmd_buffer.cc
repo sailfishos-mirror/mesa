@@ -8972,32 +8972,6 @@ vs_params_offset(struct tu_cmd_buffer *cmd)
    return param_offset;
 }
 
-template <chip CHIP>
-static void
-tu6_emit_empty_vs_params(struct tu_cmd_buffer *cmd)
-{
-   if (cmd->state.last_vs_params.empty)
-      return;
-
-   if (cmd->device->physical_device->info->props.load_shader_consts_via_preamble) {
-      struct tu_cs cs;
-      cmd->state.vs_params = tu_cs_draw_state(&cmd->sub_cs, &cs, 2);
-
-      /* CP_LOAD_STATE6_GEOM from previous draws can override consts loaded for
-       * indirect draws, causing problems like incorrect vertex index computation.
-       * VS state invalidation avoids that.
-       */
-      tu_cs_emit_regs(&cs, SP_UPDATE_CNTL(CHIP,
-         .vs_state = true));
-      assert(cs.cur == cs.end);
-   } else {
-      cmd->state.vs_params = (struct tu_draw_state) {};
-   }
-   cmd->state.dirty |= TU_CMD_DIRTY_VS_PARAMS;
-
-   cmd->state.last_vs_params.empty = true;
-}
-
 static void
 tu6_emit_vs_params(struct tu_cmd_buffer *cmd,
                    uint32_t draw_id,
@@ -9070,6 +9044,32 @@ tu6_emit_vs_params(struct tu_cmd_buffer *cmd,
    cmd->state.vs_params = (struct tu_draw_state) {entry.bo->iova + entry.offset, entry.size / 4};
 
    cmd->state.dirty |= TU_CMD_DIRTY_VS_PARAMS;
+}
+
+template <chip CHIP>
+static void
+tu6_emit_empty_vs_params(struct tu_cmd_buffer *cmd)
+{
+   if (cmd->state.last_vs_params.empty)
+      return;
+
+   if (cmd->device->physical_device->info->props.load_shader_consts_via_preamble) {
+      struct tu_cs cs;
+      cmd->state.vs_params = tu_cs_draw_state(&cmd->sub_cs, &cs, 2);
+
+      /* CP_LOAD_STATE6_GEOM from previous draws can override consts loaded for
+       * indirect draws, causing problems like incorrect vertex index computation.
+       * VS state invalidation avoids that.
+       */
+      tu_cs_emit_regs(&cs, SP_UPDATE_CNTL(CHIP,
+         .vs_state = true));
+      assert(cs.cur == cs.end);
+   } else {
+      cmd->state.vs_params = (struct tu_draw_state) {};
+   }
+   cmd->state.dirty |= TU_CMD_DIRTY_VS_PARAMS;
+
+   cmd->state.last_vs_params.empty = true;
 }
 
 template <chip CHIP>
