@@ -15,10 +15,9 @@
 #include "util/hash_table.h"
 #include "util/libsync.h"
 #include "util/u_debug.h"
-#include "util/u_process.h"
-#include "vk_util.h"
 
 #include "common/redump.h"
+#include "drm/msm/msm_common.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_device.h"
@@ -90,44 +89,6 @@ tu_drm_get_prr(const struct tu_physical_device *dev)
 }
 
 static int
-tu_drm_get_va_prop(const struct tu_physical_device *dev,
-                   uint64_t *va_start, uint64_t *va_size)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_VA_START, &value);
-   if (ret)
-      return ret;
-
-   *va_start = value;
-
-   ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_VA_SIZE, &value);
-   if (ret)
-      return ret;
-
-   *va_size = value;
-
-   return 0;
-}
-
-static bool
-tu_drm_has_preemption(const struct tu_physical_device *dev)
-{
-   struct drm_msm_submitqueue req = {
-      .flags = MSM_SUBMITQUEUE_ALLOW_PREEMPT,
-      .prio = dev->submitqueue_priority_count / 2,
-   };
-
-   int ret = drmCommandWriteRead(dev->local_fd,
-                                 DRM_MSM_SUBMITQUEUE_NEW, &req, sizeof(req));
-   if (ret)
-      return false;
-
-   drmCommandWrite(dev->local_fd, DRM_MSM_SUBMITQUEUE_CLOSE, &req.id,
-                   sizeof(req.id));
-   return true;
-}
-
-static int
 tu_drm_set_param(int fd, uint32_t param, uint64_t value, uint32_t len)
 {
    return msm_common_set_param(fd, MSM_PIPE_3D0, param, value, len);
@@ -145,13 +106,7 @@ tu_drm_set_debuginfo(int fd)
    if (!TU_DEBUG(COMM))
       return;
 
-   const char *comm = util_get_process_name();
-   if (comm)
-      tu_drm_set_param(fd, MSM_PARAM_COMM, (uintptr_t)comm, strlen(comm));
-
-   static char cmdline[0x1000];
-   if (util_get_command_line(cmdline, sizeof(cmdline)))
-      tu_drm_set_param(fd, MSM_PARAM_CMDLINE, (uintptr_t)cmdline, strlen(cmdline));
+   msm_common_set_debuginfo(fd, MSM_PIPE_3D0);
 }
 
 static uint32_t
@@ -376,12 +331,6 @@ msm_submitqueue_close(struct tu_device *dev, struct tu_queue *queue)
    }
 }
 
-static void
-tu_gem_close(const struct tu_device *dev, uint32_t gem_handle)
-{
-   msm_common_gem_close(dev->fd, gem_handle);
-}
-
 /** Helper for DRM_MSM_GEM_INFO, returns 0 on error. */
 static uint64_t
 tu_gem_info(const struct tu_device *dev, uint32_t gem_handle, uint32_t info)
@@ -474,7 +423,7 @@ tu_free_zombie_vma_locked(struct tu_device *dev, bool wait)
             return VK_ERROR_UNKNOWN;
          }
 
-         tu_gem_close(dev, vma->gem_handle);
+         msm_common_gem_close(dev->fd, vma->gem_handle);
 
          util_vma_heap_free(&dev->vma, vma->iova, vma->size);
       }
@@ -749,7 +698,7 @@ tu_bo_init(struct tu_device *dev,
    }
 
    if (result != VK_SUCCESS) {
-      tu_gem_close(dev, gem_handle);
+      msm_common_gem_close(dev->fd, gem_handle);
       return result;
    }
 
@@ -763,7 +712,7 @@ tu_bo_init(struct tu_device *dev,
       result = tu_bo_add_to_bo_list(dev, gem_handle, flags, iova, &idx);
       if (result != VK_SUCCESS) {
          mtx_unlock(&dev->bo_mutex);
-         tu_gem_close(dev, gem_handle);
+         msm_common_gem_close(dev->fd, gem_handle);
          return result;
       }
    }
@@ -788,16 +737,6 @@ tu_bo_init(struct tu_device *dev,
    TU_RMV(bo_allocate, dev, bo);
 
    return VK_SUCCESS;
-}
-
-/**
- * Sets the name in the kernel so that the contents of /debug/dri/0/gem are more
- * useful.
- */
-static void
-tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name, size_t length)
-{
-   msm_common_bo_set_name(dev->fd, bo->gem_handle, name, length);
 }
 
 static VkResult
@@ -874,7 +813,7 @@ msm_bo_init(struct tu_device *dev,
    }
 
    /* We don't use bo->name here because for the !TU_DEBUG=bo case bo->name is NULL. */
-   tu_bo_set_kernel_name(dev, bo, name, strlen(name));
+   msm_common_bo_set_name(dev->fd, bo->gem_handle, name, strlen(name));
 
    if (result == VK_SUCCESS &&
        (mem_property & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) &&
@@ -944,7 +883,7 @@ msm_bo_init_dmabuf(struct tu_device *dev,
       tu_allocate_iova(dev, gem_handle, size, align, 0, flags, &iova);
 
    if (result != VK_SUCCESS) {
-      tu_gem_close(dev, gem_handle);
+      msm_common_gem_close(dev->fd, gem_handle);
       goto out_unlock;
    }
 
@@ -1554,14 +1493,13 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
       goto fail;
    }
 
-   device->has_set_iova = !tu_drm_get_va_prop(device, &device->va_start,
-                                              &device->va_size);
+   device->has_set_iova = !msm_common_get_va_prop(device->local_fd, MSM_PIPE_3D0, &device->va_start, &device->va_size);
    device->has_iova_align = device->has_set_iova;
    device->has_lazy_bos = device->has_set_iova;
    device->has_raytracing = tu_drm_get_raytracing(device);
    device->has_sparse_prr = tu_drm_get_prr(device);
 
-   device->has_preemption = tu_drm_has_preemption(device);
+   device->has_preemption = msm_common_has_preemption(device->local_fd, device->submitqueue_priority_count / 2);
 
    device->is_perf_cntr_selectable = true;
 

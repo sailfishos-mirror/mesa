@@ -19,6 +19,7 @@
 #include "util/log.h"
 #include "util/os_time.h"
 #include "util/timespec.h"
+#include "util/u_process.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -190,6 +191,40 @@ msm_common_set_param(int fd, uint32_t pipe, uint32_t param, uint64_t value,
    return drmCommandWriteRead(fd, DRM_MSM_SET_PARAM, &req, sizeof(req));
 }
 
+static int
+msm_common_get_va_prop(int fd, uint32_t pipe, uint64_t *va_start,
+                       uint64_t *va_size)
+{
+   uint64_t value;
+   int ret = msm_common_get_param(fd, pipe, MSM_PARAM_VA_START, &value);
+   if (ret)
+      return ret;
+
+   *va_start = value;
+
+   ret = msm_common_get_param(fd, pipe, MSM_PARAM_VA_SIZE, &value);
+   if (ret)
+      return ret;
+
+   *va_size = value;
+
+   return 0;
+}
+
+static void
+msm_common_set_debuginfo(int fd, uint32_t pipe)
+{
+   const char *comm = util_get_process_name();
+   if (comm)
+      msm_common_set_param(fd, pipe, MSM_PARAM_COMM, (uintptr_t)comm,
+                           strlen(comm));
+
+   static char cmdline[0x1000];
+   if (util_get_command_line(cmdline, sizeof(cmdline)))
+      msm_common_set_param(fd, pipe, MSM_PARAM_CMDLINE, (uintptr_t)cmdline,
+                           strlen(cmdline));
+}
+
 static inline void
 get_abs_timeout(struct drm_msm_timespec *tv, uint64_t ns)
 {
@@ -233,6 +268,24 @@ msm_common_is_memory_type_supported(int fd, uint64_t page_size, uint32_t flags)
       return false;
 
    msm_common_gem_close(fd, req.handle);
+
+   return true;
+}
+
+static bool
+msm_common_has_preemption(int fd, uint32_t priority)
+{
+   struct drm_msm_submitqueue req = {
+      .flags = MSM_SUBMITQUEUE_ALLOW_PREEMPT,
+      .prio = priority,
+   };
+
+   int ret =
+      drmCommandWriteRead(fd, DRM_MSM_SUBMITQUEUE_NEW, &req, sizeof(req));
+   if (ret)
+      return false;
+
+   drmCommandWrite(fd, DRM_MSM_SUBMITQUEUE_CLOSE, &req.id, sizeof(req.id));
 
    return true;
 }

@@ -419,22 +419,9 @@ device_create(uint64_t base_addr)
    }
 
    uint64_t va_start, va_size;
-
-   struct drm_msm_param req = {
-      .pipe = MSM_PIPE_3D0,
-      .param = MSM_PARAM_VA_START,
-   };
-
-   int ret = drmCommandWriteRead(dev->fd, DRM_MSM_GET_PARAM, &req, sizeof(req));
-   va_start = req.value;
-
-   if (!ret) {
-      req.param = MSM_PARAM_VA_SIZE;
-      ret = drmCommandWriteRead(dev->fd, DRM_MSM_GET_PARAM, &req, sizeof(req));
-      va_size = req.value;
-
+   int ret = msm_common_get_va_prop(dev->fd, MSM_PIPE_3D0, &va_start, &va_size);
+   if (!ret)
       dev->has_set_iova = true;
-   }
 
    if (ret) {
       printf("MSM_INFO_SET_IOVA is not supported!\n");
