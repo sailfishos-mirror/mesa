@@ -112,12 +112,22 @@ etna_clear_blit_pack_rgba(enum pipe_format format, const union pipe_color_union 
    }
 }
 
-static void
+static bool
 etna_blit_stencil_fallback(struct pipe_context *pctx,
                            const struct pipe_blit_info *info)
 {
+   enum pipe_format stencil_format = util_format_stencil_only(info->src.format);
    struct etna_context *ctx = etna_context(pctx);
+   struct pipe_screen *screen = pctx->screen;
    struct pipe_surface dst_templ;
+
+   if (stencil_format == PIPE_FORMAT_NONE ||
+       !screen->is_format_supported(screen, stencil_format,
+                                    info->src.resource->target,
+                                    info->src.resource->nr_samples,
+                                    info->src.resource->nr_storage_samples,
+                                    PIPE_BIND_SAMPLER_VIEW))
+      return false;
 
    util_blitter_default_dst_texture(&dst_templ, info->dst.resource,
                                     info->dst.level, info->dst.box.z);
@@ -137,6 +147,8 @@ etna_blit_stencil_fallback(struct pipe_context *pctx,
                                  &info->src.box,
                                  info->scissor_enable ? &info->scissor
                                                       : NULL);
+
+   return true;
 }
 
 static void
@@ -191,19 +203,8 @@ etna_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
       goto success;
 
    if (info.mask & PIPE_MASK_S) {
-      enum pipe_format stencil_format = util_format_stencil_only(info.src.format);
-      struct pipe_screen *screen = pctx->screen;
-
-      if (stencil_format != PIPE_FORMAT_NONE &&
-          screen->is_format_supported(screen, stencil_format,
-                                      info.src.resource->target,
-                                      info.src.resource->nr_samples,
-                                      info.src.resource->nr_storage_samples,
-                                      PIPE_BIND_SAMPLER_VIEW)) {
-         etna_blit_stencil_fallback(pctx, &info);
-      } else {
+      if (!etna_blit_stencil_fallback(pctx, &info))
          DBG("cannot blit stencil, skipping");
-      }
 
       info.mask &= ~PIPE_MASK_S;
       if (!info.mask)
