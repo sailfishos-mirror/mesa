@@ -404,8 +404,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
       }
    }
 
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
-
    if (pred_offset) {
       pred_offset += 8 * subresourceRange->baseMipLevel;
 
@@ -444,6 +442,8 @@ radv_fast_clear_eliminate(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
    radv_process_color_image(cmd_buffer, image, subresourceRange, FAST_CLEAR_ELIMINATE);
+
+   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
 }
 
 void
@@ -459,6 +459,8 @@ radv_fmask_decompress(struct radv_cmd_buffer *cmd_buffer, struct radv_image *ima
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
    radv_process_color_image(cmd_buffer, image, subresourceRange, FMASK_DECOMPRESS);
+
+   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
 }
 
 static void
@@ -477,9 +479,6 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;
    }
-
-   cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                         VK_ACCESS_2_SHADER_READ_BIT, 0, image, subresourceRange);
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
@@ -568,13 +567,6 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
 
    /* Mark this image as actually being decompressed. */
    radv_update_dcc_metadata(cmd_buffer, image, subresourceRange, false);
-
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                   radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                         VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
-
-   /* Initialize the DCC metadata as "fully expanded". */
-   cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, subresourceRange, DCC_UNCOMPRESSED);
 }
 
 void
@@ -591,7 +583,19 @@ radv_decompress_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
 
    if (cmd_buffer->qf == RADV_QUEUE_GENERAL) {
       radv_process_color_image(cmd_buffer, image, subresourceRange, DCC_DECOMPRESS);
+
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
    } else {
+      cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                            VK_ACCESS_2_SHADER_READ_BIT, 0, image, subresourceRange);
+
       radv_decompress_dcc_compute(cmd_buffer, image, subresourceRange);
+
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                            VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
+
+      /* Initialize the DCC metadata as "fully expanded". */
+      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, subresourceRange, DCC_UNCOMPRESSED);
    }
 }
