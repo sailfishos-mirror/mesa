@@ -489,6 +489,10 @@ impl RegRef {
         b_start..(b_start + u16::from(bytes))
     }
 
+    pub fn new(idx: u8, range: RegRange) -> Self {
+        Self { idx, range }
+    }
+
     pub fn from_byte_range(range: Range<u16>) -> Result<RegRef, &'static str> {
         let idx = (range.start / 4)
             .try_into()
