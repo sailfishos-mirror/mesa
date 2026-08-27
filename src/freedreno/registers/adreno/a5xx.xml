@@ -1578,7 +1578,9 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 	<reg32 offset="0x0ec0" name="SP_DBG_ECO_CNTL"/>
 	<reg32 offset="0x0ec1" name="SP_ADDR_MODE_CNTL" type="a5xx_address_mode"/>
-	<reg32 offset="0x0ec2" name="SP_MODE_CNTL"/> <!-- always 0000001e? -->
+	<reg32 offset="0x0ec2" name="SP_MODE_CNTL">
+		<bitfield name="F16_NO_INF" pos="1" type="boolean"/>
+	</reg32>
 	<reg32 offset="0x0ed0" name="SP_PERFCTR_SP_SEL_0"  type="a5xx_sp_perfcounter_select"/>
 	<reg32 offset="0x0ed1" name="SP_PERFCTR_SP_SEL_1"  type="a5xx_sp_perfcounter_select"/>
 	<reg32 offset="0x0ed2" name="SP_PERFCTR_SP_SEL_2"  type="a5xx_sp_perfcounter_select"/>
