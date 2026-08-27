@@ -495,7 +495,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
             return false;
 
          /* RS format or u_blitter fallback support */
-         if (translate_rs_format(format) == ETNA_NO_MATCH &&
+         if (translate_rs_format(format, screen->info->halti >= 5) == ETNA_NO_MATCH &&
              (util_format_get_blocksize(format) > 4 ||
               (!util_format_is_unorm(format) &&
                !util_format_is_pure_integer(format)) ||
