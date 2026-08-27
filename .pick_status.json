@@ -234,7 +234,7 @@
         "description": "loader: consider radeon in amd_predicate",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ddd12f2f3eb129b3dac9e14bd646ce07f1abf08e",
         "notes": null
