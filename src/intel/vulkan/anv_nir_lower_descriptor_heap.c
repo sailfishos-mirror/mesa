@@ -22,7 +22,7 @@ build_surface_handle(nir_builder *b, nir_def *heap_offset,
       surface_handle = nir_ishl_imm(b, surface_handle, 6);
 
    return nir_resource_intel(
-      b,
+      b, 1, 32,
       nir_imm_int(b, 0xdeaddead),
       surface_handle,
       nir_imm_int(b, 0xdeaddead),
@@ -47,7 +47,7 @@ build_deref_surface_handle(nir_builder *b, nir_deref_instr *deref,
       surface_handle = nir_ishl_imm(b, surface_handle, 6);
 
    return nir_resource_intel(
-      b,
+      b, 1, 32,
       nir_imm_int(b, 0xdeaddead),
       surface_handle,
       nir_imm_int(b, 0xdeaddead),
@@ -78,7 +78,7 @@ build_sampler_handle(nir_builder *b, nir_def *heap_offset,
          nir_iadd_imm(b, heap_offset, plane * ANV_SAMPLER_STATE_SIZE));
    }
    return nir_resource_intel(
-      b,
+      b, 1, 32,
       nir_imm_int(b, 0xdeaddead),
       sampler_handle,
       nir_imm_int(b, 0xdeaddead),

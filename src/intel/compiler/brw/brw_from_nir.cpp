@@ -4755,7 +4755,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       ntb.ssa_bind_infos[instr->def.index].binding =
          nir_intrinsic_binding(instr);
 
-      dest = retype(dest, BRW_TYPE_UD);
+      dest = retype(dest, brw_type_with_size(BRW_TYPE_UD, brw_type_size_bits(dest.type)));
       ntb.ssa_values[instr->def.index] = dest;
 
       xbld.MOV(dest,

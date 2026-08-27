@@ -733,7 +733,7 @@ build_descriptor_set_bti(nir_builder *b,
             BRW_SHADER_RELOC_DESCRIPTORS_VIEW_HANDLE);
 
       return nir_resource_intel(
-         b,
+         b, 1, 32,
          nir_imm_int(b, set),
          surface_handle,
          nir_imm_int(b, 0) /* array_index */,
@@ -745,7 +745,7 @@ build_descriptor_set_bti(nir_builder *b,
                                   nir_resource_intel_internal);
    } else {
       return nir_resource_intel(
-         b,
+         b, 1, 32,
          nir_imm_int(b, set),
          nir_imm_int(b, state->set[set].desc_offset),
          nir_imm_int(b, 0) /* array_index */,
@@ -995,7 +995,7 @@ build_surface_index_for_binding(nir_builder *b,
       assert(state->set[set].binding[binding].surface_offset < MAX_BINDING_TABLE_SIZE);
    }
 
-   return nir_resource_intel(b,
+   return nir_resource_intel(b, 1, 32,
                              set_offset,
                              surface_index,
                              array_index,
@@ -1094,7 +1094,7 @@ build_sampler_handle_for_binding(nir_builder *b,
    if (non_uniform)
       sampler_resource |= nir_resource_intel_non_uniform;
 
-   return nir_resource_intel(b,
+   return nir_resource_intel(b, 1, 32,
                              set_offset,
                              sampler_index,
                              array_index,

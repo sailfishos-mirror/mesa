@@ -2813,7 +2813,7 @@ intrinsic("select_active_intel", src_comp=[1], dest_comp=1, bit_sizes=src0,
 intrinsic("gather_lanes_intel", src_comp=[0, 0], dest_comp=1, bit_sizes=src0,
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
-# 1 component 32bit surface index that can be used for bindless or BTI heaps
+# Surface index that can be used for bindless or BTI heaps
 #
 # This intrinsic is used to figure out what UBOs accesses could be promoted to
 # push constants. To allow promoting a load_ubo to push constants, we need to
@@ -2824,8 +2824,8 @@ intrinsic("gather_lanes_intel", src_comp=[0, 0], dest_comp=1, bit_sizes=src0,
 # nir_src_is_const() and ignore set_offset.
 #
 # src[] = { set_offset, surface_index, array_index, bindless_base_offset }
-intrinsic("resource_intel", dest_comp=1, bit_sizes=[32],
-          src_comp=[1, 1, 1, 1],
+intrinsic("resource_intel", dest_comp=0,
+          src_comp=[1, -1, 1, 1],
           indices=[DESC_SET, BINDING, RESOURCE_ACCESS_INTEL, RESOURCE_BLOCK_INTEL],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
