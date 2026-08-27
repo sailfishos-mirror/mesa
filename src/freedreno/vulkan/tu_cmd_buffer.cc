@@ -1462,8 +1462,8 @@ tu6_emit_cond_for_load_stores(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
        cmd->state.pass->has_cond_load_store) {
       if (CHIP >= A7XX) {
          tu_cs_emit_pkt7(cs, CP_REG_TEST, 1);
-         tu_cs_emit(cs, A6XX_CP_REG_TEST_0_SCRATCH_MEM_OFFSET(pipe) |
-                        A6XX_CP_REG_TEST_0_SOURCE(SOURCE_SCRATCH_MEM) |
+         tu_cs_emit(cs, A6XX_CP_REG_TEST_0_OC_MEM_OFFSET(pipe) |
+                        A6XX_CP_REG_TEST_0_SOURCE(SOURCE_OC_MEM) |
                         A6XX_CP_REG_TEST_0_BIT(slot) |
                         A6XX_CP_REG_TEST_0_SKIP_WAIT_FOR_ME);
       } else {
@@ -3702,7 +3702,7 @@ tu6_tile_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
             tu_emit_vsc<CHIP>(cmd, cs);
          }
 
-         tu_cs_emit_pkt7(cs, CP_MEM_TO_SCRATCH_MEM, 4);
+         tu_cs_emit_pkt7(cs, CP_MEM_TO_OC_MEM, 4);
          tu_cs_emit(cs, num_vsc_pipes); /* count */
          tu_cs_emit(cs, 0); /* offset */
          tu_emit_vis_stream_patchpoint(cmd, cs, cmd->vsc_state_offset);

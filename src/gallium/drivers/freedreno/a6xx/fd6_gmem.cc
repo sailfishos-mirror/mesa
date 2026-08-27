@@ -1252,7 +1252,7 @@ fd6_build_preemption_preamble(struct fd_context *ctx, bool gmem)
       fd7_emit_static_binning_regs<CHIP>(cs, gmem);
    }
 
-   /* TODO use CP_MEM_TO_SCRATCH_MEM on a7xx. The VSC scratch mem should be
+   /* TODO use CP_MEM_TO_OC_MEM on a7xx. The VSC scratch mem should be
     * automatically saved, unlike GPU registers, so we wouldn't have to
     * manually restore this state.
     */
