@@ -2529,11 +2529,26 @@ vk_meta_update_buffer(struct vk_command_buffer *cmd,
                       struct vk_meta_device *meta, VkBuffer buffer,
                       VkDeviceSize offset, VkDeviceSize size, const void *data)
 {
+   VK_FROM_HANDLE(vk_buffer, buf, buffer);
+
+   VkDeviceAddressRangeKHR addr_range =
+      vk_device_address_range(buf, offset, size);
+
+   vk_meta_update_memory(cmd, meta, &addr_range, buf->address_flags, size, data);
+}
+
+void
+vk_meta_update_memory(struct vk_command_buffer *cmd,
+                      struct vk_meta_device *meta,
+                      const VkDeviceAddressRangeKHR* dst_range,
+                      const VkAddressCommandFlagsKHR dstFlags,
+                      VkDeviceSize dataSize, const void *data)
+{
    VkResult result;
 
    const VkBufferCreateInfo tmp_buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .size = size,
+      .size = dataSize,
       .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       .queueFamilyIndexCount = 1,
       .pQueueFamilyIndices = &cmd->pool->queue_family_index,
@@ -2545,6 +2560,7 @@ vk_meta_update_buffer(struct vk_command_buffer *cmd,
       vk_command_buffer_set_error(cmd, result);
       return;
    }
+   VK_FROM_HANDLE(vk_buffer, tmp_buf, tmp_buffer);
 
    void *tmp_buffer_map;
    result = meta->cmd_bind_map_buffer(cmd, meta, tmp_buffer, &tmp_buffer_map);
@@ -2553,23 +2569,22 @@ vk_meta_update_buffer(struct vk_command_buffer *cmd,
       return;
    }
 
-   memcpy(tmp_buffer_map, data, size);
+   memcpy(tmp_buffer_map, data, dataSize);
 
-   const VkBufferCopy2 copy_region = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
-      .srcOffset = 0,
-      .dstOffset = offset,
-      .size = size,
+   const VkDeviceMemoryCopyKHR copy_region = {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_MEMORY_COPY_KHR,
+      .srcRange = vk_device_address_range(tmp_buf, 0, dataSize),
+      .srcFlags = tmp_buf->address_flags,
+      .dstRange = *dst_range,
+      .dstFlags = dstFlags,
    };
-   const VkCopyBufferInfo2 copy_info = {
-      .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
-      .srcBuffer = tmp_buffer,
-      .dstBuffer = buffer,
+   const VkCopyDeviceMemoryInfoKHR copy_info = {
+      .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_INFO_KHR,
       .regionCount = 1,
       .pRegions = &copy_region,
    };
 
-   vk_meta_copy_buffer(cmd, meta, &copy_info);
+   vk_meta_copy_memory(cmd, meta, &copy_info);
 }
 
 static nir_shader *
