@@ -1210,6 +1210,11 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_fence_bo_tmz);
       }
 
+      if (cmd_buffer->gang.sem.bo) {
+         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gang.sem.bo);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gang.sem.bo);
+      }
+
       if (cmd_buffer->gfx9_eop_bug_bo_tmz) {
          radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gfx9_eop_bug_bo_tmz);
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_eop_bug_bo_tmz);
@@ -1573,21 +1578,80 @@ radv_gang_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    cmd_buffer->gang.flush_bits = 0;
 }
 
+/** Return true when gang members have a coherent view of VRAM. */
 static bool
-radv_gang_sem_init(struct radv_cmd_buffer *cmd_buffer)
+radv_gang_is_coherent(const struct radeon_info *const info, const enum amd_ip_type leader_ip,
+                      ASSERTED enum amd_ip_type follower_ip)
 {
-   if (cmd_buffer->gang.sem.va)
+   assert(follower_ip == AMD_IP_COMPUTE);
+
+   /* GFX and ACE CP are always coherent. */
+   if (leader_ip == AMD_IP_GFX)
       return true;
 
-   /* DWORD 0:
-    *   leader->follower semaphore: used when leader does something that the follower has to wait for
-    *   - for transfer queues: when SDMA is working on a transfer that ACE needs to wait for
-    *   - for task/mesh: when GFX is doing something that ACE needs to wait for
-    * DWORD 1:
-    *   follower->leader semaphore: used when follower does something that the leader has to wait for
-    *   - for transfer queues: when ACE is working on a transfer that SDMA needs to wait for
-    *   - for task/mesh: no needed yet
+   /* SDMA is not coherent with GFX/ACE CP on GFX10.x-11.x
+    * because GFX/ACE CP read memory through L2 cache but
+    * SDMA does not use L2 cache by default.
     */
+   assert(leader_ip == AMD_IP_SDMA);
+   return info->gfx_level <= GFX8 || info->cp_sdma_ge_use_system_memory_scope;
+}
+
+static bool
+radv_gang_sem_should_use_separate_bo(struct radv_cmd_buffer *cmd_buffer)
+{
+   /* If we already allocated the separate BO, use that. */
+   if (cmd_buffer->gang.sem.bo)
+      return true;
+
+   const struct radv_device *const device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const enum radeon_bo_domain upload_bo_dom =
+      /* Upload BO exists: its memory domain is known */
+      cmd_buffer->upload.upload_bo ? cmd_buffer->upload.upload_bo->initial_domain :
+      /* Upload BO doesn't exist: judge by all_vram_visible to make this deterministic */
+      pdev->info.all_vram_visible ? RADEON_DOMAIN_VRAM : RADEON_DOMAIN_GTT;
+
+   /* Make sure the gang semaphore is always in VRAM */
+   if (pdev->info.has_dedicated_vram && !(upload_bo_dom & RADEON_DOMAIN_VRAM))
+      return true;
+
+   /* Use separate BO when gang members aren't coherent */
+   return !radv_gang_is_coherent(&pdev->info, cmd_buffer->cs->hw_ip, cmd_buffer->gang.cs->hw_ip);
+}
+
+static bool
+radv_gang_sem_init_with_separate_bo(struct radv_cmd_buffer *cmd_buffer)
+{
+   struct radv_device *const device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+
+   if (!cmd_buffer->gang.sem.bo) {
+      enum radeon_bo_flag flags =
+         RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_ZERO_VRAM;
+
+      /* BYPASS L2 cache when gang members are non-coherent. */
+      if (!radv_gang_is_coherent(&pdev->info, cmd_buffer->cs->hw_ip, cmd_buffer->gang.cs->hw_ip))
+         flags |= RADEON_FLAG_GL2_BYPASS;
+
+      VkResult r = radv_bo_create(device, &cmd_buffer->vk.base, 8, 4, RADEON_DOMAIN_VRAM, flags, RADV_BO_PRIORITY_FENCE,
+                                  0, true, &cmd_buffer->gang.sem.bo);
+      if (r != VK_SUCCESS) {
+         vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+         return false;
+      }
+
+      radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->gang.sem.bo, 0, 8, 0);
+   }
+
+   radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, cmd_buffer->gang.sem.bo);
+   cmd_buffer->gang.sem.va = radv_buffer_get_va(cmd_buffer->gang.sem.bo);
+   return true;
+}
+
+static bool
+radv_gang_sem_init_with_upload_bo(struct radv_cmd_buffer *cmd_buffer)
+{
    uint64_t sem_init = 0;
    uint32_t va_off = 0;
    if (!radv_cmd_buffer_upload_data(cmd_buffer, sizeof(uint64_t), &sem_init, &va_off)) {
@@ -1597,6 +1661,31 @@ radv_gang_sem_init(struct radv_cmd_buffer *cmd_buffer)
 
    cmd_buffer->gang.sem.va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + va_off;
    return true;
+}
+
+/**
+ * Initialize the gang semaphore so that the gang leader and follower
+ * command streams can be synchronized.
+ *
+ * DWORD 0:
+ *   leader->follower semaphore: used when leader does something that the follower has to wait for
+ *   - for transfer queues: when SDMA is working on a transfer that ACE needs to wait for
+ *   - for task/mesh: when GFX is doing something that ACE needs to wait for
+ * DWORD 1:
+ *   follower->leader semaphore: used when follower does something that the leader has to wait for
+ *   - for transfer queues: when ACE is working on a transfer that SDMA needs to wait for
+ *   - for task/mesh: no needed yet
+ */
+static bool
+radv_gang_sem_init(struct radv_cmd_buffer *cmd_buffer)
+{
+   if (cmd_buffer->gang.sem.va)
+      return true;
+
+   if (radv_gang_sem_should_use_separate_bo(cmd_buffer))
+      return radv_gang_sem_init_with_separate_bo(cmd_buffer);
+
+   return radv_gang_sem_init_with_upload_bo(cmd_buffer);
 }
 
 static bool
