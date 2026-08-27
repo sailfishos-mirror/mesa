@@ -242,7 +242,11 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
           */
          nir_def_replace(&intr->def, nir_undef(b, 1, intr->def.bit_size));
       } else {
-         nir_def *offset_B = nir_imul_imm(b, intr->src[1].ssa, 4);
+         /* Likewise, clamp non-constant indexes to avoid out of bounds
+          * indirect register file access.
+          */
+         nir_def *index = nir_iand_imm(b, intr->src[1].ssa, simd_width - 1);
+         nir_def *offset_B = nir_imul_imm(b, index, 4);
          nir_def_replace(&intr->def, nir_shuffle_intel(b, 1, data, offset_B));
       }
 
