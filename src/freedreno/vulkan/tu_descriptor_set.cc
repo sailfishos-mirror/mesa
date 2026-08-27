@@ -670,8 +670,10 @@ tu_descriptor_set_create(struct tu_device *device,
       if (!pool->host_memory_base) {
          uint64_t pool_vma_offset =
             util_vma_heap_alloc(&pool->bo_heap, set->size, 1);
-         if (!pool_vma_offset)
+         if (!pool_vma_offset) {
+            vk_object_free(&device->vk, NULL, set);
             return VK_ERROR_FRAGMENTED_POOL;
+         }
 
          assert(pool_vma_offset >= TU_POOL_HEAP_OFFSET &&
                 pool_vma_offset <= pool->size + TU_POOL_HEAP_OFFSET);
