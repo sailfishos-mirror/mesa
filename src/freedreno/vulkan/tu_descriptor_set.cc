@@ -672,7 +672,10 @@ tu_descriptor_set_create(struct tu_device *device,
             util_vma_heap_alloc(&pool->bo_heap, set->size, 1);
          if (!pool_vma_offset) {
             vk_object_free(&device->vk, NULL, set);
-            return VK_ERROR_FRAGMENTED_POOL;
+            if (pool->bo_heap.free_size >= set->size)
+               return VK_ERROR_FRAGMENTED_POOL;
+            else
+               return VK_ERROR_OUT_OF_POOL_MEMORY;
          }
 
          assert(pool_vma_offset >= TU_POOL_HEAP_OFFSET &&
