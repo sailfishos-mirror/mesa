@@ -7274,7 +7274,7 @@
         "description": "ir3: Fix potential out-of-range load_const_ir3 base offset",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8f54028479b691a217128f6154d8b641224b8634",
         "notes": null
