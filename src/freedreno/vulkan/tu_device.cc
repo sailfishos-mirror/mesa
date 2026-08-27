@@ -1262,15 +1262,10 @@ tu_get_properties(struct tu_physical_device *pdevice,
       props->maxComputeWorkGroupCount[2] = 65535;
    props->maxComputeWorkGroupInvocations =
       tu_subgroup_size(pdevice) * pdevice->info->max_waves;
-   if (pdevice->info->props.is_a702) {
-      props->maxComputeWorkGroupSize[0] =
-         props->maxComputeWorkGroupSize[1] = 512;
-      props->maxComputeWorkGroupSize[2] = 64;
-   } else {
-      props->maxComputeWorkGroupSize[0] =
-         props->maxComputeWorkGroupSize[1] =
-         props->maxComputeWorkGroupSize[2] = 1024;
-   }
+   props->maxComputeWorkGroupSize[0] =
+      props->maxComputeWorkGroupSize[1] =
+      props->maxComputeWorkGroupSize[2] =
+         MIN2(1024, props->maxComputeWorkGroupInvocations);
    props->subPixelPrecisionBits = 8;
    props->subTexelPrecisionBits = 8;
    props->mipmapPrecisionBits = 8;
