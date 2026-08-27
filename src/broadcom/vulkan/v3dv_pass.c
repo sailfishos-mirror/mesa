@@ -42,6 +42,26 @@ num_subpass_attachments(const VkSubpassDescription2 *desc)
 }
 
 static void
+subpass_setup_tlb_input_attachments(struct v3dv_subpass *subpass)
+{
+   memset(subpass->tlb_input_attachment_location, UINT8_MAX,
+          sizeof(subpass->tlb_input_attachment_location));
+
+   for (uint32_t input = 0; input < subpass->input_count; input++) {
+      const uint32_t attachment = subpass->input_attachments[input].attachment;
+      if (attachment == VK_ATTACHMENT_UNUSED)
+         continue;
+
+      for (uint32_t rt = 0; rt < subpass->color_count; rt++) {
+         if (subpass->color_attachments[rt].attachment != attachment)
+            continue;
+
+         subpass->tlb_input_attachment_location[input] = FRAG_RESULT_DATA0 + rt;
+         break;
+      }
+   }
+}
+static void
 set_try_tlb_resolve(struct v3dv_device *device,
                     struct v3dv_render_pass_attachment *att)
 {
@@ -306,6 +326,8 @@ v3dv_CreateRenderPass2(VkDevice _device,
          subpass->resolve_depth = false;
          subpass->resolve_stencil = false;
       }
+
+      subpass_setup_tlb_input_attachments(subpass);
    }
 
    pass_find_subpass_range_for_attachments(device, pass);
