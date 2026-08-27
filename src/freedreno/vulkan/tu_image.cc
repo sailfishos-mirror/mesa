@@ -1041,8 +1041,8 @@ tu_CreateImage(VkDevice _device,
                               OPAQUE_CAPTURE_DESCRIPTOR_DATA_CREATE_INFO_EXT);
       if (replay_info && replay_info->opaqueCaptureDescriptorData) {
          flags |= TU_SPARSE_VMA_REPLAYABLE;
-         client_address =
-            *(const uint64_t *)replay_info->opaqueCaptureDescriptorData;
+         memcpy(&client_address, replay_info->opaqueCaptureDescriptorData,
+                sizeof(client_address));
       }
 
       result = tu_sparse_vma_init(device, &image->vk.base, &image->vma,
@@ -1606,7 +1606,7 @@ tu_GetImageOpaqueCaptureDescriptorDataEXT(VkDevice device,
    /* Save the image iova so that when replaying sparse images have a
     * consistent iova and therefore consistent descriptor contents.
     */
-   *(uint64_t *)pData = image->iova;
+   memcpy(pData, &image->iova, sizeof(image->iova));
    return VK_SUCCESS;
 }
 
