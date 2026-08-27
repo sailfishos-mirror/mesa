@@ -351,11 +351,11 @@ fd_init_compute_caps(struct fd_screen *screen)
    caps->max_grid_size[1] = options->max_workgroup_count[1];
    caps->max_grid_size[2] = options->max_workgroup_count[2];
 
-   caps->max_block_size[0] = 1024;
-   caps->max_block_size[1] = 1024;
-   caps->max_block_size[2] = 64;
-
    caps->max_threads_per_block = options->max_workgroup_invocations;
+
+   caps->max_block_size[0] =
+   caps->max_block_size[1] =
+   caps->max_block_size[2] = MIN2(1024, caps->max_threads_per_block);
 
    caps->max_global_size = os_get_gpu_heap_size(1.0f, NULL);
 

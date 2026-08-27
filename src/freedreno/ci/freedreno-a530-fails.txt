@@ -39,9 +39,6 @@ KHR-GLES31.core.internalformat.copy_tex_image.alpha,Fail
 KHR-GLES31.core.draw_indirect.advanced-twoPass-transformFeedback-arrays,Fail
 KHR-GLES31.core.draw_indirect.advanced-twoPass-transformFeedback-elements,Fail
 
-# msm 900000.mdss: [drm:a5xx_irq] *ERROR* gpu fault ring 0 fence 2c54ef status E40801C1 rb 0162/0162 ib1 000000000104B000/0000 ib2 000000000104C000/0000
-KHR-GLES31.core.texture_buffer.texture_buffer_atomic_functions,Fail
-
 KHR-GLES31.core.shader_image_load_store.basic-allTargets-loadStoreCS,Fail
 
 # Many failures, across formats
@@ -2028,7 +2025,6 @@ KHR-GLES31.core.compute_shader.sso-compute-pipeline,Fail
 KHR-GLES31.core.compute_shader.work-group-size,Fail
 KHR-GLES31.core.draw_indirect.advanced-twoPass-Compute-arrays,Fail
 KHR-GLES31.core.draw_indirect.advanced-twoPass-Compute-elements,Fail
-KHR-GLES31.core.gpu_shader5.images_array_indexing,Fail
 KHR-GLES31.core.shader_atomic_counters.advanced-usage-many-counters,Fail
 KHR-GLES31.core.shader_atomic_counters.advanced-usage-many-dispatches,Fail
 KHR-GLES31.core.shader_atomic_counters.advanced-usage-many-draw-calls2,Fail

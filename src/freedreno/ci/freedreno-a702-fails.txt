@@ -1,11 +1,4 @@
 KHR-GLES31.core.polygon_offset_clamp.PolygonOffsetClampMinMax,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_atomic_functions,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_buffer_load,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_cpu_writes,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_framebuffer_readback,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_image_store,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_ssbo_writes,Fail
-KHR-GLES31.core.texture_buffer.texture_buffer_operations_transform_feedback,Fail
 dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_clamp,Fail
 dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_mirror,Fail
 dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_repeat,Fail
