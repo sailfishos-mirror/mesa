@@ -1029,6 +1029,9 @@ build_buffer_to_image_fs(const struct vk_meta_device *meta,
       MESA_SHADER_FRAGMENT, NULL, "vk-meta-copy-buffer-to-image-frag");
    nir_builder *b = &builder;
 
+   /* Don't read out of bounds for helpers */
+   nir_terminate_if(b, nir_is_helper_invocation(b, 1));
+
    VkFormat buf_fmt =
       copy_img_buf_format_for_aspect(&key->img.view, key->img.aspect);
 
