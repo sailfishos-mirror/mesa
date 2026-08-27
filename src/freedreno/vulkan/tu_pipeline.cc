@@ -4214,12 +4214,6 @@ tu_emit_draw_state(struct tu_cmd_buffer *cmd)
          } else {                                                             \
             cmd->state.dynamic_state[id] = {};                                \
          }                                                                    \
-         tu_cs_begin_sub_stream(&cmd->sub_cs,                                 \
-                                tu6_##name##_size<CHIP>(cmd->device, __VA_ARGS__),  \
-                                &cs);                                         \
-         tu6_emit_##name<CHIP>(&cs, __VA_ARGS__);                             \
-         cmd->state.dynamic_state[id] =                                       \
-            tu_cs_end_draw_state(&cmd->sub_cs, &cs);                          \
       }                                                                       \
       dirty_draw_states |= (1u << id);                                        \
    }
