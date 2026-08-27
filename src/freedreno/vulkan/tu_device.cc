@@ -3030,9 +3030,17 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
       }
    }
 
-   /* initial sizes, these will increase if there is overflow */
-   device->vsc_draw_strm_pitch = 0x1000 + VSC_PAD;
-   device->vsc_prim_strm_pitch = 0x4000 + VSC_PAD;
+   /* initial sizes, these will increase if there is overflow.  If GMEM_WARMUP
+    * is set, we pre-allocate a large VSC space so that performance testing can
+    * get real data for GMEM without having to loop frames too many times.
+    */
+   if (TU_DEBUG(GMEM_WARMUP)) {
+      device->vsc_draw_strm_pitch = 0x4000  + VSC_PAD;
+      device->vsc_prim_strm_pitch = 0x80000 + VSC_PAD;
+   } else {
+      device->vsc_draw_strm_pitch = 0x1000 + VSC_PAD;
+      device->vsc_prim_strm_pitch = 0x4000 + VSC_PAD;
+   }
 
    if (device->vk.enabled_features.customBorderColors)
       global_size += TU_BORDER_COLOR_COUNT * sizeof(struct bcolor_entry);
