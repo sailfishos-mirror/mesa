@@ -109,7 +109,7 @@ to_gen_operand(
          offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
          R = gen_grf(grf, 0);
       } else {
-         R = gen_accumulator(reg / 2);
+         R = gen_accumulator(reg * jay_grf_per_gpr(f->shader) / 2);
       }
       R = gen_retype(gen_restride(R, 0, 1, 0), GEN_TYPE_UD);
 
