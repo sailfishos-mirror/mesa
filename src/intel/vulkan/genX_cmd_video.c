@@ -3419,6 +3419,47 @@ anv_vp9_emit_mv_prev_update(struct anv_cmd_buffer *cmd_buffer,
                      vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].size);
 }
 
+#define ANV_VP9_PIC_STATE_DW2 2
+#define ANV_VP9_PIC_DW2_LAST_FRAME_TYPE_MASK (1u << 13)
+
+static struct anv_address
+anv_vp9_exec_state_address(struct anv_video_session *vid, uint32_t offset)
+{
+   struct anv_address addr = {
+      vid->vid_mem[ANV_VID_MEM_VP9_EXEC_STATE].mem->bo,
+      vid->vid_mem[ANV_VID_MEM_VP9_EXEC_STATE].offset
+   };
+
+   return anv_address_add(addr, offset);
+}
+
+static uint32_t *
+anv_vp9_emit_pic_dw2_patch(struct anv_cmd_buffer *cmd_buffer,
+                           struct anv_video_session *vid,
+                           struct anv_address pic_dw2_addr)
+{
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_COPY_MEM_MEM), cp) {
+      cp.DestinationMemoryAddress = pic_dw2_addr;
+      cp.SourceMemoryAddress =
+         anv_vp9_exec_state_address(vid, ANV_VP9_EXEC_STATE_LFT_OFFSET);
+   }
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush);
+
+   uint32_t *dw =
+      anv_batch_emitn(&cmd_buffer->batch, 11, GENX(MI_ATOMIC),
+                      .ATOMICOPCODE = MI_ATOMIC_OP_OR,
+                      .DataSize = MI_ATOMIC_DWORD,
+                      .InlineData = true,
+                      .MemoryAddress = pic_dw2_addr);
+   if (dw != NULL)
+      memset(dw + 5, 0, 6 * sizeof(uint32_t));
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush);
+
+   return dw;
+}
+
 static void
 anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
                      const VkVideoDecodeInfoKHR *frame_info)
@@ -3468,6 +3509,31 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
                                 key_frame_or_intra_only, reset_segment_id,
                                 save_restore_inter_probs,
                                 segmentation);
+
+   struct anv_batch *pic_batch = &cmd_buffer->batch;
+   struct anv_batch pic_bb = { 0 };
+   struct anv_state pic_bb_state = ANV_STATE_NULL;
+   struct anv_address pic_bb_addr = ANV_NULL_ADDRESS;
+   uint32_t *lft_atomic = NULL;
+
+   if (!key_frame_or_intra_only) {
+      pic_bb_state =
+         anv_cmd_buffer_alloc_temporary_state(cmd_buffer, 4096, 4096);
+
+      if (pic_bb_state.map != NULL) {
+         pic_bb_addr =
+            anv_cmd_buffer_temporary_state_address(cmd_buffer, pic_bb_state);
+         pic_bb.status = VK_SUCCESS;
+         pic_bb.relocs = cmd_buffer->batch.relocs;
+         anv_batch_set_storage(&pic_bb, pic_bb_addr, pic_bb_state.map, 4096);
+         pic_batch = &pic_bb;
+
+         lft_atomic =
+            anv_vp9_emit_pic_dw2_patch(cmd_buffer, vid,
+                                       anv_address_add(pic_bb_addr,
+                                                       ANV_VP9_PIC_STATE_DW2 * 4));
+      }
+   }
 
 #if GFX_VER >= 12
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FORCE_WAKEUP), wake) {
@@ -3892,7 +3958,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
-   anv_batch_emit(&cmd_buffer->batch, GENX(HCP_VP9_PIC_STATE), pic) {
+   anv_batch_emit(pic_batch, GENX(HCP_VP9_PIC_STATE), pic) {
       pic.FrameWidth = align(frame_width, 8) - 1;
       pic.FrameHeight = align(frame_height, 8) - 1;
       /* STD_VIDEO_VP9_FRAME_TYPE_KEY == VP9_Key_frmae
@@ -3979,6 +4045,22 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
+   if (pic_batch == &pic_bb) {
+      anv_batch_emit(&pic_bb, GENX(MI_BATCH_BUFFER_END), bbe);
+
+      anv_batch_emit(&cmd_buffer->batch, GENX(MI_BATCH_BUFFER_START), bbs) {
+         bbs.AddressSpaceIndicator = ASI_PPGTT;
+         bbs.SecondLevelBatchBuffer = Secondlevelbatch;
+         bbs.BatchBufferStartAddress = pic_bb_addr;
+      }
+
+      uint32_t *pic_dw = pic_bb_state.map;
+
+      if (lft_atomic != NULL)
+         lft_atomic[3] = pic_dw[ANV_VP9_PIC_STATE_DW2] &
+                         ~ANV_VP9_PIC_DW2_LAST_FRAME_TYPE_MASK;
+   }
+
    vid->vp9_last_frame.width = frame_width;
    vid->vp9_last_frame.height = frame_height;
 
@@ -3997,6 +4079,16 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       flush.HEVCPipelineDone = true;
       flush.HEVCPipelineCommandFlush = true;
       flush.VDCommandMessageParserDone = true;
+   }
+
+   const uint32_t lft_val =
+      std_pic->frame_type == STD_VIDEO_VP9_FRAME_TYPE_KEY ?
+      0 : ANV_VP9_PIC_DW2_LAST_FRAME_TYPE_MASK;
+
+   anv_batch_emit(&cmd_buffer->batch, GENX(MI_STORE_DATA_IMM), sdi) {
+      sdi.Address =
+         anv_vp9_exec_state_address(vid, ANV_VP9_EXEC_STATE_LFT_OFFSET);
+      sdi.ImmediateData = lft_val;
    }
 
    if (follow_up_partial_reset)

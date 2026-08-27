@@ -784,6 +784,9 @@ get_vp9_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
    case ANV_VID_MEM_VP9_INTER_PROB_SAVED:
       size = 64;
       break;
+   case ANV_VID_MEM_VP9_EXEC_STATE:
+      size = 64;
+      break;
    case ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE:
    case ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE:
       size = width_in_ctb;
@@ -1448,13 +1451,14 @@ void
 anv_init_vp9_zero_buffers(struct anv_cmd_buffer *cmd,
                           struct anv_video_session *vid)
 {
-   const uint32_t bufs[3] = {
+   const uint32_t bufs[4] = {
       ANV_VID_MEM_VP9_SEGMENT_ID_RESET,
       ANV_VID_MEM_VP9_MV_PREV,
       ANV_VID_MEM_VP9_MV_ZERO,
+      ANV_VID_MEM_VP9_EXEC_STATE,
    };
 
-   for (uint32_t i = 0; i < 3; i++) {
+   for (uint32_t i = 0; i < 4; i++) {
       VkResult result =
          anv_video_zero_mem(cmd->device, &vid->vid_mem[bufs[i]]);
 
