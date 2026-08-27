@@ -740,7 +740,11 @@ anv_init_update_scratch(VkCommandBuffer commandBuffer,
       struct update_scratch_layout layout;
       anv_get_update_scratch_layout(device, state, &layout);
 
-      anv_cmd_fill_buffer_addr(commandBuffer, scratch, layout.size, 0x0);
+      /* The update shader writes every AABB before reading it.  Only the
+       * arrival counters need to be initialized.
+       */
+      anv_cmd_fill_buffer_addr(commandBuffer, scratch, layout.aabb_offset,
+                               0x0);
    }
 }
 
