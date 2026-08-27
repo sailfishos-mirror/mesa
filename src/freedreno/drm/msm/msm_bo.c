@@ -113,7 +113,7 @@ msm_bo_set_name(struct fd_bo *bo, const char *fmt, va_list ap)
    sz = vsnprintf(buf, sizeof(buf), fmt, ap);
 
    req.value = VOID2U64(buf);
-   req.len = MIN2(sz, sizeof(buf));
+   req.len = MIN2(sz, sizeof(buf) - 1);
 
    drmCommandWrite(bo->dev->fd, DRM_MSM_GEM_INFO, &req, sizeof(req));
 }
