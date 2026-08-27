@@ -1046,7 +1046,7 @@ tu_CreateImage(VkDevice _device,
       }
 
       result = tu_sparse_vma_init(device, &image->vk.base, &image->vma,
-                                  &image->iova, flags, image->total_size,
+                                  &image->iova, flags, image->total_size, 0,
                                   client_address);
 
       if (result != VK_SUCCESS)

@@ -17,6 +17,7 @@
 
 VkResult tu_allocate_userspace_iova(struct tu_device *dev,
                                     uint64_t size,
+                                    uint64_t align,
                                     uint64_t client_iova,
                                     enum tu_bo_alloc_flags flags,
                                     uint64_t *iova);

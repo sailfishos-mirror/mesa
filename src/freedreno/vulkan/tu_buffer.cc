@@ -59,7 +59,7 @@ tu_CreateBuffer(VkDevice _device,
       VkResult result =
          tu_sparse_vma_init(device, &buffer->vk.base, &buffer->vma,
                             &buffer->vk.device_address, flags,
-                            pCreateInfo->size, client_address);
+                            pCreateInfo->size, 0, client_address);
 
       if (result != VK_SUCCESS) {
          vk_buffer_destroy(&device->vk, pAllocator, &buffer->vk);

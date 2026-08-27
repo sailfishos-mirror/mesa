@@ -3558,11 +3558,11 @@ _tu_init_memory(struct tu_device *device,
       result = tu_sparse_vma_init(device, &mem->vk.base,
                                   &mem->lazy_vma, &mem->iova,
                                   sparse_flags,
-                                  size,
+                                  size, 0,
                                   client_address);
    } else {
       result = tu_bo_init_new_explicit_iova(
-         device, &mem->vk.base, &mem->bo, size,
+         device, &mem->vk.base, &mem->bo, size, 0,
          client_address, mem_property, alloc_flags, NULL, name);
    }
 
@@ -3735,7 +3735,7 @@ tu_AllocateMemory(VkDevice _device,
        * table and add reference count to tu_bo.
        */
       result =
-         tu_bo_init_dmabuf(device, &mem->bo, pAllocateInfo->allocationSize,
+         tu_bo_init_dmabuf(device, &mem->bo, pAllocateInfo->allocationSize, 0,
                            alloc_flags, fd_info->fd);
       if (result == VK_SUCCESS) {
          /* take ownership and close the fd */
@@ -3746,7 +3746,7 @@ tu_AllocateMemory(VkDevice _device,
       const native_handle_t *handle = AHardwareBuffer_getNativeHandle(mem->vk.ahardware_buffer);
       assert(handle->numFds > 0);
       size_t size = lseek(handle->data[0], 0, SEEK_END);
-      result = tu_bo_init_dmabuf(device, &mem->bo, size, alloc_flags,
+      result = tu_bo_init_dmabuf(device, &mem->bo, size, 0, alloc_flags,
                                  handle->data[0]);
 #else
       result = VK_ERROR_FEATURE_NOT_PRESENT;
@@ -3869,7 +3869,7 @@ tu_allocate_lazy_memory(struct tu_device *dev,
                   (long)DIV_ROUND_UP(mem->size, 1024));
       result =
          tu_bo_init_new_explicit_iova(dev, &mem->vk.base,
-                                      &mem->bo, mem->size, 0, 0,
+                                      &mem->bo, mem->size, 0, 0, 0,
                                       TU_BO_ALLOC_NO_FLAGS,
                                       &mem->lazy_vma, name);
       mem->lazy_initialized = true;

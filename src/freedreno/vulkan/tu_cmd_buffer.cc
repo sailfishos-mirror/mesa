@@ -43,7 +43,7 @@ tu_cmd_buffer_setup_status_tracking(struct tu_device *device)
    VkResult result;
 
    result = tu_bo_init_new_explicit_iova(
-      device, NULL, &status_bo, sizeof(enum tu_cmd_buffer_status), 0,
+      device, NULL, &status_bo, sizeof(enum tu_cmd_buffer_status), 0, 0,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |

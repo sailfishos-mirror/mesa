@@ -564,6 +564,7 @@ static VkResult
 msm_allocate_userspace_iova_locked(struct tu_device *dev,
                                    uint32_t gem_handle,
                                    uint64_t size,
+                                   uint64_t align,
                                    uint64_t client_iova,
                                    enum tu_bo_alloc_flags flags,
                                    uint64_t *iova)
@@ -578,7 +579,7 @@ msm_allocate_userspace_iova_locked(struct tu_device *dev,
 
    tu_free_zombie_vma_locked(dev, false);
 
-   result = tu_allocate_userspace_iova(dev, size, client_iova, flags, iova);
+   result = tu_allocate_userspace_iova(dev, size, align, client_iova, flags, iova);
    if (result == VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS) {
       /* Address may be already freed by us, but not considered as
        * freed by the kernel. We have to wait until all work that
@@ -586,7 +587,7 @@ msm_allocate_userspace_iova_locked(struct tu_device *dev,
        * be replayed only by debug tooling, it should be ok to wait.
        */
       tu_free_zombie_vma_locked(dev, true);
-      result = tu_allocate_userspace_iova(dev, size, client_iova, flags, iova);
+      result = tu_allocate_userspace_iova(dev, size, align, client_iova, flags, iova);
    }
 
    return result;
@@ -748,6 +749,7 @@ static VkResult
 tu_allocate_iova(struct tu_device *dev,
                  uint32_t gem_handle, /* only for BOs imported via dma-buf */
                  uint64_t size,
+                 uint64_t align,
                  uint64_t client_iova,
                  enum tu_bo_alloc_flags flags,
                  uint64_t *iova)
@@ -757,10 +759,10 @@ tu_allocate_iova(struct tu_device *dev,
    msm_vma_lock(dev);
 
    if (dev->physical_device->has_vm_bind) {
-      result = tu_allocate_userspace_iova(dev, size, client_iova, flags, iova);
+      result = tu_allocate_userspace_iova(dev, size, align, client_iova, flags, iova);
    } else if (dev->physical_device->has_set_iova) {
       assert(dev->physical_device->has_set_iova);
-      result = msm_allocate_userspace_iova_locked(dev, gem_handle, size,
+      result = msm_allocate_userspace_iova_locked(dev, gem_handle, size, align,
                                                   client_iova, flags, iova);
    }
 
@@ -870,6 +872,7 @@ msm_bo_init(struct tu_device *dev,
             struct vk_object_base *base,
             struct tu_bo **out_bo,
             uint64_t size,
+            uint64_t align,
             uint64_t client_iova,
             VkMemoryPropertyFlags mem_property,
             enum tu_bo_alloc_flags flags,
@@ -883,7 +886,7 @@ msm_bo_init(struct tu_device *dev,
    if (lazy_vma)
       iova = lazy_vma->msm.iova;
    else
-      result = tu_allocate_iova(dev, 0, size, client_iova, flags, &iova);
+      result = tu_allocate_iova(dev, 0, size, align, client_iova, flags, &iova);
 
    if (result != VK_SUCCESS)
       return result;
@@ -965,6 +968,7 @@ static VkResult
 msm_bo_init_dmabuf(struct tu_device *dev,
                    struct tu_bo **out_bo,
                    uint64_t size,
+                   uint64_t align,
                    enum tu_bo_alloc_flags flags,
                    int prime_fd)
 {
@@ -1008,7 +1012,7 @@ msm_bo_init_dmabuf(struct tu_device *dev,
    }
 
    VkResult result =
-      tu_allocate_iova(dev, gem_handle, size, 0, flags, &iova);
+      tu_allocate_iova(dev, gem_handle, size, align, 0, flags, &iova);
 
    if (result != VK_SUCCESS) {
       tu_gem_close(dev, gem_handle);
@@ -1167,7 +1171,7 @@ msm_sparse_vma_init(struct tu_device *dev,
                     struct tu_sparse_vma *out_vma,
                     uint64_t *out_iova,
                     enum tu_sparse_vma_flags flags,
-                    uint64_t size, uint64_t client_iova)
+                    uint64_t size, uint64_t align, uint64_t client_iova)
 {
    VkResult result;
    enum tu_bo_alloc_flags bo_flags =
@@ -1176,7 +1180,7 @@ msm_sparse_vma_init(struct tu_device *dev,
 
    out_vma->msm.size = size;
 
-   result = tu_allocate_iova(dev, 0, size, client_iova, bo_flags,
+   result = tu_allocate_iova(dev, 0, size, align, client_iova, bo_flags,
                              &out_vma->msm.iova);
 
    if (result != VK_SUCCESS)
@@ -1651,6 +1655,7 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
 
    device->has_set_iova = !tu_drm_get_va_prop(device, &device->va_start,
                                               &device->va_size);
+   device->has_iova_align = device->has_set_iova;
    device->has_lazy_bos = device->has_set_iova;
    device->has_raytracing = tu_drm_get_raytracing(device);
    device->has_sparse_prr = tu_drm_get_prr(device);

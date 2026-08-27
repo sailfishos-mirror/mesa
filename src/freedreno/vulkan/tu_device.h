@@ -131,6 +131,8 @@ struct tu_physical_device
    bool has_sparse_prr;
    /* Whether lazy allocations are supported. */
    bool has_lazy_bos;
+   /* Whether allocations can be aligned. */
+   bool has_iova_align;
    uint64_t va_start;
    uint64_t va_size;
 
@@ -717,7 +719,7 @@ tu_bo_init_new_cached(struct tu_device *dev, struct vk_object_base *base,
                       enum tu_bo_alloc_flags flags, const char *name)
 {
    return tu_bo_init_new_explicit_iova(
-      dev, base, out_bo, size, 0,
+      dev, base, out_bo, size, 0, 0,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
