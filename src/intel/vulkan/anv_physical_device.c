@@ -1106,7 +1106,7 @@ get_features(const struct anv_physical_device *pdevice,
       .cooperativeMatrix = pdevice->has_cooperative_matrix,
 
       /* VK_NV_cooperative_matrix2 */
-      .cooperativeMatrixPerElementOperations = pdevice->has_cooperative_matrix,
+      .cooperativeMatrixPerElementOperationsNV = pdevice->has_cooperative_matrix,
 
       /* VK_KHR_shader_maximal_reconvergence */
       .shaderMaximalReconvergence = true,
