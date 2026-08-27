@@ -477,6 +477,9 @@ kk_SetDebugUtilsObjectNameEXT(VkDevice device,
    if (result != VK_SUCCESS)
       return result;
 
+   if (pNameInfo->pObjectName == NULL)
+      return result;
+
 #define CASE(obj_type, kk_type, vk_type)                                       \
    case VK_OBJECT_TYPE_##obj_type: {                                           \
       VK_FROM_HANDLE(kk_type, obj, (vk_type)pNameInfo->objectHandle);          \
