@@ -506,32 +506,15 @@ build_small_constant_load(nir_builder *b, nir_deref_instr *deref,
    return nir_vec(b, ret, info->num_components);
 }
 
-/** Lower large constant variables to shader constant data
- *
- * This pass looks for large (type_size(var->type) > threshold) variables
- * which are statically constant and moves them into shader constant data.
- * This is especially useful when large tables are baked into the shader
- * source code because they can be moved into a UBO by the driver to reduce
- * register pressure and make indirect access cheaper.
- */
-bool
-nir_opt_large_constants(nir_shader *shader,
-                        glsl_type_size_align_func size_align,
-                        unsigned threshold)
+static bool
+opt_large_constants_impl(nir_function_impl *impl,
+                         glsl_type_size_align_func size_align,
+                         unsigned threshold)
 {
-   /* Default to a natural alignment if none is provided */
-   if (size_align == NULL)
-      size_align = glsl_get_natural_size_align_bytes;
-
-   /* This only works with a single entrypoint */
-   nir_function_impl *impl = nir_shader_get_entrypoint(shader);
-
    unsigned num_locals = nir_function_impl_index_vars(impl);
 
-   if (num_locals == 0) {
-      nir_shader_preserve_all_metadata(shader);
-      return false;
-   }
+   if (num_locals == 0)
+      return nir_no_progress(impl);
 
    struct var_info *var_infos = ralloc_array(NULL, struct var_info, num_locals);
    nir_foreach_function_temp_variable(var, impl) {
@@ -544,7 +527,7 @@ nir_opt_large_constants(nir_shader *shader,
 
    nir_metadata_require(impl, nir_metadata_dominance);
 
-   /* First, walk through the shader and figure out what variables we can
+   /* First, walk through the impl and figure out what variables we can
     * lower to the constant blob.
     */
    nir_foreach_block(block, impl) {
@@ -646,6 +629,7 @@ nir_opt_large_constants(nir_shader *shader,
     * data.  We sort them by size and content so we can easily find
     * duplicates.
     */
+   nir_shader *shader = impl->function->shader;
    const unsigned old_constant_data_size = shader->constant_data_size;
    qsort(var_infos, num_locals, sizeof(struct var_info), var_info_cmp);
    for (int i = 0; i < num_locals; i++) {
@@ -685,9 +669,8 @@ nir_opt_large_constants(nir_shader *shader,
    }
 
    if (!has_constant) {
-      nir_shader_preserve_all_metadata(shader);
       ralloc_free(var_infos);
-      return false;
+      return nir_no_progress(impl);
    }
 
    if (shader->constant_data_size != old_constant_data_size) {
@@ -788,4 +771,29 @@ nir_opt_large_constants(nir_shader *shader,
    ralloc_free(var_infos);
 
    return nir_progress(true, impl, nir_metadata_control_flow);
+}
+
+/** Lower large constant variables to shader constant data
+ *
+ * This pass looks for large (type_size(var->type) > threshold) variables
+ * which are statically constant and moves them into shader constant data.
+ * This is especially useful when large tables are baked into the shader
+ * source code because they can be moved into a UBO by the driver to reduce
+ * register pressure and make indirect access cheaper.
+ */
+bool
+nir_opt_large_constants(nir_shader *shader,
+                        glsl_type_size_align_func size_align,
+                        unsigned threshold)
+{
+   /* Default to a natural alignment if none is provided */
+   if (size_align == NULL)
+      size_align = glsl_get_natural_size_align_bytes;
+
+   bool progress = false;
+
+   nir_foreach_function_impl(impl, shader)
+      progress |= opt_large_constants_impl(impl, size_align, threshold);
+
+   return progress;
 }
