@@ -13,8 +13,6 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
-#define JAY_MAX_ACCUMS 4
-
 static void
 postra_liveness_ins(BITSET_WORD *live, jay_inst *I)
 {
