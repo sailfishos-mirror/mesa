@@ -313,9 +313,11 @@ private:
    bool build_interference_graph(bool allow_spilling);
 
    brw_reg build_lane_offsets(const brw_builder &bld,
-                              uint32_t spill_offset, int ip);
+                              uint32_t spill_offset, int ip,
+                              bool *out_use_base_offset);
    brw_reg build_single_offset(const brw_builder &bld,
-                              uint32_t spill_offset, int ip);
+                               uint32_t spill_offset, int ip,
+                               bool *out_use_base_offset);
    brw_reg build_legacy_scratch_header(const brw_builder &bld,
                                        uint32_t spill_offset, int ip);
 
@@ -819,8 +821,11 @@ brw_reg_alloc::build_interference_graph(bool allow_spilling)
 }
 
 brw_reg
-brw_reg_alloc::build_single_offset(const brw_builder &bld, uint32_t spill_offset, int ip)
+brw_reg_alloc::build_single_offset(const brw_builder &bld, uint32_t spill_offset, int ip,
+                                   bool *out_use_base_offset)
 {
+   *out_use_base_offset = false;
+
    brw_reg offset = retype(alloc_spill_reg(1, ip), BRW_TYPE_UD);
    brw_inst *inst = bld.MOV(offset, brw_imm_ud(spill_offset));
    _mesa_set_add(spill_insts, inst);
@@ -828,25 +833,32 @@ brw_reg_alloc::build_single_offset(const brw_builder &bld, uint32_t spill_offset
 }
 
 brw_reg
-brw_reg_alloc::build_lane_offsets(const brw_builder &bld, uint32_t spill_offset, int ip)
+brw_reg_alloc::build_lane_offsets(const brw_builder &bld, uint32_t spill_offset, int ip,
+                                  bool *out_use_base_offset)
 {
-   assert(bld.dispatch_width() <= 16 * reg_unit(bld.shader->devinfo));
+   const intel_device_info *devinfo = bld.shader->devinfo;
+   assert(bld.dispatch_width() <= 16 * reg_unit(devinfo));
+
+   *out_use_base_offset =
+      brw_lsc_supports_base_offset(devinfo) &&
+      brw_lsc_can_use_instruction_offset(LSC_ADDR_SURFTYPE_SS, spill_offset);
 
    const brw_builder ubld = bld.exec_all();
    const unsigned reg_count = ubld.dispatch_width() / 8;
 
    brw_reg offset = retype(alloc_spill_reg(reg_count, ip), BRW_TYPE_UD);
+   brw_reg offset_uw = retype(offset, BRW_TYPE_UW);
    brw_inst *inst;
 
    /* Build an offset per lane in SIMD8 */
-   inst = ubld.group(8, 0).MOV(retype(offset, BRW_TYPE_UW),
+   inst = ubld.group(8, 0).MOV(offset_uw,
                                brw_imm_uv(0x76543210));
    _mesa_set_add(spill_insts, inst);
 
-   if (spill_offset > 0 && spill_offset <= 0xffffu) {
+   if (spill_offset > 0 && spill_offset <= 0xffffu && !*out_use_base_offset) {
       inst = ubld.group(8, 0).MAD(offset,
                                   brw_imm_uw(spill_offset),
-                                  retype(offset, BRW_TYPE_UW),
+                                  offset_uw,
                                   brw_imm_uw(4));
       _mesa_set_add(spill_insts, inst);
    } else {
@@ -855,7 +867,7 @@ brw_reg_alloc::build_lane_offsets(const brw_builder &bld, uint32_t spill_offset,
       _mesa_set_add(spill_insts, inst);
 
       /* Add the base offset */
-      if (spill_offset) {
+      if (spill_offset && !*out_use_base_offset) {
          inst = ubld.group(8, 0).ADD(offset, offset, brw_imm_ud(spill_offset));
          _mesa_set_add(spill_insts, inst);
       }
@@ -931,10 +943,11 @@ brw_reg_alloc::emit_unspill(const brw_builder &bld,
             bld.has_writemask_all();
          const brw_builder ubld = use_transpose ? bld.uniform() : bld;
          brw_reg offset;
+         bool use_base_offset = false;
          if (use_transpose) {
-            offset = build_single_offset(ubld, slot.offset, ip);
+            offset = build_single_offset(ubld, slot.offset, ip, &use_base_offset);
          } else {
-            offset = build_lane_offsets(ubld, slot.offset, ip);
+            offset = build_lane_offsets(ubld, slot.offset, ip, &use_base_offset);
          }
 
          const bool exec_all = use_transpose || bld.has_writemask_all();
@@ -945,6 +958,7 @@ brw_reg_alloc::emit_unspill(const brw_builder &bld,
 
          unspill_inst->offset = slot.offset;
          unspill_inst->logical_offset = slot.logical_offset;
+         unspill_inst->use_base_offset = use_base_offset;
          unspill_inst->use_transpose = use_transpose;
          unspill_inst->size_written =
             brw_lsc_msg_dest_len(devinfo, LSC_DATA_SIZE_D32, bld.dispatch_width()) * REG_SIZE;
@@ -1006,7 +1020,8 @@ brw_reg_alloc::emit_spill(const brw_builder &bld,
       ++stats->spill_count;
 
       if (devinfo->verx10 >= 125) {
-         brw_reg offset = build_lane_offsets(bld, slot.offset, ip);
+         bool use_base_offset = false;
+         brw_reg offset = build_lane_offsets(bld, slot.offset, ip, &use_base_offset);
 
          brw_scratch_inst *spill_inst = bld.SPILL();
          spill_inst->dst = bld.null_reg_f();
@@ -1016,6 +1031,7 @@ brw_reg_alloc::emit_spill(const brw_builder &bld,
 
          spill_inst->offset = slot.offset;
          spill_inst->logical_offset = slot.logical_offset;
+         spill_inst->use_base_offset = use_base_offset;
          spill_inst->use_transpose = false;
 
          _mesa_set_add(spill_insts, spill_inst);

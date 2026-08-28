@@ -4086,15 +4086,6 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
    }
 }
 
-static bool
-can_use_instruction_offset(enum lsc_addr_surface_type binding_type, int32_t offset)
-{
-   const unsigned max_bits = brw_max_immediate_offset_bits(binding_type);
-   return offset % 4 == 0 &&
-          offset >= u_intN_min(max_bits) &&
-          offset <= u_intN_max(max_bits);
-}
-
 static brw_reg
 memory_address(nir_to_brw_state &ntb,
                const brw_builder &bld,
@@ -4119,7 +4110,7 @@ memory_address(nir_to_brw_state &ntb,
       *address_offset = 0;
    } else if (!nir_intrinsic_has_base(instr) && nir_src_is_const(*nir_src_offset)) {
       const int32_t offset = nir_src_as_int(*nir_src_offset);
-      if (can_use_instruction_offset(binding_type, offset)) {
+      if (brw_lsc_can_use_instruction_offset(binding_type, offset)) {
          address = brw_imm_ud(0);
          *address_offset = offset;
       } else {
@@ -4129,7 +4120,7 @@ memory_address(nir_to_brw_state &ntb,
    } else {
       assert(nir_intrinsic_has_base(instr));
       const int32_t offset = nir_intrinsic_base(instr);
-      assert(can_use_instruction_offset(binding_type, offset));
+      assert(brw_lsc_can_use_instruction_offset(binding_type, offset));
       address = src_offset;
       *address_offset = offset;
    }

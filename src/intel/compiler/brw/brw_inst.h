@@ -374,7 +374,16 @@ struct brw_scratch_inst : brw_inst {
     *
     * Currently this must be false for spills.
     */
-   bool use_transpose;
+   bool use_transpose:1;
+
+   /**
+    * Should a LSC fill the base offset?
+    *
+    * Currently this must be false for spills.
+    */
+   bool use_base_offset:1;
+
+   uint32_t pad:30;
 };
 
 /**
