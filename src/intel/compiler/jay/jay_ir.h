@@ -825,10 +825,10 @@ typedef struct jay_shader {
    unsigned dispatch_width;
 
    /**
-    * Number of GPR/UGPRs used across all functions in the shader. This is the
+    * Number of registers used across all functions in the shader. This is the
     * limit that must be allocated for the shader.
     */
-   unsigned num_regs[JAY_NUM_RA_FILES];
+   unsigned num_regs[JAY_NUM_SSA_FILES];
 
    /**
     * Register file partition chosen for the whole shader.
@@ -1141,17 +1141,6 @@ jay_num_accums(jay_shader *shader)
    /* TODO: Adjust for older platforms */
    unsigned total_grf = 4;
    return total_grf / jay_grf_per_gpr(shader);
-}
-
-static inline unsigned
-jay_num_regs(jay_shader *shader, enum jay_file file)
-{
-   assert(file < JAY_NUM_SSA_FILES);
-
-   if (file < JAY_NUM_RA_FILES)
-      return shader->num_regs[file];
-   else
-      return 1 /* TODO: We don't have address or accumulator RA yet */;
 }
 
 static inline enum jay_stride

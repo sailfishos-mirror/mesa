@@ -198,7 +198,7 @@ jay_lower_helpers(jay_shader *shader)
 
    /* By ABI with jay_assign_flags, the last flag is used to track helpers */
    assert(shader->helpers_tracked);
-   unsigned helper_flag_no = jay_num_regs(shader, FLAG) - 1;
+   unsigned helper_flag_no = shader->num_regs[FLAG] - 1;
    struct ctx ctx = { .helper_flag = jay_bare_reg(FLAG, helper_flag_no) };
 
    /* Initialize the helper flag sensibly based on the dispatch mask (sr0.2) */

@@ -282,7 +282,7 @@ push_temp(jay_builder *b,
       }
    } while (!succ);
 
-   assert(r < jay_num_regs(b->shader, file) && "should have found something");
+   assert(r < b->shader->num_regs[file] && "should have found something");
    jay_def new = def_from_reg(make_reg(file, r));
 
    /* Put accumulators down the float pipe - it's still a raw move. */

@@ -494,6 +494,7 @@ jay_partition_grf(jay_shader *shader)
    };
 
    shader->num_regs[FLAG] = hw_flags;
+   shader->num_regs[J_ADDRESS] = 1;
 
    build_partition(shader, hw_grfs, blocks, ARRAY_SIZE(blocks));
 
