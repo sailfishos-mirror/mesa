@@ -2254,7 +2254,7 @@
         "description": "pvr: set ycbcr sampler state words when any sampler word is present",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c856d3405621c4a1d4428cfcfc43f64b9329b15e",
         "notes": null
