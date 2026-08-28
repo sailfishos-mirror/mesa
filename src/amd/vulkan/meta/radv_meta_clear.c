@@ -689,6 +689,11 @@ radv_can_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                           const VkClearDepthStencilValue clear_value, uint32_t view_mask)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   if (pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_FRAGMENT ||
+       pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE)
+      return false;
 
    if (!iview || !iview->support_fast_clear)
       return false;
@@ -1324,6 +1329,10 @@ radv_can_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t clear_color[2];
 
+   if (pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_FRAGMENT ||
+       pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE)
+      return false;
+
    if (!iview || !iview->support_fast_clear)
       return false;
 
@@ -1878,11 +1887,14 @@ radv_CmdClearColorImage(VkCommandBuffer commandBuffer, VkImage image_h, VkImageL
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_image, image, image_h);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    bool cs;
 
    radv_suspend_conditional_rendering(cmd_buffer);
 
-   cs = cmd_buffer->qf == RADV_QUEUE_COMPUTE || !radv_image_is_renderable(image);
+   cs = cmd_buffer->qf == RADV_QUEUE_COMPUTE || !radv_image_is_renderable(image) ||
+        pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE;
 
    radv_meta_begin(cmd_buffer);
 

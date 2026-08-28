@@ -28,6 +28,25 @@
 extern "C" {
 #endif
 
+/* Codepath selection for framebuffer clears, image clears, copies, blits, and MSAA resolves.
+ * It has no effect on transfer queues. Compute queues ignore the fragment option.
+ */
+enum radv_image_meta_path {
+   /* Use the default path. */
+   RADV_IMAGE_META_PATH_AUTO,
+
+   /* Use fragment shaders when possible. Don't use fast clear. */
+   RADV_IMAGE_META_PATH_FRAGMENT,
+
+   /* Use compute shaders when possible. Don't use fast clear. */
+   RADV_IMAGE_META_PATH_COMPUTE,
+
+   /* Use fast clears for clears when possible. (fast clear might not always be used by default)
+    * Other ops use the default path.
+    */
+   RADV_IMAGE_META_PATH_FAST_CLEAR,
+};
+
 enum radv_meta_save_flags {
    RADV_META_SAVE_CONSTANTS = (1 << 0),
    RADV_META_SAVE_DESCRIPTOR_BUFFER_ADDR0 = (1 << 1),

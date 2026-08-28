@@ -20,12 +20,17 @@ enum radv_resolve_method {
 };
 
 static enum radv_resolve_method
-radv_get_resolve_method(struct radv_image *src_image, struct radv_image *dst_image)
+radv_get_resolve_method(const struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
+                        struct radv_image *dst_image)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
    /* Default to the fragment resolve path which is optimal for compression. */
    enum radv_resolve_method resolve_method = RESOLVE_FRAGMENT;
 
-   if (dst_image->planes[0].surface.flags & RADEON_SURF_NO_RENDER_TARGET)
+   if (dst_image->planes[0].surface.flags & RADEON_SURF_NO_RENDER_TARGET ||
+       pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE)
       resolve_method = RESOLVE_COMPUTE;
 
    return resolve_method;
@@ -142,7 +147,7 @@ radv_resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_im
                    struct radv_image *dst_image, VkImageLayout dst_image_layout, const VkImageResolve2 *region,
                    const VkResolveImageModeInfoKHR *resolve_mode_info)
 {
-   const enum radv_resolve_method resolve_method = radv_get_resolve_method(src_image, dst_image);
+   const enum radv_resolve_method resolve_method = radv_get_resolve_method(cmd_buffer, src_image, dst_image);
 
    if (vk_format_is_depth_or_stencil(src_image->vk.format)) {
       if ((region->srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) &&
@@ -290,7 +295,8 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
       struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;
       struct radv_image_view *dst_iview = d_res_iview ? d_res_iview : s_res_iview;
 
-      const enum radv_resolve_method resolve_method = radv_get_resolve_method(src_iview->image, dst_iview->image);
+      const enum radv_resolve_method resolve_method =
+         radv_get_resolve_method(cmd_buffer, src_iview->image, dst_iview->image);
 
       VkImageResolve2 region = {
          .sType = VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2,
@@ -391,7 +397,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
          const uint32_t dst_base_layer = dst_is_3d ? 0 : dst_iview->vk.base_array_layer;
          const uint32_t dst_offset_z = dst_is_3d ? dst_iview->vk.base_array_layer : 0;
 
-         const enum radv_resolve_method resolve_method = radv_get_resolve_method(src_img, dst_img);
+         const enum radv_resolve_method resolve_method = radv_get_resolve_method(cmd_buffer, src_img, dst_img);
 
          VkImageResolve2 region = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2,
