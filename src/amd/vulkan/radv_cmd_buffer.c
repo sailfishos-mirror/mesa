@@ -7621,6 +7621,8 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
 static void
 radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask)
 {
+   src_stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+
    /* For simplicity, if the barrier wants to wait for the task shader,
     * just make it wait for the mesh shader too.
     */
