@@ -7618,6 +7618,65 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    }
 }
 
+// clang-format off
+/* Stages that can be signaled with a PFP write. */
+static const VkPipelineStageFlags2 radv_post_pfp_stage_mask =
+   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+
+/* Stages that can be signaled with a ME write.
+ *
+ * DRAW_INDIRECT_BIT in Vulkan includes compute dispatch indirect, mesh dispatch indirect, and trace
+ * rays indirect.
+ *
+ * Task shaders are implemented as "draw ring wait + mesh dispatch indirect" on the gfx queue.
+ */
+static const VkPipelineStageFlags2 radv_post_me_stage_mask =
+   VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
+   VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
+   VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
+
+/* Stages that require flushing pre-rasterization workload. */
+static const VkPipelineStageFlags2 radv_pre_rast_stage_mask =
+   VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
+   VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
+   VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
+   VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT;
+
+/* Stages that require flushing PS workload, they can also be signaled with a PS_DONE write. */
+static const VkPipelineStageFlags2 radv_post_ps_stage_mask =
+   VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
+   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+   VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+
+/* Stages that require flushing CB workload. */
+static const VkPipelineStageFlags2 radv_post_cb_stage_mask =
+   VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+/* Stages that require flushing CS workload, they can also be signaled with a CS_DONE write. */
+static const VkPipelineStageFlags2 radv_post_cs_stage_mask =
+   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR |
+   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+   VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT;
+
+/* Stages that require flushing PS/CS workload (various transfer operations). */
+static const VkPipelineStageFlags2 radv_post_transfer_stage_mask =
+   VK_PIPELINE_STAGE_2_COPY_BIT |
+   VK_PIPELINE_STAGE_2_RESOLVE_BIT |
+   VK_PIPELINE_STAGE_2_CLEAR_BIT |
+   VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR;
+
+/* Stages that require flushing PS workload (blit operations). */
+static const VkPipelineStageFlags2 radv_post_transfer_ps_only_stage_mask =
+   VK_PIPELINE_STAGE_2_BLIT_BIT;
+// clang-format on
+
 static VkPipelineStageFlags2
 radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
 {
@@ -7651,42 +7710,14 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    if (src_stage_mask & VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT)
       src_stage_mask |= VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
 
-   // clang-format off
    const VkPipelineStageFlags2 vs_stage_mask =
-      VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
-      VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
-      VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
-      VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
-      VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
-      VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT;
+      (radv_post_me_stage_mask & ~VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT) |
+      radv_pre_rast_stage_mask;
 
-   const VkPipelineStageFlags2 ps_stage_mask =
-      VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-      VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
-      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT |
-      VK_PIPELINE_STAGE_2_COPY_BIT |
-      VK_PIPELINE_STAGE_2_RESOLVE_BIT |
-      VK_PIPELINE_STAGE_2_CLEAR_BIT |
-      VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR |
-      VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
-      VK_PIPELINE_STAGE_2_BLIT_BIT;
+   const VkPipelineStageFlags2 ps_stage_mask = radv_post_ps_stage_mask | radv_post_cb_stage_mask |
+                                               radv_post_transfer_stage_mask | radv_post_transfer_ps_only_stage_mask;
 
-   const VkPipelineStageFlags2 cs_stage_mask =
-      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_COPY_BIT |
-      VK_PIPELINE_STAGE_2_RESOLVE_BIT |
-      VK_PIPELINE_STAGE_2_CLEAR_BIT |
-      VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR |
-      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
-      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR |
-      VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
-      VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT;
-   // clang-format on
+   const VkPipelineStageFlags2 cs_stage_mask = radv_post_cs_stage_mask | radv_post_transfer_stage_mask;
 
    if (src_stage_mask & cs_stage_mask)
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
@@ -16211,30 +16242,13 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
       stageMask |= VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
    }
 
-   /* Flags that can be signaled from a PFP write. */
-   VkPipelineStageFlags2 post_pfp_flags = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+   const VkPipelineStageFlags2 post_pfp_flags = radv_post_pfp_stage_mask;
+   const VkPipelineStageFlags2 post_me_flags = post_pfp_flags | radv_post_me_stage_mask;
+   const VkPipelineStageFlags2 post_pre_raster_flags = post_me_flags | radv_pre_rast_stage_mask |
+                                                       VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
+                                                       VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
 
-   /* Flags that can be signaled from an ME write.
-    *
-    * DRAW_INDIRECT_BIT in Vulkan includes compute dispatch indirect, mesh dispatch indirect, and
-    * trace rays indirect.
-    *
-    * Task shaders are implemented as "draw ring wait + mesh dispatch indirect" on the gfx queue.
-    */
-   VkPipelineStageFlags2 post_me_flags = post_pfp_flags | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
-                                         VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
-                                         VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
-
-   VkPipelineStageFlags2 post_pre_raster_flags =
-      post_me_flags | VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT | VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
-      VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
-      VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
-      VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-
-   VkPipelineStageFlags2 post_ps_flags = post_me_flags | VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
-                                         VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-                                         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+   VkPipelineStageFlags2 post_ps_flags = post_me_flags | radv_post_ps_stage_mask;
 
    /* PS_DONE doesn't wait for GS waves that send "gs_alloc_req 0" on GFX10-11.7.
     * Only BOTTOM_OF_PIPE_TS does.
@@ -16242,11 +16256,7 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
    if (!(pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7))
       post_ps_flags |= post_pre_raster_flags;
 
-   /* Flags that only require signaling post CS. */
-   VkPipelineStageFlags2 post_cs_flags =
-      post_me_flags | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT |
-      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
-      VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+   const VkPipelineStageFlags2 post_cs_flags = post_me_flags | radv_post_cs_stage_mask;
 
    radv_cp_dma_wait_for_stages(cmd_buffer, stageMask);
 
