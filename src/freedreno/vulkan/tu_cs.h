@@ -838,6 +838,51 @@ private:
 #define with_crb(...) \
    for (tu_crb crb(__VA_ARGS__); crb.first; crb.first = false)
 
+
+/**
+ * A builder for an arbitrary PKT7 (for CRB, use fd_crb instead)
+ */
+class tu_pkt7 final : public tu_pkt {
+public:
+   tu_pkt7(tu_cs *cs, enum adreno_pm4_type3_packets pkt, unsigned ndwords) :
+      tu_pkt(cs, pkt, ndwords)
+   {
+   }
+
+   /* Allow appending a "naked" dwords: */
+   tu_pkt7& add(uint32_t val) {
+      append(val);
+      off_++;
+      return *this;
+   }
+
+   tu_pkt7& add(struct fd_reg_pair reg) {
+      __assert_eq(off_, reg.reg);
+      off_ = reg.reg + 1;
+      append(reg.value);
+      return *this;
+   }
+
+   tu_pkt7& add(struct fd_reg_pair reg_lo, struct fd_reg_pair reg_hi) {
+      __assert_eq(reg_hi.reg, 0);
+      __assert_eq(off_, reg_lo.reg);
+      off_ = reg_lo.reg + 2;
+      uint64_t val = reg_lo.value;
+      append(val);
+      append(val >> 32);
+      return *this;
+   }
+
+private:
+   /* Disallow copy constructor to prevent mistakes with using fd_pkt7 instead
+    * of fd_pkt7& as function param:
+    */
+   tu_pkt7(const tu_pkt7 &);
+
+   /* for debugging: */
+   unsigned off_ = 0;
+};
+
 template <chip CHIP>
 static inline fd_reg_pair
 tu_scratch_reg(int idx, uint32_t val = 0)
