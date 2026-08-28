@@ -1497,6 +1497,8 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    }
 
    info->userq_ip_mask = debug_get_bool_option("AMD_USERQ", false) ? device_info.userq_ip_mask : 0;
+   info->userq_ip_mask &= ~BITFIELD_BIT(AMD_IP_SDMA);
+
    /* Incomplete userq syncobj timeline support until .65 */
    if (info->userq_ip_mask && info->drm_minor < 65) {
       fprintf(stderr, "amdgpu: DRM version is %u.%u.%u, but userq support "
