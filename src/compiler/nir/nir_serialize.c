@@ -1374,13 +1374,14 @@ union packed_tex_data {
       unsigned is_sparse : 1;
       unsigned component : 2;
       unsigned texture_non_uniform : 1;
+      unsigned texture_2_non_uniform : 1;
       unsigned sampler_non_uniform : 1;
+      unsigned sampler_2_non_uniform : 1;
       unsigned offset_non_uniform : 1;
       unsigned embedded_sampler : 1;
       unsigned array_is_lowered_cube : 1;
       unsigned is_gather_implicit_lod : 1;
       unsigned can_speculate : 1;
-      unsigned unused : 2; /* Mark unused for valgrind. */
    } u;
 };
 
@@ -1416,7 +1417,9 @@ write_tex(write_ctx *ctx, const nir_tex_instr *tex)
       .u.is_sparse = tex->is_sparse,
       .u.component = tex->component,
       .u.texture_non_uniform = tex->texture_non_uniform,
+      .u.texture_2_non_uniform = tex->texture_2_non_uniform,
       .u.sampler_non_uniform = tex->sampler_non_uniform,
+      .u.sampler_2_non_uniform = tex->sampler_2_non_uniform,
       .u.offset_non_uniform = tex->offset_non_uniform,
       .u.embedded_sampler = tex->embedded_sampler,
       .u.array_is_lowered_cube = tex->array_is_lowered_cube,
@@ -1458,7 +1461,9 @@ read_tex(read_ctx *ctx, union packed_instr header)
    tex->is_sparse = packed.u.is_sparse;
    tex->component = packed.u.component;
    tex->texture_non_uniform = packed.u.texture_non_uniform;
+   tex->texture_2_non_uniform = packed.u.texture_2_non_uniform;
    tex->sampler_non_uniform = packed.u.sampler_non_uniform;
+   tex->sampler_2_non_uniform = packed.u.sampler_2_non_uniform;
    tex->offset_non_uniform = packed.u.offset_non_uniform;
    tex->embedded_sampler = packed.u.embedded_sampler;
    tex->array_is_lowered_cube = packed.u.array_is_lowered_cube;

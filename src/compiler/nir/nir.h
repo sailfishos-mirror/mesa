@@ -2829,6 +2829,11 @@ typedef struct nir_tex_instr {
     */
    bool sampler_non_uniform;
 
+   /** Similar to texture_non_uniform but for the second texture. */
+   bool texture_2_non_uniform;
+   /** Similar to texture_non_uniform but for the second sampler. */
+   bool sampler_2_non_uniform;
+
    /** True if this texture instruction uses an embedded sampler.
     *
     * In this case, sampler_index is the index in embedded sampler table.

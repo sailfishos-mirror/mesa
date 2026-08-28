@@ -2196,8 +2196,16 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
       fprintf(fp, ", texture non-uniform");
    }
 
+   if (instr->texture_2_non_uniform) {
+      fprintf(fp, ", texture 2 non-uniform");
+   }
+
    if (instr->sampler_non_uniform) {
       fprintf(fp, ", sampler non-uniform");
+   }
+
+   if (instr->sampler_2_non_uniform) {
+      fprintf(fp, ", sampler 2 non-uniform");
    }
 
    if (instr->is_sparse) {
