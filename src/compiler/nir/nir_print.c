@@ -2049,7 +2049,8 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
       break;
    }
 
-   bool has_texture_deref = false, has_sampler_deref = false;
+   bool has_texture_deref = false, has_sampler_deref = false,
+        has_sampler_2_deref = false;
    for (unsigned i = 0; i < instr->num_srcs; i++) {
       if (i > 0) {
          fprintf(fp, ", ");
@@ -2127,6 +2128,7 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
          fprintf(fp, "(sampler_deref)");
          break;
       case nir_tex_src_sampler_2_deref:
+         has_sampler_2_deref = true;
          fprintf(fp, "(sampler_2_deref)");
          break;
       case nir_tex_src_texture_offset:
@@ -2156,8 +2158,14 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
       case nir_tex_src_texture_heap_offset:
          fprintf(fp, "(texture_heap_offset)");
          break;
+      case nir_tex_src_texture_2_heap_offset:
+         fprintf(fp, "(texture_2_heap_offset)");
+         break;
       case nir_tex_src_sampler_heap_offset:
          fprintf(fp, "(sampler_heap_offset)");
+         break;
+      case nir_tex_src_sampler_2_heap_offset:
+         fprintf(fp, "(sampler_2_heap_offset)");
          break;
       case nir_tex_src_plane:
          fprintf(fp, "(plane)");
@@ -2204,6 +2212,10 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
 
    if (nir_tex_instr_need_sampler(instr) && !has_sampler_deref) {
       fprintf(fp, ", %u (sampler)", instr->sampler_index);
+   }
+
+   if (nir_tex_instr_need_texture_2(instr) && !has_sampler_2_deref) {
+      fprintf(fp, ", %u (sampler_2)", instr->sampler_2_index);
    }
 
    if (instr->texture_non_uniform) {

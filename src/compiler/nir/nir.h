@@ -2622,6 +2622,8 @@ typedef enum nir_tex_src_type {
    nir_tex_src_sampler_2_deref,
    nir_tex_src_texture_2_handle,
    nir_tex_src_sampler_2_handle,
+   nir_tex_src_texture_2_heap_offset,
+   nir_tex_src_sampler_2_heap_offset,
    nir_tex_src_block_size,
    nir_tex_src_box_size,
 
@@ -2840,6 +2842,13 @@ typedef struct nir_tex_instr {
     */
    bool embedded_sampler;
 
+   /** True if this texture instruction uses an embedded sampler for the
+    * second sampler.
+    *
+    * In this case, sampler_2_index is the index in embedded sampler table.
+    */
+   bool embedded_sampler_2;
+
    /** True whether this returns the same result anywhere in the shader and
     *  doesn't cause page faults.
     */
@@ -2891,6 +2900,17 @@ typedef struct nir_tex_instr {
     */
    unsigned sampler_index;
 
+   /** The second sampler index
+    *
+    * Only used for these opcodes, currently just to give the index of the
+    * embedded sampler:
+    *
+    *    - nir_texop_sample_weighted_qcom
+    *    - nir_texop_block_match_sad_qcom
+    *    - nir_texop_block_match_ssd_qcom
+    */
+   unsigned sampler_2_index;
+
    /* Back-end specific flags, intended to be used in combination with
     * nir_tex_src_backend1/2 to provide additional hw-specific information
     * to the back-end compiler.
@@ -2907,6 +2927,12 @@ typedef struct nir_tex_instr {
  * See also :c:member:`nir_tex_instr.sampler_index`.
  */
 bool nir_tex_instr_need_sampler(const nir_tex_instr *instr);
+
+/**
+ * Returns true if the texture operation requires a texture_2/sampler_2.
+ */
+bool
+nir_tex_instr_need_texture_2(const nir_tex_instr *instr);
 
 /** Returns the number of components returned by this nir_tex_instr
  *

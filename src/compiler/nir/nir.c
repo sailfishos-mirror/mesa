@@ -3489,6 +3489,19 @@ nir_tex_instr_need_sampler(const nir_tex_instr *instr)
    }
 }
 
+bool
+nir_tex_instr_need_texture_2(const nir_tex_instr *instr)
+{
+   switch (instr->op) {
+   case nir_texop_sample_weighted_qcom:
+   case nir_texop_block_match_sad_qcom:
+   case nir_texop_block_match_ssd_qcom:
+      return true;
+   default:
+      return false;
+   }
+}
+
 unsigned
 nir_tex_instr_result_size(const nir_tex_instr *instr)
 {
@@ -3697,6 +3710,8 @@ nir_tex_instr_src_type(const nir_tex_instr *instr, unsigned src)
    case nir_tex_src_block_size:
    case nir_tex_src_texture_heap_offset:
    case nir_tex_src_sampler_heap_offset:
+   case nir_tex_src_texture_2_heap_offset:
+   case nir_tex_src_sampler_2_heap_offset:
       return nir_type_uint;
 
    case nir_num_tex_src_types:

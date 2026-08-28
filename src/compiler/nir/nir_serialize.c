@@ -1374,9 +1374,7 @@ union packed_tex_data {
       unsigned is_sparse : 1;
       unsigned component : 2;
       unsigned texture_non_uniform : 1;
-      unsigned texture_2_non_uniform : 1;
       unsigned sampler_non_uniform : 1;
-      unsigned sampler_2_non_uniform : 1;
       unsigned embedded_sampler : 1;
       unsigned array_is_lowered_cube : 1;
       unsigned is_gather_implicit_lod : 1;
@@ -1384,6 +1382,17 @@ union packed_tex_data {
       unsigned input_attachment_index : 1;
       unsigned input_attachment_depth : 1;
       unsigned input_attachment_stencil : 1;
+      unsigned unused : 2; /* Mark unused for valgrind. */
+   } u;
+};
+
+union packed_tex2_data {
+   uint32_t u32;
+   struct {
+      unsigned texture_2_non_uniform : 1;
+      unsigned sampler_2_non_uniform : 1;
+      unsigned embedded_sampler_2 : 1;
+      unsigned unused : 29; /* Mark unused for valgrind. */
    } u;
 };
 
@@ -1405,6 +1414,8 @@ write_tex(write_ctx *ctx, const nir_tex_instr *tex)
    blob_write_uint32(ctx->blob, tex->texture_index);
    blob_write_uint32(ctx->blob, tex->texture_array_size);
    blob_write_uint32(ctx->blob, tex->sampler_index);
+   if (nir_tex_instr_need_texture_2(tex))
+      blob_write_uint32(ctx->blob, tex->sampler_2_index);
    blob_write_uint32(ctx->blob, tex->backend_flags);
    if (tex->op == nir_texop_tg4)
       blob_write_bytes(ctx->blob, tex->tg4_offsets, sizeof(tex->tg4_offsets));
@@ -1420,9 +1431,7 @@ write_tex(write_ctx *ctx, const nir_tex_instr *tex)
       .u.is_sparse = tex->is_sparse,
       .u.component = tex->component,
       .u.texture_non_uniform = tex->texture_non_uniform,
-      .u.texture_2_non_uniform = tex->texture_2_non_uniform,
       .u.sampler_non_uniform = tex->sampler_non_uniform,
-      .u.sampler_2_non_uniform = tex->sampler_2_non_uniform,
       .u.embedded_sampler = tex->embedded_sampler,
       .u.array_is_lowered_cube = tex->array_is_lowered_cube,
       .u.is_gather_implicit_lod = tex->is_gather_implicit_lod,
@@ -1432,6 +1441,16 @@ write_tex(write_ctx *ctx, const nir_tex_instr *tex)
       .u.input_attachment_stencil = tex->input_attachment_stencil,
    };
    blob_write_uint32(ctx->blob, packed.u32);
+
+   if (nir_tex_instr_need_texture_2(tex)) {
+      STATIC_ASSERT(sizeof(union packed_tex2_data) == sizeof(uint32_t));
+      union packed_tex2_data packed = {
+         .u.embedded_sampler_2 = tex->embedded_sampler_2,
+         .u.texture_2_non_uniform = tex->texture_2_non_uniform,
+         .u.sampler_2_non_uniform = tex->sampler_2_non_uniform,
+      };
+      blob_write_uint32(ctx->blob, packed.u32);
+   }
 
    for (unsigned i = 0; i < tex->num_srcs; i++) {
       union packed_src src;
@@ -1452,6 +1471,8 @@ read_tex(read_ctx *ctx, union packed_instr header)
    tex->texture_index = blob_read_uint32(ctx->blob);
    tex->texture_array_size = blob_read_uint32(ctx->blob);
    tex->sampler_index = blob_read_uint32(ctx->blob);
+   if (nir_tex_instr_need_texture_2(tex))
+      tex->sampler_2_index = blob_read_uint32(ctx->blob);
    tex->backend_flags = blob_read_uint32(ctx->blob);
    if (tex->op == nir_texop_tg4)
       blob_copy_bytes(ctx->blob, tex->tg4_offsets, sizeof(tex->tg4_offsets));
@@ -1467,9 +1488,7 @@ read_tex(read_ctx *ctx, union packed_instr header)
    tex->is_sparse = packed.u.is_sparse;
    tex->component = packed.u.component;
    tex->texture_non_uniform = packed.u.texture_non_uniform;
-   tex->texture_2_non_uniform = packed.u.texture_2_non_uniform;
    tex->sampler_non_uniform = packed.u.sampler_non_uniform;
-   tex->sampler_2_non_uniform = packed.u.sampler_2_non_uniform;
    tex->embedded_sampler = packed.u.embedded_sampler;
    tex->array_is_lowered_cube = packed.u.array_is_lowered_cube;
    tex->is_gather_implicit_lod = packed.u.is_gather_implicit_lod;
@@ -1477,6 +1496,14 @@ read_tex(read_ctx *ctx, union packed_instr header)
    tex->input_attachment_index = packed.u.input_attachment_index;
    tex->input_attachment_depth = packed.u.input_attachment_depth;
    tex->input_attachment_stencil = packed.u.input_attachment_stencil;
+
+   if (nir_tex_instr_need_texture_2(tex)) {
+      union packed_tex2_data packed;
+      packed.u32 = blob_read_uint32(ctx->blob);
+      tex->embedded_sampler_2 = packed.u.embedded_sampler_2;
+      tex->texture_2_non_uniform = packed.u.texture_2_non_uniform;
+      tex->sampler_2_non_uniform = packed.u.sampler_2_non_uniform;
+   }
 
    for (unsigned i = 0; i < tex->num_srcs; i++) {
       union packed_src src = read_src(ctx, &tex->src[i].src);
