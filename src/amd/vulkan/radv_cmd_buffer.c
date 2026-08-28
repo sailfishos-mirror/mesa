@@ -7688,15 +7688,31 @@ radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
       VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
       VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
       VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+   const VkPipelineStageFlags2 unsupported_stages_mask =
+      VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT |
+      VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV |
+      VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT |
+      VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM |
+      VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV |
+      VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
    // clang-format on
 
-   const VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+   VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
 
    /* Verify that re-expanding doesn't change anything. */
    assert(stage_mask == vk_expand_src_stage_flags2(stage_mask));
 
    /* Drop the stage flags that are expanded because they aren't used. */
-   return stage_mask & ~expanded_groups_mask;
+   stage_mask &= ~expanded_groups_mask;
+
+   /* Drop the stage flags that are unsupported. */
+   stage_mask &= ~unsupported_stages_mask;
+
+   return stage_mask;
 }
 
 static void
@@ -7730,17 +7746,6 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
 
 #ifndef NDEBUG
    // clang-format off
-   const VkPipelineStageFlags2 unsupported_stages_mask =
-      VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT |
-      VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV |
-      VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT |
-      VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM |
-      VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV |
-      VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
-
    const VkPipelineStageFlags2 ignored_stages_mask =
       VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT |
       VK_PIPELINE_STAGE_2_HOST_BIT |
@@ -7750,7 +7755,7 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    // clang-format on
 
    /* Make sure all pipeline stage flags are correctly handled. */
-   src_stage_mask &= ~(unsupported_stages_mask | ignored_stages_mask);
+   src_stage_mask &= ~ignored_stages_mask;
 
    assert(!(src_stage_mask &= ~(vs_stage_mask | ps_stage_mask | cs_stage_mask)));
 #endif
@@ -16236,11 +16241,10 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 28);
 
+   const VkPipelineStageFlags2 stage_mask = radv_get_src_stage_flags2(stageMask);
    const VkPipelineStageFlags2 post_pfp_flags = radv_post_pfp_stage_mask;
    const VkPipelineStageFlags2 post_me_flags = post_pfp_flags | radv_post_me_stage_mask;
-   const VkPipelineStageFlags2 post_pre_raster_flags = post_me_flags | radv_pre_rast_stage_mask |
-                                                       VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
-                                                       VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+   const VkPipelineStageFlags2 post_pre_raster_flags = post_me_flags | radv_pre_rast_stage_mask;
 
    VkPipelineStageFlags2 post_ps_flags = post_me_flags | radv_post_ps_stage_mask;
 
@@ -16254,18 +16258,18 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    radv_cp_dma_wait_for_stages(cmd_buffer, stageMask);
 
-   if (!(stageMask & ~post_pfp_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
+   if (!(stage_mask & ~post_pfp_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_PREFETCH_PARSER, va, 1, &value, false);
-   } else if (!(stageMask & ~post_me_flags)) {
+   } else if (!(stage_mask & ~post_me_flags)) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, 1, &value, false);
    } else {
       unsigned event_type;
 
-      if (!(stageMask & ~post_ps_flags)) {
+      if (!(stage_mask & ~post_ps_flags)) {
          /* Sync previous fragment shaders. */
          event_type = V_028A90_PS_DONE;
          assert(cmd_buffer->qf == RADV_QUEUE_GENERAL);
-      } else if (!(stageMask & ~post_cs_flags)) {
+      } else if (!(stage_mask & ~post_cs_flags)) {
          /* Sync previous compute shaders. */
          event_type = V_028A90_CS_DONE;
       } else {
