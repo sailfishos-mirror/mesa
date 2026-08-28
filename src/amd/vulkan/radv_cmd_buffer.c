@@ -7696,6 +7696,33 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
 
    if (src_stage_mask & vs_stage_mask)
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
+
+#ifndef NDEBUG
+   // clang-format off
+   const VkPipelineStageFlags2 unsupported_stages_mask =
+      VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT |
+      VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV |
+      VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT |
+      VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM |
+      VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV |
+      VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
+
+   const VkPipelineStageFlags2 ignored_stages_mask =
+      VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT |
+      VK_PIPELINE_STAGE_2_HOST_BIT |
+      VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | /* Emitted in the gang barrier. */
+      VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR |
+      VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR;
+   // clang-format on
+
+   /* Make sure all pipeline stage flags are correctly handled. */
+   src_stage_mask &= ~(unsupported_stages_mask | ignored_stages_mask);
+
+   assert(!(src_stage_mask &= ~(vs_stage_mask | ps_stage_mask | cs_stage_mask)));
+#endif
 }
 
 static bool
