@@ -144,7 +144,7 @@ can_access_accum(jay_shader *shader, jay_inst *I, signed src)
    }
 
    /* TODO: Many, many more restrictions on non-f32 */
-   if (I->type != JAY_TYPE_F32) {
+   if (!(jay_operand_type(I, src) == JAY_TYPE_F32 && I->type == JAY_TYPE_F32)) {
       return false;
    }
 
