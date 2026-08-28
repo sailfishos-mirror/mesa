@@ -36,68 +36,20 @@ tu_drm_get_param(int fd, uint32_t param, uint64_t *value)
    return msm_common_get_param(fd, MSM_PIPE_3D0, param, value);
 }
 
-static int
-tu_drm_get_gpu_id(const struct tu_physical_device *dev, uint32_t *id)
+static uint64_t
+tu_drm_get_param_or(int fd, uint32_t param, uint64_t *value, uint64_t default_value)
 {
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_GPU_ID, &value);
+   int ret = tu_drm_get_param(fd, param, value);
    if (ret)
-      return ret;
+      return default_value;
 
-   *id = value;
-   return 0;
-}
-
-static int
-tu_drm_get_gmem_size(const struct tu_physical_device *dev, uint32_t *size)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_GMEM_SIZE, &value);
-   if (ret)
-      return ret;
-
-   *size = value;
-   return 0;
-}
-
-static int
-tu_drm_get_gmem_base(const struct tu_physical_device *dev, uint64_t *base)
-{
-   return tu_drm_get_param(dev->local_fd, MSM_PARAM_GMEM_BASE, base);
-}
-
-static bool
-tu_drm_get_raytracing(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_RAYTRACING, &value);
-   if (ret)
-      return false;
-
-   return value;
-}
-
-static bool
-tu_drm_get_prr(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_HAS_PRR, &value);
-   if (ret)
-      return false;
-
-   return value;
-}
-
-static int
-tu_drm_set_param(int fd, uint32_t param, uint64_t value, uint32_t len)
-{
-   return msm_common_set_param(fd, MSM_PIPE_3D0, param, value, len);
+   return *value;
 }
 
 static int
 tu_try_enable_vm_bind(int fd)
 {
-   return tu_drm_set_param(fd, MSM_PARAM_EN_VM_BIND, 1, 0);
+   return msm_common_set_param(fd, MSM_PIPE_3D0, MSM_PARAM_EN_VM_BIND, 1, 0);
 }
 
 static void
@@ -107,60 +59,6 @@ tu_drm_set_debuginfo(int fd)
       return;
 
    msm_common_set_debuginfo(fd, MSM_PIPE_3D0);
-}
-
-static uint32_t
-tu_drm_get_priorities(const struct tu_physical_device *dev)
-{
-   uint64_t val = 1;
-   tu_drm_get_param(dev->local_fd, MSM_PARAM_PRIORITIES, &val);
-   assert(val >= 1);
-
-   return val;
-}
-
-static uint32_t
-tu_drm_get_highest_bank_bit(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_HIGHEST_BANK_BIT, &value);
-   if (ret)
-      return 0;
-
-   return value;
-}
-
-static enum fdl_macrotile_mode
-tu_drm_get_macrotile_mode(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_MACROTILE_MODE, &value);
-   if (ret)
-      return FDL_MACROTILE_INVALID;
-
-   return (enum fdl_macrotile_mode) value;
-}
-
-static uint32_t
-tu_drm_get_ubwc_swizzle(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_UBWC_SWIZZLE, &value);
-   if (ret)
-      return ~0;
-
-   return value;
-}
-
-static uint64_t
-tu_drm_get_uche_trap_base(const struct tu_physical_device *dev)
-{
-   uint64_t value;
-   int ret = tu_drm_get_param(dev->local_fd, MSM_PARAM_UCHE_TRAP_BASE, &value);
-   if (ret)
-      return 0x1fffffffff000ull;
-
-   return value;
 }
 
 static VkResult
@@ -1468,11 +1366,14 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
    device->has_vm_bind = tu_try_enable_vm_bind(fd) == 0;
    device->has_sparse = device->has_vm_bind;
 
-   if (tu_drm_get_gpu_id(device, &device->dev_id.gpu_id)) {
+   uint64_t val;
+
+   if (tu_drm_get_param(fd, MSM_PARAM_GPU_ID, &val)) {
       result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                                  "could not get GPU ID");
       goto fail;
    }
+   device->dev_id.gpu_id = val;
 
    if (tu_drm_get_param(fd, MSM_PARAM_CHIP_ID, &device->dev_id.chip_id)) {
       result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
@@ -1480,24 +1381,25 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
       goto fail;
    }
 
-   if (tu_drm_get_gmem_size(device, &device->gmem_size)) {
-      result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
-                                "could not get GMEM size");
+   if (tu_drm_get_param(fd, MSM_PARAM_GMEM_SIZE, &val)) {
+      result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "could not get GMEM size");
       goto fail;
    }
+   device->gmem_size = val;
    device->gmem_size = debug_get_num_option("TU_GMEM", device->gmem_size);
 
-   if (tu_drm_get_gmem_base(device, &device->gmem_base)) {
+   if (tu_drm_get_param(fd, MSM_PARAM_GMEM_BASE, &val)) {
       result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                                  "could not get GMEM size");
       goto fail;
    }
+   device->gmem_base = val;
 
    device->has_set_iova = !msm_common_get_va_prop(device->local_fd, MSM_PIPE_3D0, &device->va_start, &device->va_size);
    device->has_iova_align = device->has_set_iova;
    device->has_lazy_bos = device->has_set_iova;
-   device->has_raytracing = tu_drm_get_raytracing(device);
-   device->has_sparse_prr = tu_drm_get_prr(device);
+   device->has_raytracing = tu_drm_get_param_or(fd, MSM_PARAM_RAYTRACING, &val, false);
+   device->has_sparse_prr = tu_drm_get_param_or(fd, MSM_PARAM_HAS_PRR, &val, false);
 
    device->has_preemption = msm_common_has_preemption(device->local_fd, device->submitqueue_priority_count / 2);
 
@@ -1509,13 +1411,15 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
 
    tu_drm_set_debuginfo(fd);
 
-   device->submitqueue_priority_count = tu_drm_get_priorities(device);
+   device->submitqueue_priority_count = tu_drm_get_param_or(fd, MSM_PARAM_PRIORITIES, &val, 1);
+   assert(device->submitqueue_priority_count >= 1);
 
-   device->ubwc_config.highest_bank_bit = tu_drm_get_highest_bank_bit(device);
-   device->ubwc_config.bank_swizzle_levels = tu_drm_get_ubwc_swizzle(device);
-   device->ubwc_config.macrotile_mode = tu_drm_get_macrotile_mode(device);
+   device->ubwc_config.highest_bank_bit = tu_drm_get_param_or(fd, MSM_PARAM_HIGHEST_BANK_BIT, &val, 0);
+   device->ubwc_config.bank_swizzle_levels = tu_drm_get_param_or(fd, MSM_PARAM_UBWC_SWIZZLE, &val, ~0);
+   device->ubwc_config.macrotile_mode =
+      (enum fdl_macrotile_mode) tu_drm_get_param_or(fd, MSM_PARAM_MACROTILE_MODE, &val, FDL_MACROTILE_INVALID);
 
-   device->uche_trap_base = tu_drm_get_uche_trap_base(device);
+   device->uche_trap_base = tu_drm_get_param_or(fd, MSM_PARAM_UCHE_TRAP_BASE, &val, UINT64_C(0x1fffffffff000));
 
    device->syncobj_type = vk_drm_syncobj_get_type(fd);
 
