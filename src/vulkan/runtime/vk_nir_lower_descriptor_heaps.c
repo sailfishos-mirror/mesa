@@ -702,11 +702,8 @@ lower_heaps_tex(nir_builder *b, nir_tex_instr *tex,
    }
 
    if (nir_tex_instr_need_sampler(tex)) {
-      /* If this is a combined image/sampler, we may only have an image deref
-       * source and it's also the sampler deref.
-       */
-      nir_deref_instr *sampler = sampler_src_idx < 0 ? texture :
-                                 nir_src_as_deref(tex->src[sampler_src_idx].src);
+      nir_deref_instr *sampler =
+         nir_src_as_deref(tex->src[sampler_src_idx].src);
 
       const VkSamplerCreateInfo *embedded_sampler =
          get_deref_embedded_sampler(sampler, ctx);
