@@ -16236,12 +16236,6 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 28);
 
-   if (stageMask & (VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_RESOLVE_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT |
-                    VK_PIPELINE_STAGE_2_CLEAR_BIT)) {
-      /* Be conservative for now. */
-      stageMask |= VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
-   }
-
    const VkPipelineStageFlags2 post_pfp_flags = radv_post_pfp_stage_mask;
    const VkPipelineStageFlags2 post_me_flags = post_pfp_flags | radv_post_me_stage_mask;
    const VkPipelineStageFlags2 post_pre_raster_flags = post_me_flags | radv_pre_rast_stage_mask |
