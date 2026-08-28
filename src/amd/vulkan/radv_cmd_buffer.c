@@ -7618,10 +7618,32 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    }
 }
 
+static VkPipelineStageFlags2
+radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
+{
+   // clang-format off
+   const VkPipelineStageFlags2 expanded_groups_mask =
+      VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
+      VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
+      VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT |
+      VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
+      VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
+      VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+   // clang-format on
+
+   const VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+
+   /* Verify that re-expanding doesn't change anything. */
+   assert(stage_mask == vk_expand_src_stage_flags2(stage_mask));
+
+   /* Drop the stage flags that are expanded because they aren't used. */
+   return stage_mask & ~expanded_groups_mask;
+}
+
 static void
 radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask)
 {
-   src_stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+   src_stage_mask = radv_get_src_stage_flags2(src_stage_mask);
 
    /* For simplicity, if the barrier wants to wait for the task shader,
     * just make it wait for the mesh shader too.
