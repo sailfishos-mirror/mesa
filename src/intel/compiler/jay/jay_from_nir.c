@@ -4874,13 +4874,17 @@ jay_compile_simd(const struct intel_device_info *devinfo,
          prog_data->fs.dispatch_8 = true;
       } else if (simd_width == 16) {
          prog_data->fs.dispatch_16 = true;
+         prog_data->fs.prog_offset_16 = 0;
       } else if (simd_width == 32) {
          prog_data->fs.dispatch_32 = true;
+         prog_data->fs.prog_offset_32 = 0;
       }
+
    } else if (mesa_shader_stage_is_compute(s->stage) ||
               s->stage == MESA_SHADER_MESH ||
               s->stage == MESA_SHADER_TASK) {
       unsigned i = simd_width == 8 ? 0 : simd_width == 16 ? 1 : 2;
+      prog_data->cs.prog_offset[i] = 0;
       prog_data->cs.prog_mask = BITFIELD_BIT(i);
       prog_data->cs.prog_spilled = s->scratch_size > 0; /* XXX */
    } else if (brw_shader_stage_is_bindless(s->stage)) {
@@ -5011,6 +5015,10 @@ jay_compile(const struct intel_device_info *devinfo,
    bin->kernel = rzalloc_size(mem_ctx, total_bin_size);
    bin->size = total_bin_size;
    prog_data->base.program_size = total_bin_size;
+   prog_data->base.grf_used = 0;
+   prog_data->fs.dispatch_8 = false;
+   prog_data->fs.dispatch_16 = false;
+   prog_data->fs.dispatch_32 = false;
 
    struct intel_shader_reloc *relocs = NULL;
    if (total_num_relocs > 0) {
