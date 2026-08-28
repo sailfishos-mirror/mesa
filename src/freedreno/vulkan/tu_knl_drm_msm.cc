@@ -1389,8 +1389,7 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
    device->gmem_size = debug_get_num_option("TU_GMEM", device->gmem_size);
 
    if (tu_drm_get_param(fd, MSM_PARAM_GMEM_BASE, &val)) {
-      result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
-                                 "could not get GMEM size");
+      result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "could not get GMEM base");
       goto fail;
    }
    device->gmem_base = val;
