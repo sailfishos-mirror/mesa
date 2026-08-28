@@ -15777,13 +15777,13 @@ static void
 radv_cp_dma_wait_for_stages(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 stage_mask)
 {
    /* Make sure CP DMA is idle because the driver might have performed a DMA operation for copying a
-    * buffer (or a MSAA image using FMASK). Note that updating a buffer is considered a clear
+    * buffer (or a MSAA image using FMASK, or an accel struct build). Note that updating a buffer is considered a clear
     * operation but it might also use a CP DMA copy in some rare situations. Other operations using
     * a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
     */
-   if (stage_mask &
-       (VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT | VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
-        VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT))
+   if (stage_mask & (VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT |
+                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
+                     VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT))
       radv_cp_dma_wait_for_idle(cmd_buffer);
 }
 
