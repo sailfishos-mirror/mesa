@@ -1023,12 +1023,11 @@ static nir_def *
 wa_18019110168_load_per_primitive_remap_table(nir_builder *b, void *data)
 {
    const struct anv_pipeline_bind_map *bind_map = data;
-   nir_def *val = NULL;
-
-   val = nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
-                                  .base = anv_drv_const_offset(drv_data.gfx.wa_18019110168) -
-                                          bind_map->push_ranges[0].start * 32,
-                                  .range = anv_drv_const_size(drv_data.gfx.wa_18019110168));
+   nir_def *val =
+      nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                               .base = anv_drv_const_offset(drv_data.gfx.wa_18019110168) -
+                                       bind_map->push_ranges[0].start * 32,
+                               .range = anv_drv_const_size(drv_data.gfx.wa_18019110168));
 
    return nir_iand_imm(b, val, ANV_WA_18019110168_PER_PRIMITIVE_REMAP_TABLE_OFFSET_MASK);
 }
