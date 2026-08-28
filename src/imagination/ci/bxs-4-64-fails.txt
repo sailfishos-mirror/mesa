@@ -1,1 +1,0 @@
-dEQP-VK.ycbcr.conversion.g8_b8_r8_3plane_420_unorm.color_conversion.ycbcr_identity_itu_narrow_tiling_optimal_cosited,Fail
