@@ -88,14 +88,14 @@ msm_bo_iova(struct fd_bo *bo)
 static void
 msm_bo_set_name(struct fd_bo *bo, const char *fmt, va_list ap)
 {
-   char buf[32];
+   char buf[FD_MSM_GEM_NAME_LENGTH + 1];
    int sz;
 
    if (bo->dev->version < FD_VERSION_SOFTPIN)
       return;
 
    sz = vsnprintf(buf, sizeof(buf), fmt, ap);
-   sz = MIN2(sz, sizeof(buf) - 1);
+   sz = MIN2(sz, FD_MSM_GEM_NAME_LENGTH);
 
    msm_common_bo_set_name(bo->dev->fd, bo->handle, buf, sz);
 }

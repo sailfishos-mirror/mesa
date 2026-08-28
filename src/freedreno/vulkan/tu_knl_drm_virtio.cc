@@ -21,6 +21,7 @@
 #include "util/u_process.h"
 #include "vk_util.h"
 
+#include "common/freedreno_common.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_device.h"
@@ -656,15 +657,15 @@ tu_bo_set_kernel_name(struct tu_device *dev, struct tu_bo *bo, const char *name,
    if (!kernel_bo_names)
       return;
 
-   char name_buf[32];
-   if (sz > (sizeof(name_buf) - 1)) {
+   char name_buf[FD_MSM_GEM_NAME_LENGTH + 1];
+   if (sz > FD_MSM_GEM_NAME_LENGTH) {
       mesa_logd("Truncating BO name: %s", name);
 
-      memcpy(name_buf, name, sizeof(name_buf) - 1);
-      name_buf[sizeof(name_buf) - 1] = '\0';
+      memcpy(name_buf, name, FD_MSM_GEM_NAME_LENGTH);
+      name_buf[FD_MSM_GEM_NAME_LENGTH] = '\0';
 
       name = name_buf;
-      sz = sizeof(name_buf) - 1;
+      sz = FD_MSM_GEM_NAME_LENGTH;
    }
 
    unsigned req_len = sizeof(struct msm_ccmd_gem_set_name_req) + align(sz, 4);

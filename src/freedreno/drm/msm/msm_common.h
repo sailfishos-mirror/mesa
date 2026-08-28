@@ -21,6 +21,8 @@
 #include "util/timespec.h"
 #include "util/u_process.h"
 
+#include "common/freedreno_common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -135,16 +137,16 @@ static void
 msm_common_bo_set_name(int fd, uint32_t gem_handle, const char *name,
                        size_t length)
 {
-   char buf[32];
+   char buf[FD_MSM_GEM_NAME_LENGTH + 1];
 
-   if (length > (sizeof(buf) - 1)) {
+   if (length > FD_MSM_GEM_NAME_LENGTH) {
       mesa_logd("Truncating BO name: %s", name);
 
-      memcpy(buf, name, sizeof(buf) - 1);
-      buf[sizeof(buf) - 1] = '\0';
+      memcpy(buf, name, FD_MSM_GEM_NAME_LENGTH);
+      buf[FD_MSM_GEM_NAME_LENGTH] = '\0';
 
       name = buf;
-      length = sizeof(buf) - 1;
+      length = FD_MSM_GEM_NAME_LENGTH;
    }
 
    struct drm_msm_gem_info req = {
