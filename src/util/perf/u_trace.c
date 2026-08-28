@@ -1218,6 +1218,29 @@ release_last_device_memory(struct u_trace *ut, enum u_trace_buffer_list_index li
    last->alloc_offset = view.offset;
 }
 
+/* Return the byte range of timestamps used by the events from `first`
+ * until the timestamp buffer changes or `end` is reached.
+ */
+static void
+get_buffer_timestamp_span(struct u_trace *ut, uint32_t first, uint32_t end,
+                          uint32_t *start_B, uint32_t *size_B)
+{
+   struct u_trace_event *e = *util_dynarray_element(&ut->events, struct u_trace_event *, first);
+   uint32_t buffer_index = e->timestamp.buffer_index;
+   uint32_t lo = e->timestamp.offset, hi = e->timestamp.offset;
+
+   for (uint32_t i = first + 1; i < end; i++) {
+      e = *util_dynarray_element(&ut->events, struct u_trace_event *, i);
+      if (e->timestamp.buffer_index != buffer_index)
+         break;
+      lo = MIN2(lo, e->timestamp.offset);
+      hi = MAX2(hi, e->timestamp.offset);
+   }
+
+   *start_B = lo;
+   *size_B = hi - lo + ut->utctx->timestamp_size_bytes;
+}
+
 void
 u_trace_clone_append(struct u_trace_iterator begin_it,
                      struct u_trace_iterator end_it,
@@ -1236,6 +1259,7 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
    struct u_trace_buffer_view src_timestamp = {0}, dst_timestamp = {0}, src_indirect = {0}, dst_indirect = {0};
    src_timestamp.buffer_index = UINT32_MAX;
    src_indirect.buffer_index = UINT32_MAX;
+   uint32_t range_start_B = 0;
 
    for (uint32_t i = begin_it.event_idx; i < end_it.event_idx; i++) {
       struct u_trace_event *src_event = *util_dynarray_element(&from->events, struct u_trace_event *, i);
@@ -1244,10 +1268,12 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
          src_timestamp = src_event->timestamp;
          struct u_trace_buffer *src_buffer =
             util_dynarray_element(&from->buffers[u_trace_buffer_list_timestamps], struct u_trace_buffer, src_event->timestamp.buffer_index);
-         dst_timestamp = alloc_device_memory(into, u_trace_buffer_list_timestamps, src_buffer->size);
+         uint32_t size_B;
+         get_buffer_timestamp_span(from, i, end_it.event_idx, &range_start_B, &size_B);
+         dst_timestamp = alloc_device_memory(into, u_trace_buffer_list_timestamps, size_B);
 
          void *dst_buffer = u_trace_buffer_view_get_buffer(into, u_trace_buffer_list_timestamps, dst_timestamp);
-         copy_buffer(into->utctx, cmdstream, src_buffer->buffer, 0, dst_buffer, dst_timestamp.offset, src_buffer->size);
+         copy_buffer(into->utctx, cmdstream, src_buffer->buffer, range_start_B, dst_buffer, dst_timestamp.offset, size_B);
       }
 
       if (src_event->indirect.buffer_index != UINT32_MAX &&
@@ -1264,7 +1290,7 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
       struct u_trace_event *dst_event = linear_alloc_child(linear_alloc, sizeof(struct u_trace_event) + src_event->payload_size);
       memcpy(dst_event, src_event, sizeof(struct u_trace_event) + src_event->payload_size);
       dst_event->timestamp.buffer_index = dst_timestamp.buffer_index;
-      dst_event->timestamp.offset = dst_timestamp.offset + src_event->timestamp.offset;
+      dst_event->timestamp.offset = dst_timestamp.offset + src_event->timestamp.offset - range_start_B;
       if (src_event->indirect.buffer_index != UINT32_MAX) {
          dst_event->indirect.buffer_index = dst_indirect.buffer_index;
          dst_event->indirect.offset = dst_indirect.offset + src_event->indirect.offset;
