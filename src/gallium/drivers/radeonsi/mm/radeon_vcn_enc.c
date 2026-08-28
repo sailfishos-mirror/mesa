@@ -2056,7 +2056,7 @@ static void radeon_enc_get_feedback(struct pipe_video_codec *encoder, void *feed
                                 PIPE_VIDEO_FEEDBACK_METADATA_TYPE_ENCODE_RESULT;
    metadata->encode_result = PIPE_VIDEO_FEEDBACK_METADATA_ENCODE_FLAG_OK;
 
-   if (*size > fb->max_bitstream_size) {
+   if (!*size || *size > fb->max_bitstream_size) {
       metadata->encode_result = PIPE_VIDEO_FEEDBACK_METADATA_ENCODE_FLAG_FAILED;
       *size = fb->max_bitstream_size;
    }
