@@ -743,6 +743,24 @@ lower_heaps_tex(nir_builder *b, nir_tex_instr *tex,
                                 &tex->sampler_index, ctx);
    }
 
+   if (nir_tex_instr_need_texture_2(tex)) {
+      const int texture_2_src_idx =
+         nir_tex_instr_src_index(tex, nir_tex_src_texture_2_deref);
+      const int sampler_2_src_idx =
+         nir_tex_instr_src_index(tex, nir_tex_src_sampler_2_deref);
+
+      progress |=
+         lower_heaps_tex_deref(b, tex, texture_2_src_idx,
+                              nir_tex_src_texture_2_heap_offset,
+                              &tex->texture_2_non_uniform, ctx);
+      progress |=
+         lower_heaps_samp_deref(b, tex, sampler_2_src_idx,
+                                nir_tex_src_sampler_2_heap_offset,
+                                &tex->sampler_2_non_uniform,
+                                &tex->embedded_sampler_2,
+                                &tex->sampler_2_index, ctx);
+   }
+
    /* Remove unused sampler sources so we don't accidentally reference things
     * that don't actually exist.  The driver can add it back in if it really
     * needs it.
