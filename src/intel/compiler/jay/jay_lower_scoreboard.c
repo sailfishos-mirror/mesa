@@ -569,7 +569,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
    jay_def dsts[3] = { I->dst, I->cond_flag };
 
    for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
-      struct jay_range r = jay_def_to_range(func, I, dsts[i]);
+      struct jay_range r = jay_def_to_range(func, I, dsts[i], I->type);
       depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
       for (unsigned i = 0; i < r.width; ++i) {
@@ -592,8 +592,9 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
     */
    jay_foreach_src(I, s) {
       bool except_pipe = I->src[s].file == ACCUM || I->src[s].file == FLAG;
-      depend_on_writer(ctx, jay_def_to_range(func, I, I->src[s]), dep,
-                       exec_pipe, except_pipe);
+      depend_on_writer(ctx,
+                       jay_def_to_range(func, I, I->src[s], jay_src_type(I, s)),
+                       dep, exec_pipe, except_pipe);
    }
 
    uint32_t wait_pipes = 0;
@@ -674,7 +675,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       uint32_t now = make_writer(exec_pipe, ctx->ip[exec_pipe]);
 
       for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
-         struct jay_range r = jay_def_to_range(func, I, dsts[i]);
+         struct jay_range r = jay_def_to_range(func, I, dsts[i], I->type);
 
          for (unsigned i = 0; i < r.width; ++i) {
             ctx->access[r.base + i][0] = now;
@@ -682,7 +683,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       }
 
       jay_foreach_src(I, s) {
-         struct jay_range r = jay_def_to_range(func, I, I->src[s]);
+         struct jay_range r =
+            jay_def_to_range(func, I, I->src[s], jay_src_type(I, s));
          for (unsigned i = 0; i < r.width; ++i) {
             ctx->access[r.base + i][exec_pipe] = ctx->ip[exec_pipe];
          }

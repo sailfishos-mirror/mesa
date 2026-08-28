@@ -155,15 +155,14 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
       } else {
          jay_def dsts[3] = { I->dst, I->cond_flag };
 
-         /* MUL_32 is a macro implicitly clobbering acc0/acc1. TODO: Duplicate.
-          */
+         /* MUL_32 is a macro implicitly clobbering integer acc0 */
          if (I->op == JAY_OPCODE_MUL_32) {
-            unsigned n = ctx->func->shader->dispatch_width < 32 ? 2 : 1;
-            dsts[2] = jay_bare_regs(ACCUM, 0, n);
+            dsts[2] = jay_bare_reg(ACCUM, 0);
          }
 
          for (unsigned d = 0; d < ARRAY_SIZE(dsts); ++d) {
-            struct jay_range key = jay_def_to_range(ctx->func, I, dsts[d]);
+            struct jay_range key =
+               jay_def_to_range(ctx->func, I, dsts[d], I->type);
             for (unsigned i = 0; i < key.width; ++i) {
                /* Write-after-write */
                add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
@@ -181,7 +180,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
          }
 
          jay_foreach_src(I, s) {
-            struct jay_range key = jay_def_to_range(ctx->func, I, I->src[s]);
+            struct jay_range key =
+               jay_def_to_range(ctx->func, I, I->src[s], jay_src_type(I, s));
             for (unsigned i = 0; i < key.width; ++i) {
                /* Read-after-write */
                add_edge(ctx, ctx->postra.writer[key.base + i], first_node,

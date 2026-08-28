@@ -1587,7 +1587,7 @@ jay_range_base(jay_shader *shader, enum jay_file file)
 }
 
 static inline struct jay_range
-jay_def_to_range(jay_function *func, jay_inst *I, jay_def x)
+jay_def_to_range(jay_function *func, jay_inst *I, jay_def x, enum jay_type type)
 {
    struct jay_range r = { 0, 0 };
 
@@ -1595,6 +1595,11 @@ jay_def_to_range(jay_function *func, jay_inst *I, jay_def x)
       r.base = jay_range_base(func->shader, x.file);
       r.base += (x.file == ACCUM) ? (x.reg / 2) : x.reg;
       r.width = jay_num_values(x);
+
+      if (x.file == ACCUM && !jay_type_is_any_float(type)) {
+         assert(x.reg == 0 && r.width == 1 && "only acc0 used with integers");
+         r.width = (func->shader->dispatch_width < 32) ? 2 : 1;
+      }
    }
 
    return r;
