@@ -702,6 +702,12 @@ jay_src_type(const jay_inst *I, unsigned s)
    return I->type;
 }
 
+static inline enum jay_type
+jay_operand_type(const jay_inst *I, signed idx)
+{
+   return idx < 0 ? I->type : jay_src_type(I, idx);
+}
+
 enum PACKED jay_stride {
    JAY_STRIDE_2 = 0,
    JAY_STRIDE_4,
