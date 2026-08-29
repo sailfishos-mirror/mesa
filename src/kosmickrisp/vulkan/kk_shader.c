@@ -1015,6 +1015,11 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
        * inputs since we read vertex attributes from UBOs. */
       kk_lower_vs_vbo(nir, state, robustness);
       if (nir->info.next_stage == MESA_SHADER_TESS_CTRL) {
+         /* TODO_KOSMICKRISP: Poly lowering breaks with vectorized I/O less than
+          * 32-bit, which we support. Lower vertex outputs to scalar. */
+         NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_out, NULL,
+                  NULL);
+
          NIR_PASS(_, nir, poly_nir_lower_vs_before_gs);
          NIR_PASS(_, nir, kk_nir_lower_vertex_id_zero_base);
          nir->info.stage = MESA_SHADER_COMPUTE;
@@ -1027,6 +1032,11 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
           * For the non-emulated path we need to subtract base_instance... */
          NIR_PASS(_, nir, msl_nir_lower_instance_id);
    } else if (stage == MESA_SHADER_TESS_CTRL) {
+      /* TODO_KOSMICKRISP: Poly lowering breaks with vectorized I/O less than
+       * 32-bit, which we support. Lower TCS inputs & outputs to scalar. */
+      NIR_PASS(_, nir, nir_lower_io_to_scalar,
+               nir_var_shader_in | nir_var_shader_out, NULL, NULL);
+
       NIR_PASS(_, nir, poly_nir_lower_tcs, false);
 
       shader->info.tess.info.ccw = nir->info.tess.ccw;
@@ -1041,6 +1051,10 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
          util_last_bit(nir->info.patch_outputs_written);
       shader->info.tess.tcs_output_stride = poly_tcs_output_stride(nir);
    } else if (stage == MESA_SHADER_TESS_EVAL) {
+      /* TODO_KOSMICKRISP: Poly lowering breaks with vectorized I/O less than
+       * 32-bit, which we support. Lower TES inputs to scalar. */
+      NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
+
       shader->info.tess.info.ccw = nir->info.tess.ccw;
       shader->info.tess.info.points = nir->info.tess.point_mode;
       shader->info.tess.info.spacing = nir->info.tess.spacing;
