@@ -19,7 +19,7 @@
 #include "util/u_math.h"
 #include "brw_isa_info.h"
 #include "compiler/intel_nir.h"
-#include "compiler/intel_shader_enums.h"
+#include "compiler/intel_shader.h"
 #include "compiler/intel_nir.h"
 #include "nir_shader_compiler_options.h"
 

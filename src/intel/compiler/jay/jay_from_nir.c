@@ -10,7 +10,7 @@
 #include "compiler/brw/brw_sampler.h"
 #include "compiler/gen/gen_enums.h"
 #include "compiler/intel_nir.h"
-#include "compiler/intel_shader_enums.h"
+#include "compiler/intel_shader.h"
 #include "compiler/list.h"
 #include "intel/dev/intel_debug.h"
 #include "mda/debug_archiver.h"
