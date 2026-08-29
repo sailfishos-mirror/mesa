@@ -894,6 +894,10 @@ emit_lsc_fence(struct nir_to_jay_state *nj,
       return;
    }
 
+   if (mesa_shader_stage_is_compute(nj->nir->info.stage)) {
+      nj->s->prog_data->cs.uses_fence = true;
+   }
+
    jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
    uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, flushtype, false);
 
