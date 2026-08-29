@@ -77,30 +77,6 @@ load_per_draw(nir_builder *b, unsigned num_components, unsigned bit_size,
    return load_speculatable(b, num_components, bit_size, addr, align);
 }
 
-static bool
-lower_load_constant(nir_builder *b, nir_intrinsic_instr *load,
-                    const struct lower_descriptors_ctx *ctx)
-{
-   assert(load->intrinsic == nir_intrinsic_load_constant);
-   UNREACHABLE("todo: stick an address in the root descriptor or something");
-
-   uint32_t base = nir_intrinsic_base(load);
-   uint32_t range = nir_intrinsic_range(load);
-
-   b->cursor = nir_before_instr(&load->instr);
-
-   nir_def *offset = nir_iadd_imm(b, load->src[0].ssa, base);
-   nir_def *data = nir_load_ubo(
-      b, load->def.num_components, load->def.bit_size, nir_imm_int(b, 0),
-      offset, .align_mul = nir_intrinsic_align_mul(load),
-      .align_offset = nir_intrinsic_align_offset(load), .range_base = base,
-      .range = range);
-
-   nir_def_rewrite_uses(&load->def, data);
-
-   return true;
-}
-
 /* helper macro for computing root descriptor byte offsets */
 #define kk_root_descriptor_offset(member)                                      \
    offsetof(struct kk_root_descriptor_table, member)
@@ -427,9 +403,6 @@ try_lower_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
                  const struct lower_descriptors_ctx *ctx)
 {
    switch (intrin->intrinsic) {
-   case nir_intrinsic_load_constant:
-      return lower_load_constant(b, intrin, ctx);
-
    case nir_intrinsic_load_vulkan_descriptor:
       return try_lower_load_vulkan_descriptor(b, intrin, ctx);
 
