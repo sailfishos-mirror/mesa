@@ -619,8 +619,6 @@ spec@arb_texture_rg@texwrap formats-float bordercolor@GL_RG32F- border color onl
 # invalid parameter array size (size=1021 max=256).
 spec@arb_vertex_program@big-param,Fail
 
-spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
-
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 2,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 4,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 6,Fail

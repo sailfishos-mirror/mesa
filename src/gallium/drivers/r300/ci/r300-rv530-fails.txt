@@ -499,8 +499,6 @@ spec@arb_vertex_program@big-param,Fail
 
 spec@egl_khr_surfaceless_context@viewport,Fail
 
-spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
-
 spec@ext_framebuffer_object@fbo-alphatest-formats,Fail
 spec@ext_framebuffer_object@fbo-alphatest-formats@GL_INTENSITY12,Fail
 spec@ext_framebuffer_object@fbo-alphatest-formats@GL_INTENSITY16,Fail
@@ -683,4 +681,3 @@ spec@arb_texture_cube_map@copyteximage cube samples=6,Fail
 spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
 spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
 spec@arb_texture_rectangle@copyteximage rect samples=6,Fail
-
