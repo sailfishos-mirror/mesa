@@ -468,7 +468,7 @@ fd_init_screen_caps(struct fd_screen *screen)
 
    caps->surface_sample_count = is_a6xx(screen);
 
-   caps->depth_clip_disable = is_a3xx(screen) || is_a4xx(screen) || is_a6xx(screen);
+   caps->depth_clip_disable = !is_a2xx(screen);
 
    caps->post_depth_coverage =
    caps->depth_clip_disable_separate =
