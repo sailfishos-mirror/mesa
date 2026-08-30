@@ -220,7 +220,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_swapchain_maintenance1 = true,
 #endif
       .EXT_texel_buffer_alignment = true,
-      .EXT_astc_decode_mode = PAN_ARCH >= 9,
+      .EXT_astc_decode_mode = PAN_ARCH >= 7,
       .EXT_texture_compression_astc_hdr = true,
       .EXT_tooling_info = true,
       .EXT_vertex_attribute_divisor = true,
