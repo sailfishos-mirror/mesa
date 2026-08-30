@@ -929,7 +929,7 @@ atomic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr,
    P(ctx, "%s_explicit((%s atomic_%s*)", atomic_op, scope,
      msl_type_for_def(ctx->types, &instr->def));
    if (shared)
-      P(ctx, "&shared_data[");
+      P(ctx, "&shared_data[%u + ", nir_intrinsic_base(instr));
    src_to_msl(ctx, &instr->src[0]);
    if (shared)
       P(ctx, "]");
@@ -951,7 +951,7 @@ atomic_swap_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr,
    src_to_msl(ctx, &instr->src[1]);
    P(ctx, "; %s_explicit((%s atomic_%s*)", atomic_op, scope, type);
    if (shared)
-      P(ctx, "&shared_data[");
+      P(ctx, "&shared_data[%u + ", nir_intrinsic_base(instr));
    src_to_msl(ctx, &instr->src[0]);
    if (shared)
       P(ctx, "]");
@@ -1508,16 +1508,15 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P_IND(ctx, "return;\n");
       break;
    case nir_intrinsic_load_shared:
-      assert(nir_intrinsic_base(instr) == 0);
-      P(ctx, "*(threadgroup %s*)&shared_data[",
-        msl_type_for_def(ctx->types, &instr->def));
+      P(ctx, "*(threadgroup %s*)&shared_data[%u + ",
+        msl_type_for_def(ctx->types, &instr->def), nir_intrinsic_base(instr));
       src_to_msl(ctx, &instr->src[0]);
       P(ctx, "];\n");
       break;
    case nir_intrinsic_store_shared:
-      assert(nir_intrinsic_base(instr) == 0);
-      P_IND(ctx, "(*(threadgroup %s*)&shared_data[",
-            msl_type_for_src(ctx->types, &instr->src[0]));
+      P_IND(ctx, "(*(threadgroup %s*)&shared_data[%u + ",
+            msl_type_for_src(ctx->types, &instr->src[0]),
+            nir_intrinsic_base(instr));
       src_to_msl(ctx, &instr->src[1]);
       P(ctx, "])");
       writemask_to_msl(ctx, nir_intrinsic_write_mask(instr),
