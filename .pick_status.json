@@ -84,7 +84,7 @@
         "description": "radv: fix RADV_FORCE_VRS (Persona 3 Reload)",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "743b466c72406bc7879c99bc99054c71677df93a",
         "notes": null
