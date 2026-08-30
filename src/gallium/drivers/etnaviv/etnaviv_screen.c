@@ -480,7 +480,7 @@ static bool
 gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
                            unsigned sample_count)
 {
-   const uint32_t fmt = translate_pe_format(format);
+   const uint32_t fmt = translate_pe_format(format, screen);
 
    if (fmt == ETNA_NO_MATCH)
       return false;

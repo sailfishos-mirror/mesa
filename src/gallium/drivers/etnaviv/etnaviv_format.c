@@ -272,6 +272,13 @@ static struct etna_format formats[PIPE_FORMAT_COUNT] = {
    _T(NV12, YUY2, NONE),
 };
 
+static inline bool
+pe_format_is_native_rgba(enum pipe_format fmt, const struct etna_screen *screen)
+{
+   return fmt == PIPE_FORMAT_R8G8B8A8_UNORM &&
+          VIV_FEATURE(screen, ETNA_FEATURE_PE_A8B8G8R8);
+}
+
 uint32_t
 translate_texture_format(enum pipe_format fmt, const struct etna_screen *screen)
 {
@@ -282,6 +289,9 @@ translate_texture_format(enum pipe_format fmt, const struct etna_screen *screen)
       return ETNA_NO_MATCH;
 
    uint32_t format = formats[fmt].tex;
+
+   if (pe_format_is_native_rgba(fmt, screen))
+      format = remap_texture_format_rb_swap(format);
 
    if (screen->info->halti >= 5) {
       if (fmt == PIPE_FORMAT_R32_SINT || fmt == PIPE_FORMAT_R32_UINT)
@@ -384,7 +394,7 @@ get_texture_swiz(enum pipe_format fmt, unsigned swizzle_r,
 }
 
 uint32_t
-translate_pe_format(enum pipe_format fmt)
+translate_pe_format(enum pipe_format fmt, const struct etna_screen *screen)
 {
    fmt = util_format_linear(fmt);
 
@@ -394,16 +404,24 @@ translate_pe_format(enum pipe_format fmt)
    if (formats[fmt].pe == ETNA_NO_MATCH)
       return ETNA_NO_MATCH;
 
-   return PE_FORMAT(formats[fmt].pe);
+   uint32_t pe = formats[fmt].pe;
+
+   if (pe_format_is_native_rgba(fmt, screen))
+      pe = PE_FORMAT_A8B8G8R8;
+
+   return PE_FORMAT(pe);
 }
 
 int
-translate_pe_format_rb_swap(enum pipe_format fmt)
+translate_pe_format_rb_swap(enum pipe_format fmt, const struct etna_screen *screen)
 {
    fmt = util_format_linear(fmt);
    assert(formats[fmt].present);
 
    if (formats[fmt].pe == ETNA_NO_MATCH)
+      return 0;
+
+   if (pe_format_is_native_rgba(fmt, screen))
       return 0;
 
    return formats[fmt].pe & PE_FORMAT_RB_SWAP;
@@ -425,9 +443,9 @@ remap_texture_format_rb_swap(uint32_t format)
 }
 
 enum pipe_format
-translate_pe_internal_format(enum pipe_format fmt)
+translate_pe_internal_format(enum pipe_format fmt, const struct etna_screen *screen)
 {
-   if (!translate_pe_format_rb_swap(fmt))
+   if (!translate_pe_format_rb_swap(fmt, screen))
       return fmt;
 
    switch (fmt) {

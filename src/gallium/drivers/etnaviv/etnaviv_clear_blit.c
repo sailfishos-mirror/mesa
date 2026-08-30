@@ -90,11 +90,11 @@ etna_blit_save_state(struct etna_context *ctx, bool render_cond)
 }
 
 uint64_t
-etna_clear_blit_pack_rgba(enum pipe_format format, const union pipe_color_union *color)
+etna_clear_blit_pack_rgba(enum pipe_format format, const union pipe_color_union *color, const struct etna_screen *screen)
 {
    union util_color uc;
 
-   format = translate_pe_internal_format(format);
+   format = translate_pe_internal_format(format, screen);
    util_pack_color_union(format, &uc, color);
 
    switch (util_format_get_blocksize(format)) {
@@ -283,7 +283,7 @@ etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
     * written BGRA bytes internally. Convert to RGBA during the flush copy
     * so the shared buffer has the correct byte order for external consumers. */
    const bool flush_rb_swap = rsc->shared &&
-                              translate_pe_format_rb_swap(prsc->format);
+                              translate_pe_format_rb_swap(prsc->format, ctx->screen);
 
    if (rsc->render) {
       if (etna_resource_older(rsc, etna_resource(rsc->render))) {

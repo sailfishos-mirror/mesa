@@ -374,7 +374,7 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
    struct pipe_surface *dst = &ctx->framebuffer_s.base.cbufs[idx];
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
-   uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color);
+   uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color, ctx->screen);
    struct compiled_rs_state rs_state;
 
    if (use_ts && dst_level->ts_size) {
@@ -928,7 +928,7 @@ etna_try_rs_blit(struct pipe_context *pctx,
        * for transfer blits of RB_SWAP formats on non-shared resources. */
       .swap_rb = ctx->blit_rb_swap ||
                  (ctx->in_transfer_blit &&
-                  translate_pe_format_rb_swap(blit_info->src.format) &&
+                  translate_pe_format_rb_swap(blit_info->src.format, ctx->screen) &&
                   !src->shared && !dst->shared),
       .dither = {0xffffffff, 0xffffffff}, // XXX dither when going from 24 to 16 bit?
       .clear_mode = VIVS_RS_CLEAR_CONTROL_MODE_DISABLED,

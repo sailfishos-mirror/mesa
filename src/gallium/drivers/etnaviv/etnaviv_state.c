@@ -256,7 +256,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       struct etna_resource_level *level = &res->levels[surf->level];
 
       bool color_supertiled = (res->layout & ETNA_LAYOUT_BIT_SUPER) != 0;
-      uint32_t fmt = translate_pe_format(surf->format);
+      uint32_t fmt = translate_pe_format(surf->format, screen);
       bool rt_use_ts = etna_framebuffer_rt_use_ts(ctx, i);
 
       /* Resolve TS if this target cannot use it */

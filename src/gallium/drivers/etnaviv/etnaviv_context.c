@@ -379,7 +379,7 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
             if (pfb->cbufs[i].texture) {
                struct etna_resource *rsc = etna_resource(pfb->cbufs[i].texture);
                if (rsc->shared && rsc->layout == ETNA_LAYOUT_LINEAR &&
-                   translate_pe_format_rb_swap(pfb->cbufs[i].format)) {
+                   translate_pe_format_rb_swap(pfb->cbufs[i].format, screen)) {
                   key->frag_rb_swap |= (1 << i);
                }
             }

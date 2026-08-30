@@ -419,7 +419,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    struct pipe_surface *dst = &ctx->framebuffer_s.base.cbufs[idx];
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
-   uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color);
+   uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color, ctx->screen);
    const uint64_t clear_bits = etna_calculate_clear_bits(dst->format, clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
    bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx);
@@ -930,7 +930,7 @@ etna_try_blt_blit(struct pipe_context *pctx,
          op.dest.swizzle[0] = 2; /* R from B position */
          op.dest.swizzle[2] = 0; /* B from R position */
       } else if (ctx->in_transfer_blit &&
-                 translate_pe_format_rb_swap(blit_info->src.format) &&
+                 translate_pe_format_rb_swap(blit_info->src.format, ctx->screen) &&
                  !src->shared && !dst->shared) {
          bool src_linear = src->layout == ETNA_LAYOUT_LINEAR;
          bool dst_linear = dst->layout == ETNA_LAYOUT_LINEAR;

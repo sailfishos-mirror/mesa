@@ -186,7 +186,7 @@ etna_create_sampler_view_state(struct pipe_context *pctx, struct pipe_resource *
 
    /* For RB_SWAP formats, pre-compute the alternative texture format for when
     * shared resources hold data in native byte order (RGBA). */
-   const bool rb_swap = translate_pe_format_rb_swap(so->format);
+   const bool rb_swap = translate_pe_format_rb_swap(so->format, screen);
    const uint32_t native_format = rb_swap ? remap_texture_format_rb_swap(format) : 0;
 
    const bool ext = !!(format & EXT_FORMAT);
