@@ -806,6 +806,22 @@ typedef struct nir_shader_compiler_options {
     */
    unsigned max_gcm_loop_pressure;
 
+   /* What a value that varies between SIMD lanes costs, relative to one that
+    * doesn't, when weighing a loop against max_gcm_loop_pressure.
+    *
+    * A target that compiles the same NIR at several SIMD widths sees a
+    * divergent value take a register per lane, so its cost doubles with every
+    * step up in width, while a value that is the same in every lane costs what
+    * it costs whatever the width.  Setting this to the number of registers a
+    * divergent component takes at the widest width worth protecting is what
+    * keeps a loop that fits at the width GCM is looking at from overflowing the
+    * register file at a wider one.
+    *
+    * Zero and one both mean no scaling, which is right for a target that
+    * compiles at a single width.  Above one, GCM needs nir_metadata_divergence.
+    */
+   unsigned gcm_divergent_pressure_scale;
+
    bool lower_uniforms_to_ubo;
 
    /* Specifies if indirect sampler array access will trigger forced loop

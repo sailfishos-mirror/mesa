@@ -125,6 +125,12 @@ struct gcm_state {
     */
    unsigned max_loop_pressure;
 
+   /* What a divergent component costs against that budget.  One when the target
+    * compiles at a single SIMD width, more when it compiles the same NIR at
+    * several and the widest one has to fit too.
+    */
+   unsigned divergent_scale;
+
    /* The list of non-pinned instructions.  As we do the late scheduling,
     * we pull non-pinned instructions out of their blocks and place them in
     * this list.  This saves us from having linked-list problems when we go
@@ -468,6 +474,9 @@ struct gcm_freed_srcs_state {
 
    struct gcm_instr_info *instr_infos;
 
+   /* Copy of gcm_state::divergent_scale. */
+   unsigned divergent_scale;
+
    /* The instr we are checking if we should move */
    nir_instr *instr;
 
@@ -486,11 +495,28 @@ gcm_loop_contains_block(nir_loop *loop, nir_block *block)
    return false;
 }
 
-/* Rough estimate of how many registers a def occupies. */
+/* Rough estimate of how many registers a def occupies, in registers at the
+ * narrowest SIMD width the target compiles at.
+ *
+ * A value that differs between lanes takes another register every time the
+ * width doubles, so on a target that compiles the same NIR more than once it is
+ * charged for the widest width worth protecting.  One that is the same in every
+ * lane costs what it costs however wide the dispatch is, so it is charged once.
+ * The components are packed the way the backend packs them, so a pair of 16 bit
+ * ones share a register rather than taking one each.
+ */
 static unsigned
-gcm_def_reg_size(const nir_def *def)
+gcm_def_reg_size(const nir_def *def, unsigned divergent_scale)
 {
-   return def->num_components * DIV_ROUND_UP(def->bit_size, 32);
+   /* A target that compiles at a single width has nothing to scale for, and
+    * gets the size it has always been given.
+    */
+   if (divergent_scale == 1)
+      return def->num_components * DIV_ROUND_UP(def->bit_size, 32);
+
+   unsigned size = DIV_ROUND_UP(def->num_components * def->bit_size, 32);
+
+   return def->divergent ? size * divergent_scale : size;
 }
 
 /* The loop immediately containing the given loop, or NULL if it is outermost. */
@@ -533,6 +559,11 @@ struct gcm_pressure_scratch {
     * set can be turned back into the size of what it stands for.
     */
    nir_def **defs;
+
+   /* Copy of gcm_state::divergent_scale, so the walk can size a def without
+    * carrying the whole state around.
+    */
+   unsigned divergent_scale;
 };
 
 struct gcm_pressure_state {
@@ -584,7 +615,7 @@ gcm_pressure_kill_def(nir_def *def, void *void_state)
 
    if (BITSET_TEST(state->scratch->live, def->index)) {
       BITSET_CLEAR(state->scratch->live, def->index);
-      state->pressure -= gcm_def_reg_size(def);
+      state->pressure -= gcm_def_reg_size(def, state->scratch->divergent_scale);
    }
 
    return true;
@@ -600,7 +631,8 @@ gcm_pressure_gen_src(nir_src *src, void *void_state)
 
    if (!BITSET_TEST(state->scratch->live, src->ssa->index)) {
       gcm_pressure_set_live(state->scratch, src->ssa->index);
-      state->pressure += gcm_def_reg_size(src->ssa);
+      state->pressure += gcm_def_reg_size(src->ssa,
+                                         state->scratch->divergent_scale);
    }
 
    return true;
@@ -617,7 +649,8 @@ gcm_block_tail_pressure(nir_block *block, struct gcm_pressure_scratch *scratch)
 
    U_SPARSE_BITSET_FOREACH_SET(&block->live_out, index) {
       assert(scratch->defs[index] != NULL);
-      pressure += gcm_def_reg_size(scratch->defs[index]);
+      pressure += gcm_def_reg_size(scratch->defs[index],
+                                  scratch->divergent_scale);
       gcm_pressure_set_live(scratch, index);
    }
 
@@ -683,6 +716,7 @@ gcm_compute_loop_pressure(struct gcm_state *state)
       .live = rzalloc_array(mem_ctx, BITSET_WORD, BITSET_WORDS(impl->ssa_alloc)),
       .touched = ralloc_array(mem_ctx, unsigned, impl->ssa_alloc),
       .defs = rzalloc_array(mem_ctx, nir_def *, impl->ssa_alloc),
+      .divergent_scale = state->divergent_scale,
    };
 
    nir_foreach_block(block, impl) {
@@ -747,7 +781,7 @@ gcm_loops_have_room_for_instr(struct gcm_state *state, nir_instr *instr,
    if (!def)
       return false;
 
-   unsigned cost = gcm_def_reg_size(def);
+   unsigned cost = gcm_def_reg_size(def, state->divergent_scale);
 
    /* Where it lands has to have room for it too. Landing inside another loop
     * means being held across that one from now on, so what matters there is its
@@ -799,7 +833,7 @@ gcm_move_loop_pressure(struct gcm_state *state, nir_instr *instr,
        !nir_block_dominates(block, nir_loop_first_block(innermost)))
       return;
 
-   unsigned def_reg_size = gcm_def_reg_size(def);
+   unsigned def_reg_size = gcm_def_reg_size(def, state->divergent_scale);
 
    gcm_foreach_loop_hoisted_out_of(loop, state, instr, block) {
       struct gcm_loop_pressure *pressure = gcm_loop_pressure_info(state, loop);
@@ -974,13 +1008,13 @@ gcm_add_freed_src_pressure(nir_src *src, void *void_state)
 
       nir_def *use_def = nir_instr_def(use_instr);
       if (use_def && gcm_is_first_read_of_def(use_instr, use_src))
-         moveable_reg_size += gcm_def_reg_size(use_def);
+         moveable_reg_size += gcm_def_reg_size(use_def, state->divergent_scale);
    }
 
    /* If moving the other users costs more registers than the src frees up we
     * are better off leaving everything where it is.
     */
-   unsigned freed_reg_size = gcm_def_reg_size(src->ssa);
+   unsigned freed_reg_size = gcm_def_reg_size(src->ssa, state->divergent_scale);
    if (moveable_reg_size > freed_reg_size)
       return true;
 
@@ -1009,10 +1043,11 @@ gcm_move_reg_surplus(struct gcm_state *state, nir_instr *instr,
    freed_srcs.block_idx = block->index;
    freed_srcs.instr = instr;
    freed_srcs.instr_infos = state->instr_infos;
+   freed_srcs.divergent_scale = state->divergent_scale;
    freed_srcs.loop = state->blocks[instr->block->index].loop;
    nir_foreach_src(instr, gcm_add_freed_src_pressure, &freed_srcs);
 
-   unsigned def_reg_size = gcm_def_reg_size(def);
+   unsigned def_reg_size = gcm_def_reg_size(def, state->divergent_scale);
    if (freed_srcs.reg_size <= def_reg_size)
       return 0;
 
@@ -1150,7 +1185,7 @@ gcm_move_frees_registers_for_use(struct gcm_state *state, nir_instr *instr,
     * ledger can actually tell apart. Ask for a gain worth the size of the thing
     * being moved instead, whether or not the loop ends up holding it.
     */
-   unsigned cost = gcm_def_reg_size(def);
+   unsigned cost = gcm_def_reg_size(def, state->divergent_scale);
 
    return best_surplus && best_surplus >= cost;
 }
@@ -1230,10 +1265,11 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
    freed_srcs.block_idx = block->index;
    freed_srcs.instr = instr;
    freed_srcs.instr_infos = state->instr_infos;
+   freed_srcs.divergent_scale = state->divergent_scale;
    freed_srcs.loop = loop;
    nir_foreach_src(instr, gcm_add_freed_src_pressure, &freed_srcs);
 
-   unsigned def_reg_size = gcm_def_reg_size(def);
+   unsigned def_reg_size = gcm_def_reg_size(def, state->divergent_scale);
 
    if (freed_srcs.reg_size < def_reg_size)
       return false;
@@ -1693,6 +1729,7 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number)
    state.second_early_run = false;
    state.has_loop = false;
    state.max_loop_pressure = shader->options->max_gcm_loop_pressure;
+   state.divergent_scale = MAX2(shader->options->gcm_divergent_pressure_scale, 1);
    exec_list_make_empty(&state.instrs);
    state.blocks = rzalloc_array(NULL, struct gcm_block_info, impl->num_blocks);
 
@@ -1701,8 +1738,16 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number)
    /* Only loops give us anything to weigh a move against, and computing
     * liveness for a function without any of them is pure overhead.
     */
-   if (state.has_loop && state.max_loop_pressure)
+   if (state.has_loop && state.max_loop_pressure) {
+      /* Nothing outside a loop asks what a def costs, so a function without
+       * one needs neither of these.  Divergence is only read by the scaled
+       * cost model, so a target that compiles at a single width skips it too.
+       */
+      if (state.divergent_scale > 1)
+         nir_metadata_require(impl, nir_metadata_divergence);
+
       gcm_compute_loop_pressure(&state);
+   }
 
    gcm_pin_instructions(impl, &state);
 
