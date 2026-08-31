@@ -343,6 +343,8 @@ struct brw_mem_inst : brw_inst {
    uint8_t coord_components;
    uint8_t components;
    uint8_t flags;
+   /** Texture index Gfx35+ only */
+   uint8_t surface_index;
 
    /** Required alignment of address in bytes; 0 for natural alignment */
    uint32_t alignment;

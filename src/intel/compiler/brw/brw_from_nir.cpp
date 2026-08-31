@@ -1838,6 +1838,12 @@ get_nir_src_internal(nir_to_brw_state &ntb, const nir_src &src)
    return ntb.ssa_bind_infos[src.ssa->index].internal;
 }
 
+static unsigned
+get_nir_src_block(nir_to_brw_state &ntb, const nir_src &src)
+{
+   return ntb.ssa_bind_infos[src.ssa->index].block;
+}
+
 /**
  * Specifying -1 for channel indicates that no channel selection should be applied.
  */
@@ -5764,6 +5770,8 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
 
    int32_t address_offset = 0;
 
+   uint8_t surface_index = 0;
+
    std::optional<memory_logical_mode> mode;
    std::optional<lsc_addr_surface_type> binding_type;
 
@@ -5802,6 +5810,8 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
 
       if (!binding_type.has_value())
          binding_type = LSC_ADDR_SURFTYPE_BTI;
+      if (s.key->use_efficient_64bit)
+         surface_index = get_nir_src_block(ntb, instr->src[0]);
 
       /* Payload lowering uses MEMORY_LOGICAL_ADDRESS as a vector, so don't
        * select a channel here.
@@ -5830,6 +5840,8 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          LSC_ADDR_SURFTYPE_BTI;
       srcs[MEMORY_LOGICAL_BINDING] =
          get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
+      if (s.key->use_efficient_64bit)
+         surface_index = get_nir_src_block(ntb, instr->src[is_store ? 1 : 0]);
       srcs[MEMORY_LOGICAL_ADDRESS] =
          memory_address(ntb, bld, instr, *binding_type, &address_offset);
       break;
@@ -5990,6 +6002,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       mem->components = components;
       mem->alignment = alignment;
       mem->flags = flags;
+      mem->surface_index = surface_index;
 
       if (dest.file != BAD_FILE && data_bit_size > nir_bit_size) {
          /* Shrink e.g. D16U32 result back to D16 */
@@ -6074,6 +6087,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          mem->components = block_comps;
          mem->alignment = alignment;
          mem->flags = flags;
+         mem->surface_index = surface_index;
 
          done += block_comps;
 

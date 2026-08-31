@@ -515,6 +515,8 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
          fprintf(file, " volatile");
       if (mem->flags & MEMORY_FLAG_COHERENT_ACCESS)
          fprintf(file, " coherent");
+      if (mem->surface_index)
+         fprintf(file, " surf_idx: %hhu", mem->surface_index);
    }
 
    const brw_tex_inst *tex = inst->as_tex();

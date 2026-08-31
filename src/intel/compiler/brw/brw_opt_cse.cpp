@@ -391,6 +391,7 @@ hash_inst(const void *v)
          mem->coord_components,
          mem->components,
          mem->flags,
+         mem->surface_index,
       };
       const uint32_t mem_u32data[] = {
          (uint32_t)mem->address_offset,

@@ -87,7 +87,7 @@ extract_handle_offset(nir_builder *b,
          s.resource_intel->src[3].ssa,
          .desc_set = nir_intrinsic_desc_set(s.resource_intel),
          .binding = nir_intrinsic_binding(s.resource_intel),
-         .resource_block_intel = nir_intrinsic_resource_block_intel(s.resource_intel),
+         .resource_block_intel = s.const_index,
          .resource_access_intel = nir_intrinsic_resource_access_intel(s.resource_intel));
    }
 
@@ -115,11 +115,9 @@ lower_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *_)
    case nir_intrinsic_bindless_image_atomic_swap: {
       b->cursor = nir_before_instr(&intrin->instr);
 
-      /* TODO: find a way to pass constant surface handle offsets for
-       *       buffers, add a new indice to intrinsics?
-       */
       nir_src *surface = nir_get_io_index_src(intrin);
-      struct source_extract s = extract_handle_offset(b, surface->ssa, 0, 64);
+      struct source_extract s = extract_handle_offset(
+         b, surface->ssa, 64 * 31 /* 5 bits */, 64);
       nir_src_rewrite(surface, s.ret);
       return true;
    }

@@ -871,6 +871,8 @@ brw_lower_send_gather_inst(brw_shader &s, brw_send_inst *inst)
       assert(nr <= UINT8_MAX);
       regs[count++] = nr;
    }
+   fprintf(stderr, "count=%u num_payload_sources=%u\n",
+           count, num_payload_sources);
 
    /* Fill out ARF scalar register with the physical register numbers
     * and use SEND_GATHER.

@@ -1298,6 +1298,7 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
 
    const enum lsc_addr_size addr_size = lsc_addr_size_for_type(addr.type);
    const int32_t base_offset = mem->address_offset;
+   const uint8_t surface_index = mem->surface_index;
 
    /**
     * TGM messages cannot have a base offset
@@ -1459,7 +1460,7 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
                                                cache_mode,
                                                0 /* scale_offset */,
                                                base_offset / data_size_B,
-                                               0 /* surface_state_index */);
+                                               surface_index);
       assert(binding_type == LSC_ADDR_SURFTYPE_FLAT || brw_type_size_bits(binding.type) == 64);
       send->src[SENDG_SRC_IND_0_DESC] = binding_type == LSC_ADDR_SURFTYPE_FLAT ?
                                         brw_reg() : retype(binding, BRW_TYPE_UQ);
