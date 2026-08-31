@@ -1822,6 +1822,25 @@ nir_lower_tex_block(nir_block *block, nir_builder *b,
          continue;
       }
 
+      if (tex->op == nir_texop_txl && tex->sampler_index < 32 &&
+          ((1u << tex->sampler_index) & options->lower_txl_mag_switchover)) {
+         int lod_index = nir_tex_instr_src_index(tex, nir_tex_src_lod);
+         assert(lod_index >= 0);
+
+         b->cursor = nir_before_instr(&tex->instr);
+
+         nir_def *lod = tex->src[lod_index].src.ssa;
+
+         /* Magnification reads the base level with the magnification filter,
+          * so the replacement LOD is only used to pick that path.
+          */
+         nir_src_rewrite(&tex->src[lod_index].src,
+                         nir_bcsel(b, nir_fle_imm(b, lod, 0.5),
+                                   nir_imm_floatN_t(b, 0.0, lod->bit_size),
+                                   lod));
+         progress = true;
+      }
+
       /* Only fragment and compute (in some cases) support implicit
        * derivatives.  Lower those opcodes which use implicit derivatives to
        * use an explicit LOD of 0.

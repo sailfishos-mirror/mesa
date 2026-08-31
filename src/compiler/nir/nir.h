@@ -6412,6 +6412,12 @@ typedef struct nir_lower_tex_options {
    unsigned saturate_t;
    unsigned saturate_r;
 
+   /* Bitmask of samplers whose txl LOD <= 0.5 is replaced with 0.0, moving
+    * the magnification switch-over point from a lambda of 0 to the 0.5 that
+    * ES 2.0 and GL up to 3.0 ask for.
+    */
+   unsigned lower_txl_mag_switchover;
+
    /* Bitmask of textures that need swizzling.
     *
     * If (swizzle_result & (1 << texture_index)), then the swizzle in
