@@ -3384,7 +3384,7 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
    /* Do this after the vectorization & intel_nir_rebase_const_offset_ubo_loads
     * so that we maximize the offset put into the messages.
     */
-   if (devinfo->ver >= 20) {
+   if (brw_lsc_supports_base_offset(devinfo)) {
       OPT(brw_nir_ssbo_intel);
 
       const nir_opt_offsets_options offset_options = {
