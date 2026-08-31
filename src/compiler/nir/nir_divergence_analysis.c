@@ -1260,6 +1260,11 @@ nir_variable_is_uniform(nir_shader *shader, nir_variable *var,
          fake_instr.intrinsic = nir_intrinsic_load_instance_id;
       }
 
+      if (var->data.location == SYSTEM_VALUE_DEVICE_INDEX) {
+         assert(fake_instr.intrinsic == nir_num_intrinsics);
+         return true;
+      }
+
       assert(fake_instr.intrinsic != nir_num_intrinsics);
 
       visit_intrinsic(&fake_instr, state);
