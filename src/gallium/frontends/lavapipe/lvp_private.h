@@ -830,7 +830,7 @@ VkResult
 lvp_image_init(struct lvp_device *device, struct lvp_image *image,
                const VkImageCreateInfo *pCreateInfo);
 
-#if DETECT_OS_ANDROID
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
 VkResult
 lvp_import_ahb_memory(struct lvp_device *device,
                       const VkMemoryAllocateInfo *alloc_info,

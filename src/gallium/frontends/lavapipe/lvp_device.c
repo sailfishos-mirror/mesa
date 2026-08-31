@@ -54,7 +54,7 @@
 #include <sys/sysinfo.h>
 #endif
 
-#if DETECT_OS_ANDROID
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
 #include "vk_android.h"
 #endif
 
@@ -320,7 +320,7 @@ static const struct vk_device_extension_table lvp_device_extensions_supported = 
    .EXT_robustness2                       = true,
    .EXT_zero_initialize_device_memory     = true,
    .AMDX_shader_enqueue                   = true,
-#if DETECT_OS_ANDROID
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
    .ANDROID_native_buffer                 = true,
 #endif
    .GOOGLE_decorate_string                = true,
@@ -2222,7 +2222,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_AllocateMemory(
       mem->map = mem->vk.host_ptr;
       mem->memory_type = LVP_DEVICE_MEMORY_TYPE_USER_PTR;
    }
-#if DETECT_OS_ANDROID
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
    else if (mem->vk.ahardware_buffer) {
       error = lvp_import_ahb_memory(device, pAllocateInfo, mem);
       if (error != VK_SUCCESS)
@@ -2574,7 +2574,7 @@ lvp_image_bind(struct lvp_device *device,
    VkResult result;
 
    if (!mem) {
-#if DETECT_OS_ANDROID
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
       return lvp_bind_anb_memory(device, bind_info);
 #else
       const VkBindImageMemorySwapchainInfoKHR *swapchain_info =
