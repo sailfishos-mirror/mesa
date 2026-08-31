@@ -2121,8 +2121,8 @@ private:
                ERROR_IF(inst->cmod != GEN_CONDITION_NONE,
                         "Scalar-register MOV with an immediate source cannot use a condition modifier.");
             }
-            ERROR_IF((inst->dst.subnr / 32) !=
-                     ((inst->dst.subnr + gen_type_size_bytes(inst->dst.type)) / 32),
+            ERROR_IF((inst->dst.subnr / 64) !=
+                     ((inst->dst.subnr + gen_type_size_bytes(inst->dst.type) - 1) / 64),
                      "Scalar-register destinations must not cross the lower/upper 8-dword boundary.");
             break;
          }

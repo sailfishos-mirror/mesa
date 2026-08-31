@@ -1983,7 +1983,7 @@ static const struct {
    { "mov (1) (eq)f0.0 s0:uw 0:uw",
      "Scalar-register MOV with an immediate source cannot use a condition modifier.", { .ge = 300 }
    },
-   { "mov (1) s0.28 r1<0>",
+   { "mov (1) s0.60:uq r1<0>:uq",
      "Scalar-register destinations must not cross the lower/upper 8-dword boundary.", { .ge = 300 }
    },
    { "mov (8) r0:uw s0<0>:uw", VALID, { .ge = 300 } },
