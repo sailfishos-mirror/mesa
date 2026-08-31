@@ -2086,11 +2086,15 @@ si_update_ngg_cull_face_state(struct si_context *sctx)
    struct si_state_rasterizer *rs = sctx->queued.named.rasterizer;
 
    if (sctx->viewport0_y_inverted) {
-      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_FRONT, rs->ngg_cull_back);
-      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_BACK, rs->ngg_cull_front);
+      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_NEGATIVE_DETERMINANT,
+                rs->ngg_cull_face_positive_determinant);
+      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_POSITIVE_DETERMINANT,
+                rs->ngg_cull_face_negative_determinant);
    } else {
-      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_FRONT, rs->ngg_cull_front);
-      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_BACK, rs->ngg_cull_back);
+      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_NEGATIVE_DETERMINANT,
+                rs->ngg_cull_face_negative_determinant);
+      SET_FIELD(sctx->current_gs_state, GS_STATE_CULL_FACE_POSITIVE_DETERMINANT,
+                rs->ngg_cull_face_positive_determinant);
    }
 }
 

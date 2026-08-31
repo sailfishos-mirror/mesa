@@ -12488,7 +12488,7 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
 
    /* Cull every triangle when rasterizer discard is enabled. */
    if (d->vk.rs.rasterizer_discard_enable)
-      return radv_nggc_front_face | radv_nggc_back_face;
+      return radv_nggc_cull_face_negative_determinant | radv_nggc_cull_face_positive_determinant;
 
    const radv_viewports_y_inversion vp_y_inversion = radv_get_viewport_y_inversion(cmd_buffer);
    uint32_t nggc_settings = radv_nggc_none;
@@ -12503,17 +12503,18 @@ radv_get_nggc_settings(struct radv_cmd_buffer *cmd_buffer)
    /* All viewports should agree on whether Y is inverted. */
    if (vp_y_inversion != radv_viewports_y_inversion_mixed) {
       if (d->vk.rs.cull_mode & VK_CULL_MODE_FRONT_BIT)
-         nggc_settings |= radv_nggc_front_face;
+         nggc_settings |= radv_nggc_cull_face_negative_determinant;
       if (d->vk.rs.cull_mode & VK_CULL_MODE_BACK_BIT)
-         nggc_settings |= radv_nggc_back_face;
+         nggc_settings |= radv_nggc_cull_face_positive_determinant;
    }
 
    if (ccw) {
-      bool cull_front = nggc_settings & radv_nggc_front_face;
-      bool cull_back = nggc_settings & radv_nggc_back_face;
+      bool cull_neg_det = nggc_settings & radv_nggc_cull_face_negative_determinant;
+      bool cull_pos_det = nggc_settings & radv_nggc_cull_face_positive_determinant;
 
-      nggc_settings &= ~(radv_nggc_front_face | radv_nggc_back_face);
-      nggc_settings |= (cull_front ? radv_nggc_back_face : 0) | (cull_back ? radv_nggc_front_face : 0);
+      nggc_settings &= ~(radv_nggc_cull_face_negative_determinant | radv_nggc_cull_face_positive_determinant);
+      nggc_settings |= (cull_neg_det ? radv_nggc_cull_face_positive_determinant : 0) |
+                       (cull_pos_det ? radv_nggc_cull_face_negative_determinant : 0);
    }
 
    if ((!d->vk.ms.sample_locations_enable || d->sample_location.allow_small_prim_ngg_culling) &&

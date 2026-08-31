@@ -49,12 +49,12 @@ cull_face_triangle(nir_builder *b, nir_def *pos[3][4], const position_w_info *w_
 
    det = nir_bcsel(b, w_info->w_reflection, nir_fneg(b, det), det);
 
-   nir_def *front_facing = nir_flt_imm(b, det, 0.0f);
+   nir_def *det_is_negative = nir_flt_imm(b, det, 0.0f);
    nir_def *zero_area = nir_feq_imm(b, det, 0.0f);
-   nir_def *cull_front = nir_load_cull_front_face_enabled_amd(b);
-   nir_def *cull_back = nir_load_cull_back_face_enabled_amd(b);
+   nir_def *cull_negative_det = nir_load_cull_face_negative_determinant_enabled_amd(b);
+   nir_def *cull_positive_det = nir_load_cull_face_positive_determinant_enabled_amd(b);
 
-   nir_def *face_culled = nir_bcsel(b, front_facing, cull_front, cull_back);
+   nir_def *face_culled = nir_bcsel(b, det_is_negative, cull_negative_det, cull_positive_det);
    face_culled = nir_ior(b, face_culled, zero_area);
 
    /* Don't reject NaN and +/-infinity, these are tricky.

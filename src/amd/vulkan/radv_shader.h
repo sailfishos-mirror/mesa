@@ -55,8 +55,8 @@ typedef struct nir_parameter nir_parameter;
 
 enum radv_nggc_settings {
    radv_nggc_none = 0,
-   radv_nggc_front_face = 1 << 0,
-   radv_nggc_back_face = 1 << 1,
+   radv_nggc_cull_face_negative_determinant = 1 << 0,
+   radv_nggc_cull_face_positive_determinant = 1 << 1,
    radv_nggc_small_primitives = 1 << 2,
 };
 

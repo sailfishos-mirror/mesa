@@ -308,8 +308,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_prim_xfb_query_enabled_amd:
    case nir_intrinsic_load_merged_wave_info_amd:
    case nir_intrinsic_load_clamp_vertex_color_amd:
-   case nir_intrinsic_load_cull_front_face_enabled_amd:
-   case nir_intrinsic_load_cull_back_face_enabled_amd:
+   case nir_intrinsic_load_cull_face_negative_determinant_enabled_amd:
+   case nir_intrinsic_load_cull_face_positive_determinant_enabled_amd:
    case nir_intrinsic_load_cull_small_triangles_enabled_amd:
    case nir_intrinsic_load_cull_small_lines_enabled_amd:
    case nir_intrinsic_load_cull_any_enabled_amd:

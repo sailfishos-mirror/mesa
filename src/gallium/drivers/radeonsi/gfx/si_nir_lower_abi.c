@@ -421,11 +421,11 @@ static bool lower_intrinsic(nir_builder *b, nir_instr *instr, struct lower_abi_s
       assert(si_shader_culling_enabled(shader));
       replacement = nir_imm_true(b);
       break;
-   case nir_intrinsic_load_cull_back_face_enabled_amd:
-      replacement = nir_i2b(b, GET_FIELD_NIR(GS_STATE_CULL_FACE_BACK));
+   case nir_intrinsic_load_cull_face_positive_determinant_enabled_amd:
+      replacement = nir_i2b(b, GET_FIELD_NIR(GS_STATE_CULL_FACE_POSITIVE_DETERMINANT));
       break;
-   case nir_intrinsic_load_cull_front_face_enabled_amd:
-      replacement = nir_i2b(b, GET_FIELD_NIR(GS_STATE_CULL_FACE_FRONT));
+   case nir_intrinsic_load_cull_face_negative_determinant_enabled_amd:
+      replacement = nir_i2b(b, GET_FIELD_NIR(GS_STATE_CULL_FACE_NEGATIVE_DETERMINANT));
       break;
    case nir_intrinsic_load_cull_small_triangle_precision_amd:
       replacement = get_small_prim_precision(b, s, false);

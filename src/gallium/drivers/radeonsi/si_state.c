@@ -916,11 +916,15 @@ static void *si_create_rs_state(struct pipe_context *ctx, const struct pipe_rast
                               SI_NGG_CULL_CLIP_PLANE_ENABLE(state->clip_plane_enable);
 
    if (!state->front_ccw) {
-      rs->ngg_cull_front = state->cull_face & PIPE_FACE_FRONT || rs->rasterizer_discard;
-      rs->ngg_cull_back = state->cull_face & PIPE_FACE_BACK || rs->rasterizer_discard;
+      rs->ngg_cull_face_negative_determinant = state->cull_face & PIPE_FACE_FRONT ||
+                                               rs->rasterizer_discard;
+      rs->ngg_cull_face_positive_determinant = state->cull_face & PIPE_FACE_BACK ||
+                                               rs->rasterizer_discard;
    } else {
-      rs->ngg_cull_front = state->cull_face & PIPE_FACE_BACK || rs->rasterizer_discard;
-      rs->ngg_cull_back = state->cull_face & PIPE_FACE_FRONT || rs->rasterizer_discard;
+      rs->ngg_cull_face_negative_determinant = state->cull_face & PIPE_FACE_BACK ||
+                                               rs->rasterizer_discard;
+      rs->ngg_cull_face_positive_determinant = state->cull_face & PIPE_FACE_FRONT ||
+                                               rs->rasterizer_discard;
    }
 
    /* Force gl_FrontFacing to true or false if the other face is culled. */

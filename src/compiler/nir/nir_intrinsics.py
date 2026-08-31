@@ -2137,10 +2137,9 @@ system_value("merged_wave_info_amd", dest_comp=1)
 system_value("gs_wave_id_amd", dest_comp=1)
 # Whether the shader should clamp vertex color outputs to [0, 1].
 system_value("clamp_vertex_color_amd", dest_comp=1, bit_sizes=[1])
-# Whether the shader should cull front facing triangles.
-intrinsic("load_cull_front_face_enabled_amd", dest_comp=1, bit_sizes=[1], flags=[CAN_ELIMINATE])
-# Whether the shader should cull back facing triangles.
-intrinsic("load_cull_back_face_enabled_amd", dest_comp=1, bit_sizes=[1], flags=[CAN_ELIMINATE])
+# Whether the shader should cull triangles with a negative or positive determinant in NDC space.
+intrinsic("load_cull_face_negative_determinant_enabled_amd", dest_comp=1, bit_sizes=[1], flags=[CAN_ELIMINATE])
+intrinsic("load_cull_face_positive_determinant_enabled_amd", dest_comp=1, bit_sizes=[1], flags=[CAN_ELIMINATE])
 # Whether the shader should cull small triangles that are not visible in a pixel.
 intrinsic("load_cull_small_triangles_enabled_amd", dest_comp=1, bit_sizes=[1], flags=[CAN_ELIMINATE])
 # Whether the shader should cull small lines that are not visible in a pixel.
