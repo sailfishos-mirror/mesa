@@ -2076,8 +2076,13 @@ copy_image_prepare_gfx_push_const(struct vk_command_buffer *cmd,
          .x = src_img_offs.x - region->dstOffset.x,
          .y = src_img_offs.y - region->dstOffset.y,
          /* Render image view only contains the layers needed for rendering,
-          * so we consider the coordinate containing the layer to always be
-          * zero.
+          * (that is, the z dst offset is applied with
+          * subresourceRange.baseArrayLayer rather than increasing the layer
+          * id), so we consider the coordinate containing the layer to always
+          * be zero. Note that this is specifically for the 3D copy case, since
+          * we turn 3D copies into 2D array copies. The 1D array and 2D array
+          * cases will have the array offsets in dstSubresource already so
+          * there's no special handling required here.
           */
          .z = src_img_offs.z,
       },
