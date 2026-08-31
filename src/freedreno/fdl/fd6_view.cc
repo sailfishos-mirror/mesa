@@ -597,7 +597,35 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
 
    if (CHIP <= A7XX) {
       uint64_t base_iova = iova & ~0x3full;
-      unsigned texel_offset = (iova & 0x3f) / elem_size;
+      unsigned alignment_offset = (iova & 0x3f);
+      unsigned texel_offset = alignment_offset / elem_size;
+
+      /* Single texel alignment edge cases.
+       * For non-POT sizes, single component alignment is the requirement,
+       * and it's possible we may not be able to express the texel offset
+       * as a simple mask.
+       */
+      if (texel_offset * elem_size != alignment_offset) {
+          /* For POT sizes, alignment is equal to size of format.
+           * By shifting the address back in steps of 64, we're
+           * mathematically guaranteed to hit a case where we start
+           * aligning correctly. There is a potential risk of generating a
+           * base VA that is not inside the resource, but HW should not care.
+           * A maximum of 2 fixup steps is required which guarantees that any possible
+           * case will fall within the [0, 63] texel_offset range.
+           */
+          assert(elem_size % 3 == 0);
+          for (unsigned iter = 0; iter < 2; iter++) {
+              base_iova -= 0x40;
+              alignment_offset += 0x40;
+              texel_offset = alignment_offset / elem_size;
+              if (texel_offset * elem_size == alignment_offset)
+                  break;
+          }
+
+          assert(texel_offset * elem_size == alignment_offset);
+          assert(texel_offset < 64);
+      }
 
       descriptor[0] =
          A6XX_TEX_MEMOBJ_0_TILE_MODE(TILE6_LINEAR) |
