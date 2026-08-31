@@ -7675,6 +7675,20 @@ static const VkPipelineStageFlags2 radv_post_transfer_stage_mask =
 /* Stages that require flushing PS workload (blit operations). */
 static const VkPipelineStageFlags2 radv_post_transfer_ps_only_stage_mask =
    VK_PIPELINE_STAGE_2_BLIT_BIT;
+
+/* Stages that require waiting for CP DMA.
+ *
+ * Make sure CP DMA is idle because the driver might have performed a DMA operation for:
+ * - copying a buffer or for copying CMASK/FMASK with an accelerated MSAA copy
+ * - updating a buffer (considered a clear operation from the Vulkan spec)
+ * - building an acceleration structure
+ *
+ * Other operations using a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
+ */
+static const VkPipelineStageFlags2 radv_post_cp_dma_stage_mask =
+   VK_PIPELINE_STAGE_2_COPY_BIT |
+   VK_PIPELINE_STAGE_2_CLEAR_BIT |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 // clang-format on
 
 static VkPipelineStageFlags2
@@ -15977,15 +15991,7 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
 static void
 radv_cp_dma_wait_for_stages(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 stage_mask)
 {
-   /* Make sure CP DMA is idle because the driver might have performed a DMA operation for:
-    * - copying a buffer or for copying CMASK/FMASK with an accelerated MSAA copy
-    * - updating a buffer (considered a clear operation from the Vulkan spec)
-    * - building an acceleration structure
-    *
-    * Other operations using a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
-    */
-   if (stage_mask & (VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT |
-                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR))
+   if (stage_mask & radv_post_cp_dma_stage_mask)
       radv_cp_dma_wait_for_idle(cmd_buffer);
 }
 
