@@ -193,7 +193,7 @@ v3dv_bo_init(struct v3dv_bo *bo,
              uint64_t report_id,
              VkObjectType obj_type,
              uint64_t obj_handle,
-             bool private)
+             bool is_private)
 {
    p_atomic_set(&bo->refcnt, 1);
    bo->handle = handle;
@@ -203,7 +203,7 @@ v3dv_bo_init(struct v3dv_bo *bo,
    bo->map = NULL;
    bo->map_size = 0;
    bo->name = name;
-   bo->private = private;
+   bo->is_private = is_private;
    bo->dumb_handle = -1;
    bo->is_import = false;
    bo->is_self_import = false;
@@ -221,7 +221,7 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
                     uint32_t offset,
                     VkObjectType obj_type,
                     uint64_t obj_handle,
-                    bool private)
+                    bool is_private)
 {
    if (bo->refcnt > 0) {
       p_atomic_inc(&bo->refcnt);
@@ -231,7 +231,7 @@ v3dv_bo_init_import(struct v3dv_bo *bo,
    }
 
    v3dv_bo_init(bo, handle, size, offset, "import", handle,
-                obj_type, obj_handle, private);
+                obj_type, obj_handle, is_private);
    bo->is_import = true;
 }
 
@@ -239,7 +239,7 @@ struct v3dv_bo *
 v3dv_bo_alloc(struct v3dv_device *device,
               uint32_t size,
               const char *name,
-              bool private,
+              bool is_private,
               VkObjectType obj_type,
               uint64_t obj_handle)
 {
@@ -249,7 +249,7 @@ v3dv_bo_alloc(struct v3dv_device *device,
    size = align(size, page_align);
    uint64_t report_id = (uint64_t)p_atomic_inc_return(&device->bo_report_id);
 
-   if (private) {
+   if (is_private) {
       bo = bo_from_cache(device, size, name);
       if (bo) {
          if (dump_stats) {
@@ -300,13 +300,13 @@ retry:
    /* Private BOs may be recycled from the cache, so bo->handle
     * alone would not be a valid report_id.
     */
-   if (private)
+   if (is_private)
       report_id = (report_id << 32) | create.handle;
    else
       report_id = create.handle;
 
    v3dv_bo_init(bo, create.handle, size, create.offset, name,
-                report_id, obj_type, obj_handle, private);
+                report_id, obj_type, obj_handle, is_private);
 
    device->bo_count++;
    device->bo_size += bo->size;
@@ -545,7 +545,7 @@ v3dv_bo_free(struct v3dv_device *device,
    struct v3dv_bo_cache *cache = &device->bo_cache;
    uint32_t page_index = bo->size / 4096 - 1;
 
-   if (bo->private &&
+   if (bo->is_private &&
        bo->size > cache->max_cache_size - cache->cache_size) {
       clock_gettime(CLOCK_MONOTONIC, &time);
       mtx_lock(&cache->lock);
@@ -553,7 +553,7 @@ v3dv_bo_free(struct v3dv_device *device,
       mtx_unlock(&cache->lock);
    }
 
-   if (!bo->private ||
+   if (!bo->is_private ||
        bo->size > cache->max_cache_size - cache->cache_size) {
       return bo_free(device, bo);
    }
