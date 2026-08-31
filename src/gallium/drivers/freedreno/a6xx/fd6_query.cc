@@ -334,7 +334,7 @@ time_elapsed_accumulate_result(struct fd_acc_query *aq,
                                union pipe_query_result *result)
 {
    struct fd6_query_sample *sp = fd6_query_sample(s);
-   result->u64 = ticks_to_ns(sp->result);
+   result->u64 = fd_ticks_to_ns(sp->result);
 }
 
 static void
@@ -354,7 +354,7 @@ timestamp_accumulate_result(struct fd_acc_query *aq,
                             union pipe_query_result *result)
 {
    struct fd6_query_sample *sp = fd6_query_sample(s);
-   result->u64 = ticks_to_ns(sp->start);
+   result->u64 = fd_ticks_to_ns(sp->start);
 }
 
 static void
@@ -1024,7 +1024,7 @@ fd6_query_context_init(struct pipe_context *pctx) disable_thread_safety_analysis
    ctx->query_update_batch = fd_acc_query_update_batch;
 
    ctx->record_timestamp = record_timestamp<CHIP>;
-   ctx->ts_to_ns = ticks_to_ns;
+   ctx->ts_to_ns = fd_ticks_to_ns;
 
    pctx->create_batch_query = fd6_create_batch_query<CHIP>;
 

@@ -199,7 +199,7 @@ time_elapsed_accumulate_result(struct fd_acc_query *aq,
                                union pipe_query_result *result)
 {
    struct fd5_query_sample *sp = fd5_query_sample(s);
-   result->u64 = ticks_to_ns(sp->result);
+   result->u64 = fd_ticks_to_ns(sp->result);
 }
 
 static void
@@ -208,7 +208,7 @@ timestamp_accumulate_result(struct fd_acc_query *aq,
                             union pipe_query_result *result)
 {
    struct fd5_query_sample *sp = fd5_query_sample(s);
-   result->u64 = ticks_to_ns(sp->result);
+   result->u64 = fd_ticks_to_ns(sp->result);
 }
 
 static const struct fd_acc_sample_provider time_elapsed = {

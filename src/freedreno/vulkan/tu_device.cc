@@ -2235,11 +2235,7 @@ tu_GetPhysicalDeviceFragmentShadingRatesKHR(
 uint64_t
 tu_device_ticks_to_ns(struct tu_device *dev, uint64_t ts)
 {
-   /* This is based on the 19.2MHz always-on rbbm timer.
-    *
-    * TODO we should probably query this value from kernel..
-    */
-   return ts * (1000000000 / 19200000);
+   return fd_ticks_to_ns(ts);
 }
 
 struct u_trace_context *
