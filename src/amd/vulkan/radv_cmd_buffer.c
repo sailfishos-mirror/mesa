@@ -15849,7 +15849,8 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
       if (src_qf == RADV_QUEUE_FOREIGN)
          return;
 
-      if (cmd_buffer->qf == RADV_QUEUE_TRANSFER)
+      if (cmd_buffer->qf == RADV_QUEUE_TRANSFER && (src_qf == RADV_QUEUE_GENERAL || dst_qf == RADV_QUEUE_GENERAL ||
+                                                    src_qf == RADV_QUEUE_COMPUTE || dst_qf == RADV_QUEUE_COMPUTE))
          return;
 
       if (cmd_buffer->qf == RADV_QUEUE_COMPUTE && (src_qf == RADV_QUEUE_GENERAL || dst_qf == RADV_QUEUE_GENERAL))
