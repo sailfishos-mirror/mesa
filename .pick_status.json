@@ -3594,7 +3594,7 @@
         "description": "iris: Free compute compilation context on failure",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2024d470483d85a0b954d1c614b0af8eeb95d993",
         "notes": null
