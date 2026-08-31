@@ -1502,8 +1502,13 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
          goto fail;
    }
 
-   if (pdev->info.gfx_level == GFX10_3) {
-      if (os_get_option("RADV_FORCE_VRS_CONFIG_FILE")) {
+   /* RADV_FORCE_VRS_CONFIG_FILE is only applied to gfx10.3 APUs and is used by SteamOS.
+    *
+    * RADV_FORCE_VRS is mainly for testing.
+    */
+   if (pdev->info.gfx_level >= GFX10_3) {
+      if (pdev->info.gfx_level == GFX10_3 && !pdev->info.has_dedicated_vram &&
+          os_get_option("RADV_FORCE_VRS_CONFIG_FILE")) {
          const char *file = radv_get_force_vrs_config_file();
 
          device->force_vrs = radv_parse_force_vrs_config_file(file);

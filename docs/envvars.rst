@@ -1588,7 +1588,7 @@ RADV driver environment variables
 .. envvar:: RADV_FORCE_VRS_CONFIG_FILE
 
    similar to ``RADV_FORCE_VRS`` but allow to configure from a file. If present,
-   this supersedes ``RADV_FORCE_VRS``.
+   this supersedes ``RADV_FORCE_VRS``. This only affects GFX10.3 APUs.
 
 .. envvar:: RADV_PERFTEST
 
