@@ -198,11 +198,6 @@ set_io_mask(nir_shader *shader, nir_variable *var, int offset, int len,
             }
          }
 
-         if (shader->info.stage == MESA_SHADER_FRAGMENT && !is_output_read &&
-             (var->data.index == 1 ||
-              var->data.location == FRAG_RESULT_DUAL_SRC_BLEND))
-            shader->info.fs.color_is_dual_source = true;
-
          if (var->data.per_view)
             shader->info.per_view_outputs |= bitfield;
       }
@@ -1171,6 +1166,18 @@ nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint)
          assert(shader->info.stage == MESA_SHADER_FRAGMENT);
          shader->info.fs.yuv_color = true;
       }
+
+      /*
+       * Dual-source blending is part of the shader interface, not a
+       * property of whether the output ends up written: a var with
+       * index == 1 still selects dual-source blending even if every
+       * store to it got optimized away (e.g. nir_opt_undef removing a
+       * store whose value is entirely undef).
+       */
+      shader->info.fs.color_is_dual_source |=
+         shader->info.stage == MESA_SHADER_FRAGMENT &&
+         (var->data.index == 1 ||
+          var->data.location == FRAG_RESULT_DUAL_SRC_BLEND);
    }
 
    if (shader->info.stage == MESA_SHADER_FRAGMENT) {
