@@ -265,6 +265,7 @@ struct etna_context {
     * pipe_blit_info has no driver-private field to carry this through. */
    bool blit_rb_swap;
    bool needs_gpu_state_reset;
+   bool mag_switchover_half;
    bool alpha_coverage_dither_emitted;
 
    /* conditional rendering */

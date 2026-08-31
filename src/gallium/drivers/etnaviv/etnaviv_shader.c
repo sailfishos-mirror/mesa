@@ -563,6 +563,26 @@ create_initial_variants_async(void *job, void *gdata, int thread_index)
    etna_shader_variant(shader, &key, &debug, false);
 }
 
+static void
+gather_tex_lod_samplers(const nir_shader *nir, uint16_t *mask)
+{
+   nir_foreach_function_impl(impl, nir) {
+      nir_foreach_block(block, impl) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_tex)
+               continue;
+
+            const nir_tex_instr *tex = nir_instr_as_tex(instr);
+
+            if (tex->op == nir_texop_txl) {
+               assert(tex->sampler_index < 16);
+               *mask |= BITFIELD_BIT(tex->sampler_index);
+            }
+         }
+      }
+   }
+}
+
 static void *
 etna_create_shader_state(struct pipe_context *pctx,
                          const struct pipe_shader_state *pss)
@@ -586,6 +606,9 @@ etna_create_shader_state(struct pipe_context *pctx,
 
    shader->nir = (pss->type == PIPE_SHADER_IR_NIR) ? pss->ir.nir :
                   tgsi_to_nir(pss->tokens, pctx->screen, false);
+
+   if (ctx->mag_switchover_half)
+      gather_tex_lod_samplers(shader->nir, &shader->tex_lod_samplers);
 
    etna_disk_cache_init_shader_key(compiler, shader);
 

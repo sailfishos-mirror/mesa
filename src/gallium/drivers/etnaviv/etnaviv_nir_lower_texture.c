@@ -494,6 +494,7 @@ etna_nir_lower_texture(nir_shader *s, struct etna_shader_key *key, const struct 
       .lower_invalid_implicit_lod = true,
       .lower_offset_filter = lower_offset_filter,
       .swizzle_result = key->tex_is_128bit,
+      .lower_txl_mag_switchover = key->tex_mag_switchover,
    };
 
    u_foreach_bit(i, key->tex_is_128bit) {

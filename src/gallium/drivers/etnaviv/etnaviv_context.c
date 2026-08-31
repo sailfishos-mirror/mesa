@@ -148,10 +148,50 @@ etna_shader_key_set_tex_swizzle(struct etna_shader_key *key, unsigned i,
    key->tex_swizzle[i].swizzle_a = view->swizzle_a;
 }
 
+static unsigned
+etna_tex_mag_switchover(struct etna_context *ctx, unsigned lod_samplers,
+                        unsigned first)
+{
+   unsigned mask = 0;
+
+   if (!ctx->mag_switchover_half)
+      return 0;
+
+   u_foreach_bit(i, lod_samplers) {
+      const struct pipe_sampler_state *ss = ctx->sampler[first + i];
+
+      if (!ss || ss->lod_bias != 0.0f || ss->min_lod > 0.0f)
+         continue;
+
+      if (ss->min_img_filter == PIPE_TEX_FILTER_NEAREST &&
+          ss->mag_img_filter == PIPE_TEX_FILTER_LINEAR &&
+          ss->min_mip_filter != PIPE_TEX_MIPFILTER_NONE)
+         mask |= BITFIELD_BIT(i);
+   }
+
+   return mask;
+}
+
+static void
+etna_set_context_param(struct pipe_context *pctx,
+                       enum pipe_context_param param, unsigned value)
+{
+   struct etna_context *ctx = etna_context(pctx);
+
+   switch (param) {
+   case PIPE_CONTEXT_PARAM_MAG_SWITCHOVER_HALF:
+      ctx->mag_switchover_half = value;
+      break;
+   default:
+      break;
+   }
+}
+
 static bool
 etna_get_vs(struct etna_context *ctx, struct etna_shader_key* const key)
 {
    const struct etna_shader_variant *old = ctx->shader.vs;
+   struct etna_shader *vs = ctx->shader.bind_vs;
 
    key->tex_is_128bit = ctx->tex_is_128bit[MESA_SHADER_VERTEX];
 
@@ -165,7 +205,10 @@ etna_get_vs(struct etna_context *ctx, struct etna_shader_key* const key)
          etna_shader_key_set_tex_swizzle(key, i, ctx->sampler_view[offset + i]);
    }
 
-   ctx->shader.vs = etna_shader_variant(ctx->shader.bind_vs, key, &ctx->base.debug, true);
+   key->tex_mag_switchover = etna_tex_mag_switchover(ctx, vs->tex_lod_samplers,
+                                                     ctx->screen->specs.vertex_sampler_offset);
+
+   ctx->shader.vs = etna_shader_variant(vs, key, &ctx->base.debug, true);
 
    if (!ctx->shader.vs)
       return false;
@@ -180,6 +223,7 @@ static bool
 etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
 {
    const struct etna_shader_variant *old = ctx->shader.fs;
+   struct etna_shader *fs = ctx->shader.bind_fs;
 
    /* update the key if we need to run nir_lower_sample_tex_compare(..).
     * halti < 2 has no HW shadow compare. halti >= 2 has it, but depth32f is
@@ -218,7 +262,9 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
          etna_shader_key_set_tex_swizzle(key, i, ctx->sampler_view[i]);
    }
 
-   ctx->shader.fs = etna_shader_variant(ctx->shader.bind_fs, key, &ctx->base.debug, true);
+   key->tex_mag_switchover = etna_tex_mag_switchover(ctx, fs->tex_lod_samplers, 0);
+
+   ctx->shader.fs = etna_shader_variant(fs, key, &ctx->base.debug, true);
 
    if (!ctx->shader.fs)
       return false;
@@ -767,6 +813,7 @@ etna_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
    pctx->fence_server_sync = etna_fence_server_sync;
    pctx->emit_string_marker = etna_emit_string_marker;
    pctx->set_frontend_noop = etna_set_frontend_noop;
+   pctx->set_context_param = etna_set_context_param;
    pctx->clear_buffer = u_default_clear_buffer;
    pctx->clear_texture = u_default_clear_texture;
 

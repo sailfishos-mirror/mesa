@@ -70,6 +70,7 @@ struct etna_shader_key
    enum compare_func tex_compare_func[16];
 
    unsigned tex_is_128bit : 16;
+   unsigned tex_mag_switchover : 16;
    unsigned sampler_companion[16];
 
    unsigned rt_is_128bit : ETNA_MAX_128BIT_RTS;
@@ -83,6 +84,7 @@ etna_shader_key_equal(const struct etna_shader_key* const a,
    /* slow-path if we need to check tex_{swizzle,compare_func} */
    if (unlikely(a->has_sample_tex_compare || b->has_sample_tex_compare) ||
        unlikely(a->tex_is_128bit || b->tex_is_128bit) ||
+       unlikely(a->tex_mag_switchover || b->tex_mag_switchover) ||
        unlikely(a->rt_is_128bit || b->rt_is_128bit))
       return memcmp(a, b, sizeof(struct etna_shader_key)) == 0;
    else
@@ -99,6 +101,8 @@ struct etna_shader {
    const struct etna_specs *specs;
    struct etna_compiler *compiler;
    struct etna_screen *screen;
+
+   uint16_t tex_lod_samplers;
 
    struct util_shader_variant_list variants;
 
