@@ -334,7 +334,7 @@
         "description": "tu: Fix gen8 TEX_LINE_OFFSET",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eee7a6fb3581ba8333caa1d25b7421254466361b",
         "notes": null
