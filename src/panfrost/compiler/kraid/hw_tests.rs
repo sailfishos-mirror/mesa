@@ -537,6 +537,26 @@ fn test_copy_single() {
 }
 
 #[test]
+fn test_copy_8bit() {
+    let run = RunSingleton::get();
+    let mut b = TestShaderBuilder::new(&*run.model);
+    let w = b.ld_test_data(3, 8);
+    let z = b.ld_test_data(2, 8);
+    let y = b.ld_test_data(1, 8);
+    let x = b.ld_test_data(0, 8);
+    let data = b.mkvec_v4i8(x.into(), y.into(), z.into(), w.into());
+    b.st_test_data(4, data.into());
+
+    let bin = b.compile();
+    // First, do a small copy (32-bits)
+    let mut data = [42, 67, 31, 41, 0, 0, 0, 0];
+    let case = bin.with_args_raw(FAU_ONLY_ARGS, &mut data, 0, WARP_SIZE);
+
+    run.execute(case);
+    assert_eq!(&data[0..4], &data[4..8]);
+}
+
+#[test]
 fn test_copy_warp() {
     let run = RunSingleton::get();
     let mut b = TestShaderBuilder::new(&*run.model);
