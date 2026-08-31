@@ -8,7 +8,6 @@ use compiler::smallvec::SmallVec;
 use crate::ir::*;
 use crate::model::SmallConstantTable;
 use crate::ops::LogicOp;
-use crate::swizzle::AsmSwizzleWiden;
 
 fn supported_swizzles(
     model: &dyn Model,
@@ -17,13 +16,12 @@ fn supported_swizzles(
     out: &mut Vec<Swizzle>,
 ) {
     out.clear();
-    for swz in AsmSwizzleWiden::VARIANTS.iter() {
+    for swz in model.op_src_supported_swizzles(op, src).iter() {
         let Some(swz) = swz.to_swizzle(op.src_type(src)) else {
             continue;
         };
-        if model.op_src_supports_swizzle(op, src, swz) {
-            out.push(swz);
-        }
+        debug_assert!(model.op_src_supports_swizzle(op, src, swz));
+        out.push(swz);
     }
 }
 
