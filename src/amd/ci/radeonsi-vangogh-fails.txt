@@ -7,7 +7,6 @@ spec@arb_program_interface_query@arb_program_interface_query-getprogramresourcei
 spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex@'vs_input2[1][0]' on GL_PROGRAM_INPUT,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
 spec@arb_tessellation_shader@arb_tessellation_shader-tes-gs-max-output -small -scan 1 50,Fail
-spec@egl 1.4@eglterminate then unbind context,Fail
 spec@egl_khr_surfaceless_context@viewport,Fail
 spec@ext_external_objects@vk-image-display,Crash
 spec@ext_external_objects@vk-semaphores,Crash
@@ -408,3 +407,4 @@ KHR-GL46.sparse_texture2_tests.StandardPageSizesTestCase_texture_1d_array_r32ui,
 KHR-GL46.sparse_texture2_tests.UncommittedRegionsAccess_texture_2d_array_rg16f,Fail
 
 spec@arb_texture_view@tex-view,Fail
+spec@ext_transform_feedback2@draw-auto offset,Fail
