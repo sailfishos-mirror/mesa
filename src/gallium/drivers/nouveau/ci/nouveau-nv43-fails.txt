@@ -743,8 +743,17 @@ dEQP-GLES2.functional.texture.filtering.2d.linear_linear_mirror_rgba4444_pot,Fai
 dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_linear_linear_repeat_rgba8888,Fail
 dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_nearest_clamp,Fail
 
-# todo add KHR
+KHR-GLES2.core.internalformat.renderbuffer.depth_component16,Fail
 
+KHR-GLES2.core.internalformat.renderbuffer.rgb5_a1,Fail
+KHR-GLES2.core.internalformat.renderbuffer.rgb8,Fail
+KHR-GLES2.core.internalformat.renderbuffer.rgba8,Fail
+
+KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component16,Fail
+KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component24,Fail
+KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_component16,Fail
+
+KHR-GLES2.texture_3d.filtering.combinations.negative,Fail
 
 # results from piglit egl with nv30_transfer_rect_cpu
 
