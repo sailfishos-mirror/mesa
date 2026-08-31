@@ -16196,8 +16196,9 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
       radv_sdma_emit_nop(device, cs);
    } else {
       const bool is_gfx_or_ace = cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE;
-      if (is_gfx_or_ace)
-         radv_cp_dma_wait_for_stages(cmd_buffer, src_stage_mask);
+      if (is_gfx_or_ace) {
+         radv_cp_dma_wait_for_stages(cmd_buffer, radv_get_src_stage_flags2(src_stage_mask));
+      }
    }
 
    cmd_buffer->state.flush_bits |= dst_flush_bits;
@@ -16256,7 +16257,7 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    const VkPipelineStageFlags2 post_cs_flags = post_me_flags | radv_post_cs_stage_mask;
 
-   radv_cp_dma_wait_for_stages(cmd_buffer, stageMask);
+   radv_cp_dma_wait_for_stages(cmd_buffer, stage_mask);
 
    if (!(stage_mask & ~post_pfp_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_PREFETCH_PARSER, va, 1, &value, false);
