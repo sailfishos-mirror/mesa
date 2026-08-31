@@ -1800,9 +1800,7 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
     * - transfer command buffer: a transfer operation on SDMA needs to wait for a previous operation on ACE
     */
    const VkPipelineStageFlags2 gang_follower_flags =
-      cmd_buffer->qf == RADV_QUEUE_TRANSFER
-         ? (VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT)
-         : 0;
+      cmd_buffer->qf == RADV_QUEUE_TRANSFER ? VK_PIPELINE_STAGE_2_COPY_BIT : 0;
    if (src_stage_mask & gang_follower_flags)
       cmd_buffer->gang.sem.follower_value++;
 }
