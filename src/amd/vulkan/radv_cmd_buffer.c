@@ -1772,9 +1772,12 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
    cmd_buffer->gang.flush_bits |=
       cmd_buffer->state.flush_bits & RADV_CMD_FLUSH_ALL_COMPUTE & ~RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
-   /* Add stage flush only when necessary. */
-   if (src_stage_mask & (VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT | VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT |
-                         RADV_TASK_SHADER_SENSITIVE_STAGES | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT))
+   /* Add stage flush only when necessary:
+    * - graphics command buffer: task shaders and DGC preprocess
+    * - transfer command buffer: copy operations that require a compute fallback
+    */
+   if (src_stage_mask & (VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT |
+                         VK_PIPELINE_STAGE_2_COPY_BIT))
       cmd_buffer->gang.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
    /* Block task shaders when we have to wait for CP DMA on the GFX cmdbuf. */
