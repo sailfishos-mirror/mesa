@@ -1511,10 +1511,11 @@ anv_shader_get_scratch_surf(struct anv_batch *batch,
       &device->protected_scratch_pool : &device->scratch_pool;
    struct anv_bo *bo =
       anv_scratch_pool_alloc(device, pool, stage, total_scratch);
-   anv_reloc_list_add_bo(batch->relocs, bo);
+   if (batch != NULL)
+      anv_reloc_list_add_bo(batch->relocs, bo);
    uint32_t ret = anv_scratch_pool_get_surf(device, pool, total_scratch);
 
-   return ret >> ANV_SCRATCH_SPACE_SHIFT;
+   return device->physical->uses_efficient_64bit ? ret : (ret >> ANV_SCRATCH_SPACE_SHIFT);
 }
 
 VkResult

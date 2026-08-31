@@ -77,6 +77,21 @@ get_scratch_space(const struct anv_shader *shader)
    return ffs(shader->prog_data->total_scratch / 2048);
 }
 
+static UNUSED uint32_t
+get_scratch_surface(struct anv_batch *batch,
+                    struct anv_device *device,
+                    struct anv_shader *shader,
+                    bool protected)
+{
+   /* We use relocated constant in efficient 64bit mode */
+   if (device->physical->uses_efficient_64bit)
+      return 0;
+
+   return anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
+                                      shader->prog_data->total_scratch,
+                                      protected);
+}
+
 /* Streamout (can be used by several shaders) */
 static void
 emit_3dstate_streamout(struct anv_batch *batch,
@@ -582,9 +597,7 @@ emit_vs_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, vs.vs, vs_dwords, GENX(3DSTATE_VS), vs) {
 #if GFX_VERx10 >= 125
-      vs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      vs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
 #else
       vs.PerThreadScratchSpace = get_scratch_space(shader);
       vs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -594,9 +607,7 @@ emit_vs_shader(struct anv_batch *batch,
       anv_shader_emit_merge(batch, shader, vs.vs_protected,
                             vs_dwords, GENX(3DSTATE_VS), vs) {
 #if GFX_VERx10 >= 125
-         vs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         vs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
 #else
          vs.PerThreadScratchSpace = get_scratch_space(shader);
          vs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -665,9 +676,7 @@ emit_hs_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, hs.hs, hs_dwords, GENX(3DSTATE_HS), hs) {
 #if GFX_VERx10 >= 125
-      hs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      hs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
 #else
       hs.PerThreadScratchSpace = get_scratch_space(shader);
       hs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -677,9 +686,7 @@ emit_hs_shader(struct anv_batch *batch,
       anv_shader_emit_merge(batch, shader, hs.hs_protected,
                             hs_dwords, GENX(3DSTATE_HS), hs) {
 #if GFX_VERx10 >= 125
-         hs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             false);
+         hs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
 #else
          hs.PerThreadScratchSpace = get_scratch_space(shader);
          hs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -756,9 +763,7 @@ emit_ds_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, ds.ds, ds_dwords, GENX(3DSTATE_DS), ds) {
 #if GFX_VERx10 >= 125
-      ds.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      ds.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
 #else
       ds.PerThreadScratchSpace = get_scratch_space(shader);
       ds.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -768,9 +773,7 @@ emit_ds_shader(struct anv_batch *batch,
       anv_shader_emit_merge(batch, shader, ds.ds_protected,
                             ds_dwords, GENX(3DSTATE_DS), ds) {
 #if GFX_VERx10 >= 125
-         ds.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         ds.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
 #else
          ds.PerThreadScratchSpace = get_scratch_space(shader);
          ds.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -835,9 +838,7 @@ emit_gs_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, gs.gs, gs_dwords, GENX(3DSTATE_GS), gs) {
 #if GFX_VERx10 >= 125
-      gs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      gs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
 #else
       gs.PerThreadScratchSpace = get_scratch_space(shader);
       gs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -847,9 +848,7 @@ emit_gs_shader(struct anv_batch *batch,
       anv_shader_emit_merge(batch, shader, gs.gs_protected,
                             gs_dwords, GENX(3DSTATE_GS), gs) {
 #if GFX_VERx10 >= 125
-         gs.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         gs.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
 #else
          gs.PerThreadScratchSpace = get_scratch_space(shader);
          gs.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -879,16 +878,12 @@ emit_task_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, ts.control,
                          task_control_dwords, GENX(3DSTATE_TASK_CONTROL), tc) {
-      tc.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      tc.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
    }
    if (device_needs_protected(device)) {
       anv_shader_emit_merge(batch, shader, ts.control_protected,
                             task_control_dwords, GENX(3DSTATE_TASK_CONTROL), tc) {
-         tc.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         tc.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
       }
    }
 
@@ -955,16 +950,12 @@ emit_mesh_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, ms.control,
                          mesh_control_dwords, GENX(3DSTATE_MESH_CONTROL), mc) {
-      mc.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      mc.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
    }
    if (device_needs_protected(device)) {
       anv_shader_emit_merge(batch, shader, ms.control_protected,
                             mesh_control_dwords, GENX(3DSTATE_MESH_CONTROL), mc) {
-         mc.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         mc.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
       }
    }
 
@@ -1080,9 +1071,7 @@ emit_ps_shader(struct anv_batch *batch,
 
    anv_shader_emit_merge(batch, shader, ps.ps, ps_dwords, GENX(3DSTATE_PS), ps) {
 #if GFX_VERx10 >= 125
-      ps.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                          shader->prog_data->total_scratch,
-                                                          false);
+      ps.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, false);
 #else
       ps.PerThreadScratchSpace = get_scratch_space(shader);
       ps.ScratchSpaceBasePointer = get_scratch_address(device, shader);
@@ -1092,9 +1081,7 @@ emit_ps_shader(struct anv_batch *batch,
       anv_shader_emit_merge(batch, shader, ps.ps_protected,
                             ps_dwords, GENX(3DSTATE_PS), ps) {
 #if GFX_VERx10 >= 125
-         ps.ScratchSpaceBuffer = anv_shader_get_scratch_surf(batch, device, shader->vk.stage,
-                                                             shader->prog_data->total_scratch,
-                                                             true);
+         ps.ScratchSpaceBuffer = get_scratch_surface(batch, device, shader, true);
 #else
          ps.PerThreadScratchSpace = get_scratch_space(shader);
          ps.ScratchSpaceBasePointer = get_scratch_address(device, shader);

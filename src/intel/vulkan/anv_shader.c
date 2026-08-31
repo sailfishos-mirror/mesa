@@ -667,6 +667,23 @@ anv_shader_set_relocs(struct anv_device *device,
          .id = BRW_SHADER_RELOC_DESCRIPTORS_APP_HIGH,
          .value = device->physical->va.bindless_surface_state_pool.addr >> 32,
       };
+
+      if (shader->prog_data->total_scratch > 0) {
+         reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+            .id = BRW_SHADER_RELOC_SCRATCH64_SURFACE_HIGH,
+            .value = device->physical->va.internal_surface_state_pool.addr >> 32,
+         };
+         /* TODO: deal with protected scratch surfaces in efficient 64bit mode
+          *
+          * We could upload the shader twice?
+          */
+         reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+            .id = BRW_SHADER_RELOC_SCRATCH64_SURFACE_LOW,
+            .value = anv_shader_get_scratch_surf(
+               NULL, device, shader->vk.stage,
+               shader->prog_data->total_scratch, false /* protected */),
+         };
+      }
    }
 
    if (anv_needs_printf_buffer()) {
