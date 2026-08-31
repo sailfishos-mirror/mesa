@@ -32,15 +32,16 @@ clamp_lod(nir_builder *b, nir_def *sampler, nir_def *lod)
 }
 
 static nir_def *
+level_size(nir_builder *b, nir_def *base_size, nir_def *lod)
+{
+   /* Mip levels are never smaller than 1x1 */
+   return nir_imax(b, nir_ushr(b, base_size, lod), nir_imm_int(b, 1));
+}
+
+static nir_def *
 calculate_coord(nir_builder *b, nir_tex_instr *tex, nir_def *coord, nir_def *base_size_int, nir_def *lod, nir_def *offset)
 {
-   lod = nir_f2i32(b, lod);
-
-   /* Calculate mipmap level dimensions by right-shifting base size by LOD */
-   nir_def *mip_size = nir_ushr(b, base_size_int, lod);
-
-   /* Ensure minimum size of 1 pixel - mipmaps can't be smaller than 1x1 */
-   mip_size = nir_imax(b, mip_size, nir_imm_int(b, 1));
+   nir_def *mip_size = level_size(b, base_size_int, nir_f2i32(b, lod));
 
    /* Convert mip size to float and calculate reciprocal to scale texel offsets into normalized coordinates */
    nir_def *mip_size_float = nir_i2f32(b, mip_size);
