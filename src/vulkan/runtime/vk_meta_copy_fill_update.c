@@ -1042,10 +1042,7 @@ build_buffer_to_image_fs(const struct vk_meta_device *meta,
    nir_def *img_offs = nir_vec3(b,
       load_info(b, struct vk_meta_copy_buffer_image_info, img.offset.x),
       load_info(b, struct vk_meta_copy_buffer_image_info, img.offset.y),
-      /* The z offset compared to array_layer is always effectively zero,
-       * since the z coordinate is applied with subresourceRange.baseArrayLayer
-       * rather than increasing the layer id
-       */
+      /* Always zero. See copy_buffer_image_prepare_gfx_push_const */
       nir_imm_zero(b, 1, 32));
 
    /* Move the layer ID to the second coordinate if we're dealing with a 1D
@@ -1061,7 +1058,7 @@ build_buffer_to_image_fs(const struct vk_meta_device *meta,
    assert(blk_sz % comp_count == 0);
    unsigned comp_sz = (blk_sz / comp_count) * 8;
 
-   coords = nir_isub(b, coords, img_offs);
+   coords = nir_iadd(b, coords, img_offs);
 
    nir_def *texel = nir_load_global(b,
       comp_count, comp_sz, copy_img_buf_addr(b, buf_pfmt, coords),
@@ -1229,10 +1226,12 @@ copy_buffer_image_prepare_gfx_push_const(
          .image_stride = buf_layout->image_stride_B,
          .addr = region->addressRange.address,
       },
+      /* Equivalent to copy_image_prepare_gfx_push_const, but with a
+       * zero src offset
+       */
       .img.offset = {
-         .x = region->imageOffset.x,
-         .y = region->imageOffset.y,
-         /* See the commnet in build_buffer_to_image_fs for why this is zero */
+         .x = -region->imageOffset.x,
+         .y = -region->imageOffset.y,
          .z = 0,
       },
    };
