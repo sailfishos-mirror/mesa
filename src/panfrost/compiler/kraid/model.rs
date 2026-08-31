@@ -82,6 +82,12 @@ pub trait Model {
         swizzle: Swizzle,
     ) -> bool;
 
+    fn op_src_supported_swizzles(
+        &self,
+        op: &Op,
+        src: &Src,
+    ) -> AsmSwizzleWidenSet;
+
     fn op_src_supports_mod(&self, op: &Op, src: &Src, src_mod: SrcMod) -> bool;
 
     fn op_dst_is_staging_reg(&self, op: &Op) -> bool;
@@ -259,6 +265,18 @@ impl Model for ValhallModel {
             vop.src_supports_swizzle(src, swizzle)
         } else {
             v9_op_src_supports_swizzle(op, src, self.arch, swizzle)
+        }
+    }
+
+    fn op_src_supported_swizzles(
+        &self,
+        op: &Op,
+        src: &Src,
+    ) -> AsmSwizzleWidenSet {
+        if let Some(vop) = op.as_virtual() {
+            vop.src_supported_swizzles(src, op.src_type(src))
+        } else {
+            v9_op_src_supported_swizzles(op, src, self.arch)
         }
     }
 

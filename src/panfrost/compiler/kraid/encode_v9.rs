@@ -12,7 +12,7 @@ use crate::isa::*;
 use crate::ops::{self, *};
 use crate::swizzle::*;
 
-use compiler::{as_slice::AsArray, index_of};
+use compiler::{as_slice::AsArray, enum_as_u8::EnumAsU8, index_of};
 use paste::paste;
 use rustc_hash::FxHashMap;
 
@@ -3537,6 +3537,26 @@ pub fn v9_op_src_supports_swizzle(
         return false;
     };
     src_info.allowed_swizzles.contains(asw.into())
+}
+
+pub fn v9_op_src_supported_swizzles(
+    op: &Op,
+    src: &Src,
+    arch: u8,
+) -> AsmSwizzleWidenSet {
+    let Some(info) = v9_op_info(op, arch) else {
+        return Default::default();
+    };
+
+    let Some(src_info) = info.src_info(op.src_idx(src)) else {
+        // See v9_op_src_supports_swizzle.
+        return AsmSwizzleWiden::VARIANTS.iter().collect();
+    };
+
+    AsmSwizzleWiden::VARIANTS
+        .iter()
+        .filter(|asw| src_info.allowed_swizzles.contains((*asw).into()))
+        .collect()
 }
 
 pub fn v9_op_src_supports_mod(

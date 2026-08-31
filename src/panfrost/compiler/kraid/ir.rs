@@ -1357,7 +1357,8 @@ pub enum DstLanes {
     HF1,
 }
 
-pub type DstLanesSet = U8EnumSet<DstLanes, 1>;
+pub type DstLanesSet = <DstLanes as EnumAsU8>::VariantSet;
+pub type AsmSwizzleWidenSet = <AsmSwizzleWiden as EnumAsU8>::VariantSet;
 
 impl fmt::Display for DstLanes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1822,6 +1823,24 @@ pub trait VirtualOpcode {
 
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle == Swizzle::NONE
+    }
+
+    fn src_supported_swizzles(
+        &self,
+        src: &Src,
+        src_type: DataType,
+    ) -> AsmSwizzleWidenSet {
+        // This is for correctness, but should be implemented specifically for Ops where this is
+        // called often.
+        AsmSwizzleWiden::VARIANTS
+            .iter()
+            .filter(|asw| {
+                let Some(swizzle) = asw.to_swizzle(src_type) else {
+                    return false;
+                };
+                self.src_supports_swizzle(src, swizzle)
+            })
+            .collect()
     }
 
     fn src_supports_mod(&self, _src: &Src, src_mod: SrcMod) -> bool {
