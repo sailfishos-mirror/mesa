@@ -160,12 +160,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
                   nir_metadata_control_flow, key);
          NIR_PASS(_, s, nir_lower_alu);
       }
-
-      NIR_PASS(_, s, nir_shader_intrinsics_pass,
-               lower_sample_mask_writes, nir_metadata_control_flow, NULL);
-
-      if (s->info.fs.accesses_pixel_local_storage)
-         NIR_PASS(_, s, panfrost_nir_lower_pls, screen);
    }
 
    if (dev->arch <= 5 && s->info.stage == MESA_SHADER_FRAGMENT) {
@@ -587,9 +581,16 @@ panfrost_create_shader_state(struct pipe_context *pctx,
       NIR_PASS(_, nir, nir_opt_constant_folding);
    }
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       so->noperspective_varyings =
          pan_nir_collect_noperspective_varyings_fs(nir);
+
+      NIR_PASS(_, nir, nir_shader_intrinsics_pass,
+               lower_sample_mask_writes, nir_metadata_control_flow, NULL);
+
+      if (nir->info.fs.accesses_pixel_local_storage)
+         NIR_PASS(_, nir, panfrost_nir_lower_pls, pan_screen(pctx->screen));
+   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       struct pan_varying_layout *varying_layout = &so->vs_varying_layout;
