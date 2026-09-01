@@ -1580,16 +1580,25 @@ struct jay_footprint {
 #define jay_foreach_in_footprint(fp, key)                                      \
    for (unsigned key = fp.base; key < fp.base + fp.width; ++key)
 
+/* TODO: Optimize these */
 static inline void
 jay_footprint_set(BITSET_WORD *bitset, struct jay_footprint fp)
 {
-   BITSET_SET_COUNT(bitset, fp.base, fp.width);
+   jay_foreach_in_footprint(fp, key) {
+      BITSET_SET(bitset, key);
+   }
 }
 
 static inline bool
 jay_footprint_test(BITSET_WORD *bitset, struct jay_footprint fp)
 {
-   return BITSET_TEST_COUNT(bitset, fp.base, fp.width);
+   bool x = false;
+
+   jay_foreach_in_footprint(fp, key) {
+      x |= BITSET_TEST(bitset, key);
+   }
+
+   return x;
 }
 
 static inline unsigned
