@@ -175,7 +175,7 @@ tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
    const VkAttachmentDescription2* att = info->pAttachments;
    bool has_external_src[info->subpassCount];
    bool has_external_dst[info->subpassCount];
-   bool att_used[pass->attachment_count];
+   STACK_ARRAY(bool, att_used, pass->attachment_count);
 
    memset(has_external_src, 0, sizeof(has_external_src));
    memset(has_external_dst, 0, sizeof(has_external_dst));
@@ -193,7 +193,7 @@ tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
          has_external_dst[src] = true;
    }
 
-   memset(att_used, 0, sizeof(att_used));
+   memset(att_used, 0, pass->attachment_count);
 
    for (unsigned i = 0; i < info->subpassCount; i++) {
       const VkSubpassDescription2 *subpass = &info->pSubpasses[i];
@@ -288,7 +288,7 @@ tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
       }
    }
 
-   memset(att_used, 0, sizeof(att_used));
+   memset(att_used, 0, pass->attachment_count);
 
    for (int i = info->subpassCount - 1; i >= 0; i--) {
       const VkSubpassDescription2 *subpass = &info->pSubpasses[i];
@@ -394,6 +394,8 @@ tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
          }
       }
    }
+
+   STACK_ARRAY_FINISH(att_used);
 }
 
 /* If an input attachment is used without an intervening write to the same
@@ -412,9 +414,9 @@ tu_render_pass_patch_input_gmem(struct tu_render_pass *pass)
    if (pass->attachment_count == 0)
       return;
 
-   bool written[pass->attachment_count];
+   STACK_ARRAY(bool, written, pass->attachment_count);
 
-   memset(written, 0, sizeof(written));
+   memset(written, 0, pass->attachment_count);
 
    for (unsigned i = 0; i < pass->subpass_count; i++) {
       struct tu_subpass *subpass = &pass->subpasses[i];
@@ -475,6 +477,8 @@ tu_render_pass_patch_input_gmem(struct tu_render_pass *pass)
          }
       }
    }
+
+   STACK_ARRAY_FINISH(written);
 }
 
 static void
@@ -751,6 +755,9 @@ tu_render_pass_gmem_config(struct tu_render_pass *pass,
       }
    }
 
+   STACK_ARRAY(struct tu_gmem_alloc, gmem_alloc, 2 * pass->attachment_count);
+   STACK_ARRAY(struct tu_gmem_alloc *, att_gmem_alloc, 2 * pass->attachment_count);
+
    for (enum tu_gmem_layout layout = (enum tu_gmem_layout) 0;
         layout < TU_GMEM_LAYOUT_COUNT;
         layout = (enum tu_gmem_layout)(layout + 1)) {
@@ -762,10 +769,8 @@ tu_render_pass_gmem_config(struct tu_render_pass *pass,
       /* gmem allocations to make, possibly shared between attachments. Each
        * attachment may have 2 allocations, to handle separate stencil.
        */
-      struct tu_gmem_alloc gmem_alloc[2 * pass->attachment_count];
       uint32_t num_gmem_alloc = 0;
-      struct tu_gmem_alloc *att_gmem_alloc[2 * pass->attachment_count];
-      for (int i = 0; i < ARRAY_SIZE(att_gmem_alloc); i++)
+      for (int i = 0; i < 2 * pass->attachment_count; i++)
          att_gmem_alloc[i] = NULL;
 
       for (uint32_t i = 0; i < pass->attachment_count; i++) {
@@ -810,7 +815,7 @@ tu_render_pass_gmem_config(struct tu_render_pass *pass,
          /* any non-zero value so tiling config works with no attachments */
          for (int i = 0; i < ARRAY_SIZE(pass->gmem_pixels); i++)
             pass->gmem_pixels[i] = 1024*1024;
-         return;
+         goto out;
       }
 
       /* TODO: this algorithm isn't optimal
@@ -864,6 +869,9 @@ tu_render_pass_gmem_config(struct tu_render_pass *pass,
             att->gmem_offset_stencil[layout] = att_gmem_alloc[2 * i + 1]->gmem_offset;
       }
    }
+out:
+   STACK_ARRAY_FINISH(gmem_alloc);
+   STACK_ARRAY_FINISH(att_gmem_alloc);
 }
 
 static void
