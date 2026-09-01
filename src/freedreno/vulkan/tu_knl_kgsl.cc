@@ -1936,8 +1936,8 @@ tu_knl_kgsl_load(struct tu_instance *instance, int fd)
       device->ubwc_config.macrotile_mode = FDL_MACROTILE_8_CHANNEL;
       break;
    default:
-      return vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
-                       "unknown UBWC version 0x%x", ubwc_version);
+      result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "unknown UBWC version 0x%x", ubwc_version);
+      goto fail;
    }
 
    /* kgsl unfortunately hardcodes some settings for certain GPUs and doesn't
