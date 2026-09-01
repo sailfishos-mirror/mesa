@@ -4025,7 +4025,8 @@ tu_get_msrtss_temporary(struct tu_device *dev,
    struct tu_device_memory *mem;
    VkResult result =
       tu_create_memory(dev, &mem,
-                       depth ? (VkMemoryPropertyFlags)0 :
+                       (depth || !dev->physical_device->has_lazy_bos) ?
+                       (VkMemoryPropertyFlags)0 :
                        VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT,
                        TU_BO_ALLOC_INTERNAL_RESOURCE,
                        size, depth ? "MSRTSS depth" : "MSRTSS color");
