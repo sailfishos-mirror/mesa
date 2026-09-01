@@ -982,6 +982,7 @@ queue_handle_job(struct v3dv_queue *queue,
       job->needs_bcl_sync = job->type == V3DV_JOB_TYPE_GPU_CL;
    }
 
+   job->queue = queue;
    switch (job->type) {
    case V3DV_JOB_TYPE_GPU_CL:
       return handle_cl_job(queue, job, counter_pass_idx, sync_info);

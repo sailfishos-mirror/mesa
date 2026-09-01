@@ -289,6 +289,7 @@ struct v3dv_job {
 
    /* Perfmons with last job sync for CSD and CL jobs */
    struct v3dv_perf_query *perf;
+   struct v3dv_queue *queue;
 };
 
 void v3dv_job_init(struct v3dv_job *job,
