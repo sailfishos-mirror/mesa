@@ -991,6 +991,9 @@ static bool pvr_physical_device_get_properties(
       .independentResolveNone = true,
       .independentResolve = true,
 
+      /* VK_KHR_push_descriptor */
+      .maxPushDescriptors = PVR_MAX_PUSH_DESCRIPTORS,
+
       /* VK_KHR_line_rasterization */
       .lineSubPixelPrecisionBits = line_sub_pixel_precision_bits,
 

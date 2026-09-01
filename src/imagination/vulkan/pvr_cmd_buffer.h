@@ -606,6 +606,16 @@ static inline bool pvr_sub_cmd_gfx_requires_split_submit(
       }                                                                      \
    } while (0)
 
+static inline
+struct pvr_descriptor_state *
+pvr_get_descriptors_state(struct pvr_cmd_buffer *cmd_buffer,
+                         VkPipelineBindPoint bind_point)
+{
+   if (bind_point == VK_PIPELINE_BIND_POINT_COMPUTE)
+      return &cmd_buffer->state.compute_desc_state;
+   return &cmd_buffer->state.gfx_desc_state;
+}
+
 #ifdef PVR_PER_ARCH
 
 VkResult PVR_PER_ARCH(cmd_buffer_add_transfer_cmd)(

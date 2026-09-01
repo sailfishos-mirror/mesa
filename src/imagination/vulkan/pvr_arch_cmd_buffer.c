@@ -191,6 +191,10 @@ static void pvr_cmd_buffer_free_sub_cmds(struct pvr_cmd_buffer *cmd_buffer)
 
 static void pvr_cmd_buffer_free_resources(struct pvr_cmd_buffer *cmd_buffer)
 {
+   vk_free(&cmd_buffer->vk.pool->alloc,
+           cmd_buffer->state.gfx_desc_state.push_set);
+   vk_free(&cmd_buffer->vk.pool->alloc,
+           cmd_buffer->state.compute_desc_state.push_set);
    pvr_cmd_buffer_attachments_free(cmd_buffer);
    pvr_cmd_buffer_clear_values_free(cmd_buffer);
 
@@ -2966,9 +2970,76 @@ void PVR_PER_ARCH(CmdSetDepthBounds)(VkCommandBuffer commandBuffer,
    mesa_logd("No support for depth bounds testing.");
 }
 
-void PVR_PER_ARCH(CmdBindDescriptorSets2KHR)(
-   VkCommandBuffer commandBuffer,
-   const VkBindDescriptorSetsInfoKHR *pBindDescriptorSetsInfo)
+static struct pvr_push_descriptor_set *
+pvr_get_push_descriptors(struct pvr_cmd_buffer *cmd,
+                         struct pvr_descriptor_state *desc,
+                         uint32_t set)
+{
+   assert(set < PVR_MAX_DESCRIPTOR_SETS);
+   if (unlikely(desc->push_set == NULL)) {
+      desc->push_set = vk_zalloc(&cmd->vk.pool->alloc,
+                                 sizeof(*desc->push_set), 8,
+                                 VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      if (unlikely(desc->push_set == NULL)) {
+         vk_command_buffer_set_error(&cmd->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
+         return NULL;
+      }
+   }
+
+   /* Pushing descriptors replaces the set that was bound */
+   desc->sets[set] = NULL;
+   desc->push_set_dirty = true;
+   return desc->push_set;
+}
+
+static void
+pvr_cmd_push_descriptor_set(struct pvr_cmd_buffer *cmd_buffer,
+                            const VkPushDescriptorSetInfoKHR *info,
+                            VkPipelineBindPoint bind_point)
+{
+   struct pvr_device *device = cmd_buffer->device;
+   VK_FROM_HANDLE(vk_pipeline_layout, pipe_layout, info->layout);
+   struct pvr_descriptor_state *desc_state =
+      pvr_get_descriptors_state(cmd_buffer, bind_point);
+   struct pvr_push_descriptor_set *push_set =
+      pvr_get_push_descriptors(cmd_buffer, desc_state, info->set);
+   struct pvr_descriptor_set_layout *layout =
+      (struct pvr_descriptor_set_layout *)pipe_layout->set_layouts[info->set];
+
+   if (unlikely(push_set == NULL))
+      return;
+
+   desc_state->sets[info->set] = &push_set->instantiate_set;
+   PVR_PER_ARCH(push_descriptor_set_update)(push_set, layout, info->descriptorWriteCount,
+                                            info->pDescriptorWrites, &device->pdevice->dev_info);
+}
+
+void PVR_PER_ARCH(CmdPushDescriptorSet2KHR)(VkCommandBuffer commandBuffer,
+                                            const VkPushDescriptorSetInfoKHR *pPushDescriptorSetInfo)
+{
+   VK_FROM_HANDLE(pvr_cmd_buffer, cmd_buffer, commandBuffer);
+
+   if (pPushDescriptorSetInfo->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT) {
+      pvr_cmd_push_descriptor_set(cmd_buffer, pPushDescriptorSetInfo,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE);
+      cmd_buffer->state.dirty.compute_desc_dirty = true;
+   }
+
+   if (pPushDescriptorSetInfo->stageFlags & VK_SHADER_STAGE_ALL_GRAPHICS) {
+      pvr_cmd_push_descriptor_set(cmd_buffer, pPushDescriptorSetInfo,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS);
+      cmd_buffer->state.dirty.gfx_desc_dirty = true;
+   }
+}
+
+void PVR_PER_ARCH(CmdPushDescriptorSetWithTemplate2KHR)(VkCommandBuffer commandBuffer,
+                                            const VkPushDescriptorSetWithTemplateInfoKHR *pPushDescriptorSetInfo)
+{
+   UNREACHABLE("CmdPushDescriptorSetWithTemplate2KHR not implemented");
+}
+
+void PVR_PER_ARCH(CmdBindDescriptorSets2KHR)(VkCommandBuffer commandBuffer,
+                                             const VkBindDescriptorSetsInfoKHR *pBindDescriptorSetsInfo)
 {
    VK_FROM_HANDLE(pvr_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_pipeline_layout,
@@ -5180,6 +5251,9 @@ PVR_PER_ARCH(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
           0xFF,
           sizeof(*state->barriers_needed) * ARRAY_SIZE(state->barriers_needed));
 
+   state->gfx_desc_state.push_set_dirty = false;
+   state->compute_desc_state.push_set_dirty = false;
+
    return VK_SUCCESS;
 }
 
@@ -5492,6 +5566,31 @@ pvr_setup_vertex_buffers(struct pvr_cmd_buffer *cmd_buffer,
 
 static VkResult pvr_cmd_upload_push_consts(struct pvr_cmd_buffer *cmd_buffer,
                                            enum pvr_stage_allocation stage);
+
+static VkResult pvr_flush_push_descriptors(
+   struct pvr_cmd_buffer *cmd_buffer,
+   struct pvr_descriptor_state *desc_state)
+{
+   if (desc_state->push_set_dirty) {
+      struct pvr_push_descriptor_set *push_set = desc_state->push_set;
+      struct pvr_suballoc_bo *bo;
+
+      VkResult result = pvr_arch_cmd_buffer_upload_general(
+         cmd_buffer, push_set->data, push_set->layout->size, &bo);
+      if (result != VK_SUCCESS)
+         return result;
+
+      /* instantiate the definite set */
+      push_set->instantiate_set.layout = push_set->layout;
+      push_set->instantiate_set.pool = NULL;
+      push_set->instantiate_set.size = push_set->layout->size;
+      push_set->instantiate_set.dev_addr = bo->dev_addr;
+      push_set->instantiate_set.mapping = pvr_bo_suballoc_get_map_addr(bo);
+
+      desc_state->push_set_dirty = false;
+   }
+   return VK_SUCCESS;
+}
 
 static VkResult pvr_setup_descriptor_mappings(
    struct pvr_cmd_buffer *const cmd_buffer,
@@ -6430,6 +6529,9 @@ static void pvr_cmd_dispatch(
       state->dirty.compute_desc_dirty = true;
    }
 
+   result = pvr_flush_push_descriptors(cmd_buffer, &state->compute_desc_state);
+   if (result != VK_SUCCESS)
+      return;
    if (state->dirty.compute_desc_dirty ||
        state->dirty.compute_pipeline_binding) {
       result = pvr_setup_descriptor_mappings(
@@ -8390,6 +8492,10 @@ static VkResult pvr_validate_draw_state(struct pvr_cmd_buffer *cmd_buffer)
       &gfx_pipeline->shader_state.fragment;
    bool skip_fs = fragment_shader_state->is_passthrough &&
                   !pvr_needs_fs_passthrough(dynamic_state);
+
+   result = pvr_flush_push_descriptors(cmd_buffer, &state->gfx_desc_state);
+   if (result != VK_SUCCESS)
+      return result;
 
    if (state->dirty.fragment_descriptors && !skip_fs) {
       result = pvr_setup_descriptor_mappings(
