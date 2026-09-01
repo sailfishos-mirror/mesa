@@ -2794,8 +2794,11 @@ tu_device_destroy_mutexes(struct tu_device *device)
    mtx_destroy(&device->trace_mutex);
    mtx_destroy(&device->fiber_pvtmem_bo.mtx);
    mtx_destroy(&device->wave_pvtmem_bo.mtx);
+   mtx_destroy(&device->vis_stream_mtx);
+   mtx_destroy(&device->vis_stream_suballocator_mtx);
    mtx_destroy(&device->mutex);
    mtx_destroy(&device->copy_timestamp_cs_pool_mutex);
+   mtx_destroy(&device->softfloat_mutex);
    for (unsigned i = 0; i < ARRAY_SIZE(device->scratch_bos); i++)
       mtx_destroy(&device->scratch_bos[i].construct_mtx);
 
