@@ -1647,6 +1647,117 @@ radv_cmd_buffer_annotate(struct radv_cmd_buffer *cmd_buffer, const char *annotat
    device->ws->cs_annotate(cs->b, annotation);
 }
 
+// clang-format off
+/* Stages that can be signaled with a PFP write. */
+static const VkPipelineStageFlags2 radv_post_pfp_stage_mask =
+   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+
+/* Stages that can be signaled with a ME write.
+ *
+ * DRAW_INDIRECT_BIT in Vulkan includes compute dispatch indirect, mesh dispatch indirect, and trace
+ * rays indirect.
+ *
+ * Task shaders are implemented as "draw ring wait + mesh dispatch indirect" on the gfx queue.
+ */
+static const VkPipelineStageFlags2 radv_post_me_stage_mask =
+   VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
+   VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
+   VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
+
+/* Stages that require flushing pre-rasterization workload. */
+static const VkPipelineStageFlags2 radv_pre_rast_stage_mask =
+   VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
+   VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
+   VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
+   VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT;
+
+/* Stages that require flushing PS workload, they can also be signaled with a PS_DONE write. */
+static const VkPipelineStageFlags2 radv_post_ps_stage_mask =
+   VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
+   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+   VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+
+/* Stages that require flushing CB workload. */
+static const VkPipelineStageFlags2 radv_post_cb_stage_mask =
+   VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+/* Stages that require flushing CS workload, they can also be signaled with a CS_DONE write. */
+static const VkPipelineStageFlags2 radv_post_cs_stage_mask =
+   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR |
+   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+   VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT;
+
+/* Stages that require flushing PS/CS workload (various transfer operations). */
+static const VkPipelineStageFlags2 radv_post_transfer_stage_mask =
+   VK_PIPELINE_STAGE_2_COPY_BIT |
+   VK_PIPELINE_STAGE_2_RESOLVE_BIT |
+   VK_PIPELINE_STAGE_2_CLEAR_BIT |
+   VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR;
+
+/* Stages that require flushing PS workload (blit operations). */
+static const VkPipelineStageFlags2 radv_post_transfer_ps_only_stage_mask =
+   VK_PIPELINE_STAGE_2_BLIT_BIT;
+
+/* Stages that require waiting for CP DMA.
+ *
+ * Make sure CP DMA is idle because the driver might have performed a DMA operation for:
+ * - copying a buffer or for copying CMASK/FMASK with an accelerated MSAA copy
+ * - updating a buffer (considered a clear operation from the Vulkan spec)
+ * - building an acceleration structure
+ *
+ * Other operations using a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
+ */
+static const VkPipelineStageFlags2 radv_post_cp_dma_stage_mask =
+   VK_PIPELINE_STAGE_2_COPY_BIT |
+   VK_PIPELINE_STAGE_2_CLEAR_BIT |
+   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+// clang-format on
+
+static VkPipelineStageFlags2
+radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
+{
+   // clang-format off
+   const VkPipelineStageFlags2 expanded_groups_mask =
+      VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
+      VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
+      VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT |
+      VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
+      VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
+      VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+   const VkPipelineStageFlags2 unsupported_stages_mask =
+      VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT |
+      VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV |
+      VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT |
+      VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI |
+      VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM |
+      VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV |
+      VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
+   // clang-format on
+
+   VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+
+   /* Verify that re-expanding doesn't change anything. */
+   assert(stage_mask == vk_expand_src_stage_flags2(stage_mask));
+
+   /* Drop the stage flags that are expanded because they aren't used. */
+   stage_mask &= ~expanded_groups_mask;
+
+   /* Drop the stage flags that are unsupported. */
+   stage_mask &= ~unsupported_stages_mask;
+
+   return stage_mask;
+}
+
 #define RADV_TASK_SHADER_SENSITIVE_STAGES                                                                              \
    (VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |                                   \
     VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT)
@@ -7708,117 +7819,6 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
       state->last_primitive_restart_en = primitive_restart_en;
       state->last_primitive_restart_index = state->primitive_restart_index;
    }
-}
-
-// clang-format off
-/* Stages that can be signaled with a PFP write. */
-static const VkPipelineStageFlags2 radv_post_pfp_stage_mask =
-   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-
-/* Stages that can be signaled with a ME write.
- *
- * DRAW_INDIRECT_BIT in Vulkan includes compute dispatch indirect, mesh dispatch indirect, and trace
- * rays indirect.
- *
- * Task shaders are implemented as "draw ring wait + mesh dispatch indirect" on the gfx queue.
- */
-static const VkPipelineStageFlags2 radv_post_me_stage_mask =
-   VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
-   VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
-   VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
-
-/* Stages that require flushing pre-rasterization workload. */
-static const VkPipelineStageFlags2 radv_pre_rast_stage_mask =
-   VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
-   VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
-   VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
-   VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT |
-   VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
-   VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT |
-   VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT |
-   VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT;
-
-/* Stages that require flushing PS workload, they can also be signaled with a PS_DONE write. */
-static const VkPipelineStageFlags2 radv_post_ps_stage_mask =
-   VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR |
-   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-   VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-
-/* Stages that require flushing CB workload. */
-static const VkPipelineStageFlags2 radv_post_cb_stage_mask =
-   VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
-   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-/* Stages that require flushing CS workload, they can also be signaled with a CS_DONE write. */
-static const VkPipelineStageFlags2 radv_post_cs_stage_mask =
-   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
-   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR |
-   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
-   VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT;
-
-/* Stages that require flushing PS/CS workload (various transfer operations). */
-static const VkPipelineStageFlags2 radv_post_transfer_stage_mask =
-   VK_PIPELINE_STAGE_2_COPY_BIT |
-   VK_PIPELINE_STAGE_2_RESOLVE_BIT |
-   VK_PIPELINE_STAGE_2_CLEAR_BIT |
-   VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR;
-
-/* Stages that require flushing PS workload (blit operations). */
-static const VkPipelineStageFlags2 radv_post_transfer_ps_only_stage_mask =
-   VK_PIPELINE_STAGE_2_BLIT_BIT;
-
-/* Stages that require waiting for CP DMA.
- *
- * Make sure CP DMA is idle because the driver might have performed a DMA operation for:
- * - copying a buffer or for copying CMASK/FMASK with an accelerated MSAA copy
- * - updating a buffer (considered a clear operation from the Vulkan spec)
- * - building an acceleration structure
- *
- * Other operations using a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
- */
-static const VkPipelineStageFlags2 radv_post_cp_dma_stage_mask =
-   VK_PIPELINE_STAGE_2_COPY_BIT |
-   VK_PIPELINE_STAGE_2_CLEAR_BIT |
-   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-// clang-format on
-
-static VkPipelineStageFlags2
-radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
-{
-   // clang-format off
-   const VkPipelineStageFlags2 expanded_groups_mask =
-      VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
-      VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
-      VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT |
-      VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
-      VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
-      VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-
-   const VkPipelineStageFlags2 unsupported_stages_mask =
-      VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT |
-      VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV |
-      VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT |
-      VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI |
-      VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM |
-      VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV |
-      VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
-   // clang-format on
-
-   VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
-
-   /* Verify that re-expanding doesn't change anything. */
-   assert(stage_mask == vk_expand_src_stage_flags2(stage_mask));
-
-   /* Drop the stage flags that are expanded because they aren't used. */
-   stage_mask &= ~expanded_groups_mask;
-
-   /* Drop the stage flags that are unsupported. */
-   stage_mask &= ~unsupported_stages_mask;
-
-   return stage_mask;
 }
 
 static void
