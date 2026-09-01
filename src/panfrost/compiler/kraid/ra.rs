@@ -498,14 +498,146 @@ impl std::ops::BitOrAssign for RegAlignConstraint {
     }
 }
 
+struct SSAAffinity {
+    /// For each byte of a register pair, an estimate of how much it would cost
+    /// to place the SSAValue starting at that byte.
+    align_cost: [u8; 8],
+
+    /// SSAValue of the vector representative, if any, or None if we are the
+    /// representative.  This is the first SSAValue defined (in program order)
+    /// out of the first vector SSARef that uses this SSAValue.
+    vec_repr: Option<SSAValue>,
+
+    /// If this SSAValue is part of a vector, the offset (in bytes) from the
+    /// representative to this SSA value.  If we are the representative, this
+    /// is the offset from the start of the vector.
+    vec_offset: i8,
+
+    /// The size of the vector use of this SSAValue, or zero
+    vec_size: u8,
+
+    /// Preferred register, in bytes, or u16::MAX
+    reg_byte: u16,
+}
+
+impl Default for SSAAffinity {
+    fn default() -> SSAAffinity {
+        SSAAffinity::new()
+    }
+}
+
+impl SSAAffinity {
+    const fn new() -> SSAAffinity {
+        SSAAffinity {
+            align_cost: [0_u8; 8],
+            vec_repr: None,
+            vec_offset: 0,
+            vec_size: 0,
+            reg_byte: u16::MAX,
+        }
+    }
+
+    fn add_align(&mut self, align: RegAlignConstraint) {
+        // Add one for every byte not in the align mask
+        for i in 0..8 {
+            if (align.0 & (1 << i)) == 0 {
+                let byte = &mut self.align_cost[i];
+                *byte = (*byte).saturating_add(1);
+            }
+        }
+    }
+
+    #[inline]
+    fn align_cost(&self, b: u16) -> u8 {
+        self.align_cost[usize::from(b % 8)]
+    }
+}
+
+struct SSAVecComp {
+    byte: u8,
+    ssa: SSAValue,
+    ord: u32,
+}
+
+struct SSAVecRepr {
+    size: u8,
+    comps: u8,
+    repr: Option<SSAVecComp>,
+}
+
+impl SSAVecRepr {
+    fn new(size: u8) -> SSAVecRepr {
+        SSAVecRepr {
+            size,
+            comps: 0,
+            repr: None,
+        }
+    }
+
+    fn add_comp(&mut self, byte: u8, ssa: SSAValue, ord: u32) {
+        debug_assert_ne!(ord, 0);
+        let comp = SSAVecComp { byte, ssa, ord };
+        if let Some(repr) = &mut self.repr {
+            if comp.ord < repr.ord {
+                *repr = comp;
+            }
+        } else {
+            self.repr = Some(comp);
+        }
+        self.comps += 1;
+    }
+
+    fn for_ssa_ref(
+        vec: &SSARef,
+        def_order: &SSAValueIndexedVec<u32>,
+    ) -> SSAVecRepr {
+        let mut repr = SSAVecRepr::new(vec.bytes());
+        for (i, ssa) in vec.iter().enumerate() {
+            let byte = u8::try_from(i).unwrap() * 4;
+            repr.add_comp(byte, *ssa, def_order[ssa]);
+        }
+        repr
+    }
+
+    fn set_affinity(&self, byte: u8, ssa: &SSAValue, a: &mut SSAAffinity) {
+        a.add_align(RegAlignConstraint::for_align(self.size.min(8), byte));
+
+        let repr = self.repr.as_ref().unwrap();
+        if self.comps > 1 && a.vec_size == 0 {
+            if repr.ssa == *ssa {
+                a.vec_repr = None;
+                a.vec_offset = repr.byte as i8;
+            } else {
+                a.vec_repr = Some(repr.ssa);
+                a.vec_offset = (byte as i8) - (repr.byte as i8);
+            }
+            a.vec_size = self.size;
+        }
+    }
+}
+
 struct AffinityMap {
+    ssa_affinities: SSAValueIndexedVec<SSAAffinity>,
     phi_webs: SSAValueIndexedVec<Option<SSAValue>>,
 }
 
 impl AffinityMap {
-    fn for_shader(s: &Shader, phi_map: &PhiMap) -> AffinityMap {
+    fn for_shader(
+        s: &Shader,
+        reg_arena: &Arena,
+        phi_map: &PhiMap,
+    ) -> AffinityMap {
+        let mut ssa_affinities: SSAValueIndexedVec<SSAAffinity> =
+            SSAValueIndexedVec::with_count(s.ssa_alloc.count());
         let mut phi_webs_uf: UnionFind<SSAValue, FxBuildHasher> =
             UnionFind::new();
+
+        // We need to record the order in which SSAValues are defined so we
+        // know which SSA value in a SSARef was defined first so we can use it
+        // as a reference point.
+        let mut def_idx = (1_u32..).into_iter();
+        let mut def_order: SSAValueIndexedVec<u32> =
+            SSAValueIndexedVec::with_count(s.ssa_alloc.count());
 
         for instr in s.blocks.iter().map(|b| b.instrs.iter()).flatten() {
             match &instr.op {
@@ -522,7 +654,47 @@ impl AffinityMap {
                         }
                     }
                 }
-                _ => (),
+                Op::RegOut(op) => {
+                    if let SrcRef::SSA(vec) = &op.src.src_ref {
+                        debug_assert_eq!(op.reg.bytes(), vec.bytes());
+                        let mut bytes = reg_arena.reg_to_bytes(&op.reg);
+                        for ssa in vec {
+                            debug_assert_eq!(ssa.bytes(), 4);
+                            ssa_affinities[ssa].reg_byte = bytes.start;
+                            bytes.start += 4;
+                        }
+                        debug_assert_eq!(bytes.end, bytes.start);
+                    }
+                }
+                _ => {
+                    for src in instr.srcs() {
+                        let SrcRef::SSA(vec) = &src.src_ref else {
+                            continue;
+                        };
+
+                        if vec.comps() > 1 {
+                            let repr = SSAVecRepr::for_ssa_ref(vec, &def_order);
+                            for (i, ssa) in vec.iter().enumerate() {
+                                let a = &mut ssa_affinities[ssa];
+                                let i = u8::try_from(i).unwrap();
+                                repr.set_affinity(i * 4, ssa, a);
+                            }
+                        } else {
+                            debug_assert!(vec.comps() == 1);
+                            let a = &mut ssa_affinities[vec[0]];
+
+                            // Scalars have alignment based on supported
+                            // swizzles
+                            a.add_align(RegAlignConstraint::for_op_src(
+                                s.model, &instr.op, src,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            for ssa in instr.iter_ssa_defs() {
+                def_order[ssa] = def_idx.next().unwrap();
             }
         }
 
@@ -534,7 +706,28 @@ impl AffinityMap {
             phi_webs[k] = Some(v);
         }
 
-        AffinityMap { phi_webs }
+        AffinityMap {
+            ssa_affinities,
+            phi_webs,
+        }
+    }
+
+    fn get_ssa(&self, ssa: SSAValue) -> &SSAAffinity {
+        &self.ssa_affinities[ssa]
+    }
+
+    fn align_cost(&self, vec: &SSARef, mut b: u16) -> u8 {
+        let mut cost = 0_u8;
+        for ssa in vec {
+            debug_assert!(
+                (b % u16::from(ssa.bytes())) == 0,
+                "Misaligned byte offset: {b} for {ssa}"
+            );
+            let a = self.get_ssa(*ssa);
+            cost = cost.saturating_add(a.align_cost(b));
+            b += u16::from(ssa.bytes());
+        }
+        cost
     }
 }
 
@@ -678,6 +871,20 @@ impl LocalRegAlloc<'_> {
 
     fn ssa_bytes(&self, ssa: &SSAValue) -> Range<u16> {
         self.idx_bytes(ssa.idx())
+    }
+
+    fn ssa_bytes_offset(
+        &self,
+        ssa: &SSAValue,
+        offset: i16,
+    ) -> Option<Range<u16>> {
+        let ssa_bytes = self.ssa_bytes(ssa);
+        let start = ssa_bytes.start.checked_add_signed(offset)?;
+        let end = ssa_bytes.end.checked_add_signed(offset)?;
+        if end > self.arena.limit() {
+            return None;
+        }
+        Some(start..end)
     }
 
     fn byte_idx(&self, byte: u16) -> Option<u32> {
@@ -915,7 +1122,78 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
         cost_fn: impl Fn(u16) -> u8,
     ) -> Range<u16> {
-        self.choose_bytes(vec.bytes(), align, cost_fn)
+        if vec.comps() == 1 {
+            let ssa = vec[0];
+            let a = &self.affinities.get_ssa(ssa);
+
+            // Include the alignment cost in the cost function
+            let cost_fn = |b: u16| cost_fn(b).saturating_add(a.align_cost(b));
+
+            if a.vec_size > 0 {
+                // We have a vector use. Try to find a "nice" allocation
+                debug_assert!(a.vec_size >= ssa.bytes());
+                if let Some(vec_repr) = &a.vec_repr {
+                    // Try to choose from the vector based on our offset from
+                    // the representative.
+                    if let Some(bytes) =
+                        self.ssa_bytes_offset(vec_repr, a.vec_offset.into())
+                    {
+                        if self.is_aligned_unpinned_range(bytes.clone(), align)
+                            && self.bytes_are_unused(bytes.clone())
+                        {
+                            return bytes;
+                        }
+                    }
+
+                    // Fall back to the default allocation
+                    self.choose_bytes(ssa.bytes(), align, cost_fn)
+                } else {
+                    // If we're the vector representative, we want to find
+                    // enough space for the whole vector.
+                    debug_assert!(a.vec_offset >= 0);
+                    let vec_offset = u16::try_from(a.vec_offset).unwrap();
+                    let vec_cost_fn = |b: u16| {
+                        let Some(start) = b.checked_sub(vec_offset) else {
+                            return a.vec_size;
+                        };
+
+                        let end = start + u16::from(a.vec_size);
+                        if end > self.arena.limit() {
+                            return a.vec_size;
+                        }
+
+                        self.used
+                            .count_set_in_range(start.into()..end.into())
+                            .try_into()
+                            .unwrap_or(u8::MAX)
+                    };
+
+                    let bytes = self.choose_bytes(ssa.bytes(), align, |b| {
+                        cost_fn(b).saturating_add(vec_cost_fn(b))
+                    });
+
+                    // Increment the round-robin past the whole vector
+                    if self.arena.round_robin {
+                        self.search_start.set(
+                            bytes.start + u16::from(a.vec_size) - vec_offset,
+                        );
+                    }
+
+                    bytes
+                }
+            } else {
+                // No vector use
+                self.choose_bytes(ssa.bytes(), align, cost_fn)
+            }
+        } else {
+            // For vectors, we assume the default is the best we can do. Either
+            // the vector use is just going to use this vector (the likely case)
+            // or it'll get split up.  The chances of two vectors being combined
+            // into one where everything still aligns is pretty low.
+            self.choose_bytes(vec.bytes(), align, |b| {
+                cost_fn(b).saturating_add(self.affinities.align_cost(vec, b))
+            })
+        }
     }
 
     fn choose_src_bytes(
@@ -1782,7 +2060,7 @@ impl GlobalRegAlloc<'_> {
 
 fn alloc_regs(s: &mut Shader, arena: &Arena, live: impl Liveness) {
     let phi_map = PhiMap::for_shader(s);
-    let affinities = AffinityMap::for_shader(s, &phi_map);
+    let affinities = AffinityMap::for_shader(s, &arena, &phi_map);
 
     let mut ra = GlobalRegAlloc::new(s.model, arena, &affinities);
     ra.live_out.resize_with(s.blocks.len(), Default::default);

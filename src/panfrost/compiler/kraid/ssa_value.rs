@@ -329,6 +329,7 @@ impl TryFrom<&[SSAValue]> for SSARef {
 
 #[cfg(target_arch = "aarch64")]
 const _: () = {
+    debug_assert!(size_of::<Option<SSAValue>>() == 4);
     debug_assert!(size_of::<SSARef>() == 16);
 };
 
