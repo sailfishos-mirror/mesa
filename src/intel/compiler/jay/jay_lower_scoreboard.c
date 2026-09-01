@@ -537,9 +537,9 @@ depend_on_writer(struct swsb_regdist_state *state,
                  gen_pipe exec,
                  bool except_exec)
 {
-   for (unsigned i = 0; i < r.width; ++i) {
-      assert(r.base + i < jay_footprint_base(state->shader, ~0));
-      uint32_t w = state->access[r.base + i][0];
+   jay_foreach_in_footprint(r, key) {
+      assert(key < jay_footprint_base(state->shader, ~0));
+      uint32_t w = state->access[key][0];
       gen_pipe write = writer_pipe(w);
 
       /* We omit write-after-{read,write} dependencies (except_exec) within a
@@ -569,10 +569,10 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       struct jay_footprint r = jay_def_to_footprint(func, I, dsts[i], I->type);
       depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
-      for (unsigned i = 0; i < r.width; ++i) {
+      jay_foreach_in_footprint(r, key) {
          jay_foreach_pipe(p) {
             if (p != exec_pipe) {
-               dep[p] = MAX2(dep[p], ctx->access[r.base + i][p]);
+               dep[p] = MAX2(dep[p], ctx->access[key][p]);
             }
          }
       }
@@ -676,16 +676,17 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
          struct jay_footprint r =
             jay_def_to_footprint(func, I, dsts[i], I->type);
 
-         for (unsigned i = 0; i < r.width; ++i) {
-            ctx->access[r.base + i][0] = now;
+         jay_foreach_in_footprint(r, key) {
+            ctx->access[key][0] = now;
          }
       }
 
       jay_foreach_src(I, s) {
          struct jay_footprint r =
             jay_def_to_footprint(func, I, I->src[s], jay_src_type(I, s));
-         for (unsigned i = 0; i < r.width; ++i) {
-            ctx->access[r.base + i][exec_pipe] = ctx->ip[exec_pipe];
+
+         jay_foreach_in_footprint(r, key) {
+            ctx->access[key][exec_pipe] = ctx->ip[exec_pipe];
          }
       }
    }

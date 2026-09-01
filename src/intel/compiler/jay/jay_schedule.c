@@ -161,38 +161,36 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
          }
 
          for (unsigned d = 0; d < ARRAY_SIZE(dsts); ++d) {
-            struct jay_footprint key =
+            struct jay_footprint fp =
                jay_def_to_footprint(ctx->func, I, dsts[d], I->type);
-            for (unsigned i = 0; i < key.width; ++i) {
+
+            jay_foreach_in_footprint(fp, key) {
                /* Write-after-write */
-               add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
-                        true);
-               ctx->postra.writer[key.base + i] = ctx->dag.node;
+               add_edge(ctx, ctx->postra.writer[key], first_node, true);
+               ctx->postra.writer[key] = ctx->dag.node;
 
                /* Write-after-read, this is a weak edge */
-               util_dynarray_foreach(&ctx->postra.readers[key.base + i],
-                                     uint32_t, it) {
+               util_dynarray_foreach(&ctx->postra.readers[key], uint32_t, it) {
                   add_edge(ctx, *it, first_node, false);
                }
 
-               util_dynarray_clear(&ctx->postra.readers[key.base + i]);
+               util_dynarray_clear(&ctx->postra.readers[key]);
             }
          }
 
          jay_foreach_src(I, s) {
-            struct jay_footprint key =
+            struct jay_footprint fp =
                jay_def_to_footprint(ctx->func, I, I->src[s],
                                     jay_src_type(I, s));
-            for (unsigned i = 0; i < key.width; ++i) {
+
+            jay_foreach_in_footprint(fp, key) {
                /* Read-after-write */
-               add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
-                        true);
+               add_edge(ctx, ctx->postra.writer[key], first_node, true);
 
                /* Track for write-after-read but do not add a dependency, we
                 * want to reorder readers freely.
                 */
-               util_dynarray_append(&ctx->postra.readers[key.base + i],
-                                    ctx->dag.node);
+               util_dynarray_append(&ctx->postra.readers[key], ctx->dag.node);
             }
          }
       }

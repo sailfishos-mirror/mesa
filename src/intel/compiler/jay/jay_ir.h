@@ -1577,6 +1577,9 @@ struct jay_footprint {
    unsigned base, width;
 };
 
+#define jay_foreach_in_footprint(fp, key)                                      \
+   for (unsigned key = fp.base; key < fp.base + fp.width; ++key)
+
 static inline void
 jay_footprint_set(BITSET_WORD *bitset, struct jay_footprint fp)
 {
