@@ -261,8 +261,8 @@ msm_device_init(struct tu_device *dev)
    if (dev->physical_device->has_vm_bind) {
       ret = tu_try_enable_vm_bind(fd);
       if (ret != 0) {
-         return vk_startup_errorf(dev->physical_device->instance,
-                                  VK_ERROR_INITIALIZATION_FAILED,
+         close(fd);
+         return vk_startup_errorf(dev->physical_device->instance, VK_ERROR_INITIALIZATION_FAILED,
                                   "Failed to enable VM_BIND mode: %d", ret);
       }
 
