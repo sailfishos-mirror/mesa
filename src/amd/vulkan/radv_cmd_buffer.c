@@ -1721,13 +1721,14 @@ static const VkPipelineStageFlags2 radv_post_cp_dma_stage_mask =
 // clang-format on
 
 static VkPipelineStageFlags2
-radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
+radv_cleanup_stage_flags2(VkPipelineStageFlags2 stage_mask)
 {
    // clang-format off
    const VkPipelineStageFlags2 expanded_groups_mask =
       VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT |
       VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
       VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT |
+      VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT |
       VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT |
       VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
       VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
@@ -1744,18 +1745,30 @@ radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
       VK_PIPELINE_STAGE_2_MEMORY_DECOMPRESSION_BIT_EXT;
    // clang-format on
 
-   VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+   /* Drop the stage flags that are expanded/unsupported because they aren't used. */
+   return stage_mask & ~(expanded_groups_mask | unsupported_stages_mask);
+}
+
+static VkPipelineStageFlags2
+radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
+{
+   const VkPipelineStageFlags2 stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
 
    /* Verify that re-expanding doesn't change anything. */
    assert(stage_mask == vk_expand_src_stage_flags2(stage_mask));
 
-   /* Drop the stage flags that are expanded because they aren't used. */
-   stage_mask &= ~expanded_groups_mask;
+   return radv_cleanup_stage_flags2(stage_mask);
+}
 
-   /* Drop the stage flags that are unsupported. */
-   stage_mask &= ~unsupported_stages_mask;
+static VkPipelineStageFlags2
+radv_get_dst_stage_flags2(const VkPipelineStageFlags2 dst_stage_mask)
+{
+   const VkPipelineStageFlags2 stage_mask = vk_expand_dst_stage_flags2(dst_stage_mask);
 
-   return stage_mask;
+   /* Verify that re-expanding doesn't change anything. */
+   assert(stage_mask == vk_expand_dst_stage_flags2(stage_mask));
+
+   return radv_cleanup_stage_flags2(stage_mask);
 }
 
 static void
@@ -1763,7 +1776,7 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
                   VkPipelineStageFlags2 dst_stage_mask)
 {
    src_stage_mask = radv_get_src_stage_flags2(src_stage_mask);
-   dst_stage_mask = vk_expand_dst_stage_flags2(dst_stage_mask);
+   dst_stage_mask = radv_get_dst_stage_flags2(dst_stage_mask);
 
    /* Update flush bits from the main cmdbuf, except the stage flush. */
    cmd_buffer->gang.flush_bits |=
