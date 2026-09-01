@@ -1803,10 +1803,8 @@ tu_knl_kgsl_load(struct tu_instance *instance, int fd)
    struct tu_physical_device *device = (struct tu_physical_device *)
       vk_zalloc(&instance->vk.alloc, sizeof(*device), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-   if (!device) {
-      close(fd);
+   if (!device)
       return vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
-   }
 
    static const char dma_heap_path[] = "/dev/dma_heap/system";
    static const char ion_path[] = "/dev/ion";
@@ -1965,7 +1963,6 @@ tu_knl_kgsl_load(struct tu_instance *instance, int fd)
 
 fail:
    vk_free(&instance->vk.alloc, device);
-   close(fd);
    if (dma_fd >= 0)
       close(dma_fd);
    return result;
