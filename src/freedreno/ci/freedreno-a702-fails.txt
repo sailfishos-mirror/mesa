@@ -181,6 +181,3 @@ SPIRV new@op_spec_constant_half_simple,Fail
 Atomics,Fail
 Atomics@atomic_and,Fail
 Atomics@atomic_or,Fail
-
-# Unhandled intrinsic type: quad_vote_all
-Subgroups,Crash
