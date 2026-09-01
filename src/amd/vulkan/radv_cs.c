@@ -169,6 +169,10 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          ac_emit_cp_wait_mem(cs->b, flush_va, *flush_cnt, 0xffffffff, WAIT_REG_MEM_EQUAL);
       }
    } else {
+      /* The TS event above also makes sure that PS and CS are idle, so we have to do this only
+       * if we are not flushing CB or DB.
+       */
+
       /* Wait for graphics shaders to go idle if requested.
        *
        * On GFX10-11.7, PS_PARTIAL_FLUSH doesn't wait for GS waves that send "gs_alloc_req 0",
@@ -190,14 +194,14 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
          *sqtt_flush_bits |= RGP_FLUSH_PS_PARTIAL_FLUSH;
       }
-   }
 
-   if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH) {
-      radeon_begin(cs);
-      radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
-      radeon_end();
+      if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH) {
+         radeon_begin(cs);
+         radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
+         radeon_end();
 
-      *sqtt_flush_bits |= RGP_FLUSH_CS_PARTIAL_FLUSH;
+         *sqtt_flush_bits |= RGP_FLUSH_CS_PARTIAL_FLUSH;
+      }
    }
 
    /* VGT state sync */
