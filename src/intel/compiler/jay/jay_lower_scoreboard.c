@@ -21,17 +21,21 @@ static inline struct jay_footprint
 def_to_sbid_key(jay_function *func, jay_inst *I, jay_def x)
 {
    if (x.file == GPR) {
-      return (struct jay_footprint){ x.reg, jay_num_values(x) };
+      return jay_def_to_footprint(func, I, x, JAY_TYPE_U32);
    } else if (x.file == UGPR) {
       /* SEND instructions can only use GRF-aligned multiples of whole
        * registers, so there's no point tracking UGPRs at a finer granularity.
        */
       return (struct jay_footprint){
-         func->shader->num_regs[GPR] + x.reg / jay_ugpr_per_grf(func->shader),
-         DIV_ROUND_UP(jay_num_values(x), jay_ugpr_per_grf(func->shader))
+         .base = jay_footprint_base(func->shader, UGPR) +
+                 x.reg / jay_ugpr_per_grf(func->shader),
+         .count =
+            DIV_ROUND_UP(jay_num_values(x), jay_ugpr_per_grf(func->shader)),
+         .width = 1,
+         .stride = 1,
       };
    } else {
-      return (struct jay_footprint){ 0, 0 };
+      return (struct jay_footprint){ 0 };
    }
 }
 
@@ -747,7 +751,7 @@ jay_lower_scoreboard(jay_shader *shader)
       max_blocks = MAX2(max_blocks, f->num_blocks);
 
    uint32_t nr_sbid_keys =
-      shader->num_regs[GPR] +
+      (shader->num_regs[GPR] * jay_grf_per_gpr(shader)) +
       DIV_ROUND_UP(shader->num_regs[UGPR], jay_ugpr_per_grf(shader));
 
    unsigned max_sbids = intel_device_info_max_sbids(shader->devinfo);
