@@ -157,13 +157,9 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          /* Send an event that flushes caches. */
          ac_emit_cp_release_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, gcr_cntl & C_587_GLI_INV);
 
-         gcr_cntl &= C_587_GLK_WB & C_587_GLK_INV & C_587_GLV_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
-
-         if (gfx_level < GFX12)
-            gcr_cntl &= C_587_GLM_WB & C_587_GLM_INV & C_587_GL1_INV;
-
          /* Wait for the event and invalidate remaining caches if needed. */
-         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, V_581B_CP_PFP, 0, gcr_cntl);
+         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, V_581B_CP_PFP, 0,
+                                    gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
 
          gcr_cntl = 0; /* all done */
 
