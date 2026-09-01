@@ -192,8 +192,8 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          assert(flush_cnt);
          (*flush_cnt)++;
 
-         radv_cs_emit_write_event_eop(
-            cs, gfx_level, cb_db_event,
+         ac_emit_cp_release_mem(
+            cs->b, gfx_level, cs->hw_ip, cb_db_event,
             S_491_GLM_WB(glm_wb) | S_491_GLM_INV(glm_inv) | S_491_GLV_INV(glv_inv) | S_491_GL1_INV(gl1_inv) |
                S_491_GL2_INV(gl2_inv) | S_491_GL2_WB(gl2_wb) | S_491_SEQ(gcr_seq),
             EOP_DST_SEL_MEM, EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, flush_va, *flush_cnt, 0);
@@ -274,8 +274,8 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
          /* Necessary for DCC */
          if (gfx_level >= GFX8) {
-            radv_cs_emit_write_event_eop(cs, gfx_level, V_028A90_FLUSH_AND_INV_CB_DATA_TS, 0, EOP_DST_SEL_MEM,
-                                         EOP_INT_SEL_NONE, EOP_DATA_SEL_DISCARD, 0, 0, gfx9_eop_bug_va);
+            ac_emit_cp_release_mem(cs->b, gfx_level, cs->hw_ip, V_028A90_FLUSH_AND_INV_CB_DATA_TS, 0, EOP_DST_SEL_MEM,
+                                   EOP_INT_SEL_NONE, EOP_DATA_SEL_DISCARD, 0, 0, 0);
          }
 
          *sqtt_flush_bits |= RGP_FLUSH_FLUSH_CB | RGP_FLUSH_INVAL_CB;
@@ -361,9 +361,9 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       assert(flush_cnt);
       (*flush_cnt)++;
 
-      radv_cs_emit_write_event_eop(cs, gfx_level, cb_db_event, tc_flags, EOP_DST_SEL_MEM,
-                                   EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, flush_va,
-                                   *flush_cnt, gfx9_eop_bug_va);
+      ac_emit_cp_release_mem(cs->b, gfx_level, cs->hw_ip, cb_db_event, tc_flags, EOP_DST_SEL_MEM,
+                             EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, flush_va, *flush_cnt,
+                             gfx9_eop_bug_va);
       ac_emit_cp_wait_mem(cs->b, flush_va, *flush_cnt, 0xffffffff, WAIT_REG_MEM_EQUAL);
    }
 
