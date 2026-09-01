@@ -1167,7 +1167,8 @@ v3d_ra_select_rf(struct v3d_ra_select_callback_data *v3d_ra,
 }
 
 static unsigned int
-v3d_ra_select_callback(unsigned int n, BITSET_WORD *regs, void *data)
+v3d_ra_select_callback(unsigned int n, BITSET_WORD *regs, void *data,
+                       UNUSED bool optimistic)
 {
         struct v3d_ra_select_callback_data *v3d_ra = data;
 
