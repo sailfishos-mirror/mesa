@@ -544,6 +544,12 @@ a6xx_emit_grid(struct kernel *kernel, uint32_t grid[3],
 
    cs.attach_bo(a6xx_backend->control_mem);
 
+   if (CHIP >= A7XX) {
+      fd_pkt7(cs, CP_THREAD_CONTROL, 1)
+         .add(CP_THREAD_CONTROL_0(.thread = CP_SET_THREAD_BR,
+                                  .concurrent_bin_disable = true, ));
+   }
+
    cs_restore_emit<CHIP>(cs, a6xx_backend);
    cs_program_emit<CHIP>(cs, kernel);
    cs_const_emit<CHIP>(cs, kernel, grid);
@@ -649,6 +655,8 @@ a6xx_emit_grid(struct kernel *kernel, uint32_t grid[3],
             .add(CP_REG_TO_MEM_0(.reg = counter->counter_reg_lo, .is_64b = true))
             .add(A5XX_CP_REG_TO_MEM_DEST(query_sample_idx(a6xx_backend, i, stop)));
       }
+
+      fd_pkt7(cs, CP_WAIT_MEM_WRITES, 0);
 
       /* and compute the result: */
       for (unsigned i = 0; i < a6xx_backend->num_perfcntrs; i++) {
