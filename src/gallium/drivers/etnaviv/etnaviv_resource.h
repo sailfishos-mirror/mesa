@@ -232,6 +232,8 @@ struct etna_resource {
    struct pipe_resource *texture;
    /* for when PE doesn't support the base layout */
    struct pipe_resource *render;
+   /* PE can render to the base layout directly */
+   bool render_compatible;
    /* frontend flushes resource via an explicit call to flush_resource */
    bool explicit_flush;
    /* resource is shared outside of the screen */
@@ -303,8 +305,8 @@ etna_resource_hw_tileable(bool use_blt, const struct pipe_resource *pres)
 }
 
 struct etna_resource *
-etna_resource_get_render_compatible(struct pipe_context *pctx,
-                                    struct pipe_resource *prsc);
+etna_resource_alloc_render_shadow(struct pipe_context *pctx,
+                                  struct pipe_resource *prsc);
 
 /* returns TRUE if resource TS buffer is exposed externally */
 static inline bool
@@ -318,6 +320,21 @@ etna_resource(struct pipe_resource *p)
 {
    assert(p->target != PIPE_BUFFER);
    return (struct etna_resource *)p;
+}
+
+static inline struct etna_resource *
+etna_resource_get_render_compatible(struct pipe_context *pctx,
+                                    struct pipe_resource *prsc)
+{
+   struct etna_resource *res = etna_resource(prsc);
+
+   if (res->render)
+      return etna_resource(res->render);
+
+   if (res->render_compatible)
+      return res;
+
+   return etna_resource_alloc_render_shadow(pctx, prsc);
 }
 
 static inline struct etna_buffer_resource *

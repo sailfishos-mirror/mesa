@@ -111,8 +111,8 @@ etna_resource_is_render_compatible(struct pipe_screen *pscreen,
 }
 
 struct etna_resource *
-etna_resource_get_render_compatible(struct pipe_context *pctx,
-                                    struct pipe_resource *prsc)
+etna_resource_alloc_render_shadow(struct pipe_context *pctx,
+                                  struct pipe_resource *prsc)
 {
    struct etna_context *ctx = etna_context(pctx);
    struct etna_screen *screen = ctx->screen;
@@ -122,11 +122,7 @@ etna_resource_get_render_compatible(struct pipe_context *pctx,
    struct pipe_resource templat;
    unsigned layout;
 
-   if (res->render)
-      return etna_resource(res->render);
-
-   if (etna_resource_is_render_compatible(pctx->screen, res))
-      return res;
+   assert(!res->render);
 
    layout = ETNA_LAYOUT_TILED;
    if (need_multitiled)
@@ -526,9 +522,11 @@ etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
       }
    }
 
+   rsc->render_compatible = etna_resource_is_render_compatible(pscreen, rsc);
+
    /* Allocate TS for the resource if it is renderable and may use TS */
    if ((templat->bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL)) &&
-       etna_resource_is_render_compatible(pscreen, rsc) &&
+       rsc->render_compatible &&
        etna_resource_can_use_ts(screen, rsc))
       etna_screen_resource_alloc_ts(pscreen, rsc, modifier);
 
@@ -860,6 +858,8 @@ etna_resource_from_handle(struct pipe_screen *pscreen,
    level->layer_stride = level->stride * util_format_get_nblocksy(prsc->format,
                                                                   level->padded_height);
    level->size = level->layer_stride;
+
+   rsc->render_compatible = etna_resource_is_render_compatible(pscreen, rsc);
 
    if (screen->ro)
       rsc->scanout = renderonly_create_gpu_import_for_resource(prsc, screen->ro,
