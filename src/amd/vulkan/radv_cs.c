@@ -120,39 +120,7 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
       /* First flush CB/DB, then L1/L2. */
       gcr_cntl |= S_587_SEQ(V_587_SEQ_FORWARD);
-   } else {
-      /* Wait for graphics shaders to go idle if requested.
-       *
-       * On GFX10-11.7, PS_PARTIAL_FLUSH doesn't wait for GS waves that send "gs_alloc_req 0",
-       * so we have to use VS_PARTIAL_FLUSH. (only tested Raphael and Navi33)
-       */
-      if (flush_bits & RADV_CMD_FLAG_VS_PARTIAL_FLUSH &&
-          (gfx_level < GFX12 || !(flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH))) {
-         radeon_begin(cs);
-         radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
-         radeon_end();
 
-         *sqtt_flush_bits |= RGP_FLUSH_VS_PARTIAL_FLUSH;
-      }
-
-      if (flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH) {
-         radeon_begin(cs);
-         radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
-         radeon_end();
-
-         *sqtt_flush_bits |= RGP_FLUSH_PS_PARTIAL_FLUSH;
-      }
-   }
-
-   if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH) {
-      radeon_begin(cs);
-      radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
-      radeon_end();
-
-      *sqtt_flush_bits |= RGP_FLUSH_CS_PARTIAL_FLUSH;
-   }
-
-   if (cb_db_event) {
       if (gfx_level >= GFX11) {
          /* Send an event that flushes caches. */
          ac_emit_cp_release_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, gcr_cntl & C_587_GLI_INV);
@@ -200,6 +168,36 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
          ac_emit_cp_wait_mem(cs->b, flush_va, *flush_cnt, 0xffffffff, WAIT_REG_MEM_EQUAL);
       }
+   } else {
+      /* Wait for graphics shaders to go idle if requested.
+       *
+       * On GFX10-11.7, PS_PARTIAL_FLUSH doesn't wait for GS waves that send "gs_alloc_req 0",
+       * so we have to use VS_PARTIAL_FLUSH. (only tested Raphael and Navi33)
+       */
+      if (flush_bits & RADV_CMD_FLAG_VS_PARTIAL_FLUSH &&
+          (gfx_level < GFX12 || !(flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH))) {
+         radeon_begin(cs);
+         radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
+         radeon_end();
+
+         *sqtt_flush_bits |= RGP_FLUSH_VS_PARTIAL_FLUSH;
+      }
+
+      if (flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH) {
+         radeon_begin(cs);
+         radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
+         radeon_end();
+
+         *sqtt_flush_bits |= RGP_FLUSH_PS_PARTIAL_FLUSH;
+      }
+   }
+
+   if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH) {
+      radeon_begin(cs);
+      radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
+      radeon_end();
+
+      *sqtt_flush_bits |= RGP_FLUSH_CS_PARTIAL_FLUSH;
    }
 
    /* VGT state sync */
