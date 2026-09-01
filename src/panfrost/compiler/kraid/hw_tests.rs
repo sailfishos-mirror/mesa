@@ -316,8 +316,7 @@ impl<'a> TestShaderBuilder<'a> {
         let mut info = ShaderInfo::default();
 
         // ABI: struct hw_runner_shader_args
-        let data_base_lo = FAURef::user_i32(0);
-        let data_base_hi = FAURef::user_i32(1);
+        let data_addr_base = FAURef::user_i64(0);
         let data_stride = FAURef::user_i32(2);
 
         let invoc_id: SSAValue = b.alloc_ssa(32);
@@ -333,23 +332,23 @@ impl<'a> TestShaderBuilder<'a> {
             }),
         });
 
-        let data_offset = b.alloc_ssa(32);
+        let data_offset = b.alloc_ref(64);
         b.push_op(OpIMul {
-            dst: data_offset.into(),
-            dst_type: DataType::U32,
+            dst: data_offset.clone().into(),
+            dst_type: DataType::U64,
             saturate: false,
-            srcs: [data_stride.into(), invoc_id.into()],
+            srcs: [
+                Src::from(data_stride).swizzle(Swizzle::widen_u32(0)),
+                Src::from(invoc_id).swizzle(Swizzle::widen_u32(0)),
+            ],
         });
 
-        // Just add the lower 32-bits, copy the higher bits and
-        // hope we don't test 4GiB of data.
         let data_addr = b.alloc_ref(64);
-        b.copy_i32_to(data_addr[1].into(), data_base_hi.into());
         b.push_op(OpIAdd {
-            dst: data_addr[0].into(),
-            dst_type: DataType::U32,
+            dst: data_addr.clone().into(),
+            dst_type: DataType::U64,
             saturate: false,
-            srcs: [data_base_lo.into(), data_offset.into()],
+            srcs: [data_addr_base.into(), data_offset.into()],
         });
 
         let start_block = BasicBlock {
