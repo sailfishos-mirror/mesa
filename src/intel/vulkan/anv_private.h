@@ -2218,6 +2218,7 @@ struct anv_gfx_dynamic_state {
       float    GlobalDepthOffsetClamp;
       uint8_t  APIMode;
       bool     DXMultisampleRasterizationEnable;
+      bool     ForceMultisampling;
       bool     AntialiasingEnable;
       uint8_t  CullMode;
       uint8_t  FrontWinding;

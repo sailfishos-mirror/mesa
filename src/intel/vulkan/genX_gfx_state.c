@@ -1549,6 +1549,7 @@ update_clip_max_viewport(struct anv_gfx_dynamic_state *hw_state,
 
 ALWAYS_INLINE static void
 update_clip_raster(struct anv_gfx_dynamic_state *hw_state,
+                   const struct anv_device *device,
                    const struct vk_dynamic_graphics_state *dyn,
                    const struct anv_cmd_graphics_state *gfx)
 {
@@ -1599,6 +1600,7 @@ update_clip_raster(struct anv_gfx_dynamic_state *hw_state,
 
    SET(RASTER, raster.APIMode, api_mode);
    SET(RASTER, raster.DXMultisampleRasterizationEnable, msaa_raster_enable);
+   SET(RASTER, raster.ForceMultisampling, false);
    SET(RASTER, raster.AntialiasingEnable, aa_enable);
    SET(RASTER, raster.CullMode, vk_to_intel_cullmode[dyn->rs.cull_mode]);
    SET(RASTER, raster.FrontWinding, vk_to_intel_front_face[dyn->rs.front_face]);
@@ -2477,7 +2479,7 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_CLIP_ENABLE) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_CONSERVATIVE_MODE))
-      update_clip_raster(hw_state, dyn, gfx);
+      update_clip_raster(hw_state, device, dyn, gfx);
 
    if (gfx->dirty & ANV_CMD_DIRTY_PRERASTER_SHADERS)
       update_clip_preraster_stages(hw_state, gfx);
@@ -3074,11 +3076,11 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
           * will need to be updated accordingly.
           */
          raster.ForcedSampleCount = FSC_NUMRASTSAMPLES_0;
-         raster.ForceMultisampling = false;
          raster.ScissorRectangleEnable = true;
 
          SET(raster, raster, APIMode);
          SET(raster, raster, DXMultisampleRasterizationEnable);
+         SET(raster, raster, ForceMultisampling);
          SET(raster, raster, AntialiasingEnable);
          SET(raster, raster, CullMode);
          SET(raster, raster, FrontWinding);
