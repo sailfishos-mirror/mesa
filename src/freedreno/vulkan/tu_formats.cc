@@ -593,6 +593,9 @@ tu_get_image_format_properties(
    }
 
    if (info->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT) {
+      if (!(physical_device->has_sparse_prr && physical_device->info->props.ubwc_all_formats_compatible))
+         return tu_image_unsupported_format(pImageFormatProperties);
+
       /* Don't support multi-planar formats with sparse yet */
       if (vk_format_get_plane_count(info->format) > 1)
          return tu_image_unsupported_format(pImageFormatProperties);
