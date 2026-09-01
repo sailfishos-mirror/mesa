@@ -161,8 +161,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
          }
 
          for (unsigned d = 0; d < ARRAY_SIZE(dsts); ++d) {
-            struct jay_range key =
-               jay_def_to_range(ctx->func, I, dsts[d], I->type);
+            struct jay_footprint key =
+               jay_def_to_footprint(ctx->func, I, dsts[d], I->type);
             for (unsigned i = 0; i < key.width; ++i) {
                /* Write-after-write */
                add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
@@ -180,8 +180,9 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
          }
 
          jay_foreach_src(I, s) {
-            struct jay_range key =
-               jay_def_to_range(ctx->func, I, I->src[s], jay_src_type(I, s));
+            struct jay_footprint key =
+               jay_def_to_footprint(ctx->func, I, I->src[s],
+                                    jay_src_type(I, s));
             for (unsigned i = 0; i < key.width; ++i) {
                /* Read-after-write */
                add_edge(ctx, ctx->postra.writer[key.base + i], first_node,
@@ -568,7 +569,7 @@ pass(jay_function *f)
    }
 
    if (sctx.phase >= POSTRA) {
-      uint32_t keys = jay_range_base(f->shader, ~0);
+      uint32_t keys = jay_footprint_base(f->shader, ~0);
       sctx.postra.writer = linear_zalloc_array(linctx, uint32_t, keys);
       sctx.postra.readers =
          linear_zalloc_array(linctx, struct util_dynarray, keys);

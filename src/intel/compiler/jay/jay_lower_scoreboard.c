@@ -17,21 +17,21 @@
 
 #define NUM_TOKENS (32)
 
-static inline struct jay_range
+static inline struct jay_footprint
 def_to_sbid_key(jay_function *func, jay_inst *I, jay_def x)
 {
    if (x.file == GPR) {
-      return (struct jay_range){ x.reg, jay_num_values(x) };
+      return (struct jay_footprint){ x.reg, jay_num_values(x) };
    } else if (x.file == UGPR) {
       /* SEND instructions can only use GRF-aligned multiples of whole
        * registers, so there's no point tracking UGPRs at a finer granularity.
        */
-      return (struct jay_range){
+      return (struct jay_footprint){
          func->shader->num_regs[GPR] + x.reg / jay_ugpr_per_grf(func->shader),
          DIV_ROUND_UP(jay_num_values(x), jay_ugpr_per_grf(func->shader))
       };
    } else {
-      return (struct jay_range){ 0, 0 };
+      return (struct jay_footprint){ 0, 0 };
    }
 }
 
@@ -340,7 +340,7 @@ lower_sbid_local(jay_function *func,
 
       /* Read-after-write */
       jay_foreach_src(I, s) {
-         struct jay_range src = def_to_sbid_key(func, I, I->src[s]);
+         struct jay_footprint src = def_to_sbid_key(func, I, I->src[s]);
 
          u_foreach_bit(sbid, busy_dst) {
             if (BITSET_TEST_COUNT(bitset_for(edge, sbid, DST), src.base,
@@ -354,7 +354,7 @@ lower_sbid_local(jay_function *func,
 
       /* Write-after-write & write-after-read */
       jay_foreach_dst(I, d) {
-         struct jay_range dst = def_to_sbid_key(func, I, d);
+         struct jay_footprint dst = def_to_sbid_key(func, I, d);
 
          u_foreach_bit(sbid, busy_dst) {
             if (BITSET_TEST_COUNT(bitset_for(edge, sbid, DST), dst.base,
@@ -419,11 +419,11 @@ lower_sbid_local(jay_function *func,
          busy_dst |= BITFIELD_BIT(sbid);
          busy_src |= BITFIELD_BIT(sbid);
 
-         struct jay_range dst = def_to_sbid_key(func, I, I->dst);
+         struct jay_footprint dst = def_to_sbid_key(func, I, I->dst);
          BITSET_SET_COUNT(bitset_for(edge, sbid, DST), dst.base, dst.width);
 
          jay_foreach_src(I, s) {
-            struct jay_range src = def_to_sbid_key(func, I, I->src[s]);
+            struct jay_footprint src = def_to_sbid_key(func, I, I->src[s]);
             BITSET_SET_COUNT(bitset_for(edge, sbid, SRC), src.base, src.width);
          }
 
@@ -535,13 +535,13 @@ max_dependence(gen_pipe pipe)
 
 static void
 depend_on_writer(struct swsb_regdist_state *state,
-                 struct jay_range r,
+                 struct jay_footprint r,
                  unsigned *dep,
                  gen_pipe exec,
                  bool except_exec)
 {
    for (unsigned i = 0; i < r.width; ++i) {
-      assert(r.base + i < jay_range_base(state->shader, ~0));
+      assert(r.base + i < jay_footprint_base(state->shader, ~0));
       uint32_t w = state->access[r.base + i][0];
       gen_pipe write = writer_pipe(w);
 
@@ -569,7 +569,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
    jay_def dsts[3] = { I->dst, I->cond_flag };
 
    for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
-      struct jay_range r = jay_def_to_range(func, I, dsts[i], I->type);
+      struct jay_footprint r = jay_def_to_footprint(func, I, dsts[i], I->type);
       depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
       for (unsigned i = 0; i < r.width; ++i) {
@@ -593,7 +593,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
    jay_foreach_src(I, s) {
       bool except_pipe = I->src[s].file == ACCUM || I->src[s].file == FLAG;
       depend_on_writer(ctx,
-                       jay_def_to_range(func, I, I->src[s], jay_src_type(I, s)),
+                       jay_def_to_footprint(func, I, I->src[s],
+                                            jay_src_type(I, s)),
                        dep, exec_pipe, except_pipe);
    }
 
@@ -675,7 +676,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       uint32_t now = make_writer(exec_pipe, ctx->ip[exec_pipe]);
 
       for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
-         struct jay_range r = jay_def_to_range(func, I, dsts[i], I->type);
+         struct jay_footprint r =
+            jay_def_to_footprint(func, I, dsts[i], I->type);
 
          for (unsigned i = 0; i < r.width; ++i) {
             ctx->access[r.base + i][0] = now;
@@ -683,8 +685,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       }
 
       jay_foreach_src(I, s) {
-         struct jay_range r =
-            jay_def_to_range(func, I, I->src[s], jay_src_type(I, s));
+         struct jay_footprint r =
+            jay_def_to_footprint(func, I, I->src[s], jay_src_type(I, s));
          for (unsigned i = 0; i < r.width; ++i) {
             ctx->access[r.base + i][exec_pipe] = ctx->ip[exec_pipe];
          }
@@ -740,7 +742,7 @@ void
 jay_lower_scoreboard(jay_shader *shader)
 {
    u32_per_pipe *regdists =
-      malloc(sizeof(*regdists) * jay_range_base(shader, ~0));
+      malloc(sizeof(*regdists) * jay_footprint_base(shader, ~0));
 
    unsigned max_blocks = 0;
    jay_foreach_function(shader, f)
@@ -757,7 +759,7 @@ jay_lower_scoreboard(jay_shader *shader)
 
    unsigned dirty_blocks = 0;
    jay_foreach_function(shader, f) {
-      memset(regdists, 0, sizeof(*regdists) * jay_range_base(shader, ~0));
+      memset(regdists, 0, sizeof(*regdists) * jay_footprint_base(shader, ~0));
       clear_sbid_state(&sbid_state, dirty_blocks);
       dirty_blocks = f->num_blocks;
 
@@ -792,7 +794,7 @@ jay_lower_scoreboard(jay_shader *shader)
       jay_foreach_block(f, block) {
          if (!list_is_empty(&block->instructions) && next != block) {
             memset(regdists, 0,
-                   sizeof(*regdists) * jay_range_base(shader, ~0));
+                   sizeof(*regdists) * jay_footprint_base(shader, ~0));
          }
 
          next = jay_first_successor(block, UGPR);

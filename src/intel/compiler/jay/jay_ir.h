@@ -1573,12 +1573,12 @@ jay_source_last_use_bit(const jay_def *srcs, unsigned src_idx)
    }
 
 /* Used for post-RA tracking ranges of all register files */
-struct jay_range {
+struct jay_footprint {
    unsigned base, width;
 };
 
 static inline unsigned
-jay_range_base(jay_shader *shader, enum jay_file file)
+jay_footprint_base(jay_shader *shader, enum jay_file file)
 {
    return (file > GPR ? shader->num_regs[GPR] : 0) +
           (file > UGPR ? shader->num_regs[UGPR] : 0) +
@@ -1586,13 +1586,16 @@ jay_range_base(jay_shader *shader, enum jay_file file)
           (file > ACCUM ? 4 : 0);
 }
 
-static inline struct jay_range
-jay_def_to_range(jay_function *func, jay_inst *I, jay_def x, enum jay_type type)
+static inline struct jay_footprint
+jay_def_to_footprint(jay_function *func,
+                     jay_inst *I,
+                     jay_def x,
+                     enum jay_type type)
 {
-   struct jay_range r = { 0, 0 };
+   struct jay_footprint r = { 0, 0 };
 
    if (x.file == GPR || x.file == UGPR || x.file == ACCUM || x.file == FLAG) {
-      r.base = jay_range_base(func->shader, x.file);
+      r.base = jay_footprint_base(func->shader, x.file);
       r.base += (x.file == ACCUM) ? (x.reg / 2) : x.reg;
       r.width = jay_num_values(x);
 
