@@ -253,15 +253,11 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
          unsigned gl2_wb = G_587_GL2_WB(gcr_cntl);
          unsigned gcr_seq = G_587_SEQ(gcr_cntl);
 
-         gcr_cntl &= C_587_GLV_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
-
-         if (ctx->gfx_level < GFX12)
-            gcr_cntl &= C_587_GLM_WB & C_587_GLM_INV & C_587_GL1_INV;
+         gcr_cntl &= C_587_GLM_WB & C_587_GLM_INV & C_587_GL1_INV & C_587_GLV_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
 
          si_cp_release_mem(ctx, cs, cb_db_event,
-                           (ctx->gfx_level >= GFX12 ? 0 : S_491_GLM_WB(glm_wb) | S_491_GLM_INV(glm_inv) |
-                                                          S_491_GL1_INV(gl1_inv)) |
-                           S_491_GLV_INV(glv_inv) |
+                           S_491_GLM_WB(glm_wb) | S_491_GLM_INV(glm_inv) |
+                           S_491_GL1_INV(gl1_inv) | S_491_GLV_INV(glv_inv) |
                            S_491_GL2_INV(gl2_inv) | S_491_GL2_WB(gl2_wb) |
                            S_491_SEQ(gcr_seq),
                            EOP_DST_SEL_MEM, EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
