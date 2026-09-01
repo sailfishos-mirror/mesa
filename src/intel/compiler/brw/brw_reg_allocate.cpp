@@ -236,6 +236,14 @@ void brw_shader::calculate_payload_ranges(bool allow_spilling,
       payload_last_use_ip[0] = ip - 1;
 }
 
+/* Offsets of the boundaries between regions of the GRF file that
+ * cause the EU to limit its thread count to a decreasingly lower
+ * number on xe3 platforms.
+ *
+ * XXX - Update for xe3p when 512 GRF mode is enabled.
+ */
+static const unsigned xe3_grf_region_offsets[] = { 0, 96, 128, 160, 192, 256 };
+
 class brw_reg_alloc {
 public:
    brw_reg_alloc(brw_shader *fs):
@@ -298,6 +306,54 @@ public:
    }
 
    bool assign_regs(bool allow_spilling, bool spill_all);
+
+   static unsigned
+   xe3_select_reg(unsigned n, BITSET_WORD *regs, void *data, bool optimistic)
+   {
+      brw_reg_alloc *alloc = (brw_reg_alloc *)data;
+
+      for (unsigned rgn = 0; rgn < ARRAY_SIZE(alloc->next_regs); rgn++) {
+         const unsigned rgn_size = xe3_grf_region_offsets[rgn + 1]
+                                   - xe3_grf_region_offsets[rgn];
+
+         for (unsigned i = 0; i < rgn_size; i++) {
+            /* Scan the region for free registers, either starting
+             * from the beginning (tight packing) or from the last
+             * allocated node depending on whether the node is
+             * trivially or optimistically colorable.
+             */
+            const unsigned reg = xe3_grf_region_offsets[rgn] +
+                                 (optimistic ? i : (alloc->next_regs[rgn] + i) % rgn_size);
+
+            /* Size of the node if the call is allocating a VGRF node
+             * so that we can avoid nodes that straddle multiple
+             * regions during trivial allocation, which would have
+             * reduced thread parallelism in comparison to using any
+             * other available node fully contained within the region.
+             */
+            const unsigned delta =
+               (n >= unsigned(alloc->first_vgrf_node) &&
+                n < unsigned(alloc->first_spill_node) ?
+                DIV_ROUND_UP(alloc->fs->alloc.sizes[n - alloc->first_vgrf_node],
+                             reg_unit(alloc->devinfo)) :
+                1);
+
+            /* Select register and increase next_regs[rgn] pointer if
+             * the register is available.
+             */
+            if (BITSET_TEST(regs, reg) &&
+                (optimistic || reg + delta <= xe3_grf_region_offsets[rgn + 1])) {
+               alloc->next_regs[rgn] = reg + delta - xe3_grf_region_offsets[rgn];
+               if (alloc->next_regs[rgn] >= rgn_size)
+                  alloc->next_regs[rgn] = 0;
+               return reg;
+            }
+         }
+      }
+
+      /* Normally unreachable, caller guarantees there are enough registers. */
+      return ~0u;
+   }
 
 private:
    void setup_live_interference(unsigned node, brw_range ip_range);
@@ -377,6 +433,8 @@ private:
 
    unsigned spill_scratch_base;
    std::vector<spill_scratch_assignment> spill_scratch;
+
+   unsigned next_regs[ARRAY_SIZE(xe3_grf_region_offsets) - 1];
 };
 
 namespace {
@@ -778,6 +836,9 @@ brw_reg_alloc::build_interference_graph(bool allow_spilling)
                                 &compiler->reg_set;
    g = ra_alloc_interference_graph(reg_set->regs, node_count);
    ralloc_steal(mem_ctx, g);
+
+   if (devinfo->ver >= 30)
+      ra_set_select_reg_callback(g, xe3_select_reg, this);
 
    /* Set up the payload nodes */
    for (int i = 0; i < payload_node_count; i++)
@@ -1495,6 +1556,8 @@ brw_reg_alloc::assign_regs(bool allow_spilling, bool spill_all)
             continue;
          }
       }
+
+      memset(next_regs, 0, sizeof(next_regs));
 
       if (ra_allocate(g))
          break;
