@@ -1349,6 +1349,8 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 <domain name="CP_MEM_TO_REG" width="32">
 	<reg32 offset="0" name="0">
 		<bitfield name="REG" low="0" high="17" type="hex"/>
+		<!-- if set, all writes are to the same reg -->
+		<bitfield name="ONE_REG_WR" pos="18" type="boolean"/>
 		<!-- number of registers/dwords copied is max(CNT, 1). -->
 		<bitfield name="CNT" low="19" high="29" type="uint"/>
 		<!-- shift each DWORD left by 2 while copying -->
