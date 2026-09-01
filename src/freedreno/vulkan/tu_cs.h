@@ -83,6 +83,17 @@ struct tu_bo_array {
 struct tu_pkt;
 struct tu_crb;
 
+/* Temporary struct for tracking a register state to be written, used by
+ * a6xx-pack.h and tu_cs_emit_regs()
+ */
+struct tu_reg_value {
+   uint32_t reg;
+   uint64_t value;
+   bool is_address;
+};
+
+#define fd_reg_pair tu_reg_value
+
 struct tu_cs
 {
    uint32_t *start;
@@ -628,17 +639,6 @@ tu_cs_emit_data_nop(struct tu_cs *cs,
                     const uint32_t *data,
                     uint32_t size,
                     uint32_t align);
-
-/* Temporary struct for tracking a register state to be written, used by
- * a6xx-pack.h and tu_cs_emit_regs()
- */
-struct tu_reg_value {
-   uint32_t reg;
-   uint64_t value;
-   bool is_address;
-};
-
-#define fd_reg_pair tu_reg_value
 
 #include "a6xx-pack.xml.h"
 #include "adreno-pm4-pack.xml.h"
