@@ -814,7 +814,7 @@
         "description": "ir3: Lower quad votes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ff5352b4900737d62d8e3fa5878ebc6c381aace0",
         "notes": null
