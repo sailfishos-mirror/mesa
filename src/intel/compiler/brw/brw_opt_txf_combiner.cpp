@@ -98,9 +98,8 @@ merge_instructions(brw_shader &s, brw_tex_inst **txfs, unsigned count)
       brw_reg div = ubld.vgrf(BRW_TYPE_UD, new_dest_comps);
       brw_tex_inst *div_txf =
          ubld.emit(SHADER_OPCODE_SAMPLER, div, srcs, txfs[0]->sources)->as_tex();
-      div_txf->surface_bindless = txfs[0]->surface_bindless;
       div_txf->sampler_opcode = txfs[0]->sampler_opcode;
-      div_txf->residency = false;
+      div_txf->bits = txfs[0]->bits;
 
       /* Update it to also use response length reduction */
       const unsigned per_component_regs =
@@ -206,7 +205,7 @@ brw_opt_combine_convergent_txf(brw_shader &s)
 
          if (tex0 != NULL) {
             if (!sources_match(defs, tex, tex0, TEX_LOGICAL_SRC_SURFACE) ||
-                tex->surface_bindless != tex0->surface_bindless)
+                tex->bits != tex0->bits)
                continue;
 
             if (tex->sampler_opcode == BRW_SAMPLER_OPCODE_LD) {
