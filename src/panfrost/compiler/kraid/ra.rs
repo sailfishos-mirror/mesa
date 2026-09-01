@@ -11,7 +11,8 @@ use crate::ssa_value::*;
 use compiler::bitset::*;
 use compiler::cfg::CFG;
 use compiler::smallvec::*;
-use rustc_hash::FxHashMap;
+use compiler::union_find::UnionFind;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::collections::VecDeque;
 use std::ops::Range;
 
@@ -497,6 +498,46 @@ impl std::ops::BitOrAssign for RegAlignConstraint {
     }
 }
 
+struct AffinityMap {
+    phi_webs: SSAValueIndexedVec<Option<SSAValue>>,
+}
+
+impl AffinityMap {
+    fn for_shader(s: &Shader, phi_map: &PhiMap) -> AffinityMap {
+        let mut phi_webs_uf: UnionFind<SSAValue, FxBuildHasher> =
+            UnionFind::new();
+
+        for instr in s.blocks.iter().map(|b| b.instrs.iter()).flatten() {
+            match &instr.op {
+                Op::PhiSrc(op) => {
+                    if let SrcRef::SSA(src_vec) = &op.src.src_ref {
+                        if src_vec.bytes() == op.phi.bytes() {
+                            let dst_vec = phi_map.get_dst_ssa(&op.phi);
+                            assert_eq!(src_vec.len(), dst_vec.len());
+                            for (dst_ssa, src_ssa) in
+                                dst_vec.iter().zip(src_vec)
+                            {
+                                phi_webs_uf.union(*dst_ssa, *src_ssa);
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        // Flatten the UnionFind to an SSAValueIndexedVec for efficiency
+        let mut phi_webs: SSAValueIndexedVec<Option<SSAValue>> =
+            SSAValueIndexedVec::with_count(s.ssa_alloc.count());
+        for (k, v) in phi_webs_uf.into_iter() {
+            debug_assert_eq!(k.bits(), v.bits());
+            phi_webs[k] = Some(v);
+        }
+
+        AffinityMap { phi_webs }
+    }
+}
+
 struct WrapOnceCounter {
     start: usize,
     limit: usize,
@@ -544,6 +585,13 @@ struct LocalRegAlloc<'a> {
     /// Allocation arena
     arena: &'a Arena,
 
+    /// Affinity map
+    affinities: &'a AffinityMap,
+
+    /// Map from phi web representatives to the most recent byte range assigned
+    /// to some SSAValue in the that web.
+    phi_web_bytes: FxHashMap<SSAValue, Range<u16>>,
+
     /// Bitset of bytes currently used
     used: BitSet<usize>,
 
@@ -562,12 +610,18 @@ struct LocalRegAlloc<'a> {
 }
 
 impl LocalRegAlloc<'_> {
-    fn new<'a>(model: &'a dyn Model, arena: &'a Arena) -> LocalRegAlloc<'a> {
+    fn new<'a>(
+        model: &'a dyn Model,
+        arena: &'a Arena,
+        affinities: &'a AffinityMap,
+    ) -> LocalRegAlloc<'a> {
         let mut byte_idx = Vec::new();
         byte_idx.resize(usize::from(arena.limit()), u32::MAX);
         LocalRegAlloc {
             model,
             arena,
+            affinities,
+            phi_web_bytes: Default::default(),
             used: Default::default(),
             idx_bytes: Default::default(),
             byte_idx,
@@ -579,6 +633,11 @@ impl LocalRegAlloc<'_> {
     fn assign_idx_bytes(&mut self, idx: u32, bytes: Range<u16>) {
         let bytes_usize = bytes.start.into()..bytes.end.into();
         debug_assert!(self.used.all_unset_in_range(bytes_usize.clone()));
+
+        if let Some(repr) = self.affinities.phi_webs[idx] {
+            debug_assert!(bytes.len() == usize::from(repr.bytes()));
+            self.phi_web_bytes.insert(repr, bytes.clone());
+        }
 
         self.used.set_range(bytes_usize);
         for b in bytes.clone() {
@@ -650,6 +709,29 @@ impl LocalRegAlloc<'_> {
 
     fn assign_ssa_ref_reg(&mut self, vec: &SSARef, reg: &RegRef) {
         self.assign_ssa_ref_bytes(vec, self.arena.reg_to_bytes(reg));
+    }
+
+    fn idx_phi_bytes(&self, idx: u32) -> Option<Range<u16>> {
+        let repr = self.affinities.phi_webs[idx]?;
+        self.phi_web_bytes.get(&repr).cloned()
+    }
+
+    fn ssa_ref_phi_bytes(&self, vec: &SSARef) -> Option<Range<u16>> {
+        let mut vec_bytes = self.idx_phi_bytes(vec[0].idx())?;
+        for i in 1..vec.len() {
+            let ssa_bytes = self.idx_phi_bytes(vec[i].idx())?;
+            if ssa_bytes.start == vec_bytes.end {
+                vec_bytes.end = ssa_bytes.end;
+            } else {
+                return None;
+            }
+        }
+        Some(vec_bytes)
+    }
+
+    fn bytes_are_unused(&self, bytes: Range<u16>) -> bool {
+        let bytes = bytes.start.into()..bytes.end.into();
+        self.used.all_unset_in_range(bytes)
     }
 
     fn pin_bytes(&mut self, bytes: Range<u16>) {
@@ -866,6 +948,16 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
     ) -> Range<u16> {
         let ssa_bytes = vec.bytes();
+
+        if let Some(phi_bytes) = self.ssa_ref_phi_bytes(vec) {
+            if self.is_aligned_unpinned_range(phi_bytes.clone(), align)
+                && self.bytes_are_unused(phi_bytes.clone())
+            {
+                debug_assert_eq!(phi_bytes.len(), usize::from(ssa_bytes));
+                return phi_bytes;
+            }
+        }
+
         if vec.comps() == 1 {
             debug_assert!(ssa_bytes <= bytes && bytes <= 4);
             self.choose_ssa_ref_bytes(vec, align, |b| {
@@ -1157,9 +1249,13 @@ struct GlobalRegAlloc<'a> {
 }
 
 impl GlobalRegAlloc<'_> {
-    fn new<'a>(model: &'a dyn Model, arena: &'a Arena) -> GlobalRegAlloc<'a> {
+    fn new<'a>(
+        model: &'a dyn Model,
+        arena: &'a Arena,
+        affinities: &'a AffinityMap,
+    ) -> GlobalRegAlloc<'a> {
         GlobalRegAlloc {
-            local: LocalRegAlloc::new(model, arena),
+            local: LocalRegAlloc::new(model, arena, affinities),
             live_out: Default::default(),
         }
     }
@@ -1686,8 +1782,9 @@ impl GlobalRegAlloc<'_> {
 
 fn alloc_regs(s: &mut Shader, arena: &Arena, live: impl Liveness) {
     let phi_map = PhiMap::for_shader(s);
+    let affinities = AffinityMap::for_shader(s, &phi_map);
 
-    let mut ra = GlobalRegAlloc::new(s.model, arena);
+    let mut ra = GlobalRegAlloc::new(s.model, arena, &affinities);
     ra.live_out.resize_with(s.blocks.len(), Default::default);
     for bi in 0..s.blocks.len() {
         ra.alloc_regs_block(
