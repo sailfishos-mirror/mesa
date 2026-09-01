@@ -1987,6 +1987,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 	<reg32 offset="0xe146" name="RB_FS_OUTPUT_CNTL">
 		<!-- bit0 set except for binning pass.. -->
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="FRAG_WRITES_Z" pos="5" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe147" name="RB_RENDER_COMPONENTS">
@@ -2069,6 +2070,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<!-- per-mrt enable bit -->
 		<bitfield name="ENABLE_BLEND" low="0" high="7"/>
 		<bitfield name="INDEPENDENT_BLEND" pos="8" type="boolean"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="9" type="boolean"/>
 		<bitfield name="ALPHA_TO_COVERAGE" pos="10" type="boolean"/>
 		<!-- a guess? -->
 		<bitfield name="SAMPLE_MASK" low="16" high="31"/>
@@ -2537,10 +2539,12 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<!-- per-mrt enable bit -->
 		<bitfield name="ENABLE_BLEND" low="0" high="7"/>
 		<bitfield name="UNK8" pos="8" type="boolean"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="9" type="boolean"/>
 		<bitfield name="ALPHA_TO_COVERAGE" pos="10" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe5ca" name="SP_FS_OUTPUT_CNTL">
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
+		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="DEPTH_REGID" low="5" high="12" type="a3xx_regid"/>
 		<bitfield name="SAMPLEMASK_REGID" low="13" high="20" type="a3xx_regid"/>
 	</reg32>

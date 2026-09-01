@@ -508,12 +508,17 @@ fd5_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
    emit_marker5(ring, 5);
 
-   if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->binning_pass) {
+   if ((dirty & (FD_DIRTY_FRAMEBUFFER | FD_DIRTY_PROG)) &&
+       !emit->binning_pass) {
       unsigned char mrt_comp[A5XX_MAX_RENDER_TARGETS] = {0};
 
       for (unsigned i = 0; i < A5XX_MAX_RENDER_TARGETS; i++) {
          mrt_comp[i] = ((i < pfb->nr_cbufs) && pfb->cbufs[i].texture) ? 0xf : 0;
       }
+
+      /* dual source blending has an extra fs output in the 2nd slot */
+      if (fp->dual_src_blend)
+         mrt_comp[1] = 0xf;
 
       OUT_PKT4(ring, REG_A5XX_RB_RENDER_COMPONENTS, 1);
       OUT_RING(ring, A5XX_RB_RENDER_COMPONENTS_RT0(mrt_comp[0]) |
@@ -701,19 +706,26 @@ fd5_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
    if (dirty & (FD_DIRTY_FRAMEBUFFER | FD_DIRTY_RASTERIZER | FD_DIRTY_PROG)) {
       uint32_t posz_regid = ir3_find_output_regid(fp, FRAG_RESULT_DEPTH);
       unsigned nr = pfb->nr_cbufs;
+      bool dual = false;
 
       if (emit->binning_pass)
          nr = 0;
       else if (ctx->rasterizer->rasterizer_discard)
          nr = 0;
+      else if (fp->dual_src_blend) {
+         nr = 2;
+         dual = true;
+      }
 
       OUT_PKT4(ring, REG_A5XX_RB_FS_OUTPUT_CNTL, 1);
       OUT_RING(ring,
                A5XX_RB_FS_OUTPUT_CNTL_MRT(nr) |
+                  COND(dual, A5XX_RB_FS_OUTPUT_CNTL_DUAL_COLOR_IN_ENABLE) |
                   COND(fp->writes_pos, A5XX_RB_FS_OUTPUT_CNTL_FRAG_WRITES_Z));
 
       OUT_PKT4(ring, REG_A5XX_SP_FS_OUTPUT_CNTL, 1);
       OUT_RING(ring, A5XX_SP_FS_OUTPUT_CNTL_MRT(nr) |
+                        COND(dual, A5XX_SP_FS_OUTPUT_CNTL_DUAL_COLOR_IN_ENABLE) |
                         A5XX_SP_FS_OUTPUT_CNTL_DEPTH_REGID(posz_regid) |
                         A5XX_SP_FS_OUTPUT_CNTL_SAMPLEMASK_REGID(regid(63, 0)));
    }

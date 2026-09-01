@@ -655,7 +655,8 @@ fd_init_screen_caps(struct fd_screen *screen)
 
    /* Render targets. */
    caps->max_render_targets = screen->max_rts;
-   caps->max_dual_source_render_targets = (is_a3xx(screen) || is_a6xx(screen)) ? 1 : 0;
+   caps->max_dual_source_render_targets =
+      (is_a3xx(screen) || is_a5xx(screen) || is_a6xx(screen)) ? 1 : 0;
 
    /* Queries. */
    caps->occlusion_query =
