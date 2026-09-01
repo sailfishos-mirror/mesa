@@ -7839,12 +7839,6 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    src_stage_mask = radv_get_src_stage_flags2(src_stage_mask);
    dst_stage_mask = radv_get_dst_stage_flags2(dst_stage_mask);
 
-   /* For simplicity, if the barrier wants to wait for the task shader,
-    * just make it wait for the mesh shader too.
-    */
-   if (src_stage_mask & VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT)
-      src_stage_mask |= VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
-
    const VkPipelineStageFlags2 vs_stage_mask = radv_pre_rast_stage_mask;
 
    const VkPipelineStageFlags2 ps_stage_mask = radv_post_ps_stage_mask | radv_post_cb_stage_mask |
