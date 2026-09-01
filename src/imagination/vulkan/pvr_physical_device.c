@@ -161,6 +161,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_present_id2 = PVR_USE_WSI_PLATFORM,
       .KHR_present_wait = PVR_USE_WSI_PLATFORM,
       .KHR_present_wait2 = PVR_USE_WSI_PLATFORM,
+      .KHR_push_descriptor = true,
       .KHR_relaxed_block_layout = true,
       .KHR_robustness2 = true,
       .KHR_sampler_mirror_clamp_to_edge = true,
@@ -481,6 +482,9 @@ static void pvr_physical_device_get_supported_features(
       /* VK_EXT_provoking_vertex */
       .provokingVertexLast = true,
       .transformFeedbackPreservesProvokingVertex = false,
+
+      /* Vulkan 1.4 / VK_KHR_push_descriptor */
+      .pushDescriptor = true,
 
       /* Vulkan 1.2 / VK_EXT_scalar_block_layout */
       .scalarBlockLayout = true,

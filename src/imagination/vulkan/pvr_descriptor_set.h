@@ -127,6 +127,12 @@ void PVR_PER_ARCH(push_descriptor_set_update)(
    const VkWriteDescriptorSet *pDescriptorWrites,
    const struct pvr_device_info *dev_info);
 
+void PVR_PER_ARCH(push_descriptor_set_update_template)(
+   struct pvr_push_descriptor_set *push_set,
+   struct pvr_descriptor_set_layout *layout,
+   const VkPushDescriptorSetWithTemplateInfoKHR *info,
+   const struct pvr_device_info *dev_info);
+
 #endif
 
 #endif /* PVR_DESCRIPTOR_SET_H */

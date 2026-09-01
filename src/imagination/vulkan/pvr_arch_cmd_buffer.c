@@ -74,6 +74,7 @@
 #include "vk_command_buffer.h"
 #include "vk_command_pool.h"
 #include "vk_common_entrypoints.h"
+#include "vk_descriptor_update_template.h"
 #include "vk_format.h"
 #include "vk_graphics_state.h"
 #include "vk_log.h"
@@ -3014,6 +3015,30 @@ pvr_cmd_push_descriptor_set(struct pvr_cmd_buffer *cmd_buffer,
                                             info->pDescriptorWrites, &device->pdevice->dev_info);
 }
 
+static void
+pvr_cmd_push_descriptor_set_template(struct pvr_cmd_buffer *cmd_buffer,
+                                     const VkPushDescriptorSetWithTemplateInfoKHR *info,
+                                     VkPipelineBindPoint bind_point)
+{
+   VK_FROM_HANDLE(vk_pipeline_layout, pipe_layout, info->layout);
+
+   struct pvr_device *device = cmd_buffer->device;
+   struct pvr_descriptor_state *desc_state =
+      pvr_get_descriptors_state(cmd_buffer, bind_point);
+   struct pvr_push_descriptor_set *push_set =
+      pvr_get_push_descriptors(cmd_buffer, desc_state, info->set);
+   struct pvr_descriptor_set_layout *layout =
+      (struct pvr_descriptor_set_layout *)pipe_layout->set_layouts[info->set];
+
+   if (unlikely(push_set == NULL))
+      return;
+
+   desc_state->sets[info->set] = &push_set->instantiate_set;
+
+   PVR_PER_ARCH(push_descriptor_set_update_template)(push_set, layout, info,
+                                                     &device->pdevice->dev_info);
+}
+
 void PVR_PER_ARCH(CmdPushDescriptorSet2KHR)(VkCommandBuffer commandBuffer,
                                             const VkPushDescriptorSetInfoKHR *pPushDescriptorSetInfo)
 {
@@ -3035,7 +3060,17 @@ void PVR_PER_ARCH(CmdPushDescriptorSet2KHR)(VkCommandBuffer commandBuffer,
 void PVR_PER_ARCH(CmdPushDescriptorSetWithTemplate2KHR)(VkCommandBuffer commandBuffer,
                                             const VkPushDescriptorSetWithTemplateInfoKHR *pPushDescriptorSetInfo)
 {
-   UNREACHABLE("CmdPushDescriptorSetWithTemplate2KHR not implemented");
+   VK_FROM_HANDLE(pvr_cmd_buffer, cmd_buffer, commandBuffer);
+   VK_FROM_HANDLE(vk_descriptor_update_template, template,
+                  pPushDescriptorSetInfo->descriptorUpdateTemplate);
+
+   pvr_cmd_push_descriptor_set_template(cmd_buffer, pPushDescriptorSetInfo,
+                                        template->bind_point);
+
+   if (template->bind_point == VK_PIPELINE_BIND_POINT_COMPUTE)
+      cmd_buffer->state.dirty.compute_desc_dirty = true;
+   else
+      cmd_buffer->state.dirty.gfx_desc_dirty = true;
 }
 
 void PVR_PER_ARCH(CmdBindDescriptorSets2KHR)(VkCommandBuffer commandBuffer,
