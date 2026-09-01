@@ -574,37 +574,10 @@ dEQP-GLES2.functional.shaders.loops.while_uniform_iterations.unconditional_conti
 dEQP-GLES2.functional.shaders.loops.while_uniform_iterations.vector_counter_fragment,Fail
 dEQP-GLES2.functional.shaders.loops.while_uniform_iterations.vector_counter_vertex,Fail
 
-
-
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.highp_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.highp_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.highp_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.highp_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.mediump_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.mediump_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.mediump_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.asin.mediump_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.highp_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.highp_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.highp_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.highp_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.mediump_float_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.mediump_vec2_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.mediump_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan.mediump_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.highp_float_fragment,Fail
 dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.highp_vec2_fragment,Fail
 dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.highp_vec2_vertex,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.highp_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.highp_vec4_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.mediump_float_fragment,Fail
 dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.mediump_vec2_fragment,Fail
 dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.mediump_vec2_vertex,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.mediump_vec3_fragment,Fail
-dEQP-GLES2.functional.shaders.operator.angle_and_trigonometry.atan2.mediump_vec4_fragment,Fail
-
-dEQP-GLES2.functional.shaders.random.all_features.fragment.73,Fail
-dEQP-GLES2.functional.shaders.random.all_features.fragment.92,Fail
 
 # More loops
 
@@ -776,7 +749,6 @@ spec@!opengl 1.0@gl-1.0-dlist-materials,Fail
 spec@!opengl 1.0@gl-1.0-dlist-shademodel,Fail
 spec@!opengl 1.0@gl-1.0-edgeflag,Fail
 spec@!opengl 1.0@gl-1.0-edgeflag-quads,Fail
-spec@!opengl 1.0@gl-1.0-fog-linear-floor,Fail
 spec@!opengl 1.0@gl-1.0-scissor-many,Fail
 spec@!opengl 1.0@gl-1.0-swapbuffers-behavior,Fail
 spec@!opengl 1.0@gl-1.0-user-clip-all-planes,Fail
@@ -1029,19 +1001,10 @@ spec@ext_texture_srgb@texwrap formats-s3tc bordercolor@GL_COMPRESSED_SRGB_ALPHA_
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor@GL_COMPRESSED_SRGB_S3TC_DXT1_EXT- border color only,Fail
 spec@ext_timer_query@time-elapsed,Fail
 spec@ext_timer_query@timer_query,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-atan-float-float,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-atan-vec2-vec2,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-atan-vec3-vec3,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-atan-vec4-vec4,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-op-selection-bool-bvec4-bvec4,Fail
-spec@glsl-1.10@execution@builtins@glsl-fs-asin,Fail
-spec@glsl-1.10@execution@builtins@glsl-fs-atan-1,Fail
-spec@glsl-1.10@execution@builtins@glsl-fs-atan-2,Fail
-spec@glsl-1.10@execution@builtins@glsl-fs-atan-3,Fail
 spec@glsl-1.10@execution@copy-propagation@glsl-copy-propagation-loop-1,Fail
 spec@glsl-1.10@execution@copy-propagation@glsl-vs-copy-propagation-1,Fail
 spec@glsl-1.10@execution@discard@glsl-fs-discard-04,Fail
-spec@glsl-1.10@execution@fs-sign-times-abs,Fail
 spec@glsl-1.10@execution@glsl-fs-convolution-2,Fail
 spec@glsl-1.10@execution@glsl-fs-if-nested-loop,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
