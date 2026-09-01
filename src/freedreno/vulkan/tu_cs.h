@@ -146,6 +146,48 @@ struct tu_cs
       scratch_write(scratch, &val, 1);
    }
 
+   /**
+    * A flexible src/dst type for pm4 pkt helpers, which can be register/scratch/immediate
+    * (the latter for src args only).  The actual types supported depend on the pm4 pkt.  If
+    * there is only one possible type, use the underlying type directly (ie fd_reg_pair, etc)
+    */
+   struct tu_pm4_arg {
+      enum {
+         TU_PM4_IMMED,
+         TU_PM4_REG,
+         TU_PM4_SCRATCH,
+      } type;
+
+      union {
+         uint32_t imm;
+         struct fd_reg_pair reg;
+         struct tu_scratch_slot scratch;
+      };
+
+      tu_pm4_arg(uint32_t arg) : type(TU_PM4_IMMED), imm(arg) {}
+      tu_pm4_arg(struct fd_reg_pair arg) : type(TU_PM4_REG), reg(arg) {}
+      tu_pm4_arg(struct tu_scratch_slot arg) : type(TU_PM4_SCRATCH), scratch(arg) {}
+
+      operator uint32_t() const {
+         if (type == TU_PM4_IMMED)
+            return imm;
+         else if (type == TU_PM4_REG)
+            return reg.reg;
+         else if (type == TU_PM4_SCRATCH)
+            return scratch.slot;
+         else
+            UNREACHABLE("bad type");
+      }
+   };
+
+   struct tu_rmw_args {
+      bool skip_wfm;
+      uint32_t rotate;
+      bool src1_add;
+      struct tu_pm4_arg src0, src1;
+   };
+
+   void rmw(struct tu_pm4_arg dst, struct tu_rmw_args args);
 };
 
 void
@@ -898,6 +940,27 @@ private:
    /* for debugging: */
    unsigned off_ = 0;
 };
+
+inline void
+tu_cs::rmw(struct tu_pm4_arg dst, struct tu_rmw_args args)
+{
+   assert((dst.type == tu_pm4_arg::TU_PM4_REG) || (dst.type == tu_pm4_arg::TU_PM4_SCRATCH));
+   assert((args.src0.type == tu_pm4_arg::TU_PM4_REG) || (args.src0.type == tu_pm4_arg::TU_PM4_IMMED));
+   assert((args.src1.type == tu_pm4_arg::TU_PM4_REG) || (args.src1.type == tu_pm4_arg::TU_PM4_IMMED));
+
+   tu_pkt7(this, CP_REG_RMW, 3)
+      .add(CP_REG_RMW_0(
+         .dst_reg = dst,
+         .dst_scratch = dst.type == tu_pm4_arg::TU_PM4_SCRATCH,
+         .skip_wait_for_me = args.skip_wfm,
+         .rotate = args.rotate,
+         .src1_add = args.src1_add,
+         .src1_is_reg = args.src1.type == tu_pm4_arg::TU_PM4_REG,
+         .src0_is_reg = args.src0.type == tu_pm4_arg::TU_PM4_REG,
+      ))
+      .add(args.src0)
+      .add(args.src1);
+}
 
 template <chip CHIP>
 static inline fd_reg_pair

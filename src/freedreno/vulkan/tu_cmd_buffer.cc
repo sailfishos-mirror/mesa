@@ -5287,11 +5287,11 @@ tu_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer,
       tu_cs_emit_qw(cs, vk_buffer_address(&buf->vk, counter_buffer_offset));
 
       if (offset) {
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(VPC_SO_BUFFER_OFFSET(CHIP, idx).reg) |
-                        CP_REG_RMW_0_SRC1_ADD);
-         tu_cs_emit(cs, 0xffffffff);
-         tu_cs_emit(cs, offset);
+         cs->rmw(VPC_SO_BUFFER_OFFSET(CHIP, idx), {
+            .src1_add = true,
+            .src0 = 0xffffffff,
+            .src1 = offset,
+         });
       }
    }
 
@@ -5343,11 +5343,11 @@ tu_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
       tu_cs_emit_qw(cs, global_iova_arr(cmd, flush_base, idx));
 
       if (offset) {
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(tu_scratch_reg<CHIP>(0).reg) |
-                        CP_REG_RMW_0_SRC1_ADD);
-         tu_cs_emit(cs, 0xffffffff);
-         tu_cs_emit(cs, -offset);
+         cs->rmw(tu_scratch_reg<CHIP>(0), {
+            .src1_add = true,
+            .src0 = 0xffffffff,
+            .src1 = -offset,
+         });
       }
 
       tu_cs_emit_pkt7(cs, CP_REG_TO_MEM, 3);
@@ -9672,31 +9672,22 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           *          = ((~0 & CS_NDRANGE_1) + -1
           *          =  CS_NDRANGE_1 - 1
           */
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(
-                       tu_scratch(tu_dispatch.scratch0).slot
-                    ) |
-                    CP_REG_RMW_0_DST_SCRATCH |
-                    CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
-                    CP_REG_RMW_0_SRC0_IS_REG |
-                    CP_REG_RMW_0_SRC1_ADD);
-         tu_cs_emit(cs, SP_CS_NDRANGE_1(CHIP).reg); /* SRC0 */
-         tu_cs_emit(cs, -1); /* SRC1 */
+         cs->rmw(tu_scratch(tu_dispatch.scratch0), {
+            .skip_wfm = true,
+            .src1_add = true,
+            .src0 = SP_CS_NDRANGE_1(CHIP),
+            .src1 = -1,
+         });
 
          /* scratch0 = ((scratch0 & (local_size - 1)) rot 2
           *          = ((scratch0 & (local_size - 1)) << 2
           */
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(
-                       tu_scratch(tu_dispatch.scratch0).slot
-                    ) |
-                    CP_REG_RMW_0_DST_SCRATCH |
-                    CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
-                    CP_REG_RMW_0_ROTATE(A7XX_SP_CS_NDRANGE_7_LOCALSIZEX__SHIFT));
-         tu_cs_emit(cs, local_size[0] - 1); /* SRC0 */
-         tu_cs_emit(cs, 0); /* SRC1 */
+         cs->rmw(tu_scratch(tu_dispatch.scratch0), {
+            .skip_wfm = true,
+            .rotate = A7XX_SP_CS_NDRANGE_7_LOCALSIZEX__SHIFT,
+            .src0 = local_size[0] - 1,
+            .src1 = 0,
+         });
 
          /* write scratch0 to SP_CS_NDRANGE_7 */
          cs->scratch_to_reg(SP_CS_NDRANGE_7(CHIP), tu_scratch(tu_dispatch.scratch0), 1);
@@ -9708,17 +9699,12 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           *          = (~0u & CS_NDRANGE_1) + local_size - 1
           *          = CS_NDRANGE_1 + local_size - 1
           */
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(
-                       tu_scratch(tu_dispatch.scratch0).slot
-                    ) |
-                    CP_REG_RMW_0_DST_SCRATCH |
-                    CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
-                    CP_REG_RMW_0_SRC0_IS_REG |
-                    CP_REG_RMW_0_SRC1_ADD);
-         tu_cs_emit(cs, SP_CS_NDRANGE_1(CHIP).reg); /* SRC0 */
-         tu_cs_emit(cs, local_size[0] - 1); /* SRC1 */
+         cs->rmw(tu_scratch(tu_dispatch.scratch0), {
+            .skip_wfm = true,
+            .src1_add = true,
+            .src0 = SP_CS_NDRANGE_1(CHIP),
+            .src1 = local_size[0] - 1,
+         });
 
          unsigned local_size_log2 = util_logbase2(local_size[0]);
 
@@ -9727,16 +9713,12 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           *          = scratch0 / local_size
           *          = (CS_NDRANGE_1 + local_size - 1) / local_size
           */
-         tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-         tu_cs_emit(cs,
-                    CP_REG_RMW_0_DST_REG(
-                       tu_scratch(tu_dispatch.scratch0).slot
-                    ) |
-                    CP_REG_RMW_0_DST_SCRATCH |
-                    CP_REG_RMW_0_SKIP_WAIT_FOR_ME |
-                    CP_REG_RMW_0_ROTATE(32 - local_size_log2));
-         tu_cs_emit(cs, ~(local_size[0] - 1)); /* SRC0 */
-         tu_cs_emit(cs, 0); /* SRC1 */
+         cs->rmw(tu_scratch(tu_dispatch.scratch0), {
+            .skip_wfm = true,
+            .rotate = (32 - local_size_log2) & 0x1f,
+            .src0 = ~(local_size[0] - 1),
+            .src1 = 0,
+         });
 
          /* write scratch0 to SP_CS_KERNEL_GROUP_X */
          cs->scratch_to_reg(SP_CS_KERNEL_GROUP_X(CHIP), tu_scratch(tu_dispatch.scratch0), 1);

@@ -206,10 +206,7 @@ tu_lrz_emit_force_disable_for_rp(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
    if (CHIP >= A7XX) {
       const struct tu_reg_value reg = GRAS_SC_BIN_CNTL(CHIP, .force_lrz_dis = true);
 
-      tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-      tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(reg.reg));
-      tu_cs_emit(cs, ~0u);
-      tu_cs_emit(cs, reg.value);
+      cs->rmw(reg, { .src0 = ~0u, .src1 = reg.value });
    } else {
       /* A6XX does not support GRAS_SC_BIN_CNTL.FORCE_LRZ_DIS */
       tu6_write_lrz_reg(cmd, cs, A6XX_GRAS_LRZ_VIEW_INFO(
@@ -1120,15 +1117,8 @@ tu_lrz_emit_disable_write_for_rp(struct tu_cs *cs)
    const struct tu_reg_value gras_cs_bin_cntl = GRAS_SC_BIN_CNTL(CHIP, .force_lrz_write_dis = true);
    const struct tu_reg_value rb_cntl = RB_CNTL(CHIP, .force_lrz_write_dis = true);
 
-   tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-   tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(gras_cs_bin_cntl.reg));
-   tu_cs_emit(cs, ~0u);
-   tu_cs_emit(cs, gras_cs_bin_cntl.value);
-
-   tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
-   tu_cs_emit(cs, CP_REG_RMW_0_DST_REG(rb_cntl.reg));
-   tu_cs_emit(cs, ~0u);
-   tu_cs_emit(cs, rb_cntl.value);
+   cs->rmw(gras_cs_bin_cntl, { .src0 = ~0u, .src1 = gras_cs_bin_cntl.value });
+   cs->rmw(rb_cntl, { .src0 = ~0u, .src1 = rb_cntl.value });
 
    tu_cond_exec_end(cs);
 }
