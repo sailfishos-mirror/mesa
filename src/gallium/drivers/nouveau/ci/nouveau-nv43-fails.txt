@@ -1051,4 +1051,4 @@ spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-drawelements,Fa
 spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-multidrawelements,Fail
 
 # recent regression probably due to shader swizzles
-spec@ext_framebuffer_object@fbo-depth-sample-compare
+spec@ext_framebuffer_object@fbo-depth-sample-compare,Fail
