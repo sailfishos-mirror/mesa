@@ -728,10 +728,9 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
       if (devinfo->ver < 30 && sched_mode != BRW_SCHEDULE_PRE)
          continue;
 
-      /* These don't appear to provide much benefit on xe3+.
+      /* This one doesn't appear to provide much benefit on xe3+.
        */
-      if (devinfo->ver >= 30 && (sched_mode == BRW_SCHEDULE_PRE_LIFO ||
-                                 sched_mode == BRW_SCHEDULE_NONE))
+      if (devinfo->ver >= 30 && sched_mode == BRW_SCHEDULE_PRE_LIFO)
          continue;
 
       brw_schedule_instructions_pre_ra(s, sched, sched_mode);
