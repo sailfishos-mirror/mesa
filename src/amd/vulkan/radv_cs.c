@@ -89,9 +89,19 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
    }
 
    if (flush_bits & (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB)) {
-      /* TODO: trigger on RADV_CMD_FLAG_FLUSH_AND_INV_CB_META */
-      if (gfx_level < GFX12 && flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB) {
-         /* Flush CMASK/FMASK/DCC. Will wait for idle later. */
+      if ((flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB && flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB) ||
+          /* Gfx11 can't use the DB_META event and must use a full flush to flush DB_META. */
+          (gfx_level == GFX11 && flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB)) {
+         cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+      } else if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB) {
+         cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
+      } else {
+         assert(flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB);
+         cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
+      }
+
+      /* We must flush CMASK/FMASK/DCC separately if the main event only flushes CB_DATA. */
+      if (gfx_level < GFX12 && cb_db_event == V_028A90_FLUSH_AND_INV_CB_DATA_TS) {
          radeon_begin(cs);
          radeon_event_write(V_028A90_FLUSH_AND_INV_CB_META);
          radeon_end();
@@ -99,10 +109,8 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          *sqtt_flush_bits |= RGP_FLUSH_FLUSH_CB | RGP_FLUSH_INVAL_CB;
       }
 
-      /* GFX11 can't flush DB_META and should use a TS event instead. */
-      /* TODO: trigger on RADV_CMD_FLAG_FLUSH_AND_INV_DB_META ? */
-      if (gfx_level < GFX12 && gfx_level != GFX11 && (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB)) {
-         /* Flush HTILE. Will wait for idle later. */
+      /* We must flush HTILE separately if the main event only flushes DB_DATA. */
+      if (gfx_level < GFX12 && cb_db_event == V_028A90_FLUSH_AND_INV_DB_DATA_TS) {
          radeon_begin(cs);
          radeon_event_write(V_028A90_FLUSH_AND_INV_DB_META);
          radeon_end();
@@ -112,21 +120,6 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
       /* First flush CB/DB, then L1/L2. */
       gcr_cntl |= S_587_SEQ(V_587_SEQ_FORWARD);
-
-      if ((flush_bits & (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB)) ==
-          (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB)) {
-         cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
-      } else if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB) {
-         cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
-      } else if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB) {
-         if (gfx_level == GFX11) {
-            cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
-         } else {
-            cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
-         }
-      } else {
-         assert(0);
-      }
    } else {
       /* Wait for graphics shaders to go idle if requested.
        *
