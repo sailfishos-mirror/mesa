@@ -44,6 +44,10 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
    /* We don't need these. */
    assert(!(flush_bits & (RADV_CMD_FLAG_VGT_STREAMOUT_SYNC)));
 
+   if (flush_bits & (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_VS_PARTIAL_FLUSH |
+                     RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH))
+      flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
+
    if (flush_bits & RADV_CMD_FLAG_INV_ICACHE) {
       gcr_cntl |= S_587_GLI_INV(V_587_GLI_ALL);
 
@@ -169,6 +173,9 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, V_581B_CP_PFP, 0, gcr_cntl);
 
          gcr_cntl = 0; /* all done */
+
+         /* ACQUIRE_MEM in PFP is implemented as ACQUIRE_MEM in ME + PFP_SYNC_ME. */
+         flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
       } else {
          /* CB/DB flush and invalidate (or possibly just a wait for a
           * meta flush) via RELEASE_MEM.
@@ -216,9 +223,7 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
    /* Ignore fields that only modify the behavior of other fields. */
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
       ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, gcr_cntl);
-   } else if ((cb_db_event || (flush_bits & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH |
-                                             RADV_CMD_FLAG_CS_PARTIAL_FLUSH))) &&
-              !is_mec) {
+   } else if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME && !is_mec) {
       /* We need to ensure that PFP waits as well. */
       ac_emit_cp_pfp_sync_me(cs->b, false);
 
@@ -387,12 +392,14 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       radeon_end();
    }
 
+   if (flush_bits &
+       (RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2))
+      flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
+
    /* Make sure ME is idle (it executes most packets) before continuing.
     * This prevents read-after-write hazards between PFP and ME.
     */
-   if ((cp_coher_cntl || (flush_bits & (RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                        RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2))) &&
-       !is_mec) {
+   if ((cp_coher_cntl || (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME)) && !is_mec) {
       ac_emit_cp_pfp_sync_me(cs->b, false);
 
       *sqtt_flush_bits |= RGP_FLUSH_PFP_SYNC_ME;
