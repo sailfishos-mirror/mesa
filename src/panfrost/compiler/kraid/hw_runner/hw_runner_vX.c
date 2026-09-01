@@ -179,22 +179,17 @@ GENX(hw_runner_new_cmd_stream)(struct pan_kmod_dev *kdev,
       .cs_size_B = 0,
    };
 
-   if (info->data_bo_host_ptr == NULL || info->descr_bo_host_ptr == NULL)
+   if (info->descr_bo_host_ptr == NULL)
       return;
 
    /* Fill the data in */
-   struct hw_runner_shader_args args = {
-      .data_addr = info->data_bo_device_ptr,
-      .data_stride = info->data_stride_B,
-   };
-
    void *descr_ptr = info->descr_bo_host_ptr;
 
    /* FAU */
    memcpy(descr_ptr + fau_offset_B, info->fau_ptr, info->fau_size_B);
    /* shader_args must be copied on top of FAU */
-   memcpy(descr_ptr + fau_offset_B + info->args_fau_offset, &args,
-          sizeof(args));
+   memcpy(descr_ptr + fau_offset_B + info->args_fau_offset, &info->shader_args,
+          sizeof(info->shader_args));
    /* Shader code */
    memcpy(descr_ptr + shader_offset_B, info->code_ptr, info->code_size_B);
 
@@ -250,7 +245,4 @@ GENX(hw_runner_new_cmd_stream)(struct pan_kmod_dev *kdev,
 
    hw_runner_fill_cmd_stream(kdev, &cmdstream_info);
    out->cs_size_B = cmdstream_info.output_cs.size_B;
-
-   /* At last, copy data */
-   memcpy(info->data_bo_host_ptr, info->data_ptr, info->data_size_B);
 }
