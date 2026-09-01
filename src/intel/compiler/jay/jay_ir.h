@@ -1577,6 +1577,18 @@ struct jay_footprint {
    unsigned base, width;
 };
 
+static inline void
+jay_footprint_set(BITSET_WORD *bitset, struct jay_footprint fp)
+{
+   BITSET_SET_COUNT(bitset, fp.base, fp.width);
+}
+
+static inline bool
+jay_footprint_test(BITSET_WORD *bitset, struct jay_footprint fp)
+{
+   return BITSET_TEST_COUNT(bitset, fp.base, fp.width);
+}
+
 static inline unsigned
 jay_footprint_base(jay_shader *shader, enum jay_file file)
 {

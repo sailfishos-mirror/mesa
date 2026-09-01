@@ -343,8 +343,7 @@ lower_sbid_local(jay_function *func,
          struct jay_footprint src = def_to_sbid_key(func, I, I->src[s]);
 
          u_foreach_bit(sbid, busy_dst) {
-            if (BITSET_TEST_COUNT(bitset_for(edge, sbid, DST), src.base,
-                                  src.width)) {
+            if (jay_footprint_test(bitset_for(edge, sbid, DST), src)) {
                sync_dst |= BITFIELD_BIT(sbid);
                busy_dst &= ~BITFIELD_BIT(sbid);
                busy_src &= ~BITFIELD_BIT(sbid);
@@ -357,8 +356,7 @@ lower_sbid_local(jay_function *func,
          struct jay_footprint dst = def_to_sbid_key(func, I, d);
 
          u_foreach_bit(sbid, busy_dst) {
-            if (BITSET_TEST_COUNT(bitset_for(edge, sbid, DST), dst.base,
-                                  dst.width)) {
+            if (jay_footprint_test(bitset_for(edge, sbid, DST), dst)) {
                sync_dst |= BITFIELD_BIT(sbid);
                busy_dst &= ~BITFIELD_BIT(sbid);
                busy_src &= ~BITFIELD_BIT(sbid);
@@ -366,8 +364,7 @@ lower_sbid_local(jay_function *func,
          }
 
          u_foreach_bit(sbid, busy_src) {
-            if (BITSET_TEST_COUNT(bitset_for(edge, sbid, SRC), dst.base,
-                                  dst.width)) {
+            if (jay_footprint_test(bitset_for(edge, sbid, SRC), dst)) {
                sync_src |= BITFIELD_BIT(sbid);
                busy_src &= ~BITFIELD_BIT(sbid);
             }
@@ -419,12 +416,12 @@ lower_sbid_local(jay_function *func,
          busy_dst |= BITFIELD_BIT(sbid);
          busy_src |= BITFIELD_BIT(sbid);
 
-         struct jay_footprint dst = def_to_sbid_key(func, I, I->dst);
-         BITSET_SET_COUNT(bitset_for(edge, sbid, DST), dst.base, dst.width);
+         jay_footprint_set(bitset_for(edge, sbid, DST),
+                           def_to_sbid_key(func, I, I->dst));
 
          jay_foreach_src(I, s) {
-            struct jay_footprint src = def_to_sbid_key(func, I, I->src[s]);
-            BITSET_SET_COUNT(bitset_for(edge, sbid, SRC), src.base, src.width);
+            jay_footprint_set(bitset_for(edge, sbid, SRC),
+                              def_to_sbid_key(func, I, I->src[s]));
          }
 
          /* Barriers are non-EOT gateway messages. Insert the needed SYNC */
