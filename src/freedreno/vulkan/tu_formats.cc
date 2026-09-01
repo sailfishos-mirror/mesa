@@ -363,8 +363,15 @@ tu_physical_device_get_format_properties(
     *    VK_IMAGE_TYPE_2D
     *    [...]
     *    bufferFeatures must not support any features for these formats
+    *
+    * additionally, 1.4.349 spec, section 56.2 "Format Properties":
+    *
+    *
+    *     If format is block-compressed, requires sampler Y′CBCR conversion, or is
+    *     a depth/stencil format then bufferFeatures must not support any features
+    *     for the format"
     */
-   if (ycbcr_info || vk_format_is_depth_or_stencil(vk_format))
+   if (ycbcr_info || vk_format_is_depth_or_stencil(vk_format) || vk_format_is_compressed(vk_format))
       buffer = 0;
 
    /* D32_SFLOAT_S8_UINT is tiled as two images, so no linear format */
