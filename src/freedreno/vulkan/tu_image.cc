@@ -1459,12 +1459,14 @@ tu_get_image_subresource_layout(struct tu_image *image,
    pLayout->subresourceLayout.arrayPitch =
       fdl_layer_stride(layout, pSubresource->imageSubresource.mipLevel);
    pLayout->subresourceLayout.depthPitch = slice->size0;
-   pLayout->subresourceLayout.size = slice->size0 * layout->depth0;
+   pLayout->subresourceLayout.size = slice->size0;
+   if (image->vk.image_type == VK_IMAGE_TYPE_3D)
+      pLayout->subresourceLayout.size *= u_minify(layout->depth0, pSubresource->imageSubresource.mipLevel);
 
    VkSubresourceHostMemcpySizeEXT *memcpy_size =
       vk_find_struct(pLayout, SUBRESOURCE_HOST_MEMCPY_SIZE_EXT);
    if (memcpy_size) {
-      memcpy_size->size = slice->size0;
+      memcpy_size->size = pLayout->subresourceLayout.size;
    }
 
    VkImageCompressionPropertiesEXT *compression_props =
