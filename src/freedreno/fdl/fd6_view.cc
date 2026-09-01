@@ -373,8 +373,6 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
    } else if (CHIP >= A8XX) {
       uint32_t *descriptor = view->descriptor;
 
-      assert(!args->filter_width); /* Need descriptor fields defined. */
-
       descriptor[0] = A8XX_TEX_MEMOBJ_0_BASE_LO(base_addr[0]);
       descriptor[1] = A8XX_TEX_MEMOBJ_1_BASE_HI(base_addr[0] >> 32) |
                       A8XX_TEX_MEMOBJ_1_TYPE(fdl6_tex_type(args->type, false));
