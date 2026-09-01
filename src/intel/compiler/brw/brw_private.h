@@ -144,6 +144,7 @@ struct brw_simd_selection_state {
 
    bool compiled[SIMD_COUNT];
    bool spilled[SIMD_COUNT];
+   bool failed[SIMD_COUNT];
    bool beyond_threshold[SIMD_COUNT];
 };
 
@@ -164,6 +165,8 @@ inline bool brw_simd_any_compiled(const brw_simd_selection_state &state)
 bool brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd);
 
 void brw_simd_mark_compiled(brw_simd_selection_state &state, unsigned simd, bool spilled);
+
+void brw_simd_mark_failed(brw_simd_selection_state &state, unsigned simd, const char *error);
 
 int brw_simd_select(const brw_simd_selection_state &state);
 

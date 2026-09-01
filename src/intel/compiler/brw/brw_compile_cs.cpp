@@ -235,7 +235,9 @@ brw_compile_cs(const struct brw_compiler *compiler,
              !nir->info.workgroup_size_variable)
             break;
       } else {
-         simd_state.error[simd] = ralloc_strdup(params->base.mem_ctx, v[simd]->fail_msg);
+         brw_simd_mark_failed(simd_state, simd,
+                              ralloc_strdup(params->base.mem_ctx,
+                                            v[simd]->fail_msg));
          if (simd > 0) {
             brw_shader_perf_log(compiler, params->base.log_data,
                                 "SIMD%u shader failed to compile: %s\n",
