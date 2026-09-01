@@ -1482,21 +1482,19 @@ impl<'a> ShaderFromNir<'a> {
                     src: self.get_src(&srcs[0]),
                 });
             }
-            nir_intrinsic_barrier => {
-                match intrin.execution_scope() {
-                    SCOPE_NONE | SCOPE_SUBGROUP => {
-                        // TODO: Scheduling barrier
-                    }
-                    SCOPE_WORKGROUP => {
-                        assert!(matches!(
-                            self.nir.info.stage(),
-                            MESA_SHADER_COMPUTE | MESA_SHADER_KERNEL
-                        ));
-                        b.push_op(OpBarrier {});
-                    }
-                    _ => panic!("Unsupported barrier scope"),
+            nir_intrinsic_barrier => match intrin.execution_scope() {
+                SCOPE_NONE | SCOPE_SUBGROUP => {
+                    b.push_op(OpScheduleBarrier {});
                 }
-            }
+                SCOPE_WORKGROUP => {
+                    assert!(matches!(
+                        self.nir.info.stage(),
+                        MESA_SHADER_COMPUTE | MESA_SHADER_KERNEL
+                    ));
+                    b.push_op(OpBarrier {});
+                }
+                _ => panic!("Unsupported barrier scope"),
+            },
             nir_intrinsic_cmat_muladd_pan => {
                 let src_a = self.get_src(&srcs[0]);
                 let src_b = self.get_src(&srcs[1]);

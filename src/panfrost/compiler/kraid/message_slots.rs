@@ -15,6 +15,10 @@ impl Shader<'_> {
                     i.flow.set_wait_bit(FlowWaitBit::Slot0);
                 }
             }
+
+            // Remove virtual schedule barriers.
+            b.instrs
+                .retain(|instr| !matches!(&instr.op, Op::ScheduleBarrier(_)));
         }
     }
 }

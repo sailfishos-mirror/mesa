@@ -3249,6 +3249,25 @@ impl VirtualOpcode for OpRegOut {
     }
 }
 
+// Virtual operation to mark scheduling barriers, message instructions are not
+// allowed to move across the barrier and must finish by it. This op is not
+// encoded and must be removed at the end of the compiliation pipeline.
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpScheduleBarrier {}
+
+impl DisplayOp for OpScheduleBarrier {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SCHEDULE_BARRIER")
+    }
+
+    fn fmt_body(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Ok(())
+    }
+}
+
+impl VirtualOpcode for OpScheduleBarrier {}
+
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum ShiftOp {
     #[default]
@@ -3946,6 +3965,7 @@ pub enum Op {
     PopCount(Box<OpPopCount>),
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),
+    ScheduleBarrier(OpScheduleBarrier),
     ShiftLop(Box<OpShiftLop>),
     StCvt(Box<OpStCvt>),
     Store(Box<OpStore>),
@@ -3980,6 +4000,7 @@ impl Op {
             Op::PhiSrc(op) => Some(op.as_ref()),
             Op::RegIn(op) => Some(op.as_ref()),
             Op::RegOut(op) => Some(op.as_ref()),
+            Op::ScheduleBarrier(op) => Some(op),
             Op::Swz(op) => Some(op.as_ref()),
             _ => None,
         }
@@ -3994,6 +4015,7 @@ impl Op {
                 | Op::Barrier(_)
                 | Op::Branch(_)
                 | Op::RegOut(_)
+                | Op::ScheduleBarrier(_)
                 | Op::Store(_)
                 | Op::StCvt(_)
         )
