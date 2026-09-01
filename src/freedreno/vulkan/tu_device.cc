@@ -2136,10 +2136,9 @@ tu_get_system_heap_size(struct tu_physical_device *physical_device)
 }
 
 static inline VkDeviceSize
-tu_get_budget_memory(struct tu_physical_device *physical_device)
+tu_get_budget_memory(struct tu_physical_device *physical_device, uint64_t heap_used)
 {
    uint64_t heap_size = physical_device->heap.size;
-   uint64_t heap_used = p_atomic_read(&physical_device->heap.used);
 
    /*
     * Let's not incite the app to starve the system: report at most 90% of
@@ -2177,8 +2176,8 @@ tu_GetPhysicalDeviceMemoryProperties2(VkPhysicalDevice pdev,
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
          VkPhysicalDeviceMemoryBudgetPropertiesEXT *memory_budget_props =
             (VkPhysicalDeviceMemoryBudgetPropertiesEXT *) ext;
-         memory_budget_props->heapUsage[0] = physical_device->heap.used;
-         memory_budget_props->heapBudget[0] = tu_get_budget_memory(physical_device);
+         memory_budget_props->heapUsage[0] = p_atomic_read(&physical_device->heap.used);
+         memory_budget_props->heapBudget[0] = tu_get_budget_memory(physical_device, memory_budget_props->heapUsage[0]);
 
          /* The heapBudget and heapUsage values must be zero for array elements
           * greater than or equal to VkPhysicalDeviceMemoryProperties::memoryHeapCount
