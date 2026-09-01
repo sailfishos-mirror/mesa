@@ -1215,6 +1215,31 @@ bi_pack_valhall(bi_context *ctx, struct util_dynarray *emission)
    if (ctx->stage == MESA_SHADER_FRAGMENT && !ctx->inputs->is_blend)
       va_lower_blend(ctx);
 
+   bool has_pool = false;
+   unsigned num_instrs = 0;
+
+   bi_foreach_block(ctx, block) {
+      bi_foreach_instr_in_block(block, I) {
+         has_pool |= I->patch_imm_const_offset;
+         num_instrs++;
+      }
+   }
+
+   unsigned pool_offset = ALIGN_POT(num_instrs * 8 + 8, 128);
+
+   if (has_pool) {
+      assert(ctx->nir->constant_data_size);
+
+      unsigned idx = 0;
+      bi_foreach_block(ctx, block) {
+         bi_foreach_instr_in_block(block, I) {
+            if (I->patch_imm_const_offset)
+               I->index += pool_offset - (idx + 1) * 8;
+            idx++;
+         }
+      }
+   }
+
    bi_foreach_block(ctx, block) {
       bi_foreach_instr_in_block(block, I) {
          if (I->op == BI_OPCODE_BRANCHZ_I16)
@@ -1223,6 +1248,14 @@ bi_pack_valhall(bi_context *ctx, struct util_dynarray *emission)
          uint64_t hex = va_pack_instr(I, ctx->arch);
          util_dynarray_append(emission, hex);
       }
+   }
+
+   if (has_pool) {
+      unsigned pad = (orig_size + pool_offset) - emission->size;
+      memset(util_dynarray_grow(emission, uint8_t, pad), 0, pad);
+      memcpy(
+         util_dynarray_grow(emission, uint8_t, ctx->nir->constant_data_size),
+         ctx->nir->constant_data, ctx->nir->constant_data_size);
    }
 
    /* Pad with zeroes, but keep empty programs empty so they may be omitted

@@ -2120,6 +2120,17 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_mov_i32_to(b, dst, bi_fau(BIR_FAU_SHADER_OUTPUT, false));
       break;
 
+   case nir_intrinsic_load_constant_base_ptr: {
+      assert(b->shader->arch >= 9);
+      bi_index lo = bi_temp(b->shader);
+      bi_instr *I =
+         bi_iadd_imm_i32_to(b, lo, bi_fau(BIR_FAU_PROGRAM_COUNTER, false), 0);
+      I->patch_imm_const_offset = true;
+      bi_collect_v2i32_to(b, dst, lo,
+                          bi_mov_i32(b, bi_fau(BIR_FAU_PROGRAM_COUNTER, true)));
+      break;
+   }
+
    case nir_intrinsic_load_core_id:
       assert(b->shader->arch >= 9);
       bi_mov_i32_to(b, dst, bi_fau(BIR_FAU_CORE_ID, false));

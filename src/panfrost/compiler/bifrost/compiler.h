@@ -607,6 +607,11 @@ typedef struct {
    /* Valhall-only property to relax waits on read-only resources */
    bool wait_resource;
 
+   /* Valhall-only: at pack time, replace the immediate with the byte offset
+    * from the next instruction to the inline constant pool.
+    */
+   bool patch_imm_const_offset;
+
    /* Slot associated with a message-passing instruction */
    uint8_t slot;
 
