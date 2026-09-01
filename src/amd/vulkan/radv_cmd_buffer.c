@@ -1762,7 +1762,7 @@ static void
 radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask,
                   VkPipelineStageFlags2 dst_stage_mask)
 {
-   src_stage_mask = vk_expand_src_stage_flags2(src_stage_mask);
+   src_stage_mask = radv_get_src_stage_flags2(src_stage_mask);
    dst_stage_mask = vk_expand_dst_stage_flags2(dst_stage_mask);
 
    /* Update flush bits from the main cmdbuf, except the stage flush. */
