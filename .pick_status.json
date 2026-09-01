@@ -294,7 +294,7 @@
         "description": "amd: only enable the addrlib SIMD path when supported",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "aea04d11b7d675b003558760f57e94a883d07add",
         "notes": null
