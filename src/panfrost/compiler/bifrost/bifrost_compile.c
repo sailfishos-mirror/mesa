@@ -4020,6 +4020,9 @@ va_gather_stats_block(bi_block *block, struct va_stats *counts)
    unsigned nr_ins = 0;
 
    bi_foreach_instr_in_block(block, I) {
+      if (I->is_blend_prologue)
+         continue;
+
       nr_ins++;
       va_count_instr_stats(I, counts);
    }
@@ -4109,6 +4112,9 @@ va_gather_stats(bi_context *ctx, unsigned size, struct valhall_stats *out,
    switch (mode) {
    case GATHER_STATS_FULL:
       bi_foreach_instr_global(ctx, I) {
+         if (I->is_blend_prologue)
+            continue;
+
          nr_ins++;
          va_count_instr_stats(I, &counts);
       }
