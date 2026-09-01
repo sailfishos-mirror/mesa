@@ -1758,10 +1758,6 @@ radv_get_src_stage_flags2(const VkPipelineStageFlags2 src_stage_mask)
    return stage_mask;
 }
 
-#define RADV_TASK_SHADER_SENSITIVE_STAGES                                                                              \
-   (VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |                                   \
-    VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT)
-
 static void
 radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask,
                   VkPipelineStageFlags2 dst_stage_mask)
@@ -1792,7 +1788,7 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
    const VkPipelineStageFlags2 gang_leader_flags =
       cmd_buffer->qf == RADV_QUEUE_TRANSFER
          ? (VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT)
-         : (VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | RADV_TASK_SHADER_SENSITIVE_STAGES);
+         : (VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT);
    if (dst_stage_mask & gang_leader_flags)
       cmd_buffer->gang.sem.leader_value++;
 
