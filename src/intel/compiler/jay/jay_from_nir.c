@@ -4797,6 +4797,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
                  "Jay SIMD%u shader skipped due to num_regs[MEM] = %u > 0.\n",
                  simd_width, s->num_regs[MEM]);
       }
+      ralloc_free(s);
       return NULL;
    }
 
