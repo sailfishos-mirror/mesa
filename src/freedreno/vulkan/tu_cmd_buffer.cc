@@ -2347,10 +2347,9 @@ tu_emit_bin_preamble(struct tu_device *dev, struct tu_cs *cs, bool bv)
    }
 
    if (CHIP == A6XX) {
-      tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-      tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(REG_A6XX_VSC_CHANNEL_VISIBILITY(0)) |
-                     CP_MEM_TO_REG_0_CNT(32));
-      tu_cs_emit_qw(cs, dev->global_bo->iova + gb_offset(vsc_state));
+      cs->mem_to_reg(A6XX_VSC_CHANNEL_VISIBILITY_REG(0),
+                     dev->global_bo->iova + gb_offset(vsc_state),
+                     { .cnt = 32 });
    }
 }
 
@@ -5280,11 +5279,9 @@ tu_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer,
 
       VK_FROM_HANDLE(tu_buffer, buf, pCounterBuffers[i]);
 
-      tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-      tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(VPC_SO_BUFFER_OFFSET(CHIP, idx).reg) |
-                     CP_MEM_TO_REG_0_WAIT_CACHE_FLUSH |
-                     CP_MEM_TO_REG_0_CNT(1));
-      tu_cs_emit_qw(cs, vk_buffer_address(&buf->vk, counter_buffer_offset));
+      cs->mem_to_reg(VPC_SO_BUFFER_OFFSET(CHIP, idx),
+                     vk_buffer_address(&buf->vk, counter_buffer_offset),
+                     { .cnt = 1, .wait_cache_flush = true });
 
       if (offset) {
          cs->rmw(VPC_SO_BUFFER_OFFSET(CHIP, idx), {
@@ -5334,13 +5331,8 @@ tu_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
       VK_FROM_HANDLE(tu_buffer, buf, pCounterBuffers[i]);
 
       /* VPC_SO_FLUSH_BASE has dwords counter, but counter should be in bytes */
-      tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-      tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(tu_scratch_reg<CHIP>(0).reg) |
-                     COND(CHIP == A6XX, CP_MEM_TO_REG_0_SHIFT_BY_2) |
-                     CP_MEM_TO_REG_0_ONE_REG_WR |
-                     CP_MEM_TO_REG_0_WAIT_CACHE_FLUSH |
-                     CP_MEM_TO_REG_0_CNT(1));
-      tu_cs_emit_qw(cs, global_iova_arr(cmd, flush_base, idx));
+      cs->mem_to_reg(tu_scratch_reg<CHIP>(0), global_iova_arr(cmd, flush_base, idx),
+                     { .one_reg_wr = true, .shift_by_2 = CHIP == A6XX, .wait_cache_flush = true });
 
       if (offset) {
          cs->rmw(tu_scratch_reg<CHIP>(0), {
@@ -5350,10 +5342,8 @@ tu_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
          });
       }
 
-      tu_cs_emit_pkt7(cs, CP_REG_TO_MEM, 3);
-      tu_cs_emit(cs, CP_REG_TO_MEM_0_REG(tu_scratch_reg<CHIP>(0).reg) |
-                     CP_REG_TO_MEM_0_CNT(1));
-      tu_cs_emit_qw(cs, vk_buffer_address(&buf->vk, counter_buffer_offset));
+      cs->reg_to_mem(vk_buffer_address(&buf->vk, counter_buffer_offset),
+                     tu_scratch_reg<CHIP>(0));
    }
 
    tu_cond_exec_end(cs);
@@ -9655,9 +9645,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
           * In a sequence of indirect dispatches this shouldn't wait for the
           * previous dispatches to finish.
           */
-         tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-         tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(SP_CS_NDRANGE_1(CHIP).reg));
-         tu_cs_emit_qw(cs, info->indirect);
+         cs->mem_to_reg(SP_CS_NDRANGE_1(CHIP), info->indirect);
 
          cs->scratch_write(tu_scratch(tu_dispatch.scratch0), ~0);
 

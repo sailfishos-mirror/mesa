@@ -188,6 +188,28 @@ struct tu_cs
    };
 
    void rmw(struct tu_pm4_arg dst, struct tu_rmw_args args);
+
+   struct tu_reg_to_mem_args {
+      unsigned cnt;     /* value of 0 treated as 1 by sqe */
+      bool is_64b;
+      bool accumulate;
+   };
+
+   void reg_to_mem(uint64_t va, struct fd_reg_pair reg, struct tu_reg_to_mem_args args = {});
+
+   /* For reg64: */
+   void reg_to_mem(uint64_t va, struct fd_reg_pair reg_lo, struct fd_reg_pair reg_hi) {
+      reg_to_mem(va, reg_lo, { .cnt = 2, .is_64b = true });
+   }
+
+   struct tu_mem_to_reg_args {
+      bool one_reg_wr;
+      unsigned cnt;     /* value of 0 treated as 1 by sqe */
+      bool shift_by_2;
+      bool wait_cache_flush;
+   };
+
+   void mem_to_reg(struct fd_reg_pair reg, uint64_t va, struct tu_mem_to_reg_args args = {});
 };
 
 void
@@ -960,6 +982,35 @@ tu_cs::rmw(struct tu_pm4_arg dst, struct tu_rmw_args args)
       ))
       .add(args.src0)
       .add(args.src1);
+}
+
+inline void
+tu_cs::reg_to_mem(uint64_t va, struct fd_reg_pair reg, struct tu_reg_to_mem_args args)
+{
+   tu_pkt7(this, CP_REG_TO_MEM, 3)
+      .add(CP_REG_TO_MEM_0(
+         .reg = reg.reg,
+         .cnt = args.cnt,
+         .is_64b = args.is_64b,
+         .accumulate = args.accumulate,
+      ))
+      .add(va)
+      .add(va >> 32);
+}
+
+inline void
+tu_cs::mem_to_reg(struct fd_reg_pair reg, uint64_t va, struct tu_mem_to_reg_args args)
+{
+   tu_pkt7(this, CP_MEM_TO_REG, 3)
+      .add(CP_MEM_TO_REG_0(
+         .reg = reg.reg,
+         .one_reg_wr = args.one_reg_wr,
+         .cnt = args.cnt,
+         .shift_by_2 = args.shift_by_2,
+         .wait_cache_flush = args.wait_cache_flush,
+      ))
+      .add(va)
+      .add(va >> 32);
 }
 
 template <chip CHIP>

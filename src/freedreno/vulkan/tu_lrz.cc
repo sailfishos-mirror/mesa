@@ -850,6 +850,7 @@ tu_lrz_before_sysmem_br(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
          const unsigned if_dwords = 4, else_dwords = if_dwords;
          uint64_t lrz_fc_iova =
             lrz->image_view->image->iova + lrz->image_view->image->lrz_layout.lrz_fc_offset;
+         // FIXME hard-coding A7XX here and below is wrong!
          uint64_t br_cur_buffer_iova =
             lrz_fc_iova + offsetof(fd_lrzfc_layout<A7XX>, br_cur_buffer);
 
@@ -866,17 +867,14 @@ tu_lrz_before_sysmem_br(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
          tu_cs_emit(cs, 2); /* REF */
          tu_cs_emit(cs, if_dwords + 1);
          /*    GRAS_LRZ_DEPTH_CLEAR = lrz_fc->buffer[1].depth_clear_val */
-         tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-         tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(GRAS_LRZ_DEPTH_CLEAR(CHIP).reg));
-         tu_cs_emit_qw(cs, lrz_fc_iova + offsetof(fd_lrzfc_layout<A7XX>,
-                                                  buffer[1].depth_clear_val));
+         cs->mem_to_reg(GRAS_LRZ_DEPTH_CLEAR(CHIP),
+                        lrz_fc_iova + offsetof(fd_lrzfc_layout<A7XX>, buffer[1].depth_clear_val));
+
          /* } else { */
          tu_cs_emit_pkt7(cs, CP_NOP, else_dwords);
          /*    GRAS_LRZ_DEPTH_CLEAR = lrz_fc->buffer[0].depth_clear_val */
-         tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
-         tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(GRAS_LRZ_DEPTH_CLEAR(CHIP).reg));
-         tu_cs_emit_qw(cs, lrz_fc_iova + offsetof(fd_lrzfc_layout<A7XX>,
-                                                  buffer[0].depth_clear_val));
+         cs->mem_to_reg(GRAS_LRZ_DEPTH_CLEAR(CHIP),
+                        lrz_fc_iova + offsetof(fd_lrzfc_layout<A7XX>, buffer[0].depth_clear_val));
          /* } */
       }
    }
