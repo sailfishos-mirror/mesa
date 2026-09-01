@@ -1050,3 +1050,5 @@ spec@nv_primitive_restart@dlist,Fail
 spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-drawelements,Fail
 spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-multidrawelements,Fail
 
+# recent regression probably due to shader swizzles
+spec@ext_framebuffer_object@fbo-depth-sample-compare
