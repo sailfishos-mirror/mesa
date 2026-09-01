@@ -1353,8 +1353,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="CNT" low="19" high="29" type="uint"/>
 		<!-- shift each DWORD left by 2 while copying -->
 		<bitfield name="SHIFT_BY_2" pos="30" type="boolean"/>
-		<!-- does the same thing as CP_MEM_TO_MEM::UNK31 -->
-		<bitfield name="UNK31" pos="31" type="boolean"/>
+		<bitfield name="WAIT_CACHE_FLUSH" pos="31" type="boolean"/>
 	</reg32>
 	<stripe varset="chip" variants="A2XX-A4XX">
 		<reg32 offset="1" name="SRC" type="address"/>
@@ -1378,8 +1377,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="DOUBLE" pos="29" type="boolean"/>
 		<!-- execute CP_WAIT_FOR_MEM_WRITES beforehand -->
 		<bitfield name="WAIT_FOR_MEM_WRITES" pos="30" type="boolean"/>
-		<!-- some other kind of wait -->
-		<bitfield name="UNK31" pos="31" type="boolean"/>
+		<bitfield name="WAIT_CACHE_FLUSH" pos="31" type="boolean"/>
 	</reg32>
 	<reg64 offset="1" name="DST" type="waddress"/>
 	<reg64 offset="3" name="SRC_A" type="address"/>

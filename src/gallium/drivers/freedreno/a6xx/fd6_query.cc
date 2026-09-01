@@ -658,7 +658,7 @@ accumultate_primitives_emitted(struct fd_acc_query *aq, fd_cs &cs, int idx)
 {
    /* result += stop - start: */
    fd_pkt7(cs, CP_MEM_TO_MEM, 9)
-      .add(CP_MEM_TO_MEM_0(.neg_c = true, ._double = true, .unk31 = true))
+      .add(CP_MEM_TO_MEM_0(.neg_c = true, ._double = true, .wait_cache_flush = true))
       .add(CP_MEM_TO_MEM_DST(primitives_sample(aq, result.emitted)))
       .add(CP_MEM_TO_MEM_SRC_A(primitives_sample(aq, result.emitted)))
       .add(CP_MEM_TO_MEM_SRC_B(primitives_sample(aq, stop[idx].emitted)))
@@ -670,7 +670,7 @@ accumultate_primitives_generated(struct fd_acc_query *aq, fd_cs &cs, int idx)
 {
    /* result += stop - start: */
    fd_pkt7(cs, CP_MEM_TO_MEM, 9)
-      .add(CP_MEM_TO_MEM_0(.neg_c = true, ._double = true, .unk31 = true))
+      .add(CP_MEM_TO_MEM_0(.neg_c = true, ._double = true, .wait_cache_flush = true))
       .add(CP_MEM_TO_MEM_DST(primitives_sample(aq, result.generated)))
       .add(CP_MEM_TO_MEM_SRC_A(primitives_sample(aq, result.generated)))
       .add(CP_MEM_TO_MEM_SRC_B(primitives_sample(aq, stop[idx].generated)))

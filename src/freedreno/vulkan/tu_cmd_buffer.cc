@@ -5281,7 +5281,7 @@ tu_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer,
 
       tu_cs_emit_pkt7(cs, CP_MEM_TO_REG, 3);
       tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(VPC_SO_BUFFER_OFFSET(CHIP, idx).reg) |
-                     CP_MEM_TO_REG_0_UNK31 |
+                     CP_MEM_TO_REG_0_WAIT_CACHE_FLUSH |
                      CP_MEM_TO_REG_0_CNT(1));
       tu_cs_emit_qw(cs, vk_buffer_address(&buf->vk, counter_buffer_offset));
 
@@ -5337,7 +5337,7 @@ tu_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
       tu_cs_emit(cs, CP_MEM_TO_REG_0_REG(tu_scratch_reg<CHIP>(0).reg) |
                      COND(CHIP == A6XX, CP_MEM_TO_REG_0_SHIFT_BY_2) |
                      0x40000 | /* ??? */
-                     CP_MEM_TO_REG_0_UNK31 |
+                     CP_MEM_TO_REG_0_WAIT_CACHE_FLUSH |
                      CP_MEM_TO_REG_0_CNT(1));
       tu_cs_emit_qw(cs, global_iova_arr(cmd, flush_base, idx));
 

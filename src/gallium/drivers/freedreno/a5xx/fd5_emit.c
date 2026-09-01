@@ -766,7 +766,7 @@ fd5_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
             OUT_PKT7(ring, CP_MEM_TO_REG, 3);
             OUT_RING(ring,
                      CP_MEM_TO_REG_0_REG(REG_A5XX_VPC_SO_BUFFER_OFFSET(i)) |
-                        CP_MEM_TO_REG_0_SHIFT_BY_2 | CP_MEM_TO_REG_0_UNK31 |
+                        CP_MEM_TO_REG_0_SHIFT_BY_2 | CP_MEM_TO_REG_0_WAIT_CACHE_FLUSH |
                         CP_MEM_TO_REG_0_CNT(0));
             OUT_RELOC(ring, offset_bo, 0, 0, 0);
          }

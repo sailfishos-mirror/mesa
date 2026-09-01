@@ -420,7 +420,7 @@ fd6_emit_streamout(fd_cs &cs, struct fd6_emit *emit) assert_dt
             .add(CP_MEM_TO_REG_0(
                .reg = VPC_SO_BUFFER_OFFSET(CHIP, i).reg,
                .shift_by_2 = CHIP == A6XX,
-               .unk31 = true,
+               .wait_cache_flush = true,
             ))
             .add(A5XX_CP_MEM_TO_REG_SRC(offset_bo));
       }
