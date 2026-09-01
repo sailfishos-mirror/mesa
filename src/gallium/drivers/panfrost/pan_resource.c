@@ -2344,8 +2344,9 @@ panfrost_ptr_unmap(struct pipe_context *pctx, struct pipe_transfer *transfer)
                                        prsrc->image.props.format, 0);
 
                if (prsrc->plane.layout.data_size_B > panfrost_bo_size(bo)) {
+                  uint32_t flags = bo->flags & ~PAN_BO_DELAY_MMAP;
                   struct panfrost_bo *newbo = panfrost_bo_create(
-                     dev, prsrc->plane.layout.data_size_B, 0, bo->label);
+                     dev, prsrc->plane.layout.data_size_B, flags, bo->label);
 
                   assert(newbo);
                   panfrost_bo_unreference(prsrc->bo);
