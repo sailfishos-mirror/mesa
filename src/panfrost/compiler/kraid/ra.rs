@@ -1989,6 +1989,7 @@ impl GlobalRegAlloc<'_> {
                 Op::Branch(op) => {
                     let old = branch.replace(op);
                     assert!(old.is_none());
+                    continue;
                 }
                 Op::PhiDst(ref op) => {
                     debug_assert_ne!(bi, 0);
@@ -2000,8 +2001,12 @@ impl GlobalRegAlloc<'_> {
                     if !self.local.arena.contains_ref(dst_vec) {
                         instrs.push(instr);
                     }
+                    continue;
                 }
-                Op::PhiSrc(op) => phi_srcs.push(op),
+                Op::PhiSrc(op) => {
+                    phi_srcs.push(op);
+                    continue;
+                }
                 Op::RegIn(_) => {
                     // These were handled by start_shader if is_reg().  If not,
                     // then we're allocating memory and we need to leave them
@@ -2010,19 +2015,21 @@ impl GlobalRegAlloc<'_> {
                     if !self.local.arena.is_reg() {
                         instrs.push(instr);
                     }
+                    continue;
                 }
-                Op::RegOut(op) => reg_outs.push(op),
-                _ => {
-                    let mut pcopy = ParallelCopy::new(
-                        self.local.model,
-                        self.local.arena.is_mem(),
-                    );
-                    self.local.alloc_regs_instr(ip, &mut instr, &mut pcopy, bl);
-                    let mut pcopy_alloc = self.pcopy_alloc(ssa_alloc);
-                    instrs.extend(pcopy.into_instrs(pcopy_alloc.as_mut()));
-                    instrs.push(instr);
+                Op::RegOut(op) => {
+                    reg_outs.push(op);
+                    continue;
                 }
+                _ => (),
             }
+
+            let mut pcopy =
+                ParallelCopy::new(self.local.model, self.local.arena.is_mem());
+            self.local.alloc_regs_instr(ip, &mut instr, &mut pcopy, bl);
+            let mut pcopy_alloc = self.pcopy_alloc(ssa_alloc);
+            instrs.extend(pcopy.into_instrs(pcopy_alloc.as_mut()));
+            instrs.push(instr);
         }
 
         if cfg.succ_indices(bi).is_empty() {
