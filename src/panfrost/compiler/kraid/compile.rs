@@ -247,6 +247,7 @@ pub extern "C" fn kraid_compile_nir(
         pass!(s.opt_copy_prop());
     }
     pass!(s.lower_mkvec_swz());
+    pass!(s.opt_var());
     pass!(s.opt_dce());
     pass!(s.lower_small_constants());
     if inputs.fau.promote_immediates {

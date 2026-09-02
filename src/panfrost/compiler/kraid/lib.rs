@@ -29,6 +29,7 @@ mod opt_copy_prop;
 mod opt_dce;
 mod opt_end;
 mod opt_promote_consts;
+mod opt_var;
 mod parallel_copy;
 mod phi;
 mod ra;
