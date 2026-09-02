@@ -1,7 +1,7 @@
 // Copyright © 2024 Mel Henning
 // SPDX-License-Identifier: MIT
 
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::hash::{BuildHasher, Hash};
 
 #[derive(Copy, Clone)]
@@ -131,6 +131,35 @@ impl<X: Copy + Hash + Eq, H: BuildHasher + Default> UnionFind<X, H> {
     /// Return true if find() is the identity mapping
     pub fn is_empty(&self) -> bool {
         self.nodes.0.is_empty()
+    }
+}
+
+pub struct IntoIter<X: Copy> {
+    idx_map: hash_map::IntoIter<X, usize>,
+    nodes: NodeVec<X>,
+}
+
+impl<X: Copy> Iterator for IntoIter<X> {
+    type Item = (X, X);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (k, idx) = self.idx_map.next()?;
+        let (_, root) = self.nodes.find_update_root(idx);
+        Some((k, root.representative))
+    }
+}
+
+impl<X: Copy + Hash + Eq, H: BuildHasher + Default> IntoIterator
+    for UnionFind<X, H>
+{
+    type Item = (X, X);
+    type IntoIter = IntoIter<X>;
+
+    fn into_iter(self) -> IntoIter<X> {
+        IntoIter {
+            idx_map: self.idx_map.into_iter(),
+            nodes: self.nodes,
+        }
     }
 }
 
