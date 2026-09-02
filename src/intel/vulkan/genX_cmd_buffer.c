@@ -1785,8 +1785,6 @@ resource_barrier_signal_stage(enum intel_engine_class engine_class,
    if (engine_class == INTEL_ENGINE_CLASS_RENDER) {
       if (vk_stages & (VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT_KHR |
                        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR |
-                       VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT_KHR |
-                       VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR |
                        VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR |
                        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT_KHR |
                        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT_KHR |
