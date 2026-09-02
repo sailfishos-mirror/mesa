@@ -266,6 +266,7 @@ pub extern "C" fn kraid_compile_nir(
     // These have to happen last since we can't remove any instructions after
     // they've completed.
     pass!(s.assign_message_slots());
+    pass!(s.insert_required_waits());
     pass!(s.mark_reconvergence());
     pass!(s.opt_end());
     pass!(s.lower_blend_call());

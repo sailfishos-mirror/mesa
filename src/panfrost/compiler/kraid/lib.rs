@@ -34,6 +34,7 @@ mod ra;
 mod reconvergence;
 mod remat_constants;
 mod repair_ssa;
+mod required_waits;
 mod schedule;
 mod small_constants;
 mod spill;
