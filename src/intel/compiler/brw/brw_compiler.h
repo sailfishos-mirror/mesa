@@ -642,12 +642,6 @@ struct brw_fs_prog_data {
    enum intel_sometimes provoking_vertex_last;
 
    /**
-    * If the fragment shader reads FullyCovered, it needs to know what the
-    * state of conservative rasterization is.
-    */
-   enum intel_sometimes conservative_raster;
-
-   /**
     * Push constant location of intel_fs_config (dynamic configuration of the
     * pixel shader) in bytes.
     */
