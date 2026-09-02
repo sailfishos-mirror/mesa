@@ -400,7 +400,6 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER,
                              cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
                                 S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8));
-      cp_coher_cntl = 0;
 
       *sqtt_flush_bits |= RGP_FLUSH_INVAL_L2 | RGP_FLUSH_INVAL_VMEM_L0;
    } else {
@@ -417,20 +416,17 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
          *sqtt_flush_bits |= RGP_FLUSH_FLUSH_L2 | RGP_FLUSH_INVAL_VMEM_L0;
       }
+
       if (flush_bits & RADV_CMD_FLAG_INV_VCACHE) {
-         ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER,
-                                cp_coher_cntl | S_0085F0_TCL1_ACTION_ENA(1));
-         cp_coher_cntl = 0;
+         cp_coher_cntl |= S_0085F0_TCL1_ACTION_ENA(1);
 
          *sqtt_flush_bits |= RGP_FLUSH_INVAL_VMEM_L0;
       }
-   }
 
-   /* When one of the DEST_BASE flags is set, SURFACE_SYNC waits for idle.
-    * Therefore, it should be last. Done in PFP.
-    */
-   if (cp_coher_cntl)
-      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, cp_coher_cntl);
+      /* If there are still some cache flags left. */
+      if (cp_coher_cntl)
+         ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, cp_coher_cntl);
+   }
 
    radeon_begin(cs);
 
