@@ -34,6 +34,9 @@ typedef struct {
 struct opt_push_ubo_ctx {
    struct pan_fau_layout *fau;
 
+   /* Start index of what we can reorder */
+   unsigned reord_start;
+
    /* Mask of UBOs which may be pushed */
    uint32_t pushable_ubos;
 
@@ -229,6 +232,10 @@ analyze_alu_intr(nir_builder *b, nir_alu_instr *alu, void *data)
        */
       fau_word += (s.comp * s.def->bit_size) / 32;
 
+      /* Ignore non-reorderable words */
+      if (fau_word < ctx->reord_start)
+         continue;
+
       nodes[node_count++] = fau_word;
       if (s.def->bit_size == 64)
          nodes[node_count++] = fau_word + 1;
@@ -288,9 +295,9 @@ reorder_ubo_push_words(struct opt_push_ubo_ctx *ctx)
 
    uint8_t ordering[PAN_MAX_PUSH] = {0};
    uint8_t unpaired[PAN_MAX_PUSH] = {0};
-   uint8_t pushed = 0, unpaired_count = 0;
+   uint8_t pushed = ctx->reord_start, unpaired_count = 0;
 
-   for (unsigned i = 0; i < ctx->fau->count; i++) {
+   for (unsigned i = ctx->reord_start; i < ctx->fau->count; i++) {
       /* We're the only thing to push anything so far */
       assert(!BITSET_TEST(ctx->fau->is_const, i));
       if (BITSET_TEST(visited, i))
@@ -324,7 +331,7 @@ reorder_ubo_push_words(struct opt_push_ubo_ctx *ctx)
    union pan_fau_entry fau_words[PAN_MAX_PUSH];
    typed_memcpy(fau_words, ctx->fau->words, ctx->fau->count);
 
-   for (unsigned i = 0; i < pushed; i++) {
+   for (unsigned i = ctx->reord_start; i < pushed; i++) {
       assert(ordering[i] < ctx->fau->count);
       ctx->fau->words[i] = fau_words[ordering[i]];
    }
@@ -402,6 +409,7 @@ pan_nir_opt_push_ubo(nir_shader *nir,
    /* We first pick the blend constants, those cannot be reordered */
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       add_blend_constants(&ctx);
+   ctx.reord_start = fau->count;
 
    pick_ubo_push_words(&ctx);
 
