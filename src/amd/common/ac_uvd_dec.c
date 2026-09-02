@@ -719,7 +719,9 @@ ac_uvd_dec_dpb_size(const struct radeon_info *info, struct ac_video_dec_session_
 
    switch (param->codec) {
    case AC_VIDEO_CODEC_AVC:
-      max_references = 17; /* TODO: Remove the dpb size check in kernel */
+      /* Old kernel requires max size allocation */
+      if (!info->is_amdgpu || info->drm_minor < 65)
+         max_references = 17;
       dpb_size = image_size * max_references;
       if (info->family < CHIP_POLARIS10) {
          dpb_size += max_references * align(width_in_mb * height_in_mb * 192, 64);
