@@ -98,6 +98,12 @@ struct tu_scratch_slot {
    unsigned slot;
 };
 
+/** Boxed type for GPU virtual addresses, to disambiguate vs. uint32_t immed. */
+struct tu_gpuva {
+   uint64_t gpuva;
+   tu_gpuva(uint64_t arg) : gpuva(arg) {}
+};
+
 struct tu_cs
 {
    uint32_t *start;
@@ -154,17 +160,20 @@ struct tu_cs
    struct tu_pm4_arg {
       enum {
          TU_PM4_IMMED,
+         TU_PM4_GPUVA,
          TU_PM4_REG,
          TU_PM4_SCRATCH,
       } type;
 
       union {
          uint32_t imm;
+         struct tu_gpuva gpuva;
          struct fd_reg_pair reg;
          struct tu_scratch_slot scratch;
       };
 
       tu_pm4_arg(uint32_t arg) : type(TU_PM4_IMMED), imm(arg) {}
+      tu_pm4_arg(struct tu_gpuva arg) : type(TU_PM4_GPUVA), gpuva(arg) {}
       tu_pm4_arg(struct fd_reg_pair arg) : type(TU_PM4_REG), reg(arg) {}
       tu_pm4_arg(struct tu_scratch_slot arg) : type(TU_PM4_SCRATCH), scratch(arg) {}
 
@@ -201,6 +210,16 @@ struct tu_cs
    void reg_to_mem(uint64_t va, struct fd_reg_pair reg_lo, struct fd_reg_pair reg_hi) {
       reg_to_mem(va, reg_lo, { .cnt = 2, .is_64b = true });
    }
+
+   struct tu_cond_write_args {
+      enum cp_cond_function function;
+      bool signed_compare;
+      uint32_t ref;
+      uint32_t mask = ~0;
+      uint32_t write_data;
+   };
+
+   void cond_write(struct tu_pm4_arg dst, struct tu_pm4_arg src, struct tu_cond_write_args args);
 
    struct tu_mem_to_reg_args {
       bool one_reg_wr;
@@ -982,6 +1001,57 @@ tu_cs::rmw(struct tu_pm4_arg dst, struct tu_rmw_args args)
       ))
       .add(args.src0)
       .add(args.src1);
+}
+
+inline void
+tu_cs::cond_write(struct tu_pm4_arg dst, struct tu_pm4_arg src, struct tu_cond_write_args args)
+{
+   assert((dst.type == tu_pm4_arg::TU_PM4_REG) || (dst.type == tu_pm4_arg::TU_PM4_GPUVA));
+
+   enum poll_memory_type poll;
+
+   if (src.type == tu_pm4_arg::TU_PM4_REG)
+      poll = POLL_REGISTER;
+   else if (src.type == tu_pm4_arg::TU_PM4_GPUVA)
+      poll = POLL_MEMORY;
+   else if (src.type == tu_pm4_arg::TU_PM4_SCRATCH)
+      poll = POLL_SCRATCH;
+   else
+      UNREACHABLE("invalid src type");
+
+   assert((src.type == tu_pm4_arg::TU_PM4_REG) ||
+          (src.type == tu_pm4_arg::TU_PM4_GPUVA) ||
+          (src.type == tu_pm4_arg::TU_PM4_SCRATCH));
+
+   tu_pkt7 pkt(this, CP_COND_WRITE5, 8);
+
+   pkt.add(CP_COND_WRITE5_0(
+      .function = args.function,
+      .signed_compare = args.signed_compare,
+      .poll = poll,
+      .write_memory = dst.type == tu_pm4_arg::TU_PM4_GPUVA,
+   ));
+
+   if (src.type == tu_pm4_arg::TU_PM4_GPUVA) {
+      pkt.add(src.gpuva.gpuva);
+      pkt.add(src.gpuva.gpuva >> 32);
+   } else {
+      pkt.add(src);
+      pkt.add(0);
+   }
+
+   pkt.add(CP_COND_WRITE5_3(.ref = args.ref));
+   pkt.add(CP_COND_WRITE5_4(.mask = args.mask));
+
+   if (dst.type == tu_pm4_arg::TU_PM4_GPUVA) {
+      pkt.add(dst.gpuva.gpuva);
+      pkt.add(dst.gpuva.gpuva >> 32);
+   } else {
+      pkt.add(dst);
+      pkt.add(0);
+   }
+
+   pkt.add(CP_COND_WRITE5_7(.write_data = args.write_data));
 }
 
 inline void
