@@ -6372,12 +6372,13 @@ void
 tu_append_pre_chain(struct tu_cmd_buffer *cmd,
                     struct tu_cmd_buffer *secondary)
 {
+   tu_render_pass_state_merge(&cmd->state.rp,
+                              &secondary->pre_chain.state);
+
    tu_cs_add_entries(&cmd->draw_cs, &secondary->pre_chain.draw_cs);
    tu_cs_add_entries(&cmd->draw_epilogue_cs,
                      &secondary->pre_chain.draw_epilogue_cs);
 
-   tu_render_pass_state_merge(&cmd->state.rp,
-                              &secondary->pre_chain.state);
    TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->pre_chain.rp_trace);
    util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                  &secondary->pre_chain.fdm_bin_patchpoints);
@@ -6415,12 +6416,13 @@ void
 tu_append_pre_post_chain(struct tu_cmd_buffer *cmd,
                          struct tu_cmd_buffer *secondary)
 {
+   tu_render_pass_state_merge(&cmd->state.rp,
+                              &secondary->state.rp);
+
    tu_cs_add_entries(&cmd->draw_cs, &secondary->draw_cs);
    tu_cs_add_entries(&cmd->draw_epilogue_cs, &secondary->draw_epilogue_cs);
 
    TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
-   tu_render_pass_state_merge(&cmd->state.rp,
-                              &secondary->state.rp);
    util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                  &secondary->fdm_bin_patchpoints);
 }
@@ -6495,6 +6497,8 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
           VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) {
          assert(tu_cs_is_empty(&secondary->cs));
 
+         tu_render_pass_state_merge(&cmd->state.rp, &secondary->state.rp);
+
          TU_CALLX(cmd->device, tu_lrz_flush_valid_at_secondary_rp_boundary)(cmd, secondary->state.lrz, &cmd->draw_cs);
 
          result = tu_cs_add_entries(&cmd->draw_cs, &secondary->draw_cs);
@@ -6527,7 +6531,6 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
             secondary->state.lrz.color_written_with_z_test;
 
          TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
-         tu_render_pass_state_merge(&cmd->state.rp, &secondary->state.rp);
          util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                        &secondary->fdm_bin_patchpoints);
       } else {
