@@ -1056,6 +1056,12 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
       dst = ir3_COV_rpt(b, dst_sz, dst, TYPE_U16, TYPE_U32);
       break;
    }
+   case nir_op_ufind_msb_rev:
+      dst = ir3_CLZ_B_rpt(b, dst_sz, src[0], 0);
+      break;
+   case nir_op_ifind_msb_rev:
+      dst = ir3_CLZ_S_rpt(b, dst_sz, src[0], 0);
+      break;
    case nir_op_ifind_msb: {
       struct ir3_instruction_rpt cmp;
       dst = ir3_CLZ_S_rpt(b, dst_sz, src[0], 0);

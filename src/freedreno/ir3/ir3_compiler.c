@@ -156,6 +156,7 @@ static const nir_shader_compiler_options ir3_base_options = {
    .lower_pack_split = true,
    .lower_pack_64_4x16 = true,
    .lower_to_scalar = true,
+   .has_find_msb_rev = true,
    .has_imul24 = true,
    .has_umul24 = true,
    .has_umul_16x16 = true,
