@@ -5,7 +5,7 @@
 use crate::debug::{DEBUG, DebugFlags};
 use crate::flow::FlowWaitBit;
 use crate::ir::*;
-use crate::ops::MemoryEffect;
+use crate::ops::{MemoryEffect, VaryingUpdateMode};
 use std::cmp::Reverse;
 
 #[derive(Default)]
@@ -33,9 +33,11 @@ fn calc_message_deadlines_in_bb(
     let mut next_load = None;
     let mut next_store = None;
     let mut next_barrier = None;
+    let mut next_ld_var = None;
 
     for (ip, instr) in block.instrs.iter().enumerate().rev() {
         let effect = instr.op.memory_effect();
+        let var_usage = instr.op.var_update_mode();
 
         if model.op_is_message(&instr.op) {
             let next_reg_access = instr
@@ -53,10 +55,24 @@ fn calc_message_deadlines_in_bb(
                 }
             };
 
-            deadlines[ip] = [next_reg_access, next_mem_hazard, next_barrier]
-                .into_iter()
-                .flatten()
-                .min();
+            // All LD_VAR has a hidden register, we only care about WaR/WaW.
+            // RaW is handled for us in hw
+            let next_hidden_reg_hazard = match var_usage {
+                VaryingUpdateMode::Store | VaryingUpdateMode::Clobber => {
+                    next_ld_var
+                }
+                _ => None,
+            };
+
+            deadlines[ip] = [
+                next_reg_access,
+                next_mem_hazard,
+                next_barrier,
+                next_hidden_reg_hazard,
+            ]
+            .into_iter()
+            .flatten()
+            .min();
         }
 
         // BARRIER waits for all message slots. Slot7 is waited on across warps
@@ -76,6 +92,10 @@ fn calc_message_deadlines_in_bb(
                 next_load = Some(ip);
                 next_store = Some(ip);
             }
+        }
+
+        if var_usage != VaryingUpdateMode::None {
+            next_ld_var = Some(ip);
         }
 
         for reg in instr.op.iter_reg_defs().chain(instr.op.iter_reg_uses()) {

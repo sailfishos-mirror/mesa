@@ -4336,6 +4336,15 @@ impl Op {
             _ => MemoryEffect::None,
         }
     }
+
+    pub fn var_update_mode(&self) -> VaryingUpdateMode {
+        match self {
+            Op::LdVar(op) => op.update,
+            Op::LdVarBuf(op) => op.update,
+            Op::LdVarSpecial(op) => op.update,
+            _ => VaryingUpdateMode::None,
+        }
+    }
 }
 
 #[cfg(test)]
