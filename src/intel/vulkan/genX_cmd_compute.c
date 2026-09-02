@@ -1470,10 +1470,8 @@ cmd_buffer_flush_rt_state(struct anv_cmd_buffer *cmd_buffer,
     *
     * TODO(RT): This is a bit of a hack
     */
-   anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
-                         rt->scratch.bo);
-   anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
-                         cmd_buffer->device->btd_fifo_bo);
+   anv_cmd_buffer_add_reloc_bo(cmd_buffer, rt->scratch.bo);
+   anv_cmd_buffer_add_reloc_bo(cmd_buffer, cmd_buffer->device->btd_fifo_bo);
 }
 
 void

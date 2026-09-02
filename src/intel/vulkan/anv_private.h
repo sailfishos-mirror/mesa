@@ -5300,6 +5300,16 @@ anv_cmd_buffer_has_gfx_stage(struct anv_cmd_buffer *cmd_buffer,
           ANV_INTERNAL_KERNEL_##name##_FRAGMENT);                       \
       })
 
+
+static inline VkResult
+anv_cmd_buffer_add_reloc_bo(struct anv_cmd_buffer *cmd_buffer, struct anv_bo *bo)
+{
+   if (list_is_empty(&cmd_buffer->batch_bos))
+      anv_batch_emit_ensure_space(&cmd_buffer->batch, 4);
+
+   return anv_reloc_list_add_bo(cmd_buffer->batch.relocs, bo);
+}
+
 VkResult anv_cmd_buffer_init_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer);
 void anv_cmd_buffer_fini_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer);
 void anv_cmd_buffer_reset_batch_bo_chain(struct anv_cmd_buffer *cmd_buffer);

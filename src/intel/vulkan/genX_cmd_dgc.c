@@ -666,7 +666,7 @@ void genX(CmdPreprocessGeneratedCommandsEXT)(
 
    /* Add the indirect set to the relocation list. */
    if (indirect_set) {
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, indirect_set->bo);
+      anv_cmd_buffer_add_reloc_bo(cmd_buffer, indirect_set->bo);
       anv_reloc_list_append(cmd_buffer->batch.relocs, &indirect_set->relocs);
    }
 
@@ -736,7 +736,7 @@ void genX(CmdExecuteGeneratedCommandsEXT)(
 
    /* Add the indirect set to the relocation list. */
    if (indirect_set) {
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, indirect_set->bo);
+      anv_cmd_buffer_add_reloc_bo(cmd_buffer, indirect_set->bo);
       anv_reloc_list_append(cmd_buffer->batch.relocs, &indirect_set->relocs);
    }
 

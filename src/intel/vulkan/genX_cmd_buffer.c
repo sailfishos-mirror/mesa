@@ -6346,7 +6346,7 @@ genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
       const struct anv_address depth_address =
          anv_image_address(image, &depth_surface->memory_range);
 
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, depth_address.bo);
+      anv_cmd_buffer_add_reloc_bo(cmd_buffer, depth_address.bo);
 
       info.depth_surf = &depth_surface->isl;
       info.depth_address = anv_address_physical(depth_address);
@@ -6365,7 +6365,7 @@ genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
          const struct anv_address hiz_address =
             anv_image_address(image, &hiz_surface->memory_range);
 
-         anv_reloc_list_add_bo(cmd_buffer->batch.relocs, hiz_address.bo);
+         anv_cmd_buffer_add_reloc_bo(cmd_buffer, hiz_address.bo);
 
          info.hiz_surf = &hiz_surface->isl;
          info.hiz_address = anv_address_physical(hiz_address);
@@ -6383,7 +6383,7 @@ genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
       const struct anv_address stencil_address =
          anv_image_address(image, &stencil_surface->memory_range);
 
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, stencil_address.bo);
+      anv_cmd_buffer_add_reloc_bo(cmd_buffer, stencil_address.bo);
 
       info.stencil_surf = &stencil_surface->isl;
 
@@ -6452,7 +6452,7 @@ cmd_buffer_emit_cps_control_buffer(struct anv_cmd_buffer *cmd_buffer,
    if (fsr_iview) {
       const struct anv_image_binding *binding = &fsr_iview->image->bindings[0];
 
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, binding->address.bo);
+      anv_cmd_buffer_add_reloc_bo(cmd_buffer, binding->address.bo);
 
       struct anv_address addr =
          anv_address_add(binding->address, binding->memory_range.offset);
