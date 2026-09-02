@@ -35,7 +35,11 @@
 
 struct lp_function_cache {
    p_atomic_uint64_t latest_cache;
-   struct util_dynarray trash_caches;
+};
+
+struct lp_trash_entry {
+   void (*destroy)(void *ptr);
+   void *ptr;
 };
 
 enum lp_function_cache_type {
@@ -76,9 +80,7 @@ struct lp_sampler_matrix {
 
    struct util_dynarray gallivms;
 
-   /* Memory that lock-free readers may still access: replaced per-texture
-    * sample_functions arrays and promoted cache keys. Freed when the
-    * matrix is destroyed. */
+   /* struct lp_trash_entry. Freed when the matrix is destroyed. */
    struct util_dynarray trash;
 };
 
