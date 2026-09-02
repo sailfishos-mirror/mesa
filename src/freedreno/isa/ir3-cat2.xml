@@ -410,6 +410,7 @@ SOFTWARE.
 </bitset>
 
 <bitset name="getbit.b" extends="#instruction-cat2-2src">
+	<doc>Returns src0 >> (src1 &amp; (bit_size - 1)) &amp; 1.</doc>
 	<pattern low="53" high="58">111011</pattern>
 </bitset>
 

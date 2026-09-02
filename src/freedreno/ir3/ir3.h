@@ -1520,6 +1520,7 @@ is_bool(struct ir3_instruction *instr)
    case OPC_CMPS_F:
    case OPC_CMPS_S:
    case OPC_CMPS_U:
+   case OPC_GETBIT_B:
       return true;
    default:
       return false;

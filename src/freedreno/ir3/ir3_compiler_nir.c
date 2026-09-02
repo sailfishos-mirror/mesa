@@ -415,7 +415,11 @@ create_cov(struct ir3_context *ctx, unsigned nrpt,
    return cov;
 }
 
-/* For shift instructions NIR always has shift amount as 32 bit integer */
+/* NIR always has the shift amount as a 32 bit integer for shifts, and likewise
+ * the bit index for bitz/bitnz.  In both cases NIR masks it with the other
+ * source's bit_size - 1, which matches what the hardware does for a half
+ * operand, so narrowing it to match is all that is needed.
+ */
 static struct ir3_instruction_rpt
 resize_shift_amount(struct ir3_context *ctx, unsigned nrpt,
                     struct ir3_instruction_rpt src, unsigned bs)
@@ -1068,6 +1072,17 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
       break;
    case nir_op_bitfield_reverse:
       dst = ir3_BFREV_B_rpt(b, dst_sz, src[0], 0);
+      break;
+
+   case nir_op_bitnz:
+      dst = ir3_GETBIT_B_rpt(b, dst_sz, src[0], 0,
+                             resize_shift_amount(ctx, dst_sz, src[1], bs[0]),
+                             0);
+      break;
+   case nir_op_bitz:
+      dst = ir3_GETBIT_B_rpt(b, dst_sz, src[0], IR3_REG_BNOT,
+                             resize_shift_amount(ctx, dst_sz, src[1], bs[0]),
+                             0);
       break;
 
    case nir_op_uadd_sat:
