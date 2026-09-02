@@ -628,6 +628,12 @@ impl fmt::Display for SrcRef {
     }
 }
 
+impl fmt::Debug for SrcRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <Self as fmt::Display>::fmt(self, f)
+    }
+}
+
 impl SrcRef {
     pub fn as_ssa(&self) -> Option<&SSARef> {
         match self {
@@ -746,7 +752,7 @@ impl From<MemRef> for SrcRef {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, EnumAsU8)]
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, EnumAsU8, Debug)]
 pub enum SrcMod {
     #[default]
     None = 0,
@@ -852,7 +858,7 @@ impl SrcMod {
 /// modifier can always be applied either before or after the swizzle without
 /// affecting everything.  Howver, because we represent a superset of the ISA,
 /// we need the order to be well-defined.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Src {
     pub src_ref: SrcRef,
     pub swizzle: Swizzle,
