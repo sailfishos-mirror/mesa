@@ -654,6 +654,37 @@ fsqrt_fp_class(fp_class_mask src)
 }
 
 static fp_class_mask
+ftanh_fp_class(fp_class_mask src)
+{
+   /* tanh is odd and monotonic with a range of [-1, +1], and preserves NaN and
+    * the sign of zero.
+    */
+   fp_class_mask result = src & (FP_CLASS_NAN | FP_CLASS_ANY_ZERO);
+
+   /* tanh(-Inf) is -1.0 and tanh(+Inf) is +1.0. */
+   if (src & FP_CLASS_NEG_INF)
+      result |= FP_CLASS_NEG_ONE;
+   if (src & FP_CLASS_POS_INF)
+      result |= FP_CLASS_POS_ONE;
+
+   /* Finite non-zero parameters map onto the open interval towards the sign of
+    * the parameter.  tanh(x) is x for sufficiently small magnitudes, so the
+    * result can flush to zero, and it can round to +-1.0 once |x| exceeds 1.0.
+    */
+   if (src & FP_CLASS_ANY_NEG_FINITE)
+      result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ZERO | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_LT_NEG_ONE)
+      result |= FP_CLASS_NEG_ONE;
+
+   if (src & FP_CLASS_ANY_POS_FINITE)
+      result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ZERO | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_GT_POS_ONE)
+      result |= FP_CLASS_POS_ONE;
+
+   return result;
+}
+
+static fp_class_mask
 fmin_part(fp_class_mask upper_bound, fp_class_mask value)
 {
    /* Find the highest value in upper_bound, and return all
@@ -807,6 +838,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fcos:
       case nir_op_fsin_normalized_2_pi:
       case nir_op_fcos_normalized_2_pi:
+      case nir_op_ftanh:
       case nir_op_f2f16:
       case nir_op_f2f16_rtz:
       case nir_op_f2f16_rtne:
@@ -1225,6 +1257,10 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 
       break;
    }
+
+   case nir_op_ftanh:
+      r = ftanh_fp_class(src_res[0]);
+      break;
 
    case nir_op_fdot2:
    case nir_op_fdot3:
