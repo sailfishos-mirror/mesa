@@ -383,6 +383,8 @@ d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3
 {
 #if D3D12_VIDEO_ANY_DECODER_ENABLED
    pD3D12Dec->m_pCurrentDecodeTarget = target;
+   // Reset each frame; only AV1 frames with film grain enabled set it below.
+   pD3D12Dec->m_pCurrentFilmGrainTarget = nullptr;
    switch (pD3D12Dec->m_d3d12DecProfileType) {
 #if VIDEO_CODEC_H264DEC
       case d3d12_video_decode_profile_type_h264:
@@ -403,6 +405,10 @@ d3d12_video_decoder_store_upper_layer_references(struct d3d12_video_decoder *pD3
       {
          pipe_av1_picture_desc *pPicControlAV1 = (pipe_av1_picture_desc *) picture;
          pD3D12Dec->m_pCurrentReferenceTargets = pPicControlAV1->ref;
+         // AV1 film grain is applied to a separate display surface; the decoded (grain-free)
+         // reconstruction still goes to the DPB. Capture it here so end_frame can route the
+         // grain-applied conversion output to it instead of the reconstruction target.
+         pD3D12Dec->m_pCurrentFilmGrainTarget = pPicControlAV1->film_grain_target;
       } break;
 #endif
 #if VIDEO_CODEC_VP9DEC
@@ -573,6 +579,20 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
                    pD3D12Dec->m_fenceValue);
       assert(false);
       return 1;
+   }
+
+   // AV1 film grain: the DecodeFrame conversion produces a grain-applied copy in the output
+   // texture while the grain-free reconstruction is written to the reference texture (which goes
+   // to the DPB). Redirect only the output texture to film_grain_target so the grain-applied
+   // frame lands in the surface the client displays, leaving all DPB/reference bookkeeping keyed
+   // to the reconstruction target above (its index mapping was assigned against that target).
+   if (pD3D12Dec->m_pCurrentFilmGrainTarget &&
+       pD3D12Dec->m_pCurrentFilmGrainTarget != target) {
+      struct d3d12_video_buffer *pFGVideoBuffer =
+         (struct d3d12_video_buffer *) pD3D12Dec->m_pCurrentFilmGrainTarget;
+      pOutputD3D12Texture = d3d12_resource_resource(pFGVideoBuffer->texture);
+      outputD3D12Subresource = 0;
+      d3d12_promote_to_permanent_residency(pD3D12Dec->m_pD3D12Screen, &pFGVideoBuffer->texture, 1);
    }
 
    ///
