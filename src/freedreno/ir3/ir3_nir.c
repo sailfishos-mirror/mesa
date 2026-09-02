@@ -353,6 +353,7 @@ ir3_optimize_loop(struct ir3_compiler *compiler,
       if (is_compute_or_frag(s->info.stage)) {
          progress |= OPT(s, nir_opt_phi_precision);
       }
+      progress |= OPT(s, nir_opt_fp_math_ctrl);
       progress |= OPT(s, nir_opt_algebraic);
       progress |= OPT(s, nir_lower_alu);
       progress |= OPT(s, nir_lower_pack);
