@@ -830,14 +830,6 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
          }
       }
       break;
-   case nir_op_ihadd:
-      dst = ir3_ADD_S_rpt(b, dst_sz, src[0], 0, src[1], 0);
-      set_dst_flags(dst.rpts, dst_sz, IR3_REG_EI);
-      break;
-   case nir_op_uhadd:
-      dst = ir3_ADD_U_rpt(b, dst_sz, src[0], 0, src[1], 0);
-      set_dst_flags(dst.rpts, dst_sz, IR3_REG_EI);
-      break;
    case nir_op_iand:
       dst = ir3_AND_B_rpt(b, dst_sz, src[0], 0, src[1], 0);
       break;
