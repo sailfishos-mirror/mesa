@@ -1725,6 +1725,7 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
          };
          OPT(s, nir_opt_16bit_tex_image, &opt_16bit_options);
       }
+      OPT(s, nir_opt_algebraic_distribute_src_mods);
       OPT(s, nir_opt_constant_folding);
       OPT(s, nir_opt_copy_prop);
       OPT(s, nir_opt_dce);
