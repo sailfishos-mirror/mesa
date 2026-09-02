@@ -835,6 +835,9 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
 {
    mesa_shader_stage stage = nir->info.stage;
 
+   if (PAN_ARCH >= 9)
+      NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
+
    /* Run before descriptor and explicit-IO lowering so the memory derefs this
     * pass emits get lowered by them.
     */
@@ -1174,6 +1177,12 @@ panvk_shader_upload(struct panvk_device *dev,
       &dev->mempools.exec, shader->bin_ptr, shader->bin_size, 128);
    if (!panvk_priv_mem_check_alloc(shader->code_mem))
       return panvk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+
+#if PAN_ARCH >= 9
+   /* The inline constant pool is addressed as PC plus a 32-bit offset */
+   ASSERTED uint64_t code_dev_addr = panvk_priv_mem_dev_addr(shader->code_mem);
+   assert(code_dev_addr >> 32 == (code_dev_addr + shader->bin_size - 1) >> 32);
+#endif
 
 #if PAN_ARCH < 9
    if (shader->info.stage == MESA_SHADER_FRAGMENT)
