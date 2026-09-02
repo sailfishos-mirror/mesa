@@ -1002,10 +1002,16 @@ lower_load_constant(nir_builder *b, nir_intrinsic_instr *intr,
 
    b->cursor = nir_before_instr(&intr->instr);
 
+   /* On Valhall the backend resolves load_constant_base_ptr to the inline
+    * pool's PC. Bifrost has no such pool, so point at the separate data
+    * buffer whose address is passed through a sysval.
+    */
    nir_def *offset =
       nir_iadd_imm(b, intr->src[0].ssa, nir_intrinsic_base(intr));
-   nir_def *addr = nir_iadd(b, nir_load_constant_base_ptr(b, 1, 64),
-                            nir_u2u64(b, offset));
+   nir_def *base = PAN_ARCH >= 9
+                      ? nir_load_constant_base_ptr(b, 1, 64)
+                      : load_sysval(b, common, 64, constant_data);
+   nir_def *addr = nir_iadd(b, base, nir_u2u64(b, offset));
    nir_def *val = nir_load_global_constant(
       b, intr->def.num_components, intr->def.bit_size, addr,
       .access = ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE,
@@ -1453,7 +1459,7 @@ panvk_per_arch(nir_lower_descriptors)(
 out:
    _mesa_hash_table_u64_destroy(ctx.ht);
 
-   if (PAN_ARCH >= 9 && nir->constant_data_size)
+   if (nir->constant_data_size)
       NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_load_constant,
                nir_metadata_control_flow, NULL);
 }

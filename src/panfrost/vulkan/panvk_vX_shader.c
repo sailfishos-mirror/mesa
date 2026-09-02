@@ -26,6 +26,7 @@
 #include "util/mesa-blake3.h"
 #include "util/shader_stats.h"
 #include "util/u_dynarray.h"
+#include "util/u_memory.h"
 #include "nir_builder.h"
 #include "nir_conversion_builder.h"
 #include "nir_deref.h"
@@ -835,8 +836,7 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
 {
    mesa_shader_stage stage = nir->info.stage;
 
-   if (PAN_ARCH >= 9)
-      NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
+   NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
 
    /* Run before descriptor and explicit-IO lowering so the memory derefs this
     * pass emits get lowered by them.
@@ -1051,6 +1051,17 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
    }
    util_dynarray_fini(&binary);
 
+#if PAN_ARCH < 9
+   if (nir->constant_data_size) {
+      shader->data_ptr = mem_dup(nir->constant_data, nir->constant_data_size);
+
+      if (shader->data_ptr == NULL)
+         return panvk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+      shader->data_size = nir->constant_data_size;
+   }
+#endif
+
    if (dump_asm) {
       shader->nir_str = nir_shader_as_str(nir, NULL);
 
@@ -1165,6 +1176,7 @@ panvk_shader_upload(struct panvk_device *dev,
    shader->code_mem = (struct panvk_priv_mem){0};
 
 #if PAN_ARCH < 9
+   shader->data_mem = (struct panvk_priv_mem){0};
    shader->rsd = (struct panvk_priv_mem){0};
 #else
    shader->spd = (struct panvk_priv_mem){0};
@@ -1185,6 +1197,13 @@ panvk_shader_upload(struct panvk_device *dev,
 #endif
 
 #if PAN_ARCH < 9
+   if (shader->data_size) {
+      shader->data_mem = panvk_pool_upload_aligned(
+         &dev->mempools.rw, shader->data_ptr, shader->data_size, 64);
+      if (!panvk_priv_mem_check_alloc(shader->data_mem))
+         return panvk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+   }
+
    if (shader->info.stage == MESA_SHADER_FRAGMENT)
       return VK_SUCCESS;
 
@@ -1321,6 +1340,7 @@ panvk_shader_variant_destroy(struct panvk_shader_variant *shader)
    panvk_pool_free_mem(&shader->code_mem);
 
 #if PAN_ARCH < 9
+   panvk_pool_free_mem(&shader->data_mem);
    panvk_pool_free_mem(&shader->rsd);
 #else
    if (shader->info.stage != MESA_SHADER_VERTEX) {
@@ -1335,6 +1355,10 @@ panvk_shader_variant_destroy(struct panvk_shader_variant *shader)
       panvk_pool_free_mem(&shader->spds.pos_triangles);
 #endif
    }
+#endif
+
+#if PAN_ARCH < 9
+   free((void *)shader->data_ptr);
 #endif
 
    if (shader->own_bin)
@@ -1857,6 +1881,19 @@ panvk_deserialize_shader_variant(struct vk_device *vk_dev,
    shader->own_bin = true;
    blob_copy_bytes(blob, (void *)shader->bin_ptr, shader->bin_size);
 
+#if PAN_ARCH < 9
+   shader->data_size = blob_read_uint32(blob);
+
+   if (shader->data_size) {
+      shader->data_ptr = malloc(shader->data_size);
+
+      if (shader->data_ptr == NULL)
+         return panvk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+      blob_copy_bytes(blob, (void *)shader->data_ptr, shader->data_size);
+   }
+#endif
+
    uint32_t nir_str_size = blob_read_uint32(blob);
    uint32_t asm_str_size = blob_read_uint32(blob);
    const char *nir_str = blob_read_bytes(blob, nir_str_size);
@@ -1995,6 +2032,11 @@ panvk_shader_serialize_variant(struct vk_device *vk_dev,
 
    blob_write_uint32(blob, shader->bin_size);
    blob_write_bytes(blob, shader->bin_ptr, shader->bin_size);
+
+#if PAN_ARCH < 9
+   blob_write_uint32(blob, shader->data_size);
+   blob_write_bytes(blob, shader->data_ptr, shader->data_size);
+#endif
 
    /* Include the terminating NULL in the serialization */
    uint32_t nir_str_size = shader->nir_str ? strlen(shader->nir_str) + 1 : 0;
