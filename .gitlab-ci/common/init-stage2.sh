@@ -214,6 +214,12 @@ set +x
 
 section_end init_stage2
 
+# Store the vulkaninfo output as artifacts.
+if [ -n "${VK_DRIVER:-}" ] && command -v vulkaninfo >/dev/null 2>&1; then
+  RADV_DEBUG="${RADV_DEBUG:+$RADV_DEBUG,}info" \
+    vulkaninfo > "$RESULTS_DIR/vulkaninfo.txt" || true
+fi
+
 echo "Running ${HWCI_TEST_SCRIPT} ${HWCI_TEST_ARGS} ..."
 
 set +e
