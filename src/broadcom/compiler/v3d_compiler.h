@@ -1151,6 +1151,8 @@ enum v3d_qpu_output_pack vir_get_pack(struct qinst *inst);
 
 struct qreg vir_get_temp(struct v3d_compile *c);
 void vir_calculate_live_intervals(struct v3d_compile *c);
+void vir_update_live_intervals_after_spill(struct v3d_compile *c,
+                                           uint32_t num_temps_before_spills);
 int vir_get_nsrc(struct qinst *inst);
 bool vir_has_side_effects(struct v3d_compile *c, struct qinst *inst);
 bool vir_get_add_op(struct qinst *inst, enum v3d_qpu_add_op *op);
