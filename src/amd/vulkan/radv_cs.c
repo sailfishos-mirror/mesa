@@ -305,18 +305,30 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       *sqtt_flush_bits |= RGP_FLUSH_FLUSH_DB | RGP_FLUSH_INVAL_DB;
    }
 
-   if (flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH) {
-      radeon_begin(cs);
-      radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
-      radeon_end();
+   /* Wait for shader engines to go idle.
+    * VS and PS waits are unnecessary if SURFACE_SYNC is going to wait
+    * for everything including CB/DB cache flushes.
+    *
+    * GFX6-8: SURFACE_SYNC with CB_ACTION_ENA doesn't do anything if there are no CB/DB bindings.
+    * Reproducible with: piglit/arb_framebuffer_no_attachments-atomic
+    *
+    * GFX9: The TS event is always written after full pipeline completion regardless of CB/DB
+    * bindings.
+    */
+   if (gfx_level <= GFX8 || !flush_cb_db) {
+      if (flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH) {
+         radeon_begin(cs);
+         radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
+         radeon_end();
 
-      *sqtt_flush_bits |= RGP_FLUSH_PS_PARTIAL_FLUSH;
-   } else if (flush_bits & RADV_CMD_FLAG_VS_PARTIAL_FLUSH) {
-      radeon_begin(cs);
-      radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
-      radeon_end();
+         *sqtt_flush_bits |= RGP_FLUSH_PS_PARTIAL_FLUSH;
+      } else if (flush_bits & RADV_CMD_FLAG_VS_PARTIAL_FLUSH) {
+         radeon_begin(cs);
+         radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
+         radeon_end();
 
-      *sqtt_flush_bits |= RGP_FLUSH_VS_PARTIAL_FLUSH;
+         *sqtt_flush_bits |= RGP_FLUSH_VS_PARTIAL_FLUSH;
+      }
    }
 
    if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH) {
