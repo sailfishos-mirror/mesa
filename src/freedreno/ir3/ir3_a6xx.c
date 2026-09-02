@@ -448,8 +448,7 @@ parse_src_shift(struct ir3_context *ctx, nir_src **offset_src,
       return 0;
    }
 
-   nir_scalar offset =
-      nir_scalar_chase_movs(nir_get_scalar((*offset_src)->ssa, 0));
+   nir_scalar offset = nir_scalar_resolved((*offset_src)->ssa, 0);
 
    if (!nir_scalar_is_alu(offset) || nir_scalar_alu_op(offset) != nir_op_ishl) {
       return 0;
