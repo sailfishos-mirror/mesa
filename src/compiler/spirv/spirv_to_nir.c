@@ -3585,10 +3585,11 @@ vtn_create_ssa_value(struct vtn_builder *b, const struct glsl_type *type)
    val->type = glsl_get_bare_type(type);
 
 
-   if (!glsl_type_is_vector_or_scalar(type)) {
+   if (!glsl_type_is_vector_or_scalar(type) &&
+       !glsl_type_is_cmat(type)) {
       unsigned elems = glsl_get_length(val->type);
       val->elems = vtn_alloc_array(b, struct vtn_ssa_value *, elems);
-      if (glsl_type_is_array_or_matrix(type) || glsl_type_is_cmat(type)) {
+      if (glsl_type_is_array_or_matrix(type)) {
          const struct glsl_type *elem_type = glsl_get_array_element(type);
          for (unsigned i = 0; i < elems; i++)
             val->elems[i] = vtn_create_ssa_value(b, elem_type);
