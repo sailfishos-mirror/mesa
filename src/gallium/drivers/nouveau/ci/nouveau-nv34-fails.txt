@@ -1851,9 +1851,6 @@ KHR-GLES2.core.internalformat.renderbuffer.rgb5_a1,Fail
 KHR-GLES2.core.internalformat.renderbuffer.rgb8,Fail
 KHR-GLES2.core.internalformat.renderbuffer.rgba8,Fail
 KHR-GLES2.core.internalformat.renderbuffer.stencil_index8,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component16,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component24,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_component16,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_clamp_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_clamp_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_clamp_repeat,Fail

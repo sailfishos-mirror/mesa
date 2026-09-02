@@ -138,11 +138,6 @@ dEQP-GLES2.functional.uniform_api.value.initial.render.nested_structs_arrays.mat
 dEQP-GLES2.functional.uniform_api.value.initial.render.struct_in_array.mat4_mat2_both,Fail
 dEQP-GLES2.functional.uniform_api.value.initial.render.struct_in_array.mat4_mat2_fragment,Fail
 
-# depth texture is sampling as as white instead of red.
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component16,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component24,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_component16,Fail
-
 # https://gitlab.freedesktop.org/mesa/mesa/-/issues/4979
 # Non-unrolled loops, but they should be unrollable.
 KHR-GLES2.shaders.aggressive_optimizations.sin_vec2_frag,Fail
@@ -1018,4 +1013,3 @@ spec@arb_texture_cube_map@copyteximage cube,Fail
 
 # Nightly run expectations update
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow2d-consecutive-draws,Fail
-
