@@ -3988,6 +3988,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
    struct valhall_stats stats = {
       .instrs = nr_ins,
       .code_size = size,
+      .constant_data_size = ctx->constant_pool_size_B,
       .fma = ((float)counts->fma),
       .cvt = ((float)counts->cvt),
       .sfu = ((float)counts->sfu),

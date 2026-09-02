@@ -130,6 +130,12 @@ fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
         t,
         ls,
         code_size,
+        constant_data_size: s
+            .constant_pool
+            .as_ref()
+            .map_or(0, |p| p.data.len())
+            .try_into()
+            .unwrap(),
         threads: s.model.max_threads(s.info.registers_used).into(),
         loops: loops.try_into().unwrap(),
         spills,

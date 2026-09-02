@@ -1336,6 +1336,9 @@ typedef struct {
 
    /* Computed after RA */
    uint64_t spill_cost;
+
+   /* Size of the inline constant pool emitted at pack time, if any */
+   unsigned constant_pool_size_B;
 } bi_context;
 
 static inline enum bi_round
