@@ -1257,6 +1257,7 @@ bi_pack_valhall(bi_context *ctx, struct util_dynarray *emission)
          util_dynarray_grow(emission, uint8_t, ctx->nir->constant_data_size),
          ctx->nir->constant_data, ctx->nir->constant_data_size);
       ctx->constant_pool_size_B = ctx->nir->constant_data_size;
+      ctx->constant_pool_offset_B = pool_offset;
    }
 
    /* Pad with zeroes, but keep empty programs empty so they may be omitted

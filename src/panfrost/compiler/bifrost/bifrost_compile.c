@@ -7,6 +7,7 @@
 
 #include "compiler/nir/nir_builder.h"
 #include "panfrost/compiler/pan_compiler.h"
+#include "util/u_hexdump.h"
 #include "util/u_qsort.h"
 
 #include "bifrost/bi_debug.h"
@@ -4501,6 +4502,14 @@ bi_compile_variant_nir(nir_shader *nir,
          disassemble_valhall(stderr, binary->data + offset,
                              binary->size - offset,
                              bifrost_debug & BIFROST_DBG_VERBOSE);
+      }
+
+      if (ctx->constant_pool_size_B) {
+         fprintf(stderr, "constant pool (%u bytes at offset %u):\n",
+                 ctx->constant_pool_size_B, ctx->constant_pool_offset_B);
+         u_hexdump_words(stderr,
+                         (const uint8_t *)binary->data + offset + ctx->constant_pool_offset_B,
+                         ctx->constant_pool_size_B);
       }
 
       fflush(stderr);

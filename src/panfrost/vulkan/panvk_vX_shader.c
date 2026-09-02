@@ -26,6 +26,7 @@
 #include "util/mesa-blake3.h"
 #include "util/shader_stats.h"
 #include "util/u_dynarray.h"
+#include "util/u_hexdump.h"
 #include "util/u_memory.h"
 #include "nir_builder.h"
 #include "nir_conversion_builder.h"
@@ -1074,6 +1075,11 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
             FILE *const stream = u_memstream_get(&mem);
             pan_disassemble(stream, shader->bin_ptr, shader->bin_size,
                             compile_input->gpu_id, false);
+            if (nir->constant_data_size) {
+               fprintf(stream, "constant data (%u bytes):\n",
+                       nir->constant_data_size);
+               u_hexdump_words(stream, nir->constant_data, nir->constant_data_size);
+            }
             u_memstream_close(&mem);
          }
       }
