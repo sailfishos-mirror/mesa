@@ -73,6 +73,7 @@ TARGETS = {
     "a660": ["freedreno", "660"],
     "a702": ["freedreno", "702"],
     "a730": ["freedreno", "730"],
+    "a735": ["freedreno", "735"],
     "a740": ["freedreno", "740"],
     "a750": ["freedreno", "750"],
     "a810": ["freedreno", "810"],

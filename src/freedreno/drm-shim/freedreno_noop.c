@@ -211,6 +211,7 @@ static ioctl_fn_t driver_ioctls[] = {
 #define CHIPID(maj, min, rev, pat)                                             \
    ((maj << 24) | (min << 16) | (rev << 8) | (pat))
 
+/* Keep supported gpu_id aliases in sync with bin/drm-shim.py. */
 static const struct msm_device_info device_infos[] = {
    {
       /* First entry is default */
@@ -312,6 +313,11 @@ static const struct msm_device_info device_infos[] = {
       .gpu_id = 730,
       .chip_id = 0x07030001,
       .gmem_size = 2 * 1024 * 1024,
+   },
+   {
+      .gpu_id = 735,
+      .chip_id = 0x43030B00,
+      .gmem_size = 1024 * 1024 + 512 * 1024,
    },
    {
       .gpu_id = 740,
