@@ -3351,8 +3351,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
       if (has_const_offsets) {
          const unsigned num_components = nir_tex_instr_src_size(tex, offs_idx);
          for (unsigned i = 0; i < num_components; i++) {
-            nir_scalar s = nir_get_scalar(tex->src[offs_idx].src.ssa, i);
-            s = nir_scalar_chase_movs(s);
+            nir_scalar s = nir_scalar_resolved(tex->src[offs_idx].src.ssa, i);
             assert(nir_scalar_is_const(s));
             int offset = nir_scalar_as_int(s);
 
