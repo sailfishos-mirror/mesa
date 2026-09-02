@@ -1073,6 +1073,9 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
    case nir_op_bitfield_reverse:
       dst = ir3_BFREV_B_rpt(b, dst_sz, src[0], 0);
       break;
+   case nir_op_bfm:
+      dst = ir3_MGEN_B_rpt(b, dst_sz, src[0], 0, src[1], 0);
+      break;
 
    case nir_op_bitnz:
       dst = ir3_GETBIT_B_rpt(b, dst_sz, src[0], 0,
