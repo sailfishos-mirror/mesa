@@ -1062,30 +1062,6 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
    case nir_op_ifind_msb_rev:
       dst = ir3_CLZ_S_rpt(b, dst_sz, src[0], 0);
       break;
-   case nir_op_ifind_msb: {
-      struct ir3_instruction_rpt cmp;
-      dst = ir3_CLZ_S_rpt(b, dst_sz, src[0], 0);
-      cmp =
-         ir3_CMPS_S_rpt(b, dst_sz, dst, 0,
-                        create_immed_shared_rpt(b, dst_sz, 0, use_shared), 0);
-      set_cat2_condition(cmp.rpts, dst_sz, IR3_COND_GE);
-      dst = ir3_SEL_B32_rpt(
-         b, dst_sz,
-         ir3_SUB_U_rpt(b, dst_sz,
-                       create_immed_shared_rpt(b, dst_sz, 31, use_shared), 0,
-                       dst, 0),
-         0, cmp, 0, dst, 0);
-      break;
-   }
-   case nir_op_ufind_msb:
-      dst = ir3_CLZ_B_rpt(b, dst_sz, src[0], 0);
-      dst = ir3_SEL_B32_rpt(
-         b, dst_sz,
-         ir3_SUB_U_rpt(b, dst_sz,
-                       create_immed_shared_rpt(b, dst_sz, 31, use_shared), 0,
-                       dst, 0),
-         0, src[0], 0, dst, 0);
-      break;
    case nir_op_find_lsb:
       dst = ir3_BFREV_B_rpt(b, dst_sz, src[0], 0);
       dst = ir3_CLZ_B_rpt(b, dst_sz, dst, 0);
