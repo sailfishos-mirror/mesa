@@ -436,7 +436,7 @@ apply_repacked_pos_output(nir_builder *b, nir_intrinsic_instr *intrin, void *sta
    unsigned store_pos_component = nir_intrinsic_component(intrin);
 
    for (unsigned comp = 0; comp < store_val->num_components; ++comp) {
-      nir_scalar val = nir_scalar_chase_movs(nir_get_scalar(store_val, comp));
+      nir_scalar val = nir_scalar_resolved(store_val, comp);
       b->cursor = nir_after_instr_and_phis(nir_def_instr(val.def));
       nir_def *reloaded = nir_load_var(b, s->position_value_var);
 
