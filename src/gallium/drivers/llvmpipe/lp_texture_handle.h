@@ -38,6 +38,7 @@ struct lp_function_cache {
 };
 
 struct lp_trash_entry {
+   uint64_t update_count;
    void (*destroy)(void *ptr);
    void *ptr;
 };
@@ -80,7 +81,9 @@ struct lp_sampler_matrix {
 
    struct util_dynarray gallivms;
 
-   /* struct lp_trash_entry. Freed when the matrix is destroyed. */
+   p_atomic_uint64_t update_count;
+
+   /* struct lp_trash_entry, in update_count order. */
    struct util_dynarray trash;
 };
 
@@ -98,6 +101,6 @@ void llvmpipe_sampler_matrix_destroy(struct llvmpipe_screen *screen);
 
 void llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_state *shader);
 
-void llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen);
+void llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_fence_handle **fence);
 
 #endif /* LP_SAMPLER_MATRIX */

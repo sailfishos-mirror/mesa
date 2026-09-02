@@ -63,6 +63,9 @@ struct llvmpipe_context {
    unsigned flags;
 
    struct list_head list;
+
+   p_atomic_uint64_t sampler_matrix_update_count;
+
    /** Constant state objects */
    const struct pipe_blend_state *blend;
    struct pipe_sampler_state *samplers[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];

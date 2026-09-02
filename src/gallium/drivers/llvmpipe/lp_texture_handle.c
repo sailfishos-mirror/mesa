@@ -215,6 +215,7 @@ trash_append_locked(struct lp_sampler_matrix *matrix, void (*destroy)(void *ptr)
    simple_mtx_assert_locked(&matrix->lock);
 
    struct lp_trash_entry entry = {
+      .update_count = p_atomic_read(&matrix->update_count.value),
       .destroy = destroy,
       .ptr = ptr,
    };
@@ -227,6 +228,46 @@ destroy_function_cache(void *ptr)
 {
    /* The keys are retired separately, so leave them alone here. */
    _mesa_hash_table_destroy(ptr, NULL);
+}
+
+static void
+reclaim_trash_locked(struct lp_sampler_matrix *matrix, uint64_t update_count)
+{
+   simple_mtx_assert_locked(&matrix->lock);
+
+   uint32_t count = util_dynarray_num_elements(&matrix->trash, struct lp_trash_entry);
+   uint32_t reclaimed = 0;
+
+   /* Entries are appended in update_count order. */
+   while (reclaimed < count) {
+      struct lp_trash_entry *entry = util_dynarray_element(&matrix->trash, struct lp_trash_entry, reclaimed);
+
+      if (entry->update_count >= update_count)
+         break;
+
+      entry->destroy(entry->ptr);
+      reclaimed++;
+   }
+
+   if (!reclaimed)
+      return;
+
+   struct lp_trash_entry *entries = util_dynarray_begin(&matrix->trash);
+   memmove(entries, entries + reclaimed, (count - reclaimed) * sizeof(*entries));
+   matrix->trash.size -= reclaimed * sizeof(*entries);
+}
+
+static uint64_t
+oldest_live_update_count(struct llvmpipe_screen *screen)
+{
+   uint64_t update_count = p_atomic_read(&screen->sampler_matrix.update_count.value);
+
+   mtx_lock(&screen->ctx_mutex);
+   list_for_each_entry (struct llvmpipe_context, ctx, &screen->ctx_list, list)
+      update_count = MIN2(update_count, p_atomic_read(&ctx->sampler_matrix_update_count.value));
+   mtx_unlock(&screen->ctx_mutex);
+
+   return update_count;
 }
 
 static void
@@ -1493,10 +1534,10 @@ llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_stat
                                    &llvmpipe_screen(ctx->screen)->sampler_matrix);
 }
 
-void
-llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen)
+static void
+promote_cache_entries_locked(struct lp_sampler_matrix *matrix)
 {
-   struct lp_sampler_matrix *matrix = &screen->sampler_matrix;
+   simple_mtx_assert_locked(&matrix->lock);
 
    /* If the cache is empty, there is nothing to do. */
    bool has_cache_entry = false;
@@ -1509,13 +1550,11 @@ llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen)
    if (!has_cache_entry)
       return;
 
-   simple_mtx_lock(&matrix->lock);
-
    /* JIT code may search the caches and load from the tables at any time, so
     * every table update has to be a valid publish: new arrays are filled
-    * completely before their pointer is installed and replaced memory stays
-    * alive until the matrix is destroyed. The keys cannot be freed either
-    * because the retired cache clones share them.
+    * completely before their pointer is installed and replaced memory is
+    * retired to the trash instead of being freed. The keys cannot be freed
+    * either because the retired cache clones share them.
     */
    hash_table_foreach (acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_SAMPLE]), entry) {
       struct sample_function_cache_key *key = (void *)entry->key;
@@ -1566,6 +1605,43 @@ llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen)
    replace_function_cache_locked(matrix, &matrix->caches[LP_FUNCTION_CACHE_SAMPLE], sample_function_cache_key_table_create(NULL));
    replace_function_cache_locked(matrix, &matrix->caches[LP_FUNCTION_CACHE_FETCH], sample_function_cache_key_table_create(NULL));
    replace_function_cache_locked(matrix, &matrix->caches[LP_FUNCTION_CACHE_SIZE], size_function_cache_key_table_create(NULL));
+
+   p_atomic_inc(&matrix->update_count.value);
+}
+
+static bool
+has_trash(struct lp_sampler_matrix *matrix)
+{
+   simple_mtx_lock(&matrix->lock);
+   bool has_trash = util_dynarray_num_elements(&matrix->trash, struct lp_trash_entry) > 0;
+   simple_mtx_unlock(&matrix->lock);
+
+   return has_trash;
+}
+
+void
+llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_fence_handle **fence)
+{
+   struct llvmpipe_screen *screen = llvmpipe_screen(ctx->pipe.screen);
+   struct lp_sampler_matrix *matrix = &screen->sampler_matrix;
+
+   /* Once the context is idle, it cannot access any of the old table entries.
+    * New cache entries replace old clones, which are put into the trash, so
+    * waiting for the trash also makes the cache safe to reclaim.
+    */
+   if (fence && has_trash(matrix)) {
+      screen->base.fence_finish(&screen->base, NULL, *fence, OS_TIMEOUT_INFINITE);
+      p_atomic_set(&ctx->sampler_matrix_update_count.value,
+                   p_atomic_read(&matrix->update_count.value));
+   }
+
+   /* Walk the contexts before taking the lock to keep the two locks unnested. */
+   uint64_t reclaim_count = oldest_live_update_count(screen);
+
+   simple_mtx_lock(&matrix->lock);
+
+   promote_cache_entries_locked(matrix);
+   reclaim_trash_locked(matrix, reclaim_count);
 
    simple_mtx_unlock(&matrix->lock);
 }
