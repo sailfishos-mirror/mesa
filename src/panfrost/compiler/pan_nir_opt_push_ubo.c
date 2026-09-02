@@ -135,6 +135,20 @@ add_ubo_push(struct opt_push_ubo_ctx *ctx, unsigned ubo_idx, unsigned word)
    });
 }
 
+static bool
+ubo_range_is_pushed(const struct opt_push_ubo_ctx *ctx, struct ubo_range range)
+{
+   if (range.nr_words < 0)
+      return false;
+
+   const struct pushable_ubo *ubo = &ctx->ubos[range.ubo_idx];
+   for (unsigned w = 0; w < range.nr_words; w++) {
+      if (!BITSET_TEST(ubo->pushed, range.word + w))
+         return false;
+   }
+   return true;
+}
+
 /* We always map blend constants from the first slot in the sysval UBO to the
  * first four FAU words, so that they can be accessed from a consistent
  * location from the blend shader.
@@ -215,10 +229,9 @@ analyze_alu_intr(nir_builder *b, nir_alu_instr *alu, void *data)
 
       const struct ubo_range range =
          get_pushable_ubo_range(nir_instr_as_intrinsic(s_instr), ctx);
-      if (range.ubo_idx < 0 || range.nr_words < 0)
+      if (!ubo_range_is_pushed(ctx, range))
          continue;
 
-      assert(BITSET_TEST(ctx->ubos[range.ubo_idx].pushed, range.word));
       uint8_t fau_word = ctx->ubos[range.ubo_idx].range_idx[range.word];
       assert(fau_word < PAN_MAX_PUSH);
       assert(!BITSET_TEST(ctx->fau->is_const, fau_word));
@@ -317,7 +330,7 @@ reorder_ubo_push_words(struct opt_push_ubo_ctx *ctx)
       assert((size % 2) == 0);
 
       /* Push the paired uses */
-      assert(pushed + (unsigned)size < PAN_MAX_PUSH);
+      assert(pushed + (unsigned)size <= PAN_MAX_PUSH);
       typed_memcpy(ordering + pushed, component, size);
       pushed += size;
    }
@@ -348,19 +361,10 @@ lower_ubo_intr(nir_builder *b, nir_intrinsic_instr *load, void *data)
       return false;
    }
 
-   struct pushable_ubo *ubo = &ctx->ubos[range.ubo_idx];
-   if (range.nr_words < 0) {
+   if (!ubo_range_is_pushed(ctx, range)) {
       /* We couldn't push this one */
       ctx->ubo_mask |= BITFIELD_BIT(range.ubo_idx);
       return false;
-   }
-
-   /* Check to see if we've pushed the whole range */
-   for (unsigned w = 0; w < range.nr_words; w++) {
-      if (!BITSET_TEST(ubo->pushed, range.word)) {
-         ctx->ubo_mask |= BITFIELD_BIT(range.ubo_idx);
-         return false;
-      }
    }
 
    b->cursor = nir_before_instr(&load->instr);
