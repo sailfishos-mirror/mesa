@@ -3379,6 +3379,8 @@ nir_scalar_intrinsic_op(nir_scalar s)
    return nir_def_as_intrinsic(s.def)->intrinsic;
 }
 
+nir_scalar nir_scalar_chase_movs(nir_scalar s);
+
 static inline nir_scalar
 nir_scalar_chase_alu_src(nir_scalar s, unsigned alu_src_idx)
 {
@@ -3407,10 +3409,8 @@ nir_scalar_chase_alu_src(nir_scalar s, unsigned alu_src_idx)
    }
    assert(out.comp < out.def->num_components);
 
-   return out;
+   return nir_scalar_chase_movs(out);
 }
-
-nir_scalar nir_scalar_chase_movs(nir_scalar s);
 
 static inline nir_scalar
 nir_get_scalar(nir_def *def, unsigned channel)
