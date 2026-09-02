@@ -425,6 +425,7 @@ impl<'a> TestShaderBuilder<'a> {
             phi_alloc: Default::default(),
             blocks: cfg.as_cfg(false),
             info,
+            constant_pool: Default::default(),
         };
         s.validate();
 
@@ -596,6 +597,7 @@ impl<'a> RawTestShaderBuilder<'a> {
             phi_alloc: Default::default(),
             blocks: cfg.as_cfg(false),
             info,
+            constant_pool: Default::default(),
         };
 
         if DEBUG.contains(DebugFlags::PRINT) {

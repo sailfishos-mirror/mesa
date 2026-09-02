@@ -1942,12 +1942,20 @@ impl ShaderInfo {
     }
 }
 
+/// Constant data from nir_opt_large_constants, appended to the shader
+/// binary at encode time and addressed PC-relative through its label.
+pub struct ConstantPool {
+    pub label: Label,
+    pub data: Vec<u8>,
+}
+
 pub struct Shader<'a> {
     pub model: &'a dyn Model,
     pub ssa_alloc: SSAValueAllocator,
     pub phi_alloc: PhiAllocator,
     pub blocks: CFG<BasicBlock>,
     pub info: ShaderInfo,
+    pub constant_pool: Option<ConstantPool>,
 }
 
 impl Shader<'_> {

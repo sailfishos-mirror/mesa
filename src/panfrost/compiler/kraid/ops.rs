@@ -276,6 +276,25 @@ impl DisplayOp for OpBarrier {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpAdr {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    pub label: Label,
+}
+
+impl DisplayOp for OpAdr {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ADR")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.label)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpBitRev {
     #[dst_type(I32)]
     pub dst: Dst,
@@ -3903,6 +3922,7 @@ impl DisplayOp for OpWMask {
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     ACmpXchg(Box<OpACmpXchg>),
+    Adr(Box<OpAdr>),
     Atom(Box<OpAtom>),
     Atom1(Box<OpAtom1>),
     Barrier(OpBarrier),

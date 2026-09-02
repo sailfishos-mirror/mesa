@@ -89,6 +89,8 @@ struct ShaderFromNir<'a> {
     rtz_fp32: bool,
     ftz_fp32: bool,
     info: ShaderInfo,
+    constant_pool_label: Option<Label>,
+    constant_pool_used: bool,
 }
 
 impl<'a> ShaderFromNir<'a> {
@@ -110,6 +112,8 @@ impl<'a> ShaderFromNir<'a> {
                 tls_size: nir.scratch_size,
                 ..ShaderInfo::default()
             },
+            constant_pool_label: None,
+            constant_pool_used: false,
         }
     }
 
@@ -1739,6 +1743,21 @@ impl<'a> ShaderFromNir<'a> {
                     offset: offset.try_into().unwrap(),
                 });
             }
+            nir_intrinsic_load_constant_base_ptr => {
+                assert_eq!(intrin.def.bit_size, 64);
+                assert_eq!(intrin.def.num_components, 1);
+                let label = self
+                    .constant_pool_label
+                    .expect("Shader has no constant data");
+                self.constant_pool_used = true;
+                let pc = self.special_fau(SpecialFAU::Pc);
+                let ssa = self.alloc_ssa(b, &intrin.def);
+                b.push_op(OpAdr {
+                    dst: ssa[0].into(),
+                    label,
+                });
+                b.copy_i32_to(ssa[1].into(), pc.word(1).into());
+            }
             nir_intrinsic_load_scratch_base_ptr => {
                 assert_eq!(intrin.def.bit_size, 64);
                 assert_eq!(intrin.def.num_components, 1);
@@ -2244,6 +2263,9 @@ impl<'a> ShaderFromNir<'a> {
 
         // Pre-populate the block table so we have the same numbering as NIR
         let mut label_alloc: LabelAllocator = Default::default();
+        if self.nir.constant_data_size > 0 {
+            self.constant_pool_label = Some(label_alloc.alloc());
+        }
         let mut block_map: BlockLabelMap = Default::default();
         for nb in nfi.iter_blocks() {
             block_map.add(nb, label_alloc.alloc());
@@ -2267,12 +2289,28 @@ impl<'a> ShaderFromNir<'a> {
             blocks[0].instrs.splice(..0, self.create_preload_instrs());
         }
 
+        let constant_pool = self.constant_pool_used.then(|| ConstantPool {
+            label: self.constant_pool_label.unwrap(),
+            // SAFETY: constant_pool_used implies constant_pool_label was
+            // allocated, so constant_data_size > 0 and NIR guarantees that
+            // constant_data then points to that many bytes, owned by the
+            // nir_shader we borrow.
+            data: unsafe {
+                std::slice::from_raw_parts(
+                    self.nir.constant_data as *const u8,
+                    self.nir.constant_data_size as usize,
+                )
+            }
+            .to_vec(),
+        });
+
         Shader {
             model: self.model,
             ssa_alloc,
             phi_alloc,
             blocks,
             info: self.info,
+            constant_pool,
         }
     }
 }

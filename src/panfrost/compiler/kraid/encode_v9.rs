@@ -705,6 +705,19 @@ impl V9Instr for OpBarrier {
     }
 }
 
+impl V9Instr for OpAdr {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(Adr::get_info((), arch), src_map! {})
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Adr {
+            dst: op_encode_dst(self, &self.dst),
+            imm1w: e.get_pc_rel_offset(&self.label),
+        })
+    }
+}
+
 impl V9Instr for OpBranch {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(Branch::get_info((), arch), src_map! {src0: cond})
@@ -2883,6 +2896,7 @@ macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
             Op::ACmpXchg($x) => $y,
+            Op::Adr($x) => $y,
             Op::Atom($x) => $y,
             Op::Atom1($x) => $y,
             Op::Barrier($x) => $y,
@@ -3156,12 +3170,29 @@ pub fn encode_v9(s: &Shader<'_>, arch: u8) -> Vec<u32> {
         ip += i64::try_from(b.instrs.len()).unwrap() * INSTR_SIZE;
     }
 
+    if let Some(pool) = &s.constant_pool {
+        let pool_ip = u64::try_from(ip + INSTR_SIZE)
+            .unwrap()
+            .next_multiple_of(128);
+        labels.insert(pool.label, i64::try_from(pool_ip).unwrap());
+    }
+
     let mut enc = Vec::new();
     let mut ip = 0_i64;
     for b in &s.blocks {
         for i in &b.instrs {
             enc.extend(encode_instr(ip, i, arch, &labels));
             ip += INSTR_SIZE;
+        }
+    }
+
+    if let Some(pool) = &s.constant_pool {
+        let pool_ip = usize::try_from(labels[&pool.label]).unwrap();
+        enc.resize(pool_ip / 4, 0);
+        for chunk in pool.data.chunks(4) {
+            let mut word = [0_u8; 4];
+            word[..chunk.len()].copy_from_slice(chunk);
+            enc.push(u32::from_le_bytes(word));
         }
     }
 
