@@ -264,7 +264,7 @@
         "description": "Revert \"ci-tron: bypass caching proxy for docker images\"",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1a47641d5b1bc7d5c858c883779d841004cf6f8b",
         "notes": null
