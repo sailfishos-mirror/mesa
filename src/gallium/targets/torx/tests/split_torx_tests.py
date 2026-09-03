@@ -186,6 +186,22 @@ def _build_sigmoid_module(torch):
     return SigmoidModule()
 
 
+def _build_conv_sigmoid_module(torch, gm, conv_node):
+    """Build a convolution followed by sigmoid, the pattern the driver packs
+    into one convolution that writes its output through the table."""
+    conv = _build_module(torch, gm, conv_node, [conv_node])
+    return torch.nn.Sequential(conv, torch.nn.Sigmoid())
+
+
+def _build_conv_sigmoid_maxpool_module(torch, gm, conv_node):
+    """Build convolution -> sigmoid -> 2x2 max pool.  The pool keeps the
+    sigmoid output internal, so the reference compiler fuses the activation
+    into the convolution the way the driver does."""
+    conv = _build_module(torch, gm, conv_node, [conv_node])
+    return torch.nn.Sequential(conv, torch.nn.Sigmoid(),
+                               torch.nn.MaxPool2d(2, stride=2))
+
+
 def _build_cat_module(torch, dim):
     """Build a standalone nn.Module concatenating its inputs along dim."""
 
@@ -402,6 +418,62 @@ def split_model(pt2_path, torch):
 
         ops.append((f"{idx:03d}", mod, (example_input,)))
         idx += 1
+
+    # --- CONV+SIGMOID ops -----------------------------------------------
+    # A sigmoid fed only by a convolution is the case the driver fuses into
+    # one lookup-table convolution; extract it to compare that emission.
+    for node in gm.graph.nodes:
+        if node.op != "call_function":
+            continue
+        if str(node.target) != "aten.sigmoid.default":
+            continue
+
+        conv_node = node.args[0]
+        if not isinstance(conv_node, torch.fx.Node):
+            continue
+        if str(conv_node.target) != "aten.conv2d.default":
+            continue
+        input_meta = conv_node.args[0].meta.get("val")
+        if input_meta is None or input_meta.dim() != 4:
+            continue
+
+        mod = _build_conv_sigmoid_module(torch, gm, conv_node)
+        mod.eval()
+
+        torch.manual_seed(42 + idx)
+        example_input = torch.randn(input_meta.shape)
+
+        ops.append((f"{idx:03d}", mod, (example_input,)))
+        idx += 1
+
+    # --- CONV+SIGMOID+POOL op -------------------------------------------
+    # One case where the sigmoid output is internal (a 2x2 max pool reads
+    # it), so the reference compiler fuses the activation the way the driver
+    # does and the two fused streams can be compared.
+    for node in gm.graph.nodes:
+        if node.op != "call_function":
+            continue
+        if str(node.target) != "aten.sigmoid.default":
+            continue
+
+        conv_node = node.args[0]
+        if not isinstance(conv_node, torch.fx.Node):
+            continue
+        if str(conv_node.target) != "aten.conv2d.default":
+            continue
+        input_meta = conv_node.args[0].meta.get("val")
+        if input_meta is None or input_meta.dim() != 4:
+            continue
+
+        mod = _build_conv_sigmoid_maxpool_module(torch, gm, conv_node)
+        mod.eval()
+
+        torch.manual_seed(42 + idx)
+        example_input = torch.randn(input_meta.shape)
+
+        ops.append((f"{idx:03d}", mod, (example_input,)))
+        idx += 1
+        break
 
     # --- UPSAMPLE ops ---------------------------------------------------
     for node in gm.graph.nodes:
