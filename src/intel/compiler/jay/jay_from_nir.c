@@ -3590,7 +3590,8 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             .bindless = surface_bindless, .pure = true,
             .skip_helpers = tex->skip_helpers,
             .explicit_simd_width =
-               (uses_implicit_derivative && payload_uniform) ? 4 : 0);
+               (uses_implicit_derivative && payload_uniform) ? 4 : 0,
+            .simd_width = simd_width);
 
    /* If we sampled into a temporary, copy out to the final */
    if (residency) {
