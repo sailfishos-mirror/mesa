@@ -1821,6 +1821,9 @@ RADV driver environment variables
    ``full``
      mitigate the issue completely, no risk but performance might be decreased
      (default value)
+   ``full_rez``
+     mitigate the issue completely and force early-Z-then-ReZ to recover some
+     of the early-Z rejection lost by disabling HiZ
 
 RadeonSI driver environment variables
 -------------------------------------

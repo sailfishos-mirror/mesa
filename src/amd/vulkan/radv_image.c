@@ -851,7 +851,8 @@ radv_image_alloc_values(const struct radv_device *device, struct radv_image *ima
 
    if (pdev->info.gfx_level == GFX12) {
       /* Allocate HiZ metadata when the image has depth/stencil aspects to implement a workaround. */
-      if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL && radv_image_has_hiz(image) &&
+      if ((pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL || pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ) &&
+          radv_image_has_hiz(image) &&
           (image->vk.aspects == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))) {
          image->hiz_metadata_offset = image->size;
          image->size += image->vk.mip_levels * 4;

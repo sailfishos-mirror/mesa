@@ -6090,8 +6090,11 @@ radv_emit_framebuffer_state(struct radv_cmd_buffer *cmd_buffer)
    assert(cs->b->cdw <= cdw_max);
 }
 
+static bool radv_should_enable_late_z(struct radv_cmd_buffer *cmd_buffer);
+
 static uint32_t
-radv_gfx12_override_hiz_enable(struct radv_cmd_buffer *cmd_buffer, bool enable)
+radv_gfx12_override_hiz_enable(struct radv_cmd_buffer *cmd_buffer, bool enable, bool force_rez,
+                               uint32_t db_shader_control)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
@@ -6100,16 +6103,32 @@ radv_gfx12_override_hiz_enable(struct radv_cmd_buffer *cmd_buffer, bool enable)
    uint32_t hiz_info = ds->ac.u.gfx12.hiz_info;
    const uint32_t cdw = cs->b->cdw;
 
-   if (!enable)
-      hiz_info &= C_028B94_SURFACE_ENABLE;
+   /* The PS is compiled with LATE_Z when it writes memory, which radv_should_enable_late_z() doesn't cover. */
+   force_rez &= G_02806C_Z_ORDER(db_shader_control) == V_02806C_EARLY_Z_THEN_LATE_Z;
 
-   radeon_check_space(device->ws, cs->b, 3);
+   if (!enable) {
+      hiz_info &= C_028B94_SURFACE_ENABLE;
+      if (force_rez)
+         db_shader_control = (db_shader_control & C_02806C_Z_ORDER) |
+                             S_02806C_Z_ORDER(V_02806C_EARLY_Z_THEN_RE_Z);
+   }
+
+   radeon_check_space(device->ws, cs->b, 5);
 
    radeon_begin(cs);
    gfx12_begin_context_regs();
    gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, hiz_info);
+   /* This is a transient override, so bypass the register tracking instead of recording it as pipeline state. */
+   if (force_rez)
+      gfx12_set_context_reg(R_02806C_DB_SHADER_CONTROL, db_shader_control);
    gfx12_end_context_regs();
    radeon_end();
+
+   /* The register was written behind the tracker's back and the caller can predicate the restore packet, so the
+    * final Z_ORDER is unknown to CPU-side state tracking.
+    */
+   if (force_rez)
+      BITSET_CLEAR(cs->tracked_regs.reg_saved_mask, AC_TRACKED_DB_SHADER_CONTROL);
 
    return cs->b->cdw - cdw;
 }
@@ -6123,18 +6142,22 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_image_view *iview = render->ds_att.iview;
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
-   if (pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL)
+   if (pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL && pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL_REZ)
       return;
 
    if (!iview || !radv_image_has_hiz_metadata(iview->image))
       return;
+
+   const bool force_rez = pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ &&
+                          !radv_should_enable_late_z(cmd_buffer);
+   const uint32_t db_shader_control = cmd_buffer->cs->tracked_regs.reg_value[AC_TRACKED_DB_SHADER_CONTROL];
 
    /* Ignore the HiZ workaround for internal blits to properly update HiZ. It's required for dynamic
     * rendering depth/stencil clears because the framebuffer isn't re-emitted and HiZ might have
     * been disabled previously. The risk should be minimal and it's much better for performance.
     */
    if (cmd_buffer->state.meta.inside_meta_op) {
-      radv_gfx12_override_hiz_enable(cmd_buffer, true);
+      radv_gfx12_override_hiz_enable(cmd_buffer, true, force_rez, db_shader_control);
       return;
    }
 
@@ -6145,7 +6168,8 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
       (ds.depth.test_enable || ds.depth.write_enable) && (ds.stencil.test_enable || ds.stencil.write_enable);
    const bool depth_write_enable = ds.depth.write_enable;
 
-   const uint32_t num_dwords = radv_gfx12_override_hiz_enable(cmd_buffer, false);
+   const uint32_t num_dwords =
+      radv_gfx12_override_hiz_enable(cmd_buffer, false, force_rez, db_shader_control);
 
    if (depth_and_stencil_enable) {
       if (depth_write_enable) {
@@ -6167,7 +6191,7 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
 
       ac_emit_cp_cond_exec(cmd_buffer->cs->b, pdev->info.gfx_level, va, num_dwords);
 
-      radv_gfx12_override_hiz_enable(cmd_buffer, true);
+      radv_gfx12_override_hiz_enable(cmd_buffer, true, force_rez, db_shader_control);
    }
 }
 
@@ -10490,7 +10514,7 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
 
       if (!secondary->state.render.has_image_views) {
          if (primary->state.render.active && (primary->state.dirty & RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE)) {
-            if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL) {
+            if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL || pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ) {
                const struct radv_rendering_state *render = &primary->state.render;
                const struct radv_image_view *iview = render->ds_att.iview;
 
@@ -10507,7 +10531,7 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
                      .layerCount = iview->vk.layer_count,
                   };
 
-                  radv_gfx12_override_hiz_enable(primary, false);
+                  radv_gfx12_override_hiz_enable(primary, false, false, 0);
                   radv_update_hiz_metadata(primary, iview->image, &range, false);
                }
             }
@@ -13074,6 +13098,13 @@ radv_emit_db_shader_control(struct radv_cmd_buffer *cmd_buffer)
 
    if (radv_should_enable_late_z(cmd_buffer))
       db_shader_control = (db_shader_control & C_02880C_Z_ORDER) | S_02880C_Z_ORDER(V_02880C_LATE_Z);
+   /* Inherited secondary command buffers have no image view for the metadata-based workaround path. The primary
+    * command buffer conservatively disables HiZ before executing them, so force ReZ for their draws.
+    */
+   else if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ && !cmd_buffer->state.render.has_image_views &&
+            cmd_buffer->state.render.gfx12_has_hiz &&
+            G_02880C_Z_ORDER(db_shader_control) == V_02880C_EARLY_Z_THEN_LATE_Z)
+      db_shader_control = (db_shader_control & C_02880C_Z_ORDER) | S_02880C_Z_ORDER(V_02880C_EARLY_Z_THEN_RE_Z);
 
    if (ps && ps->info.ps.pops) {
       /* POPS_OVERLAP_NUM_SAMPLES (OVERRIDE_INTRINSIC_RATE on GFX11, must always be enabled for POPS) controls the
@@ -13971,6 +14002,10 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
 
    if (dynamic_states)
       radv_validate_dynamic_states(cmd_buffer, dynamic_states);
+
+   if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ &&
+       (cmd_buffer->state.dirty & RADV_CMD_DIRTY_DB_SHADER_CONTROL))
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE;
 
    if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_PS_EPILOG_SHADER) {
       radv_bind_ps_epilog(cmd_buffer);
