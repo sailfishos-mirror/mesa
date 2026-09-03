@@ -486,7 +486,11 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
    info->type_0 = p.src_type[0] ? p.src_type[0] : I->type;
    info->type_1 = p.src_type[1] ? p.src_type[1] : info->type_0;
 
+   /* We don't do true SIMD32 on Xe1, so clamp */
    unsigned simd = p.simd_width ? p.simd_width : b->shader->dispatch_width;
+   unsigned native_simd = devinfo->ver < 20 ? 8 : 16;
+   simd = MIN2(simd, native_simd * 2);
+
    I->simd_split =
       I->uniform ? 0 : util_logbase2(b->shader->dispatch_width / simd);
 
