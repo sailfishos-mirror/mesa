@@ -1789,6 +1789,9 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    unsigned exec_size = nj->bld.shader->dispatch_width;
 
    if (tgm) {
+      /* TGM requires SIMD8 */
+      exec_size = 8;
+
       if (lsc_opcode_is_atomic(op)) {
          desc =
             brw_dp_typed_atomic_desc(devinfo, exec_size, 0,
@@ -1865,7 +1868,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .src_type = { offset_type, data_type }, .uniform = uniform,
             .pure = nir_intrinsic_can_reorder(intr),
             .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS,
-            .skip_helpers = skip_helpers);
+            .skip_helpers = skip_helpers, .simd_width = exec_size);
 
    if (has_dest && !jay_defs_equivalent(tmp, dst)) {
       unsigned src_stride = transpose ? 1 : jay_ugpr_per_grf(b->shader);
