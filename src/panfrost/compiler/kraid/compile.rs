@@ -270,16 +270,23 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.insert_required_waits());
     pass!(s.mark_reconvergence());
     pass!(s.opt_end());
-    pass!(s.lower_blend_call());
 
     if !s.is_empty() {
+        info.stats = s.get_stats();
+        pass!(s.lower_blend_call());
+
         let bin = model.encode_shader(&s);
         let code_size = std::mem::size_of_val(&bin[..]);
         dynarray_append_vec(binary, bin);
 
         encode_no_psiz_variant(nir, &mut s, model.as_ref(), binary, info);
 
-        info.stats = s.get_stats(code_size.try_into().unwrap());
+        if info.stats.isa == PAN_STAT_VALHALL {
+            info.stats.__bindgen_anon_1.valhall.code_size =
+                code_size.try_into().unwrap();
+        } else {
+            panic!("Unsupported ISA");
+        }
     } else {
         info.stats = pan_stats::default();
     }
