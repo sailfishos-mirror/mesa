@@ -95,14 +95,6 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
    }
    radeon_end();
 
-   /* CP DMA is executed in ME, but index buffers are read by PFP.
-    * This ensures that ME (CP DMA) is idle before PFP starts fetching
-    * indices. If we wanted to execute CP DMA in PFP, this packet
-    * should precede it.
-    */
-   if (flags & CP_DMA_SYNC && cmd_buffer->qf == RADV_QUEUE_GENERAL)
-      ac_emit_cp_pfp_sync_me(cs->b, false);
-
    /* CP will see the sync flag and wait for all DMAs to complete. */
    cmd_buffer->state.dma_is_busy = !cmd_buffer->is_mec && !(flags & CP_DMA_SYNC);
 
