@@ -3486,6 +3486,10 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    if (nj->devinfo->ver < 20) {
       simd_width = MIN2(simd_width, 16);
 
+      /* TXD is unsupported in SIMD16 mode previous to Xe2 */
+      if (tex->op == nir_texop_txd)
+         simd_width = 8;
+
       if (payload_type_bit_size == 16) {
          assert(nj->devinfo->ver >= 11);
          simd_mode = simd_width <= 8 ? GEN_GFX11_SAMPLER_SIMD_MODE_SIMD8H :
