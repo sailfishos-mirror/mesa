@@ -629,11 +629,6 @@ dri_init_screen(struct dri_screen *screen,
    screen->base.set_background_context = dri_set_background_context;
    screen->base.validate_egl_image = dri_validate_egl_image;
 
-   if (pscreen->caps.npot_textures)
-      screen->target = PIPE_TEXTURE_2D;
-   else
-      screen->target = PIPE_TEXTURE_RECT;
-
    dri_init_options(screen);
 
    st_api_query_versions(&screen->base,
@@ -642,6 +637,17 @@ dri_init_screen(struct dri_screen *screen,
                          &screen->max_gl_compat_version,
                          &screen->max_gl_es1_version,
                          &screen->max_gl_es2_version);
+
+   /* GL 2.0 and GLES 2.0 support normalized sampling from level-zero NPOT
+    * textures, which is sufficient for window-system images.
+    */
+   if (pscreen->caps.npot_textures ||
+       screen->max_gl_compat_version >= 20 ||
+       screen->max_gl_core_version >= 31 ||
+       screen->max_gl_es2_version >= 20)
+      screen->target = PIPE_TEXTURE_2D;
+   else
+      screen->target = PIPE_TEXTURE_RECT;
 
    screen->throttle = pscreen->caps.throttle;
    if (pscreen->caps.device_protected_context)
