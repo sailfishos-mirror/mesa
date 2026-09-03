@@ -1797,7 +1797,11 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
       state->fs_state->unit[sampler].clamp_cube_coords_before_fetch;
    const bool bias_cube_lod =
       state->fs_state->unit[sampler].bias_cube_lod_at_edge;
-   const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
+   const bool shader_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
+   const bool state_rect =
+      (state->fs_state->unnormalized_coords_mask & (1u << sampler)) &&
+      tex->sampler_dim == GLSL_SAMPLER_DIM_2D;
+   const bool is_rect = shader_rect || state_rect;
    const bool correct_cube_lod =
       bias_cube_lod && (tex->op == nir_texop_tex || tex->op == nir_texop_txb);
 
@@ -1826,6 +1830,10 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
                                  sampler, coord->num_components);
       coord = nir_fmul(b, coord, factor);
       tex->sampler_dim = GLSL_SAMPLER_DIM_2D;
+      progress = true;
+   } else if (state_rect) {
+      /* R500 supports unnormalized coordinates in the texture instruction. */
+      tex->sampler_dim = GLSL_SAMPLER_DIM_RECT;
       progress = true;
    }
 

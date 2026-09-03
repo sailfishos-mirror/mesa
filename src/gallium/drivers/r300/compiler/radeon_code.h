@@ -177,6 +177,8 @@ struct r300_fragment_program_external_state {
       unsigned bias_cube_lod_at_edge : 1;
    } unit[16];
 
+   /** Mask of 2D samplers using unnormalized coordinates. */
+   unsigned unnormalized_coords_mask : 16;
    unsigned alpha_to_one : 1;
 
    int sampler_state_count;

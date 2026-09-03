@@ -99,6 +99,10 @@ void r300_fragment_program_get_external_state(
 
         t = r300_resource(v->base.texture);
 
+        if (s->state.unnormalized_coords &&
+            (r300_fs(r300)->samplers_2d & (1u << i)))
+            state->unnormalized_coords_mask |= 1u << i;
+
         if (s->state.compare_mode == PIPE_TEX_COMPARE_R_TO_TEXTURE) {
             state->unit[i].compare_mode_enabled = 1;
 
