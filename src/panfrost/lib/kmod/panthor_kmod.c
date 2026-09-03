@@ -224,9 +224,13 @@ panthor_dev_query_props(struct panthor_kmod_dev *panthor_dev)
 
 static struct pan_kmod_dev *
 panthor_kmod_dev_create(int fd, uint32_t flags,
-                        const struct pan_kmod_driver *drv_info,
                         const struct pan_kmod_allocator *allocator)
 {
+   struct pan_kmod_driver drv_info;
+
+   if (!pan_kmod_drm_drv_match(fd, "panthor", &drv_info))
+      return NULL;
+
    struct panthor_kmod_dev *panthor_dev =
       pan_kmod_alloc(allocator, sizeof(*panthor_dev));
    if (!panthor_dev) {
@@ -259,7 +263,7 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
       goto err_free_dev;
    }
 
-   if (pan_kmod_driver_version_at_least(drv_info, 1, 9)) {
+   if (pan_kmod_driver_version_at_least(&drv_info, 1, 9)) {
       query = (struct drm_panthor_dev_query){
          .type = DRM_PANTHOR_DEV_QUERY_MMU_INFO,
          .size = sizeof(panthor_dev->props.mmu),
@@ -275,7 +279,7 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
       panthor_dev->props.mmu.page_size_bitmap = PAN_PGSIZE_4K | PAN_PGSIZE_2M;
    }
 
-   if (pan_kmod_driver_version_at_least(drv_info, 1, 1)) {
+   if (pan_kmod_driver_version_at_least(&drv_info, 1, 1)) {
       query = (struct drm_panthor_dev_query){
          .type = DRM_PANTHOR_DEV_QUERY_TIMESTAMP_INFO,
          .size = sizeof(panthor_dev->props.timestamp),
@@ -290,7 +294,7 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
    }
 
    /* Map the LATEST_FLUSH_ID register at device creation time. */
-   if (pan_kmod_driver_version_at_least(drv_info, 1, 5)) {
+   if (pan_kmod_driver_version_at_least(&drv_info, 1, 5)) {
       struct drm_panthor_set_user_mmio_offset user_mmio_offset = {
          .offset = DRM_PANTHOR_USER_MMIO_OFFSET,
       };
@@ -309,7 +313,7 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
       goto err_free_dev;
    }
 
-   if (pan_kmod_driver_version_at_least(drv_info, 1, 2)) {
+   if (pan_kmod_driver_version_at_least(&drv_info, 1, 2)) {
       query = (struct drm_panthor_dev_query){
          .type = DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO,
          .size = sizeof(panthor_dev->props.group_priorities),
@@ -332,7 +336,7 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
 
    assert(!ret);
 
-   ret = pan_kmod_dev_init(&panthor_dev->base, fd, flags, drv_info, allocator,
+   ret = pan_kmod_dev_init(&panthor_dev->base, fd, flags, &drv_info, allocator,
                            &panthor_kmod_ops, util_sync_provider_drm(fd));
    if (ret)
       goto err_free_dev;

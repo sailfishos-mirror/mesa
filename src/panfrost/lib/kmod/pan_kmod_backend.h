@@ -9,6 +9,30 @@
 
 #include "pan_kmod.h"
 
+
+static inline bool
+pan_kmod_drm_drv_match(int fd, char *drv_name, struct pan_kmod_driver *drv_info)
+{
+   drmVersionPtr version = drmGetVersion(fd);
+   bool ret = true;
+
+   if (!version)
+      return false;
+
+   *drv_info = (struct pan_kmod_driver) {
+      .version = {
+         .major = version->version_major,
+         .minor = version->version_minor,
+      },
+   };
+
+   if (strcmp(drv_name, version->name))
+      ret = false;
+
+   drmFreeVersion(version);
+   return ret;
+}
+
 static inline int
 pan_kmod_dev_init(struct pan_kmod_dev *dev, int fd, uint32_t flags,
                   const struct pan_kmod_driver *drv_info,

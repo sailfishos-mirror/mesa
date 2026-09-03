@@ -15,10 +15,10 @@
 extern const struct pan_kmod_ops panfrost_kmod_ops;
 extern const struct pan_kmod_ops panthor_kmod_ops;
 
-static const struct {
+static const struct backend {
    const char *name;
    const struct pan_kmod_ops *ops;
-} drivers[] = {
+} backends[] = {
    {
       "panfrost",
       &panfrost_kmod_ops,
@@ -28,6 +28,15 @@ static const struct {
       &panthor_kmod_ops,
    },
 };
+
+DEBUG_GET_ONCE_OPTION(enabled_backends, "PAN_KMOD_RESTRICT_TO_BACKENDS", "all");
+
+static inline bool
+pan_kmod_backend_is_enabled(const char *enabled_backends, const char *backend)
+{
+   return !strcmp(enabled_backends, "all") ||
+          comma_separated_list_contains(enabled_backends, backend);
+}
 
 static void *
 default_zalloc(const struct pan_kmod_allocator *allocator, size_t size,
@@ -51,33 +60,22 @@ struct pan_kmod_dev *
 pan_kmod_dev_create(int fd, uint32_t flags,
                     const struct pan_kmod_allocator *allocator)
 {
-   drmVersionPtr version = drmGetVersion(fd);
+   const char *selected_backends = debug_get_option_enabled_backends();
    struct pan_kmod_dev *dev = NULL;
-
-   if (!version)
-      return NULL;
 
    if (!allocator)
       allocator = &default_allocator;
 
-   const char *drv_name = version->name;
-   const struct pan_kmod_driver drv_info = {
-      .version = {
-         .major = version->version_major,
-         .minor = version->version_minor,
-      },
-   };
+   for (int i = 0; i < ARRAY_SIZE(backends); i++) {
+      if (pan_kmod_backend_is_enabled(selected_backends, backends[i].name))
+         dev = backends[i].ops->dev_create(fd, flags, allocator);
+      else
+         mesa_logi("skipping '%s'", backends[i].name);
 
-   for (unsigned i = 0; i < ARRAY_SIZE(drivers); i++) {
-      if (!strcmp(drivers[i].name, drv_name)) {
-         const struct pan_kmod_ops *ops = drivers[i].ops;
-
-         dev = ops->dev_create(fd, flags, &drv_info, allocator);
+      if (dev)
          break;
-      }
    }
 
-   drmFreeVersion(version);
    return dev;
 }
 

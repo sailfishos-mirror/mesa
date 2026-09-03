@@ -454,8 +454,7 @@ struct pan_kmod_ops {
    /* Create a pan_kmod_dev object.
     * Return NULL if the creation fails for any reason.
     */
-   struct pan_kmod_dev *(*dev_create)(
-      int fd, uint32_t flags, const struct pan_kmod_driver *drv_info,
+   struct pan_kmod_dev *(*dev_create)(int fd, uint32_t flags,
       const struct pan_kmod_allocator *allocator);
 
    /* Destroy a pan_kmod_dev object. */
