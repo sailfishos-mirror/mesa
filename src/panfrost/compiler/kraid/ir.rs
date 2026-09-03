@@ -1845,6 +1845,10 @@ pub struct Instr {
     pub flow: FlowCtrl,
 }
 
+impl Instr {
+    pub const MAX_SRC_COUNT: usize = 4;
+}
+
 impl Deref for Instr {
     type Target = Op;
 

@@ -79,7 +79,7 @@ fn legalize_vec_srcs(
     debug_assert!(ssa_used.is_empty());
     let srcs = instr.srcs_mut();
 
-    let mut duplicates = [!0_usize; 4];
+    let mut duplicates = [!0_usize; Instr::MAX_SRC_COUNT];
     debug_assert!(srcs.len() <= duplicates.len());
     for i in 0..srcs.len() {
         let (srcs_before_i, srcs_after_i) = srcs.split_at_mut(i);
