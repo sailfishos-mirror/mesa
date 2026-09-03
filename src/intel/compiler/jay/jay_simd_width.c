@@ -9,6 +9,8 @@
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 
+#include "intel/compiler/brw/brw_rt.h"
+
 static unsigned
 max_simd_width(const jay_shader *shader, const jay_inst *I)
 {
@@ -108,7 +110,9 @@ pass(jay_function *func)
    jay_builder b = jay_init_builder(func, jay_before_function(func));
 
    jay_foreach_inst_in_func_safe(func, block, I) {
-      unsigned split = jay_simd_split(func->shader, I);
+      unsigned split = I->op == JAY_OPCODE_SEND ?
+                          I->simd_split :
+                          jay_simd_split(func->shader, I);
       if (split) {
          I->simd_split = split;
          b.cursor = jay_after_inst(I);
@@ -117,6 +121,36 @@ pass(jay_function *func)
             jay_inst *clone = jay_clone_inst(&b, I, I->num_srcs);
             clone->simd_offs = i;
             jay_builder_insert(&b, clone);
+
+            if (I->op == JAY_OPCODE_SEND) {
+               if (jay_send_sfid(I) == GEN_SFID_RENDER_CACHE) {
+                  clone->src[0] = jay_imm(jay_as_uint(clone->src[0]) | 0x800);
+               } else if (jay_send_sfid(I) == GEN_SFID_RAY_TRACE_ACCELERATOR) {
+                  assert(clone->src[2].file == UGPR);
+                  jay_def global_lo = jay_bare_reg(UGPR, clone->src[2].reg);
+                  signed offset_B = align(BRW_RT_DISPATCH_GLOBALS_SIZE, 64);
+
+                  assert(clone->src[2].reg != clone->dst.reg &&
+                         "must not be tied");
+                  assert(clone->src[2].file != clone->src[3].file &&
+                         "header + payload");
+
+                  b.cursor = jay_before_inst(clone);
+                  jay_ADD(&b, JAY_TYPE_U32, global_lo, global_lo, offset_B);
+
+                  b.cursor = jay_after_inst(clone);
+                  jay_ADD(&b, JAY_TYPE_U32, global_lo, global_lo, -offset_B);
+               }
+
+               /* Only the last SEND gets EOT */
+               jay_set_send_eot(clone, jay_send_eot(clone) &&
+                                          ((i + 1) == (1 << split)));
+            }
+         }
+
+         if (I->op == JAY_OPCODE_SEND) {
+            /* The first SEND can't possibly EOT */
+            jay_set_send_eot(I, false);
          }
       }
    }
