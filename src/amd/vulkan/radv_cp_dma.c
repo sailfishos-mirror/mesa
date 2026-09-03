@@ -179,14 +179,6 @@ radv_cp_dma_prefetch(struct radv_cmd_buffer *cmd_buffer, uint64_t va, unsigned s
 }
 
 static void
-radv_cp_dma_prepare(struct radv_cmd_buffer *cmd_buffer)
-{
-   /* Flush the caches for the first copy only. */
-   if (cmd_buffer->state.flush_bits)
-      radv_emit_cache_flush(cmd_buffer, false);
-}
-
-static void
 radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 {
    uint64_t va;
@@ -199,8 +191,6 @@ radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 
    va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
    va += offset;
-
-   radv_cp_dma_prepare(cmd_buffer);
 
    radv_emit_cp_dma(cmd_buffer, va, va + SI_CPDMA_ALIGNMENT, size, 0);
 }
@@ -243,6 +233,10 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
 
    radv_utrace_begin_cp_dma_copy_memory(cmd_buffer, size);
 
+   /* Flush the caches for the first copy only. */
+   if (cmd_buffer->state.flush_bits)
+      radv_emit_cache_flush(cmd_buffer, false);
+
    while (size) {
       unsigned dma_flags = 0;
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(gfx_level));
@@ -261,8 +255,6 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
          dma_flags |= CP_DMA_USE_L2;
       }
 
-      radv_cp_dma_prepare(cmd_buffer);
-
       radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count, dma_flags);
 
       size -= byte_count;
@@ -270,11 +262,8 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
       main_dest_va += byte_count;
    }
 
-   if (skipped_size) {
-      radv_cp_dma_prepare(cmd_buffer);
-
+   if (skipped_size)
       radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, 0);
-   }
 
    if (realign_size)
       radv_cp_dma_realign_engine(cmd_buffer, realign_size);
@@ -300,6 +289,10 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
 
    enum amd_gfx_level gfx_level = pdev->info.gfx_level;
 
+   /* Flush the caches for the first copy only. */
+   if (cmd_buffer->state.flush_bits)
+      radv_emit_cache_flush(cmd_buffer, false);
+
    while (size) {
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(gfx_level));
       unsigned dma_flags = CP_DMA_CLEAR;
@@ -313,8 +306,6 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
           */
          dma_flags |= CP_DMA_USE_L2;
       }
-
-      radv_cp_dma_prepare(cmd_buffer);
 
       /* Emit the clear packet. */
       radv_emit_cp_dma(cmd_buffer, va, value, byte_count, dma_flags | (size == byte_count ? CP_DMA_SYNC : 0));
