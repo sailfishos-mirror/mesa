@@ -152,7 +152,7 @@ static void si_pc_emit_stop(struct si_context *sctx, struct si_resource *buffer,
 
    si_cp_release_mem(sctx, cs, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM, EOP_INT_SEL_NONE,
                      EOP_DATA_SEL_VALUE_32BIT, buffer, va, 0, SI_NOT_QUERY);
-   si_cp_wait_mem(sctx, cs, va, 0, 0xffffffff, WAIT_REG_MEM_EQUAL);
+   ac_emit_cp_wait_mem(&cs->current, va, 0, 0xffffffff, WAIT_REG_MEM_EQUAL);
 
    radeon_begin(cs);
    radeon_event_write(V_028A90_PERFCOUNTER_SAMPLE);

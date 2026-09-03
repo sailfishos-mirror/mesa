@@ -120,12 +120,6 @@ unsigned si_cp_write_fence_dwords(struct si_screen *screen)
    return dwords;
 }
 
-void si_cp_wait_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, uint64_t va, uint32_t ref,
-                    uint32_t mask, unsigned flags)
-{
-   ac_emit_cp_wait_mem(&cs->current, va, ref, mask, flags);
-}
-
 static void si_add_fence_dependency(struct si_context *sctx, struct pipe_fence_handle *fence,
                                     uint64_t timeline_point)
 {

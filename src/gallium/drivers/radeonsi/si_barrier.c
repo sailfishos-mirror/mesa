@@ -8,6 +8,8 @@
 #include "si_query.h"
 #include "gfx/si_gfx.h"
 
+#include "ac_cmdbuf_cp.h"
+
 static struct si_resource *si_get_wait_mem_scratch_bo(struct si_context *ctx,
                                                       struct radeon_cmdbuf *cs, bool is_secure)
 {
@@ -268,7 +270,7 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
             si_sqtt_describe_barrier_start(ctx, &ctx->gfx_cs);
          }
 
-         si_cp_wait_mem(ctx, cs, va, ctx->wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
+         ac_emit_cp_wait_mem(&cs->current, va, ctx->wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
 
          if (unlikely(ctx->sqtt_enabled)) {
             si_sqtt_describe_barrier_end(ctx, &ctx->gfx_cs, flags);
@@ -295,7 +297,7 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
       si_cp_acquire_mem(ctx, cs, gcr_cntl,
                         flags & SI_BARRIER_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE);
    } else if (flags & SI_BARRIER_PFP_SYNC_ME) {
-      si_cp_pfp_sync_me(cs);
+      ac_emit_cp_pfp_sync_me(&cs->current, false);
    }
 
    /* Increase task wait count if not done before. */
@@ -440,7 +442,7 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
          si_sqtt_describe_barrier_start(sctx, cs);
       }
 
-      si_cp_wait_mem(sctx, cs, va, sctx->wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
+      ac_emit_cp_wait_mem(&cs->current, va, sctx->wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
 
       if (unlikely(sctx->sqtt_enabled)) {
          si_sqtt_describe_barrier_end(sctx, cs, flags);
@@ -502,7 +504,7 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
        * to an index buffer.
        */
       if (flags & SI_BARRIER_PFP_SYNC_ME)
-         si_cp_pfp_sync_me(cs);
+         ac_emit_cp_pfp_sync_me(&cs->current, false);
    }
 }
 

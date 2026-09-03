@@ -62,11 +62,6 @@ void si_cp_acquire_mem(struct si_context *sctx, struct radeon_cmdbuf *cs, unsign
          sctx->context_roll = true;
 
       if (engine == V_581A_PREFETCH_PARSER)
-         si_cp_pfp_sync_me(cs);
+         ac_emit_cp_pfp_sync_me(&cs->current, false);
    }
-}
-
-void si_cp_pfp_sync_me(struct radeon_cmdbuf *cs)
-{
-   ac_emit_cp_pfp_sync_me(&cs->current, false);
 }

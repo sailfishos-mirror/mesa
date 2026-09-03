@@ -1530,7 +1530,6 @@ void si_cp_release_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf
                                    unsigned sqtt_flush_flags);
 void si_cp_acquire_mem(struct si_context *sctx, struct radeon_cmdbuf *cs, unsigned gcr_cntl,
                        unsigned engine);
-void si_cp_pfp_sync_me(struct radeon_cmdbuf *cs);
 
 /* si_debug.c */
 void si_save_cs(struct radeon_winsys *ws, struct radeon_cmdbuf *cs, struct radeon_saved_cs *saved,
@@ -1555,8 +1554,6 @@ void si_cp_release_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, unsigne
                        struct si_resource *buf, uint64_t va, uint32_t new_fence,
                        unsigned query_type);
 unsigned si_cp_write_fence_dwords(struct si_screen *screen);
-void si_cp_wait_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, uint64_t va, uint32_t ref,
-                    uint32_t mask, unsigned flags);
 void si_init_fence_functions(struct si_context *ctx);
 void si_init_screen_fence_functions(struct si_screen *screen);
 struct pipe_fence_handle *si_create_fence(struct pipe_context *ctx,
