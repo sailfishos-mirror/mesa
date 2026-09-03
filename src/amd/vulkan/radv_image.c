@@ -655,11 +655,6 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
       flags |= RADEON_SURF_PRT | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE | RADEON_SURF_DISABLE_DCC;
    }
 
-   if (image->queue_family_mask & BITFIELD_BIT(RADV_QUEUE_TRANSFER)) {
-      if (!pdev->info.sdma_supports_compression)
-         flags |= RADEON_SURF_DISABLE_DCC | RADEON_SURF_NO_HTILE;
-   }
-
    /* Disable DCC for VRS rate images because the hw can't handle compression. */
    if (image->vk.usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR)
       flags |= RADEON_SURF_VRS_RATE | RADEON_SURF_DISABLE_DCC;
@@ -1546,9 +1541,7 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   /* Don't compress exclusive images used on transfer queues when SDMA doesn't support HTILE.
-    * Note that HTILE is already disabled on concurrent images when not supported.
-    */
+   /* Don't compress exclusive images used on transfer queues when SDMA doesn't support HTILE. */
    if (queue_mask == BITFIELD_BIT(RADV_QUEUE_TRANSFER) && !pdev->info.sdma_supports_compression)
       return false;
 
@@ -1652,9 +1645,7 @@ radv_layout_dcc_compressed(const struct radv_device *device, const struct radv_i
        !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
-   /* Don't compress exclusive images used on transfer queues when SDMA doesn't support DCC.
-    * Note that DCC is already disabled on concurrent images when not supported.
-    */
+   /* Don't compress exclusive images used on transfer queues when SDMA doesn't support DCC. */
    if (queue_mask == BITFIELD_BIT(RADV_QUEUE_TRANSFER) && !pdev->info.sdma_supports_compression)
       return false;
 
