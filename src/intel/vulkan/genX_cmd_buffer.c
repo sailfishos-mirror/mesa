@@ -3614,7 +3614,9 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
 
    case ANV_SHADER_BINDING_MODE_LEGACY:
    case ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT: {
-      if (!sba_emitted_changed && cmd_buffer->state.descriptors_dirty == 0)
+      if (!sba_emitted_changed &&
+          cmd_buffer->state.descriptors_dirty == 0 &&
+          cmd_buffer->state.push_descriptors_dirty == 0)
          break;
 
       uint32_t dyn_set_offset = 0;
