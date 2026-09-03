@@ -1113,7 +1113,6 @@ get_depth_stencil_plane_params(struct nvk_image_view *iview,
                                uint32_t plane,
                                uint32_t layer_count,
                                uint64_t *addr_out,
-                               uint32_t *base_array_layer_out,
                                uint32_t *mip_level_out,
                                struct nil_image *image_out)
 {
@@ -1122,7 +1121,6 @@ get_depth_stencil_plane_params(struct nvk_image_view *iview,
 
    uint64_t addr = nvk_image_base_address(image, plane);
    uint32_t mip_level = iview->vk.base_mip_level;
-   uint32_t base_array_layer = iview->vk.base_array_layer;
 
    if (nil_image.dim == NIL_IMAGE_DIM_3D) {
       uint64_t level_offset_B;
@@ -1139,7 +1137,6 @@ get_depth_stencil_plane_params(struct nvk_image_view *iview,
    addr += level->offset_B;
 
    *addr_out = addr;
-   *base_array_layer_out = base_array_layer;
    *mip_level_out = mip_level;
    *image_out = nil_image;
 }
@@ -1392,10 +1389,10 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
       const struct nvk_image *image = (struct nvk_image *)iview->vk.image;
 
       uint64_t addr;
-      uint32_t base_array_layer, mip_level;
+      uint32_t mip_level;
       struct nil_image nil_image;
       get_depth_stencil_plane_params(iview, 0, layer_count, &addr,
-                                     &base_array_layer, &mip_level,
+                                     &mip_level,
                                      &nil_image);
 
       const struct nil_image_level *level = &nil_image.levels[mip_level];
@@ -1449,11 +1446,11 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
       P_NV9097_SET_ZT_SIZE_A(p, row_stride_el);
       P_NV9097_SET_ZT_SIZE_B(p, level_extent_sa.height);
       P_NV9097_SET_ZT_SIZE_C(p, {
-         .third_dimension  = base_array_layer + layer_count,
+         .third_dimension  = iview->vk.base_array_layer + layer_count,
          .control          = CONTROL_THIRD_DIMENSION_DEFINES_ARRAY_SIZE,
       });
 
-      P_IMMD(p, NV9097, SET_ZT_LAYER, base_array_layer);
+      P_IMMD(p, NV9097, SET_ZT_LAYER, iview->vk.base_array_layer);
 
       P_IMMD(p, NV9097, SET_Z_COMPRESSION, image->is_compressed);
       if (nvk_cmd_buffer_3d_cls(cmd) >= MAXWELL_B) {
@@ -1469,8 +1466,7 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
       if (nvk_cmd_buffer_3d_cls(cmd) >= BLACKWELL_A &&
           (image->separate_zs || image->vk.format == VK_FORMAT_S8_UINT)) {
          get_depth_stencil_plane_params(iview, image->separate_zs, layer_count,
-                                        &addr, &base_array_layer, &mip_level,
-                                        &nil_image);
+                                        &addr, &mip_level, &nil_image);
          struct nil_Extent4D_Samples level_extent_sa =
             nil_image_level_extent_sa(&nil_image, mip_level);
          p_format = nil_image.format.p_format;
