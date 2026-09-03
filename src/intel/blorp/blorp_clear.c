@@ -498,17 +498,18 @@ fast_clear_surf(struct blorp_batch *batch,
    params.x1 = u_minify(surf->surf->logical_level0_px.w, level);
    params.y1 = u_minify(surf->surf->logical_level0_px.h, level);
 
-   if (batch->blorp->isl_dev->info->ver >= 20) {
-      union isl_color_value clear_color =
-         isl_color_value_swizzle_inv(surf->clear_color, swizzle);
-      if (format == ISL_FORMAT_R9G9B9E5_SHAREDEXP) {
-         clear_color.u32[0] = float3_to_rgb9e5(clear_color.f32);
-         format = ISL_FORMAT_R32_UINT;
-      } else if (format == ISL_FORMAT_L8_UNORM_SRGB) {
-         clear_color.f32[0] = util_format_linear_to_srgb_float(clear_color.f32[0]);
-         format = ISL_FORMAT_R8_UNORM;
-      }
+   union isl_color_value clear_color =
+      isl_color_value_swizzle_inv(surf->clear_color, swizzle);
+   if (format == ISL_FORMAT_R9G9B9E5_SHAREDEXP) {
+      clear_color.u32[0] = float3_to_rgb9e5(clear_color.f32);
+      format = ISL_FORMAT_R32_UINT;
+   } else if (format == ISL_FORMAT_L8_UNORM_SRGB) {
+      clear_color.f32[0] =
+         util_format_linear_to_srgb_float(clear_color.f32[0]);
+      format = ISL_FORMAT_R8_UNORM;
+   }
 
+   if (batch->blorp->isl_dev->info->ver >= 20) {
       /* Bspec 57340 (r59562):
        *
        *   Overview of Fast Clear:
