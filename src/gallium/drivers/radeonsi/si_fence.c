@@ -34,23 +34,9 @@ struct si_fence {
    struct si_fine_fence fine;
 };
 
-/**
- * Write an EOP event.
- *
- * \param event        EVENT_TYPE_*
- * \param event_flags  Optional cache flush flags (TC)
- * \param dst_sel      MEM or TC_L2
- * \param int_sel      NONE or SEND_DATA_AFTER_WR_CONFIRM
- * \param data_sel     DISCARD, VALUE_32BIT, TIMESTAMP, or GDS
- * \param buf          Buffer
- * \param va           GPU address
- * \param old_value    Previous fence value (for a bug workaround)
- * \param new_value    Fence value to write for this event.
- */
-void si_cp_release_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, unsigned event,
-                       unsigned event_flags, unsigned dst_sel, unsigned int_sel, unsigned data_sel,
-                       struct si_resource *buf, uint64_t va, uint32_t new_fence,
-                       unsigned query_type)
+uint64_t
+si_get_eop_bug_va(struct si_context *ctx, struct si_resource *buf,
+                  unsigned query_type)
 {
    bool compute_ib = !ctx->is_gfx_queue;
    uint64_t eop_bug_va = 0;
@@ -103,6 +89,30 @@ void si_cp_release_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, unsigne
    if (buf) {
       radeon_add_to_buffer_list(ctx, &ctx->gfx_cs, buf, RADEON_USAGE_WRITE | RADEON_PRIO_QUERY);
    }
+
+   return eop_bug_va;
+}
+
+/**
+ * Write an EOP event.
+ *
+ * \param event        EVENT_TYPE_*
+ * \param event_flags  Optional cache flush flags (TC)
+ * \param dst_sel      MEM or TC_L2
+ * \param int_sel      NONE or SEND_DATA_AFTER_WR_CONFIRM
+ * \param data_sel     DISCARD, VALUE_32BIT, TIMESTAMP, or GDS
+ * \param buf          Buffer
+ * \param va           GPU address
+ * \param old_value    Previous fence value (for a bug workaround)
+ * \param new_value    Fence value to write for this event.
+ */
+void si_cp_release_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, unsigned event,
+                       unsigned event_flags, unsigned dst_sel, unsigned int_sel, unsigned data_sel,
+                       struct si_resource *buf, uint64_t va, uint32_t new_fence,
+                       unsigned query_type)
+{
+   bool compute_ib = !ctx->is_gfx_queue;
+   uint64_t eop_bug_va = si_get_eop_bug_va(ctx, buf, query_type);
 
    ac_emit_cp_release_mem(&cs->current, ctx->gfx_level,
                           compute_ib ? AMD_IP_COMPUTE : AMD_IP_GFX, event,
