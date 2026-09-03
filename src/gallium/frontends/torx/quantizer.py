@@ -4,14 +4,15 @@
 import logging
 from typing import List, cast
 
-from torch import fx, per_tensor_affine, per_tensor_symmetric, qint8, qint32
+from torch import fx, per_channel_symmetric, per_tensor_affine, qint8, qint32
 import torch
 from torchao.quantization.pt2e import (
     HistogramObserver,
-    MinMaxObserver,
+    PerChannelMinMaxObserver,
 )
 
 from torchao.quantization.pt2e.quantizer import (
+    DerivedQuantizationSpec,
     OperatorConfig,
     Quantizer,
     QuantizationAnnotation,
@@ -23,6 +24,18 @@ from torchao.quantization.pt2e.quantizer import (
 from .exir_to_gallium import FUSABLE_ACTIVATION_OPS_ATEN, activation_is_absorbable
 
 Q_ANNOTATION_KEY = "quantization_annotation"
+
+def _derive_conv_bias_qparams(obs_or_fqs):
+    """Derive a convolution's bias quantisation from its input activation
+    and weight observers: bias scale is input_scale * weight_scale[c] per
+    output channel, zero point 0, as the accumulator it feeds expects."""
+    act_obs, weight_obs = obs_or_fqs[0], obs_or_fqs[1]
+    act_scale, _ = act_obs.calculate_qparams()
+    weight_scale, _ = weight_obs.calculate_qparams()
+    bias_scale = (act_scale.to(torch.float64) *
+                  weight_scale.to(torch.float64)).flatten()
+    return (bias_scale.to(torch.float32),
+            torch.zeros_like(bias_scale, dtype=torch.int))
 
 def is_annotated(node: fx.Node) -> bool:
     """Given a node return whether the node is annotated."""
@@ -54,13 +67,18 @@ class TorxQuantizer(Quantizer):
                                         observer_or_fake_quant_ctr=HistogramObserver,
                                         qscheme=per_tensor_affine)
 
-        self.weight_spec = QuantizationSpec(dtype=qint8,
-                                            observer_or_fake_quant_ctr=MinMaxObserver,
-                                            qscheme=per_tensor_symmetric)
-
-        self.bias_spec = QuantizationSpec(dtype=qint32,
-                                          observer_or_fake_quant_ctr=MinMaxObserver,
-                                          qscheme=per_tensor_symmetric)
+        # Symmetric per-channel weights over [-127, 127]: excluding -128
+        # keeps the weight zero point at 0, which the NPU requires and TFLite
+        # does the same.  Per channel because a depthwise convolution's
+        # channels span very different ranges.
+        self.weight_spec = QuantizationSpec(
+            dtype=qint8,
+            quant_min=-127,
+            quant_max=127,
+            observer_or_fake_quant_ctr=PerChannelMinMaxObserver.with_args(
+                eps=2 ** -16),
+            qscheme=per_channel_symmetric,
+            ch_axis=0)
 
     def _annotate_io(
         self,
@@ -126,7 +144,15 @@ class TorxQuantizer(Quantizer):
                     if len(node.args) > 2:
                         bias = node.args[2]
                         if isinstance(bias, fx.Node):
-                            input_qspec_map[bias] = self.bias_spec
+                            input_qspec_map[bias] = DerivedQuantizationSpec(
+                                derived_from=[(input_act, node),
+                                              (weight, node)],
+                                derive_qparams_fn=_derive_conv_bias_qparams,
+                                dtype=qint32,
+                                quant_min=-(2 ** 31) + 1,
+                                quant_max=2 ** 31 - 1,
+                                qscheme=per_channel_symmetric,
+                                ch_axis=0)
 
                     # Fused conv+activation: output Q/DQ goes after the
                     # activation so the observer sees clamped values.

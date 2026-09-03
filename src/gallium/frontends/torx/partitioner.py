@@ -39,6 +39,13 @@ DEQUANTIZE_OPS = (
     torch.ops.quantized_decomposed.dequantize_per_tensor.default,
 )
 
+PER_CHANNEL_QDQ_OPS = (
+    exir_ops.edge.quantized_decomposed.quantize_per_channel.default,
+    torch.ops.quantized_decomposed.quantize_per_channel.default,
+    exir_ops.edge.quantized_decomposed.dequantize_per_channel.default,
+    torch.ops.quantized_decomposed.dequantize_per_channel.default,
+)
+
 class TorxSupportedOperators(OperatorSupportBase):
 
     @staticmethod
@@ -91,6 +98,11 @@ class TorxSupportedOperators(OperatorSupportBase):
         # delegate so FoldAndAnnotateQParamsPass can fold them in preprocess().
         if node.target in QUANTIZE_OPS or node.target in DEQUANTIZE_OPS:
             return True
+
+        # Same for per-channel Q/DQ nodes, which are only used for weights and biases.
+        if node.target in PER_CHANNEL_QDQ_OPS:
+            return all(self.is_node_supported(submodules, user)
+                       for user in node.users)
 
         # An activation is only delegated when its producer's operation
         # absorbs it; a standalone activation has no lowering.

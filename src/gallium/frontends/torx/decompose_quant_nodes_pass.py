@@ -20,6 +20,8 @@ qd = exir_ops.edge.quantized_decomposed
 
 QUANT_PER_TENSOR_OP = qd.quantize_per_tensor.default
 DEQUANT_PER_TENSOR_OP = qd.dequantize_per_tensor.default
+QUANT_PER_CHANNEL_OP = qd.quantize_per_channel.default
+DEQUANT_PER_CHANNEL_OP = qd.dequantize_per_channel.default
 
 
 def create_node(
@@ -81,7 +83,15 @@ class DecomposeQuantNodesPass(ExportPass):
     def call(self, graph_module: torch.fx.GraphModule):
         modified = False
         for node in list(graph_module.graph.nodes):
-            if node.op != "call_function" or node.target not in (
+            if node.op != "call_function":
+                continue
+            if node.target in (QUANT_PER_CHANNEL_OP, DEQUANT_PER_CHANNEL_OP):
+                raise RuntimeError(
+                    f"Torx: '{node.name}' is a per-channel quantize or "
+                    f"dequantize reaching the decompose pass; only a "
+                    f"convolution's weights and biases are quantised per "
+                    f"channel and they stay inside the delegate")
+            if node.target not in (
                 QUANT_PER_TENSOR_OP,
                 DEQUANT_PER_TENSOR_OP,
             ):
