@@ -5519,6 +5519,14 @@ emit_instructions(struct ir3_context *ctx)
     */
    if (ctx->so->type == MESA_SHADER_FRAGMENT) {
       ctx->ij[IJ_PERSP_PIXEL] = create_input(ctx, 0x3);
+
+      /* a5xx only iterates per sample when a SampleID input is present. */
+      if (ctx->compiler->gen < 6 && ctx->s->info.fs.uses_sample_shading) {
+         ctx->samp_id = create_sysval_input(ctx, SYSTEM_VALUE_SAMPLE_ID, 0x1);
+         ctx->samp_id->dsts[0]->flags |= IR3_REG_HALF;
+         array_insert(ctx->samp_id->block, ctx->samp_id->block->keeps,
+                      ctx->samp_id);
+      }
    }
 
    /* Defer add_sysval_input() stuff until after setup_inputs(),
