@@ -1061,6 +1061,13 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
       }
    }
 
+   /* jay_spill can't handle a single flag register. We should rework later. */
+   if (devinfo->ver < 20 &&
+       nir->info.stage == MESA_SHADER_FRAGMENT &&
+       nir->info.fs.uses_discard) {
+      unsupported_modes |= 32;
+   }
+
    /* Step 2: Apply heuristics to mark SIMD mode preferences */
 
    /* SIMD splitting of ray queries is inefficient, avoid it when possible */
