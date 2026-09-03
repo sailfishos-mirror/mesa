@@ -77,33 +77,11 @@ create_kmod_dev(struct panvk_physical_device *device,
                 const struct panvk_instance *instance, drmDevicePtr drm_device)
 {
    const char *path = drm_device->nodes[DRM_NODE_RENDER];
-   drmVersionPtr version;
-   int fd;
-
-   fd = open(path, O_RDWR | O_CLOEXEC);
+   int fd = open(path, O_RDWR | O_CLOEXEC);
    if (fd < 0) {
       return panvk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "failed to open device %s", path);
+                          "failed to open device '%s'", path);
    }
-
-   version = drmGetVersion(fd);
-   if (!version) {
-      close(fd);
-      return panvk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "failed to query kernel driver version for device %s",
-                          path);
-   }
-
-   if (strcmp(version->name, "panfrost") && strcmp(version->name, "panthor")) {
-      drmFreeVersion(version);
-      close(fd);
-      return VK_ERROR_INCOMPATIBLE_DRIVER;
-   }
-
-   drmFreeVersion(version);
-
-   if (PANVK_DEBUG(STARTUP))
-      mesa_logi("Found compatible device '%s'.", path);
 
    uint32_t flags = PAN_KMOD_DEV_FLAG_OWNS_FD;
 
@@ -112,7 +90,9 @@ create_kmod_dev(struct panvk_physical_device *device,
 
    device->kmod.dev = pan_kmod_dev_create(fd, flags, &instance->kmod.allocator);
 
-   if (!device->kmod.dev) {
+   if (PANVK_DEBUG(STARTUP) && device->kmod.dev) {
+      mesa_logi("Found compatible device '%s'.", path);
+   } else if (!device->kmod.dev) {
       close(fd);
       return panvk_errorf(instance, VK_ERROR_OUT_OF_HOST_MEMORY,
                           "cannot create device");

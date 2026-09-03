@@ -140,10 +140,6 @@ panvk_physical_device_try_create(struct vk_instance *vk_instance,
    struct panvk_instance *instance =
       container_of(vk_instance, struct panvk_instance, vk);
 
-   if (!(drm_device->available_nodes & (1 << DRM_NODE_RENDER)) ||
-       drm_device->bustype != DRM_BUS_PLATFORM)
-      return VK_ERROR_INCOMPATIBLE_DRIVER;
-
    struct panvk_physical_device *device =
       vk_zalloc(&instance->vk.alloc, sizeof(*device), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
