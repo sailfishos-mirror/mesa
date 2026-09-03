@@ -1068,10 +1068,15 @@ namespace {
             inst->is_send() &&
             (i == SEND_SRC_DESC || i == SEND_SRC_EX_DESC) &&
             is_address_register(inst->src[i]);
+         const bool is_scalar_descriptor =
+            inst->is_send() && inst->as_send()->efficient_64bit &&
+            (i == SENDG_SRC_IND_0_DESC || i == SENDG_SRC_IND_1_DESC) &&
+            brw_reg_is_arf(inst->src[i], BRW_ARF_SCALAR);
          const dependency rd_dep =
             inst->opcode == BRW_OPCODE_DPAS ? dependency(GEN_SBID_SRC, ip, exec_all, UNIT_DPAS) :
             (inst->is_payload(i) ||
              is_send_address_descriptor ||
+             is_scalar_descriptor ||
              is_unordered_math) ? dependency(GEN_SBID_SRC, ip, exec_all, UNIT_OTHER) :
             is_ordered ? dependency(TGL_REGDIST_SRC, jp, exec_all) :
             dependency::done;
