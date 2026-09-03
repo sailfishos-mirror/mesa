@@ -483,15 +483,15 @@ formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
    /* On gfx12+, we specify the compression format independently from the
     * surface format. So, even if the surface format changes, hardware is
     * still able to determine how to access the CCS. However, it's not until
-    * gfx20+ that we support compression with the following formats:
+    * gfx12.5+ that we support compression with the following formats:
     *  - ISL_FORMAT_L8_UNORM_SRGB
     *  - ISL_FORMAT_L8A8_UNORM_SRGB
     *  - ISL_FORMAT_R9G9B9E5_SHAREDEXP
     */
-   if (devinfo->ver >= 20)
+   if (devinfo->verx10 >= 125)
       return true;
 
-   if (devinfo->ver == 12 && isl_format_get_layout(format)->bpb >= 64)
+   if (devinfo->verx10 == 120 && isl_format_get_layout(format)->bpb >= 64)
       return true;
 
    /* The three RGBA32 formats are CCS_E-compatible on gfx9-11. */
