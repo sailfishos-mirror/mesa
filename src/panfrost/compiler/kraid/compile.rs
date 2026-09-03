@@ -240,12 +240,13 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.opt_end());
 
     if !s.is_empty() {
-        info.stats = s.get_stats();
-
         let bin = model.encode_shader(&s);
+        let code_size = std::mem::size_of_val(&bin[..]);
         dynarray_append_vec(binary, bin);
 
         encode_no_psiz_variant(nir, &mut s, model.as_ref(), binary, info);
+
+        info.stats = s.get_stats(code_size.try_into().unwrap());
     } else {
         info.stats = pan_stats::default();
     }

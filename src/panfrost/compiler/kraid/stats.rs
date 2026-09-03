@@ -8,7 +8,7 @@ use crate::ops::*;
 use compiler::bitset::BitSet;
 use kraid_bindings::*;
 
-fn get_va_stats(s: &Shader) -> valhall_stats {
+fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
     let mut regs: BitSet<usize> = BitSet::new();
     let mut mark_reg = |reg: &RegRef| {
         let idx = usize::from(reg.idx);
@@ -129,7 +129,7 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
         v,
         t,
         ls,
-        code_size: (instrs * 8).try_into().unwrap(),
+        code_size,
         threads: s.model.max_threads(s.info.registers_used).into(),
         loops: loops.try_into().unwrap(),
         spills,
@@ -141,12 +141,12 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
 }
 
 impl Shader<'_> {
-    pub fn get_stats(&self) -> pan_stats {
+    pub fn get_stats(&self, code_size: u32) -> pan_stats {
         if self.model.arch() >= 9 {
             pan_stats {
                 isa: PAN_STAT_VALHALL,
                 __bindgen_anon_1: pan_stats__bindgen_ty_1 {
-                    valhall: get_va_stats(self),
+                    valhall: get_va_stats(self, code_size),
                 },
             }
         } else {
