@@ -34,6 +34,29 @@ radv_cs_emit_write_event_eop(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_
 }
 
 static void
+radv_cp_acquire_mem(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, unsigned gcr_cntl, unsigned engine,
+                    enum rgp_flush_bits *sqtt_flush_bits)
+{
+   if (gfx_level >= GFX10) {
+      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine, gcr_cntl);
+   } else {
+      const bool is_mec = cs->hw_ip == AMD_IP_COMPUTE && gfx_level >= GFX7;
+
+      /* This seems problematic with GFX7. */
+      if (gfx_level != GFX7)
+         gcr_cntl |= 1u << 31; /* don't sync PFP, i.e. execute the sync in ME */
+
+      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine, gcr_cntl);
+
+      if (engine == V_581A_PREFETCH_PARSER && !is_mec) {
+         ac_emit_cp_pfp_sync_me(cs->b, false);
+
+         *sqtt_flush_bits |= RGP_FLUSH_PFP_SYNC_ME;
+      }
+   }
+}
+
+static void
 gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, uint32_t *flush_cnt,
                           uint64_t flush_va, enum radv_cmd_flush_bits flush_bits, enum rgp_flush_bits *sqtt_flush_bits)
 {
@@ -213,7 +236,7 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
    /* Ignore fields that only modify the behavior of other fields. */
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
-      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, gcr_cntl);
+      radv_cp_acquire_mem(cs, gfx_level, gcr_cntl, V_581A_PREFETCH_PARSER, sqtt_flush_bits);
    } else if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME && !is_mec) {
       /* We need to ensure that PFP waits as well. */
       ac_emit_cp_pfp_sync_me(cs->b, false);
@@ -399,31 +422,50 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
        (RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2))
       flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
 
-   /* Make sure ME is idle (it executes most packets) before continuing.
-    * This prevents read-after-write hazards between PFP and ME.
+   /* GFX6-GFX8 only: When one of the CP_COHER_CNTL.DEST_BASE flags is set, SURFACE_SYNC waits
+    * for idle, so it should be last.
+    *
+    * cp_coher_cntl should contain everything except TC flags at this point.
+    *
+    * GFX6-GFX7 don't support L2 write-back.
+    *
+    * TODO: Use ME when possible.
     */
-   if ((cp_coher_cntl || (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME)) && !is_mec) {
-      ac_emit_cp_pfp_sync_me(cs->b, false);
-
-      *sqtt_flush_bits |= RGP_FLUSH_PFP_SYNC_ME;
-   }
+   const unsigned engine = V_581A_PREFETCH_PARSER;
 
    if ((flush_bits & RADV_CMD_FLAG_INV_L2) || (gfx_level <= GFX7 && (flush_bits & RADV_CMD_FLAG_WB_L2))) {
-      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER,
-                             cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
-                                S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8));
+      /* Invalidate L1 & L2. WB must be set on GFX8+ when TC_ACTION is set. */
+      radv_cp_acquire_mem(cs, gfx_level,
+                          cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
+                             S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8),
+                          engine, sqtt_flush_bits);
 
       *sqtt_flush_bits |= RGP_FLUSH_INVAL_L2 | RGP_FLUSH_INVAL_VMEM_L0;
    } else {
+      /* L1 invalidation and L2 writeback must be done separately, because both operations can't
+       * be done together.
+       */
       if (flush_bits & RADV_CMD_FLAG_WB_L2) {
          /* WB = write-back
           * NC = apply to non-coherent MTYPEs
           *      (i.e. MTYPE <= 1, which is what we use everywhere)
           *
           * WB doesn't work without NC.
+          *
+          * If we get here, the only flag that can't be executed together with WB_L2 is VMEM cache
+          * invalidation.
           */
-         ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER,
-                                cp_coher_cntl | S_0301F0_TC_WB_ACTION_ENA(1) | S_0301F0_TC_NC_ACTION_ENA(1));
+         const bool last_acquire_mem = !(flush_bits & RADV_CMD_FLAG_INV_VCACHE);
+
+         radv_cp_acquire_mem(
+            cs, gfx_level,
+            cp_coher_cntl | S_0301F0_TC_WB_ACTION_ENA(1) |
+               S_0301F0_TC_NC_ACTION_ENA(1), /* If this is not the last ACQUIRE_MEM, flush in ME.
+                                              * We only want to synchronize with PFP in the last ACQUIRE_MEM. */
+            last_acquire_mem ? engine : V_581A_MICRO_ENGINE, sqtt_flush_bits);
+
+         if (last_acquire_mem)
+            flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
          cp_coher_cntl = 0;
 
          *sqtt_flush_bits |= RGP_FLUSH_FLUSH_L2 | RGP_FLUSH_INVAL_VMEM_L0;
@@ -436,8 +478,19 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       }
 
       /* If there are still some cache flags left. */
-      if (cp_coher_cntl)
-         ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, cp_coher_cntl);
+      if (cp_coher_cntl) {
+         radv_cp_acquire_mem(cs, gfx_level, cp_coher_cntl, engine, sqtt_flush_bits);
+         flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
+      }
+
+      /* This might be needed even without any cache flags, such as when doing buffer stores
+       * to an index buffer.
+       */
+      if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME && !is_mec) {
+         ac_emit_cp_pfp_sync_me(cs->b, false);
+
+         *sqtt_flush_bits |= RGP_FLUSH_PFP_SYNC_ME;
+      }
    }
 
    radeon_begin(cs);
