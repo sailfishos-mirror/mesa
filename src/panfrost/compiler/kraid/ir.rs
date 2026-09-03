@@ -1005,6 +1005,20 @@ impl Src {
             _ => self.swizzle.replicates_half(),
         }
     }
+
+    pub fn as_ssa(&self) -> Option<&SSARef> {
+        let vec = self.src_ref.as_ssa()?;
+        let swz = match vec.bytes() {
+            1 => Swizzle::B0000,
+            2 => Swizzle::H00,
+            _ => Swizzle::NONE,
+        };
+        if self.src_mod.is_none() && self.swizzle == swz {
+            Some(vec)
+        } else {
+            None
+        }
+    }
 }
 
 impl<T: Into<SrcRef>> From<T> for Src {

@@ -587,6 +587,29 @@ impl SSAVecRepr {
         self.comps += 1;
     }
 
+    fn for_srcs(
+        size: u8,
+        srcs: &[Src],
+        src_bytes: u8,
+        def_order: &SSAValueIndexedVec<u32>,
+    ) -> SSAVecRepr {
+        debug_assert_eq!(
+            usize::from(size),
+            srcs.len() * usize::from(src_bytes)
+        );
+
+        let mut repr = SSAVecRepr::new(size);
+        for (i, src) in srcs.iter().enumerate() {
+            if let Some(vec) = src.as_ssa() {
+                debug_assert_eq!(vec.comps(), 1);
+                debug_assert_eq!(vec.bytes(), src_bytes);
+                let byte = u8::try_from(i).unwrap() * src_bytes;
+                repr.add_comp(byte, vec[0], def_order[vec[0]]);
+            }
+        }
+        repr
+    }
+
     fn for_ssa_ref(
         vec: &SSARef,
         def_order: &SSAValueIndexedVec<u32>,
@@ -641,6 +664,39 @@ impl AffinityMap {
 
         for instr in s.blocks.iter().map(|b| b.instrs.iter()).flatten() {
             match &instr.op {
+                Op::MkVecV2I16(op) => {
+                    let repr = SSAVecRepr::for_srcs(4, &op.srcs, 2, &def_order);
+                    for (i, src) in op.srcs.iter().enumerate() {
+                        if let Some(vec) = src.as_ssa() {
+                            debug_assert_eq!(vec.comps(), 1);
+                            let a = &mut ssa_affinities[vec[0]];
+                            let i = u8::try_from(i).unwrap();
+                            repr.set_affinity(i * 2, &vec[0], a);
+                        }
+                    }
+                }
+                Op::MkVecV2I8(op) => {
+                    let repr = SSAVecRepr::for_srcs(2, &op.srcs, 1, &def_order);
+                    for (i, src) in op.srcs.iter().enumerate() {
+                        if let Some(vec) = src.as_ssa() {
+                            debug_assert_eq!(vec.comps(), 1);
+                            let a = &mut ssa_affinities[vec[0]];
+                            let i = u8::try_from(i).unwrap();
+                            repr.set_affinity(i, &vec[0], a);
+                        }
+                    }
+                }
+                Op::MkVecV4I8(op) => {
+                    let repr = SSAVecRepr::for_srcs(4, &op.srcs, 1, &def_order);
+                    for (i, src) in op.srcs.iter().enumerate() {
+                        if let Some(vec) = src.as_ssa() {
+                            debug_assert_eq!(vec.comps(), 1);
+                            let a = &mut ssa_affinities[vec[0]];
+                            let i = u8::try_from(i).unwrap();
+                            repr.set_affinity(i, &vec[0], a);
+                        }
+                    }
+                }
                 Op::PhiSrc(op) => {
                     if let SrcRef::SSA(src_vec) = &op.src.src_ref {
                         if src_vec.bytes() == op.phi.bytes() {
@@ -1505,6 +1561,80 @@ impl LocalRegAlloc<'_> {
         // Clean up by unpinning everything
         self.pinned.clear();
     }
+
+    fn try_coalesce_mkvec(
+        &mut self,
+        ip: usize,
+        bl: &impl BlockLiveness,
+        instr: &Instr,
+    ) -> bool {
+        debug_assert!(instr.dsts().len() == 1);
+        let dst = &instr.dsts()[0];
+
+        let DstRef::SSA(dst_vec) = &dst.dst_ref else {
+            return false;
+        };
+        assert!(dst_vec.comps() == 1);
+        let dst_ssa = &dst_vec[0];
+
+        if !self.arena.contains_ssa(dst_ssa) {
+            return false;
+        }
+
+        let srcs = instr.srcs();
+        let get_src_bytes = |src: &Src| {
+            debug_assert!(src.src_mod.is_none());
+
+            let vec = src.as_ssa()?;
+            debug_assert!(vec.comps() == 1);
+            let ssa = &vec[0];
+
+            if !self.arena.contains_ssa(ssa) {
+                return None;
+            }
+
+            // We can only coalesce if all the sources are killed
+            if bl.is_live_after_ip(ssa, ip) {
+                return None;
+            }
+
+            Some(self.ssa_bytes(ssa))
+        };
+
+        let Some(mut vec_bytes) = get_src_bytes(&srcs[0]) else {
+            return false;
+        };
+        for i in 1..srcs.len() {
+            let Some(src_bytes) = get_src_bytes(&srcs[i]) else {
+                return false;
+            };
+            if src_bytes.start == vec_bytes.end {
+                vec_bytes.end = src_bytes.end;
+            } else {
+                return false;
+            }
+        }
+
+        let (dst_bytes, align) =
+            RegAlignConstraint::for_op_dst(self.model, &instr.op, dst);
+        debug_assert_eq!(dst_bytes, dst_vec.bytes());
+        if !align.satisfied(vec_bytes.start.into()) {
+            return false;
+        }
+
+        for src in srcs {
+            let ssa = &src.src_ref.as_ssa().unwrap()[0];
+            self.free_bytes(self.ssa_bytes(ssa));
+        }
+        self.assign_ssa_bytes(dst_ssa, vec_bytes.clone());
+
+        // Free on the off chance the destination is immediately killed
+        if !bl.is_live_after_ip(dst_ssa, ip) {
+            self.free_bytes(vec_bytes.clone());
+        }
+
+        true
+    }
 }
 
 /// A wrapper around AllocSSA that only allows registers
@@ -2006,6 +2136,11 @@ impl GlobalRegAlloc<'_> {
                 Op::PhiSrc(op) => {
                     phi_srcs.push(op);
                     continue;
+                }
+                Op::MkVecV2I16(_) | Op::MkVecV2I8(_) | Op::MkVecV4I8(_) => {
+                    if self.local.try_coalesce_mkvec(ip, bl, &instr) {
+                        continue;
+                    }
                 }
                 Op::RegIn(_) => {
                     // These were handled by start_shader if is_reg().  If not,
