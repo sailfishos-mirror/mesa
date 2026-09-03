@@ -660,10 +660,9 @@ brw_nir_rt_load_tri_bary_from_addr(nir_builder *b,
    if (devinfo->ver >= 30) {
       nir_def *u = nir_iand_imm(b, nir_channel(b, data, 1), 0xffffff);
       nir_def *v = nir_iand_imm(b, nir_channel(b, data, 2), 0xffffff);
-      const unsigned bits[1] = {24};
       tri_bary = nir_vec2(b,
-                          nir_format_unorm_to_float_precise(b, u, bits),
-                          nir_format_unorm_to_float_precise(b, v, bits));
+                          nir_format_unorm24_to_float(b, u),
+                          nir_format_unorm24_to_float(b, v));
    } else {
       tri_bary = nir_channels(b, data, 0x6);
    }
