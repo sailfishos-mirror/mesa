@@ -239,15 +239,6 @@ nir_format_unorm_to_float(nir_builder *b, nir_def *u, const unsigned *bits)
    return nir_fdiv(b, nir_u2f32(b, u), factor);
 }
 
-nir_def *
-nir_format_unorm_to_float_precise(nir_builder *b, nir_def *u, const unsigned *bits)
-{
-   nir_def *factor =
-      _nir_format_norm_factor(b, bits, u->num_components, 64, false);
-
-   return nir_f2f32(b, nir_fdiv(b, nir_u2f64(b, u), factor));
-}
-
 /*
  * Exact unorm24 to float conversion
  *
