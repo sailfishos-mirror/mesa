@@ -1909,6 +1909,23 @@ private:
                   "UGM 2D block messages require flat A64 addressing.");
          ERROR_IF(!lsc_data_size_is_2d_block(desc.data_size),
                   "UGM 2D block messages require d8, d16, d32, or d64 data size.");
+
+         if (desc.op == LSC_OP_STORE_2D_BLOCK) {
+            ERROR_IF(desc.transpose || desc.vnni,
+                     "Transpose and VNNI transform operations are not allowed for "
+                     "Block Store messages. Bspec 57329 (r75199).");
+         } else if (desc.transpose) {
+            if (devinfo->ver < 35) {
+               ERROR_IF(desc.data_size != LSC_DATA_SIZE_D32,
+                        "GFX20+: UGM 2D block load message only support D32 "
+                        "transpose. Bspec 63972 (r66758)");
+            } else {
+               ERROR_IF(desc.data_size != LSC_DATA_SIZE_D32 &&
+                        desc.data_size != LSC_DATA_SIZE_D64,
+                        "GFX35+: UGM 2D block load message only support D32 and D64 "
+                        "transpose. Bspec 63972 (r66758)");
+            }
+         }
       }
 
       /* TODO: Add TGM 2D block message restrictions. */
