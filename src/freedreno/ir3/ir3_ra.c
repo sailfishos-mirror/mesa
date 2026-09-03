@@ -2835,11 +2835,6 @@ ir3_ra(struct ir3_shader_variant *v)
    if (ir3_shader_debug & IR3_DBG_SPILLALL)
       calc_min_limit_pressure(v, live, &limit_pressure);
 
-   d("limit pressure:");
-   d("\tfull: %u", limit_pressure.full);
-   d("\thalf: %u", limit_pressure.half);
-   d("\tshared: %u", limit_pressure.shared);
-
    /* In the worst case, each half register could block one full register, so
     * add shared_half in case of fragmentation. In addition, full registers can
     * block half registers so we have to consider the total pressure against the
@@ -2868,6 +2863,11 @@ ir3_ra(struct ir3_shader_variant *v)
          MIN2(limit_pressure.full,
               ROUND_DOWN_TO(phys_file_size - limit_pressure.half, 4 * 2));
    }
+
+   d("limit pressure:");
+   d("\tfull: %u", limit_pressure.full);
+   d("\thalf: %u", limit_pressure.half);
+   d("\tshared: %u", limit_pressure.shared);
 
    bool spilled = false;
    if (max_pressure.full > limit_pressure.full ||
