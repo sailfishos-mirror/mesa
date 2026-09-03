@@ -15428,12 +15428,13 @@ radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const bool has_prefetch = pdev->info.gfx_level >= GFX7;
+   /* CP DMA is not asynchronous on compute queues, so don't use it for prefetch. */
+   const bool use_prefetch = pdev->info.gfx_level >= GFX7 && cmd_buffer->qf == RADV_QUEUE_GENERAL;
 
    /* Start prefetches after the dispatch has been started. Both will run in parallel, but
     * starting the dispatch first is more important.
     */
-   if (has_prefetch)
+   if (use_prefetch)
       radv_emit_compute_prefetch(cmd_buffer);
 
    radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
@@ -15493,12 +15494,13 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const bool has_prefetch = pdev->info.gfx_level >= GFX7;
+   /* CP DMA is not asynchronous on compute queues, so don't use it for prefetch. */
+   const bool use_prefetch = pdev->info.gfx_level >= GFX7 && cmd_buffer->qf == RADV_QUEUE_GENERAL;
 
    /* Start prefetches after the dispatch has been started. Both will run in parallel, but
     * starting the dispatch first is more important.
     */
-   if (has_prefetch)
+   if (use_prefetch)
       radv_emit_ray_tracing_prefetch(cmd_buffer);
 
    radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
