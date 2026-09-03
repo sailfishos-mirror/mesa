@@ -21,12 +21,8 @@
  * It should be set on the last CP DMA packet. */
 #define CP_DMA_SYNC (1 << 0)
 
-/* Set this if the source data was used as a destination in a previous CP DMA
- * packet. It's for preventing a read-after-write (RAW) hazard between two
- * CP DMA packets. */
-#define CP_DMA_RAW_WAIT (1 << 1)
-#define CP_DMA_USE_L2   (1 << 2)
-#define CP_DMA_CLEAR    (1 << 3)
+#define CP_DMA_USE_L2 (1 << 1)
+#define CP_DMA_CLEAR  (1 << 2)
 
 /* Alignment for optimal performance. */
 #define SI_CPDMA_ALIGNMENT 32
@@ -67,9 +63,6 @@ radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, bool
    /* Sync flags. Only present for PFP/ME. MEC always sync. */
    if ((flags & CP_DMA_SYNC) && cs->hw_ip == AMD_IP_GFX)
       header |= S_501_CP_SYNC(1);
-
-   if (flags & CP_DMA_RAW_WAIT)
-      command |= S_506_RAW_WAIT(1);
 
    /* Src and dst flags. */
    if (cp_dma_tc_l2_flag)
@@ -202,14 +195,9 @@ radv_cp_dma_prefetch(struct radv_cmd_buffer *cmd_buffer, uint64_t va, unsigned s
 static void
 radv_cp_dma_prepare(struct radv_cmd_buffer *cmd_buffer, uint64_t byte_count, uint64_t remaining_size, unsigned *flags)
 {
-
-   /* Flush the caches for the first copy only.
-    * Also wait for the previous CP DMA operations.
-    */
-   if (cmd_buffer->state.flush_bits) {
+   /* Flush the caches for the first copy only. */
+   if (cmd_buffer->state.flush_bits)
       radv_emit_cache_flush(cmd_buffer, false);
-      *flags |= CP_DMA_RAW_WAIT;
-   }
 
    /* Do the synchronization after the last dma, so that all data
     * is written to memory.
