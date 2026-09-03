@@ -1022,8 +1022,25 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
       if (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL))
          unsupported_modes |= 32;
 
-      if (nir->info.fs.color_is_dual_source)
-         unsupported_modes |= 32;
+      /* Following condition implements Wa_14017468336:
+       *
+       * "If dual source blend is enabled do not enable SIMD32 dispatch" and
+       * "For a thread dispatched as SIMD32, must not issue SIMD8 message with
+       *  Last Render Target Select set."
+       *
+       * The dual-source RT write messages fail to release the thread
+       * dependency on ICL and TGL with SIMD32 dispatch, leading to hangs.
+       *
+       * XXX - Emit an extra single-source NULL RT-write marked LastRT in
+       *       order to release the thread dependency without disabling SIMD32.
+       *
+       * The dual-source RT write messages may lead to hangs with SIMD16
+       * dispatch on ICL due some unknown reasons, see:
+       *
+       * https://gitlab.freedesktop.org/mesa/mesa/-/issues/2183
+       */
+      if (nir->info.fs.color_is_dual_source && devinfo->ver < 20)
+         unsupported_modes |= 16 | 32;
    }
 
    if (nir->info.min_subgroup_size) {

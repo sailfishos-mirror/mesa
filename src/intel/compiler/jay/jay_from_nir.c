@@ -1101,7 +1101,6 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       src0_alpha = jay_null();
 
    if (prog_data->dual_src_blend) {
-      assert(b->shader->dispatch_width == 16);
       dual_colour = nj_src(intr->src[2]);
       src0_alpha = jay_null();
    }
@@ -1111,8 +1110,10 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    unsigned op;
    if (!jay_is_null(dual_colour)) {
-      assert(width == 16 && devinfo->ver >= 20 && "todo: older platforms");
-      op = XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE;
+      width = devinfo->ver >= 20 ? 16 : 8;
+      op = width == 16 ?
+              XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE :
+              BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD8_DUAL_SOURCE_SUBSPAN01;
    } else {
       assert((width < 32 || devinfo->ver >= 20) && "todo: splitting");
 
@@ -1210,7 +1211,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
             .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
             .type = JAY_TYPE_U32, .eot = last, .split = pf == GPR ? split : -1,
-            .skip_helpers = true);
+            .skip_helpers = true, .simd_width = width);
 }
 
 static void
