@@ -148,6 +148,8 @@ jay_is_early_eot_send(jay_shader *s, const jay_inst *I)
    return I->op == JAY_OPCODE_SEND && jay_send_eot(I) && jay_has_early_eot(s);
 }
 
+void jay_opt_sampler_vectorize(jay_shader *s);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif

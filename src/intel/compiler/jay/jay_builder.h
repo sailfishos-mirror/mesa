@@ -463,6 +463,7 @@ struct jayb_send_params {
    bool bindless;
    bool pure;
    bool skip_helpers;
+   uint8_t explicit_simd_width;
 };
 
 static inline jay_inst *
@@ -471,6 +472,7 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
    const struct intel_device_info *devinfo = b->shader->devinfo;
    jay_inst *I = jay_alloc_inst(b, JAY_OPCODE_SEND, 4, sizeof(jay_send_info));
    jay_send_info *info = jay_get_send_info(I);
+   info->explicit_simd_width = p.explicit_simd_width;
    bool has_header = !jay_is_null(p.header);
 
    I->dst = p.dst;

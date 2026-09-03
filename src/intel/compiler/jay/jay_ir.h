@@ -1013,6 +1013,11 @@ unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
 static inline unsigned
 jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
 {
+   /* Handle uniform SENDs with SIMD > 1 (e.g. for txf combining) */
+   if (I->op == JAY_OPCODE_SEND && jay_send_explicit_simd_width(I) > 0) {
+      return jay_send_explicit_simd_width(I);
+   }
+
    bool simd1 = I->uniform && !I->broadcast_flag;
    unsigned base = simd1 ? 1 : s->dispatch_width;
 

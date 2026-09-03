@@ -4779,6 +4779,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_lower_flags);
    JAY_PASS(s, jay_opt_dead_code);
+   JAY_PASS(s, jay_opt_sampler_vectorize);
    JAY_PASS(s, jay_schedule);
 
    JAY_PASS(s, jay_lower_pre_ra);

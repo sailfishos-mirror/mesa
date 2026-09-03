@@ -155,7 +155,8 @@ op('send', 4, None, Props.SIDE_EFFECTS, [
     'enum jay_type type_1',
     'uint8_t mlen',
     'uint8_t ex_mlen',
-    'bool pad[2]',
+    'uint8_t explicit_simd_width',
+    'bool pad[1]',
     'uint32_t ex_desc_imm',
 ])
 
@@ -263,7 +264,7 @@ ENUMS: 'Mapping[str, tuple[str, list[str]]]' = {
                                               'xyxy', 'zwzw', 'xxzz', 'yyww']),
     'jay_rounding_mode': ('JAY', ['round', 'rne', 'ru', 'rd', 'rtz']),
     'jay_math': ('JAY_MATH', ['_', 'inv', 'log', 'exp', 'sqrt', 'rsq', 'sin', 'cos']),
-    'gen_sfid': ('GEN_SFID', ['null', 'sampler', 'message_gateway',
+    'gen_sfid': ('GEN_SFID', ['null', '1?', 'sampler', 'message_gateway',
                               'render_cache', 'urb', 'bindless_thread_dispatch',
                               'ray_trace_accelerator', 'hdc0',
                               'pixel_interpolator', 'tgm', 'slm', 'ugm']),

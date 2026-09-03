@@ -246,8 +246,7 @@ lower_ex_desc_address_registers(jay_inst *I, jay_function *f)
       return;
    if (jay_is_null(I->src[1]) || jay_is_imm(I->src[1]))
       return;
-   if (I->src[1].file == J_ADDRESS)
-      return;
+   assert(I->src[1].file == UGPR);
    jay_builder b = jay_init_builder(f, jay_before_inst(I));
    jay_def tmp = jay_alloc_def(&b, J_ADDRESS, 1);
    jay_MOV(&b, tmp, I->src[1]);
