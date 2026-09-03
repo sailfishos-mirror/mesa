@@ -1313,7 +1313,6 @@ radv_create_flush_postamble(struct radv_queue *queue)
    const struct radv_device *device = radv_queue_device(queue);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const enum amd_ip_type ip = radv_queue_family_to_ring(pdev, queue->state.qf);
-   const bool is_mec = ip == AMD_IP_COMPUTE && pdev->info.gfx_level >= GFX7;
    struct radeon_winsys *ws = device->ws;
    struct radv_cmd_stream *cs;
    VkResult result;
@@ -1322,40 +1321,17 @@ radv_create_flush_postamble(struct radv_queue *queue)
    if (result != VK_SUCCESS)
       return result;
 
-   radeon_check_space(ws, cs->b, 256);
-
-   ac_cmdbuf_begin(cs->b);
-   if (ip == AMD_IP_GFX) {
-      ac_cmdbuf_event_write(V_028A90_VS_PARTIAL_FLUSH);
-      ac_cmdbuf_event_write(V_028A90_PS_PARTIAL_FLUSH);
-      ac_cmdbuf_event_write(V_028A90_FLUSH_AND_INV_CB_META);
-      ac_cmdbuf_event_write(V_028A90_FLUSH_AND_INV_DB_META);
-   }
-   ac_cmdbuf_event_write(V_028A90_CS_PARTIAL_FLUSH);
-   ac_cmdbuf_end();
-
-   if (!is_mec)
-      ac_emit_cp_pfp_sync_me(cs->b, false);
-
-   uint32_t cp_coher_cntl =
-      S_0085F0_TC_ACTION_ENA(1) |
-      S_0085F0_TCL1_ACTION_ENA(1);
+   enum radv_cmd_flush_bits flush_bits = RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2;
 
    if (ip == AMD_IP_GFX)
-      cp_coher_cntl |=
-         S_0085F0_CB_ACTION_ENA(1) |
-         S_0085F0_CB0_DEST_BASE_ENA(1) |
-         S_0085F0_CB1_DEST_BASE_ENA(1) |
-         S_0085F0_CB2_DEST_BASE_ENA(1) |
-         S_0085F0_CB3_DEST_BASE_ENA(1) |
-         S_0085F0_CB4_DEST_BASE_ENA(1) |
-         S_0085F0_CB5_DEST_BASE_ENA(1) |
-         S_0085F0_CB6_DEST_BASE_ENA(1) |
-         S_0085F0_CB7_DEST_BASE_ENA(1) |
-         S_0085F0_DB_ACTION_ENA(1) |
-         S_0085F0_DB_DEST_BASE_ENA(1);
+      flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_FLUSH_AND_INV_CB |
+                    RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
+                    RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
 
-   ac_emit_cp_acquire_mem(cs->b, pdev->info.gfx_level, cs->hw_ip, V_581A_PREFETCH_PARSER, cp_coher_cntl);
+   enum rgp_flush_bits sqtt_flush_bits = 0;
+   uint32_t flush_cnt = 0;
+
+   radv_cs_emit_cache_flush(ws, cs, pdev->info.gfx_level, &flush_cnt, 0, flush_bits, &sqtt_flush_bits, 0);
 
    result = radv_finalize_cmd_stream(device, cs);
    if (result != VK_SUCCESS) {
