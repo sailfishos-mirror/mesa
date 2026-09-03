@@ -1990,6 +1990,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="MRT" low="0" high="3" type="uint"/>
 		<bitfield name="DUAL_COLOR_IN_ENABLE" pos="4" type="boolean"/>
 		<bitfield name="FRAG_WRITES_Z" pos="5" type="boolean"/>
+		<bitfield name="FRAG_WRITES_SAMPMASK" pos="6" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe147" name="RB_RENDER_COMPONENTS">
 		<bitfield name="RT0" low="0" high="3"/>
