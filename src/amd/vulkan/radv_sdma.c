@@ -189,12 +189,10 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
 
       info.va = (va + surf_offset) | surf->tile_swizzle << 8;
 
-      if (pdev->info.sdma_supports_compression && (dcc_compressed || htile_compressed)) {
-         assert(pdev->info.gfx_level < GFX12);
-         info.is_compressed = true;
-      }
+      if (dcc_compressed || htile_compressed) {
+         assert(pdev->info.sdma_supports_compression && pdev->info.gfx_level < GFX12);
 
-      if (info.is_compressed) {
+         info.is_compressed = true;
          info.meta_va = va + surf->meta_offset;
          info.surf_type = radv_sdma_surf_type_from_aspect_mask(subresource.aspectMask);
          info.htile_enabled = htile_compressed;
