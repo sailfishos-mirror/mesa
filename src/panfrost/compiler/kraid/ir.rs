@@ -1771,7 +1771,11 @@ impl BasicBlock {
     }
 
     pub fn is_postlude_instr(instr: &Instr) -> bool {
-        matches!(&instr.op, Op::Branch(_) | Op::PhiSrc(_) | Op::RegOut(_))
+        match &instr.op {
+            Op::Branch(_) | Op::PhiSrc(_) | Op::RegOut(_) => true,
+            Op::Nop(_) => instr.flow.get_end_shader(),
+            _ => false,
+        }
     }
 
     pub fn is_branch_instr(instr: &Instr) -> bool {
