@@ -110,7 +110,7 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (!radv_sdma_supports_image(device, image, to_image)) {
+   if (!radv_sdma_supports_image(cmd_buffer, image, region->imageLayout, &region->imageSubresource, to_image)) {
       if (!radv_gang_init(cmd_buffer))
          return;
 
@@ -636,8 +636,11 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    unsigned int dst_aspect_mask_remaining = region->dstSubresource.aspectMask;
+   VkImageSubresourceLayers src_subresource = region->srcSubresource;
+   VkImageSubresourceLayers dst_subresource = region->dstSubresource;
 
-   if (!radv_sdma_supports_image(device, src_image, false) || !radv_sdma_supports_image(device, dst_image, true)) {
+   if (!radv_sdma_supports_image(cmd_buffer, src_image, src_image_layout, &src_subresource, false) ||
+       !radv_sdma_supports_image(cmd_buffer, dst_image, dst_image_layout, &dst_subresource, true)) {
       if (!radv_gang_init(cmd_buffer))
          return;
 
@@ -655,9 +658,6 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
 
    if (cmd_buffer->gang.cs && radv_flush_gang_follower_semaphore(cmd_buffer))
       radv_wait_gang_follower(cmd_buffer);
-
-   VkImageSubresourceLayers src_subresource = region->srcSubresource;
-   VkImageSubresourceLayers dst_subresource = region->dstSubresource;
 
    const VkOffset3D dst_offset_el = vk_image_offset_to_elements(&dst_image->vk, region->dstOffset);
    const VkOffset3D src_offset_el = vk_image_offset_to_elements(&src_image->vk, region->srcOffset);

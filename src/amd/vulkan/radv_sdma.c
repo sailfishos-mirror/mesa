@@ -524,9 +524,20 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
 }
 
 bool
-radv_sdma_supports_image(const struct radv_device *device, const struct radv_image *image, bool to_image)
+radv_sdma_supports_image(const struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
+                         VkImageLayout image_layout, const VkImageSubresourceLayers *subresource, bool to_image)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
+
+   /* Fallback to compute when SDMA doesn't support compression to avoid disabling DCC/HTILE for
+    * concurrent images. Only GFX9 and older, Navi10 and GFX1013 are affected.
+    */
+   if (!pdev->info.sdma_supports_compression &&
+       (radv_layout_dcc_compressed(device, image, subresource->mipLevel, image_layout, queue_mask) ||
+        radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask)))
+      return false;
 
    if (radv_is_format_emulated(pdev, image->vk.format))
       return to_image ? false : true;
