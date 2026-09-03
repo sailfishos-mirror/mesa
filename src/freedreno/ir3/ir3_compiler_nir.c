@@ -2928,15 +2928,23 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
       ir3_split_dest(b, dst, get_frag_coord(ctx, intr), 0, 4);
       break;
    case nir_intrinsic_load_sample_pos_from_id: {
-      /* NOTE: blob seems to always use TYPE_F16 and then cov.f16f32,
-       * but that doesn't seem necessary.
-       */
       struct ir3_instruction *offset =
          ir3_RGETPOS(b, ir3_get_src(ctx, &intr->src[0])[0], 0);
-      offset->dsts[0]->wrmask = 0x3;
-      offset->cat5.type = TYPE_F32;
 
-      ir3_split_dest(b, dst, offset, 0, 2);
+      if (ctx->compiler->gen < 6) {
+         /* a5xx RGETPOS only yields the position as F16 written to all of xyzw. */
+         offset->cat5.type = TYPE_F16;
+         offset->dsts[0]->flags |= IR3_REG_HALF;
+         offset->dsts[0]->wrmask = 0xf;
+         struct ir3_instruction *hpos[4];
+         ir3_split_dest(b, hpos, offset, 0, 4);
+         dst[0] = ir3_COV(b, hpos[0], TYPE_F16, TYPE_F32);
+         dst[1] = ir3_COV(b, hpos[1], TYPE_F16, TYPE_F32);
+      } else {
+         offset->cat5.type = TYPE_F32;
+         offset->dsts[0]->wrmask = 0x3;
+         ir3_split_dest(b, dst, offset, 0, 2);
+      }
 
       break;
    }
