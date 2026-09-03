@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "compiler/brw/brw_eu_defines.h"
 #include "util/hash_table.h"
 #include "util/lut.h"
 #include "util/macros.h"
@@ -238,6 +239,21 @@ lower_repeated_phi_srcs(jay_function *f,
    u_sparse_bitset_clear_all(seen);
 }
 
+static void
+lower_ex_desc_address_registers(jay_inst *I, jay_function *f)
+{
+   if (I->op != JAY_OPCODE_SEND)
+      return;
+   if (jay_is_null(I->src[1]) || jay_is_imm(I->src[1]))
+      return;
+   if (I->src[1].file == J_ADDRESS)
+      return;
+   jay_builder b = jay_init_builder(f, jay_before_inst(I));
+   jay_def tmp = jay_alloc_def(&b, J_ADDRESS, 1);
+   jay_MOV(&b, tmp, I->src[1]);
+   jay_replace_src(&I->src[1], tmp);
+}
+
 void
 jay_lower_pre_ra(jay_shader *s)
 {
@@ -260,6 +276,8 @@ jay_lower_pre_ra(jay_shader *s)
          }
 
          jay_foreach_inst_in_block(block, I) {
+            lower_ex_desc_address_registers(I, f);
+
             jay_builder b = { .shader = s, .func = f };
 
             lower_bf16_restrictions(I, f);

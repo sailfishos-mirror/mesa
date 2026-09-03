@@ -599,10 +599,8 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
    if (jay_is_null(p.ex_desc)) {
       I->src[1] =
          jay_imm(brw_message_ex_desc(devinfo, lens[2]) | (p.msg_desc >> 32));
-   } else if (p.ex_desc.file == J_ADDRESS) {
-      I->src[1] = p.ex_desc;
    } else {
-      I->src[1] = jay_alloc_def(b, J_ADDRESS, 1);
+      I->src[1] = jay_alloc_def(b, UGPR, 1);
       if (info->bindless) {
          jay_MOV(b, I->src[1], p.ex_desc);
       } else {

@@ -3454,10 +3454,10 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
       }
 
       /* We assume that the driver provided the handle in the top 20 bits so
-       * we can use the surface handle directly as the extended descriptor.
+-      * we can use the surface handle directly as the extended descriptor.
+       * This will be moved to an address register in jay_lower_pre_ra.
        */
-      desc_ex_src = jay_alloc_def(b, J_ADDRESS, 1);
-      jay_MOV(b, desc_ex_src, surface);
+      desc_ex_src = surface;
    } else {
       /* Immediate portion of the descriptor */
       desc = brw_sampler_desc(nj->devinfo, 0, 0, msg_type, simd_mode, ret_type);
