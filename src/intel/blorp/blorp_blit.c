@@ -1128,7 +1128,7 @@ bit_cast_color(struct nir_builder *b, nir_def *color,
          if (dst_fmtl->channels_array[c].type == ISL_UNORM) {
             chans[c] =
                dst_fmtl->format == ISL_FORMAT_R24_UNORM_X8_TYPELESS ?
-               nir_format_unorm_to_float_precise(b, chans[c], &chan_bits) :
+               nir_format_unorm24_to_float(b, chans[c]) :
                nir_format_unorm_to_float(b, chans[c], &chan_bits);
 
             /* Don't touch the alpha channel */
