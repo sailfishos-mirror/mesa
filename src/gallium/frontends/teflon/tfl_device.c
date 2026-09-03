@@ -228,28 +228,78 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->split.axis = tf_context->tensors[node->inputs->data[0]].data.i32[0];
       break;
    case kTfLiteBuiltinPad: {
-      int32_t *paddings;
+      TfLiteTensor *padding_tensor = &tf_context->tensors[node->inputs->data[1]];
+      int input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+      unsigned padding_elements;
+      int padding_rank;
+      unsigned before[4] = {0};
+      unsigned after[4] = {0};
 
       // Values tensor for non-zero padding not yet implemented
       if (node->inputs->size != 2)
          return false;
 
-      paddings = tf_context->tensors[node->inputs->data[1]].data.data;
-
-      if (tf_context->tensors[node->inputs->data[1]].type != kTfLiteInt32)
+      if (input_rank > 4 ||
+          (padding_tensor->type != kTfLiteInt32 &&
+           padding_tensor->type != kTfLiteInt64) ||
+          !padding_tensor->data.data ||
+          padding_tensor->dims->size < 2 ||
+          padding_tensor->dims->data[padding_tensor->dims->size - 1] != 2)
          return false;
 
-      if (paddings[0] != 0 ||
-          paddings[1] != 0)
+      for (int i = 0; i < padding_tensor->dims->size - 2; i++)
+         if (padding_tensor->dims->data[i] != 1)
+            return false;
+
+      padding_elements = 1;
+      for (int i = 0; i < padding_tensor->dims->size; i++)
+         padding_elements *= padding_tensor->dims->data[i];
+      if (padding_elements % 2)
          return false;
+
+      padding_rank = padding_elements / 2;
+      if ((padding_rank != 3 && padding_rank != 4) ||
+          padding_rank < input_rank)
+         return false;
+
+      for (int i = 0; i < padding_rank; i++) {
+         int axis = 4 - padding_rank + i;
+         int64_t before_value;
+         int64_t after_value;
+
+         if (padding_tensor->type == kTfLiteInt64) {
+            int64_t *paddings = padding_tensor->data.i64;
+
+            before_value = paddings[i * 2];
+            after_value = paddings[i * 2 + 1];
+         } else {
+            int32_t *paddings = padding_tensor->data.i32;
+
+            before_value = paddings[i * 2];
+            after_value = paddings[i * 2 + 1];
+         }
+
+         if (before_value < 0 || after_value < 0 ||
+             before_value > UINT_MAX || after_value > UINT_MAX)
+            return false;
+
+         before[axis] = before_value;
+         after[axis] = after_value;
+      }
+
+      if (before[0] || after[0])
+         return false;
+      for (int i = 4 - padding_rank; i < 4 - input_rank; i++)
+         if (before[i] || after[i])
+            return false;
 
       operation->type = PIPE_ML_OPERATION_TYPE_PAD;
-      operation->pad.before_x = paddings[2];
-      operation->pad.after_x = paddings[3];
-      operation->pad.before_y = paddings[4];
-      operation->pad.after_y = paddings[5];
-      operation->pad.before_z = paddings[6];
-      operation->pad.after_z = paddings[7];
+      operation->pad.before_y = before[1];
+      operation->pad.after_y = after[1];
+      operation->pad.before_x = before[2];
+      operation->pad.after_x = after[2];
+      operation->pad.before_z = before[3];
+      operation->pad.after_z = after[3];
       break;
    }
    case kTfLiteBuiltinFullyConnected: {
