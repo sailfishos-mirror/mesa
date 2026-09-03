@@ -1520,11 +1520,6 @@ void si_cp_copy_data(struct si_context *sctx, struct radeon_cmdbuf *cs, unsigned
 MESAPROC bool si_init_cp_reg_shadowing(struct si_context *sctx) TAILBT;
 
 /* si_cp_utils.c */
-void si_cp_release_mem_pws(struct si_context *sctx, struct radeon_cmdbuf *cs,
-                           unsigned event_type, unsigned gcr_cntl);
-void si_cp_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf *cs,
-                           unsigned event_type, unsigned stage_sel, unsigned gcr_cntl,
-                           unsigned distance, unsigned sqtt_flush_flags);
 void si_cp_release_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf *cs,
                                    unsigned event_type, unsigned gcr_cntl, unsigned stage_sel,
                                    unsigned sqtt_flush_flags);

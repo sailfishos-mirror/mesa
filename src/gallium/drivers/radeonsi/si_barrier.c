@@ -221,13 +221,22 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
       gcr_cntl |= S_587_SEQ(V_587_SEQ_FORWARD);
 
       if (ctx->gfx_level >= GFX11) {
-         si_cp_release_mem_pws(ctx, cs, cb_db_event, gcr_cntl & C_587_GLI_INV);
+         ac_emit_cp_release_mem_pws(&cs->current, ctx->gfx_level,
+                                    ctx->is_gfx_queue ? AMD_IP_GFX : AMD_IP_COMPUTE,
+                                    cb_db_event, gcr_cntl & C_587_GLI_INV);
+
+         if (unlikely(ctx->sqtt_enabled))
+            si_sqtt_describe_barrier_start(ctx, cs);
 
          /* Wait for the event and invalidate remaining caches if needed. */
-         si_cp_acquire_mem_pws(ctx, cs, cb_db_event,
-                               flags & SI_BARRIER_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME,
-                               gcr_cntl & ~C_587_GLI_INV, /* keep only GLI_INV */
-                               0, flags);
+         ac_emit_cp_acquire_mem_pws(&cs->current, ctx->gfx_level,
+                                    ctx->is_gfx_queue ? AMD_IP_GFX : AMD_IP_COMPUTE,
+                                    cb_db_event,
+                                    flags & SI_BARRIER_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME,
+                                    0, gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
+
+         if (unlikely(ctx->sqtt_enabled))
+            si_sqtt_describe_barrier_end(ctx, cs, flags);
 
          gcr_cntl = 0; /* all done */
          /* ACQUIRE_MEM in PFP is implemented as ACQUIRE_MEM in ME + PFP_SYNC_ME. */
