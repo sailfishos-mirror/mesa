@@ -3083,7 +3083,7 @@ radv_emit_shader_prefetch(struct radv_cmd_buffer *cmd_buffer, struct radv_shader
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
    const uint64_t va = radv_shader_get_va(shader);
 
-   radv_cs_cp_dma_prefetch(device, cs, va, shader->code_size, cmd_buffer->state.cond_render.enabled);
+   radv_cs_cp_dma_prefetch(device, cs, va, shader->code_size);
 }
 
 ALWAYS_INLINE static void

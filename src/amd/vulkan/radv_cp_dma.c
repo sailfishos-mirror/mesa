@@ -42,8 +42,8 @@ cp_dma_max_byte_count(enum amd_gfx_level gfx_level)
  * clear value.
  */
 static void
-radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, bool predicating, uint64_t dst_va,
-                    uint64_t src_va, unsigned size, unsigned flags)
+radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, uint64_t dst_va, uint64_t src_va,
+                    unsigned size, unsigned flags)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool cp_dma_use_L2 = (flags & CP_DMA_USE_L2) && pdev->info.cp_dma_use_L2;
@@ -75,7 +75,7 @@ radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, bool
 
    radeon_begin(cs);
    if (pdev->info.gfx_level >= GFX7) {
-      radeon_emit(PKT3(PKT3_DMA_DATA, 5, predicating));
+      radeon_emit(PKT3(PKT3_DMA_DATA, 5, 0));
       radeon_emit(header);
       radeon_emit(src_va);       /* SRC_ADDR_LO [31:0] */
       radeon_emit(src_va >> 32); /* SRC_ADDR_HI [31:0] */
@@ -85,7 +85,7 @@ radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, bool
    } else {
       assert(!cp_dma_tc_l2_flag);
       header |= S_412_SRC_ADDR_HI(src_va >> 32);
-      radeon_emit(PKT3(PKT3_CP_DMA, 4, predicating));
+      radeon_emit(PKT3(PKT3_CP_DMA, 4, 0));
       radeon_emit(src_va);                  /* SRC_ADDR_LO [31:0] */
       radeon_emit(header);                  /* SRC_ADDR_HI [15:0] + flags. */
       radeon_emit(dst_va);                  /* DST_ADDR_LO [31:0] */
@@ -99,10 +99,9 @@ static void
 radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t src_va, unsigned size, unsigned flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_cond_render_state *cond_render = &cmd_buffer->state.cond_render;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   radv_cs_emit_cp_dma(device, cs, cond_render->enabled, dst_va, src_va, size, flags);
+   radv_cs_emit_cp_dma(device, cs, dst_va, src_va, size, flags);
 
    /* CP DMA is executed in ME, but index buffers are read by PFP.
     * This ensures that ME (CP DMA) is idle before PFP starts fetching
@@ -110,7 +109,7 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
     * should precede it.
     */
    if (flags & CP_DMA_SYNC && cmd_buffer->qf == RADV_QUEUE_GENERAL)
-      ac_emit_cp_pfp_sync_me(cs->b, cond_render->enabled);
+      ac_emit_cp_pfp_sync_me(cs->b, false);
 
    /* CP will see the sync flag and wait for all DMAs to complete. */
    cmd_buffer->state.dma_is_busy = !(flags & CP_DMA_SYNC);
@@ -138,8 +137,7 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
  *
  */
 void
-radv_cs_cp_dma_prefetch(const struct radv_device *device, struct radv_cmd_stream *cs, uint64_t va, unsigned size,
-                        bool predicating)
+radv_cs_cp_dma_prefetch(const struct radv_device *device, struct radv_cmd_stream *cs, uint64_t va, unsigned size)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radeon_winsys *ws = device->ws;
@@ -167,7 +165,7 @@ radv_cs_cp_dma_prefetch(const struct radv_device *device, struct radv_cmd_stream
    header |= S_501_SRC_SEL(V_501_SRC_ADDR_USING_L2);
 
    radeon_begin(cs);
-   radeon_emit(PKT3(PKT3_DMA_DATA, 5, predicating));
+   radeon_emit(PKT3(PKT3_DMA_DATA, 5, 0));
    radeon_emit(header);
    radeon_emit(aligned_va);       /* SRC_ADDR_LO [31:0] */
    radeon_emit(aligned_va >> 32); /* SRC_ADDR_HI [31:0] */
@@ -181,9 +179,8 @@ void
 radv_cp_dma_prefetch(struct radv_cmd_buffer *cmd_buffer, uint64_t va, unsigned size)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_cond_render_state *cond_render = &cmd_buffer->state.cond_render;
 
-   radv_cs_cp_dma_prefetch(device, cmd_buffer->cs, va, size, cond_render->enabled);
+   radv_cs_cp_dma_prefetch(device, cmd_buffer->cs, va, size);
 
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
