@@ -1985,6 +1985,7 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj,
 {
    jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
+   unsigned width = MIN2(s->dispatch_width, 16);
    uint32_t len = 0;
    bool synchronous = false;
 
@@ -2035,9 +2036,8 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj,
       /* Bitgroup 1 - stackIDs, for SIMD16, we need 8 Dwords, each will contain
        * 16-bit stackID.
        */
-      jay_def packed_stacks = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
-      jay_def stack_id_packed =
-         jay_extract_range(nj->payload.u1, 0, s->dispatch_width / 2);
+      jay_def packed_stacks = jay_alloc_def(b, UGPR, width / 2);
+      jay_def stack_id_packed = jay_extract_range(nj->payload.u1, 0, width / 2);
       jay_MOV(b, packed_stacks, stack_id_packed)->type = JAY_TYPE_U16;
 
       jay_def stacks[JAY_MAX_DEF_LENGTH] = {};
@@ -2088,8 +2088,8 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
                                nir_intrinsic_synchronous(instr) :
                                false;
 
-   assert(nj->s->dispatch_width <= 16 || synchronous);
-   assert(nj->s->dispatch_width <= 16 && "TODO: Ray query SIMD splitting");
+   unsigned width = MIN2(s->dispatch_width, 16);
+   assert(width <= 16 || synchronous);
 
    uint32_t desc = 0;
    uint32_t split_len = 0;
@@ -2108,18 +2108,17 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
 
    switch (instr->intrinsic) {
    case nir_intrinsic_trace_ray_intel:
-      desc = brw_rt_trace_ray_desc(s->devinfo, nj->s->dispatch_width);
+      desc = brw_rt_trace_ray_desc(s->devinfo, width);
 
       jay_SEND(&nj->bld, .sfid = GEN_SFID_RAY_TRACE_ACCELERATOR,
                .msg_desc = desc, .type = JAY_TYPE_U32, .srcs = srcs,
-               .nr_srcs = nr_srcs, .dst = notif);
+               .nr_srcs = nr_srcs, .dst = notif, .simd_width = width);
       break;
 
    case nir_intrinsic_btd_retire_intel:
    case nir_intrinsic_btd_spawn_intel:
       assert(jay_shader_stage_uses_btd(s));
-      desc = brw_btd_spawn_desc(s->devinfo, nj->s->dispatch_width,
-                                GEN_RT_BTD_MESSAGE_SPAWN);
+      desc = brw_btd_spawn_desc(s->devinfo, width, GEN_RT_BTD_MESSAGE_SPAWN);
 
       /* Set TYPE_U64 so that last two bitgroups (2-3) are interpreted as
        * expected, which is lower 8 channels of U64 of shader record identifier

@@ -1066,8 +1066,6 @@ jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
    /* SIMD splitting of ray queries is inefficient, avoid it when possible */
    if (nir->info.ray_queries && nir->info.min_subgroup_size < 32) {
       undesirable_modes |= 32;
-      /* XXX: ray query SIMD splitting not implemented yet */
-      unsupported_modes |= 32;
    }
 
    /* If the entire workgroup fits in a SIMD, use that one. */
