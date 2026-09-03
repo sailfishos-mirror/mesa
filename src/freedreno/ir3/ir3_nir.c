@@ -999,7 +999,6 @@ ir3_nir_post_finalize(struct ir3_shader *shader)
       NIR_PASS(_, s, nir_opt_barycentric, true);
       NIR_PASS(_, s, ir3_nir_lower_load_sample_pos);
       NIR_PASS(_, s, ir3_nir_lower_load_barycentric_at_offset);
-      NIR_PASS(_, s, ir3_nir_move_varying_inputs);
       NIR_PASS(_, s, nir_lower_fb_read);
       NIR_PASS(_, s, ir3_nir_lower_layer_id);
       if (!compiler->info->props.shading_rate_matches_vk)
