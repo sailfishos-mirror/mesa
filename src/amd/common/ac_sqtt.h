@@ -41,6 +41,7 @@ struct ac_sqtt {
    void *bo;
    uint64_t buffer_va;
    void *ptr;
+   /* Per-SE, aligned size */
    uint32_t buffer_size;
    bool capture_cancelled;
    int start_frame;
