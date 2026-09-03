@@ -1130,7 +1130,6 @@ get_depth_stencil_plane_params(struct nvk_image_view *iview,
                                                  &level_offset_B);
       addr += level_offset_B;
       mip_level = 0;
-      base_array_layer = 0;
       assert(layer_count <= iview->vk.extent.depth);
    } else {
       assert(layer_count <= iview->vk.layer_count);
