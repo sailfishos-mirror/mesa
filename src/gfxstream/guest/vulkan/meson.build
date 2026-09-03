@@ -24,6 +24,10 @@ if with_platform_wayland
     gfxstream_vk_wsi_args += '-DGFXSTREAM_VK_WAYLAND'
 endif
 
+if with_platform_macos
+    gfxstream_vk_wsi_args += '-DGFXSTREAM_VK_METAL'
+endif
+
 files_vulkan_gfxstream = files_lib_vulkan_gfxstream + files_lib_vulkan_enc
 files_vulkan_gfxstream += gfxstream_vk_entrypoints
 
