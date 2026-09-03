@@ -167,17 +167,6 @@ radv_cs_cp_dma_prefetch(const struct radv_device *device, struct radv_cmd_stream
    radeon_end();
 }
 
-void
-radv_cp_dma_prefetch(struct radv_cmd_buffer *cmd_buffer, uint64_t va, unsigned size)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-
-   radv_cs_cp_dma_prefetch(device, cmd_buffer->cs, va, size);
-
-   if (radv_device_fault_detection_enabled(device))
-      radv_cmd_buffer_trace_emit(cmd_buffer);
-}
-
 static void
 radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 {
