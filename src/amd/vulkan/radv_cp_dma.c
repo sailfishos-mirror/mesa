@@ -42,10 +42,11 @@ cp_dma_max_byte_count(enum amd_gfx_level gfx_level)
  * clear value.
  */
 static void
-radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, uint64_t dst_va, uint64_t src_va,
-                    unsigned size, unsigned flags)
+radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t src_va, unsigned size, unsigned flags)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    const bool cp_dma_use_L2 = (flags & CP_DMA_USE_L2) && pdev->info.cp_dma_use_L2;
    const bool cp_dma_use_mall = pdev->info.gfx_level == GFX12;
    /* GFX12: TC_L2 means MALL, which should always be set. */
@@ -93,15 +94,6 @@ radv_cs_emit_cp_dma(struct radv_device *device, struct radv_cmd_stream *cs, uint
       radeon_emit(command);
    }
    radeon_end();
-}
-
-static void
-radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t src_va, unsigned size, unsigned flags)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_cmd_stream *cs = cmd_buffer->cs;
-
-   radv_cs_emit_cp_dma(device, cs, dst_va, src_va, size, flags);
 
    /* CP DMA is executed in ME, but index buffers are read by PFP.
     * This ensures that ME (CP DMA) is idle before PFP starts fetching
