@@ -21,13 +21,10 @@ dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_min_reverse_src_dst_x,Fa
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_min_reverse_src_dst_y,Fail
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_min_reverse_src_x,Fail
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_min_reverse_src_y,Fail
-dEQP-GLES3.functional.fbo.invalidate.whole.unbind_blit_depth,Fail
+dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_min_reverse_src_dst_y,Fail
 dEQP-GLES3.functional.polygon_offset.float32_displacement_with_units,Fail
 dEQP-GLES3.functional.shaders.texture_functions.textureprojgradoffset.sampler3d_float_vertex,Fail
 dEQP-GLES3.functional.texture.specification.texstorage3d.size.3d_2x2x2_2_levels,Fail
-
-# drm:a5xx_irq] *ERROR* gpu fault ring 2 fence 15595 status F700B1C1 rb 004a/004a ib1 000000000BFEA000/0000 ib2 0000000002F46000/0000
-dEQP-GLES31.functional.ubo.random.all_per_block_buffers.20,Fail
 
 glx@glx-make-current,Fail
 glx@glx-multi-window-single-context,Fail
