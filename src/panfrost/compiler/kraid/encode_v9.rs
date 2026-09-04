@@ -133,7 +133,6 @@ impl V9Encoder<'_> {
         &self,
         isa_instr: impl TryEncode<Encoded = [u32; 2], Error: std::fmt::Debug>,
     ) -> [u32; 2] {
-        let fau_page_index = instr_fau_page(&self.instr).unwrap_or(0);
         let flow = encode_flow(self.instr.flow, self.arch)
             .try_encode(self.arch)
             .expect("Failed to encode flow");
@@ -143,7 +142,9 @@ impl V9Encoder<'_> {
             .expect("Failed to encode instruction");
 
         let mut b = BitMutView::new(&mut bits);
-        b.set_field(57..59, fau_page_index);
+        if let Some(page) = instr_fau_page(&self.instr) {
+            b.set_field(57..59, page);
+        }
         b.set_field(59..63, flow);
 
         bits
