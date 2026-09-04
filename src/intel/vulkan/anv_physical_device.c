@@ -1300,19 +1300,6 @@ get_features(const struct anv_physical_device *pdevice,
 
 #define MAX_PER_STAGE_DESCRIPTOR_INPUT_ATTACHMENTS 64
 
-static VkDeviceSize
-anx_get_physical_device_max_heap_size(const struct anv_physical_device *pdevice)
-{
-   VkDeviceSize ret = 0;
-
-   for (uint32_t i = 0; i < pdevice->memory.heap_count; i++) {
-      if (pdevice->memory.heaps[i].size > ret)
-         ret = pdevice->memory.heaps[i].size;
-   }
-
-   return ret;
-}
-
 static void
 get_properties_1_1(const struct anv_physical_device *pdevice,
                    struct vk_properties *p)
@@ -1563,8 +1550,6 @@ get_properties(const struct anv_physical_device *pdevice,
    if (!os_get_page_size(&page_size))
       page_size = 4096;         /* fallback */
 
-   const VkDeviceSize max_heap_size = anx_get_physical_device_max_heap_size(pdevice);
-
    const uint32_t max_workgroup_size =
       MIN2(1024, 32 * devinfo->max_cs_workgroup_threads);
 
@@ -1600,8 +1585,10 @@ get_properties(const struct anv_physical_device *pdevice,
       .maxImageArrayLayers                      = (1 << 11),
       .maxTexelBufferElements                   = 128 * 1024 * 1024,
 
-      .maxUniformBufferRange                    = intel_indirect_ubos_use_sampler(devinfo) ? (1u << 27) : (1u << 30),
-      .maxStorageBufferRange                    = MIN3(pdevice->isl_dev.max_buffer_size, max_heap_size, UINT32_MAX),
+      .maxUniformBufferRange                    = MIN2(intel_indirect_ubos_use_sampler(devinfo) ?
+                                                       (1u << 27) : pdevice->isl_dev.max_buffer_size,
+                                                       UINT32_MAX),
+      .maxStorageBufferRange                    = MIN2(pdevice->isl_dev.max_buffer_size, UINT32_MAX),
       .maxPushConstantsSize                     = MAX_PUSH_CONSTANTS_SIZE,
       .maxMemoryAllocationCount                 = UINT32_MAX,
       .maxSamplerAllocationCount                = 64 * 1024,
