@@ -810,31 +810,36 @@ init_state_base_address(struct iris_batch *batch)
 #if GFX_VER >= 9
       sba.BindlessSurfaceStateMOCS    = mocs;
 #endif
-
-      sba.GeneralStateBaseAddressModifyEnable   = true;
-      sba.DynamicStateBaseAddressModifyEnable   = true;
-      sba.IndirectObjectBaseAddressModifyEnable = true;
-      sba.InstructionBaseAddressModifyEnable    = true;
-      sba.GeneralStateBufferSizeModifyEnable    = true;
-      sba.DynamicStateBufferSizeModifyEnable    = true;
-      sba.SurfaceStateBaseAddressModifyEnable   = true;
 #if GFX_VER >= 11
       sba.BindlessSamplerStateMOCS    = mocs;
 #endif
-      sba.IndirectObjectBufferSizeModifyEnable  = true;
-      sba.InstructionBuffersizeModifyEnable     = true;
-
-      sba.InstructionBaseAddress  = ro_bo(NULL, IRIS_MEMZONE_SHADER_START);
-      sba.DynamicStateBaseAddress = ro_bo(NULL, IRIS_MEMZONE_DYNAMIC_START);
-      sba.SurfaceStateBaseAddress = ro_bo(NULL, IRIS_MEMZONE_BINDER_START);
-
-      sba.GeneralStateBufferSize   = 0xfffff;
-      sba.IndirectObjectBufferSize = 0xfffff;
-      sba.InstructionBufferSize    = 0xfffff;
-      sba.DynamicStateBufferSize   = 0xfffff;
 #if GFX_VERx10 >= 125
       sba.L1CacheControl = L1CC_WB;
 #endif
+#if GFX_VERx10 >= 350
+      sba.BaseAddressdisable = iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr);
+#endif
+
+      if (!iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr)) {
+         sba.GeneralStateBaseAddressModifyEnable   = true;
+         sba.DynamicStateBaseAddressModifyEnable   = true;
+         sba.IndirectObjectBaseAddressModifyEnable = true;
+         sba.InstructionBaseAddressModifyEnable    = true;
+         sba.GeneralStateBufferSizeModifyEnable    = true;
+         sba.DynamicStateBufferSizeModifyEnable    = true;
+         sba.SurfaceStateBaseAddressModifyEnable   = true;
+         sba.IndirectObjectBufferSizeModifyEnable  = true;
+         sba.InstructionBuffersizeModifyEnable     = true;
+
+         sba.InstructionBaseAddress  = ro_bo(NULL, IRIS_MEMZONE_SHADER_START);
+         sba.DynamicStateBaseAddress = ro_bo(NULL, IRIS_MEMZONE_DYNAMIC_START);
+         sba.SurfaceStateBaseAddress = ro_bo(NULL, IRIS_MEMZONE_BINDER_START);
+
+         sba.GeneralStateBufferSize   = 0xfffff;
+         sba.IndirectObjectBufferSize = 0xfffff;
+         sba.InstructionBufferSize    = 0xfffff;
+         sba.DynamicStateBufferSize   = 0xfffff;
+      }
    }
 
    flush_after_state_base_change(batch);
@@ -6135,7 +6140,10 @@ static void
 iris_update_binder_address(struct iris_batch *batch,
                            struct iris_binder *binder)
 {
-   if (batch->last_binder_address == binder->bo->address)
+   struct iris_bufmgr *bufmgr = batch->screen->bufmgr;
+
+   if (iris_bufmgr_is_eff_64bit_enabled(bufmgr) ||
+       batch->last_binder_address == binder->bo->address)
       return;
 
    struct isl_device *isl_dev = &batch->screen->isl_dev;
