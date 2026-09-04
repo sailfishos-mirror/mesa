@@ -1184,7 +1184,7 @@
         "description": "brw: Only HALT for terminate_if of non-helper pixels",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e7e24d5039cca6c1254935ea8067e7c925b04c51",
         "notes": null
