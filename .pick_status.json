@@ -414,7 +414,7 @@
         "description": "freedreno/a5xx: set the sample count before the GMEM restore blits",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "946cf4eb6846767306a221eec7d0f82d20dfb6b5",
         "notes": null
