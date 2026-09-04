@@ -1984,6 +1984,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="FACENESS" pos="1" type="boolean"/>
 		<bitfield name="SAMPLEID" pos="2" type="boolean"/>
 		<bitfield name="SAMPLEMODE" low="3" high="4" type="uint"/>
+		<bitfield name="CENTERRHW" pos="5" type="boolean"/>
 	</reg32>
 	<reg32 offset="0xe146" name="RB_FS_OUTPUT_CNTL">
 		<!-- bit0 set except for binning pass.. -->
