@@ -31,6 +31,7 @@ mod opt_copy_prop;
 mod opt_dce;
 mod opt_exec_units;
 mod opt_flow;
+mod opt_fuse;
 mod opt_normalize_consts;
 mod opt_promote_consts;
 mod opt_var;
