@@ -1237,8 +1237,6 @@ jay_emit_fb_read(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       chans[c] = jay_extract(header, c);
    }
 
-   /* TODO: Handle simd32 issues, see brw */
-
    /* BSpec 12470 (Gfx8-11), BSpec 47842 (Gfx12+) :
     *
     *   "Must be zero for Render Target Read message."
@@ -1251,7 +1249,7 @@ jay_emit_fb_read(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
     */
    chans[0] = jay_AND_u32(b, chans[0], ~INTEL_MASK(14, 11));
 
-   unsigned exec_size = b->shader->dispatch_width;
+   unsigned exec_size = MIN2(b->shader->dispatch_width, 16);
    uint64_t desc = brw_fb_read_desc(devinfo, target, 0 /* msg_control */,
                                     exec_size, prog_data->persample_dispatch);
    uint64_t ex_desc = 0;
@@ -1260,7 +1258,7 @@ jay_emit_fb_read(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
             .msg_desc = desc | (ex_desc << 32), .dst = nj_def(&intr->def),
             .header = jay_collect_vectors(b, chans, ARRAY_SIZE(chans)),
-            .type = JAY_TYPE_U32);
+            .type = JAY_TYPE_U32, .simd_width = exec_size);
 }
 
 static enum lsc_data_size
