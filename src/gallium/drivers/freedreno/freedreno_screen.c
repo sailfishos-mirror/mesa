@@ -413,6 +413,8 @@ fd_init_screen_caps(struct fd_screen *screen)
    caps->has_const_bw = true;
 
    caps->copy_between_compressed_and_plain_formats =
+      is_a5xx(screen) || is_a6xx(screen);
+
    caps->multi_draw_indirect =
    caps->draw_parameters =
    caps->multi_draw_indirect_params =
