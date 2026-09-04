@@ -640,6 +640,104 @@ impl SSAVecRepr {
     }
 }
 
+struct AffinityMapBuilder<'a> {
+    model: &'a dyn Model,
+    reg_arena: &'a Arena,
+    phi_map: &'a PhiMap,
+    ssa_affinities: SSAValueIndexedVec<SSAAffinity>,
+    phi_webs: UnionFind<SSAValue, FxBuildHasher>,
+    def_order: SSAValueIndexedVec<u32>,
+}
+
+impl AffinityMapBuilder<'_> {
+    fn add_instr(&mut self, instr: &Instr) {
+        let def_order = &mut self.def_order;
+        match &instr.op {
+            Op::MkVecV2I16(op) => {
+                let repr = SSAVecRepr::for_srcs(4, &op.srcs, 2, def_order);
+                for (i, src) in op.srcs.iter().enumerate() {
+                    if let Some(vec) = src.as_ssa() {
+                        debug_assert_eq!(vec.comps(), 1);
+                        let a = &mut self.ssa_affinities[vec[0]];
+                        let i = u8::try_from(i).unwrap();
+                        repr.set_affinity(i * 2, &vec[0], a);
+                    }
+                }
+            }
+            Op::MkVecV2I8(op) => {
+                let repr = SSAVecRepr::for_srcs(2, &op.srcs, 1, def_order);
+                for (i, src) in op.srcs.iter().enumerate() {
+                    if let Some(vec) = src.as_ssa() {
+                        debug_assert_eq!(vec.comps(), 1);
+                        let a = &mut self.ssa_affinities[vec[0]];
+                        let i = u8::try_from(i).unwrap();
+                        repr.set_affinity(i, &vec[0], a);
+                    }
+                }
+            }
+            Op::MkVecV4I8(op) => {
+                let repr = SSAVecRepr::for_srcs(4, &op.srcs, 1, def_order);
+                for (i, src) in op.srcs.iter().enumerate() {
+                    if let Some(vec) = src.as_ssa() {
+                        debug_assert_eq!(vec.comps(), 1);
+                        let a = &mut self.ssa_affinities[vec[0]];
+                        let i = u8::try_from(i).unwrap();
+                        repr.set_affinity(i, &vec[0], a);
+                    }
+                }
+            }
+            Op::PhiSrc(op) => {
+                if let SrcRef::SSA(src_vec) = &op.src.src_ref {
+                    if src_vec.bytes() == op.phi.bytes() {
+                        let dst_vec = self.phi_map.get_dst_ssa(&op.phi);
+                        assert_eq!(src_vec.len(), dst_vec.len());
+                        for (dst_ssa, src_ssa) in dst_vec.iter().zip(src_vec) {
+                            self.phi_webs.union(*dst_ssa, *src_ssa);
+                        }
+                    }
+                }
+            }
+            Op::RegOut(op) => {
+                if let SrcRef::SSA(vec) = &op.src.src_ref {
+                    debug_assert_eq!(op.reg.bytes(), vec.bytes());
+                    let mut bytes = self.reg_arena.reg_to_bytes(&op.reg);
+                    for ssa in vec {
+                        debug_assert_eq!(ssa.bytes(), 4);
+                        self.ssa_affinities[ssa].reg_byte = bytes.start;
+                        bytes.start += 4;
+                    }
+                    debug_assert_eq!(bytes.end, bytes.start);
+                }
+            }
+            _ => {
+                for src in instr.srcs() {
+                    let SrcRef::SSA(vec) = &src.src_ref else {
+                        continue;
+                    };
+
+                    if vec.comps() > 1 {
+                        let repr = SSAVecRepr::for_ssa_ref(vec, def_order);
+                        for (i, ssa) in vec.iter().enumerate() {
+                            let a = &mut self.ssa_affinities[ssa];
+                            let i = u8::try_from(i).unwrap();
+                            repr.set_affinity(i * 4, ssa, a);
+                        }
+                    } else {
+                        debug_assert!(vec.comps() == 1);
+                        let a = &mut self.ssa_affinities[vec[0]];
+
+                        // Scalars have alignment based on supported
+                        // swizzles
+                        a.add_align(RegAlignConstraint::for_op_src(
+                            self.model, &instr.op, src,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct AffinityMap {
     ssa_affinities: SSAValueIndexedVec<SSAAffinity>,
     phi_webs: SSAValueIndexedVec<Option<SSAValue>>,
@@ -651,120 +749,37 @@ impl AffinityMap {
         reg_arena: &Arena,
         phi_map: &PhiMap,
     ) -> AffinityMap {
-        let mut ssa_affinities: SSAValueIndexedVec<SSAAffinity> =
-            SSAValueIndexedVec::with_count(s.ssa_alloc.count());
-        let mut phi_webs_uf: UnionFind<SSAValue, FxBuildHasher> =
-            UnionFind::new();
+        let ssa_count = s.ssa_alloc.count();
+        let mut b = AffinityMapBuilder {
+            model: s.model,
+            reg_arena,
+            phi_map,
+            ssa_affinities: SSAValueIndexedVec::with_count(ssa_count),
+            phi_webs: UnionFind::new(),
+            def_order: SSAValueIndexedVec::with_count(ssa_count),
+        };
 
-        // We need to record the order in which SSAValues are defined so we
-        // know which SSA value in a SSARef was defined first so we can use it
-        // as a reference point.
         let mut def_idx = (1_u32..).into_iter();
-        let mut def_order: SSAValueIndexedVec<u32> =
-            SSAValueIndexedVec::with_count(s.ssa_alloc.count());
+        for block in &s.blocks {
+            for instr in &block.instrs {
+                b.add_instr(instr);
 
-        for instr in s.blocks.iter().map(|b| b.instrs.iter()).flatten() {
-            match &instr.op {
-                Op::MkVecV2I16(op) => {
-                    let repr = SSAVecRepr::for_srcs(4, &op.srcs, 2, &def_order);
-                    for (i, src) in op.srcs.iter().enumerate() {
-                        if let Some(vec) = src.as_ssa() {
-                            debug_assert_eq!(vec.comps(), 1);
-                            let a = &mut ssa_affinities[vec[0]];
-                            let i = u8::try_from(i).unwrap();
-                            repr.set_affinity(i * 2, &vec[0], a);
-                        }
-                    }
+                for ssa in instr.iter_ssa_defs() {
+                    b.def_order[ssa] = def_idx.next().unwrap();
                 }
-                Op::MkVecV2I8(op) => {
-                    let repr = SSAVecRepr::for_srcs(2, &op.srcs, 1, &def_order);
-                    for (i, src) in op.srcs.iter().enumerate() {
-                        if let Some(vec) = src.as_ssa() {
-                            debug_assert_eq!(vec.comps(), 1);
-                            let a = &mut ssa_affinities[vec[0]];
-                            let i = u8::try_from(i).unwrap();
-                            repr.set_affinity(i, &vec[0], a);
-                        }
-                    }
-                }
-                Op::MkVecV4I8(op) => {
-                    let repr = SSAVecRepr::for_srcs(4, &op.srcs, 1, &def_order);
-                    for (i, src) in op.srcs.iter().enumerate() {
-                        if let Some(vec) = src.as_ssa() {
-                            debug_assert_eq!(vec.comps(), 1);
-                            let a = &mut ssa_affinities[vec[0]];
-                            let i = u8::try_from(i).unwrap();
-                            repr.set_affinity(i, &vec[0], a);
-                        }
-                    }
-                }
-                Op::PhiSrc(op) => {
-                    if let SrcRef::SSA(src_vec) = &op.src.src_ref {
-                        if src_vec.bytes() == op.phi.bytes() {
-                            let dst_vec = phi_map.get_dst_ssa(&op.phi);
-                            assert_eq!(src_vec.len(), dst_vec.len());
-                            for (dst_ssa, src_ssa) in
-                                dst_vec.iter().zip(src_vec)
-                            {
-                                phi_webs_uf.union(*dst_ssa, *src_ssa);
-                            }
-                        }
-                    }
-                }
-                Op::RegOut(op) => {
-                    if let SrcRef::SSA(vec) = &op.src.src_ref {
-                        debug_assert_eq!(op.reg.bytes(), vec.bytes());
-                        let mut bytes = reg_arena.reg_to_bytes(&op.reg);
-                        for ssa in vec {
-                            debug_assert_eq!(ssa.bytes(), 4);
-                            ssa_affinities[ssa].reg_byte = bytes.start;
-                            bytes.start += 4;
-                        }
-                        debug_assert_eq!(bytes.end, bytes.start);
-                    }
-                }
-                _ => {
-                    for src in instr.srcs() {
-                        let SrcRef::SSA(vec) = &src.src_ref else {
-                            continue;
-                        };
-
-                        if vec.comps() > 1 {
-                            let repr = SSAVecRepr::for_ssa_ref(vec, &def_order);
-                            for (i, ssa) in vec.iter().enumerate() {
-                                let a = &mut ssa_affinities[ssa];
-                                let i = u8::try_from(i).unwrap();
-                                repr.set_affinity(i * 4, ssa, a);
-                            }
-                        } else {
-                            debug_assert!(vec.comps() == 1);
-                            let a = &mut ssa_affinities[vec[0]];
-
-                            // Scalars have alignment based on supported
-                            // swizzles
-                            a.add_align(RegAlignConstraint::for_op_src(
-                                s.model, &instr.op, src,
-                            ));
-                        }
-                    }
-                }
-            }
-
-            for ssa in instr.iter_ssa_defs() {
-                def_order[ssa] = def_idx.next().unwrap();
             }
         }
 
         // Flatten the UnionFind to an SSAValueIndexedVec for efficiency
         let mut phi_webs: SSAValueIndexedVec<Option<SSAValue>> =
             SSAValueIndexedVec::with_count(s.ssa_alloc.count());
-        for (k, v) in phi_webs_uf.into_iter() {
+        for (k, v) in b.phi_webs.into_iter() {
             debug_assert_eq!(k.bits(), v.bits());
             phi_webs[k] = Some(v);
         }
 
         AffinityMap {
-            ssa_affinities,
+            ssa_affinities: b.ssa_affinities,
             phi_webs,
         }
     }
