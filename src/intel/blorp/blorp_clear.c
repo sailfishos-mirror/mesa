@@ -1318,7 +1318,7 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
  */
 void
 blorp_clear_attachments(struct blorp_batch *batch,
-                        uint32_t binding_table_offset,
+                        uint64_t binding_table_offset_or_ss_pointer,
                         enum isl_format depth_format,
                         uint32_t num_samples,
                         uint32_t start_layer, uint32_t num_layers,
@@ -1339,7 +1339,7 @@ blorp_clear_attachments(struct blorp_batch *batch,
    params.y1 = y1;
 
    params.use_pre_baked_binding_table = true;
-   params.pre_baked_binding_table_offset = binding_table_offset;
+   params.pre_baked_binding_table_offset = binding_table_offset_or_ss_pointer;
 
    params.num_layers = num_layers;
    params.num_samples = num_samples;

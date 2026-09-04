@@ -384,7 +384,7 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
                               bool clear_stencil, uint8_t stencil_value);
 void
 blorp_clear_attachments(struct blorp_batch *batch,
-                        uint32_t binding_table_offset,
+                        uint64_t binding_table_offset_or_ss_pointer,
                         enum isl_format depth_format,
                         uint32_t num_samples,
                         uint32_t start_layer, uint32_t num_layers,

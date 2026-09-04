@@ -1434,7 +1434,7 @@ blorp_get_efficient_64bit_io_size(struct blorp_batch *batch,
                                   uint32_t *out_push_offset)
 {
    const struct isl_device *isl_dev = batch->blorp->isl_dev;
-   const unsigned num_surfaces = 1 + params->src.enabled + params->src.buffer;
+   const unsigned num_surfaces = params->use_pre_baked_binding_table ? 0 : (1 + params->src.enabled + params->src.buffer);
    const unsigned surfaces_size = align(num_surfaces * isl_dev->ss.size, 32);
    const unsigned sampler_size = (params->src.enabled && !batch->blorp->config.use_cached_dynamic_states) ? 32 : 0;
    const unsigned push_size = params->shader_pipeline == BLORP_SHADER_PIPELINE_COMPUTE ? 0 : 32;
@@ -1458,43 +1458,47 @@ blorp_emit_efficient_64bit_io(struct blorp_batch *batch,
 
    void *surface_maps[BLORP_NUM_BT_ENTRIES];
    uint32_t surface_offsets[BLORP_NUM_BT_ENTRIES];
-   for (uint32_t i = 0; i < num_surfaces; i++) {
-      const uint32_t rel_offset = align(isl_dev->ss.size * i, isl_dev->ss.align);
-      surface_maps[i] = surfaces_ptr + rel_offset;
-      surface_offsets[i] = rel_offset;
-   }
+   if (!params->use_pre_baked_binding_table) {
+      for (uint32_t i = 0; i < num_surfaces; i++) {
+         const uint32_t rel_offset = align(isl_dev->ss.size * i, isl_dev->ss.align);
+         surface_maps[i] = surfaces_ptr + rel_offset;
+         surface_offsets[i] = rel_offset;
+      }
 
-   if (params->dst.enabled) {
-      blorp_emit_surface_state(batch, &params->dst,
-                               params->fast_clear_op,
-                               surface_maps[BLORP_RENDERBUFFER_BT_INDEX],
-                               surface_offsets[BLORP_RENDERBUFFER_BT_INDEX],
-                               params->color_write_disable, true);
-   } else {
-      assert(params->depth.enabled || params->stencil.enabled);
-      const struct blorp_surface_info *surface =
-         params->depth.enabled ? &params->depth : &params->stencil;
-      blorp_emit_null_surface_state(batch, surface,
-                                    surface_maps[BLORP_RENDERBUFFER_BT_INDEX]);
+      if (params->dst.enabled) {
+         blorp_emit_surface_state(batch, &params->dst,
+                                  params->fast_clear_op,
+                                  surface_maps[BLORP_RENDERBUFFER_BT_INDEX],
+                                  surface_offsets[BLORP_RENDERBUFFER_BT_INDEX],
+                                  params->color_write_disable, true);
+      } else {
+         assert(params->depth.enabled || params->stencil.enabled);
+         const struct blorp_surface_info *surface =
+            params->depth.enabled ? &params->depth : &params->stencil;
+         blorp_emit_null_surface_state(batch, surface,
+                                       surface_maps[BLORP_RENDERBUFFER_BT_INDEX]);
+      }
    }
 
    if (params->src.enabled) {
-      if (params->src.surf.size_B != 0) {
-         blorp_emit_surface_state(batch, &params->src,
-                                  params->fast_clear_op,
-                                  surface_maps[BLORP_TEXTURE_BT_INDEX],
-                                  surface_offsets[BLORP_TEXTURE_BT_INDEX],
-                                  0, false);
-      } else {
-         /* Nothing to do, the entire surface got converted to a buffer */
-         blorp_emit_null_surface_state(batch, &params->src,
-                                       surface_maps[BLORP_TEXTURE_BT_INDEX]);
-      }
+      if (!params->use_pre_baked_binding_table) {
+         if (params->src.surf.size_B != 0) {
+            blorp_emit_surface_state(batch, &params->src,
+                                     params->fast_clear_op,
+                                     surface_maps[BLORP_TEXTURE_BT_INDEX],
+                                     surface_offsets[BLORP_TEXTURE_BT_INDEX],
+                                     0, false);
+         } else {
+            /* Nothing to do, the entire surface got converted to a buffer */
+            blorp_emit_null_surface_state(batch, &params->src,
+                                          surface_maps[BLORP_TEXTURE_BT_INDEX]);
+         }
 
-      if (params->src.buffer) {
-         blorp_emit_buffer_surface_state(batch, &params->src,
-                                         surface_maps[BLORP_TEXBUF_BT_INDEX],
-                                         surface_offsets[BLORP_TEXBUF_BT_INDEX]);
+         if (params->src.buffer) {
+            blorp_emit_buffer_surface_state(batch, &params->src,
+                                            surface_maps[BLORP_TEXBUF_BT_INDEX],
+                                            surface_offsets[BLORP_TEXBUF_BT_INDEX]);
+         }
       }
 
       if (!batch->blorp->config.use_cached_dynamic_states) {
@@ -1524,14 +1528,17 @@ blorp_emit_efficient_64bit_io(struct blorp_batch *batch,
 
 static void
 blorp_emit_efficient_64bit_io_ps(struct blorp_batch *batch,
+                                 const struct blorp_params *params,
                                  uint64_t *push_data,
                                  uint32_t surfaces_offset,
                                  uint32_t sampler_offset,
                                  uint32_t push_offset)
 {
 #if GFX_VERx10 >= 350
-   push_data[0] = _blorp_combine_address(
-      batch, NULL, blorp_dynamic_state_address(batch, surfaces_offset), 0);
+   push_data[0] = params->use_pre_baked_binding_table ?
+      params->pre_baked_binding_table_offset :
+      _blorp_combine_address(
+         batch, NULL, blorp_dynamic_state_address(batch, surfaces_offset), 0);
    push_data[1] = _blorp_combine_address(
       batch, NULL,
       blorp_dynamic_state_address(
@@ -1930,7 +1937,7 @@ blorp_exec_3d(struct blorp_batch *batch, const struct blorp_params *params)
       blorp_emit_efficient_64bit_io(batch, params,
                                     push_const,
                                     push_const + sampler_offset);
-      blorp_emit_efficient_64bit_io_ps(batch,
+      blorp_emit_efficient_64bit_io_ps(batch, params,
                                        push_const + push_offset,
                                        push_alloc_offset,
                                        push_alloc_offset + sampler_offset,

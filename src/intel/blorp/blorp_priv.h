@@ -344,7 +344,10 @@ struct blorp_params
 
    bool use_efficient_64bit;
    bool use_pre_baked_binding_table;
-   uint32_t pre_baked_binding_table_offset;
+   /* Binding table offset or pointer to the RENDER_SURFACE_STATE in efficient
+    * 64bit mode.
+    */
+   uint64_t pre_baked_binding_table_offset;
 
    uint64_t vs_prog_kernel;
    uint64_t sf_prog_kernel;
