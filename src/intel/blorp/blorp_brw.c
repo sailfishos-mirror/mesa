@@ -136,7 +136,11 @@ blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
                        nir->info.separate_shader,
                        1);
 
-   struct brw_vs_prog_key vs_key = { 0, };
+   struct brw_vs_prog_key vs_key = {
+      .base = {
+         .use_efficient_64bit = blorp->config.use_efficient_64bit,
+      },
+   };
 
    debug_archiver *archiver =
       blorp_debug_archiver_open(mem_ctx, nir, key, key_size);
