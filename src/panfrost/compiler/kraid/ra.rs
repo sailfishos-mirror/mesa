@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::builder::{SSABuilder, SSAInstrBuilder};
 use crate::debug::*;
 use crate::ir::*;
 use crate::liveness::*;
@@ -2398,6 +2399,33 @@ fn ra_trivial(s: &mut Shader) {
 }
 
 impl Shader<'_> {
+    // If multiple phis in a block read the same source, RA will need to insert
+    // at least one copy regardless, but the messy resulting phi webs means RA
+    // will end up inserting many copies (or even swaps). Instead, we lower away
+    // repeated sources pre-RA by inserting that single copy preemptively,
+    // allowing RA's phi web heuristics to do their job.
+    //
+    // This is less heavyhanded than a full CSSA lowering.
+    fn lower_repeated_phi_srcs(&mut self) {
+        let mut seen = BitSet::new();
+        for block in &mut self.blocks {
+            let mut b = SSAInstrBuilder::new(self.model, &mut self.ssa_alloc);
+            for op in block.iter_phi_srcs_mut() {
+                let SrcRef::SSA(vec) = &mut op.src.src_ref else {
+                    continue;
+                };
+
+                for ssa in vec {
+                    if !seen.insert(*ssa) {
+                        *ssa = b.copy_ssa(*ssa);
+                    }
+                }
+            }
+            block.insert_before_postlude(b.into_mapped());
+            seen.clear();
+        }
+    }
+
     pub fn assign_registers(&mut self) {
         if false {
             return ra_trivial(self);
@@ -2408,6 +2436,8 @@ impl Shader<'_> {
         } else {
             u16::from(self.model.max_reg_count()) * 4
         };
+
+        pass!(self.lower_repeated_phi_srcs());
 
         let mut live = SimpleLiveness::for_shader(self);
         let max_live = live.calc_max_live_bytes(self);
