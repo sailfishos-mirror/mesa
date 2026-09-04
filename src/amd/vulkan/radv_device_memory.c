@@ -30,11 +30,11 @@ radv_device_memory_emit_report(struct radv_device *device, struct radv_device_me
    if (result != VK_SUCCESS) {
       type = VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT;
    } else if (is_alloc) {
-      type = mem->import_handle_type ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
-                                     : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT;
+      type = mem->vk.import_handle_type ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
+                                        : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT;
    } else {
-      type = mem->import_handle_type ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_UNIMPORT_EXT
-                                     : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT;
+      type = mem->vk.import_handle_type ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_UNIMPORT_EXT
+                                        : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT;
    }
 
    vk_emit_device_memory_report(&device->vk, type, mem->bo->obj_id, mem->bo->size, VK_OBJECT_TYPE_DEVICE_MEMORY,
@@ -47,11 +47,6 @@ radv_free_memory(struct radv_device *device, const VkAllocationCallbacks *pAlloc
    if (mem == NULL)
       return;
 
-#if RADV_SUPPORT_ANDROID_HARDWARE_BUFFER
-   if (mem->android_hardware_buffer)
-      AHardwareBuffer_release(mem->android_hardware_buffer);
-#endif
-
    if (mem->bo) {
       radv_va_validation_update_page(device, radv_buffer_get_va(mem->bo), mem->alloc_size, false);
 
@@ -62,13 +57,12 @@ radv_free_memory(struct radv_device *device, const VkAllocationCallbacks *pAlloc
       }
 
       device->ws->buffer_make_resident(device->ws, mem->bo, false);
-      radv_bo_destroy(device, &mem->base, mem->bo);
+      radv_bo_destroy(device, &mem->vk.base, mem->bo);
       mem->bo = NULL;
    }
 
    radv_rmv_log_resource_destroy(device, (uint64_t)radv_device_memory_to_handle(mem));
-   vk_object_base_finish(&mem->base);
-   vk_free2(&device->vk.alloc, pAllocator, mem);
+   vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
 }
 
 VkResult
@@ -89,10 +83,6 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
       vk_find_struct_const(pAllocateInfo->pNext, EXPORT_MEMORY_ALLOCATE_INFO);
    const struct VkImportAndroidHardwareBufferInfoANDROID *ahb_import_info =
       vk_find_struct_const(pAllocateInfo->pNext, IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID);
-   const VkImportMemoryHostPointerInfoEXT *host_ptr_info =
-      vk_find_struct_const(pAllocateInfo->pNext, IMPORT_MEMORY_HOST_POINTER_INFO_EXT);
-   const struct VkMemoryAllocateFlagsInfo *flags_info =
-      vk_find_struct_const(pAllocateInfo->pNext, MEMORY_ALLOCATE_FLAGS_INFO);
 
    const struct wsi_memory_allocate_info *wsi_info =
       vk_find_struct_const(pAllocateInfo->pNext, WSI_MEMORY_ALLOCATE_INFO_MESA);
@@ -105,11 +95,9 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
       return VK_SUCCESS;
    }
 
-   mem = vk_zalloc2(&device->vk.alloc, pAllocator, sizeof(*mem), 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   mem = vk_device_memory_create(&device->vk, pAllocateInfo, pAllocator, sizeof(*mem));
    if (mem == NULL)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-   vk_object_base_init(&device->vk, &mem->base, VK_OBJECT_TYPE_DEVICE_MEMORY);
 
    if (dedicate_info) {
       mem->image = radv_image_from_handle(dedicate_info->image);
@@ -151,24 +139,10 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
    unsigned priority =
       MIN2(RADV_BO_PRIORITY_APPLICATION_MAX - 1, (int)(priority_float * RADV_BO_PRIORITY_APPLICATION_MAX));
 
-   mem->user_ptr = NULL;
-
-#if RADV_SUPPORT_ANDROID_HARDWARE_BUFFER
-   mem->android_hardware_buffer = NULL;
-#endif
-
-   if (ahb_import_info) {
-      result = radv_import_ahb_memory(device, mem, priority, ahb_import_info);
+   if (mem->vk.ahardware_buffer) {
+      result = radv_import_ahb_memory(device, mem, priority);
       if (result != VK_SUCCESS)
          goto fail;
-      if (ahb_import_info->sType == VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID)
-         mem->import_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
-   } else if (export_info &&
-              (export_info->handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID)) {
-      result = radv_create_ahb_memory(device, mem, priority, pAllocateInfo);
-      if (result != VK_SUCCESS)
-         goto fail;
-      mem->export_handle_type = export_info->handleTypes;
    } else if (import_info) {
       assert(import_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT ||
              import_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
@@ -178,16 +152,10 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
       } else {
          close(import_info->fd);
       }
-      mem->import_handle_type = import_info->handleType;
-   } else if (host_ptr_info) {
-      assert(host_ptr_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT);
-      result = radv_bo_from_ptr(device, host_ptr_info->pHostPointer, pAllocateInfo->allocationSize, priority, mem);
-      if (result != VK_SUCCESS) {
+   } else if (mem->vk.host_ptr) {
+      result = radv_bo_from_ptr(device, mem->vk.host_ptr, pAllocateInfo->allocationSize, priority, mem);
+      if (result != VK_SUCCESS)
          goto fail;
-      } else {
-         mem->user_ptr = host_ptr_info->pHostPointer;
-      }
-      mem->import_handle_type = host_ptr_info->handleType;
    } else {
       const struct radv_physical_device *pdev = radv_device_physical(device);
       uint64_t alloc_size = align64(pAllocateInfo->allocationSize, 4096);
@@ -197,7 +165,7 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
       domain = pdev->memory_domains[pAllocateInfo->memoryTypeIndex];
       flags |= pdev->memory_flags[pAllocateInfo->memoryTypeIndex];
 
-      if (export_info && export_info->handleTypes) {
+      if (mem->vk.export_handle_types) {
          /* Setting RADEON_FLAG_GTT_WC in case the bo is spilled to GTT.  This is important when the
           * foreign queue is the display engine of iGPU.  The carveout of iGPU can be tiny and the
           * kernel driver refuses to spill without the flag.
@@ -211,7 +179,7 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
          flags |= RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_PREFER_LOCAL_BO;
       }
 
-      if (flags_info && flags_info->flags & VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)
+      if (mem->vk.alloc_flags & VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)
          flags |= RADEON_FLAG_REPLAYABLE;
 
       /* Only apply the workaround for BOs created by the application, not by the driver. */
@@ -242,7 +210,7 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
          mtx_unlock(&device->overallocation_mutex);
       }
 
-      result = radv_bo_create(device, &mem->base, alloc_size, pdev->info.max_alignment, domain, flags, priority,
+      result = radv_bo_create(device, &mem->vk.base, alloc_size, pdev->info.max_alignment, domain, flags, priority,
                               replay_address, is_internal, &mem->bo);
 
       if (result != VK_SUCCESS) {
@@ -289,9 +257,9 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
    }
 
    *pMem = radv_device_memory_to_handle(mem);
-   radv_rmv_log_heap_create(device, *pMem, is_internal, flags_info ? flags_info->flags : 0);
+   radv_rmv_log_heap_create(device, *pMem, is_internal, mem->vk.alloc_flags);
 
-   radv_device_memory_emit_report(device, mem, /* is_alloc */ true, result);
+   radv_device_memory_emit_report(device, mem, /* is_alloc */ true, VK_SUCCESS);
 
    return VK_SUCCESS;
 
@@ -339,8 +307,8 @@ radv_MapMemory2(VkDevice _device, const VkMemoryMapInfo *pMemoryMapInfo, void **
       }
    }
 
-   if (mem->user_ptr)
-      *ppData = mem->user_ptr;
+   if (mem->vk.host_ptr)
+      *ppData = mem->vk.host_ptr;
    else
       *ppData = device->ws->buffer_map(device->ws, mem->bo, use_fixed_address, fixed_address);
 
@@ -360,7 +328,7 @@ radv_UnmapMemory2(VkDevice _device, const VkMemoryUnmapInfo *pMemoryUnmapInfo)
    VK_FROM_HANDLE(radv_device_memory, mem, pMemoryUnmapInfo->memory);
 
    vk_rmv_log_cpu_map(&device->vk, radv_buffer_get_va(mem->bo), true);
-   if (mem->user_ptr == NULL)
+   if (mem->vk.host_ptr == NULL)
       device->ws->buffer_unmap(device->ws, mem->bo, (pMemoryUnmapInfo->flags & VK_MEMORY_UNMAP_RESERVE_BIT_EXT));
 
    return VK_SUCCESS;
