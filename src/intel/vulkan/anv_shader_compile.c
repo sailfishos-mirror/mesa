@@ -1566,6 +1566,11 @@ anv_shader_lower_nir(struct anv_device *device,
 
    NIR_PASS(_, nir, nir_opt_remove_phis);
 
+   /* Pre-Xe2 platforms don't have native support for dynamic programmable
+    * offsets. Since support includes non-uniform programmable offsets, we
+    * need to lower those texture messages in the same way we lower
+    * non-uniform texture/sampler handles.
+    */
    const bool lower_non_uniform_texture_offsets = device->info->ver < 20;
 
    const enum nir_lower_non_uniform_access_type lower_non_uniform_access_types =
@@ -1576,14 +1581,6 @@ anv_shader_lower_nir(struct anv_device *device,
       nir_lower_non_uniform_get_ssbo_size |
       (lower_non_uniform_texture_offsets ?
        nir_lower_non_uniform_texture_offset_access : 0);
-
-   /* Pre-Xe2 platforms don't have native support for dynamic programmable
-    * offsets. Since support includes non-uniform programmable offsets, we
-    * need to lower those texture messages in the same way we lower
-    * non-uniform texture/sampler handles.
-    */
-   if (lower_non_uniform_texture_offsets)
-      nir_divergence_analysis(nir);
 
    /* In practice, most shaders do not have non-uniform-qualified
     * accesses (see
