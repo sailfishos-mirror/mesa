@@ -7028,6 +7028,22 @@ tu_set_render_area(struct tu_cmd_buffer *cmd,
    }
 }
 
+/* Sometimes, due to feedback loops, input attachments may read the result of
+ * clears or resolve events without any intervening draw that would otherwise
+ * require a pipeline barrier/dependency. When this happens we have to
+ * invalidate ourselves.
+ */
+template <chip CHIP>
+static void
+tu_feedback_invalidate(struct tu_cmd_buffer *cmd)
+{
+   tu_flush_for_access(&cmd->state.renderpass_cache,
+                       TU_ACCESS_BLIT_WRITE_GMEM,
+                       TU_ACCESS_UCHE_READ_GMEM);
+   tu_flush_for_stage<CHIP>(&cmd->state.renderpass_cache,
+                            TU_STAGE_BR, TU_STAGE_BR);
+}
+
 template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdBeginRenderPass2(VkCommandBuffer commandBuffer,
@@ -7116,9 +7132,7 @@ tu_CmdBeginRenderPass2(VkCommandBuffer commandBuffer,
    cmd->state.renderpass_cache.flush_bits = 0;
 
    if (pass->subpasses[0].feedback_invalidate) {
-      cmd->state.renderpass_cache.flush_bits |=
-         TU_CMD_FLAG_CACHE_INVALIDATE | TU_CMD_FLAG_BLIT_CACHE_CLEAN |
-         TU_CMD_FLAG_WAIT_FOR_IDLE;
+      tu_feedback_invalidate<CHIP>(cmd);
    }
 
    tu_lrz_begin_renderpass<CHIP>(cmd);
@@ -7575,9 +7589,7 @@ tu_CmdNextSubpass2(VkCommandBuffer commandBuffer,
    tu_subpass_barrier<CHIP>(cmd, &cmd->state.subpass->start_barrier, false);
 
    if (cmd->state.subpass->feedback_invalidate) {
-      cmd->state.renderpass_cache.flush_bits |=
-         TU_CMD_FLAG_CACHE_INVALIDATE | TU_CMD_FLAG_BLIT_CACHE_CLEAN |
-         TU_CMD_FLAG_WAIT_FOR_IDLE;
+      tu_feedback_invalidate<CHIP>(cmd);
    }
 
    tu_fill_render_pass_state(&cmd->state.vk_rp,
@@ -8469,6 +8481,7 @@ tu_emit_fs_params(struct tu_cmd_buffer *cmd)
       tu6_emit_fs_params(cmd);
 }
 
+template<chip CHIP>
 static void
 tu_flush_dynamic_input_attachments(struct tu_cmd_buffer *cmd)
 {
@@ -8483,9 +8496,7 @@ tu_flush_dynamic_input_attachments(struct tu_cmd_buffer *cmd)
     * but for dynamic renderpasses.
     */
    if (!cmd->state.blit_cache_cleaned) {
-      cmd->state.renderpass_cache.flush_bits |=
-         TU_CMD_FLAG_CACHE_INVALIDATE | TU_CMD_FLAG_BLIT_CACHE_CLEAN |
-         TU_CMD_FLAG_WAIT_FOR_IDLE;
+      tu_feedback_invalidate<CHIP>(cmd);
    }
 }
 
@@ -8544,7 +8555,7 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
       rp->drawcall_bandwidth_per_sample_sum += stencil_bandwidth * 2;
 
    if (cmd->state.dirty & TU_CMD_DIRTY_FS)
-      tu_flush_dynamic_input_attachments(cmd);
+      tu_flush_dynamic_input_attachments<CHIP>(cmd);
 
    tu_emit_cache_flush_renderpass<CHIP>(cmd);
 
