@@ -6226,7 +6226,8 @@ vk2tu_dst_stage(struct tu_device *dev,
 template <chip CHIP>
 static void
 tu_flush_for_stage(struct tu_cache_state *cache,
-                   enum tu_stage src_stage, enum tu_stage dst_stage)
+                   enum tu_stage src_stage, enum tu_stage dst_stage,
+                   bool by_region)
 {
    /* Even if the source is the host or CP, the destination access could
     * generate invalidates that we have to wait to complete.
@@ -6236,8 +6237,8 @@ tu_flush_for_stage(struct tu_cache_state *cache,
       src_stage = TU_STAGE_BR;
 
    if (src_stage >= dst_stage) {
-      cache->flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
       if (dst_stage <= TU_STAGE_BV) {
+         cache->flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
          cache->flush_bits |= TU_CMD_FLAG_WAIT_FOR_BR;
 
          /* Extending on the comment in vk2tu_single_stage(), up to a8xx,
@@ -6253,6 +6254,11 @@ tu_flush_for_stage(struct tu_cache_state *cache,
             else
                cache->pending_flush_bits |= TU_CMD_FLAG_WAIT_FOR_ME;
          }
+      } else {
+         if (CHIP >= A7XX && by_region)
+            cache->flush_bits |= TU_CMD_FLAG_SUBPASS_SLICE_FENCE;
+         else
+            cache->flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
       }
    }
 }
@@ -6703,7 +6709,7 @@ tu_subpass_barrier(struct tu_cmd_buffer *cmd_buffer,
 
    enum tu_stage src_stage = vk2tu_src_stage(cmd_buffer->device, src_stage_vk);
    enum tu_stage dst_stage = vk2tu_dst_stage(cmd_buffer->device, dst_stage_vk);
-   tu_flush_for_stage<CHIP>(cache, src_stage, dst_stage);
+   tu_flush_for_stage<CHIP>(cache, src_stage, dst_stage, !barrier->non_fb_local);
 }
 
 template <chip CHIP>
@@ -7082,7 +7088,7 @@ tu_feedback_invalidate(struct tu_cmd_buffer *cmd)
                        TU_ACCESS_BLIT_WRITE_GMEM,
                        TU_ACCESS_UCHE_READ_GMEM);
    tu_flush_for_stage<CHIP>(&cmd->state.renderpass_cache,
-                            TU_STAGE_BR, TU_STAGE_BR);
+                            TU_STAGE_BR, TU_STAGE_BR, true);
 }
 
 template <chip CHIP>
@@ -10170,6 +10176,7 @@ tu_barrier(struct tu_cmd_buffer *cmd,
       }
    }
 
+   bool by_region = false;
    if (cmd->state.pass) {
       const VkPipelineStageFlags2 framebuffer_space_stages =
          VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
@@ -10201,6 +10208,9 @@ tu_barrier(struct tu_cmd_buffer *cmd,
           (dstStage & ~framebuffer_space_stages)) {
          cmd->state.rp.disable_gmem = true;
          cmd->state.rp.force_render_mode_reason = "Non-framebuffer-space barrier";
+         by_region = false;
+      } else {
+         by_region = true;
       }
    }
 
@@ -10241,7 +10251,8 @@ tu_barrier(struct tu_cmd_buffer *cmd,
    if (!no_sync) {
       enum tu_stage src_stage = vk2tu_src_stage(cmd->device, srcStage);
       enum tu_stage dst_stage = vk2tu_dst_stage(cmd->device, dstStage);
-      TU_CALLX(cmd->device, tu_flush_for_stage)(cache, src_stage, dst_stage);
+      TU_CALLX(cmd->device, tu_flush_for_stage)(cache, src_stage, dst_stage,
+                                                by_region);
    }
 }
 

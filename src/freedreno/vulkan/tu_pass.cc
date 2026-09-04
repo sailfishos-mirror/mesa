@@ -58,6 +58,11 @@ tu_render_pass_add_subpass_dep(struct tu_render_pass *pass,
       }
    }
 
+   /* Dependencies with an EXTERNAL destination need a full WFI, but others
+    * don't unless there's a non-framebuffer-local dependency.
+    */
+   bool non_fb_local = dst == VK_SUBPASS_EXTERNAL;
+
    /* We can conceptually break down the process of rewriting a sysmem
     * renderpass into a gmem one into two parts:
     *
@@ -82,6 +87,7 @@ tu_render_pass_add_subpass_dep(struct tu_render_pass *pass,
     */
 
    if (!vk_subpass_dependency_is_fb_local(dep, src_stage_mask, dst_stage_mask)) {
+      non_fb_local = false;
       perf_debug((struct tu_device *)pass->base.device, "Disabling gmem rendering due to invalid subpass dependency");
       for (int i = 0; i < ARRAY_SIZE(pass->gmem_pixels); i++)
          pass->gmem_pixels[i] = 0;
@@ -102,6 +108,7 @@ tu_render_pass_add_subpass_dep(struct tu_render_pass *pass,
    dst_barrier->dst_access_mask |= dst_access_mask;
    dst_barrier->src_access_mask2 |= src_access_mask2;
    dst_barrier->dst_access_mask2 |= dst_access_mask2;
+   dst_barrier->non_fb_local |= non_fb_local;
 }
 
 /* We currently only care about undefined layouts, because we have to
