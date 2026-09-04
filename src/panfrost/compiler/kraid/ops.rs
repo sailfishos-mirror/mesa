@@ -3991,6 +3991,7 @@ const _: () = {
 #[derive(PartialEq)]
 pub enum MemoryEffect {
     None,
+    ConstRead,
     Read,
     Write,
     ReadWrite,
@@ -4028,16 +4029,23 @@ impl Op {
     }
 
     pub fn memory_effect(&self) -> MemoryEffect {
+        let read_with_access = |access: MemAccess| {
+            if access == MemAccess::Const {
+                MemoryEffect::ConstRead
+            } else {
+                MemoryEffect::Read
+            }
+        };
         match self {
-            Op::LdAttr(_)
-            | Op::LdCvt(_)
-            | Op::LdPka(_)
-            | Op::LdTex(_)
-            | Op::Load(_)
-            | Op::TexFetch(_)
+            Op::LdAttr(_) => MemoryEffect::ConstRead,
+            Op::LdCvt(op) => read_with_access(op.access),
+            Op::LdPka(op) => read_with_access(op.access),
+            Op::Load(op) => read_with_access(op.access),
+            Op::LdTex(_) => MemoryEffect::Read,
+            Op::TexFetch(_)
             | Op::TexGather(_)
             | Op::TexGradient(_)
-            | Op::TexSingle(_) => MemoryEffect::Read,
+            | Op::TexSingle(_) => MemoryEffect::ConstRead,
             Op::Store(_) | Op::StCvt(_) => MemoryEffect::Write,
             Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
                 MemoryEffect::ReadWrite

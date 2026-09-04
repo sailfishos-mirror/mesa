@@ -46,11 +46,11 @@ fn calc_message_deadlines_in_bb(
                 .min();
 
             let next_mem_hazard = match effect {
+                MemoryEffect::None | MemoryEffect::ConstRead => None,
                 MemoryEffect::Read => next_store,
                 MemoryEffect::Write | MemoryEffect::ReadWrite => {
                     [next_load, next_store].into_iter().flatten().min()
                 }
-                MemoryEffect::None => None,
             };
 
             deadlines[ip] = [next_reg_access, next_mem_hazard, next_barrier]
@@ -69,13 +69,13 @@ fn calc_message_deadlines_in_bb(
         }
 
         match effect {
+            MemoryEffect::None | MemoryEffect::ConstRead => (),
             MemoryEffect::Read => next_load = Some(ip),
             MemoryEffect::Write => next_store = Some(ip),
             MemoryEffect::ReadWrite => {
                 next_load = Some(ip);
                 next_store = Some(ip);
             }
-            MemoryEffect::None => {}
         }
 
         for reg in instr.op.iter_reg_defs().chain(instr.op.iter_reg_uses()) {
