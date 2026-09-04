@@ -406,7 +406,12 @@ isl_device_init(struct isl_device *dev,
     *
     * This limit is only concerned with raw buffers.
     */
-   if (ISL_GFX_VER(dev) >= 9) {
+   if (ISL_GFX_VER(dev) >= 20) {
+      /* There is documentation about this but on Xe2+ the dataport/LSC does
+       * not appear to be capable of fetching the last dword of a 4GiB buffer.
+       */
+      dev->max_buffer_size = (1ull << 32) - 4;
+   } else  if (ISL_GFX_VER(dev) >= 9) {
       dev->max_buffer_size = 1ull << 32;
    } else if (ISL_GFX_VER(dev) >= 7) {
       dev->max_buffer_size = 1ull << 30;
