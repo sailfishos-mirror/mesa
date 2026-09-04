@@ -67,7 +67,9 @@ impl<'a> PhiAllocMap<'a> {
 }
 
 fn mem_access_from_nir(intrin: &nir_intrinsic_instr) -> MemAccess {
-    if (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0 {
+    if (intrin.access() & ACCESS_CAN_REORDER) != 0 {
+        MemAccess::Const
+    } else if (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0 {
         MemAccess::Force
     } else if (intrin.access() & ACCESS_ISTREAM_PAN) != 0 {
         MemAccess::IStream
@@ -1692,12 +1694,18 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_load_global | nir_intrinsic_load_global_constant => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let (addr, offset) = self.get_src_add_imm(&srcs[0], 16, true);
+                let is_const =
+                    intrin.intrinsic == nir_intrinsic_load_global_constant;
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.push_op(OpLoad {
                     dst,
                     dst_type: DataType::i(bits),
                     is_tls: (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0,
-                    access: mem_access_from_nir(intrin),
+                    access: if is_const {
+                        MemAccess::Const
+                    } else {
+                        mem_access_from_nir(intrin)
+                    },
                     addr,
                     offset: offset.try_into().unwrap(),
                 });
@@ -1749,11 +1757,16 @@ impl<'a> ShaderFromNir<'a> {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let handle = self.get_src(&srcs[0]);
                 let offset = self.get_src(&srcs[1]);
+                let is_const = intrin.intrinsic == nir_intrinsic_load_ubo;
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.push_op(OpLdPka {
                     dst,
                     dst_type: DataType::i(bits),
-                    access: mem_access_from_nir(intrin),
+                    access: if is_const {
+                        MemAccess::Const
+                    } else {
+                        mem_access_from_nir(intrin)
+                    },
                     offset,
                     handle,
                 });

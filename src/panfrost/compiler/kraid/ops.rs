@@ -2327,6 +2327,11 @@ impl DisplayOp for OpIToF32 {
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum MemAccess {
     None,
+    /// Hint that the memory being accessed is constant for the duration of
+    /// this shader invocation.  Constant memory will get cached normally but
+    /// constant loads may be reordered with respect to other memory loads and
+    /// stores.
+    Const,
     IStream,
     EStream,
     Force,
@@ -2336,6 +2341,7 @@ impl fmt::Display for MemAccess {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MemAccess::None => Ok(()),
+            MemAccess::Const => write!(f, ".const"),
             MemAccess::IStream => write!(f, ".istream"),
             MemAccess::EStream => write!(f, ".estream"),
             MemAccess::Force => write!(f, ".force"),
