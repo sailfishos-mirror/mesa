@@ -52,7 +52,6 @@ static const struct debug_control_bitset radv_debug_options[] = {
    OPT1("nongg", RADV_DEBUG_NO_NGG),
    OPT1("metashaders", RADV_DEBUG_DUMP_META_SHADERS),
    OPT1("llvm", RADV_DEBUG_LLVM),
-   OPT1("forcecompress", RADV_DEBUG_FORCE_COMPRESS),
    OPT1("hang", RADV_DEBUG_HANG),
    OPT1("img", RADV_DEBUG_IMG),
    OPT1("noumr", RADV_DEBUG_NO_UMR),

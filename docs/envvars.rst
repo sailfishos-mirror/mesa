@@ -1444,9 +1444,6 @@ RADV driver environment variables
       dump fragment shader epilogs
    ``extra_md``
       add extra information in bo metadata to help tools (umr)
-   ``forcecompress``
-      Enables DCC,FMASK,CMASK,HTILE in situations where the driver supports it
-      but normally does not deem it beneficial.
    ``fullsync``
       synchronize all pending work after all draws/dispatches (this includes
       syncshaders but also flushes all caches)
