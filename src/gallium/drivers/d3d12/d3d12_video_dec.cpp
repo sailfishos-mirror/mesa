@@ -1654,6 +1654,11 @@ d3d12_video_decoder_sync_completion(struct pipe_video_codec *codec,
    HRESULT hr = S_OK;
 
    auto &pool_entry = pD3D12Dec->m_inflightResourcesPool[frame_index];
+   // Command objects are NULL if destroy runs from a failed creation path
+   if (!pool_entry.m_fence ||
+       !pool_entry.m_spCommandAllocator)
+      return false;
+
    if (!d3d12_fence_finish(pool_entry.m_fence.get(), timeout_ns))
       return false;
 
