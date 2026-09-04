@@ -396,7 +396,28 @@ tu6_emit_flushes(struct tu_cmd_buffer *cmd_buffer,
             .gfx_bindless = CHIP == A6XX ? 0x1f : 0xff,
       ));
    }
-   if (CHIP >= A7XX && flushes & TU_CMD_FLAG_BLIT_CACHE_CLEAN)
+
+   /* SUBPASS_SLICE_FENCE is a weaker version of:
+    * - CACHE_INVALIDATE (only invalidate UCHE GMEM aperture)
+    * - WAIT_FOR_IDLE (only make FS executions within a slice wait for RB done)
+    * We split the functionality in two flags. For each flag, if we already
+    * needed the stronger flush/wait, we can ignore it.
+    */
+   bool emit_cache_invalidate_gmem =
+      (flushes & TU_CMD_FLAG_CACHE_INVALIDATE_GMEM) &&
+      !(flushes & TU_CMD_FLAG_CACHE_INVALIDATE);
+   bool emit_subpass_slice_wait =
+       (flushes & TU_CMD_FLAG_SUBPASS_SLICE_FENCE) &&
+        !(flushes & TU_CMD_FLAG_WAIT_FOR_IDLE);
+   bool emit_subpass_slice_fence =
+      emit_cache_invalidate_gmem || emit_subpass_slice_wait;
+
+   if (CHIP >= A7XX && (flushes & TU_CMD_FLAG_BLIT_CACHE_CLEAN) &&
+       /* On newer HW SUBPASS_FENCE implicitly waits for resolve events to
+        * finish, so we don't need this if we're emitting it.
+        */
+       (!emit_subpass_slice_fence ||
+         !cmd_buffer->device->physical_device->info->props.subpass_fence_cleans_resolve))
       /* On A7XX, blit cache flushes are required to ensure blit writes are visible
        * via UCHE. This isn't necessary on A6XX, all writes should be visible implictly.
        */
@@ -415,6 +436,26 @@ tu6_emit_flushes(struct tu_cmd_buffer *cmd_buffer,
       tu_emit_rt_workaround<CHIP>(cmd_buffer, cs);
    if (flushes & TU_CMD_FLAG_WAIT_MEM_WRITES)
       tu_cs_emit_pkt7(cs, CP_WAIT_MEM_WRITES, 0);
+   if (emit_subpass_slice_fence) {
+      /* Emit the stronger flushes in sysmem mode. We need this from
+       * experimentation.
+       */
+      tu_cond_exec_start(cs, CP_COND_REG_EXEC_0_MODE(RENDER_MODE) |
+                             CP_COND_REG_EXEC_0_SYSMEM);
+      if (emit_cache_invalidate_gmem)
+         tu_emit_event_write<CHIP>(cmd_buffer, cs, FD_CACHE_INVALIDATE);
+      if (emit_subpass_slice_wait)
+         tu_cs_emit_wfi(cs);
+      tu_cond_exec_end(cs);
+
+      if (CHIP >= A8XX) {
+         tu_emit_event_write<CHIP>(cmd_buffer, cs, FD_LABEL);
+         tu_emit_event_write<CHIP>(cmd_buffer, cs, FD_SUBPASS_SLICE_FENCE);
+         tu_emit_event_write<CHIP>(cmd_buffer, cs, FD_LABEL);
+      } else {
+         tu_emit_event_write<CHIP>(cmd_buffer, cs, FD_SUBPASS_FENCE);
+      }
+   }
    if (flushes & TU_CMD_FLAG_WAIT_FOR_IDLE)
       tu_cs_emit_wfi(cs);
    if (flushes & TU_CMD_FLAG_WAIT_FOR_ME)
