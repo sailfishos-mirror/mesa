@@ -1323,6 +1323,75 @@ bifrost_handle_unified_idvs_shader(nir_shader *nir)
    NIR_PASS(_, nir, nir_opt_gcm, true);
 }
 
+static const char *
+idvs_variant_suffix(enum bi_idvs_mode idvs)
+{
+   switch (idvs) {
+   case BI_IDVS_VARYING:
+      return "_var";
+   case BI_IDVS_POSITION:
+      return "_pos";
+   case BI_IDVS_ALL:
+      return "_all";
+   case BI_IDVS_NONE:
+      return "";
+   default:
+      return "invalid";
+   }
+}
+
+static void
+bifrost_dump_shader(nir_shader *nir, struct util_dynarray *binary,
+                    enum bi_idvs_mode idvs, uint32_t offset, uint32_t size)
+{
+   const char *dump_dir = os_get_option_secure("BIFROST_MESA_DUMP_DIR");
+   if (dump_dir == NULL)
+      return;
+
+   bool has_src_blake3 = false;
+   for (uint32_t i = 0; i < BLAKE3_OUT_LEN && !has_src_blake3; ++i)
+      has_src_blake3 |= nir->info.source_blake3[i] != 0;
+
+   /* Only shaders with a unique source identifier can be dumped. */
+   if (!has_src_blake3) {
+      fprintf(
+         stderr,
+         "Warning: Skip dump of shader %s (stage=%s) without source hash\n",
+         nir->info.name ?: "<unnamed>",
+         _mesa_shader_stage_to_abbrev(nir->info.stage));
+      return;
+   }
+
+   const char *id = NULL;
+   char blake3_str[BLAKE3_HEX_LEN] = {0};
+   _mesa_blake3_format(blake3_str, nir->info.source_blake3);
+   id = &blake3_str[0];
+
+   char path[PATH_MAX + 1] = {0};
+   snprintf(path, sizeof(path), "%s/%s.%s%s.bin", dump_dir, id,
+            _mesa_shader_stage_to_file_ext(nir->info.stage),
+            idvs_variant_suffix(idvs));
+
+   FILE *dump_stream = fopen(path, "w");
+
+   unsigned written = 0;
+   if (dump_stream) {
+      char* ptr = ((char*)binary->data) + offset;
+      written = fwrite(ptr, sizeof(char), size, dump_stream);
+   }
+
+   if (written == size) {
+      fprintf(stderr, "PAN: Dumped shader %s to %s\n",
+              nir->info.name ?: "<unnamed>", path);
+   } else {
+      fprintf(stderr, "PAN: Failed to dump %s to %s\n",
+              nir->info.name ?: "<unnamed>", path);
+   }
+
+   if (dump_stream)
+      fclose(dump_stream);
+}
+
 void
 bifrost_compile_shader_nir(nir_shader *nir,
                            const struct pan_compile_inputs *inputs,
@@ -1378,6 +1447,21 @@ bifrost_compile_shader_nir(nir_shader *nir,
       }
    } else {
       bi_compile_variant(nir, inputs, binary, info, BI_IDVS_NONE);
+   }
+
+   /* Based on the provided info, dump the binary/-ies. */
+   if (info->stage == MESA_SHADER_VERTEX && info->vs.idvs) {
+      enum bi_idvs_mode mode =
+         pan_arch(inputs->gpu_id) >= 12 ? BI_IDVS_ALL : BI_IDVS_POSITION;
+      uint32_t size_prim = info->vs.secondary_offset ?: binary->size;
+      bifrost_dump_shader(nir, binary, mode, 0, size_prim);
+      if (info->vs.secondary_enable && mode != BI_IDVS_ALL) {
+         uint32_t offs = info->vs.secondary_offset;
+         uint32_t size_sec = binary->size - offs;
+         bifrost_dump_shader(nir, binary, BI_IDVS_VARYING, offs, size_sec);
+      }
+   } else {
+      bifrost_dump_shader(nir, binary, BI_IDVS_NONE, 0, binary->size);
    }
 
    info->ubo_mask &= (1 << nir->info.num_ubos) - 1;
