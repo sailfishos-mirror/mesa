@@ -5644,20 +5644,11 @@ anv_shader_internal_unref(struct anv_device *device, struct anv_shader_internal 
 
 static inline uint64_t
 anv_shader_get_pointer(const struct anv_device *device,
-                       const struct anv_shader *shader)
+                       const struct anv_shader_alloc *shader_alloc)
 {
    return device->physical->uses_efficient_64bit ?
-      (device->physical->va.shader_heap.addr + shader->kernel.offset) :
-      shader->kernel.offset;
-}
-
-static inline uint64_t
-anv_shader_internal_get_pointer(const struct anv_device *device,
-                                const struct anv_shader_internal *shader)
-{
-   return device->physical->uses_efficient_64bit ?
-      (device->physical->va.shader_heap.addr + shader->kernel.offset) :
-      shader->kernel.offset;
+      (device->physical->va.shader_heap.addr + shader_alloc->offset) :
+      shader_alloc->offset;
 }
 
 void anv_shader_init_uuid(struct anv_physical_device *device);
