@@ -109,6 +109,9 @@ impl DepTracker {
         // IP of the last instruction to access the varying hidden register
         let mut var_ip = usize::MAX;
 
+        // IP of the last discard instruction
+        let mut discard_ip = usize::MAX;
+
         for ip in body_range.clone() {
             let instr = &block.instrs[ip];
             deps.add_ip(ip);
@@ -142,6 +145,13 @@ impl DepTracker {
                 var_ip = ip;
             }
 
+            if discard_ip != usize::MAX && instr.reads_discard() {
+                deps.add_dep(ip, discard_ip);
+            }
+            if instr.writes_discard() {
+                discard_ip = ip;
+            }
+
             for ssa in instr.iter_ssa_defs() {
                 def_ip.insert(*ssa, ip);
             }
@@ -150,6 +160,7 @@ impl DepTracker {
         bar_ip = usize::MAX;
         mem_ip = usize::MAX;
         var_ip = usize::MAX;
+        discard_ip = usize::MAX;
         for ip in body_range.clone().rev() {
             let instr = &block.instrs[ip];
 
@@ -174,6 +185,13 @@ impl DepTracker {
             }
             if writes_var_hidden(&instr.op) {
                 var_ip = ip;
+            }
+
+            if discard_ip != usize::MAX && instr.reads_discard() {
+                deps.add_dep(discard_ip, ip);
+            }
+            if instr.writes_discard() {
+                discard_ip = ip;
             }
         }
 

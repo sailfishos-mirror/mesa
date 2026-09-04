@@ -4701,6 +4701,39 @@ impl Op {
             _ => VaryingUpdateMode::None,
         }
     }
+
+    pub fn writes_discard(&self) -> bool {
+        // ATEST and ZS_EMIT can both modify the discard state and terminate
+        // discarded threads.
+        matches!(self, Op::ATest(_) | Op::Discard(_) | Op::ZSEmit(_))
+    }
+
+    pub fn reads_discard(&self) -> bool {
+        match self {
+            Op::ACmpXchg(_) | Op::Atom(_) | Op::Atom1(_) => {
+                // Atomics no-op and return zero in discarded lanes
+                true
+            }
+            Op::ATest(_) | Op::Blend(_) | Op::BlendCall(_) | Op::ZSEmit(_) => {
+                // ATEST, BLEND, and ZS_EMIT all take discarded lanes into
+                // account, separate from the coverage mask
+                true
+            }
+
+            // Texture ops have a .skip modifier which tells them to return
+            // zero in helper lanes as an optimization
+            Op::TexFetch(op) => op.skip,
+            Op::TexGather(op) => op.skip,
+            Op::TexGradient(op) => op.skip,
+            Op::TexSingle(op) => op.skip,
+
+            // Stores are ignored in discarded lanes
+            Op::StTile(_) => true,
+            Op::Store(op) => op.access != MemAccess::Force,
+            Op::StCvt(op) => op.access != MemAccess::Force,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
