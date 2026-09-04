@@ -54,8 +54,6 @@ struct apply_pipeline_layout_state {
    struct anv_descriptor_set_layout * const *set_layouts;
    uint32_t set_count;
 
-   const uint32_t *dynamic_offset_start;
-
    /* Address format used when we can reach a binding from the load/store
     * operations.
     */
@@ -370,18 +368,11 @@ build_res_index(nir_builder *b,
    assert(bind_layout->dynamic_offset_index < MAX_DYNAMIC_BUFFERS);
       nir_def *dynamic_offset_index;
       if (bind_layout->dynamic_offset_index >= 0) {
-         if (state->dynamic_offset_start == NULL) {
-            nir_def *dynamic_offset_start =
-               build_load_desc_set_dynamic_index(b, set);
-            dynamic_offset_index =
-               nir_iadd_imm(b, dynamic_offset_start,
-                            bind_layout->dynamic_offset_index);
-         } else {
-            dynamic_offset_index =
-               nir_imm_int(b,
-                           state->dynamic_offset_start[set] +
-                           bind_layout->dynamic_offset_index);
-         }
+         nir_def *dynamic_offset_start =
+            build_load_desc_set_dynamic_index(b, set);
+         dynamic_offset_index =
+            nir_iadd_imm(b, dynamic_offset_start,
+                         bind_layout->dynamic_offset_index);
       } else {
          dynamic_offset_index = nir_imm_int(b, 0xff); /* No dynamic offset */
       }
@@ -1206,25 +1197,19 @@ build_indirect_buffer_addr_for_res_index(nir_builder *b,
                                          nir_address_format addr_format,
                                          struct apply_pipeline_layout_state *state)
 {
-   struct res_index_defs res = unpack_res_index(b, res_index);
-
    nir_def *desc = build_load_descriptor_mem_from_res_index(
       b, res_index, 0, 4, 32, state);
 
    if (state->has_dynamic_buffers) {
+      struct res_index_defs res = unpack_res_index(b, res_index);
+
       /* This shader has dynamic offsets and we have no way of knowing
        * (save from the dynamic offset base index) if this buffer has a
        * dynamic offset.
        */
-      nir_def *dyn_offset_idx =
-         nir_iadd(b, res.dyn_offset_base, res.array_index);
-
-      nir_def *dyn_load =
-         anv_load_driver_uniform_indexed(b, 1, legacy.dynamic_offsets, dyn_offset_idx);
-
       nir_def *dynamic_offset =
-         nir_bcsel(b, nir_ieq_imm(b, res.dyn_offset_base, 0xff),
-                      nir_imm_int(b, 0), dyn_load);
+         build_buffer_dynamic_offset_for_res_index(
+            b, res.dyn_offset_base, res.array_index, state);
 
       /* The dynamic offset gets added to the base pointer so that we
        * have a sliding window range.
@@ -2669,7 +2654,6 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
                               enum brw_robustness_flags robust_flags,
                               struct anv_descriptor_set_layout * const *set_layouts,
                               uint32_t set_count,
-                              const uint32_t *dynamic_offset_start,
                               bool device_bindable,
                               struct anv_pipeline_bind_map *map,
                               struct anv_pipeline_push_map *push_map,
@@ -2689,7 +2673,6 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
       .bind_map = map,
       .set_layouts = set_layouts,
       .set_count = set_count,
-      .dynamic_offset_start = dynamic_offset_start,
       /* Use vec2 index for the 64bit mode */
       .direct_addr_format = pdevice->uses_efficient_64bit ?
                             nir_address_format_vec2_index_32bit_offset :
