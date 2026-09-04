@@ -522,6 +522,7 @@ genX(init_blorp)(struct iris_context *ice)
 #if GFX_VER >= 9
    const struct blorp_config config = {
       .enable_tbimr = screen->driconf.enable_tbimr,
+      .use_efficient_64bit = iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr),
    };
    blorp_init_brw(&ice->blorp, ice, &screen->isl_dev, screen->brw, &config);
 #else
