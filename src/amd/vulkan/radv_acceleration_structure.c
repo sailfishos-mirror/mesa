@@ -1075,6 +1075,8 @@ radv_flush_buffer_write_cp(VkCommandBuffer commandBuffer)
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
+   cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CP_DMA;
+
    if (pdev->info.cp_sdma_ge_use_system_memory_scope)
       cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
 }

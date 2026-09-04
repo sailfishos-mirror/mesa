@@ -1701,11 +1701,10 @@ static const VkPipelineStageFlags2 radv_post_transfer_ps_only_stage_mask =
 /* Stages that require waiting for CP DMA.
  *
  * Make sure CP DMA is idle because the driver might have performed a DMA operation for:
+ * - clearing a buffer
  * - copying a buffer or for copying CMASK/FMASK with an accelerated MSAA copy
  * - updating a buffer (considered a clear operation from the Vulkan spec)
  * - building an acceleration structure
- *
- * Other operations using a CP DMA clear are implicitly synchronized (see CP_DMA_SYNC).
  */
 static const VkPipelineStageFlags2 radv_post_cp_dma_stage_mask =
    VK_PIPELINE_STAGE_2_COPY_BIT |
@@ -16287,6 +16286,12 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
       cmd_buffer->state.pws_acquire_point = AC_PWS_ACQUIRE_POINT_NONE;
       radv_describe_barrier_end_delayed(cmd_buffer);
       return;
+   }
+
+   if (cmd_buffer->state.flush_bits & AC_BARRIER_SYNC_CP_DMA) {
+      radv_cp_dma_wait_for_idle(cmd_buffer);
+      cmd_buffer->state.flush_bits &= ~AC_BARRIER_SYNC_CP_DMA;
+      cmd_buffer->state.rgp_flush_bits |= AC_RGP_FLUSH_SYNC_CP_DMA;
    }
 
    /* Resolve the PWS acquire point: if no barrier destination stage contributed to the pending

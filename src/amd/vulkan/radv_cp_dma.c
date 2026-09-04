@@ -297,7 +297,7 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
       }
 
       /* Emit the clear packet. */
-      radv_emit_cp_dma(cmd_buffer, va, value, byte_count, dma_flags | (size == byte_count ? CP_DMA_SYNC : 0));
+      radv_emit_cp_dma(cmd_buffer, va, value, byte_count, dma_flags);
 
       size -= byte_count;
       va += byte_count;
