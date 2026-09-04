@@ -1534,7 +1534,6 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
       nir_lower_non_uniform_ubo_access | nir_lower_non_uniform_ssbo_access |
       nir_lower_non_uniform_get_ssbo_size |
       nir_lower_non_uniform_texture_access |
-      nir_lower_non_uniform_texture_offset_access |
       nir_lower_non_uniform_texture_query | nir_lower_non_uniform_image_access |
       nir_lower_non_uniform_image_query;
 
