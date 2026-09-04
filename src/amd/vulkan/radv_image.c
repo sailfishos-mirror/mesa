@@ -1648,7 +1648,8 @@ radv_layout_dcc_compressed(const struct radv_device *device, const struct radv_i
 
    /* Don't compress compute transfer dst when image stores are not supported. */
    if ((layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || layout == VK_IMAGE_LAYOUT_GENERAL) &&
-       (queue_mask & (1u << RADV_QUEUE_COMPUTE)) && !radv_image_compress_dcc_on_image_stores(device, image))
+       (queue_mask & (BITFIELD_BIT(RADV_QUEUE_COMPUTE) | BITFIELD_BIT(RADV_QUEUE_TRANSFER))) &&
+       !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
    /* Don't compress exclusive images used on transfer queues when SDMA doesn't support DCC.
