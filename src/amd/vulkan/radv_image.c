@@ -144,17 +144,6 @@ radv_image_use_fast_clear_for_image_early(const struct radv_image *image)
    return !!(image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR);
 }
 
-static bool
-radv_image_use_fast_clear_for_image(const struct radv_device *device, const struct radv_image *image)
-{
-   return radv_image_use_fast_clear_for_image_early(image) &&
-          (image->exclusive ||
-           /* Enable DCC for concurrent images if stores are supported because that means we can
-            * keep DCC compressed on all layouts/queues.
-            */
-           radv_image_compress_dcc_on_image_stores(device, image));
-}
-
 bool
 radv_are_formats_dcc_compatible(const struct radv_physical_device *pdev, const void *pNext, VkFormat format,
                                 VkImageCreateFlags2KHR flags, bool *sign_reinterpret)
@@ -825,8 +814,8 @@ radv_image_alloc_single_sample_cmask(const struct radv_device *device, const str
                                      struct radeon_surf *surf)
 {
    if (!surf->cmask_size || surf->cmask_offset || surf->bpe > 8 || image->vk.mip_levels > 1 ||
-       image->vk.extent.depth > 1 || radv_image_has_dcc(image) || !radv_image_use_fast_clear_for_image(device, image) ||
-       (image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) ||
+       image->vk.extent.depth > 1 || radv_image_has_dcc(image) || !radv_image_use_fast_clear_for_image_early(image) ||
+       !image->exclusive || (image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) ||
        (image->vk.usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR))
       return;
 
