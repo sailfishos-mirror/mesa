@@ -1811,8 +1811,16 @@ anv_cmd_buffer_alloc_blorp_binding_table(struct anv_cmd_buffer *cmd_buffer,
 static VkResult
 binding_table_for_surface_state(struct anv_cmd_buffer *cmd_buffer,
                                 struct anv_state surface_state,
-                                uint32_t *bt_offset)
+                                uint64_t *bt_offset)
 {
+   if (cmd_buffer->device->physical->uses_efficient_64bit) {
+      *bt_offset = anv_address_physical(
+         anv_state_pool_state_address(
+            &cmd_buffer->device->internal_surface_state_pool,
+            surface_state));
+      return VK_SUCCESS;
+   }
+
    uint32_t state_offset;
    struct anv_state bt_state;
 
@@ -1943,7 +1951,7 @@ clear_color_attachment(struct anv_cmd_buffer *cmd_buffer,
                     "vkCmdClearAttachments");
    }
 
-   uint32_t binding_table;
+   uint64_t binding_table;
    VkResult result =
       binding_table_for_surface_state(cmd_buffer, att->surface_state.state,
                                       &binding_table);
@@ -2227,7 +2235,7 @@ clear_depth_stencil_attachment(struct anv_cmd_buffer *cmd_buffer,
                                         VK_IMAGE_TILING_OPTIMAL);
    }
 
-   uint32_t binding_table;
+   uint64_t binding_table;
    VkResult result =
       binding_table_for_surface_state(cmd_buffer,
                                       gfx->null_surface_state,
