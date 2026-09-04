@@ -43,7 +43,6 @@ blorp_nir_options_brw(struct blorp_context *blorp,
 static nir_def *
 blorp_nir_rt_write(nir_builder *b, signed rt, void *data)
 {
-   assert(rt == 0);
    return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0), .base = 0, .range = 8);
 }
 

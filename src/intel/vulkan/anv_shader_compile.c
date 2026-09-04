@@ -1051,15 +1051,26 @@ rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
    const struct anv_pipeline_bind_map *bind_map = &shader_data->bind_map;
    const struct vk_color_attachment_location_state *cal = shader_data->fs_color_map;
 
+   if (rt < 0 && shader_data->bind_map.surface_count == 0)
+      return nir_imm_int64(b, 0);
+
    nir_def *color_offset =
       nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
                                .base = anv_drv_const_offset(drv_data.gfx.fs_color_offset) -
                                        bind_map->push_ranges[0].start * 32,
                                .range = anv_drv_const_size(drv_data.gfx.fs_color_offset));
+
    if (rt >= 0) {
       if (cal != NULL) {
-         color_offset = nir_iadd_imm(
-            b, color_offset, (cal->color_map[rt] + 1) * ANV_SURFACE_STATE_SIZE);
+         /* If the attachment is unused, keep the RT write on the first render
+          * target item which is the null surface.
+          */
+         for (uint32_t i = 0; i < ARRAY_SIZE(cal->color_map); i++) {
+            if (cal->color_map[i] == rt) {
+               color_offset = nir_iadd_imm(
+                  b, color_offset, (i + 1) * ANV_SURFACE_STATE_SIZE);
+            }
+         }
       } else {
          nir_def *map =
             nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),

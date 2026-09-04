@@ -2374,7 +2374,7 @@ update_fs_color_map(struct anv_gfx_dynamic_state *hw_state,
    uint32_t map = 0;
    for (uint32_t i = 0; i < MAX_RTS; i++) {
       if (dyn->cal.color_map[i] != MESA_VK_ATTACHMENT_UNUSED)
-         map |= (1 + dyn->cal.color_map[i]) << (i * 4);
+         map |= (1 + i) << (dyn->cal.color_map[i] * 4);
    }
 
    SET(FS_COLOR_MAP, fs_color_map, map);

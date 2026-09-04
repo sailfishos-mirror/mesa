@@ -159,7 +159,7 @@ intel_nir_lower_fragment_outputs(nir_shader *shader,
          ctx.colour[FRAG_RESULT_DATA0][c] = nir_get_scalar(undef, 0);
       gather_colour_components(b, &ctx, FRAG_RESULT_DATA0, undef);
 
-      insert_rt_store(b, &ctx, -1, NULL, NULL);
+      insert_rt_store(b, &ctx, -1, cb, cb_data);
    }
 
    return true;
