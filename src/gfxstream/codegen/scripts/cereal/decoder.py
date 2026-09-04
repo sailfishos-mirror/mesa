@@ -26,6 +26,12 @@ DELAYED_DECODER_DELETES = [
 ]
 
 DELAYED_DECODER_DELETE_DICT_ENTRIES = [
+    "vkDestroyDescriptorSetLayout",
+    "vkDestroyPipelineCache",
+    "vkDestroyRenderPass",
+    "vkDestroySampler",
+    "vkDestroySamplerYcbcrConversion",
+    "vkDestroySamplerYcbcrConversionKHR",
     "vkDestroyShaderModule",
 ]
 
