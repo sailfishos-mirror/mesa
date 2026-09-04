@@ -511,6 +511,9 @@ struct fd_dev_info {
        * helpers enabled until after such sam.s2en.
        */
       bool prefetch_sam_helpers_quirk;
+
+      /* On a750+ SUBPASS_FENCE also implicitly does CCU_RESOLVE_CLEAN */
+      bool subpass_fence_cleans_resolve;
    } props;
 };
 

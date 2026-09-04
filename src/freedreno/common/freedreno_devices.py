@@ -903,6 +903,7 @@ a7xx_gen3 = GPUProps(
         max_draw_states = 64,
         has_64b_image_atomics = True,
         has_implicit_fragface_fragcoord_ij_linear = True,
+        subpass_fence_cleans_resolve = True,
     )
 
 a730_magic_regs = dict(
