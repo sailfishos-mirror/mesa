@@ -2840,9 +2840,6 @@ typedef struct nir_tex_instr {
     */
    bool embedded_sampler;
 
-   /** True if the offset is not dynamically uniform */
-   bool offset_non_uniform;
-
    /** True whether this returns the same result anywhere in the shader and
     *  doesn't cause page faults.
     */

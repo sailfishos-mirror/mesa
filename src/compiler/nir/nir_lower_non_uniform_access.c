@@ -302,13 +302,11 @@ lower_non_uniform_tex_access(struct nu_state *state, nir_tex_instr *tex,
       /* nu_handle_init() returned false because the handles are uniform. */
       tex->texture_non_uniform = false;
       tex->sampler_non_uniform = false;
-      tex->offset_non_uniform = false;
       return false;
    }
 
    tex->texture_non_uniform = false;
    tex->sampler_non_uniform = false;
-   tex->offset_non_uniform = false;
 
    add_non_uniform_instr(state, handles, srcs, num_handles, true,
                          base_access_type);

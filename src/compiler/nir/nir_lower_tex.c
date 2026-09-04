@@ -1341,7 +1341,6 @@ nir_lower_ms_txf_to_fragment_fetch(nir_builder *b, nir_tex_instr *tex)
    fmask_fetch->sampler_dim = tex->sampler_dim;
    fmask_fetch->is_array = tex->is_array;
    fmask_fetch->texture_non_uniform = tex->texture_non_uniform;
-   fmask_fetch->offset_non_uniform = tex->offset_non_uniform;
    fmask_fetch->dest_type = nir_type_uint32;
    fmask_fetch->can_speculate = tex->can_speculate;
    nir_def_init(&fmask_fetch->instr, &fmask_fetch->def, 1, 32);

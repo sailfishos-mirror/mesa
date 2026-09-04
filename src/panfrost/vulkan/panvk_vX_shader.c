@@ -318,10 +318,6 @@ mark_all_access_non_uniform(nir_builder *b, nir_instr *instr, void *data)
             tex->sampler_non_uniform = true;
             break;
 
-         case nir_tex_src_offset:
-            tex->offset_non_uniform = true;
-            break;
-
          default:
             break;
          }
