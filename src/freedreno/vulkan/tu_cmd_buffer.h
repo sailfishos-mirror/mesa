@@ -330,6 +330,16 @@ struct tu_render_pass_state
    /* Track whether conditional predicate for COND_REG_EXEC is changed in draw_cs */
    bool draw_cs_writes_to_cond_pred;
 
+   /* Track whether there has been a pipeline barrier in the subpass with an
+    * INPUT_ATTACHMENT_READ destination access.
+    */
+   bool input_attachment_read_barrier;
+
+   /* Track whether any FS have used dynamic rendering with read-only input
+    * attachments.
+    */
+   bool read_only_input_attachments;
+
    uint32_t drawcall_count;
 
    /* A calculated "draw cost" value for renderpass, which tries to
@@ -857,6 +867,7 @@ tu_emit_event_write(struct tu_cmd_buffer *cmd,
                     struct tu_cs *cs,
                     enum fd_gpu_event event);
 
+template <chip CHIP>
 void
 tu_flush_for_access(struct tu_cache_state *cache,
                     enum tu_cmd_access_mask src_mask,

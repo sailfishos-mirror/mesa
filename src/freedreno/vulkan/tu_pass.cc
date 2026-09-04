@@ -109,6 +109,24 @@ tu_render_pass_add_subpass_dep(struct tu_render_pass *pass,
    dst_barrier->src_access_mask2 |= src_access_mask2;
    dst_barrier->dst_access_mask2 |= dst_access_mask2;
    dst_barrier->non_fb_local |= non_fb_local;
+
+   /* Check if INPUT_ATTACHMENT_READ_BIT in the barrier could refer to a
+    * read-only input attachment, i.e. an input attachment which does not come
+    * from GMEM.
+    */
+   if (dst != VK_SUBPASS_EXTERNAL) {
+      for (unsigned i = dst; i < pass->subpass_count; i++) {
+         const struct tu_subpass *subpass = &pass->subpasses[i];
+         for (unsigned j = 0; j < subpass->input_count; j++) {
+            if (!subpass->input_attachments[j].patch_input_gmem) {
+               dst_barrier->read_only_input_attachments = true;
+               break;
+            }
+         }
+      }
+   } else {
+      dst_barrier->read_only_input_attachments = true;
+   }
 }
 
 /* We currently only care about undefined layouts, because we have to

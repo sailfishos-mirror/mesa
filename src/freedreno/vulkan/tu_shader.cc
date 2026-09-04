@@ -3581,6 +3581,10 @@ tu_shader_create(struct tu_device *dev,
       shader->fs.max_fdm_layers = key->max_fdm_layers;
    }
 
+   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
+       key->read_only_input_attachments)
+      shader->fs.read_only_input_attachments = true;
+
    for (unsigned i = 0; i < layout->num_sets; i++) {
       if (layout->set[i].layout) {
          shader->dynamic_descriptor_sizes[i] =

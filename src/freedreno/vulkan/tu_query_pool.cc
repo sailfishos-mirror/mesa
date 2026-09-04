@@ -944,7 +944,7 @@ emit_copy_query_pool_results(struct tu_cmd_buffer *cmdbuf,
    }
 
    /* Make sure the result of this copy is visible to others. */
-   tu_flush_for_access(&cmdbuf->state.cache, TU_ACCESS_CP_WRITE, TU_ACCESS_NONE);
+   tu_flush_for_access<CHIP>(&cmdbuf->state.cache, TU_ACCESS_CP_WRITE, TU_ACCESS_NONE);
 }
 
 template <chip CHIP>

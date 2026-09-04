@@ -3980,6 +3980,19 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
    const struct tu_vsc_config *vsc = tu_vsc_config(cmd, tiling);
    const struct tu_image_view *fdm = NULL;
 
+   /* For dynamic rendering, if we have read-only input attachments that are
+    * read at any point after an INPUT_ATTACHMENT_READ barrier, we may have to
+    * emit a CACHE_INVALIDATE before the whole render pass. This is because
+    * inside the render pass we will only emit a SUBPASS_FENCE, and unlike
+    * with classic renderpasses, we don't know whether there are read-only
+    * input attachments when emitting the barrier.
+    */
+   if (cmd->state.rp.read_only_input_attachments &&
+       cmd->state.rp.input_attachment_read_barrier) {
+      tu_flush_for_access<CHIP>(&cmd->state.cache, TU_ACCESS_NONE,
+                                TU_ACCESS_UCHE_READ);
+   }
+
    /* Preamble save/restore for BINs doesn't handle PC_TESS_BASE, so we
     * assume that PC_TESS_BASE is invalid after any GMEM pass.
     */
@@ -5737,6 +5750,7 @@ tu_CmdBindPipeline(VkCommandBuffer commandBuffer,
    }
 }
 
+template <chip CHIP>
 void
 tu_flush_for_access(struct tu_cache_state *cache,
                     enum tu_cmd_access_mask src_mask,
@@ -5825,6 +5839,18 @@ tu_flush_for_access(struct tu_cache_state *cache,
       flush_bits |= TU_CMD_FLAG_CCHE_INVALIDATE;
    }
 
+   if (dst_mask & TU_ACCESS_UCHE_READ_GMEM) {
+      /* On a7xx+, use SUBPASS_FENCE (SUBPASS_SLICE_FENCE on a8xx) which
+       * guarantees accesses for GMEM accesses through UCHE instead of
+       * invalidating all of UCHE.
+       */
+      if (CHIP >= A7XX) {
+         flush_bits |= TU_CMD_FLAG_CACHE_INVALIDATE_GMEM;
+      } else {
+         flush_bits |= TU_CMD_FLAG_CACHE_INVALIDATE;
+      }
+   }
+
    /* The blit cache is a special case dependency between CP_EVENT_WRITE::BLIT
     * (from GMEM loads/clears) to any GMEM attachment reads done via the UCHE
     * (Eg: Input attachments/CP_BLIT) which needs an explicit BLIT_CACHE_CLEAN
@@ -5854,6 +5880,7 @@ tu_flush_for_access(struct tu_cache_state *cache,
    cache->flush_bits |= flush_bits;
    cache->pending_flush_bits &= ~flush_bits;
 }
+TU_GENX(tu_flush_for_access);
 
 /* When translating Vulkan access flags to which cache is accessed
  * (CCU/UCHE/sysmem), we should take into account both the access flags and
@@ -5947,7 +5974,6 @@ vk2tu_access(VkAccessFlags2 flags, VkAccessFlags3KHR flags2,
                        VK_ACCESS_2_INDEX_READ_BIT |
                        VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT |
                        VK_ACCESS_2_UNIFORM_READ_BIT |
-                       VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT |
                        VK_ACCESS_2_SHADER_READ_BIT |
                        VK_ACCESS_2_SHADER_SAMPLED_READ_BIT |
                        VK_ACCESS_2_SHADER_STORAGE_READ_BIT |
@@ -5986,8 +6012,6 @@ vk2tu_access(VkAccessFlags2 flags, VkAccessFlags3KHR flags2,
                        VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT,
                        SHADER_STAGES)) {
        mask |= TU_ACCESS_UCHE_READ_GMEM;
-       if (sparse_aliasing)
-          mask |= TU_ACCESS_UCHE_INCOHERENT_READ;
    }
 
    if (gfx_read_access(flags, stages,
@@ -6277,6 +6301,8 @@ tu_render_pass_state_merge(struct tu_render_pass_state *dst,
    dst->lrz_disable_for_next_rp |= src->lrz_disable_for_next_rp;
    dst->draw_cs_writes_to_cond_pred |= src->draw_cs_writes_to_cond_pred;
    dst->shared_viewport |= src->shared_viewport;
+   dst->read_only_input_attachments |= src->read_only_input_attachments;
+   dst->input_attachment_read_barrier |= src->input_attachment_read_barrier;
 
    dst->drawcall_bandwidth_per_sample_sum +=
       src->drawcall_bandwidth_per_sample_sum;
@@ -6705,7 +6731,18 @@ tu_subpass_barrier(struct tu_cmd_buffer *cmd_buffer,
    if (barrier->incoherent_ccu_depth)
       src_flags |= TU_ACCESS_CCU_DEPTH_INCOHERENT_WRITE;
 
-   tu_flush_for_access(cache, src_flags, dst_flags);
+   /* If there may be accesses to input attachments not in GMEM, expand the
+    * invalidate to all of UCHE.
+    */
+   if (barrier->read_only_input_attachments &&
+       (dst_flags & TU_ACCESS_UCHE_READ_GMEM)) {
+      if (cmd_buffer->device->vk.enabled_features.sparseResidencyAliased)
+         dst_flags |= TU_ACCESS_UCHE_INCOHERENT_READ;
+      else
+         dst_flags |= TU_ACCESS_UCHE_READ;
+   }
+
+   tu_flush_for_access<CHIP>(cache, src_flags, dst_flags);
 
    enum tu_stage src_stage = vk2tu_src_stage(cmd_buffer->device, src_stage_vk);
    enum tu_stage dst_stage = vk2tu_dst_stage(cmd_buffer->device, dst_stage_vk);
@@ -7084,9 +7121,9 @@ template <chip CHIP>
 static void
 tu_feedback_invalidate(struct tu_cmd_buffer *cmd)
 {
-   tu_flush_for_access(&cmd->state.renderpass_cache,
-                       TU_ACCESS_BLIT_WRITE_GMEM,
-                       TU_ACCESS_UCHE_READ_GMEM);
+   tu_flush_for_access<CHIP>(&cmd->state.renderpass_cache,
+                             TU_ACCESS_BLIT_WRITE_GMEM,
+                             TU_ACCESS_UCHE_READ_GMEM);
    tu_flush_for_stage<CHIP>(&cmd->state.renderpass_cache,
                             TU_STAGE_BR, TU_STAGE_BR, true);
 }
@@ -7228,8 +7265,8 @@ tu_emit_rendering_attachment_locations(struct tu_cmd_buffer *cmd)
     */
    if (cmd->device->physical_device->info->chip == 6) {
       struct tu_cache_state *cache = &cmd->state.renderpass_cache;
-      tu_flush_for_access(cache, TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE,
-                          TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE);
+      tu_flush_for_access<CHIP>(cache, TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE,
+                                TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE);
       cache->flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
    }
 }
@@ -8533,6 +8570,9 @@ static void
 tu_flush_dynamic_input_attachments(struct tu_cmd_buffer *cmd)
 {
    struct tu_shader *fs = cmd->state.shaders[MESA_SHADER_FRAGMENT];
+
+   if (fs->fs.read_only_input_attachments)
+      cmd->state.rp.read_only_input_attachments = true;
 
    if (!fs->fs.dynamic_input_attachments_used)
       return;
@@ -10215,7 +10255,17 @@ tu_barrier(struct tu_cmd_buffer *cmd,
    }
 
    struct tu_cache_state *cache =
-      cmd->state.pass  ? &cmd->state.renderpass_cache : &cmd->state.cache;
+      cmd->state.pass ? &cmd->state.renderpass_cache : &cmd->state.cache;
+
+   /* Assume that pipeline barriers outside of the renderpass that use
+    * INPUT_ATTACHMENT_READ_BIT refer to read-only input attachments.
+    */
+   if (!cmd->state.pass && (dst_flags & TU_ACCESS_UCHE_READ_GMEM)) {
+      if (cmd->device->vk.enabled_features.sparseResidencyAliased)
+         dst_flags |= TU_ACCESS_UCHE_INCOHERENT_READ;
+      else
+         dst_flags |= TU_ACCESS_UCHE_READ;
+   }
 
    /* a750 has a HW bug where writing a UBWC compressed image with a compute
     * shader followed by reading it as a texture (or readonly image) requires
@@ -10246,7 +10296,10 @@ tu_barrier(struct tu_cmd_buffer *cmd,
       cache->pending_flush_bits &= ~TU_CMD_FLAG_CACHE_CLEAN;
    }
 
-   tu_flush_for_access(cache, src_flags, dst_flags);
+   if (cmd->state.pass && (dst_flags & TU_ACCESS_UCHE_READ_GMEM))
+      cmd->state.rp.input_attachment_read_barrier = true;
+
+   TU_CALLX(cmd->device, tu_flush_for_access)(cache, src_flags, dst_flags);
 
    if (!no_sync) {
       enum tu_stage src_stage = vk2tu_src_stage(cmd->device, srcStage);
@@ -10448,7 +10501,7 @@ tu_CmdWriteBufferMarker2AMD(VkCommandBuffer commandBuffer,
     * Flush CCU in order to make the results of previous transfer
     * operation visible to CP.
     */
-   tu_flush_for_access(cache, TU_ACCESS_NONE, TU_ACCESS_SYSMEM_WRITE);
+   tu_flush_for_access<CHIP>(cache, TU_ACCESS_NONE, TU_ACCESS_SYSMEM_WRITE);
 
    /* Flags that only require a top-of-pipe event. DrawIndirect parameters are
     * read by the CP, so the draw indirect stage counts as top-of-pipe too.
@@ -10496,7 +10549,7 @@ tu_CmdWriteBufferMarker2AMD(VkCommandBuffer commandBuffer,
    }
 
    /* Make sure the result of this write is visible to others. */
-   tu_flush_for_access(cache, TU_ACCESS_CP_WRITE, TU_ACCESS_NONE);
+   tu_flush_for_access<CHIP>(cache, TU_ACCESS_CP_WRITE, TU_ACCESS_NONE);
 }
 TU_GENX(tu_CmdWriteBufferMarker2AMD);
 
@@ -10522,5 +10575,6 @@ tu_flush_buffer_write_cp(VkCommandBuffer commandBuffer)
    VK_FROM_HANDLE(tu_cmd_buffer, cmd, commandBuffer);
 
    struct tu_cache_state *cache = &cmd->state.cache;
-   tu_flush_for_access(cache, TU_ACCESS_CP_WRITE, (enum tu_cmd_access_mask)0);
+   TU_CALLX(cmd->device, tu_flush_for_access)(cache, TU_ACCESS_CP_WRITE,
+                                              (enum tu_cmd_access_mask)0);
 }

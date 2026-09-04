@@ -2202,8 +2202,8 @@ handle_buffer_unaligned_store(struct tu_cmd_buffer *cmd,
       return;
 
    if ((dst_va & 63) || (size & 63)) {
-      tu_flush_for_access(&cmd->state.cache, TU_ACCESS_NONE,
-                          TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE);
+      tu_flush_for_access<CHIP>(&cmd->state.cache, TU_ACCESS_NONE,
+                                TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE);
       /* Wait for invalidations to land. */
       cmd->state.cache.flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
       tu_emit_cache_flush<CHIP>(cmd);
@@ -2217,9 +2217,9 @@ after_buffer_unaligned_buffer_store(struct tu_cmd_buffer *cmd,
                                     bool unaligned_store)
 {
    if (unaligned_store) {
-      tu_flush_for_access(&cmd->state.cache,
-                          TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE,
-                          TU_ACCESS_NONE);
+      tu_flush_for_access<CHIP>(&cmd->state.cache,
+                                TU_ACCESS_CCU_COLOR_INCOHERENT_WRITE,
+                                TU_ACCESS_NONE);
    }
 }
 
@@ -4679,7 +4679,8 @@ tu_emit_clear_gmem_attachment(struct tu_cmd_buffer *cmd,
       }
    }
 
-   tu_flush_for_access(&cmd->state.renderpass_cache, TU_ACCESS_BLIT_WRITE_GMEM, TU_ACCESS_NONE);
+   tu_flush_for_access<CHIP>(&cmd->state.renderpass_cache,
+                             TU_ACCESS_BLIT_WRITE_GMEM, TU_ACCESS_NONE);
 
    trace_end_gmem_clear(&cmd->rp_trace, cs);
 }
@@ -5170,8 +5171,8 @@ tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
       }
    }
 
-   tu_flush_for_access(&cmd->state.renderpass_cache,
-                       TU_ACCESS_BLIT_WRITE_GMEM, TU_ACCESS_NONE);
+   TU_CALLX(cmd->device, tu_flush_for_access)(
+      &cmd->state.renderpass_cache, TU_ACCESS_BLIT_WRITE_GMEM, TU_ACCESS_NONE);
 
    trace_end_generic_clear(&cmd->rp_trace, cs);
 }
@@ -5368,8 +5369,8 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
       event_blit_run<CHIP>(cmd, cs, attachment, fdl_view, i, separate_stencil);
    }
 
-   tu_flush_for_access(&cmd->state.cache, TU_ACCESS_BLIT_WRITE_GMEM,
-                       TU_ACCESS_NONE);
+   tu_flush_for_access<CHIP>(&cmd->state.cache, TU_ACCESS_BLIT_WRITE_GMEM,
+                             TU_ACCESS_NONE);
 }
 
 static bool
