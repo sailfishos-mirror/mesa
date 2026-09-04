@@ -1774,7 +1774,7 @@
         "description": "kraid/opt_copy_prop: Fix zero-extension on 64-bit swizzles",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a9972668443e7f6ee26ba896b841e181021c9c79",
         "notes": null
