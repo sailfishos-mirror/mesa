@@ -76,8 +76,16 @@ a530-gl:
     - .collabora-freedreno-rules
   variables:
     DEQP_SUITE: freedreno-a530
+    DEQP_FRACTION: 2
     FDO_CI_CONCURRENT: 3  # if 4, sometimes "deqp-gles31, not enough memory for the allocation" appears
-  parallel: 6
+  parallel: 4
+
+a530-gl-full:
+  extends:
+    - a530-gl
+    - .collabora-freedreno-manual-rules
+  variables:
+    DEQP_FRACTION: 1
 
 a530-traces:
   extends:
