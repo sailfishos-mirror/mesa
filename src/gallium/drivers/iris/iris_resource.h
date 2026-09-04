@@ -161,7 +161,7 @@ struct iris_resource {
  */
 struct iris_state_ref {
    struct pipe_resource *res;
-   uint32_t offset;
+   uint64_t offset;
 };
 
 /**
@@ -514,8 +514,11 @@ iris_u_upload_alloc_ref_to_iris_state_ref(struct u_upload_mgr *upload,
                                           struct iris_state_ref *state_ref,
                                           void **ptr)
 {
-   u_upload_alloc_ref(upload, min_out_offset, size, alignment, &state_ref->offset,
+   uint32_t offset;
+
+   u_upload_alloc_ref(upload, min_out_offset, size, alignment, &offset,
                       &state_ref->res, ptr);
+   state_ref->offset = offset;
 }
 
 static inline void
@@ -526,8 +529,11 @@ iris_u_upload_data_ref_to_iris_state_ref(struct u_upload_mgr *upload,
                                          const void *data,
                                          struct iris_state_ref *state_ref)
 {
-   u_upload_data_ref(upload, min_out_offset, size, alignment, data, &state_ref->offset,
+   uint32_t offset;
+
+   u_upload_data_ref(upload, min_out_offset, size, alignment, data, &offset,
                      &state_ref->res);
+   state_ref->offset = offset;
 }
 
 #endif

@@ -254,8 +254,10 @@ iris_blorp_lookup_shader(struct blorp_batch *blorp_batch,
       return false;
 
    struct iris_bo *bo = iris_resource_bo(shader->assembly.res);
-   *kernel_out =
-      iris_bo_offset_from_base_address(bo) + shader->assembly.offset;
+
+   *kernel_out = iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                    bo->address : iris_bo_offset_from_base_address(bo);
+   *kernel_out = *kernel_out + shader->assembly.offset;
    *((void **) prog_data_out) =
 #ifdef INTEL_USE_ELK
       batch->screen->elk ? (void *)shader->elk_prog_data :
@@ -308,8 +310,9 @@ iris_blorp_upload_shader(struct blorp_batch *blorp_batch, uint32_t stage,
                       IRIS_CACHE_BLORP, key_size, key, kernel);
 
    struct iris_bo *bo = iris_resource_bo(shader->assembly.res);
-   *kernel_out =
-      iris_bo_offset_from_base_address(bo) + shader->assembly.offset;
+   *kernel_out = iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                    bo->address : iris_bo_offset_from_base_address(bo);
+   *kernel_out = *kernel_out + shader->assembly.offset;
    *((void **) prog_data_out) =
 #ifdef INTEL_USE_ELK
       screen->elk ? (void *)shader->elk_prog_data :

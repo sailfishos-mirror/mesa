@@ -736,7 +736,10 @@ static inline uint64_t
 KSP(const struct iris_compiled_shader *shader)
 {
    struct iris_resource *res = (void *) shader->assembly.res;
-   return iris_bo_offset_from_base_address(res->bo) + shader->assembly.offset;
+   uint64_t addr = iris_bufmgr_is_eff_64bit_enabled(res->bo->bufmgr) ?
+                      res->bo->address : iris_bo_offset_from_base_address(res->bo);
+
+   return addr + shader->assembly.offset;
 }
 
 #define DEFINE_IRIS_SHADER_DATA(TYPE, STAGE, FIELD)                      \

@@ -137,19 +137,21 @@ stream_state(struct iris_batch *batch,
              struct pipe_resource **out_res,
              unsigned size,
              unsigned alignment,
-             uint32_t *out_offset)
+             uint64_t *out_offset)
 {
    void *ptr = NULL;
+   uint32_t res_offset;
 
-   u_upload_alloc_ref(uploader, 0, size, alignment, out_offset, out_res, &ptr);
+   u_upload_alloc_ref(uploader, 0, size, alignment, &res_offset, out_res, &ptr);
 
    struct iris_bo *bo = iris_resource_bo(*out_res);
    iris_use_pinned_bo(batch, bo, false, IRIS_DOMAIN_NONE);
 
+   *out_offset = res_offset;
    iris_record_state_size(bo->bufmgr, batch->state_sizes,
                           bo->address + *out_offset, size);
-
-   *out_offset += iris_bo_offset_from_base_address(bo);
+   *out_offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                     bo->address : iris_bo_offset_from_base_address(bo);
 
    return ptr;
 }
@@ -370,7 +372,7 @@ emit_indirect_generate_draw(struct iris_batch *batch,
    }
 
    iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
-      uint32_t cc_vp_address;
+      uint64_t cc_vp_address;
       uint32_t *cc_vp_map =
          stream_state(batch, ice->state.dynamic_uploader,
                       &ice->state.last_res.cc_vp,

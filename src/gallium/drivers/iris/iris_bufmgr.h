@@ -598,8 +598,6 @@ int iris_bo_export_gem_handle_for_device(struct iris_bo *bo, int drm_fd,
                                          uint32_t *out_handle);
 
 /**
- * Returns the BO's address relative to the appropriate base address.
- *
  * All of our base addresses are programmed to the start of a 4GB region,
  * so simply returning the bottom 32 bits of the BO address will give us
  * the offset from whatever base address corresponds to that memory region.
@@ -610,8 +608,9 @@ iris_bo_offset_from_base_address(struct iris_bo *bo)
    /* This only works for buffers in the memory zones corresponding to a
     * base address - the top, unbounded memory zone doesn't have a base.
     */
+   assert(!iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr));
    assert(bo->address < IRIS_MEMZONE_OTHER_START);
-   return bo->address;
+   return bo->address & UINT32_MAX;
 }
 
 /**

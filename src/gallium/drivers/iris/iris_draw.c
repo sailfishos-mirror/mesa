@@ -377,8 +377,10 @@ iris_update_grid_size_resource(struct iris_context *ice,
    iris_u_upload_alloc_ref_to_iris_state_ref(ice->state.surface_uploader, 0,
                                              isl_dev->ss.size, isl_dev->ss.align,
                                              state_ref, &surf_map);
-   state_ref->offset +=
-      iris_bo_offset_from_base_address(iris_resource_bo(state_ref->res));
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr))
+      state_ref->offset += iris_resource_bo(state_ref->res)->address;
+   else
+      state_ref->offset += iris_bo_offset_from_base_address(iris_resource_bo(state_ref->res));
    isl_buffer_fill_state(&screen->isl_dev, surf_map,
                          .address = grid_ref->offset + grid_bo->address,
                          .size_B = sizeof(grid->grid),

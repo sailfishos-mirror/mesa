@@ -337,19 +337,22 @@ stream_state(struct iris_batch *batch,
              struct pipe_resource **out_res,
              unsigned size,
              unsigned alignment,
-             uint32_t *out_offset)
+             uint64_t *out_offset)
 {
    void *ptr = NULL;
+   unsigned res_offset;
 
-   u_upload_alloc_ref(uploader, 0, size, alignment, out_offset, out_res, &ptr);
+   u_upload_alloc_ref(uploader, 0, size, alignment, &res_offset, out_res, &ptr);
+   *out_offset = res_offset;
 
    struct iris_bo *bo = iris_resource_bo(*out_res);
    iris_use_pinned_bo(batch, bo, false, IRIS_DOMAIN_NONE);
 
    iris_record_state_size(bo->bufmgr, batch->state_sizes,
                           bo->address + *out_offset, size);
-
-   *out_offset += iris_bo_offset_from_base_address(bo);
+   *out_offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                     bo->address : iris_bo_offset_from_base_address(bo);
+   assert(iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) || (*out_offset < UINT32_MAX));
 
    return ptr;
 }
@@ -357,7 +360,7 @@ stream_state(struct iris_batch *batch,
 /**
  * stream_state() + memcpy.
  */
-static uint32_t
+static uint64_t
 emit_state(struct iris_batch *batch,
            struct u_upload_mgr *uploader,
            struct pipe_resource **out_res,
@@ -365,7 +368,7 @@ emit_state(struct iris_batch *batch,
            unsigned size,
            unsigned alignment)
 {
-   unsigned offset = 0;
+   uint64_t offset = 0;
    uint32_t *map =
       stream_state(batch, uploader, out_res, size, alignment, &offset);
 
@@ -961,7 +964,7 @@ upload_pixel_hashing_tables(struct iris_batch *batch)
       return;
 
    unsigned size = GENX(SLICE_HASH_TABLE_length) * 4;
-   uint32_t hash_address;
+   uint64_t hash_address;
    struct pipe_resource *tmp = NULL;
    uint32_t *map =
       stream_state(batch, ice->state.dynamic_uploader, &tmp,
@@ -974,6 +977,7 @@ upload_pixel_hashing_tables(struct iris_batch *batch)
 
    GENX(SLICE_HASH_TABLE_pack)(NULL, map, &table);
 
+   assert(!iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr));
    iris_emit_cmd(batch, GENX(3DSTATE_SLICE_TABLE_STATE_POINTERS), ptr) {
       ptr.SliceHashStatePointerValid = true;
       ptr.SliceHashTableStatePointer = hash_address;
@@ -1088,6 +1092,7 @@ upload_pixel_hashing_tables(struct iris_batch *batch)
    iris_record_state_size(res->bo->bufmgr, batch->state_sizes,
                           res->bo->address + res->offset, size);
 
+   assert(!iris_bufmgr_is_eff_64bit_enabled(res->bo->bufmgr));
    iris_emit_cmd(batch, GENX(3DSTATE_SLICE_TABLE_STATE_POINTERS), ptr) {
       ptr.SliceHashStatePointerValid = true;
       ptr.SliceHashTableStatePointer = iris_bo_offset_from_base_address(res->bo) +
@@ -2742,7 +2747,8 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
    iris_record_state_size(bo->bufmgr, ice->state.sizes,
                           bo->address + shs->sampler_table.offset, size);
 
-   shs->sampler_table.offset += iris_bo_offset_from_base_address(bo);
+   shs->sampler_table.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                                   bo->address : iris_bo_offset_from_base_address(bo);
 
    ice->state.need_border_colors &= ~(1 << stage);
 
@@ -2914,8 +2920,9 @@ upload_surface_states(struct u_upload_mgr *mgr,
    void *map =
       upload_state(mgr, &surf_state->ref, bytes, SURFACE_STATE_ALIGNMENT);
 
-   surf_state->ref.offset +=
-      iris_bo_offset_from_base_address(iris_resource_bo(surf_state->ref.res));
+   struct iris_bo *bo = iris_resource_bo(surf_state->ref.res);
+   surf_state->ref.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                                bo->address : iris_bo_offset_from_base_address(bo);
 
    if (map)
       memcpy(map, surf_state->cpu, bytes);
@@ -3988,8 +3995,9 @@ iris_set_framebuffer_state(struct pipe_context *ctx,
                        .size = isl_extent3d(MAX2(cso->width, 1),
                                             MAX2(cso->height, 1),
                                             cso->layers ? cso->layers : 1));
-   ice->state.null_fb.offset +=
-      iris_bo_offset_from_base_address(iris_resource_bo(ice->state.null_fb.res));
+   struct iris_bo *bo = iris_resource_bo(ice->state.null_fb.res);
+   ice->state.null_fb.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                                   bo->address : iris_bo_offset_from_base_address(bo);
 
    /* Render target change */
    ice->state.stage_dirty |= IRIS_STAGE_DIRTY_BINDINGS_FS;
@@ -5593,7 +5601,7 @@ update_clear_value(struct iris_context *ice,
 #endif
 }
 
-static uint32_t
+static uint64_t
 use_surface_state(struct iris_batch *batch,
                   struct iris_surface_state *surf_state,
                   enum isl_aux_usage aux_usage)
@@ -5611,7 +5619,7 @@ use_surface_state(struct iris_batch *batch,
  *
  * Returns the binding table entry (offset to SURFACE_STATE).
  */
-static uint32_t
+static uint64_t
 use_surface(struct iris_context *ice,
             struct iris_batch *batch,
             struct iris_surface *surf,
@@ -5658,7 +5666,7 @@ use_surface(struct iris_context *ice,
    }
 }
 
-static uint32_t
+static uint64_t
 use_sampler_view(struct iris_context *ice,
                  struct iris_batch *batch,
                  struct iris_sampler_view *isv)
@@ -5692,7 +5700,7 @@ use_sampler_view(struct iris_context *ice,
    return use_surface_state(batch, &isv->surface_state, aux_usage);
 }
 
-static uint32_t
+static uint64_t
 use_ubo_ssbo(struct iris_batch *batch,
              struct iris_context *ice,
              struct pipe_shader_buffer *buf,
@@ -5709,7 +5717,7 @@ use_ubo_ssbo(struct iris_batch *batch,
    return surf_state->offset;
 }
 
-static uint32_t
+static uint64_t
 use_image(struct iris_batch *batch, struct iris_context *ice,
           struct iris_shader_state *shs, const struct shader_info *info,
           int i)
@@ -7039,7 +7047,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 
    if (dirty & IRIS_DIRTY_CC_VIEWPORT) {
       const struct iris_rasterizer_state *cso_rast = ice->state.cso_rast;
-      uint32_t cc_vp_address;
+      uint64_t cc_vp_address;
       bool wa_18020335297_applied = false;
 
       /* Wa_18020335297 - Apply the WA when viewport ptr is reprogrammed. */
@@ -7106,7 +7114,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    if (dirty & IRIS_DIRTY_SF_CL_VIEWPORT) {
       struct pipe_framebuffer_state *cso_fb = &ice->state.framebuffer.base;
       int32_t x_min, y_min, x_max, y_max;
-      uint32_t sf_cl_vp_address;
+      uint64_t sf_cl_vp_address;
       uint32_t *vp_map =
          stream_state(batch, ice->state.dynamic_uploader,
                       &ice->state.last_res.sf_cl_vp,
@@ -7189,7 +7197,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       const int rt_dwords =
          MAX2(cso_fb->nr_cbufs, 1) * GENX(BLEND_STATE_ENTRY_length);
 
-      uint32_t blend_offset;
+      uint64_t blend_offset;
       uint32_t *blend_map =
          stream_state(batch, ice->state.dynamic_uploader,
                       &ice->state.last_res.blend,
@@ -7260,7 +7268,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 #if GFX_VER == 8
       struct pipe_stencil_ref *p_stencil_refs = &ice->state.stencil_ref;
 #endif
-      uint32_t cc_offset;
+      uint64_t cc_offset;
       void *cc_map =
          stream_state(batch, ice->state.dynamic_uploader,
                       &ice->state.last_res.color_calc,
@@ -7941,7 +7949,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
        *    should be aligned to a 64-byte boundary.
        */
       uint32_t alignment = 64;
-      uint32_t scissor_offset =
+      uint64_t scissor_offset =
          emit_state(batch, ice->state.dynamic_uploader,
                     &ice->state.last_res.scissor,
                     ice->state.scissors,
@@ -9309,8 +9317,8 @@ iris_upload_gpgpu_walker(struct iris_context *ice,
    if ((stage_dirty & IRIS_STAGE_DIRTY_CS) ||
        (GFX_VER == 12 && !batch->contains_draw) ||
        cs_data->local_size[0] == 0 /* Variable local group size */) {
-      uint32_t curbe_data_offset, push_const_size;
-      uint32_t *curbe_data_map;
+      uint64_t curbe_data_offset;
+      uint32_t *curbe_data_map, push_const_size;
       if (cs_data->push.cross_thread.dwords == 0 &&
           cs_data->push.per_thread.dwords == 0) {
          push_const_size = 64;
@@ -10698,8 +10706,9 @@ genX(init_state)(struct iris_context *ice)
                    4 * GENX(RENDER_SURFACE_STATE_length), 64);
    isl_null_fill_state(&screen->isl_dev, null_surf_map,
                        .size = isl_extent3d(1, 1, 1));
-   ice->state.unbound_tex.offset +=
-      iris_bo_offset_from_base_address(iris_resource_bo(ice->state.unbound_tex.res));
+   struct iris_bo *bo = iris_resource_bo(ice->state.unbound_tex.res);
+   ice->state.unbound_tex.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
+                                       bo->address : iris_bo_offset_from_base_address(bo);
 
    /* Default all scissor rectangles to be empty regions. */
    for (int i = 0; i < IRIS_MAX_VIEWPORTS; i++) {

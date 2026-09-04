@@ -703,7 +703,8 @@ iris_upload_ubo_ssbo_surf_state(struct iris_context *ice,
 
    struct iris_resource *res = (void *) buf->buffer;
    struct iris_bo *surf_bo = iris_resource_bo(surf_state->res);
-   surf_state->offset += iris_bo_offset_from_base_address(surf_bo);
+   surf_state->offset += iris_bufmgr_is_eff_64bit_enabled(res->bo->bufmgr) ?
+                            res->bo->address : iris_bo_offset_from_base_address(surf_bo);
 
    const bool dataport =
       ssbo || !intel_indirect_ubos_use_sampler(screen->devinfo);
