@@ -19,6 +19,7 @@
 #include "util/u_dynarray.h"
 #include "util/list.h"
 #include "util/simple_mtx.h"
+#include "util/xmlconfig.h"
 #include "pipe/p_defines.h"
 #include "util/pb_slab.h"
 #include "intel/dev/intel_device_info.h"
@@ -565,7 +566,9 @@ void iris_bo_mark_exported(struct iris_bo *bo);
  */
 bool iris_bo_busy(struct iris_bo *bo);
 
-struct iris_bufmgr *iris_bufmgr_get_for_fd(int fd, bool bo_reuse);
+bool iris_bufmgr_is_eff_64bit_enabled(const struct iris_bufmgr *bufmgr);
+
+struct iris_bufmgr *iris_bufmgr_get_for_fd(int fd, bool bo_reuse, struct driOptionCache *options);
 int iris_bufmgr_get_fd(struct iris_bufmgr *bufmgr);
 
 struct iris_bo *iris_bo_gem_create_from_name(struct iris_bufmgr *bufmgr,

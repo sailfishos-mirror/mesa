@@ -389,6 +389,9 @@
 #define DRI_CONF_INTEL_DISABLE_THREADED_CONTEXT(def) \
    DRI_CONF_OPT_B(intel_disable_threaded_context, def, "Disable threaded context")
 
+#define DRI_CONF_INTEL_ENABLE_EFFICIENT_64BIT(def) \
+   DRI_CONF_OPT_B(intel_enable_efficient_64bit, def, "Enable efficient 64bit")
+
 /**
  * \brief Image quality-related options
  */

@@ -696,7 +696,7 @@ iris_screen_create(int fd, const struct pipe_screen_config *config)
 
    process_intel_debug_variable();
 
-   screen->bufmgr = iris_bufmgr_get_for_fd(fd, bo_reuse);
+   screen->bufmgr = iris_bufmgr_get_for_fd(fd, bo_reuse, config->options);
    if (!screen->bufmgr)
       return NULL;
 
