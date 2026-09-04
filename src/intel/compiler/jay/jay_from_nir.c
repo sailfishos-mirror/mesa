@@ -794,7 +794,10 @@ jay_emit_load_const(struct nir_to_jay_state *nj, nir_load_const_instr *lc)
    jay_def dst = nj_def(&lc->def);
    assert(lc->def.num_components == 1 && "must be scalarized");
 
-   if (lc->def.bit_size == 64 && lc->value[0].u64 >> 32) {
+   if (lc->def.bit_size == 64 && !b->shader->devinfo->has_64bit_int) {
+      jay_MOV(b, jay_extract(dst, 0), (uint32_t) (lc->value[0].u64 >> 0));
+      jay_MOV(b, jay_extract(dst, 1), (uint32_t) (lc->value[0].u64 >> 32));
+   } else if (lc->def.bit_size == 64 && lc->value[0].u64 >> 32) {
       jay_MOV_IMM64(b, dst, lc->value[0].u64);
    } else {
       jay_MOV(b, dst, lc->value[0].u32);
