@@ -76,6 +76,12 @@ vk_image_init(struct vk_device *device,
    image->usage = vk_image_usage_flags(pCreateInfo);
    image->sharing_mode = pCreateInfo->sharingMode;
 
+   /* Since VK_KHR_maintenance11, it's possible to create a concurrent image
+    * with only one queue family and this image can be considered exclusive.
+    */
+   if (pCreateInfo->queueFamilyIndexCount == 1)
+      image->sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
+
    if (image->aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
       const VkImageStencilUsage2CreateInfoKHR *stencil_usage2_info =
          vk_find_struct_const(pCreateInfo->pNext,
