@@ -290,12 +290,6 @@ radv_use_dcc_for_image_late(struct radv_device *device, struct radv_image *image
    if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
       return true;
 
-   /* Only enable DCC for concurrent images if stores are supported because that means we can keep
-    * DCC compressed on all layouts/queues.
-    */
-   if (!image->exclusive && !radv_image_compress_dcc_on_image_stores(device, image))
-      return false;
-
    if ((image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) && !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
