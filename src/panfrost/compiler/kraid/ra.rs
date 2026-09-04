@@ -650,7 +650,7 @@ struct AffinityMapBuilder<'a> {
 }
 
 impl AffinityMapBuilder<'_> {
-    fn add_instr(&mut self, instr: &Instr) {
+    fn add_instr(&mut self, bl: &impl BlockLiveness, instr: &Instr) {
         let def_order = &mut self.def_order;
         match &instr.op {
             Op::MkVecV2I16(op) => {
@@ -687,11 +687,21 @@ impl AffinityMapBuilder<'_> {
                 }
             }
             Op::PhiSrc(op) => {
+                // As a heuristic, we skip the union if the phi source
+                // interferes with the phi destination (equivalently: the phi
+                // source is live-out of the source block).  These phis could
+                // never be coalesced, so the union can only hurt (and it does
+                // in practice in complex web scenarios). Note this case is
+                // only possible because we do not lower the input program to
+                // conventional SSA (CSSA) form.
                 if let SrcRef::SSA(src_vec) = &op.src.src_ref {
                     if src_vec.bytes() == op.phi.bytes() {
                         let dst_vec = self.phi_map.get_dst_ssa(&op.phi);
                         assert_eq!(src_vec.len(), dst_vec.len());
                         for (dst_ssa, src_ssa) in dst_vec.iter().zip(src_vec) {
+                            if bl.is_live_out(&src_ssa) {
+                                continue;
+                            }
                             self.phi_webs.union(*dst_ssa, *src_ssa);
                         }
                     }
@@ -747,6 +757,7 @@ impl AffinityMap {
     fn for_shader(
         s: &Shader,
         reg_arena: &Arena,
+        live: &impl Liveness,
         phi_map: &PhiMap,
     ) -> AffinityMap {
         let ssa_count = s.ssa_alloc.count();
@@ -760,9 +771,11 @@ impl AffinityMap {
         };
 
         let mut def_idx = (1_u32..).into_iter();
-        for block in &s.blocks {
+        for (bi, block) in s.blocks.iter().enumerate() {
+            let bl = live.block(bi);
+
             for instr in &block.instrs {
-                b.add_instr(instr);
+                b.add_instr(bl, instr);
 
                 for ssa in instr.iter_ssa_defs() {
                     b.def_order[ssa] = def_idx.next().unwrap();
@@ -2218,7 +2231,7 @@ impl GlobalRegAlloc<'_> {
 
 fn alloc_regs(s: &mut Shader, arena: &Arena, live: impl Liveness) {
     let phi_map = PhiMap::for_shader(s);
-    let affinities = AffinityMap::for_shader(s, &arena, &phi_map);
+    let affinities = AffinityMap::for_shader(s, &arena, &live, &phi_map);
 
     let mut ra = GlobalRegAlloc::new(s.model, arena, &affinities);
     ra.live_out.resize_with(s.blocks.len(), Default::default);
