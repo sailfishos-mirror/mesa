@@ -1667,11 +1667,9 @@ d3d12_video_decoder_sync_completion(struct pipe_video_codec *codec,
    struct d3d12_screen *pD3D12Screen = (struct d3d12_screen *) pD3D12Dec->m_pD3D12Screen;
    assert(pD3D12Screen);
 
-   pD3D12Screen->base.fence_reference(
-      &pD3D12Screen->base,
-      &pD3D12Dec->m_inflightResourcesPool[d3d12_video_decoder_pool_current_index(pD3D12Dec)]
-          .m_pBitstreamUploadGPUCompletionFence,
-      NULL);
+   pD3D12Screen->base.fence_reference(&pD3D12Screen->base,
+                                      &pool_entry.m_pBitstreamUploadGPUCompletionFence,
+                                      NULL);
 
    hr = pool_entry.m_spCommandAllocator->Reset();
    if (FAILED(hr)) {
