@@ -204,11 +204,19 @@ ir3_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
          num_components <= 4;
    }
 
+   int size = num_components * byte_size;
+
+   if ((low->intrinsic == nir_intrinsic_load_scratch) ||
+       (low->intrinsic == nir_intrinsic_store_scratch)) {
+      /* limit max size/alignment to 32b */
+      return size <= 32 && align_mul >= byte_size &&
+         align_offset % byte_size == 0 &&
+         num_components <= 4;
+   }
+
    assert(bit_size >= 8);
    if (bit_size != 32)
       return false;
-
-   int size = num_components * byte_size;
 
    /* Don't care about alignment past vec4. */
    assert(util_is_power_of_two_nonzero(align_mul));
@@ -814,7 +822,7 @@ ir3_finalize_nir(struct ir3_compiler *compiler,
     */
    nir_load_store_vectorize_options vectorize_opts = {
       .modes = nir_var_mem_ubo | nir_var_mem_ssbo | nir_var_mem_shared |
-               nir_var_uniform | nir_var_mem_global,
+               nir_var_uniform | nir_var_mem_global | nir_var_shader_temp,
       .callback = ir3_nir_should_vectorize_mem,
       .robust_modes = options->robust_modes,
       .cb_data = compiler,
