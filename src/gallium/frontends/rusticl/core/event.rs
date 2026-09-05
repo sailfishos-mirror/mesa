@@ -56,10 +56,31 @@ struct EventProfilingState {
     time_end: AtomicU64,
 }
 
-struct GPUEvent {
+pub struct GPUEvent {
     cmd_type: cl_command_type,
     queue: Weak<Queue>,
     deps: Vec<Arc<Event>>,
+    profiling: EventProfilingState,
+}
+
+impl GPUEvent {
+    pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
+        match which {
+            EventTimes::Queued => &self.profiling.time_queued.store(value, PROFILING_ORDERING),
+            EventTimes::Submit => &self.profiling.time_submit.store(value, PROFILING_ORDERING),
+            EventTimes::Start => &self.profiling.time_start.store(value, PROFILING_ORDERING),
+            EventTimes::End => &self.profiling.time_end.store(value, PROFILING_ORDERING),
+        };
+    }
+
+    pub fn get_time(&self, which: EventTimes) -> cl_ulong {
+        match which {
+            EventTimes::Queued => self.profiling.time_queued.load(PROFILING_ORDERING),
+            EventTimes::Submit => self.profiling.time_submit.load(PROFILING_ORDERING),
+            EventTimes::Start => self.profiling.time_start.load(PROFILING_ORDERING),
+            EventTimes::End => self.profiling.time_end.load(PROFILING_ORDERING),
+        }
+    }
 }
 
 enum EventImpl {
@@ -71,7 +92,6 @@ pub struct Event {
     pub base: CLObjectBase<CL_INVALID_EVENT>,
     pub context: Arc<Context>,
     state: Mutex<EventMutState>,
-    profiling: EventProfilingState,
     cv: Condvar,
     kind: EventImpl,
 }
@@ -93,11 +113,11 @@ impl Event {
                 work: Some(work),
                 ..Default::default()
             }),
-            profiling: Default::default(),
             kind: EventImpl::GPUEvent(GPUEvent {
                 cmd_type: cmd_type,
                 queue: Arc::downgrade(queue),
                 deps: deps,
+                profiling: Default::default(),
             }),
             cv: Condvar::new(),
         })
@@ -111,7 +131,6 @@ impl Event {
                 status: CL_SUBMITTED as cl_int,
                 ..Default::default()
             }),
-            profiling: Default::default(),
             kind: EventImpl::UserEvent,
             cv: Condvar::new(),
         })
@@ -184,20 +203,9 @@ impl Event {
     }
 
     pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
-        match which {
-            EventTimes::Queued => &self.profiling.time_queued.store(value, PROFILING_ORDERING),
-            EventTimes::Submit => &self.profiling.time_submit.store(value, PROFILING_ORDERING),
-            EventTimes::Start => &self.profiling.time_start.store(value, PROFILING_ORDERING),
-            EventTimes::End => &self.profiling.time_end.store(value, PROFILING_ORDERING),
-        };
-    }
-
-    pub fn get_time(&self, which: EventTimes) -> cl_ulong {
-        match which {
-            EventTimes::Queued => self.profiling.time_queued.load(PROFILING_ORDERING),
-            EventTimes::Submit => self.profiling.time_submit.load(PROFILING_ORDERING),
-            EventTimes::Start => self.profiling.time_start.load(PROFILING_ORDERING),
-            EventTimes::End => self.profiling.time_end.load(PROFILING_ORDERING),
+        match &self.kind {
+            EventImpl::GPUEvent(gpu) => gpu.set_time(which, value),
+            EventImpl::UserEvent => {}
         }
     }
 
@@ -244,10 +252,12 @@ impl Event {
     pub fn call(&self, ctx: &mut QueueContextWithState) -> cl_int {
         let mut lock = self.state();
         let mut status = lock.status;
-        let profiling_enabled = self.get_time(EventTimes::Queued) != 0;
+        let gpu = self.gpu_event().unwrap();
+        let profiling_enabled = gpu.get_time(EventTimes::Queued) != 0;
+
         if status == CL_QUEUED as cl_int {
             if profiling_enabled {
-                self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
+                gpu.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
             }
             let mut query_start = None;
             let mut query_end = None;
@@ -274,8 +284,8 @@ impl Event {
             );
 
             if profiling_enabled {
-                self.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
-                self.set_time(EventTimes::End, query_end.unwrap().read_blocked());
+                gpu.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
+                gpu.set_time(EventTimes::End, query_end.unwrap().read_blocked());
             }
             self.set_status(lock, status);
         }
@@ -335,6 +345,13 @@ impl Event {
         match &self.kind {
             EventImpl::GPUEvent(gpu) => &gpu.deps,
             EventImpl::UserEvent => &[],
+        }
+    }
+
+    pub fn gpu_event(&self) -> Option<&GPUEvent> {
+        match &self.kind {
+            EventImpl::GPUEvent(gpu) => Some(gpu),
+            EventImpl::UserEvent => None,
         }
     }
 }

@@ -47,18 +47,18 @@ unsafe impl CLInfo<cl_profiling_info> for cl_event {
     fn query(&self, q: cl_profiling_info, v: CLInfoValue) -> CLResult<CLInfoRes> {
         let event = Event::ref_from_raw(*self)?;
 
-        if event.is_user() {
+        let Some(gpu) = event.gpu_event() else {
             // CL_PROFILING_INFO_NOT_AVAILABLE [...] if event is a user event object.
             return Err(CL_PROFILING_INFO_NOT_AVAILABLE);
-        }
+        };
 
         let res = match *q {
-            CL_PROFILING_COMMAND_QUEUED => event.get_time(EventTimes::Queued),
-            CL_PROFILING_COMMAND_SUBMIT => event.get_time(EventTimes::Submit),
-            CL_PROFILING_COMMAND_START => event.get_time(EventTimes::Start),
-            CL_PROFILING_COMMAND_END => event.get_time(EventTimes::End),
+            CL_PROFILING_COMMAND_QUEUED => gpu.get_time(EventTimes::Queued),
+            CL_PROFILING_COMMAND_SUBMIT => gpu.get_time(EventTimes::Submit),
+            CL_PROFILING_COMMAND_START => gpu.get_time(EventTimes::Start),
+            CL_PROFILING_COMMAND_END => gpu.get_time(EventTimes::End),
             // For now, we treat Complete the same as End
-            CL_PROFILING_COMMAND_COMPLETE => event.get_time(EventTimes::End),
+            CL_PROFILING_COMMAND_COMPLETE => gpu.get_time(EventTimes::End),
             _ => return Err(CL_INVALID_VALUE),
         };
 
