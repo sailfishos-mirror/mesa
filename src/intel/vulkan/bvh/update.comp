@@ -35,6 +35,8 @@ layout(push_constant) uniform CONSTS {
    update_args args;
 };
 
+shared mat4 update_transform;
+
 vk_ir_triangle_node
 anv_load_triangle_node(vk_bvh_geometry_data geom_data, uint32_t local_id, out vk_aabb bounds)
 {
@@ -42,17 +44,9 @@ anv_load_triangle_node(vk_bvh_geometry_data geom_data, uint32_t local_id, out vk
 
    triangle_vertices vertices = load_vertices(geom_data.data, indices, geom_data.vertex_format, geom_data.stride);
 
-   if (geom_data.transform != NULL) {
-      mat4 transform = mat4(1.0);
-
-      for (uint32_t col = 0; col < 4; col++) {
-         for (uint32_t row = 0; row < 3; row++) {
-            transform[col][row] = DEREF(INDEX(float, geom_data.transform, col + row * 4));
-         }
-      }
-
+   if (args.geom_data.transform != NULL) {
       for (uint32_t i = 0; i < 3; i++) {
-         vertices.vertex[i] = transform * vertices.vertex[i];
+         vertices.vertex[i] = update_transform * vertices.vertex[i];
       }
    }
 
@@ -272,6 +266,17 @@ get_child_index(uint32_t parent_raw)
 
 void main()
 {
+   if (args.geom_data.transform != NULL) {
+      uint32_t col = gl_LocalInvocationIndex % 4;
+      uint32_t row = gl_LocalInvocationIndex / 4;
+
+      update_transform[col][row] =
+         (row < 3) ?
+         DEREF(INDEX(float, args.geom_data.transform, col + row * 4)) :
+         (col < 3 ? 0.0 : 1.0);
+   }
+   barrier();
+
    uint32_t leaf_local = gl_GlobalInvocationID.x;
    if (leaf_local >= args.leaf_node_count || leaf_local >= args.primitive_count)
       return;
