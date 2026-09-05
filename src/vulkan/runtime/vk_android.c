@@ -146,16 +146,22 @@ vk_gralloc_to_drm_explicit_layout(
    struct u_gralloc *u_gralloc = vk_android_get_ugralloc();
    assert(u_gralloc);
 
-   if (u_gralloc_get_buffer_basic_info(u_gralloc, in_hnd, &info) != 0)
+   if (u_gralloc_get_buffer_basic_info(u_gralloc, in_hnd, &info) != 0) {
+      mesa_loge("u_gralloc_get_buffer_basic_info failed");
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+   }
 
-   if (info.num_planes > max_planes)
+   if (info.num_planes > max_planes) {
+      mesa_loge("info.num_planes(%u) > max_planes(%u) unsupported",
+                info.num_planes, max_planes);
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+   }
 
    bool is_disjoint = false;
    for (size_t i = 1; i < info.num_planes; i++) {
       if (info.offsets[i] == 0) {
          is_disjoint = true;
+         mesa_loge("disjoint planes (info.offsets[%zu] == 0) unsupported", i);
          break;
       }
    }
@@ -222,15 +228,21 @@ vk_android_import_anb_memory(struct vk_device *device,
    VkResult result = device->dispatch_table.GetMemoryFdPropertiesKHR(
       (VkDevice)device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
       dma_buf_fd, &fd_props);
-   if (result != VK_SUCCESS)
+   if (result != VK_SUCCESS) {
+      mesa_loge("GetMemoryFdPropertiesKHR failed");
       return result;
+   }
 
    uint32_t compatible_types = mem_reqs.memoryTypeBits & fd_props.memoryTypeBits;
-   if (!compatible_types)
+   if (!compatible_types) {
+      mesa_loge("No compatible AHB mem types (img_reqs=%#b,fd_reqs=%#b)",
+                 mem_reqs.memoryTypeBits, fd_props.memoryTypeBits);
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+   }
 
    int dup_fd = os_dupfd_cloexec(dma_buf_fd);
    if (dup_fd < 0) {
+      mesa_loge("os_dupfd_cloexec(%d) failed: %s", dma_buf_fd, strerror(errno));
       return (errno == EMFILE) ? VK_ERROR_TOO_MANY_OBJECTS
                                : VK_ERROR_OUT_OF_HOST_MEMORY;
    }
@@ -932,8 +944,10 @@ vk_alloc_ahardware_buffer(const VkMemoryAllocateInfo *pAllocateInfo)
    if (dedicated_info && dedicated_info->image) {
       VK_FROM_HANDLE(vk_image, image, dedicated_info->image);
 
-      if (!image->ahb_format)
+      if (!image->ahb_format) {
+         mesa_loge("image->ahb_format must not be UNDEFINED");
          return NULL;
+      }
 
       w = image->extent.width;
       h = image->extent.height;
@@ -972,8 +986,11 @@ vk_alloc_ahardware_buffer(const VkMemoryAllocateInfo *pAllocateInfo)
     };
 
    struct AHardwareBuffer *ahb;
-   if (AHardwareBuffer_allocate(&desc, &ahb) != 0)
+   if (AHardwareBuffer_allocate(&desc, &ahb) != 0) {
+      mesa_loge("Failed to allocate AHB (w=%u,h=%u,l=%u,f=%u,u=0x%" PRIx64 ")",
+                w, h, layers, format, usage);
       return NULL;
+   }
 
    return ahb;
 }
@@ -995,15 +1012,20 @@ get_ahb_buffer_format_properties2(
    /* "Buffer must be a valid Android hardware buffer object with at least
     * one of the AHARDWAREBUFFER_USAGE_GPU_* usage flags."
     */
-   if (!gpu_usage)
+   if (!gpu_usage) {
+      mesa_loge("AHB (format=%u,usage=0x%" PRIx64 ") has no GPU usage",
+                desc.format, desc.usage);
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+   }
 
    /* No known gralloc implementations currently allocate with a
     * layers > 1. So return an error if we happen to get one since
     * the rest of mesa won't handle it properly.
     */
-   if (desc.layers > 1)
-      return VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR;
+   if (desc.layers > 1) {
+      mesa_loge("Unsupported AHB desc.layers(%u) > 1", desc.layers);
+      return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+   }
 
    /* Fill properties fields based on description. */
    VkAndroidHardwareBufferFormatProperties2ANDROID *p = pProperties;
