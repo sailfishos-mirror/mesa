@@ -246,7 +246,7 @@ impl Event {
         lock.status
     }
 
-    fn call_inner(&self, ctx: &mut QueueContextWithState, work: Option<EventSig>) -> cl_int {
+    fn call_inner(&self, ctx: &mut QueueContextWithState, work: Option<EventSig>) -> CLResult<()> {
         let gpu = self.gpu_event().unwrap();
         let profiling_enabled = gpu.get_time(EventTimes::Queued) != 0;
 
@@ -255,34 +255,24 @@ impl Event {
         }
         let mut query_start = None;
         let mut query_end = None;
-        let status = work.map_or(
-            // if there is no work
-            CL_SUBMITTED as cl_int,
-            |w| {
-                if profiling_enabled {
-                    query_start =
-                        PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-                }
 
-                let res = w(&self.context, ctx).err().map_or(
-                    // return the error if there is one
-                    CL_SUBMITTED as cl_int,
-                    |e| e,
-                );
-                if profiling_enabled {
-                    query_end =
-                        PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-                }
-                res
-            },
-        );
+        if let Some(w) = work {
+            if profiling_enabled {
+                query_start =
+                    PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+            }
+            w(&self.context, ctx)?;
+            if profiling_enabled {
+                query_end = PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+            }
+        }
 
         if profiling_enabled {
             gpu.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
             gpu.set_time(EventTimes::End, query_end.unwrap().read_blocked());
         }
 
-        return status;
+        Ok(())
     }
 
     // We always assume that work here simply submits stuff to the hardware even if it's just doing
@@ -293,7 +283,10 @@ impl Event {
         let mut status = lock.status;
 
         if status == CL_QUEUED as cl_int {
-            status = self.call_inner(ctx, lock.work.take());
+            status = self
+                .call_inner(ctx, lock.work.take())
+                .err()
+                .unwrap_or(CL_SUBMITTED as cl_int);
             self.set_status(lock, status);
         }
         status
