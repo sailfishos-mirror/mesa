@@ -93,29 +93,42 @@ anv_decode_quad_shared_edges(uint32_t prim_index1_delta, uint32_t own_local_id, 
    tri1_edge = swapped ? tri0_swapped_edge : tri1_swapped_edge;
 }
 
+vec3
+anv_load_single_vertex(vk_bvh_geometry_data geom_data, uint32_t local_id, uint32_t vertex_in_tri)
+{
+   triangle_indices indices = load_indices(geom_data.indices, geom_data.index_format, local_id);
+   vec4 vertex = load_vertices(geom_data.data, indices,
+                               geom_data.vertex_format,
+                               geom_data.stride).vertex[vertex_in_tri];
+
+   if (args.geom_data.transform != NULL)
+      vertex = update_transform * vertex;
+
+   return vertex.xyz;
+}
+
 vk_aabb
 anv_build_quad(VOID_REF dst_ptr, vk_bvh_geometry_data geom_data,
                uint32_t own_local_id, uint32_t merge_id,
                uint32_t prim_index1_delta)
 {
-   vk_aabb own_bounds, merge_bounds;
-   vk_ir_triangle_node own_node = anv_load_triangle_node(geom_data, own_local_id, own_bounds);
-   vk_ir_triangle_node merge_node = anv_load_triangle_node(geom_data, merge_id, merge_bounds);
+   vk_aabb bounds;
+   vk_ir_triangle_node own_node = anv_load_triangle_node(geom_data, own_local_id, bounds);
 
    uint32_t tri0_edge, tri1_edge;
    anv_decode_quad_shared_edges(prim_index1_delta, own_local_id, merge_id, tri0_edge, tri1_edge);
 
    uint32_t v3_index = (tri1_edge + 2u) % 3u;
-   vec3 v3 = vec3(merge_node.coords[v3_index][0], merge_node.coords[v3_index][1], merge_node.coords[v3_index][2]);
+   vec3 v3 = anv_load_single_vertex(geom_data, merge_id, v3_index);
 
-   vk_aabb bounds = own_bounds;
-   aabb_extend(bounds, merge_bounds);
+   bounds.min = min(bounds.min, v3);
+   bounds.max = max(bounds.max, v3);
 
    vk_ir_triangle_node_quad quad;
    quad.coords[0] = v3.x;
    quad.coords[1] = v3.y;
    quad.coords[2] = v3.z;
-   quad.triangle_id = merge_node.triangle_id | (((tri1_edge << 2) | tri0_edge) << 28);
+   quad.triangle_id = merge_id | (((tri1_edge << 2) | tri0_edge) << 28);
 
    anv_encode_quad(dst_ptr, own_node, quad);
 
