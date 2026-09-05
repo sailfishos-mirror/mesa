@@ -246,47 +246,54 @@ impl Event {
         lock.status
     }
 
+    fn call_inner(&self, ctx: &mut QueueContextWithState, work: Option<EventSig>) -> cl_int {
+        let gpu = self.gpu_event().unwrap();
+        let profiling_enabled = gpu.get_time(EventTimes::Queued) != 0;
+
+        if profiling_enabled {
+            gpu.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
+        }
+        let mut query_start = None;
+        let mut query_end = None;
+        let status = work.map_or(
+            // if there is no work
+            CL_SUBMITTED as cl_int,
+            |w| {
+                if profiling_enabled {
+                    query_start =
+                        PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+                }
+
+                let res = w(&self.context, ctx).err().map_or(
+                    // return the error if there is one
+                    CL_SUBMITTED as cl_int,
+                    |e| e,
+                );
+                if profiling_enabled {
+                    query_end =
+                        PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+                }
+                res
+            },
+        );
+
+        if profiling_enabled {
+            gpu.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
+            gpu.set_time(EventTimes::End, query_end.unwrap().read_blocked());
+        }
+
+        return status;
+    }
+
     // We always assume that work here simply submits stuff to the hardware even if it's just doing
     // sw emulation or nothing at all.
     // If anything requets waiting, we will update the status through fencing later.
     pub fn call(&self, ctx: &mut QueueContextWithState) -> cl_int {
         let mut lock = self.state();
         let mut status = lock.status;
-        let gpu = self.gpu_event().unwrap();
-        let profiling_enabled = gpu.get_time(EventTimes::Queued) != 0;
 
         if status == CL_QUEUED as cl_int {
-            if profiling_enabled {
-                gpu.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
-            }
-            let mut query_start = None;
-            let mut query_end = None;
-            status = lock.work.take().map_or(
-                // if there is no work
-                CL_SUBMITTED as cl_int,
-                |w| {
-                    if profiling_enabled {
-                        query_start =
-                            PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-                    }
-
-                    let res = w(&self.context, ctx).err().map_or(
-                        // return the error if there is one
-                        CL_SUBMITTED as cl_int,
-                        |e| e,
-                    );
-                    if profiling_enabled {
-                        query_end =
-                            PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-                    }
-                    res
-                },
-            );
-
-            if profiling_enabled {
-                gpu.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
-                gpu.set_time(EventTimes::End, query_end.unwrap().read_blocked());
-            }
+            status = self.call_inner(ctx, lock.work.take());
             self.set_status(lock, status);
         }
         status
