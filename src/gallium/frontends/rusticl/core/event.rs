@@ -59,6 +59,7 @@ struct EventProfilingState {
 struct GPUEvent {
     cmd_type: cl_command_type,
     queue: Weak<Queue>,
+    deps: Vec<Arc<Event>>,
 }
 
 enum EventImpl {
@@ -69,7 +70,6 @@ enum EventImpl {
 pub struct Event {
     pub base: CLObjectBase<CL_INVALID_EVENT>,
     pub context: Arc<Context>,
-    pub deps: Vec<Arc<Event>>,
     state: Mutex<EventMutState>,
     profiling: EventProfilingState,
     cv: Condvar,
@@ -88,7 +88,6 @@ impl Event {
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: Arc::clone(&queue.context),
-            deps: deps,
             state: Mutex::new(EventMutState {
                 status: CL_QUEUED as cl_int,
                 work: Some(work),
@@ -98,6 +97,7 @@ impl Event {
             kind: EventImpl::GPUEvent(GPUEvent {
                 cmd_type: cmd_type,
                 queue: Arc::downgrade(queue),
+                deps: deps,
             }),
             cv: Condvar::new(),
         })
@@ -107,7 +107,6 @@ impl Event {
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: context,
-            deps: Vec::new(),
             state: Mutex::new(EventMutState {
                 status: CL_SUBMITTED as cl_int,
                 ..Default::default()
@@ -290,7 +289,7 @@ impl Event {
 
         // only scan dependencies if it's a new one
         if result.insert(self) {
-            for e in &self.deps {
+            for e in self.deps() {
                 e.deep_unflushed_deps_impl(result);
             }
         }
@@ -331,6 +330,13 @@ impl Event {
             EventImpl::UserEvent => None,
         }
     }
+
+    pub fn deps(&self) -> &[Arc<Event>] {
+        match &self.kind {
+            EventImpl::GPUEvent(gpu) => &gpu.deps,
+            EventImpl::UserEvent => &[],
+        }
+    }
 }
 
 impl Drop for Event {
@@ -339,15 +345,19 @@ impl Drop for Event {
     // This abuses the fact that `Arc::into_inner` only succeeds when there is one strong reference
     // so we turn a recursive drop chain into a drop list for events having no other references.
     fn drop(&mut self) {
-        if self.deps.is_empty() {
+        let EventImpl::GPUEvent(gpu) = &mut self.kind else {
             return;
-        }
+        };
 
-        let mut deps_list = vec![mem::take(&mut self.deps)];
+        let mut deps_list = vec![mem::take(&mut gpu.deps)];
         while let Some(deps) = deps_list.pop() {
             for dep in deps {
                 if let Some(mut dep) = Arc::into_inner(dep) {
-                    deps_list.push(mem::take(&mut dep.deps));
+                    let EventImpl::GPUEvent(ref mut gpu) = dep.kind else {
+                        continue;
+                    };
+
+                    deps_list.push(mem::take(&mut gpu.deps));
                 }
             }
         }

@@ -283,7 +283,7 @@ impl QueueEvent {
     }
 
     fn deps(&self) -> &[Arc<Event>] {
-        &self.0.deps
+        self.0.deps()
     }
 
     fn into_inner(self) -> Arc<Event> {
