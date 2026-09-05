@@ -323,33 +323,9 @@ void main()
       uint32_t grandparent_raw = DEREF(INDEX(uint32_t, args.parent_child_map, parent));
 
       if (grandparent_raw == VK_NULL_BVH_OFFSET) {
-         REF(anv_internal_node) root = REF(anv_internal_node)(BLOCK_OFFSET(parent));
-
-         vec3 base = vec3(DEREF(root).lower[0], DEREF(root).lower[1], DEREF(root).lower[2]);
-         ivec3 exp = ivec3( int(DEREF(root).exp_x), int(DEREF(root).exp_y), int(DEREF(root).exp_z));
-         vec3 scale = ldexp(vec3(1.0), exp - 8);
-
-         vk_aabb root_bounds = vk_aabb(vec3(INFINITY), vec3(-INFINITY));
-
-         for (uint32_t i = 0; i < valid_child_count; ++i) {
-            vec3 lower = vec3(DEREF(root).lower_x[i],
-                              DEREF(root).lower_y[i],
-                              DEREF(root).lower_z[i]);
-
-            vec3 upper = vec3(DEREF(root).upper_x[i],
-                              DEREF(root).upper_y[i],
-                              DEREF(root).upper_z[i]);
-
-            vk_aabb child;
-            child.min = base + lower * scale;
-            child.max = base + upper * scale;
-
-            aabb_extend(root_bounds, child);
-         }
-
          REF(anv_accel_struct_header) hdr =
             REF(anv_accel_struct_header)(args.output_bvh - args.output_bvh_offset);
-         DEREF(hdr).aabb = root_bounds;
+         DEREF(hdr).aabb = parent_bounds;
          break;
       }
 
