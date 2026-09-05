@@ -294,7 +294,7 @@ impl QueueEvent {
     }
 
     fn has_same_queue_as(&self, ev: &Event) -> bool {
-        match (&self.0.queue, &ev.queue) {
+        match (self.0.queue(), ev.queue()) {
             (Some(a), Some(b)) => Weak::ptr_eq(a, b),
             _ => false,
         }

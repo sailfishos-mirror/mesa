@@ -50,6 +50,7 @@ struct EventMutState {
 
 struct GPUEvent {
     cmd_type: cl_command_type,
+    queue: Weak<Queue>,
 }
 
 enum EventImpl {
@@ -60,7 +61,6 @@ enum EventImpl {
 pub struct Event {
     pub base: CLObjectBase<CL_INVALID_EVENT>,
     pub context: Arc<Context>,
-    pub queue: Option<Weak<Queue>>,
     pub deps: Vec<Arc<Event>>,
     state: Mutex<EventMutState>,
     cv: Condvar,
@@ -79,14 +79,16 @@ impl Event {
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: Arc::clone(&queue.context),
-            queue: Some(Arc::downgrade(queue)),
             deps: deps,
             state: Mutex::new(EventMutState {
                 status: CL_QUEUED as cl_int,
                 work: Some(work),
                 ..Default::default()
             }),
-            kind: EventImpl::GPUEvent(GPUEvent { cmd_type: cmd_type }),
+            kind: EventImpl::GPUEvent(GPUEvent {
+                cmd_type: cmd_type,
+                queue: Arc::downgrade(queue),
+            }),
             cv: Condvar::new(),
         })
     }
@@ -95,7 +97,6 @@ impl Event {
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: context,
-            queue: None,
             deps: Vec::new(),
             state: Mutex::new(EventMutState {
                 status: CL_SUBMITTED as cl_int,
@@ -304,7 +305,7 @@ impl Event {
     pub fn deep_unflushed_queues(events: &[Arc<Event>]) -> HashSet<Arc<Queue>> {
         Event::deep_unflushed_deps(events)
             .iter()
-            .filter_map(|e| e.queue.as_ref())
+            .filter_map(|e| e.queue())
             // We don't have to do anything for destroyed queues as they already flush on drop.
             .filter_map(Weak::upgrade)
             .collect()
@@ -314,6 +315,13 @@ impl Event {
         match &self.kind {
             EventImpl::GPUEvent(gpu) => gpu.cmd_type,
             EventImpl::UserEvent => CL_COMMAND_USER,
+        }
+    }
+
+    pub fn queue(&self) -> Option<&Weak<Queue>> {
+        match &self.kind {
+            EventImpl::GPUEvent(gpu) => Some(&gpu.queue),
+            EventImpl::UserEvent => None,
         }
     }
 }

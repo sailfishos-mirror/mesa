@@ -28,7 +28,7 @@ unsafe impl CLInfo<cl_event_info> for cl_event {
                 v.write::<cl_context>(cl_context::from_ptr(ptr))
             }
             CL_EVENT_COMMAND_QUEUE => {
-                let ptr = match event.queue.as_ref() {
+                let ptr = match event.queue() {
                     // Note we use as_ptr here which doesn't increase the reference count.
                     Some(queue) => Weak::as_ptr(queue),
                     None => ptr::null_mut(),
