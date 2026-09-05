@@ -36,7 +36,7 @@ unsafe impl CLInfo<cl_event_info> for cl_event {
                 v.write::<cl_command_queue>(cl_command_queue::from_ptr(ptr))
             }
             CL_EVENT_REFERENCE_COUNT => v.write::<cl_uint>(Event::refcnt(*self)?),
-            CL_EVENT_COMMAND_TYPE => v.write::<cl_command_type>(event.cmd_type),
+            CL_EVENT_COMMAND_TYPE => v.write::<cl_command_type>(event.cmd_type()),
             _ => Err(CL_INVALID_VALUE),
         }
     }

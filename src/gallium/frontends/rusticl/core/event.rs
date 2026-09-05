@@ -48,7 +48,9 @@ struct EventMutState {
     time_end: cl_ulong,
 }
 
-struct GPUEvent {}
+struct GPUEvent {
+    cmd_type: cl_command_type,
+}
 
 enum EventImpl {
     UserEvent,
@@ -59,7 +61,6 @@ pub struct Event {
     pub base: CLObjectBase<CL_INVALID_EVENT>,
     pub context: Arc<Context>,
     pub queue: Option<Weak<Queue>>,
-    pub cmd_type: cl_command_type,
     pub deps: Vec<Arc<Event>>,
     state: Mutex<EventMutState>,
     cv: Condvar,
@@ -79,14 +80,13 @@ impl Event {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: Arc::clone(&queue.context),
             queue: Some(Arc::downgrade(queue)),
-            cmd_type: cmd_type,
             deps: deps,
             state: Mutex::new(EventMutState {
                 status: CL_QUEUED as cl_int,
                 work: Some(work),
                 ..Default::default()
             }),
-            kind: EventImpl::GPUEvent(GPUEvent {}),
+            kind: EventImpl::GPUEvent(GPUEvent { cmd_type: cmd_type }),
             cv: Condvar::new(),
         })
     }
@@ -96,7 +96,6 @@ impl Event {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: context,
             queue: None,
-            cmd_type: CL_COMMAND_USER,
             deps: Vec::new(),
             state: Mutex::new(EventMutState {
                 status: CL_SUBMITTED as cl_int,
@@ -170,7 +169,7 @@ impl Event {
     }
 
     pub fn is_user(&self) -> bool {
-        self.cmd_type == CL_COMMAND_USER
+        matches!(self.kind, EventImpl::UserEvent)
     }
 
     pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
@@ -309,6 +308,13 @@ impl Event {
             // We don't have to do anything for destroyed queues as they already flush on drop.
             .filter_map(Weak::upgrade)
             .collect()
+    }
+
+    pub fn cmd_type(&self) -> cl_command_type {
+        match &self.kind {
+            EventImpl::GPUEvent(gpu) => gpu.cmd_type,
+            EventImpl::UserEvent => CL_COMMAND_USER,
+        }
     }
 }
 
