@@ -14,6 +14,8 @@ use rusticl_opencl_gen::*;
 
 use std::collections::HashSet;
 use std::mem;
+use std::sync::atomic;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::Mutex;
@@ -30,6 +32,8 @@ static_assert!(CL_QUEUED == 3);
 pub type EventSig =
     Box<dyn FnOnce(&Context, &mut QueueContextWithState) -> CLResult<()> + Send + Sync>;
 
+const PROFILING_ORDERING: atomic::Ordering = atomic::Ordering::SeqCst;
+
 pub enum EventTimes {
     Queued = CL_PROFILING_COMMAND_QUEUED as isize,
     Submit = CL_PROFILING_COMMAND_SUBMIT as isize,
@@ -42,10 +46,14 @@ struct EventMutState {
     status: cl_int,
     cbs: [Vec<EventCB>; 3],
     work: Option<EventSig>,
-    time_queued: cl_ulong,
-    time_submit: cl_ulong,
-    time_start: cl_ulong,
-    time_end: cl_ulong,
+}
+
+#[derive(Default)]
+struct EventProfilingState {
+    time_queued: AtomicU64,
+    time_submit: AtomicU64,
+    time_start: AtomicU64,
+    time_end: AtomicU64,
 }
 
 struct GPUEvent {
@@ -63,6 +71,7 @@ pub struct Event {
     pub context: Arc<Context>,
     pub deps: Vec<Arc<Event>>,
     state: Mutex<EventMutState>,
+    profiling: EventProfilingState,
     cv: Condvar,
     kind: EventImpl,
 }
@@ -85,6 +94,7 @@ impl Event {
                 work: Some(work),
                 ..Default::default()
             }),
+            profiling: Default::default(),
             kind: EventImpl::GPUEvent(GPUEvent {
                 cmd_type: cmd_type,
                 queue: Arc::downgrade(queue),
@@ -102,6 +112,7 @@ impl Event {
                 status: CL_SUBMITTED as cl_int,
                 ..Default::default()
             }),
+            profiling: Default::default(),
             kind: EventImpl::UserEvent,
             cv: Condvar::new(),
         })
@@ -174,23 +185,20 @@ impl Event {
     }
 
     pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
-        let mut lock = self.state();
         match which {
-            EventTimes::Queued => lock.time_queued = value,
-            EventTimes::Submit => lock.time_submit = value,
-            EventTimes::Start => lock.time_start = value,
-            EventTimes::End => lock.time_end = value,
-        }
+            EventTimes::Queued => &self.profiling.time_queued.store(value, PROFILING_ORDERING),
+            EventTimes::Submit => &self.profiling.time_submit.store(value, PROFILING_ORDERING),
+            EventTimes::Start => &self.profiling.time_start.store(value, PROFILING_ORDERING),
+            EventTimes::End => &self.profiling.time_end.store(value, PROFILING_ORDERING),
+        };
     }
 
     pub fn get_time(&self, which: EventTimes) -> cl_ulong {
-        let lock = self.state();
-
         match which {
-            EventTimes::Queued => lock.time_queued,
-            EventTimes::Submit => lock.time_submit,
-            EventTimes::Start => lock.time_start,
-            EventTimes::End => lock.time_end,
+            EventTimes::Queued => self.profiling.time_queued.load(PROFILING_ORDERING),
+            EventTimes::Submit => self.profiling.time_submit.load(PROFILING_ORDERING),
+            EventTimes::Start => self.profiling.time_start.load(PROFILING_ORDERING),
+            EventTimes::End => self.profiling.time_end.load(PROFILING_ORDERING),
         }
     }
 
@@ -237,11 +245,10 @@ impl Event {
     pub fn call(&self, ctx: &mut QueueContextWithState) -> cl_int {
         let mut lock = self.state();
         let mut status = lock.status;
-        let profiling_enabled = lock.time_queued != 0;
+        let profiling_enabled = self.get_time(EventTimes::Queued) != 0;
         if status == CL_QUEUED as cl_int {
             if profiling_enabled {
-                // We already have the lock so can't call set_time on the event
-                lock.time_submit = ctx.dev.screen().get_timestamp();
+                self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
             }
             let mut query_start = None;
             let mut query_end = None;
@@ -268,8 +275,8 @@ impl Event {
             );
 
             if profiling_enabled {
-                lock.time_start = query_start.unwrap().read_blocked();
-                lock.time_end = query_end.unwrap().read_blocked();
+                self.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
+                self.set_time(EventTimes::End, query_end.unwrap().read_blocked());
             }
             self.set_status(lock, status);
         }
