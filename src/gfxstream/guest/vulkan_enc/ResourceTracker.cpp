@@ -4384,6 +4384,19 @@ void ResourceTracker::on_vkUnmapMemory(void*, VkDevice, VkDeviceMemory) {
     // no-op
 }
 
+VkResult ResourceTracker::on_vkMapMemory2(void* context, VkResult host_result, VkDevice device,
+                                          const VkMemoryMapInfo* pMemoryMapInfo, void** ppData) {
+    return on_vkMapMemory(context, host_result, device, pMemoryMapInfo->memory,
+                          pMemoryMapInfo->offset, pMemoryMapInfo->size, pMemoryMapInfo->flags,
+                          ppData);
+}
+
+VkResult ResourceTracker::on_vkUnmapMemory2(void* context, VkResult host_result, VkDevice device,
+                                            const VkMemoryUnmapInfo* pMemoryUnmapInfo) {
+    on_vkUnmapMemory(context, device, pMemoryUnmapInfo->memory);
+    return host_result;
+}
+
 void ResourceTracker::transformImageMemoryRequirements2ForGuest(VkImage image,
                                                                 VkMemoryRequirements2* reqs2) {
     std::lock_guard<std::recursive_mutex> lock(mLock);
