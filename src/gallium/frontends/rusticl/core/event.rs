@@ -48,6 +48,13 @@ struct EventMutState {
     time_end: cl_ulong,
 }
 
+struct GPUEvent {}
+
+enum EventImpl {
+    UserEvent,
+    GPUEvent(GPUEvent),
+}
+
 pub struct Event {
     pub base: CLObjectBase<CL_INVALID_EVENT>,
     pub context: Arc<Context>,
@@ -56,6 +63,7 @@ pub struct Event {
     pub deps: Vec<Arc<Event>>,
     state: Mutex<EventMutState>,
     cv: Condvar,
+    kind: EventImpl,
 }
 
 impl_cl_type_trait!(cl_event, Event, CL_INVALID_EVENT);
@@ -78,6 +86,7 @@ impl Event {
                 work: Some(work),
                 ..Default::default()
             }),
+            kind: EventImpl::GPUEvent(GPUEvent {}),
             cv: Condvar::new(),
         })
     }
@@ -93,6 +102,7 @@ impl Event {
                 status: CL_SUBMITTED as cl_int,
                 ..Default::default()
             }),
+            kind: EventImpl::UserEvent,
             cv: Condvar::new(),
         })
     }
