@@ -159,14 +159,14 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
    if (!sctx->screen->has_gfx_compute)
       return false;
 
-   struct ac_cs_clear_copy_buffer_options options = {
+   ac_cs_clear_copy_buffer_options options = {
       .nir_options = sctx->screen->nir_options,
       .info = &sctx->screen->info,
       .print_key = si_can_dump_shader(sctx->screen, MESA_SHADER_COMPUTE, SI_DUMP_SHADER_KEY),
       .fail_if_slow = fail_if_slow,
    };
 
-   struct ac_cs_clear_copy_buffer_info info = {
+   ac_cs_clear_copy_buffer_info info = {
       .dst_offset = dst_offset,
       .src_offset = src_offset,
       .size = size,
@@ -180,7 +180,7 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
    };
    memcpy(info.clear_value, clear_value, clear_value_size);
 
-   struct ac_cs_clear_copy_buffer_dispatch dispatch;
+   ac_cs_clear_copy_buffer_dispatch dispatch;
 
    if (!ac_prepare_cs_clear_copy_buffer(&options, &info, &dispatch))
       return false;
@@ -721,7 +721,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
        info->scissor_enable)
       return false;
 
-   struct ac_cs_blit_options options = {
+   ac_cs_blit_options options = {
       .nir_options = sctx->screen->nir_options,
       .info = &sctx->screen->info,
       .use_aco = sctx->screen->use_aco,
@@ -735,7 +735,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
                       !(sctx->screen->debug_flags & DBG(FORCE_COMPUTE_BLIT)),
    };
 
-   struct ac_cs_blit_description blit = {
+   ac_cs_blit_description blit = {
       .dst = {
          .surf = &sdst->surface,
          .dim = get_tex_dim(sdst),
@@ -768,7 +768,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
    if (clear_color)
       blit.clear_color = *clear_color;
 
-   struct ac_cs_blit_dispatches out;
+   ac_cs_blit_dispatches out;
    if (!ac_prepare_compute_blit(&options, &blit, &out))
       return false;
 
@@ -813,7 +813,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
 
    /* Execute compute blits. */
    for (unsigned i = 0; i < out.num_dispatches; i++) {
-      struct ac_cs_blit_dispatch *dispatch = &out.dispatches[i];
+      ac_cs_blit_dispatch *dispatch = &out.dispatches[i];
 
       void *shader = _mesa_hash_table_u64_search(sctx->cs_blit_shaders, dispatch->shader_key.key);
       if (!shader) {

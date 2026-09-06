@@ -1121,7 +1121,7 @@ void si_gfx_blit(struct pipe_context *ctx, const struct pipe_blit_info *info)
         /* No scaling */
         (info->dst.box.width == abs(info->src.box.width) &&
          info->dst.box.height == abs(info->src.box.height)))) {
-      union ac_ps_resolve_key key;
+      ac_ps_resolve_key key;
       key.key = 0;
 
       /* LLVM is slower on GFX10.3 and older because it doesn't form VMEM clauses and it's more

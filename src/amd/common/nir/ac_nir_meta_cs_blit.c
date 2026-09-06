@@ -48,7 +48,7 @@ convert_linear_to_srgb(nir_builder *b, nir_def *input)
 
 static nir_def *
 apply_blit_output_modifiers(nir_builder *b, nir_def *color,
-                            const union ac_cs_blit_key *key)
+                            const ac_cs_blit_key *key)
 {
    unsigned bit_size = color->bit_size;
    nir_def *zero = nir_imm_intN_t(b, 0, bit_size);
@@ -113,7 +113,7 @@ apply_blit_output_modifiers(nir_builder *b, nir_def *color,
  * - This list doesn't do it justice.
  */
 nir_shader *
-ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_blit_key *key)
+ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 {
    if (options->print_key) {
       fprintf(stderr, "Internal shader: compute_blit\n");
@@ -458,7 +458,7 @@ ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_bl
 }
 
 static unsigned
-set_work_size(struct ac_cs_blit_dispatch *dispatch,
+set_work_size(ac_cs_blit_dispatch *dispatch,
               unsigned block_x, unsigned block_y, unsigned block_z,
               unsigned num_wg_x, unsigned num_wg_y, unsigned num_wg_z)
 {
@@ -476,7 +476,7 @@ set_work_size(struct ac_cs_blit_dispatch *dispatch,
 }
 
 static bool
-should_blit_clamp_to_edge(const struct ac_cs_blit_description *blit, unsigned coord_mask)
+should_blit_clamp_to_edge(const ac_cs_blit_description *blit, unsigned coord_mask)
 {
    return util_is_box_out_of_bounds(&blit->src.box, coord_mask, blit->src.width0,
                                     blit->src.height0, blit->src.level);
@@ -491,8 +491,8 @@ compute_alignment(unsigned x)
 
 /* Set the blit info, but change the dst box and trim the src box according to the new dst box. */
 static void
-set_trimmed_blit(const struct ac_cs_blit_description *old, const struct pipe_box *box,
-                 bool is_clear, struct ac_cs_blit_description *out)
+set_trimmed_blit(const ac_cs_blit_description *old, const struct pipe_box *box,
+                 bool is_clear, ac_cs_blit_description *out)
 {
    assert(old->dst.box.x <= box->x);
    assert(old->dst.box.y <= box->y);
@@ -541,9 +541,9 @@ typedef struct {
  * compute dispatches.
  */
 bool
-ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
-                        const struct ac_cs_blit_description *blit,
-                        struct ac_cs_blit_dispatches *out)
+ac_prepare_compute_blit(const ac_cs_blit_options *options,
+                        const ac_cs_blit_description *blit,
+                        ac_cs_blit_dispatches *out)
 {
    const struct radeon_info *info = options->info;
    bool is_2d_tiling = !blit->dst.surf->is_linear && !blit->dst.surf->thick_tiling;
@@ -800,7 +800,7 @@ ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
    }
 
    /* Check that the lane size fits into the shader key. */
-   static const union ac_cs_blit_key max_lane_size = {
+   static const ac_cs_blit_key max_lane_size = {
       .log_lane_width = ~0,
       .log_lane_height = ~0,
       .log_lane_depth = ~0,
@@ -923,12 +923,12 @@ ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
             }
          }
 
-         struct ac_cs_blit_options nested_options = *options;
+         ac_cs_blit_options nested_options = *options;
          nested_options.is_nested = true;
 
          for (unsigned i = 0; i < ARRAY_SIZE(boxes); i++) {
             if (boxes[i].width > 0 && boxes[i].height > 0 && boxes[i].depth > 0) {
-               struct ac_cs_blit_description new_blit;
+               ac_cs_blit_description new_blit;
                ASSERTED bool ok;
 
                set_trimmed_blit(blit, &boxes[i], is_clear, &new_blit);
@@ -1113,11 +1113,11 @@ ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
 
    unsigned index = out->num_dispatches++;
    assert(index < ARRAY_SIZE(out->dispatches));
-   struct ac_cs_blit_dispatch *dispatch = &out->dispatches[index];
+   ac_cs_blit_dispatch *dispatch = &out->dispatches[index];
    unsigned wg_dim = set_work_size(dispatch, block_x, block_y, block_z, width, height, depth);
 
    /* Get the shader key. */
-   union ac_cs_blit_key key;
+   ac_cs_blit_key key;
    key.key = 0;
 
    /* Only ACO can form VMEM clauses for image stores, which is a requirement for performance. */
