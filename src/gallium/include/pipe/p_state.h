@@ -1035,7 +1035,12 @@ struct pipe_tensor {
     */
    unsigned index;
    /**
-    * Dimensions of this tensor.
+    * Dimensions of this tensor, in the order batch, height, width and
+    * channels.  A tensor of lower rank is aligned to the trailing entries
+    * and the leading ones are 1, so a vector of C elements is {1, 1, 1, C}.
+    * Memory is row-major in this order: the channel is the fastest-varying
+    * index.  An axis named by an operation, such as a concatenation axis
+    * or a transpose permutation, counts in this order.
     */
    unsigned dims[4];
    /**
@@ -1142,7 +1147,10 @@ struct pipe_ml_operation
    union {
       struct {
          /**
-          * For convolutions, tensor containing the weights.
+          * For convolutions, tensor containing the weights, in the order
+          * output channels, kernel height, kernel width and input channels;
+          * for a depthwise convolution 1, kernel height, kernel width and
+          * channels.
           */
          struct pipe_tensor *weight_tensor;
 
@@ -1271,7 +1279,8 @@ struct pipe_ml_operation
 
       struct {
          /**
-          * Tensor containing the weights.
+          * Tensor containing the weights, in the order output features and
+          * input features, aligned to the trailing dimensions.
           */
          struct pipe_tensor *weight_tensor;
          /**
@@ -1319,6 +1328,10 @@ struct pipe_ml_operation
       } reshape;
 
       struct {
+         /**
+          * Permutation of the input's axes: output axis i is input axis
+          * perm[i].
+          */
          unsigned perm[4];
       } transpose;
 
