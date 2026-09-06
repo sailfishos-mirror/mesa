@@ -25,6 +25,10 @@ impl QueryResultTrait for PipeQueryGen<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }
     type ResType = u64;
 }
 
+impl QueryResultTrait for PipeQueryGen<{ pipe_query_type::PIPE_QUERY_TIMESTAMP_RAW }> {
+    type ResType = u64;
+}
+
 impl<const Q: pipe_query_type::Type> PipeQueryGen<Q>
 where
     PipeQueryGen<Q>: QueryResultTrait,
