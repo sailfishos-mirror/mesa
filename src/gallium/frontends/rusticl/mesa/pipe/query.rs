@@ -7,6 +7,8 @@ use mesa_rust_gen::*;
 
 use std::marker::*;
 
+use super::resource::PipeResourceOwned;
+
 // Callers create new queries using PipeQueryGen<QueryType>::new(...)
 pub struct PipeQueryGen<const Q: pipe_query_type::Type> {}
 
@@ -79,6 +81,8 @@ pub trait QueryReadTrait {
     fn read_blocked(&mut self) -> Self::ResType {
         self.read(true).unwrap()
     }
+
+    fn write_to_resource(&mut self, res: &PipeResourceOwned, offset: u32);
 }
 
 impl QueryReadTrait for PipeQuery<'_, u64> {
@@ -94,6 +98,19 @@ impl QueryReadTrait for PipeQuery<'_, u64> {
             Some(unsafe { raw_result.u64_ })
         } else {
             None
+        }
+    }
+
+    fn write_to_resource(&mut self, res: &PipeResourceOwned, offset: u32) {
+        /* offset in units of query type (u64): */
+        assert!((offset % 8) == 0);
+        unsafe {
+            self.ctx.get_query_result_resource(
+                self.query,
+                pipe_query_value_type::PIPE_QUERY_TYPE_U64,
+                res,
+                offset,
+            )
         }
     }
 }
