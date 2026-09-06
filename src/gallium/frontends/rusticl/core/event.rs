@@ -59,6 +59,29 @@ trait Profiler: Send + Sync {
     fn mark_queued(&self, time: cl_ulong);
 }
 
+struct DisabledProfiler {}
+
+impl Profiler for DisabledProfiler {
+    fn get_time(&self, _which: EventTimes) -> cl_ulong {
+        0
+    }
+
+    fn mark_queued(&self, _time: cl_ulong) {}
+
+    fn profile_work(
+        &self,
+        cl_ctx: &Context,
+        ctx: &mut QueueContextWithState,
+        work: Option<EventSig>,
+    ) -> CLResult<()> {
+        if let Some(w) = work {
+            w(cl_ctx, ctx)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[derive(Default)]
 struct CPUProfiler {
     time_queued: AtomicU64,
@@ -85,28 +108,18 @@ impl Profiler for CPUProfiler {
         ctx: &mut QueueContextWithState,
         work: Option<EventSig>,
     ) -> CLResult<()> {
-        let profiling_enabled = self.get_time(EventTimes::Queued) != 0;
-
-        if profiling_enabled {
-            self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
-        }
-        let mut query_start = None;
-        let mut query_end = None;
-
+        self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
         if let Some(w) = work {
-            if profiling_enabled {
-                query_start =
-                    PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-            }
+            let mut query_start =
+                PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
+                    .ok_or(CL_OUT_OF_HOST_MEMORY)?;
             w(cl_ctx, ctx)?;
-            if profiling_enabled {
-                query_end = PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-            }
-        }
+            let mut query_end =
+                PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
+                    .ok_or(CL_OUT_OF_HOST_MEMORY)?;
 
-        if profiling_enabled {
-            self.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
-            self.set_time(EventTimes::End, query_end.unwrap().read_blocked());
+            self.set_time(EventTimes::Start, query_start.read_blocked());
+            self.set_time(EventTimes::End, query_end.read_blocked());
         }
 
         Ok(())
@@ -161,6 +174,12 @@ impl Event {
         deps: Vec<Arc<Event>>,
         work: EventSig,
     ) -> Arc<Event> {
+        let profiler: Box<dyn Profiler> = if queue.is_profiling_enabled() {
+            Box::new(CPUProfiler::default())
+        } else {
+            Box::new(DisabledProfiler {})
+        };
+
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: Arc::clone(&queue.context),
@@ -173,7 +192,7 @@ impl Event {
                 cmd_type: cmd_type,
                 queue: Arc::downgrade(queue),
                 deps: deps,
-                profiling: Box::new(CPUProfiler::default()),
+                profiling: profiler,
             }),
             cv: Condvar::new(),
         })
