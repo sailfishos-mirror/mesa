@@ -4,10 +4,14 @@
 use crate::api::icd::*;
 use crate::api::types::*;
 use crate::core::context::*;
+use crate::core::device::*;
 use crate::core::queue::*;
 use crate::impl_cl_type_trait;
 
+use mesa_rust::pipe::context::RWFlags;
 use mesa_rust::pipe::query::*;
+use mesa_rust::pipe::resource::PipeResourceOwned;
+use mesa_rust::pipe::screen::ResourceType;
 use mesa_rust_gen::*;
 use mesa_rust_util::static_assert;
 use rusticl_opencl_gen::*;
@@ -139,6 +143,98 @@ impl Profiler for CPUProfiler {
     }
 }
 
+struct GPUProfiler {
+    time_queued: AtomicU64,
+    time_submit: AtomicU64,
+    res: PipeResourceOwned,
+    dev: &'static Device,
+}
+
+impl GPUProfiler {
+    fn new(dev: &'static Device) -> CLResult<Self> {
+        let res = dev
+            .screen()
+            .resource_create_buffer(
+                0x10,
+                ResourceType::Staging,
+                PIPE_BIND_QUERY_BUFFER,
+                0,
+                // PIPE_RESOURCE_FLAG_MAP_COHERENT | PIPE_RESOURCE_FLAG_MAP_PERSISTENT,
+            )
+            .ok_or(CL_OUT_OF_RESOURCES)?;
+
+        Ok(Self {
+            time_queued: 0.into(),
+            time_submit: 0.into(),
+            dev: dev,
+            res: res,
+        })
+    }
+
+    fn has_timestamp_query_raw(&self) -> bool {
+        self.dev.screen().is_convert_timestamp_supported()
+    }
+
+    fn read_timestamp_query(&self, offset: i32) -> cl_ulong {
+        let helper_ctx = self.dev.helper_ctx();
+        let tx = helper_ctx
+            .buffer_map(&self.res, offset, 8, RWFlags::RD)
+            .unwrap();
+        let mut ts = unsafe { tx.ptr().cast::<cl_ulong>().read() };
+        if self.has_timestamp_query_raw() {
+            ts = self.dev.screen().convert_timestamp(ts);
+        }
+        ts
+    }
+
+    fn create_timestamp_query<'c>(&self, ctx: &'c QueueContext) -> CLResult<PipeQuery<'c, u64>> {
+        let query_start = if self.has_timestamp_query_raw() {
+            PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP_RAW }>::new(ctx)
+        } else {
+            PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx)
+        };
+
+        query_start.ok_or(CL_OUT_OF_HOST_MEMORY)
+    }
+}
+
+impl Profiler for GPUProfiler {
+    fn profile_work(
+        &self,
+        cl_ctx: &Context,
+        ctx: &mut QueueContextWithState,
+        work: Option<EventSig>,
+    ) -> CLResult<()> {
+        self.time_submit
+            .store(ctx.dev.screen().get_timestamp(), PROFILING_ORDERING);
+
+        if let Some(w) = work {
+            let mut query_start = self.create_timestamp_query(ctx.ctx)?;
+            query_start.write_to_resource(&self.res, 0);
+
+            w(cl_ctx, ctx)?;
+
+            let mut query_end = self.create_timestamp_query(ctx.ctx)?;
+            query_end.write_to_resource(&self.res, 8);
+        }
+
+        Ok(())
+    }
+
+    fn get_time(&self, which: EventTimes) -> cl_ulong {
+        match which {
+            EventTimes::Queued => self.time_queued.load(PROFILING_ORDERING),
+            EventTimes::Submit => self.time_submit.load(PROFILING_ORDERING),
+            EventTimes::Start => self.read_timestamp_query(0),
+            EventTimes::End => self.read_timestamp_query(8),
+        }
+    }
+
+    fn mark_queued(&self, time: cl_ulong) {
+        self.time_queued.store(time, PROFILING_ORDERING);
+    }
+}
+
 pub struct GPUEvent {
     cmd_type: cl_command_type,
     queue: Weak<Queue>,
@@ -173,14 +269,18 @@ impl Event {
         cmd_type: cl_command_type,
         deps: Vec<Arc<Event>>,
         work: EventSig,
-    ) -> Arc<Event> {
+    ) -> CLResult<Arc<Event>> {
         let profiler: Box<dyn Profiler> = if queue.is_profiling_enabled() {
-            Box::new(CPUProfiler::default())
+            if queue.device.screen().caps().query_buffer_object {
+                Box::new(GPUProfiler::new(queue.device)?)
+            } else {
+                Box::new(CPUProfiler::default())
+            }
         } else {
             Box::new(DisabledProfiler {})
         };
 
-        Arc::new(Self {
+        Ok(Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Event),
             context: Arc::clone(&queue.context),
             state: Mutex::new(EventMutState {
@@ -195,7 +295,7 @@ impl Event {
                 profiling: profiler,
             }),
             cv: Condvar::new(),
-        })
+        }))
     }
 
     pub fn new_user(context: Arc<Context>) -> Arc<Event> {
