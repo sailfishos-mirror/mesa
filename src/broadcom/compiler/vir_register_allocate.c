@@ -1576,7 +1576,9 @@ v3d_register_allocate(struct v3d_compile *c)
         };
 
         uint32_t num_temps_before_spills = c->num_temps;
-        vir_calculate_live_intervals(c);
+
+        if (!c->live_intervals_valid)
+                vir_calculate_live_intervals(c);
 
         /* Convert 1, 2, 4 threads to 0, 1, 2 index.
          *
