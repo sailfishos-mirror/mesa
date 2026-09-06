@@ -155,7 +155,7 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->uma = !sscreen->info.has_dedicated_vram;
 
    caps->context_priority_mask = sscreen->info.is_amdgpu ?
-      PIPE_CONTEXT_PRIORITY_LOW | PIPE_CONTEXT_PRIORITY_MEDIUM | PIPE_CONTEXT_PRIORITY_HIGH : 0;
+      PIPE_CONTEXT_PRIORITY_LOW | PIPE_CONTEXT_PRIORITY_MEDIUM | PIPE_CONTEXT_PRIORITY_HIGH | PIPE_CONTEXT_PRIORITY_REALTIME: 0;
 
    caps->fence_signal = sscreen->info.has_syncobj;
 
