@@ -202,9 +202,9 @@ impl Event {
         matches!(self.kind, EventImpl::UserEvent)
     }
 
-    pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
+    pub fn mark_queued(&self, value: cl_ulong) {
         match &self.kind {
-            EventImpl::GPUEvent(gpu) => gpu.set_time(which, value),
+            EventImpl::GPUEvent(gpu) => gpu.set_time(EventTimes::Queued, value),
             EventImpl::UserEvent => {}
         }
     }
