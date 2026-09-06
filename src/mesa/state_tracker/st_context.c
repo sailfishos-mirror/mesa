@@ -700,6 +700,11 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       return NULL;
    }
 
+   if (st->pipe->set_context_param &&
+       !_mesa_is_gles3(ctx) && ctx->Version < 31)
+      st->pipe->set_context_param(st->pipe,
+                                  PIPE_CONTEXT_PARAM_MAG_SWITCHOVER_HALF, 1);
+
    if (_mesa_has_compute_shaders(ctx) &&
        st->transcode_astc && !st_init_texcompress_compute(st)) {
       /* Transcoding ASTC to DXT5 using compute shaders can provide a
