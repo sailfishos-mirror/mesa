@@ -48,38 +48,94 @@ struct EventMutState {
     work: Option<EventSig>,
 }
 
+trait Profiler: Send + Sync {
+    fn profile_work(
+        &self,
+        cl_ctx: &Context,
+        ctx: &mut QueueContextWithState,
+        work: Option<EventSig>,
+    ) -> CLResult<()>;
+    fn get_time(&self, which: EventTimes) -> cl_ulong;
+    fn mark_queued(&self, time: cl_ulong);
+}
+
 #[derive(Default)]
-struct EventProfilingState {
+struct CPUProfiler {
     time_queued: AtomicU64,
     time_submit: AtomicU64,
     time_start: AtomicU64,
     time_end: AtomicU64,
 }
 
+impl CPUProfiler {
+    fn set_time(&self, which: EventTimes, value: cl_ulong) {
+        match which {
+            EventTimes::Queued => &self.time_queued.store(value, PROFILING_ORDERING),
+            EventTimes::Submit => &self.time_submit.store(value, PROFILING_ORDERING),
+            EventTimes::Start => &self.time_start.store(value, PROFILING_ORDERING),
+            EventTimes::End => &self.time_end.store(value, PROFILING_ORDERING),
+        };
+    }
+}
+
+impl Profiler for CPUProfiler {
+    fn profile_work(
+        &self,
+        cl_ctx: &Context,
+        ctx: &mut QueueContextWithState,
+        work: Option<EventSig>,
+    ) -> CLResult<()> {
+        let profiling_enabled = self.get_time(EventTimes::Queued) != 0;
+
+        if profiling_enabled {
+            self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
+        }
+        let mut query_start = None;
+        let mut query_end = None;
+
+        if let Some(w) = work {
+            if profiling_enabled {
+                query_start =
+                    PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+            }
+            w(cl_ctx, ctx)?;
+            if profiling_enabled {
+                query_end = PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
+            }
+        }
+
+        if profiling_enabled {
+            self.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
+            self.set_time(EventTimes::End, query_end.unwrap().read_blocked());
+        }
+
+        Ok(())
+    }
+
+    fn get_time(&self, which: EventTimes) -> cl_ulong {
+        match which {
+            EventTimes::Queued => self.time_queued.load(PROFILING_ORDERING),
+            EventTimes::Submit => self.time_submit.load(PROFILING_ORDERING),
+            EventTimes::Start => self.time_start.load(PROFILING_ORDERING),
+            EventTimes::End => self.time_end.load(PROFILING_ORDERING),
+        }
+    }
+
+    fn mark_queued(&self, time: cl_ulong) {
+        self.set_time(EventTimes::Queued, time);
+    }
+}
+
 pub struct GPUEvent {
     cmd_type: cl_command_type,
     queue: Weak<Queue>,
     deps: Vec<Arc<Event>>,
-    profiling: EventProfilingState,
+    profiling: Box<dyn Profiler>,
 }
 
 impl GPUEvent {
-    pub fn set_time(&self, which: EventTimes, value: cl_ulong) {
-        match which {
-            EventTimes::Queued => &self.profiling.time_queued.store(value, PROFILING_ORDERING),
-            EventTimes::Submit => &self.profiling.time_submit.store(value, PROFILING_ORDERING),
-            EventTimes::Start => &self.profiling.time_start.store(value, PROFILING_ORDERING),
-            EventTimes::End => &self.profiling.time_end.store(value, PROFILING_ORDERING),
-        };
-    }
-
     pub fn get_time(&self, which: EventTimes) -> cl_ulong {
-        match which {
-            EventTimes::Queued => self.profiling.time_queued.load(PROFILING_ORDERING),
-            EventTimes::Submit => self.profiling.time_submit.load(PROFILING_ORDERING),
-            EventTimes::Start => self.profiling.time_start.load(PROFILING_ORDERING),
-            EventTimes::End => self.profiling.time_end.load(PROFILING_ORDERING),
-        }
+        self.profiling.get_time(which)
     }
 }
 
@@ -117,7 +173,7 @@ impl Event {
                 cmd_type: cmd_type,
                 queue: Arc::downgrade(queue),
                 deps: deps,
-                profiling: Default::default(),
+                profiling: Box::new(CPUProfiler::default()),
             }),
             cv: Condvar::new(),
         })
@@ -204,7 +260,7 @@ impl Event {
 
     pub fn mark_queued(&self, value: cl_ulong) {
         match &self.kind {
-            EventImpl::GPUEvent(gpu) => gpu.set_time(EventTimes::Queued, value),
+            EventImpl::GPUEvent(gpu) => gpu.profiling.mark_queued(value),
             EventImpl::UserEvent => {}
         }
     }
@@ -248,31 +304,7 @@ impl Event {
 
     fn call_inner(&self, ctx: &mut QueueContextWithState, work: Option<EventSig>) -> CLResult<()> {
         let gpu = self.gpu_event().unwrap();
-        let profiling_enabled = gpu.get_time(EventTimes::Queued) != 0;
-
-        if profiling_enabled {
-            gpu.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
-        }
-        let mut query_start = None;
-        let mut query_end = None;
-
-        if let Some(w) = work {
-            if profiling_enabled {
-                query_start =
-                    PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-            }
-            w(&self.context, ctx)?;
-            if profiling_enabled {
-                query_end = PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx);
-            }
-        }
-
-        if profiling_enabled {
-            gpu.set_time(EventTimes::Start, query_start.unwrap().read_blocked());
-            gpu.set_time(EventTimes::End, query_end.unwrap().read_blocked());
-        }
-
-        Ok(())
+        gpu.profiling.profile_work(&self.context, ctx, work)
     }
 
     // We always assume that work here simply submits stuff to the hardware even if it's just doing
