@@ -72,7 +72,8 @@ radv_taskmesh_enabled(const struct radv_physical_device *pdev)
    if (RADV_DEBUG(instance, NO_MESH_SHADER))
       return false;
 
-   return pdev->use_ngg && !pdev->use_llvm && pdev->info.gfx_level >= GFX10_3 && radv_compute_queue_enabled(pdev);
+   return pdev->use_ngg && !pdev->use_llvm && pdev->info.gfx_level >= GFX10_3 && radv_compute_queue_enabled(pdev) &&
+          !pdev->info.has_taskmesh_indirect0_bug;
 }
 
 bool
