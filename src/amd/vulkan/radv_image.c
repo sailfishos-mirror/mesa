@@ -255,7 +255,7 @@ radv_use_dcc_for_image_early(struct radv_device *device, struct radv_image *imag
       return false;
 
    /*
-    * TODO: Enable DCC for storage images on GFX9 and earlier.
+    * Image stores never support DCC on GFX9 and earlier.
     *
     * Also disable DCC with atomics because even when DCC stores are
     * supported atomics will always decompress. So if we are
@@ -317,8 +317,6 @@ radv_use_dcc_for_image_late(struct radv_device *device, struct radv_image *image
    if (!radv_image_use_fast_clear_for_image(device, image))
       return false;
 
-   /* TODO: Fix storage images with DCC without DCC image stores.
-    * Disabling it for now. */
    if ((image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) && !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
