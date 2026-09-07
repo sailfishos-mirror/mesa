@@ -366,7 +366,18 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       unsigned cb_db_event, tc_flags;
 
       /* Set the CB/DB flush event. */
-      cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+      switch (flush_cb_db) {
+      case RADV_CMD_FLAG_FLUSH_AND_INV_CB:
+         cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
+         break;
+      case RADV_CMD_FLAG_FLUSH_AND_INV_DB:
+         cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
+         break;
+      default:
+         /* both CB & DB */
+         cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+         break;
+      }
 
       /* These are the only allowed combinations. If you need to
        * do multiple operations at once, do them separately.
