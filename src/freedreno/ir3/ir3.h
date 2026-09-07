@@ -3427,4 +3427,7 @@ unsigned ir3_required_delay(struct ir3_legalize_state *state,
                             struct ir3_compiler *compiler,
                             struct ir3_instruction *instr);
 
+bool ir3_prefetch_sam_needs_helpers(struct ir3_compiler *compiler,
+                                    struct ir3_instruction *sam);
+
 #endif /* IR3_H_ */

@@ -3478,6 +3478,12 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 
       make_dst_dummy(sam);
       array_insert(ctx->block, ctx->block->keeps, sam);
+
+      if (ctx->so->type == MESA_SHADER_FRAGMENT &&
+          ir3_prefetch_sam_needs_helpers(ctx->compiler, sam)) {
+         ctx->so->need_pixlod = true;
+      }
+
       break;
    }
    case nir_intrinsic_prefetch_tex_ir3: {

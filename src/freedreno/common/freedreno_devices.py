@@ -844,6 +844,7 @@ a7xx_base = GPUProps(
 
         alias_mova_quirk = True,
         alias_predication_quirk = True,
+        prefetch_sam_helpers_quirk = True,
     )
 
 a7xx_gen1 = GPUProps(
