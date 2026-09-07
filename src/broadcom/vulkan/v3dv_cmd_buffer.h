@@ -676,6 +676,7 @@ struct v3dv_cmd_buffer {
 
    /* For vulkan perfetto render stages */
    struct u_trace trace;
+   struct v3dv_job trace_marker_job;
 
    /* Bitmask of v3dv_queue_type this cmd_buffer submitted jobs to, tracked
     * for the cmdbuf trace marker's end-timestamp to wait on all of them.

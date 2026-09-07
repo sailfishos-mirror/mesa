@@ -96,6 +96,11 @@ cmd_buffer_init(struct v3dv_cmd_buffer *cmd_buffer,
    cmd_buffer->state.subpass_idx = -1;
    cmd_buffer->state.meta.subpass_idx = -1;
 
+   /* A job type -1 is how we tell perfetto that this is not a real job
+    * and we are instead tracking the entire command buffer.
+    */
+   cmd_buffer->trace_marker_job.type = -1;
+   cmd_buffer->trace_marker_job.cmd_buffer = cmd_buffer;
    cmd_buffer->trace_queue_mask = 0;
 
    cmd_buffer->status = V3DV_CMD_BUFFER_STATUS_INITIALIZED;

@@ -26,6 +26,7 @@
 #include "v3dv_cmd_buffer.h"
 #include "v3dv_image.h"
 #include "v3dv_entrypoints.h"
+#include "v3dv_tracepoints.h"
 #include "v3dv_version_dispatch.h"
 #include <xf86drm.h>
 
@@ -984,30 +985,61 @@ queue_handle_job(struct v3dv_queue *queue,
    }
 
    job->queue = queue;
+   struct u_trace *trace = job->cmd_buffer ? &job->cmd_buffer->trace : NULL;
+   VkResult result;
+
    switch (job->type) {
    case V3DV_JOB_TYPE_GPU_CL:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CL;
-      return handle_cl_job(queue, job, counter_pass_idx, sync_info);
+      trace_begin_job_cl(trace, job);
+      result = handle_cl_job(queue, job, counter_pass_idx, sync_info);
+      trace_end_job_cl(trace, job, job->id, job->serialize,
+                       job->draw_count, job->tmu_dirty_rcl);
+      return result;
    case V3DV_JOB_TYPE_GPU_TFU:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_TFU;
-      return handle_tfu_job(queue, job, sync_info);
+      trace_begin_job_tfu(trace, job);
+      result = handle_tfu_job(queue, job, sync_info);
+      trace_end_job_tfu(trace, job, job->id, job->serialize);
+      return result;
    case V3DV_JOB_TYPE_GPU_CSD:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CSD;
-      return handle_csd_job(queue, job, counter_pass_idx, sync_info);
+      trace_begin_job_csd(trace, job);
+      result = handle_csd_job(queue, job, counter_pass_idx, sync_info);
+      trace_end_job_csd(trace, job, job->id, job->serialize,
+                        job->csd.submit.cfg[1],   /* wg_x */
+                        job->csd.submit.cfg[2],   /* wg_y */
+                        job->csd.submit.cfg[3]);  /* wg_z */
+      return result;
    case V3DV_JOB_TYPE_CPU_RESET_QUERIES:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
-      return handle_reset_query_cpu_job(queue, job, sync_info);
+      trace_begin_job_cpu_reset_queries(trace, job);
+      result = handle_reset_query_cpu_job(queue, job, sync_info);
+      trace_end_job_cpu_reset_queries(trace, job, job->id, job->serialize);
+      return result;
    case V3DV_JOB_TYPE_CPU_END_QUERY:
+      /* V3DV_JOB_TYPE_END_QUERY doesn't involve any submission to the kernel,
+       * so we don't trace it.
+       */
       return handle_end_query_cpu_job(queue, job, counter_pass_idx);
    case V3DV_JOB_TYPE_CPU_COPY_QUERY_RESULTS:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
-      return handle_copy_query_results_cpu_job(queue, job, sync_info);
+      trace_begin_job_cpu_copy_query_results(trace, job);
+      result = handle_copy_query_results_cpu_job(queue, job, sync_info);
+      trace_end_job_cpu_copy_query_results(trace, job, job->id, job->serialize);
+      return result;
    case V3DV_JOB_TYPE_CPU_CSD_INDIRECT:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
-      return handle_csd_indirect_cpu_job(queue, job, sync_info);
+      trace_begin_job_cpu_csd_indirect(trace, job);
+      result = handle_csd_indirect_cpu_job(queue, job, sync_info);
+      trace_end_job_cpu_csd_indirect(trace, job, job->id, job->serialize);
+      return result;
    case V3DV_JOB_TYPE_CPU_TIMESTAMP_QUERY:
       job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
-      return handle_timestamp_query_cpu_job(queue, job, sync_info);
+      trace_begin_job_cpu_timestamp_query(trace, job);
+      result = handle_timestamp_query_cpu_job(queue, job, sync_info);
+      trace_end_job_cpu_timestamp_query(trace, job, job->id, job->serialize);
+      return result;
    default:
       UNREACHABLE("Unhandled job type");
    }
@@ -1104,6 +1136,8 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
    for (uint32_t i = 0; i < submit->command_buffer_count; i++) {
       struct v3dv_cmd_buffer *cmd_buffer =
          container_of(submit->command_buffers[i], struct v3dv_cmd_buffer, vk);
+      cmd_buffer->trace_marker_job.queue = queue;
+      trace_begin_cmdbuf(&cmd_buffer->trace, &cmd_buffer->trace_marker_job);
       list_for_each_entry_safe(struct v3dv_job, job,
                                &cmd_buffer->jobs, list_link) {
          if (job->suspending) {
@@ -1145,6 +1179,9 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
             first_suspend_job = NULL;
          }
       }
+
+      trace_end_cmdbuf(&cmd_buffer->trace, &cmd_buffer->trace_marker_job,
+                       cmd_buffer->usage_flags);
 
       /* If the command buffer ends with a barrier, save the pending barrier
        * state so we can apply it on the next command buffer.
