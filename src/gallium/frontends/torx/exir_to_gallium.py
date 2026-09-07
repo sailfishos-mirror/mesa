@@ -202,13 +202,14 @@ def fill_tensor(tensor: torch._subclasses.fake_tensor.FakeTensor, ptensor: galli
     else:
         ptensor.type_size = tensor.element_size()
 
-    for i in range(4):
-        if tensor.ndim == 4:
-            ptensor.dims[i] = tensor.shape[translation[i]]
-        elif i < tensor.ndim:
-            ptensor.dims[i] = tensor.shape[i]
-        else:
-            ptensor.dims[i] = 1
+    # A rank-4 tensor is stored NHWC; one below rank 4 keeps its logical
+    # order and sits in the trailing entries of the four dims.
+    if tensor.ndim == 4:
+        storage = [tensor.shape[axis] for axis in translation]
+    else:
+        storage = list(tensor.shape)
+    assert len(storage) <= 4
+    ptensor.dims[:] = [1] * (4 - len(storage)) + storage
 
 def _set_tensor_data(graph: GalliumGraph, ptensor: gallium.pipe_tensor, data: torch.Tensor):
     """Point ptensor.data at the tensor's storage, which the graph owns."""
