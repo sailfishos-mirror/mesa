@@ -118,6 +118,7 @@ typedef struct {
 typedef struct {
    ac_cs_blit_key shader_key;
    uint32_t user_data[8];        /* for nir_intrinsic_load_user_data_amd */
+   unsigned num_user_data_terms;
 
    unsigned wg_size[3];          /* variable workgroup size (NUM_THREAD_FULL) */
    unsigned last_wg_size[3];     /* workgroup size of the last workgroup (NUM_THREAD_PARTIAL) */

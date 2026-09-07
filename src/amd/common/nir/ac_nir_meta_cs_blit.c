@@ -150,6 +150,12 @@ apply_blit_output_modifiers(nir_builder *b, nir_def *color,
    return color;
 }
 
+static unsigned
+get_num_user_data_terms(const ac_cs_blit_key *key)
+{
+   return key->is_clear ? (key->d16 ? 6 : 8) : key->has_start_xyz ? 4 : 3;
+}
+
 /* The compute blit shader.
  *
  * Implementation details:
@@ -213,8 +219,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       BITSET_SET(b.shader->info.msaa_images, image_dst_index);
    /* The workgroup size varies depending on the tiling layout and blit dimensions. */
    b.shader->info.workgroup_size_variable = true;
-   b.shader->info.cs.user_data_components_amd =
-      key->is_clear ? (key->d16 ? 6 : 8) : key->has_start_xyz ? 4 : 3;
+   b.shader->info.cs.user_data_components_amd = get_num_user_data_terms(key);
 
    const struct glsl_type *img_type[2] = {
       glsl_image_type(key->src_is_1d ? GLSL_SAMPLER_DIM_1D :
@@ -1270,5 +1275,6 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       }
    }
 
+   dispatch->num_user_data_terms = get_num_user_data_terms(&dispatch->shader_key);
    return true;
 }
