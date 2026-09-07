@@ -33,6 +33,7 @@
 #include "vk_command_pool.h"
 #include "vk_sync.h"
 #include "util/set.h"
+#include "util/perf/u_trace.h"
 
 struct v3dv_buffer;
 struct v3dv_descriptor_set;
@@ -672,6 +673,9 @@ struct v3dv_cmd_buffer {
     * buffer via vkCmdExecuteCommands.
     */
    struct list_head jobs;
+
+   /* For vulkan perfetto render stages */
+   struct u_trace trace;
 
    /* Bitmask of v3dv_queue_type this cmd_buffer submitted jobs to, tracked
     * for the cmdbuf trace marker's end-timestamp to wait on all of them.

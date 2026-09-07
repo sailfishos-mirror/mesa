@@ -38,6 +38,7 @@
 #include "wsi_common.h"
 #include "util/sparse_array.h"
 #include "v3dv_drirc.h"
+#include "util/perf/u_trace.h"
 
 struct v3dv_event;
 struct v3dv_format;
@@ -385,6 +386,13 @@ struct v3dv_device {
    struct util_dynarray device_address_bo_list; /* Array of struct v3dv_bo * */
 
    uint32_t job_id_counter;
+
+   struct {
+      struct u_trace_context utrace_ctx;
+      /* Intended to protect concurrent access to u_trace_context during queue
+       * submission when multiple queues are used */
+      mtx_t process_mutex;
+   } utrace;
 };
 
 struct v3dv_device_memory {

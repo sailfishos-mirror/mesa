@@ -33,6 +33,7 @@
 #include "broadcom/common/v3d_submit_util.h"
 #include "util/libsync.h"
 #include "util/perf/cpu_trace.h"
+#include "util/perf/u_trace.h"
 #include "vulkan/vulkan_core.h"
 #include "vk_drm_syncobj.h"
 
@@ -1082,6 +1083,20 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
    for (int i = 0; i < V3DV_QUEUE_COUNT; i++)
       queue->last_job_syncs.first[i] = true;
 
+   /* Reset every cmd_buffer's trace up front. Trace events for a job may
+    * be recorded against a different cmd_buffer than the one currently
+    * being walked below (see the suspend/resume handling), so all traces
+    * must be ready to receive events before any job is submitted.
+    */
+   for (uint32_t i = 0; i < submit->command_buffer_count; i++) {
+      struct v3dv_cmd_buffer *cmd_buffer =
+         container_of(submit->command_buffers[i], struct v3dv_cmd_buffer, vk);
+
+      u_trace_fini(&cmd_buffer->trace);
+      u_trace_init(&cmd_buffer->trace, &queue->device->utrace.utrace_ctx);
+
+      cmd_buffer->trace_queue_mask = 0;
+   }
    struct v3dv_barrier_state pending_barrier = { 0 };
    struct v3dv_job *first_suspend_job = NULL;
    struct v3dv_job *current_suspend_job = NULL;
@@ -1139,6 +1154,22 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
 
    assert(!first_suspend_job);
    assert(!current_suspend_job);
+
+   /* Now that every chain is fully resolved, regardless of which cmd_buffer(s)
+    * it spanned, it is safe to flush all traces.
+    */
+   for (uint32_t i = 0; i < submit->command_buffer_count; i++) {
+      struct v3dv_cmd_buffer *cmd_buffer =
+         container_of(submit->command_buffers[i], struct v3dv_cmd_buffer, vk);
+      mtx_lock(&queue->device->utrace.process_mutex);
+      u_trace_flush(&cmd_buffer->trace, queue->device,
+                    queue->device->vk.current_frame, false);
+      mtx_unlock(&queue->device->utrace.process_mutex);
+   }
+
+   mtx_lock(&queue->device->utrace.process_mutex);
+   u_trace_context_process(&queue->device->utrace.utrace_ctx, false /* eof */);
+   mtx_unlock(&queue->device->utrace.process_mutex);
 
    /* Handle signaling now */
    if (submit->signal_count > 0) {

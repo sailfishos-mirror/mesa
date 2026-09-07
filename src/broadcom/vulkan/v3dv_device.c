@@ -41,6 +41,7 @@
 #include "v3dv_cmd_buffer.h"
 #include "v3dv_image.h"
 #include "v3dv_entrypoints.h"
+#include "v3dv_utrace.h"
 #include "v3dv_version_dispatch.h"
 
 #include "vk_android.h"
@@ -2124,6 +2125,7 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
       goto fail;
 
    *pDevice = v3dv_device_to_handle(device);
+   v3dv_utrace_context_init(device);
 
    return VK_SUCCESS;
 
@@ -2160,6 +2162,7 @@ v3dv_DestroyDevice(VkDevice _device,
 {
    V3DV_FROM_HANDLE(v3dv_device, device, _device);
 
+   v3dv_utrace_context_fini(device);
    device->vk.dispatch_table.DeviceWaitIdle(_device);
    for (uint32_t i = 0; i < device->queue_count; i++)
       queue_finish(&device->queues[i]);

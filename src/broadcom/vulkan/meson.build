@@ -58,6 +58,7 @@ libv3dv_files = files(
   'v3dv_query.h',
   'v3dv_queue.c',
   'v3dv_uniforms.c',
+  'v3dv_utrace.c',
   'v3dv_version_dispatch.h',
   'v3dv_wsi.c',
 ) + [v3d_xml_pack]

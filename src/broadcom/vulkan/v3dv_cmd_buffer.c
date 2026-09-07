@@ -129,6 +129,7 @@ cmd_buffer_create(struct vk_command_pool *pool, VkCommandBufferLevel level,
    }
 
    cmd_buffer_init(cmd_buffer, device);
+   u_trace_init(&cmd_buffer->trace, &device->utrace.utrace_ctx);
 
    *cmd_buffer_out = &cmd_buffer->vk;
 
@@ -317,6 +318,7 @@ cmd_buffer_destroy(struct vk_command_buffer *vk_cmd_buffer)
    struct v3dv_cmd_buffer *cmd_buffer =
       container_of(vk_cmd_buffer, struct v3dv_cmd_buffer, vk);
 
+   u_trace_fini(&cmd_buffer->trace);
    cmd_buffer_free_resources(cmd_buffer);
    vk_command_buffer_finish(&cmd_buffer->vk);
    vk_free(&cmd_buffer->vk.pool->alloc, cmd_buffer);
@@ -925,10 +927,13 @@ cmd_buffer_reset(struct vk_command_buffer *vk_cmd_buffer,
       /* FIXME: For now we always free all resources as if
        * VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT was set.
        */
-      if (cmd_buffer->status != V3DV_CMD_BUFFER_STATUS_NEW)
+      if (cmd_buffer->status != V3DV_CMD_BUFFER_STATUS_NEW) {
+         u_trace_fini(&cmd_buffer->trace);
          cmd_buffer_free_resources(cmd_buffer);
+      }
 
       cmd_buffer_init(cmd_buffer, device);
+      u_trace_init(&cmd_buffer->trace, &device->utrace.utrace_ctx);
    }
 
    assert(cmd_buffer->status == V3DV_CMD_BUFFER_STATUS_INITIALIZED);
