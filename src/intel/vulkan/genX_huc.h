@@ -418,7 +418,7 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
       ind.HUCIndirectStreamInObjectAddress =
          anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
 
-      ind.HUCIndirectStreamInObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      ind.HUCIndirectStreamInObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(device, src_buffer->address.bo, 0),
       };
 
@@ -426,7 +426,7 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
          anv_address_add(src_buffer->address,
                          align64(frame_info->srcBufferRange + frame_info->srcBufferOffset, 4096));
 
-      ind.HUCIndirectStreamOutObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      ind.HUCIndirectStreamOutObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(device, NULL, 0),
       };
    }
@@ -434,13 +434,13 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
    anv_batch_emit(&cmd_buffer->batch, GENX(HUC_VIRTUAL_ADDR_STATE), va) {
       va.HUCVirtualAddressRegion[0] = (struct GENX(HUC_VIRTUAL_ADDR_REGION)) {
          .Address = second_bb_addr,
-         .MemoryAddressAttributes = {
+         .AddressAttributes = {
             .MOCS = anv_mocs(device, second_bb_addr.bo, 0),
          },
       };
 
       for (unsigned i = 1; i < 16; i++) {
-         va.HUCVirtualAddressRegion[i].MemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+         va.HUCVirtualAddressRegion[i].AddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
             .MOCS = anv_mocs(device, NULL, 0),
          };
       }
@@ -448,7 +448,7 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HUC_DMEM_STATE), dmem) {
       dmem.HUCDataSourceAddress = dmem_addr;
-      dmem.HUCDataSourceMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      dmem.HUCDataSourceAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(device, dmem_addr.bo, 0),
       };
       dmem.HUCDataDestinationAddress = (struct anv_address) {
@@ -560,7 +560,7 @@ anv_huc_emit_copy(struct anv_cmd_buffer *cmd_buffer,
    anv_batch_emit(&cmd_buffer->batch, GENX(HUC_IND_OBJ_BASE_ADDR_STATE), ind) {
       ind.HUCIndirectStreamInObjectAddress = src_base;
 
-      ind.HUCIndirectStreamInObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      ind.HUCIndirectStreamInObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(device, src_base.bo, 0),
       };
 
@@ -569,7 +569,7 @@ anv_huc_emit_copy(struct anv_cmd_buffer *cmd_buffer,
 
       ind.HUCIndirectStreamOutObjectAddress = dst_base;
 
-      ind.HUCIndirectStreamOutObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      ind.HUCIndirectStreamOutObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(device, dst_base.bo, 0),
       };
 

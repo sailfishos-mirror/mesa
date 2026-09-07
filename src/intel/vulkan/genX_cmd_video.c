@@ -301,7 +301,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
       buf.DecodedPictureAddress =
          anv_image_dpb_address(iv, frame_info->dstPictureResource.baseArrayLayer);
 
-      buf.DecodedPictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DecodedPictureAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DecodedPictureAddress.bo, 0),
 #if GFX_VERx10 >= 125
          .TiledResourceMode = TRMODE_TILEF,
@@ -313,7 +313,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_LINE].offset
       };
 
-      buf.DeblockingFilterLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterLineBufferAddress.bo, 0),
       };
 
@@ -322,7 +322,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].offset
       };
 
-      buf.DeblockingFilterTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileLineBufferAddress.bo, 0),
       };
 
@@ -331,7 +331,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].offset
       };
 
-      buf.DeblockingFilterTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileColumnBufferAddress.bo, 0),
       };
 
@@ -340,7 +340,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_METADATA_LINE].offset
       };
 
-      buf.MetadataLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataLineBufferAddress.bo, 0),
       };
 
@@ -349,7 +349,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_LINE].offset
       };
 
-      buf.MetadataTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileLineBufferAddress.bo, 0),
       };
 
@@ -358,7 +358,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_COLUMN].offset
       };
 
-      buf.MetadataTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileColumnBufferAddress.bo, 0),
       };
 
@@ -367,7 +367,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_SAO_LINE].offset
       };
 
-      buf.SAOLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.SAOLineBufferAddress.bo, 0),
       };
 
@@ -376,7 +376,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_LINE].offset
       };
 
-      buf.SAOTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.SAOTileLineBufferAddress.bo, 0),
       };
 
@@ -385,14 +385,14 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_COLUMN].offset
       };
 
-      buf.SAOTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.SAOTileColumnBufferAddress.bo, 0),
       };
 
       buf.CurrentMVTemporalBufferAddress =
          anv_image_dmv_top_address(iv, frame_info->dstPictureResource.baseArrayLayer);
 
-      buf.CurrentMVTemporalBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.CurrentMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.CurrentMVTemporalBufferAddress.bo, 0),
       };
 
@@ -411,26 +411,26 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
             anv_image_dpb_address(ref_iv, frame_info->pReferenceSlots[i].pPictureResource->baseArrayLayer);
       }
 
-      buf.ReferencePictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.ReferencePictureAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
 #if GFX_VERx10 >= 125
          .TiledResourceMode = TRMODE_TILEF,
 #endif
       };
 
-      buf.OriginalUncompressedPictureSourceMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.OriginalUncompressedPictureSourceAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.StreamOutDataDestinationMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.StreamOutDataDestinationAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.DecodedPictureStatusBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DecodedPictureStatusBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.LCUILDBStreamOutBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.LCUILDBStreamOutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
@@ -442,48 +442,48 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
             anv_image_dmv_top_address(ref_iv, frame_info->pReferenceSlots[i].pPictureResource->baseArrayLayer);
       }
 
-      buf.CollocatedMVTemporalBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.CollocatedMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.CollocatedMVTemporalBufferAddress[0].bo, 0),
       };
 
-      buf.VP9ProbabilityBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9ProbabilityBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.VP9SegmentIDBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9SegmentIDBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.VP9HVDLineRowStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9HVDLineRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.VP9HVDTileRowStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9HVDTileRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 #if GFX_VER >= 11
-      buf.SAOStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.FrameStatisticsStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.SSESourcePixelRowStoreBufferMemoryAddressAttributesReadWrite = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SSESourcePixelRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.HCPScalabilitySliceStateBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.HCPScalabilitySliceStateBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.MVUpperRightColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MVUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.IntraPredictionUpperRightColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.IntraPredictionLeftReconColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 #endif
@@ -493,7 +493,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
       indirect.HCPIndirectBitstreamObjectBaseAddress =
          anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
 
-      indirect.HCPIndirectBitstreamObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
       };
 
@@ -501,28 +501,28 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          anv_address_add(src_buffer->address,
                          align64(frame_info->srcBufferRange + frame_info->srcBufferOffset, 4096));
 
-      indirect.HCPIndirectCUObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPIndirectCUObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      indirect.HCPPAKBSEObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPPAKBSEObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
 #if GFX_VER >= 11
-      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKProbabilityCounterStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKProbabilityDeltasStreamInMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKTileRecordStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKCULevelStatisticStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 #endif
@@ -3630,7 +3630,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_PIPE_BUF_ADDR_STATE), buf) {
       buf.DecodedPictureAddress = anv_image_dpb_address(iv, array_layer);
 
-      buf.DecodedPictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DecodedPictureAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DecodedPictureAddress.bo, 0),
 #if GFX_VERx10 >= 125
          .TiledResourceMode = TRMODE_TILEF,
@@ -3642,7 +3642,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_LINE].offset
       };
 
-      buf.DeblockingFilterLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterLineBufferAddress.bo, 0),
       };
 
@@ -3651,7 +3651,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].offset
       };
 
-      buf.DeblockingFilterTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileLineBufferAddress.bo, 0),
       };
 
@@ -3660,7 +3660,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].offset
       };
 
-      buf.DeblockingFilterTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DeblockingFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileColumnBufferAddress.bo, 0),
       };
 
@@ -3669,7 +3669,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_METADATA_LINE].offset
       };
 
-      buf.MetadataLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataLineBufferAddress.bo, 0),
       };
 
@@ -3678,7 +3678,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_LINE].offset
       };
 
-      buf.MetadataTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileLineBufferAddress.bo, 0),
       };
 
@@ -3687,19 +3687,19 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_COLUMN].offset
       };
 
-      buf.MetadataTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MetadataTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileColumnBufferAddress.bo, 0),
       };
 
-      buf.SAOLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.SAOTileLineBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.SAOTileColumnBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
@@ -3710,7 +3710,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          };
       }
 
-      buf.CurrentMVTemporalBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.CurrentMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device,
                           vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo, 0),
       };
@@ -3729,26 +3729,26 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          }
       }
 
-      buf.ReferencePictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.ReferencePictureAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
 #if GFX_VERx10 >= 125
          .TiledResourceMode = TRMODE_TILEF,
 #endif
       };
 
-      buf.OriginalUncompressedPictureSourceMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.OriginalUncompressedPictureSourceAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.StreamOutDataDestinationMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.StreamOutDataDestinationAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.DecodedPictureStatusBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.DecodedPictureStatusBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      buf.LCUILDBStreamOutBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.LCUILDBStreamOutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
@@ -3759,7 +3759,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          };
       }
 
-      buf.CollocatedMVTemporalBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.CollocatedMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.CollocatedMVTemporalBufferAddress[0].bo, 0),
       };
 
@@ -3768,7 +3768,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[prob_id].offset
       };
 
-      buf.VP9ProbabilityBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9ProbabilityBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.VP9ProbabilityBufferAddress.bo, 0),
       };
 
@@ -3777,7 +3777,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].offset
       };
 
-      buf.VP9SegmentIDBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9SegmentIDBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
@@ -3786,7 +3786,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE].offset
       };
 
-      buf.VP9HVDLineRowStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9HVDLineRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.VP9HVDLineRowStoreBufferAddress.bo, 0),
       };
 
@@ -3795,33 +3795,33 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          vid->vid_mem[ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE].offset
       };
 
-      buf.VP9HVDTileRowStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.VP9HVDTileRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.VP9HVDTileRowStoreBufferAddress.bo, 0),
       };
 
 #if GFX_VER >= 11
-      buf.SAOStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SAOStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.FrameStatisticsStreamOutDataDestinationBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.SSESourcePixelRowStoreBufferMemoryAddressAttributesReadWrite = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.SSESourcePixelRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.HCPScalabilitySliceStateBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.HCPScalabilitySliceStateBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.MVUpperRightColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.MVUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.IntraPredictionUpperRightColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      buf.IntraPredictionLeftReconColumnStoreBufferMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 #endif
@@ -3831,32 +3831,32 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       indirect.HCPIndirectBitstreamObjectBaseAddress =
          anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
 
-      indirect.HCPIndirectBitstreamObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
       };
 
-      indirect.HCPIndirectCUObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPIndirectCUObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
-      indirect.HCPPAKBSEObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPPAKBSEObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 
 #if GFX_VER >= 11
-      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKProbabilityCounterStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKProbabilityDeltasStreamInMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKTileRecordStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
-      indirect.HCPVP9PAKCULevelStatisticStreamOutMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
+      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
       };
 #endif
