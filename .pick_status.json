@@ -844,7 +844,7 @@
         "description": "nir/lower_input_attachments: add support for heap subpass image load",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "247afa047e11afcbb4d37fe660982b66e2d1d28b",
         "notes": null
