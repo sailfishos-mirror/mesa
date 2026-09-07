@@ -119,6 +119,10 @@ def declare_options():
         B("tu_enable_ssbo_emulation", False,
           "Emulate SSBOs to allow a higher limit for elements that is in line with what some D3D12 games expect",
           c_name="enable_ssbo_emulation"),
+
+        B("tu_disable_conservative_fdm_binning", False,
+          "Don't enable conservative rasterization during binning of a renderpass with FDM, for non-identity FDM tiles may result in tiny see-through gaps in the geometry in places with dense geometry. Improves performance up to 4% on A7XX.",
+          c_name="disable_conservative_fdm_binning"),
     ]
 
     features_options = []

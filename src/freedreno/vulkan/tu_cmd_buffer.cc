@@ -974,6 +974,7 @@ struct tu_bin_size_params {
    enum a6xx_buffers_location buffers_location;
    enum a6xx_lrz_feedback_mask lrz_feedback_zmode_mask;
    bool force_lrz_dis;
+   bool cons_vis_in_binning;
 };
 
 template <chip CHIP>
@@ -990,7 +991,8 @@ tu6_emit_bin_size(struct tu_cs *cs,
                                  .force_lrz_write_dis = p.force_lrz_write_dis,
                                  .buffers_location = p.buffers_location,
                                  .lrz_feedback_zmode_mask = p.lrz_feedback_zmode_mask,
-                                 .force_lrz_dis = p.force_lrz_dis));
+                                 .force_lrz_dis = p.force_lrz_dis,
+                                 .cons_vis_in_binning = p.cons_vis_in_binning, ));
 
    tu_cs_emit_regs(cs, RB_CNTL(CHIP,
                         .binw = bin_w,
@@ -2791,6 +2793,16 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    tu_cs_emit(cs, CP_SET_DRAW_STATE__1_ADDR_LO(0));
    tu_cs_emit(cs, CP_SET_DRAW_STATE__2_ADDR_HI(0));
 
+   if (cmd->fdm_bin_patchpoints.size != 0) {
+      /* TU_DYNAMIC_STATE_RAST has CP_COND_REG_EXEC_0_BINNING when pipeline supports FDM */
+      tu_cs_emit_pkt7(cs, CP_SET_DRAW_STATE, 3);
+      tu_cs_emit(cs, CP_SET_DRAW_STATE__0_COUNT(0) |
+                        CP_SET_DRAW_STATE__0_DISABLE |
+                        CP_SET_DRAW_STATE__0_GROUP_ID(TU_DRAW_STATE_DYNAMIC + TU_DYNAMIC_STATE_RAST));
+      tu_cs_emit(cs, CP_SET_DRAW_STATE__1_ADDR_LO(0));
+      tu_cs_emit(cs, CP_SET_DRAW_STATE__2_ADDR_HI(0));
+   }
+
    tu_emit_event_write<CHIP>(cmd, cs, FD_VSC_BINNING_END);
 
    /* This flush is probably required because the VSC, which produces the
@@ -3650,7 +3662,9 @@ tu6_tile_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
                                  .lrz_feedback_zmode_mask =
                                     phys_dev->info->props.has_lrz_feedback
                                        ? LRZ_FEEDBACK_EARLY_Z_LATE_Z
-                                       : LRZ_FEEDBACK_NONE
+                                       : LRZ_FEEDBACK_NONE,
+                                 .cons_vis_in_binning = pass->has_fdm &&
+                                    !cmd->device->instance->drirc.misc.disable_conservative_fdm_binning,
                               });
 
       tu6_emit_render_cntl<CHIP>(cmd, cmd->state.subpass, cs, true);
