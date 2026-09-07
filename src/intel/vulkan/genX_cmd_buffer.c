@@ -4885,7 +4885,7 @@ anv_pipe_invalidate_bits_for_access_flags(struct anv_cmd_buffer *cmd_buffer,
           * command streamer stall so that all the cache flushes have
           * completed before the command streamer loads from memory.
           */
-         pipe_bits |=  ANV_PIPE_CS_STALL_BIT;
+         pipe_bits |= ANV_PIPE_CS_STALL_BIT;
          if (device->info->ver == 9) {
             /* Indirect draw commands on Gfx9 also set gl_BaseVertex &
              * gl_BaseIndex through a vertex buffer, so invalidate that cache.
@@ -4896,11 +4896,13 @@ anv_pipe_invalidate_bits_for_access_flags(struct anv_cmd_buffer *cmd_buffer,
           * an A64 message, so we need to invalidate constant cache.
           */
          pipe_bits |= ANV_PIPE_CONSTANT_CACHE_INVALIDATE_BIT;
-         /* Tile & Data cache flush needed For Cmd*Indirect* commands since
-          * command streamer is not L3 coherent.
-          */
-         pipe_bits |= ANV_PIPE_DATA_CACHE_FLUSH_BIT |
-                      ANV_PIPE_TILE_CACHE_FLUSH_BIT;
+         if (!ANV_DEVINFO_HAS_COHERENT_L3_CS(device->info)) {
+            /* Tile & Data cache flush needed For Cmd*Indirect* commands since
+             * command streamer is not L3 coherent.
+             */
+            pipe_bits |= ANV_PIPE_DATA_CACHE_FLUSH_BIT |
+                         ANV_PIPE_TILE_CACHE_FLUSH_BIT;
+         }
          break;
       case VK_ACCESS_2_INDEX_READ_BIT:
       case VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT:
