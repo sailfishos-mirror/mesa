@@ -3321,6 +3321,10 @@ impl ShiftOp {
     pub fn is_none(&self) -> bool {
         matches!(self, ShiftOp::None)
     }
+
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -3346,6 +3350,10 @@ impl fmt::Display for LogicOp {
 impl LogicOp {
     pub fn is_none(&self) -> bool {
         matches!(self, LogicOp::None)
+    }
+
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
     }
 }
 
@@ -3378,13 +3386,14 @@ impl DisplayOp for OpShiftLop {
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            " {} {} {}",
-            self.fmt_src(&self.src0),
-            self.fmt_src(&self.shift),
-            self.fmt_src(&self.src2),
-        )
+        write!(f, " {}", self.fmt_src(&self.src0))?;
+        if self.shift_op.is_some() {
+            write!(f, " {}", self.fmt_src(&self.shift))?;
+        }
+        if self.logic_op.is_some() {
+            write!(f, " {}", self.fmt_src(&self.src2))?;
+        }
+        Ok(())
     }
 }
 
