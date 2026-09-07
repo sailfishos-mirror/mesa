@@ -274,17 +274,6 @@ CDX12EncHMFT::UpdateAV1EncPictureDesc( pipe_av1_enc_picture_desc *pPicInfo,
 
    pPicInfo->requested_metadata = m_EncoderCapabilities.m_HWSupportedMetadataFlags;
 
-   pPicInfo->metadata_flags.hdr_cll = 0;
-   pPicInfo->metadata_flags.hdr_mdcv = 0;
-
-   pPicInfo->metadata_hdr_cll.max_cll = 0;
-   pPicInfo->metadata_hdr_cll.max_fall = 0;
-
-   pPicInfo->metadata_hdr_mdcv.white_point_chromaticity_x = 0;
-   pPicInfo->metadata_hdr_mdcv.white_point_chromaticity_y = 0;
-   pPicInfo->metadata_hdr_mdcv.luminance_max = 0;
-   pPicInfo->metadata_hdr_mdcv.luminance_min = 0;
-
    pPicInfo->dpb_size = 0;
    pPicInfo->dpb_curr_pic = 0;
 
