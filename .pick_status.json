@@ -9564,7 +9564,7 @@
         "description": "intel/i915: fix I915_PARAM_HAS_CONTEXT_FREQ_HINT check and low latency param value",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
