@@ -86,7 +86,6 @@ vlVaBeginPicture(VADriverContextP ctx, VAContextID context_id, VASurfaceID rende
    if (context->templat.entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) {
       switch (u_reduce_video_profile(context->templat.profile)) {
          case PIPE_VIDEO_FORMAT_AV1:
-            context->desc.av1enc.metadata_flags.value = 0;
             context->desc.av1enc.roi.num = 0;
             context->desc.av1enc.intra_refresh.mode = INTRA_REFRESH_MODE_NONE;
             break;
