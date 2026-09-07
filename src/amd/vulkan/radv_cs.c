@@ -145,7 +145,8 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
          ac_emit_cp_release_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, gcr_cntl & C_587_GLI_INV);
 
          /* Wait for the event and invalidate remaining caches if needed. */
-         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event, V_581B_CP_PFP, 0,
+         ac_emit_cp_acquire_mem_pws(cs->b, gfx_level, cs->hw_ip, cb_db_event,
+                                    flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME, 0,
                                     gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
 
          gcr_cntl = 0; /* all done */
@@ -232,7 +233,9 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
    /* Ignore fields that only modify the behavior of other fields. */
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
-      radv_cp_acquire_mem(cs, gfx_level, gcr_cntl, V_581A_PREFETCH_PARSER, sqtt_flush_bits);
+      radv_cp_acquire_mem(cs, gfx_level, gcr_cntl,
+                          flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE,
+                          sqtt_flush_bits);
    } else if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME && !is_mec) {
       /* We need to ensure that PFP waits as well. */
       ac_emit_cp_pfp_sync_me(cs->b, false);
@@ -435,10 +438,8 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
     * cp_coher_cntl should contain everything except TC flags at this point.
     *
     * GFX6-GFX7 don't support L2 write-back.
-    *
-    * TODO: Use ME when possible.
     */
-   const unsigned engine = V_581A_PREFETCH_PARSER;
+   const unsigned engine = flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE;
 
    if ((flush_bits & RADV_CMD_FLAG_INV_L2) || (gfx_level <= GFX7 && (flush_bits & RADV_CMD_FLAG_WB_L2))) {
       /* Invalidate L1 & L2. WB must be set on GFX8+ when TC_ACTION is set. */
