@@ -2310,8 +2310,14 @@ st_TexSubImage(struct gl_context *ctx, GLuint dims,
                                    &src_templ.width0, &src_templ.height0,
                                    &src_templ.depth0, &src_templ.array_size);
 
-   /* Check for NPOT texture support. */
-   if (!screen->caps.npot_textures &&
+   /* This only needs level-zero NPOT sampling with clamp-to-edge, which is
+    * required desktop GL 2.0 and GLES2 even without an NPOT extension. */
+   const bool allow_npot_staging =
+      screen->caps.npot_textures ||
+      _mesa_is_gles2(ctx) ||
+      (_mesa_is_desktop_gl(ctx) && ctx->Version >= 20);
+
+   if (!allow_npot_staging &&
        (!util_is_power_of_two_or_zero(src_templ.width0) ||
         !util_is_power_of_two_or_zero(src_templ.height0) ||
         !util_is_power_of_two_or_zero(src_templ.depth0))) {
