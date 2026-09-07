@@ -1501,7 +1501,7 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                                load_cache_mode;
 
    ASSERTED const unsigned max_imm_bits =
-      brw_max_immediate_offset_bits(surf_type, false);
+      brw_max_immediate_offset_bits(devinfo, surf_type, false, slm);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || sfid != GEN_SFID_TGM);
@@ -1758,7 +1758,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                                       load_cache_mode;
 
    ASSERTED const unsigned max_imm_bits =
-      brw_max_immediate_offset_bits(surf_type, false);
+      brw_max_immediate_offset_bits(devinfo, surf_type, false, slm);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || !tgm);

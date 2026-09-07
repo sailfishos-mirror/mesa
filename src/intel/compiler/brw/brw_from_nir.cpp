@@ -4147,6 +4147,7 @@ memory_address(nir_to_brw_state &ntb,
       bld.scalar_group() : bld;
    brw_reg address;
    const uint32_t element_size_B = brw_nir_intrinsic_data_element_size(instr);
+   const bool is_slm = nir_is_shared_access(instr);
 
    if ((brw_lsc_supports_base_offset(devinfo) == false) ||
        (!nir_intrinsic_has_base(instr) && !nir_src_is_const(*nir_src_offset))) {
@@ -4158,10 +4159,11 @@ memory_address(nir_to_brw_state &ntb,
       *address_offset = 0;
    } else if (!nir_intrinsic_has_base(instr) && nir_src_is_const(*nir_src_offset)) {
       const int32_t offset = nir_src_as_int(*nir_src_offset);
-      if (brw_lsc_can_use_instruction_offset(binding_type,
+      if (brw_lsc_can_use_instruction_offset(devinfo,
+                                             binding_type,
                                              ntb.s.key->use_efficient_64bit,
                                              element_size_B,
-                                             offset)) {
+                                             offset, is_slm)) {
          address = brw_imm_ud(0);
          *address_offset = offset;
       } else {
@@ -4171,10 +4173,11 @@ memory_address(nir_to_brw_state &ntb,
    } else {
       assert(nir_intrinsic_has_base(instr));
       const int32_t offset = nir_intrinsic_base(instr);
-      assert(brw_lsc_can_use_instruction_offset(binding_type,
+      assert(brw_lsc_can_use_instruction_offset(devinfo,
+                                                binding_type,
                                                 ntb.s.key->use_efficient_64bit,
                                                 element_size_B,
-                                                offset));
+                                                offset, is_slm));
       address = src_offset;
       *address_offset = offset;
    }
