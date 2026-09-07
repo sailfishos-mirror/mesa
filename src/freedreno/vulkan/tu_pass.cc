@@ -88,7 +88,9 @@ tu_render_pass_add_subpass_dep(struct tu_render_pass *pass,
    }
 
    struct tu_subpass_barrier *dst_barrier;
-   if (dst == VK_SUBPASS_EXTERNAL) {
+   if (src == VK_SUBPASS_EXTERNAL) {
+      dst_barrier = &pass->subpasses[0].start_barrier;
+   } else if (dst == VK_SUBPASS_EXTERNAL) {
       dst_barrier = &pass->end_barrier;
    } else {
       dst_barrier = &pass->subpasses[dst].start_barrier;
