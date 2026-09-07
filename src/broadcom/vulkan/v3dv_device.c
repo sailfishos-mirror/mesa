@@ -2126,6 +2126,9 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
 
    *pDevice = v3dv_device_to_handle(device);
    v3dv_utrace_context_init(device);
+#ifdef HAVE_PERFETTO
+   v3dv_utrace_perfetto_init(device, V3DV_UTRACE_PERFETTO_QUEUE_COUNT);
+#endif
 
    return VK_SUCCESS;
 

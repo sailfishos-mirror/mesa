@@ -341,7 +341,7 @@ static inline struct v3d_varying_slot
 v3d_slot_from_slot_and_component(uint8_t slot, uint8_t component)
 {
         assert(slot < 255 / 4);
-        return (struct v3d_varying_slot){ (slot << 2) + component };
+        return (struct v3d_varying_slot){ (uint8_t)((slot << 2) + component) };
 }
 
 static inline uint8_t v3d_slot_get_slot(struct v3d_varying_slot slot)
