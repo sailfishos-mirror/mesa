@@ -856,7 +856,7 @@ pub struct FmtSrc<'a> {
     src_type: DataType,
 }
 
-fn fmt_small_constant_scalar(
+fn fmt_constant_scalar(
     value: u64,
     data_type: DataType,
     f: &mut fmt::Formatter,
@@ -902,7 +902,7 @@ fn fmt_small_constant_scalar(
     }
 }
 
-fn fmt_small_constant(
+fn fmt_constant(
     value: u32,
     data_type: DataType,
     swizzle: Swizzle,
@@ -956,7 +956,7 @@ fn fmt_small_constant(
         let component_value = value.get_bit_range_u64(
             component_start..(component_start + component_bits),
         );
-        fmt_small_constant_scalar(component_value, scalar_type, f)?;
+        fmt_constant_scalar(component_value, scalar_type, f)?;
 
         if component == components - 1 && components > 1 {
             write!(f, "}}")?;
@@ -976,18 +976,36 @@ impl fmt::Display for FmtSrc<'_> {
                 imm32: Some(value),
                 ..
             }) => {
-                fmt_small_constant(
+                fmt_constant(
                     *value,
                     self.src_type,
                     self.src.swizzle,
                     self.src.src_mod,
                     f,
                 )?;
-
-                if self.src.last_use {
-                    write!(f, "^")?;
-                }
-
+                write!(f, "{lu}")?;
+                return Ok(());
+            }
+            SrcRef::Imm32(value) => {
+                fmt_constant(
+                    (*value).into(),
+                    self.src_type,
+                    self.src.swizzle,
+                    self.src.src_mod,
+                    f,
+                )?;
+                write!(f, "{lu}")?;
+                return Ok(());
+            }
+            SrcRef::Zero => {
+                fmt_constant(
+                    0,
+                    self.src_type,
+                    self.src.swizzle,
+                    self.src.src_mod,
+                    f,
+                )?;
+                write!(f, "{lu}")?;
                 return Ok(());
             }
             src_ref => write!(f, "{src_ref}")?,
