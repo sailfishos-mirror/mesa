@@ -3780,7 +3780,10 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
        *    clear pass, to ensure correct ordering between pixels.
        */
       add_pending_pipe_bits_for_color_aux_op(
-         cmd_buffer, next_aux_op, ANV_PIPE_RT_BTI_CHANGE,
+         cmd_buffer, next_aux_op,
+         cmd_buffer->device->physical->rt_change_needs_flush ?
+         ANV_PIPE_RT_BTI_CHANGE :
+         ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT,
          "aux color !fast-clear->fast-clear");
 
 #elif GFX_VERx10 == 125
@@ -3875,7 +3878,10 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
        *    RT flush = 1
        */
       add_pending_pipe_bits_for_color_aux_op(
-         cmd_buffer, next_aux_op, ANV_PIPE_RT_BTI_CHANGE,
+         cmd_buffer, next_aux_op,
+         cmd_buffer->device->physical->rt_change_needs_flush ?
+         ANV_PIPE_RT_BTI_CHANGE :
+         ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT,
          "aux color fast-clear->!fast-clear");
 
 #elif GFX_VERx10 == 120
