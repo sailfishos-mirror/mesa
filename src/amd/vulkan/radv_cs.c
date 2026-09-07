@@ -391,7 +391,11 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
        * TC    | TC_MD         = writeback & invalidate L2 metadata (DCC, etc.)
        * TCL1                  = invalidate L1
        */
-      tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_MD_ACTION_ENA;
+      tc_flags = 0;
+
+      if (flush_bits & RADV_CMD_FLAG_INV_L2_METADATA) {
+         tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_MD_ACTION_ENA;
+      }
 
       *sqtt_flush_bits |= RGP_FLUSH_FLUSH_CB | RGP_FLUSH_INVAL_CB | RGP_FLUSH_FLUSH_DB | RGP_FLUSH_INVAL_DB;
 
