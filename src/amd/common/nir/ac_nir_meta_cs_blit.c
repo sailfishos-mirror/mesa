@@ -227,11 +227,11 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 
    nir_variable *img_src = NULL;
    if (!key->is_clear) {
-      img_src = nir_variable_create(b.shader, nir_var_uniform, img_type[0], "img0");
+      img_src = nir_variable_create(b.shader, nir_var_image, img_type[0], "img0");
       img_src->data.binding = 0;
    }
 
-   nir_variable *img_dst = nir_variable_create(b.shader, nir_var_uniform, img_type[1], "img1");
+   nir_variable *img_dst = nir_variable_create(b.shader, nir_var_image, img_type[1], "img1");
    img_dst->data.binding = image_dst_index;
 
    unsigned lane_width = 1 << key->log_lane_width;
