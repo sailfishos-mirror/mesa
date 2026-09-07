@@ -1033,8 +1033,16 @@ void ac_fill_bug_info(struct radeon_info *info)
    /* Firmware bug with DISPATCH_TASKMESH_INDIRECT_MULTI_ACE packets.
     * On old MEC FW versions, it hangs the GPU when indirect count is zero.
     */
-   info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 &&
-                                      info->mec_fw_version < 100;
+   if (info->gfx_level == GFX10_3) {
+      if (info->family == CHIP_RAPHAEL_MENDOCINO) {
+         info->has_taskmesh_indirect0_bug = info->mec_fw_version < 18;
+      } else {
+         /* All other GFX10.3 chips, including dGPUs, Vangogh and Rembrandt
+          * have been fixed in MEC 100.
+          */
+         info->has_taskmesh_indirect0_bug = info->mec_fw_version < 100;
+      }
+   }
 
    info->has_export_conflict_bug = info->gfx_level == GFX11;
 
