@@ -1,9 +1,10 @@
 // Copyright © 2026 Collabora, Ltd.
+// Copyright © 2026 Arm Ltd.
 // SPDX-License-Identifier: MIT
 
 use crate::bitview::BitViewable;
 pub use crate::data_type::DataType;
-use crate::data_type::PartialDataType;
+use crate::data_type::{NumericType, PartialDataType};
 use crate::debug::{DEBUG, DebugFlags};
 pub use crate::flow::FlowCtrl;
 pub use crate::model::Model;
@@ -18,6 +19,7 @@ use crate::swizzle::*;
 use compiler::as_slice::*;
 use compiler::cfg::CFG;
 use compiler::enum_as_u8::*;
+use compiler::float16::F16;
 use compiler::smallvec::*;
 use kraid_proc_macros::EnumAsU8;
 
@@ -854,11 +856,140 @@ pub struct FmtSrc<'a> {
     src_type: DataType,
 }
 
+fn fmt_small_constant_scalar(
+    value: u64,
+    data_type: DataType,
+    f: &mut fmt::Formatter,
+) -> fmt::Result {
+    let bits = usize::from(data_type.bits());
+
+    debug_assert!((1..=64).contains(&bits));
+
+    // Assume value is already masked.
+    let hex_digits = bits.div_ceil(4);
+    write!(f, "0x{value:0hex_digits$x}")?;
+
+    match data_type.num_type() {
+        NumericType::Float => {
+            write!(f, " (")?;
+            match bits {
+                16 => write!(f, "{}", F16::from_bits(value as u16))?,
+                32 => write!(f, "{}", f32::from_bits(value as u32))?,
+                _ => panic!("unexpected bit size for float"),
+            }
+            write!(f, ")")
+        }
+        NumericType::SignedInteger => {
+            let shift = 64 - bits;
+            let signed = ((value << shift) as i64) >> shift;
+            write!(f, " ({signed})")
+        }
+        NumericType::UnsignedInteger => {
+            write!(f, " ({value})")
+        }
+        NumericType::Integer => {
+            let shift = 64 - bits;
+            let signed = ((value << shift) as i64) >> shift;
+
+            if signed >= 0 {
+                // Signed and unsigned interpretations are identical.
+                write!(f, " ({value})")
+            } else {
+                write!(f, " ({signed}, {value})")
+            }
+        }
+        NumericType::Auto => Ok(()),
+    }
+}
+
+fn fmt_small_constant(
+    value: u32,
+    data_type: DataType,
+    swizzle: Swizzle,
+    src_mod: SrcMod,
+    f: &mut fmt::Formatter,
+) -> fmt::Result {
+    let total_bits = data_type.total_bits();
+    let value = match total_bits {
+        0..=32 => {
+            let value = swizzle
+                .fold_u32(value)
+                .expect("invalid 32-bit small-constant swizzle");
+
+            u64::from(
+                src_mod
+                    .fold_u32(data_type, value)
+                    .expect("invalid 32-bit small-constant modifier"),
+            )
+        }
+        64 => {
+            // Small constants are stored as 32-bit values, but 64-bit source
+            // operands apply 64-bit swizzles and modifiers to the
+            // zero-extended value.
+            let value = swizzle
+                .fold_u64(u64::from(value))
+                .expect("invalid 64-bit small-constant swizzle");
+
+            src_mod
+                .fold_u64(value)
+                .expect("invalid 64-bit small-constant modifier")
+        }
+        _ => panic!("unsupported small-constant source width"),
+    };
+
+    let component_bits = data_type.bits();
+    let components = data_type.comps();
+    let scalar_type = data_type.scalar_type();
+
+    debug_assert!(component_bits > 0 && component_bits <= 64);
+    debug_assert!(u16::from(component_bits) * u16::from(components) <= 64);
+
+    for component in 0..components {
+        if component == 0 && components > 1 {
+            write!(f, "{{")?;
+        } else if component > 0 {
+            write!(f, ", ")?;
+        }
+
+        let component_bits = usize::from(component_bits);
+        let component_start = usize::from(component) * component_bits;
+        let component_value = value.get_bit_range_u64(
+            component_start..(component_start + component_bits),
+        );
+        fmt_small_constant_scalar(component_value, scalar_type, f)?;
+
+        if component == components - 1 && components > 1 {
+            write!(f, "}}")?;
+        }
+    }
+    Ok(())
+}
+
 impl fmt::Display for FmtSrc<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let lu = if self.src.last_use { "^" } else { "" };
         match &self.src.src_ref {
             SrcRef::Reg(reg) => reg.fmt_base(f)?,
+            // Special handling for pretty-printing small constants.
+            SrcRef::FAU(FAURef {
+                page: FAUPage::SmallConst,
+                imm32: Some(value),
+                ..
+            }) => {
+                fmt_small_constant(
+                    *value,
+                    self.src_type,
+                    self.src.swizzle,
+                    self.src.src_mod,
+                    f,
+                )?;
+
+                if self.src.last_use {
+                    write!(f, "^")?;
+                }
+
+                return Ok(());
+            }
             src_ref => write!(f, "{src_ref}")?,
         }
         write!(f, "{lu}")?;
