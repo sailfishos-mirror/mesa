@@ -167,6 +167,17 @@ impl<'a> ShaderFromNir<'a> {
         self.get_src_ssa(src).into()
     }
 
+    fn get_f32_src(&self, src: &nir_src) -> Src {
+        assert!(src.bit_size() == 16 || src.bit_size() == 32);
+        assert!(src.num_components() == 1);
+        let mut ssa: Src = self.get_src_ssa(src).into();
+        // Default swizzle is .h0h0, we instead want .hf0
+        if src.bit_size() == 16 {
+            ssa = ssa.swizzle(Swizzle::HF0);
+        }
+        ssa
+    }
+
     fn get_swiz_src(&self, def: &nir_def, swizzle: &[u8]) -> Src {
         let src_vec = self.get_ssa(def);
         match def.bit_size {
@@ -1575,9 +1586,9 @@ impl<'a> ShaderFromNir<'a> {
                 }
             }
             nir_intrinsic_cubeface_pan => {
-                let x = self.get_src(&srcs[0]);
-                let y = self.get_src(&srcs[1]);
-                let z = self.get_src(&srcs[2]);
+                let x = self.get_f32_src(&srcs[0]);
+                let y = self.get_f32_src(&srcs[1]);
+                let z = self.get_f32_src(&srcs[2]);
                 let dst = self.alloc_ssa(b, &intrin.def);
                 b.push_op(OpCubeFaceMax {
                     dst: dst[0].into(),
@@ -1589,8 +1600,8 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_intrinsic_cube_ssel_pan | nir_intrinsic_cube_tsel_pan => {
-                let x = self.get_src(&srcs[0]);
-                let y = self.get_src(&srcs[1]);
+                let x = self.get_f32_src(&srcs[0]);
+                let y = self.get_f32_src(&srcs[1]);
                 let idx = self.get_src(&srcs[2]);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.push_op(OpCubeSel {
