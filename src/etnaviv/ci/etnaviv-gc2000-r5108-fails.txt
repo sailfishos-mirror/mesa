@@ -581,7 +581,6 @@ spec@arb_fragment_program@sparse-samplers,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
-spec@glsl-1.10@execution@samplers@glsl-fs-sampler-numbering-2,Fail
 
 # Nightly run expectations update
 hiz@hiz-stencil-read-fbo-d0-s8,Fail
@@ -603,7 +602,3 @@ spec@ext_texture_array@copyteximage 1d_array samples=2,Crash
 spec@ext_texture_array@copyteximage 1d_array samples=4,Crash
 
 spec@!opengl 1.1@gl-1.1-drawarrays-vertex-count 100000 vbo gl_line_strip,Fail
-
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component16,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component24,Fail
-KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_component16,Fail

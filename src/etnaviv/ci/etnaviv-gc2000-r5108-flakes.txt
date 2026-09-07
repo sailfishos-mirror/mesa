@@ -546,6 +546,7 @@ spec@mesa_pack_invert@mesa_pack_invert-readpixels@PBO float RGBA
 spec@mesa_pack_invert@mesa_pack_invert-readpixels@PBO unorm BGRA
 spec@mesa_pack_invert@mesa_pack_invert-readpixels@non-PBO float RGBA
 
+spec@glsl-1.10@execution@samplers@glsl-fs-sampler-numbering-2
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow1d-bias
 spec@ext_texture_array@render-1darray-1slice
 spec@ext_packed_depth_stencil@fbo-depthstencil-gl_depth24_stencil8-copypixels
