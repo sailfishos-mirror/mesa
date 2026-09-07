@@ -726,6 +726,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
       .info = &sctx->screen->info,
       .use_aco = sctx->screen->use_aco,
       .no_fmask = sctx->screen->debug_flags & DBG(NO_FMASK),
+      .print_key = si_can_dump_shader(sctx->screen, MESA_SHADER_COMPUTE, SI_DUMP_SHADER_KEY),
       /* Compute queues can't fail because there is no alternative. */
       .fail_if_slow = sctx->is_gfx_queue && fail_if_slow &&
                       /* Compressed and subsampled image blits can't fail because
