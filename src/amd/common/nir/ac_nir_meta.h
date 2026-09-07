@@ -123,6 +123,7 @@ typedef struct {
    unsigned wg_size[3];          /* variable workgroup size (NUM_THREAD_FULL) */
    unsigned last_wg_size[3];     /* workgroup size of the last workgroup (NUM_THREAD_PARTIAL) */
    unsigned num_workgroups[3];   /* DISPATCH_DIRECT parameters */
+   unsigned num_invocations[3];
 } ac_cs_blit_dispatch;
 
 typedef struct {

@@ -514,19 +514,19 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 static unsigned
 set_work_size(ac_cs_blit_dispatch *dispatch,
               unsigned block_x, unsigned block_y, unsigned block_z,
-              unsigned num_wg_x, unsigned num_wg_y, unsigned num_wg_z)
+              unsigned num_invoc_x, unsigned num_invoc_y, unsigned num_invoc_z)
 {
-   dispatch->wg_size[0] = block_x;
-   dispatch->wg_size[1] = block_y;
-   dispatch->wg_size[2] = block_z;
+   const unsigned block[3] = {block_x, block_y, block_z};
+   const unsigned num_invoc[3] = {num_invoc_x, num_invoc_y, num_invoc_z};
 
-   unsigned num_wg[3] = {num_wg_x, num_wg_y, num_wg_z};
    for (int i = 0; i < 3; ++i) {
-      dispatch->last_wg_size[i] = num_wg[i] % dispatch->wg_size[i];
-      dispatch->num_workgroups[i] = DIV_ROUND_UP(num_wg[i], dispatch->wg_size[i]);
+      dispatch->wg_size[i] = block[i];
+      dispatch->last_wg_size[i] = num_invoc[i] % dispatch->wg_size[i];
+      dispatch->num_workgroups[i] = DIV_ROUND_UP(num_invoc[i], dispatch->wg_size[i]);
+      dispatch->num_invocations[i] = num_invoc[i];
    }
 
-   return num_wg_z > 1 ? 3 : (num_wg_y > 1 ? 2 : 1);
+   return num_invoc_z > 1 ? 3 : (num_invoc_y > 1 ? 2 : 1);
 }
 
 static bool
