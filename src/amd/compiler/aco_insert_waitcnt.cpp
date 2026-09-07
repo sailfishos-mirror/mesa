@@ -551,7 +551,8 @@ force_waitcnt(wait_ctx& ctx, wait_imm& imm)
 }
 
 void
-update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm, depctr_wait depctr)
+update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm, depctr_wait depctr,
+                             uint8_t* vm_wait, uint8_t* vm_nowait)
 {
    static const uint32_t vm_vsrc_events =
       event_lds | event_vmem | event_vmem_sample | event_vmem_bvh | event_vmem_store;
@@ -563,10 +564,16 @@ update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm, depctr_w
 
       u_foreach_bit (j, info.storage) {
          wait_imm& bar = info.imm[j];
-         if (bar[i] != wait_imm::unset_counter && imm[i] <= bar[i]) {
-            /* Clear this counter */
-            bar[i] = wait_imm::unset_counter;
-            info.events[j] &= ~ctx.info->events[i];
+
+         if (bar[i] != wait_imm::unset_counter) {
+            if (imm[i] <= bar[i]) {
+               /* Clear this counter */
+               bar[i] = wait_imm::unset_counter;
+               info.events[j] &= ~ctx.info->events[i];
+               *vm_wait |= i == wait_type_vm ? info.vmem_types[j] : 0;
+            } else {
+               *vm_nowait |= i == wait_type_vm ? info.vmem_types[j] : 0;
+            }
          }
 
          if (depctr.vm_vsrc == 0 || !(info.events[j] & vm_vsrc_events))
@@ -636,21 +643,35 @@ kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
       for (unsigned i = 0; i < wait_type_num; i++)
          ctx.nonzero &= imm[i] == 0 ? ~BITFIELD_BIT(i) : UINT32_MAX;
 
+      uint8_t vm_wait = 0, vm_nowait = 0;
+
       u_foreach_bit (i, ctx.bar_nonempty)
-         update_barrier_info_for_wait(ctx, i, imm, depctr);
+         update_barrier_info_for_wait(ctx, i, imm, depctr, &vm_wait, &vm_nowait);
 
       /* remove all gprs with higher counter from map */
       std::map<PhysReg, wait_entry>::iterator it = ctx.gpr_map.begin();
       while (it != ctx.gpr_map.end()) {
          for (unsigned i = 0; i < wait_type_num; i++) {
-            if (imm[i] != wait_imm::unset_counter && imm[i] <= it->second.imm[i])
+            if (imm[i] == wait_imm::unset_counter)
+               continue;
+
+            if (imm[i] <= it->second.imm[i]) {
+               vm_wait |= i == wait_type_vm ? it->second.vmem_types : 0;
                it->second.remove_wait((wait_type)i, ctx.info->events[i]);
+            } else {
+               vm_nowait |= i == wait_type_vm ? it->second.vmem_types : 0;
+            }
          }
          if (!it->second.counters)
             it = ctx.gpr_map.erase(it);
          else
             it++;
       }
+
+      /* TODO: this is safe and fairly simple, but we should be able to set MEM_ORDERED=0 in more
+       * cases. */
+      if (vm_wait && vm_nowait && (vm_wait != vm_nowait || util_bitcount(vm_wait) > 1))
+         ctx.program->config->mem_ordered = ctx.gfx_level >= GFX10 && ctx.gfx_level < GFX12;
    }
 
    if (imm.vm == 0)
@@ -1099,6 +1120,8 @@ insert_waitcnt(Program* program)
       insert_wait_entry(in_ctx[0], def, event_vmem, vmem_nosampler, 0xffffffff);
    }
 
+   program->config->mem_ordered = false;
+
    for (unsigned i = 0; i < program->blocks.size();) {
       Block& current = program->blocks[i++];
 
@@ -1159,8 +1182,6 @@ insert_waitcnt(Program* program)
 
       out_ctx[current.index] = std::move(ctx);
    }
-
-   program->config->mem_ordered = program->gfx_level >= GFX10 && program->gfx_level < GFX12;
 }
 
 } // namespace aco
