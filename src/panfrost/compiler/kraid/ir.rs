@@ -198,9 +198,6 @@ impl fmt::Display for FAURef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.page == FAUPage::SmallConst {
             debug_assert!(!self.load64);
-            if let Some(imm32) = self.imm32 {
-                return write!(f, "0x{imm32:08x}");
-            };
             return write!(f, "k{}", self.idx);
         }
 
@@ -609,7 +606,7 @@ pub enum SrcRef {
 impl fmt::Display for SrcRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SrcRef::Zero => write!(f, "0x0"),
+            SrcRef::Zero => write!(f, "k0"),
             SrcRef::Imm32(u) => write!(f, "{u:#x}"),
             SrcRef::FAU(fau) => fau.fmt(f),
             SrcRef::SSA(ssa) => ssa.fmt(f),
@@ -968,6 +965,7 @@ fn fmt_constant(
 impl fmt::Display for FmtSrc<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let lu = if self.src.last_use { "^" } else { "" };
+        let raw_const = DEBUG.contains(DebugFlags::PRINT_RAW_CONST);
         match &self.src.src_ref {
             SrcRef::Reg(reg) => reg.fmt_base(f)?,
             // Special handling for pretty-printing small constants.
@@ -975,7 +973,7 @@ impl fmt::Display for FmtSrc<'_> {
                 page: FAUPage::SmallConst,
                 imm32: Some(value),
                 ..
-            }) => {
+            }) if !raw_const => {
                 fmt_constant(
                     *value,
                     self.src_type,
@@ -986,7 +984,7 @@ impl fmt::Display for FmtSrc<'_> {
                 write!(f, "{lu}")?;
                 return Ok(());
             }
-            SrcRef::Imm32(value) => {
+            SrcRef::Imm32(value) if !raw_const => {
                 fmt_constant(
                     (*value).into(),
                     self.src_type,
@@ -997,7 +995,7 @@ impl fmt::Display for FmtSrc<'_> {
                 write!(f, "{lu}")?;
                 return Ok(());
             }
-            SrcRef::Zero => {
+            SrcRef::Zero if !raw_const => {
                 fmt_constant(
                     0,
                     self.src_type,

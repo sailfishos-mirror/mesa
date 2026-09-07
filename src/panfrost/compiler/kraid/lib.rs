@@ -49,6 +49,7 @@ mod debug {
             const VALIDATE = 1 << 1;
             const SPILL = 1 << 2;
             const SERIAL = 1 << 3;
+            const PRINT_RAW_CONST = 1 << 4;
         }
     }
 
@@ -65,6 +66,7 @@ mod debug {
                 "validate" => flags |= DebugFlags::VALIDATE,
                 "spill" => flags |= DebugFlags::SPILL,
                 "serial" => flags |= DebugFlags::SERIAL,
+                "print-raw-constants" => flags |= DebugFlags::PRINT_RAW_CONST,
                 unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
             }
         }
