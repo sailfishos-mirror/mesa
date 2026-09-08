@@ -45,3 +45,4 @@ GL_ARB_texture_multisample on etnaviv/HALTI5
 VK_KHR_shader_constant_data on panvk
 Support for BXM-4-64 (36.52.104.182) on pvr
 VK_KHR_shader_float_controls2 on pvr
+VK_KHR_performance_query on GFX12
