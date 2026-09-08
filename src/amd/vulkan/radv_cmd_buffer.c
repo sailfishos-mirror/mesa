@@ -1822,9 +1822,9 @@ radv_gang_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *ace_cs = cmd_buffer->gang.cs;
    const uint32_t flush_bits = cmd_buffer->gang.flush_bits & RADV_CMD_FLUSH_ALL_COMPUTE;
-   enum rgp_flush_bits sqtt_flush_bits = 0;
+   enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
-   radv_cs_emit_cache_flush(device->ws, ace_cs, pdev->info.gfx_level, NULL, 0, flush_bits, &sqtt_flush_bits, 0);
+   radv_cs_emit_cache_flush(device->ws, ace_cs, pdev->info.gfx_level, NULL, 0, flush_bits, &rgp_flush_bits, 0);
 
    cmd_buffer->gang.flush_bits = 0;
 }
@@ -2103,7 +2103,7 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
 
    if (RADV_DEBUG(instance, SYNC_SHADERS) || RADV_DEBUG(instance, FULL_SYNC)) {
-      enum rgp_flush_bits sqtt_flush_bits = 0;
+      enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
       if (RADV_DEBUG(instance, FULL_SYNC)) {
          flags |= RADV_CMD_FLUSH_ALL_COMPUTE & ~RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
@@ -2118,13 +2118,13 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
 
       /* Force wait for graphics or compute engines to be idle. */
       radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                               cmd_buffer->gfx9_fence_va, flags, &sqtt_flush_bits, cmd_buffer->gfx9_eop_bug_va);
+                               cmd_buffer->gfx9_fence_va, flags, &rgp_flush_bits, cmd_buffer->gfx9_eop_bug_va);
 
       if ((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) &&
           radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
          /* Force wait for compute engines to be idle on the internal cmdbuf. */
          radv_cs_emit_cache_flush(device->ws, cmd_buffer->gang.cs, pdev->info.gfx_level, NULL, 0,
-                                  RADV_CMD_FLAG_CS_PARTIAL_FLUSH, &sqtt_flush_bits, 0);
+                                  RADV_CMD_FLAG_CS_PARTIAL_FLUSH, &rgp_flush_bits, 0);
       }
    }
 
@@ -16146,7 +16146,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    }
 
    radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                            cmd_buffer->gfx9_fence_va, cmd_buffer->state.flush_bits, &cmd_buffer->state.sqtt_flush_bits,
+                            cmd_buffer->gfx9_fence_va, cmd_buffer->state.flush_bits, &cmd_buffer->state.rgp_flush_bits,
                             cmd_buffer->gfx9_eop_bug_va);
 
    if (radv_device_fault_detection_enabled(device))

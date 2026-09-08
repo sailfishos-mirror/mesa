@@ -1026,7 +1026,7 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
    const enum amd_ip_type hw_ip = radv_queue_family_to_ring(pdev, queue->qf);
 
    for (int i = 0; i < 3; ++i) {
-      enum rgp_flush_bits sqtt_flush_bits = 0;
+      enum ac_rgp_flush_bits rgp_flush_bits = 0;
       struct radv_cmd_stream *cs = NULL;
 
       result = radv_create_cmd_stream(device, hw_ip, false, &cs);
@@ -1088,7 +1088,7 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
                flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH;
          }
 
-         radv_cs_emit_cache_flush(ws, cs, gfx_level, NULL, 0, flush_bits, &sqtt_flush_bits, 0);
+         radv_cs_emit_cache_flush(ws, cs, gfx_level, NULL, 0, flush_bits, &rgp_flush_bits, 0);
       }
 
       /* Emit task rings after the initial cache flush and wait
@@ -1328,10 +1328,10 @@ radv_create_flush_postamble(struct radv_queue *queue)
                     RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
                     RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
 
-   enum rgp_flush_bits sqtt_flush_bits = 0;
+   enum ac_rgp_flush_bits rgp_flush_bits = 0;
    uint32_t flush_cnt = 0;
 
-   radv_cs_emit_cache_flush(ws, cs, pdev->info.gfx_level, &flush_cnt, 0, flush_bits, &sqtt_flush_bits, 0);
+   radv_cs_emit_cache_flush(ws, cs, pdev->info.gfx_level, &flush_cnt, 0, flush_bits, &rgp_flush_bits, 0);
 
    result = radv_finalize_cmd_stream(device, cs);
    if (result != VK_SUCCESS) {

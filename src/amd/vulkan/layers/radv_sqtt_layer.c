@@ -417,37 +417,37 @@ radv_describe_barrier_end_delayed(struct radv_cmd_buffer *cmd_buffer)
 
    marker.num_layout_transitions = cmd_buffer->state.num_layout_transitions;
 
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_WAIT_ON_EOP_TS)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_WAIT_ON_EOP_TS)
       marker.wait_on_eop_ts = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_VS_PARTIAL_FLUSH)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_VS_PARTIAL_FLUSH)
       marker.vs_partial_flush = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_PS_PARTIAL_FLUSH)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_PS_PARTIAL_FLUSH)
       marker.ps_partial_flush = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_CS_PARTIAL_FLUSH)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_CS_PARTIAL_FLUSH)
       marker.cs_partial_flush = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_PFP_SYNC_ME)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_PFP_SYNC_ME)
       marker.pfp_sync_me = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_SYNC_CP_DMA)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_SYNC_CP_DMA)
       marker.sync_cp_dma = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_VMEM_L0)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_VMEM_L0)
       marker.inval_tcp = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_ICACHE)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_ICACHE)
       marker.inval_sqI = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_SMEM_L0)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_SMEM_L0)
       marker.inval_sqK = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_FLUSH_L2)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_FLUSH_L2)
       marker.flush_tcc = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_L2)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_L2)
       marker.inval_tcc = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_FLUSH_CB)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_FLUSH_CB)
       marker.flush_cb = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_CB)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_CB)
       marker.inval_cb = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_FLUSH_DB)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_FLUSH_DB)
       marker.flush_db = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_DB)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_DB)
       marker.inval_db = true;
-   if (cmd_buffer->state.sqtt_flush_bits & RGP_FLUSH_INVAL_L1)
+   if (cmd_buffer->state.rgp_flush_bits & AC_RGP_FLUSH_INVAL_L1)
       marker.inval_gl1 = true;
 
    radv_emit_sqtt_userdata(cmd_buffer, &marker, sizeof(marker) / 4, RADV_SQTT_USERDATA_MAIN_CS);
@@ -470,7 +470,7 @@ radv_describe_barrier_start(struct radv_cmd_buffer *cmd_buffer, enum rgp_barrier
    }
 
    radv_describe_barrier_end_delayed(cmd_buffer);
-   cmd_buffer->state.sqtt_flush_bits = 0;
+   cmd_buffer->state.rgp_flush_bits = 0;
    cmd_buffer->state.in_barrier = true;
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BARRIER_START;

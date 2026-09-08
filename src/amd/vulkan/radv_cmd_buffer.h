@@ -268,25 +268,6 @@ struct radv_push_constant_state {
    bool need_upload;
 };
 
-enum rgp_flush_bits {
-   RGP_FLUSH_WAIT_ON_EOP_TS = 0x1,
-   RGP_FLUSH_VS_PARTIAL_FLUSH = 0x2,
-   RGP_FLUSH_PS_PARTIAL_FLUSH = 0x4,
-   RGP_FLUSH_CS_PARTIAL_FLUSH = 0x8,
-   RGP_FLUSH_PFP_SYNC_ME = 0x10,
-   RGP_FLUSH_SYNC_CP_DMA = 0x20,
-   RGP_FLUSH_INVAL_VMEM_L0 = 0x40,
-   RGP_FLUSH_INVAL_ICACHE = 0x80,
-   RGP_FLUSH_INVAL_SMEM_L0 = 0x100,
-   RGP_FLUSH_FLUSH_L2 = 0x200,
-   RGP_FLUSH_INVAL_L2 = 0x400,
-   RGP_FLUSH_FLUSH_CB = 0x800,
-   RGP_FLUSH_INVAL_CB = 0x1000,
-   RGP_FLUSH_FLUSH_DB = 0x2000,
-   RGP_FLUSH_INVAL_DB = 0x4000,
-   RGP_FLUSH_INVAL_L1 = 0x8000,
-};
-
 enum radv_depth_clamp_mode {
    RADV_DEPTH_CLAMP_MODE_VIEWPORT = 0,     /* Clamp to the viewport min/max depth bounds */
    RADV_DEPTH_CLAMP_MODE_USER_DEFINED = 1, /* Range set using VK_EXT_depth_clamp_control */
@@ -467,7 +448,7 @@ struct radv_cmd_state {
    uint32_t num_layout_transitions;
    bool in_barrier;
    bool pending_sqtt_barrier_end;
-   enum rgp_flush_bits sqtt_flush_bits;
+   enum ac_rgp_flush_bits rgp_flush_bits;
 
    uint32_t trace_id;
 };
