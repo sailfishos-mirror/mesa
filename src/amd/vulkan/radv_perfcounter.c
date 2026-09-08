@@ -659,6 +659,43 @@ radv_pc_wait_idle(struct radv_cmd_buffer *cmd_buffer)
                             cmd_buffer->gfx9_fence_va, flush_bits, &sqtt_flush_bits, 0);
 }
 
+/**
+ * On GFX12, the GRBM module in SQG is re-designed and the order of CP write/read transactions
+ * cannot be guaranteed. That can potentially break the usage of the perf counter in legacy mode.
+ * Since the read can be ahead of the write, wrong perf counters results may be reported. The
+ * workaround is to wait for DISABLE_ME1PIPE3_PERF to bet set after sampling.
+ */
+static void
+radv_gfx12_emit_sq_sync_wa(struct radv_cmd_buffer *cmd_buffer, bool disable)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+   const uint32_t value = 0x7f /* all shaders */ | S_036760_DISABLE_ME1PIPE3_PERF(disable);
+
+   if (pdev->info.gfx_level != GFX12)
+      return;
+
+   for (unsigned se = 0; se < pdev->info.max_se; se++) {
+      radv_emit_instance(cmd_buffer, se, -1);
+
+      radeon_begin(cs);
+      radeon_set_uconfig_reg(R_036760_SQG_PERFCOUNTER_CTRL, value);
+
+      /* Wait for DISABLE_ME1PIPE3_PERF to be set. */
+      radeon_emit(PKT3(PKT3_WAIT_REG_MEM, 5, 0));
+      radeon_emit(WAIT_REG_MEM_EQUAL); /* register space */
+      radeon_emit(R_036760_SQG_PERFCOUNTER_CTRL >> 2);
+      radeon_emit(0);
+      radeon_emit(value);      /* reference value */
+      radeon_emit(0xffffffff); /* mask */
+      radeon_emit(4);          /* poll interval */
+      radeon_end();
+   }
+
+   radv_emit_instance(cmd_buffer, -1, -1);
+}
+
 static void
 radv_pc_stop_and_sample(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query_pool *pool, uint64_t va, bool end)
 {
@@ -671,6 +708,8 @@ radv_pc_stop_and_sample(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query
    radv_emit_instance(cmd_buffer, -1, -1);
    radv_emit_windowed_counters(device, cs, false);
    radv_perfcounter_emit_stop(cs);
+
+   radv_gfx12_emit_sq_sync_wa(cmd_buffer, !end);
 
    for (unsigned pass = 0; pass < pool->num_passes; ++pass) {
       uint64_t pred_va = radv_buffer_get_va(device->perf_counter_bo) + PERF_CTR_BO_PASS_OFFSET + 8 * pass;
@@ -724,7 +763,8 @@ radv_pc_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query_poo
 
    cdw_max = radeon_check_space(device->ws, cs->b,
                                 256 +                      /* Random one time stuff */
-                                   10 * pool->num_passes + /* COND_EXECs */
+                                   16 * pdev->info.max_se + /* GFX12 SQG timing-race WA */
+                                   10 * pool->num_passes +  /* COND_EXECs */
                                    pool->b.stride / 8 * (5 + 8));
 
    radv_cs_add_buffer(device->ws, cs->b, pool->b.bo);
@@ -787,7 +827,8 @@ radv_pc_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query_pool 
 
    cdw_max = radeon_check_space(device->ws, cs->b,
                                 256 + /* Reserved for things that don't scale with passes/counters */
-                                   5 * pool->num_passes + /* COND_EXECs */
+                                   16 * pdev->info.max_se + /* GFX12 SQG timing-race WA */
+                                   5 * pool->num_passes +   /* COND_EXECs */
                                    pool->b.stride / 8 * 8);
 
    radv_cs_add_buffer(device->ws, cs->b, pool->b.bo);
