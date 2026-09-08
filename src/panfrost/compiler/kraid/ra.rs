@@ -2427,13 +2427,13 @@ fn ra_trivial(s: &mut Shader) {
 }
 
 impl Shader<'_> {
-    // If multiple phis in a block read the same source, RA will need to insert
-    // at least one copy regardless, but the messy resulting phi webs means RA
-    // will end up inserting many copies (or even swaps). Instead, we lower away
-    // repeated sources pre-RA by inserting that single copy preemptively,
-    // allowing RA's phi web heuristics to do their job.
-    //
-    // This is less heavyhanded than a full CSSA lowering.
+    /// If multiple phis in a block read the same source, RA will need to insert
+    /// at least one copy regardless, but the messy resulting phi webs means RA
+    /// will end up inserting many copies (or even swaps). Instead, we lower
+    /// away repeated sources pre-RA by inserting that single copy preemptively,
+    /// allowing RA's phi web heuristics to do their job.
+    ///
+    /// This is less heavyhanded than a full CSSA lowering.
     fn lower_repeated_phi_srcs(&mut self) {
         let mut seen = BitSet::new();
         for block in &mut self.blocks {
