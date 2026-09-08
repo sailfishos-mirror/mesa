@@ -259,6 +259,7 @@ etna_screen_resource_alloc_ts(struct pipe_screen *pscreen,
       close(handle.handle);
    } else {
       rsc->ts_bo = etna_bo_new(screen->dev, ts_bo_size, DRM_ETNA_GEM_CACHE_WC);
+      lvl->ts_needs_clear = true;
    }
 
    if (unlikely(!rsc->ts_bo)) {

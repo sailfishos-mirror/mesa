@@ -71,6 +71,7 @@ struct etna_resource_level {
    uint32_t ts_size;
    uint64_t clear_value; /* clear value of resource level (mainly for TS) */
    bool ts_valid;
+   bool ts_needs_clear;
    bool ts_flushed;
    uint8_t ts_mode;
    int8_t ts_compress_fmt; /* COLOR_COMPRESSION_FORMAT_* (-1 = disable) */

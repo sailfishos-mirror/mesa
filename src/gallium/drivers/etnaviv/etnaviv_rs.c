@@ -400,6 +400,7 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
 
       etna_rs_gen_ts_clear_cmd(ctx, dst, dst_res, &rs_state);
 
+      dst_level->ts_needs_clear = false;
       etna_resource_level_ts_mark_valid(dst_level);
       etna_resource_level_mark_unflushed(dst_level);
       ctx->dirty |= ETNA_DIRTY_TS;
@@ -483,6 +484,7 @@ etna_blit_clear_zs_rs(struct pipe_context *pctx, struct pipe_surface *dst,
 
       etna_rs_gen_ts_clear_cmd(ctx, dst, dst_res, &rs_state);
 
+      dst_level->ts_needs_clear = false;
       etna_resource_level_ts_mark_valid(dst_level);
       etna_resource_level_mark_unflushed(dst_level);
       ctx->dirty |= ETNA_DIRTY_TS;
