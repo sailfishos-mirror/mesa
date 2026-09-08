@@ -27,8 +27,16 @@
 
 #include "encode_av1.tmh"
 
-extern DWORD
-CalculateQualityFromQP( DWORD QP );
+static constexpr uint8_t av1_quantizer_to_qindex[64] = {
+   0,   4,   8,   12,  16,  20,  24,  28,
+   32,  36,  40,  44,  48,  52,  56,  60,
+   64,  68,  72,  76,  80,  84,  88,  92,
+   96,  100, 104, 108, 112, 116, 120, 124,
+   128, 132, 136, 140, 144, 148, 152, 156,
+   160, 164, 168, 172, 176, 180, 184, 188,
+   192, 196, 200, 204, 208, 212, 216, 220,
+   224, 228, 232, 236, 240, 244, 249, 255,
+};
 
 // utility function to compute the cropping rectangle given texture and output dimensions
 static void
@@ -394,13 +402,13 @@ CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
          pPicInfo->rc[rate_ctrl_active_layer_index].rate_ctrl_method = PIPE_H2645_ENC_RATE_CONTROL_METHOD_DISABLE;
          if( m_bEncodeQPSet )
          {
-            pPicInfo->rc[0].qp = m_uiEncodeFrameTypeIQP[rate_ctrl_active_layer_index];
-            pPicInfo->rc[0].qp_inter = m_uiEncodeFrameTypePQP[rate_ctrl_active_layer_index];
+            pPicInfo->rc[0].qp = av1_quantizer_to_qindex[m_uiEncodeFrameTypeIQP[rate_ctrl_active_layer_index]];
+            pPicInfo->rc[0].qp_inter = av1_quantizer_to_qindex[m_uiEncodeFrameTypePQP[rate_ctrl_active_layer_index]];
          }
          else
          {
-            pPicInfo->rc[0].qp = m_uiEncodeFrameTypeIQP[0];
-            pPicInfo->rc[0].qp_inter = m_uiEncodeFrameTypePQP[0];
+            pPicInfo->rc[0].qp = av1_quantizer_to_qindex[m_uiEncodeFrameTypeIQP[0]];
+            pPicInfo->rc[0].qp_inter = av1_quantizer_to_qindex[m_uiEncodeFrameTypePQP[0]];
          }
       }
    }
@@ -428,8 +436,8 @@ CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
 
    // Optional Rate control params for all RC modes
    pPicInfo->rc[rate_ctrl_active_layer_index].app_requested_qp_range = m_bMinQPSet || m_bMaxQPSet;
-   pPicInfo->rc[rate_ctrl_active_layer_index].min_qp = m_uiMinQP;
-   pPicInfo->rc[rate_ctrl_active_layer_index].max_qp = m_uiMaxQP;
+   pPicInfo->rc[rate_ctrl_active_layer_index].min_qp = av1_quantizer_to_qindex[m_uiMinQP];
+   pPicInfo->rc[rate_ctrl_active_layer_index].max_qp = av1_quantizer_to_qindex[m_uiMaxQP];
 
    if( m_bBufferSizeSet )
    {
@@ -510,8 +518,8 @@ CDX12EncHMFT::GetCodecPrivateData( LPBYTE pSPSPPSData, DWORD dwSPSPPSDataLen, LP
       av1_pic_desc.rc[0].frame_rate_den = m_FrameRate.Denominator;
       av1_pic_desc.rc[0].vbr_quality_factor = static_cast<unsigned int>( ( ( ( 100 - m_uiQuality[0] ) / 100.0 ) * 50 ) + 1 );
    }
-   av1_pic_desc.rc[0].qp = m_uiEncodeFrameTypeIQP[0];
-   av1_pic_desc.rc[0].qp_inter = m_uiEncodeFrameTypeIQP[0];
+   av1_pic_desc.rc[0].qp = av1_quantizer_to_qindex[m_uiEncodeFrameTypeIQP[0]];
+   av1_pic_desc.rc[0].qp_inter = av1_quantizer_to_qindex[m_uiEncodeFrameTypeIQP[0]];
 
    ret = m_pPipeVideoCodec->get_encode_headers( m_pPipeVideoCodec, &av1_pic_desc.base, pSPSPPSData, &buf_size );
    CHECKHR_GOTO( ConvertErrnoRetToHR( ret ), done );
