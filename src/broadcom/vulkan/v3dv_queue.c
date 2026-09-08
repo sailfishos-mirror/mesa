@@ -985,20 +985,27 @@ queue_handle_job(struct v3dv_queue *queue,
    job->queue = queue;
    switch (job->type) {
    case V3DV_JOB_TYPE_GPU_CL:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CL;
       return handle_cl_job(queue, job, counter_pass_idx, sync_info);
    case V3DV_JOB_TYPE_GPU_TFU:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_TFU;
       return handle_tfu_job(queue, job, sync_info);
    case V3DV_JOB_TYPE_GPU_CSD:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CSD;
       return handle_csd_job(queue, job, counter_pass_idx, sync_info);
    case V3DV_JOB_TYPE_CPU_RESET_QUERIES:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
       return handle_reset_query_cpu_job(queue, job, sync_info);
    case V3DV_JOB_TYPE_CPU_END_QUERY:
       return handle_end_query_cpu_job(queue, job, counter_pass_idx);
    case V3DV_JOB_TYPE_CPU_COPY_QUERY_RESULTS:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
       return handle_copy_query_results_cpu_job(queue, job, sync_info);
    case V3DV_JOB_TYPE_CPU_CSD_INDIRECT:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
       return handle_csd_indirect_cpu_job(queue, job, sync_info);
    case V3DV_JOB_TYPE_CPU_TIMESTAMP_QUERY:
+      job->cmd_buffer->trace_queue_mask |= 1 << V3DV_QUEUE_CPU;
       return handle_timestamp_query_cpu_job(queue, job, sync_info);
    default:
       UNREACHABLE("Unhandled job type");

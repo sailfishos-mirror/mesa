@@ -672,6 +672,11 @@ struct v3dv_cmd_buffer {
     * buffer via vkCmdExecuteCommands.
     */
    struct list_head jobs;
+
+   /* Bitmask of v3dv_queue_type this cmd_buffer submitted jobs to, tracked
+    * for the cmdbuf trace marker's end-timestamp to wait on all of them.
+    */
+   uint8_t trace_queue_mask;
 };
 
 struct v3dv_job *v3dv_cmd_buffer_start_job(struct v3dv_cmd_buffer *cmd_buffer,
