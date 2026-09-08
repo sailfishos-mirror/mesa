@@ -3160,6 +3160,12 @@ tu_upload_shader(struct tu_device *dev,
    uint32_t pvtmem_size = v->pvtmem_size;
    bool per_wave = v->pvtmem_per_wave;
 
+   /* Shader stages that don't expose private memory are not expected to benefit
+    * as much from per-wave layout.
+    */
+   if ((v->type == MESA_SHADER_COMPUTE) && !per_wave)
+      perf_debug(dev, "falling back to per-fiber pvtmem layout");
+
    if (v->binning) {
       pvtmem_size = MAX2(pvtmem_size, shader->variant->binning->pvtmem_size);
       if (!shader->variant->binning->pvtmem_per_wave)
