@@ -7087,6 +7087,31 @@ enum anv_vid_mem_av1_types {
    ANV_VID_MEM_AV1_MAX,
 };
 
+#define ANV_VID_MEM_ADDR(vid_, type_)                                        \
+   (struct anv_address) { (vid_)->vid_mem[type_].mem->bo,                    \
+                          (vid_)->vid_mem[type_].offset }
+
+#define ANV_VID_ATTR(dev_, bo_, ...)                                         \
+   (struct GENX(MEMORYADDRESSATTRIBUTES)) {                                  \
+      .MOCS = anv_mocs(dev_, bo_, 0),                                        \
+      __VA_ARGS__                                                            \
+   }
+
+#define ANV_VID_MEM_INIT(buf_, field_, dev_, vid_, type_, ...)               \
+   do {                                                                      \
+      (buf_).field_##Address = ANV_VID_MEM_ADDR(vid_, type_);                \
+      (buf_).field_##AddressAttributes =                                     \
+         ANV_VID_ATTR(dev_, (vid_)->vid_mem[type_].mem->bo, __VA_ARGS__);    \
+   } while (0)
+
+#define ANV_VID_CACHE_INIT(buf_, field_, dev_, offset_)                      \
+   do {                                                                      \
+      (buf_).field_##Address = (struct anv_address) { NULL, offset_ };       \
+      (buf_).field_##AddressAttributes =                                     \
+         ANV_VID_ATTR(dev_, NULL,                                            \
+                      .RowStoreScratchBufferCacheSelect = 1);                \
+   } while (0)
+
 struct anv_av1_video_refs_info {
    const struct anv_image_view *iv;
    uint32_t array_layer;

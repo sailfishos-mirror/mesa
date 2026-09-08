@@ -308,93 +308,41 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
       };
 
-      buf.DeblockingFilterLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterLineBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_LINE);
 
-      buf.DeblockingFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterLineBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterTileLineBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_LINE);
 
-      buf.DeblockingFilterTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN);
 
-      buf.DeblockingFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileLineBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, MetadataLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_METADATA_LINE);
 
-      buf.DeblockingFilterTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].offset
-      };
+      ANV_VID_MEM_INIT(buf, MetadataTileLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_METADATA_TILE_LINE);
 
-      buf.DeblockingFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileColumnBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, MetadataTileColumnBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_METADATA_TILE_COLUMN);
 
-      buf.MetadataLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, SAOLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_SAO_LINE);
 
-      buf.MetadataLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataLineBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SAOTileLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_SAO_TILE_LINE);
 
-      buf.MetadataTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_LINE].offset
-      };
-
-      buf.MetadataTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileLineBufferAddress.bo, 0),
-      };
-
-      buf.MetadataTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_METADATA_TILE_COLUMN].offset
-      };
-
-      buf.MetadataTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileColumnBufferAddress.bo, 0),
-      };
-
-      buf.SAOLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_LINE].offset
-      };
-
-      buf.SAOLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.SAOLineBufferAddress.bo, 0),
-      };
-
-      buf.SAOTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_LINE].offset
-      };
-
-      buf.SAOTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.SAOTileLineBufferAddress.bo, 0),
-      };
-
-      buf.SAOTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H265_SAO_TILE_COLUMN].offset
-      };
-
-      buf.SAOTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.SAOTileColumnBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SAOTileColumnBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_H265_SAO_TILE_COLUMN);
 
       buf.CurrentMVTemporalBufferAddress =
          anv_image_dmv_top_address(iv, frame_info->dstPictureResource.baseArrayLayer);
 
-      buf.CurrentMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CurrentMVTemporalBufferAddress.bo, 0),
-      };
+      buf.CurrentMVTemporalBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CurrentMVTemporalBufferAddress.bo);
 
       for (unsigned i = 0; i < frame_info->referenceSlotCount; i++) {
          const struct anv_image_view *ref_iv =
@@ -418,21 +366,17 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
       };
 
-      buf.OriginalUncompressedPictureSourceAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.OriginalUncompressedPictureSourceAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.StreamOutDataDestinationAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.StreamOutDataDestinationAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.DecodedPictureStatusBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.DecodedPictureStatusBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.LCUILDBStreamOutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.LCUILDBStreamOutBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
       for (unsigned i = 0; i < frame_info->referenceSlotCount; i++) {
          const struct anv_image_view *ref_iv =
@@ -442,50 +386,38 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
             anv_image_dmv_top_address(ref_iv, frame_info->pReferenceSlots[i].pPictureResource->baseArrayLayer);
       }
 
-      buf.CollocatedMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CollocatedMVTemporalBufferAddress[0].bo, 0),
-      };
+      buf.CollocatedMVTemporalBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CollocatedMVTemporalBufferAddress[0].bo);
 
-      buf.VP9ProbabilityBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.VP9ProbabilityBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.VP9SegmentIDBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.VP9SegmentIDBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.VP9HVDLineRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.VP9HVDLineRowStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.VP9HVDTileRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.VP9HVDTileRowStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #if GFX_VER >= 11
-      buf.SAOStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.SSESourcePixelRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.HCPScalabilitySliceStateBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.MVUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.SAOStreamOutDataDestinationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.SSESourcePixelRowStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.HCPScalabilitySliceStateBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.MVUpperRightColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
    }
 
@@ -493,38 +425,30 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
       indirect.HCPIndirectBitstreamObjectBaseAddress =
          anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
 
-      indirect.HCPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
-      };
+      indirect.HCPIndirectBitstreamObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
 
       indirect.HCPIndirectBitstreamObjectAccessUpperBound =
          anv_address_add(src_buffer->address,
                          align64(frame_info->srcBufferRange + frame_info->srcBufferOffset, 4096));
 
-      indirect.HCPIndirectCUObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPIndirectCUObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      indirect.HCPPAKBSEObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPPAKBSEObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
 #if GFX_VER >= 11
-      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
    }
 
@@ -801,39 +725,34 @@ anv_h264_decode_video(struct anv_cmd_buffer *cmd_buffer,
          buf.PostDeblockingDestinationAddress =
             anv_image_dpb_address(iv, frame_info->dstPictureResource.baseArrayLayer);
       }
-      buf.PreDeblockingDestinationAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.PreDeblockingDestinationAddress.bo, 0),
-      };
-      buf.PostDeblockingDestinationAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.PostDeblockingDestinationAddress.bo, 0),
-      };
+      buf.PreDeblockingDestinationAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.PreDeblockingDestinationAddress.bo);
+      buf.PostDeblockingDestinationAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.PostDeblockingDestinationAddress.bo);
 
-      buf.IntraRowStoreScratchBufferAddress = (struct anv_address) { vid->vid_mem[ANV_VID_MEM_H264_INTRA_ROW_STORE].mem->bo, vid->vid_mem[ANV_VID_MEM_H264_INTRA_ROW_STORE].offset };
-      buf.IntraRowStoreScratchBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.IntraRowStoreScratchBufferAddress.bo, 0),
-      };
-      buf.DeblockingFilterRowStoreScratchAddress = (struct anv_address) { vid->vid_mem[ANV_VID_MEM_H264_DEBLOCK_FILTER_ROW_STORE].mem->bo, vid->vid_mem[ANV_VID_MEM_H264_DEBLOCK_FILTER_ROW_STORE].offset };
-      buf.DeblockingFilterRowStoreScratchAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterRowStoreScratchAddress.bo, 0),
-      };
-      buf.MBStatusBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.MBILDBStreamOutBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.SecondMBILDBStreamOutBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.ScaledReferenceSurfaceAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.OriginalUncompressedPictureSourceAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.StreamOutDataDestinationAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.IntraRowStoreScratchBufferAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_INTRA_ROW_STORE);
+      buf.IntraRowStoreScratchBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.IntraRowStoreScratchBufferAddress.bo);
+      buf.DeblockingFilterRowStoreScratchAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_DEBLOCK_FILTER_ROW_STORE);
+      buf.DeblockingFilterRowStoreScratchAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.DeblockingFilterRowStoreScratchAddress.bo);
+      buf.MBStatusBufferAttributes = ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.MBILDBStreamOutBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.SecondMBILDBStreamOutBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.ScaledReferenceSurfaceAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.OriginalUncompressedPictureSourceAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.StreamOutDataDestinationAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
       struct anv_bo *ref_bo = NULL;
       for (unsigned i = 0; i < frame_info->referenceSlotCount; i++) {
@@ -854,47 +773,40 @@ anv_h264_decode_video(struct anv_cmd_buffer *cmd_buffer,
             ref_bo = ref_iv->image->bindings[0].address.bo;
          }
       }
-      buf.ReferencePictureAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, ref_bo, 0),
-      };
+      buf.ReferencePictureAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, ref_bo);
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MFX_IND_OBJ_BASE_ADDR_STATE), index_obj) {
       index_obj.MFXIndirectBitstreamObjectAddress = anv_address_add(src_buffer->address,
                                                                     frame_info->srcBufferOffset & ~4095);
-      index_obj.MFXIndirectBitstreamObjectAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
-      };
-      index_obj.MFXIndirectMVObjectAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      index_obj.MFDIndirectITCOEFFObjectAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      index_obj.MFDIndirectITDBLKObjectAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      index_obj.MFCIndirectPAKBSEObjectAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      index_obj.MFXIndirectBitstreamObjectAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
+      index_obj.MFXIndirectMVObjectAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      index_obj.MFDIndirectITCOEFFObjectAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      index_obj.MFDIndirectITDBLKObjectAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      index_obj.MFCIndirectPAKBSEObjectAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MFX_BSP_BUF_BASE_ADDR_STATE), bsp) {
-      bsp.BSDMPCRowStoreScratchBufferAddress = (struct anv_address) { vid->vid_mem[ANV_VID_MEM_H264_BSD_MPC_ROW_SCRATCH].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H264_BSD_MPC_ROW_SCRATCH].offset };
+      bsp.BSDMPCRowStoreScratchBufferAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_BSD_MPC_ROW_SCRATCH);
 
-      bsp.BSDMPCRowStoreScratchBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, bsp.BSDMPCRowStoreScratchBufferAddress.bo, 0),
-      };
-      bsp.MPRRowStoreScratchBufferAddress = (struct anv_address) { vid->vid_mem[ANV_VID_MEM_H264_MPR_ROW_SCRATCH].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_H264_MPR_ROW_SCRATCH].offset };
+      bsp.BSDMPCRowStoreScratchBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      bsp.BSDMPCRowStoreScratchBufferAddress.bo);
+      bsp.MPRRowStoreScratchBufferAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_MPR_ROW_SCRATCH);
 
-      bsp.MPRRowStoreScratchBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, bsp.MPRRowStoreScratchBufferAddress.bo, 0),
-      };
-      bsp.BitplaneReadBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      bsp.MPRRowStoreScratchBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      bsp.MPRRowStoreScratchBufferAddress.bo);
+      bsp.BitplaneReadBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MFD_AVC_DPB_STATE), avc_dpb) {
@@ -1025,15 +937,13 @@ anv_h264_decode_video(struct anv_cmd_buffer *cmd_buffer,
          avc_directmode.POCList[2 * idx] = ref_info->PicOrderCnt[0];
          avc_directmode.POCList[2 * idx + 1] = ref_info->PicOrderCnt[1];
       }
-      avc_directmode.DirectMVBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, dmv_bo, 0),
-      };
+      avc_directmode.DirectMVBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, dmv_bo);
 
       avc_directmode.DirectMVBufferWriteAddress =
          anv_image_dmv_top_address(iv, frame_info->dstPictureResource.baseArrayLayer);
-      avc_directmode.DirectMVBufferWriteAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, img->bindings[0].address.bo, 0),
-      };
+      avc_directmode.DirectMVBufferWriteAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, img->bindings[0].address.bo);
       avc_directmode.POCList[32] = h264_pic_info->pStdPictureInfo->PicOrderCnt[0];
       avc_directmode.POCList[33] = h264_pic_info->pStdPictureInfo->PicOrderCnt[1];
    }
@@ -1251,391 +1161,188 @@ anv_av1_decode_dummy(struct anv_cmd_buffer *cmd_buffer)
    bool use_internal_cache_mem = true;
 
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_PIPE_BUF_ADDR_STATE), buf) {
-      buf.DecodedOutputFrameBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.DecodedOutputFrameBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.CurrentFrameMVWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.CurrentFrameMVWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.IntraBCDecodedOutputFrameBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.IntraBCDecodedOutputFrameBufferAddress.bo, 0),
-      };
+      buf.IntraBCDecodedOutputFrameBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.IntraBCDecodedOutputFrameBufferAddress.bo);
 
       if (use_internal_cache_mem) {
-         buf.BitstreamLineRowstoreBufferAddress = (struct anv_address) {
-            NULL,
-            btdl_cache_offset * 64
-         };
-
-         buf.BitstreamLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, BitstreamLineRowstoreBuffer,
+                            cmd_buffer->device, btdl_cache_offset * 64);
       } else {
-         buf.BitstreamLineRowstoreBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].offset
-         };
-         buf.BitstreamLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, BitstreamLineRowstoreBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE);
       }
 
-      buf.BitstreamTileLineRowstoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].offset
-      };
-
-      buf.BitstreamTileLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, BitstreamTileLineRowstoreBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE);
 
       if (use_internal_cache_mem) {
-         buf.IntraPredictionLineRowstoreBufferAddress = (struct anv_address) {
-            NULL,
-            ipdl_cache_offset * 64
-         };
-         buf.IntraPredictionLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1
-         };
+         ANV_VID_CACHE_INIT(buf, IntraPredictionLineRowstoreBuffer,
+                            cmd_buffer->device, ipdl_cache_offset * 64);
       } else {
-         buf.IntraPredictionLineRowstoreBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].offset
-         };
-         buf.IntraPredictionLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, IntraPredictionLineRowstoreBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE);
       }
-      buf.IntraPredictionTileLineRowstoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].offset
-      };
-
-      buf.IntraPredictionTileLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, IntraPredictionTileLineRowstoreBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE);
 
       if (use_internal_cache_mem) {
-         buf.SpatialMotionVectorLineBufferAddress = (struct anv_address) {
-            NULL,
-            smvl_cache_offset * 64
-         };
-         buf.SpatialMotionVectorLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1
-         };
+         ANV_VID_CACHE_INIT(buf, SpatialMotionVectorLineBuffer,
+                            cmd_buffer->device, smvl_cache_offset * 64);
       } else {
-         buf.SpatialMotionVectorLineBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].offset
-         };
-         buf.SpatialMotionVectorLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, SpatialMotionVectorLineBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE);
       }
 
-      buf.SpatialMotionVectorTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, SpatialMotionVectorTileLineBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE);
 
-      buf.SpatialMotionVectorTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationMetaTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN);
 
-      buf.LoopRestorationMetaTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].offset
-      };
-      buf.LoopRestorationMetaTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y);
 
-      buf.LoopRestorationFilterTileLineYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].offset
-      };
-      buf.LoopRestorationFilterTileLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U);
 
-      buf.LoopRestorationFilterTileLineUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].offset
-      };
-
-      buf.LoopRestorationFilterTileLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].mem->bo, 0),
-      };
-
-      buf.LoopRestorationFilterTileLineVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].offset
-      };
-
-      buf.LoopRestorationFilterTileLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V);
 
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineYBufferAddress = (struct anv_address) {
-            NULL,
-            dfly_cache_offset * 64
-         };
-         buf.DeblockerFilterLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineYBuffer,
+                            cmd_buffer->device, dfly_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineYBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].offset
-         };
-         buf.DeblockerFilterLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineYBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y);
       }
 
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineUBufferAddress = (struct anv_address) {
-            NULL,
-            dflu_cache_offset * 64
-         };
-         buf.DeblockerFilterLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineUBuffer,
+                            cmd_buffer->device, dflu_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineUBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].offset
-         };
-         buf.DeblockerFilterLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineUBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U);
       }
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineVBufferAddress = (struct anv_address) {
-            NULL,
-            dflv_cache_offset * 64
-         };
-         buf.DeblockerFilterLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineVBuffer,
+                            cmd_buffer->device, dflv_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineVBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].offset
-         };
-         buf.DeblockerFilterLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineVBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V);
       }
 
-      buf.DeblockerFilterTileLineYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].offset
-      };
-      buf.DeblockerFilterTileLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y);
 
-      buf.DeblockerFilterTileLineUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U);
 
-      buf.DeblockerFilterTileLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V);
 
-      buf.DeblockerFilterTileLineVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].offset
-      };
-      buf.DeblockerFilterTileLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y);
 
-      buf.DeblockerFilterTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].offset
-      };
-
-      buf.DeblockerFilterTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].mem->bo, 0),
-      };
-
-      buf.DeblockerFilterTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].offset
-      };
-
-      buf.DeblockerFilterTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].mem->bo, 0),
-      };
-      buf.DeblockerFilterTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].offset
-      };
-      buf.DeblockerFilterTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U);
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V);
 
       if (use_internal_cache_mem) {
-         buf.CDEFFilterLineBufferAddress = (struct anv_address) { NULL, cdef_cache_offset * 64};
-         buf.CDEFFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, CDEFFilterLineBuffer, cmd_buffer->device,
+                            cdef_cache_offset * 64);
       } else {
-         buf.CDEFFilterLineBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].offset
-         };
-         buf.CDEFFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, CDEFFilterLineBuffer, cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_CDEF_FILTER_LINE);
       }
 
-      buf.CDEFFilterTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].offset
-      };
-      buf.CDEFFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTileLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE);
 
-      buf.CDEFFilterTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].offset
-      };
-      buf.CDEFFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTileColumnBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN);
 
-      buf.CDEFFilterMetaTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].offset
-      };
-      buf.CDEFFilterMetaTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterMetaTileLineBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE);
 
-      buf.CDEFFilterMetaTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].offset
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterMetaTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN);
 
-      buf.CDEFFilterMetaTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTopLeftCornerBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER);
 
-      buf.CDEFFilterTopLeftCornerBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].offset
-      };
-      buf.CDEFFilterTopLeftCornerBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnYBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y);
 
-      buf.SuperResTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].offset
-      };
-      buf.SuperResTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnUBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U);
 
-      buf.SuperResTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].offset
-      };
-      buf.SuperResTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnVBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V);
 
-      buf.SuperResTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].offset
-      };
-      buf.SuperResTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y);
 
-      buf.LoopRestorationFilterTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].offset
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U);
 
-      buf.LoopRestorationFilterTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V);
 
-      buf.LoopRestorationFilterTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].offset
-      };
+      buf.ReferencePictureAttributes = ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.CollocatedMVTemporalBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.LoopRestorationFilterTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].mem->bo, 0),
-      };
+      buf.CDFTablesInitializationBufferAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + 3);
 
-      buf.LoopRestorationFilterTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].offset
-      };
-      buf.LoopRestorationFilterTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].mem->bo, 0),
-      };
+      buf.CDFTablesInitializationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CDFTablesInitializationBufferAddress.bo);
 
-      buf.ReferencePictureAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.CollocatedMVTemporalBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.CDFTablesBackwardAdaptationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.AV1SegmentIDReadBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.AV1SegmentIDWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.DecodedFrameStatusErrorBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.CDFTablesInitializationBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + 3].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + 3].offset
-      };
-
-      buf.CDFTablesInitializationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CDFTablesInitializationBufferAddress.bo, 0),
-      };
-
-      buf.CDFTablesBackwardAdaptationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.AV1SegmentIDReadBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.AV1SegmentIDWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.DecodedFrameStatusErrorBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-
-      buf.DecodedBlockDataStreamoutBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].offset
-      };
-      buf.DecodedBlockDataStreamoutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DecodedBlockDataStreamoutBuffer,
+                       cmd_buffer->device, vid, ANV_VID_MEM_AV1_DBD_BUFFER);
    };
 
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_IND_OBJ_BASE_ADDR_STATE), ind) {
-      ind.AVPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      ind.AVPIndirectBitstreamObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_PIC_STATE), pic) {
@@ -1920,9 +1627,9 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       };
       buf.CurrentFrameMVWriteBufferAddress =
          anv_image_dmv_top_address(dpb_iv, dpb_array_layer);
-      buf.CurrentFrameMVWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CurrentFrameMVWriteBufferAddress.bo, 0),
-      };
+      buf.CurrentFrameMVWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CurrentFrameMVWriteBufferAddress.bo);
 
       if (std_pic_info->flags.allow_intrabc) {
          buf.IntraBCDecodedOutputFrameBufferAddress =
@@ -1937,343 +1644,154 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       };
 
       if (use_internal_cache_mem) {
-         buf.BitstreamLineRowstoreBufferAddress = (struct anv_address) {
-            NULL,
-            btdl_cache_offset * 64
-         };
-
-         buf.BitstreamLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, BitstreamLineRowstoreBuffer,
+                            cmd_buffer->device, btdl_cache_offset * 64);
       } else {
-         buf.BitstreamLineRowstoreBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].offset
-         };
-         buf.BitstreamLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, BitstreamLineRowstoreBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_BITSTREAM_LINE_ROWSTORE);
       }
 
-      buf.BitstreamTileLineRowstoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].offset
-      };
-
-      buf.BitstreamTileLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, BitstreamTileLineRowstoreBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_BITSTREAM_TILE_LINE_ROWSTORE);
 
       if (use_internal_cache_mem) {
-         buf.IntraPredictionLineRowstoreBufferAddress = (struct anv_address) {
-            NULL,
-            ipdl_cache_offset * 64
-         };
-         buf.IntraPredictionLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1
-         };
+         ANV_VID_CACHE_INIT(buf, IntraPredictionLineRowstoreBuffer,
+                            cmd_buffer->device, ipdl_cache_offset * 64);
       } else {
-         buf.IntraPredictionLineRowstoreBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].offset
-         };
-         buf.IntraPredictionLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, IntraPredictionLineRowstoreBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE);
       }
-      buf.IntraPredictionTileLineRowstoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].offset
-      };
-
-      buf.IntraPredictionTileLineRowstoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, IntraPredictionTileLineRowstoreBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_INTRA_PREDICTION_TILE_LINE_ROWSTORE);
 
       if (use_internal_cache_mem) {
-         buf.SpatialMotionVectorLineBufferAddress = (struct anv_address) {
-            NULL,
-            smvl_cache_offset * 64
-         };
-         buf.SpatialMotionVectorLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1
-         };
+         ANV_VID_CACHE_INIT(buf, SpatialMotionVectorLineBuffer,
+                            cmd_buffer->device, smvl_cache_offset * 64);
       } else {
-         buf.SpatialMotionVectorLineBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].offset
-         };
-         buf.SpatialMotionVectorLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, SpatialMotionVectorLineBuffer,
+                          cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_LINE);
       }
 
-      buf.SpatialMotionVectorTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, SpatialMotionVectorTileLineBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE);
 
-      buf.SpatialMotionVectorTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SPATIAL_MOTION_VECTOR_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationMetaTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN);
 
-      buf.LoopRestorationMetaTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].offset
-      };
-      buf.LoopRestorationMetaTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_META_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y);
 
-      buf.LoopRestorationFilterTileLineYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].offset
-      };
-      buf.LoopRestorationFilterTileLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U);
 
-      buf.LoopRestorationFilterTileLineUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].offset
-      };
-
-      buf.LoopRestorationFilterTileLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_U].mem->bo, 0),
-      };
-
-      buf.LoopRestorationFilterTileLineVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].offset
-      };
-
-      buf.LoopRestorationFilterTileLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileLineVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_LINE_V);
 
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineYBufferAddress = (struct anv_address) {
-            NULL,
-            dfly_cache_offset * 64
-         };
-         buf.DeblockerFilterLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineYBuffer,
+                            cmd_buffer->device, dfly_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineYBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].offset
-         };
-         buf.DeblockerFilterLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineYBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_Y);
       }
 
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineUBufferAddress = (struct anv_address) {
-            NULL,
-            dflu_cache_offset * 64
-         };
-         buf.DeblockerFilterLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineUBuffer,
+                            cmd_buffer->device, dflu_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineUBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].offset
-         };
-         buf.DeblockerFilterLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineUBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_U);
       }
       if (use_internal_cache_mem) {
-         buf.DeblockerFilterLineVBufferAddress = (struct anv_address) {
-            NULL,
-            dflv_cache_offset * 64
-         };
-         buf.DeblockerFilterLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, DeblockerFilterLineVBuffer,
+                            cmd_buffer->device, dflv_cache_offset * 64);
       } else {
-         buf.DeblockerFilterLineVBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].offset
-         };
-         buf.DeblockerFilterLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, DeblockerFilterLineVBuffer, cmd_buffer->device,
+                          vid, ANV_VID_MEM_AV1_DEBLOCKER_FILTER_LINE_V);
       }
 
-      buf.DeblockerFilterTileLineYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].offset
-      };
-      buf.DeblockerFilterTileLineYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_Y);
 
-      buf.DeblockerFilterTileLineUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U);
 
-      buf.DeblockerFilterTileLineUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_U].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileLineVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V);
 
-      buf.DeblockerFilterTileLineVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].offset
-      };
-      buf.DeblockerFilterTileLineVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_LINE_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y);
 
-      buf.DeblockerFilterTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].offset
-      };
-
-      buf.DeblockerFilterTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_Y].mem->bo, 0),
-      };
-
-      buf.DeblockerFilterTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].offset
-      };
-
-      buf.DeblockerFilterTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U].mem->bo, 0),
-      };
-      buf.DeblockerFilterTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].offset
-      };
-      buf.DeblockerFilterTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_U);
+      ANV_VID_MEM_INIT(buf, DeblockerFilterTileColumnVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_DEBLOCKER_FILTER_TILE_COLUMN_V);
 
       if (use_internal_cache_mem) {
-         buf.CDEFFilterLineBufferAddress = (struct anv_address) { NULL, cdef_cache_offset * 64};
-         buf.CDEFFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-            .RowStoreScratchBufferCacheSelect = 1,
-         };
+         ANV_VID_CACHE_INIT(buf, CDEFFilterLineBuffer, cmd_buffer->device,
+                            cdef_cache_offset * 64);
       } else {
-         buf.CDEFFilterLineBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].offset
-         };
-         buf.CDEFFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-            .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_LINE].mem->bo, 0),
-         };
+         ANV_VID_MEM_INIT(buf, CDEFFilterLineBuffer, cmd_buffer->device, vid,
+                          ANV_VID_MEM_AV1_CDEF_FILTER_LINE);
       }
 
-      buf.CDEFFilterTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].offset
-      };
-      buf.CDEFFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTileLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_CDEF_FILTER_TILE_LINE);
 
-      buf.CDEFFilterTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].offset
-      };
-      buf.CDEFFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTileColumnBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_TILE_COLUMN);
 
-      buf.CDEFFilterMetaTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].offset
-      };
-      buf.CDEFFilterMetaTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterMetaTileLineBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_LINE);
 
-      buf.CDEFFilterMetaTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].offset
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterMetaTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN);
 
-      buf.CDEFFilterMetaTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_META_TILE_COLUMN].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, CDEFFilterTopLeftCornerBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER);
 
-      buf.CDEFFilterTopLeftCornerBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].offset
-      };
-      buf.CDEFFilterTopLeftCornerBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_CDEF_FILTER_TOP_LEFT_CORNER].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnYBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y);
 
-      buf.SuperResTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].offset
-      };
-      buf.SuperResTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_Y].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnUBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U);
 
-      buf.SuperResTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].offset
-      };
-      buf.SuperResTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_U].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, SuperResTileColumnVBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V);
 
-      buf.SuperResTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].offset
-      };
-      buf.SuperResTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_SUPER_RES_TILE_COLUMN_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnYBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y);
 
-      buf.LoopRestorationFilterTileColumnYBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].offset
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnUBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U);
 
-      buf.LoopRestorationFilterTileColumnYBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_Y].mem->bo, 0),
-      };
-
-      buf.LoopRestorationFilterTileColumnUBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].offset
-      };
-
-      buf.LoopRestorationFilterTileColumnUBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_U].mem->bo, 0),
-      };
-
-      buf.LoopRestorationFilterTileColumnVBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].offset
-      };
-      buf.LoopRestorationFilterTileColumnVBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, LoopRestorationFilterTileColumnVBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_V);
 #if GFX_VER >= 20
-      buf.LoopRestorationFilterTileColumnAlignmentReadWriteBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_ALIGNMENT_RW].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_ALIGNMENT_RW].offset
-      };
-      buf.LoopRestorationFilterTileColumnAlignmentReadWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_ALIGNMENT_RW].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf,
+         LoopRestorationFilterTileColumnAlignmentReadWriteBuffer,
+                       cmd_buffer->device, vid,
+         ANV_VID_MEM_AV1_LOOP_RESTORATION_FILTER_TILE_COLUMN_ALIGNMENT_RW);
 #endif
 
       struct anv_bo *ref_bo = NULL;
@@ -2305,9 +1823,8 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
          .TiledResourceMode = TRMODE_TILEF,
 #endif
       };
-      buf.CollocatedMVTemporalBufferAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, collocated_bo, 0),
-      };
+      buf.CollocatedMVTemporalBufferAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, collocated_bo);
 
       bool use_default_cdf = false;
 
@@ -2324,9 +1841,8 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       }
 
       if (use_default_cdf) {
-         buf.CDFTablesInitializationBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + cdf_index].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + cdf_index].offset };
+         buf.CDFTablesInitializationBufferAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_AV1_CDF_DEFAULTS_0 + cdf_index);
 
          ref_info[0].default_cdf_index = cdf_index;
       } else {
@@ -2334,97 +1850,75 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
          const uint32_t ref_layer = ref_info[std_pic_info->primary_ref_frame + 1].array_layer;
          buf.CDFTablesInitializationBufferAddress = anv_image_av1_table_address(ref_iv, ref_layer);
       }
-      buf.CDFTablesInitializationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CDFTablesInitializationBufferAddress.bo, 0),
-      };
+      buf.CDFTablesInitializationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CDFTablesInitializationBufferAddress.bo);
 
       if (!std_pic_info->flags.disable_frame_end_update_cdf) {
          buf.CDFTablesBackwardAdaptationBufferAddress =
             anv_image_av1_table_address(ref_info[0].iv, ref_info[0].array_layer);
       }
 
-      buf.CDFTablesBackwardAdaptationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CDFTablesBackwardAdaptationBufferAddress.bo, 0),
-      };
-      buf.AV1SegmentIDReadBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.AV1SegmentIDWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.DecodedFrameStatusErrorBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.CDFTablesBackwardAdaptationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CDFTablesBackwardAdaptationBufferAddress.bo);
+      buf.AV1SegmentIDReadBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.AV1SegmentIDWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.DecodedFrameStatusErrorBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.DecodedBlockDataStreamoutBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].offset
-      };
-      buf.DecodedBlockDataStreamoutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, vid->vid_mem[ANV_VID_MEM_AV1_DBD_BUFFER].mem->bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DecodedBlockDataStreamoutBuffer,
+                       cmd_buffer->device, vid, ANV_VID_MEM_AV1_DBD_BUFFER);
 #if GFX_VERx10 >= 125
-      buf.OriginalUncompressedPictureSourceBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.DownscaledUncompressedPictureSourceBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.TileSizeStreamoutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.TileStatisticsStreamoutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.CUStreamoutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.SSELineReadWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.SSETileLineReadWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.PostCDEFPixelsBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.OriginalUncompressedPictureSourceBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.DownscaledUncompressedPictureSourceBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.TileSizeStreamoutBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.TileStatisticsStreamoutBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.CUStreamoutBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.SSELineReadWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.SSETileLineReadWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.PostCDEFPixelsBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
 #if GFX_VER >= 20
       if (is_grain) {
          buf.FilmGrainInjectedOutputFrameBufferAddress =
             anv_image_dpb_address(dst_iv, frame_info->dstPictureResource.baseArrayLayer);
-         buf.FilmGrainSampleTemplateAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_FILM_GRAIN_SAMPLE_TEMPLATE].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_FILM_GRAIN_SAMPLE_TEMPLATE].offset
-         };
-         buf.FilmGrainTileColumnDataReadWriteBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_AV1_FILM_GRAIN_TILE_COLUMN_RW].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_AV1_FILM_GRAIN_TILE_COLUMN_RW].offset
-         };
+         buf.FilmGrainSampleTemplateAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_AV1_FILM_GRAIN_SAMPLE_TEMPLATE);
+         buf.FilmGrainTileColumnDataReadWriteBufferAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_AV1_FILM_GRAIN_TILE_COLUMN_RW);
       }
-      buf.FilmGrainInjectedOutputFrameBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.FilmGrainInjectedOutputFrameBufferAddress.bo, 0),
-         .TiledResourceMode = TRMODE_TILEF,
-      };
-      buf.FilmGrainSampleTemplateAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.FilmGrainSampleTemplateAddress.bo, 0),
-      };
-      buf.FilmGrainTileColumnDataReadWriteBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.FilmGrainTileColumnDataReadWriteBufferAddress.bo, 0),
-      };
+      buf.FilmGrainInjectedOutputFrameBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.FilmGrainInjectedOutputFrameBufferAddress.bo,
+                      .TiledResourceMode = TRMODE_TILEF);
+      buf.FilmGrainSampleTemplateAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.FilmGrainSampleTemplateAddress.bo);
+      buf.FilmGrainTileColumnDataReadWriteBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.FilmGrainTileColumnDataReadWriteBufferAddress.bo);
 #endif
    };
 
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_IND_OBJ_BASE_ADDR_STATE), ind) {
       ind.AVPIndirectBitstreamObjectBaseAddress = anv_address_add(src_buffer->address,
                                                                   frame_info->srcBufferOffset & ~4095);
-      ind.AVPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
-      };
+      ind.AVPIndirectBitstreamObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
 #if GFX_VERx10 >= 125
-      ind.AVPIndirectCUObjectMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      ind.AVPIndirectCUObjectMemoryAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
    }
 
@@ -3293,10 +2787,8 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
       vid->vid_mem[prob_id].offset
    };
 
-   struct anv_address saved_addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].offset
-   };
+   struct anv_address saved_addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_INTER_PROB_SAVED);
 
 #if GFX_VER >= 12
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FORCE_WAKEUP), wake) {
@@ -3323,15 +2815,11 @@ anv_vp9_emit_gpu_prob_update(struct anv_cmd_buffer *cmd_buffer,
    }
 
    if (reset_segment_id) {
-      struct anv_address seg_id_addr = {
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].offset
-      };
+      struct anv_address seg_id_addr =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_SEGMENT_ID);
 
-      struct anv_address seg_id_reset_addr = {
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID_RESET].offset
-      };
+      struct anv_address seg_id_reset_addr =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_SEGMENT_ID_RESET);
 
       anv_huc_emit_copy(cmd_buffer, seg_id_addr, seg_id_reset_addr,
                         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].size);
@@ -3354,10 +2842,8 @@ anv_vp9_emit_followup_partial_reset(struct anv_cmd_buffer *cmd_buffer,
    struct anv_address staging_addr =
       anv_cmd_buffer_temporary_state_address(cmd_buffer, staging_state);
 
-   struct anv_address prob0_addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].offset
-   };
+   struct anv_address prob0_addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_PROBABILITY_0);
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
       flush.VideoPipelineCacheInvalidate = 1;
@@ -3373,15 +2859,11 @@ static void
 anv_vp9_emit_restore_inter_probs(struct anv_cmd_buffer *cmd_buffer,
                                  struct anv_video_session *vid)
 {
-   struct anv_address prob0_addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_PROBABILITY_0].offset
-   };
+   struct anv_address prob0_addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_PROBABILITY_0);
 
-   struct anv_address saved_addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_INTER_PROB_SAVED].offset
-   };
+   struct anv_address saved_addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_INTER_PROB_SAVED);
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
       flush.VideoPipelineCacheInvalidate = 1;
@@ -3401,10 +2883,8 @@ anv_vp9_emit_mv_prev_update(struct anv_cmd_buffer *cmd_buffer,
    const uint32_t src_id = key_frame_or_intra_only ?
       ANV_VID_MEM_VP9_MV_ZERO : ANV_VID_MEM_VP9_MV_CUR;
 
-   struct anv_address prev_addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].offset
-   };
+   struct anv_address prev_addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_MV_PREV);
 
    struct anv_address src_addr = {
       vid->vid_mem[src_id].mem->bo,
@@ -3425,10 +2905,8 @@ anv_vp9_emit_mv_prev_update(struct anv_cmd_buffer *cmd_buffer,
 static struct anv_address
 anv_vp9_exec_state_address(struct anv_video_session *vid, uint32_t offset)
 {
-   struct anv_address addr = {
-      vid->vid_mem[ANV_VID_MEM_VP9_EXEC_STATE].mem->bo,
-      vid->vid_mem[ANV_VID_MEM_VP9_EXEC_STATE].offset
-   };
+   struct anv_address addr =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_EXEC_STATE);
 
    return anv_address_add(addr, offset);
 }
@@ -3637,83 +3115,43 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
       };
 
-      buf.DeblockingFilterLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterLineBuffer, cmd_buffer->device,
+                       vid, ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_LINE);
 
-      buf.DeblockingFilterLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterLineBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterTileLineBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_LINE);
 
-      buf.DeblockingFilterTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_LINE].offset
-      };
+      ANV_VID_MEM_INIT(buf, DeblockingFilterTileColumnBuffer,
+                       cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN);
 
-      buf.DeblockingFilterTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileLineBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, MetadataLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_METADATA_LINE);
 
-      buf.DeblockingFilterTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_DEBLOCK_FILTER_ROW_STORE_TILE_COLUMN].offset
-      };
+      ANV_VID_MEM_INIT(buf, MetadataTileLineBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_METADATA_TILE_LINE);
 
-      buf.DeblockingFilterTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.DeblockingFilterTileColumnBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, MetadataTileColumnBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_METADATA_TILE_COLUMN);
 
-      buf.MetadataLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_LINE].offset
-      };
+      buf.SAOLineBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.MetadataLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataLineBufferAddress.bo, 0),
-      };
+      buf.SAOTileLineBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.MetadataTileLineBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_LINE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_LINE].offset
-      };
-
-      buf.MetadataTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileLineBufferAddress.bo, 0),
-      };
-
-      buf.MetadataTileColumnBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_COLUMN].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_METADATA_TILE_COLUMN].offset
-      };
-
-      buf.MetadataTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.MetadataTileColumnBufferAddress.bo, 0),
-      };
-
-      buf.SAOLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-
-      buf.SAOTileLineBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-
-      buf.SAOTileColumnBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.SAOTileColumnBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
       if (!key_frame_or_intra_only) {
-         buf.CurrentMVTemporalBufferAddress = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].offset
-         };
+         buf.CurrentMVTemporalBufferAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_MV_CUR);
       }
 
-      buf.CurrentMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device,
-                          vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo, 0),
-      };
+      buf.CurrentMVTemporalBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      vid->vid_mem[ANV_VID_MEM_VP9_MV_CUR].mem->bo);
 
       if (!key_frame_or_intra_only) {
          for (uint8_t i = 0; i < 3; i++) {
@@ -3736,94 +3174,64 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
       };
 
-      buf.OriginalUncompressedPictureSourceAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.OriginalUncompressedPictureSourceAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.StreamOutDataDestinationAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.StreamOutDataDestinationAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.DecodedPictureStatusBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.DecodedPictureStatusBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.LCUILDBStreamOutBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.LCUILDBStreamOutBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
       if (!key_frame_or_intra_only) {
-         buf.CollocatedMVTemporalBufferAddress[0] = (struct anv_address) {
-            vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].mem->bo,
-            vid->vid_mem[ANV_VID_MEM_VP9_MV_PREV].offset
-         };
+         buf.CollocatedMVTemporalBufferAddress[0] =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_MV_PREV);
       }
 
-      buf.CollocatedMVTemporalBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.CollocatedMVTemporalBufferAddress[0].bo, 0),
-      };
+      buf.CollocatedMVTemporalBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device,
+                      buf.CollocatedMVTemporalBufferAddress[0].bo);
 
       buf.VP9ProbabilityBufferAddress = (struct anv_address) {
          vid->vid_mem[prob_id].mem->bo,
          vid->vid_mem[prob_id].offset
       };
 
-      buf.VP9ProbabilityBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.VP9ProbabilityBufferAddress.bo, 0),
-      };
+      buf.VP9ProbabilityBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, buf.VP9ProbabilityBufferAddress.bo);
 
-      buf.VP9SegmentIDBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_SEGMENT_ID].offset
-      };
+      buf.VP9SegmentIDBufferAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_VP9_SEGMENT_ID);
 
-      buf.VP9SegmentIDBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.VP9SegmentIDBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      buf.VP9HVDLineRowStoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE].offset
-      };
+      ANV_VID_MEM_INIT(buf, VP9HVDLineRowStoreBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_HVD_LINE_ROW_STORE);
 
-      buf.VP9HVDLineRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.VP9HVDLineRowStoreBufferAddress.bo, 0),
-      };
-
-      buf.VP9HVDTileRowStoreBufferAddress = (struct anv_address) {
-         vid->vid_mem[ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE].mem->bo,
-         vid->vid_mem[ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE].offset
-      };
-
-      buf.VP9HVDTileRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, buf.VP9HVDTileRowStoreBufferAddress.bo, 0),
-      };
+      ANV_VID_MEM_INIT(buf, VP9HVDTileRowStoreBuffer, cmd_buffer->device, vid,
+                       ANV_VID_MEM_VP9_HVD_TILE_ROW_STORE);
 
 #if GFX_VER >= 11
-      buf.SAOStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.SSESourcePixelRowStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.HCPScalabilitySliceStateBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.MVUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      buf.SAOStreamOutDataDestinationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.SSESourcePixelRowStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.HCPScalabilitySliceStateBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.HCPScalabilityCABACDecodedSyntaxElementsBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.MVUpperRightColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.IntraPredictionUpperRightColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      buf.IntraPredictionLeftReconColumnStoreBufferAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
    }
 
@@ -3831,34 +3239,26 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
       indirect.HCPIndirectBitstreamObjectBaseAddress =
          anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
 
-      indirect.HCPIndirectBitstreamObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, src_buffer->address.bo, 0),
-      };
+      indirect.HCPIndirectBitstreamObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
 
-      indirect.HCPIndirectCUObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPIndirectCUObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
-      indirect.HCPPAKBSEObjectAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPPAKBSEObjectAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 
 #if GFX_VER >= 11
-      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
-      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
-         .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
-      };
+      indirect.HCPVP9PAKCompressedHeaderSyntaxStreamInAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKProbabilityCounterStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKProbabilityDeltasStreamInAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKTileRecordStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
+      indirect.HCPVP9PAKCULevelStatisticStreamOutAddressAttributes =
+         ANV_VID_ATTR(cmd_buffer->device, NULL);
 #endif
    }
 
