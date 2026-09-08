@@ -1837,10 +1837,8 @@ radv_cmd_clear_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *imag
    for (uint32_t r = 0; r < range_count; r++) {
       const VkImageSubresourceRange *range = &ranges[r];
 
-      /* Try to perform a fast clear first, otherwise fallback to
-       * the legacy path.
-       */
-      if (!cs && radv_fast_clear_range(cmd_buffer, image, format, image_layout, range, &internal_clear_value)) {
+      /* Try to perform a fast clear first. */
+      if (radv_fast_clear_range(cmd_buffer, image, format, image_layout, range, &internal_clear_value)) {
          continue;
       }
 
