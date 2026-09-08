@@ -43,6 +43,7 @@ struct panfrost_kmod_ops {
                      struct drm_panfrost_submit *submit_info);
    struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, uint32_t handle,
                                     uint64_t size);
+   int (*prime_fd_to_handle)(struct pan_kmod_dev *dev, int fd, uint32_t *handle);
 };
 
 struct panfrost_kmod_dev {
@@ -171,6 +172,13 @@ panfrost_kmod_bo_import_handle(struct pan_kmod_dev *dev, uint32_t handle,
 err_free_bo:
    pan_kmod_dev_free(dev, panfrost_bo);
    return NULL;
+}
+
+static inline int
+panfrost_kmod_prime_fd_to_handle(struct pan_kmod_dev *dev, int fd,
+                                 uint32_t *handle)
+{
+   return drmPrimeFDToHandle(dev->fd, fd, handle);
 }
 
 static inline void
@@ -363,6 +371,7 @@ panfrost_kmod_dev_create(int fd, uint32_t flags,
       .get_param = panfrost_kmod_get_param,
       .submit_job = panfrost_kmod_submit_job,
       .bo_import = panfrost_kmod_bo_import_handle,
+      .prime_fd_to_handle = panfrost_kmod_prime_fd_to_handle,
    };
 
    pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
