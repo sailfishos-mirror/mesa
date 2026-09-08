@@ -3711,7 +3711,8 @@ genX(cmd_buffer_begin_companion)(struct anv_cmd_buffer *cmd_buffer,
    cmd_buffer->state.current_binding_mode =
       cmd_buffer->state.pending_binding_mode =
       ANV_SHADER_BINDING_MODE_LEGACY;
-   genX(cmd_buffer_emit_bt_pool_base_address)(cmd_buffer);
+   if (GFX_VERx10 < 350 || !cmd_buffer->device->physical->uses_efficient_64bit)
+      genX(cmd_buffer_emit_bt_pool_base_address)(cmd_buffer);
 
    /* Invalidate the aux table in every primary command buffer. This ensures
     * the command buffer see the last updates made by the host.
