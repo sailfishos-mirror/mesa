@@ -1711,7 +1711,7 @@ vk_dump_rmv_capture(struct vk_memory_trace_data *data)
    FILE *f;
 
    time_t t = time(NULL);
-   now = *localtime(&t);
+   os_localtime(&t, &now);
 
    snprintf(filename, sizeof(filename), "/tmp/%s_%04d.%02d.%02d_%02d.%02d.%02d.rmv",
             util_get_process_name(), 1900 + now.tm_year, now.tm_mon + 1, now.tm_mday, now.tm_hour,
