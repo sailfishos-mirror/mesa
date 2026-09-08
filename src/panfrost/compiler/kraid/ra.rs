@@ -137,6 +137,11 @@ impl Arena {
         contains
     }
 
+    /// Returns true if the given RegRef is entirely out-of-bounds
+    pub fn is_reg_oob(&self, reg: &RegRef) -> bool {
+        self.reg_to_bytes(reg).end >= self.limit()
+    }
+
     /// Returns true if this arena is for registers.  This controls whether
     /// or not we handle OpRegIn and OpRegOut
     pub fn is_reg(&self) -> bool {
@@ -2634,6 +2639,36 @@ fn ra_trivial(s: &mut Shader) {
     }
 }
 
+#[derive(Default)]
+struct SSARegMap {
+    ssa_bytes: FxHashMap<SSAValue, Range<u16>>,
+}
+
+impl SSARegMap {
+    pub fn new() -> SSARegMap {
+        Default::default()
+    }
+
+    pub fn insert_ssa_ref(&mut self, vec: &SSARef, reg: RegRef) {
+        for (ssa, bytes) in vec.iter_zip_bytes(reg.byte_range()) {
+            self.ssa_bytes.insert(*ssa, bytes);
+        }
+    }
+
+    pub fn get_ssa_ref_reg(&self, vec: &SSARef) -> Option<RegRef> {
+        let mut vec_bytes = self.ssa_bytes.get(&vec[0])?.clone();
+        for i in 1..vec.len() {
+            let ssa_bytes = self.ssa_bytes.get(&vec[i])?;
+            if ssa_bytes.start == vec_bytes.end {
+                vec_bytes.end = ssa_bytes.end;
+            } else {
+                return None;
+            }
+        }
+        RegRef::from_byte_range(vec_bytes).ok()
+    }
+}
+
 impl Shader<'_> {
     /// If multiple phis in a block read the same source, RA will need to insert
     /// at least one copy regardless, but the messy resulting phi webs means RA
@@ -2662,6 +2697,55 @@ impl Shader<'_> {
         }
     }
 
+    /// This pass propagates OpRegIn instructions with an OOB reg.  Since the
+    /// reg is OOB, we know we will never allocate a register, and therefore
+    /// never write to a register which conflicts with it.  So we can treat OOB
+    /// registers as constants and safely copy-propagate the OpRegIn without
+    /// worrying about their contents changing.  This is particularly useful
+    /// for blend shaders where we want to keep everything inside the first 16
+    /// registers but most of the preloads live in R48..64.
+    fn prop_oob_reg_in(&mut self, arena: &Arena) {
+        let model = self.model;
+        let mut map = SSARegMap::new();
+        self.map_instrs(|mut instr, _| {
+            if let Op::RegIn(op) = &instr.op {
+                let DstRef::SSA(vec) = &op.dst.dst_ref else {
+                    panic!("We must have SSA destinations");
+                };
+
+                if arena.is_reg_oob(&op.reg) {
+                    map.insert_ssa_ref(vec, op.reg);
+                    [].into()
+                } else {
+                    [instr].into()
+                }
+            } else {
+                for src_idx in 0..instr.srcs().len() {
+                    let src = &instr.srcs()[src_idx];
+                    let SrcRef::SSA(vec) = &src.src_ref else {
+                        continue;
+                    };
+
+                    let Some(reg) = map.get_ssa_ref_reg(vec) else {
+                        continue;
+                    };
+
+                    let swz = Swizzle::from(reg.range)
+                        .swizzle(src.swizzle)
+                        .expect("16-bit and smaller sources have to swizzle");
+                    if !model.op_src_supports_swizzle(&instr.op, src, swz) {
+                        continue;
+                    }
+
+                    let src = &mut instr.srcs_mut()[src_idx];
+                    src.src_ref = reg.into();
+                    src.swizzle = swz;
+                }
+                [instr].into()
+            }
+        });
+    }
+
     pub fn assign_registers(&mut self) {
         if false {
             return ra_trivial(self);
@@ -2671,6 +2755,8 @@ impl Shader<'_> {
 
         if self.info.is_blend {
             let arena = Arena::new_blend(self.model);
+
+            pass!(self.prop_oob_reg_in(&arena));
 
             let live = SimpleLiveness::for_shader(self);
             assert!(
