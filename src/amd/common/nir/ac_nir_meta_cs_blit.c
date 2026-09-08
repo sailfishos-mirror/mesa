@@ -153,7 +153,7 @@ apply_blit_output_modifiers(nir_builder *b, nir_def *color,
 static unsigned
 get_num_user_data_terms(const ac_cs_blit_key *key)
 {
-   return key->is_clear ? (key->d16 ? 6 : 8) : key->has_start_xyz ? 4 : 3;
+   return key->is_clear ? (key->d16 ? 6 : 8) : 4;
 }
 
 /* The compute blit shader.
@@ -250,7 +250,13 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    /* Instructions. */
    /* Let's work with 0-based src and dst coordinates (thread IDs) first. */
    unsigned coord_bit_size = key->a16 ? 16 : 32;
-   nir_def *dst_xyz = ac_get_global_ids(&b, key->wg_dim, coord_bit_size);
+   nir_def *user_data3 = nir_channel(&b, nir_load_user_data_amd(&b), 3);
+   nir_def *log_workgroup_size = nir_vec3(&b, nir_ubfe_imm(&b, user_data3, 13, 3),
+                                          nir_ubfe_imm(&b, user_data3, 16, 3),
+                                          nir_ubfe_imm(&b, user_data3, 19, 3));
+   nir_def *dst_xyz = nir_iadd_nuw(&b, nir_ishl(&b, nir_load_workgroup_id(&b), log_workgroup_size),
+                                   nir_load_local_invocation_id(&b));
+   dst_xyz = nir_u2uN(&b, nir_trim_vector(&b, dst_xyz, key->wg_dim), coord_bit_size);
    dst_xyz = nir_pad_vector_imm_int(&b, dst_xyz, 0, 3);
 
    /* If the blit area is unaligned, we launched extra threads to make it aligned.
@@ -258,7 +264,6 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
     */
    nir_if *if_positive = NULL;
    if (key->has_start_xyz) {
-      nir_def *user_data3 = nir_channel(&b, nir_load_user_data_amd(&b), 3);
       nir_def *start_xyz = nir_u2uN(&b, nir_vec3(&b, nir_ubfe_imm(&b, user_data3, 0, 6),
                                                  nir_ubfe_imm(&b, user_data3, 6, 4),
                                                  nir_ubfe_imm(&b, user_data3, 10, 3)), coord_bit_size);
@@ -1167,6 +1172,14 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       block_x = 64 / (block_y * block_z);
    }
 
+   assert(util_is_power_of_two_nonzero(block_x));
+   assert(util_is_power_of_two_nonzero(block_y));
+   assert(util_is_power_of_two_nonzero(block_z));
+
+   unsigned log_block_x = util_logbase2(block_x);
+   unsigned log_block_y = util_logbase2(block_y);
+   unsigned log_block_z = util_logbase2(block_z);
+
    unsigned index = out->num_dispatches++;
    assert(index < ARRAY_SIZE(out->dispatches));
    ac_cs_blit_dispatch *dispatch = &out->dispatches[index];
@@ -1245,11 +1258,14 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    assert(util_is_uint16(blit->dst.box.y));
    assert(util_is_uint16(blit->dst.box.z));
    assert(start_x <= 63 && start_y <= 15 && start_z <= 7);
+   assert(log_block_x <= 7 && log_block_y <= 7 && log_block_z <= 7);
 
    dispatch->user_data[0] = (blit->src.box.x & 0xffff) | ((blit->dst.box.x & 0xffff) << 16);
    dispatch->user_data[1] = (blit->src.box.y & 0xffff) | ((blit->dst.box.y & 0xffff) << 16);
    dispatch->user_data[2] = (blit->src.box.z & 0xffff) | ((blit->dst.box.z & 0xffff) << 16);
-   dispatch->user_data[3] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10);
+   dispatch->user_data[3] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
+                            ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
+                            ((log_block_z & 0x7) << 19);
 
    if (is_clear) {
       union pipe_color_union final_value;
