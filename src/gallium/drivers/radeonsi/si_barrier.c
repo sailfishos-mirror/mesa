@@ -113,37 +113,38 @@ static unsigned get_reduced_barrier_flags(struct si_context *ctx)
    else if (flags & SI_BARRIER_WB_L2)
       ctx->num_L2_writebacks++;
 
+   if (flags & SI_BARRIER_EVENT_PIPELINESTAT_START) {
+      if (ctx->pipeline_stats_enabled != 1) {
+         ctx->pipeline_stats_enabled = 1;
+      } else {
+         flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_START;
+      }
+   } else if (flags & SI_BARRIER_EVENT_PIPELINESTAT_STOP) {
+      if (ctx->pipeline_stats_enabled != 0) {
+         ctx->pipeline_stats_enabled = 0;
+      } else {
+         flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_STOP;
+      }
+   }
+
    ctx->barrier_flags = 0;
    return flags;
 }
 
-static void si_handle_common_barrier_events(struct si_context *ctx, struct radeon_cmdbuf *cs,
-                                            unsigned flags)
+static void si_emit_common_barrier_events(struct radeon_cmdbuf *cs, unsigned flags)
 {
    radeon_begin(cs);
 
-   bool pipeline_stats_changed = false;
-   if (flags & SI_BARRIER_EVENT_PIPELINESTAT_START && ctx->pipeline_stats_enabled != 1) {
+   if (flags & SI_BARRIER_EVENT_PIPELINESTAT_START) {
       radeon_event_write(V_028A90_PIPELINESTAT_START);
-      ctx->pipeline_stats_enabled = 1;
-      pipeline_stats_changed = true;
-   } else if (flags & SI_BARRIER_EVENT_PIPELINESTAT_STOP && ctx->pipeline_stats_enabled != 0) {
+   } else if (flags & SI_BARRIER_EVENT_PIPELINESTAT_STOP) {
       radeon_event_write(V_028A90_PIPELINESTAT_STOP);
-      ctx->pipeline_stats_enabled = 0;
-      pipeline_stats_changed = true;
    }
 
    if (flags & SI_BARRIER_EVENT_VGT_FLUSH)
       radeon_event_write(V_028A90_VGT_FLUSH);
 
    radeon_end();
-
-   if (si_need_emit_task_shader_query(ctx, cs) && pipeline_stats_changed) {
-      radeon_begin(cs->gang_cs);
-      radeon_set_sh_reg(R_00B828_COMPUTE_PIPELINESTAT_ENABLE,
-                        S_00B828_PIPELINESTAT_ENABLE(ctx->pipeline_stats_enabled));
-      radeon_end();
-   }
 }
 
 static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
@@ -171,7 +172,16 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
       eop_bug_va = si_get_eop_bug_va(ctx, wait_mem_scratch, SI_NOT_QUERY);
    }
 
-   si_handle_common_barrier_events(ctx, cs, flags);
+   if (si_need_emit_task_shader_query(ctx, cs) &&
+       (flags & (SI_BARRIER_EVENT_PIPELINESTAT_START |
+                 SI_BARRIER_EVENT_PIPELINESTAT_STOP))) {
+      radeon_begin(cs->gang_cs);
+      radeon_set_sh_reg(R_00B828_COMPUTE_PIPELINESTAT_ENABLE,
+                        S_00B828_PIPELINESTAT_ENABLE(ctx->pipeline_stats_enabled));
+      radeon_end();
+   }
+
+   si_emit_common_barrier_events(cs, flags);
 
    /* We don't need these. */
    assert(!(flags & SI_BARRIER_EVENT_FLUSH_AND_INV_DB_META));
@@ -353,7 +363,7 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
       eop_bug_va = si_get_eop_bug_va(sctx, wait_mem_scratch, SI_NOT_QUERY);
    }
 
-   si_handle_common_barrier_events(sctx, cs, flags);
+   si_emit_common_barrier_events(cs, flags);
 
    /* GFX6 has a bug that it always flushes ICACHE and KCACHE if either
     * bit is set. An alternative way is to write SQC_CACHES, but that
