@@ -41,6 +41,8 @@ struct panfrost_kmod_ops {
                     struct drm_panfrost_get_param *get_param);
    int (*submit_job)(const struct pan_kmod_dev *dev,
                      struct drm_panfrost_submit *submit_info);
+   struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, uint32_t handle,
+                                    uint64_t size);
 };
 
 struct panfrost_kmod_dev {
@@ -115,6 +117,60 @@ panfrost_kmod_submit(struct pan_kmod_dev *pan_kdev,
       container_of(pan_kdev, struct panfrost_kmod_dev, base);
 
    return panfrost_dev->ops.submit_job(pan_kdev, submit);
+}
+
+static struct pan_kmod_bo *
+panfrost_kmod_bo_import_handle(struct pan_kmod_dev *dev, uint32_t handle,
+                               uint64_t size)
+{
+   struct panfrost_kmod_bo *panfrost_bo =
+      pan_kmod_dev_alloc(dev, sizeof(*panfrost_bo));
+   if (!panfrost_bo) {
+      mesa_loge("failed to allocate a panfrost_kmod_bo object");
+      return NULL;
+   }
+
+   struct drm_panfrost_get_bo_offset get_bo_offset = {.handle = handle, 0};
+   int ret =
+      pan_kmod_ioctl(dev->fd, DRM_IOCTL_PANFROST_GET_BO_OFFSET,
+                     &get_bo_offset);
+   if (ret) {
+      mesa_loge("DRM_IOCTL_PANFROST_GET_BO_OFFSET failed (err=%d)", errno);
+      goto err_free_bo;
+   }
+
+   panfrost_bo->offset = get_bo_offset.offset;
+
+   uint32_t flags = PAN_KMOD_BO_FLAG_IMPORTED;
+   if (pan_kmod_driver_version_at_least(&dev->driver, 1, 6)) {
+      struct drm_panfrost_query_bo_info args = {
+         .handle = handle,
+      };
+
+      ret = drmIoctl(dev->fd, DRM_IOCTL_PANFROST_QUERY_BO_INFO, &args);
+      if (ret) {
+         mesa_loge("PANFROST_BO_QUERY_INFO failed (err=%d)", errno);
+         goto err_free_bo;
+      }
+
+      /* FIXME: If the BO comes from a different subsystem
+       * (args.extra_flags & DRM_PANTHOR_BO_IS_IMPORTED), we should normally
+       * add extra DMA_BUF_IOCTL_SYNC calls around CPU accesses to ensure the
+       * CPU mapping consistency, but this is something we never worried about
+       * (we've always assumed exporters were exposing uncached mappings with
+       * NOP {begin,end}_cpu_access() implementations), and it worked fine until
+       * now.
+       * The long term plan is to hook up DMA_BUF_IOCTL_SYNC, but this requires
+       * more work.
+       */
+   }
+
+   pan_kmod_bo_init(&panfrost_bo->base, dev, NULL, size, flags, handle);
+   return &panfrost_bo->base;
+
+err_free_bo:
+   pan_kmod_dev_free(dev, panfrost_bo);
+   return NULL;
 }
 
 static inline void
@@ -305,7 +361,8 @@ panfrost_kmod_dev_create(int fd, uint32_t flags,
 
    panfrost_dev->ops = (struct panfrost_kmod_ops){
       .get_param = panfrost_kmod_get_param,
-      .submit_job = panfrost_kmod_submit_job
+      .submit_job = panfrost_kmod_submit_job,
+      .bo_import = panfrost_kmod_bo_import_handle,
    };
 
    pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
@@ -395,57 +452,44 @@ panfrost_kmod_bo_free(struct pan_kmod_bo *bo)
 }
 
 static struct pan_kmod_bo *
-panfrost_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle,
-                        uint64_t size)
+panfrost_kmod_bo_import(struct pan_kmod_dev *dev, int fd)
 {
-   struct panfrost_kmod_bo *panfrost_bo =
-      pan_kmod_dev_alloc(dev, sizeof(*panfrost_bo));
-   if (!panfrost_bo) {
-      mesa_loge("failed to allocate a panfrost_kmod_bo object");
-      return NULL;
-   }
+    struct panfrost_kmod_dev *panfrost_dev =
+       container_of(dev, struct panfrost_kmod_dev, base);
+    struct pan_kmod_bo *bo = NULL;
+    struct pan_kmod_bo **slot;
+    uint32_t handle;
 
-   struct drm_panfrost_get_bo_offset get_bo_offset = {.handle = handle, 0};
-   int ret =
-      pan_kmod_ioctl(dev->fd, DRM_IOCTL_PANFROST_GET_BO_OFFSET,
-                     &get_bo_offset);
-   if (ret) {
-      mesa_loge("DRM_IOCTL_PANFROST_GET_BO_OFFSET failed (err=%d)", errno);
-      goto err_free_bo;
-   }
+    if (drmPrimeFDToHandle(dev->fd, fd, &handle))
+        return NULL;
 
-   panfrost_bo->offset = get_bo_offset.offset;
+    slot = util_sparse_array_get(&dev->handle_to_bo.array, handle);
+    if (!slot)
+        goto err_close_handle;
 
-   uint32_t flags = PAN_KMOD_BO_FLAG_IMPORTED;
-   if (pan_kmod_driver_version_at_least(&dev->driver, 1, 6)) {
-      struct drm_panfrost_query_bo_info args = {
-         .handle = handle,
-      };
+    if (*slot) {
+        bo = *slot;
 
-      ret = drmIoctl(dev->fd, DRM_IOCTL_PANFROST_QUERY_BO_INFO, &args);
-      if (ret) {
-         mesa_loge("PANFROST_BO_QUERY_INFO failed (err=%d)", errno);
-         goto err_free_bo;
-      }
+        p_atomic_inc(&bo->refcnt);
+    } else {
+        size_t size = lseek(fd, 0, SEEK_END);
+        if (size == 0 || size == (size_t)-1) {
+            mesa_loge("invalid dmabuf size");
+            goto err_close_handle;
+        }
 
-      /* FIXME: If the BO comes from a different subsystem
-       * (args.extra_flags & DRM_PANTHOR_BO_IS_IMPORTED), we should normally
-       * add extra DMA_BUF_IOCTL_SYNC calls around CPU accesses to ensure the
-       * CPU mapping consistency, but this is something we never worried about
-       * (we've always assumed exporters were exposing uncached mappings with
-       * NOP {begin,end}_cpu_access() implementations), and it worked fine until
-       * now.
-       * The long term plan is to hook up DMA_BUF_IOCTL_SYNC, but this requires
-       * more work.
-       */
-   }
+        bo = panfrost_dev->ops.bo_import(dev, handle, size);
+        if (!bo)
+            goto err_close_handle;
 
-   pan_kmod_bo_init(&panfrost_bo->base, dev, NULL, size, flags, handle);
-   return &panfrost_bo->base;
+        *slot = bo;
+    }
 
-err_free_bo:
-   pan_kmod_dev_free(dev, panfrost_bo);
-   return NULL;
+    return bo;
+
+err_close_handle:
+    drmCloseBufferHandle(dev->fd, handle);
+    return NULL;
 }
 
 static inline int

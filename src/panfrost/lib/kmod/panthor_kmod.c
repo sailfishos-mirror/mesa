@@ -465,7 +465,8 @@ panthor_kmod_bo_free(struct pan_kmod_bo *bo)
 }
 
 static struct pan_kmod_bo *
-panthor_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle, uint64_t size)
+panthor_kmod_bo_import_handle(struct pan_kmod_dev *dev, uint32_t handle,
+                              uint64_t size)
 {
    int ret;
    struct panthor_kmod_bo *panthor_bo =
@@ -513,6 +514,45 @@ panthor_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle, uint64_t size)
 
 err_free_bo:
    pan_kmod_dev_free(dev, panthor_bo);
+   return NULL;
+}
+
+static struct pan_kmod_bo *
+panthor_kmod_bo_import(struct pan_kmod_dev *dev, int fd)
+{
+   struct pan_kmod_bo *bo = NULL;
+   struct pan_kmod_bo **slot;
+   uint32_t handle;
+
+   if (drmPrimeFDToHandle(dev->fd, fd, &handle))
+      return NULL;
+
+   slot = util_sparse_array_get(&dev->handle_to_bo.array, handle);
+   if (!slot)
+      goto err_close_handle;
+
+   if (*slot) {
+      bo = *slot;
+
+      p_atomic_inc(&bo->refcnt);
+   } else {
+      size_t bo_size = lseek(fd, 0, SEEK_END);
+      if (bo_size == 0 || bo_size == (size_t)-1) {
+         mesa_loge("invalid dmabuf size");
+         goto err_close_handle;
+      }
+
+      bo = panthor_kmod_bo_import_handle(dev, handle, bo_size);
+      if (!bo)
+         goto err_close_handle;
+
+      *slot = bo;
+   }
+
+   return bo;
+
+err_close_handle:
+   drmCloseBufferHandle(dev->fd, handle);
    return NULL;
 }
 

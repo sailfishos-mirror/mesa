@@ -150,51 +150,16 @@ pan_kmod_bo_put(struct pan_kmod_bo *bo)
 struct pan_kmod_bo *
 pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd)
 {
-   struct pan_kmod_bo *bo = NULL;
-   struct pan_kmod_bo **slot;
+   struct pan_kmod_bo *bo;
 
    simple_mtx_lock(&dev->handle_to_bo.lock);
-
-   uint32_t handle;
-   int ret = drmPrimeFDToHandle(dev->fd, fd, &handle);
-   if (ret)
-      goto err_unlock;
-
-   slot = util_sparse_array_get(&dev->handle_to_bo.array, handle);
-   if (!slot)
-      goto err_close_handle;
-
-   if (*slot) {
-      bo = *slot;
-
-      p_atomic_inc(&bo->refcnt);
-   } else {
-      size_t size = lseek(fd, 0, SEEK_END);
-      if (size == 0 || size == (size_t)-1) {
-         mesa_loge("invalid dmabuf size");
-         goto err_close_handle;
-      }
-
-      bo = dev->ops->bo_import(dev, handle, size);
-      if (!bo)
-         goto err_close_handle;
-
-      *slot = bo;
-   }
-
-   assert(p_atomic_read(&bo->refcnt) > 0);
-
+   bo = dev->ops->bo_import(dev, fd);
+   if (bo)
+      assert(p_atomic_read(&bo->refcnt) > 0);
    simple_mtx_unlock(&dev->handle_to_bo.lock);
+
 
    return bo;
-
-err_close_handle:
-   drmCloseBufferHandle(dev->fd, handle);
-
-err_unlock:
-   simple_mtx_unlock(&dev->handle_to_bo.lock);
-
-   return NULL;
 }
 
 void

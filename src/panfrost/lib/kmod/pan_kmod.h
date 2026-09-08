@@ -481,8 +481,7 @@ struct pan_kmod_ops {
    /* Import a buffer object.
     * Return NULL if the import fails for any reason.
     */
-   struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, uint32_t handle,
-                                    uint64_t size);
+   struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, int fd);
 
    /* Export buffer object. */
    int (*bo_export)(struct pan_kmod_bo *bo);
