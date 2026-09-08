@@ -31,7 +31,7 @@ static_assert(std::numeric_limits<mask_t>::digits >= num_nodes);
 struct VOPDInfo {
    VOPDInfo()
        : can_be_opx(0), is_dst_odd(0), src_banks(0), has_literal(0), is_commutative(0),
-         operand_swizzle(0b10'01'00)
+         operand_swizzle(0b10'01'00), num_operands(0)
    {}
    uint16_t can_be_opx : 1;
    uint16_t is_dst_odd : 1;
