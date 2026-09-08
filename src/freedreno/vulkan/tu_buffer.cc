@@ -56,10 +56,15 @@ tu_CreateBuffer(VkDevice _device,
          flags |= TU_SPARSE_VMA_REPLAYABLE;
       }
 
+      const VkBufferDeviceAddressAlignmentAllocateInfoVALVE *align_info =
+         vk_find_struct_const(pCreateInfo->pNext,
+                              BUFFER_DEVICE_ADDRESS_ALIGNMENT_ALLOCATE_INFO_VALVE);
+      uint64_t alignment = align_info ? align_info->alignment : 0;
+
       VkResult result =
          tu_sparse_vma_init(device, &buffer->vk.base, &buffer->vma,
                             &buffer->vk.device_address, flags,
-                            pCreateInfo->size, 0, client_address);
+                            pCreateInfo->size, alignment, client_address);
 
       if (result != VK_SUCCESS) {
          vk_buffer_destroy(&device->vk, pAllocator, &buffer->vk);
