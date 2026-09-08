@@ -340,6 +340,9 @@ get_device_extensions(const struct anv_physical_device *device,
                                      ANV_DEBUG(VIDEO_ENCODE);
    const bool video_decode_enabled = ANV_DEBUG(VIDEO_DECODE);
 
+   if (VIDEO_CODEC_H265DEC && video_decode_enabled && !device->has_huc)
+      debug_warn_once("HuC firmware is not loaded, disabling H.265 video decoding");
+
    *ext = (struct vk_device_extension_table) {
       .KHR_8bit_storage                      = true,
       .KHR_16bit_storage                     = !device->drirc.debug.no_16bit,
@@ -3109,8 +3112,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       intel_gem_supports_protected_context(fd, device->info.kmd_type);
 
    device->has_huc = intel_gem_supports_huc(fd, device->info.kmd_type);
-   if (!device->has_huc)
-      debug_warn_once("HuC firmware is not loaded, disabling H.265 video decoding");
 
    /* Just pick one; they're all the same */
    device->has_astc_ldr =
