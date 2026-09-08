@@ -328,7 +328,7 @@ static const struct {
    OP(SYNC, SYNC, 1),
    OP(WHILE, WHILE, 0),
    OP(XOR, XOR, 2),
-   OP(ZIP_UGPR16, MOV, 0),
+   OP(ZIP, MOV, 0),
    OP(SLICE_REPACK, MOV, 1),
    /* clang-format on */
 };
@@ -560,7 +560,7 @@ emit(struct jay_codegen *jc,
       gen->src[0] = gen_imm_uv(0x76543210 + 0x11111111 * jay_lane_id_8_base(I));
       break;
 
-   case JAY_OPCODE_ZIP_UGPR16:
+   case JAY_OPCODE_ZIP:
       gen->src[0] = to_gen_operand(f, I, I->simd_offs, 0, false);
       break;
 

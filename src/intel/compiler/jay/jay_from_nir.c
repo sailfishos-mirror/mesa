@@ -4377,8 +4377,8 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    for (unsigned i = 0; i < ARRAY_SIZE(split_gprs); ++i) {
       if (!jay_is_null(split[i]) && split_gprs[i].def->file == UGPR) {
-         *(split_gprs[i].def) =
-            jay_ZIP_UGPR16_u32(b, *split_gprs[i].def, split[i]);
+         *(split_gprs[i].def) = jay_ZIP_u32(b, *split_gprs[i].def, split[i],
+                                            jay_null(), jay_null());
       }
    }
 
