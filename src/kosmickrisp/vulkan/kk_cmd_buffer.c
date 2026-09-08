@@ -1134,7 +1134,7 @@ kk_CmdBeginDebugUtilsLabelEXT(VkCommandBuffer _commandBuffer,
       mtl_encoder_push_debug_group(cmd->gfx.encoder, pLabelInfo->pLabelName);
 
    if (cmd->post_gfx && cmd->post_gfx->encoder)
-      mtl_encoder_push_debug_group(cmd->pre_gfx->encoder,
+      mtl_encoder_push_debug_group(cmd->post_gfx->encoder,
                                    pLabelInfo->pLabelName);
 }
 
@@ -1151,7 +1151,7 @@ kk_CmdEndDebugUtilsLabelEXT(VkCommandBuffer _commandBuffer)
       mtl_encoder_pop_debug_group(cmd->gfx.encoder);
 
    if (cmd->post_gfx && cmd->post_gfx->encoder)
-      mtl_encoder_pop_debug_group(cmd->pre_gfx->encoder);
+      mtl_encoder_pop_debug_group(cmd->post_gfx->encoder);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -1175,6 +1175,6 @@ kk_CmdInsertDebugUtilsLabelEXT(VkCommandBuffer _commandBuffer,
                                         pLabelInfo->pLabelName);
 
    if (cmd->post_gfx && cmd->post_gfx->encoder)
-      mtl_encoder_insert_debug_signpost(cmd->pre_gfx->encoder,
+      mtl_encoder_insert_debug_signpost(cmd->post_gfx->encoder,
                                         pLabelInfo->pLabelName);
 }
