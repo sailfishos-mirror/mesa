@@ -4828,13 +4828,13 @@ pan_stats_verbose(FILE *f, const char *prefix, bi_context *ctx, const struct pan
                   const struct pan_shader_info *info)
 {
    const struct pan_model *model = pan_get_model(ctx->inputs->gpu_id, ctx->inputs->gpu_variant);
-   unsigned arch = (ctx->arch > 12) ? 0 : ctx->arch;
+   unsigned arch = (ctx->arch > 14) ? 0 : ctx->arch;
    const char *archname[] = {
       "Unknown",              /* 0 must always be "Unknown" */
       "Lima", "Lima", "Lima", /* 1-3 */
       "Utgard", "Midgard", "Bifrost", "Bifrost", /* 4-7 */
       "Valhall", "Valhall", "Valhall", "Valhall", /* 8-11 */
-      "Arm 5th Gen", /* 12 */
+      "Arm 5th Gen", "Arm 5th Gen", "Arm 5th Gen" /* 12-14 */
    };
 
    fprintf(f, "\n");
