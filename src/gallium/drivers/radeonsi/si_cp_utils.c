@@ -29,7 +29,8 @@ void si_cp_release_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf
 
 void si_cp_acquire_mem(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
                        enum amd_ip_type ip_type, unsigned gcr_cntl,
-                       unsigned engine, unsigned *context_roll)
+                       unsigned engine, unsigned *context_roll,
+                       enum ac_rgp_flush_bits *flush_bits)
 {
    if (gfx_level >= GFX10) {
       ac_emit_cp_acquire_mem(cs, gfx_level, ip_type, engine, gcr_cntl);
@@ -44,7 +45,10 @@ void si_cp_acquire_mem(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
       if (ip_type == AMD_IP_GFX)
          *context_roll = true;
 
-      if (engine == V_581A_PREFETCH_PARSER)
+      if (engine == V_581A_PREFETCH_PARSER) {
          ac_emit_cp_pfp_sync_me(cs, false);
+
+         *flush_bits |= AC_RGP_FLUSH_PFP_SYNC_ME;
+      }
    }
 }

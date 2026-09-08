@@ -1525,7 +1525,8 @@ void si_cp_release_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf
                                    unsigned sqtt_flush_flags);
 void si_cp_acquire_mem(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
                        enum amd_ip_type ip_type, unsigned gcr_cntl,
-                       unsigned engine, unsigned *context_roll);
+                       unsigned engine, unsigned *context_roll,
+                       enum ac_rgp_flush_bits *rgp_flush_bits);
 
 /* si_debug.c */
 void si_save_cs(struct radeon_winsys *ws, struct radeon_cmdbuf *cs, struct radeon_saved_cs *saved,

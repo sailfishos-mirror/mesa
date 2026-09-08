@@ -155,6 +155,7 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
    uint32_t gcr_cntl = 0;
    unsigned flags = get_reduced_barrier_flags(ctx);
    uint64_t wait_mem_va = 0, eop_bug_va = 0;
+   enum ac_rgp_flush_bits rgp_flush_bits = 0;
    uint32_t *wait_mem_number = NULL;
 
    if (!flags)
@@ -187,14 +188,28 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
    assert(!(flags & SI_BARRIER_EVENT_FLUSH_AND_INV_DB_META));
    assert(gfx_level < GFX12 || !(flags & SI_BARRIER_INV_L2_METADATA));
 
-   if (flags & SI_BARRIER_INV_ICACHE)
+   if (unlikely(ctx->sqtt_enabled))
+      si_sqtt_describe_barrier_start(ctx, &ctx->gfx_cs);
+
+   if (flags & SI_BARRIER_INV_ICACHE) {
       gcr_cntl |= S_587_GLI_INV(V_587_GLI_ALL);
-   if (flags & SI_BARRIER_INV_SMEM)
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_ICACHE;
+   }
+
+   if (flags & SI_BARRIER_INV_SMEM) {
       gcr_cntl |= S_587_GLK_INV(1);
-   if (flags & SI_BARRIER_INV_VMEM)
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_SMEM_L0;
+   }
+
+   if (flags & SI_BARRIER_INV_VMEM) {
       gcr_cntl |= S_587_GLV_INV(1);
-   if (gfx_level < GFX12 && flags & (SI_BARRIER_INV_SMEM | SI_BARRIER_INV_VMEM))
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_VMEM_L0;
+   }
+
+   if (gfx_level < GFX12 && flags & (SI_BARRIER_INV_SMEM | SI_BARRIER_INV_VMEM)) {
       gcr_cntl |= S_587_GL1_INV(1);
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L1;
+   }
 
    /* The L2 cache ops are:
     * - INV: - invalidate lines that reflect memory (were loaded from memory)
@@ -206,10 +221,13 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
     *
     * GLM doesn't support WB alone. If WB is set, INV must be set too.
     */
-   if (flags & SI_BARRIER_INV_L2)
+   if (flags & SI_BARRIER_INV_L2) {
       gcr_cntl |= S_587_GL2_INV(1) | S_587_GL2_WB(1); /* Writeback and invalidate everything in L2. */
-   else if (flags & SI_BARRIER_WB_L2)
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2;
+   } else if (flags & SI_BARRIER_WB_L2) {
       gcr_cntl |= S_587_GL2_WB(1);
+      rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_L2;
+   }
 
    /* Invalidate the metadata cache. */
    if (gfx_level < GFX12 &&
@@ -225,11 +243,15 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
           /* Gfx11 can't use the DB_META event and must use a full flush to flush DB_META. */
           (gfx_level == GFX11 && flags & SI_BARRIER_SYNC_AND_INV_DB)) {
          cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB |
+                           AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
       } else if (flags & SI_BARRIER_SYNC_AND_INV_CB) {
          cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB;
       } else {
          assert(flags & SI_BARRIER_SYNC_AND_INV_DB);
          cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
       }
 
       /* We must flush CMASK/FMASK/DCC separately if the main event only flushes CB_DATA. */
@@ -250,16 +272,10 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
          ac_emit_cp_release_mem_pws(&cs->current, gfx_level, ip_type,
                                     cb_db_event, gcr_cntl & C_587_GLI_INV);
 
-         if (unlikely(ctx->sqtt_enabled))
-            si_sqtt_describe_barrier_start(ctx, cs);
-
          /* Wait for the event and invalidate remaining caches if needed. */
          ac_emit_cp_acquire_mem_pws(&cs->current, gfx_level, ip_type, cb_db_event,
                                     flags & SI_BARRIER_PFP_SYNC_ME ? V_581B_CP_PFP : V_581B_CP_ME,
                                     0, gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
-
-         if (unlikely(ctx->sqtt_enabled))
-            si_sqtt_describe_barrier_end(ctx, cs, flags);
 
          gcr_cntl = 0; /* all done */
          /* ACQUIRE_MEM in PFP is implemented as ACQUIRE_MEM in ME + PFP_SYNC_ME. */
@@ -295,28 +311,25 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
                                 EOP_DATA_SEL_VALUE_32BIT, wait_mem_va, *wait_mem_number,
                                 eop_bug_va);
 
-         if (unlikely(ctx->sqtt_enabled)) {
-            si_sqtt_describe_barrier_start(ctx, &ctx->gfx_cs);
-         }
-
          ac_emit_cp_wait_mem(&cs->current, wait_mem_va, *wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
-
-         if (unlikely(ctx->sqtt_enabled)) {
-            si_sqtt_describe_barrier_end(ctx, &ctx->gfx_cs, flags);
-         }
       }
    } else {
       /* The TS event above also makes sure that PS and CS are idle, so we have to do this only
        * if we are not flushing CB or DB.
        */
       radeon_begin(cs);
-      if (flags & SI_BARRIER_SYNC_PS)
+      if (flags & SI_BARRIER_SYNC_PS) {
          radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
-      else if (flags & SI_BARRIER_SYNC_VS)
+         rgp_flush_bits |= AC_RGP_FLUSH_PS_PARTIAL_FLUSH;
+      } else if (flags & SI_BARRIER_SYNC_VS) {
          radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
+         rgp_flush_bits |= AC_RGP_FLUSH_VS_PARTIAL_FLUSH;
+      }
 
-      if (flags & SI_BARRIER_SYNC_CS)
+      if (flags & SI_BARRIER_SYNC_CS) {
          radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
+         rgp_flush_bits |= AC_RGP_FLUSH_CS_PARTIAL_FLUSH;
+      }
 
       radeon_end();
    }
@@ -325,10 +338,14 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
       si_cp_acquire_mem(&cs->current, gfx_level, ip_type, gcr_cntl,
                         flags & SI_BARRIER_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE,
-                        &ctx->context_roll);
+                        &ctx->context_roll, &rgp_flush_bits);
    } else if (flags & SI_BARRIER_PFP_SYNC_ME) {
       ac_emit_cp_pfp_sync_me(&cs->current, false);
+      rgp_flush_bits |= AC_RGP_FLUSH_PFP_SYNC_ME;
    }
+
+   if (unlikely(ctx->sqtt_enabled))
+      si_sqtt_describe_barrier_end(ctx, &ctx->gfx_cs, rgp_flush_bits);
 
    /* Increase task wait count if not done before. */
    if (ctx->task_wait_count == ctx->last_task_wait_count)
@@ -341,6 +358,7 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
    enum amd_gfx_level gfx_level = sctx->gfx_level;
    enum amd_ip_type ip_type = sctx->is_gfx_queue ? AMD_IP_GFX : AMD_IP_COMPUTE;
    unsigned flags = get_reduced_barrier_flags(sctx);
+   enum ac_rgp_flush_bits rgp_flush_bits = 0;
    uint64_t wait_mem_va = 0, eop_bug_va = 0;
    uint32_t *wait_mem_number = NULL;
 
@@ -365,6 +383,9 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 
    si_emit_common_barrier_events(cs, flags);
 
+   if (unlikely(sctx->sqtt_enabled))
+      si_sqtt_describe_barrier_start(sctx, cs);
+
    /* GFX6 has a bug that it always flushes ICACHE and KCACHE if either
     * bit is set. An alternative way is to write SQC_CACHES, but that
     * doesn't seem to work reliably. Since the bug doesn't affect
@@ -373,10 +394,15 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
     * to add a workaround for it.
     */
 
-   if (flags & SI_BARRIER_INV_ICACHE)
+   if (flags & SI_BARRIER_INV_ICACHE) {
       cp_coher_cntl |= S_0085F0_SH_ICACHE_ACTION_ENA(1);
-   if (flags & SI_BARRIER_INV_SMEM)
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_ICACHE;
+   }
+
+   if (flags & SI_BARRIER_INV_SMEM) {
       cp_coher_cntl |= S_0085F0_SH_KCACHE_ACTION_ENA(1);
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_SMEM_L0;
+   }
 
    if (gfx_level <= GFX8) {
       if (flags & SI_BARRIER_SYNC_AND_INV_CB) {
@@ -393,9 +419,14 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
                                    EOP_DST_SEL_MEM, EOP_INT_SEL_NONE,
                                    EOP_DATA_SEL_DISCARD, 0, 0, eop_bug_va);
          }
+
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB;
       }
-      if (flags & SI_BARRIER_SYNC_AND_INV_DB)
+      if (flags & SI_BARRIER_SYNC_AND_INV_DB) {
          cp_coher_cntl |= S_0085F0_DB_ACTION_ENA(1) | S_0085F0_DB_DEST_BASE_ENA(1);
+
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
+      }
    }
 
    radeon_begin(cs);
@@ -419,14 +450,19 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
     * bindings.
     */
    if (gfx_level <= GFX8 || !flush_cb_db) {
-      if (flags & SI_BARRIER_SYNC_PS)
+      if (flags & SI_BARRIER_SYNC_PS) {
          radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
-      else if (flags & SI_BARRIER_SYNC_VS)
+         rgp_flush_bits |= AC_RGP_FLUSH_PS_PARTIAL_FLUSH;
+      } else if (flags & SI_BARRIER_SYNC_VS) {
          radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
+         rgp_flush_bits |= AC_RGP_FLUSH_VS_PARTIAL_FLUSH;
+      }
    }
 
-   if (flags & SI_BARRIER_SYNC_CS)
+   if (flags & SI_BARRIER_SYNC_CS) {
       radeon_event_write(V_028A90_CS_PARTIAL_FLUSH);
+      rgp_flush_bits |= AC_RGP_FLUSH_CS_PARTIAL_FLUSH;
+   }
 
    radeon_end();
 
@@ -467,6 +503,9 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
          tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_MD_ACTION_ENA;
       }
 
+      rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB |
+                        AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
+
       /* Ideally flush L2 together with CB/DB. */
       if (flags & SI_BARRIER_INV_L2) {
          /* Writeback and invalidate everything in L2 & L1. */
@@ -474,6 +513,8 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 
          /* Clear the flags. */
          flags &= ~(SI_BARRIER_INV_L2 | SI_BARRIER_WB_L2);
+
+         rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2;
       }
 
       /* Do the flush (enqueue the event and wait for it). */
@@ -485,15 +526,7 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
                              EOP_DATA_SEL_VALUE_32BIT, wait_mem_va,
                              *wait_mem_number, eop_bug_va);
 
-      if (unlikely(sctx->sqtt_enabled)) {
-         si_sqtt_describe_barrier_start(sctx, cs);
-      }
-
       ac_emit_cp_wait_mem(&cs->current, wait_mem_va, *wait_mem_number, 0xffffffff, WAIT_REG_MEM_EQUAL);
-
-      if (unlikely(sctx->sqtt_enabled)) {
-         si_sqtt_describe_barrier_end(sctx, cs, flags);
-      }
    }
 
    /* GFX6-GFX8 only: When one of the CP_COHER_CNTL.DEST_BASE flags is set, SURFACE_SYNC waits
@@ -510,7 +543,9 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
       si_cp_acquire_mem(&cs->current, gfx_level, ip_type,
                         cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
                         S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8), engine,
-                        &sctx->context_roll);
+                        &sctx->context_roll, &rgp_flush_bits);
+
+      rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2 | AC_RGP_FLUSH_INVAL_VMEM_L0;
    } else {
       /* L1 invalidation and L2 writeback must be done separately, because both operations can't
        * be done together.
@@ -533,29 +568,38 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
                            /* If this is not the last ACQUIRE_MEM, flush in ME.
                             * We only want to synchronize with PFP in the last ACQUIRE_MEM. */
                            last_acquire_mem ? engine : V_581A_MICRO_ENGINE,
-                           &sctx->context_roll);
+                           &sctx->context_roll, &rgp_flush_bits);
 
          if (last_acquire_mem)
             flags &= ~SI_BARRIER_PFP_SYNC_ME;
          cp_coher_cntl = 0;
+
+         rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_L2 | AC_RGP_FLUSH_INVAL_VMEM_L0;
       }
 
-      if (flags & SI_BARRIER_INV_VMEM)
+      if (flags & SI_BARRIER_INV_VMEM) {
          cp_coher_cntl |= S_0085F0_TCL1_ACTION_ENA(1);
+         rgp_flush_bits |= AC_RGP_FLUSH_INVAL_VMEM_L0;
+      }
 
       /* If there are still some cache flags left... */
       if (cp_coher_cntl) {
          si_cp_acquire_mem(&cs->current, gfx_level, ip_type, cp_coher_cntl,
-                           engine, &sctx->context_roll);
+                           engine, &sctx->context_roll, &rgp_flush_bits);
          flags &= ~SI_BARRIER_PFP_SYNC_ME;
       }
 
       /* This might be needed even without any cache flags, such as when doing buffer stores
        * to an index buffer.
        */
-      if (flags & SI_BARRIER_PFP_SYNC_ME)
+      if (flags & SI_BARRIER_PFP_SYNC_ME) {
          ac_emit_cp_pfp_sync_me(&cs->current, false);
+         rgp_flush_bits |= AC_RGP_FLUSH_PFP_SYNC_ME;
+      }
    }
+
+   if (unlikely(sctx->sqtt_enabled))
+      si_sqtt_describe_barrier_end(sctx, cs, rgp_flush_bits);
 }
 
 static void si_emit_barrier_as_atom(struct si_context *sctx, unsigned index)

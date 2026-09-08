@@ -701,40 +701,14 @@ void si_sqtt_describe_barrier_start(struct si_context *sctx, struct radeon_cmdbu
 }
 
 void si_sqtt_describe_barrier_end(struct si_context *sctx, struct radeon_cmdbuf *rcs,
-                                  unsigned flags)
+                                  enum ac_rgp_flush_bits flush_bits)
 {
    struct rgp_sqtt_marker_barrier_end marker = {0};
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BARRIER_END;
    marker.cb_id = sctx->sqtt_cb_id;
 
-   if (flags & SI_BARRIER_SYNC_VS)
-      marker.vs_partial_flush = true;
-   if (flags & SI_BARRIER_SYNC_PS)
-      marker.ps_partial_flush = true;
-   if (flags & SI_BARRIER_SYNC_CS)
-      marker.cs_partial_flush = true;
-
-   if (flags & SI_BARRIER_PFP_SYNC_ME)
-      marker.pfp_sync_me = true;
-
-   if (flags & SI_BARRIER_INV_VMEM)
-      marker.inval_tcp = true;
-   if (flags & SI_BARRIER_INV_ICACHE)
-      marker.inval_sqI = true;
-   if (flags & SI_BARRIER_INV_SMEM)
-      marker.inval_sqK = true;
-   if (flags & SI_BARRIER_INV_L2)
-      marker.inval_tcc = true;
-
-   if (flags & SI_BARRIER_SYNC_AND_INV_CB) {
-      marker.inval_cb = true;
-      marker.flush_cb = true;
-   }
-   if (flags & SI_BARRIER_SYNC_AND_INV_DB) {
-      marker.inval_db = true;
-      marker.flush_db = true;
-   }
+   ac_rgp_flush_bits_to_barrier_marker(flush_bits, &marker);
 
    si_emit_sqtt_userdata(sctx, rcs, &marker, sizeof(marker) / 4);
 }
