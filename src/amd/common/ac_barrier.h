@@ -13,9 +13,9 @@
 #include <stdint.h>
 
 #include "amd_family.h"
+#include "ac_rgp.h"
 
 struct ac_cmdbuf;
-enum ac_rgp_flush_bits;
 
 #ifdef __cplusplus
 extern "C" {
