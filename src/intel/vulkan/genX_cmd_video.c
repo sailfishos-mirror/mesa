@@ -213,6 +213,28 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
       dpb_idx[slot_idx] = i;
    }
 
+   const StdVideoDecodeH265PictureInfo *std_pic = h265_pic_info->pStdPictureInfo;
+   bool used_by_curr[ANV_VIDEO_H265_MAX_NUM_REF_FRAME] = { false, };
+   uint8_t hcp_ref_idx[ANV_VIDEO_H265_MAX_NUM_REF_FRAME];
+   uint8_t num_active_refs = 0;
+
+   memset(hcp_ref_idx, 0xff, sizeof(hcp_ref_idx));
+
+   for (unsigned i = 0; i < STD_VIDEO_DECODE_H265_REF_PIC_SET_LIST_SIZE; i++) {
+      if (std_pic->RefPicSetStCurrBefore[i] != 0xff)
+         used_by_curr[dpb_idx[std_pic->RefPicSetStCurrBefore[i]]] = true;
+      if (std_pic->RefPicSetStCurrAfter[i] != 0xff)
+         used_by_curr[dpb_idx[std_pic->RefPicSetStCurrAfter[i]]] = true;
+      if (std_pic->RefPicSetLtCurr[i] != 0xff)
+         used_by_curr[dpb_idx[std_pic->RefPicSetLtCurr[i]]] = true;
+   }
+
+   for (unsigned i = 0; i < frame_info->referenceSlotCount; i++) {
+      if (used_by_curr[i])
+         hcp_ref_idx[i] = num_active_refs++;
+   }
+   assert(num_active_refs <= ANV_VIDEO_H265_HCP_NUM_REF_FRAME);
+
    /* Second-level batch buffer that the HuC S2L kernel fills with HCP slice
     * commands at execution time.
     */
@@ -234,7 +256,7 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
    huc_second_bb = anv_cmd_buffer_temporary_state_address(cmd_buffer, bb_state);
    genX(h265_huc_s2l)(cmd_buffer, frame_info, h265_pic_info, sps, pps,
-                      dpb_idx, huc_second_bb);
+                      dpb_idx, hcp_ref_idx, huc_second_bb);
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
       flush.VideoPipelineCacheInvalidate = 1;
@@ -355,7 +377,10 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
             continue;
          dpb_idx[slot_idx] = i;
 
-         buf.ReferencePictureAddress[i] =
+         if (hcp_ref_idx[i] == 0xff)
+            continue;
+
+         buf.ReferencePictureAddress[hcp_ref_idx[i]] =
             anv_image_dpb_address(ref_iv, frame_info->pReferenceSlots[i].pPictureResource->baseArrayLayer);
       }
 
@@ -382,7 +407,10 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
          const struct anv_image_view *ref_iv =
             anv_image_view_from_handle(frame_info->pReferenceSlots[i].pPictureResource->imageViewBinding);
 
-         buf.CollocatedMVTemporalBufferAddress[i] =
+         if (hcp_ref_idx[i] == 0xff)
+            continue;
+
+         buf.CollocatedMVTemporalBufferAddress[hcp_ref_idx[i]] =
             anv_image_dmv_top_address(ref_iv, frame_info->pReferenceSlots[i].pPictureResource->baseArrayLayer);
       }
 

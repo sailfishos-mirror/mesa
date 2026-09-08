@@ -197,6 +197,7 @@ anv_h265_huc_s2l_fill_dmem(struct anv_cmd_buffer *cmd_buffer,
                            const StdVideoH265SequenceParameterSet *sps,
                            const StdVideoH265PictureParameterSet *pps,
                            const uint8_t *dpb_idx,
+                           const uint8_t *hcp_ref_idx,
                            struct anv_huc_hevc_s2l_bss *bss)
 {
    const struct intel_device_info *info = cmd_buffer->device->info;
@@ -333,11 +334,8 @@ anv_h265_huc_s2l_fill_dmem(struct anv_cmd_buffer *cmd_buffer,
    pic->num_extra_slice_header_bits = pps->num_extra_slice_header_bits;
 
    memset(pic->RefIdxMapping, 0xff, sizeof(pic->RefIdxMapping));
-   /* TODO: compact the mapping like media-driver does in case the
-    * application passes reference slots that are not part of the RPS
-    */
    for (unsigned i = 0; i < frame_info->referenceSlotCount; i++)
-      pic->RefIdxMapping[i] = i;
+      pic->RefIdxMapping[i] = hcp_ref_idx[i];
 
    uint32_t buffer_offset = frame_info->srcBufferOffset & 4095;
 
@@ -364,6 +362,7 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
                    const StdVideoH265SequenceParameterSet *sps,
                    const StdVideoH265PictureParameterSet *pps,
                    const uint8_t *dpb_idx,
+                   const uint8_t *hcp_ref_idx,
                    struct anv_address second_bb_addr)
 {
    ANV_FROM_HANDLE(anv_buffer, src_buffer, frame_info->srcBuffer);
@@ -382,7 +381,7 @@ genX(h265_huc_s2l)(struct anv_cmd_buffer *cmd_buffer,
 
    memset(dmem_state.map, 0, dmem_size);
    anv_h265_huc_s2l_fill_dmem(cmd_buffer, frame_info, h265_pic_info, sps, pps,
-                              dpb_idx, dmem_state.map);
+                              dpb_idx, hcp_ref_idx, dmem_state.map);
 
    struct anv_address dmem_addr =
       anv_cmd_buffer_temporary_state_address(cmd_buffer, dmem_state);
