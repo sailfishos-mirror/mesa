@@ -1806,14 +1806,21 @@ radv_fast_clear_range(struct radv_cmd_buffer *cmd_buffer, struct radv_image *ima
 }
 
 static void
-radv_cmd_clear_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout image_layout,
-                     const VkClearValue *clear_value, uint32_t range_count, const VkImageSubresourceRange *ranges,
-                     bool cs)
+radv_cmd_clear_image(VkCommandBuffer commandBuffer, VkImage image_h, VkImageLayout image_layout,
+                     const VkClearValue *clear_value, uint32_t range_count, const VkImageSubresourceRange *ranges)
 {
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   VK_FROM_HANDLE(radv_image, image, image_h);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    VkFormat format = image->vk.format;
    VkClearValue internal_clear_value;
+   bool cs = false;
+
+   if (vk_format_is_color(image->vk.format)) {
+      cs = cmd_buffer->qf == RADV_QUEUE_COMPUTE || !radv_image_is_renderable(image) ||
+           pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE;
+   }
 
    if (ranges->aspectMask & VK_IMAGE_ASPECT_COLOR_BIT) {
       internal_clear_value.color = clear_value->color;
@@ -1833,6 +1840,9 @@ radv_cmd_clear_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *imag
    } else {
       internal_clear_value.depthStencil = clear_value->depthStencil;
    }
+
+   radv_suspend_conditional_rendering(cmd_buffer);
+   radv_meta_begin(cmd_buffer);
 
    for (uint32_t r = 0; r < range_count; r++) {
       const VkImageSubresourceRange *range = &ranges[r];
@@ -1863,30 +1873,16 @@ radv_cmd_clear_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *imag
          }
       }
    }
+
+   radv_meta_end(cmd_buffer);
+   radv_resume_conditional_rendering(cmd_buffer);
 }
 
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdClearColorImage(VkCommandBuffer commandBuffer, VkImage image_h, VkImageLayout imageLayout,
                         const VkClearColorValue *pColor, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
 {
-   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   VK_FROM_HANDLE(radv_image, image, image_h);
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   bool cs;
-
-   radv_suspend_conditional_rendering(cmd_buffer);
-
-   cs = cmd_buffer->qf == RADV_QUEUE_COMPUTE || !radv_image_is_renderable(image) ||
-        pdev->drirc.performance.image_meta_path == RADV_IMAGE_META_PATH_COMPUTE;
-
-   radv_meta_begin(cmd_buffer);
-
-   radv_cmd_clear_image(cmd_buffer, image, imageLayout, (const VkClearValue *)pColor, rangeCount, pRanges, cs);
-
-   radv_meta_end(cmd_buffer);
-
-   radv_resume_conditional_rendering(cmd_buffer);
+   radv_cmd_clear_image(commandBuffer, image_h, imageLayout, (const VkClearValue *)pColor, rangeCount, pRanges);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -1894,19 +1890,7 @@ radv_CmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image_h, V
                                const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount,
                                const VkImageSubresourceRange *pRanges)
 {
-   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   VK_FROM_HANDLE(radv_image, image, image_h);
-
-   radv_suspend_conditional_rendering(cmd_buffer);
-
-   radv_meta_begin(cmd_buffer);
-
-   radv_cmd_clear_image(cmd_buffer, image, imageLayout, (const VkClearValue *)pDepthStencil, rangeCount, pRanges,
-                        false);
-
-   radv_meta_end(cmd_buffer);
-
-   radv_resume_conditional_rendering(cmd_buffer);
+   radv_cmd_clear_image(commandBuffer, image_h, imageLayout, (const VkClearValue *)pDepthStencil, rangeCount, pRanges);
 }
 
 VKAPI_ATTR void VKAPI_CALL
