@@ -63,7 +63,9 @@ static void si_pc_wait_idle(struct si_context *sctx)
    radeon_emit(EVENT_TYPE(V_028A90_CS_PARTIAL_FLUSH | EVENT_INDEX(4)));
    radeon_end();
 
-   si_cp_acquire_mem(sctx, cs, coher_cntl_stall_all, V_581A_PREFETCH_PARSER);
+   si_cp_acquire_mem(&cs->current, sctx->gfx_level, AMD_IP_GFX,
+                     coher_cntl_stall_all, V_581A_PREFETCH_PARSER,
+                     &sctx->context_roll);
 }
 
 static void si_pc_emit_instance(struct si_context *sctx, int se, int instance)

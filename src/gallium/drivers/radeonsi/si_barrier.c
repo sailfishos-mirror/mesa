@@ -313,8 +313,9 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
 
    /* Ignore fields that only modify the behavior of other fields. */
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
-      si_cp_acquire_mem(ctx, cs, gcr_cntl,
-                        flags & SI_BARRIER_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE);
+      si_cp_acquire_mem(&cs->current, gfx_level, ip_type, gcr_cntl,
+                        flags & SI_BARRIER_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE,
+                        &ctx->context_roll);
    } else if (flags & SI_BARRIER_PFP_SYNC_ME) {
       ac_emit_cp_pfp_sync_me(&cs->current, false);
    }
@@ -496,9 +497,10 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 
    if (flags & SI_BARRIER_INV_L2 || (gfx_level <= GFX7 && flags & SI_BARRIER_WB_L2)) {
       /* Invalidate L1 & L2. WB must be set on GFX8+ when TC_ACTION is set. */
-      si_cp_acquire_mem(sctx, cs,
+      si_cp_acquire_mem(&cs->current, gfx_level, ip_type,
                         cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
-                        S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8), engine);
+                        S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8), engine,
+                        &sctx->context_roll);
    } else {
       /* L1 invalidation and L2 writeback must be done separately, because both operations can't
        * be done together.
@@ -515,12 +517,13 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
           */
          bool last_acquire_mem = !(flags & SI_BARRIER_INV_VMEM);
 
-         si_cp_acquire_mem(sctx, cs,
+         si_cp_acquire_mem(&cs->current, gfx_level, ip_type,
                            cp_coher_cntl | S_0301F0_TC_WB_ACTION_ENA(1) |
                            S_0301F0_TC_NC_ACTION_ENA(1),
                            /* If this is not the last ACQUIRE_MEM, flush in ME.
                             * We only want to synchronize with PFP in the last ACQUIRE_MEM. */
-                           last_acquire_mem ? engine : V_581A_MICRO_ENGINE);
+                           last_acquire_mem ? engine : V_581A_MICRO_ENGINE,
+                           &sctx->context_roll);
 
          if (last_acquire_mem)
             flags &= ~SI_BARRIER_PFP_SYNC_ME;
@@ -532,7 +535,8 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 
       /* If there are still some cache flags left... */
       if (cp_coher_cntl) {
-         si_cp_acquire_mem(sctx, cs, cp_coher_cntl, engine);
+         si_cp_acquire_mem(&cs->current, gfx_level, ip_type, cp_coher_cntl,
+                           engine, &sctx->context_roll);
          flags &= ~SI_BARRIER_PFP_SYNC_ME;
       }
 
