@@ -952,6 +952,13 @@ get_image_subresource_layout(const struct panvk_image *image,
       layout->depthPitch = slice_layout->tiled_or_linear.surface_stride_B;
    }
 
+   VkImageCompressionPropertiesEXT *compression_props =
+      vk_find_struct(layout2->pNext, IMAGE_COMPRESSION_PROPERTIES_EXT);
+   if (compression_props) {
+      panvk_image_set_compression_props(compression_props,
+                                        drm_is_afbc(image->vk.drm_format_mod));
+   }
+
    VkSubresourceHostMemcpySize *memcpy_size =
       vk_find_struct(layout2->pNext, SUBRESOURCE_HOST_MEMCPY_SIZE);
    if (memcpy_size) {
