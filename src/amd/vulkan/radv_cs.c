@@ -35,56 +35,6 @@ radv_cs_emit_write_event_eop(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_
                           eop_bug_va);
 }
 
-static enum ac_barrier_flags
-radv_to_ac_barrier_flags(enum amd_gfx_level gfx_level, enum radv_cmd_flush_bits flush_bits)
-{
-   enum ac_barrier_flags flags = 0;
-
-   if (flush_bits & RADV_CMD_FLAG_INV_ICACHE)
-      flags |= AC_BARRIER_INV_ICACHE;
-   if (flush_bits & RADV_CMD_FLAG_INV_SCACHE)
-      flags |= AC_BARRIER_INV_SMEM;
-   if (flush_bits & RADV_CMD_FLAG_INV_VCACHE)
-      flags |= AC_BARRIER_INV_VMEM;
-   if (flush_bits & RADV_CMD_FLAG_INV_L2)
-      flags |= AC_BARRIER_INV_L2;
-   if (flush_bits & RADV_CMD_FLAG_WB_L2)
-      flags |= AC_BARRIER_WB_L2;
-   if (gfx_level < GFX12 && flush_bits & RADV_CMD_FLAG_INV_L2_METADATA)
-      flags |= AC_BARRIER_INV_L2_METADATA;
-
-   if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB)
-      flags |= AC_BARRIER_SYNC_AND_INV_CB;
-   if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_CB_META)
-      flags |= AC_BARRIER_SYNC_AND_INV_CB_META;
-   if (flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB)
-      flags |= AC_BARRIER_SYNC_AND_INV_DB;
-   if (gfx_level < GFX10 && flush_bits & RADV_CMD_FLAG_FLUSH_AND_INV_DB_META)
-      flags |= AC_BARRIER_SYNC_AND_INV_DB_META;
-
-   if (flush_bits & RADV_CMD_FLAG_VS_PARTIAL_FLUSH)
-      flags |= AC_BARRIER_SYNC_VS;
-   if (flush_bits & RADV_CMD_FLAG_PS_PARTIAL_FLUSH)
-      flags |= AC_BARRIER_SYNC_PS;
-   if (flush_bits & RADV_CMD_FLAG_CS_PARTIAL_FLUSH)
-      flags |= AC_BARRIER_SYNC_CS;
-
-   if (flush_bits & RADV_CMD_FLAG_VGT_FLUSH)
-      flags |= AC_BARRIER_VGT_FLUSH;
-   if (flush_bits & RADV_CMD_FLAG_VGT_STREAMOUT_SYNC)
-      flags |= AC_BARRIER_VGT_STREAMOUT_SYNC;
-
-   if (flush_bits & RADV_CMD_FLAG_START_PIPELINE_STATS)
-      flags |= AC_BARRIER_PIPELINESTAT_START;
-   if (flush_bits & RADV_CMD_FLAG_STOP_PIPELINE_STATS)
-      flags |= AC_BARRIER_PIPELINESTAT_STOP;
-
-   if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME)
-      flags |= AC_BARRIER_PFP_SYNC_ME;
-
-   return flags;
-}
-
 static enum ac_pws_acquire_point
 radv_to_ac_pws_acquire_point(enum radv_pws_acquire_point pws_acquire_point)
 {
@@ -104,12 +54,19 @@ radv_to_ac_pws_acquire_point(enum radv_pws_acquire_point pws_acquire_point)
 
 void
 radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level,
-                         uint32_t *flush_cnt, uint64_t flush_va, enum radv_cmd_flush_bits flush_bits,
+                         uint32_t *flush_cnt, uint64_t flush_va, enum ac_barrier_flags flush_bits,
                          enum ac_rgp_flush_bits *rgp_flush_bits, enum radv_pws_acquire_point pws_acquire_point,
                          uint64_t gfx9_eop_bug_va)
 {
+   /* TODO: Stop setting this barrier flags. */
+   if (gfx_level >= GFX10)
+      flush_bits &= ~AC_BARRIER_SYNC_AND_INV_DB_META;
+
+   if (gfx_level >= GFX12)
+      flush_bits &= ~AC_BARRIER_INV_L2_METADATA;
+
    struct ac_barrier_state barrier = {
-      .flags = radv_to_ac_barrier_flags(gfx_level, flush_bits),
+      .flags = flush_bits,
       .pws_acquire_point = radv_to_ac_pws_acquire_point(pws_acquire_point),
       .wait_mem_va = flush_va,
       .wait_mem_number = flush_cnt,

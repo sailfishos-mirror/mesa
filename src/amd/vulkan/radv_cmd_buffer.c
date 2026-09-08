@@ -1779,8 +1779,7 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
    dst_stage_mask = radv_get_dst_stage_flags2(dst_stage_mask);
 
    /* Update flush bits from the main cmdbuf, except the stage flush. */
-   cmd_buffer->gang.flush_bits |=
-      cmd_buffer->state.flush_bits & RADV_CMD_FLUSH_ALL_COMPUTE & ~RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
+   cmd_buffer->gang.flush_bits |= cmd_buffer->state.flush_bits & AC_BARRIER_ALL_COMPUTE & ~AC_BARRIER_SYNC_CS;
 
    /* Add stage flush only when necessary:
     * - graphics command buffer: task shaders and DGC preprocess
@@ -1788,7 +1787,7 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
     */
    if (src_stage_mask & (VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT |
                          VK_PIPELINE_STAGE_2_COPY_BIT))
-      cmd_buffer->gang.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
+      cmd_buffer->gang.flush_bits |= AC_BARRIER_SYNC_CS;
 
    /* Block task shaders when we have to wait for CP DMA on the GFX cmdbuf. */
    if (src_stage_mask & radv_post_cp_dma_stage_mask)
@@ -1821,7 +1820,7 @@ radv_gang_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *ace_cs = cmd_buffer->gang.cs;
-   const uint32_t flush_bits = cmd_buffer->gang.flush_bits & RADV_CMD_FLUSH_ALL_COMPUTE;
+   const uint32_t flush_bits = cmd_buffer->gang.flush_bits & AC_BARRIER_ALL_COMPUTE;
    enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
    radv_cs_emit_cache_flush(device->ws, ace_cs, pdev->info.gfx_level, NULL, 0, flush_bits, &rgp_flush_bits,
@@ -2096,7 +2095,7 @@ radv_emit_thread_trace_marker(const struct radv_device *device, struct radv_cmd_
 }
 
 static void
-radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flush_bits flags)
+radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_flags flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -2107,29 +2106,28 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
       enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
       if (RADV_DEBUG(instance, FULL_SYNC)) {
-         flags |= RADV_CMD_FLUSH_ALL_COMPUTE & ~RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
+         flags |= AC_BARRIER_ALL_COMPUTE & ~AC_BARRIER_SYNC_CS;
 
          if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
-            flags |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
-                     RADV_CMD_FLAG_FLUSH_AND_INV_DB |
-                     (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0) |
-                     (pdev->info.gfx_level < GFX12 ? RADV_CMD_FLAG_INV_L2_METADATA : 0);
+            flags |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META | AC_BARRIER_SYNC_AND_INV_DB |
+                     (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0) |
+                     (pdev->info.gfx_level < GFX12 ? AC_BARRIER_INV_L2_METADATA : 0);
       }
 
-      assert((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) ==
-                (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH) ||
-             flags & RADV_CMD_FLAG_CS_PARTIAL_FLUSH);
+      assert((flags & (AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS)) ==
+                (AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS) ||
+             flags & AC_BARRIER_SYNC_CS);
 
       /* Force wait for graphics or compute engines to be idle. */
       radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
                                cmd_buffer->gfx9_fence_va, flags, &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP,
                                cmd_buffer->gfx9_eop_bug_va);
 
-      if ((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) &&
+      if ((flags & (AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS)) &&
           radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
          /* Force wait for compute engines to be idle on the internal cmdbuf. */
-         radv_cs_emit_cache_flush(device->ws, cmd_buffer->gang.cs, pdev->info.gfx_level, NULL, 0,
-                                  RADV_CMD_FLAG_CS_PARTIAL_FLUSH, &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
+         radv_cs_emit_cache_flush(device->ws, cmd_buffer->gang.cs, pdev->info.gfx_level, NULL, 0, AC_BARRIER_SYNC_CS,
+                                  &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
       }
    }
 
@@ -5826,7 +5824,7 @@ radv_emit_fb_mip_change_flush(struct radv_cmd_buffer *cmd_buffer)
    }
 
    if (color_mip_changed) {
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META;
    }
 
    const struct radv_image_view *iview = render->ds_att.iview;
@@ -5835,7 +5833,7 @@ radv_emit_fb_mip_change_flush(struct radv_cmd_buffer *cmd_buffer)
            radv_htile_enabled(iview->image, cmd_buffer->state.ds_mip)) &&
           cmd_buffer->state.ds_mip != iview->vk.base_mip_level) {
          cmd_buffer->state.flush_bits |=
-            RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
+            AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
       }
 
       cmd_buffer->state.ds_mip = iview->vk.base_mip_level;
@@ -5865,12 +5863,12 @@ radv_emit_mip_change_flush_default(struct radv_cmd_buffer *cmd_buffer)
    }
 
    if (need_color_mip_flush) {
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META;
    }
 
    if (cmd_buffer->state.ds_mip) {
       cmd_buffer->state.flush_bits |=
-         RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
+         AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
    }
 
    memset(cmd_buffer->state.cb_mip, 0, sizeof(cmd_buffer->state.cb_mip));
@@ -7635,7 +7633,7 @@ radv_get_ia_multi_vgt_param(struct radv_cmd_buffer *cmd_buffer, bool instanced_d
                set_vgt_flush = true;
          }
          if (set_vgt_flush)
-            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VGT_FLUSH;
+            cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_FLUSH;
       }
    }
 
@@ -7855,13 +7853,13 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    const VkPipelineStageFlags2 cs_stage_mask = radv_post_cs_stage_mask | radv_post_transfer_stage_mask;
 
    if (src_stage_mask & cs_stage_mask)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CS;
 
    if (src_stage_mask & ps_stage_mask)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_PS;
 
    if (src_stage_mask & vs_stage_mask)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS;
 
 #ifndef NDEBUG
    // clang-format off
@@ -7881,7 +7879,7 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    if (dst_stage_mask & (VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
                          VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR | VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
                          VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT))
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_PFP_SYNC_ME;
 }
 
 static bool
@@ -7920,7 +7918,7 @@ can_skip_buffer_l2_flushes(struct radv_device *device)
  * use our knowledge of past usage to optimize flushes away.
  */
 
-enum radv_cmd_flush_bits
+enum ac_barrier_flags
 radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stages, VkAccessFlags2 src_flags,
                       VkAccessFlags3KHR src3_flags, const struct radv_image *image,
                       const VkImageSubresourceRange *range)
@@ -7932,7 +7930,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
 
    bool has_CB_meta = true, has_DB_meta = true;
    bool image_is_coherent = image ? radv_image_is_l2_coherent(device, image, range) : false;
-   enum radv_cmd_flush_bits flush_bits = 0;
+   enum ac_barrier_flags flush_bits = 0;
 
    if (image) {
       if (!radv_image_has_CB_metadata(image))
@@ -7942,7 +7940,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
    }
 
    if (src_flags & VK_ACCESS_2_COMMAND_PREPROCESS_WRITE_BIT_EXT)
-      flush_bits |= RADV_CMD_FLAG_INV_L2;
+      flush_bits |= AC_BARRIER_INV_L2;
 
    if (src_flags & (VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR)) {
       /* since the STORAGE bit isn't set we know that this is a meta operation.
@@ -7950,47 +7948,47 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
        * set it here. */
       if (image && !(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
          if (vk_format_is_depth_or_stencil(image->vk.format)) {
-            flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+            flush_bits |= AC_BARRIER_SYNC_AND_INV_DB;
          } else {
-            flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB;
+            flush_bits |= AC_BARRIER_SYNC_AND_INV_CB;
          }
       }
 
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
    }
 
    if (src_flags &
        (VK_ACCESS_2_TRANSFORM_FEEDBACK_WRITE_BIT_EXT | VK_ACCESS_2_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT)) {
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_WB_L2;
+         flush_bits |= AC_BARRIER_WB_L2;
    }
 
    if (src_flags & VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT) {
-      flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB;
+      flush_bits |= AC_BARRIER_SYNC_AND_INV_CB;
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
       if (has_CB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_CB_META;
    }
 
    if (src_flags & VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT) {
-      flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+      flush_bits |= AC_BARRIER_SYNC_AND_INV_DB;
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
       if (pdev->info.gfx_level < GFX10 && has_DB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_DB_META;
    }
 
    if (src_flags & VK_ACCESS_2_TRANSFER_WRITE_BIT) {
-      flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+      flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB;
 
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
       if (has_CB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_CB_META;
       if (pdev->info.gfx_level < GFX10 && has_DB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_DB_META;
    }
 
    return flush_bits;
@@ -8036,7 +8034,7 @@ radv_merge_pws_acquire_point(struct radv_cmd_buffer *cmd_buffer, VkPipelineStage
    cmd_buffer->state.pws_acquire_point = MAX2(point, cmd_buffer->state.pws_acquire_point);
 }
 
-enum radv_cmd_flush_bits
+enum ac_barrier_flags
 radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 dst_stages, VkAccessFlags2 dst_flags,
                       VkAccessFlags3KHR dst3_flags, const struct radv_image *image,
                       const VkImageSubresourceRange *range)
@@ -8044,7 +8042,7 @@ radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    bool has_CB_meta = true, has_DB_meta = true;
-   enum radv_cmd_flush_bits flush_bits = 0;
+   enum ac_barrier_flags flush_bits = 0;
    bool flush_CB = true, flush_DB = true;
    bool image_is_coherent = image ? radv_image_is_l2_coherent(device, image, range) : false;
    bool flush_L2_metadata = false;
@@ -8074,39 +8072,39 @@ radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
    if (dst_flags & (VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_CONDITIONAL_RENDERING_READ_BIT_EXT)) {
       /* SMEM loads are used to read compute dispatch size in shaders */
       if ((dst_flags & VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT) && !pdev->load_grid_size_from_user_sgpr) {
-         flush_bits |= RADV_CMD_FLAG_INV_SCACHE;
+         flush_bits |= AC_BARRIER_INV_SMEM;
       }
 
       /* Ensure the DGC meta shader can read the commands. */
       if (device->vk.enabled_features.deviceGeneratedCommands) {
-         flush_bits |= RADV_CMD_FLAG_INV_SCACHE | RADV_CMD_FLAG_INV_VCACHE;
+         flush_bits |= AC_BARRIER_INV_SMEM | AC_BARRIER_INV_VMEM;
          if (pdev->info.gfx_level < GFX9)
-            flush_bits |= RADV_CMD_FLAG_INV_L2;
+            flush_bits |= AC_BARRIER_INV_L2;
       }
    }
 
    if (dst_flags & (VK_ACCESS_2_UNIFORM_READ_BIT | VK_ACCESS_2_RESOURCE_HEAP_READ_BIT_EXT)) {
       /* Resources backed by heap data might use VMEM. */
-      flush_bits |= RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_SCACHE;
+      flush_bits |= AC_BARRIER_INV_VMEM | AC_BARRIER_INV_SMEM;
    }
 
    if (pdev->info.gfx_level == GFX10_3 && (dst_flags & VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR)) {
       /* When VRS rates are copies from the VRS image to HTILE using VMEM. */
-      flush_bits |= RADV_CMD_FLAG_INV_VCACHE;
+      flush_bits |= AC_BARRIER_INV_VMEM;
    }
 
    if (dst_flags & (VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT |
                     VK_ACCESS_2_TRANSFER_READ_BIT)) {
-      flush_bits |= RADV_CMD_FLAG_INV_VCACHE;
+      flush_bits |= AC_BARRIER_INV_VMEM;
 
       if (flush_L2_metadata)
-         flush_bits |= RADV_CMD_FLAG_INV_L2_METADATA;
+         flush_bits |= AC_BARRIER_INV_L2_METADATA;
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
    }
 
    if (dst_flags & (VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT | VK_ACCESS_2_SAMPLER_HEAP_READ_BIT_EXT))
-      flush_bits |= RADV_CMD_FLAG_INV_SCACHE;
+      flush_bits |= AC_BARRIER_INV_SMEM;
 
    if (dst_flags & (VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_BINDING_TABLE_READ_BIT_KHR |
                     VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT)) {
@@ -8115,34 +8113,34 @@ radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
          /* Unlike LLVM, ACO uses SMEM for SSBOs and we have to
           * invalidate the scalar cache. */
          if (!pdev->use_llvm && !image)
-            flush_bits |= RADV_CMD_FLAG_INV_SCACHE;
+            flush_bits |= AC_BARRIER_INV_SMEM;
       }
 
-      flush_bits |= RADV_CMD_FLAG_INV_VCACHE;
+      flush_bits |= AC_BARRIER_INV_VMEM;
       if (flush_L2_metadata)
-         flush_bits |= RADV_CMD_FLAG_INV_L2_METADATA;
+         flush_bits |= AC_BARRIER_INV_L2_METADATA;
       if (!image_is_coherent)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
    }
 
    if (dst_flags & VK_ACCESS_2_COMMAND_PREPROCESS_READ_BIT_EXT) {
-      flush_bits |= RADV_CMD_FLAG_INV_VCACHE;
+      flush_bits |= AC_BARRIER_INV_VMEM;
       if (pdev->info.gfx_level < GFX9)
-         flush_bits |= RADV_CMD_FLAG_INV_L2;
+         flush_bits |= AC_BARRIER_INV_L2;
    }
 
    if (dst_flags & VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT) {
       if (flush_CB)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_CB;
       if (has_CB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_CB_META;
    }
 
    if (dst_flags & VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT) {
       if (flush_DB)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_DB;
       if (pdev->info.gfx_level < GFX10 && has_DB_meta)
-         flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+         flush_bits |= AC_BARRIER_SYNC_AND_INV_DB_META;
    }
 
    return flush_bits;
@@ -8919,7 +8917,7 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
        * it while our shaders are busy.
        */
       if (cmd_buffer->queue_state.gds_needed)
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
+         cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS;
    }
 
    /* Finalize the internal compute command stream, if it exists. */
@@ -9224,7 +9222,7 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
          /* Transitioning from NGG to legacy GS requires VGT_FLUSH on GFX10 and Navi21. VGT_FLUSH is
           * also emitted at the beginning of IBs when legacy GS ring pointers are set.
           */
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VGT_FLUSH;
+         cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_FLUSH;
       }
 
       if (cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT] &&
@@ -14437,10 +14435,10 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
     */
    if (radv_is_streamout_enabled(cmd_buffer) &&
        (gpu_info->family == CHIP_HAWAII || gpu_info->family == CHIP_TONGA || gpu_info->family == CHIP_FIJI)) {
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VGT_STREAMOUT_SYNC;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_STREAMOUT_SYNC;
    }
 
-   radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH);
+   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -14935,7 +14933,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
       }
 
       cmd_buffer->state.flush_bits |=
-         RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_PFP_SYNC_ME | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2;
+         AC_BARRIER_SYNC_CS | AC_BARRIER_PFP_SYNC_ME | AC_BARRIER_INV_VMEM | AC_BARRIER_INV_L2;
    }
 
    /* Make sure the DGC ACE IB will wait for the DGC prepare shader before the execution
@@ -15377,7 +15375,7 @@ radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer)
    if (has_prefetch)
       radv_emit_compute_prefetch(cmd_buffer);
 
-   radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_CS_PARTIAL_FLUSH);
+   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
 }
 
 void
@@ -15442,7 +15440,7 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer)
    if (has_prefetch)
       radv_emit_ray_tracing_prefetch(cmd_buffer);
 
-   radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_CS_PARTIAL_FLUSH);
+   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -15556,7 +15554,7 @@ radv_trace_trace_rays(struct radv_cmd_buffer *cmd_buffer, const VkTraceRaysIndir
    uint32_t dispatch_index = util_dynarray_num_elements(&cmd_buffer->ray_history, struct radv_rra_ray_history_data *);
    util_dynarray_append(&cmd_buffer->ray_history, data);
 
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_SCACHE | RADV_CMD_FLAG_CS_PARTIAL_FLUSH |
+   cmd_buffer->state.flush_bits |= AC_BARRIER_INV_SMEM | AC_BARRIER_SYNC_CS |
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL) |
                                    radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
@@ -15854,7 +15852,7 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
    if (radv_layout_is_htile_compressed(device, image, range->baseMipLevel, src_layout, src_queue_mask) &&
        !radv_layout_is_htile_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
       cmd_buffer->state.flush_bits |=
-         RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
+         AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
 
       radv_expand_depth_stencil(cmd_buffer, image, range, sample_locs);
    }
@@ -16217,7 +16215,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (is_compute)
-      cmd_buffer->state.flush_bits &= RADV_CMD_FLUSH_ALL_COMPUTE;
+      cmd_buffer->state.flush_bits &= AC_BARRIER_ALL_COMPUTE;
 
    if (!cmd_buffer->state.flush_bits) {
       /* No flush to emit means no PWS ACQUIRE; drop any acquire point left by barriers that didn't
@@ -16246,7 +16244,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
 
-   if (cmd_buffer->state.flush_bits & RADV_CMD_FLAG_INV_L2)
+   if (cmd_buffer->state.flush_bits & AC_BARRIER_INV_L2)
       cmd_buffer->state.rb_noncoherent_dirty = false;
 
    /* Clear the caches that have been flushed to avoid syncing too much
@@ -16265,7 +16263,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    radv_describe_barrier_end_delayed(cmd_buffer);
 }
 
-static enum radv_cmd_flush_bits
+static enum ac_barrier_flags
 radv_get_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask,
                           VkAccessFlags2 src_access_mask, const struct radv_image *image,
                           const VkImageSubresourceRange *range, const void *pNext)
@@ -16276,7 +16274,7 @@ radv_get_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFla
    return radv_src_access_flush(cmd_buffer, src_stage_mask, src_access_mask, src3_flags, image, range);
 }
 
-static enum radv_cmd_flush_bits
+static enum ac_barrier_flags
 radv_get_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 dst_stage_mask,
                           VkAccessFlags2 dst_access_mask, const struct radv_image *image,
                           const VkImageSubresourceRange *range, const void *pNext)
@@ -16293,8 +16291,8 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   enum radv_cmd_flush_bits src_flush_bits = 0;
-   enum radv_cmd_flush_bits dst_flush_bits = 0;
+   enum ac_barrier_flags src_flush_bits = 0;
+   enum ac_barrier_flags dst_flush_bits = 0;
    VkPipelineStageFlags2 src_stage_mask = 0;
    VkPipelineStageFlags2 dst_stage_mask = 0;
    bool has_image_transitions = false;
@@ -16859,7 +16857,7 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
    so->state_va += offset;
 
    /* GE must be idle when GE_GS_ORDERED_ID is written. */
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
+   cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS;
    radv_emit_cache_flush(cmd_buffer, false);
 
    /* Initialize the buffer to 0. */
@@ -16929,7 +16927,7 @@ radv_CmdBeginTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t first
        * coherent with L2.
        */
       if (pdev->info.cp_sdma_ge_use_system_memory_scope) {
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2;
+         cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
          radv_emit_cache_flush(cmd_buffer, false);
       }
    } else if (pdev->info.gfx_level < GFX11) {
@@ -17056,9 +17054,9 @@ radv_CmdEndTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t firstCo
       /* Wait for streamout to finish before copying back the number of bytes
        * written.
        */
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS;
       if (pdev->info.cp_sdma_ge_use_system_memory_scope)
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2;
+         cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
 
       radv_emit_cache_flush(cmd_buffer, false);
    } else {

@@ -49,7 +49,7 @@ gfx10_copy_shader_query_gfx(struct radv_cmd_buffer *cmd_buffer, bool use_gds, ui
    uint64_t src_va;
 
    /* Make sure GE and/or GDS is idle before copying the value. */
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2;
+   cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_INV_L2;
    radv_emit_cache_flush(cmd_buffer, false);
 
    if (use_gds) {
@@ -67,7 +67,7 @@ static void
 gfx10_copy_shader_query_ace(struct radv_cmd_buffer *cmd_buffer, uint32_t src_offset, uint64_t dst_va)
 {
    /* Make sure GDS is idle before copying the value. */
-   cmd_buffer->gang.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2;
+   cmd_buffer->gang.flush_bits |= AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2;
    radv_gang_cache_flush(cmd_buffer);
 
    gfx10_copy_shader_query(cmd_buffer->gang.cs, COPY_DATA_GDS, src_offset, dst_va);
@@ -600,11 +600,11 @@ radv_update_hw_pipelinestat(struct radv_cmd_buffer *cmd_buffer)
    const uint32_t num_pipeline_stat_queries = radv_get_num_pipeline_stat_queries(cmd_buffer);
 
    if (num_pipeline_stat_queries == 0) {
-      cmd_buffer->state.flush_bits &= ~RADV_CMD_FLAG_START_PIPELINE_STATS;
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_STOP_PIPELINE_STATS;
+      cmd_buffer->state.flush_bits &= ~AC_BARRIER_PIPELINESTAT_START;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_PIPELINESTAT_STOP;
    } else if (num_pipeline_stat_queries == 1) {
-      cmd_buffer->state.flush_bits &= ~RADV_CMD_FLAG_STOP_PIPELINE_STATS;
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_START_PIPELINE_STATS;
+      cmd_buffer->state.flush_bits &= ~AC_BARRIER_PIPELINESTAT_STOP;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_PIPELINESTAT_START;
    }
 }
 
@@ -1817,12 +1817,12 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
    radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants),
                             &push_constants);
 
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_INV_VCACHE;
+   cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
 
    if (flags & VK_QUERY_RESULT_WAIT_BIT)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
-                                      RADV_CMD_FLAG_FLUSH_AND_INV_DB |
-                                      (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META |
+                                      AC_BARRIER_SYNC_AND_INV_DB |
+                                      (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
 
    radv_unaligned_dispatch(cmd_buffer, count, 1, 1);
 
@@ -1831,7 +1831,7 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
     * previously submitted to the same queue.
     */
    cmd_buffer->active_query_flush_bits |=
-      RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_INV_VCACHE;
+      AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
 
    radv_meta_end(cmd_buffer);
 }
@@ -2681,11 +2681,11 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       UNREACHABLE("ending unhandled query type");
    }
 
-   cmd_buffer->active_query_flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH |
-                                          RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2 |
-                                          RADV_CMD_FLAG_INV_VCACHE;
+   cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS |
+                                          AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2 |
+                                          AC_BARRIER_INV_VMEM;
    if (pdev->info.gfx_level >= GFX9) {
-      cmd_buffer->active_query_flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+      cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB;
    }
 }
 
@@ -2806,7 +2806,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
    if (pdev->drirc.debug.flush_before_timestamp_write) {
       /* Make sure previously launched waves have finished */
       cmd_buffer->state.flush_bits |=
-         RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
+         AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS | AC_BARRIER_SYNC_CS;
    }
 
    radv_emit_cache_flush(cmd_buffer, false);
@@ -2818,11 +2818,11 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       query_va += pool->stride;
    }
 
-   cmd_buffer->active_query_flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH |
-                                          RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_L2 |
-                                          RADV_CMD_FLAG_INV_VCACHE;
+   cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS |
+                                          AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2 |
+                                          AC_BARRIER_INV_VMEM;
    if (pdev->info.gfx_level >= GFX9) {
-      cmd_buffer->active_query_flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB;
+      cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB;
    }
 
    assert(cs->b->cdw <= cdw_max);
