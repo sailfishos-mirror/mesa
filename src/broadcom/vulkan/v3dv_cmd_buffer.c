@@ -814,6 +814,7 @@ v3dv_job_init(struct v3dv_job *job,
    /* Make sure we haven't made this new job current before calling here */
    assert(!cmd_buffer || cmd_buffer->state.job != job);
 
+   job->id = p_atomic_inc_return(&device->job_id_counter);
    job->type = type;
 
    job->device = device;

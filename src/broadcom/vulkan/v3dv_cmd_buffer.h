@@ -289,6 +289,9 @@ struct v3dv_job {
 
    /* Perfmons with last job sync for CSD and CL jobs */
    struct v3dv_perf_query *perf;
+
+   /* tagging each job with a number for perfetto render stages */
+   uint32_t id;
    struct v3dv_queue *queue;
 };
 

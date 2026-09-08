@@ -383,6 +383,8 @@ struct v3dv_device {
 
    void *device_address_mem_ctx;
    struct util_dynarray device_address_bo_list; /* Array of struct v3dv_bo * */
+
+   uint32_t job_id_counter;
 };
 
 struct v3dv_device_memory {
