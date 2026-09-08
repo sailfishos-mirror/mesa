@@ -183,65 +183,8 @@ static enum ac_barrier_flags si_get_ac_barrier_flags(enum amd_gfx_level gfx_leve
    return flags;
 }
 
-static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
+static void si_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 {
-   assert(ctx->gfx_level >= GFX10);
-   enum amd_gfx_level gfx_level = ctx->gfx_level;
-   enum amd_ip_type ip_type = ctx->is_gfx_queue ? AMD_IP_GFX : AMD_IP_COMPUTE;
-   unsigned flags = get_reduced_barrier_flags(ctx);
-   uint64_t wait_mem_va = 0, eop_bug_va = 0;
-   enum ac_rgp_flush_bits rgp_flush_bits = 0;
-   uint32_t *wait_mem_number = NULL;
-
-   if (!flags)
-      return;
-
-   const uint32_t flush_cb_db = flags & (SI_BARRIER_SYNC_AND_INV_CB | SI_BARRIER_SYNC_AND_INV_DB);
-
-   if (gfx_level < GFX11 && flush_cb_db) {
-      struct si_resource *wait_mem_scratch =
-         si_get_wait_mem_scratch_bo(ctx, cs, ctx->ws->cs_is_secure(cs));
-
-      wait_mem_va = wait_mem_scratch->gpu_address;
-      wait_mem_number = &ctx->wait_mem_number;
-
-      eop_bug_va = si_get_eop_bug_va(ctx, wait_mem_scratch, SI_NOT_QUERY);
-   }
-
-   if (si_need_emit_task_shader_query(ctx, cs) &&
-       (flags & (SI_BARRIER_EVENT_PIPELINESTAT_START |
-                 SI_BARRIER_EVENT_PIPELINESTAT_STOP))) {
-      radeon_begin(cs->gang_cs);
-      radeon_set_sh_reg(R_00B828_COMPUTE_PIPELINESTAT_ENABLE,
-                        S_00B828_PIPELINESTAT_ENABLE(ctx->pipeline_stats_enabled));
-      radeon_end();
-   }
-
-   struct ac_barrier_state barrier = {
-      .flags = si_get_ac_barrier_flags(gfx_level, flags),
-      .pws_acquire_point = AC_PWS_ACQUIRE_POINT_PFP,
-      .wait_mem_va = wait_mem_va,
-      .wait_mem_number = wait_mem_number,
-      .eop_bug_va = eop_bug_va,
-   };
-
-   if (unlikely(ctx->sqtt_enabled))
-      si_sqtt_describe_barrier_start(ctx, &ctx->gfx_cs);
-
-   ac_emit_barrier(&cs->current, gfx_level, ip_type, &barrier,
-                   &ctx->context_roll, &rgp_flush_bits);
-
-   if (unlikely(ctx->sqtt_enabled))
-      si_sqtt_describe_barrier_end(ctx, &ctx->gfx_cs, rgp_flush_bits);
-
-   /* Increase task wait count if not done before. */
-   if (ctx->task_wait_count == ctx->last_task_wait_count)
-      ctx->task_wait_count++;
-}
-
-static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
-{
-   assert(sctx->gfx_level <= GFX9);
    enum amd_gfx_level gfx_level = sctx->gfx_level;
    enum amd_ip_type ip_type = sctx->is_gfx_queue ? AMD_IP_GFX : AMD_IP_COMPUTE;
    unsigned flags = get_reduced_barrier_flags(sctx);
@@ -252,19 +195,30 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
    if (!flags)
       return;
 
-   const uint32_t flush_cb_db = flags & (SI_BARRIER_SYNC_AND_INV_CB | SI_BARRIER_SYNC_AND_INV_DB);
+   const uint32_t flush_cb_db = flags & (SI_BARRIER_SYNC_AND_INV_CB |
+                                         SI_BARRIER_SYNC_AND_INV_DB);
 
-   if (gfx_level == GFX8 && flags & SI_BARRIER_SYNC_AND_INV_CB)
+   if (gfx_level >= GFX9) {
+      if (gfx_level < GFX11 && flush_cb_db) {
+         struct si_resource* wait_mem_scratch =
+           si_get_wait_mem_scratch_bo(sctx, cs, sctx->ws->cs_is_secure(cs));
+
+         wait_mem_va = wait_mem_scratch->gpu_address;
+         wait_mem_number = &sctx->wait_mem_number;
+
+         eop_bug_va = si_get_eop_bug_va(sctx, wait_mem_scratch, SI_NOT_QUERY);
+      }
+
+      if (si_need_emit_task_shader_query(sctx, cs) &&
+          (flags & (SI_BARRIER_EVENT_PIPELINESTAT_START |
+                    SI_BARRIER_EVENT_PIPELINESTAT_STOP))) {
+         radeon_begin(cs->gang_cs);
+         radeon_set_sh_reg(R_00B828_COMPUTE_PIPELINESTAT_ENABLE,
+                           S_00B828_PIPELINESTAT_ENABLE(sctx->pipeline_stats_enabled));
+         radeon_end();
+      }
+   } else if (gfx_level == GFX8 && flags & SI_BARRIER_SYNC_AND_INV_CB) {
       eop_bug_va = si_get_eop_bug_va(sctx, NULL, SI_NOT_QUERY);
-
-   if (gfx_level == GFX9 && flush_cb_db) {
-      struct si_resource* wait_mem_scratch =
-        si_get_wait_mem_scratch_bo(sctx, cs, sctx->ws->cs_is_secure(cs));
-
-      wait_mem_va = wait_mem_scratch->gpu_address;
-      wait_mem_number = &sctx->wait_mem_number;
-
-      eop_bug_va = si_get_eop_bug_va(sctx, wait_mem_scratch, SI_NOT_QUERY);
    }
 
    struct ac_barrier_state barrier = {
@@ -283,6 +237,12 @@ static void gfx6_emit_barrier(struct si_context *sctx, struct radeon_cmdbuf *cs)
 
    if (unlikely(sctx->sqtt_enabled))
       si_sqtt_describe_barrier_end(sctx, cs, rgp_flush_bits);
+
+   if (gfx_level >= GFX10_3) {
+      /* Increase task wait count if not done before. */
+      if (sctx->task_wait_count == sctx->last_task_wait_count)
+         sctx->task_wait_count++;
+   }
 }
 
 static void si_emit_barrier_as_atom(struct si_context *sctx, unsigned index)
@@ -652,10 +612,7 @@ void si_barrier_after_image_fast_clear(struct si_context *sctx)
 
 void si_init_barrier_functions(struct si_context *sctx)
 {
-   if (sctx->gfx_level >= GFX10)
-      sctx->emit_barrier = gfx10_emit_barrier;
-   else
-      sctx->emit_barrier = gfx6_emit_barrier;
+   sctx->emit_barrier = si_emit_barrier;
 
    sctx->atoms.s.barrier.emit = si_emit_barrier_as_atom;
 
