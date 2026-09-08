@@ -2843,10 +2843,9 @@ pipeline_setup_rendering_info(struct v3dv_device *device,
    struct vk_render_pass_state *rp = &pipeline->rendering_info;
    struct vk_multiview_state *mv = &pipeline->multiview_info;
 
-   if (pipeline->pass) {
-      assert(pipeline->subpass);
-      struct v3dv_render_pass *pass = pipeline->pass;
-      struct v3dv_subpass *subpass = pipeline->subpass;
+   if (pCreateInfo->renderPass) {
+      struct v3dv_render_pass *pass = v3dv_render_pass_from_handle(pCreateInfo->renderPass);
+      struct v3dv_subpass *subpass = &pass->subpasses[pCreateInfo->subpass];
       const uint32_t attachment_idx = subpass->ds_attachment.attachment;
 
       mv->view_mask = subpass->view_mask;
@@ -3008,8 +3007,6 @@ pipeline_init(struct v3dv_pipeline *pipeline,
    V3DV_FROM_HANDLE(v3dv_render_pass, render_pass, pCreateInfo->renderPass);
    if (render_pass) {
       assert(pCreateInfo->subpass < render_pass->subpass_count);
-      pipeline->pass = render_pass;
-      pipeline->subpass = &render_pass->subpasses[pCreateInfo->subpass];
    }
 
    pipeline_setup_rendering_info(device, pipeline, pCreateInfo, pAllocator);
