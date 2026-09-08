@@ -1116,7 +1116,7 @@ panvk_GetDeviceImageMemoryRequirements(VkDevice device,
       ~VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
    info.pCreateInfo = &create_info;
 
-   struct panvk_image image;
+   struct panvk_image image = {0};
    vk_image_init(&dev->vk, &image.vk, &create_info);
    panvk_image_init(&image, &create_info);
 
@@ -1263,7 +1263,7 @@ panvk_GetDeviceImageSparseMemoryRequirements(VkDevice device,
 {
    VK_FROM_HANDLE(panvk_device, dev, device);
 
-   struct panvk_image image;
+   struct panvk_image image = {0};
    vk_image_init(&dev->vk, &image.vk, pInfo->pCreateInfo);
    panvk_image_init(&image, pInfo->pCreateInfo);
 
