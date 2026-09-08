@@ -969,6 +969,8 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or 
     # unknown covers buggy 0.69.0, 0.71.0
     'unknown',
     '0.72.0', # https://github.com/rust-lang/rust-bindgen/issues/3264
+    '0.73.0', # https://github.com/rust-lang/rust-bindgen/issues/3454
+    '0.73.1', # https://github.com/rust-lang/rust-bindgen/issues/3454
   ]
   if bindgen_version in bindgen_bad_versions
     error('Your bingden version is known to be buggy, please upgrade it. ' +
