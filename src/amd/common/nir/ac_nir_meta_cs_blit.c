@@ -258,8 +258,10 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
     */
    nir_if *if_positive = NULL;
    if (key->has_start_xyz) {
-      nir_def *start_xyz = nir_channel(&b, nir_load_user_data_amd(&b), 3);
-      start_xyz = nir_u2uN(&b, nir_unpack_32_4x8(&b, start_xyz), coord_bit_size);
+      nir_def *user_data3 = nir_channel(&b, nir_load_user_data_amd(&b), 3);
+      nir_def *start_xyz = nir_u2uN(&b, nir_vec3(&b, nir_ubfe_imm(&b, user_data3, 0, 6),
+                                                 nir_ubfe_imm(&b, user_data3, 6, 4),
+                                                 nir_ubfe_imm(&b, user_data3, 10, 3)), coord_bit_size);
       start_xyz = nir_trim_vector(&b, start_xyz, 3);
 
       dst_xyz = nir_isub(&b, dst_xyz, start_xyz);
@@ -1242,11 +1244,12 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    assert(util_is_uint16(blit->dst.box.x));
    assert(util_is_uint16(blit->dst.box.y));
    assert(util_is_uint16(blit->dst.box.z));
+   assert(start_x <= 63 && start_y <= 15 && start_z <= 7);
 
    dispatch->user_data[0] = (blit->src.box.x & 0xffff) | ((blit->dst.box.x & 0xffff) << 16);
    dispatch->user_data[1] = (blit->src.box.y & 0xffff) | ((blit->dst.box.y & 0xffff) << 16);
    dispatch->user_data[2] = (blit->src.box.z & 0xffff) | ((blit->dst.box.z & 0xffff) << 16);
-   dispatch->user_data[3] = (start_x & 0xff) | ((start_y & 0xff) << 8) | ((start_z & 0xff) << 16);
+   dispatch->user_data[3] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10);
 
    if (is_clear) {
       union pipe_color_union final_value;
