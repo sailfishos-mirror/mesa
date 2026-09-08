@@ -317,13 +317,24 @@ static void gfx10_emit_barrier(struct si_context *ctx, struct radeon_cmdbuf *cs)
       /* The TS event above also makes sure that PS and CS are idle, so we have to do this only
        * if we are not flushing CB or DB.
        */
+
+      /* Wait for graphics shaders to go idle if requested.
+       *
+       * On GFX10-11.7, PS_PARTIAL_FLUSH doesn't wait for GS waves that send
+       * "gs_alloc_req 0", so we have to use VS_PARTIAL_FLUSH. (only tested
+       * Raphael and Navi33)
+       */
       radeon_begin(cs);
+
+      if (flags & SI_BARRIER_SYNC_VS &&
+          (gfx_level < GFX12 || !(flags & SI_BARRIER_SYNC_PS))) {
+         radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
+         rgp_flush_bits |= AC_RGP_FLUSH_VS_PARTIAL_FLUSH;
+      }
+
       if (flags & SI_BARRIER_SYNC_PS) {
          radeon_event_write(V_028A90_PS_PARTIAL_FLUSH);
          rgp_flush_bits |= AC_RGP_FLUSH_PS_PARTIAL_FLUSH;
-      } else if (flags & SI_BARRIER_SYNC_VS) {
-         radeon_event_write(V_028A90_VS_PARTIAL_FLUSH);
-         rgp_flush_bits |= AC_RGP_FLUSH_VS_PARTIAL_FLUSH;
       }
 
       if (flags & SI_BARRIER_SYNC_CS) {
