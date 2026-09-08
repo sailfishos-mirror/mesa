@@ -4664,7 +4664,7 @@
         "description": "va: Don't check format support in EndPicture for processing",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "153b2f210828bfbe9b5146556ac4922755973289",
         "notes": null
