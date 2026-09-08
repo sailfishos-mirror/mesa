@@ -874,9 +874,10 @@ capture_trace(VkQueue _queue)
       device->sqtt_triggered = true;
 
    if (instance->vk.trace_mode & RADV_TRACE_MODE_CTX_ROLLS) {
+      struct tm now;
       char filename[2048];
       time_t t = time(NULL);
-      struct tm now = *localtime(&t);
+      os_localtime(&t, &now);
       snprintf(filename, sizeof(filename), "/tmp/%s_%04d.%02d.%02d_%02d.%02d.%02d.ctxroll", util_get_process_name(),
                1900 + now.tm_year, now.tm_mon + 1, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec);
 
