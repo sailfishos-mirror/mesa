@@ -324,6 +324,11 @@ preprocess_nir(nir_shader *nir)
       NIR_PASS(_, nir, lower_intrinsics);
    }
 
+   const nir_opt_access_options access_options = {
+      .is_vulkan = true,
+   };
+   NIR_PASS(_, nir, nir_opt_access, &access_options);
+
    NIR_PASS(_, nir, nir_lower_io_vars_to_temporaries,
             nir_shader_get_entrypoint(nir), nir_var_shader_out);
 
