@@ -1428,7 +1428,7 @@ ac_dump_rgp_capture(const struct radeon_info *info, struct ac_sqtt_trace *sqtt_t
    FILE *f;
 
    t = time(NULL);
-   now = *localtime(&t);
+   os_localtime(&t, &now);
 
    if (capture_info) {
       snprintf(info_str, sizeof(info_str), "_%s%d",
