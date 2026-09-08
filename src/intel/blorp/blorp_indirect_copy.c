@@ -122,6 +122,26 @@ blorp_build_copy_mem_indirect_shader(struct blorp_batch *batch,
    return b.shader;
 }
 
+static bool
+update_image_store_64bit(nir_builder *b,
+                         nir_intrinsic_instr *intrin,
+                         void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_image_store)
+      return false;
+
+   intrin->intrinsic = nir_intrinsic_bindless_image_store;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+
+   nir_src_rewrite(
+      nir_get_io_index_src(intrin),
+      nir_load_inline_data_intel(b, 2, 32, nir_imm_int(b, 0),
+                                 .base = BLORP_INLINE_PARAM_SURFACES_LDW, .range = 8));
+
+   return true;
+}
+
 static nir_shader *
 blorp_build_copy_mem2img_indirect_shader(struct blorp_batch *batch,
                                          void *mem_ctx,
@@ -186,6 +206,11 @@ blorp_build_copy_mem2img_indirect_shader(struct blorp_batch *batch,
                                               format_Bpb,
                                               format_block_size,
                                               is_block_compressed);
+
+   if (blorp->config.use_efficient_64bit) {
+      nir_shader_intrinsics_pass(b.shader, update_image_store_64bit,
+                                 nir_metadata_control_flow, NULL);
+   }
 
    return b.shader;
 }
