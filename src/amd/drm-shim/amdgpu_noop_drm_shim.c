@@ -11,6 +11,7 @@
 #include "drm-uapi/amdgpu_drm.h"
 #include "util/log.h"
 #include "util/os_misc.h"
+#include "util/u_debug.h"
 
 static const struct amdgpu_device *amdgpu_dev;
 
@@ -225,7 +226,7 @@ drm_shim_amdgpu_select_device(const char *gpu_id)
 void
 drm_shim_driver_init(void)
 {
-   const char *gpu_id = os_get_option("AMDGPU_GPU_ID");
+   const char *gpu_id = debug_get_option("AMDGPU_GPU_ID", "renoir");
 
    drm_shim_amdgpu_select_device(gpu_id);
 
