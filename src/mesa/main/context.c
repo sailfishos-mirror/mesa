@@ -1350,7 +1350,7 @@ check_compatible(const struct gl_context *ctx,
 static void
 check_init_viewport(struct gl_context *ctx, GLuint width, GLuint height)
 {
-   if (!ctx->ViewportInitialized && width > 0 && height > 0) {
+   if (!ctx->ViewportInitialized) {
       unsigned i;
 
       /* Note: set flag here, before calling _mesa_set_viewport(), to prevent
