@@ -744,6 +744,8 @@ struct gen_parser {
       if (has_dst) {
          if (!parse_dst())
             return false;
+      } else {
+         inst.dst.region.hstride = 1;
       }
 
       if (inst.opcode == GEN_OP_WAIT) {
