@@ -3022,6 +3022,8 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    jay_def dst = nj_def(&tex->def);
    jay_def tmp = dst;
 
+   bool uses_implicit_derivative = nir_tex_instr_has_implicit_derivative(tex);
+
    const enum brw_sampler_opcode op = (enum brw_sampler_opcode)(
       tex->backend_flags & ~BRW_TEX_INSTR_FUSED_EU_DISABLE);
    const struct brw_sampler_payload_desc *payload_desc =
@@ -3407,7 +3409,9 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
 
    assert(payload_type_bit_size == 16 || payload_type_bit_size == 32);
    unsigned simd_mode = 0;
-   unsigned simd_width = payload_uniform ? 1 : nj->s->dispatch_width;
+   /* use simd4 if we have implicit derivative to calc derivatives properly */
+   unsigned simd_width = payload_uniform ? (uses_implicit_derivative ? 4 : 1) :
+                                           nj->s->dispatch_width;
    if (nj->devinfo->ver < 20) {
       if (payload_type_bit_size == 16) {
          assert(nj->devinfo->ver >= 11);
@@ -3477,9 +3481,34 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
       desc_src = jay_AND_u32(b, desc_src, 0xfff);
    }
 
+   /* Pad out uniform sources to full GRFs as SEND does not support finer
+    * granularity.
+    */
    for (unsigned i = 0; i < n_sources; ++i) {
-      payload[i] =
-         jay_src_as_strided(b, payload[i], 1, payload_uniform ? UGPR : GPR);
+      struct brw_sampler_payload_src sampler_src = payload_desc->sources[i];
+
+      /* Texcoords for uniform SENDs with implicit derivatives must be
+       * replicated to four channels (one subspan) so that their derivatives are
+       * calculated correctly.
+       */
+      if (payload_uniform &&
+          uses_implicit_derivative &&
+          (sampler_src.param == BRW_SAMPLER_PAYLOAD_PARAM_U ||
+           sampler_src.param == BRW_SAMPLER_PAYLOAD_PARAM_V ||
+           sampler_src.param == BRW_SAMPLER_PAYLOAD_PARAM_R)) {
+         jay_def src_as_grf =
+            jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
+         jay_MOV(b, jay_extract_range(src_as_grf, 0, 4), payload[i]);
+         for (unsigned j = 4; j < jay_ugpr_per_grf(b->shader); j++) {
+            jay_UNDEF(b, jay_extract(src_as_grf, j));
+         }
+         payload[i] = src_as_grf;
+
+      } else {
+         /* Pad out all other operands as normal. */
+         payload[i] =
+            jay_src_as_strided(b, payload[i], 1, payload_uniform ? UGPR : GPR);
+      }
    }
 
    enum jay_type src_type = jay_type(JAY_TYPE_U, payload_type_bit_size);
@@ -3489,7 +3518,9 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             .nr_srcs = n_sources, .type = dst_type, .src_type = { src_type },
             .dst = tmp, .uniform = payload_uniform,
             .bindless = surface_bindless, .pure = true,
-            .skip_helpers = tex->skip_helpers);
+            .skip_helpers = tex->skip_helpers,
+            .explicit_simd_width =
+               (uses_implicit_derivative && payload_uniform) ? 4 : 0);
 
    /* If we sampled into a temporary, copy out to the final */
    if (residency) {
