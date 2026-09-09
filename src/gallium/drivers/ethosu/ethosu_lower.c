@@ -94,21 +94,6 @@ set_feature_maps(struct ethosu_subgraph *subgraph,
    set_feature_map(subgraph, output_tensor, &operation->ofm);
 }
 
-static const struct pipe_ml_operation *
-ethosu_find_first_consumer(const struct pipe_ml_operation *poperations,
-                           unsigned count,
-                           unsigned tensor_index)
-{
-   for (unsigned i = 0; i < count; i++) {
-      const struct pipe_ml_operation *poperation = &poperations[i];
-      for (unsigned j = 0; j < poperation->input_count; j++)
-         if (poperation->input_tensors[j]->index == tensor_index)
-            return poperation;
-   }
-
-   return NULL;
-}
-
 static bool
 ethosu_fc_needs_flatten(const struct pipe_ml_operation *poperation)
 {
@@ -165,23 +150,140 @@ ethosu_fc_uses_batched_shape(const struct ethosu_subgraph *subgraph,
           ethosu_fc_batch_rows(poperation) > 1;
 }
 
-static bool
-ethosu_has_non_nhcwb_fc_consumer(const struct ethosu_subgraph *subgraph,
-                                 const struct pipe_ml_operation *poperations,
-                                 unsigned count, unsigned tensor_index)
+/* The input and output feature-map shapes ethosu_lower_fully_connected
+ * gives a fully connected: a flatten collapses the rows into a single
+ * column of the input or output channels, a conv-like case keeps the
+ * spatial size, and a batched fully connected then folds the rows into a
+ * near-square plane, overriding the width either set.  The layout
+ * decision mirrors the lowering by reading the shapes from here. */
+static void
+ethosu_fc_lowered_dims(const struct ethosu_subgraph *subgraph,
+                       const struct pipe_ml_operation *poperation,
+                       unsigned in[4], unsigned out[4])
 {
-   for (unsigned i = 0; i < count; i++) {
-      const struct pipe_ml_operation *poperation = &poperations[i];
+   const struct pipe_tensor *input = poperation->input_tensors[0];
+   const struct pipe_tensor *output = poperation->output_tensors[0];
+   const struct pipe_tensor *weight = poperation->fcon.weight_tensor;
 
-      for (unsigned j = 0; j < poperation->input_count; j++) {
-         if (poperation->input_tensors[j]->index == tensor_index &&
-             (ethosu_fc_needs_flatten(poperation) ||
-              ethosu_fc_uses_batched_shape(subgraph, poperation)))
-            return true;
+   for (unsigned i = 0; i < 4; i++) {
+      in[i] = input->dims[i];
+      out[i] = output->dims[i];
+   }
+
+   if (ethosu_fc_needs_flatten(poperation)) {
+      unsigned rows = input->dims[1] * input->dims[2] * input->dims[3] /
+                      weight->dims[3];
+
+      in[1] = rows;
+      in[2] = 1;
+      in[3] = weight->dims[3];
+      out[1] = rows;
+      out[2] = 1;
+      out[3] = weight->dims[2];
+   } else if (weight->dims[1] == 1 && weight->dims[3] == input->dims[3] &&
+              output->dims[1] == 1 &&
+              output->dims[2] == input->dims[1] * input->dims[2]) {
+      out[1] = input->dims[1];
+      out[2] = input->dims[2];
+      out[3] = weight->dims[2];
+   }
+
+   if (ethosu_fc_uses_batched_shape(subgraph, poperation)) {
+      unsigned rows = ethosu_fc_batch_rows(poperation);
+      unsigned width = ethosu_fc_batch_width(rows);
+
+      in[1] = rows / width;
+      in[2] = width;
+      out[1] = in[1];
+      out[2] = width;
+   }
+}
+
+/* The width and depth an operation writes or reads a tensor with, which
+ * define its NHCWB16 brick order.  A fully connected writes and reads the
+ * shapes ethosu_fc_lowered_dims gives it; a reshape reinterprets the
+ * buffer with its output shape; every other operation uses the tensor's
+ * own dimensions. */
+static void
+ethosu_written_wd(const struct ethosu_subgraph *subgraph,
+                  const struct pipe_ml_operation *producer,
+                  const struct pipe_tensor *ptensor,
+                  unsigned *width, unsigned *depth)
+{
+   if (producer->type == PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED) {
+      unsigned in[4], out[4];
+
+      ethosu_fc_lowered_dims(subgraph, producer, in, out);
+      *width = out[2];
+      *depth = out[3];
+      return;
+   }
+
+   *width = ptensor->dims[2];
+   *depth = ptensor->dims[3];
+}
+
+static void
+ethosu_read_wd(const struct ethosu_subgraph *subgraph,
+               const struct pipe_ml_operation *consumer,
+               const struct pipe_tensor *ptensor,
+               unsigned *width, unsigned *depth)
+{
+   if (consumer->type == PIPE_ML_OPERATION_TYPE_RESHAPE) {
+      const struct pipe_tensor *out = consumer->output_tensors[0];
+
+      *width = out->dims[2];
+      *depth = out->dims[3];
+      return;
+   }
+
+   if (consumer->type == PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED &&
+       consumer->input_tensors[0]->index == ptensor->index) {
+      unsigned in[4], out[4];
+
+      ethosu_fc_lowered_dims(subgraph, consumer, in, out);
+      *width = in[2];
+      *depth = in[3];
+      return;
+   }
+
+   *width = ptensor->dims[2];
+   *depth = ptensor->dims[3];
+}
+
+/* Brick format needs the producer and every consumer to agree on the
+ * width and depth (scheduler.cpp, needsLinearFormat, "equal W and C"). */
+static bool
+ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
+                          const struct pipe_ml_operation *poperations,
+                          unsigned count,
+                          const struct pipe_ml_operation *producer,
+                          const struct pipe_tensor *ptensor)
+{
+   unsigned written_width, written_depth;
+   bool has_consumer = false;
+
+   ethosu_written_wd(subgraph, producer, ptensor, &written_width,
+                     &written_depth);
+
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *consumer = &poperations[i];
+
+      for (unsigned j = 0; j < consumer->input_count; j++) {
+         unsigned read_width, read_depth;
+
+         if (consumer->input_tensors[j]->index != ptensor->index)
+            continue;
+
+         has_consumer = true;
+         ethosu_read_wd(subgraph, consumer, ptensor, &read_width,
+                        &read_depth);
+         if (read_width != written_width || read_depth != written_depth)
+            return false;
       }
    }
 
-   return false;
+   return has_consumer;
 }
 
 static bool
@@ -504,44 +606,15 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
 {
    struct pipe_tensor flat_input = *input_tensor;
    struct pipe_tensor spatial_output = *poperation->output_tensors[0];
-   struct pipe_tensor *output_tensor = poperation->output_tensors[0];
    struct pipe_ml_operation conv_operation = *poperation;
-   struct pipe_tensor *output_tensors[1] = {output_tensor};
+   struct pipe_tensor *output_tensors[1] = {&spatial_output};
    struct pipe_tensor *weight = poperation->fcon.weight_tensor;
+   unsigned in[4], out[4];
 
-   if (ethosu_fc_needs_flatten(poperation)) {
-      unsigned rows = input_tensor->dims[1] * input_tensor->dims[2] *
-                      input_tensor->dims[3] / weight->dims[3];
-
-      flat_input.dims[1] = rows;
-      flat_input.dims[2] = 1;
-      flat_input.dims[3] = weight->dims[3];
-
-      spatial_output.dims[1] = rows;
-      spatial_output.dims[2] = 1;
-      spatial_output.dims[3] = weight->dims[2];
-      output_tensors[0] = &spatial_output;
-   } else if (weight->dims[1] == 1 &&
-              weight->dims[3] == input_tensor->dims[3] &&
-              output_tensor->dims[1] == 1 &&
-              output_tensor->dims[2] == input_tensor->dims[1] * input_tensor->dims[2]) {
-      flat_input = *input_tensor;
-
-      spatial_output.dims[1] = input_tensor->dims[1];
-      spatial_output.dims[2] = input_tensor->dims[2];
-      spatial_output.dims[3] = weight->dims[2];
-      output_tensors[0] = &spatial_output;
-   }
-
-   if (ethosu_fc_uses_batched_shape(subgraph, poperation)) {
-      unsigned rows = ethosu_fc_batch_rows(poperation);
-      unsigned width = ethosu_fc_batch_width(rows);
-
-      flat_input.dims[1] = rows / width;
-      flat_input.dims[2] = width;
-      spatial_output.dims[1] = flat_input.dims[1];
-      spatial_output.dims[2] = width;
-      output_tensors[0] = &spatial_output;
+   ethosu_fc_lowered_dims(subgraph, poperation, in, out);
+   for (unsigned i = 0; i < 4; i++) {
+      flat_input.dims[i] = in[i];
+      spatial_output.dims[i] = out[i];
    }
 
    conv_operation.output_tensors = output_tensors;
@@ -1509,13 +1582,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
              !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16) &&
              poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
-            const struct pipe_ml_operation *consumer =
-               ethosu_find_first_consumer(poperations, count, ptensor->index);
-            if (consumer && consumer->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
-                !ethosu_fc_needs_flatten(poperation) &&
-                !ethosu_fc_uses_batched_shape(subgraph, poperation) &&
-                !ethosu_has_non_nhcwb_fc_consumer(subgraph, poperations, count,
-                                                  ptensor->index))
+            if (ethosu_tensor_keeps_brick(subgraph, poperations, count,
+                                          poperation, ptensor))
                tensor->layout = ETHOSU_LAYOUT_NHCWB16;
          }
       }
