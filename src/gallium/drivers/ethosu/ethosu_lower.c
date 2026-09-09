@@ -871,11 +871,80 @@ ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
                      struct ethosu_operation *pool_operation,
                      struct ethosu_operation *operation)
 {
+   struct ethosu_address_range *range = &pool_operation->lut;
+   unsigned activation = pool_operation->activation;
+
    operation->type = ETHOSU_OPERATION_TYPE_DMA;
-   operation->dma.address = pool_operation->lut.address;
-   operation->dma.size = LUT8_SIZE;
-   operation->dma.dst_region = LUT_REGION;
-   operation->dma.dst_address = SHRAM_LUT_BASE(0);
+   operation->dma.address = range->address;
+   operation->dma.size = range->size;
+   operation->dma.dst_region = ethosu_lut_region();
+   operation->dma.dst_address =
+      ethosu_lut_address(subgraph, activation, range->size);
+}
+
+static unsigned
+ethosu_alloc_lut_slot(struct ethosu_subgraph *subgraph, unsigned size)
+{
+   unsigned slots = DIV_ROUND_UP(size, LUT_SLOT_SIZE);
+   /* The LUT banks hold this many equal-sized slots. */
+   unsigned max_slots = SHRAM_RESERVED_END_BANKS * SHRAM_BANK_SIZE_BYTES /
+                        LUT_SLOT_SIZE;
+   unsigned slot;
+
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+      if (size > LUT8_SIZE)
+         return 0;
+
+      return subgraph->next_lut_slot++ % max_slots;
+   }
+
+   if (slots == 0 || slots > max_slots)
+      return 0;
+
+   slot = align(subgraph->next_lut_slot, slots);
+   if (slot + slots > max_slots)
+      slot = 0;
+
+   subgraph->next_lut_slot = slot + slots;
+   return slot;
+}
+
+static unsigned
+ethosu_lut_activation(struct ethosu_subgraph *subgraph,
+                      struct ethosu_feature_map *ifm,
+                      struct ethosu_feature_map *ofm,
+                      unsigned size,
+                      bool force_int8_clip)
+{
+   unsigned slot = ethosu_alloc_lut_slot(subgraph, size);
+
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return ETHOSU_U65_ACTIVATION_LUT(slot) |
+             (force_int8_clip ? ETHOSU_ACTIVATION_CLIP_FORCE_INT8 : 0);
+
+   unsigned slots = DIV_ROUND_UP(size, LUT_SLOT_SIZE);
+   unsigned function;
+
+   assert(slots != 0);
+
+   if (ifm->precision == 0 && ofm->precision == 0) {
+      function = ifm->is_signed ? ETHOSU_U85_ACTIVATION_LUT_S8_S8 : ETHOSU_U85_ACTIVATION_LUT_U8_U8;
+   } else if (ifm->precision == 0 && ofm->precision == 1) {
+      assert(ifm->is_signed && ofm->is_signed);
+      function = ETHOSU_U85_ACTIVATION_LUT_S8_S16;
+   } else if (ifm->precision == 0 && ofm->precision == 2) {
+      assert(ifm->is_signed && ofm->is_signed);
+      function = ETHOSU_U85_ACTIVATION_LUT_S8_S32;
+   } else if (ifm->precision == 1 && ofm->precision == 1) {
+      assert(ifm->is_signed && ofm->is_signed);
+      function = ETHOSU_U85_ACTIVATION_LUT_S16_S16;
+   } else {
+      assert(ifm->precision == 1 && ofm->precision == 2);
+      assert(ifm->is_signed && ofm->is_signed);
+      function = ETHOSU_U85_ACTIVATION_LUT_S16_S32;
+   }
+
+   return ETHOSU_U85_ACTIVATION_LUT(function, slot / slots);
 }
 
 static void
@@ -888,19 +957,18 @@ ethosu_lower_lut(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   operation->activation =
+      ethosu_lut_activation(subgraph, &operation->ifm,
+                            &operation->ofm, LUT8_SIZE, false);
 
    ethos_create_lut(operation, lut, func);
-   fill_lut(subgraph, operation, lut);
+   fill_lut(subgraph, operation, lut, LUT8_SIZE);
 
    /* The LUT handles 0 point and scale, so make them equal */
    operation->ofm.zero_point = operation->ifm.zero_point;
    operation->ofm.scale = operation->ifm.scale;
-
-   allocate_feature_maps(subgraph, operation);
-   ethosu_sched_operation(subgraph, operation);
 }
 
 static void
@@ -913,19 +981,18 @@ ethosu_lower_hswish(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   operation->activation =
+      ethosu_lut_activation(subgraph, &operation->ifm,
+                            &operation->ofm, LUT8_SIZE, false);
 
    ethos_create_hswish_lut(operation, lut);
-   fill_lut(subgraph, operation, lut);
+   fill_lut(subgraph, operation, lut, LUT8_SIZE);
 
    /* The LUT handles 0 point and scale, so make them equal */
    operation->ofm.zero_point = operation->ifm.zero_point;
    operation->ofm.scale = operation->ifm.scale;
-
-   allocate_feature_maps(subgraph, operation);
-   ethosu_sched_operation(subgraph, operation);
 }
 
 static void
@@ -938,19 +1005,35 @@ ethosu_lower_leakyrelu(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   operation->activation =
+      ethosu_lut_activation(subgraph, &operation->ifm,
+                            &operation->ofm, LUT8_SIZE, false);
 
    ethos_create_leakyrelu_lut(operation, lut, poperation->leakyrelu.alpha);
-   fill_lut(subgraph, operation, lut);
+   fill_lut(subgraph, operation, lut, LUT8_SIZE);
 
    /* The LUT handles 0 point and scale, so make them equal */
    operation->ofm.zero_point = operation->ifm.zero_point;
    operation->ofm.scale = operation->ifm.scale;
+}
+
+static void
+ethosu_append_lut_pool(struct ethosu_subgraph *subgraph,
+                       const struct pipe_ml_operation *poperation,
+                       struct ethosu_operation *operation)
+{
+   struct ethosu_operation dma_operation;
 
    allocate_feature_maps(subgraph, operation);
+
+   operation_set_defaults(&dma_operation);
+   ethosu_lower_lut_dma(subgraph, poperation, operation, &dma_operation);
+   util_dynarray_append(&subgraph->operations, dma_operation);
+
    ethosu_sched_operation(subgraph, operation);
+   util_dynarray_append(&subgraph->operations, *operation);
 }
 
 static void
@@ -1329,34 +1412,19 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_LOGISTIC: {
          ethosu_lower_lut(subgraph, &poperations[i], &operation, clamp_sigmoid8);
-
-         struct ethosu_operation dma_operation = {0};
-         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
-         util_dynarray_append(&subgraph->operations, dma_operation);
-
-         util_dynarray_append(&subgraph->operations, operation);
+         ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_TANH: {
          ethosu_lower_lut(subgraph, &poperations[i], &operation, tanh);
-
-         struct ethosu_operation dma_operation = {0};
-         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
-         util_dynarray_append(&subgraph->operations, dma_operation);
-
-         util_dynarray_append(&subgraph->operations, operation);
+         ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_HSWISH: {
          ethosu_lower_hswish(subgraph, &poperations[i], &operation);
-
-         struct ethosu_operation dma_operation = {0};
-         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
-         util_dynarray_append(&subgraph->operations, dma_operation);
-
-         util_dynarray_append(&subgraph->operations, operation);
+         ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 
@@ -1388,12 +1456,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_LEAKY_RELU: {
          ethosu_lower_leakyrelu(subgraph, &poperations[i], &operation);
-
-         struct ethosu_operation dma_operation = {0};
-         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
-         util_dynarray_append(&subgraph->operations, dma_operation);
-
-         util_dynarray_append(&subgraph->operations, operation);
+         ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 

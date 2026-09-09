@@ -27,6 +27,22 @@
 struct ethosu_block ARCH_OFM_BLOCK_MAX = {64, 32, 128};
 struct ethosu_block SUB_KERNEL_MAX = {8, 8, 65536};
 
+unsigned
+ethosu_lut_region(void)
+{
+   return LUT_REGION;
+}
+
+unsigned
+ethosu_lut_address(struct ethosu_subgraph *subgraph,
+                   unsigned activation, unsigned size)
+{
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return SHRAM_LUT_BASE(activation & 0xf);
+
+   return ((activation >> 5) & 0x7) * size;
+}
+
 void
 ethosu_dump_buffer(const uint8_t *ptr, char *name, int operation_nr,
                    int suboperation_nr, int offset, unsigned size)

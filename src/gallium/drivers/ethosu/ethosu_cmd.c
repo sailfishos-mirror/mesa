@@ -321,8 +321,33 @@ emit_activation(struct ethosu_subgraph *subgraph, struct ethosu_operation *opera
 
    EMIT0(NPU_SET_ACTIVATION, activation);
 
-   if (operation->ofm.is_signed) {
-      if (operation->ofm.precision == 0) {
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
+       (activation & 0x1f)) {
+      switch (activation & 0x1f) {
+      case ETHOSU_U85_ACTIVATION_LUT_U8_U8:
+         min = 0;
+         max = UINT8_MAX;
+         break;
+      case ETHOSU_U85_ACTIVATION_LUT_S8_S8:
+      case ETHOSU_U85_ACTIVATION_LUT_S8_S16:
+      case ETHOSU_U85_ACTIVATION_LUT_S8_S32:
+         min = INT8_MIN;
+         max = INT8_MAX;
+         break;
+      case ETHOSU_U85_ACTIVATION_LUT_S16_S16:
+      case ETHOSU_U85_ACTIVATION_LUT_S16_S32:
+         min = INT16_MIN;
+         max = INT16_MAX;
+         break;
+      default:
+         min = INT16_MIN;
+         max = UINT16_MAX;
+         break;
+      }
+   } else if (operation->ofm.is_signed) {
+      if ((activation & ETHOSU_ACTIVATION_CLIP_FORCE_INT8) ==
+             ETHOSU_ACTIVATION_CLIP_FORCE_INT8 ||
+          operation->ofm.precision == 0) {
          min = INT8_MIN;
          max = INT8_MAX;
       } else if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
@@ -970,6 +995,16 @@ emit_dma(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
    EMIT1(NPU_SET_DMA0_LEN, 0x0, operation->dma.size);
 }
 
+static bool
+ethosu_activation_is_lut(struct ethosu_subgraph *subgraph, unsigned activation)
+{
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return (activation & ETHOSU_U65_ACTIVATION_LUT(0)) ==
+             ETHOSU_U65_ACTIVATION_LUT(0);
+
+   return (activation & 0x1f) != 0;
+}
+
 static void
 emit_operation_code(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
@@ -1132,10 +1167,12 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
 
          break;
       case ETHOSU_OPERATION_TYPE_POOLING:
-         if (operation->activation >= ETHOSU_POOLING_ACTIVATION_LUT(0)) {
-            operation->read_accesses[1].region = LUT_REGION;
-            operation->read_accesses[1].address = SHRAM_LUT_BASE(operation->activation & 0xf);
-            operation->read_accesses[1].size = LUT8_SIZE;
+         if (ethosu_activation_is_lut(subgraph, operation->activation)) {
+            operation->read_accesses[1].region = ethosu_lut_region();
+            operation->read_accesses[1].address =
+               ethosu_lut_address(subgraph, operation->activation,
+                                  operation->lut.size);
+            operation->read_accesses[1].size = operation->lut.size;
          }
          operation->read_accesses[0].region = operation->ifm.region;
          operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];

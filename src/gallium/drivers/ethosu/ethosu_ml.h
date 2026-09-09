@@ -17,7 +17,10 @@
 #define SHRAM_TOTAL_BANKS           SHRAM_BANKS
 #define SHRAM_BANK_SIZE_BYTES       1024
 #define LUT8_SIZE                   256
-#define SHRAM_LUT_BASE(lut)         (46 * SHRAM_BANK_SIZE_BYTES + (lut) * LUT8_SIZE)
+#define LUT_SLOT_SIZE               256
+/* The LUT banks are the reserved banks at the top of SHRAM. */
+#define SHRAM_LUT_BASE(lut)         ((SHRAM_TOTAL_BANKS - SHRAM_RESERVED_END_BANKS) * \
+                                     SHRAM_BANK_SIZE_BYTES + (lut) * LUT8_SIZE)
 #define ACC_BITS                    32 /* Use for now always 32-bit accumulators */
 #define IFM_GRANULE                 8
 #define ACC_GRANULE                 16
@@ -182,7 +185,15 @@ enum ethosu_pooling_type {
    ETHOSU_POOLING_TYPE_ARGMAX_Y,
 };
 
-#define ETHOSU_POOLING_ACTIVATION_LUT(n)  (0x10 | (n))
+#define ETHOSU_U65_ACTIVATION_LUT(n)          (0x10 | (n))
+#define ETHOSU_U85_ACTIVATION_LUT(fn, n)      ((fn) | ((n) << 5))
+#define ETHOSU_U85_ACTIVATION_LUT_U8_U8       1
+#define ETHOSU_U85_ACTIVATION_LUT_S8_S8       4
+#define ETHOSU_U85_ACTIVATION_LUT_S8_S16      5
+#define ETHOSU_U85_ACTIVATION_LUT_S8_S32      7
+#define ETHOSU_U85_ACTIVATION_LUT_S16_S16     8
+#define ETHOSU_U85_ACTIVATION_LUT_S16_S32     9
+#define ETHOSU_ACTIVATION_CLIP_FORCE_INT8     (3 << 12)
 #define ETHOSU_U85_ACTIVATION_CLIP_RANGE_NONE (1 << 12)
 
 #define MAX_MEMORY_ACCESSES 5 /* IFM, IFM2, Scales, Weights, LUT*/
@@ -272,6 +283,7 @@ struct ethosu_subgraph {
    uint8_t *coefs;
    struct pipe_resource *coefs_rsrc;
    unsigned coefs_used;
+   unsigned next_lut_slot;
 
    /* Register state tracking to avoid emitting unchanged values */
    uint16_t *cmd0_state; /* Array of last values for CMD0 registers (16-bit) */
@@ -316,6 +328,11 @@ void ethosu_ml_subgraph_destroy(struct pipe_ml_device *pdevice,
 void ethosu_register_tensor(struct ethosu_subgraph *subgraph, const struct pipe_tensor *ptensor);
 
 struct ethosu_tensor *ethosu_find_tensor(struct ethosu_subgraph *subgraph, unsigned tensor_idx);
+
+unsigned ethosu_lut_region(void);
+
+unsigned ethosu_lut_address(struct ethosu_subgraph *subgraph,
+                            unsigned activation, unsigned size);
 
 void ethosu_dump_buffer(const uint8_t *ptr, char *name, int operation_nr,
                         int suboperation_nr, int offset, unsigned size);
