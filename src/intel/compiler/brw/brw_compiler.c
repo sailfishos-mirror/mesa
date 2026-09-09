@@ -91,13 +91,8 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
 
    brw_init_isa_info(&compiler->isa, devinfo);
 
-   compiler->threads_per_eu_min =
-      debug_get_unsigned_option("INTEL_THREADS_PER_EU_MIN", -1);
-   compiler->threads_per_eu_srchash =
-      debug_get_unsigned_option("INTEL_THREADS_PER_EU_SRCHASH", BRW_SRCHASH_EMPTY);
-
    brw_alloc_reg_sets(compiler, 0);
-   if (compiler->threads_per_eu_min != -1 && compiler->threads_per_eu_min != 0)
+   if (intel_threads_per_eu_min != -1)
       brw_alloc_reg_sets(compiler, 1);
 
    compiler->precise_trig = debug_get_bool_option("INTEL_PRECISE_TRIG", false);

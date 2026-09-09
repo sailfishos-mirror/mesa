@@ -29,7 +29,7 @@ static uint32_t
 debug_vrt_max_reg_count(struct brw_compiler *compiler, int debug)
 {
    if (unlikely(debug)) {
-      return ROUND_DOWN_TO(XE3_MAX_GRF * 2 / compiler->threads_per_eu_min, 32);
+      return ROUND_DOWN_TO(XE3_MAX_GRF * 2 / intel_threads_per_eu_min, 32);
    }
    return -1;
 }
@@ -275,20 +275,13 @@ public:
       spill_vgrf_ip_alloc = 0;
       spill_node_count = 0;
       debug_limit_registers =
-         compiler->threads_per_eu_min != (uint32_t)-1 &&
-         (compiler->threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
-          compiler->threads_per_eu_srchash == fs->prog_data->source_hash);
+         intel_threads_per_eu_min != (uint32_t)-1 &&
+         (intel_threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
+          intel_threads_per_eu_srchash == fs->prog_data->source_hash);
       if (unlikely(debug_limit_registers)) {
-         if (compiler->threads_per_eu_min < 4 ||
-             compiler->threads_per_eu_min > 10) {
-            fprintf(stderr, "INTEL_THREADS_PER_EU_MIN = %u is outside valid "
-                    "range [4, 10]. Ignoring\n", compiler->threads_per_eu_min);
-            debug_limit_registers = false;
-         } else {
             fprintf(stderr,
                     "INTEL_THREADS_PER_EU: min=%u for src_hash=0x%" PRIx64 "\n",
-                    compiler->threads_per_eu_min, fs->prog_data->source_hash);
-         }
+                    intel_threads_per_eu_min, fs->prog_data->source_hash);
       }
 
       /* Manually managed scratch space (e.g. NIR scratch) is not used for

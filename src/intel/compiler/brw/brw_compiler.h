@@ -140,13 +140,6 @@ struct brw_compiler {
     */
    uint32_t num_lowered_storage_formats;
    uint32_t *lowered_storage_formats;
-
-   /**
-    * Debug flag for forcing minimum number of threads per EU for shader.
-    * Can optionally only apply to shaders matching source hash.
-    */
-   uint32_t threads_per_eu_min;
-   uint64_t threads_per_eu_srchash;
 };
 
 #define brw_shader_debug_log(compiler, data, fmt, ... ) do {    \
