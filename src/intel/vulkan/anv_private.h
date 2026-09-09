@@ -6100,8 +6100,12 @@ struct anv_image {
    /* Array pitch of video coding private surfaces */
    uint32_t vid_dmv_top_surface_pitch_B;
    uint32_t av1_cdf_table_pitch_B;
+   uint32_t vid_ds_8x_array_pitch_B;
+   uint32_t vid_ds_4x_array_pitch_B;
 
    struct anv_image_memory_range vid_dmv_top_surface;
+   struct anv_image_memory_range vid_ds_8x_surface;
+   struct anv_image_memory_range vid_ds_4x_surface;
 
    /* Link in the anv_device.image_private_objects list */
    struct list_head link;
@@ -7257,6 +7261,33 @@ uint32_t anv_video_get_image_mv_size(struct anv_device *device,
                                      struct anv_image *image,
                                      const struct VkVideoProfileListInfoKHR *profile_list);
 
+/* Down-Scaled image layout for video encoding */
+struct anv_video_enc_ds_layout {
+   uint32_t w8, h8, pitch8;
+   uint32_t w4, h4, pitch4;
+   uint32_t slice8_B;
+   uint32_t slice4_B;
+};
+
+static inline struct anv_video_enc_ds_layout
+anv_video_get_enc_ds_layout(uint32_t width, uint32_t height)
+{
+   struct anv_video_enc_ds_layout l;
+
+   l.w4 = DIV_ROUND_UP(width, 4 * ANV_MB_WIDTH) * ANV_MB_WIDTH;
+   l.h4 = align(((DIV_ROUND_UP(height, 4 * ANV_MB_HEIGHT) + 1) >> 1) *
+                ANV_MB_HEIGHT, 32) * 2;
+   l.pitch4 = align(l.w4, 128);
+   l.slice4_B = align(l.pitch4 * l.h4 * 3 / 2, 4096);
+
+   l.w8 = l.w4 >> 1;
+   l.h8 = align(l.h4 >> 1, 32) * 2;
+   l.pitch8 = align(l.w8, 128);
+   l.slice8_B = align(l.pitch8 * l.h8 * 3 / 2, 4096);
+
+   return l;
+}
+
 uint32_t
 anv_h265_slice_size(const VkVideoDecodeInfoKHR *frame_info,
                     const VkVideoDecodeH265PictureInfoKHR *h265_pic_info,
@@ -7303,6 +7334,40 @@ anv_image_dmv_top_address(const struct anv_image_view *iv,
       return addr;
 
    return anv_address_add(addr, iv->image->vid_dmv_top_surface_pitch_B *
+                                    ((uint64_t)iv->vk.base_array_layer + arrayLayer));
+}
+
+static inline struct anv_address MUST_CHECK
+anv_image_ds_8x_address(const struct anv_image_view *iv,
+                        uint32_t arrayLayer)
+{
+   assert(iv->vk.base_mip_level == 0);
+   assert(iv->vk.layer_count > arrayLayer);
+
+   struct anv_address addr = anv_image_address(iv->image,
+                                               &iv->image->vid_ds_8x_surface);
+
+   if (anv_address_is_null(addr))
+      return addr;
+
+   return anv_address_add(addr, iv->image->vid_ds_8x_array_pitch_B *
+                                    ((uint64_t)iv->vk.base_array_layer + arrayLayer));
+}
+
+static inline struct anv_address MUST_CHECK
+anv_image_ds_4x_address(const struct anv_image_view *iv,
+                        uint32_t arrayLayer)
+{
+   assert(iv->vk.base_mip_level == 0);
+   assert(iv->vk.layer_count > arrayLayer);
+
+   struct anv_address addr = anv_image_address(iv->image,
+                                               &iv->image->vid_ds_4x_surface);
+
+   if (anv_address_is_null(addr))
+      return addr;
+
+   return anv_address_add(addr, iv->image->vid_ds_4x_array_pitch_B *
                                     ((uint64_t)iv->vk.base_array_layer + arrayLayer));
 }
 

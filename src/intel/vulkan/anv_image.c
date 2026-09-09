@@ -960,6 +960,56 @@ add_video_buffers(struct anv_device *device,
    if (ok != VK_SUCCESS)
       return ok;
 
+   /* VDENC HME uses downscaled reconstructed references: H.264 needs only
+    * the 4x surface, H.265 and AV1 use both the 8x and 4x. A profile-less
+    * DPB image takes the worst case (both).
+    */
+   if (image->vk.usage & VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR) {
+      bool need_8x = independent_profile;
+      bool need_4x = independent_profile;
+
+      if (!independent_profile) {
+         for (unsigned i = 0; i < profile_list->profileCount; i++) {
+            switch (profile_list->pProfiles[i].videoCodecOperation) {
+            case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR:
+               need_4x = true;
+               break;
+            case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR:
+            case VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR:
+               need_8x = true;
+               need_4x = true;
+               break;
+            default:
+               break;
+            }
+         }
+      }
+
+      struct anv_video_enc_ds_layout ds =
+         anv_video_get_enc_ds_layout(image->vk.extent.width,
+                                     image->vk.extent.height);
+
+      if (need_8x) {
+         image->vid_ds_8x_array_pitch_B = ds.slice8_B;
+         ok = image_binding_grow(device, image, ANV_IMAGE_MEMORY_BINDING_PRIVATE,
+                                 ANV_OFFSET_IMPLICIT,
+                                 (uint64_t)ds.slice8_B * image->vk.array_layers,
+                                 4096, &image->vid_ds_8x_surface);
+         if (ok != VK_SUCCESS)
+            return ok;
+      }
+
+      if (need_4x) {
+         image->vid_ds_4x_array_pitch_B = ds.slice4_B;
+         ok = image_binding_grow(device, image, ANV_IMAGE_MEMORY_BINDING_PRIVATE,
+                                 ANV_OFFSET_IMPLICIT,
+                                 (uint64_t)ds.slice4_B * image->vk.array_layers,
+                                 4096, &image->vid_ds_4x_surface);
+         if (ok != VK_SUCCESS)
+            return ok;
+      }
+   }
+
    size = av1_cdf_max_num_bytes;
 
    if (image->vk.array_layers > 1) {
