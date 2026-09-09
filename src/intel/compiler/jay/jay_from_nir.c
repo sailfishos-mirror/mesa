@@ -1808,7 +1808,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
    }
 
-   jay_def desc_indirect = jay_null();
+   jay_def desc_indirect = jay_null(), ex_desc_indirect = jay_null();
    jay_def srcs[] = { offset, data };
 
    /* Second data source immediately follows the first */
@@ -1833,6 +1833,9 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
    } else if (surf_type == LSC_ADDR_SURFTYPE_FLAT) {
       UNREACHABLE("todo");
+   } else if (surf_type == LSC_ADDR_SURFTYPE_BSS) {
+      ex_desc_indirect = bti_indirect;
+      desc |= GEN_BTI_BINDLESS;
    } else if (jay_is_null(bti_indirect)) {
       desc |= bti_const;
    } else if (!jay_is_null(bti_indirect)) {
@@ -1841,9 +1844,10 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    enum jay_type data_type = jay_type(JAY_TYPE_U, MAX2(ndata->bit_size, 32));
    jay_SEND(b, .sfid = sfid, .msg_desc = desc, .desc = desc_indirect,
-            .srcs = srcs, .nr_srcs = jay_is_null(data) ? 1 : 2, .dst = tmp,
-            .type = data_type, .src_type = { offset_type, data_type },
-            .uniform = uniform, .pure = nir_intrinsic_can_reorder(intr),
+            .ex_desc = ex_desc_indirect, .srcs = srcs,
+            .nr_srcs = jay_is_null(data) ? 1 : 2, .dst = tmp, .type = data_type,
+            .src_type = { offset_type, data_type }, .uniform = uniform,
+            .pure = nir_intrinsic_can_reorder(intr),
             .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS,
             .skip_helpers = skip_helpers);
 
