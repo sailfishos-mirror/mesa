@@ -178,11 +178,8 @@ to_gen_operand(
          offset_B = (r & mask) * 2;
       }
 
-      if (d.file == GPR) {
-         R = gen_restride(gen_grf(grf, 0), 8, 8, 1);
-      } else {
-         R = gen_restride(gen_accumulator(grf / 2), 8, 8, 1);
-      }
+      R = d.file == GPR ? gen_grf(grf, 0) : gen_accumulator(grf / 2);
+      R = gen_restride(R, 1, 1, 0);
 
       R = gen_byte_offset(devinfo, R, simd_offs * simd_width * stride_bits / 8);
 
@@ -799,6 +796,12 @@ jay_to_binary(jay_shader *s,
       if ((gen->dst.file == GEN_GRF || gen->dst.file == GEN_ARF) &&
           gen->dst.region.hstride == 0)
          gen->dst.region.hstride = 1;
+
+      if ((gen->src[2].file == GEN_GRF || gen->src[2].file == GEN_ARF) &&
+          gen->src[2].region.hstride == 0 &&
+          gen->src[2].region.width == 1 &&
+          gen->src[2].region.vstride == 1)
+         gen->src[2] = gen_restride(gen->src[2], 8, 8, 1);
    }
 
    gen_finish_structured_cf(jc.insts, jc.num_insts, jc.final_halt_offset);
