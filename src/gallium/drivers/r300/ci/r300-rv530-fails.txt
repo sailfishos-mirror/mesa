@@ -3,10 +3,6 @@ dEQP-GLES2.functional.polygon_offset.fixed16_factor_1_slope,Fail
 
 dEQP-GLES2.functional.shaders.loops.do_while_dynamic_iterations.mixed_break_continue_fragment,Fail
 
-dEQP-GLES2.functional.texture.mipmap.cube.basic.nearest_nearest,Fail
-dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest,Fail
-
-
 # Piglit gpu tests
 
 shaders@glsl-arb-fragment-coord-conventions,Fail
@@ -88,8 +84,6 @@ spec@arb_framebuffer_object@fbo-generatemipmap-3d,Fail
 
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail
 spec@arb_pixel_buffer_object@fbo-pbo-readpixels-small,Fail
-
-spec@arb_point_sprite@arb_point_sprite-mipmap,Fail
 
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgrad,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
@@ -294,14 +288,6 @@ spec@khr_texture_compression_astc@miptree-gles hdr,Fail
 spec@khr_texture_compression_astc@miptree-gles ldr,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb-fp,Fail
-
-# https://gitlab.freedesktop.org/mesa/mesa/-/issues/10557
-dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_nearest_mirror,Fail
-dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_nearest_repeat,Fail
-dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_nearest_clamp,Fail
-dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_repeat,Fail
-dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_mirror,Fail
-dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest_clamp,Fail
 
 # uprev Piglit in Mesa
 spec@ext_framebuffer_multisample@accuracy all_samples color depthstencil linear,Fail

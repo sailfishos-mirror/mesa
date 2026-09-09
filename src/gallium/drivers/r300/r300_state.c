@@ -1737,6 +1737,7 @@ static void*
     struct r300_context* r300 = r300_context(pipe);
     struct r300_sampler_state* sampler = CALLOC_STRUCT(r300_sampler_state);
     bool is_r500 = r300->screen->caps.is_r500;
+    int lod_bias_correction = 1;
     int lod_bias;
 
     sampler->state = *state;
@@ -1782,7 +1783,12 @@ static void*
     sampler->min_lod = (unsigned)MAX2(state->min_lod, 0);
     sampler->max_lod = (unsigned)MAX2(ceilf(state->max_lod), 0);
 
-    lod_bias = CLAMP((int)(state->lod_bias * 32 + 1), -(1 << 9), (1 << 9) - 1);
+    /* Fine-tune the existing empirical LOD bias correction for mip-nearest. */
+    if (state->min_mip_filter == PIPE_TEX_MIPFILTER_NEAREST)
+        lod_bias_correction += is_r500 ? 2 : 1;
+
+    lod_bias = CLAMP((int)(state->lod_bias * 32 + lod_bias_correction),
+                     -(1 << 9), (1 << 9) - 1);
 
     sampler->filter1 |= (lod_bias << R300_LOD_BIAS_SHIFT) & R300_LOD_BIAS_MASK;
 
