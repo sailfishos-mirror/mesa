@@ -184,6 +184,29 @@ ethosu_has_non_nhcwb_fc_consumer(const struct ethosu_subgraph *subgraph,
    return false;
 }
 
+static bool
+ethosu_all_consumers_are_convolutions(const struct pipe_ml_operation *poperations,
+                                      unsigned count,
+                                      unsigned tensor_index)
+{
+   bool found_consumer = false;
+
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *poperation = &poperations[i];
+
+      for (unsigned j = 0; j < poperation->input_count; j++) {
+         if (poperation->input_tensors[j]->index != tensor_index)
+            continue;
+
+         found_consumer = true;
+         if (poperation->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION)
+            return false;
+      }
+   }
+
+   return found_consumer;
+}
+
 static unsigned
 ethosu_feature_map_span(const struct ethosu_feature_map *fm)
 {
@@ -644,6 +667,193 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
+}
+
+static void
+create_pad_constant(struct ethosu_subgraph *subgraph,
+                    const struct pipe_tensor *tensor, unsigned elements,
+                    struct ethosu_tensor **out_tensor, unsigned *out_address)
+{
+   struct ethosu_block shape = {elements, 1, 1};
+   unsigned size = elements * tensor->type_size;
+   uint8_t *data = malloc(size);
+
+   if (tensor->type_size == 1) {
+      memset(data, tensor->zero_point, size);
+   } else {
+      int16_t *data16 = (int16_t *)data;
+
+      for (unsigned i = 0; i < elements; i++)
+         data16[i] = tensor->zero_point;
+   }
+
+   *out_tensor = ethosu_add_internal_tensor(subgraph, shape,
+                                            tensor->type_size);
+   *out_address = ethosu_add_constant(subgraph, data, size);
+
+   free(data);
+}
+
+static void
+set_pad_ifm(struct ethosu_subgraph *subgraph,
+            const struct pipe_tensor *tensor,
+            struct ethosu_tensor *constant, unsigned address,
+            unsigned height, unsigned width, unsigned depth,
+            struct ethosu_feature_map *fm)
+{
+   struct ethosu_block shape = {width, height, depth};
+
+   /* Shape the IFM to the strip this pass writes so that its stride is the
+    * strip's own and the pass reads the constant as a contiguous window
+    * from the front, rather than a corner of a full-output constant. */
+   set_internal_feature_map(constant, shape, tensor->scale,
+                            tensor->zero_point, tensor->is_signed, fm);
+   fm->region = COEFS_REGION;
+   fm->tiles.addresses[0] = address;
+   fm->tiles.height_0 = height;
+   fm->tiles.height_1 = height;
+   fm->tiles.width_0 = width;
+}
+
+static void
+set_pad_ofm(struct ethosu_subgraph *subgraph,
+            const struct pipe_ml_operation *poperation,
+            unsigned y, unsigned x, unsigned z,
+            unsigned height, unsigned width, unsigned depth,
+            struct ethosu_feature_map *ofm)
+{
+   struct pipe_tensor *output = poperation->output_tensors[0];
+
+   set_feature_map(subgraph, output, ofm);
+   ofm->tensor->required_size = MAX2(ofm->tensor->required_size,
+                                     ethosu_feature_map_span(ofm));
+   ofm->shape.height = height;
+   ofm->shape.width = width;
+   ofm->shape.depth = depth;
+   ofm->tiles.addresses[0] =
+      ((y * output->dims[2] + x) * output->dims[3] + z) *
+      output->type_size;
+   ofm->tiles.height_0 = ofm->shape.height;
+   ofm->tiles.height_1 = ofm->shape.height;
+   ofm->tiles.width_0 = ofm->shape.width;
+}
+
+static void
+ethosu_append_pool_nop(struct ethosu_subgraph *subgraph,
+                       struct ethosu_feature_map *ifm,
+                       struct ethosu_feature_map *ofm)
+{
+   struct ethosu_operation operation;
+
+   operation_set_defaults(&operation);
+
+   operation.type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation.round_mode = ETHOSU_ROUNDING_NATURAL;
+   operation.pooling.nop = true;
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      operation.pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   else
+      operation.pooling.type = ETHOSU_POOLING_TYPE_SUM;
+   operation.ifm = *ifm;
+   operation.ofm = *ofm;
+
+   /* set_pad_ofm leaves the destination's byte offset within the output
+    * tensor in the OFM address; add it back to the base the allocator
+    * assigns rather than pre-seeding the address for every operation. */
+   unsigned ofm_offset = operation.ofm.tiles.addresses[0];
+   allocate_feature_maps(subgraph, &operation);
+   operation.ofm.tiles.addresses[0] += ofm_offset;
+
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
+ethosu_lower_pad(struct ethosu_subgraph *subgraph,
+                 const struct pipe_ml_operation *poperation)
+{
+   struct ethosu_feature_map input_fm = {0};
+   struct ethosu_feature_map inner_ofm = {0};
+   struct ethosu_feature_map pad_ifm = {0};
+   struct ethosu_feature_map pad_ofm = {0};
+   const struct pipe_tensor *input = poperation->input_tensors[0];
+   const struct pipe_tensor *output = poperation->output_tensors[0];
+   unsigned oh = output->dims[1];
+   unsigned ow = output->dims[2];
+   unsigned oc = output->dims[3];
+   struct ethosu_tensor *constant;
+   unsigned address;
+
+   /* Every pad region is filled from one constant, read as a window shaped
+    * to the region, so the constant must hold the largest such window. */
+   unsigned pad_y = MAX2(poperation->pad.before_y, poperation->pad.after_y);
+   unsigned pad_x = MAX2(poperation->pad.before_x, poperation->pad.after_x);
+   unsigned pad_z = MAX2(poperation->pad.before_z, poperation->pad.after_z);
+   unsigned elements = MAX2(MAX2(ow * oc * pad_y, oh * oc * pad_x),
+                            oh * ow * pad_z);
+
+   create_pad_constant(subgraph, output, elements, &constant, &address);
+
+   set_feature_map(subgraph, poperation->input_tensors[0], &input_fm);
+   set_pad_ofm(subgraph, poperation,
+               poperation->pad.before_y, poperation->pad.before_x,
+               poperation->pad.before_z, input->dims[1], input->dims[2],
+               input->dims[3], &inner_ofm);
+   ethosu_append_pool_nop(subgraph, &input_fm, &inner_ofm);
+
+   if (poperation->pad.before_y) {
+      set_pad_ofm(subgraph, poperation, 0, 0, 0,
+                  poperation->pad.before_y, ow, oc, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  poperation->pad.before_y, ow, oc, &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
+
+   if (poperation->pad.after_y) {
+      set_pad_ofm(subgraph, poperation,
+                  poperation->pad.before_y + input->dims[1], 0, 0,
+                  poperation->pad.after_y, ow, oc, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  poperation->pad.after_y, ow, oc, &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
+
+   if (poperation->pad.before_x) {
+      set_pad_ofm(subgraph, poperation, poperation->pad.before_y, 0, 0,
+                  input->dims[1], poperation->pad.before_x, oc, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  input->dims[1], poperation->pad.before_x, oc, &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
+
+   if (poperation->pad.after_x) {
+      set_pad_ofm(subgraph, poperation, poperation->pad.before_y,
+                  poperation->pad.before_x + input->dims[2], 0,
+                  input->dims[1], poperation->pad.after_x, oc, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  input->dims[1], poperation->pad.after_x, oc, &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
+
+   if (poperation->pad.before_z) {
+      set_pad_ofm(subgraph, poperation, poperation->pad.before_y,
+                  poperation->pad.before_x, 0, input->dims[1], input->dims[2],
+                  poperation->pad.before_z, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  input->dims[1], input->dims[2], poperation->pad.before_z,
+                  &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
+
+   if (poperation->pad.after_z) {
+      set_pad_ofm(subgraph, poperation, poperation->pad.before_y,
+                  poperation->pad.before_x,
+                  poperation->pad.before_z + input->dims[3], input->dims[1],
+                  input->dims[2], poperation->pad.after_z, &pad_ofm);
+      set_pad_ifm(subgraph, output, constant, address,
+                  input->dims[1], input->dims[2], poperation->pad.after_z,
+                  &pad_ifm);
+      ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
+   }
 }
 
 static double
@@ -1296,7 +1506,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
          ethosu_register_tensor(subgraph, ptensor);
 
          if (!ptensor->is_external_output &&
-             !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16)) {
+             !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16) &&
+             poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
             const struct pipe_ml_operation *consumer =
                ethosu_find_first_consumer(poperations, count, ptensor->index);
@@ -1450,7 +1661,11 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_PAD: {
-         // Just ignore the pad operation for now, as it will be handled by its consumers
+         if (ethosu_all_consumers_are_convolutions(
+                poperations, count, poperations[i].output_tensors[0]->index))
+            break;
+
+         ethosu_lower_pad(subgraph, &poperations[i]);
          break;
       }
 

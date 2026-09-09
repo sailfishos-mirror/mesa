@@ -180,7 +180,6 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_ADD:
    case PIPE_ML_OPERATION_TYPE_POOLING:
    case PIPE_ML_OPERATION_TYPE_STRIDED_SLICE:
-   case PIPE_ML_OPERATION_TYPE_PAD:
    case PIPE_ML_OPERATION_TYPE_LOGISTIC:
    case PIPE_ML_OPERATION_TYPE_TANH:
    case PIPE_ML_OPERATION_TYPE_HSWISH:
@@ -189,6 +188,19 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_RESHAPE:
       supported = true;
       break;
+   case PIPE_ML_OPERATION_TYPE_PAD: {
+      struct pipe_tensor *input = operation->input_tensors[0];
+      struct pipe_tensor *output = operation->output_tensors[0];
+
+      supported = output->dims[0] == input->dims[0] &&
+                  output->dims[1] == input->dims[1] + operation->pad.before_y +
+                                        operation->pad.after_y &&
+                  output->dims[2] == input->dims[2] + operation->pad.before_x +
+                                        operation->pad.after_x &&
+                  output->dims[3] == input->dims[3] + operation->pad.before_z +
+                                        operation->pad.after_z;
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
       /* NPU only supports 2x nearest neighbor upscaling */
       struct pipe_tensor *input = operation->input_tensors[0];
