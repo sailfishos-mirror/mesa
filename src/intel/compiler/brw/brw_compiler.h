@@ -1571,12 +1571,25 @@ enum brw_topology_id
 
 static inline unsigned
 intel_vrt_register_file_size(const struct intel_device_info *devinfo,
+                             uint64_t source_hash,
                              unsigned size)
 {
    if (devinfo->ver < 30)
       return 128;
 
-   return MIN2(align(size, size > 192 ? 64 : 32), 256);
+   unsigned vrt_size = MIN2(align(size, size > 192 ? 64 : 32), 256);
+
+   if (unlikely(intel_threads_per_eu_min != (uint32_t)-1)) {
+      if (intel_threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
+          intel_threads_per_eu_srchash == source_hash) {
+         fprintf(stderr,
+                 "INTEL_THREADS_PER_EU: min=%u for src_hash=0x%" PRIx64 "\n",
+                 intel_threads_per_eu_min, source_hash);
+         vrt_size = MIN2(vrt_size, ROUND_DOWN_TO(1024 / intel_threads_per_eu_min, 32));
+      }
+   }
+
+   return vrt_size;
 }
 
 static inline unsigned

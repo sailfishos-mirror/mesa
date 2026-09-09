@@ -2341,7 +2341,7 @@ brw_generator::generate_code(const brw_shader &s,
       stats->source_hash = prog_data->source_hash;
       stats->grf_registers = devinfo->ver >= 30 ? s.grf_used : 0;
       stats->vrt_size =
-         intel_vrt_register_file_size(devinfo, stats->grf_registers);
+         intel_vrt_register_file_size(devinfo, stats->source_hash, stats->grf_registers);
       stats->vrt_threads =
          intel_max_vrt_threads(devinfo, stats->vrt_size);
 

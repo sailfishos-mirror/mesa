@@ -185,6 +185,9 @@ uint64_t intel_shader_dump_filter = 0;
 uint32_t intel_debug_bkp_before_dispatch_count = 0;
 uint32_t intel_debug_bkp_after_dispatch_count = 0;
 
+uint32_t intel_threads_per_eu_min = -1;
+uint64_t intel_threads_per_eu_srchash = -1;
+
 static void
 process_intel_debug_variable_once(void)
 {
@@ -235,6 +238,18 @@ process_intel_debug_variable_once(void)
       intel_simd |=   DEBUG_MS_SIMD;
    if (!(intel_simd & DEBUG_RT_SIMD))
       intel_simd |=   DEBUG_RT_SIMD;
+
+   intel_threads_per_eu_min =
+      debug_get_unsigned_option("INTEL_THREADS_PER_EU_MIN", -1);
+   intel_threads_per_eu_srchash =
+      debug_get_unsigned_option("INTEL_THREADS_PER_EU_SRCHASH", (uint64_t)-1);
+
+   if (intel_threads_per_eu_min != -1 &&
+       (intel_threads_per_eu_min < 4 || intel_threads_per_eu_min > 10)) {
+         fprintf(stderr, "INTEL_THREADS_PER_EU_MIN = %u is outside valid "
+                 "range [4, 10]. Ignoring\n", intel_threads_per_eu_min);
+         intel_threads_per_eu_min = -1;
+   }
 }
 
 static const struct debug_named_value use_jay_options[] = {
