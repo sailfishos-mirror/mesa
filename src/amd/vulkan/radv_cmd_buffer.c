@@ -8976,12 +8976,13 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
    }
 
    if (is_gfx_or_ace) {
-      radv_emit_cache_flush(cmd_buffer, false);
-
       /* Make sure CP DMA is idle at the end of IBs because the kernel
        * doesn't wait for it.
        */
-      radv_cp_dma_wait_for_idle(cmd_buffer);
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CP_DMA;
+
+      /* Execute cache flushes at the end of command buffers. */
+      radv_emit_cache_flush(cmd_buffer, false);
    }
 
    radv_describe_end_cmd_buffer(cmd_buffer);
@@ -10515,11 +10516,11 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
    if (is_gfx_or_ace) {
       radv_emit_mip_change_flush_default(primary);
 
+      /* Make sure CP DMA is idle on primary prior to executing secondary. */
+      primary->state.flush_bits |= AC_BARRIER_SYNC_CP_DMA;
+
       /* Emit pending flushes on primary prior to executing secondary */
       radv_emit_cache_flush(primary, false);
-
-      /* Make sure CP DMA is idle on primary prior to executing secondary. */
-      radv_cp_dma_wait_for_idle(primary);
    }
 
    for (uint32_t i = 0; i < commandBufferCount; i++) {
