@@ -1450,7 +1450,7 @@ void ac_fill_tess_info(struct radeon_info *info)
    info->total_tess_ring_size = info->tess_offchip_ring_size + info->tess_factor_ring_size;
 }
 
-enum ac_query_gpu_info_result
+bool
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info, bool compiler_compat_mode)
 {
@@ -1473,12 +1473,12 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    STATIC_ASSERT(AMDGPU_HW_IP_VPE == AMD_IP_VPE);
 
    if (!handle_env_var_force_family(info))
-      return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
+      return false;
 
    info->pci.valid = ac_drm_query_pci_bus_info(dev, info) == 0;
    if (require_pci_bus_info && !info->pci.valid) {
       fprintf(stderr, "amdgpu: ac_drm_query_pci_bus_info failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    assert(info->drm_major == AC_AMDGPU_DRM_MAJOR);
@@ -1489,25 +1489,25 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                       "only compatible with %u.%u.0 (kernel 6.11.2+) or later.\n",
               info->drm_major, info->drm_minor, info->drm_patchlevel,
               AC_AMDGPU_DRM_MAJOR, AC_AMDGPU_DRM_MINOR);
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    if (ac_drm_device_get_sync_provider(dev)->wait == NULL) {
       fprintf(stderr, "amdgpu: syncobj support is missing but is required.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    /* Query hardware and driver information. */
    r = ac_drm_query_gpu_info(dev, &amdinfo);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_gpu_info failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    r = ac_drm_query_info(dev, AMDGPU_INFO_DEV_INFO, sizeof(device_info), &device_info);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_info(dev_info) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    info->userq_ip_mask = debug_get_bool_option("AMD_USERQ", false) ? device_info.userq_ip_mask : 0;
@@ -1518,7 +1518,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       fprintf(stderr, "amdgpu: DRM version is %u.%u.%u, but userq support "
                       "requires 3.65.0 or later.\n",
               info->drm_major, info->drm_minor, info->drm_patchlevel);
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    for (unsigned ip_type = 0; ip_type < AMD_NUM_IP_TYPES; ip_type++) {
@@ -1539,28 +1539,28 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                      &info->me_fw_feature);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(me) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_GFX_MEC, 0, 0, &info->mec_fw_version,
                                      &info->mec_fw_feature);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(mec) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_GFX_PFP, 0, 0, &info->pfp_fw_version,
                                      &info->pfp_fw_feature);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(pfp) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    if (info->ip[AMD_IP_VCN_DEC].num_queues || info->ip[AMD_IP_VCN_UNIFIED].num_queues) {
       r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_VCN, 0, 0, &vidip_fw_version, &vidip_fw_feature);
       if (r) {
          fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(vcn) failed.\n");
-         return AC_QUERY_GPU_INFO_FAIL;
+         return false;
       } else {
          info->vcn_dec_version = (vidip_fw_version & 0x0F000000) >> 24;
          info->vcn_enc_major_version = (vidip_fw_version & 0x00F00000) >> 20;
@@ -1572,7 +1572,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_VCE, 0, 0, &vidip_fw_version, &vidip_fw_feature);
          if (r) {
             fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(vce) failed.\n");
-            return AC_QUERY_GPU_INFO_FAIL;
+            return false;
          } else
             info->vce_fw_version = vidip_fw_version;
       }
@@ -1581,7 +1581,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_UVD, 0, 0, &vidip_fw_version, &vidip_fw_feature);
          if (r) {
             fprintf(stderr, "amdgpu: ac_drm_query_firmware_version(uvd) failed.\n");
-            return AC_QUERY_GPU_INFO_FAIL;
+            return false;
          } else
             info->uvd_fw_version = vidip_fw_version;
       }
@@ -1590,7 +1590,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    r = ac_drm_query_sw_info(dev, amdgpu_sw_info_address32_hi, &info->address32_hi);
    if (r) {
       fprintf(stderr, "amdgpu: amdgpu_query_sw_info(address32_hi) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    struct drm_amdgpu_memory_info meminfo = {0};
@@ -1598,11 +1598,11 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    r = ac_drm_query_info(dev, AMDGPU_INFO_MEMORY, sizeof(meminfo), &meminfo);
    if (r) {
       fprintf(stderr, "amdgpu: ac_drm_query_info(memory) failed.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
+      return false;
    }
 
    if (!ac_identify_chip(info, &device_info))
-      return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
+      return false;
 
    const char *marketing_name = ac_drm_get_marketing_name(dev);
    strncpy(info->marketing_name, marketing_name ? marketing_name : "AMD Unknown", sizeof(info->marketing_name));
@@ -1764,7 +1764,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       r = ac_drm_query_uq_fw_area_info(dev, AMDGPU_HW_IP_GFX, 0, &fw_info);
       if (r) {
          fprintf(stderr, "amdgpu: amdgpu_query_uq_fw_area_info() gfx failed.\n");
-         return AC_QUERY_GPU_INFO_FAIL;
+         return false;
       }
 
       info->fw_based_mcbp.shadow_size = fw_info.gfx.shadow_size;
@@ -1778,7 +1778,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       r = ac_drm_query_uq_fw_area_info(dev, AMDGPU_HW_IP_COMPUTE, 0, &fw_info);
       if (r) {
          fprintf(stderr, "amdgpu: amdgpu_query_uq_fw_area_info() compute failed.\n");
-         return AC_QUERY_GPU_INFO_FAIL;
+         return false;
       }
 
       info->fw_based_mcbp.eop_size = fw_info.compute.eop_size;
@@ -1790,7 +1790,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       r = ac_drm_query_uq_fw_area_info(dev, AMDGPU_HW_IP_DMA, 0, &fw_info);
       if (r) {
          fprintf(stderr, "amdgpu: amdgpu_query_uq_fw_area_info() sdma failed.\n");
-         return AC_QUERY_GPU_INFO_FAIL;
+         return false;
       }
 
       info->fw_based_mcbp.sdma_csa_size = fw_info.sdma.csa_size;
@@ -1814,7 +1814,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       r = ac_drm_query_sw_info(dev, amdgpu_sw_info_address_prt_wa_control_bit, &info->address_prt_wa_control_bit);
       if (r) {
          fprintf(stderr, "amdgpu: amdgpu_query_sw_info(amdgpu_sw_info_address_prt_wa_control_bit) failed.\n");
-         return AC_QUERY_GPU_INFO_FAIL;
+         return false;
       }
    }
 
@@ -1848,7 +1848,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          exit(0);
       }
    }
-   return AC_QUERY_GPU_INFO_SUCCESS;
+   return true;
 }
 
 void ac_compute_driver_uuid(char *uuid, size_t size)

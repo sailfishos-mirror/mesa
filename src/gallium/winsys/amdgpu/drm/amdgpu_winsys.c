@@ -44,7 +44,7 @@ static bool do_winsys_init(struct amdgpu_winsys *aws,
                            const struct amdgpu_winsys_options *options,
                            int fd)
 {
-   if (ac_query_gpu_info(fd, aws->dev, &aws->info, false, false) != AC_QUERY_GPU_INFO_SUCCESS) {
+   if (!ac_query_gpu_info(fd, aws->dev, &aws->info, false, false)) {
       mesa_loge("amdgpu: ac_query_gpu_info failed.\n");
       goto fail;
    }

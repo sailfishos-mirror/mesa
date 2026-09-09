@@ -330,17 +330,15 @@ radv_amdgpu_winsys_query_info(int fd, const BITSET_WORD *debug_flags, bool is_vi
    r = ac_drm_device_initialize(fd, is_virtio, &drm_major, &drm_minor, &dev);
    if (r) {
       fprintf(stderr, "radv/amdgpu: failed to initialize device.\n");
-      return VK_ERROR_INITIALIZATION_FAILED;
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
    }
 
    info->base.drm_major = drm_major;
    info->base.drm_minor = drm_minor;
    info->base.is_virtio = is_virtio;
 
-   enum ac_query_gpu_info_result info_result =
-      ac_query_gpu_info(fd, dev, &info->base, true, !BITSET_TEST(debug_flags, RADV_DEBUG_NO_CACHE_COMPAT));
-   if (info_result != AC_QUERY_GPU_INFO_SUCCESS) {
-      result = info_result == AC_QUERY_GPU_INFO_FAIL ? VK_ERROR_INITIALIZATION_FAILED : VK_ERROR_INCOMPATIBLE_DRIVER;
+   if (!ac_query_gpu_info(fd, dev, &info->base, true, !BITSET_TEST(debug_flags, RADV_DEBUG_NO_CACHE_COMPAT))) {
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
       goto fail;
    }
 
