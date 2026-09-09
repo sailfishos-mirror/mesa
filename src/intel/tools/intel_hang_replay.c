@@ -583,7 +583,7 @@ main(int argc, char *argv[])
       case INTEL_HANG_DUMP_BLOCK_TYPE_MAP: {
          struct gem_bo *bo = util_dynarray_grow(&buffers, struct gem_bo, 1);
          *bo = (struct gem_bo) {
-            .file_offset = 0,
+            .file_offset = -1,
             .offset = block_header.map.offset,
             .size = block_header.map.size,
          };
@@ -636,7 +636,7 @@ main(int argc, char *argv[])
       bool found = false;
       struct gem_bo *bo = intel_hang_replay_find_bo(&buffers, *addr);
 
-      if (bo && bo->file_offset) {
+      if (bo && bo->file_offset != -1) {
          uint64_t aligned_offset = ROUND_DOWN_TO(bo->file_offset, 4096);
          uint64_t remaining_length = file_stats.st_size - aligned_offset;
          void *map = mmap(NULL, remaining_length, PROT_READ, MAP_PRIVATE,
