@@ -876,7 +876,7 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
 
    if (has_update) {
       if (!flushed_compute_after_init_update_scratch) {
-         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
+         vk_bvh_build_barrier_transfer_to_compute(commandBuffer);
          flushed_compute = true;
       }
 
