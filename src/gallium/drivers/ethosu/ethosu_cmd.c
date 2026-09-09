@@ -1200,7 +1200,6 @@ box_overlaps(const struct box *a, const struct box *b)
           range_overlaps(a->start_d, a->end_d, b->start_d, b->end_d);
 }
 
-/* Calculate IFM job shape from OFM block considering kernel properties */
 static void
 calc_ifm_job_shape(const struct ethosu_block *ofm_block,
                    const struct ethosu_kernel *kernel,
@@ -1218,6 +1217,15 @@ calc_ifm_job_shape(const struct ethosu_block *ofm_block,
    ifm_job->height = h;
    ifm_job->width = w;
    ifm_job->depth = ifm_block_depth;
+}
+
+static void
+calc_ofm_job_shape(const struct ethosu_block *ofm_block,
+                   struct ethosu_block *ofm_job)
+{
+   ofm_job->height = ofm_block->height;
+   ofm_job->width = ofm_block->width;
+   ofm_job->depth = ofm_block->depth;
 }
 
 /* Get jobs (blocks) from a feature map area
@@ -1266,10 +1274,56 @@ get_jobs(const struct ethosu_block *area,
    return count;
 }
 
+/* Whether two feature maps start at the same base address and region. */
+static bool
+feature_maps_same_base(const struct ethosu_feature_map *a,
+                       const struct ethosu_feature_map *b)
+{
+   return a->region == b->region &&
+          a->tiles.addresses[0] == b->tiles.addresses[0];
+}
+
+/*
+ * Bytes this feature map's own shape occupies: an NHCWB16 map rounds its
+ * depth up to 16, and the byte total rounds up to the 16-byte allocation
+ * quantum.  Keying overlap on the whole backing tensor would count a
+ * concatenation slice as its full buffer.
+ */
+static unsigned
+feature_map_allocation_bytes(const struct ethosu_feature_map *fm)
+{
+   unsigned depth = fm->shape.depth;
+
+   if (fm->tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+      depth = align(depth, 16);
+
+   return align(fm->shape.height * fm->shape.width * depth *
+                fm->tensor->type_size, 16);
+}
+
+/* Whether two feature maps share a region and overlap within it. */
+static bool
+feature_maps_overlap(const struct ethosu_feature_map *a,
+                     const struct ethosu_feature_map *b)
+{
+   unsigned a_start, a_end, b_start, b_end;
+
+   if (a->region != b->region)
+      return false;
+
+   a_start = a->tiles.addresses[0];
+   a_end = a_start + feature_map_allocation_bytes(a);
+   b_start = b->tiles.addresses[0];
+   b_end = b_start + feature_map_allocation_bytes(b);
+
+   return a_start < b_end && b_start < a_end;
+}
+
 static unsigned
 calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op, struct ethosu_operation *operation)
 {
    struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
+   int max_jobs = device->max_concurrent_blocks;
 
    if (!prev_op)
       return 0;
@@ -1282,22 +1336,47 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
    if (prev_op->type == ETHOSU_OPERATION_TYPE_NONE)
       return 0;
 
-   /* Check if previous OFM matches current IFM (same tensor) */
+   const struct ethosu_feature_map *prev_ofm = &prev_op->ofm;
+
+   /*
+    * Select the IFM the previous operation feeds, matching producer to
+    * consumer by base address and region.
+    */
    int ifm_index = 0;
-   if (operation->ifm2.tensor == prev_op->ofm.tensor) {
+   if (operation->ifm2.tensor &&
+       feature_maps_same_base(&operation->ifm2, prev_ofm))
       ifm_index = 1;
-   } else if (operation->ifm.tensor != prev_op->ofm.tensor) {
-      /* Previous operation doesn't produce current operation's IFM. */
-      return device->max_concurrent_blocks;
+
+   const struct ethosu_feature_map *ifm =
+      (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
+   const struct ethosu_feature_map *other_ifm =
+      (ifm_index == 0) ? &operation->ifm2 : &operation->ifm;
+
+   if (!feature_maps_same_base(ifm, prev_ofm)) {
+      /*
+       * The previous operation does not produce this IFM.  If its OFM
+       * still overlaps one of the IFMs in memory the jobs must not run
+       * ahead of it; otherwise the operations are independent.
+       */
+      if (feature_maps_overlap(&operation->ifm, prev_ofm) ||
+          (operation->ifm2.tensor &&
+           feature_maps_overlap(&operation->ifm2, prev_ofm)))
+         return 0;
+
+      return max_jobs;
    }
 
-   const struct ethosu_feature_map *ifm = (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
-   const struct ethosu_feature_map *prev_ofm = &prev_op->ofm;
+   if (operation->ifm2.tensor &&
+       feature_map_allocation_bytes(ifm) <
+       feature_map_allocation_bytes(other_ifm)) {
+      /* The previous OFM feeds the broadcast input. */
+      return 0;
+   }
 
    if (ifm->shape.height != prev_ofm->shape.height ||
        ifm->shape.width != prev_ofm->shape.width ||
        ifm->shape.depth != prev_ofm->shape.depth) {
-      /* OFM has been reshaped; overlap calculations don't work. */
+      /* OFM has been reshaped; the job overlap below does not apply. */
       return 0;
    }
 
@@ -1312,54 +1391,58 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
                 "previous=%ux%ux%u current=%ux%ux%u",
                 prev_block.width, prev_block.height, prev_block.depth,
                 curr_block.width, curr_block.height, curr_block.depth);
-      return device->max_concurrent_blocks;
+      return max_jobs;
    }
 
-   struct ethosu_block curr_ifm_job;
+   struct ethosu_block prev_ofm_job;
+   calc_ofm_job_shape(&prev_block, &prev_ofm_job);
+
+   struct ethosu_block ifm_job;
    calc_ifm_job_shape(&curr_block,
                       &operation->kernel,
                       operation->block_config.ifm_block.depth,
-                      &curr_ifm_job);
+                      &ifm_job);
 
-   if (!curr_ifm_job.height || !curr_ifm_job.width ||
-       !curr_ifm_job.depth) {
+   if (!ifm_job.height || !ifm_job.width || !ifm_job.depth) {
       mesa_loge("ethosu: invalid block configuration for dependency: "
                 "previous=%ux%ux%u current=%ux%ux%u",
                 prev_block.width, prev_block.height, prev_block.depth,
-                curr_ifm_job.width, curr_ifm_job.height,
-                curr_ifm_job.depth);
-      return device->max_concurrent_blocks;
+                ifm_job.width, ifm_job.height, ifm_job.depth);
+      return max_jobs;
    }
 
-   /* Get last jobs from previous operation */
-   int max_jobs = device->max_concurrent_blocks;
    assert(max_jobs <= 8);
+
+   /* Last jobs the previous operation writes to the shared feature map. */
    struct box last_prev_jobs[8];
-   int prev_count = get_jobs(&prev_ofm->shape, &prev_block, max_jobs, false, last_prev_jobs);
+   int prev_count = get_jobs(&prev_ofm->shape, &prev_ofm_job, max_jobs,
+                             false, last_prev_jobs);
 
-   /* Get first jobs from current operation */
+   /* First jobs this operation reads from the shared feature map. */
    struct box first_curr_jobs[8];
-   int curr_count = get_jobs(&ifm->shape, &curr_ifm_job, max_jobs, true, first_curr_jobs);
+   int curr_count = get_jobs(&ifm->shape, &ifm_job, max_jobs, true,
+                             first_curr_jobs);
 
-   /* Find highest blockdep with no overlap between jobs */
+   /*
+    * Find the highest block dependency for which no first job of this
+    * operation overlaps a last job of the previous one.
+    */
    int min_count = MIN2(prev_count, curr_count);
    int prev_last_idx = prev_count - 1;
 
    for (int blockdep = 0; blockdep < min_count; blockdep++) {
       bool overlaps = false;
 
-      /* Check if any combination of jobs within blockdep range overlaps */
       for (int i = 0; !overlaps && i <= blockdep; i++) {
          for (int j = blockdep - i; !overlaps && i + j <= blockdep; j++) {
-            if (box_overlaps(&first_curr_jobs[i], &last_prev_jobs[prev_last_idx - j])) {
+            if (box_overlaps(&first_curr_jobs[i],
+                             &last_prev_jobs[prev_last_idx - j]))
                overlaps = true;
-            }
          }
       }
 
-      if (overlaps) {
+      if (overlaps)
          return blockdep;
-      }
    }
 
    /* No overlap found */
