@@ -955,7 +955,6 @@ spec@arb_texture_rectangle@1-1-linear-texture,Fail
 spec@arb_texture_rectangle@texrect-many,Crash
 spec@arb_vertex_program@minmax,Fail
 spec@egl 1.4@largest possible eglcreatepbuffersurface and then glclear,Fail
-spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_direct_state_access@multi-texture,Crash
 spec@ext_direct_state_access@multi-texture@MultiTexSubImage1DEXT,Fail
