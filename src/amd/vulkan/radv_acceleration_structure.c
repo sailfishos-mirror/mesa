@@ -1018,7 +1018,7 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
    if (has_batch_compress) {
       /* Wait for internal encoding to finish. */
-      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, true);
 
       vk_build_stage(radv_encode_triangles_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
                      RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS, false);
