@@ -182,6 +182,10 @@ panvk_image_can_use_mod(struct panvk_image *image,
       if (PANVK_DEBUG(NO_AFBC))
          return false;
 
+      /* The application asked for an uncompressed image. */
+      if (image->vk.compr_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT)
+         return false;
+
       /* Can't do AFBC if store/host copy is requested. */
       if ((image->vk.usage | image->vk.stencil_usage) &
           (VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_HOST_TRANSFER_BIT))
