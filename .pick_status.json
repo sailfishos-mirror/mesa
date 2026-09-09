@@ -394,7 +394,7 @@
         "description": "ir3: keep the msaa key for shaders that interpolate at gl_SampleID",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5da520cf3d731486635006425080d28762da2d48",
         "notes": null
