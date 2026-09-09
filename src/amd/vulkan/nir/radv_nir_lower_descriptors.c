@@ -309,39 +309,37 @@ get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr
    nir_def *desc = ac_nir_load_smem(b, size, addr, index_offset, size * 4u, 0);
 
    if (desc_type == AC_DESC_IMAGE && state->has_image_load_dcc_bug && !tex && !write) {
-      nir_def *comp[8];
-      for (unsigned i = 0; i < 8; i++)
-         comp[i] = nir_channel(b, desc, i);
+      nir_def *rsrc6 = nir_channel(b, desc, 6);
 
       /* WRITE_COMPRESS_ENABLE must be 0 for all image loads to workaround a
        * hardware bug.
        */
-      comp[6] = nir_iand_imm(b, comp[6], C_00A018_WRITE_COMPRESS_ENABLE);
+      rsrc6 = nir_iand_imm(b, rsrc6, C_00A018_WRITE_COMPRESS_ENABLE);
 
-      return nir_vec(b, comp, 8);
-   } else if (desc_type == AC_DESC_SAMPLER && tex->op == nir_texop_tg4 && state->disable_tg4_trunc_coord) {
-      nir_def *comp[4];
-      for (unsigned i = 0; i < 4; i++)
-         comp[i] = nir_channel(b, desc, i);
+      desc = nir_vector_insert_imm(b, desc, rsrc6, 6);
+   }
+
+   if (desc_type == AC_DESC_SAMPLER && tex->op == nir_texop_tg4 && state->disable_tg4_trunc_coord) {
+      nir_def *rsrc0 = nir_channel(b, desc, 0);
 
       /* We want to always use the linear filtering truncation behaviour for
        * nir_texop_tg4, even if the sampler uses nearest/point filtering.
        */
-      comp[0] = nir_iand_imm(b, comp[0], C_008F30_TRUNC_COORD);
+      rsrc0 = nir_iand_imm(b, rsrc0, C_008F30_TRUNC_COORD);
 
-      return nir_vec(b, comp, 4);
-   } else if (!state->enable_custom_border_on_compute_queue && desc_type == AC_DESC_SAMPLER &&
-              (b->shader->info.stage == MESA_SHADER_COMPUTE || b->shader->info.stage == MESA_SHADER_TASK ||
-               mesa_shader_stage_is_rt(b->shader->info.stage))) {
-      nir_def *comp[4];
-      for (unsigned i = 0; i < 4; i++)
-         comp[i] = nir_channel(b, desc, i);
+      desc = nir_vector_insert_imm(b, desc, rsrc0, 0);
+   }
+
+   if (!state->enable_custom_border_on_compute_queue && desc_type == AC_DESC_SAMPLER &&
+       (b->shader->info.stage == MESA_SHADER_COMPUTE || b->shader->info.stage == MESA_SHADER_TASK ||
+        mesa_shader_stage_is_rt(b->shader->info.stage))) {
+      nir_def *rsrc3 = nir_channel(b, desc, 3);
 
       /* Replace custom border color by transparent black to prevent GPU hangs when task/compute/RT
        * shaders are executed on the compute queue because the hw is fundamentally broken and it
        * can't support multiple color palettes.
        */
-      nir_def *border_color_type = nir_iand_imm(b, comp[3], ~C_008F3C_BORDER_COLOR_TYPE);
+      nir_def *border_color_type = nir_iand_imm(b, rsrc3, ~C_008F3C_BORDER_COLOR_TYPE);
       nir_def *is_custom_border_color =
          nir_ieq_imm(b, border_color_type, S_008F3C_BORDER_COLOR_TYPE(V_008F3C_SQ_TEX_BORDER_COLOR_REGISTER));
 
@@ -355,14 +353,14 @@ get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr
             is_compute_queue = nir_load_param(b, RT_ARG_IS_COMPUTE_QUEUE);
          }
 
-         comp[3] = nir_bcsel(b, nir_iand(b, nir_ieq_imm(b, is_compute_queue, 1), is_custom_border_color),
-                             nir_iand_imm(b, comp[3], C_008F3C_BORDER_COLOR_TYPE), comp[3]);
+         rsrc3 = nir_bcsel(b, nir_iand(b, nir_ieq_imm(b, is_compute_queue, 1), is_custom_border_color),
+                           nir_iand_imm(b, rsrc3, C_008F3C_BORDER_COLOR_TYPE), rsrc3);
       } else {
          assert(b->shader->info.stage == MESA_SHADER_TASK);
-         comp[3] = nir_bcsel(b, is_custom_border_color, nir_iand_imm(b, comp[3], C_008F3C_BORDER_COLOR_TYPE), comp[3]);
+         rsrc3 = nir_bcsel(b, is_custom_border_color, nir_iand_imm(b, rsrc3, C_008F3C_BORDER_COLOR_TYPE), rsrc3);
       }
 
-      return nir_vec(b, comp, 4);
+      desc = nir_vector_insert_imm(b, desc, rsrc3, 3);
    }
 
    return desc;
