@@ -8070,14 +8070,3 @@ void genX(CmdWriteMarkerToMemoryAMD)(
 
    trace_intel_end_write_buffer_marker(&cmd_buffer->trace);
 }
-
-void
-genX(cmd_write_buffer_cp)(struct anv_cmd_buffer *cmd_buffer,
-                          VkDeviceAddress dstAddr,
-                          void *data,
-                          uint32_t size)
-{
-   assert(size % 4 == 0);
-   struct anv_address addr = anv_address_from_u64(dstAddr);
-   anv_cmd_buffer_update_addr(cmd_buffer, addr, size, data);
-}
