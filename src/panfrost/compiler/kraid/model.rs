@@ -56,6 +56,8 @@ pub trait Model {
 
     fn op_exec_unit(&self, op: &Op) -> Option<ExecUnit>;
 
+    fn op_exec_time(&self, op: &Op) -> Option<u8>;
+
     fn op_is_message(&self, op: &Op) -> bool;
 
     fn op_src_is_staging_reg(&self, op: &Op, src: &Src) -> bool;
@@ -196,6 +198,10 @@ impl Model for ValhallModel {
 
     fn op_exec_unit(&self, op: &Op) -> Option<ExecUnit> {
         v9_op_exec_unit(op, self.arch)
+    }
+
+    fn op_exec_time(&self, op: &Op) -> Option<u8> {
+        v9_op_exec_time(op, self.arch)
     }
 
     fn op_is_message(&self, op: &Op) -> bool {

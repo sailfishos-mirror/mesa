@@ -320,6 +320,7 @@ pub struct Instr {
     pub name: String,
     pub arch: Range<u8>,
     pub exec_unit: String,
+    pub exec_time: u8,
     pub variant: Option<String>,
     pub fields: Vec<InstrField>,
     pub total_bits: u8,
@@ -344,6 +345,14 @@ impl Instr {
             .ok_or(err("Enum has no name"))?
             .to_string();
 
+        let exec_time = xml
+            .attrs
+            .get("exec_time")
+            .map(|t| t.parse())
+            .transpose()
+            .map_err(|_| err("Could not parse exec_time"))?
+            .unwrap_or(1);
+
         let mut i = Instr {
             name,
             arch: xml.get_arch(arch.clone()),
@@ -352,6 +361,7 @@ impl Instr {
                 .get("exec_unit")
                 .ok_or(err("Instruction has no exec_unit"))?
                 .to_string(),
+            exec_time,
             variant: xml.attrs.get("variant").cloned(),
             fields: Default::default(),
             total_bits: 0,

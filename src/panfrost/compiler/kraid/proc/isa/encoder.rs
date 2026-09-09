@@ -857,6 +857,7 @@ struct InstrVariantInfo {
     ident: Ident,
     arch: Range<u8>,
     exec_unit: Ident,
+    exec_time: u8,
     is_message: bool,
     srcs: Vec<InstrVariantSrcInfo>,
     sr_src: Option<InstrVariantSrcInfo>,
@@ -876,6 +877,7 @@ impl InstrVariantInfo {
         InstrVariantInfo {
             ident,
             exec_unit: ident!("{}", to_camel_case(&instr.exec_unit)),
+            exec_time: instr.exec_time,
             arch: instr.arch.clone(),
             is_message: false,
             srcs: Default::default(),
@@ -938,6 +940,7 @@ impl ToTokens for InstrVariantInfo {
         let InstrVariantInfo {
             ident,
             exec_unit,
+            exec_time,
             is_message,
             ..
         } = self;
@@ -963,6 +966,7 @@ impl ToTokens for InstrVariantInfo {
         ts.extend(quote! {
             const #ident: InstructionInfo = InstructionInfo {
                 exec_unit: ExecUnit::#exec_unit,
+                exec_time: #exec_time,
                 is_message: #is_message,
                 srcs: #srcs_ts,
                 sr_src: #sr_src_ts,

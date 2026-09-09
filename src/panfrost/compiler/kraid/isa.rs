@@ -122,6 +122,7 @@ pub struct InstructionDstInfo<L: EnumAsU8> {
 
 pub struct InstructionInfo<S: EnumAsU8 + 'static, L: EnumAsU8 + 'static> {
     pub exec_unit: ExecUnit,
+    pub exec_time: u8,
     pub is_message: bool,
     pub srcs: &'static [InstructionSrcInfo<S>],
     pub sr_src: Option<InstructionSrcInfo<S>>,
