@@ -369,12 +369,6 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
 void
 radv_cp_dma_wait_for_idle(struct radv_cmd_buffer *cmd_buffer)
 {
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (pdev->info.gfx_level < GFX7)
-      return;
-
    if (!cmd_buffer->state.dma_is_busy)
       return;
 
