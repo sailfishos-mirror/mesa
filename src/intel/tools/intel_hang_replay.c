@@ -621,13 +621,8 @@ main(int argc, char *argv[])
    fprintf(stderr, "total_vma: 0x%016"PRIx64"\n", total_vma);
 
    if (check_addr != -1) {
-      struct gem_bo *check_bo = NULL;
-      util_dynarray_foreach(&buffers, struct gem_bo, bo) {
-         if (check_addr >= bo->offset && check_addr < (bo->offset + bo->size)) {
-            check_bo = bo;
-            break;
-         }
-      }
+      struct gem_bo *check_bo =
+         intel_hang_replay_find_bo(&buffers, check_addr);
 
       if (check_bo) {
          fprintf(stderr, "address=0x%016"PRIx64" found in buffer 0x%016"PRIx64" size=0x%016"PRIx64"\n",
@@ -639,25 +634,21 @@ main(int argc, char *argv[])
 
    util_dynarray_foreach(&shader_addresses, uint64_t, addr) {
       bool found = false;
-      util_dynarray_foreach(&buffers, struct gem_bo, bo) {
-         if (*addr < bo->offset || *addr >= (bo->offset + bo->size))
-            continue;
-         if (!bo->file_offset)
-            break;
+      struct gem_bo *bo = intel_hang_replay_find_bo(&buffers, *addr);
 
+      if (bo && bo->file_offset) {
          uint64_t aligned_offset = ROUND_DOWN_TO(bo->file_offset, 4096);
          uint64_t remaining_length = file_stats.st_size - aligned_offset;
          void *map = mmap(NULL, remaining_length, PROT_READ, MAP_PRIVATE,
                           file_fd, aligned_offset);
-         if (map == MAP_FAILED)
-            break;
-
-         found = true;
-         fprintf(stderr, "shader at 0x%016"PRIx64" file_offset=0%016"PRIx64" addr_offset=%016"PRIx64":\n", *addr,
-                 (bo->file_offset - aligned_offset), (*addr - bo->offset));
-         intel_disassemble(&devinfo, map + (bo->file_offset - aligned_offset) + (*addr - bo->offset),
-                           0, stderr);
-         munmap(map, remaining_length);
+         if (map != MAP_FAILED) {
+            found = true;
+            fprintf(stderr, "shader at 0x%016"PRIx64" file_offset=0%016"PRIx64" addr_offset=%016"PRIx64":\n", *addr,
+                    (bo->file_offset - aligned_offset), (*addr - bo->offset));
+            intel_disassemble(&devinfo, map + (bo->file_offset - aligned_offset) + (*addr - bo->offset),
+                              0, stderr);
+            munmap(map, remaining_length);
+         }
       }
 
       if (!found)

@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "common/intel_hang_dump.h"
+#include "util/u_dynarray.h"
 
 struct gem_bo {
    off_t file_offset;
@@ -22,6 +23,9 @@ struct gem_bo {
    bool hw_img;
    struct intel_hang_dump_block_vm_properties props;
 };
+
+struct gem_bo *intel_hang_replay_find_bo(struct util_dynarray *buffers,
+                                         uint64_t address);
 
 int compare_bos(const void *b1, const void *b2);
 void skip_data(int file_fd, size_t size);
