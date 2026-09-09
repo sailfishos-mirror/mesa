@@ -163,6 +163,7 @@ radv_compute_copy_memory_indirect(struct radv_cmd_buffer *cmd_buffer,
 
    /* Synchronize the preprocess dispatch. */
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                   RADV_CMD_FLAG_PFP_SYNC_ME |
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
 
@@ -401,6 +402,7 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
 
    /* Synchronize the preprocess dispatch. */
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                   RADV_CMD_FLAG_PFP_SYNC_ME |
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
 

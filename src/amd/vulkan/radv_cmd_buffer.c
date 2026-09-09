@@ -14875,7 +14875,8 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
          cmd_buffer->state.cond_render.enabled = old_predicating;
       }
 
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2;
+      cmd_buffer->state.flush_bits |=
+         RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_PFP_SYNC_ME | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2;
    }
 
    /* Make sure the DGC ACE IB will wait for the DGC prepare shader before the execution
