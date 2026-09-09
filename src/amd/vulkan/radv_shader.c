@@ -2635,9 +2635,11 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
 }
 
 void
-radv_shader_combine_cfg_vs_tcs(const struct radv_shader *vs, const struct radv_shader *tcs, uint32_t *rsrc1_out,
-                               uint32_t *rsrc2_out)
+radv_shader_combine_cfg_vs_tcs(const struct radv_device *device, const struct radv_shader *vs,
+                               const struct radv_shader *tcs, uint32_t *rsrc1_out, uint32_t *rsrc2_out)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
    if (rsrc1_out) {
       uint32_t rsrc1 = vs->config.rsrc1;
 
@@ -2647,6 +2649,9 @@ radv_shader_combine_cfg_vs_tcs(const struct radv_shader *vs, const struct radv_s
          rsrc1 = (rsrc1 & C_00B228_SGPRS) | (tcs->config.rsrc1 & ~C_00B228_SGPRS);
       if (G_00B428_LS_VGPR_COMP_CNT(tcs->config.rsrc1) > G_00B428_LS_VGPR_COMP_CNT(rsrc1))
          rsrc1 = (rsrc1 & C_00B428_LS_VGPR_COMP_CNT) | (tcs->config.rsrc1 & ~C_00B428_LS_VGPR_COMP_CNT);
+
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level < GFX12)
+         rsrc1 |= tcs->config.rsrc1 & ~C_00B428_MEM_ORDERED;
 
       *rsrc1_out = rsrc1;
    }
@@ -2678,6 +2683,9 @@ radv_shader_combine_cfg_vs_gs(const struct radv_device *device, const struct rad
          rsrc1 = (rsrc1 & C_00B228_SGPRS) | (gs->config.rsrc1 & ~C_00B228_SGPRS);
       if (G_00B228_GS_VGPR_COMP_CNT(gs->config.rsrc1) > G_00B228_GS_VGPR_COMP_CNT(rsrc1))
          rsrc1 = (rsrc1 & C_00B228_GS_VGPR_COMP_CNT) | (gs->config.rsrc1 & ~C_00B228_GS_VGPR_COMP_CNT);
+
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level < GFX12)
+         rsrc1 |= gs->config.rsrc1 & ~C_00B228_MEM_ORDERED;
 
       *rsrc1_out = rsrc1;
    }

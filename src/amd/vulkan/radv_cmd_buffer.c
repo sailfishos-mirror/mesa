@@ -3580,7 +3580,7 @@ radv_emit_vertex_shader(struct radv_cmd_buffer *cmd_buffer)
 
       if (!vs->info.vs.has_prolog) {
          if (vs->info.next_stage == MESA_SHADER_TESS_CTRL) {
-            radv_shader_combine_cfg_vs_tcs(vs, next_stage, &rsrc1, NULL);
+            radv_shader_combine_cfg_vs_tcs(device, vs, next_stage, &rsrc1, NULL);
             rsrc4 = vs->regs.spi_shader_pgm_rsrc4_gs_hs;
          } else {
             radv_shader_combine_cfg_vs_gs(device, vs, next_stage, &rsrc1, &rsrc2, &rsrc4);
@@ -6456,7 +6456,8 @@ emit_prolog_regs(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *v
       } else {
          assert(vs_shader->info.next_stage == MESA_SHADER_TESS_CTRL);
 
-         radv_shader_combine_cfg_vs_tcs(vs_shader, cmd_buffer->state.shaders[MESA_SHADER_TESS_CTRL], &rsrc1, &rsrc2);
+         radv_shader_combine_cfg_vs_tcs(device, vs_shader, cmd_buffer->state.shaders[MESA_SHADER_TESS_CTRL], &rsrc1,
+                                        &rsrc2);
          rsrc4 = cmd_buffer->state.shaders[MESA_SHADER_TESS_CTRL]->regs.spi_shader_pgm_rsrc4_gs_hs;
       }
    } else {
@@ -12826,7 +12827,8 @@ radv_emit_tcs_tes_state(struct radv_cmd_buffer *cmd_buffer)
 
    if (pdev->info.gfx_level >= GFX9) {
       if (tcs->info.merged_shader_compiled_separately) {
-         radv_shader_combine_cfg_vs_tcs(cmd_buffer->state.shaders[MESA_SHADER_VERTEX], tcs, NULL, &pgm_hs_rsrc2);
+         radv_shader_combine_cfg_vs_tcs(device, cmd_buffer->state.shaders[MESA_SHADER_VERTEX], tcs, NULL,
+                                        &pgm_hs_rsrc2);
       } else {
          pgm_hs_rsrc2 = tcs->config.rsrc2;
       }

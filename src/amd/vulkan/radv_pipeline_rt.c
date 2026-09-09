@@ -1035,6 +1035,7 @@ combine_config(struct ac_shader_config *config, const struct ac_shader_config *o
    config->spilled_vgprs = MAX2(config->spilled_vgprs, other->spilled_vgprs);
    config->lds_size = MAX2(config->lds_size, other->lds_size);
    config->scratch_bytes_per_wave = MAX2(config->scratch_bytes_per_wave, other->scratch_bytes_per_wave);
+   config->mem_ordered |= other->mem_ordered;
 
    assert(config->float_mode == other->float_mode);
 }
@@ -1046,6 +1047,9 @@ postprocess_rt_config(struct ac_shader_config *config, const struct radeon_info 
       (config->rsrc1 & C_00B848_VGPRS) | S_00B848_VGPRS((config->num_vgprs - 1) / (wave_size == 32 ? 8 : 4));
    if (info->gfx_level < GFX10)
       config->rsrc1 = (config->rsrc1 & C_00B848_SGPRS) | S_00B848_SGPRS((config->num_sgprs - 1) / 8);
+
+   if (info->gfx_level >= GFX10 && info->gfx_level < GFX12)
+      config->rsrc1 = (config->rsrc1 & C_00B848_MEM_ORDERED) | S_00B848_MEM_ORDERED(config->mem_ordered);
 
    unsigned lds_alloc = ac_shader_encode_lds_size(config->lds_size, info->gfx_level, MESA_SHADER_COMPUTE);
    config->rsrc2 = (config->rsrc2 & C_00B84C_LDS_SIZE) | S_00B84C_LDS_SIZE(lds_alloc);
