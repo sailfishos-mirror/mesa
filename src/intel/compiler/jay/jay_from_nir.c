@@ -1647,8 +1647,10 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .nr_srcs = jay_is_null(data) ? 1 : 2, .dst = tmp, .type = data_type,
             .src_type = { offset_type, data_type }, .uniform = uniform,
             .pure = nir_intrinsic_can_reorder(intr),
-            .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS, .ex_desc = ex_desc,
-            .ex_desc_imm = ex_desc_imm, .skip_helpers = skip_helpers,
+            .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS ||
+                        surf_type == LSC_ADDR_SURFTYPE_SS,
+            .ex_desc = ex_desc, .ex_desc_imm = ex_desc_imm,
+            .skip_helpers = skip_helpers,
             .use_raw_ex_desc = surf_type == LSC_ADDR_SURFTYPE_SS);
 
    if (has_dest && !jay_defs_equivalent(tmp, dst)) {

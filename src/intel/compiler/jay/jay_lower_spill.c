@@ -42,7 +42,7 @@ insert_spill_fill(jay_builder *b,
 
    jay_SEND(b, .sfid = GEN_SFID_UGM, .msg_desc = desc, .srcs = srcs,
             .nr_srcs = load ? 1 : 2, .dst = load ? gpr : jay_null(),
-            .type = JAY_TYPE_U32, .ex_desc = ADDRESS_REG);
+            .type = JAY_TYPE_U32, .ex_desc = ADDRESS_REG, .bindless = true);
 }
 
 void
