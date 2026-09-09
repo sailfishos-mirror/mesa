@@ -401,6 +401,8 @@ print_asm_llvm(Program* program, enum radeon_family family, std::vector<uint32_t
 
    print_constant_data(output, program);
 
+   fprintf(output, "MEM_ORDERED = %u\n", program->config->mem_ordered);
+
    return invalid;
 }
 #endif /* AMD_LLVM_AVAILABLE */

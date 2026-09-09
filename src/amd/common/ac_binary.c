@@ -35,8 +35,15 @@ void ac_parse_llvm_binary_config(const char *data, size_t nbytes, unsigned wave_
                                 (wave_size == 32 ? 2 : 1));
 
          conf->num_sgprs = MAX2(conf->num_sgprs, (G_00B028_SGPRS(value) + 1) * 8);
-         /* TODO: LLVM doesn't set FLOAT_MODE for non-compute shaders */
+         /* TODO: LLVM doesn't set FLOAT_MODE or MEM_ORDERED for non-compute shaders,
+          * and sets MEM_ORDERED on GFX12+.
+          */
+         bool has_mem_ordered =
+            compiler_info->gfx_level >= GFX10 && compiler_info->gfx_level < GFX12;
          conf->float_mode = G_00B028_FLOAT_MODE(value);
+         conf->mem_ordered = (reg != R_00B848_COMPUTE_PGM_RSRC1 ||
+                              G_00B848_MEM_ORDERED(value)) &&
+                             has_mem_ordered;
          conf->rsrc1 = value;
          break;
       case R_00B02C_SPI_SHADER_PGM_RSRC2_PS:

@@ -1147,6 +1147,8 @@ insert_waitcnt(Program* program)
 
       out_ctx[current.index] = std::move(ctx);
    }
+
+   program->config->mem_ordered = program->gfx_level >= GFX10 && program->gfx_level < GFX12;
 }
 
 } // namespace aco

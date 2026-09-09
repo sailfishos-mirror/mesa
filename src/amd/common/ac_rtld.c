@@ -308,6 +308,8 @@ bool ac_rtld_read_config(const struct ac_compiler_info *compiler_info,
       config->spi_ps_input_ena = c.spi_ps_input_ena;
       config->spi_ps_input_addr = c.spi_ps_input_addr;
 
+      config->mem_ordered |= c.mem_ordered;
+
       /* TODO: Should we combine these somehow? It's currently only
        * used for radeonsi's compute, where multiple parts aren't used. */
       assert(config->rsrc1 == 0 && config->rsrc2 == 0);
