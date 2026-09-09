@@ -25,6 +25,7 @@ typedef struct {
    bool disable_tg4_trunc_coord;
    bool has_desc_resource_level;
    bool enable_custom_border_on_compute_queue;
+   bool gfx10_descriptor_alias_robust;
 
    const struct radv_shader_args *args;
    const struct radv_shader_info *info;
@@ -317,6 +318,22 @@ get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr
       rsrc6 = nir_iand_imm(b, rsrc6, C_00A018_WRITE_COMPRESS_ENABLE);
 
       desc = nir_vector_insert_imm(b, desc, rsrc6, 6);
+   }
+
+   if ((desc_type == AC_DESC_IMAGE || desc_type == AC_DESC_FMASK) && state->gfx10_descriptor_alias_robust) {
+      nir_def *rsrc3 = nir_channel(b, desc, 3);
+
+      /* GFX10 has a broken descriptor type check for images.
+       * It checks if the full 4 msb are zero, but for buffer descriptors, only the last two are
+       * the resource type (0), the others are OOB_SELECT and not zero.
+       *
+       * To workaround this, zero OOB_SELECT when needed.
+       */
+      nir_def *is_image = nir_test_mask(b, rsrc3, (uint32_t)~C_008F0C_TYPE);
+      nir_def *as_buffer = nir_iand_imm(b, rsrc3, C_008F0C_OOB_SELECT);
+      rsrc3 = nir_bcsel(b, is_image, rsrc3, as_buffer);
+
+      desc = nir_vector_insert_imm(b, desc, rsrc3, 3);
    }
 
    if (desc_type == AC_DESC_SAMPLER && tex->op == nir_texop_tg4 && state->disable_tg4_trunc_coord) {
@@ -768,6 +785,7 @@ radv_nir_lower_descriptors(nir_shader *shader, const struct radv_compiler_info *
       .disable_tg4_trunc_coord = !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,
       .has_desc_resource_level = compiler_info->ac->has_desc_resource_level,
       .enable_custom_border_on_compute_queue = compiler_info->key.enable_custom_border_on_compute_queue,
+      .gfx10_descriptor_alias_robust = compiler_info->key.gfx10_descriptor_alias_robust,
       .args = &stage->args,
       .info = &stage->info,
       .layout = &stage->layout,

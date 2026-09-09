@@ -90,6 +90,9 @@ def declare_options():
         B("radv_force_nan_preserve_min_max", False,
           "Treat FMax/FMin/FClamp like NMax/NMin/NClamp.",
           c_name="force_nan_preserve_min_max"),
+        B("radv_gfx10_descriptor_alias_robust", False,
+          "Shader based workaround to make reading storage/uniform/texel buffers as images robust.",
+          c_name="gfx10_descriptor_alias_robust"),
     ]
 
     performance_options = [

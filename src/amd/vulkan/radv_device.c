@@ -1252,6 +1252,8 @@ radv_device_init_compiler_info(struct radv_device *device)
             .no_implicit_varying_subgroup_size = pdev->drirc.debug.no_implicit_varying_subgroup_size,
             .force_nan_preserve_min_max = pdev->drirc.debug.force_nan_preserve_min_max,
             .enable_custom_border_on_compute_queue = pdev->drirc.features.enable_custom_border_on_compute_queue,
+            .gfx10_descriptor_alias_robust =
+               pdev->drirc.debug.gfx10_descriptor_alias_robust && pdev->info.gfx_level == GFX10,
             .nir_debug_info = RADV_DEBUG(instance, NIR_DEBUG_INFO),
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */
