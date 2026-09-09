@@ -420,6 +420,17 @@ anv_h264_dpb_slot_poc(const VkVideoEncodeInfoKHR *enc_info, uint8_t slot_index)
    return 0;
 }
 
+static bool
+anv_h264_ref_slot_is_intra(const VkVideoReferenceSlotInfoKHR *slot)
+{
+   const VkVideoEncodeH264DpbSlotInfoKHR *dpb =
+      vk_find_struct_const(slot->pNext, VIDEO_ENCODE_H264_DPB_SLOT_INFO_KHR);
+   if (!dpb || !dpb->pStdReferenceInfo)
+      return false;
+   return dpb->pStdReferenceInfo->primary_pic_type == STD_VIDEO_H264_PICTURE_TYPE_I ||
+          dpb->pStdReferenceInfo->primary_pic_type == STD_VIDEO_H264_PICTURE_TYPE_IDR;
+}
+
 static void
 anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc_info)
 {
@@ -440,6 +451,7 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    bool post_deblock_enable = anv_post_deblock_enable(pps, frame_info);
    bool rc_disable = cmd->video.vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
    uint8_t dpb_idx[ANV_VIDEO_H264_MAX_NUM_REF_FRAME] = { 0,};
+   bool colloc_rd_en = false;
 
    const struct anv_image_view *base_ref_iv;
    uint32_t base_ref_array_layer;
@@ -689,6 +701,7 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       };
 
       const VkVideoReferenceSlotInfoKHR *l0_slots[2] = { NULL, NULL };
+      const VkVideoReferenceSlotInfoKHR *l1_slot = NULL;
       unsigned num_l0 = 0;
       for (unsigned i = 0; ref_list_info && num_l0 < 2 &&
            i < ref_list_info->num_ref_idx_l0_active_minus1 + 1u; i++) {
@@ -701,10 +714,32 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       if (l0_slots[0]) {
          const struct anv_image_view *l0_iv =
             anv_image_view_from_handle(l0_slots[0]->pPictureResource->imageViewBinding);
-         vdenc_buf.ColocatedMVReadBuffer.Address =
-               anv_image_dmv_top_address(l0_iv, l0_slots[0]->pPictureResource->baseArrayLayer);
          vdenc_buf.FWDREF0.Address =
                anv_image_dpb_address(l0_iv, l0_slots[0]->pPictureResource->baseArrayLayer);
+      }
+      if (l0_slots[1]) {
+         const struct anv_image_view *l0_iv =
+            anv_image_view_from_handle(l0_slots[1]->pPictureResource->imageViewBinding);
+         vdenc_buf.FWDREF1.Address =
+               anv_image_dpb_address(l0_iv, l0_slots[1]->pPictureResource->baseArrayLayer);
+      }
+
+      if (frame_info->pStdPictureInfo->primary_pic_type == STD_VIDEO_H264_PICTURE_TYPE_B &&
+          ref_list_info &&
+          ref_list_info->RefPicList1[0] != STD_VIDEO_H264_NO_REFERENCE_PICTURE)
+         l1_slot = &enc_info->pReferenceSlots[dpb_idx[ref_list_info->RefPicList1[0]]];
+
+      /* TODO: Needs to read a dedicated all-intra colocated buffer when L1[0] is an I picture. */
+      colloc_rd_en = l1_slot && !anv_h264_ref_slot_is_intra(l1_slot);
+
+      if (l1_slot) {
+         const struct anv_image_view *l1_iv =
+            anv_image_view_from_handle(l1_slot->pPictureResource->imageViewBinding);
+         vdenc_buf.BWDREF0.Address =
+               anv_image_dpb_address(l1_iv, l1_slot->pPictureResource->baseArrayLayer);
+         if (colloc_rd_en)
+            vdenc_buf.ColocatedMVReadBuffer.Address =
+                  anv_image_dmv_top_address(l1_iv, l1_slot->pPictureResource->baseArrayLayer);
       }
 
       vdenc_buf.ColocatedMVReadBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
@@ -715,13 +750,6 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF0.Address.bo, 0),
       };
 
-      if (l0_slots[1]) {
-         const struct anv_image_view *l1_iv =
-            anv_image_view_from_handle(l0_slots[1]->pPictureResource->imageViewBinding);
-         vdenc_buf.FWDREF1.Address =
-               anv_image_dpb_address(l1_iv, l0_slots[1]->pPictureResource->baseArrayLayer);
-      }
-
       vdenc_buf.FWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF1.Address.bo, 0),
       };
@@ -730,21 +758,6 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
 
-      /* B-frame backward (L1) reference recon surface. */
-      if (frame_info->pStdPictureInfo->primary_pic_type == STD_VIDEO_H264_PICTURE_TYPE_B &&
-          ref_list_info) {
-         uint8_t bwd_slot = ref_list_info->RefPicList1[0];
-         for (unsigned j = 0; bwd_slot != STD_VIDEO_H264_NO_REFERENCE_PICTURE &&
-                              j < enc_info->referenceSlotCount; j++) {
-            if (enc_info->pReferenceSlots[j].slotIndex != (int32_t)bwd_slot)
-               continue;
-            const struct anv_image_view *bwd_iv = anv_image_view_from_handle(
-               enc_info->pReferenceSlots[j].pPictureResource->imageViewBinding);
-            vdenc_buf.BWDREF0.Address = anv_image_dpb_address(
-               bwd_iv, enc_info->pReferenceSlots[j].pPictureResource->baseArrayLayer);
-            break;
-         }
-      }
       vdenc_buf.BWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, vdenc_buf.BWDREF0.Address.bo, 0),
       };
@@ -801,8 +814,11 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+      if (enc_info->pSetupReferenceSlot)
+         vdenc_buf.ColocatedMVAVCWriteBuffer.Address =
+            anv_image_dmv_top_address(base_ref_iv, base_ref_array_layer);
       vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
+         .MOCS = anv_mocs(cmd->device, vdenc_buf.ColocatedMVAVCWriteBuffer.Address.bo, 0),
       };
       vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
@@ -973,7 +989,7 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
          if (is_bframe && ref_list_info) {
             uint8_t slot = ref_list_info->RefPicList1[0];
-            img.CollocMVRDEn = true;
+            img.CollocMVRDEn = colloc_rd_en;
             img.BidirectionalWeight = 0x20;
             img.NumberOfL1ReferencesMinusOne = ref_list_info->num_ref_idx_l1_active_minus1;
             if (slot != STD_VIDEO_H264_NO_REFERENCE_PICTURE) {
