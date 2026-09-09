@@ -119,10 +119,10 @@ to_gen_operand(
       }
 
       /* Handle SIMD split of vectorized uniform code. The mov case comes up
-       * from the SEL_ACTIVE lowering for 64-bit code.
+       * from the SEL_ACTIVE lowering for 64-bit code, CVT with lane IDs.
        */
       if (jay_num_values(d) > jay_type_vector_length(type) &&
-          (I->uniform || I->op == JAY_OPCODE_MOV)) {
+          (I->uniform || I->op == JAY_OPCODE_MOV || I->op == JAY_OPCODE_CVT)) {
          unsigned simd_width = jay_simd_width_physical(f->shader, I);
          uint32_t type_bits = jay_type_size_bits(type);
          unsigned stride_bits = type_bits;
