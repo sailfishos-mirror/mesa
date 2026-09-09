@@ -128,19 +128,6 @@ static bool si_shader_uses_bindless_images(struct si_shader_selector *selector)
 
 /* SHADER STATES */
 
-bool si_shader_mem_ordered(struct si_shader *shader)
-{
-   struct si_screen *sscreen = shader->selector->screen;
-
-   if (sscreen->info.gfx_level < GFX10 || sscreen->info.gfx_level >= GFX12)
-      return false;
-
-   /* Return true if both types of VMEM that return something are used. */
-   return shader->info.uses_vmem_sampler_or_bvh &&
-          (shader->info.uses_vmem_load_other ||
-           shader->config.scratch_bytes_per_wave);
-}
-
 static void si_set_tesseval_regs(struct si_screen *sscreen, const struct si_shader_selector *tes,
                                  struct si_shader *shader)
 {
