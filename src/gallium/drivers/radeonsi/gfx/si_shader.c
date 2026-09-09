@@ -2113,6 +2113,7 @@ bool si_create_shader_variant(struct si_screen *sscreen, struct ac_llvm_compiler
          shader->config.scratch_bytes_per_wave =
             MAX2(shader->config.scratch_bytes_per_wave,
                  shader->previous_stage->config.scratch_bytes_per_wave);
+         shader->config.mem_ordered |= shader->previous_stage->config.mem_ordered;
 
          shader->info.uses_vmem_load_other |= shader->previous_stage->info.uses_vmem_load_other;
          shader->info.uses_vmem_sampler_or_bvh |= shader->previous_stage->info.uses_vmem_sampler_or_bvh;

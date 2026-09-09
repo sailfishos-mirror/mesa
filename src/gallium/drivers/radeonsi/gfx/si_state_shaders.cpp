@@ -369,7 +369,7 @@ static void si_shader_hs(struct si_screen *sscreen, struct si_shader *shader)
                   S_00B428_VGPRS(si_shader_encode_vgprs(shader)) |
                   S_00B428_SGPRS(si_shader_encode_sgprs(shader)) |
                   S_00B428_DX10_CLAMP(sscreen->info.gfx_level < GFX12) |
-                  S_00B428_MEM_ORDERED(si_shader_mem_ordered(shader)) |
+                  S_00B428_MEM_ORDERED(shader->config.mem_ordered) |
                   S_00B428_FLOAT_MODE(shader->config.float_mode) |
                   S_00B428_LS_VGPR_COMP_CNT(sscreen->info.gfx_level >= GFX9 ?
                                             si_get_vs_vgpr_comp_cnt(sscreen, shader, false) : 0));
@@ -636,7 +636,7 @@ static void si_shader_gs_legacy(struct si_screen *sscreen, struct si_shader *sha
       uint32_t rsrc1 = S_00B228_VGPRS(si_shader_encode_vgprs(shader)) |
                        S_00B228_SGPRS(si_shader_encode_sgprs(shader)) |
                        S_00B228_DX10_CLAMP(1) |
-                       S_00B228_MEM_ORDERED(si_shader_mem_ordered(shader)) |
+                       S_00B228_MEM_ORDERED(shader->config.mem_ordered) |
                        S_00B228_FLOAT_MODE(shader->config.float_mode) |
                        S_00B228_GS_VGPR_COMP_CNT(gs_vgpr_comp_cnt);
       uint32_t rsrc2 = S_00B22C_USER_SGPR(num_user_sgprs) |
@@ -1148,7 +1148,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
                   S_00B228_VGPRS(si_shader_encode_vgprs(shader)) |
                   S_00B228_FLOAT_MODE(shader->config.float_mode) |
                   S_00B228_DX10_CLAMP(sscreen->info.gfx_level < GFX12) |
-                  S_00B228_MEM_ORDERED(si_shader_mem_ordered(shader)) |
+                  S_00B228_MEM_ORDERED(shader->config.mem_ordered) |
                   S_00B228_GS_VGPR_COMP_CNT(gs_vgpr_comp_cnt));
    ac_pm4_set_reg(&pm4->base, R_00B22C_SPI_SHADER_PGM_RSRC2_GS,
                   S_00B22C_SCRATCH_EN(shader->config.scratch_bytes_per_wave > 0) |
@@ -1556,7 +1556,7 @@ static void si_shader_vs_legacy(struct si_screen *sscreen, struct si_shader *sha
       S_00B128_SGPRS(si_shader_encode_sgprs(shader)) |
       S_00B128_VGPR_COMP_CNT(vgpr_comp_cnt) |
       S_00B128_DX10_CLAMP(1) |
-      S_00B128_MEM_ORDERED(si_shader_mem_ordered(shader)) |
+      S_00B128_MEM_ORDERED(shader->config.mem_ordered) |
       S_00B128_FLOAT_MODE(shader->config.float_mode);
    uint32_t rsrc2 = S_00B12C_USER_SGPR(num_user_sgprs) | S_00B12C_OC_LDS_EN(oc_lds_en) |
                     S_00B12C_SCRATCH_EN(shader->config.scratch_bytes_per_wave > 0);
@@ -1839,7 +1839,7 @@ static void si_shader_ps(struct si_screen *sscreen, struct si_shader *shader)
                   S_00B028_VGPRS(si_shader_encode_vgprs(shader)) |
                   S_00B028_SGPRS(si_shader_encode_sgprs(shader)) |
                   S_00B028_DX10_CLAMP(sscreen->info.gfx_level < GFX12) |
-                  S_00B028_MEM_ORDERED(si_shader_mem_ordered(shader)) |
+                  S_00B028_MEM_ORDERED(shader->config.mem_ordered) |
                   S_00B028_FLOAT_MODE(shader->config.float_mode));
 
    unsigned lds_alloc = ac_shader_encode_lds_size(shader->config.lds_size, sscreen->info.gfx_level, MESA_SHADER_FRAGMENT);
