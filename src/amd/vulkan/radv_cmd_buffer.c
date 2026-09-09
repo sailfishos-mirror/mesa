@@ -16262,13 +16262,6 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
    radv_utrace_end_image_transition(cmd_buffer);
 }
 
-static void
-radv_cp_dma_wait_for_stages(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 stage_mask)
-{
-   if (stage_mask & radv_post_cp_dma_stage_mask)
-      radv_cp_dma_wait_for_idle(cmd_buffer);
-}
-
 void
 radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed)
 {
@@ -16497,11 +16490,8 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
        * so we can't rely on it fow now.
        */
       radv_sdma_emit_nop(device, cs);
-   } else {
-      const bool is_gfx_or_ace = cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE;
-      if (is_gfx_or_ace) {
-         radv_cp_dma_wait_for_stages(cmd_buffer, radv_get_src_stage_flags2(src_stage_mask));
-      }
+   } else if (radv_get_src_stage_flags2(src_stage_mask) & radv_post_cp_dma_stage_mask) {
+      dst_flush_bits |= AC_BARRIER_SYNC_CP_DMA;
    }
 
    cmd_buffer->state.flush_bits |= dst_flush_bits;
@@ -16560,7 +16550,8 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
    const VkPipelineStageFlags2 post_cs_flags = post_me_flags | radv_post_cs_stage_mask;
 
-   radv_cp_dma_wait_for_stages(cmd_buffer, stage_mask);
+   if (stage_mask & radv_post_cp_dma_stage_mask)
+      radv_cp_dma_wait_for_idle(cmd_buffer);
 
    if (!(stage_mask & ~post_pfp_flags) && cmd_buffer->qf != RADV_QUEUE_COMPUTE) {
       radv_cs_write_data(device, cmd_buffer->cs, V_371_PREFETCH_PARSER, va, 1, &value, false);
