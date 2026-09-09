@@ -1316,7 +1316,8 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
                               ref_list_info->RefPicList0[i] :
                               STD_VIDEO_H264_NO_REFERENCE_PICTURE;
                ref.ReferenceListEntry[i] =
-                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : dpb_idx[slot];
+                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : (dpb_idx[slot] << 1);
+
             }
          }
       }
@@ -1330,7 +1331,7 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
                               ref_list_info->RefPicList1[i] :
                               STD_VIDEO_H264_NO_REFERENCE_PICTURE;
                ref.ReferenceListEntry[i] =
-                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : dpb_idx[slot];
+                  slot == STD_VIDEO_H264_NO_REFERENCE_PICTURE ? 0x80 : (dpb_idx[slot] << 1);
             }
          }
       }
