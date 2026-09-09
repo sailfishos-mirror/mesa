@@ -1023,9 +1023,9 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
       MAX2(operation->ofm.tensor->required_size,
            ethosu_feature_map_span(&operation->ofm));
 
-   operation->ofm.shape = operation->ifm.shape;
-
    allocate_feature_maps(subgraph, operation);
+
+   operation->ofm.shape = operation->ifm.shape;
    for (unsigned i = 0; i < input_idx; i++) {
       switch (poperation->conc.axis) {
       case 1:
@@ -1368,6 +1368,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_CONCATENATION: {
          for (int j = poperations[i].input_count - 1; j >= 0; j--) {
+            operation_set_defaults(&operation);
             ethosu_lower_concatenation(subgraph, &poperations[i], j, &operation);
             util_dynarray_append(&subgraph->operations, operation);
          }
