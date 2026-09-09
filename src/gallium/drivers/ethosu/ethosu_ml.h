@@ -200,7 +200,6 @@ struct ethosu_operation {
          bool weight_sparse;
          unsigned scale;
          unsigned shift;
-         uint16_t activation;
          int activation_min;
          int activation_max;
       } conv;
@@ -208,14 +207,11 @@ struct ethosu_operation {
       struct {
          enum ethosu_pooling_type type;
          bool nop;
-         uint8_t activation;
-         struct ethosu_address_range lut;
       } pooling;
 
       struct {
          enum ethosu_eltwise_type type;
          uint16_t activation_min;
-         unsigned lut_bytes;
          bool ifm_reversed;
       } eltwise;
 
@@ -230,11 +226,13 @@ struct ethosu_operation {
    struct ethosu_feature_map ifm;
    struct ethosu_feature_map ifm2;
    struct ethosu_feature_map ofm;
+   struct ethosu_address_range lut;
 
    struct ethosu_kernel kernel;
    struct ethosu_padding pad;
    enum ethosu_upscale_mode upscale;
    enum ethosu_rounding_mode round_mode;
+   uint16_t activation;
 
    struct ethosu_address_range read_accesses[MAX_MEMORY_ACCESSES];
    struct ethosu_address_range write_accesses[MAX_MEMORY_ACCESSES];

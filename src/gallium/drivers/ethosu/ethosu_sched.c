@@ -55,12 +55,13 @@ fit_block_for_ofm(struct ethosu_subgraph *subgraph,
 
    return block;
 }
+
 static bool
 try_block_config(struct ethosu_operation *operation, struct ethosu_block ofm_block, struct ethosu_block ifm_block, struct ethosu_shram_layout *layout)
 {
    int ifm_bytes = ifm_block.width * ifm_block.height * align(ifm_block.depth, 8);
    int ifm_banks = align(DIV_ROUND_UP(ifm_bytes, BANK_SIZE_BYTES) * 2, IFM_GRANULE);
-   int lut_bytes = operation->type == ETHOSU_OPERATION_TYPE_ELTWISE ? operation->eltwise.lut_bytes : 0;
+   int lut_bytes = operation->lut.size;
    int lut_banks = MAX2(DIV_ROUND_UP(lut_bytes, 1024), SHRAM_RESERVED_END_BANKS);
    int lut_start = SHRAM_TOTAL_BANKS - lut_banks;
    int ifm_end = SHRAM_RESERVED_OUTPUT_BANKS + ifm_banks;

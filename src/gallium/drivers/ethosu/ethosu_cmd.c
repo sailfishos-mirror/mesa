@@ -310,13 +310,10 @@ emit_activation(struct ethosu_subgraph *subgraph, struct ethosu_operation *opera
 {
    unsigned min = 0;
    unsigned max;
-   unsigned activation = 0;
+   unsigned activation = operation->activation;
 
    if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE)
       min = operation->eltwise.activation_min;
-
-   if (operation->type == ETHOSU_OPERATION_TYPE_POOLING)
-      activation = operation->pooling.activation;
 
    if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
        !activation && operation->ofm.precision > 1)
@@ -1135,9 +1132,9 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
 
          break;
       case ETHOSU_OPERATION_TYPE_POOLING:
-         if (operation->pooling.activation >= ETHOSU_POOLING_ACTIVATION_LUT(0)) {
+         if (operation->activation >= ETHOSU_POOLING_ACTIVATION_LUT(0)) {
             operation->read_accesses[1].region = LUT_REGION;
-            operation->read_accesses[1].address = SHRAM_LUT_BASE(operation->pooling.activation & 0xf);
+            operation->read_accesses[1].address = SHRAM_LUT_BASE(operation->activation & 0xf);
             operation->read_accesses[1].size = LUT8_SIZE;
          }
          operation->read_accesses[0].region = operation->ifm.region;

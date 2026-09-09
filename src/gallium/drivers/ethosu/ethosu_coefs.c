@@ -176,8 +176,8 @@ fill_lut(struct ethosu_subgraph *subgraph,
          struct ethosu_operation *operation,
          void *lut)
 {
-   operation->pooling.lut.region = COEFS_REGION;
-   operation->pooling.lut.address =
+   operation->lut.region = COEFS_REGION;
+   operation->lut.address =
       ethosu_allocate_coefs(subgraph, LUT_SIZE);
-   memcpy(subgraph->coefs + operation->pooling.lut.address, lut, LUT_SIZE);
+   memcpy(subgraph->coefs + operation->lut.address, lut, LUT_SIZE);
 }

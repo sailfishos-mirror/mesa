@@ -872,7 +872,7 @@ ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
                      struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_DMA;
-   operation->dma.address = pool_operation->pooling.lut.address;
+   operation->dma.address = pool_operation->lut.address;
    operation->dma.size = LUT8_SIZE;
    operation->dma.dst_region = LUT_REGION;
    operation->dma.dst_address = SHRAM_LUT_BASE(0);
@@ -888,7 +888,7 @@ ethosu_lower_lut(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->pooling.activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
+   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
@@ -913,7 +913,7 @@ ethosu_lower_hswish(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->pooling.activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
+   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
@@ -938,7 +938,7 @@ ethosu_lower_leakyrelu(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
-   operation->pooling.activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
+   operation->activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
