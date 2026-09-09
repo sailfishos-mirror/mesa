@@ -536,6 +536,7 @@ pooling_emit_ofm_scaling(double input1_scale,
                          double output_scale,
                          unsigned kernel_height,
                          unsigned kernel_width,
+                         int scale_bits,
                          int32_t *out_shift)
 {
    int kernel_elements = kernel_height * kernel_width;
@@ -548,13 +549,31 @@ pooling_emit_ofm_scaling(double input1_scale,
       rescale_bits = -int_log2_double(1.0 / rescale);
 
    uint32_t scale = quantise_pooling_scale(kernel_elements, rescale,
-                                           rescale_bits, out_shift, 31);
+                                           rescale_bits, out_shift,
+                                           scale_bits);
 
    return scale;
 }
 
+/* Whether scale * 2^-shift is exactly one. */
+static bool
+ofm_scale_reduces_to_unity(uint32_t scale, int32_t shift)
+{
+   while (scale > 1 && (scale & 0x1) == 0 && shift > 0) {
+      scale >>= 1;
+      shift--;
+   }
+
+   return scale == 1 && shift == 0;
+}
+
 static unsigned
-sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_height, unsigned kernel_width, int32_t *out_shift)
+sum_emit_ofm_scaling(double input1_scale,
+                     double output_scale,
+                     unsigned kernel_height,
+                     unsigned kernel_width,
+                     int scale_bits,
+                     int32_t *out_shift)
 {
    int kernel_elements = kernel_height * kernel_width;
    double rescale = input1_scale / output_scale;
@@ -566,12 +585,13 @@ sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_h
       rescale_bits = -int_log2_double(1.0 / rescale);
 
    return quantise_pooling_scale(kernel_elements, rescale, rescale_bits,
-                                 out_shift, 31);
+                                 out_shift, scale_bits);
 }
 
 static void
 emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    unsigned scale;
    int32_t scale_shift;
 
@@ -583,6 +603,14 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
       scale = ethosu_quantize_scale(
          operation->ifm.scale / operation->ofm.scale,
          &scale_shift, false);
+
+      /* Only the U65 re-derives a unit pass-through as an average pool. */
+      if (device->is_u65 && ofm_scale_reduces_to_unity(scale, scale_shift))
+         scale = pooling_emit_ofm_scaling(
+            operation->ifm.scale, operation->ofm.scale,
+            operation->kernel.height, operation->kernel.width,
+            device->ofm_scale_bits, &scale_shift);
+
       EMIT1(NPU_SET_OFM_SCALE,
             ofm_scale_param | NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
    } else {
@@ -600,6 +628,7 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
             operation->ofm.scale,
             operation->kernel.height,
             operation->kernel.width,
+            device->ofm_scale_bits,
             &scale_shift);
 
          EMIT1(NPU_SET_OFM_SCALE,
@@ -612,6 +641,7 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
             operation->ofm.scale,
             operation->kernel.height,
             operation->kernel.width,
+            device->ofm_scale_bits,
             &scale_shift);
 
          EMIT1(NPU_SET_OFM_SCALE,
