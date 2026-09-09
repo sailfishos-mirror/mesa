@@ -577,6 +577,19 @@ impl V9Instr for OpACmpXchg {
     }
 }
 
+impl V9Instr for OpAdr {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(Adr::get_info((), arch), src_map! {})
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Adr {
+            dst: op_encode_dst(self, &self.dst),
+            imm1w: e.get_pc_rel_offset(&self.label),
+        })
+    }
+}
+
 impl TryFrom<AtomOp> for AtomOperationM {
     type Error = &'static str;
 
@@ -702,19 +715,6 @@ impl V9Instr for OpBarrier {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(Barrier {})
-    }
-}
-
-impl V9Instr for OpAdr {
-    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
-        V9InstrInfo::from_isa(Adr::get_info((), arch), src_map! {})
-    }
-
-    fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(Adr {
-            dst: op_encode_dst(self, &self.dst),
-            imm1w: e.get_pc_rel_offset(&self.label),
-        })
     }
 }
 

@@ -120,6 +120,25 @@ impl DisplayOp for OpACmpXchg {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpAdr {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    pub label: Label,
+}
+
+impl DisplayOp for OpAdr {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ADR")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " {}", self.label)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum AtomOp {
     // TODO: Model 64-bit atomics with 32-bit data
@@ -271,25 +290,6 @@ impl DisplayOp for OpBarrier {
 
     fn fmt_body(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
-pub struct OpAdr {
-    #[dst_type(I32)]
-    pub dst: Dst,
-
-    pub label: Label,
-}
-
-impl DisplayOp for OpAdr {
-    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ADR")
-    }
-
-    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, " {}", self.label)
     }
 }
 
