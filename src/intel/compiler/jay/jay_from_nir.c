@@ -3640,11 +3640,12 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    nj->after_block = else_first;
 
    /* Break and halt instructions in the else block may reconverge at the
-    * after block for a non-uniform IF, unless the then block always ends
-    * with break or halt.
+    * after block for a non-uniform IF, unless the then block is unreachable
+    * or always ends with a break or halt.
     */
    if (!uniform &&
-       jay_num_predecessors(then_last, GPR) > 0 &&
+       (then_first == then_last ||
+        jay_num_predecessors(then_last, GPR) > 0) &&
        !jay_block_ending_jump(then_last)) {
       nj->converge_block = after_block;
    } else {
@@ -3658,6 +3659,13 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    if (!uniform) {
       /* For a non-uniform IF, we fall through both sides in the physical CFG */
       jay_block_add_successor(then_last, else_first, UGPR);
+   }
+
+   if (nj->converge_block) {
+      /* For a non-uniform IF, we also have to consider if we may fall through
+       * after the else block, due to reconvergence from the then block
+       */
+      jay_block_add_successor(else_last, nj->converge_block, UGPR);
    }
 
    /* Logical CFG edges */
