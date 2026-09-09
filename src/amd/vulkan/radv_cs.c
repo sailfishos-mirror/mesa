@@ -67,10 +67,6 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
    /* We don't need these. */
    assert(!(flush_bits & (RADV_CMD_FLAG_VGT_STREAMOUT_SYNC)));
 
-   if (flush_bits & (RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_VS_PARTIAL_FLUSH |
-                     RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH))
-      flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
-
    if (flush_bits & RADV_CMD_FLAG_INV_ICACHE) {
       gcr_cntl |= S_587_GLI_INV(V_587_GLI_ALL);
 
@@ -432,10 +428,6 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
       radeon_event_write(V_028A90_VGT_STREAMOUT_SYNC);
       radeon_end();
    }
-
-   if (flush_bits &
-       (RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE | RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2))
-      flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
 
    /* GFX6-GFX8 only: When one of the CP_COHER_CNTL.DEST_BASE flags is set, SURFACE_SYNC waits
     * for idle, so it should be last.

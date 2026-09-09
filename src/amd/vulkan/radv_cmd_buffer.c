@@ -7833,9 +7833,11 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
 }
 
 static void
-radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask)
+radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_stage_mask,
+                 VkPipelineStageFlags2 dst_stage_mask)
 {
    src_stage_mask = radv_get_src_stage_flags2(src_stage_mask);
+   dst_stage_mask = radv_get_dst_stage_flags2(dst_stage_mask);
 
    /* For simplicity, if the barrier wants to wait for the task shader,
     * just make it wait for the mesh shader too.
@@ -7843,9 +7845,7 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    if (src_stage_mask & VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT)
       src_stage_mask |= VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
 
-   const VkPipelineStageFlags2 vs_stage_mask =
-      (radv_post_me_stage_mask & ~VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT) |
-      radv_pre_rast_stage_mask;
+   const VkPipelineStageFlags2 vs_stage_mask = radv_pre_rast_stage_mask;
 
    const VkPipelineStageFlags2 ps_stage_mask = radv_post_ps_stage_mask | radv_post_cb_stage_mask |
                                                radv_post_transfer_stage_mask | radv_post_transfer_ps_only_stage_mask;
@@ -7866,7 +7866,6 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    const VkPipelineStageFlags2 ignored_stages_mask =
       VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT |
       VK_PIPELINE_STAGE_2_HOST_BIT |
-      VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT | /* Emitted in the gang barrier. */
       VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR |
       VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR;
    // clang-format on
@@ -7874,8 +7873,13 @@ radv_stage_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_s
    /* Make sure all pipeline stage flags are correctly handled. */
    src_stage_mask &= ~ignored_stages_mask;
 
-   assert(!(src_stage_mask &= ~(vs_stage_mask | ps_stage_mask | cs_stage_mask)));
+   assert(!(src_stage_mask &= ~(radv_post_me_stage_mask | vs_stage_mask | ps_stage_mask | cs_stage_mask)));
 #endif
+
+   if (dst_stage_mask & (VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
+                         VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR | VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT |
+                         VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT))
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PFP_SYNC_ME;
 }
 
 static bool
@@ -8123,7 +8127,7 @@ radv_emit_resolve_barrier(struct radv_cmd_buffer *cmd_buffer, const struct radv_
          cmd_buffer, barrier->src_stage_mask, barrier->src_access_mask, 0, render->ds_att.iview->image, &range);
    }
 
-   radv_stage_flush(cmd_buffer, barrier->src_stage_mask);
+   radv_stage_flush(cmd_buffer, barrier->src_stage_mask, barrier->dst_stage_mask);
 
    for (uint32_t i = 0; i < render->color_att_count; i++) {
       struct radv_image_view *iview = render->color_att[i].iview;
@@ -16267,7 +16271,7 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
     */
    if (has_image_transitions ||
        (dst_stage_mask != VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT && dst_stage_mask != VK_PIPELINE_STAGE_2_NONE))
-      radv_stage_flush(cmd_buffer, src_stage_mask);
+      radv_stage_flush(cmd_buffer, src_stage_mask, dst_stage_mask);
    cmd_buffer->state.flush_bits |= src_flush_bits;
 
    radv_gang_barrier(cmd_buffer, src_stage_mask, 0);
