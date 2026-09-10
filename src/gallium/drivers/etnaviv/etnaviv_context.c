@@ -361,22 +361,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       if (screen->info->halti >= 5)
          key->flatshade = ctx->rasterizer->flatshade;
 
-      /* On LINEAR_PE GPUs rendering directly to a linear shared resource,
-       * use shader-based R/B swap so bytes in memory have the correct order
-       * for external consumers. This avoids a dedicated flush-time blit.
-       * Per-RT bitmask so MRT with mixed shared/non-shared targets works. */
-      if (VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE)) {
-         for (i = 0; i < pfb->nr_cbufs; i++) {
-            if (pfb->cbufs[i].texture) {
-               struct etna_resource *rsc = etna_resource(pfb->cbufs[i].texture);
-               if (rsc->shared && rsc->layout == ETNA_LAYOUT_LINEAR &&
-                   translate_pe_format_rb_swap(pfb->cbufs[i].format, screen)) {
-                  key->frag_rb_swap |= (1 << i);
-               }
-            }
-         }
-      }
-
       key->rt_is_128bit = ctx->framebuffer_s.rt_is_128bit;
       key->has_128bit_rt = !!key->rt_is_128bit;
       for (i = 0; i < ARRAY_SIZE(key->rt_companion); i++)

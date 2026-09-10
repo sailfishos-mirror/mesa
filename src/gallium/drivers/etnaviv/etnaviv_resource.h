@@ -39,6 +39,7 @@
 #include "drm-uapi/drm_fourcc.h"
 
 struct etna_context;
+struct etna_screen;
 struct pipe_screen;
 struct util_dynarray;
 
@@ -304,6 +305,10 @@ etna_resource_hw_tileable(bool use_blt, const struct pipe_resource *pres)
 {
    return etna_format_hw_tileable(use_blt, pres->format);
 }
+
+bool
+etna_resource_needs_rb_swap(const struct etna_screen *screen,
+                            const struct etna_resource *rsc);
 
 struct etna_resource *
 etna_resource_alloc_render_shadow(struct pipe_context *pctx,

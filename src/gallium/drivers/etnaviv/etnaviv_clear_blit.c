@@ -281,11 +281,7 @@ etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *rsc = etna_resource(prsc);
 
-   /* When flushing a shared resource with an RB_SWAP format, the PE has
-    * written BGRA bytes internally. Convert to RGBA during the flush copy
-    * so the shared buffer has the correct byte order for external consumers. */
-   const bool flush_rb_swap = rsc->shared &&
-                              translate_pe_format_rb_swap(prsc->format, ctx->screen);
+   const bool flush_rb_swap = etna_resource_needs_rb_swap(ctx->screen, rsc);
 
    if (rsc->render) {
       if (etna_resource_older(rsc, etna_resource(rsc->render))) {
@@ -309,9 +305,8 @@ etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
          etna_resource_level_mark_changed(&rsc->levels[0]);
       }
    } else if (flush_rb_swap) {
-      /* No render shadow and no TS — PE rendered directly into the shared
-       * buffer. If the fragment shader already swapped R/B (LINEAR_PE),
-       * bytes are already correct. Otherwise we need to swap here. */
+      /* No render shadow and no TS. The PE rendered directly into the shared
+       * buffer in its own byte order, so swap R/B here. */
       if (!rsc->shared_native_order) {
          assert(prsc->last_level == 0);
          struct etna_resource_level *lev = &rsc->levels[0];

@@ -85,11 +85,21 @@ static uint64_t etna_resource_modifier(struct etna_resource *rsc)
    return layout_to_modifier(rsc->layout);
 }
 
+bool
+etna_resource_needs_rb_swap(const struct etna_screen *screen,
+                            const struct etna_resource *rsc)
+{
+   return rsc->shared && translate_pe_format_rb_swap(rsc->base.format, screen);
+}
+
 static bool
 etna_resource_is_render_compatible(struct pipe_screen *pscreen,
                                    struct etna_resource *rsc)
 {
    struct etna_screen *screen = etna_screen(pscreen);
+
+   if (etna_resource_needs_rb_swap(screen, rsc))
+      return false;
 
    if (rsc->layout == ETNA_LAYOUT_LINEAR) {
       if (!VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE))
@@ -947,6 +957,7 @@ etna_resource_get_handle(struct pipe_screen *pscreen,
     * when the PE renders to this resource. */
    rsc->shared = true;
    rsc->shared_native_order = true;
+   rsc->render_compatible = etna_resource_is_render_compatible(pscreen, rsc);
 
    if (!(usage & PIPE_HANDLE_USAGE_EXPLICIT_FLUSH))
       rsc->explicit_flush = false;
