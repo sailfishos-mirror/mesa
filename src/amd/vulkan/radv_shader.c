@@ -2275,6 +2275,7 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
       return false;
 #else
       struct ac_rtld_binary rtld_binary = {0};
+      rtld_binary.options.exact_float_mode = !compiler_info->key.use_llvm;
 
       if (!radv_open_rtld_binary(compiler_info->ac->gfx_level, binary, &rtld_binary)) {
          return false;

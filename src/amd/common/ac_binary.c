@@ -112,17 +112,6 @@ void ac_parse_llvm_binary_config(const char *data, size_t nbytes, unsigned wave_
 
    if (!conf->spi_ps_input_addr)
       conf->spi_ps_input_addr = conf->spi_ps_input_ena;
-
-   /* Enable 64-bit and 16-bit denormals, because there is no performance
-    * cost.
-    *
-    * Don't enable denormals for 32-bit floats, because:
-    * - denormals disable output modifiers
-    * - denormals break v_mad_f32
-    * - GFX6 & GFX7 would be very slow
-    */
-   conf->float_mode &= ~V_00B028_FP_32_DENORMS;
-   conf->float_mode |= V_00B028_FP_16_64_DENORMS;
 }
 
 unsigned ac_align_shader_binary_for_prefetch(enum amd_gfx_level gfx_level,
