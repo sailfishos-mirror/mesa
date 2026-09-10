@@ -1444,7 +1444,7 @@ blorp_get_efficient_64bit_io_size(struct blorp_batch *batch,
    *out_align = 64;
    *out_size = total_size;
    *out_sampler_offset = sampler_size == 0 ? UINT32_MAX : align(surfaces_size, 32);
-   *out_push_offset = push_size == 0 ? UINT32_MAX : (total_size - 32);
+   *out_push_offset = push_size == 0 ? UINT32_MAX : (total_size - push_size);
 }
 
 static void
