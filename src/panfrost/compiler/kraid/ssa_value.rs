@@ -348,6 +348,27 @@ impl<'a> Iterator for SSABytesIter<'a> {
     }
 }
 
+struct SSABytesIterMut<'a> {
+    ssa_iter: std::slice::IterMut<'a, SSAValue>,
+    bytes: Range<u16>,
+}
+
+impl<'a> Iterator for SSABytesIterMut<'a> {
+    type Item = (&'a mut SSAValue, Range<u16>);
+
+    fn next(&mut self) -> Option<(&'a mut SSAValue, Range<u16>)> {
+        if let Some(ssa) = self.ssa_iter.next() {
+            let ssa_bytes = u16::from(ssa.bytes());
+            let bytes = self.bytes.start..(self.bytes.start + ssa_bytes);
+            debug_assert!(bytes.end <= self.bytes.end);
+            self.bytes.start = bytes.end;
+            Some((ssa, bytes))
+        } else {
+            None
+        }
+    }
+}
+
 impl SSARef {
     /// Simultaneously iterate over an SSARef and a byte range.  The byte range
     /// must be big enough to contain the SSARef.  If the byte range is larger
@@ -358,6 +379,19 @@ impl SSARef {
     ) -> impl Iterator<Item = (&SSAValue, Range<u16>)> {
         SSABytesIter {
             ssa_iter: self.iter(),
+            bytes,
+        }
+    }
+
+    /// Simultaneously iterate over an SSARef and a byte range.  The byte range
+    /// must be big enough to contain the SSARef.  If the byte range is larger
+    /// than the SSARef, the trailing bytes will be ignored.
+    pub fn iter_mut_zip_bytes(
+        &mut self,
+        bytes: Range<u16>,
+    ) -> impl Iterator<Item = (&mut SSAValue, Range<u16>)> {
+        SSABytesIterMut {
+            ssa_iter: self.iter_mut(),
             bytes,
         }
     }
