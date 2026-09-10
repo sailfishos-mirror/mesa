@@ -2603,6 +2603,20 @@ nir_intrinsic_from_system_value(gl_system_value val)
       return nir_intrinsic_load_color0_amd;
    case SYSTEM_VALUE_COLOR1_AMD:
       return nir_intrinsic_load_color1_amd;
+   case SYSTEM_VALUE_BARYCENTRIC_LINEAR_PIXEL:
+      return nir_intrinsic_load_barycentric_pixel;
+   case SYSTEM_VALUE_BARYCENTRIC_LINEAR_CENTROID:
+      return nir_intrinsic_load_barycentric_centroid;
+   case SYSTEM_VALUE_BARYCENTRIC_LINEAR_SAMPLE:
+      return nir_intrinsic_load_barycentric_sample;
+   case SYSTEM_VALUE_BARYCENTRIC_PERSP_PIXEL:
+      return nir_intrinsic_load_barycentric_pixel;
+   case SYSTEM_VALUE_BARYCENTRIC_PERSP_CENTROID:
+      return nir_intrinsic_load_barycentric_centroid;
+   case SYSTEM_VALUE_BARYCENTRIC_PERSP_SAMPLE:
+      return nir_intrinsic_load_barycentric_sample;
+   case SYSTEM_VALUE_BARYCENTRIC_PULL_MODEL:
+      return nir_intrinsic_load_barycentric_model;
    default:
       return nir_num_intrinsics;
    }

@@ -1265,6 +1265,15 @@ nir_variable_is_uniform(nir_shader *shader, nir_variable *var,
          return true;
       }
 
+      /* There are several possible choices for these values, but, from the
+       * perspective of divergence, they're all the same.
+       */
+      if (var->data.location == SYSTEM_VALUE_BARYCENTRIC_LINEAR_COORD ||
+          var->data.location == SYSTEM_VALUE_BARYCENTRIC_PERSP_COORD) {
+         assert(fake_instr.intrinsic == nir_num_intrinsics);
+         fake_instr.intrinsic = nir_intrinsic_load_barycentric_coord_sample;
+      }
+
       assert(fake_instr.intrinsic != nir_num_intrinsics);
 
       visit_intrinsic(&fake_instr, state);
