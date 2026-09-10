@@ -681,13 +681,10 @@ impl AffinityMapBuilder<'_> {
             Op::RegOut(op) => {
                 if let SrcRef::SSA(vec) = &op.src.src_ref {
                     debug_assert_eq!(op.reg.bytes(), vec.bytes());
-                    let mut bytes = self.reg_arena.reg_to_bytes(&op.reg);
-                    for ssa in vec {
-                        debug_assert_eq!(ssa.bytes(), 4);
+                    let bytes = self.reg_arena.reg_to_bytes(&op.reg);
+                    for (ssa, bytes) in vec.iter_zip_bytes(bytes) {
                         self.ssa_affinities[ssa].reg_byte = bytes.start;
-                        bytes.start += 4;
                     }
-                    debug_assert_eq!(bytes.end, bytes.start);
                 }
             }
             _ => {
