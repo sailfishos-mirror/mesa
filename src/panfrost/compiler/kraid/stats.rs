@@ -53,11 +53,22 @@ fn get_va_stats(s: &Shader, code_size: u32) -> valhall_stats {
                     mark_reg(reg);
                 }
             }
+            let mut cycles = dst_bytes.div_ceil(4).max(1);
+            cycles *= s.model.op_exec_time(&instr.op).unwrap_or(1);
+
+            // While not written in the ISA, MMUL* executes in 4 cycles
+            if matches!(
+                &instr.op,
+                Op::MMulI32(_) | Op::MMulF32(_) | Op::MMulF16(_)
+            ) {
+                debug_assert_eq!(cycles, 1);
+                cycles = 4;
+            }
 
             match s.model.op_exec_unit(&instr.op).unwrap() {
-                ExecUnit::Cvt => cvt += f32::from(dst_bytes.div_ceil(4)),
-                ExecUnit::Fma => fma += f32::from(dst_bytes.div_ceil(4)),
-                ExecUnit::Sfu => sfu += f32::from(dst_bytes.div_ceil(4)),
+                ExecUnit::Cvt => cvt += f32::from(cycles),
+                ExecUnit::Fma => fma += f32::from(cycles),
+                ExecUnit::Sfu => sfu += f32::from(cycles),
                 ExecUnit::Msg => match &instr.op {
                     Op::ACmpXchg(_)
                     | Op::Atom(_)
