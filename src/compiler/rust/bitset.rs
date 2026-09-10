@@ -572,6 +572,19 @@ macro_rules! impl_const_bit_set {
                 }
             }
 
+            pub const fn remove_range(&mut self, range: Range<$K>) {
+                assert!(
+                    range.end as usize <= W * 32,
+                    "ConstBitSet index out of bounds",
+                );
+
+                if range.start < range.end {
+                    let start = BitIndex::from_flat_index(range.start as usize);
+                    let end = BitIndex::from_flat_index(range.end as usize);
+                    unset_range(&mut self.words, start, end);
+                }
+            }
+
             pub const fn from_array<const N: usize>(arr: [$K; N]) -> Self {
                 let mut set = ConstBitSet::<W, $K>::new();
                 let mut i = 0_usize;
