@@ -909,9 +909,12 @@ lp_build_insert_soa_chan(struct lp_build_context *bld,
 
        if (chan_desc.pure_integer) {
           chan = LLVMBuildBitCast(builder, rgba, bld->int_vec_type, "");
-          LLVMValueRef mask_val = lp_build_const_int_vec(gallivm, type, chan_mask);
-          LLVMValueRef mask = LLVMBuildICmp(builder, LLVMIntUGT, chan, mask_val, "");
-          chan = LLVMBuildSelect(builder, mask, mask_val, chan, "");
+          if (chan_desc.size < 32) {
+             struct lp_type uint_type = lp_uint_type(type);
+             LLVMValueRef mask_val = lp_build_const_int_vec(gallivm, uint_type, chan_mask);
+             LLVMValueRef mask = LLVMBuildICmp(builder, LLVMIntUGT, chan, mask_val, "");
+             chan = LLVMBuildSelect(builder, mask, mask_val, chan, "");
+          }
        }
        else if (type.floating) {
           if (chan_desc.normalized) {
