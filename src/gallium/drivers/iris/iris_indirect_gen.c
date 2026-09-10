@@ -163,6 +163,7 @@ emit_indirect_generate_draw(struct iris_batch *batch,
                             unsigned ring_count)
 {
    struct iris_screen *screen = batch->screen;
+   struct iris_bufmgr *bufmgr = screen->bufmgr;
    struct iris_context *ice = batch->ice;
    struct isl_device *isl_dev = &screen->isl_dev;
    const struct intel_device_info *devinfo = screen->devinfo;
@@ -371,18 +372,25 @@ emit_indirect_generate_draw(struct iris_batch *batch,
 #endif
    }
 
-   iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
-      uint64_t cc_vp_address;
-      uint32_t *cc_vp_map =
-         stream_state(batch, ice->state.dynamic_uploader,
-                      &ice->state.last_res.cc_vp,
-                      4 * GENX(CC_VIEWPORT_length), 32, &cc_vp_address);
+   uint64_t cc_vp_address;
+   uint32_t *cc_vp_map = stream_state(batch, ice->state.dynamic_uploader,
+                                      &ice->state.last_res.cc_vp,
+                                      4 * GENX(CC_VIEWPORT_length), 32, &cc_vp_address);
 
-      iris_pack_state(GENX(CC_VIEWPORT), cc_vp_map, ccv) {
-         ccv.MinimumDepth = 0.0f;
-         ccv.MaximumDepth = 1.0f;
+   iris_pack_state(GENX(CC_VIEWPORT), cc_vp_map, ccv) {
+      ccv.MinimumDepth = 0.0f;
+      ccv.MaximumDepth = 1.0f;
+   }
+   if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+      iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2), cc) {
+         cc.CCViewportPointer = ro_bo(NULL, cc_vp_address);
       }
-      cc.CCViewportPointer = cc_vp_address;
+#endif
+   } else {
+      iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
+         cc.CCViewportPointer = cc_vp_address;
+      }
    }
 
 #if GFX_VER >= 12

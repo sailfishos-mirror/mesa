@@ -6990,6 +6990,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    struct iris_screen *screen = batch->screen;
    struct iris_border_color_pool *border_color_pool =
       iris_bufmgr_get_border_color_pool(screen->bufmgr);
+   struct iris_bufmgr *bufmgr = screen->bufmgr;
 
    /* Re-emit 3DSTATE_DS before any 3DPRIMITIVE when tessellation is on */
    if (intel_needs_workaround(batch->screen->devinfo, 22018402687) &&
@@ -7081,9 +7082,16 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 
          cc_vp_map += GENX(CC_VIEWPORT_length);
       }
-
-      iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), ptr) {
-         ptr.CCViewportPointer = cc_vp_address;
+      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+         iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2), ptr) {
+            ptr.CCViewportPointer = ro_bo(NULL, cc_vp_address);
+         }
+#endif
+      } else {
+         iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), ptr) {
+            ptr.CCViewportPointer = cc_vp_address;
+         }
       }
 
       if (wa_18020335297_applied) {
@@ -7160,8 +7168,16 @@ iris_upload_dirty_render_state(struct iris_context *ice,
          vp_map += GENX(SF_CLIP_VIEWPORT_length);
       }
 
-      iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), ptr) {
-         ptr.SFClipViewportPointer = sf_cl_vp_address;
+      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+         iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP_2), ptr) {
+            ptr.SFClipViewportPointer = ro_bo(NULL, sf_cl_vp_address);
+         }
+#endif
+      } else {
+         iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP), ptr) {
+            ptr.SFClipViewportPointer = sf_cl_vp_address;
+         }
       }
    }
 
@@ -7257,9 +7273,18 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       blend_map[0] = blend_state_header | cso_blend->blend_state[0];
       typed_memcpy(&blend_map[1], blend_entries, rt_dwords);
 
-      iris_emit_cmd(batch, GENX(3DSTATE_BLEND_STATE_POINTERS), ptr) {
-         ptr.BlendStatePointer = blend_offset;
-         ptr.BlendStatePointerValid = true;
+      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+         iris_emit_cmd(batch, GENX(3DSTATE_BLEND_STATE_POINTERS_2), ptr) {
+            ptr.BlendStatePointer = ro_bo(NULL, blend_offset);
+            ptr.BlendStatePointerValid = true;
+         }
+#endif
+      } else {
+         iris_emit_cmd(batch, GENX(3DSTATE_BLEND_STATE_POINTERS), ptr) {
+            ptr.BlendStatePointer = blend_offset;
+            ptr.BlendStatePointerValid = true;
+         }
       }
    }
 
@@ -7290,9 +7315,18 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 	 cc.BackfaceStencilReferenceValue = p_stencil_refs->ref_value[1];
 #endif
       }
-      iris_emit_cmd(batch, GENX(3DSTATE_CC_STATE_POINTERS), ptr) {
-         ptr.ColorCalcStatePointer = cc_offset;
-         ptr.ColorCalcStatePointerValid = true;
+      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+         iris_emit_cmd(batch, GENX(3DSTATE_CC_STATE_POINTERS_2), ptr) {
+            ptr.ColorCalcStatePointer = ro_bo(NULL, cc_offset);
+            ptr.ColorCalcStatePointerValid = true;
+         }
+#endif
+      } else {
+         iris_emit_cmd(batch, GENX(3DSTATE_CC_STATE_POINTERS), ptr) {
+            ptr.ColorCalcStatePointer = cc_offset;
+            ptr.ColorCalcStatePointerValid = true;
+         }
       }
    }
 
@@ -7955,9 +7989,16 @@ iris_upload_dirty_render_state(struct iris_context *ice,
                     ice->state.scissors,
                     sizeof(struct pipe_scissor_state) *
                     ice->state.num_viewports, alignment);
-
-      iris_emit_cmd(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS), ptr) {
-         ptr.ScissorRectPointer = scissor_offset;
+      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+#if GFX_VERx10 >= 350
+         iris_emit_cmd(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS_2), ptr) {
+            ptr.ScissorRectPointer = ro_bo(NULL, scissor_offset);
+         }
+#endif
+      } else {
+         iris_emit_cmd(batch, GENX(3DSTATE_SCISSOR_STATE_POINTERS), ptr) {
+            ptr.ScissorRectPointer = scissor_offset;
+         }
       }
    }
 
