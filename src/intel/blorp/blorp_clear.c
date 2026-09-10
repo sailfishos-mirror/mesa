@@ -552,7 +552,9 @@ fast_clear_surf(struct blorp_batch *batch,
    else
       params.op = BLORP_OP_MCS_COLOR_CLEAR;
 
-   if (!blorp_params_get_clear_kernel(batch, &params, true, true, false)) {
+   if (!blorp_params_get_clear_kernel(
+          batch, &params, true,
+          !batch->blorp->config.use_efficient_64bit, false)) {
       mesa_loge("%s: failed to get kernel", __func__);
       return;
    }
@@ -872,7 +874,7 @@ blorp_clear(struct blorp_batch *batch,
    memcpy(&params.wm_inputs.clear.clear_color, clear_color.f32,
           sizeof(float) * 4);
 
-   bool use_simd16_replicated_data = true;
+   bool use_simd16_replicated_data = !batch->blorp->config.use_efficient_64bit;
 
    /* From the SNB PRM (Vol4_Part1):
     *
