@@ -886,17 +886,7 @@ void genX(CmdResetQueryPool)(
                                anv_query_address(pool, firstQuery),
                                queryCount * pool->stride, 0);
 
-      /* The pending clearing writes are in compute if we're in gpgpu mode on
-       * the render engine or on the compute engine.
-       */
-      if (anv_cmd_buffer_is_compute_queue(cmd_buffer) ||
-          cmd_buffer->state.current_pipeline == pdevice->gpgpu_pipeline_value) {
-         cmd_buffer->state.queries.clear_bits =
-            ANV_QUERY_COMPUTE_WRITES_PENDING_BITS;
-      } else {
-         cmd_buffer->state.queries.clear_bits =
-            ANV_QUERY_RENDER_TARGET_WRITES_PENDING_BITS(&pdevice->info);
-      }
+      cmd_buffer->state.queries.clear_bits |= anv_cmd_buffer_shader_query_sync_bits(cmd_buffer);
 
       trace_intel_end_query_clear_blorp(&cmd_buffer->trace, queryCount);
       return;
@@ -1109,11 +1099,9 @@ append_query_clear_flush(struct anv_cmd_buffer *cmd_buffer,
       return false;
 
    anv_add_pending_pipe_bits(cmd_buffer,
-                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                             VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR,
                              VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             ANV_PIPE_QUERY_BITS(
-                                cmd_buffer->state.queries.clear_bits),
+                             cmd_buffer->state.queries.clear_bits,
                              reason);
    return true;
 }
@@ -1773,20 +1761,11 @@ copy_query_results_with_cs(struct anv_cmd_buffer *cmd_buffer,
                            uint32_t query_count,
                            VkQueryResultFlags flags)
 {
-   enum anv_pipe_bits needed_flushes = 0;
-
-   trace_intel_begin_query_copy_cs(&cmd_buffer->trace);
-
-   /* If render target writes are ongoing, request a render target cache flush
-    * to ensure proper ordering of the commands from the 3d pipe and the
-    * command streamer.
-    */
-
-   const enum anv_query_bits query_bits =
+   enum anv_pipe_bits needed_flushes =
       cmd_buffer->state.queries.buffer_write_bits |
       cmd_buffer->state.queries.clear_bits;
 
-   needed_flushes |= ANV_PIPE_QUERY_BITS(query_bits);
+   trace_intel_begin_query_copy_cs(&cmd_buffer->trace);
 
    /* Occlusion & timestamp queries are written using a PIPE_CONTROL and
     * because we're about to copy values from MI commands, we need to stall
@@ -1941,17 +1920,16 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
    }
 
    if ((cmd_buffer->state.queries.buffer_write_bits |
-        cmd_buffer->state.queries.clear_bits) & ANV_QUERY_WRITES_RT_FLUSH) {
+        cmd_buffer->state.queries.clear_bits) & ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT)
       wait_stages |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-      needed_flushes |= ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT;
-   }
-
    if ((cmd_buffer->state.queries.buffer_write_bits |
-        cmd_buffer->state.queries.clear_bits) & ANV_QUERY_WRITES_DATA_FLUSH) {
+        cmd_buffer->state.queries.clear_bits) & (ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                                                 ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
+                                                 ANV_PIPE_DATA_CACHE_FLUSH_BIT))
       wait_stages |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-      needed_flushes |= (ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
-                         ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT);
-   }
+
+   needed_flushes |= cmd_buffer->state.queries.buffer_write_bits |
+                     cmd_buffer->state.queries.clear_bits;
 
    /* Flushes for the queries to complete */
    if (flags & VK_QUERY_RESULT_WAIT_BIT) {
@@ -1989,7 +1967,7 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
    VkResult ret =
       anv_device_get_internal_shader(
          cmd_buffer->device,
-         cmd_buffer->state.current_pipeline == GPGPU ?
+         anv_cmd_buffer_blorp_uses_compute(cmd_buffer) ?
          ANV_INTERNAL_KERNEL_COPY_QUERY_RESULTS_COMPUTE :
          ANV_INTERNAL_KERNEL_COPY_QUERY_RESULTS_FRAGMENT,
          &copy_kernel);

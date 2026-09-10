@@ -4379,7 +4379,7 @@ end_command_buffer(struct anv_cmd_buffer *cmd_buffer,
          anv_add_pending_pipe_bits(cmd_buffer,
                                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                   ANV_PIPE_QUERY_BITS(cmd_buffer->state.queries.clear_bits),
+                                   cmd_buffer->state.queries.clear_bits,
                                    "query clear flush prior command buffer end");
       }
 
@@ -4496,7 +4496,7 @@ genX(CmdExecuteCommands)(
       anv_add_pending_pipe_bits(container,
                                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                ANV_PIPE_QUERY_BITS(container->state.queries.clear_bits),
+                                container->state.queries.clear_bits,
                                 "query clear flush prior to secondary buffer");
    }
 
@@ -5921,7 +5921,7 @@ genX(flush_pipeline_select)(struct anv_cmd_buffer *cmd_buffer,
       anv_add_pending_pipe_bits(cmd_buffer,
                                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                ANV_PIPE_QUERY_BITS(cmd_buffer->state.queries.clear_bits),
+                                cmd_buffer->state.queries.clear_bits,
                                 "query clear flush prior to GPGPU");
    }
 

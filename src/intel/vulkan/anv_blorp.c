@@ -186,13 +186,9 @@ anv_blorp_batch_init(struct anv_cmd_buffer *cmd_buffer,
    /* For platforms prior to Gfx20 where switching pipeline mode is a
     * significant cost, try to stay in the same pipeline mode.
     */
-   if ((queue_flags & VK_QUEUE_GRAPHICS_BIT) &&
-       params->allow_3d_or_compute_variant &&
-       cmd_buffer->device->info->ver < 20 &&
-       (cmd_buffer->state.current_pipeline ==
-        cmd_buffer->device->physical->gpgpu_pipeline_value)) {
+   if (params->allow_3d_or_compute_variant &&
+       anv_cmd_buffer_blorp_uses_compute(cmd_buffer))
       flags |= BLORP_BATCH_USE_COMPUTE;
-   }
 
    /* Can't have both flags at the same time. */
    assert((flags & BLORP_BATCH_USE_BLITTER) == 0 ||
@@ -985,16 +981,11 @@ static void
 anv_add_buffer_write_pending_bits(struct anv_cmd_buffer *cmd_buffer,
                                   const char *reason)
 {
-   const struct intel_device_info *devinfo = cmd_buffer->device->info;
-
    if (anv_cmd_buffer_is_blitter_queue(cmd_buffer))
       return;
 
    cmd_buffer->state.queries.buffer_write_bits |=
-      (cmd_buffer->state.current_pipeline ==
-       cmd_buffer->device->physical->gpgpu_pipeline_value) ?
-      ANV_QUERY_COMPUTE_WRITES_PENDING_BITS :
-      ANV_QUERY_RENDER_TARGET_WRITES_PENDING_BITS(devinfo);
+      anv_cmd_buffer_shader_query_sync_bits(cmd_buffer);
 }
 
 void anv_CmdCopyImageToMemoryKHR(

@@ -391,26 +391,20 @@ anv_cmd_emit_conditional_render_predicate(struct anv_cmd_buffer *cmd_buffer)
 }
 
 static void
-clear_pending_query_bits(enum anv_query_bits *query_bits,
+clear_pending_query_bits(enum anv_pipe_bits *query_bits,
                          enum anv_pipe_bits flushed_bits)
 {
-   if (flushed_bits & ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT)
-      *query_bits &= ~ANV_QUERY_WRITES_RT_FLUSH;
+   /* Remove all the flushed bits except CS_STALL */
+   *query_bits &= ~flushed_bits | ANV_PIPE_CS_STALL_BIT;
 
-   if (flushed_bits & ANV_PIPE_TILE_CACHE_FLUSH_BIT)
-      *query_bits &= ~ANV_QUERY_WRITES_TILE_FLUSH;
-
-   if ((flushed_bits & ANV_PIPE_DATA_CACHE_FLUSH_BIT) &&
-       (flushed_bits & ANV_PIPE_HDC_PIPELINE_FLUSH_BIT) &&
-       (flushed_bits & ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT))
-      *query_bits &= ~ANV_QUERY_WRITES_TILE_FLUSH;
-
-   /* Once RT/TILE have been flushed, we can consider the CS_STALL flush */
-   if ((*query_bits & (ANV_QUERY_WRITES_TILE_FLUSH |
-                       ANV_QUERY_WRITES_RT_FLUSH |
-                       ANV_QUERY_WRITES_DATA_FLUSH)) == 0 &&
+   /* Only once there is no more flush bits consider the CS_STALL */
+   if ((*query_bits & (ANV_PIPE_TILE_CACHE_FLUSH_BIT |
+                       ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
+                       ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                       ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
+                       ANV_PIPE_DATA_CACHE_FLUSH_BIT)) == 0 &&
        (flushed_bits & (ANV_PIPE_END_OF_PIPE_SYNC_BIT | ANV_PIPE_CS_STALL_BIT)))
-      *query_bits &= ~ANV_QUERY_WRITES_CS_STALL;
+      *query_bits &= ~ANV_PIPE_CS_STALL_BIT;
 }
 
 void

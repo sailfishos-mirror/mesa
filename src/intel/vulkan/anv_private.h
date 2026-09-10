@@ -4290,18 +4290,6 @@ enum anv_query_bits {
    (ANV_QUERY_WRITES_DATA_FLUSH | \
     ANV_QUERY_WRITES_CS_STALL)
 
-#define ANV_PIPE_QUERY_BITS(pending_query_bits) ( \
-   ((pending_query_bits & ANV_QUERY_WRITES_RT_FLUSH) ?   \
-    ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT : 0) | \
-   ((pending_query_bits & ANV_QUERY_WRITES_TILE_FLUSH) ?   \
-    ANV_PIPE_TILE_CACHE_FLUSH_BIT : 0) | \
-   ((pending_query_bits & ANV_QUERY_WRITES_CS_STALL) ?   \
-    ANV_PIPE_CS_STALL_BIT : 0) | \
-   ((pending_query_bits & ANV_QUERY_WRITES_DATA_FLUSH) ?  \
-    (ANV_PIPE_DATA_CACHE_FLUSH_BIT | \
-     ANV_PIPE_HDC_PIPELINE_FLUSH_BIT | \
-     ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT) : 0))
-
 #define ANV_PIPE_FLUSH_BITS ( \
    ANV_PIPE_DEPTH_CACHE_FLUSH_BIT | \
    ANV_PIPE_DATA_CACHE_FLUSH_BIT | \
@@ -4863,21 +4851,20 @@ struct anv_cmd_state {
 
    struct {
       /**
-       * Tracks operations susceptible to interfere with queries in the
-       * destination buffer of vkCmdCopyQueryResults, we need those operations to
-       * have completed before we do the work of vkCmdCopyQueryResults.
+       * Tracks synchronization bits that will need to be flushed before doing
+       * work in vkCmdCopyQueryResults.
        */
-      enum anv_query_bits                          buffer_write_bits;
+      enum anv_pipe_bits                        buffer_write_bits;
 
       /**
-       * Tracks clear operations of query buffers that can interact with
-       * vkCmdQueryBegin*, vkCmdWriteTimestamp*,
+       * Tracks query pool clear synchronization bits that will need to be
+       * flushed before doing work in vkCmdQueryBegin*, vkCmdWriteTimestamp*,
        * vkCmdWriteAccelerationStructuresPropertiesKHR, etc...
        *
        * We need the clearing of the buffer completed before with write data with
        * the command streamer or a shader.
        */
-      enum anv_query_bits                          clear_bits;
+      enum anv_pipe_bits                        clear_bits;
    } queries;
 
    /** Tracks whether 3DSTATE_BINDING_TABLE_POINTERS_* instructions need
@@ -5397,6 +5384,43 @@ void
 anv_cmd_buffer_update_pending_query_bits(struct anv_cmd_buffer *cmd_buffer,
                                          enum anv_pipe_bits flushed_bits);
 
+static inline bool
+anv_cmd_buffer_blorp_uses_compute(const struct anv_cmd_buffer *cmd_buffer)
+{
+   if (anv_cmd_buffer_is_compute_queue(cmd_buffer))
+      return true;
+   if (!anv_cmd_buffer_is_render_queue(cmd_buffer))
+      return false;
+   return cmd_buffer->device->info->ver < 20 &&
+      cmd_buffer->state.current_pipeline == cmd_buffer->device->physical->gpgpu_pipeline_value;
+}
+
+static inline enum anv_pipe_bits
+anv_cmd_buffer_shader_query_sync_bits(const struct anv_cmd_buffer *cmd_buffer)
+{
+   const struct anv_device *device = cmd_buffer->device;
+   /* Xe2+ always uses the 3D pipeline for clearing
+    *
+    * Pre-Xe2, the clearing writes are in compute if we're in gpgpu mode on
+    * the render engine or on the compute engine.
+    */
+   const bool op_uses_compute = anv_cmd_buffer_blorp_uses_compute(cmd_buffer);
+
+   enum anv_pipe_bits bits = ANV_PIPE_CS_STALL_BIT;
+   if (op_uses_compute) {
+      bits |= device->info->ver > 12 ?
+         (ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT | ANV_PIPE_HDC_PIPELINE_FLUSH_BIT) :
+         ANV_PIPE_DATA_CACHE_FLUSH_BIT;
+   } else {
+      bits |= ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT;
+   }
+
+   if (!ANV_DEVINFO_HAS_COHERENT_L3_CS(device->info))
+      bits |= op_uses_compute ? ANV_PIPE_DATA_CACHE_FLUSH_BIT : ANV_PIPE_TILE_CACHE_FLUSH_BIT;
+
+   return bits;
+}
+
 void
 anv_cmd_buffer_bind_shaders(struct vk_command_buffer *cmd_buffer,
                             uint32_t stage_count,
@@ -5595,19 +5619,6 @@ anv_shader_internal_get_pointer(const struct anv_device *device,
       (device->physical->va.shader_heap.addr + shader->kernel.offset) :
       shader->kernel.offset;
 }
-
-struct anv_pipeline_executable {
-   mesa_shader_stage stage;
-
-   struct genisa_stats stats;
-
-   char *nir;
-   char *disasm;
-};
-
-enum anv_pipeline_type {
-   ANV_PIPELINE_RAY_TRACING,
-};
 
 void anv_shader_init_uuid(struct anv_physical_device *device);
 
