@@ -600,7 +600,7 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
       return vk_errorf(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY,
                        "Failed to allocate batch buffer for AS encode");
    }
-   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
+   vk_bvh_build_barrier_transfer_to_compute(commandBuffer);
 
    anv_bvh_build_bind_pipeline(commandBuffer, ANV_OBJECT_KEY_BVH_ENCODE, encode_spv,
                                sizeof(encode_spv), sizeof(struct encode_args), build_flags);
