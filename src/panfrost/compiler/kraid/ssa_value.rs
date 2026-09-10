@@ -4,7 +4,7 @@
 use compiler::bitset::IntoBitIndex;
 use compiler::lower_bounded::*;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 type SSAValueInner = LowerBoundedU32<9>;
 type SSARefInnerShort = LowerBoundedU32Array<9, 3>;
@@ -324,6 +324,42 @@ impl TryFrom<&[SSAValue]> for SSARef {
 
     fn try_from(arr: &[SSAValue]) -> Result<Self, &'static str> {
         SSARef::try_from_iter(arr.iter().copied())
+    }
+}
+
+struct SSABytesIter<'a> {
+    ssa_iter: std::slice::Iter<'a, SSAValue>,
+    bytes: Range<u16>,
+}
+
+impl<'a> Iterator for SSABytesIter<'a> {
+    type Item = (&'a SSAValue, Range<u16>);
+
+    fn next(&mut self) -> Option<(&'a SSAValue, Range<u16>)> {
+        if let Some(ssa) = self.ssa_iter.next() {
+            let ssa_bytes = u16::from(ssa.bytes());
+            let bytes = self.bytes.start..(self.bytes.start + ssa_bytes);
+            debug_assert!(bytes.end <= self.bytes.end);
+            self.bytes.start = bytes.end;
+            Some((ssa, bytes))
+        } else {
+            None
+        }
+    }
+}
+
+impl SSARef {
+    /// Simultaneously iterate over an SSARef and a byte range.  The byte range
+    /// must be big enough to contain the SSARef.  If the byte range is larger
+    /// than the SSARef, the trailing bytes will be ignored.
+    pub fn iter_zip_bytes(
+        &self,
+        bytes: Range<u16>,
+    ) -> impl Iterator<Item = (&SSAValue, Range<u16>)> {
+        SSABytesIter {
+            ssa_iter: self.iter(),
+            bytes,
+        }
     }
 }
 

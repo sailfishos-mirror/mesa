@@ -215,34 +215,6 @@ impl Arena {
     }
 }
 
-struct SSABytesIter<'a> {
-    ssa_iter: std::slice::Iter<'a, SSAValue>,
-    bytes: Range<u16>,
-}
-
-impl<'a> Iterator for SSABytesIter<'a> {
-    type Item = (&'a SSAValue, Range<u16>);
-
-    fn next(&mut self) -> Option<(&'a SSAValue, Range<u16>)> {
-        if let Some(ssa) = self.ssa_iter.next() {
-            let ssa_bytes = u16::from(ssa.bytes());
-            let bytes = self.bytes.start..(self.bytes.start + ssa_bytes);
-            debug_assert!(bytes.end <= self.bytes.end);
-            self.bytes.start = bytes.end;
-            Some((ssa, bytes))
-        } else {
-            None
-        }
-    }
-}
-
-fn iter_ssa_bytes(vec: &SSARef, bytes: Range<u16>) -> SSABytesIter<'_> {
-    SSABytesIter {
-        ssa_iter: vec.iter(),
-        bytes,
-    }
-}
-
 fn swizzle_byte_range(bytes: Range<u16>, swizzle: Swizzle) -> Range<u16> {
     let swz_bytes = match swizzle {
         Swizzle::B0000 => 0..1,
@@ -994,7 +966,7 @@ impl LocalRegAlloc<'_> {
 
     fn assign_ssa_ref_bytes(&mut self, vec: &SSARef, bytes: Range<u16>) {
         debug_assert_eq!(bytes.len(), usize::from(vec.bytes()));
-        for (ssa, bytes) in iter_ssa_bytes(vec, bytes) {
+        for (ssa, bytes) in vec.iter_zip_bytes(bytes) {
             self.assign_ssa_bytes(ssa, bytes);
         }
     }
@@ -1482,8 +1454,7 @@ impl LocalRegAlloc<'_> {
             // Pin the range
             self.pin_bytes(bytes.clone());
 
-            for (ssa, bytes) in iter_ssa_bytes(&src_dst.vec, ssa_bytes.clone())
-            {
+            for (ssa, bytes) in src_dst.vec.iter_zip_bytes(ssa_bytes.clone()) {
                 // Assign the SSA value to the byte range
                 self.assign_ssa_bytes(ssa, bytes.clone());
 
@@ -2065,7 +2036,7 @@ impl GlobalRegAlloc<'_> {
                 self.local.pin_bytes(dst_bytes.clone());
 
                 for (i, (dst_ssa, dst_bytes)) in
-                    iter_ssa_bytes(dst_vec, dst_bytes).enumerate()
+                    dst_vec.iter_zip_bytes(dst_bytes).enumerate()
                 {
                     if let Some(src_vec) = src_vec {
                         debug_assert_eq!(src_vec.len(), dst_vec.len());
