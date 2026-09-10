@@ -240,6 +240,8 @@ struct panfrost_bo *panfrost_batch_create_bo(struct panfrost_batch *batch,
                                              mesa_shader_stage stage,
                                              const char *label);
 
+void panfrost_flush_batch(struct panfrost_batch *batch, const char *reason);
+
 void panfrost_flush_all_batches(struct panfrost_context *ctx,
                                 const char *reason);
 

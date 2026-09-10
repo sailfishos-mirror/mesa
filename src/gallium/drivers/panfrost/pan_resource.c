@@ -2040,6 +2040,7 @@ pan_resource_afbcp_get_payload_sizes(struct panfrost_context *ctx,
       screen->vtbl.afbc_size(batch, prsrc, prsrc->afbcp->layout_bo,
                              prsrc->afbcp->layout_offsets[level], level);
 
+   panfrost_flush_batch(batch, "AFBC-P payload sizes compute job");
    prsrc->afbcp->skip_access_updates = false;
 
    return true;
@@ -2191,6 +2192,7 @@ pan_resource_afbcp_pack(struct panfrost_context *ctx,
                              prsrc->afbcp->layout_bo,
                              prsrc->afbcp->layout_offsets[level], level);
 
+   panfrost_flush_batch(batch, "AFBC-P packing compute job");
    prsrc->afbcp->skip_access_updates = false;
 
    return true;

@@ -778,6 +778,18 @@ out:
    panfrost_batch_cleanup(ctx, batch);
 }
 
+void
+panfrost_flush_batch(struct panfrost_batch *batch, const char *reason)
+{
+   assert(reason);
+   PAN_TRACE_SCOPE(PAN_TRACE_GL_JOB, "%s reason=\"%s\"", __func__, reason);
+
+   struct panfrost_context *ctx = batch->ctx;
+
+   perf_debug(ctx, "Flushing batch due to: %s", reason);
+   panfrost_batch_submit(ctx, batch);
+}
+
 /* Submit all batches */
 
 void
