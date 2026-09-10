@@ -231,7 +231,6 @@ impl<'a> Iterator for SSABytesIter<'a> {
             self.bytes.start = bytes.end;
             Some((ssa, bytes))
         } else {
-            debug_assert!(self.bytes.is_empty());
             None
         }
     }
@@ -994,6 +993,7 @@ impl LocalRegAlloc<'_> {
     }
 
     fn assign_ssa_ref_bytes(&mut self, vec: &SSARef, bytes: Range<u16>) {
+        debug_assert_eq!(bytes.len(), usize::from(vec.bytes()));
         for (ssa, bytes) in iter_ssa_bytes(vec, bytes) {
             self.assign_ssa_bytes(ssa, bytes);
         }
@@ -1452,6 +1452,7 @@ impl LocalRegAlloc<'_> {
                     src_dst.align,
                 )
             };
+            debug_assert_eq!(ssa_bytes.len(), usize::from(src_dst.vec.bytes()));
 
             // Expand the byte range, if needed.  This can happen for ALU dsts
             // if we had to widen the ALU op.
