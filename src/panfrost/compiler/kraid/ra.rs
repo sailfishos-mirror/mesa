@@ -613,7 +613,7 @@ impl SSAVecRepr {
 
 struct AffinityMapBuilder<'a> {
     model: &'a dyn Model,
-    reg_arena: &'a Arena,
+    arena: &'a Arena,
     phi_map: &'a PhiMap,
     ssa_affinities: SSAValueIndexedVec<SSAAffinity>,
     phi_webs: UnionFind<SSAValue, FxBuildHasher>,
@@ -680,10 +680,12 @@ impl AffinityMapBuilder<'_> {
             }
             Op::RegOut(op) => {
                 if let SrcRef::SSA(vec) = &op.src.src_ref {
-                    debug_assert_eq!(op.reg.bytes(), vec.bytes());
-                    let bytes = self.reg_arena.reg_to_bytes(&op.reg);
-                    for (ssa, bytes) in vec.iter_zip_bytes(bytes) {
-                        self.ssa_affinities[ssa].reg_byte = bytes.start;
+                    if self.arena.contains_ref(vec) {
+                        debug_assert_eq!(op.reg.bytes(), vec.bytes());
+                        let bytes = self.arena.reg_to_bytes(&op.reg);
+                        for (ssa, bytes) in vec.iter_zip_bytes(bytes) {
+                            self.ssa_affinities[ssa].reg_byte = bytes.start;
+                        }
                     }
                 }
             }
@@ -724,14 +726,14 @@ struct AffinityMap {
 impl AffinityMap {
     fn for_shader(
         s: &Shader,
-        reg_arena: &Arena,
+        arena: &Arena,
         live: &impl Liveness,
         phi_map: &PhiMap,
     ) -> AffinityMap {
         let ssa_count = s.ssa_alloc.count();
         let mut b = AffinityMapBuilder {
             model: s.model,
-            reg_arena,
+            arena,
             phi_map,
             ssa_affinities: SSAValueIndexedVec::with_count(ssa_count),
             phi_webs: UnionFind::new(),
