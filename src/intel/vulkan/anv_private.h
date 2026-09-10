@@ -4867,6 +4867,20 @@ struct anv_cmd_state {
       enum anv_pipe_bits                        clear_bits;
    } queries;
 
+   /**
+    * Tracks whether MI commands accessing indirect data need to emit a CS
+    * stall before being executed (Gfx20+ only).
+    *
+    * We can skip the CS_STALL if the indirect data is not loaded from MI
+    * commands but instead using EXECUTE_INDIRECT_(DRAW|DISPATCH).
+    * Unfortunately the HW does not generate a gl_DrawID value for the shaders
+    * so if a shader uses gl_DrawID, we have to generate it in software,
+    * preventing the use of EXECUTE_INDIRECT_DRAW. In such cases we might
+    * fallback to MI commands to load the indirect parameters and we need a
+    * CS_STALL.
+    */
+   bool                                         mi_indirect_data_needs_cs_stall;
+
    /** Tracks whether 3DSTATE_BINDING_TABLE_POINTERS_* instructions need
     * emissions
     */

@@ -2512,6 +2512,8 @@ genX(cmd_buffer_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer)
                                     ANV_NULL_ADDRESS, ANV_NULL_ADDRESS,
                                     &emitted_bits);
    anv_cmd_buffer_update_pending_query_bits(cmd_buffer, emitted_bits);
+   if (emitted_bits & ANV_PIPE_CS_STALL_BIT)
+      cmd_buffer->state.mi_indirect_data_needs_cs_stall = false;
 
 #if INTEL_WA_1508744258_GFX_VER || INTEL_WA_14024015672_GFX_VER
    if (rhwo_opt_change) {
@@ -4879,19 +4881,28 @@ anv_pipe_invalidate_bits_for_access_flags(struct anv_cmd_buffer *cmd_buffer,
    u_foreach_bit64(b, flags) {
       switch ((VkAccessFlags2)BITFIELD64_BIT(b)) {
       case VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT:
+#if GFX_VER < 20
          /* Indirect draw commands take a buffer as input that we're going to
           * read from the command streamer to load some of the HW registers
           * (see genX_cmd_buffer.c:load_indirect_parameters). This requires a
           * command streamer stall so that all the cache flushes have
           * completed before the command streamer loads from memory.
+          *
+          * On Xe2+ we have indirect instructions :
+          *    - EXECUTE_INDIRECT_DRAW
+          *    - EXECUTE_INDIRECT_DISPATCH
+          *
+          * Using those means we don't have to stall for the data to be
+          * available for the MI commands.
           */
          pipe_bits |= ANV_PIPE_CS_STALL_BIT;
-         if (device->info->ver == 9) {
-            /* Indirect draw commands on Gfx9 also set gl_BaseVertex &
-             * gl_BaseIndex through a vertex buffer, so invalidate that cache.
-             */
-            pipe_bits |= ANV_PIPE_VF_CACHE_INVALIDATE_BIT;
-         }
+#endif
+#if GFX_VER == 9
+         /* Indirect draw commands on Gfx9 also set gl_BaseVertex &
+          * gl_BaseIndex through a vertex buffer, so invalidate that cache.
+          */
+         pipe_bits |= ANV_PIPE_VF_CACHE_INVALIDATE_BIT;
+#endif
          /* For CmdDipatchIndirect, we load indirect gl_NumWorkGroups through
           * an A64 message, so we need to invalidate constant cache.
           */
@@ -5759,8 +5770,12 @@ cmd_buffer_accumulate_barrier_bits(struct anv_cmd_buffer *cmd_buffer,
                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT : ANV_PIPE_DATA_CACHE_FLUSH_BIT);
    }
 
-   if (dst_flags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
+   if (dst_flags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT) {
       genX(cmd_buffer_flush_generated_draws)(cmd_buffer);
+#if GFX_VER >= 20
+      cmd_buffer->state.mi_indirect_data_needs_cs_stall = true;
+#endif
+   }
 
    *out_src_stages = src_stages;
    *out_dst_stages = dst_stages;
