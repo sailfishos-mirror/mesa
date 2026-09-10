@@ -8,8 +8,31 @@
 #include "va_compiler.h"
 #include "valhall.h"
 
+static enum va_unit
+va_arch_adjusted_unit(bi_instr *I, unsigned arch)
+{
+   switch (I->op) {
+   /* 32-bit shift ops moved from SFU to CVT at v11 */
+   case BI_OPCODE_LSHIFT_AND_I32:
+   case BI_OPCODE_LSHIFT_OR_I32:
+   case BI_OPCODE_LSHIFT_XOR_I32:
+   case BI_OPCODE_RSHIFT_AND_I32:
+   case BI_OPCODE_RSHIFT_OR_I32:
+   case BI_OPCODE_RSHIFT_XOR_I32:
+   case BI_OPCODE_CLPER_I32:
+      return arch >= 11 ? VA_UNIT_CVT : VA_UNIT_SFU;
+
+   /* FROUND.f32 moved from CVT to FMA at v11, */
+   case BI_OPCODE_FROUND_F32:
+      return arch >= 11 ? VA_UNIT_FMA : VA_UNIT_CVT;
+
+   default:
+      return valhall_opcodes[I->op].unit;
+   }
+}
+
 void
-va_count_instr_stats(bi_instr *I, struct va_stats *stats)
+va_count_instr_stats(bi_instr *I, struct va_stats *stats, unsigned arch)
 {
    /* Adjusted for 64-bit arithmetic */
    unsigned words = bi_count_write_registers(I, 0);
@@ -35,7 +58,7 @@ va_count_instr_stats(bi_instr *I, struct va_stats *stats)
          }
       }
    }
-   switch (valhall_opcodes[I->op].unit) {
+   switch (va_arch_adjusted_unit(I, arch)) {
    /* Arithmetic is 2x slower for 64-bit than 32-bit */
    case VA_UNIT_FMA:
       stats->fma += words;
