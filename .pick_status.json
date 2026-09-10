@@ -1394,7 +1394,7 @@
         "description": "pvr: fix stream-out PDS data size units in CSB dump",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eb44597c2c9f2f346438eaa1a7f684af3878921e",
         "notes": null
