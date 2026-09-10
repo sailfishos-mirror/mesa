@@ -1934,15 +1934,32 @@ blorp_exec_3d(struct blorp_batch *batch, const struct blorp_params *params)
          batch, io_size, io_align, &push_alloc_offset);
       if (push_const == NULL)
          return;
+      /* push_const = {
+       *    surface_state[0] data
+       *    surface_state[1] data
+       *    surface_state[n] data
+       *    sampler_state[0] data
+       *    u64 surface_state_pointer <- address set in 3DSTATE_CONSTANT_ALL
+       *    u64 sampler_state_pointer
+       * }
+       */
+      void *surfaces_data = push_const;
+      void *sampler_data = push_const + sampler_offset;
+      void *push_data = push_const + push_offset;
+      uint32_t surfaces_offset = push_alloc_offset;
+      sampler_offset = push_alloc_offset + sampler_offset;
+      push_offset = push_alloc_offset + push_offset;
 
-      blorp_emit_efficient_64bit_io(batch, params,
-                                    push_const,
-                                    push_const + sampler_offset);
-      blorp_emit_efficient_64bit_io_ps(batch, params,
-                                       push_const + push_offset,
-                                       push_alloc_offset,
-                                       push_alloc_offset + sampler_offset,
-                                       push_alloc_offset + push_offset);
+      blorp_emit_efficient_64bit_io(batch,
+                                    params,
+                                    surfaces_data,
+                                    sampler_data);
+      blorp_emit_efficient_64bit_io_ps(batch,
+                                       params,
+                                       push_data,
+                                       surfaces_offset,
+                                       sampler_offset,
+                                       push_offset);
    } else {
       blorp_emit_btp(batch, blorp_setup_binding_table(batch, params));
    }
