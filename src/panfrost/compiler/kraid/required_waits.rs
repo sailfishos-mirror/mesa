@@ -28,11 +28,6 @@ fn op_requires_preceding_wait(op: &Op) -> &'static [FlowWaitBit] {
 
 impl Shader<'_> {
     pub fn insert_required_waits(&mut self) {
-        // TODO: Something similar to va_merge_flow
-        // TODO: slot 6 / 7 / barrier are read-only*, they can be DCEd by a
-        //       data-flow pass, we should also remove them completely in blend
-        //       shaders.
-        //       * = except for compute shaders that can signal it with BARRIER
         self.map_instrs(|i, _b| {
             let wait = op_requires_preceding_wait(&i.op);
 

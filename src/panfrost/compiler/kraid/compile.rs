@@ -269,7 +269,7 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.assign_message_slots());
     pass!(s.insert_required_waits());
     pass!(s.mark_reconvergence());
-    pass!(s.opt_end());
+    pass!(s.opt_flow());
 
     if !s.is_empty() {
         info.stats = s.get_stats();

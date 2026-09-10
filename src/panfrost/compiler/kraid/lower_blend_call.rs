@@ -60,7 +60,7 @@ fn lower_blend_call(b: &mut impl Builder, op: OpBlendCall, flow: FlowCtrl) {
 impl Shader<'_> {
     /// This pass lowers every BLEND_CALL virtual op in the equivalent BLEND +
     /// prologue/jump instructions that can call the appropriate blend shader
-    /// when the descriptor requires them.  This pass must run after `opt_end`.
+    /// when the descriptor requires them.  This pass must run after `opt_flow`.
     /// After this pass no other pass should add/remove or reoder instructions
     /// as it can mess up the crafted prologue.  This must be the last pass.
     pub fn lower_blend_call(&mut self) {
