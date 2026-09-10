@@ -586,7 +586,17 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    // to the DPB). Redirect only the output texture to film_grain_target so the grain-applied
    // frame lands in the surface the client displays, leaving all DPB/reference bookkeeping keyed
    // to the reconstruction target above (its index mapping was assigned against that target).
-   if (pD3D12Dec->m_pCurrentFilmGrainTarget &&
+   //
+   // Scope this to reference-only-textures-required configs. Only there does the ConversionArguments
+   // path below (gated on the same flag) actually run, separating the grain-applied output from the
+   // grain-free reconstruction. On non-reference-only or texture-array-DPB configs the output texture
+   // is where the grain-free recon / DPB entry is written, so redirecting it would drop the DPB write
+   // and leave the film-grain surface without grain. Those cases need a larger refactor tracked
+   // separately.
+   bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags &
+                          d3d12_video_decode_config_specific_flag_reference_only_textures_required) != 0;
+   if (fReferenceOnly &&
+       pD3D12Dec->m_pCurrentFilmGrainTarget &&
        pD3D12Dec->m_pCurrentFilmGrainTarget != target) {
       struct d3d12_video_buffer *pFGVideoBuffer =
          (struct d3d12_video_buffer *) pD3D12Dec->m_pCurrentFilmGrainTarget;
@@ -638,8 +648,6 @@ d3d12_video_decoder_end_frame(struct pipe_video_codec *codec,
    d3d12OutputArguments.pOutputTexture2D = pOutputD3D12Texture;
    d3d12OutputArguments.OutputSubresource = outputD3D12Subresource;
 
-   bool fReferenceOnly = (pD3D12Dec->m_ConfigDecoderSpecificFlags &
-                          d3d12_video_decode_config_specific_flag_reference_only_textures_required) != 0;
    if (fReferenceOnly) {
       d3d12OutputArguments.ConversionArguments.Enable = true;
 
