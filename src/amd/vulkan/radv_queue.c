@@ -1876,7 +1876,7 @@ fail:
        * to submit the same job again to this device.
        */
       radv_report_gpuvm_fault(device);
-      result = vk_device_set_lost(&device->vk, "vkQueueSubmit() failed");
+      result = vk_queue_set_lost(&queue->vk, "vkQueueBindSparse() failed");
    }
    return result;
 }
@@ -1910,7 +1910,7 @@ fail:
        * to submit the same job again to this device.
        */
       radv_report_gpuvm_fault(device);
-      result = vk_device_set_lost(&device->vk, "vkQueueSubmit() failed");
+      result = vk_queue_set_lost(&queue->vk, "vkQueueSubmit() failed");
    }
    return result;
 }
