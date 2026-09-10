@@ -2009,7 +2009,15 @@ radv_enc_qp_map(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEncodeIn
          RADEON_ENC_CS(qp_map->planes[0].surface.u.gfx9.surf_pitch);
       }
    } else {
-      RADEON_ENC_CS(RENCODE_QP_MAP_TYPE_NONE);
+      uint32_t qp_map_type = RENCODE_QP_MAP_TYPE_NONE;
+
+      /* Enable cu_qp_delta on old FW */
+      if (cmd_buffer->video.vid->vk.op == VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR &&
+          !pdev->info.video_caps.enc[AC_VIDEO_CODEC_HEVC].hevc.cu_qp_delta &&
+          radv_enc_rate_control_method(cmd_buffer->video.enc.rate_control_mode) == RENCODE_RATE_CONTROL_METHOD_NONE)
+         qp_map_type = RENCODE_QP_MAP_TYPE_DELTA;
+
+      RADEON_ENC_CS(qp_map_type);
       RADEON_ENC_CS(0);
       RADEON_ENC_CS(0);
       RADEON_ENC_CS(0);
@@ -3481,7 +3489,7 @@ radv_video_patch_encode_session_parameters(struct radv_device *device, struct vk
       }
 
       for (unsigned i = 0; i < params->h265_enc.h265_pps_count; i++) {
-         params->h265_enc.h265_pps[i].base.flags.cu_qp_delta_enabled_flag = caps->hevc.cu_qp_delta ? 1 : 0;
+         params->h265_enc.h265_pps[i].base.flags.cu_qp_delta_enabled_flag = 1;
          params->h265_enc.h265_pps[i].base.diff_cu_qp_delta_depth = 0;
          params->h265_enc.h265_pps[i].base.init_qp_minus26 = 0;
          params->h265_enc.h265_pps[i].base.flags.dependent_slice_segments_enabled_flag = 1;

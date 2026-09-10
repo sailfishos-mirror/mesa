@@ -782,12 +782,6 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
       struct VkVideoEncodeH265QuantizationMapCapabilitiesKHR *qp_map_caps =
          vk_find_struct(pCapabilities->pNext, VIDEO_ENCODE_H265_QUANTIZATION_MAP_CAPABILITIES_KHR);
 
-      if (enc_caps && !ecap->hevc.cu_qp_delta) {
-         enc_caps->flags &= ~VK_VIDEO_ENCODE_CAPABILITY_QUANTIZATION_DELTA_MAP_BIT_KHR;
-         enc_caps->rateControlModes &=
-            ~(VK_VIDEO_ENCODE_RATE_CONTROL_MODE_CBR_BIT_KHR | VK_VIDEO_ENCODE_RATE_CONTROL_MODE_VBR_BIT_KHR);
-      }
-
       ext->flags = VK_VIDEO_ENCODE_H265_CAPABILITY_HRD_COMPLIANCE_BIT_KHR |
                    VK_VIDEO_ENCODE_H265_CAPABILITY_PER_PICTURE_TYPE_MIN_MAX_QP_BIT_KHR |
                    VK_VIDEO_ENCODE_H265_CAPABILITY_ROW_UNALIGNED_SLICE_SEGMENT_BIT_KHR |
