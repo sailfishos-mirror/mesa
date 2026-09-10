@@ -7200,11 +7200,29 @@ struct anv_vp9_last_frame_info {
    uint32_t height;
 };
 
+struct anv_video_rc_state {
+   uint64_t average_bitrate;
+   uint64_t max_bitrate;
+   uint32_t frame_rate_num;
+   uint32_t frame_rate_den;
+   uint32_t vbv_size_bits;
+   uint32_t vbv_initial_fullness_bits;
+   uint8_t min_qp;
+   uint8_t max_qp;
+   uint32_t gop_frame_count;
+   uint32_t idr_period;
+   uint32_t consecutive_b_frames;
+   /* H.264 and H.265 rate control flag bits share the same values. */
+   uint32_t rc_flags;
+   uint32_t frame_counter;
+};
+
 struct anv_video_session {
    struct vk_video_session vk;
 
    bool cdf_initialized;
    VkVideoEncodeRateControlModeFlagBitsKHR rc_mode;
+   struct anv_video_rc_state rc;
 
    /* the decoder needs some private memory allocations */
    struct anv_vid_mem vid_mem[ANV_VID_MEM_AV1_MAX];

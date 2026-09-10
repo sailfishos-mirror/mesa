@@ -70,17 +70,66 @@ genX(CmdControlVideoCodingKHR)(VkCommandBuffer commandBuffer,
       anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
          flush.VideoPipelineCacheInvalidate = 1;
       }
+
+      if (pCodingControlInfo->flags &  VK_VIDEO_CODING_CONTROL_ENCODE_RATE_CONTROL_BIT_KHR)
+         cmd_buffer->video.vid->rc.frame_counter = 0;
    }
 
    if (pCodingControlInfo->flags &  VK_VIDEO_CODING_CONTROL_ENCODE_RATE_CONTROL_BIT_KHR) {
       const struct VkVideoEncodeRateControlInfoKHR *rate_control_info =
          vk_find_struct_const(pCodingControlInfo->pNext, VIDEO_ENCODE_RATE_CONTROL_INFO_KHR);
+      struct anv_video_session *vid = cmd_buffer->video.vid;
+      struct anv_video_rc_state *rc = &vid->rc;
 
-      /* Support for only CQP rate control for the moment */
-      assert((rate_control_info->rateControlMode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DEFAULT_KHR) ||
-             (rate_control_info->rateControlMode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR));
+      vid->rc_mode = rate_control_info->rateControlMode;
 
-      cmd_buffer->video.vid->rc_mode = rate_control_info->rateControlMode;
+      if (rate_control_info->layerCount > 0) {
+         const VkVideoEncodeRateControlLayerInfoKHR *layer = &rate_control_info->pLayers[0];
+
+         rc->average_bitrate = layer->averageBitrate;
+         rc->max_bitrate = layer->maxBitrate;
+         rc->frame_rate_num = layer->frameRateNumerator;
+         rc->frame_rate_den = layer->frameRateDenominator;
+
+         rc->vbv_size_bits = rate_control_info->virtualBufferSizeInMs ?
+            rate_control_info->virtualBufferSizeInMs * layer->averageBitrate / 1000 :
+            layer->averageBitrate * 2;
+         rc->vbv_initial_fullness_bits = rate_control_info->initialVirtualBufferSizeInMs ?
+            rate_control_info->initialVirtualBufferSizeInMs * layer->averageBitrate / 1000 :
+            layer->averageBitrate;
+
+         const VkVideoEncodeH265RateControlLayerInfoKHR *h265_layer =
+            vk_find_struct_const(layer->pNext, VIDEO_ENCODE_H265_RATE_CONTROL_LAYER_INFO_KHR);
+         const VkVideoEncodeH264RateControlLayerInfoKHR *h264_layer =
+            vk_find_struct_const(layer->pNext, VIDEO_ENCODE_H264_RATE_CONTROL_LAYER_INFO_KHR);
+         if (h265_layer) {
+            if (h265_layer->useMinQp)
+               rc->min_qp = MIN3(h265_layer->minQp.qpI, h265_layer->minQp.qpP, h265_layer->minQp.qpB);
+            if (h265_layer->useMaxQp)
+               rc->max_qp = MAX3(h265_layer->maxQp.qpI, h265_layer->maxQp.qpP, h265_layer->maxQp.qpB);
+         } else if (h264_layer) {
+            if (h264_layer->useMinQp)
+               rc->min_qp = MIN3(h264_layer->minQp.qpI, h264_layer->minQp.qpP, h264_layer->minQp.qpB);
+            if (h264_layer->useMaxQp)
+               rc->max_qp = MAX3(h264_layer->maxQp.qpI, h264_layer->maxQp.qpP, h264_layer->maxQp.qpB);
+         }
+      }
+
+      const VkVideoEncodeH265RateControlInfoKHR *h265_rc =
+         vk_find_struct_const(pCodingControlInfo->pNext, VIDEO_ENCODE_H265_RATE_CONTROL_INFO_KHR);
+      const VkVideoEncodeH264RateControlInfoKHR *h264_rc =
+         vk_find_struct_const(pCodingControlInfo->pNext, VIDEO_ENCODE_H264_RATE_CONTROL_INFO_KHR);
+      if (h265_rc) {
+         rc->gop_frame_count = h265_rc->gopFrameCount;
+         rc->idr_period = h265_rc->idrPeriod;
+         rc->consecutive_b_frames = h265_rc->consecutiveBFrameCount;
+         rc->rc_flags = h265_rc->flags;
+      } else if (h264_rc) {
+         rc->gop_frame_count = h264_rc->gopFrameCount;
+         rc->idr_period = h264_rc->idrPeriod;
+         rc->consecutive_b_frames = h264_rc->consecutiveBFrameCount;
+         rc->rc_flags = h264_rc->flags;
+      }
    }
 }
 
