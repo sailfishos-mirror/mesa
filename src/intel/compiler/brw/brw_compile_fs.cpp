@@ -269,6 +269,7 @@ brw_emit_interpolation_setup(brw_shader &s)
 static void
 brw_emit_repclear_shader(brw_shader &s)
 {
+   assert(!s.key->use_efficient_64bit);
    brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
    brw_send_inst *write = NULL;
 
