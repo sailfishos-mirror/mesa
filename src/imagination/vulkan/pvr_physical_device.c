@@ -212,6 +212,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_map_memory_placed = true,
       .EXT_non_seamless_cube_map = true,
       .EXT_physical_device_drm = true,
+      .EXT_primitive_topology_list_restart = true,
       .EXT_private_data = true,
       .EXT_provoking_vertex = true,
       .EXT_queue_family_foreign = true,
@@ -540,6 +541,9 @@ static void pvr_physical_device_get_supported_features(
       /* VK_EXT_border_color_swizzle */
       .borderColorSwizzle = true,
       .borderColorSwizzleFromImage = true,
+
+      /* VK_EXT_primitive_topology_list_restart */
+      .primitiveTopologyListRestart = true,
 
       /* VK_EXT_custom_border_color */
       .customBorderColors = true,

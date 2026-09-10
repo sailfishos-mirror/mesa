@@ -50,3 +50,4 @@ GLSL 130 on etnaviv/HALTI2
 GL_EXT_texture_integer on etnaviv/HALTI2
 GL_ARB_shader_bit_encoding on etnaviv/HALTI2
 GL_ARB_texture_rgb10_a2ui on etnaviv/HALTI2
+VK_EXT_primitive_topology_list_restart on pvr
