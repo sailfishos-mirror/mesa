@@ -523,6 +523,14 @@ impl SSAAffinity {
     fn align_cost(&self, b: u16) -> u8 {
         self.align_cost[usize::from(b % 8)]
     }
+
+    fn reg_byte(&self) -> Option<u16> {
+        if self.reg_byte == u16::MAX {
+            None
+        } else {
+            Some(self.reg_byte)
+        }
+    }
 }
 
 struct SSAVecComp {
@@ -783,6 +791,19 @@ impl AffinityMap {
             b += u16::from(ssa.bytes());
         }
         cost
+    }
+
+    fn reg_bytes(&self, vec: &SSARef) -> Option<Range<u16>> {
+        let start = self.ssa_affinities[vec[0]].reg_byte()?;
+        let mut end = start + u16::from(vec[0].bytes());
+        for i in 1..vec.len() {
+            let b = self.ssa_affinities[vec[i]].reg_byte()?;
+            if b != end {
+                return None;
+            }
+            end = b + u16::from(vec[i].bytes());
+        }
+        Some(start..end)
     }
 }
 
@@ -1178,6 +1199,16 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
         cost_fn: impl Fn(u16) -> u8,
     ) -> Range<u16> {
+        // First check to see if we have a specific reg affinity and if those
+        // bytes happen to be free.
+        if let Some(bytes) = self.affinities.reg_bytes(vec) {
+            if self.is_aligned_unpinned_range(bytes.clone(), align)
+                && self.bytes_are_unused(bytes.clone())
+            {
+                return bytes;
+            }
+        }
+
         if vec.comps() == 1 {
             let ssa = vec[0];
             let a = &self.affinities.get_ssa(ssa);
