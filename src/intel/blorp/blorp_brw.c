@@ -72,8 +72,12 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
    nir_remove_dead_variables(nir, nir_var_shader_in, NULL);
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
    if (is_fast_clear || use_repclear) {
-      nir->info.api_subgroup_size = 16;
-      nir->info.max_subgroup_size = 16;
+      /* BSpec 57340, Gfx35+:
+       *
+       *    "SIMD32 mode is supported for Clearing shader"
+       */
+      nir->info.api_subgroup_size = compiler->devinfo->ver >= 35 ? 32 : 16;
+      nir->info.max_subgroup_size = compiler->devinfo->ver >= 35 ? 32 : 16;
       nir->info.min_subgroup_size = 16;
    }
 
