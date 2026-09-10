@@ -574,11 +574,8 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
          etna_resource_level_mark_changed(level);
 
-         /* PE rendered directly to the shared buffer (no render shadow).
-          * If the shader swapped R/B, data is in native byte order.
-          * Otherwise it's in PE-internal order (BGRA for RB_SWAP formats). */
          if (rsc->shared && res == rsc)
-            rsc->shared_native_order = !!(ctx->shader.key.frag_rb_swap & (1 << i));
+            rsc->shared_native_order = false;
       }
    }
 
