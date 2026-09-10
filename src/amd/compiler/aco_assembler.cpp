@@ -5,6 +5,7 @@
  */
 
 #include "aco_builder.h"
+#include "aco_interface.h"
 #include "aco_ir.h"
 
 #include "common/amdgfxregs.h"
@@ -1852,9 +1853,9 @@ emit_loop_latch(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
    }
 }
 
-unsigned
+void
 emit_program(Program* program, std::vector<uint32_t>& code, std::vector<struct aco_symbol>& symbols,
-             bool append_endpgm)
+             bool append_endpgm, aco_callback_params* params)
 {
    asm_context ctx(program, symbols);
 
@@ -1883,7 +1884,7 @@ emit_program(Program* program, std::vector<uint32_t>& code, std::vector<struct a
 
    fix_branches(ctx, code);
 
-   unsigned exec_size = code.size() * sizeof(uint32_t);
+   params->exec_size = code.size() * sizeof(uint32_t);
 
    /* Add end-of-code markers for the UMR disassembler. */
    if (append_endpgm)
@@ -1902,7 +1903,10 @@ emit_program(Program* program, std::vector<uint32_t>& code, std::vector<struct a
             program->dev.scratch_alloc_granule);
    program->config->wgp_mode = program->wgp_mode;
 
-   return exec_size;
+   params->code = code.data();
+   params->code_dw = code.size();
+   params->symbols = symbols.data();
+   params->num_symbols = symbols.size();
 }
 
 } // namespace aco

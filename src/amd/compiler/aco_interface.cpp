@@ -185,26 +185,25 @@ finish_program(Program* program, bool append_endpgm, const std::string& ir,
                const struct aco_compiler_options* options, aco_callback* build_binary,
                void** binary)
 {
+   aco_callback_params params = {};
+
    std::vector<uint32_t> code;
    std::vector<struct aco_symbol> symbols;
-   unsigned exec_size = emit_program(program, code, symbols, append_endpgm);
+   emit_program(program, code, symbols, append_endpgm, &params);
 
    if (program->collect_statistics)
       collect_postasm_stats(program, code);
 
    std::string disasm;
    if (options->record_asm)
-      disasm = get_disasm_string(program, options->family, code, exec_size);
+      disasm = get_disasm_string(program, options->family, code, params.exec_size);
 
-   aco_callback_params params = {};
    params.config = *program->config;
    params.stats = program->collect_statistics ? &program->statistics : NULL;
    params.ir_str = ir.data();
    params.ir_size = ir.size();
    params.disasm_str = disasm.c_str();
    params.disasm_size = disasm.size();
-   params.symbols = symbols.data();
-   params.num_symbols = symbols.size();
    params.debug_info = program->debug_info.data();
    params.debug_info_count = program->debug_info.size();
    (*build_binary)(binary, &params);
