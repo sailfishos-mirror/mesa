@@ -760,6 +760,11 @@ void check_max_vector_bits(void)
       util_cpu_caps.max_vector_bits = 256;
    }
 #endif
+#if DETECT_ARCH_LOONGARCH64
+   if (util_cpu_caps.has_lasx) {
+      util_cpu_caps.max_vector_bits = 256;
+   }
+#endif
 }
 
 void _util_cpu_detect_once(void);
