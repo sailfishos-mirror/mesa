@@ -601,7 +601,16 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
    if (jay_is_null(p.ex_desc)) {
       I->src[1] =
          jay_imm(brw_message_ex_desc(devinfo, lens[2]) | (p.msg_desc >> 32));
+   } else if (p.ex_desc.file == J_ADDRESS) {
+      /* p.ex_desc should end up in an address register, so use it if it is
+       * provided in one already. this is necessary for anything generating
+       * SENDs after jay_lower_pre_ra (e.g. spills/fills).
+       */
+      I->src[1] = p.ex_desc;
    } else {
+      /* Otherwise we assume jay_lower_pre_ra will move it to an address
+       * register, so we can just stuff it in a UGPR for now.
+       */
       I->src[1] = jay_alloc_def(b, UGPR, 1);
       if (info->bindless) {
          jay_MOV(b, I->src[1], p.ex_desc);

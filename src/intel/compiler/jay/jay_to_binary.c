@@ -495,6 +495,12 @@ emit(struct jay_codegen *jc,
    }
 
    case JAY_OPCODE_SEND: {
+      assert(
+         (jay_is_null(I->src[1]) ||
+          jay_is_imm(I->src[1]) ||
+          I->src[1].file == J_ADDRESS) &&
+         "if ex_desc is not null or immediate, it must be an address register");
+
       gen_operand ex_desc = to_gen_operand(f, I, 1, simd_offs, false);
       gen->src[0] =
          gen_retype(to_gen_operand(f, I, 2, simd_offs, false), GEN_TYPE_UD);

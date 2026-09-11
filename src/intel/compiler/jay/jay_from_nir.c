@@ -1558,7 +1558,7 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    uint32_t ex_desc_imm = 0;
    if (scratch) {
       /* TODO: Once we have an address register RA, we should CSE these */
-      ex_desc = jay_alloc_def(b, J_ADDRESS, 1);
+      ex_desc = jay_alloc_def(b, UGPR, 1);
       jay_SHR(b, JAY_TYPE_U32, ex_desc, jay_scratch_surface(nj), 4);
 
       if (has_dest) {

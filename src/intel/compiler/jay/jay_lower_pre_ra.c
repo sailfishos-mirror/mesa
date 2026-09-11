@@ -246,6 +246,10 @@ lower_ex_desc_address_registers(jay_inst *I, jay_function *f)
       return;
    if (jay_is_null(I->src[1]) || jay_is_imm(I->src[1]))
       return;
+   /* ex_desc should have been in a UGPR so we could have more easily performed
+    * optimizations with it. It doesn't need to be an address register yet since
+    * we're moving it to one here.
+    */
    assert(I->src[1].file == UGPR);
    jay_builder b = jay_init_builder(f, jay_before_inst(I));
    jay_def tmp = jay_alloc_def(&b, J_ADDRESS, 1);
