@@ -1059,6 +1059,38 @@ impl V9Instr for OpF16ToF32 {
     }
 }
 
+impl V9Instr for OpF16ToI32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        let info = match self.dst_type {
+            DataType::U32 => F16ToU32::get_info((), arch),
+            DataType::S32 => F16ToS32::get_info((), arch),
+            _ => panic!("Invalid dst_type"),
+        };
+        V9InstrInfo::from_isa(
+            info,
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        match self.dst_type {
+            DataType::U32 => e.encode(F16ToU32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            DataType::S32 => e.encode(F16ToS32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            _ => panic!("Invalid dst_type"),
+        }
+    }
+}
+
 impl From<FRound> for Round {
     fn from(round: FRound) -> Round {
         match round {
@@ -3444,6 +3476,7 @@ macro_rules! v9_op_match_else {
             Op::CubeSel($x) => $y,
             Op::Discard($x) => $y,
             Op::F16ToF32($x) => $y,
+            Op::F16ToI32($x) => $y,
             Op::F32ToF16($x) => $y,
             Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,

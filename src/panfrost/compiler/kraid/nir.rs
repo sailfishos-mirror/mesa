@@ -687,45 +687,41 @@ impl<'a> ShaderFromNir<'a> {
                     round: self.fround(alu.def.bit_size),
                 });
             }
-            nir_op_f2u32 => {
-                assert!(alu.get_src(0).bit_size() == 32);
+            nir_op_f2u32 | nir_op_f2u32_rtne | nir_op_f2i32
+            | nir_op_f2i32_rtne => {
                 assert!(alu.def.num_components == 1);
-                b.push_op(OpF32ToI32 {
-                    dst: dst.into(),
-                    dst_type: DataType::U32,
-                    src: srcs(0),
-                    round: FRound::TowardsZero,
-                });
-            }
-            nir_op_f2u32_rtne => {
-                assert!(alu.get_src(0).bit_size() == 32);
-                assert!(alu.def.num_components == 1);
-                b.push_op(OpF32ToI32 {
-                    dst: dst.into(),
-                    dst_type: DataType::U32,
-                    src: srcs(0),
-                    round: FRound::NearestEven,
-                });
-            }
-            nir_op_f2i32 => {
-                assert!(alu.get_src(0).bit_size() == 32);
-                assert!(alu.def.num_components == 1);
-                b.push_op(OpF32ToI32 {
-                    dst: dst.into(),
-                    dst_type: DataType::S32,
-                    src: srcs(0),
-                    round: FRound::TowardsZero,
-                });
-            }
-            nir_op_f2i32_rtne => {
-                assert!(alu.get_src(0).bit_size() == 32);
-                assert!(alu.def.num_components == 1);
-                b.push_op(OpF32ToI32 {
-                    dst: dst.into(),
-                    dst_type: DataType::S32,
-                    src: srcs(0),
-                    round: FRound::NearestEven,
-                });
+                let round = match alu.op {
+                    nir_op_f2u32 | nir_op_f2i32 => FRound::TowardsZero,
+                    nir_op_f2u32_rtne | nir_op_f2i32_rtne => {
+                        FRound::NearestEven
+                    }
+                    _ => unreachable!(),
+                };
+                let dst_type = match alu.op {
+                    nir_op_f2u32 | nir_op_f2u32_rtne => DataType::U32,
+                    nir_op_f2i32 | nir_op_f2i32_rtne => DataType::S32,
+                    _ => unreachable!(),
+                };
+                match alu.get_src(0).bit_size() {
+                    32 => {
+                        b.push_op(OpF32ToI32 {
+                            dst: dst.into(),
+                            dst_type,
+                            src: srcs(0),
+                            round,
+                        });
+                    }
+                    16 => {
+                        assert!(self.model.arch() <= 10);
+                        b.push_op(OpF16ToI32 {
+                            dst: dst.into(),
+                            dst_type,
+                            src: srcs(0),
+                            round,
+                        });
+                    }
+                    _ => unreachable!(),
+                }
             }
             nir_op_i2f32 => {
                 assert!(

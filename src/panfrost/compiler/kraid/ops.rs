@@ -1128,6 +1128,33 @@ impl fmt::Display for FClamp {
     }
 }
 
+/// Only available on arch <= 10
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [S32, U32])]
+pub struct OpF16ToI32 {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    #[src_type(F16)]
+    pub src: Src,
+    pub round: FRound,
+}
+
+impl DisplayOp for OpF16ToI32 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let n = match self.dst_type {
+            DataType::S32 => "S32",
+            DataType::U32 => "U32",
+            _ => panic!("Invalid variant"),
+        };
+        write!(f, "F16_TO_{n}")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.round, self.fmt_src(&self.src))
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpF32ToF16 {
@@ -4588,6 +4615,7 @@ pub enum Op {
     CubeSel(Box<OpCubeSel>),
     Discard(Box<OpDiscard>),
     F16ToF32(Box<OpF16ToF32>),
+    F16ToI32(Box<OpF16ToI32>),
     F32ToF16(Box<OpF32ToF16>),
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
