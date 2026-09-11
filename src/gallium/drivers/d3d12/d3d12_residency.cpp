@@ -433,6 +433,13 @@ d3d12_promote_to_permanent_residency(
 
       if (base_bo->residency_status != d3d12_permanently_resident) {
          bool needs_make_resident = (base_bo->residency_status == d3d12_evicted);
+
+         /* The eviction paths and d3d12_bo_unreference both assume a bo is on the list
+          * exactly when its status is d3d12_resident.
+          */
+         if (base_bo->residency_status == d3d12_resident)
+            list_del(&base_bo->residency_list_entry);
+
          base_bo->residency_status = d3d12_permanently_resident;
 
          if (needs_make_resident) {
