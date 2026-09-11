@@ -296,4 +296,27 @@ enum pvr_xfb_vertex_count_ref_id {
    PVR_XFB_VERTEX_COUNT_REF_ID_OUTPUT_COUNT_BUFFER_ST_SRC0,
 };
 
+/* PDSC XFB query begin patch IDs */
+enum pvr_xfb_query_begin_patch_id {
+   /** Patch ID for query availability store source 0 */
+   PVR_XFB_QUERY_BEGIN_PATCH_ID_AVAILABILITY_ST_SRC0,
+
+   /** Patch ID for query result store source 0 */
+   PVR_XFB_QUERY_BEGIN_PATCH_ID_RESULT_ST_SRC0,
+
+   /** Patch ID for the open segment scale: -1 if transform feedback is
+    * active, 0 otherwise.
+    */
+   PVR_XFB_QUERY_BEGIN_PATCH_ID_OPEN_SEGMENT_SCALE,
+};
+
+/* PDSC XFB query begin reference IDs */
+enum pvr_xfb_query_begin_ref_id {
+   /** Ref ID for query availability store source 0 */
+   PVR_XFB_QUERY_BEGIN_REF_ID_AVAILABILITY_ST_SRC0,
+
+   /** Ref ID for query result store source 0 */
+   PVR_XFB_QUERY_BEGIN_REF_ID_RESULT_ST_SRC0,
+};
+
 #endif /* PVR_IFACE_H */
