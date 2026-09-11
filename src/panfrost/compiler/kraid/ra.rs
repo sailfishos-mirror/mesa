@@ -867,6 +867,10 @@ impl PinnedByteSet {
 
     fn pin_bytes(&mut self, bytes: Range<u16>) {
         debug_assert!(self.bytes_are_unpinned(bytes.clone()));
+        self.pin_bytes_no_check(bytes);
+    }
+
+    fn pin_bytes_no_check(&mut self, bytes: Range<u16>) {
         let bytes = bytes.start.into()..bytes.end.into();
         self.0.set_range(bytes);
     }
@@ -904,8 +908,14 @@ struct LocalRegAlloc<'a> {
     /// When searching for a free byte range, the byte to start at.
     search_start: std::cell::Cell<u16>,
 
-    /// Bitset of bytes currently pinned.
-    pinned: PinnedByteSet,
+    /// PinnedByteSet for bytes that are live-in to the current instruction
+    pinned_in: PinnedByteSet,
+
+    /// PinnedByteSet for bytes that are live-out of the current instruction
+    pinned_out: PinnedByteSet,
+
+    /// PinnedByteSet for bytes that are live-in or live-out
+    pinned_in_out: PinnedByteSet,
 }
 
 impl LocalRegAlloc<'_> {
@@ -925,8 +935,19 @@ impl LocalRegAlloc<'_> {
             idx_bytes: Default::default(),
             byte_idx,
             search_start: 0.into(),
-            pinned: Default::default(),
+            pinned_in: Default::default(),
+            pinned_out: Default::default(),
+            pinned_in_out: Default::default(),
         }
+    }
+
+    /// Updates idx_bytes without actually assigning it
+    fn set_idx_bytes(&mut self, idx: u32, bytes: Range<u16>) {
+        let idx = usize::try_from(idx).unwrap();
+        if self.idx_bytes.len() <= idx {
+            self.idx_bytes.resize_with(idx + 1, || 0..0);
+        }
+        self.idx_bytes[idx] = bytes;
     }
 
     fn assign_idx_bytes(&mut self, idx: u32, bytes: Range<u16>) {
@@ -943,11 +964,7 @@ impl LocalRegAlloc<'_> {
             self.byte_idx[usize::from(b)] = idx;
         }
 
-        let idx = usize::try_from(idx).unwrap();
-        if self.idx_bytes.len() <= idx {
-            self.idx_bytes.resize_with(idx + 1, || 0..0);
-        }
-        self.idx_bytes[idx] = bytes.clone();
+        self.set_idx_bytes(idx, bytes);
     }
 
     fn free_bytes(&mut self, bytes: Range<u16>) {
@@ -955,6 +972,19 @@ impl LocalRegAlloc<'_> {
         debug_assert!(self.used.all_set_in_range(bytes_usize.clone()));
 
         self.used.unset_range(bytes_usize);
+    }
+
+    /// Updates idx_bytes without actually assigning it
+    fn set_ssa_bytes(&mut self, ssa: &SSAValue, bytes: Range<u16>) {
+        assert!(
+            bytes.len() == usize::from(ssa.bytes()),
+            "The size of the byte range must match the SSA value",
+        );
+        assert!(
+            bytes.start % u16::from(ssa.bytes()) == 0,
+            "SSA values must always be aligned to their size",
+        );
+        self.set_idx_bytes(ssa.idx(), bytes);
     }
 
     fn assign_ssa_bytes(&mut self, ssa: &SSAValue, bytes: Range<u16>) {
@@ -1302,11 +1332,25 @@ impl LocalRegAlloc<'_> {
 
     fn choose_src_bytes(
         &self,
+        bl: &impl BlockLiveness,
+        ip: usize,
         vec: &SSARef,
         align: RegAlignConstraint,
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
-        let p = &self.pinned;
+        let mut is_killed = true;
+        for ssa in vec {
+            if bl.is_live_after_ip(ssa, ip) {
+                is_killed = false;
+                break;
+            }
+        }
+
+        let p = if is_killed {
+            &self.pinned_in
+        } else {
+            &self.pinned_in_out
+        };
 
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
@@ -1332,7 +1376,7 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
     ) -> Range<u16> {
         let ssa_bytes = vec.bytes();
-        let p = &self.pinned;
+        let p = &self.pinned_out;
 
         if let Some(phi_bytes) = self.ssa_ref_phi_bytes(vec) {
             if self.is_aligned_unpinned_range(p, phi_bytes.clone(), align)
@@ -1474,7 +1518,13 @@ impl LocalRegAlloc<'_> {
         for src_dst in &mut srcs_dsts {
             let ssa_bytes = if src_dst.is_src {
                 debug_assert_eq!(src_dst.bytes, src_dst.vec.bytes());
-                self.choose_src_bytes(&src_dst.vec, src_dst.align, &src_bytes)
+                self.choose_src_bytes(
+                    bl,
+                    ip,
+                    &src_dst.vec,
+                    src_dst.align,
+                    &src_bytes,
+                )
             } else {
                 self.choose_dst_bytes(
                     &src_dst.vec,
@@ -1509,7 +1559,18 @@ impl LocalRegAlloc<'_> {
             }
 
             // Pin the range
-            self.pinned.pin_bytes(bytes.clone());
+            if src_dst.is_src {
+                debug_assert_eq!(ssa_bytes, bytes);
+                self.pinned_in.pin_bytes(bytes.clone());
+                for (ssa, bytes) in src_dst.vec.iter_zip_bytes(bytes.clone()) {
+                    if bl.is_live_after_ip(ssa, ip) {
+                        self.pinned_out.pin_bytes(bytes.clone());
+                    }
+                }
+            } else {
+                self.pinned_out.pin_bytes(bytes.clone());
+            }
+            self.pinned_in_out.pin_bytes_no_check(bytes.clone());
 
             src_dst.ssa_bytes = ssa_bytes;
             src_dst.ra_bytes = bytes;
@@ -1519,13 +1580,17 @@ impl LocalRegAlloc<'_> {
             let ssa_bytes = src_dst.ssa_bytes.clone();
             let ra_bytes = src_dst.ra_bytes.clone();
 
+            // Assign bytes to SSA values but only if the value is live after
+            // this instruction.  Only actually assign if the value is still
+            // live after this instruction.
             for (ssa, bytes) in src_dst.vec.iter_zip_bytes(ssa_bytes.clone()) {
-                // Assign the SSA value to the byte range
-                self.assign_ssa_bytes(ssa, bytes.clone());
-
-                // Check if it's killed
-                if !bl.is_live_after_ip(ssa, ip) {
-                    self.free_bytes(bytes);
+                if bl.is_live_after_ip(ssa, ip) {
+                    self.assign_ssa_bytes(ssa, bytes.clone());
+                } else {
+                    // If it's not live, update idx_bytes without assigning.
+                    // This way it represents the last place `ssa` ever lived.
+                    // We need this for the eviction code below.
+                    self.set_ssa_bytes(ssa, bytes.clone());
                 }
             }
 
@@ -1594,7 +1659,8 @@ impl LocalRegAlloc<'_> {
                 idx_bytes
             } else {
                 let nr_bytes = e.bytes.len().try_into().unwrap();
-                let bytes = self.choose_aligned_bytes(&self.pinned, nr_bytes);
+                let bytes =
+                    self.choose_aligned_bytes(&self.pinned_in_out, nr_bytes);
 
                 // Evict anything that might happen to be in dst_bytes
                 for b in bytes.clone() {
@@ -1610,7 +1676,7 @@ impl LocalRegAlloc<'_> {
                 }
 
                 // Pin dst_bytes so we don't try to re-use it
-                self.pinned.pin_bytes(bytes.clone());
+                self.pinned_in_out.pin_bytes(bytes.clone());
 
                 // Assign the evicted idx to the new location
                 self.assign_idx_bytes(e.idx, bytes.clone());
@@ -1625,7 +1691,9 @@ impl LocalRegAlloc<'_> {
         }
 
         // Clean up by unpinning everything
-        self.pinned.clear();
+        self.pinned_in.clear();
+        self.pinned_out.clear();
+        self.pinned_in_out.clear();
     }
 
     fn try_coalesce_mkvec(
