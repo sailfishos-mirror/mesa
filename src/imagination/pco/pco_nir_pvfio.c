@@ -15,6 +15,7 @@
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_format_convert.h"
+#include "nir_xfb_info.h"
 #include "pvr_iface.h"
 #include "pco.h"
 #include "pco_builder.h"
@@ -1232,12 +1233,19 @@ swap_clip_cull_load(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 bool pco_nir_link_clip_cull_vars(nir_shader *producer, nir_shader *consumer)
 {
    if (producer->info.stage != MESA_SHADER_VERTEX ||
-       consumer->info.stage != MESA_SHADER_FRAGMENT) {
+       (consumer && consumer->info.stage != MESA_SHADER_FRAGMENT)) {
       return false;
    }
 
-   unsigned clip_cull_comps = consumer->info.clip_distance_array_size +
-                              consumer->info.cull_distance_array_size;
+   unsigned clip_cull_comps;
+   if (consumer) {
+      clip_cull_comps = consumer->info.clip_distance_array_size +
+                        consumer->info.cull_distance_array_size;
+   } else {
+      clip_cull_comps = producer->info.clip_distance_array_size +
+                        producer->info.cull_distance_array_size;
+   }
+
    /* Skip if clip/cull comps aren't actually consumed. */
    if (!clip_cull_comps)
       return false;
@@ -1261,14 +1269,76 @@ bool pco_nir_link_clip_cull_vars(nir_shader *producer, nir_shader *consumer)
                               nir_metadata_control_flow,
                               clone_var);
 
-   clone_var =
-      nir_variable_create(consumer, nir_var_shader_in, clone_var_type, NULL);
-   clone_var->data.location = clone_slot;
+   if (consumer) {
+      clone_var =
+         nir_variable_create(consumer, nir_var_shader_in, clone_var_type, NULL);
+      clone_var->data.location = clone_slot;
 
-   nir_shader_intrinsics_pass(consumer,
-                              swap_clip_cull_load,
-                              nir_metadata_control_flow,
-                              clone_var);
+      nir_shader_intrinsics_pass(consumer,
+                                 swap_clip_cull_load,
+                                 nir_metadata_control_flow,
+                                 clone_var);
+   } else {
+      /* TODO: we do this in this manner because of the cloned clip/cull
+       * array(s) being "scalarised" to one varying per element... there are
+       * better ways.
+       */
+      unsigned output_count = 0;
+      nir_xfb_info *xfb_info = producer->xfb_info;
+
+      for (unsigned u = 0; u < xfb_info->output_count; ++u) {
+         gl_varying_slot location = xfb_info->outputs[u].location;
+
+         if (location != VARYING_SLOT_CLIP_DIST0 &&
+             location != VARYING_SLOT_CLIP_DIST1) {
+            ++output_count;
+            continue;
+         }
+
+         output_count += util_bitcount(xfb_info->outputs[u].component_mask);
+      }
+
+      nir_xfb_info *xfb =
+         rzalloc_size(producer, nir_xfb_info_size(output_count));
+      memcpy(xfb, xfb_info, sizeof(*xfb));
+      xfb->output_count = output_count;
+
+      unsigned output = 0;
+      for (unsigned u = 0; u < xfb_info->output_count; ++u) {
+         gl_varying_slot location = xfb_info->outputs[u].location;
+
+         if (location != VARYING_SLOT_CLIP_DIST0 &&
+             location != VARYING_SLOT_CLIP_DIST1) {
+            memcpy(&xfb->outputs[output++],
+                   &xfb_info->outputs[u],
+                   sizeof(*xfb->outputs));
+            continue;
+         }
+
+         unsigned offset = (location - VARYING_SLOT_CLIP_DIST0) * 4;
+
+         unsigned comp = 0;
+         u_foreach_bit (b, xfb_info->outputs[u].component_mask) {
+            xfb->outputs[output++] = (nir_xfb_output_info){
+               .buffer = xfb_info->outputs[u].buffer,
+               .offset = xfb_info->outputs[u].offset + comp,
+               .location = clone_slot + offset + b,
+               .high_16bits = xfb_info->outputs[u].high_16bits,
+               .component_mask = 1,
+               .component_offset = 0,
+            };
+
+            /* TODO: hardcoded size of 4 for now... might be ok overall since
+             * clip/cull array types are fixed?
+             */
+            comp += 4;
+         }
+      }
+      assert(output == output_count);
+
+      ralloc_free(producer->xfb_info);
+      producer->xfb_info = xfb;
+   }
 
    return true;
 }

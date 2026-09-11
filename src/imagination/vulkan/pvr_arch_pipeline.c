@@ -1202,7 +1202,7 @@ pvr_compute_pipeline_create(struct pvr_device *device,
    return VK_SUCCESS;
 }
 
-static void pvr_pipeline_destroy_shader_data(pco_data *data);
+static void pvr_pipeline_destroy_shader_data(pco_data *data, bool vs);
 
 static void pvr_compute_pipeline_destroy(
    struct pvr_device *const device,
@@ -1219,7 +1219,7 @@ static void pvr_compute_pipeline_destroy(
    pvr_bo_suballoc_free(compute_pipeline->shader_state.coeff_update_shader_bo);
    pvr_bo_suballoc_free(compute_pipeline->shader_state.shader_bo);
 
-   pvr_pipeline_destroy_shader_data(&compute_pipeline->cs_data);
+   pvr_pipeline_destroy_shader_data(&compute_pipeline->cs_data, false);
 
    pvr_pipeline_finish(device, &compute_pipeline->base);
 
@@ -1261,11 +1261,14 @@ VkResult PVR_PER_ARCH(CreateComputePipelines)(
    Graphics pipeline functions
  ******************************************************************************/
 
-static void pvr_pipeline_destroy_shader_data(pco_data *data)
+static void pvr_pipeline_destroy_shader_data(pco_data *data, bool vs)
 {
    for (unsigned u = 0; u < ARRAY_SIZE(data->common.desc_sets); ++u) {
       ralloc_free(data->common.desc_sets[u].bindings);
    }
+
+   if (vs)
+      ralloc_free(data->vs.xfb_info);
 }
 
 static void
@@ -1307,8 +1310,8 @@ pvr_graphics_pipeline_destroy(struct pvr_device *const device,
 
    pvr_pipeline_finish(device, &gfx_pipeline->base);
 
-   pvr_pipeline_destroy_shader_data(&gfx_pipeline->vs_data);
-   pvr_pipeline_destroy_shader_data(&gfx_pipeline->fs_data);
+   pvr_pipeline_destroy_shader_data(&gfx_pipeline->vs_data, true);
+   pvr_pipeline_destroy_shader_data(&gfx_pipeline->fs_data, false);
 
    vk_free2(&device->vk.alloc, allocator, gfx_pipeline->vs_stats);
    vk_free2(&device->vk.alloc, allocator, gfx_pipeline->fs_stats);
