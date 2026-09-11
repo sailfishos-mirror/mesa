@@ -274,7 +274,8 @@ xe_perf_stream_open(struct intel_perf_config *perf_config, int drm_fd,
       oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID, exec_id);
    } else {
       /* Bump up from the 16 MiB default, nothing drains a mapped stream. */
-      oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, 128u << 20);
+      oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE,
+                  (perf_config->devinfo->ver < 20 ? 64u : 128u) << 20);
    }
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_OA_DISABLED, !enable);
    oa_prop_set(props, &i, DRM_XE_OA_PROPERTY_SAMPLE_OA, true);
