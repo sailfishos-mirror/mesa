@@ -161,4 +161,11 @@ enum pvr_idfwdf_sr_data {
 #define PVR_SLICED_VIEW_COUNT_OFFSET 16U
 #define PVR_SLICED_VIEW_COUNT_LENGTH 16U
 
+/* PDSC XFB main patch IDs */
+
+enum pvr_xfb_main_patch_id {
+   /** Patch ID for first STM instruction source 2 constant */
+   PVR_XFB_MAIN_PATCH_ID_STM_SRC2_CONST_0 = 0,
+};
+
 #endif /* PVR_IFACE_H */
