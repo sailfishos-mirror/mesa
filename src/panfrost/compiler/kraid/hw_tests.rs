@@ -1558,6 +1558,56 @@ fn test_op_frsq() {
 }
 
 #[test]
+fn test_op_hadd() {
+    let run = RunSingleton::get();
+
+    // HADD was removed in v11
+    if run.model.arch() > 10 {
+        return;
+    }
+
+    const DATA_TYPES: &[DataType] = &[
+        DataType::V4S8,
+        DataType::V4U8,
+        DataType::V2S16,
+        DataType::V2U16,
+        DataType::S32,
+        DataType::U32,
+    ];
+
+    const WIDENS: &[AsmSwizzleWiden] = &[
+        AsmSwizzleWiden::None,
+        AsmSwizzleWiden::B00,
+        AsmSwizzleWiden::B02,
+        AsmSwizzleWiden::B20,
+        AsmSwizzleWiden::H00,
+        AsmSwizzleWiden::H10,
+        AsmSwizzleWiden::H0,
+        AsmSwizzleWiden::H1,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for widen in WIDENS {
+            let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
+                continue;
+            };
+            for round_up in [false, true] {
+                let op = OpHAdd {
+                    dst: DstRef::None.into(),
+                    dst_type,
+                    round_up,
+                    srcs: [
+                        Src::from(0_u32).swizzle(src0_swizzle),
+                        0_u32.into(),
+                    ],
+                };
+                test_foldable_op(op, Precision::Exact);
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_iabs() {
     const DATA_TYPES: &[DataType] = &[DataType::V2S16, DataType::S32];
 

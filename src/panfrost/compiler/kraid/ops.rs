@@ -2146,6 +2146,62 @@ impl DisplayOp for OpFSinTable {
     }
 }
 
+/// Halfing add, aka (A + B) / 2 (only arch <= 10)
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    S8, U8, V2S8, V2U8, V4S8, V4U8,
+    S16, U16, V2S16, V2U16,
+    S32, U32
+])]
+pub struct OpHAdd {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub round_up: bool,
+    pub srcs: [Src; 2],
+}
+
+impl DisplayOp for OpHAdd {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "HADD.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let round = if self.round_up {
+            ".round_up"
+        } else {
+            ".round_down"
+        };
+        write!(
+            f,
+            "{round} {} {}",
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+impl PerCompFoldable for OpHAdd {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let a = f.get_src(&self.srcs[0]);
+        let b = f.get_src(&self.srcs[1]);
+
+        let bits = self.dst_type.bits();
+        let is_signed = self.dst_type.num_type() == NumericType::SignedInteger;
+        let sext = |x: u64| (x << (64 - bits)) as i64 >> (64 - bits);
+
+        // get_src zero-extends. the sum cannot overflow i64
+        let (a, b) = if is_signed {
+            (sext(a), sext(b))
+        } else {
+            (a as i64, b as i64)
+        };
+
+        let sum = a + b + i64::from(self.round_up);
+        f.set_dst(&self.dst, (sum >> 1) as u64);
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
@@ -4668,6 +4724,7 @@ pub enum Op {
     FRound(Box<OpFRound>),
     FRsq(Box<OpFRsq>),
     FSinTable(Box<OpFSinTable>),
+    HAdd(Box<OpHAdd>),
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),

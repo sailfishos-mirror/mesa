@@ -1722,6 +1722,32 @@ impl V9Instr for OpFSinTable {
     }
 }
 
+impl V9Instr for OpHAdd {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Hadd::get_info(self.dst_type.i_as_u(), arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Hadd {
+            variant: self.dst_type.i_as_u().try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            round: if self.round_up {
+                Round::RoundUp
+            } else {
+                Round::RoundDown
+            },
+        })
+    }
+}
+
 impl V9Instr for OpIAbs {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -3539,6 +3565,7 @@ macro_rules! v9_op_match_else {
             Op::FRound($x) => $y,
             Op::FRsq($x) => $y,
             Op::FSinTable($x) => $y,
+            Op::HAdd($x) => $y,
             Op::IAbs($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,

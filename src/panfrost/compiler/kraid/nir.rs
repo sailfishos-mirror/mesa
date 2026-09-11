@@ -1053,6 +1053,26 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
+            nir_op_uhadd | nir_op_ihadd | nir_op_urhadd | nir_op_irhadd => {
+                assert!(self.model.arch() <= 10);
+                let dst_type = match alu.op {
+                    nir_op_uhadd | nir_op_urhadd => {
+                        dst_type(NumericType::UnsignedInteger)
+                    }
+                    nir_op_ihadd | nir_op_irhadd => {
+                        dst_type(NumericType::SignedInteger)
+                    }
+                    _ => unreachable!(),
+                };
+                let round_up = matches!(alu.op, nir_op_urhadd | nir_op_irhadd);
+
+                b.push_op(OpHAdd {
+                    dst: dst.into(),
+                    dst_type,
+                    round_up,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
             nir_op_iadd | nir_op_iadd_sat | nir_op_uadd_sat => {
                 let saturate = alu.op != nir_op_iadd;
                 let dst_type = match alu.op {
