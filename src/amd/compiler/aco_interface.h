@@ -28,11 +28,17 @@ struct radeon_info;
 
 typedef struct {
    struct ac_shader_config config;
+   unsigned wave_size;
+
    const struct amd_stats *stats;
 
    const uint32_t* code;
    uint32_t code_dw;
    uint32_t exec_size;
+
+   /* Part of [code,code+code_dw) */
+   const uint8_t* constants;
+   uint32_t constants_size;
 
    const char* ir_str;
    unsigned ir_size;

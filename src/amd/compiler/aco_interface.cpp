@@ -199,6 +199,7 @@ finish_program(Program* program, bool append_endpgm, const std::string& ir,
       disasm = get_disasm_string(program, options->family, code, params.exec_size);
 
    params.config = *program->config;
+   params.wave_size = program->wave_size;
    params.stats = program->collect_statistics ? &program->statistics : NULL;
    params.ir_str = ir.data();
    params.ir_size = ir.size();

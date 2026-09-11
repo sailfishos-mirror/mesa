@@ -1892,6 +1892,8 @@ emit_program(Program* program, std::vector<uint32_t>& code, std::vector<struct a
 
    fix_constaddrs(ctx, code);
 
+   uint32_t constants_start = code.size();
+
    while (program->constant_data.size() % 4u)
       program->constant_data.push_back(0);
    /* Copy constant data */
@@ -1905,6 +1907,8 @@ emit_program(Program* program, std::vector<uint32_t>& code, std::vector<struct a
 
    params->code = code.data();
    params->code_dw = code.size();
+   params->constants = (uint8_t*)(code.data() + constants_start);
+   params->constants_size = program->constant_data.size();
    params->symbols = symbols.data();
    params->num_symbols = symbols.size();
 }
