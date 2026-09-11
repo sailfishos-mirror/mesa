@@ -1375,6 +1375,10 @@ impl LocalRegAlloc<'_> {
             mask: u8,
             bytes: u8,
             align: RegAlignConstraint,
+            /// Byte range assigned to the SSARef
+            ssa_bytes: Range<u16>,
+            /// Byte range allocated
+            ra_bytes: Range<u16>,
             vec: SSARef,
         }
 
@@ -1433,6 +1437,8 @@ impl LocalRegAlloc<'_> {
                     mask: 1 << i,
                     bytes,
                     align,
+                    ssa_bytes: 0..0,
+                    ra_bytes: 0..0,
                     vec: vec.clone(),
                 });
             }
@@ -1455,6 +1461,8 @@ impl LocalRegAlloc<'_> {
                 mask: 1 << i,
                 bytes,
                 align,
+                ssa_bytes: 0..0,
+                ra_bytes: 0..0,
                 vec: vec.clone(),
             });
         }
@@ -1463,7 +1471,7 @@ impl LocalRegAlloc<'_> {
         // stable so this also ensures that sources get processed first.
         srcs_dsts.sort_by_key(|a| std::cmp::Reverse(a.bytes));
 
-        for src_dst in &srcs_dsts {
+        for src_dst in &mut srcs_dsts {
             let ssa_bytes = if src_dst.is_src {
                 debug_assert_eq!(src_dst.bytes, src_dst.vec.bytes());
                 self.choose_src_bytes(&src_dst.vec, src_dst.align, &src_bytes)
@@ -1488,7 +1496,6 @@ impl LocalRegAlloc<'_> {
                 ssa_bytes.clone()
             };
 
-            // Evict anything that currently lives in the selected range.
             for b in bytes.clone() {
                 if let Some(idx) = self.byte_idx(b) {
                     let idx_bytes = self.idx_bytes(idx);
@@ -1503,6 +1510,14 @@ impl LocalRegAlloc<'_> {
 
             // Pin the range
             self.pinned.pin_bytes(bytes.clone());
+
+            src_dst.ssa_bytes = ssa_bytes;
+            src_dst.ra_bytes = bytes;
+        }
+
+        for src_dst in &srcs_dsts {
+            let ssa_bytes = src_dst.ssa_bytes.clone();
+            let ra_bytes = src_dst.ra_bytes.clone();
 
             for (ssa, bytes) in src_dst.vec.iter_zip_bytes(ssa_bytes.clone()) {
                 // Assign the SSA value to the byte range
@@ -1523,7 +1538,7 @@ impl LocalRegAlloc<'_> {
                     let i = usize::try_from(i).unwrap();
                     let src = &instr.srcs()[i];
 
-                    let ra_src = self.arena.src_for_bytes(bytes.clone());
+                    let ra_src = self.arena.src_for_bytes(ra_bytes.clone());
                     if let SrcRef::Reg(mut reg) = ra_src.src_ref {
                         let mut swz = ra_src.swizzle;
                         if self.model.op_src_is_64bit(&instr.op, src) {
@@ -1564,7 +1579,7 @@ impl LocalRegAlloc<'_> {
                 } else {
                     // For ALU ops, we need to widen the destination as needed
                     let dst = &mut instr.dsts_mut()[i];
-                    let ra_dst = self.arena.dst_for_bytes(bytes);
+                    let ra_dst = self.arena.dst_for_bytes(ra_bytes);
                     dst.dst_ref = ra_dst.dst_ref;
                     dst.lanes = fold_lanes(ra_dst.lanes, dst.lanes);
                 }
