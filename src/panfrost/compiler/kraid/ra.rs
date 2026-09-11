@@ -1705,6 +1705,9 @@ struct GlobalRegAlloc<'a> {
     /// index of the SSA value.  For phis, the index is the index of the phi
     /// destination SSA value.
     live_out: Vec<Option<FxHashMap<u32, Range<u16>>>>,
+
+    /// Pinned byte set for cross-block allocation
+    pinned: PinnedByteSet,
 }
 
 impl GlobalRegAlloc<'_> {
@@ -1716,6 +1719,7 @@ impl GlobalRegAlloc<'_> {
         GlobalRegAlloc {
             local: LocalRegAlloc::new(model, arena, affinities),
             live_out: Default::default(),
+            pinned: Default::default(),
         }
     }
 
@@ -1826,7 +1830,7 @@ impl GlobalRegAlloc<'_> {
         prefer: Option<Range<u16>>,
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
-        let p = &self.local.pinned;
+        let p = &self.pinned;
         if let Some(prefer) = prefer {
             if p.bytes_are_unpinned(prefer.clone()) {
                 return prefer;
@@ -1856,7 +1860,7 @@ impl GlobalRegAlloc<'_> {
         phi_map: &PhiMap,
         pcopy: &mut ParallelCopy,
     ) {
-        debug_assert!(self.local.pinned.is_empty());
+        debug_assert!(self.pinned.is_empty());
 
         let succ = cfg.succ_indices(bi);
         assert!(!succ.is_empty());
@@ -2008,7 +2012,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pinned.pin_bytes(dst_bytes.clone());
+                self.pinned.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
                     self.local.arena.dst_for_bytes(dst_bytes.clone()),
                     self.local.arena.src_for_bytes(idx_bytes.clone()),
@@ -2054,7 +2058,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pinned.pin_bytes(dst_bytes.clone());
+                self.pinned.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
                     self.local.arena.dst_for_bytes(dst_bytes.clone()),
                     self.local.arena.src_for_bytes(idx_bytes.clone()),
@@ -2084,7 +2088,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pinned.pin_bytes(dst_bytes.clone());
+                self.pinned.pin_bytes(dst_bytes.clone());
 
                 for (i, (dst_ssa, dst_bytes)) in
                     dst_vec.iter_zip_bytes(dst_bytes).enumerate()
@@ -2122,7 +2126,7 @@ impl GlobalRegAlloc<'_> {
         }
 
         // Clean up by unpinning everything
-        self.local.pinned.clear();
+        self.pinned.clear();
 
         // After the block is done, nothing is used
         self.local.used.clear();
