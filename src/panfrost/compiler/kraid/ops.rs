@@ -2205,6 +2205,7 @@ impl PerCompFoldable for OpHAdd {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
+    S8, V2S8, V4S8,
     S16, V2S16, S32
 ])]
 pub struct OpIAbs {
@@ -2228,8 +2229,9 @@ impl PerCompFoldable for OpIAbs {
         let src = f.get_src(&self.src);
 
         let res = match self.dst_type.bits() {
-            32 => ((src as u32) as i32).abs() as u64,
-            16 => ((src as u16) as i16).abs() as u64,
+            32 => ((src as u32) as i32).unsigned_abs() as u64,
+            16 => ((src as u16) as i16).unsigned_abs() as u64,
+            8 => ((src as u8) as i8).unsigned_abs() as u64,
             _ => panic!("Unsupported width"),
         };
 
@@ -2237,9 +2239,11 @@ impl PerCompFoldable for OpIAbs {
     }
 }
 
+/// 8-bit versions are only available for arch <= v10
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
+    I8, S8, U8, V2I8, V2S8, V2U8, V4I8, V4S8, V4U8,
     I16, S16, U16, V2I16, V2S16, V2U16,
     I32, S32, U32, I64, S64, U64
 ])]
@@ -2282,6 +2286,7 @@ impl PerCompFoldable for OpIAdd {
         let c = match (self.saturate, is_signed, bits) {
             (false, _, _) => a.wrapping_add(b),
             (true, false, _) => a.saturating_add(b).min((1 << bits) - 1),
+            (true, true, 8) => (a as i8).saturating_add(b as i8) as u64,
             (true, true, 16) => (a as i16).saturating_add(b as i16) as u64,
             (true, true, 32) => (a as i32).saturating_add(b as i32) as u64,
             (true, true, 64) => (a as i64).saturating_add(b as i64) as u64,
@@ -2531,6 +2536,7 @@ impl PerCompFoldable for OpIMul {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
+    I8, S8, U8, V2I8, V2S8, V2U8, V4I8, V4S8, V4U8,
     I16, S16, U16, V2I16, V2S16, V2U16,
     I32, S32, U32, I64, S64, U64
 ])]
@@ -2573,6 +2579,7 @@ impl PerCompFoldable for OpISub {
         let c = match (self.saturate, is_signed, bits) {
             (false, _, _) => a.wrapping_sub(b),
             (true, false, _) => a.saturating_sub(b).min((1 << bits) - 1),
+            (true, true, 8) => (a as i8).saturating_sub(b as i8) as u64,
             (true, true, 16) => (a as i16).saturating_sub(b as i16) as u64,
             (true, true, 32) => (a as i32).saturating_sub(b as i32) as u64,
             (true, true, 64) => (a as i64).saturating_sub(b as i64) as u64,

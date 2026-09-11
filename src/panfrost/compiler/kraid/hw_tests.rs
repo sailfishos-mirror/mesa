@@ -1609,7 +1609,8 @@ fn test_op_hadd() {
 
 #[test]
 fn test_op_iabs() {
-    const DATA_TYPES: &[DataType] = &[DataType::V2S16, DataType::S32];
+    const DATA_TYPES: &[DataType] =
+        &[DataType::V4S8, DataType::V2S16, DataType::S32];
 
     const WIDENS: &[AsmSwizzleWiden] = &[
         AsmSwizzleWiden::None,
@@ -1618,7 +1619,12 @@ fn test_op_iabs() {
         AsmSwizzleWiden::B2,
     ];
 
+    let run = RunSingleton::get();
     for &dst_type in DATA_TYPES {
+        // 8-bits are only supported in arch <= v10
+        if dst_type.bits() == 8 && run.model.arch() > 10 {
+            continue;
+        }
         for widen in WIDENS {
             let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
                 continue;
@@ -1637,6 +1643,8 @@ fn test_op_iabs() {
 #[test]
 fn test_op_iadd() {
     const DATA_TYPES: &[DataType] = &[
+        DataType::V4S8,
+        DataType::V4U8,
         DataType::V2S16,
         DataType::V2U16,
         DataType::S32,
@@ -1658,7 +1666,12 @@ fn test_op_iadd() {
         // AsmSwizzleWiden::W1,
     ];
 
+    let run = RunSingleton::get();
     for &dst_type in DATA_TYPES {
+        // 8-bits are only supported in arch <= v10
+        if dst_type.bits() == 8 && run.model.arch() > 10 {
+            continue;
+        }
         for widen in WIDENS {
             let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
                 continue;
@@ -1687,6 +1700,8 @@ fn test_op_iadd() {
 #[test]
 fn test_op_icmp() {
     const DATA_TYPES: &[DataType] = &[
+        DataType::V4S8,
+        DataType::V4U8,
         DataType::V2S16,
         DataType::V2U16,
         DataType::S32,
@@ -1709,7 +1724,12 @@ fn test_op_icmp() {
         &[CmpResultType::I1, CmpResultType::F1, CmpResultType::M1];
 
     let mut a = Acorn::new();
+    let run = RunSingleton::get();
     for &src_type in DATA_TYPES {
+        // 8-bits are only supported in arch <= v10
+        if src_type.bits() == 8 && run.model.arch() > 10 {
+            continue;
+        }
         for &cmp_op in CMP_OPS {
             for &accum_op in ACCUM_OPS {
                 for &res_type in RES_TYPES {
