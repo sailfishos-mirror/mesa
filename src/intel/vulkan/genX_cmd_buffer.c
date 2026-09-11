@@ -4367,8 +4367,6 @@ end_command_buffer(struct anv_cmd_buffer *cmd_buffer,
    /* Flush any in-progress CCS/MCS operations in preparation for chaining. */
    genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
-   genX(cmd_buffer_flush_generated_draws)(cmd_buffer);
-
    if (!is_companion) {
       reset_dgc_state(cmd_buffer);
 
@@ -5723,9 +5721,6 @@ cmd_buffer_accumulate_barrier_bits(struct anv_cmd_buffer *cmd_buffer,
       bits |= (GFX_VER >= 12 ?
                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT : ANV_PIPE_DATA_CACHE_FLUSH_BIT);
    }
-
-   if (dst_flags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
-      genX(cmd_buffer_flush_generated_draws)(cmd_buffer);
 
 #if GFX_VER < 20
    /* Our HW implementation of the sparse feature prior to Xe2 lives in the
