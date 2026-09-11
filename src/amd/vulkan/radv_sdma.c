@@ -609,7 +609,9 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
                                   const struct ac_sdma_surf *src, const struct ac_sdma_surf *dst,
                                   const VkExtent3D extent, const uint64_t temp_bo_va)
 {
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, src, extent);
+   const uint64_t temp_bufimg_va = temp_bo_va + RADV_SDMA_TRANSFER_TEMP_BYTES;
    struct ac_sdma_surf t2l_src = *src;
    struct ac_sdma_surf t2l_dst = {
       .surf = src->surf,
@@ -643,14 +645,24 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
          t2l_src.offset.z = src->offset.z + slice;
          t2l_dst.slice_pitch = t2l_dst.pitch * rows;
 
-         radv_sdma_emit_copy_tiled_sub_window(device, cs, &t2l_src, &t2l_dst, new_extent, true);
+         if (!ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &t2l_dst, &t2l_src, new_extent.width,
+                                                      new_extent.height, new_extent.depth))
+            radv_sdma_copy_buffer_image(device, cs, &t2l_dst, &t2l_src, new_extent, false);
+         else
+            radv_sdma_copy_buffer_image_unaligned(device, cs, &t2l_dst, &t2l_src, new_extent,
+                                                  temp_bufimg_va, false);
          radv_sdma_emit_nop(device, cs);
 
          l2t_dst.offset.y = dst->offset.y + row;
          l2t_dst.offset.z = dst->offset.z + slice;
          l2t_src.slice_pitch = l2t_src.pitch * rows;
 
-         radv_sdma_emit_copy_tiled_sub_window(device, cs, &l2t_dst, &l2t_src, new_extent, false);
+         if (!ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &l2t_src, &l2t_dst, new_extent.width,
+                                                      new_extent.height, new_extent.depth))
+            radv_sdma_copy_buffer_image(device, cs, &l2t_src, &l2t_dst, new_extent, true);
+         else
+            radv_sdma_copy_buffer_image_unaligned(device, cs, &l2t_src, &l2t_dst, new_extent,
+                                                  temp_bufimg_va, true);
          radv_sdma_emit_nop(device, cs);
       }
    }
