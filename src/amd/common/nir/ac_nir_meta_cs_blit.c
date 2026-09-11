@@ -329,7 +329,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    unsigned num_samples = 1 << key->log_samples;
    unsigned src_samples = key->src_is_msaa && !key->sample0_only &&
                           !key->is_clear ? num_samples : 1;
-   unsigned dst_samples = key->dst_is_msaa ? num_samples : 1;
+   unsigned dst_samples = key->dst_is_msaa && !(key->is_clear && key->sample0_only) ? num_samples : 1;
    nir_def *color[SI_MAX_COMPUTE_BLIT_LANE_SIZE * SI_MAX_COMPUTE_BLIT_SAMPLES] = {0};
    nir_def *coord_dst[SI_MAX_COMPUTE_BLIT_LANE_SIZE * SI_MAX_COMPUTE_BLIT_SAMPLES] = {0};
    nir_def *src_resinfo = NULL;
@@ -615,8 +615,9 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    bool is_resolve = !is_clear && dst_samples == 1 && src_samples >= 2 &&
                      !util_format_is_pure_integer(blit->dst.format);
    bool is_upsampling = !is_clear && src_samples == 1 && dst_samples >= 2;
-   bool sample0_only = src_samples >= 2 && dst_samples == 1 &&
-                       (blit->sample0_only || util_format_is_pure_integer(blit->dst.format));
+   bool sample0_only = (is_clear && dst_samples >= 2 && blit->sample0_only) ||
+                       (!is_clear && src_samples >= 2 && dst_samples == 1 &&
+                        (blit->sample0_only || util_format_is_pure_integer(blit->dst.format)));
    /* Get the channel sizes. */
    unsigned max_dst_chan_size = util_format_get_max_channel_size(blit->dst.format);
    unsigned max_src_chan_size = is_clear ? 0 : util_format_get_max_channel_size(blit->src.format);
@@ -1210,11 +1211,12 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
 
    if (is_clear) {
       assert(dst_samples <= 8);
-      key.log_samples = util_logbase2(dst_samples);
+      key.log_samples = sample0_only ? 0 : util_logbase2(dst_samples);
       key.a16 = info->gfx_level >= GFX9 && util_is_box_sint16(&blit->dst.box);
       key.d16 = has_d16 &&
                 max_dst_chan_size <= (util_format_is_float(blit->dst.format) ||
                                       util_format_is_pure_integer(blit->dst.format) ? 16 : 11);
+      key.sample0_only = sample0_only;
    } else {
       key.src_is_1d = blit->src.dim == 1;
       key.src_is_msaa = src_samples > 1;
