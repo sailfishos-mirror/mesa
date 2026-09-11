@@ -346,8 +346,45 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
                                       const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img_in,
                                       const VkExtent3D base_extent, const uint64_t temp_bo_va, bool to_image)
 {
-   const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, img_in, base_extent);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+
+   bool copy_from_dst = false;
+   uint32_t x_diff = 0;
    struct ac_sdma_surf img = *img_in;
+   VkExtent3D extent = base_extent;
+   extent.depth = 1;
+
+   /* SDMA v2-v3:
+    * Align image offset and copy extent to dwords,
+    * which is required by the HW, otherwise SDMA can hang.
+    *
+    * For image to buffer copies, this just means that a wider chunk
+    * of the image is copied to the temporary buffer and then we
+    * only copy the necessary parts using linear copy.
+    *
+    * For buffer to image copies, this means that we need to copy
+    * a wider chunk from the temporary buffer to the destination image.
+    * To make that work, we need to first copy part of the
+    * destination image to the temporary buffer.
+    */
+   if (pdev->info.sdma_ip_version < SDMA_4_0) {
+      /* Align the offset down to dwords */
+      uint32_t adjusted_x = ((img.offset.x * img.bpp) & 0xfffffffc) / img.bpp;
+      assert(adjusted_x <= img.offset.x);
+      x_diff = img.offset.x - adjusted_x;
+
+      /* Align the width up to dwords, taking into account the adjusted offset. */
+      uint32_t adjusted_width = align((extent.width + x_diff) * img.bpp, 4) / img.bpp;
+      assert(adjusted_width >= extent.width);
+
+      if (to_image)
+         copy_from_dst = adjusted_x != img.offset.x || adjusted_width != extent.width;
+
+      img.offset.x = adjusted_x;
+      extent.width = adjusted_width;
+   }
+
+   const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, &img, extent);
    struct ac_sdma_surf tmp = {
       .surf = img.surf,
       .va = temp_bo_va,
@@ -360,9 +397,6 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    bool tmz = buf->is_secure;
    assert(!tmz || img_in->is_secure);
 
-   VkExtent3D extent = base_extent;
-   extent.depth = 1;
-
    for (unsigned slice = 0; slice < base_extent.depth; ++slice) {
       for (unsigned row = 0; row < info.extent_vertical_blocks; row += info.num_rows_per_copy) {
          const unsigned rows = MIN2(info.extent_vertical_blocks - row, info.num_rows_per_copy);
@@ -372,8 +406,47 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
          extent.height = rows;
          tmp.slice_pitch = tmp.pitch * rows;
 
+         if (copy_from_dst) {
+            /* This workaround is necessary to dword-align some copy operations.
+             * 1 bytes per pixel - need 4 pixels to dword-align
+             * 2 bytes per pixel - need 2 pixels to dword-align
+             * 4 bytes per pixel (or more) - not needed (every pixel is dword aligned)
+             */
+            const uint32_t pixels_from_dst = img.bpp == 1 ? 4 : 2;
+
+            if (extent.width <= pixels_from_dst * 2) {
+               /* Image is small, just copy the whole thing. */
+               radv_sdma_copy_buffer_image(device, cs, &tmp, &img, extent, false);
+            } else {
+               /* We aligned the left edge (X offset) to make the copy possible.
+                * Need to copy a few pixels from the left edge of the destination image.
+                */
+               if (img.offset.x != img_in->offset.x) {
+                  VkExtent3D left_extent = extent;
+                  left_extent.width = pixels_from_dst;
+                  radv_sdma_copy_buffer_image(device, cs, &tmp, &img, left_extent, false);
+               }
+
+               /* We aligned the right edge (X offset + width) to make the copy possible.
+                * Need to copy a few pixels from the right edge of the destination image.
+                */
+               if ((img.offset.x + extent.width) != (img_in->offset.x + base_extent.width)) {
+                  struct ac_sdma_surf right_img = img;
+                  struct ac_sdma_surf right_tmp = tmp;
+                  VkExtent3D right_extent = extent;
+                  right_extent.width = pixels_from_dst;
+                  right_img.offset.x += extent.width - right_extent.width;
+                  right_tmp.va += (extent.width - right_extent.width) * img.bpp;
+                  radv_sdma_copy_buffer_image(device, cs, &right_tmp, &right_img, right_extent, false);
+               }
+            }
+
+            /* Wait for the copies to finish. */
+            radv_sdma_emit_nop(device, cs);
+         }
+
          if (!to_image) {
-            /* Copy the rows from the source image to the temporary buffer. */
+            /* Copy the rows from the image to the temporary buffer. */
             if (img.surf->is_linear)
                radv_sdma_emit_copy_linear_sub_window(device, cs, &img, &tmp, extent);
             else
@@ -388,9 +461,9 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
           */
          for (unsigned r = 0; r < rows; ++r) {
             const uint64_t buf_va = buf->va + slice * buf->slice_pitch * img.bpp + (row + r) * buf->pitch * img.bpp;
-            const uint64_t tmp_va = tmp.va + r * info.aligned_row_pitch * img.bpp;
+            const uint64_t tmp_va = tmp.va + (r * info.aligned_row_pitch + x_diff) * img.bpp;
             radv_sdma_copy_memory(device, cs, to_image ? buf_va : tmp_va, to_image ? tmp_va : buf_va,
-                                  info.extent_horizontal_blocks * img.bpp, tmz);
+                                  base_extent.width * img.bpp, tmz);
          }
 
          /* Wait for the copy to finish. */
