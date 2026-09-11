@@ -27,12 +27,17 @@ radv_is_clear_rect_full(const struct radv_image_view *iview, const VkClearRect *
        clear_rect->rect.extent.height != image->vk.extent.height)
       return false;
 
-   if (view_mask && (image->vk.array_layers >= 32 || (1u << image->vk.array_layers) - 1u != view_mask))
+   const unsigned view_mask_layers = util_bitcount(view_mask);
+
+   /* All view mask layers must be consecutive. */
+   if (view_mask && view_mask != BITFIELD_MASK(view_mask_layers))
       return false;
 
+   const unsigned num_layers = view_mask ? view_mask_layers : clear_rect->layerCount;
+   const bool all_slices = num_layers == image->vk.array_layers;
+
    /* All slices must be fast-cleared when comp-to-single isn't supported. */
-   const bool all_slices = clear_rect->baseArrayLayer == 0 && clear_rect->layerCount == image->vk.array_layers;
-   if (!view_mask && !all_slices && !image->support_comp_to_single)
+   if (!all_slices && !image->support_comp_to_single)
       return false;
 
    return true;
@@ -1385,8 +1390,7 @@ radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
       .baseMipLevel = iview->vk.base_mip_level,
       .levelCount = iview->vk.level_count,
       .baseArrayLayer = iview->vk.base_array_layer + clear_rect->baseArrayLayer,
-      /* radv_can_fast_clear_color blocks multiview fast clears unless the viewmask contains all layers */
-      .layerCount = view_mask ? iview->vk.layer_count : clear_rect->layerCount,
+      .layerCount = view_mask ? util_last_bit(view_mask) : clear_rect->layerCount,
    };
 
    if (pre_flush) {
