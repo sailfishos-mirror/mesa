@@ -30,6 +30,10 @@ struct pvr_query_pool {
 
    VkQueryType query_type;
    uint32_t query_count;
+   uint32_t query_report_count;
+
+   /* Bytes between consecutive queries' results in result_buffer. */
+   uint32_t result_elem_stride;
 
    struct pvr_suballoc_bo *result_buffer;
    struct pvr_suballoc_bo *availability_buffer;

@@ -46,6 +46,19 @@
 #include "vk_log.h"
 #include "vk_object.h"
 
+static uint32_t pvr_reports_per_query(const struct pvr_query_pool *pool)
+{
+   switch (pool->query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+      return 1u;
+
+   default:
+      break;
+   }
+
+   UNREACHABLE("Unsupported query type");
+}
+
 static VkResult pvr_occlusion_query_pool_setup(struct pvr_device *device,
                                                struct pvr_query_pool *pool)
 {
@@ -54,7 +67,9 @@ static VkResult pvr_occlusion_query_pool_setup(struct pvr_device *device,
    uint32_t result_size;
 
    /* Occlusion queries return 1 result per query. */
-   result_size = pool->query_count * sizeof(uint32_t);
+   pool->result_elem_stride = sizeof(uint32_t);
+
+   result_size = pool->query_count * pool->result_elem_stride;
    pool->result_stride = ALIGN_POT(result_size, ROGUE_OQUERY_ALIGN);
 
    /* Each Phantom writes to a separate offset within the vis test heap so
@@ -80,6 +95,8 @@ static VkResult pvr_query_pool_setup(struct pvr_device *device,
     * VkPhysicalDeviceFeatures->pipelineStatisticsQuery = false.
     */
    assert(!device->vk.enabled_features.pipelineStatisticsQuery);
+
+   pool->query_report_count = pvr_reports_per_query(pool);
 
    switch (pool->query_type) {
    case VK_QUERY_TYPE_OCCLUSION:

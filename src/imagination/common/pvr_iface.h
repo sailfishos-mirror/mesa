@@ -42,6 +42,12 @@ enum pvr_query_copy_data {
 
    PVR_QUERY_COPY_DATA_FLAGS,
 
+   /** Stride in bytes between elements in the result buffer. */
+   PVR_QUERY_COPY_DATA_RESULT_STRIDE,
+
+   /** Number of 32-bit reports per query result. */
+   PVR_QUERY_COPY_DATA_REPORT_COUNT,
+
    _PVR_QUERY_COPY_DATA_COUNT,
 };
 
@@ -54,6 +60,12 @@ enum pvr_query_reset_data {
 
    PVR_QUERY_RESET_DATA_AVAILABILITY_BO_LO,
    PVR_QUERY_RESET_DATA_AVAILABILITY_BO_HI,
+
+   /** Stride in bytes between elements in the result buffer. */
+   PVR_QUERY_RESET_DATA_RESULT_STRIDE,
+
+   /** Number of 32-bit reports per query result. */
+   PVR_QUERY_RESET_DATA_REPORT_COUNT,
 
    _PVR_QUERY_RESET_DATA_COUNT,
 };
