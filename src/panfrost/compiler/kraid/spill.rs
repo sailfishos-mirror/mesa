@@ -782,7 +782,7 @@ fn spill(s: &mut Shader, live: impl Liveness, limit: u32) {
                     }
 
                     let rel_pressure =
-                        u32::from(bl.get_instr_pressure(ip, &instr));
+                        u32::from(bl.get_instr_pressure(s.model, ip, &instr));
                     let abs_pressure = live.bytes().reg + rel_pressure;
 
                     if abs_pressure > limit {
@@ -816,7 +816,8 @@ fn spill(s: &mut Shader, live: impl Liveness, limit: u32) {
                         next_use_map[ssa] = Dist(dist);
                     }
 
-                    let max = live.insert_instr_top_down(ip, &instr, bl);
+                    let max =
+                        live.insert_instr_top_down(s.model, ip, &instr, bl);
                     debug_assert!(max.reg <= limit);
 
                     // We add the actual spill instructions later

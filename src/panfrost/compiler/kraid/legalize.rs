@@ -5,7 +5,9 @@ use std::cmp::Reverse;
 
 use crate::builder::*;
 use crate::ir::*;
-use crate::model::FAUModel;
+use crate::liveness::*;
+use crate::model::{FAUModel, RegByteSet};
+use crate::ra;
 use compiler::bitset::{BitSet, ConstBitSet};
 use compiler::enum_as_u8::EnumAsU8;
 use compiler::smallvec::SmallVec;
@@ -69,25 +71,39 @@ impl SSAValueSet {
 ///
 ///  2. For all fixed-reg sources, they must consume SSA values so we have
 ///     something to fix.  Fixed-reg sources cannot consume immediates or FAU.
+///
+///  3. For any fixed-reg source which is in the clobber set, this instruction
+///     must kill the source.
 fn legalize_fixed_srcs(
     b: &mut impl SSABuilder,
+    bl: &impl BlockLiveness,
     instr: &mut Instr,
+    ip: usize,
     ssa_used: &mut SSAValueSet,
 ) {
     debug_assert!(ssa_used.is_empty());
+
+    let mut clobbered = RegByteSet::new();
+    for reg in ra::instr_clobbered_regs(b.model(), &instr.op) {
+        clobbered.insert_range(reg.byte_range());
+    }
 
     for src_idx in 0..instr.srcs().len() {
         let src = &instr.srcs()[src_idx];
         let src_type = instr.src_type(src);
 
-        if b.model().op_fixed_src_reg(&instr.op, src).is_none() {
+        let Some(reg) = b.model().op_fixed_src_reg(&instr.op, src) else {
             continue;
-        }
+        };
 
         let src = &mut instr.srcs_mut()[src_idx];
         if let SrcRef::SSA(vec) = &mut src.src_ref {
-            for ssa in vec {
-                if !ssa_used.insert(*ssa) {
+            for (ssa, bytes) in vec.iter_mut_zip_bytes(reg.byte_range()) {
+                let duplicate = !ssa_used.insert(*ssa);
+                if duplicate
+                    || (clobbered.contains_any_in_range(bytes)
+                        && bl.is_live_after_ip(ssa, ip))
+                {
                     *ssa = b.copy_ssa(*ssa);
                 }
             }
@@ -446,19 +462,26 @@ fn legalize_fau_srcs(
 
 impl Shader<'_> {
     pub fn legalize(&mut self) {
+        let live = SimpleLiveness::for_shader(self);
+
         let model = self.model;
         let fau = model.fau();
         let mut ssa_used = SSAValueSet::new();
-        self.map_instrs(|mut instr, ssa_alloc| {
-            let mut b = SSAInstrBuilder::new(model, ssa_alloc);
-            legalize_vec_srcs(&mut b, &mut instr, &mut ssa_used);
-            legalize_fixed_srcs(&mut b, &mut instr, &mut ssa_used);
-            for src_idx in 0..instr.srcs().len() {
-                legalize_imm_src(&mut b, &mut instr, src_idx);
-            }
-            legalize_fau_srcs(&mut b, fau, &mut instr);
-            b.push_instr(instr);
-            b.into_mapped()
-        });
+        for (bi, block) in self.blocks.iter_mut().enumerate() {
+            let bl = live.block(bi);
+            let mut count = 0..;
+            block.map_instrs(|mut instr| {
+                let ip = count.next().unwrap();
+                let mut b = SSAInstrBuilder::new(model, &mut self.ssa_alloc);
+                legalize_vec_srcs(&mut b, &mut instr, &mut ssa_used);
+                legalize_fixed_srcs(&mut b, bl, &mut instr, ip, &mut ssa_used);
+                for src_idx in 0..instr.srcs().len() {
+                    legalize_imm_src(&mut b, &mut instr, src_idx);
+                }
+                legalize_fau_srcs(&mut b, fau, &mut instr);
+                b.push_instr(instr);
+                b.into_mapped()
+            });
+        }
     }
 }

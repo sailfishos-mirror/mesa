@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::ir::*;
+use crate::model::RegByteSet;
+use crate::ra;
 
 use compiler::bitset::BitSet;
 use compiler::dataflow::BackwardDataflow;
@@ -36,6 +38,42 @@ impl LiveBytes {
             mem: self.mem.max(other.mem),
         }
     }
+}
+
+/// Returns the number of extra bytes clobbered by this instruction that don't
+/// appear in a fixed-reg source.
+fn instr_extra_clobber_reg_bytes(model: &dyn Model, instr: &Instr) -> u8 {
+    let clobber_regs = ra::instr_clobbered_regs(model, &instr.op);
+    if clobber_regs.is_empty() {
+        return 0;
+    }
+
+    // Call instructions don't have destinations
+    assert!(instr.dsts().is_empty());
+
+    let mut clobbered = RegByteSet::new();
+    for reg in clobber_regs {
+        clobbered.insert_range(reg.byte_range());
+    }
+
+    // Remove any fixed-reg sources
+    for src in instr.srcs() {
+        let SrcRef::SSA(vec) = &src.src_ref else {
+            continue;
+        };
+        let Some(reg) = model.op_fixed_src_reg(&instr.op, src) else {
+            continue;
+        };
+
+        let reg_bytes = reg.byte_range();
+        let ssa_end = reg_bytes.start + u16::from(vec.bytes());
+        debug_assert!(ssa_end <= reg_bytes.end);
+        let ssa_bytes = reg_bytes.start..ssa_end;
+
+        clobbered.remove_range(ssa_bytes);
+    }
+
+    clobbered.len().try_into().unwrap()
 }
 
 #[derive(Clone, Default)]
@@ -94,7 +132,11 @@ impl LiveSet {
         }
     }
 
-    pub fn insert_instr_bottom_up(&mut self, instr: &Instr) -> LiveBytes {
+    pub fn insert_instr_bottom_up(
+        &mut self,
+        model: &dyn Model,
+        instr: &Instr,
+    ) -> LiveBytes {
         if let Op::Copy(op) = &instr.op {
             // Copy is a special case and we always lower it to something
             // that has exact copy semantics and is able to fully handle
@@ -111,7 +153,10 @@ impl LiveSet {
             for ssa in instr.iter_ssa_uses() {
                 self.insert(*ssa);
             }
+
             let mut live = self.bytes;
+            live.reg += u32::from(instr_extra_clobber_reg_bytes(model, instr));
+
             for ssa in instr.iter_ssa_defs() {
                 if self.remove(ssa) {
                     *live.get_mut(ssa.is_mem()) +=
@@ -126,6 +171,7 @@ impl LiveSet {
 
     pub fn insert_instr_top_down<L: BlockLiveness>(
         &mut self,
+        model: &dyn Model,
         ip: usize,
         instr: &Instr,
         bl: &L,
@@ -164,7 +210,8 @@ impl LiveSet {
                 }
             }
 
-            let live = self.bytes + extra;
+            let mut live = self.bytes + extra;
+            live.reg += u32::from(instr_extra_clobber_reg_bytes(model, instr));
 
             for ssa in instr.iter_ssa_uses() {
                 if !bl.is_live_after_ip(ssa, ip) {
@@ -230,7 +277,12 @@ pub trait BlockLiveness {
         self.live_out_set().contains(val.idx())
     }
 
-    fn get_instr_pressure(&self, ip: usize, instr: &Instr) -> u8 {
+    fn get_instr_pressure(
+        &self,
+        model: &dyn Model,
+        ip: usize,
+        instr: &Instr,
+    ) -> u8 {
         let mut bytes = 0_u8;
         if let Op::Copy(op) = &instr.op {
             // Copy is a special case and we always lower it to something
@@ -257,6 +309,7 @@ pub trait BlockLiveness {
                     bytes += vec.comps() * 4;
                 }
             }
+            bytes += instr_extra_clobber_reg_bytes(model, instr);
         }
         bytes
     }
@@ -400,7 +453,8 @@ impl SimpleLiveness {
             }
 
             for (ip, instr) in bb.instrs.iter().enumerate() {
-                let live_at_instr = live.insert_instr_top_down(ip, instr, bl);
+                let live_at_instr =
+                    live.insert_instr_top_down(s.model, ip, instr, bl);
                 bl.max_live = bl.max_live.max(live_at_instr);
             }
             l.max_live = l.max_live.max(bl.max_live);

@@ -6,9 +6,16 @@ use std::ptr;
 use crate::encode_v9::*;
 use crate::ir::*;
 use crate::isa::ExecUnit;
+use compiler::bitset::ConstBitSet;
 use kraid_bindings::*;
 
 pub use kraid_bindings::pan_model as PanModel;
+
+pub const MAX_REG_COUNT: usize = 128;
+pub const MAX_REG_BYTES: usize = MAX_REG_COUNT * size_of::<u32>();
+const MAX_REG_WORDS: usize = MAX_REG_BYTES / (u32::BITS as usize);
+
+pub type RegByteSet = ConstBitSet<MAX_REG_WORDS, u16>;
 
 pub struct SmallConstantTable(Vec<SmallConstant>);
 

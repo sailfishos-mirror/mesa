@@ -200,6 +200,7 @@ impl DepTracker {
 }
 
 fn pressure_schedule_block(
+    model: &dyn Model,
     ssa_alloc: &SSAValueAllocator,
     b: &mut BasicBlock,
     bl: &impl BlockLiveness,
@@ -217,7 +218,7 @@ fn pressure_schedule_block(
     // in the live set or our estimates will be all out of whack.
     let mut max_live = LiveBytes::default();
     for ip in body_range.end..b.instrs.len() {
-        let bytes = live.insert_instr_bottom_up(&b.instrs[ip]);
+        let bytes = live.insert_instr_bottom_up(model, &b.instrs[ip]);
         max_live = max_live.max(bytes);
     }
 
@@ -262,7 +263,7 @@ fn pressure_schedule_block(
         end_ip -= 1;
         schedule[best_ip] = end_ip;
 
-        let bytes = live.insert_instr_bottom_up(&b.instrs[best_ip]);
+        let bytes = live.insert_instr_bottom_up(model, &b.instrs[best_ip]);
         max_live = max_live.max(bytes);
 
         deps.remove_ip(best_ip);
@@ -286,7 +287,12 @@ impl Shader<'_> {
     pub fn schedule_for_pressure(&mut self) {
         let live = SimpleLiveness::for_shader(self);
         for (bi, block) in self.blocks.iter_mut().enumerate() {
-            pressure_schedule_block(&self.ssa_alloc, block, live.block(bi));
+            pressure_schedule_block(
+                self.model,
+                &self.ssa_alloc,
+                block,
+                live.block(bi),
+            );
         }
     }
 }

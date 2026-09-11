@@ -283,6 +283,17 @@ fn aligned_u16_range(start: u16, len: u16) -> Range<u16> {
     start..(start + len)
 }
 
+pub fn instr_clobbered_regs(model: &dyn Model, op: &Op) -> Vec<RegRef> {
+    match op {
+        Op::BlendCall(_) => {
+            let link = model.preload_reg(PreloadReg::BlendReturnAddr).unwrap();
+            let lower16 = RegRef::new(0, RegRange::Regs(16));
+            vec![lower16, link]
+        }
+        _ => Vec::new(),
+    }
+}
+
 /// A register alignment constraint, specified as an 8-bit bitfield of possible
 /// offsets from an even register.  For registers which do not need to be even-
 /// aligned, they simply repeat the constraint in both halves of the u8.
@@ -1551,6 +1562,30 @@ impl LocalRegAlloc<'_> {
                 ra_bytes: 0..0,
                 vec: vec.clone(),
             });
+        }
+
+        // Evict everything in the clobber set.
+        if self.arena.is_reg() {
+            for reg in instr_clobbered_regs(self.model, &instr.op) {
+                let bytes = self.arena.reg_to_bytes(&reg);
+                for b in bytes.clone() {
+                    if let Some(idx) = self.byte_idx(b) {
+                        let idx_bytes = self.idx_bytes(idx);
+                        evicted.push_back(Evicted {
+                            is_src: false,
+                            bytes: idx_bytes.clone(),
+                            idx,
+                        });
+                        self.free_bytes(idx_bytes);
+                    }
+                }
+
+                // We don't allow clobbers with destinations.  Mark them in
+                // pinned_in_out to ensure that no sources we need preserved
+                // get assigned to clobbered regs.
+                debug_assert!(instr.dsts().is_empty());
+                self.pinned_in_out.pin_bytes_no_check(bytes);
+            }
         }
 
         // Sort by size in descending order.  sort_by_key() is guaranteed to be
