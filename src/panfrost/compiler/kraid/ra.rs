@@ -1807,7 +1807,7 @@ impl GlobalRegAlloc<'_> {
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
         if let Some(prefer) = prefer {
-            if !self.local.bytes_are_pinned(prefer.clone()) {
+            if self.local.bytes_are_unpinned(prefer.clone()) {
                 return prefer;
             }
         }
