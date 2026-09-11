@@ -209,7 +209,7 @@ d3d12_process_batch_residency(struct d3d12_screen *screen, struct d3d12_batch *b
       /* We've got some room, or we can't free up any more room, make some resources resident */
       HRESULT hr = S_OK;
       if ((available_memory || !anything_to_wait_for) && batch_count < residency_batch_size) {
-         for (; entry; entry = _mesa_set_next_entry(base_bo_set, entry)) {
+         while (entry) {
             struct d3d12_bo *bo = (struct d3d12_bo *)entry->key;
             if (anything_to_wait_for &&
                 (int64_t)(batch_memory_size + bo->estimated_size) > available_memory)
@@ -217,6 +217,7 @@ d3d12_process_batch_residency(struct d3d12_screen *screen, struct d3d12_batch *b
 
             batch_memory_size += bo->estimated_size;
             to_make_resident[batch_count++] = bo->res;
+            entry = _mesa_set_next_entry(base_bo_set, entry);
             if (batch_count == residency_batch_size)
                break;
          }
