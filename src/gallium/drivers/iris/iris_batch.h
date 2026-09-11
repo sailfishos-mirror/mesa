@@ -200,6 +200,9 @@ struct iris_batch {
    struct intel_ds_queue ds;
 
    uint8_t num_3d_primitives_emitted;
+
+   /* Only used when 64bit addressing is supported */
+   uint64_t render_target_surfs_state_addr[MESA_SHADER_STAGES];
 };
 
 void iris_init_batches(struct iris_context *ice);

@@ -3988,16 +3988,25 @@ iris_set_framebuffer_state(struct pipe_context *ctx,
    isl_emit_depth_stencil_hiz_s(isl_dev, cso_z->packets, &info);
 
    /* Make a null surface for unbound buffers */
-   void *null_surf_map =
-      upload_state(ice->state.surface_uploader, &ice->state.null_fb,
-                   4 * GENX(RENDER_SURFACE_STATE_length), 64);
-   isl_null_fill_state(&screen->isl_dev, null_surf_map,
-                       .size = isl_extent3d(MAX2(cso->width, 1),
-                                            MAX2(cso->height, 1),
-                                            cso->layers ? cso->layers : 1));
-   struct iris_bo *bo = iris_resource_bo(ice->state.null_fb.res);
-   ice->state.null_fb.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
-                                   bo->address : iris_bo_offset_from_base_address(bo);
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)) {
+      if (!ice->state.null_fb_cpu)
+         ice->state.null_fb_cpu = malloc(GENX(RENDER_SURFACE_STATE_length) * sizeof(uint32_t));
+
+      isl_null_fill_state(&screen->isl_dev, ice->state.null_fb_cpu,
+                          .size = isl_extent3d(MAX2(cso->width, 1),
+                                               MAX2(cso->height, 1),
+                                               cso->layers ? cso->layers : 1));
+   } else {
+      void *null_surf_map =
+         upload_state(ice->state.surface_uploader, &ice->state.null_fb,
+                     4 * GENX(RENDER_SURFACE_STATE_length), 64);
+      isl_null_fill_state(&screen->isl_dev, null_surf_map,
+                        .size = isl_extent3d(MAX2(cso->width, 1),
+                                             MAX2(cso->height, 1),
+                                             cso->layers ? cso->layers : 1));
+      struct iris_bo *bo = iris_resource_bo(ice->state.null_fb.res);
+      ice->state.null_fb.offset += iris_bo_offset_from_base_address(bo);
+   }
 
    /* Render target change */
    ice->state.stage_dirty |= IRIS_STAGE_DIRTY_BINDINGS_FS;
@@ -5745,6 +5754,76 @@ use_image(struct iris_batch *batch, struct iris_context *ice,
    return use_surface_state(batch, &iv->surface_state, aux_usage);
 }
 
+static void
+iris_populate_64bit_binding_table(struct iris_context *ice,
+                                  struct iris_batch *batch,
+                                  mesa_shader_stage stage,
+                                  bool pin_only)
+{
+   struct iris_screen *screen = batch->screen;
+   struct iris_compiled_shader *shader = ice->shaders.prog[stage];
+   const struct isl_device *isl_dev = &screen->isl_dev;
+   struct iris_binding_table *bt = &shader->bt;
+   uint32_t surfaces_i = 0;
+   void *surfaces_state_map;
+
+   if (bt->total_surf_count == 0) {
+      batch->render_target_surfs_state_addr[stage] = 0;
+      return;
+   }
+
+   /* Allocate a state long enough to store all surface_states */
+   surfaces_state_map = stream_state(batch,
+                                     ice->state.dynamic_uploader,
+                                     &ice->state.last_res.render_target_64bit_surfs_res[stage],
+                                     isl_dev->ss.size * bt->total_surf_count,
+                                     isl_dev->ss.align,
+                                     &batch->render_target_surfs_state_addr[stage]);
+
+   if (stage == MESA_SHADER_FRAGMENT) {
+      struct iris_framebuffer_state *cso_fb = &ice->state.framebuffer;
+
+      if (cso_fb->base.nr_cbufs) {
+         for (unsigned i = 0; i < cso_fb->base.nr_cbufs; i++) {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+
+            if (!cso_fb->base.cbufs[i].texture) {
+               memcpy(surface_state_map, ice->state.null_fb_cpu, isl_dev->ss.size);
+               continue;
+            }
+
+            struct iris_surface *surf = &cso_fb->i_cbufs[i];
+            struct iris_resource *res = (struct iris_resource *)cso_fb->base.cbufs[i].texture;
+            const enum isl_aux_usage aux_usage = ice->state.draw_aux_usage[i];
+            uint8_t *surface_state_cpu = (uint8_t *)surf->surface_state.cpu;
+            const enum iris_domain access = IRIS_DOMAIN_RENDER_WRITE;
+            const bool writeable = true;
+
+            if (memcmp(&res->aux.clear_color, &surf->clear_color, sizeof(surf->clear_color)) != 0)
+               surf->clear_color = res->aux.clear_color;
+
+            if (res->aux.clear_color_bo)
+               iris_use_pinned_bo(batch, res->aux.clear_color_bo, false, access);
+
+            if (res->aux.bo)
+               iris_use_pinned_bo(batch, res->aux.bo, writeable, access);
+
+            iris_use_pinned_bo(batch, res->bo, writeable, access);
+
+            assert(surface_state_cpu);
+            surface_state_cpu += surf_state_offset_for_aux(surf->surface_state.aux_usages, aux_usage);
+            memcpy(surface_state_map, surface_state_cpu, isl_dev->ss.size);
+         }
+      } else if (bt->use_null_rt) {
+         uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+         memcpy(surface_state_map, ice->state.null_fb_cpu, isl_dev->ss.size);
+      }
+   }
+
+   /* TODO: add missing surfaces */
+   assert(surfaces_i == bt->total_surf_count);
+}
+
 #define push_bt_entry(addr) \
    assert(addr >= surf_base_offset); \
    assert(s < shader->bt.total_surf_count); \
@@ -5769,15 +5848,10 @@ iris_populate_binding_table(struct iris_context *ice,
 {
    const struct iris_binder *binder = &ice->state.binder;
    struct iris_compiled_shader *shader = ice->shaders.prog[stage];
+   struct iris_bufmgr *bufmgr = batch->screen->bufmgr;
+
    if (!shader)
       return;
-
-   struct iris_binding_table *bt = &shader->bt;
-   struct iris_shader_state *shs = &ice->state.shaders[stage];
-   uint32_t surf_base_offset = GFX_VER < 11 ? binder->bo->address : 0;
-
-   uint32_t *bt_map = binder->map + binder->bt_offset[stage];
-   int s = 0;
 
    const struct shader_info *info = iris_get_shader_info(ice, stage);
    if (!info) {
@@ -5785,6 +5859,18 @@ iris_populate_binding_table(struct iris_context *ice,
       assert(stage == MESA_SHADER_TESS_CTRL);
       return;
    }
+
+   if (iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+      iris_populate_64bit_binding_table(ice, batch, stage, pin_only);
+      return;
+   }
+
+   struct iris_binding_table *bt = &shader->bt;
+   struct iris_shader_state *shs = &ice->state.shaders[stage];
+   uint32_t surf_base_offset = GFX_VER < 11 ? binder->bo->address : 0;
+
+   uint32_t *bt_map = binder->map + binder->bt_offset[stage];
+   int s = 0;
 
    if (stage == MESA_SHADER_COMPUTE &&
        shader->bt.used_mask[IRIS_SURFACE_GROUP_CS_WORK_GROUPS]) {
@@ -6428,11 +6514,45 @@ init_aux_map_state(struct iris_batch *batch)
 struct push_bos {
    struct {
       struct iris_address addr;
+      /* In 256-bit units */
       uint32_t length;
    } buffers[4];
    int buffer_count;
    uint32_t max_length;
 };
+
+static void
+setup_binding_tables_to_push_bos(struct iris_context *ice,
+                                 struct iris_batch *batch,
+                                 int stage,
+                                 struct push_bos *push_bos,
+                                 int *n,
+                                 uint32_t *push_range_sum)
+{
+   struct iris_bufmgr *bufmgr = batch->screen->bufmgr;
+
+   assert(iris_bufmgr_is_eff_64bit_enabled(bufmgr));
+
+   const uint32_t len_bytes = iris_bufmgr_get_device_info(bufmgr)->grf_size;
+   const uint32_t len_256bit_units = DIV_ROUND_UP(len_bytes, (256 / 8));
+   uint64_t push_const_addr;
+   void *map = stream_state(batch, ice->state.surface_uploader,
+                            &ice->state.last_res.push_const_64bit_payload_res[stage],
+                            len_bytes,
+                            32,
+                            &push_const_addr);
+   uint64_t *push_const_map = map;
+
+   assert(push_const_map);
+   push_const_map[0] = batch->render_target_surfs_state_addr[stage];
+   /* TODO: add sampler */
+
+   *push_range_sum = *push_range_sum + len_256bit_units;
+   push_bos->buffers[*n].length = len_256bit_units;
+   push_bos->buffers[*n].addr = ro_bo(NULL, push_const_addr);
+
+   *n = *n + 1;
+}
 
 static void
 setup_constant_buffers(struct iris_context *ice,
@@ -6444,8 +6564,11 @@ setup_constant_buffers(struct iris_context *ice,
    struct iris_compiled_shader *shader = ice->shaders.prog[stage];
 
    uint32_t push_range_sum = 0;
-
    int n = 0;
+
+   if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr))
+      setup_binding_tables_to_push_bos(ice, batch, stage, push_bos, &n, &push_range_sum);
+
    for (int i = 0; i < 4; i++) {
       const struct iris_ubo_range *range = &shader->ubo_ranges[i];
 
@@ -6876,6 +6999,10 @@ iris_emit_binding_tables(struct iris_context *ice, struct iris_batch *batch,
                          uint64_t stage_dirty)
 {
    struct iris_binder *binder = &ice->state.binder;
+
+   /* binding table will be send to shader using push constants or inline data */
+   if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr))
+      return;
 
    for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
       /* Gfx9 requires 3DSTATE_BINDING_TABLE_POINTERS_XS to be re-emitted
@@ -9536,6 +9663,7 @@ iris_upload_compute_state(struct iris_context *ice,
 static void
 iris_destroy_state(struct iris_context *ice)
 {
+   struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
    struct iris_genx_state *genx = ice->state.genx;
 
    pipe_resource_reference(&ice->state.pixel_hashing_tables, NULL);
@@ -9588,7 +9716,10 @@ iris_destroy_state(struct iris_context *ice)
    pipe_resource_reference(&ice->state.grid_size.res, NULL);
    pipe_resource_reference(&ice->state.grid_surf_state.res, NULL);
 
-   pipe_resource_reference(&ice->state.null_fb.res, NULL);
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr))
+      free(ice->state.null_fb_cpu);
+   else
+      pipe_resource_reference(&ice->state.null_fb.res, NULL);
    pipe_resource_reference(&ice->state.unbound_tex.res, NULL);
 
    pipe_resource_reference(&ice->state.last_res.cc_vp, NULL);
@@ -9599,6 +9730,11 @@ iris_destroy_state(struct iris_context *ice)
    pipe_resource_reference(&ice->state.last_res.index_buffer, NULL);
    pipe_resource_reference(&ice->state.last_res.cs_thread_ids, NULL);
    pipe_resource_reference(&ice->state.last_res.cs_desc, NULL);
+
+   for (mesa_shader_stage stage = 0; stage < MESA_SHADER_STAGES; stage++) {
+      pipe_resource_reference(&ice->state.last_res.push_const_64bit_payload_res[stage], NULL);
+      pipe_resource_reference(&ice->state.last_res.render_target_64bit_surfs_res[stage], NULL);
+   }
 }
 
 /* ------------------------------------------------------------------- */

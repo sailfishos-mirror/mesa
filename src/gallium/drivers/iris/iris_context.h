@@ -1138,7 +1138,10 @@ struct iris_context {
       struct iris_state_ref unbound_tex;
 
       /** The SURFACE_STATE for a framebuffer-sized null surface. */
-      struct iris_state_ref null_fb;
+      union {
+         struct iris_state_ref null_fb;
+         void *null_fb_cpu; /* Set and used when in 64bit addressing mode */
+      };
 
       struct u_upload_mgr *surface_uploader;
       struct u_upload_mgr *scratch_surface_uploader;
@@ -1164,6 +1167,10 @@ struct iris_context {
          struct pipe_resource *index_buffer;
          struct pipe_resource *cs_thread_ids;
          struct pipe_resource *cs_desc;
+
+         /* Only used when 64bit addressing is supported */
+         struct pipe_resource *render_target_64bit_surfs_res[MESA_SHADER_STAGES];
+         struct pipe_resource *push_const_64bit_payload_res[MESA_SHADER_STAGES];
       } last_res;
 
       /** Records the size of variable-length state for INTEL_DEBUG=bat */
