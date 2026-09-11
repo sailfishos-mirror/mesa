@@ -1048,7 +1048,7 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
       cfg.writeback_msaa = mali_sampling_mode(fb->rts[idx].view);
 #if PAN_ARCH >= 10
       if (fb->downscale_rts && idx == 1)
-         cfg.downscale_mode = MALI_DOWNSCALE_2X;
+         cfg.downscale_mode = MALI_RT_DOWNSCALE_2X;
 #endif
    }
 
