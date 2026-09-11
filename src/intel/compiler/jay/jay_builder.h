@@ -506,7 +506,7 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
       info->type_0 = JAY_TYPE_U32 /* header type */;
    } else if (jay_type_size_bits(info->type_0) == 16 &&
               !p.uniform &&
-              simd == 32) {
+              simd == (native_simd * 2)) {
       /* Pack 16-bit vectors to match the hardware with the data model.
        *
        * XXX: This is a hack. Move to NIR for better
