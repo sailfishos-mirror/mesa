@@ -1191,6 +1191,23 @@ impl Src {
             None
         }
     }
+
+    pub fn resolve_imm(&self, src_type: DataType) -> Option<u64> {
+        let imm32 = u32::try_from(&self.src_ref).ok()?;
+
+        match src_type.total_bits() {
+            i if i <= 32 => self
+                .swizzle
+                .fold_u32(imm32)
+                .and_then(|tmp| self.src_mod.fold_u32(src_type, tmp))
+                .map(|v| u64::from(v)),
+            64 => self
+                .swizzle
+                .fold_u64(u64::from(imm32))
+                .and_then(|tmp| self.src_mod.fold_u64(tmp)),
+            _ => panic!("Invalid source width"),
+        }
+    }
 }
 
 impl<T: Into<SrcRef>> From<T> for Src {
