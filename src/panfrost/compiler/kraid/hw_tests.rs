@@ -1524,6 +1524,8 @@ fn test_op_frcp() {
 
 #[test]
 fn test_op_fround() {
+    const DATA_TYPES: &[DataType] = &[DataType::F32, DataType::V2F16];
+
     const ROUND_MODES: &[FRound] = &[
         FRound::NearestEven,
         FRound::Up,
@@ -1532,13 +1534,21 @@ fn test_op_fround() {
         FRound::NearestValue,
     ];
 
-    for &round in ROUND_MODES {
-        let op = OpFRound {
-            dst: DstRef::None.into(),
-            round,
-            src: 0_u32.into(),
-        };
-        test_foldable_op(op, Precision::Ulp(0));
+    let run = RunSingleton::get();
+    for &src_type in DATA_TYPES {
+        // 16-bits are only available in arch <= 10
+        if src_type.bits() == 16 && run.model.arch() > 10 {
+            continue;
+        }
+        for &round in ROUND_MODES {
+            let op = OpFRound {
+                dst: DstRef::None.into(),
+                src_type,
+                round,
+                src: 0_u32.into(),
+            };
+            test_foldable_op(op, Precision::Ulp(0));
+        }
     }
 }
 
@@ -1733,6 +1743,11 @@ fn test_op_icmp() {
         for &cmp_op in CMP_OPS {
             for &accum_op in ACCUM_OPS {
                 for &res_type in RES_TYPES {
+                    // No 8-bit floats
+                    if src_type.bits() == 8 && res_type == CmpResultType::F1 {
+                        continue;
+                    }
+
                     let op = OpICmp {
                         dst: DstRef::None.into(),
                         src_type,

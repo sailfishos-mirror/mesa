@@ -389,6 +389,7 @@ pub trait SSABuilder: Builder + AllocSSA {
         let frexp = self.alloc_ssa(32);
         self.push_op(OpFrexpE {
             dst: frexp.into(),
+            src_type: DataType::F32,
             src: arg.clone(),
             mode: FrexpMode::Log,
             neg_result: false,

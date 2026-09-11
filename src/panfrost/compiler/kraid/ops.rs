@@ -2018,10 +2018,11 @@ impl fmt::Display for FrexpMode {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [F16, V2F16, F32])]
 pub struct OpFrexpE {
-    #[dst_type(I32)]
+    #[dst_type(VNIN)]
     pub dst: Dst,
-    #[src_type(F32)]
+    pub src_type: DataType,
     pub src: Src,
     pub mode: FrexpMode,
     pub neg_result: bool,
@@ -2029,7 +2030,7 @@ pub struct OpFrexpE {
 
 impl DisplayOp for OpFrexpE {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FREXPE.f32")
+        write!(f, "FREXPE.{}", self.src_type)
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2045,17 +2046,18 @@ impl DisplayOp for OpFrexpE {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [F16, V2F16, F32])]
 pub struct OpFrexpM {
-    #[dst_type(I32)]
+    #[dst_type(VNIN)]
     pub dst: Dst,
-    #[src_type(F32)]
+    pub src_type: DataType,
     pub src: Src,
     pub mode: FrexpMode,
 }
 
 impl DisplayOp for OpFrexpM {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FREXPM.f32")
+        write!(f, "FREXPM.{}", self.src_type)
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2063,19 +2065,20 @@ impl DisplayOp for OpFrexpM {
     }
 }
 
+/// F16 only available in arch <= 10
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [F16, V2F16, F32])]
 pub struct OpFRound {
-    #[dst_type(F32)]
     pub dst: Dst,
-    #[src_type(F32)]
+    pub src_type: DataType,
     pub src: Src,
     pub round: FRound,
 }
 
 impl DisplayOp for OpFRound {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FROUND.f32")
+        write!(f, "FROUND.{}", self.src_type)
     }
 
     fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2083,8 +2086,8 @@ impl DisplayOp for OpFRound {
     }
 }
 
-impl Foldable for OpFRound {
-    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+impl PerCompFoldable for OpFRound {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
         let s = f.get_f32(&self.src);
         let c = self.round.fold(s);
 

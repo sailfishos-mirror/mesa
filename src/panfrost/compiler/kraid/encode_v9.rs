@@ -1625,7 +1625,7 @@ impl From<FrexpMode> for FrexpSpecialM {
 impl V9Instr for OpFrexpE {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
-            Frexpe::get_info(FrexpeVariant::F32, arch),
+            Frexpe::get_info(self.src_type, arch),
             src_map! {
                 src0: src,
             },
@@ -1634,7 +1634,7 @@ impl V9Instr for OpFrexpE {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(Frexpe {
-            variant: FrexpeVariant::F32,
+            variant: self.src_type.try_into().unwrap(),
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.src),
             neg_result: self.neg_result.into(),
@@ -1646,7 +1646,7 @@ impl V9Instr for OpFrexpE {
 impl V9Instr for OpFrexpM {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
-            Frexpm::get_info(FrexpmVariant::F32, arch),
+            Frexpm::get_info(self.src_type, arch),
             src_map! {
                 src0: src,
             },
@@ -1655,7 +1655,7 @@ impl V9Instr for OpFrexpM {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(Frexpm {
-            variant: FrexpmVariant::F32,
+            variant: self.src_type.try_into().unwrap(),
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.src),
             special: self.mode.into(),
@@ -1666,7 +1666,7 @@ impl V9Instr for OpFrexpM {
 impl V9Instr for OpFRound {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
-            Fround::get_info(FroundVariant::F32, arch),
+            Fround::get_info(self.src_type, arch),
             src_map! {
                 src0: src,
             },
@@ -1675,7 +1675,7 @@ impl V9Instr for OpFRound {
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         e.encode(Fround {
-            variant: FroundVariant::F32,
+            variant: self.src_type.try_into().unwrap(),
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.src),
             round: self.round.into(),

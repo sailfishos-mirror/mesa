@@ -826,9 +826,7 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_op_fround_even | nir_op_ftrunc | nir_op_fceil
             | nir_op_ffloor => {
-                debug_assert!(alu.def.bit_size == 32);
-                debug_assert!(alu.def.num_components == 1);
-
+                let src_type = src_type(0, NumericType::Float);
                 let round = match alu.op {
                     nir_op_fround_even => FRound::NearestEven,
                     nir_op_ftrunc => FRound::TowardsZero,
@@ -845,7 +843,7 @@ impl<'a> ShaderFromNir<'a> {
 
                     b.push_op(OpFlush {
                         dst: t.into(),
-                        src_type: DataType::F32,
+                        src_type,
                         src: srcs(0),
                         ftz: true,
                         flush_inf: false,
@@ -859,6 +857,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 b.push_op(OpFRound {
                     dst: dst.into(),
+                    src_type,
                     src,
                     round,
                 });
@@ -932,18 +931,26 @@ impl<'a> ShaderFromNir<'a> {
                 b.fexp_32_to(dst.into(), srcs(1), log2_base);
             }
             nir_op_frexp_exp => {
-                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.bit_size == 32);
+
+                let src = match alu.get_src(0).bit_size() {
+                    32 => srcs(0),
+                    16 => srcs(0).swizzle(Swizzle::HF0),
+                    _ => unreachable!(),
+                };
+
                 b.push_op(OpFrexpE {
                     dst: dst.into(),
-                    src: srcs(0),
+                    src_type: DataType::F32,
+                    src,
                     mode: FrexpMode::Normal,
                     neg_result: false,
                 });
             }
             nir_op_frexp_sig => {
-                assert!(alu.get_src(0).bit_size() == 32);
                 b.push_op(OpFrexpM {
                     dst: dst.into(),
+                    src_type: src_type(0, NumericType::Float),
                     src: srcs(0),
                     mode: FrexpMode::Normal,
                 });
