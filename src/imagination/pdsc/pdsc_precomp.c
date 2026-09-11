@@ -30,6 +30,7 @@ struct pdsc_precomp_info {
 };
 #include "programs/pdsc_xfb_end.h"
 #include "programs/pdsc_xfb_init.h"
+#include "programs/pdsc_xfb_vertex_count.h"
 
 #define PRECOMP(_name, _feature_variants)    \
    {                                         \
@@ -40,6 +41,7 @@ struct pdsc_precomp_info {
 static const struct pdsc_precomp_info pdsc_precomp_infos[] = {
    PRECOMP(xfb_end, 0),
    PRECOMP(xfb_init, 0),
+   PRECOMP(xfb_vertex_count, 0),
 };
 #undef PRECOMP
 

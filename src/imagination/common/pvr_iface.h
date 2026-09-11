@@ -266,4 +266,34 @@ enum pvr_xfb_end_ref_id {
    PVR_XFB_END_REF_ID_QUERY_RESULT_ST_SRC0,
 };
 
+/* PDSC XFB vertex count patch IDs */
+enum pvr_xfb_vertex_count_patch_id {
+   /** Patch ID for vertex count negative counter offset */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_NEGATIVE_COUNTER_OFFSET,
+
+   /** Patch ID for vertex count vertex stride reciprocal */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_VERTEX_STRIDE_RECIP,
+
+   /** Patch ID for instance count */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_INSTANCE_COUNT,
+
+   /** Patch ID for first instance */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_FIRST_INSTANCE,
+
+   /** Patch ID for counter buffer load source 0 */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_COUNTER_BUFFER_LD_SRC0,
+
+   /** Patch ID for output count buffer store source 0 */
+   PVR_XFB_VERTEX_COUNT_PATCH_ID_OUTPUT_COUNT_BUFFER_ST_SRC0,
+};
+
+/* PDSC XFB vertex count reference IDs */
+enum pvr_xfb_vertex_count_ref_id {
+   /** Ref ID for counter buffer load destination */
+   PVR_XFB_VERTEX_COUNT_REF_ID_COUNTER_BUFFER_LD_DEST,
+
+   /** Ref ID for output count buffer store source 0 */
+   PVR_XFB_VERTEX_COUNT_REF_ID_OUTPUT_COUNT_BUFFER_ST_SRC0,
+};
+
 #endif /* PVR_IFACE_H */
