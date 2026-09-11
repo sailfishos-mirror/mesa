@@ -15,7 +15,7 @@ use compiler::smallvec::*;
 use compiler::union_find::UnionFind;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::collections::VecDeque;
-use std::ops::Range;
+use std::ops::{BitOrAssign, Range};
 
 /// A structure that models an arena from which to allocate SSA values.  An
 /// arena may be backed by registers or memory.  This struct mostly isn't
@@ -848,6 +848,36 @@ impl WrapOnceCounter {
     }
 }
 
+#[derive(Default)]
+struct PinnedByteSet(BitSet<usize>);
+
+impl PinnedByteSet {
+    fn bytes_are_unpinned(&self, bytes: Range<u16>) -> bool {
+        let bytes = bytes.start.into()..bytes.end.into();
+        self.0.all_unset_in_range(bytes)
+    }
+
+    fn clear(&mut self) {
+        self.0.clear()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn pin_bytes(&mut self, bytes: Range<u16>) {
+        debug_assert!(self.bytes_are_unpinned(bytes.clone()));
+        let bytes = bytes.start.into()..bytes.end.into();
+        self.0.set_range(bytes);
+    }
+}
+
+impl BitOrAssign<&PinnedByteSet> for PinnedByteSet {
+    fn bitor_assign(&mut self, other: &PinnedByteSet) {
+        self.0 |= other.0.s(..);
+    }
+}
+
 struct LocalRegAlloc<'a> {
     model: &'a dyn Model,
 
@@ -875,7 +905,7 @@ struct LocalRegAlloc<'a> {
     search_start: std::cell::Cell<u16>,
 
     /// Bitset of bytes currently pinned.
-    pinned: BitSet<usize>,
+    pinned: PinnedByteSet,
 }
 
 impl LocalRegAlloc<'_> {
@@ -1018,17 +1048,6 @@ impl LocalRegAlloc<'_> {
         self.used.all_unset_in_range(bytes)
     }
 
-    fn pin_bytes(&mut self, bytes: Range<u16>) {
-        debug_assert!(self.bytes_are_unpinned(bytes.clone()));
-        let bytes = bytes.start.into()..bytes.end.into();
-        self.pinned.set_range(bytes);
-    }
-
-    fn bytes_are_unpinned(&self, bytes: Range<u16>) -> bool {
-        let bytes = bytes.start.into()..bytes.end.into();
-        self.pinned.all_unset_in_range(bytes)
-    }
-
     fn find_aligned_unused_unpinned_range(
         &self,
         start: usize,
@@ -1043,7 +1062,7 @@ impl LocalRegAlloc<'_> {
             align_offset,
         );
         loop {
-            let unpinned = self.pinned.find_aligned_unset_range(
+            let unpinned = self.pinned.0.find_aligned_unset_range(
                 unused,
                 count,
                 align_mul,
@@ -1073,7 +1092,7 @@ impl LocalRegAlloc<'_> {
     ) -> bool {
         align.satisfied(bytes.start.into())
             && self.arena.is_contiguous(bytes.clone())
-            && self.bytes_are_unpinned(bytes)
+            && self.pinned.bytes_are_unpinned(bytes)
     }
 
     fn find_unpinned_bytes(
@@ -1128,7 +1147,7 @@ impl LocalRegAlloc<'_> {
             usize::from(self.arena.limit()),
         );
         while let Some(start) = cur.get() {
-            let b = self.pinned.find_aligned_unset_range(
+            let b = self.pinned.0.find_aligned_unset_range(
                 start,
                 usize::from(bytes),
                 usize::from(align_mul),
@@ -1471,7 +1490,7 @@ impl LocalRegAlloc<'_> {
             }
 
             // Pin the range
-            self.pin_bytes(bytes.clone());
+            self.pinned.pin_bytes(bytes.clone());
 
             for (ssa, bytes) in src_dst.vec.iter_zip_bytes(ssa_bytes.clone()) {
                 // Assign the SSA value to the byte range
@@ -1564,7 +1583,7 @@ impl LocalRegAlloc<'_> {
                 }
 
                 // Pin dst_bytes so we don't try to re-use it
-                self.pin_bytes(bytes.clone());
+                self.pinned.pin_bytes(bytes.clone());
 
                 // Assign the evicted idx to the new location
                 self.assign_idx_bytes(e.idx, bytes.clone());
@@ -1796,7 +1815,7 @@ impl GlobalRegAlloc<'_> {
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
         if let Some(prefer) = prefer {
-            if self.local.bytes_are_unpinned(prefer.clone()) {
+            if self.local.pinned.bytes_are_unpinned(prefer.clone()) {
                 return prefer;
             }
         }
@@ -1976,7 +1995,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pin_bytes(dst_bytes.clone());
+                self.local.pinned.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
                     self.local.arena.dst_for_bytes(dst_bytes.clone()),
                     self.local.arena.src_for_bytes(idx_bytes.clone()),
@@ -2022,7 +2041,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pin_bytes(dst_bytes.clone());
+                self.local.pinned.pin_bytes(dst_bytes.clone());
                 pcopy.add_copy(
                     self.local.arena.dst_for_bytes(dst_bytes.clone()),
                     self.local.arena.src_for_bytes(idx_bytes.clone()),
@@ -2052,7 +2071,7 @@ impl GlobalRegAlloc<'_> {
                     &all_src_bytes,
                 );
 
-                self.local.pin_bytes(dst_bytes.clone());
+                self.local.pinned.pin_bytes(dst_bytes.clone());
 
                 for (i, (dst_ssa, dst_bytes)) in
                     dst_vec.iter_zip_bytes(dst_bytes).enumerate()
