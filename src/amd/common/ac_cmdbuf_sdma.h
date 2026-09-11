@@ -113,6 +113,14 @@ ac_sdma_use_t2t_scanline_copy(const struct radeon_info *const info,
                               const uint32_t height,
                               const uint32_t depth);
 
+bool
+ac_sdma_use_unaligned_buffer_image_copy(const struct radeon_info *const info,
+                                        const struct ac_sdma_surf *const buf,
+                                        const struct ac_sdma_surf *const img,
+                                        const uint32_t width,
+                                        const uint32_t height,
+                                        const uint32_t depth);
+
 #ifdef __cplusplus
 }
 #endif

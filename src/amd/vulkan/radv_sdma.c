@@ -22,17 +22,6 @@ struct radv_sdma_chunked_copy_info {
    unsigned num_rows_per_copy;
 };
 
-ALWAYS_INLINE static unsigned
-radv_sdma_pitch_alignment(const struct radv_device *device, const unsigned bpp)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (pdev->info.sdma_ip_version >= SDMA_5_0)
-      return MAX2(1, 4 / bpp);
-
-   return 4;
-}
-
 ALWAYS_INLINE static uint32_t
 radv_sdma_surf_type_from_aspect_mask(const VkImageAspectFlags aspectMask)
 {
@@ -279,22 +268,6 @@ radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_st
    } else {
       radv_sdma_emit_copy_tiled_sub_window(device, cs, img, buf, extent, !to_image);
    }
-}
-
-bool
-radv_sdma_use_unaligned_buffer_image_copy(const struct radv_device *device, const struct ac_sdma_surf *buf,
-                                          const struct ac_sdma_surf *img, const VkExtent3D ext)
-{
-   if (!util_is_aligned(buf->pitch, radv_sdma_pitch_alignment(device, img->bpp)))
-      return true;
-
-   const bool uses_depth = img->offset.z != 0 || ext.depth != 1;
-   if (!img->surf->is_linear && uses_depth) {
-      if (!util_is_aligned(buf->slice_pitch, 4))
-         return true;
-   }
-
-   return false;
 }
 
 void

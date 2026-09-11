@@ -825,3 +825,44 @@ ac_sdma_use_t2t_scanline_copy(const struct radeon_info *const info,
 
    return false;
 }
+
+/**
+ * The SDMA has some alignment requirements on
+ * L2T (linear to tiled, ie. buffer to image) and
+ * T2L (tiled to linear, ie. image to buffer) copies.
+ *
+ * When the HW requirements are met, we can use a
+ * single tiled subwindow copy packet to perform the copy,
+ * which performs best.
+ *
+ * When the HW requirements are NOT met, we must use a workaround.
+ * The workaround is to do an aligned copy to a temporary buffer first,
+ * and another aligned copy from the temporary to the destination.
+ *
+ * Return true if the unaligned copy workaround is required.
+ * Return false if a single tiled subwindow packet can be used.
+ */
+bool
+ac_sdma_use_unaligned_buffer_image_copy(const struct radeon_info *const info,
+                                        const struct ac_sdma_surf *const buf,
+                                        const struct ac_sdma_surf *const img,
+                                        const uint32_t width,
+                                        const uint32_t height,
+                                        const uint32_t depth)
+{
+   const enum sdma_version ver = info->sdma_ip_version;
+   const uint32_t required_pitch_alignment = ver >= SDMA_5_0 ? MAX2(1, 4 / img->bpp) : 4;
+
+   if (!util_is_aligned(buf->pitch, required_pitch_alignment))
+      return true;
+
+   if (!img->surf->is_linear) {
+      const bool uses_depth = img->offset.z != 0 || depth != 1;
+      const uint32_t required_slice_pitch_alignment = uses_depth ? 4 : 1;
+
+      if (!util_is_aligned(buf->slice_pitch, required_slice_pitch_alignment))
+         return true;
+   }
+
+   return false;
+}

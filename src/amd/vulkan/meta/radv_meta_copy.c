@@ -114,6 +114,7 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
                            struct radv_image *image, const VkDeviceMemoryImageCopyKHR *region, bool to_image)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (!radv_sdma_supports_image(cmd_buffer, image, region->imageLayout, &region->imageSubresource, to_image)) {
@@ -147,7 +148,7 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
       radv_sdma_get_surf(cmd_buffer, image, region->imageLayout, region->imageSubresource, img_offset_el);
    const VkExtent3D extent = radv_sdma_get_copy_extent(image, region->imageSubresource, img_extent_el);
 
-   if (radv_sdma_use_unaligned_buffer_image_copy(device, &buf, &img, extent)) {
+   if (ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &buf, &img, extent.width, extent.height, extent.depth)) {
       if (!alloc_transfer_temp_bo(cmd_buffer))
          return;
 
