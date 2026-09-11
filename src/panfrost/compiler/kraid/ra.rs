@@ -1024,17 +1024,6 @@ impl LocalRegAlloc<'_> {
         self.pinned.set_range(bytes);
     }
 
-    fn unpin_bytes(&mut self, bytes: Range<u16>) {
-        debug_assert!(self.bytes_are_pinned(bytes.clone()));
-        let bytes = bytes.start.into()..bytes.end.into();
-        self.pinned.unset_range(bytes);
-    }
-
-    fn bytes_are_pinned(&self, bytes: Range<u16>) -> bool {
-        let bytes = bytes.start.into()..bytes.end.into();
-        self.pinned.all_set_in_range(bytes)
-    }
-
     fn bytes_are_unpinned(&self, bytes: Range<u16>) -> bool {
         let bytes = bytes.start.into()..bytes.end.into();
         self.pinned.all_unset_in_range(bytes)
