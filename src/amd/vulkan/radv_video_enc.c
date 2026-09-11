@@ -3486,6 +3486,9 @@ radv_video_patch_encode_session_parameters(struct radv_device *device, struct vk
             caps->hevc.log2_min_luma_transform_block_size_minus2;
          params->h265_enc.h265_sps[i].base.log2_diff_max_min_luma_transform_block_size =
             caps->hevc.log2_diff_max_min_luma_transform_block_size;
+
+         if (!caps->hevc.sao)
+            params->h265_enc.h265_sps[i].base.flags.sample_adaptive_offset_enabled_flag = 0;
       }
 
       for (unsigned i = 0; i < params->h265_enc.h265_pps_count; i++) {
