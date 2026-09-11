@@ -1861,7 +1861,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 }
 
-static jay_inst *
+static void
 emit_urb_vec4(jay_builder *b,
               jay_def dst,
               jay_def data,
@@ -1871,16 +1871,15 @@ emit_urb_vec4(jay_builder *b,
               unsigned base)
 {
    const struct intel_device_info *devinfo = b->shader->devinfo;
-   data = jay_as_gpr(b, data);
+   bool uniform = dst.file == UGPR && !jay_is_null(dst);
 
-   assert((jay_is_null(dst) || dst.file == GPR) && "todo: uniform read");
-   jay_def header[3] = { jay_as_gpr(b, urb_handle) };
+   jay_def header[3] = { urb_handle };
    unsigned header_size = 1;
 
    if (per_slot && nir_src_is_zero(*per_slot)) {
       per_slot = NULL;
    } else if (per_slot) {
-      header[header_size++] = jay_as_gpr(b, nj_src(*per_slot));
+      header[header_size++] = nj_src(*per_slot);
    }
 
    if (channel_mask &&
@@ -1892,7 +1891,7 @@ emit_urb_vec4(jay_builder *b,
       data = jay_extract_range(data, 0, nr);
       channel_mask = NULL;
    } else if (channel_mask) {
-      jay_def mask = jay_alloc_def(b, GPR, 1);
+      jay_def mask = jay_alloc_def(b, uniform ? UGPR : GPR, 1);
 
       if (nir_src_is_const(*channel_mask)) {
          jay_MOV(b, mask, (unsigned) nir_src_as_uint(*channel_mask) << 16);
@@ -1903,15 +1902,46 @@ emit_urb_vec4(jay_builder *b,
       header[header_size++] = mask;
    }
 
+   jay_def tmp = dst;
+   unsigned dst_stride = 1;
+
+   if (dst.file == UGPR) {
+      /* Without transpose we write at GRF granularity. Pad out. */
+      tmp = jay_alloc_def(b, UGPR,
+                          jay_ugpr_per_grf(b->shader) * jay_num_values(dst));
+   }
+
+   if (!uniform) {
+      data = jay_as_gpr(b, data);
+
+      for (unsigned i = 0; i < header_size; ++i) {
+         header[i] = jay_as_gpr(b, header[i]);
+      }
+   }
+
+   jay_def collected = jay_collect_vectors(b, header, header_size);
+
+   if (uniform) {
+      collected = jay_src_as_strided(b, collected, 1, UGPR);
+   }
+
    unsigned op = jay_is_null(data) ? GEN_URB_OPCODE_SIMD8_READ :
                                      GEN_URB_OPCODE_SIMD8_WRITE;
    uint32_t desc = brw_urb_desc(devinfo, op, per_slot, channel_mask, base);
 
-   return jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = &data,
-                   .header = jay_collect_vectors(b, header, header_size),
-                   .nr_srcs = jay_is_null(data) ? 0 : 1, .dst = dst,
-                   .type = JAY_TYPE_U32,
-                   .src_type = { JAY_TYPE_U32, JAY_TYPE_U32 });
+   jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = &data,
+            .header = collected, .nr_srcs = jay_is_null(data) ? 0 : 1,
+            .dst = tmp, .uniform = uniform, .type = JAY_TYPE_U32,
+            .src_type = { JAY_TYPE_U32, JAY_TYPE_U32 });
+
+   if (!jay_is_null(dst) && !jay_defs_equivalent(tmp, dst)) {
+      unsigned src_stride = jay_ugpr_per_grf(b->shader);
+
+      jay_foreach_comp(dst, i) {
+         unsigned c = ((i / dst_stride) * src_stride) + (i % dst_stride);
+         jay_MOV(b, jay_extract(dst, i), jay_extract(tmp, c));
+      }
+   }
 }
 
 static void
