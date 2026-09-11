@@ -1614,7 +1614,7 @@
         "description": "egl: don't clobber an initialized display's device in eglGetPlatformDisplay",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c237539d62184ce3b78c502067da6b696b95538f",
         "notes": null
