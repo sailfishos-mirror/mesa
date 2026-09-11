@@ -64,7 +64,6 @@ si_fill_aco_shader_info(struct si_shader *shader, struct aco_shader_info *info,
 
    info->image_2d_view_of_3d = gfx_level == GFX9;
    info->hw_stage = si_select_hw_stage(stage, key, gfx_level);
-   info->lds_size = si_calculate_needed_lds_size(gfx_level, shader);
 
    if (stage <= MESA_SHADER_GEOMETRY && key->ge.as_ngg && !key->ge.as_es) {
       info->schedule_ngg_pos_exports = sel->screen->info.gfx_level < GFX11 &&
@@ -86,6 +85,15 @@ si_fill_aco_shader_info(struct si_shader *shader, struct aco_shader_info *info,
       info->ps.alpha_reference = args->alpha_reference;
       info->ps.has_prolog = !shader->is_monolithic;
       info->ps.has_epilog = !shader->is_monolithic;
+      break;
+   case MESA_SHADER_COMPUTE:
+   case MESA_SHADER_TASK:
+   case MESA_SHADER_MESH:
+      /* ACO doesn't need to know the LDS size of other pre-rasterization
+       * stages for VGPR spilling because their workgroups won't get larger
+       * than 256 invocations, which isn't enough to lower the VGPR limit.
+       */
+      info->lds_size = shader->info.shared_size;
       break;
    default:
       break;
