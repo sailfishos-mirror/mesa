@@ -87,8 +87,6 @@ ac_emit_sdma_constant_fill(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_versi
 {
    const uint32_t fill_size = 2; /* This means that count is in DWORDS. */
 
-   assert(sdma_ip_version >= SDMA_2_4);
-
    const uint64_t max_fill_size = BITFIELD64_MASK(sdma_ip_version >= SDMA_6_0 ? 30 : 22) & ~0x3;
    const uint64_t bytes_written = MIN2(size, max_fill_size);
 
@@ -97,7 +95,10 @@ ac_emit_sdma_constant_fill(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_versi
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(value);
-   ac_cmdbuf_emit(bytes_written - 1); /* Must be programmed in bytes, even if the fill is done in dwords. */
+   if (sdma_ip_version >= SDMA_4_0)
+      ac_cmdbuf_emit(bytes_written - 1); /* Must be programmed in bytes, even if the fill is done in dwords. */
+   else
+      ac_cmdbuf_emit(bytes_written);
    ac_cmdbuf_end();
 
    return bytes_written;
