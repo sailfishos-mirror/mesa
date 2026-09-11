@@ -180,15 +180,34 @@ aco_postprocess_shader(const struct aco_compiler_options* options,
    return llvm_ir;
 }
 
-static aco_callback_params
-create_callback_params(Program* program)
+static void
+finish_program(Program* program, bool append_endpgm, const std::string& ir,
+               const struct aco_compiler_options* options, aco_callback* build_binary,
+               void** binary)
 {
+   std::vector<uint32_t> code;
+   std::vector<struct aco_symbol> symbols;
+   unsigned exec_size = emit_program(program, code, &symbols, append_endpgm);
+
+   if (program->collect_statistics)
+      collect_postasm_stats(program, code);
+
+   std::string disasm;
+   if (options->record_asm)
+      disasm = get_disasm_string(program, options->family, code, exec_size);
+
    aco_callback_params params = {};
    params.config = *program->config;
    params.stats = program->collect_statistics ? &program->statistics : NULL;
+   params.ir_str = ir.data();
+   params.ir_size = ir.size();
+   params.disasm_str = disasm.c_str();
+   params.disasm_size = disasm.size();
+   params.symbols = symbols.data();
+   params.num_symbols = symbols.size();
    params.debug_info = program->debug_info.data();
    params.debug_info_count = program->debug_info.size();
-   return params;
+   (*build_binary)(binary, &params);
 }
 
 typedef void(select_shader_part_callback)(Program* program, void* pinfo, ac_shader_config* config,
@@ -218,22 +237,8 @@ aco_compile_shader_part(const struct aco_compiler_options* options,
 
    aco_postprocess_shader(options, program);
 
-   /* assembly */
-   std::vector<uint32_t> code;
    bool append_endpgm = !(options->is_opengl && is_prolog);
-   unsigned exec_size = emit_program(program.get(), code, NULL, append_endpgm);
-
-   std::string disasm;
-   if (options->record_asm)
-      disasm = get_disasm_string(program.get(), options->family, code, exec_size);
-
-   aco_callback_params params = create_callback_params(program.get());
-   params.code = code.data();
-   params.code_dw = code.size();
-   params.exec_size = exec_size;
-   params.disasm_str = disasm.data();
-   params.disasm_size = disasm.size();
-   (*build_binary)(binary, &params);
+   finish_program(program.get(), append_endpgm, "", options, build_binary, binary);
 }
 
 } /* end namespace */
@@ -256,33 +261,11 @@ aco_compile_shader(const struct aco_compiler_options* options, const struct aco_
 
    std::string llvm_ir = aco_postprocess_shader(options, program);
 
-   /* assembly */
-   std::vector<uint32_t> code;
-   std::vector<struct aco_symbol> symbols;
    /* OpenGL combine multi shader parts into one continous code block,
     * so only last part need the s_endpgm instruction.
     */
    bool append_endpgm = !(options->is_opengl && info->ps.has_epilog);
-   unsigned exec_size = emit_program(program.get(), code, &symbols, append_endpgm);
-
-   if (program->collect_statistics)
-      collect_postasm_stats(program.get(), code);
-
-   std::string disasm;
-   if (options->record_asm)
-      disasm = get_disasm_string(program.get(), options->family, code, exec_size);
-
-   aco_callback_params params = create_callback_params(program.get());
-   params.code = code.data();
-   params.code_dw = code.size();
-   params.exec_size = exec_size;
-   params.ir_str = llvm_ir.c_str();
-   params.ir_size = llvm_ir.size();
-   params.disasm_str = disasm.c_str();
-   params.disasm_size = disasm.size();
-   params.symbols = symbols.data();
-   params.num_symbols = symbols.size();
-   (*build_binary)(binary, &params);
+   finish_program(program.get(), append_endpgm, llvm_ir, options, build_binary, binary);
 }
 
 void
@@ -309,22 +292,7 @@ aco_compile_vs_prolog(const struct aco_compiler_options* options,
    if (options->dump_ir)
       aco_print_program(program.get(), stderr);
 
-   /* assembly */
-   std::vector<uint32_t> code;
-   code.reserve(align(program->blocks[0].instructions.size() * 2, 16));
-   unsigned exec_size = emit_program(program.get(), code);
-
-   std::string disasm;
-   if (options->record_asm)
-      disasm = get_disasm_string(program.get(), options->family, code, exec_size);
-
-   aco_callback_params params = create_callback_params(program.get());
-   params.code = code.data();
-   params.code_dw = code.size();
-   params.exec_size = exec_size;
-   params.disasm_str = disasm.data();
-   params.disasm_size = disasm.size();
-   (*build_prolog)(binary, &params);
+   finish_program(program.get(), true, "", options, build_prolog, binary);
 }
 
 void
@@ -374,22 +342,7 @@ aco_compile_trap_handler(const struct aco_compiler_options* options,
    insert_waitcnt(program.get());
    insert_NOPs(program.get());
 
-   /* assembly */
-   std::vector<uint32_t> code;
-   code.reserve(align(program->blocks[0].instructions.size() * 2, 16));
-   unsigned exec_size = emit_program(program.get(), code);
-
-   std::string disasm;
-   if (options->record_asm)
-      disasm = get_disasm_string(program.get(), options->family, code, exec_size);
-
-   aco_callback_params params = create_callback_params(program.get());
-   params.disasm_str = disasm.c_str();
-   params.disasm_size = disasm.size();
-   params.exec_size = exec_size;
-   params.code = code.data();
-   params.code_dw = code.size();
-   (*build_binary)(binary, &params);
+   finish_program(program.get(), true, "", options, build_binary, binary);
 }
 
 uint64_t
