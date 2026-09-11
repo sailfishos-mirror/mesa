@@ -620,6 +620,7 @@ d3d12_get_query_result_resource(struct pipe_context *pctx,
    if (index == -1) {
       /* Write the "available" bit, which is always true */
       struct d3d12_resource *res = d3d12_resource(resource);
+      d3d12_batch_reference_resource(d3d12_current_batch(ctx), res, true);
       d3d12_transition_resource_state(ctx, res, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_TRANSITION_FLAG_NONE);
       d3d12_apply_resource_states(ctx, false);
 
