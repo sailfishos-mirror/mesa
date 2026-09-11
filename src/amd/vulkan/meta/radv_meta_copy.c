@@ -58,17 +58,36 @@ radv_blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout lay
    };
 }
 
+static uint64_t
+get_transfer_temp_va(struct radv_cmd_buffer *cmd_buffer)
+{
+   struct radv_device *const device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const uint32_t pad = pdev->info.sdma_ip_version < SDMA_4_0 ? RADV_SDMA_TRANSFER_TEMP_PAD_BYTES_SDMA2 : 0;
+   return radv_buffer_get_va(cmd_buffer->transfer.copy_temp) + pad;
+}
+
 static bool
 alloc_transfer_temp_bo(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (!cmd_buffer->transfer.copy_temp) {
-      const VkResult r =
-         radv_bo_create(device, &cmd_buffer->vk.base, RADV_SDMA_TRANSFER_TEMP_BYTES, 4096, RADEON_DOMAIN_VRAM,
-                        RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING, RADV_BO_PRIORITY_SCRATCH, 0,
-                        true, &cmd_buffer->transfer.copy_temp);
+      /* Allocate twice as much on SDMA2-3 to make space for both the T2T and
+       * unaligned buffer/image copy workarounds at the same time.
+       *
+       * Pad the buffer on SDMA2-3 because SDMA seems to read memory
+       * before the linear address for unaligned tiled buffer/image copies.
+       */
+      const uint32_t pad = pdev->info.sdma_ip_version < SDMA_4_0 ? RADV_SDMA_TRANSFER_TEMP_PAD_BYTES_SDMA2 : 0;
+      const uint32_t factor = pdev->info.sdma_ip_version < SDMA_4_0 ? 2 : 1;
+      const uint64_t temp_bo_size = RADV_SDMA_TRANSFER_TEMP_BYTES * factor + pad;
+
+      const VkResult r = radv_bo_create(device, &cmd_buffer->vk.base, temp_bo_size, 4096, RADEON_DOMAIN_VRAM,
+                                        RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING,
+                                        RADV_BO_PRIORITY_SCRATCH, 0, true, &cmd_buffer->transfer.copy_temp);
 
       if (r != VK_SUCCESS) {
          vk_command_buffer_set_error(&cmd_buffer->vk, r);
@@ -152,7 +171,7 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
       if (!alloc_transfer_temp_bo(cmd_buffer))
          return;
 
-      const uint64_t temp_bo_va = radv_buffer_get_va(cmd_buffer->transfer.copy_temp);
+      const uint64_t temp_bo_va = get_transfer_temp_va(cmd_buffer);
       radv_sdma_copy_buffer_image_unaligned(device, cs, &buf, &img, extent, temp_bo_va, to_image);
    } else {
       radv_sdma_copy_buffer_image(device, cs, &buf, &img, extent, to_image);
@@ -702,7 +721,7 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
          if (!alloc_transfer_temp_bo(cmd_buffer))
             return;
 
-         const uint64_t temp_bo_va = radv_buffer_get_va(cmd_buffer->transfer.copy_temp);
+         const uint64_t temp_bo_va = get_transfer_temp_va(cmd_buffer);
          radv_sdma_copy_image_t2t_scanline(device, cs, &src, &dst, extent, temp_bo_va);
       } else {
          radv_sdma_copy_image(device, cs, &src, &dst, extent);
