@@ -2527,6 +2527,36 @@ impl PerCompFoldable for OpISub {
     }
 }
 
+/// Only available on arch <= v10
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [
+    S8, U8, V2S8, V2U8,
+    S16, U16, V2S16, V2U16
+])]
+pub struct OpIToF16 {
+    #[dst_type(VNF16)]
+    pub dst: Dst,
+    pub src_type: DataType,
+    pub src: Src,
+    pub round: FRound,
+}
+
+impl DisplayOp for OpIToF16 {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}_TO_{}",
+            self.src_type.to_string().to_uppercase(),
+            self.dst_type(&self.dst).to_string().to_uppercase()
+        )
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.round, self.fmt_src(&self.src))
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(src_type in [S8, U8, S16, U16, S32, U32])]
@@ -4645,6 +4675,7 @@ pub enum Op {
     IDpAdd(Box<OpIDpAdd>),
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
+    IToF16(Box<OpIToF16>),
     IToF32(Box<OpIToF32>),
     Jump(Box<OpJump>),
     LdAttr(Box<OpLdAttr>),

@@ -735,6 +735,22 @@ impl<'a> ShaderFromNir<'a> {
                     round: self.fround(alu.def.bit_size),
                 });
             }
+            nir_op_i2f16 | nir_op_u2f16 => {
+                assert!(self.model.arch() <= 10);
+
+                let num_type = if alu.op == nir_op_i2f16 {
+                    NumericType::SignedInteger
+                } else {
+                    NumericType::UnsignedInteger
+                };
+
+                b.push_op(OpIToF16 {
+                    dst: dst.into(),
+                    src_type: src_type(0, num_type),
+                    src: srcs(0),
+                    round: self.fround(alu.def.bit_size),
+                });
+            }
             nir_op_fabs => {
                 // TODO: Do we really want FAdd for this?
                 b.push_op(OpFAdd {

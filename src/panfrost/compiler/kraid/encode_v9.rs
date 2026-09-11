@@ -1966,6 +1966,46 @@ impl V9Instr for OpISub {
     }
 }
 
+impl V9Instr for OpIToF16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        let info = match self.src_type {
+            DataType::V2S8 => V2s8ToV2f16::get_info((), arch),
+            DataType::V2U8 => V2u8ToV2f16::get_info((), arch),
+            DataType::V2S16 => V2s16ToV2f16::get_info((), arch),
+            DataType::V2U16 => V2u16ToV2f16::get_info((), arch),
+            _ => None,
+        };
+        V9InstrInfo::from_isa(info, src_map! { src0: src })
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if self.src_type.bits() == 8 {
+            assert!(self.round == FRound::NearestEven);
+        }
+        match self.src_type {
+            DataType::V2S8 => e.encode(V2s8ToV2f16 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::V2U8 => e.encode(V2u8ToV2f16 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::V2S16 => e.encode(V2s16ToV2f16 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            DataType::V2U16 => e.encode(V2u16ToV2f16 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl V9Instr for OpIToF32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         let info = match self.src_type {
@@ -3506,6 +3546,7 @@ macro_rules! v9_op_match_else {
             Op::IDpAdd($x) => $y,
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
+            Op::IToF16($x) => $y,
             Op::IToF32($x) => $y,
             Op::Jump($x) => $y,
             Op::LdAttr($x) => $y,
