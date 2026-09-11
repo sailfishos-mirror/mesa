@@ -904,10 +904,15 @@ emit_lsc_fence(struct nir_to_jay_state *nj,
    }
 
    jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
-   uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, flushtype, false);
+   bool legacy = nj->s->devinfo->ver < 20 && sfid == GEN_SFID_URB;
+   uint32_t desc =
+      legacy ? brw_urb_fence_desc(nj->s->devinfo) :
+               lsc_fence_msg_desc(nj->s->devinfo, scope, flushtype, false);
 
    jay_SEND(&nj->bld, .sfid = sfid, .msg_desc = desc, .srcs = &nj->payload.u0,
-            .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true, .dst = notif);
+            .header = legacy ? nj->payload.u0 : jay_null(),
+            .nr_srcs = legacy ? 0 : 1, .type = JAY_TYPE_U32, .uniform = true,
+            .dst = notif);
 }
 
 static void
