@@ -319,4 +319,28 @@ enum pvr_xfb_query_begin_ref_id {
    PVR_XFB_QUERY_BEGIN_REF_ID_RESULT_ST_SRC0,
 };
 
+/* PDSC XFB query end patch IDs */
+enum pvr_xfb_query_end_patch_id {
+   /** Patch ID for query count load source 0 */
+   PVR_XFB_QUERY_END_PATCH_ID_QUERY_COUNT_LD_SRC0,
+
+   /** Patch ID for query result written store source 0 */
+   PVR_XFB_QUERY_END_PATCH_ID_RESULT_WRITTEN_ST_SRC0,
+
+   /** Patch ID for query availability store source 0 */
+   PVR_XFB_QUERY_END_PATCH_ID_AVAILABILITY_ST_SRC0,
+};
+
+/* PDSC XFB query end reference IDs */
+enum pvr_xfb_query_end_ref_id {
+   /** Ref ID for query count load destination */
+   PVR_XFB_QUERY_END_REF_ID_QUERY_COUNT_LD_DEST,
+
+   /** Ref ID for query result written store source 0 */
+   PVR_XFB_QUERY_END_REF_ID_RESULT_WRITTEN_ST_SRC0,
+
+   /** Ref ID for query availability store source 0 */
+   PVR_XFB_QUERY_END_REF_ID_AVAILABILITY_ST_SRC0,
+};
+
 #endif /* PVR_IFACE_H */
