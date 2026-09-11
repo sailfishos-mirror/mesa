@@ -102,24 +102,6 @@ fn get_commutative_srcs(instr: &Instr) -> SmallVec<SrcPermutation> {
     }
 }
 
-fn try_resolve(
-    src_type: DataType,
-    swz: &Swizzle,
-    src_mod: &SrcMod,
-    imm32: u32,
-) -> Option<u64> {
-    match src_type.total_bits() {
-        i if i <= 32 => swz
-            .fold_u32(imm32)
-            .and_then(|tmp| src_mod.fold_u32(src_type, tmp))
-            .map(|v| u64::from(v)),
-        64 => swz
-            .fold_u64(u64::from(imm32))
-            .and_then(|tmp| src_mod.fold_u64(tmp)),
-        _ => panic!("Invalid source width"),
-    }
-}
-
 struct ScRepl<'a> {
     sc: &'a SmallConstant,
     src_mod: SrcMod,
@@ -133,18 +115,19 @@ fn try_as_small_const<'a>(
     mods: &[SrcMod],
     swizzles: &[Swizzle],
 ) -> Option<ScRepl<'a>> {
-    let SrcRef::Imm32(imm32) = src.src_ref else {
+    if src.src_ref == SrcRef::Zero {
+        return None;
+    }
+    let Some(imm_read) = src.resolve_imm(src_type) else {
         return None;
     };
-
-    let imm_read =
-        try_resolve(src_type, &src.swizzle, &src.src_mod, u32::from(imm32))
-            .unwrap();
-
     for swz in swizzles {
         for m in mods {
             for sc in sc_table {
-                if try_resolve(src_type, swz, m, sc.imm32)
+                if Src::from(sc.imm32)
+                    .swizzle(*swz)
+                    .modify(*m)
+                    .resolve_imm(src_type)
                     .is_some_and(|v| v == imm_read)
                 {
                     return Some(ScRepl {
