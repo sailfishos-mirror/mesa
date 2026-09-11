@@ -299,13 +299,13 @@ radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_st
 void
 radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct radv_cmd_stream *cs,
                                       const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img_in,
-                                      const VkExtent3D base_extent, struct radeon_winsys_bo *temp_bo, bool to_image)
+                                      const VkExtent3D base_extent, const uint64_t temp_bo_va, bool to_image)
 {
    const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, img_in, base_extent);
    struct ac_sdma_surf img = *img_in;
    struct ac_sdma_surf tmp = {
       .surf = img.surf,
-      .va = radv_buffer_get_va(temp_bo),
+      .va = temp_bo_va,
       .format = img.format,
       .bpp = img.bpp,
       .pitch = info.aligned_row_pitch,
@@ -387,13 +387,13 @@ radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *c
 void
 radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_cmd_stream *cs,
                                   const struct ac_sdma_surf *src, const struct ac_sdma_surf *dst,
-                                  const VkExtent3D extent, struct radeon_winsys_bo *temp_bo)
+                                  const VkExtent3D extent, const uint64_t temp_bo_va)
 {
    const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, src, extent);
    struct ac_sdma_surf t2l_src = *src;
    struct ac_sdma_surf t2l_dst = {
       .surf = src->surf,
-      .va = radv_buffer_get_va(temp_bo),
+      .va = temp_bo_va,
       .format = src->format,
       .bpp = src->bpp,
       .is_compressed = src->is_compressed,
@@ -402,7 +402,7 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
    struct ac_sdma_surf l2t_dst = *dst;
    struct ac_sdma_surf l2t_src = {
       .surf = dst->surf,
-      .va = radv_buffer_get_va(temp_bo),
+      .va = temp_bo_va,
       .format = dst->format,
       .bpp = dst->bpp,
       .is_compressed = dst->is_compressed,

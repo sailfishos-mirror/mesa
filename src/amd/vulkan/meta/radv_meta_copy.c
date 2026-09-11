@@ -152,7 +152,8 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
       if (!alloc_transfer_temp_bo(cmd_buffer))
          return;
 
-      radv_sdma_copy_buffer_image_unaligned(device, cs, &buf, &img, extent, cmd_buffer->transfer.copy_temp, to_image);
+      const uint64_t temp_bo_va = radv_buffer_get_va(cmd_buffer->transfer.copy_temp);
+      radv_sdma_copy_buffer_image_unaligned(device, cs, &buf, &img, extent, temp_bo_va, to_image);
    } else {
       radv_sdma_copy_buffer_image(device, cs, &buf, &img, extent, to_image);
    }
@@ -701,7 +702,8 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
          if (!alloc_transfer_temp_bo(cmd_buffer))
             return;
 
-         radv_sdma_copy_image_t2t_scanline(device, cs, &src, &dst, extent, cmd_buffer->transfer.copy_temp);
+         const uint64_t temp_bo_va = radv_buffer_get_va(cmd_buffer->transfer.copy_temp);
+         radv_sdma_copy_image_t2t_scanline(device, cs, &src, &dst, extent, temp_bo_va);
       } else {
          radv_sdma_copy_image(device, cs, &src, &dst, extent);
       }
