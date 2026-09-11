@@ -1050,6 +1050,7 @@ impl LocalRegAlloc<'_> {
 
     fn find_aligned_unused_unpinned_range(
         &self,
+        pinned: &PinnedByteSet,
         start: usize,
         count: usize,
         align_mul: usize,
@@ -1062,7 +1063,7 @@ impl LocalRegAlloc<'_> {
             align_offset,
         );
         loop {
-            let unpinned = self.pinned.0.find_aligned_unset_range(
+            let unpinned = pinned.0.find_aligned_unset_range(
                 unused,
                 count,
                 align_mul,
@@ -1087,16 +1088,18 @@ impl LocalRegAlloc<'_> {
 
     fn is_aligned_unpinned_range(
         &self,
+        pinned: &PinnedByteSet,
         bytes: Range<u16>,
         align: RegAlignConstraint,
     ) -> bool {
         align.satisfied(bytes.start.into())
             && self.arena.is_contiguous(bytes.clone())
-            && self.pinned.bytes_are_unpinned(bytes)
+            && pinned.bytes_are_unpinned(bytes)
     }
 
     fn find_unpinned_bytes(
         &self,
+        pinned: &PinnedByteSet,
         bytes: u8,
         align: RegAlignConstraint,
         cost_fn: impl Fn(u16) -> u8,
@@ -1112,6 +1115,7 @@ impl LocalRegAlloc<'_> {
         );
         while let Some(start) = cur.get() {
             let b = self.find_aligned_unused_unpinned_range(
+                pinned,
                 start,
                 usize::from(bytes),
                 usize::from(align_mul),
@@ -1147,7 +1151,7 @@ impl LocalRegAlloc<'_> {
             usize::from(self.arena.limit()),
         );
         while let Some(start) = cur.get() {
-            let b = self.pinned.0.find_aligned_unset_range(
+            let b = pinned.0.find_aligned_unset_range(
                 start,
                 usize::from(bytes),
                 usize::from(align_mul),
@@ -1183,12 +1187,13 @@ impl LocalRegAlloc<'_> {
 
     fn choose_bytes(
         &self,
+        p: &PinnedByteSet,
         bytes: u8,
         align: RegAlignConstraint,
         cost_fn: impl Fn(u16) -> u8,
     ) -> Range<u16> {
         let b = self
-            .find_unpinned_bytes(bytes, align, cost_fn)
+            .find_unpinned_bytes(p, bytes, align, cost_fn)
             .expect("Out of registers!");
         if self.arena.round_robin {
             self.search_start.set(b + u16::from(bytes));
@@ -1196,13 +1201,14 @@ impl LocalRegAlloc<'_> {
         b..(b + u16::from(bytes))
     }
 
-    fn choose_aligned_bytes(&self, bytes: u8) -> Range<u16> {
+    fn choose_aligned_bytes(&self, p: &PinnedByteSet, bytes: u8) -> Range<u16> {
         let align = RegAlignConstraint::for_align(bytes, 0);
-        self.choose_bytes(bytes, align, |_| 0)
+        self.choose_bytes(p, bytes, align, |_| 0)
     }
 
     fn choose_ssa_ref_bytes(
         &self,
+        p: &PinnedByteSet,
         vec: &SSARef,
         align: RegAlignConstraint,
         cost_fn: impl Fn(u16) -> u8,
@@ -1210,7 +1216,7 @@ impl LocalRegAlloc<'_> {
         // First check to see if we have a specific reg affinity and if those
         // bytes happen to be free.
         if let Some(bytes) = self.affinities.reg_bytes(vec) {
-            if self.is_aligned_unpinned_range(bytes.clone(), align)
+            if self.is_aligned_unpinned_range(p, bytes.clone(), align)
                 && self.bytes_are_unused(bytes.clone())
             {
                 return bytes;
@@ -1233,15 +1239,18 @@ impl LocalRegAlloc<'_> {
                     if let Some(bytes) =
                         self.ssa_bytes_offset(vec_repr, a.vec_offset.into())
                     {
-                        if self.is_aligned_unpinned_range(bytes.clone(), align)
-                            && self.bytes_are_unused(bytes.clone())
+                        if self.is_aligned_unpinned_range(
+                            p,
+                            bytes.clone(),
+                            align,
+                        ) && self.bytes_are_unused(bytes.clone())
                         {
                             return bytes;
                         }
                     }
 
                     // Fall back to the default allocation
-                    self.choose_bytes(ssa.bytes(), align, cost_fn)
+                    self.choose_bytes(p, ssa.bytes(), align, cost_fn)
                 } else {
                     // If we're the vector representative, we want to find
                     // enough space for the whole vector.
@@ -1263,7 +1272,7 @@ impl LocalRegAlloc<'_> {
                             .unwrap_or(u8::MAX)
                     };
 
-                    let bytes = self.choose_bytes(ssa.bytes(), align, |b| {
+                    let bytes = self.choose_bytes(p, ssa.bytes(), align, |b| {
                         cost_fn(b).saturating_add(vec_cost_fn(b))
                     });
 
@@ -1278,14 +1287,14 @@ impl LocalRegAlloc<'_> {
                 }
             } else {
                 // No vector use
-                self.choose_bytes(ssa.bytes(), align, cost_fn)
+                self.choose_bytes(p, ssa.bytes(), align, cost_fn)
             }
         } else {
             // For vectors, we assume the default is the best we can do. Either
             // the vector use is just going to use this vector (the likely case)
             // or it'll get split up.  The chances of two vectors being combined
             // into one where everything still aligns is pretty low.
-            self.choose_bytes(vec.bytes(), align, |b| {
+            self.choose_bytes(p, vec.bytes(), align, |b| {
                 cost_fn(b).saturating_add(self.affinities.align_cost(vec, b))
             })
         }
@@ -1297,15 +1306,17 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
+        let p = &self.pinned;
+
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
-            if self.is_aligned_unpinned_range(vec_bytes.clone(), align) {
+            if self.is_aligned_unpinned_range(p, vec_bytes.clone(), align) {
                 return vec_bytes;
             }
         }
 
         let bytes = vec.bytes();
-        self.choose_ssa_ref_bytes(vec, align, |b| {
+        self.choose_ssa_ref_bytes(p, vec, align, |b| {
             let bytes = b..(b + u16::from(bytes));
             src_bytes
                 .count_set_in_range(bytes.start.into()..bytes.end.into())
@@ -1321,9 +1332,10 @@ impl LocalRegAlloc<'_> {
         align: RegAlignConstraint,
     ) -> Range<u16> {
         let ssa_bytes = vec.bytes();
+        let p = &self.pinned;
 
         if let Some(phi_bytes) = self.ssa_ref_phi_bytes(vec) {
-            if self.is_aligned_unpinned_range(phi_bytes.clone(), align)
+            if self.is_aligned_unpinned_range(p, phi_bytes.clone(), align)
                 && self.bytes_are_unused(phi_bytes.clone())
             {
                 debug_assert_eq!(phi_bytes.len(), usize::from(ssa_bytes));
@@ -1333,7 +1345,7 @@ impl LocalRegAlloc<'_> {
 
         if vec.comps() == 1 {
             debug_assert!(ssa_bytes <= bytes && bytes <= 4);
-            self.choose_ssa_ref_bytes(vec, align, |b| {
+            self.choose_ssa_ref_bytes(p, vec, align, |b| {
                 let bytes = aligned_u16_range(b, bytes.into());
                 debug_assert!(b + u16::from(ssa_bytes) <= bytes.end);
                 self.used
@@ -1343,7 +1355,7 @@ impl LocalRegAlloc<'_> {
             })
         } else {
             debug_assert_eq!(ssa_bytes, bytes);
-            self.choose_ssa_ref_bytes(vec, align, |_| 0)
+            self.choose_ssa_ref_bytes(p, vec, align, |_| 0)
         }
     }
 
@@ -1567,7 +1579,7 @@ impl LocalRegAlloc<'_> {
                 idx_bytes
             } else {
                 let nr_bytes = e.bytes.len().try_into().unwrap();
-                let bytes = self.choose_aligned_bytes(nr_bytes);
+                let bytes = self.choose_aligned_bytes(&self.pinned, nr_bytes);
 
                 // Evict anything that might happen to be in dst_bytes
                 for b in bytes.clone() {
@@ -1814,14 +1826,15 @@ impl GlobalRegAlloc<'_> {
         prefer: Option<Range<u16>>,
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
+        let p = &self.local.pinned;
         if let Some(prefer) = prefer {
-            if self.local.pinned.bytes_are_unpinned(prefer.clone()) {
+            if p.bytes_are_unpinned(prefer.clone()) {
                 return prefer;
             }
         }
 
         let align = RegAlignConstraint::for_align(bytes, 0);
-        let b = self.local.find_unpinned_bytes(bytes, align, |b| {
+        let b = self.local.find_unpinned_bytes(p, bytes, align, |b| {
             let bytes = b..(b + u16::from(bytes));
             let bytes = bytes.start.into()..bytes.end.into();
             debug_assert!(bytes.len() <= 8);
