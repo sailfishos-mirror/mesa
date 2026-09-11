@@ -3378,6 +3378,11 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
 
       jay_def header_builder[16] = { [2] = jay_imm(header2) };
 
+      if (!jay_is_null(packed_offsets)) {
+         header_builder[2] =
+            header2 ? jay_OR_u32(b, packed_offsets, header2) : packed_offsets;
+      }
+
       if (sampler_bindless) {
          /* Bindless sampler handles aren't relative to the sampler state
           * pointer passed into the shader through SAMPLER_STATE_POINTERS_*.
