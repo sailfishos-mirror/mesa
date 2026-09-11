@@ -4968,7 +4968,7 @@ anv_pipe_invalidate_bits_for_access_flags(struct anv_cmd_buffer *cmd_buffer,
          /* Prior to Gfx20, CS is not L3 coherent, so make the data available
           * for it by flushing L3.
           */
-         if (device->info->ver < 20) {
+         if (!ANV_DEVINFO_HAS_COHERENT_L3_CS(device->info)) {
             pipe_bits |= ANV_PIPE_TILE_CACHE_FLUSH_BIT;
             pipe_bits |= ANV_PIPE_DATA_CACHE_FLUSH_BIT;
          }
