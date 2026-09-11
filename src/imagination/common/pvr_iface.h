@@ -221,4 +221,49 @@ enum pvr_xfb_init_ref_id {
    PVR_XFB_INIT_REF_ID_COUNTER_BUFFER_ST_SRC0,
 };
 
+/* PDSC XFB end patch IDs */
+enum pvr_xfb_end_patch_id {
+   /** Patch ID for end transform feedback counter buffer count */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_COUNT,
+
+   /** Patch ID for end transform feedback counter buffer stride 0 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_STRIDE_0,
+
+   /** Patch ID for end transform feedback counter buffer stride 1 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_STRIDE_1,
+
+   /** Patch ID for end transform feedback counter buffer stride 2 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_STRIDE_2,
+
+   /** Patch ID for end transform feedback counter buffer stride 3 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_STRIDE_3,
+
+   /** Patch ID for end transform feedback counter buffer load source 0 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_LD_SRC0,
+
+   /** Patch ID for end transform feedback counter buffer store source 0 */
+   PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_ST_SRC0,
+
+   /** Patch ID for stream query result load source 0 */
+   PVR_XFB_END_PATCH_ID_QUERY_RESULT_LD_SRC0,
+
+   /** Patch ID for stream query result store source 0 */
+   PVR_XFB_END_PATCH_ID_QUERY_RESULT_ST_SRC0,
+};
+
+/* PDSC XFB end reference IDs */
+enum pvr_xfb_end_ref_id {
+   /** Ref ID for end transform feedback counter buffer load destination */
+   PVR_XFB_END_REF_ID_COUNTER_BUFFER_LD_DEST,
+
+   /** Ref ID for end transform feedback counter buffer store source 0 */
+   PVR_XFB_END_REF_ID_COUNTER_BUFFER_ST_SRC0,
+
+   /** Ref ID for stream query result load destination */
+   PVR_XFB_END_REF_ID_QUERY_RESULT_LD_DEST,
+
+   /** Ref ID for stream query result store source 0 */
+   PVR_XFB_END_REF_ID_QUERY_RESULT_ST_SRC0,
+};
+
 #endif /* PVR_IFACE_H */

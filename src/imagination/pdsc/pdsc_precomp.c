@@ -28,6 +28,7 @@ struct pdsc_precomp_info {
    pdsc_precomp_fn_t fn;
    enum pdsc_feature feature_variants;
 };
+#include "programs/pdsc_xfb_end.h"
 #include "programs/pdsc_xfb_init.h"
 
 #define PRECOMP(_name, _feature_variants)    \
@@ -37,6 +38,7 @@ struct pdsc_precomp_info {
       .feature_variants = _feature_variants, \
    }
 static const struct pdsc_precomp_info pdsc_precomp_infos[] = {
+   PRECOMP(xfb_end, 0),
    PRECOMP(xfb_init, 0),
 };
 #undef PRECOMP
