@@ -2502,7 +2502,7 @@ impl PerCompFoldable for OpISub {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(src_type in [S32, U32])]
+#[variants(src_type in [S8, U8, S16, U16, S32, U32])]
 pub struct OpIToF32 {
     #[dst_type(F32)]
     pub dst: Dst,
@@ -2514,8 +2514,12 @@ pub struct OpIToF32 {
 impl DisplayOp for OpIToF32 {
     fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n = match self.src_type {
-            DataType::U32 => "U32",
+            DataType::S8 => "S8",
+            DataType::U8 => "U8",
+            DataType::S16 => "S16",
+            DataType::U16 => "U16",
             DataType::S32 => "S32",
+            DataType::U32 => "U32",
             _ => unreachable!("Invalid variant"),
         };
         write!(f, "{n}_TO_F32")

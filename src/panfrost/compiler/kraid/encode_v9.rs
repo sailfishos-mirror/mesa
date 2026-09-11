@@ -1937,8 +1937,12 @@ impl V9Instr for OpISub {
 impl V9Instr for OpIToF32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         let info = match self.src_type {
-            DataType::U32 => U32ToF32::get_info((), arch),
+            DataType::S8 => S8ToF32::get_info((), arch),
+            DataType::U8 => U8ToF32::get_info((), arch),
+            DataType::S16 => S16ToF32::get_info((), arch),
+            DataType::U16 => U16ToF32::get_info((), arch),
             DataType::S32 => S32ToF32::get_info((), arch),
+            DataType::U32 => U32ToF32::get_info((), arch),
             _ => unreachable!(),
         };
         V9InstrInfo::from_isa(
@@ -1950,13 +1954,32 @@ impl V9Instr for OpIToF32 {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if self.src_type.bits() < 32 {
+            assert!(self.round == FRound::NearestEven);
+        }
         match self.src_type {
-            DataType::U32 => e.encode(U32ToF32 {
+            DataType::S8 => e.encode(S8ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::U8 => e.encode(U8ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::S16 => e.encode(S16ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::U16 => e.encode(U16ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            }),
+            DataType::S32 => e.encode(S32ToF32 {
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.src),
                 round: self.round.into(),
             }),
-            DataType::S32 => e.encode(S32ToF32 {
+            DataType::U32 => e.encode(U32ToF32 {
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.src),
                 round: self.round.into(),

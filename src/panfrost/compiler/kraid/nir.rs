@@ -676,11 +676,13 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_op_u2f32 => {
-                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(
+                    self.model.arch() <= 10 || alu.get_src(0).bit_size() == 32
+                );
                 assert!(alu.def.num_components == 1);
                 b.push_op(OpIToF32 {
                     dst: dst.into(),
-                    src_type: DataType::U32,
+                    src_type: DataType::u(alu.get_src(0).bit_size()),
                     src: srcs(0),
                     round: self.fround(alu.def.bit_size),
                 });
@@ -726,11 +728,13 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_op_i2f32 => {
-                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(
+                    self.model.arch() <= 10 || alu.get_src(0).bit_size() == 32
+                );
                 assert!(alu.def.num_components == 1);
                 b.push_op(OpIToF32 {
                     dst: dst.into(),
-                    src_type: DataType::S32,
+                    src_type: DataType::s(alu.get_src(0).bit_size()),
                     src: srcs(0),
                     round: self.fround(alu.def.bit_size),
                 });
