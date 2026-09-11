@@ -312,7 +312,6 @@ dEQP-VK.glsl.texture_functions.query.texturequerylod.sampler2d_fixed_trilinear_f
 dEQP-VK.glsl.texture_functions.query.texturequerylod.sampler2d_fixed_trilinearnon_zero_base_level_fragment,Fail
 dEQP-VK.glsl.texture_functions.query.texturequerylod.sampler2d_float_trilinear_fragment,Fail
 dEQP-VK.glsl.texture_functions.query.texturequerylod.sampler2d_float_trilinearnon_zero_base_level_fragment,Fail
-dEQP-VK.image.host_image_copy.properties.properties,Fail
 
 # VKCTS 1.4.5.3 -> 1.4.6.1 uprev
 dEQP-VK.rasterization.primitives.no_stipple.lines,Fail
