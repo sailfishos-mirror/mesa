@@ -168,4 +168,57 @@ enum pvr_xfb_main_patch_id {
    PVR_XFB_MAIN_PATCH_ID_STM_SRC2_CONST_0 = 0,
 };
 
+/* PDSC XFB init patch IDs */
+
+enum pvr_xfb_init_patch_id {
+   /** Patch ID for transform feedback persistent count */
+   PVR_XFB_INIT_PATCH_ID_PTEMP_LD_COUNT,
+
+   /** Patch IDs for first varying STM instruction ptemp load */
+   PVR_XFB_INIT_PATCH_ID_PTEMP_LD_SRC0_0,
+
+   /** Patch IDs for second varying STM instruction ptemp load */
+   PVR_XFB_INIT_PATCH_ID_PTEMP_LD_SRC0_1,
+
+   /** Patch IDs for third varying STM instruction ptemp load */
+   PVR_XFB_INIT_PATCH_ID_PTEMP_LD_SRC0_2,
+
+   /** Patch IDs for fourth varying STM instruction ptemp load */
+   PVR_XFB_INIT_PATCH_ID_PTEMP_LD_SRC0_3,
+
+   /** Patch ID for transform feedback counter buffer load */
+   PVR_XFB_INIT_PATCH_ID_COUNTER_BUFFER_LD_SRC0,
+
+   /** Patch ID for transform feedback counter buffer store */
+   PVR_XFB_INIT_PATCH_ID_COUNTER_BUFFER_ST_SRC0,
+
+   /** Patch ID for transform feedback counter buffer alignment dword select */
+   PVR_XFB_INIT_PATCH_ID_COUNTER_BUFFER_DWORD_SELECT,
+
+   /** Patch ID for transform feedback counter buffer count */
+   PVR_XFB_INIT_PATCH_ID_COUNTER_BUFFER_COUNT,
+};
+
+/* PDSC XFB init reference IDs */
+
+enum pvr_xfb_init_ref_id {
+   /** Ref ID for first ptemp destination */
+   PVR_XFB_INIT_REF_ID_PTEMPS_LD_DEST_0,
+
+   /** Ref ID for second ptemp destination */
+   PVR_XFB_INIT_REF_ID_PTEMPS_LD_DEST_1,
+
+   /** Ref ID for third ptemp destination */
+   PVR_XFB_INIT_REF_ID_PTEMPS_LD_DEST_2,
+
+   /** Ref ID for fourth ptemp destination */
+   PVR_XFB_INIT_REF_ID_PTEMPS_LD_DEST_3,
+
+   /** Ref ID for transform feedback counter buffer load */
+   PVR_XFB_INIT_REF_ID_COUNTER_BUFFER_LD_DEST,
+
+   /** Ref ID for transform feedback counter buffer store */
+   PVR_XFB_INIT_REF_ID_COUNTER_BUFFER_ST_SRC0,
+};
+
 #endif /* PVR_IFACE_H */
