@@ -200,13 +200,15 @@ ALWAYS_INLINE static unsigned
 radv_cs_write_data_head(const struct radv_device *device, struct radv_cmd_stream *cs, const unsigned engine_sel,
                         const uint64_t va, const unsigned count, const bool predicating)
 {
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+
    /* Return the correct cdw at the end of the packet so the caller can assert it. */
    const unsigned cdw_end = radeon_check_space(device->ws, cs->b, 4 + count);
 
    if (cs->hw_ip == AMD_IP_COMPUTE || cs->hw_ip == AMD_IP_GFX) {
       ac_emit_cp_write_data_head(cs->b, engine_sel, V_371_MEMORY, va, count, predicating);
    } else if (cs->hw_ip == AMD_IP_SDMA) {
-      ac_emit_sdma_write_data_head(cs->b, va, count);
+      ac_emit_sdma_write_data_head(cs->b, pdev->info.sdma_ip_version, va, count);
    } else {
       UNREACHABLE("unsupported queue family");
    }

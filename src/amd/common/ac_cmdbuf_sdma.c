@@ -68,13 +68,16 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *cs, uint32_t op, uint64_t va, uint32_t r
 }
 
 void
-ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, uint64_t va, uint32_t count)
+ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, enum sdma_version ver, uint64_t va, uint32_t count)
 {
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
-   ac_cmdbuf_emit(count - 1);
+   if (ver >= SDMA_4_0)
+      ac_cmdbuf_emit(count - 1);
+   else
+      ac_cmdbuf_emit(count);
    ac_cmdbuf_end();
 }
 
