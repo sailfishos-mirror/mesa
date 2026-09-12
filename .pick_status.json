@@ -984,7 +984,7 @@
         "description": "ac/gpu_info: make PCIe 4.0 and 5.0 lane bandwidth exact multiples of 3.0",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "95d06343c693aa12b4cda5cda31d81fae138b0ec",
         "notes": null
