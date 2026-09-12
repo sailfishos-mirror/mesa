@@ -226,6 +226,11 @@ anv_shader_init_uuid(struct anv_physical_device *device)
                        sizeof(device->driver_build_sha1));
    brw_device_blake3_update(&ctx, &device->info);
 
+   /* The disk cache gets this as driver_flags, the UUID doesn't. */
+   const uint64_t compiler_config =
+      brw_get_compiler_config_value(device->compiler);
+   _mesa_blake3_update(&ctx, &compiler_config, sizeof(compiler_config));
+
    const bool always_bindless = device->drirc.features.always_bindless;
    _mesa_blake3_update(&ctx, &always_bindless, sizeof(always_bindless));
 
