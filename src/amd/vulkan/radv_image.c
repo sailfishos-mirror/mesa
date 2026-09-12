@@ -1702,10 +1702,10 @@ radv_layout_fmask_compression(const struct radv_device *device, const struct rad
    switch (layout) {
    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-      /* Don't compress images but no need to expand FMASK. */
+      /* FMASK is in a decompressed state (after FMASK_DECOMPRESS). */
       return RADV_FMASK_COMPRESSION_PARTIAL;
    case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT:
-      /* Don't compress images that are in feedback loops. */
+      /* FMASK is in an expanded state (identity mapping). */
       return RADV_FMASK_COMPRESSION_NONE;
    default:
       /* Don't compress images that are concurrent. */
