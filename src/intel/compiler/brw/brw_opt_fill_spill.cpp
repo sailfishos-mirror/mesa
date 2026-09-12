@@ -90,13 +90,31 @@ generate_mov(brw_shader &s, brw_inst *inst, const brw_reg &src)
     * to r16 followed by a fill to r17 from the same location can't be
     * trivially replaced. The resulting `mov(32) r17, r16` would have the same
     * problems of memcpy with overlapping ranges.
-    *
-    * FINISHME: This is fixable, but it required emitting two MOVs with half
-    * SIMD size. It might also "just work" if scan_dst.nr < inst_dst.nr.
     */
    if (regions_overlap(dst, inst->size_written,
                        src, inst->size_written)) {
-      return inst;
+      brw_builder bld = brw_builder(inst);
+      const unsigned exec_size = 8 * reg_unit(s.devinfo);
+      const bool reverse = inst->dst.nr > src.nr;
+      unsigned size_written = 0;
+
+      brw_reg dst = inst->dst;
+      brw_reg tmp = src;
+
+      unsigned i = 0;
+      while (size_written < inst->size_written) {
+         brw_inst *mov = bld.group(exec_size, i++).MOV(dst, tmp);
+
+         dst = offset(dst, mov->size_written / REG_SIZE);
+         tmp = offset(tmp, mov->size_written / REG_SIZE);
+         size_written += mov->size_written;
+
+         if (reverse)
+            bld = bld.before(mov);
+      }
+
+      assert(size_written == inst->size_written);
+      return brw_transform_inst(s, inst, BRW_OPCODE_NOP);
    }
 
    /* If the resulting MOV would try to write more than 2 registers, emit
@@ -220,10 +238,7 @@ propagate_fill_to_fill(brw_shader &s, brw_inst *inst, brw_inst **tmp)
       if (scan_dst.equals(inst_dst)) {
          brw_transform_inst(s, scan_inst, BRW_OPCODE_NOP);
       } else {
-         if (generate_mov(s, scan_inst, inst_dst)->opcode ==
-             SHADER_OPCODE_LSC_FILL) {
-            s.shader_stats.fill_count++;
-         }
+         generate_mov(s, scan_inst, inst_dst);
       }
    }
 
@@ -302,8 +317,7 @@ brw_opt_fill_and_spill(brw_shader &s)
                if (scan_inst->size_written != inst->size_read(devinfo, SPILL_SRC_PAYLOAD2))
                   continue;
 
-               if (propagate_fill_to_fill(s, scan_inst, tmp))
-                  block_progress = true;
+               propagate_fill_to_fill(s, scan_inst, tmp);
 
                if (scan_inst->dst.equals(inst->src[SPILL_SRC_PAYLOAD2])) {
                   scan_inst = brw_transform_inst(s, scan_inst, BRW_OPCODE_NOP);
@@ -311,10 +325,10 @@ brw_opt_fill_and_spill(brw_shader &s)
                   scan_inst = generate_mov(s, scan_inst, spilled);
                }
 
-               if (scan_inst->opcode != SHADER_OPCODE_LSC_FILL) {
-                  s.shader_stats.fill_count--;
-                  block_progress = true;
-               }
+               assert(scan_inst->opcode != SHADER_OPCODE_LSC_FILL);
+
+               s.shader_stats.fill_count--;
+               block_progress = true;
             }
          }
 
