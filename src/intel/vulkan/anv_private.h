@@ -1689,8 +1689,13 @@ struct anv_physical_device {
     struct anv_memregion                        vram_non_mappable;
     struct anv_memregion                        sys;
     uint8_t                                     driver_build_sha1[BLAKE3_KEY_LEN];
+    /** Hash of everything that changes the compiler's output
+     *
+     * We report this for both shaderBinaryUUID and pipelineCacheUUID, and the
+     * disk cache id is the same bytes in hex. The list of what goes in is in
+     * anv_shader_init_uuid().
+     */
     uint8_t                                     shader_binary_uuid[VK_UUID_SIZE];
-    uint8_t                                     pipeline_cache_uuid[VK_UUID_SIZE];
     uint8_t                                     driver_uuid[VK_UUID_SIZE];
     uint8_t                                     device_uuid[VK_UUID_SIZE];
     uint8_t                                     rt_uuid[VK_UUID_SIZE];

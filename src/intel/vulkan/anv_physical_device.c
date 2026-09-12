@@ -20,6 +20,7 @@
 #include "git_sha1.h"
 
 #include "util/disk_cache.h"
+#include "util/hex.h"
 #include "util/os_misc.h"
 #include "util/mesa-blake3.h"
 #include "util/os_misc.h"
@@ -1744,7 +1745,7 @@ get_properties(const struct anv_physical_device *pdevice,
             "%s", (strlen(pdevice->drirc.debug.force_vk_devicename) > 0) ?
                   pdevice->drirc.debug.force_vk_devicename : pdevice->info.name);
    memcpy(props->pipelineCacheUUID,
-          pdevice->pipeline_cache_uuid, VK_UUID_SIZE);
+          pdevice->shader_binary_uuid, VK_UUID_SIZE);
 
    get_properties_1_1(pdevice, props);
    get_properties_1_2(pdevice, props);
@@ -2736,21 +2737,10 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
 
    copy_build_id_to_sha1(device->driver_build_sha1, note);
 
-   blake3_hasher blake3_ctx;
-   uint8_t blake3[BLAKE3_KEY_LEN];
-   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(blake3));
-
-   /* The pipeline cache UUID is used for determining when a pipeline cache is
-    * invalid.  It needs both a driver build and the PCI ID of the device.
+   /* Fills device->shader_binary_uuid, which the pipeline cache UUID and the
+    * disk cache id below are also taken from.
     */
-   _mesa_blake3_init(&blake3_ctx);
-   _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
-   brw_device_blake3_update(&blake3_ctx, &device->info);
-   bool always_use_bindless = device->drirc.features.always_bindless;
-   _mesa_blake3_update(&blake3_ctx, &always_use_bindless,
-                     sizeof(always_use_bindless));
-   _mesa_blake3_final(&blake3_ctx, blake3);
-   memcpy(device->pipeline_cache_uuid, blake3, VK_UUID_SIZE);
+   anv_shader_init_uuid(device);
 
    intel_uuid_compute_driver_id(device->driver_uuid, &device->info, VK_UUID_SIZE);
    intel_uuid_compute_device_id(device->device_uuid, &device->info, VK_UUID_SIZE);
@@ -2767,12 +2757,16 @@ anv_physical_device_init_disk_cache(struct anv_physical_device *device)
                                device->info.pci_device_id);
    assert(len == sizeof(renderer) - 2);
 
-   char timestamp[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(timestamp, device->driver_build_sha1);
+   /* The driver id namespaces everything the runtime puts in the disk cache,
+    * including the NIR of vk_pipeline_precompile_shader(), which is keyed on
+    * API state alone. So it needs the compile options, not just the build.
+    */
+   char driver_id[VK_UUID_SIZE * 2 + 1];
+   mesa_bytes_to_hex(driver_id, device->shader_binary_uuid, VK_UUID_SIZE);
 
    const uint64_t driver_flags =
       brw_get_compiler_config_value(device->compiler);
-   device->vk.disk_cache = disk_cache_create(renderer, timestamp, driver_flags);
+   device->vk.disk_cache = disk_cache_create(renderer, driver_id, driver_flags);
 #endif
 }
 
@@ -3274,8 +3268,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    anv_physical_device_init_queue_families(device);
 
    anv_physical_device_init_perf(device, fd);
-
-   anv_shader_init_uuid(device);
 
    /* Gather major/minor before WSI. */
    struct stat st;

@@ -212,6 +212,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
     * output. Mostly it's workarounds, but there is also settings for using
     * indirect descriptors (a different binding model).
     *
+    * shaderBinaryUUID, the pipeline cache UUID and the disk cache id are all
+    * derived from the result, so an option only has to be added here.
+    *
     * The fp64 workaround is skipped because although it changes the
     * compiler's output, not having that workaroung enabled with an app
     * expecting fp64 support will just crash in the backend.
