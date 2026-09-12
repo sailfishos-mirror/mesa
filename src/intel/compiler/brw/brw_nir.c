@@ -2299,7 +2299,11 @@ brw_nir_optimize(brw_pass_tracker *pt)
          LOOP_OPT_NOT_IDEMPOTENT(nir_opt_loop_unroll);
       }
       LOOP_OPT(nir_opt_remove_phis);
-      LOOP_OPT(nir_opt_gcm, false);
+      if (intel_use_jay(pt->compiler->devinfo, nir)) {
+         LOOP_OPT(nir_opt_licm, NULL);
+      } else {
+         LOOP_OPT(nir_opt_gcm, false);
+      }
       LOOP_OPT(nir_opt_undef);
       LOOP_OPT(nir_lower_pack);
 
