@@ -652,10 +652,6 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
        (info->gfx_level <= GFX8 && max_dst_chan_size == 6) || /* image stores with R5G6B5_UNORM have precision issues */
        util_format_is_depth_or_stencil(blit->dst.format) ||
        dst_samples > SI_MAX_COMPUTE_BLIT_SAMPLES ||
-       /* Image stores support DCC since GFX10. Fail only for gfx queues because compute queues
-        * can't fall back to a pixel shader. DCC must be decompressed and disabled for compute
-        * queues by the caller. */
-       (options->info->gfx_level < GFX10 && blit->is_gfx_queue && blit->dst_has_dcc) ||
        (!is_clear &&
         /* Scaling is not implemented by the compute shader. */
         (blit->dst.box.width != abs(blit->src.box.width) ||

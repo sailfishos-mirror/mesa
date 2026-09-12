@@ -112,9 +112,7 @@ typedef struct {
       enum pipe_format format;   /* format reinterpretation */
    } dst, src;
 
-   bool is_gfx_queue;
    bool src_has_non_identity_fmask;
-   bool dst_has_dcc;
 
    /* When clearing, clear only sample 0. Only useful when FMASK is enabled.
     * When resolving, copy sample 0 to the single-sample destination.

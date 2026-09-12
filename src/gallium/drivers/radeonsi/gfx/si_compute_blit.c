@@ -721,6 +721,17 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
        info->scissor_enable)
       return false;
 
+   /* Image stores support DCC since GFX10. Fail only for gfx queues because compute queues
+    * can't fall back to a pixel shader. DCC must be decompressed and disabled for compute
+    * queues by the caller.
+    *
+    * If (src_access || dst_access), one of the images is block-compressed, which can't fall
+    * back to a pixel shader in radeonsi.
+    */
+   if (sctx->gfx_level < GFX10 && sctx->is_gfx_queue && vi_dcc_enabled(sdst, info->dst.level) &&
+       !src_access && !dst_access)
+      return false;
+
    ac_cs_blit_options options = {
       .nir_options = sctx->screen->nir_options,
       .info = &sctx->screen->info,
@@ -757,11 +768,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
          .box = info->src.box,
          .format = info->src.format,
       },
-      .is_gfx_queue = sctx->is_gfx_queue,
       .src_has_non_identity_fmask = ssrc && ssrc->surface.fmask_size,
-      /* if (src_access || dst_access), one of the images is block-compressed, which can't fall
-       * back to a pixel shader on radeonsi */
-      .dst_has_dcc = vi_dcc_enabled(sdst, info->dst.level) && !src_access && !dst_access,
       .sample0_only = info->sample0_only,
    };
 
