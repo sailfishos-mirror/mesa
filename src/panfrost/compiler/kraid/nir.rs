@@ -1360,6 +1360,7 @@ impl<'a> ShaderFromNir<'a> {
         let array_enable = flags.array_enable();
         let texel_offset = flags.texel_offset();
         let compare_enable = flags.compare_enable();
+        let projection_enable = flags.projection_enable();
 
         let dim = match tex.sampler_dim.into() {
             GLSL_SAMPLER_DIM_1D | GLSL_SAMPLER_DIM_BUF => TexDim::Tex1D,
@@ -1398,7 +1399,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type,
                     skip,
                     dim,
-                    projection_enable: false,
+                    projection_enable,
                     write_mask,
                     wide_indices,
                     array_enable,
@@ -1410,6 +1411,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_texop_txf | nir_texop_txf_ms => {
+                assert!(!projection_enable);
                 b.push_op(OpTexFetch {
                     dst: tmp.clone().into(),
                     dst_type,
@@ -1429,7 +1431,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type,
                     skip,
                     dim,
-                    projection_enable: false,
+                    projection_enable,
                     write_mask,
                     wide_indices,
                     array_enable,
@@ -1461,7 +1463,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type,
                     skip,
                     dim,
-                    projection_enable: false,
+                    projection_enable,
                     write_mask,
                     wide_indices,
                     coord_mode,
