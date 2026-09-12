@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "pan_compiler.h"
 #include "pan_nir.h"
 #include "bifrost/bifrost.h"
 #include "bifrost/valhall/valhall.h"
@@ -817,9 +818,17 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
    const unsigned coord_comps = tex->coord_components - tex->is_array;
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE) {
       assert(coord_comps == 3);
-      nir_def *desc = build_cube_desc(b, srcs.coord);
-      sr[VA_TEX_SR_COORD_S] = nir_channel(b, desc, 0);
-      sr[VA_TEX_SR_COORD_T] = nir_channel(b, desc, 1);
+      bool is_kraid = pan_use_kraid(pan_arch(gpu_id), b->shader->info.stage,
+                                     b->shader->info.internal);
+      if (pan_arch(gpu_id) >= 11 && is_kraid) {
+         flags.projection_enable = true;
+         for (unsigned i = 0; i < coord_comps; i++)
+            sr[VA_TEX_SR_COORD_S + i] = nir_channel(b, srcs.coord, i);
+      } else {
+         nir_def *desc = build_cube_desc(b, srcs.coord);
+         sr[VA_TEX_SR_COORD_S] = nir_channel(b, desc, 0);
+         sr[VA_TEX_SR_COORD_T] = nir_channel(b, desc, 1);
+      }
    } else {
       for (unsigned i = 0; i < coord_comps; i++)
          sr[VA_TEX_SR_COORD_S + i] = nir_channel(b, srcs.coord, i);
@@ -979,8 +988,15 @@ va_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
    tex_h = nir_pad_vector_imm_int(b, tex_h, 0, 2);
 
    nir_def *coord = srcs.coord;
-   if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
-      coord = build_cube_desc(b, coord);
+   if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE) {
+      bool is_kraid = pan_use_kraid(pan_arch(gpu_id), b->shader->info.stage,
+                                     b->shader->info.internal);
+      if (pan_arch(gpu_id) >= 11 && is_kraid) {
+         flags.projection_enable = true;
+      } else {
+         coord = build_cube_desc(b, coord);
+      }
+   }
 
    nir_def *grdesc = nir_build_tex(b, nir_texop_gradient_pan,
                                     .dim = tex->sampler_dim,
