@@ -99,14 +99,29 @@ generate_mov(brw_shader &s, brw_inst *inst, const brw_reg &src)
       return inst;
    }
 
-   /* If the resulting MOV would try to write more than 2 registers, skip the
-    * optimization.
-    *
-    * FINISHME: It shouldn't be hard to generate multiple MOV instructions
-    * below to handle this case.
+   /* If the resulting MOV would try to write more than 2 registers, emit
+    * multiple MOVs instead.
     */
-   if (reg_count > max_reg_count)
-      return inst;
+   if (reg_count > max_reg_count) {
+      brw_builder bld = brw_builder(inst);
+      const unsigned exec_size = MIN2(inst->exec_size, 16 * reg_unit(s.devinfo));
+      unsigned size_written = 0;
+
+      brw_reg dst = inst->dst;
+      brw_reg tmp = src;
+
+      unsigned i = 0;
+      while (size_written < inst->size_written) {
+         brw_inst *mov = bld.group(exec_size, i++).MOV(dst, tmp);
+
+         dst = offset(dst, mov->size_written / REG_SIZE);
+         tmp = offset(tmp, mov->size_written / REG_SIZE);
+         size_written += mov->size_written;
+      }
+
+      assert(size_written == inst->size_written);
+      return brw_transform_inst(s, inst, BRW_OPCODE_NOP);
+   }
 
    inst = brw_transform_inst(s, inst, BRW_OPCODE_MOV);
    inst->src[0] = src;
