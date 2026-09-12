@@ -62,6 +62,7 @@ typedef union {
       bool dst_is_msaa:1;
       bool src_has_z:1;
       bool dst_has_z:1;
+      bool src_has_non_identity_fmask:1;
       bool dst_is_rgb5:1;
       bool a16:1;
       bool d16:1;
@@ -92,7 +93,6 @@ typedef struct {
    const nir_shader_compiler_options *nir_options;
    const struct radeon_info *info;
    bool use_aco;        /* global driver setting */
-   bool no_fmask;       /* FMASK disabled by a global debug option, ignored on GFX11+ */
    bool print_key;      /* print ac_ps_resolve_key into stderr */
    bool fail_if_slow;   /* fail if a gfx blit is faster, set to false on compute queues */
 
@@ -113,6 +113,7 @@ typedef struct {
    } dst, src;
 
    bool is_gfx_queue;
+   bool src_has_non_identity_fmask;
    bool dst_has_dcc;
 
    /* When clearing, clear only sample 0. Only useful when FMASK is enabled.

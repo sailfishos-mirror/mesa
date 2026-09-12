@@ -725,7 +725,6 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
       .nir_options = sctx->screen->nir_options,
       .info = &sctx->screen->info,
       .use_aco = sctx->screen->use_aco,
-      .no_fmask = sctx->screen->debug_flags & DBG(NO_FMASK),
       .print_key = si_can_dump_shader(sctx->screen, MESA_SHADER_COMPUTE, SI_DUMP_SHADER_KEY),
       /* Compute queues can't fail because there is no alternative. */
       .fail_if_slow = sctx->is_gfx_queue && fail_if_slow &&
@@ -759,6 +758,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
          .format = info->src.format,
       },
       .is_gfx_queue = sctx->is_gfx_queue,
+      .src_has_non_identity_fmask = ssrc && ssrc->surface.fmask_size,
       /* if (src_access || dst_access), one of the images is block-compressed, which can't fall
        * back to a pixel shader on radeonsi */
       .dst_has_dcc = vi_dcc_enabled(sdst, info->dst.level) && !src_access && !dst_access,

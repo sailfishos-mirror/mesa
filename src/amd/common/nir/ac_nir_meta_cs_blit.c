@@ -185,6 +185,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       fprintf(stderr, "   key.dst_is_msaa = %u\n", key->dst_is_msaa);
       fprintf(stderr, "   key.src_has_z = %u\n", key->src_has_z);
       fprintf(stderr, "   key.dst_has_z = %u\n", key->dst_has_z);
+      fprintf(stderr, "   key.src_has_non_identity_fmask = %u\n", key->src_has_non_identity_fmask);
+      fprintf(stderr, "   key.dst_is_rgb5 = %u\n", key->dst_is_rgb5);
       fprintf(stderr, "   key.a16 = %u\n", key->a16);
       fprintf(stderr, "   key.d16 = %u\n", key->d16);
       fprintf(stderr, "   key.log_samples = %u\n", key->log_samples);
@@ -401,7 +403,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 
       /* Use "samples_identical" for MSAA resolving if it's supported. */
       bool is_resolve = src_samples > 1 && dst_samples == 1;
-      bool uses_samples_identical = options->info->compiler_info.has_fmask && !options->no_fmask && is_resolve;
+      bool uses_samples_identical = options->info->compiler_info.has_fmask &&
+                                    key->src_has_non_identity_fmask && is_resolve;
       nir_def *samples_identical = NULL, *sample0[SI_MAX_COMPUTE_BLIT_LANE_SIZE] = {0};
       nir_if *if_identical = NULL;
 
@@ -437,7 +440,9 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                                          nir_channel(&b, coord_src[i], num_src_coords - 1), zero_lod,
                                          .image_dim = img_src->type->sampler_dimensionality,
                                          .image_array = img_src->type->sampler_array,
-                                         .dest_type = nir_type_uint | bit_size);
+                                         .dest_type = nir_type_uint | bit_size,
+                                         .access = key->src_has_non_identity_fmask ?
+                                                      0 : ACCESS_FMASK_LOWERED_AMD);
       }
 
       /* Resolve MSAA if necessary. */
@@ -1221,6 +1226,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       key.src_is_1d = blit->src.dim == 1;
       key.src_is_msaa = src_samples > 1;
       key.src_has_z = blit->src.dim == 3 || blit->src.is_array;
+      key.src_has_non_identity_fmask = src_samples > 1 && blit->src_has_non_identity_fmask;
       /* Resolving integer formats only copies sample 0. log_samples is then unused. */
       key.sample0_only = sample0_only;
       unsigned num_samples = MAX2(src_samples, dst_samples);
