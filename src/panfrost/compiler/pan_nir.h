@@ -303,7 +303,13 @@ struct pan_va_tex_flags {
    bool force_delta_enable : 1;
    bool lod_bias_disable : 1;
    bool lod_clamp_disable : 1;
-   unsigned _pad : 20;
+   /* For 1D, 2D and 3D textures, this makes the hardware read an extra q
+    * coordinate and divide the other coordinates by it. For cube maps, it
+    * instead makes the hardware build the cube map descriptor internally
+    * from the raw direction vector.
+    */
+   bool projection_enable : 1;
+   unsigned _pad : 19;
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
