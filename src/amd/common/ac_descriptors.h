@@ -374,11 +374,6 @@ ac_build_texture_descriptor(const struct radeon_info *info,
                             const struct ac_texture_state *state,
                             uint32_t desc[8]);
 
-uint32_t
-ac_tile_mode_index(const struct radeon_surf *surf,
-                   unsigned level,
-                   bool stencil);
-
 struct ac_mutable_tex_state {
    const struct radeon_surf *surf;
    uint64_t va;
