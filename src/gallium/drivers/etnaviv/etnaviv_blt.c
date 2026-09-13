@@ -449,7 +449,8 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    const uint64_t clear_bits = is_128bit_format ? 0 :
       etna_calculate_clear_bits(translate_pe_internal_format(dst->format, ctx->screen), clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
-   bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx);
+   bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx) &&
+                 (etna_resource_level_ts_valid(dst_level) || dst_level->ts_needs_clear);
    int msaa_xscale = 1, msaa_yscale = 1;
 
    translate_samples_to_xyscale(dst->texture->nr_samples,
