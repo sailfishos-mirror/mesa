@@ -11,12 +11,12 @@
 
 #include "ethosu_cmd.h"
 #include "ethosu_coefs.h"
+#include "ethosu_lower.h"
 #include "ethosu_ml.h"
 #include "ethosu_registers.h"
 #include "ethosu_sched.h"
 
 #define MAX_OUTSTANDING_DMA_OPS 2
-#define MAX_OUTSTANDING_NPU_OPS 2
 
 enum ethosu_op_to_scale {
    OP_NONE = 0,
@@ -1203,6 +1203,15 @@ ethosu_operations_conflict(struct ethosu_subgraph *subgraph,
    return false;
 }
 
+static bool
+ethosu_has_feature_map_dependency(const struct ethosu_operation *producer,
+                                  const struct ethosu_operation *consumer)
+{
+   return producer->ofm.tensor &&
+          (producer->ofm.tensor == consumer->ifm.tensor ||
+           producer->ofm.tensor == consumer->ifm2.tensor);
+}
+
 static void
 remove_completed_wait_ops(struct util_dynarray *outstanding_ops, unsigned completed)
 {
@@ -1242,11 +1251,33 @@ get_wait_dependency(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
    } else {
       outstanding_ops = outstanding_dma_ops;
 
-      util_dynarray_append(outstanding_npu_ops, operation);
+      /* IO allocation can reuse a range after its graph lifetime ends, but
+       * the NPU may still be reading or writing that range.  Wait for a
+       * conflicting NPU operation unless it is the immediately preceding
+       * direct producer, which block dependencies cover. */
+      unsigned waits = -1;
+      unsigned outstanding_npu_count =
+         util_dynarray_num_elements(outstanding_npu_ops,
+                                    struct ethosu_operation *);
+      for (int idx = util_dynarray_num_elements(outstanding_npu_ops,
+                                                struct ethosu_operation *) -
+                     1;
+           idx >= 0; idx--) {
+         waits += 1;
+         struct ethosu_operation *other =
+            *util_dynarray_element(outstanding_npu_ops,
+                                   struct ethosu_operation *, idx);
 
-      unsigned npu_ops = util_dynarray_num_elements(outstanding_npu_ops, struct ethosu_operation *);
-      if (npu_ops > MAX_OUTSTANDING_NPU_OPS)
-         remove_oldest_wait_op(outstanding_npu_ops);
+         if (!(idx == outstanding_npu_count - 1 &&
+               ethosu_has_feature_map_dependency(other, operation)) &&
+             ethosu_operations_conflict(subgraph, other, operation)) {
+            kern_wait = waits;
+            remove_completed_wait_ops(outstanding_npu_ops, idx + 1);
+            break;
+         }
+      }
+
+      util_dynarray_append(outstanding_npu_ops, operation);
    }
 
    unsigned waits = -1;
@@ -1303,8 +1334,7 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
             operation->read_accesses[0].address =
                operation->ifm.tiles.addresses[0];
             operation->read_accesses[0].size =
-               operation->ifm.shape.height * operation->ifm.shape.width *
-               operation->ifm.shape.depth;
+               ethosu_feature_map_span(&operation->ifm);
          }
 
          if (!u85_fm_chained(subgraph, &operation->ofm)) {
@@ -1312,8 +1342,7 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
             operation->write_accesses[0].address =
                operation->ofm.tiles.addresses[0];
             operation->write_accesses[0].size =
-               operation->ofm.shape.height * operation->ofm.shape.width *
-               operation->ofm.shape.depth;
+               ethosu_feature_map_span(&operation->ofm);
          }
          break;
       case ETHOSU_OPERATION_TYPE_CONVOLUTION:
@@ -1331,8 +1360,7 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
             operation->read_accesses[0].address =
                operation->ifm.tiles.addresses[0];
             operation->read_accesses[0].size =
-               operation->ifm.shape.height * operation->ifm.shape.width *
-               operation->ifm.shape.depth;
+               ethosu_feature_map_span(&operation->ifm);
          }
 
          if (!operation->ifm2.has_scalar &&
@@ -1341,16 +1369,15 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
             operation->read_accesses[1].address =
                operation->ifm2.tiles.addresses[0];
             operation->read_accesses[1].size =
-               operation->ifm2.tensor ? operation->ifm2.tensor->size : 0;
+               ethosu_feature_map_span(&operation->ifm2);
          }
 
          if (!u85_fm_chained(subgraph, &operation->ofm)) {
-            operation->write_accesses[0].region = IO_REGION;
+            operation->write_accesses[0].region = operation->ofm.region;
             operation->write_accesses[0].address =
                operation->ofm.tiles.addresses[0];
             operation->write_accesses[0].size =
-               operation->ofm.shape.height * operation->ofm.shape.width *
-               operation->ofm.shape.depth;
+               ethosu_feature_map_span(&operation->ofm);
          }
          break;
       }

@@ -309,7 +309,7 @@ ethosu_all_consumers_are_convolutions(const struct pipe_ml_operation *poperation
    return found_consumer;
 }
 
-static unsigned
+unsigned
 ethosu_feature_map_span(const struct ethosu_feature_map *fm)
 {
    unsigned elem_size = 1 << fm->precision;
