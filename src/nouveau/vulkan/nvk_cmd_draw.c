@@ -1228,7 +1228,7 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    const size_t zcull_count = 47;
    struct nv_push *p = nvk_cmd_buffer_push(
-      cmd, NVK_MAX_RTS * 12 + 44 + zcull_count
+      cmd, NVK_MAX_RTS * 12 + 46 + zcull_count
    );
 
    P_IMMD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_VIEW_MASK),
