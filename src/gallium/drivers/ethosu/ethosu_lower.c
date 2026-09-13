@@ -449,6 +449,39 @@ set_internal_feature_map(struct ethosu_tensor *tensor,
 }
 
 static void
+set_constant_feature_map(struct ethosu_subgraph *subgraph,
+                         int32_t value,
+                         struct ethosu_feature_map *fm)
+{
+   struct ethosu_block scalar_shape = {1, 1, 1};
+   static struct ethosu_tensor tensor = {
+      .size = 4,
+      .type_size = 4,
+      .layout = ETHOSU_LAYOUT_NHWC,
+   };
+
+   fm->tensor = &tensor;
+   fm->region = COEFS_REGION;
+   fm->shape = scalar_shape;
+   fm->zero_point = 0;
+   fm->scale = 1.0f;
+   fm->is_signed = true;
+   fm->precision = 2;
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+      fm->tiles.addresses[0] =
+         ethosu_add_constant(subgraph, &value, sizeof(value));
+   } else {
+      fm->scalar = value;
+      fm->has_scalar = true;
+   }
+   fm->tiles.height_0 = scalar_shape.height;
+   fm->tiles.height_1 = scalar_shape.height;
+   fm->tiles.width_0 = scalar_shape.width;
+
+   set_feature_map_strides(fm, false);
+}
+
+static void
 set_u85_chained_feature_map(struct ethosu_subgraph *subgraph,
                             struct ethosu_feature_map *fm,
                             unsigned chain_id)
