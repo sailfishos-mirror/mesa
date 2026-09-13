@@ -35,6 +35,9 @@ enum ethosu_microblock {
 };
 
 static bool
+eltwise_has_ifm2(struct ethosu_operation *operation);
+
+static bool
 ethosu_ensure_cmdstream(struct ethosu_subgraph *subgraph)
 {
    if ((subgraph->cursor - subgraph->cmdstream) < (subgraph->cmdstream_used - 2))
@@ -477,7 +480,8 @@ emit_shram_registers(struct ethosu_subgraph *subgraph, struct ethosu_operation *
    EMIT0(NPU_SET_IFM_IB_END, operation->block_config.shram_layout.ib_end);
    EMIT0(NPU_SET_AB_START, operation->block_config.shram_layout.ab_start);
 
-   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE)
+   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE &&
+       eltwise_has_ifm2(operation))
       EMIT0(NPU_SET_IFM2_IB_START, operation->block_config.shram_layout.ib_start2);
 
    EMIT0(NPU_SET_ACC_FORMAT, operation->block_config.acc_type);
@@ -1123,6 +1127,11 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
       case ETHOSU_ELTWISE_TYPE_MIN:
          elementwise_min_max_scale(subgraph);
          break;
+      case ETHOSU_ELTWISE_TYPE_CLZ:
+      case ETHOSU_ELTWISE_TYPE_SHR:
+      case ETHOSU_ELTWISE_TYPE_SHL:
+         EMIT1(NPU_SET_OFM_SCALE, 0, 1);
+         break;
       default:
          assert(0);
          break;
@@ -1401,6 +1410,15 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[3].size = operation->conv.weights.size;
          FALLTHROUGH;
       default:
+         if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE &&
+             ethosu_activation_is_lut(subgraph, operation->activation)) {
+            operation->read_accesses[4].region = ethosu_lut_region();
+            operation->read_accesses[4].address =
+               ethosu_lut_address(subgraph, operation->activation,
+                                  operation->lut.size);
+            operation->read_accesses[4].size = operation->lut.size;
+         }
+
          if (!u85_fm_chained(subgraph, &operation->ifm)) {
             operation->read_accesses[0].region = operation->ifm.region;
             operation->read_accesses[0].address =
