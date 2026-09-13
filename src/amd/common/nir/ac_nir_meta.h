@@ -56,6 +56,7 @@ typedef union {
       uint8_t log_lane_depth:2;
       /* Declaration modifiers. */
       bool is_clear:1;
+      bool src_is_sampler:1; /* if not, it's a storage image */
       bool src_is_1d:1;
       bool dst_is_1d:1;
       bool src_is_msaa:1;
@@ -112,6 +113,7 @@ typedef struct {
       enum pipe_format format;   /* format reinterpretation */
    } dst, src;
 
+   bool src_is_sampler;
    bool src_has_non_identity_fmask;
 
    /* When clearing, clear only sample 0. Only useful when FMASK is enabled.
