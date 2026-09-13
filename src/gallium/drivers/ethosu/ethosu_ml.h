@@ -232,7 +232,11 @@ struct ethosu_operation {
       struct {
          enum ethosu_eltwise_type type;
          uint16_t activation_min;
+         unsigned scale;
+         unsigned shift;
          bool ifm_reversed;
+         bool identity_scale;
+         bool raw_scale;
       } eltwise;
 
       struct {
@@ -252,6 +256,7 @@ struct ethosu_operation {
    struct ethosu_padding pad;
    enum ethosu_upscale_mode upscale;
    enum ethosu_rounding_mode round_mode;
+   bool ofm_scale_per_channel;
    uint16_t activation;
 
    struct ethosu_address_range read_accesses[MAX_MEMORY_ACCESSES];

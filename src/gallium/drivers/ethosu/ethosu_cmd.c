@@ -340,7 +340,8 @@ emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
 
    if (operation->type == ETHOSU_OPERATION_TYPE_POOLING ||
        operation->type == ETHOSU_OPERATION_TYPE_ELTWISE) {
-      prec |= NPU_SET_OFM_PRECISION_SCALE_MODE(1);
+      if (!operation->ofm_scale_per_channel)
+         prec |= NPU_SET_OFM_PRECISION_SCALE_MODE(1);
    }
 
    if (ethosu_ml_device(subgraph->base.device)->is_u65)
@@ -991,6 +992,22 @@ elementwise_mul_scale(
    EMIT1(NPU_SET_OFM_SCALE, ofm_shift, ofm_scale);
 }
 
+static unsigned
+u85_elementwise_input_shift(struct ethosu_feature_map *feature_map)
+{
+   return feature_map->precision == 0 ? 20 : 15;
+}
+
+static void
+u85_reset_elementwise_input_scale(struct ethosu_subgraph *subgraph)
+{
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return;
+
+   EMIT1(NPU_SET_OPA_SCALE, 0, 1);
+   EMIT1(NPU_SET_OPB_SCALE, 0, 1);
+}
+
 /*
  * U85 uses "simplified" mode (from Vela simplified_elementwise_add_sub_scale):
  *   Both operands are independently rescaled.  OPA_SCALE and OPB_SCALE each
@@ -1039,48 +1056,77 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    bool has_ifm2_scalar = operation->ifm2.has_scalar;
    bool has_scalar = has_ifm_scalar || has_ifm2_scalar;
    enum ethosu_op_to_scale op_to_scale = OP_NONE;
+   unsigned ofm_scale_param = u85_ofm_scale_param(subgraph, operation);
 
    if (u85_fm_chained(subgraph, &operation->ifm) ||
        u85_fm_chained(subgraph, &operation->ifm2) ||
        u85_fm_chained(subgraph, &operation->ofm))
       u85_clear_chaining_registers(subgraph);
 
-   switch (operation->eltwise.type) {
-   case ETHOSU_ELTWISE_TYPE_MUL:
-      elementwise_mul_scale(subgraph, operation->ifm.scale,
-                            operation->ifm2.scale,
-                            operation->ofm.scale);
-      break;
-   case ETHOSU_ELTWISE_TYPE_ADD:
-   case ETHOSU_ELTWISE_TYPE_SUB:
-      if (ethosu_ml_device(subgraph->base.device)->is_u65) {
-         op_to_scale = eltwise_emit_ofm_scaling(
-            subgraph,
-            operation->ifm.scale,
-            operation->ifm2.scale,
-            operation->ofm.scale);
-      } else {
-         op_to_scale = eltwise_emit_ofm_scaling_u85(
-            subgraph,
-            operation->ifm.scale,
-            operation->ifm2.scale,
-            operation->ofm.scale);
-      }
+   if (operation->eltwise.raw_scale) {
+      u85_reset_elementwise_input_scale(subgraph);
+      EMIT1(NPU_SET_OFM_SCALE,
+            ofm_scale_param |
+               NPU_SET_OFM_SCALE_SHIFT(operation->eltwise.shift),
+            operation->eltwise.scale);
+   } else if (operation->eltwise.identity_scale) {
+      if (operation->eltwise.type == ETHOSU_ELTWISE_TYPE_ADD ||
+          operation->eltwise.type == ETHOSU_ELTWISE_TYPE_SUB) {
+         unsigned opa_param = 0;
+         unsigned opb_param = 0;
 
-      if (operation->eltwise.ifm_reversed) {
-         if (op_to_scale == OP_A)
-            op_to_scale = OP_B;
-         else
-            op_to_scale = OP_A;
+         if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
+            opa_param = NPU_SET_OPA_SCALE_DBL_RND(
+               u85_elementwise_input_shift(&operation->ifm));
+            opb_param = NPU_SET_OPB_SCALE_DBL_RND(
+               u85_elementwise_input_shift(&operation->ifm2));
+         }
+
+         EMIT1(NPU_SET_OPA_SCALE, opa_param, 1);
+         EMIT1(NPU_SET_OPB_SCALE, opb_param, 1);
+      } else {
+         u85_reset_elementwise_input_scale(subgraph);
       }
-      break;
-   case ETHOSU_ELTWISE_TYPE_MAX:
-   case ETHOSU_ELTWISE_TYPE_MIN:
-      elementwise_min_max_scale(subgraph);
-      break;
-   default:
-      assert(0);
-      break;
+      EMIT1(NPU_SET_OFM_SCALE, ofm_scale_param, 1);
+   } else {
+      switch (operation->eltwise.type) {
+      case ETHOSU_ELTWISE_TYPE_MUL:
+         u85_reset_elementwise_input_scale(subgraph);
+         elementwise_mul_scale(subgraph, operation->ifm.scale,
+                               operation->ifm2.scale,
+                               operation->ofm.scale);
+         break;
+      case ETHOSU_ELTWISE_TYPE_ADD:
+      case ETHOSU_ELTWISE_TYPE_SUB:
+         if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+            op_to_scale = eltwise_emit_ofm_scaling(
+               subgraph,
+               operation->ifm.scale,
+               operation->ifm2.scale,
+               operation->ofm.scale);
+         } else {
+            op_to_scale = eltwise_emit_ofm_scaling_u85(
+               subgraph,
+               operation->ifm.scale,
+               operation->ifm2.scale,
+               operation->ofm.scale);
+         }
+
+         if (operation->eltwise.ifm_reversed) {
+            if (op_to_scale == OP_A)
+               op_to_scale = OP_B;
+            else
+               op_to_scale = OP_A;
+         }
+         break;
+      case ETHOSU_ELTWISE_TYPE_MAX:
+      case ETHOSU_ELTWISE_TYPE_MIN:
+         elementwise_min_max_scale(subgraph);
+         break;
+      default:
+         assert(0);
+         break;
+      }
    }
 
    emit_common(subgraph, operation, op_to_scale);
