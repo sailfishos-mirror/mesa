@@ -138,6 +138,8 @@ struct hk_descriptor_state {
 };
 
 struct hk_attachment {
+   VkRenderingAttachmentFlagBitsKHR flags;
+
    VkFormat vk_format;
    struct hk_image_view *iview;
 
