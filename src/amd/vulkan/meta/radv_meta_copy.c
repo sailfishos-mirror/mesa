@@ -808,6 +808,19 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
       dst_format = radv_get_compat_color_ds_format(dst_image->vk.format);
    }
 
+   if (dst_needs_dcc_decompress) {
+      radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
+      radv_decompress_dcc(cmd_buffer, dst_image,
+                          &(VkImageSubresourceRange){
+                             .aspectMask = region->dstSubresource.aspectMask,
+                             .baseMipLevel = region->dstSubresource.mipLevel,
+                             .levelCount = 1,
+                             .baseArrayLayer = dst_layer,
+                             .layerCount = layer_count,
+                          });
+      radv_describe_barrier_end(cmd_buffer);
+   }
+
    if (use_compute) {
       radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
                                    &region->extent, true);
@@ -820,26 +833,13 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    struct radv_meta_blit2d_surf b_dst =
       radv_blit_surf_for_image_level_layer(dst_image, dst_image_layout, &region->dstSubresource);
 
-   if (dst_needs_dcc_decompress) {
-      radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
-      radv_decompress_dcc(cmd_buffer, dst_image,
-                          &(VkImageSubresourceRange){
-                             .aspectMask = region->dstSubresource.aspectMask,
-                             .baseMipLevel = region->dstSubresource.mipLevel,
-                             .levelCount = 1,
-                             .baseArrayLayer = dst_layer,
-                             .layerCount = layer_count,
-                          });
-      radv_describe_barrier_end(cmd_buffer);
-
-      b_dst.disable_compression = true;
-   }
-
    b_src.layer = src_layer;
    b_dst.layer = dst_layer;
 
    b_src.format = src_format;
    b_dst.format = dst_format;
+
+   b_dst.disable_compression = dst_needs_dcc_decompress;
 
    for (unsigned layer = 0; layer < layer_count; layer++) {
       /* Perform Blit */
