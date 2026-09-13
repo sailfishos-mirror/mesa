@@ -41,6 +41,13 @@ extern struct ethosu_block SUB_KERNEL_MAX;
 #define SCRATCH_REGION 2
 #define LUT_REGION     0x103     // Internal SHRAM
 
+enum ethosu_activation_storage {
+   ETHOSU_ACTIVATION_STORAGE_TILE2X2 = 0,
+   ETHOSU_ACTIVATION_STORAGE_TILE3X1 = 1,
+   ETHOSU_ACTIVATION_STORAGE_CHAINED = 2,
+   ETHOSU_ACTIVATION_STORAGE_NONE = 3,
+};
+
 enum ethosu_operation_type {
    ETHOSU_OPERATION_TYPE_NONE,
    ETHOSU_OPERATION_TYPE_CONVOLUTION,
@@ -117,6 +124,8 @@ struct ethosu_feature_map {
    float scale;
    int32_t scalar;
    bool has_scalar;
+   enum ethosu_activation_storage activation_storage;
+   uint8_t chain_id;
    uint8_t region;
 };
 

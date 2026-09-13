@@ -85,6 +85,72 @@ ethosu_cmd1_changed(struct ethosu_subgraph *subgraph, uint16_t reg, uint64_t val
    return true;
 }
 
+static void
+ethosu_cmd0_invalidate(struct ethosu_subgraph *subgraph, uint16_t reg)
+{
+   assert(reg < ETHOSU_MAX_REG_INDEX);
+   subgraph->cmd0_valid[reg] = false;
+}
+
+static void
+ethosu_cmd1_invalidate(struct ethosu_subgraph *subgraph, uint16_t reg)
+{
+   assert(reg < ETHOSU_MAX_REG_INDEX);
+   subgraph->cmd1_valid[reg] = false;
+}
+
+static bool
+u85_fm_chained(struct ethosu_subgraph *subgraph,
+               const struct ethosu_feature_map *feature_map)
+{
+   return !ethosu_ml_device(subgraph->base.device)->is_u65 &&
+          feature_map->activation_storage == ETHOSU_ACTIVATION_STORAGE_CHAINED;
+}
+
+static void
+u85_clear_chaining_registers(struct ethosu_subgraph *subgraph)
+{
+   static const uint16_t cmd0_regs[] = {
+      NPU_SET_IFM_PRECISION,
+      NPU_SET_IFM_HEIGHT0_M1,
+      NPU_SET_IFM_HEIGHT1_M1,
+      NPU_SET_IFM_WIDTH0_M1,
+      NPU_SET_IFM_REGION,
+      NPU_SET_IFM_ZERO_POINT,
+      NPU_SET_IFM2_PRECISION,
+      NPU_SET_IFM2_HEIGHT0_M1,
+      NPU_SET_IFM2_HEIGHT1_M1,
+      NPU_SET_IFM2_WIDTH0_M1,
+      NPU_SET_IFM2_REGION,
+      NPU_SET_IFM2_ZERO_POINT,
+      NPU_SET_OFM_PRECISION,
+   };
+   static const uint16_t cmd1_regs[] = {
+      NPU_SET_IFM_BASE0,
+      NPU_SET_IFM_BASE1,
+      NPU_SET_IFM_BASE2,
+      NPU_SET_IFM_BASE3,
+      NPU_SET_IFM_STRIDE_X,
+      NPU_SET_IFM_STRIDE_Y,
+      NPU_SET_IFM_STRIDE_C,
+      NPU_SET_IFM2_BASE0,
+      NPU_SET_IFM2_BASE1,
+      NPU_SET_IFM2_BASE2,
+      NPU_SET_IFM2_BASE3,
+      NPU_SET_IFM2_STRIDE_X,
+      NPU_SET_IFM2_STRIDE_Y,
+      NPU_SET_IFM2_STRIDE_C,
+   };
+
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return;
+
+   for (unsigned i = 0; i < ARRAY_SIZE(cmd0_regs); i++)
+      ethosu_cmd0_invalidate(subgraph, cmd0_regs[i]);
+   for (unsigned i = 0; i < ARRAY_SIZE(cmd1_regs); i++)
+      ethosu_cmd1_invalidate(subgraph, cmd1_regs[i]);
+}
+
 /* Check if this is an operation command (always emit, never deduplicate).
  * NPU_OP_* commands occupy offsets 0x00–0x13: STOP=0, IRQ=1, CONV=2,
  * DEPTHWISE=3, POOL=5, ELEMENTWISE=6, RESIZE=7, DMA_START=16,
@@ -164,6 +230,12 @@ emit_ifm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_ma
       return;
    }
 
+   if (u85_fm_chained(subgraph, feature_map)) {
+      EMIT0(NPU_SET_IFM_REGION, feature_map->chain_id);
+      EMIT0(NPU_SET_IFM_ZERO_POINT, feature_map->zero_point);
+      return;
+   }
+
    EMIT0(NPU_SET_IFM_REGION, feature_map->region);
    emit_addresses(
       subgraph,
@@ -196,11 +268,13 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
    if (feature_map->is_signed)
       prec |= NPU_SET_IFM_PRECISION_ACTIVATION(1); // signed activation
 
-   if (feature_map->has_scalar)
-      prec |= 3 << 14; /* U85 ACTIVATION_STORAGE_NONE */
-
-   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
       prec |= NPU_SET_IFM_PRECISION_SCALE_MODE(op_to_scale);
+   } else if (feature_map->has_scalar) {
+      prec |= ETHOSU_ACTIVATION_STORAGE_NONE << 14;
+   } else {
+      prec |= feature_map->activation_storage << 14;
+   }
 
    EMIT0(precision_cmd, prec);
 }
@@ -217,7 +291,16 @@ emit_padding(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 static void
 emit_ofm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_map)
 {
-   EMIT0(NPU_SET_OFM_REGION, IO_REGION);
+   if (u85_fm_chained(subgraph, feature_map)) {
+      EMIT0(NPU_SET_OFM_REGION, feature_map->chain_id);
+      EMIT0(NPU_SET_OFM_HEIGHT_M1, feature_map->shape.height - 1);
+      EMIT0(NPU_SET_OFM_WIDTH_M1, feature_map->shape.width - 1);
+      EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
+      EMIT0(NPU_SET_OFM_ZERO_POINT, feature_map->zero_point);
+      return;
+   }
+
+   EMIT0(NPU_SET_OFM_REGION, feature_map->region);
    emit_addresses(
       subgraph,
       feature_map,
@@ -262,6 +345,8 @@ emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
 
    if (ethosu_ml_device(subgraph->base.device)->is_u65)
       prec |= NPU_SET_OFM_PRECISION_ROUND_MODE(operation->round_mode);
+   else
+      prec |= operation->ofm.activation_storage << 14;
 
    EMIT0(NPU_SET_OFM_PRECISION, prec);
 }
@@ -678,9 +763,11 @@ emit_ifm2_precision(struct ethosu_subgraph *subgraph,
    if (operation->ifm2.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_FORMAT(1);
 
-   /* Vela: scalar → NONE(3), non-scalar → TILE2X2(0) */
    if (has_scalar)
       prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_STORAGE(3);
+   else
+      prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_STORAGE(
+         operation->ifm2.activation_storage);
 
    EMIT0(NPU_SET_IFM2_PRECISION, prec);
 }
@@ -693,6 +780,8 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
          EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
       else
          EMIT1(NPU_SET_OP_SCALAR, 0, operation->ifm2.scalar);
+   } else if (u85_fm_chained(subgraph, &operation->ifm2)) {
+      EMIT0(NPU_SET_IFM2_REGION, operation->ifm2.chain_id);
    } else {
       EMIT0(NPU_SET_IFM2_REGION, operation->ifm2.region);
       emit_addresses(subgraph, &operation->ifm2, NPU_SET_IFM2_BASE0, NPU_SET_IFM2_BASE1, NPU_SET_IFM2_BASE2, NPU_SET_IFM2_BASE3);
@@ -951,6 +1040,11 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    bool has_scalar = has_ifm_scalar || has_ifm2_scalar;
    enum ethosu_op_to_scale op_to_scale = OP_NONE;
 
+   if (u85_fm_chained(subgraph, &operation->ifm) ||
+       u85_fm_chained(subgraph, &operation->ifm2) ||
+       u85_fm_chained(subgraph, &operation->ofm))
+      u85_clear_chaining_registers(subgraph);
+
    switch (operation->eltwise.type) {
    case ETHOSU_ELTWISE_TYPE_MUL:
       elementwise_mul_scale(subgraph, operation->ifm.scale,
@@ -1203,13 +1297,24 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
                                   operation->lut.size);
             operation->read_accesses[1].size = operation->lut.size;
          }
-         operation->read_accesses[0].region = operation->ifm.region;
-         operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
-         operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
+         if (!operation->ifm.has_scalar &&
+             !u85_fm_chained(subgraph, &operation->ifm)) {
+            operation->read_accesses[0].region = operation->ifm.region;
+            operation->read_accesses[0].address =
+               operation->ifm.tiles.addresses[0];
+            operation->read_accesses[0].size =
+               operation->ifm.shape.height * operation->ifm.shape.width *
+               operation->ifm.shape.depth;
+         }
 
-         operation->write_accesses[0].region = operation->ofm.region;
-         operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
-         operation->write_accesses[0].size = operation->ofm.shape.height * operation->ofm.shape.width * operation->ofm.shape.depth;
+         if (!u85_fm_chained(subgraph, &operation->ofm)) {
+            operation->write_accesses[0].region = operation->ofm.region;
+            operation->write_accesses[0].address =
+               operation->ofm.tiles.addresses[0];
+            operation->write_accesses[0].size =
+               operation->ofm.shape.height * operation->ofm.shape.width *
+               operation->ofm.shape.depth;
+         }
          break;
       case ETHOSU_OPERATION_TYPE_CONVOLUTION:
          operation->read_accesses[2].region = operation->conv.scales.region;
@@ -1221,13 +1326,17 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[3].size = operation->conv.weights.size;
          FALLTHROUGH;
       default:
-         if (!operation->ifm.has_scalar) {
+         if (!u85_fm_chained(subgraph, &operation->ifm)) {
             operation->read_accesses[0].region = operation->ifm.region;
-            operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
-            operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
+            operation->read_accesses[0].address =
+               operation->ifm.tiles.addresses[0];
+            operation->read_accesses[0].size =
+               operation->ifm.shape.height * operation->ifm.shape.width *
+               operation->ifm.shape.depth;
          }
 
-         if (!operation->ifm2.has_scalar) {
+         if (!operation->ifm2.has_scalar &&
+             !u85_fm_chained(subgraph, &operation->ifm2)) {
             operation->read_accesses[1].region = operation->ifm2.region;
             operation->read_accesses[1].address =
                operation->ifm2.tiles.addresses[0];
@@ -1235,9 +1344,14 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
                operation->ifm2.tensor ? operation->ifm2.tensor->size : 0;
          }
 
-         operation->write_accesses[0].region = IO_REGION;
-         operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
-         operation->write_accesses[0].size = operation->ofm.shape.height * operation->ofm.shape.width * operation->ofm.shape.depth;
+         if (!u85_fm_chained(subgraph, &operation->ofm)) {
+            operation->write_accesses[0].region = IO_REGION;
+            operation->write_accesses[0].address =
+               operation->ofm.tiles.addresses[0];
+            operation->write_accesses[0].size =
+               operation->ofm.shape.height * operation->ofm.shape.width *
+               operation->ofm.shape.depth;
+         }
          break;
       }
    }
@@ -1399,6 +1513,16 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
     * the operation that produced the aliased storage.
     */
    if (prev_op->type == ETHOSU_OPERATION_TYPE_NONE)
+      return 0;
+
+   /* Chained U85 operations get no block dependency: the chain buffers
+    * provide the required ordering, and their internal layout is not
+    * suitable for the overlap test.
+    */
+   if (u85_fm_chained(subgraph, &prev_op->ofm) ||
+       u85_fm_chained(subgraph, &operation->ifm) ||
+       u85_fm_chained(subgraph, &operation->ifm2) ||
+       u85_fm_chained(subgraph, &operation->ofm))
       return 0;
 
    const struct ethosu_feature_map *prev_ofm = &prev_op->ofm;

@@ -359,14 +359,16 @@ ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph,
 static void
 allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   if (operation->ofm.region == IO_REGION) {
+   if (operation->ofm.region == IO_REGION &&
+       operation->ofm.activation_storage != ETHOSU_ACTIVATION_STORAGE_CHAINED) {
       operation->ofm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, &operation->ofm);
       operation->ofm.tiles.height_0 = operation->ofm.shape.height;
       operation->ofm.tiles.height_1 = operation->ofm.shape.height;
       operation->ofm.tiles.width_0 = operation->ofm.shape.width;
    }
 
-   if (operation->ifm.region == IO_REGION) {
+   if (operation->ifm.region == IO_REGION &&
+       operation->ifm.activation_storage != ETHOSU_ACTIVATION_STORAGE_CHAINED) {
       operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, &operation->ifm);
       operation->ifm.tiles.height_0 = operation->ifm.shape.height;
       operation->ifm.tiles.height_1 = operation->ifm.shape.height;
@@ -445,6 +447,18 @@ set_internal_feature_map(struct ethosu_tensor *tensor,
    fm->precision = log2(tensor->type_size);
 
    set_feature_map_strides(fm, tensor->layout == ETHOSU_LAYOUT_NHCWB16);
+}
+
+static void
+set_u85_chained_feature_map(struct ethosu_subgraph *subgraph,
+                            struct ethosu_feature_map *fm,
+                            unsigned chain_id)
+{
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      return;
+
+   fm->activation_storage = ETHOSU_ACTIVATION_STORAGE_CHAINED;
+   fm->chain_id = chain_id;
 }
 
 static void
