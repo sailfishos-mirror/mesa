@@ -193,6 +193,7 @@ hk_get_device_extensions(const struct hk_instance *instance,
 #ifdef HK_USE_WSI_PLATFORM
       .EXT_present_timing = true,
 #endif
+      .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_private_data = true,
       .EXT_primitives_generated_query = false,
@@ -597,6 +598,9 @@ hk_get_device_features(
 
       /* VK_EXT_pipeline_robustness */
       .pipelineRobustness = true,
+
+      /* VK_EXT_primitive_restart_index */
+      .primitiveRestartIndex = true,
 
       /* VK_EXT_primitive_topology_list_restart */
       .primitiveTopologyListRestart = true,

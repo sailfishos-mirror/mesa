@@ -1430,7 +1430,6 @@ hk_draw_without_restart(struct hk_cmd_buffer *cmd, struct agx_draw draw,
                         uint32_t draw_count)
 {
    struct hk_device *dev = hk_cmd_buffer_device(cmd);
-   struct hk_graphics_state *gfx = &cmd->state.gfx;
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
 
    perf_debug(cmd, "Unrolling primitive restart due to GS/XFB");
@@ -1449,7 +1448,7 @@ hk_draw_without_restart(struct hk_cmd_buffer *cmd, struct agx_draw draw,
       .in_draw = draw.b.ptr,
       .out_draw = hk_pool_alloc(cmd, 5 * sizeof(uint32_t) * draw_count, 4).gpu,
       .max_draws = 1 /* TODO: MDI */,
-      .restart_index = gfx->index.restart,
+      .restart_index = dyn->ia.primitive_restart_index,
       .index_buffer_size_el = agx_draw_index_range_el(draw),
       .index_size_log2 = draw.index_size,
       .flatshade_first =
@@ -2236,7 +2235,7 @@ static void
 hk_flush_index(struct hk_cmd_buffer *cmd, struct hk_cs *cs)
 {
    struct hk_api_shader *gs = cmd->state.gfx.shaders[MESA_SHADER_GEOMETRY];
-   uint32_t index = cmd->state.gfx.index.restart;
+   uint32_t index = cmd->vk.dynamic_graphics_state.ia.primitive_restart_index;
 
    if (gs) {
       enum poly_gs_shape shape =
@@ -3401,10 +3400,11 @@ hk_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    VK_FROM_HANDLE(hk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(hk_buffer, buffer, _buffer);
 
+   vk_cmd_set_index_buffer_type(&cmd->vk, indexType);
+
    cmd->state.gfx.index = (struct hk_index_buffer_state){
       .buffer = hk_buffer_addr_range(buffer, offset, size, true),
       .size = agx_translate_index_size(vk_index_type_to_bytes(indexType)),
-      .restart = vk_index_to_restart(indexType),
    };
 
    /* TODO: check if necessary, blob does this */
@@ -3504,7 +3504,7 @@ hk_ia_update(struct hk_cmd_buffer *cmd, struct agx_draw draw,
       libagx_increment_ia_restart(
          cmd, agx_1d(1024), AGX_BARRIER_ALL | AGX_PREGFX, ia_vertices, ia_prims,
          vs_invocations, c_prims, c_inv, draw_ptr, draw.index_buffer,
-         agx_draw_index_range_el(draw), cmd->state.gfx.index.restart,
+         agx_draw_index_range_el(draw), dyn->ia.primitive_restart_index,
          index_size_B, prim, patch_size);
    } else {
       libagx_increment_ia(cmd, agx_1d(1), AGX_BARRIER_ALL | AGX_PREGFX,
