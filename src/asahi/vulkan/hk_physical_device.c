@@ -117,6 +117,7 @@ hk_get_device_extensions(const struct hk_instance *instance,
       .KHR_shader_float_controls = true,
       .KHR_shader_float_controls2 = true,
       .KHR_shader_float16_int8 = true,
+      .KHR_shader_fma = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_non_semantic_info = true,
@@ -449,6 +450,11 @@ hk_get_device_features(
 
       /* VK_KHR_shader_float_controls2 */
       .shaderFloatControls2 = true,
+
+      /* VK_KHR_shader_fma */
+      .shaderFmaFloat16 = true,
+      .shaderFmaFloat32 = true,
+      .shaderFmaFloat64 = false,
 
       /* VK_KHR_shader_maximal_reconvergence */
       .shaderMaximalReconvergence = true,
