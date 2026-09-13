@@ -221,7 +221,6 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_MINIMUM:
    case PIPE_ML_OPERATION_TYPE_MUL:
    case PIPE_ML_OPERATION_TYPE_ADD:
-   case PIPE_ML_OPERATION_TYPE_POOLING:
    case PIPE_ML_OPERATION_TYPE_STRIDED_SLICE:
    case PIPE_ML_OPERATION_TYPE_LOGISTIC:
    case PIPE_ML_OPERATION_TYPE_TANH:
@@ -230,6 +229,13 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_QUANTIZE:
    case PIPE_ML_OPERATION_TYPE_RESHAPE:
       supported = true;
+      break;
+   case PIPE_ML_OPERATION_TYPE_POOLING:
+      /* A stride above 3 has no valid encoding. Convolutions work around
+       * this by unrolling, but pooling does not, so reject it.
+       */
+      supported = operation->pooling.stride_x <= 3 &&
+                  operation->pooling.stride_y <= 3;
       break;
    case PIPE_ML_OPERATION_TYPE_PAD: {
       struct pipe_tensor *input = operation->input_tensors[0];
