@@ -18,7 +18,8 @@
 #include "ac_formats.h"
 
 static bool
-radv_is_clear_rect_full(const struct radv_image_view *iview, const VkClearRect *clear_rect, uint32_t view_mask)
+radv_is_clear_rect_full(const struct radv_image_view *iview, const VkClearRect *clear_rect, uint32_t view_mask,
+                        bool need_all_slices)
 {
    const struct radv_image *image = iview->image;
 
@@ -37,7 +38,7 @@ radv_is_clear_rect_full(const struct radv_image_view *iview, const VkClearRect *
    const bool all_slices = num_layers == image->vk.array_layers;
 
    /* All slices must be fast-cleared when comp-to-single isn't supported. */
-   if (!all_slices && !image->support_comp_to_single)
+   if (!all_slices && need_all_slices)
       return false;
 
    return true;
@@ -494,7 +495,7 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
    }
 
    if (iview && radv_image_has_hiz_metadata(iview->image) && (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) &&
-       radv_is_clear_rect_full(iview, clear_rect, view_mask)) {
+       radv_is_clear_rect_full(iview, clear_rect, view_mask, true)) {
       const VkImageSubresourceRange range = {
          .aspectMask = aspects,
          .baseMipLevel = iview->vk.base_mip_level,
@@ -687,7 +688,7 @@ radv_can_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                                         radv_image_queue_family_mask(iview->image, cmd_buffer->qf)))
       return false;
 
-   if (!radv_is_clear_rect_full(iview, clear_rect, view_mask))
+   if (!radv_is_clear_rect_full(iview, clear_rect, view_mask, true))
       return false;
 
    if (device->vk.enabled_extensions.EXT_depth_range_unrestricted && (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) &&
@@ -1322,7 +1323,7 @@ radv_can_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                                    radv_image_queue_family_mask(iview->image, cmd_buffer->qf)))
       return false;
 
-   if (!radv_is_clear_rect_full(iview, clear_rect, view_mask))
+   if (!radv_is_clear_rect_full(iview, clear_rect, view_mask, !iview->image->support_comp_to_single))
       return false;
 
    /* DCC */
