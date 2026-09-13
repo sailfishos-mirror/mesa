@@ -313,21 +313,20 @@ static unsigned
 ethosu_feature_map_span(const struct ethosu_feature_map *fm)
 {
    unsigned elem_size = 1 << fm->precision;
-   uint64_t size = elem_size;
-
-   if (fm->tensor && fm->tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
-      size = (uint64_t)fm->shape.height * fm->shape.width *
-             align(fm->shape.depth, 16) * elem_size;
-      assert(size <= UINT_MAX);
-      return size;
-   }
+   /* Brick format stores 16 channels contiguously, so its channel axis
+    * steps in bricks of 16 and its last element spans a full brick.
+    */
+   bool brick = fm->tensor && fm->tensor->layout == ETHOSU_LAYOUT_NHCWB16;
+   unsigned steps = brick ? align(fm->shape.depth, 16) / 16
+                          : fm->shape.depth;
+   uint64_t size = brick ? 16 * elem_size : elem_size;
 
    if (fm->shape.height)
       size += (uint64_t)(fm->shape.height - 1) * fm->stride.y;
    if (fm->shape.width)
       size += (uint64_t)(fm->shape.width - 1) * fm->stride.x;
-   if (fm->shape.depth)
-      size += (uint64_t)(fm->shape.depth - 1) * fm->stride.c;
+   if (steps)
+      size += (uint64_t)(steps - 1) * fm->stride.c;
 
    assert(size <= UINT_MAX);
    return size;
