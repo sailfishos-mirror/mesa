@@ -30,16 +30,22 @@ vk_format_for_size(int bs)
    }
 }
 
-struct radv_meta_blit2d_surf
-radv_blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout layout,
-                                     const VkImageSubresourceLayers *subres)
+static VkFormat
+get_copy_format(struct radv_image *image, const VkImageSubresourceLayers *subres)
 {
    VkFormat format = radv_get_aspect_format(image, subres->aspectMask);
 
    if (!radv_dcc_enabled(image, subres->mipLevel) && !(radv_tc_compat_htile_enabled(image, subres->mipLevel)))
       format = vk_format_for_size(vk_format_get_blocksize(format));
 
-   format = vk_format_no_srgb(format);
+   return vk_format_no_srgb(format);
+}
+
+struct radv_meta_blit2d_surf
+radv_blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout layout,
+                                     const VkImageSubresourceLayers *subres)
+{
+   VkFormat format = get_copy_format(image, subres);
 
    return (struct radv_meta_blit2d_surf){
       .format = format,
@@ -770,6 +776,38 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    if (dst_image->vk.image_type == VK_IMAGE_TYPE_3D)
       dst_layer = dst_offset_el.z;
 
+   /* Determine the copy formats. */
+   VkFormat src_format = get_copy_format(src_image, &region->srcSubresource);
+   VkFormat dst_format = get_copy_format(dst_image, &region->dstSubresource);
+
+   const uint32_t dst_queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf);
+   const bool dst_compressed =
+      radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, dst_queue_mask);
+   const uint32_t src_queue_mask = radv_image_queue_family_mask(src_image, cmd_buffer->qf);
+   const bool src_compressed =
+      radv_layout_dcc_compressed(device, src_image, region->srcSubresource.mipLevel, src_image_layout, src_queue_mask);
+   bool need_dcc_sign_reinterpret = false;
+   bool dst_needs_dcc_decompress = false;
+
+   if (!src_compressed ||
+       (radv_dcc_formats_compatible(pdev->info.gfx_level, src_format, dst_format, &need_dcc_sign_reinterpret) &&
+        !need_dcc_sign_reinterpret)) {
+      src_format = dst_format;
+   } else if (!dst_compressed) {
+      dst_format = src_format;
+   } else {
+      dst_needs_dcc_decompress = true;
+      dst_format = src_format;
+   }
+
+   /* Select a compatible color format for color<->depth/stencil copies. */
+   /* TODO: This ignores DCC format compatibility for the color image. */
+   if (vk_format_is_color(src_image->vk.format) && vk_format_is_depth_or_stencil(dst_image->vk.format)) {
+      src_format = radv_get_compat_color_ds_format(src_image->vk.format);
+   } else if (vk_format_is_depth_or_stencil(src_image->vk.format) && vk_format_is_color(dst_image->vk.format)) {
+      dst_format = radv_get_compat_color_ds_format(dst_image->vk.format);
+   }
+
    if (use_compute) {
       radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
                                    &region->extent, true);
@@ -782,23 +820,8 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    struct radv_meta_blit2d_surf b_dst =
       radv_blit_surf_for_image_level_layer(dst_image, dst_image_layout, &region->dstSubresource);
 
-   uint32_t dst_queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf);
-   bool dst_compressed =
-      radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, dst_queue_mask);
-   uint32_t src_queue_mask = radv_image_queue_family_mask(src_image, cmd_buffer->qf);
-   bool src_compressed =
-      radv_layout_dcc_compressed(device, src_image, region->srcSubresource.mipLevel, src_image_layout, src_queue_mask);
-   bool need_dcc_sign_reinterpret = false;
-
-   if (!src_compressed ||
-       (radv_dcc_formats_compatible(pdev->info.gfx_level, b_src.format, b_dst.format, &need_dcc_sign_reinterpret) &&
-        !need_dcc_sign_reinterpret)) {
-      b_src.format = b_dst.format;
-   } else if (!dst_compressed) {
-      b_dst.format = b_src.format;
-   } else {
+   if (dst_needs_dcc_decompress) {
       radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
-
       radv_decompress_dcc(cmd_buffer, dst_image,
                           &(VkImageSubresourceRange){
                              .aspectMask = region->dstSubresource.aspectMask,
@@ -807,21 +830,16 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
                              .baseArrayLayer = dst_layer,
                              .layerCount = layer_count,
                           });
-      b_dst.format = b_src.format;
-      b_dst.disable_compression = true;
-
       radv_describe_barrier_end(cmd_buffer);
-   }
 
-   /* Select a compatible color format for color<->depth/stencil copies. */
-   if (vk_format_is_color(src_image->vk.format) && vk_format_is_depth_or_stencil(dst_image->vk.format)) {
-      b_src.format = radv_get_compat_color_ds_format(src_image->vk.format);
-   } else if (vk_format_is_depth_or_stencil(src_image->vk.format) && vk_format_is_color(dst_image->vk.format)) {
-      b_dst.format = radv_get_compat_color_ds_format(dst_image->vk.format);
+      b_dst.disable_compression = true;
    }
 
    b_src.layer = src_layer;
    b_dst.layer = dst_layer;
+
+   b_src.format = src_format;
+   b_dst.format = dst_format;
 
    for (unsigned layer = 0; layer < layer_count; layer++) {
       /* Perform Blit */
