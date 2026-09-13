@@ -125,6 +125,7 @@ hk_get_device_extensions(const struct hk_instance *instance,
       .KHR_shader_subgroup_rotate = true,
       .KHR_shader_subgroup_uniform_control_flow = true,
       .KHR_shader_terminate_invocation = true,
+      .KHR_shader_untyped_pointers = true,
       .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
       .KHR_timeline_semaphore = true,
@@ -620,6 +621,9 @@ hk_get_device_features(
 
       /* VK_KHR_shader_subgroup_uniform_control_flow */
       .shaderSubgroupUniformControlFlow = true,
+
+      /* VK_KHR_shader_untyped_pointers */
+      .shaderUntypedPointers = true,
 
       /* VK_EXT_shader_uniform_buffer_unsized_array */
       .shaderUniformBufferUnsizedArray = true,
