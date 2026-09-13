@@ -734,6 +734,42 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    assert(src_image->plane_count == 1 || util_is_power_of_two_nonzero(region->srcSubresource.aspectMask));
    assert(dst_image->plane_count == 1 || util_is_power_of_two_nonzero(region->dstSubresource.aspectMask));
 
+   /**
+    * From the Vulkan 1.0.6 spec: 18.4 Copying Data Between Buffers and Images
+    *    imageExtent is the size in texels of the image to copy in width, height
+    *    and depth. 1D images use only x and width. 2D images use x, y, width
+    *    and height. 3D images use x, y, z, width, height and depth.
+    *
+    * Also, convert the offsets and extent from units of texels to units of
+    * blocks - which is the highest resolution accessible in this command.
+    */
+   const VkOffset3D dst_offset_el = vk_image_offset_to_elements(&dst_image->vk, region->dstOffset);
+   const VkOffset3D src_offset_el = vk_image_offset_to_elements(&src_image->vk, region->srcOffset);
+
+   /*
+    * From Vulkan 1.0.68, "Copying Data Between Images":
+    *    "When copying between compressed and uncompressed formats
+    *     the extent members represent the texel dimensions of the
+    *     source image and not the destination."
+    * However, we must use the destination image type to avoid
+    * clamping depth when copying multiple layers of a 2D image to
+    * a 3D image.
+    */
+   const VkExtent3D img_extent_el = vk_image_extent_to_elements(&src_image->vk, region->extent);
+
+   /* Determine the layer range. */
+   unsigned layer_count = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource);
+   unsigned src_layer = region->srcSubresource.baseArrayLayer;
+   unsigned dst_layer = region->dstSubresource.baseArrayLayer;
+
+   if (src_image->vk.image_type == VK_IMAGE_TYPE_3D) {
+      src_layer = src_offset_el.z;
+      layer_count = img_extent_el.depth;
+   }
+
+   if (dst_image->vk.image_type == VK_IMAGE_TYPE_3D)
+      dst_layer = dst_offset_el.z;
+
    if (use_compute) {
       radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
                                    &region->extent, true);
@@ -768,8 +804,8 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
                              .aspectMask = region->dstSubresource.aspectMask,
                              .baseMipLevel = region->dstSubresource.mipLevel,
                              .levelCount = 1,
-                             .baseArrayLayer = region->dstSubresource.baseArrayLayer,
-                             .layerCount = vk_image_subresource_layer_count(&dst_image->vk, &region->dstSubresource),
+                             .baseArrayLayer = dst_layer,
+                             .layerCount = layer_count,
                           });
       b_dst.format = b_src.format;
       b_dst.disable_compression = true;
@@ -784,40 +820,10 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
       b_dst.format = radv_get_compat_color_ds_format(dst_image->vk.format);
    }
 
-   /**
-    * From the Vulkan 1.0.6 spec: 18.4 Copying Data Between Buffers and Images
-    *    imageExtent is the size in texels of the image to copy in width, height
-    *    and depth. 1D images use only x and width. 2D images use x, y, width
-    *    and height. 3D images use x, y, z, width, height and depth.
-    *
-    * Also, convert the offsets and extent from units of texels to units of
-    * blocks - which is the highest resolution accessible in this command.
-    */
-   const VkOffset3D dst_offset_el = vk_image_offset_to_elements(&dst_image->vk, region->dstOffset);
-   const VkOffset3D src_offset_el = vk_image_offset_to_elements(&src_image->vk, region->srcOffset);
+   b_src.layer = src_layer;
+   b_dst.layer = dst_layer;
 
-   /*
-    * From Vulkan 1.0.68, "Copying Data Between Images":
-    *    "When copying between compressed and uncompressed formats
-    *     the extent members represent the texel dimensions of the
-    *     source image and not the destination."
-    * However, we must use the destination image type to avoid
-    * clamping depth when copying multiple layers of a 2D image to
-    * a 3D image.
-    */
-   const VkExtent3D img_extent_el = vk_image_extent_to_elements(&src_image->vk, region->extent);
-
-   unsigned num_slices = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource);
-
-   if (src_image->vk.image_type == VK_IMAGE_TYPE_3D) {
-      b_src.layer = src_offset_el.z;
-      num_slices = img_extent_el.depth;
-   }
-
-   if (dst_image->vk.image_type == VK_IMAGE_TYPE_3D)
-      b_dst.layer = dst_offset_el.z;
-
-   for (unsigned slice = 0; slice < num_slices; slice++) {
+   for (unsigned layer = 0; layer < layer_count; layer++) {
       /* Perform Blit */
       if (use_compute) {
          radv_meta_image_to_image_cs(cmd_buffer, &b_src, &b_dst, &src_offset_el, &dst_offset_el, &img_extent_el);
