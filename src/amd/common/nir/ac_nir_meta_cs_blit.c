@@ -61,12 +61,6 @@
 #include "util/format_srgb.h"
 #include "util/u_pack_color.h"
 
-static nir_def *
-deref_ssa(nir_builder *b, nir_variable *var)
-{
-   return &nir_build_deref_var(b, var)->def;
-}
-
 /* unpack_2x16_unsigned(src, x, y): x = (uint32_t)((uint16_t)src); y = src >> 16; */
 static void
 unpack_2x16_unsigned(nir_builder *b, unsigned bit_size, nir_def *src, nir_def **x, nir_def **y)
@@ -241,6 +235,9 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    nir_variable *img_dst = nir_variable_create(b.shader, nir_var_image, img_type[1], "img1");
    img_dst->data.binding = image_dst_index;
 
+   nir_deref_instr *img_src_deref = img_src ? nir_build_deref_var(&b, img_src) : NULL;
+   nir_deref_instr *img_dst_deref = nir_build_deref_var(&b, img_dst);
+
    unsigned lane_width = 1 << key->log_lane_width;
    unsigned lane_height = 1 << key->log_lane_height;
    unsigned lane_depth = 1 << key->log_lane_depth;
@@ -379,7 +376,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                   /* Always use the 32-bit return type because the image dimensions can be
                    * > INT16_MAX even if the blit box fits within sint16.
                    */
-                  src_resinfo = nir_image_deref_size(&b, 4, 32, deref_ssa(&b, img_src),
+                  src_resinfo = nir_image_deref_size(&b, 4, 32, &img_src_deref->def,
                                                      zero_lod);
                   if (coord_bit_size == 16) {
                      src_resinfo = nir_umin_imm(&b, src_resinfo, INT16_MAX);
@@ -413,7 +410,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 
          /* If we are resolving multiple pixels per lane, AND all results of "samples_identical". */
          foreach_pixel_in_lane(1, sample, x, y, z, i) {
-            nir_def *iden = nir_image_deref_samples_identical(&b, 1, deref_ssa(&b, img_src),
+            nir_def *iden = nir_image_deref_samples_identical(&b, 1, &img_src_deref->def,
                                                               coord_src[i * src_samples],
                                                               .image_dim = GLSL_SAMPLER_DIM_MS);
             samples_identical = nir_iand(&b, samples_identical, iden);
@@ -423,7 +420,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
          if_identical = nir_push_if(&b, samples_identical);
          foreach_pixel_in_lane(1, sample, x, y, z, i) {
             sample0[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
-                                              deref_ssa(&b, img_src), coord_src[i * src_samples],
+                                              &img_src_deref->def, coord_src[i * src_samples],
                                               nir_channel(&b, coord_src[i * src_samples],
                                                           num_src_coords - 1), zero_lod,
                                               .image_dim = img_src->type->sampler_dimensionality,
@@ -436,7 +433,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       /* Load src pixels, one per sample. */
       foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
          color[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
-                                         deref_ssa(&b, img_src), coord_src[i],
+                                         &img_src_deref->def, coord_src[i],
                                          nir_channel(&b, coord_src[i], num_src_coords - 1), zero_lod,
                                          .image_dim = img_src->type->sampler_dimensionality,
                                          .image_array = img_src->type->sampler_array,
@@ -472,7 +469,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
     * barriers waiting for image loads, i.e. after s_waitcnt vmcnt(0).
     */
    nir_def *img_dst_desc =
-      nir_image_deref_descriptor_amd(&b, 8, 32, deref_ssa(&b, img_dst),
+      nir_image_deref_descriptor_amd(&b, 8, 32, &img_dst_deref->def,
                                      .image_dim = img_dst->type->sampler_dimensionality,
                                      .image_array = img_dst->type->sampler_array);
    if (lane_size > 1 && !b.shader->info.use_aco_amd)
