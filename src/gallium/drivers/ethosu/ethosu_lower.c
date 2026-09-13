@@ -94,6 +94,21 @@ set_feature_maps(struct ethosu_subgraph *subgraph,
    set_feature_map(subgraph, output_tensor, &operation->ofm);
 }
 
+static const struct pipe_ml_operation *
+ethosu_find_first_consumer(const struct pipe_ml_operation *poperations,
+                           unsigned count,
+                           unsigned tensor_index)
+{
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *poperation = &poperations[i];
+      for (unsigned j = 0; j < poperation->input_count; j++)
+         if (poperation->input_tensors[j]->index == tensor_index)
+            return poperation;
+   }
+
+   return NULL;
+}
+
 static bool
 ethosu_fc_needs_flatten(const struct pipe_ml_operation *poperation)
 {
@@ -356,6 +371,89 @@ ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph,
 }
 
 static void
+set_internal_feature_map(struct ethosu_tensor *tensor,
+                         struct ethosu_block shape,
+                         float scale,
+                         unsigned zero_point,
+                         bool is_signed,
+                         struct ethosu_feature_map *fm);
+
+static void
+ethosu_require_feature_map_span(struct ethosu_tensor *tensor,
+                                struct ethosu_block shape,
+                                float scale,
+                                unsigned zero_point,
+                                bool is_signed)
+{
+   struct ethosu_feature_map fm = {0};
+
+   set_internal_feature_map(tensor, shape, scale, zero_point, is_signed, &fm);
+   tensor->required_size = MAX2(tensor->required_size,
+                                ethosu_feature_map_span(&fm));
+}
+
+static void
+ethosu_require_softmax_spans(struct ethosu_subgraph *subgraph,
+                             const struct pipe_ml_operation *poperations,
+                             unsigned count)
+{
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *poperation = &poperations[i];
+
+      if (poperation->type != PIPE_ML_OPERATION_TYPE_SOFTMAX)
+         continue;
+
+      struct pipe_tensor *input = poperation->input_tensors[0];
+      struct pipe_tensor *output = poperation->output_tensors[0];
+      unsigned spatial = input->dims[1] * input->dims[2];
+      unsigned depth = input->dims[3];
+      struct ethosu_block pool_shape = {depth, spatial, 1};
+      struct ethosu_block vector_shape = {spatial, 1, depth};
+      struct ethosu_tensor *input_tensor =
+         ethosu_find_tensor(subgraph, input->index);
+      struct ethosu_tensor *output_tensor =
+         ethosu_find_tensor(subgraph, output->index);
+
+      ethosu_require_feature_map_span(input_tensor, pool_shape, input->scale,
+                                      input->zero_point, input->is_signed);
+      ethosu_require_feature_map_span(input_tensor, vector_shape, input->scale,
+                                      input->zero_point, input->is_signed);
+      ethosu_require_feature_map_span(output_tensor, vector_shape, output->scale,
+                                      output->zero_point, output->is_signed);
+   }
+}
+
+static bool
+ethosu_softmax_requires_nhwc(const struct pipe_ml_operation *producer,
+                             const struct pipe_ml_operation *consumer)
+{
+   /*
+    * Softmax lowering reads its input as a [depth, spatial, 1] pooling
+    * view and writes its result through a vector view. NHCWB16 padding
+    * cannot represent either view of the original contiguous tensor.
+    */
+   return producer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX ||
+          consumer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX;
+}
+
+/* A reshape aliases its input buffer, so a producer feeding softmax through a
+ * reshape must stay contiguous too, or the softmax reads brick-packed data. */
+static bool
+ethosu_reshape_feeds_softmax(const struct pipe_ml_operation *poperations,
+                             unsigned count,
+                             const struct pipe_ml_operation *consumer)
+{
+   while (consumer && consumer->type == PIPE_ML_OPERATION_TYPE_RESHAPE) {
+      consumer = ethosu_find_first_consumer(poperations, count,
+                                            consumer->output_tensors[0]->index);
+      if (consumer && consumer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX)
+         return true;
+   }
+
+   return false;
+}
+
+static void
 allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    if (operation->ofm.region == IO_REGION &&
@@ -499,6 +597,22 @@ ethosu_append_operation(struct ethosu_subgraph *subgraph,
 {
    ethosu_sched_operation(subgraph, operation);
    util_dynarray_append(&subgraph->operations, *operation);
+}
+
+static void
+ethosu_prepare_feature_map(struct ethosu_subgraph *subgraph,
+                           struct ethosu_feature_map *fm)
+{
+   if (fm->region != IO_REGION || !fm->tensor)
+      return;
+
+   if (fm->activation_storage == ETHOSU_ACTIVATION_STORAGE_CHAINED)
+      return;
+
+   fm->tiles.addresses[0] += ethosu_allocate_feature_map(subgraph, fm);
+   fm->tiles.height_0 = fm->shape.height;
+   fm->tiles.height_1 = fm->shape.height;
+   fm->tiles.width_0 = fm->shape.width;
 }
 
 static int32_t
@@ -1148,6 +1262,80 @@ multiply_by_quantized_multiplier(int x, int shift, int32_t scale)
    return rounding_divide_by_pow2_32(mul, rightShift);
 }
 
+static int32_t
+clamp_i64_to_i32(int64_t value)
+{
+   return CLAMP(value, INT32_MIN, INT32_MAX);
+}
+
+static int32_t
+saturating_rounding_multiply_by_pow2_32(int32_t x, int exponent)
+{
+   if (exponent < 0)
+      return rounding_divide_by_pow2_32(x, -exponent);
+
+   int64_t shifted = (int64_t)x * (1LL << exponent);
+   return clamp_i64_to_i32(shifted);
+}
+
+static int32_t
+fixedpoint_mul_q0(int32_t a, int32_t b)
+{
+   return saturating_rounding_doubling_high_mul_32(a, b);
+}
+
+static int32_t
+fixedpoint_exp_on_interval_between_negative_one_quarter_and_0(int32_t a)
+{
+   const int32_t constant_term = 1895147668;
+   const int32_t constant_1_over_3 = 715827883;
+   int32_t x = a + (1 << 28);
+   int32_t x2 = fixedpoint_mul_q0(x, x);
+   int32_t x3 = fixedpoint_mul_q0(x2, x);
+   int32_t x4 = fixedpoint_mul_q0(x2, x2);
+   int32_t x4_over_4 = saturating_rounding_multiply_by_pow2_32(x4, -2);
+   int32_t t = fixedpoint_mul_q0(x4_over_4 + x3, constant_1_over_3) + x2;
+   int32_t x4_over_24_plus_x3_over_6_plus_x2_over_2 =
+      saturating_rounding_multiply_by_pow2_32(t, -1);
+
+   return constant_term +
+          fixedpoint_mul_q0(constant_term,
+                            x + x4_over_24_plus_x3_over_6_plus_x2_over_2);
+}
+
+static int32_t
+fixedpoint_exp_on_negative_values_q5(int32_t a)
+{
+   const int k_integer_bits = 5;
+   const int k_fractional_bits = 31 - k_integer_bits;
+   const int32_t k_one_quarter = 1 << (k_fractional_bits - 2);
+   int32_t mask = k_one_quarter - 1;
+   int32_t a_mod_quarter_minus_one_quarter = (a & mask) - k_one_quarter;
+   int32_t result = fixedpoint_exp_on_interval_between_negative_one_quarter_and_0(
+      saturating_rounding_multiply_by_pow2_32(a_mod_quarter_minus_one_quarter,
+                                              k_integer_bits));
+   int32_t remainder = a_mod_quarter_minus_one_quarter - a;
+
+#define ETHOSU_EXP_BARREL_SHIFTER(exponent, multiplier)        \
+   do {                                                        \
+      const int shift_amount = k_fractional_bits + (exponent); \
+      if (remainder & (1 << shift_amount))                     \
+         result = fixedpoint_mul_q0(result, multiplier);       \
+   } while (0)
+
+   ETHOSU_EXP_BARREL_SHIFTER(-2, 1672461947);
+   ETHOSU_EXP_BARREL_SHIFTER(-1, 1302514674);
+   ETHOSU_EXP_BARREL_SHIFTER(0, 790015084);
+   ETHOSU_EXP_BARREL_SHIFTER(1, 290630308);
+   ETHOSU_EXP_BARREL_SHIFTER(2, 39332535);
+   ETHOSU_EXP_BARREL_SHIFTER(3, 720401);
+   ETHOSU_EXP_BARREL_SHIFTER(4, 242);
+
+#undef ETHOSU_EXP_BARREL_SHIFTER
+
+   return a == 0 ? INT32_MAX : result;
+}
+
 static float
 clamp(double d)
 {
@@ -1363,6 +1551,403 @@ ethosu_append_lut_pool(struct ethosu_subgraph *subgraph,
 
    ethosu_sched_operation(subgraph, operation);
    util_dynarray_append(&subgraph->operations, *operation);
+}
+
+static void
+ethos_create_softmax_exp_lut(float beta, float input_scale, int32_t *lut)
+{
+   const int k_integer_bits = 5;
+   const int k_signed_bits = 31;
+   const double max_real_beta = (double)((1LL << k_signed_bits) - 1);
+   const double real_beta =
+      MIN2((double)beta * (double)input_scale *
+              (double)(1 << (k_signed_bits - k_integer_bits)),
+           max_real_beta);
+   int32_t quant_shift;
+   int32_t quant_scale = ethosu_quantize_scale(real_beta, &quant_shift, false);
+   const int left_shift = 31 - quant_shift;
+   const int diff_min = -(int)floor((double)(((1 << k_integer_bits) - 1) *
+                                             (1 << (k_signed_bits - k_integer_bits))) /
+                                    (double)(1U << left_shift));
+
+   for (int x = 0; x < LUT8_SIZE; x++) {
+      int input_diff = x - 255;
+
+      if (input_diff >= diff_min) {
+         int32_t input_diff_rescaled = saturating_rounding_doubling_high_mul_32(
+            clamp_i64_to_i32((int64_t)input_diff * (1LL << left_shift)),
+            quant_scale);
+         lut[x] = fixedpoint_exp_on_negative_values_q5(input_diff_rescaled);
+      } else {
+         lut[x] = 0;
+      }
+   }
+}
+
+static void
+ethosu_append_pool(struct ethosu_subgraph *subgraph,
+                   enum ethosu_pooling_type type,
+                   struct ethosu_feature_map *ifm,
+                   struct ethosu_feature_map *ofm,
+                   unsigned kernel_width,
+                   enum ethosu_rounding_mode round_mode)
+{
+   struct ethosu_operation operation;
+   struct ethosu_feature_map prepared_ifm = *ifm;
+   struct ethosu_feature_map prepared_ofm = *ofm;
+
+   operation_set_defaults(&operation);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+
+   operation.type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation.pooling.type = type;
+   operation.round_mode = round_mode;
+   operation.kernel.width = kernel_width;
+   operation.ifm = prepared_ifm;
+   operation.ofm = prepared_ofm;
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
+ethosu_append_eltwise(struct ethosu_subgraph *subgraph,
+                      enum ethosu_eltwise_type type,
+                      struct ethosu_feature_map *ifm,
+                      struct ethosu_feature_map *ifm2,
+                      struct ethosu_feature_map *ofm,
+                      enum ethosu_rounding_mode round_mode,
+                      bool identity_scale,
+                      unsigned scale,
+                      unsigned shift)
+{
+   struct ethosu_operation operation;
+   struct ethosu_feature_map prepared_ifm = *ifm;
+   struct ethosu_feature_map prepared_ifm2;
+   struct ethosu_feature_map prepared_ofm = *ofm;
+
+   operation_set_defaults(&operation);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   if (ifm2) {
+      prepared_ifm2 = *ifm2;
+      ethosu_prepare_feature_map(subgraph, &prepared_ifm2);
+   }
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+
+   operation.type = ETHOSU_OPERATION_TYPE_ELTWISE;
+   operation.eltwise.type = type;
+   operation.round_mode = round_mode;
+   operation.ifm = prepared_ifm;
+   if (ifm2)
+      operation.ifm2 = prepared_ifm2;
+   operation.ofm = prepared_ofm;
+   operation.eltwise.identity_scale = identity_scale;
+   operation.eltwise.raw_scale = scale != 0;
+   operation.eltwise.scale = scale;
+   operation.eltwise.shift = shift;
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+      operation.ofm_scale_per_channel =
+         type == ETHOSU_ELTWISE_TYPE_CLZ ||
+         type == ETHOSU_ELTWISE_TYPE_SHR ||
+         type == ETHOSU_ELTWISE_TYPE_SHL;
+   }
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
+ethosu_append_softmax_lut_sub(struct ethosu_subgraph *subgraph,
+                              struct ethosu_feature_map *ifm,
+                              struct ethosu_feature_map *ifm2,
+                              struct ethosu_feature_map *ofm,
+                              int32_t *lut)
+{
+   struct ethosu_operation operation;
+   struct ethosu_operation dma_operation;
+   struct ethosu_feature_map prepared_ifm = *ifm;
+   struct ethosu_feature_map prepared_ifm2 = *ifm2;
+   struct ethosu_feature_map prepared_ofm = *ofm;
+   struct ethosu_feature_map lut_ifm;
+
+   operation_set_defaults(&operation);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm2);
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+   lut_ifm = prepared_ifm;
+   lut_ifm.is_signed = true;
+
+   operation.type = ETHOSU_OPERATION_TYPE_ELTWISE;
+   operation.eltwise.type = ETHOSU_ELTWISE_TYPE_SUB;
+   operation.activation =
+      ethosu_lut_activation(subgraph, &lut_ifm, &prepared_ofm,
+                            LUT8_SIZE * sizeof(*lut), true);
+   operation.eltwise.identity_scale = true;
+   operation.round_mode = ETHOSU_ROUNDING_DOUBLE;
+   operation.ifm = prepared_ifm;
+   operation.ifm2 = prepared_ifm2;
+   operation.ofm = prepared_ofm;
+   fill_lut(subgraph, &operation, lut, LUT8_SIZE * sizeof(*lut));
+
+   operation_set_defaults(&dma_operation);
+   ethosu_lower_lut_dma(subgraph, NULL, &operation, &dma_operation);
+   util_dynarray_append(&subgraph->operations, dma_operation);
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
+ethosu_append_reversed_sub(struct ethosu_subgraph *subgraph,
+                           struct ethosu_feature_map *ifm,
+                           struct ethosu_feature_map *ifm2,
+                           struct ethosu_feature_map *ofm,
+                           enum ethosu_rounding_mode round_mode,
+                           bool identity_scale,
+                           unsigned scale,
+                           unsigned shift)
+{
+   struct ethosu_operation operation;
+   struct ethosu_feature_map prepared_ifm = *ifm;
+   struct ethosu_feature_map prepared_ifm2 = *ifm2;
+   struct ethosu_feature_map prepared_ofm = *ofm;
+
+   operation_set_defaults(&operation);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm2);
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+
+   operation.type = ETHOSU_OPERATION_TYPE_ELTWISE;
+   operation.eltwise.type = ETHOSU_ELTWISE_TYPE_SUB;
+   operation.round_mode = round_mode;
+
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
+       prepared_ifm2.has_scalar) {
+      operation.ifm = prepared_ifm2;
+      operation.ifm2 = prepared_ifm;
+   } else {
+      operation.eltwise.ifm_reversed = true;
+      operation.ifm = prepared_ifm;
+      operation.ifm2 = prepared_ifm2;
+   }
+
+   operation.ofm = prepared_ofm;
+   operation.eltwise.identity_scale = identity_scale;
+   operation.eltwise.raw_scale = scale != 0;
+   operation.eltwise.scale = scale;
+   operation.eltwise.shift = shift;
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
+ethosu_lower_softmax(struct ethosu_subgraph *subgraph,
+                     const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   unsigned spatial = input->dims[1] * input->dims[2];
+   unsigned depth = input->dims[3];
+   struct ethosu_block pool_shape = {depth, spatial, 1};
+   struct ethosu_block pool_reduced_shape = {1, spatial, 1};
+   struct ethosu_block vector_shape = {spatial, 1, depth};
+   struct ethosu_block reduced_shape = {spatial, 1, 1};
+   struct ethosu_tensor *input_tensor =
+      ethosu_find_tensor(subgraph, input->index);
+   struct ethosu_tensor *output_tensor =
+      ethosu_find_tensor(subgraph, output->index);
+   struct ethosu_tensor *max_tensor =
+      ethosu_add_internal_tensor(subgraph, pool_reduced_shape, 1);
+   struct ethosu_tensor *exp_tensor =
+      ethosu_add_internal_tensor(subgraph, vector_shape, 4);
+   struct ethosu_tensor *rescaled_exp_tensor =
+      ethosu_add_internal_tensor(subgraph, vector_shape, 4);
+   struct ethosu_tensor *sum_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *headroom_plus_one_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *right_shift_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *headroom_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *half_denominator_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *nr_x_tensor =
+      ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   struct ethosu_tensor *half_denominator_times_x_tensor[3];
+   struct ethosu_tensor *one_minus_half_denominator_times_x_tensor[3];
+   struct ethosu_tensor *to_rescale_tensor[3];
+   struct ethosu_tensor *to_add_tensor[3];
+   struct ethosu_tensor *nr_x_next_tensor[3];
+   struct ethosu_tensor *scaled_exp_tensor =
+      ethosu_add_internal_tensor(subgraph, vector_shape, 4);
+   struct ethosu_feature_map input_pool_fm = {0}, input_fm = {0};
+   struct ethosu_feature_map max_fm = {0}, exp_lut_fm = {0}, exp_fm = {0};
+   struct ethosu_feature_map rescaled_exp_fm = {0}, sum_fm = {0};
+   struct ethosu_feature_map headroom_plus_one_fm = {0};
+   struct ethosu_feature_map right_shift_fm = {0}, headroom_fm = {0};
+   struct ethosu_feature_map half_denominator_fm = {0}, nr_x_fm = {0};
+   struct ethosu_feature_map nr_x_mul_fm = {0};
+   struct ethosu_feature_map output_fm = {0}, scaled_exp_fm = {0};
+   struct ethosu_feature_map constant_fm = {0};
+   int32_t lut[LUT8_SIZE];
+
+   assert(depth > 1 && depth <= SOFTMAX_MAX_DEPTH);
+   assert(input->type_size == 1 && output->type_size == 1);
+
+   for (unsigned i = 0; i < 3; i++) {
+      half_denominator_times_x_tensor[i] =
+         ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+      one_minus_half_denominator_times_x_tensor[i] =
+         ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+      to_rescale_tensor[i] =
+         ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+      to_add_tensor[i] =
+         ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+      nr_x_next_tensor[i] =
+         ethosu_add_internal_tensor(subgraph, reduced_shape, 4);
+   }
+
+   max_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   exp_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   sum_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   headroom_plus_one_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   right_shift_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   headroom_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   half_denominator_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   nr_x_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+   scaled_exp_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+
+   for (unsigned i = 0; i < 3; i++) {
+      half_denominator_times_x_tensor[i]->layout = ETHOSU_LAYOUT_NHCWB16;
+      one_minus_half_denominator_times_x_tensor[i]->layout = ETHOSU_LAYOUT_NHCWB16;
+      to_rescale_tensor[i]->layout = ETHOSU_LAYOUT_NHCWB16;
+      to_add_tensor[i]->layout = ETHOSU_LAYOUT_NHCWB16;
+      nr_x_next_tensor[i]->layout = ETHOSU_LAYOUT_NHCWB16;
+   }
+
+   set_internal_feature_map(input_tensor, pool_shape, input->scale,
+                            input->zero_point, input->is_signed, &input_pool_fm);
+   set_internal_feature_map(input_tensor, vector_shape, input->scale,
+                            input->zero_point, input->is_signed, &input_fm);
+   set_internal_feature_map(exp_tensor, vector_shape, 1.0f, 127, true, &exp_lut_fm);
+   set_internal_feature_map(exp_tensor, vector_shape, 1.0f, 0, true, &exp_fm);
+   set_internal_feature_map(rescaled_exp_tensor, vector_shape, 1.0f, 0, true, &rescaled_exp_fm);
+   set_internal_feature_map(sum_tensor, reduced_shape, 1.0f, 0, true, &sum_fm);
+   set_internal_feature_map(headroom_plus_one_tensor, reduced_shape, 1.0f, 0, true, &headroom_plus_one_fm);
+   set_internal_feature_map(right_shift_tensor, reduced_shape, 1.0f, 0, true, &right_shift_fm);
+   set_internal_feature_map(headroom_tensor, reduced_shape, 1.0f, 0, true, &headroom_fm);
+   set_internal_feature_map(half_denominator_tensor, reduced_shape, 1.0f, 0, true, &half_denominator_fm);
+   set_internal_feature_map(nr_x_tensor, reduced_shape, 1.0f, 0, true, &nr_x_fm);
+   set_internal_feature_map(scaled_exp_tensor, vector_shape, 1.0f, 0, true, &scaled_exp_fm);
+   set_internal_feature_map(output_tensor, vector_shape, output->scale,
+                            output->zero_point, output->is_signed, &output_fm);
+
+   nr_x_mul_fm = nr_x_fm;
+   set_u85_chained_feature_map(subgraph, &headroom_fm, 0);
+   set_u85_chained_feature_map(subgraph, &nr_x_mul_fm, 0);
+   set_u85_chained_feature_map(subgraph, &scaled_exp_fm, 0);
+
+   set_internal_feature_map(max_tensor, pool_reduced_shape, input->scale,
+                            input->zero_point, input->is_signed, &max_fm);
+   ethosu_append_pool(subgraph, ETHOSU_POOLING_TYPE_MAX, &input_pool_fm,
+                      &max_fm, depth, ETHOSU_ROUNDING_DOUBLE);
+   set_internal_feature_map(max_tensor, reduced_shape, input->scale,
+                            input->zero_point, input->is_signed, &max_fm);
+
+   ethos_create_softmax_exp_lut(poperation->softmax.beta, input->scale, lut);
+   ethosu_append_softmax_lut_sub(subgraph, &input_fm, &max_fm, &exp_lut_fm, lut);
+
+   set_constant_feature_map(subgraph, 12, &constant_fm);
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_SHR, &exp_fm,
+                         &constant_fm, &rescaled_exp_fm,
+                         ETHOSU_ROUNDING_NATURAL, true, 0, 0);
+
+   ethosu_append_pool(subgraph, ETHOSU_POOLING_TYPE_REDUCE_SUM, &rescaled_exp_fm,
+                      &sum_fm, 1, ETHOSU_ROUNDING_NATURAL);
+
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_CLZ, &sum_fm, NULL,
+                         &headroom_plus_one_fm, ETHOSU_ROUNDING_DOUBLE,
+                         true, 0, 0);
+
+   set_constant_feature_map(subgraph, 12 + 31 - 8, &constant_fm);
+   ethosu_append_reversed_sub(subgraph, &headroom_plus_one_fm, &constant_fm,
+                              &right_shift_fm, ETHOSU_ROUNDING_DOUBLE,
+                              true, 0, 0);
+
+   set_constant_feature_map(subgraph, 1, &constant_fm);
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_SUB,
+                         &headroom_plus_one_fm, &constant_fm, &headroom_fm,
+                         ETHOSU_ROUNDING_DOUBLE, true, 0, 0);
+
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_SHL, &sum_fm,
+                         &headroom_fm, &half_denominator_fm,
+                         ETHOSU_ROUNDING_DOUBLE, true, 0, 0);
+
+   set_constant_feature_map(subgraph, -((int32_t)((32ULL << 29U) / 17U)),
+                            &constant_fm);
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL,
+                         &half_denominator_fm, &constant_fm, &nr_x_mul_fm,
+                         ETHOSU_ROUNDING_DOUBLE, false, 0x40000000, 31);
+
+   set_constant_feature_map(subgraph, (int32_t)((48ULL << 29U) / 17U),
+                            &constant_fm);
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_ADD, &nr_x_mul_fm,
+                         &constant_fm, &nr_x_fm, ETHOSU_ROUNDING_DOUBLE,
+                         true, 0, 0);
+
+   for (unsigned i = 0; i < 3; i++) {
+      struct ethosu_feature_map half_denominator_times_x_fm = {0};
+      struct ethosu_feature_map one_minus_half_denominator_times_x_fm = {0};
+      struct ethosu_feature_map to_rescale_fm = {0};
+      struct ethosu_feature_map to_add_fm = {0};
+      struct ethosu_feature_map nr_x_next_fm = {0};
+
+      set_internal_feature_map(half_denominator_times_x_tensor[i], reduced_shape,
+                               1.0f, 0, true, &half_denominator_times_x_fm);
+      set_internal_feature_map(one_minus_half_denominator_times_x_tensor[i], reduced_shape,
+                               1.0f, 0, true, &one_minus_half_denominator_times_x_fm);
+      set_internal_feature_map(to_rescale_tensor[i], reduced_shape,
+                               1.0f, 0, true, &to_rescale_fm);
+      set_internal_feature_map(to_add_tensor[i], reduced_shape,
+                               1.0f, 0, true, &to_add_fm);
+      set_internal_feature_map(nr_x_next_tensor[i], reduced_shape,
+                               1.0f, 0, true, &nr_x_next_fm);
+
+      set_u85_chained_feature_map(subgraph,
+                                  &half_denominator_times_x_fm, 0);
+      set_u85_chained_feature_map(subgraph,
+                                  &one_minus_half_denominator_times_x_fm, 1);
+      set_u85_chained_feature_map(subgraph, &to_rescale_fm, 2);
+
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &nr_x_fm,
+                            &half_denominator_fm, &half_denominator_times_x_fm,
+                            ETHOSU_ROUNDING_DOUBLE, false, 0x40000000, 31);
+
+      set_constant_feature_map(subgraph, 1 << 29, &constant_fm);
+      ethosu_append_reversed_sub(subgraph, &half_denominator_times_x_fm,
+                                 &constant_fm,
+                                 &one_minus_half_denominator_times_x_fm,
+                                 ETHOSU_ROUNDING_DOUBLE, true, 0, 0);
+
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &nr_x_fm,
+                            &one_minus_half_denominator_times_x_fm,
+                            &to_rescale_fm, ETHOSU_ROUNDING_DOUBLE,
+                            false, 0x40000000, 31);
+
+      set_constant_feature_map(subgraph, 4, &constant_fm);
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &to_rescale_fm,
+                            &constant_fm, &to_add_fm,
+                            ETHOSU_ROUNDING_DOUBLE, true, 0, 0);
+
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_ADD, &nr_x_fm,
+                            &to_add_fm, &nr_x_next_fm,
+                            ETHOSU_ROUNDING_DOUBLE, true, 0, 0);
+
+      nr_x_fm = nr_x_next_fm;
+   }
+
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &exp_fm, &nr_x_fm,
+                         &scaled_exp_fm, ETHOSU_ROUNDING_DOUBLE,
+                         false, 0x40000000, 30);
+
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_SHR, &scaled_exp_fm,
+                         &right_shift_fm, &output_fm,
+                         ETHOSU_ROUNDING_NATURAL, true, 0, 0);
 }
 
 static void
@@ -1670,8 +2255,13 @@ register_tensors(struct ethosu_subgraph *subgraph,
              !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16) &&
              poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
+            const struct pipe_ml_operation *consumer =
+               ethosu_find_first_consumer(poperations, count, ptensor->index);
             if (ethosu_tensor_keeps_brick(subgraph, poperations, count,
-                                          poperation, ptensor))
+                                          poperation, ptensor) &&
+                !(consumer &&
+                  (ethosu_softmax_requires_nhwc(poperation, consumer) ||
+                   ethosu_reshape_feeds_softmax(poperations, count, consumer))))
                tensor->layout = ETHOSU_LAYOUT_NHCWB16;
          }
       }
@@ -1683,6 +2273,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
                    const struct pipe_ml_operation *poperations, unsigned count)
 {
    register_tensors(subgraph, poperations, count);
+   ethosu_require_softmax_spans(subgraph, poperations, count);
    ethosu_reserve_internal_tensors(subgraph, count);
    if (subgraph->failed)
       return;
@@ -1849,6 +2440,11 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       case PIPE_ML_OPERATION_TYPE_RESHAPE: {
          ethosu_lower_reshape(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_SOFTMAX: {
+         ethosu_lower_softmax(subgraph, &poperations[i]);
          break;
       }
 

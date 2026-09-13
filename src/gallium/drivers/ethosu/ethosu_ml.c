@@ -244,6 +244,17 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                                         operation->pad.after_z;
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_SOFTMAX: {
+      struct pipe_tensor *input = operation->input_tensors[0];
+      struct pipe_tensor *output = operation->output_tensors[0];
+
+      supported = input->type_size == 1 &&
+                  output->type_size == 1 &&
+                  input->is_signed == output->is_signed &&
+                  input->dims[3] > 1 &&
+                  input->dims[3] <= SOFTMAX_MAX_DEPTH;
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
       /* NPU only supports 2x nearest neighbor upscaling */
       struct pipe_tensor *input = operation->input_tensors[0];
