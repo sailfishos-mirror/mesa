@@ -22,6 +22,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "util/log.h"
+
 #include "freedreno_pm4.h"
 
 #include "buffers.h"
@@ -2773,6 +2775,13 @@ cp_indirect(const uint32_t *dwords, uint32_t sizedwords, int level)
        */
       highlight_addr(dwords);
 
+      uint32_t avail = hostlen(ibaddr) / 4;
+      if (ibsize > avail) {
+         mesa_logw_once("%sibsize %u exceeds mapped size %u, clamping\n",
+                        levels[level], ibsize, avail);
+         ibsize = avail;
+      }
+
       ib++;
       ibs[ib].base = ibaddr;
       ibs[ib].host_base = ptr;
@@ -3289,6 +3298,11 @@ cp_context_reg_bunch(const uint32_t *dwords, uint32_t sizedwords, int level)
    struct regacc r = regacc(NULL);
 
    for (int i = 0; i < sizedwords; i += 2) {
+      if (dwords[i] >= regcnt()) {
+         printl(level + 1, "<invalid reg %08x>\n", dwords[i]);
+         continue;
+      }
+
       if (regacc_push(&r, dwords[i + 0], dwords[i + 1]))
          dump_register(&r, level + 1);
       reg_set(dwords[i + 0], dwords[i + 1]);
@@ -3528,8 +3542,11 @@ dump_commands(const uint32_t *dwords, uint32_t sizedwords, int level)
 
       dwords += count;
       dwords_left -= count;
-   }
 
-   if (dwords_left < 0)
-      printf("**** this ain't right!! dwords_left=%d\n", dwords_left);
+      if (dwords_left < 0) {
+         mesa_logw_once("**** truncated packet, %u dwords past end of buffer\n",
+                        -dwords_left);
+         return;
+      }
+   }
 }
