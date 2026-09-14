@@ -836,7 +836,8 @@ struct iris_stream_output_target {
 enum iris_context_priority {
    IRIS_CONTEXT_MEDIUM_PRIORITY = 0,
    IRIS_CONTEXT_LOW_PRIORITY,
-   IRIS_CONTEXT_HIGH_PRIORITY
+   IRIS_CONTEXT_HIGH_PRIORITY,
+   IRIS_CONTEXT_REALTIME_PRIORITY,
 };
 
 struct iris_scissor_state {
