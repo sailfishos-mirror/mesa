@@ -127,8 +127,6 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
       result = radv_bo_from_fd(device, import_info->fd, priority, mem, NULL);
       if (result != VK_SUCCESS) {
          goto fail;
-      } else {
-         close(import_info->fd);
       }
    } else if (mem->vk.host_ptr) {
       result = radv_bo_from_ptr(device, mem->vk.host_ptr, pAllocateInfo->allocationSize, priority, mem);
@@ -243,6 +241,9 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
                                 result == VK_SUCCESS ? mem->bo->size : 0,
                                 VK_OBJECT_TYPE_DEVICE_MEMORY,
                                 (uintptr_t)mem, mem->heap_index);
+
+   if (import_info)
+      close(import_info->fd);
 
    return VK_SUCCESS;
 
