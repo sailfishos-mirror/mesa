@@ -25,6 +25,8 @@
 #define R600_SHADERIO_SLOT_POS_LOCATION 256
 #define R600_SHADERIO_FIXED_PT_LOCATION 257
 #define R600_SHADERIO_FACE_LOCATION     258
+#define R600_SHADERIO_BARY_SAMPLE       259
+#define R600_SHADERIO_BARY_AT           260
 
 struct nir_shader;
 struct nir_cf_node;

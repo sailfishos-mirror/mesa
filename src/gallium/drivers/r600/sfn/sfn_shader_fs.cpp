@@ -323,6 +323,18 @@ FragmentShader::emit_load_helper_invocation(nir_intrinsic_instr *instr)
    return true;
 }
 
+unsigned
+FragmentShader::check_input_bary_overlap(const unsigned driver_location,
+                                         const r600_interp_location interp_loc,
+                                         const unsigned new_location)
+{
+   auto linput = find_input(driver_location);
+   if (unlikely(linput != input_not_found() &&
+                linput->second.interpolate_loc() != interp_loc))
+      return new_location;
+   return driver_location;
+}
+
 bool
 FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
 {
@@ -364,9 +376,18 @@ FragmentShader::scan_input(nir_intrinsic_instr *intr, int index_src_id)
       switch (parent->intrinsic) {
       case nir_intrinsic_load_barycentric_sample:
          interp_loc = R600_INTERP_LOC_SAMPLE;
+         if (driver_location == 0)
+            driver_location = check_input_bary_overlap(driver_location,
+                                                       interp_loc,
+                                                       R600_SHADERIO_BARY_SAMPLE);
          break;
       case nir_intrinsic_load_barycentric_at_sample:
       case nir_intrinsic_load_barycentric_at_offset:
+         if (driver_location == 0)
+            driver_location = check_input_bary_overlap(driver_location,
+                                                       R600_INTERP_LOC_CENTER,
+                                                       R600_SHADERIO_BARY_AT);
+         FALLTHROUGH;
       case nir_intrinsic_load_barycentric_pixel:
          interp_loc = R600_INTERP_LOC_CENTER;
          break;

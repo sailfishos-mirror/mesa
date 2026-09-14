@@ -36,6 +36,9 @@ private:
 
    void do_get_shader_info(r600_shader *sh_info) override;
 
+   inline unsigned check_input_bary_overlap(const unsigned driver_location,
+                                            const r600_interp_location interp_loc,
+                                            const unsigned new_location);
    bool scan_input(nir_intrinsic_instr *instr, int index_src_id);
 
    bool emit_export_pixel(nir_intrinsic_instr& intr);
