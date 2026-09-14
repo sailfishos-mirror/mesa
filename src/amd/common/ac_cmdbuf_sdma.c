@@ -13,6 +13,17 @@
 
 #include "util/u_math.h"
 
+static uint32_t
+ac_sdma_max_img_extent(const enum sdma_version ver)
+{
+   if (ver >= SDMA_7_0)
+      return 65536;
+   else if (ver >= SDMA_2_4)
+      return 16384;
+   else
+      return 16383; /* Just 1 pixel smaller than maximum supported image size... */
+}
+
 void
 ac_emit_sdma_nop(struct ac_cmdbuf *cs)
 {
@@ -149,8 +160,10 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
                                     const struct ac_sdma_surf *dst,
                                     uint32_t width, uint32_t height, uint32_t depth)
 {
-   /* This packet is the same since SDMA v2.4, haven't bothered to check older versions.
-    * The main difference is the bitfield sizes:
+   assert(width <= ac_sdma_max_img_extent(sdma_ip_version));
+   assert(height <= ac_sdma_max_img_extent(sdma_ip_version));
+
+   /* Bitfield sizes between different SDMA versions:
     *
     * v2.4 - src/dst_pitch: 14 bits (shift: 16), rect_z: 11 bits
     * v4.0 - src/dst_pitch: 19 bits (shift: 13), rect_z: 11 bits
@@ -177,12 +190,12 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    ac_cmdbuf_emit(dst->offset.x | dst->offset.y << 16);
    ac_cmdbuf_emit(dst->offset.z | (dst->pitch - 1) << pitch_shift);
    ac_cmdbuf_emit(dst->slice_pitch - 1);
-   if (sdma_ip_version == SDMA_2_0) {
-      ac_cmdbuf_emit(width | (height << 16));
-      ac_cmdbuf_emit(depth);
-   } else {
+   if (sdma_ip_version >= SDMA_2_4) {
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
       ac_cmdbuf_emit((depth - 1));
+   } else {
+      ac_cmdbuf_emit(width | (height << 16));
+      ac_cmdbuf_emit(depth);
    }
    ac_cmdbuf_end();
 }
