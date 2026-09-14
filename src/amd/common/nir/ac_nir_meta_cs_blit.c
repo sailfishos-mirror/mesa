@@ -61,20 +61,6 @@
 #include "util/format_srgb.h"
 #include "util/u_pack_color.h"
 
-/* unpack_2x16_unsigned(src, x, y): x = (uint32_t)((uint16_t)src); y = src >> 16; */
-static void
-unpack_2x16_unsigned(nir_builder *b, unsigned bit_size, nir_def *src, nir_def **x, nir_def **y)
-{
-   assert(bit_size == 32 || bit_size == 16);
-   *x = nir_unpack_32_2x16_split_x(b, src);
-   *y = nir_unpack_32_2x16_split_y(b, src);
-
-   if (bit_size == 32) {
-      *x = nir_u2u32(b, *x);
-      *y = nir_u2u32(b, *y);
-   }
-}
-
 static nir_def *
 convert_linear_to_srgb(nir_builder *b, nir_def *input)
 {
@@ -147,7 +133,21 @@ apply_blit_output_modifiers(nir_builder *b, nir_def *color,
 static unsigned
 get_num_user_data_terms(const ac_cs_blit_key *key)
 {
-   return key->is_clear ? (key->d16 ? 6 : 8) : 4;
+   unsigned num = 2;
+
+   if (key->dst_has_z || key->src_has_z)
+      num++;
+
+   if (!key->is_clear) {
+      num++;
+   } else {
+      if (key->d16)
+         num += DIV_ROUND_UP(key->last_dst_channel + 1, 2);
+      else
+         num += key->last_dst_channel + 1;
+   }
+
+   return num;
 }
 
 /* The compute blit shader.
@@ -275,15 +275,66 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    unsigned lane_size = lane_width * lane_height * lane_depth;
    assert(lane_size <= SI_MAX_COMPUTE_BLIT_LANE_SIZE);
 
-   nir_def *zero_lod = nir_imm_intN_t(&b, 0, key->a16 ? 16 : 32);
+   nir_def *zero_coord = nir_imm_intN_t(&b, 0, key->a16 ? 16 : 32);
+   const unsigned coord_bit_size = key->a16 ? 16 : 32;
 
    /* Instructions. */
+   /* Extract user data. */
+   nir_def *user_data = nir_load_user_data_amd(&b);
+   unsigned num = 0;
+
+   nir_def *start_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 6);
+   nir_def *start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 6, 4);
+   nir_def *start_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 10, 3);
+   nir_def *log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 13, 3);
+   nir_def *log_block_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 16, 3);
+   nir_def *log_block_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 19, 3);
+   num++;
+   nir_def *dst_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+                             coord_bit_size);
+   nir_def *dst_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+                             coord_bit_size);
+   num++;
+   nir_def *dst_z = NULL, *src_x = NULL, *src_y = NULL, *src_z = NULL, *clear_value = NULL;
+
+   if (key->dst_has_z || key->src_has_z) {
+      dst_z = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+                       coord_bit_size);
+      src_z = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+                       coord_bit_size);
+      num++;
+   } else {
+      dst_z = zero_coord;
+      src_z = zero_coord;
+   }
+
+   if (!key->is_clear) {
+      src_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+                       coord_bit_size);
+      src_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+                       coord_bit_size);
+      num++;
+   } else {
+      if (key->d16) {
+         unsigned num_clear_dwords = DIV_ROUND_UP(key->last_dst_channel + 1, 2);
+         clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, num_clear_dwords));
+
+         if (num_clear_dwords == 2)
+            clear_value = nir_unpack_64_4x16(&b, nir_pack_64_2x32(&b, clear_value));
+         else
+            clear_value = nir_unpack_32_2x16(&b, clear_value);
+
+         num += num_clear_dwords;
+      } else {
+         clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, key->last_dst_channel + 1));
+         num += key->last_dst_channel + 1;
+      }
+   }
+
+   assert(num == b.shader->info.cs.user_data_components_amd);
+
    /* Let's work with 0-based src and dst coordinates (thread IDs) first. */
-   unsigned coord_bit_size = key->a16 ? 16 : 32;
-   nir_def *user_data3 = nir_channel(&b, nir_load_user_data_amd(&b), 3);
-   nir_def *log_workgroup_size = nir_vec3(&b, nir_ubfe_imm(&b, user_data3, 13, 3),
-                                          nir_ubfe_imm(&b, user_data3, 16, 3),
-                                          nir_ubfe_imm(&b, user_data3, 19, 3));
+   nir_def *log_workgroup_size = nir_vec3(&b, log_block_x, log_block_y, log_block_z);
    nir_def *dst_xyz = nir_iadd_nuw(&b, nir_ishl(&b, nir_load_workgroup_id(&b), log_workgroup_size),
                                    nir_load_local_invocation_id(&b));
    dst_xyz = nir_u2uN(&b, nir_trim_vector(&b, dst_xyz, key->wg_dim), coord_bit_size);
@@ -294,9 +345,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
     */
    nir_if *if_positive = NULL;
    if (key->has_start_xyz) {
-      nir_def *start_xyz = nir_u2uN(&b, nir_vec3(&b, nir_ubfe_imm(&b, user_data3, 0, 6),
-                                                 nir_ubfe_imm(&b, user_data3, 6, 4),
-                                                 nir_ubfe_imm(&b, user_data3, 10, 3)), coord_bit_size);
+      nir_def *start_xyz = nir_u2uN(&b, nir_vec3(&b, start_x, start_y, start_z), coord_bit_size);
       start_xyz = nir_trim_vector(&b, start_xyz, 3);
 
       dst_xyz = nir_isub(&b, dst_xyz, start_xyz);
@@ -328,15 +377,14 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    }
 
    /* Add box.xyz. */
-   nir_def *base_coord_src = NULL, *base_coord_dst = NULL;
-   unpack_2x16_unsigned(&b, coord_bit_size, nir_trim_vector(&b, nir_load_user_data_amd(&b), 3),
-                        &base_coord_src, &base_coord_dst);
-   base_coord_dst = nir_iadd(&b, base_coord_dst, dst_xyz);
-   base_coord_src = nir_iadd(&b, base_coord_src, src_xyz);
+   nir_def *base_coord_dst =
+      nir_pad_vector(&b, nir_iadd(&b, nir_vec3(&b, dst_x, dst_y, dst_z), dst_xyz), 4);
+   nir_def *base_coord_src = NULL;
 
-   /* Coordinates must have 4 channels in NIR. */
-   base_coord_src = nir_pad_vector(&b, base_coord_src, 4);
-   base_coord_dst = nir_pad_vector(&b, base_coord_dst, 4);
+   if (!key->is_clear) {
+      base_coord_src =
+         nir_pad_vector(&b, nir_iadd(&b, nir_vec3(&b, src_x, src_y, src_z), src_xyz), 4);
+   }
 
 /* Iterate over all pixels in the lane. num_samples is the only input.
  * (sample, x, y, z) are generated coordinates, while "i" is the coordinates converted to
@@ -365,11 +413,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    nir_def *src_resinfo = NULL;
 
    if (key->is_clear) {
-      /* The clear color starts at component 4 of user data. */
-      color[0] = nir_channels(&b, nir_load_user_data_amd(&b),
-                              BITFIELD_RANGE(4, key->d16 ? 2 : 4));
-      if (key->d16)
-         color[0] = nir_unpack_64_4x16(&b, nir_pack_64_2x32(&b, color[0]));
+      color[0] = clear_value;
 
       foreach_pixel_in_lane(1, sample, x, y, z, i) {
          color[i] = color[0];
@@ -414,7 +458,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                                            .is_array = img_src->type->sampler_array);
                   } else {
                      src_resinfo = nir_image_deref_size(&b, 4, 32, &img_src_deref->def,
-                                                        zero_lod);
+                                                        zero_coord);
                   }
 
                   if (coord_bit_size == 16) {
@@ -485,7 +529,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                sample0[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
                                                  &img_src_deref->def, coord_src[i * src_samples],
                                                  nir_channel(&b, coord_src[i * src_samples],
-                                                             num_src_coords - 1), zero_lod,
+                                                             num_src_coords - 1), zero_coord,
                                                  .image_dim = img_src->type->sampler_dimensionality,
                                                  .image_array = img_src->type->sampler_array,
                                                  .dest_type = nir_type_uint | bit_size);
@@ -526,7 +570,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
          } else {
             color[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
                                             &img_src_deref->def, coord_src[i],
-                                            nir_channel(&b, coord_src[i], num_src_coords - 1), zero_lod,
+                                            nir_channel(&b, coord_src[i], num_src_coords - 1), zero_coord,
                                             .image_dim = img_src->type->sampler_dimensionality,
                                             .image_array = img_src->type->sampler_array,
                                             .dest_type = nir_type_uint | bit_size,
@@ -602,7 +646,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    foreach_pixel_in_lane(dst_samples, sample, x, y, z, i) {
       nir_bindless_image_store(&b, img_dst_desc, coord_dst[i],
                                nir_channel(&b, coord_dst[i], num_dst_coords - 1),
-                               src_samples > 1 ? color[i] : color[i / dst_samples], zero_lod,
+                               src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
                                .image_dim = img_dst->type->sampler_dimensionality,
                                .image_array = img_dst->type->sampler_array);
    }
@@ -1354,15 +1398,23 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    assert(util_is_uint16(blit->dst.box.z));
    assert(start_x <= 63 && start_y <= 15 && start_z <= 7);
    assert(log_block_x <= 7 && log_block_y <= 7 && log_block_z <= 7);
+   assert(key.dst_has_z || !blit->dst.box.z);
+   assert(key.src_has_z || !blit->src.box.z);
 
-   dispatch->user_data[0] = (blit->src.box.x & 0xffff) | (((uint32_t)blit->dst.box.x & 0xffff) << 16);
-   dispatch->user_data[1] = (blit->src.box.y & 0xffff) | (((uint32_t)blit->dst.box.y & 0xffff) << 16);
-   dispatch->user_data[2] = (blit->src.box.z & 0xffff) | (((uint32_t)blit->dst.box.z & 0xffff) << 16);
-   dispatch->user_data[3] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
-                            ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
-                            ((log_block_z & 0x7) << 19);
+   /* Set user data SGPR values. */
+   unsigned num = 0;
 
-   if (is_clear) {
+   dispatch->user_data[num++] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
+                                ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
+                                ((log_block_z & 0x7) << 19);
+   dispatch->user_data[num++] = (blit->dst.box.x & 0xffff) | (((uint32_t)blit->dst.box.y & 0xffff) << 16);
+
+   if (key.dst_has_z || key.src_has_z)
+      dispatch->user_data[num++] = (blit->dst.box.z & 0xffff) | (((uint32_t)blit->src.box.z & 0xffff) << 16);
+
+   if (!is_clear) {
+      dispatch->user_data[num++] = (blit->src.box.x & 0xffff) | (((uint32_t)blit->src.box.y & 0xffff) << 16);
+   } else {
       union pipe_color_union final_value;
       memcpy(&final_value, &blit->clear_color, sizeof(final_value));
 
@@ -1382,13 +1434,16 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          else
             data_format = PIPE_FORMAT_R16G16B16A16_FLOAT;
 
-         util_pack_color_union(data_format, (union util_color *)&dispatch->user_data[4],
+         util_pack_color_union(data_format, (union util_color *)&dispatch->user_data[num],
                                &final_value);
+         num += DIV_ROUND_UP(key.last_dst_channel + 1, 2);
       } else {
-         memcpy(&dispatch->user_data[4], &final_value, sizeof(final_value));
+         memcpy(&dispatch->user_data[num], &final_value, sizeof(final_value));
+         num += key.last_dst_channel + 1;
       }
    }
 
-   dispatch->num_user_data_terms = get_num_user_data_terms(&dispatch->shader_key);
+   assert(get_num_user_data_terms(&dispatch->shader_key) == num);
+   dispatch->num_user_data_terms = num;
    return true;
 }
