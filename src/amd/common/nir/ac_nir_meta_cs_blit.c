@@ -760,6 +760,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    /* Get the channel sizes. */
    unsigned max_dst_chan_size = util_format_get_max_channel_size(blit->dst.format);
    unsigned max_src_chan_size = is_clear ? 0 : util_format_get_max_channel_size(blit->src.format);
+   const unsigned dst_bpe = blit->dst.surf->bpe;
 
    if (!options->is_nested)
       memset(out, 0, sizeof(*out));
@@ -800,16 +801,16 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       if (is_clear) {
          /* Verified on: Tahiti, Hawaii, Tonga, Vega10, Navi10, Navi21, Navi31 */
          if (is_3d_tiling) {
-            if (info->gfx_level == GFX6 && blit->dst.surf->bpe == 8)
+            if (info->gfx_level == GFX6 && dst_bpe == 8)
                return false;
          } else if (is_2d_tiling) {
             /* Each condition inside the parentheses enables the compute clear for that case. */
-            if (!(info->gfx_level == GFX6 && blit->dst.surf->bpe <= 4 && dst_samples == 1) &&
-                !(info->gfx_level == GFX7 && blit->dst.surf->bpe == 1 && dst_samples == 1) &&
+            if (!(info->gfx_level == GFX6 && dst_bpe <= 4 && dst_samples == 1) &&
+                !(info->gfx_level == GFX7 && dst_bpe == 1 && dst_samples == 1) &&
                 !(info->gfx_level == GFX12 &&
-                  (blit->dst.surf->bpe <= 2 ||
-                   (blit->dst.surf->bpe == 4 && dst_samples == 8) ||
-                   (blit->dst.surf->bpe == 16 && dst_samples <= 2))))
+                  (dst_bpe <= 2 ||
+                   (dst_bpe == 4 && dst_samples == 8) ||
+                   (dst_bpe == 16 && dst_samples <= 2))))
                return false;
          }
       } else {
@@ -826,39 +827,39 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          case GFX10_3:
             /* Verified on: Tahiti, Hawaii, Tonga, Vega10, Navi10, Navi21 */
             if (is_resolve) {
-               if (!(info->gfx_level == GFX7 && blit->dst.surf->bpe == 16))
+               if (!(info->gfx_level == GFX7 && dst_bpe == 16))
                   return false;
             } else {
                assert(dst_samples == src_samples || sample0_only);
 
                if (is_2d_tiling) {
                   if (dst_samples == 1) {
-                     if (blit->dst.surf->bpe <= 8 &&
-                         !(info->gfx_level <= GFX7 && blit->dst.surf->bpe == 1) &&
-                         !(info->gfx_level == GFX6 && blit->dst.surf->bpe == 2 &&
+                     if (dst_bpe <= 8 &&
+                         !(info->gfx_level <= GFX7 && dst_bpe == 1) &&
+                         !(info->gfx_level == GFX6 && dst_bpe == 2 &&
                            blit->src.surf->is_linear) &&
-                         !(info->gfx_level == GFX7 && blit->dst.surf->bpe >= 2 &&
+                         !(info->gfx_level == GFX7 && dst_bpe >= 2 &&
                            blit->src.surf->is_linear) &&
                          !((info->gfx_level == GFX8 || info->gfx_level == GFX9) &&
-                           blit->dst.surf->bpe >= 2 && blit->src.surf->is_linear) &&
-                         !(info->gfx_level == GFX10 && blit->dst.surf->bpe <= 2 &&
+                           dst_bpe >= 2 && blit->src.surf->is_linear) &&
+                         !(info->gfx_level == GFX10 && dst_bpe <= 2 &&
                            blit->src.surf->is_linear) &&
-                         !(info->gfx_level == GFX10_3 && blit->dst.surf->bpe == 8 &&
+                         !(info->gfx_level == GFX10_3 && dst_bpe == 8 &&
                            blit->src.surf->is_linear))
                         return false;
 
-                     if (info->gfx_level == GFX6 && blit->dst.surf->bpe == 16 &&
+                     if (info->gfx_level == GFX6 && dst_bpe == 16 &&
                          blit->src.surf->is_linear && blit->dst.dim != 3)
                         return false;
 
-                     if (blit->dst.surf->bpe == 16 && !blit->src.surf->is_linear &&
+                     if (dst_bpe == 16 && !blit->src.surf->is_linear &&
                          /* Only GFX6 selects 2D tiling for 128bpp 3D textures. */
                          !(info->gfx_level == GFX6 && blit->dst.dim == 3) &&
                          info->gfx_level != GFX7)
                         return false;
                   } else {
                      /* MSAA copies - tested only without FMASK on Navi21. */
-                     if (blit->dst.surf->bpe >= 4)
+                     if (dst_bpe >= 4)
                         return false;
                   }
                }
@@ -870,21 +871,21 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          case GFX11_7:
             /* Verified on Navi31. */
             if (is_resolve) {
-               if (!((blit->dst.surf->bpe <= 2 && src_samples == 2) ||
-                     (blit->dst.surf->bpe == 2 && src_samples == 4) ||
-                     (blit->dst.surf->bpe == 16 && src_samples == 4)))
+               if (!((dst_bpe <= 2 && src_samples == 2) ||
+                     (dst_bpe == 2 && src_samples == 4) ||
+                     (dst_bpe == 16 && src_samples == 4)))
                   return false;
             } else {
                assert(dst_samples == src_samples || sample0_only);
 
                if (is_2d_tiling) {
-                  if (blit->dst.surf->bpe == 2 && blit->src.surf->is_linear && dst_samples == 1)
+                  if (dst_bpe == 2 && blit->src.surf->is_linear && dst_samples == 1)
                      return false;
 
-                  if (blit->dst.surf->bpe >= 4 && dst_samples == 1 && !blit->src.surf->is_linear)
+                  if (dst_bpe >= 4 && dst_samples == 1 && !blit->src.surf->is_linear)
                      return false;
 
-                  if (blit->dst.surf->bpe == 16 && dst_samples == 8)
+                  if (dst_bpe == 16 && dst_samples == 8)
                      return false;
                }
             }
@@ -907,26 +908,26 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
     * Generally we want to load and store about 8-16B per lane, but there are exceptions.
     * The block sizes were fine-tuned for Navi31, and might be suboptimal on different generations.
     */
-   if (blit->dst.surf->bpe <= 8 && (is_resolve ? src_samples : dst_samples) <= 4 &&
+   if (dst_bpe <= 8 && (is_resolve ? src_samples : dst_samples) <= 4 &&
        /* Small blits don't benefit. */
-       (uint64_t)width * height * depth * blit->dst.surf->bpe * dst_samples > 128 * 1024 &&
+       (uint64_t)width * height * depth * dst_bpe * dst_samples > 128 * 1024 &&
        info->has_image_opcodes) {
       if (is_3d_tiling) {
          /* Thick tiling. */
          if (!is_clear && blit->src.surf->is_linear) {
             /* Linear -> Thick. */
-            if (blit->dst.surf->bpe == 4)
+            if (dst_bpe == 4)
                lane_size = (uvec3){2, 1, 1}; /* 8B per lane */
-            else if (blit->dst.surf->bpe == 2)
+            else if (dst_bpe == 2)
                lane_size = (uvec3){2, 1, 2}; /* 8B per lane */
-            else if (blit->dst.surf->bpe == 1)
+            else if (dst_bpe == 1)
                lane_size = (uvec3){4, 1, 2}; /* 8B per lane */
          } else {
-            if (blit->dst.surf->bpe == 8)
+            if (dst_bpe == 8)
                lane_size = (uvec3){1, 1, 2}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 4)
+            else if (dst_bpe == 4)
                lane_size = (uvec3){1, 2, 2}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 2)
+            else if (dst_bpe == 2)
                lane_size = (uvec3){1, 2, 4}; /* 16B per lane */
             else
                lane_size = (uvec3){2, 2, 2}; /* 8B per lane */
@@ -935,23 +936,23 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          /* Linear layout. */
          if (!is_clear && !blit->src.surf->is_linear) {
             /* Tiled -> Linear. */
-            if (blit->dst.surf->bpe == 8 && !blit->src.surf->thick_tiling)
+            if (dst_bpe == 8 && !blit->src.surf->thick_tiling)
                lane_size = (uvec3){2, 1, 1}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 4)
+            else if (dst_bpe == 4)
                lane_size = (uvec3){1, 2, 1}; /* 8B per lane */
-            else if (blit->dst.surf->bpe == 2 && blit->src.surf->thick_tiling)
+            else if (dst_bpe == 2 && blit->src.surf->thick_tiling)
                lane_size = (uvec3){2, 2, 1}; /* 8B per lane */
-            else if (blit->dst.surf->bpe == 1 && blit->src.surf->thick_tiling)
+            else if (dst_bpe == 1 && blit->src.surf->thick_tiling)
                lane_size = (uvec3){2, 2, 2}; /* 8B per lane */
-            else if (blit->dst.surf->bpe <= 2)
+            else if (dst_bpe <= 2)
                lane_size = (uvec3){2, 4, 1}; /* 8-16B per lane */
          } else {
             /* Clear or Linear -> Linear. */
-            if (blit->dst.surf->bpe == 8)
+            if (dst_bpe == 8)
                lane_size = (uvec3){2, 1, 1}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 4)
+            else if (dst_bpe == 4)
                lane_size = (uvec3){4, 1, 1}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 2)
+            else if (dst_bpe == 2)
                lane_size = (uvec3){4, 2, 1}; /* 16B per lane */
             else
                lane_size = (uvec3){8, 1, 1}; /* 8B per lane */
@@ -959,32 +960,32 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       } else {
          /* Thin tiling. */
          if (is_resolve) {
-            if (blit->dst.surf->bpe == 8 && src_samples == 2) {
+            if (dst_bpe == 8 && src_samples == 2) {
                lane_size = (uvec3){1, 2, 1}; /* 32B->16B per lane */
-            } else if (blit->dst.surf->bpe == 4) {
+            } else if (dst_bpe == 4) {
                lane_size = (uvec3){2, 1, 1}; /* 32B->8B for 4 samples, 16B->8B for 2 samples */
-            } else if (blit->dst.surf->bpe <= 2) {
+            } else if (dst_bpe <= 2) {
                if (src_samples == 4)
                   lane_size = (uvec3){2, 1, 1}; /* 16B->4B for 16bpp, 8B->2B for 8bpp */
                else
                   lane_size = (uvec3){2, 2, 1}; /* 16B->8B for 16bpp, 8B->4B for 8bpp */
             }
          } else {
-            if (blit->dst.surf->bpe == 8 && dst_samples == 1)
+            if (dst_bpe == 8 && dst_samples == 1)
                lane_size = (uvec3){1, 2, 1}; /* 16B per lane */
-            else if (blit->dst.surf->bpe == 4) {
+            else if (dst_bpe == 4) {
                if (dst_samples == 2)
                   lane_size = (uvec3){2, 1, 1}; /* 16B per lane */
                else if (dst_samples == 1)
                   lane_size = (uvec3){2, 2, 1}; /* 16B per lane */
-            } else if (blit->dst.surf->bpe == 2) {
+            } else if (dst_bpe == 2) {
                if (dst_samples == 4 || (!is_clear && blit->src.surf->is_linear))
                   lane_size = (uvec3){2, 1, 1}; /* 16B per lane (4B for linear src) */
                else if (dst_samples == 2)
                   lane_size = (uvec3){2, 2, 1}; /* 16B per lane */
                else
                   lane_size = (uvec3){2, 4, 1}; /* 16B per lane */
-            } else if (blit->dst.surf->bpe == 1) {
+            } else if (dst_bpe == 1) {
                if (dst_samples == 4)
                   lane_size = (uvec3){2, 1, 1}; /* 8B per lane */
                else if (dst_samples == 2 || (!is_clear && blit->src.surf->is_linear))
@@ -1042,22 +1043,22 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
        */
       bool slow = (blit->dst.surf->is_linear && !is_clear && blit->src.surf->is_linear && depth > 1) ||
                   (blit->dst.surf->thick_tiling &&
-                   ((blit->dst.surf->bpe == 8 && is_clear) ||
-                    (blit->dst.surf->bpe == 4 &&
+                   ((dst_bpe == 8 && is_clear) ||
+                    (dst_bpe == 4 &&
                      (blit->dst.surf->is_linear || (!is_clear && blit->src.surf->is_linear))) ||
-                    (blit->dst.surf->bpe == 2 && blit->dst.surf->is_linear && !is_clear &&
+                    (dst_bpe == 2 && blit->dst.surf->is_linear && !is_clear &&
                      blit->src.surf->is_linear))) ||
                   (!blit->dst.surf->thick_tiling &&
-                   ((blit->dst.surf->bpe == 4 && blit->dst.surf->is_linear && !is_clear &&
+                   ((dst_bpe == 4 && blit->dst.surf->is_linear && !is_clear &&
                      blit->src.surf->is_linear) ||
-                    (blit->dst.surf->bpe == 8 && !is_clear &&
+                    (dst_bpe == 8 && !is_clear &&
                      blit->dst.surf->is_linear != blit->src.surf->is_linear) ||
-                    (is_resolve && blit->dst.surf->bpe == 4 && src_samples == 4) ||
-                    (is_resolve && blit->dst.surf->bpe == 8 && src_samples == 2)));
+                    (is_resolve && dst_bpe == 4 && src_samples == 4) ||
+                    (is_resolve && dst_bpe == 8 && src_samples == 2)));
 
       /* Only use this if the middle blit is large enough. */
       if (!slow && middle.width > 0 && middle.height > 0 && middle.depth > 0 &&
-          (uint64_t)middle.width * middle.height * middle.depth * blit->dst.surf->bpe * dst_samples >
+          (uint64_t)middle.width * middle.height * middle.depth * dst_bpe * dst_samples >
           128 * 1024) {
          /* Compute the size of unaligned regions on all sides of the box. */
          struct pipe_box top, left, right, bottom, front, back;
@@ -1149,13 +1150,13 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    if (is_3d_tiling) {
       /* Thick tiling. */
       /* This is based on GFX11_SW_PATTERN_NIBBLE01, which also matches GFX10. */
-      if (blit->dst.surf->bpe == 1)
+      if (dst_bpe == 1)
          align = (uvec3){8, 4, 8};
-      else if (blit->dst.surf->bpe == 2)
+      else if (dst_bpe == 2)
          align = (uvec3){4, 4, 8};
-      else if (blit->dst.surf->bpe == 4)
+      else if (dst_bpe == 4)
          align = (uvec3){4, 4, 4};
-      else if (blit->dst.surf->bpe == 8)
+      else if (dst_bpe == 8)
          align = (uvec3){4, 2, 4};
       else {
          /* 16bpp linear source image reads perform better with this. */
@@ -1179,7 +1180,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          /* Linear blits should use the cache line size instead of 256B alignment.
           * Clamp it to the expected size of 1 wave.
           */
-         align.x = MIN2(options->info->tcc_cache_line_size / blit->dst.surf->bpe, 64 * lane_size.x);
+         align.x = MIN2(options->info->tcc_cache_line_size / dst_bpe, 64 * lane_size.x);
          align.y = 1;
          align.z = 1;
       }
@@ -1187,7 +1188,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       /* Thin tiling. */
       if (info->gfx_level >= GFX11) {
          /* Samples are next to each other on GFX11+. */
-         unsigned pix_size = blit->dst.surf->bpe * dst_samples;
+         unsigned pix_size = dst_bpe * dst_samples;
 
          /* This is based on GFX11_SW_PATTERN_NIBBLE01. */
          if (pix_size == 1)
@@ -1212,13 +1213,13 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
           * The patterns are GFX10_SW_PATTERN_NIBBLE01[0, 1, 39, 6, 7] for 8bpp-128bpp.
           * GFX6-10.1 and other swizzle modes might be similar.
           */
-         if (blit->dst.surf->bpe == 1)
+         if (dst_bpe == 1)
             align = (uvec3){16, 16, 1};
-         else if (blit->dst.surf->bpe == 2)
+         else if (dst_bpe == 2)
             align = (uvec3){16, 8, 1};
-         else if (blit->dst.surf->bpe == 4)
+         else if (dst_bpe == 4)
             align = (uvec3){8, 8, 1};
-         else if (blit->dst.surf->bpe == 8)
+         else if (dst_bpe == 8)
             align = (uvec3){8, 4, 1};
          else
             align = (uvec3){4, 4, 1};
@@ -1291,7 +1292,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
        *
        * Using the cache line size (128B) instead of hardcoding 256B makes linear blits slower.
        */
-      block_x = util_next_power_of_two(MIN3(width, 64, 256 / blit->dst.surf->bpe));
+      block_x = util_next_power_of_two(MIN3(width, 64, 256 / dst_bpe));
       block_y = util_next_power_of_two(MIN2(height, 64 / block_x));
       block_z = util_next_power_of_two(MIN2(depth, 64 / (block_x * block_y)));
       block_x = 64 / (block_y * block_z);
