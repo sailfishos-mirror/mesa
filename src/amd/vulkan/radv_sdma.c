@@ -447,10 +447,7 @@ radv_sdma_single_copy_buffer_image_unaligned(const struct radv_device *device, s
 
          if (!to_image) {
             /* Copy the rows from the image to the temporary buffer. */
-            if (img.surf->is_linear)
-               radv_sdma_emit_copy_linear_sub_window(device, cs, &img, &tmp, extent);
-            else
-               radv_sdma_emit_copy_tiled_sub_window(device, cs, &img, &tmp, extent, true);
+            radv_sdma_copy_buffer_image(device, cs, &tmp, &img, extent, false);
 
             /* Wait for the copy to finish. */
             radv_sdma_emit_nop(device, cs);
@@ -471,10 +468,7 @@ radv_sdma_single_copy_buffer_image_unaligned(const struct radv_device *device, s
 
          if (to_image) {
             /* Copy the rows from the temporary buffer to the destination image. */
-            if (img.surf->is_linear)
-               radv_sdma_emit_copy_linear_sub_window(device, cs, &tmp, &img, extent);
-            else
-               radv_sdma_emit_copy_tiled_sub_window(device, cs, &img, &tmp, extent, false);
+            radv_sdma_copy_buffer_image(device, cs, &tmp, &img, extent, true);
 
             /* Wait for the copy to finish. */
             radv_sdma_emit_nop(device, cs);
