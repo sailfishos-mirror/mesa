@@ -1840,6 +1840,14 @@ radv_report_gpuvm_fault(struct radv_device *device)
    ac_print_gpuvm_fault_status(stderr, pdev->info.gfx_level, fault_info.status);
 }
 
+void
+radv_queue_handle_fault_state(struct radv_queue *queue)
+{
+   struct radv_device *device = radv_queue_device(queue);
+
+   radv_report_gpuvm_fault(device);
+}
+
 static VkResult
 radv_queue_sparse_submit(struct vk_queue *vqueue, struct vk_queue_submit *submission)
 {
@@ -1875,8 +1883,7 @@ fail:
        * VK_ERROR_DEVICE_LOST to ensure the clients do not attempt
        * to submit the same job again to this device.
        */
-      radv_report_gpuvm_fault(device);
-      result = vk_queue_set_lost(&queue->vk, "vkQueueBindSparse() failed");
+      result = radv_queue_set_lost(queue, "vkQueueBindSparse() failed");
    }
    return result;
 }
@@ -1909,8 +1916,7 @@ fail:
        * VK_ERROR_DEVICE_LOST to ensure the clients do not attempt
        * to submit the same job again to this device.
        */
-      radv_report_gpuvm_fault(device);
-      result = vk_queue_set_lost(&queue->vk, "vkQueueSubmit() failed");
+      result = radv_queue_set_lost(queue, "vkQueueSubmit() failed");
    }
    return result;
 }
