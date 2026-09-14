@@ -370,8 +370,27 @@ ethosu_read_wd(const struct ethosu_subgraph *subgraph,
    *depth = ptensor->dims[3];
 }
 
-/* Brick format needs the producer and every consumer to agree on the
- * width and depth (scheduler.cpp, needsLinearFormat, "equal W and C"). */
+/* The offset along `axis` at which concat input, or split output, `index`
+ * begins: the running sum of the preceding slices' extents.  The layout rule
+ * and the concat and split lowerings share it. */
+static unsigned
+ethosu_concat_split_offset(struct pipe_tensor *const *slices,
+                           unsigned index, unsigned axis)
+{
+   unsigned offset = 0;
+
+   for (unsigned i = 0; i < index; i++)
+      offset += slices[i]->dims[axis];
+
+   return offset;
+}
+
+/* Brick format (NHCWB16) packs 16 channels per brick.  A tensor is kept
+ * linear (NHWC) in two cases.  The producer and every consumer must agree
+ * on the written width and depth, checked here.  A channel-axis concat
+ * start, or a split or unpack read, at an offset that is not a multiple of
+ * 16 would place a branch mid-brick, checked in
+ * ethosu_check_linear_format_for_concat_split(). */
 static bool
 ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
                           const struct pipe_ml_operation *poperations,
@@ -403,6 +422,46 @@ ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
    }
 
    return has_consumer;
+}
+
+static bool
+ethosu_check_linear_format_for_concat_split(
+   const struct pipe_ml_operation *poperations, unsigned count,
+   const struct pipe_ml_operation *producer,
+   const struct pipe_tensor *ptensor)
+{
+   /* A channel-axis concatenation writes each input at the running sum of the
+    * preceding depths; every such start must be 16 aligned for a brick. */
+   if (producer->type == PIPE_ML_OPERATION_TYPE_CONCATENATION &&
+       producer->conc.axis == 3) {
+      for (unsigned i = 1; i < producer->input_count; i++)
+         if (ethosu_concat_split_offset(producer->input_tensors, i, 3) & 15)
+            return true;
+   }
+
+   /* A channel-axis split or unpack reads each output at the running sum of
+    * the preceding depths; the same alignment is required to read a brick. */
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *op = &poperations[i];
+      bool is_unpack = op->type == PIPE_ML_OPERATION_TYPE_UNPACK;
+
+      if (!is_unpack && op->type != PIPE_ML_OPERATION_TYPE_SPLIT)
+         continue;
+      if (op->split.axis != 3 ||
+          op->input_tensors[0]->index != ptensor->index)
+         continue;
+
+      for (unsigned k = 1; k < op->output_count; k++) {
+         unsigned offset =
+            is_unpack ? k * op->output_tensors[k]->dims[3]
+                      : ethosu_concat_split_offset(op->output_tensors, k, 3);
+
+         if (offset & 15)
+            return true;
+      }
+   }
+
+   return false;
 }
 
 static bool
@@ -2982,31 +3041,30 @@ ethosu_lower_split(struct ethosu_subgraph *subgraph,
    allocate_feature_maps(subgraph, operation);
    operation->ifm.shape = operation->ofm.shape;
 
-   for (unsigned i = 0; i < output_idx; i++) {
-      unsigned extent = poperation->output_tensors[i]->dims[poperation->split.axis];
+   unsigned offset =
+      ethosu_concat_split_offset(poperation->output_tensors, output_idx,
+                                 poperation->split.axis);
+   switch (poperation->split.axis) {
+   case 1:
+      address_offset = offset * operation->ifm.stride.y;
+      break;
+   case 2:
+      address_offset = offset * operation->ifm.stride.x;
+      break;
+   case 3:
+      if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
+         address_offset = offset * operation->ifm.stride.c;
+      } else if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
+         unsigned elem_size = 1 << operation->ifm.precision;
 
-      switch (poperation->split.axis) {
-      case 1:
-         address_offset += extent * operation->ifm.stride.y;
-         break;
-      case 2:
-         address_offset += extent * operation->ifm.stride.x;
-         break;
-      case 3:
-         if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
-            address_offset += extent * operation->ifm.stride.c;
-         } else if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
-            unsigned elem_size = 1 << operation->ifm.precision;
-
-            address_offset += (extent / 16) * operation->ifm.stride.c +
-                              (extent % 16) * elem_size;
-         } else {
-            UNREACHABLE("Unsupported layout");
-         }
-         break;
-      default:
-         UNREACHABLE("Unsupported split axis");
+         address_offset = (offset / 16) * operation->ifm.stride.c +
+                          (offset % 16) * elem_size;
+      } else {
+         UNREACHABLE("Unsupported layout");
       }
+      break;
+   default:
+      UNREACHABLE("Unsupported split axis");
    }
 
    operation->ifm.tiles.addresses[0] += address_offset;
@@ -3036,34 +3094,32 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
    allocate_feature_maps(subgraph, operation);
 
    operation->ofm.shape = operation->ifm.shape;
-   for (unsigned i = 0; i < input_idx; i++) {
-      switch (poperation->conc.axis) {
-      case 1:
+   unsigned offset =
+      ethosu_concat_split_offset(poperation->input_tensors, input_idx,
+                                 poperation->conc.axis);
+   switch (poperation->conc.axis) {
+   case 1:
+      operation->ofm.tiles.addresses[0] += offset * operation->ofm.stride.y;
+      break;
+   case 2:
+      operation->ofm.tiles.addresses[0] += offset * operation->ofm.stride.x;
+      break;
+   case 3:
+      if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
          operation->ofm.tiles.addresses[0] +=
-            poperation->input_tensors[i]->dims[1] * operation->ofm.stride.y;
-         break;
-      case 2:
-         operation->ofm.tiles.addresses[0] +=
-            poperation->input_tensors[i]->dims[2] * operation->ofm.stride.x;
-         break;
-      case 3:
-         if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
-            operation->ofm.tiles.addresses[0] +=
-               poperation->input_tensors[i]->dims[3] * operation->ofm.stride.c;
-         } else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
-            unsigned depth = poperation->input_tensors[i]->dims[3];
-            unsigned elem_size = 1 << operation->ofm.precision;
+            offset * operation->ofm.stride.c;
+      } else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
+         unsigned elem_size = 1 << operation->ofm.precision;
 
-            operation->ofm.tiles.addresses[0] +=
-               (depth / 16) * operation->ofm.stride.c +
-               (depth % 16) * elem_size;
-         } else {
-            assert(0 && "Unsupported layout");
-         }
-         break;
-      default:
+         operation->ofm.tiles.addresses[0] +=
+            (offset / 16) * operation->ofm.stride.c +
+            (offset % 16) * elem_size;
+      } else {
          assert(0 && "Unsupported layout");
       }
+      break;
+   default:
+      assert(0 && "Unsupported layout");
    }
 
    ethosu_sched_operation(subgraph, operation);
@@ -3769,7 +3825,9 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_ARGMAX))) {
+                   consumer->type == PIPE_ML_OPERATION_TYPE_ARGMAX)) &&
+                !ethosu_check_linear_format_for_concat_split(
+                   poperations, count, poperation, ptensor)) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
