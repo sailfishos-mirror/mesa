@@ -14,6 +14,9 @@
 
 #if DETECT_OS_ANDROID
 #include <vulkan/vk_android_native_buffer.h>
+
+#include <errno.h>
+#include <unistd.h>
 #endif /* DETECT_OS_ANDROID */
 
 #include "util/os_file.h"
@@ -53,10 +56,14 @@ radv_image_from_gralloc(VkDevice device_h, const VkImageCreateInfo *base_info,
 
    VkDeviceMemory memory_h;
 
+   int dup_fd = os_dupfd_cloexec(dma_buf);
+   if (dup_fd < 0)
+      return (errno == EMFILE) ? VK_ERROR_TOO_MANY_OBJECTS : VK_ERROR_OUT_OF_HOST_MEMORY;
+
    const VkImportMemoryFdInfoKHR import_info = {
       .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
       .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT,
-      .fd = os_dupfd_cloexec(dma_buf),
+      .fd = dup_fd,
    };
 
    /* Find the first VRAM memory type, or GART for PRIME images. */
@@ -83,8 +90,10 @@ radv_image_from_gralloc(VkDevice device_h, const VkImageCreateInfo *base_info,
                                    .memoryTypeIndex = memory_type_index,
                                 },
                                 alloc, &memory_h);
-   if (result != VK_SUCCESS)
+   if (result != VK_SUCCESS) {
+      close(dup_fd);
       return result;
+   }
 
    struct radeon_bo_metadata md;
    device->ws->buffer_get_metadata(device->ws, radv_device_memory_from_handle(memory_h)->bo, &md);
