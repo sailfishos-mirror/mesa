@@ -1554,15 +1554,15 @@ tu_update_descriptor_sets(const struct tu_device *device,
             if (src_remaining == 0) {
                src_binding_layout++;
                src_ptr = src_set->mapped_ptr + src_binding_layout->offset / 4;
-               src = (uint8_t *)(src_ptr + FDL6_TEX_CONST_DWORDS);
-               src_remaining = src_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
+               src = (uint8_t *) src_ptr;
+               src_remaining = src_binding_layout->size;
             }
 
             if (dst_remaining == 0) {
                dst_binding_layout++;
                dst_ptr = dst_set->mapped_ptr + dst_binding_layout->offset / 4;
-               dst = (uint8_t *)(dst_ptr + FDL6_TEX_CONST_DWORDS);
-               dst_remaining = dst_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
+               dst = (uint8_t *) dst_ptr;
+               dst_remaining = dst_binding_layout->size;
             }
          } while (remaining > 0);
 
