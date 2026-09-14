@@ -195,6 +195,8 @@ PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
  */
 struct iris_base_prog_key {
    unsigned program_string_id;
+   unsigned use_efficient_64bit:1;
+   unsigned pad:31;
 };
 
 struct iris_vue_prog_key {
@@ -212,18 +214,18 @@ struct iris_vs_prog_key {
 struct iris_tcs_prog_key {
    struct iris_vue_prog_key vue;
 
-   enum tess_primitive_mode _tes_primitive_mode:8;
-
-   uint8_t input_vertices;
-
-   bool quads_workaround;
-   unsigned padding:8;
-
    /** A bitfield of per-patch outputs written. */
    uint32_t patch_outputs_written;
 
    /** A bitfield of per-vertex outputs written. */
    uint64_t outputs_written;
+
+   enum tess_primitive_mode _tes_primitive_mode:8;
+
+   uint8_t input_vertices;
+
+   bool quads_workaround;
+   uint64_t padding:40;
 };
 
 struct iris_tes_prog_key {
@@ -231,8 +233,6 @@ struct iris_tes_prog_key {
 
    /** A bitfield of per-patch inputs read. */
    uint32_t patch_inputs_read;
-
-   uint32_t padding;
 
    /** A bitfield of per-vertex inputs read. */
    uint64_t inputs_read;
@@ -245,8 +245,9 @@ struct iris_gs_prog_key {
 struct iris_fs_prog_key {
    struct iris_base_prog_key base;
 
-   uint8_t color_outputs_valid;
+   uint64_t input_slots_valid;
 
+   unsigned color_outputs_valid:8;
    unsigned nr_color_regions:5;
    bool alpha_test_replicate_alpha:1;
    bool alpha_to_coverage:1;
@@ -255,9 +256,7 @@ struct iris_fs_prog_key {
    bool force_dual_color_blend:1;
    bool coherent_fb_fetch:1;
    enum intel_vue_layout vue_layout:2;
-   unsigned padding:11;
-
-   uint64_t input_slots_valid;
+   uint64_t padding:43;
 };
 
 struct iris_cs_prog_key {
