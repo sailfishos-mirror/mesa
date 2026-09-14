@@ -2757,6 +2757,28 @@ iris_force_dual_color_blend(nir_shader *nir)
    }
 }
 
+static nir_def *
+iris_rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
+{
+   const struct isl_device *isl_dev = data;
+   nir_def *addr =
+      nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0), .base = 0, .range = 8);
+
+   if (rt > 0) {
+      nir_def *offset = nir_imm_int(b, (uint32_t)(rt * isl_dev->ss.size));
+      nir_def *addr_lo = nir_unpack_64_2x32_split_x(b, addr);
+      nir_def *addr_hi = nir_unpack_64_2x32_split_y(b, addr);
+
+      nir_def *new_lo = nir_iadd(b, addr_lo, offset);
+      nir_def *carry = nir_uadd_carry(b, addr_lo, offset);
+      nir_def *new_hi = nir_iadd(b, addr_hi, carry);
+
+      addr = nir_pack_64_2x32_split(b, new_lo, new_hi);
+   }
+
+   return addr;
+}
+
 /**
  * Compile a fragment (pixel) shader, and upload the assembly.
  */
@@ -2830,6 +2852,11 @@ iris_compile_fs(struct iris_screen *screen,
          .max_polygons = UCHAR_MAX,
          .vue_map = vue_map,
       };
+
+      if (key->base.use_efficient_64bit) {
+         params.rt_write_cb = iris_rt_write_efficient_64bit;
+         params.rt_write_data = (void *)&screen->isl_dev;
+      }
 
       program = iris_backend_compile(screen, mem_ctx, &params.base);
       error = params.base.error_str;
