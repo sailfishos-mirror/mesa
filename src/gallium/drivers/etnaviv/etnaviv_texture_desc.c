@@ -461,6 +461,10 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
          companion[TEXDESC_LOD_ADDR(lod) >> 2] +=
             etna_resource_level_second_plane_offset(&res->levels[lod]);
 
+      /* The companion samples the B,A half through its R,G channels. */
+      companion[TEXDESC_BORDER_COLOR_R >> 2] = b;
+      companion[TEXDESC_BORDER_COLOR_G >> 2] = a;
+
       sv->DESC_ADDR_COMPANION.bo = sv->DESC_ADDR.bo;
       sv->DESC_ADDR_COMPANION.offset = offset + TEXTURE_DESC_SIZE;
       sv->DESC_ADDR_COMPANION.flags = ETNA_RELOC_READ;
