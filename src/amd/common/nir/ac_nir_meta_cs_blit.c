@@ -133,18 +133,23 @@ apply_blit_output_modifiers(nir_builder *b, nir_def *color,
 static unsigned
 get_num_user_data_terms(const ac_cs_blit_key *key)
 {
-   unsigned num = 2;
+   unsigned num;
 
-   if (key->dst_has_z || key->src_has_z)
-      num++;
-
-   if (!key->is_clear) {
-      num++;
+   if (0 /*format_is_96bit*/) {
    } else {
-      if (key->d16)
-         num += DIV_ROUND_UP(key->last_dst_channel + 1, 2);
-      else
-         num += key->last_dst_channel + 1;
+      num = 2;
+
+      if (key->dst_has_z || key->src_has_z)
+         num++;
+
+      if (!key->is_clear) {
+         num++;
+      } else {
+         if (key->d16)
+            num += DIV_ROUND_UP(key->last_dst_channel + 1, 2);
+         else
+            num += key->last_dst_channel + 1;
+      }
    }
 
    return num;
@@ -215,59 +220,63 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    const bool has_src_sampler = key->src_is_sampler;
    const bool has_src_image = !key->is_clear && !key->src_is_sampler;
 
-   /* These info fields are only used by radeonsi. */
-   b.shader->info.num_images = has_src_image + 1;
-
-   if (has_src_sampler)
-      BITSET_SET(b.shader->info.textures_used, 0);
-
-   if (has_src_image && key->src_is_msaa)
-      BITSET_SET(b.shader->info.msaa_images, 0);
-
-   if (key->dst_is_msaa)
-      BITSET_SET(b.shader->info.msaa_images, has_src_image);
-
    /* The workgroup size varies depending on the tiling layout and blit dimensions. */
    b.shader->info.workgroup_size_variable = true;
    b.shader->info.cs.user_data_components_amd = get_num_user_data_terms(key);
 
+   nir_variable *img_src = NULL, *img_dst = NULL;
+   nir_deref_instr *img_src_deref = NULL, *img_dst_deref = NULL;
+
    /* Declare resource variables. */
-   nir_variable *img_src = NULL;
+   if (0 /*format_is_96bit*/) {
+   } else {
+      /* These info fields are only used by radeonsi. */
+      b.shader->info.num_images = has_src_image + 1;
 
-   const enum glsl_base_type img_data_type = key->d16 ? GLSL_TYPE_UINT16 : GLSL_TYPE_UINT;
+      if (has_src_sampler)
+         BITSET_SET(b.shader->info.textures_used, 0);
 
-   if (has_src_sampler) {
-      const struct glsl_type *src_sampler_type =
-         glsl_sampler_type(key->src_is_1d ? GLSL_SAMPLER_DIM_1D :
-                           key->src_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
-                           false, key->src_has_z, img_data_type);
+      if (has_src_image && key->src_is_msaa)
+         BITSET_SET(b.shader->info.msaa_images, 0);
 
-      img_src = nir_variable_create(b.shader, nir_var_uniform, src_sampler_type, "src_sampler");
+      if (key->dst_is_msaa)
+         BITSET_SET(b.shader->info.msaa_images, has_src_image);
+
+      const enum glsl_base_type img_data_type = key->d16 ? GLSL_TYPE_UINT16 : GLSL_TYPE_UINT;
+
+      if (has_src_sampler) {
+         const struct glsl_type *src_sampler_type =
+            glsl_sampler_type(key->src_is_1d ? GLSL_SAMPLER_DIM_1D :
+                              key->src_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
+                              false, key->src_has_z, img_data_type);
+
+         img_src = nir_variable_create(b.shader, nir_var_uniform, src_sampler_type, "src_sampler");
+      }
+
+      if (has_src_image) {
+         const struct glsl_type *src_image_type =
+            glsl_image_type(key->src_is_1d ? GLSL_SAMPLER_DIM_1D :
+                            key->src_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
+                            key->src_has_z, img_data_type);
+
+         img_src = nir_variable_create(b.shader, nir_var_image, src_image_type, "src_image");
+      }
+
+      const struct glsl_type *dst_image_type =
+         glsl_image_type(key->dst_is_1d ? GLSL_SAMPLER_DIM_1D :
+                         key->dst_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
+                         key->dst_has_z, img_data_type);
+
+      img_dst = nir_variable_create(b.shader, nir_var_image, dst_image_type, "dst_image");
+      /* NOTE: This is only correct for RADV where sampler and image bindings are in the same
+       * descriptor list. radeonsi puts sampler bindings in a separate descriptor list, so this should
+       * be 0 for has_src_sampler && !has_src_image when radeonsi starts using the sampler src.
+       */
+      img_dst->data.binding = has_src_sampler || has_src_image;
+
+      img_src_deref = img_src ? nir_build_deref_var(&b, img_src) : NULL;
+      img_dst_deref = nir_build_deref_var(&b, img_dst);
    }
-
-   if (has_src_image) {
-      const struct glsl_type *src_image_type =
-         glsl_image_type(key->src_is_1d ? GLSL_SAMPLER_DIM_1D :
-                         key->src_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
-                         key->src_has_z, img_data_type);
-
-      img_src = nir_variable_create(b.shader, nir_var_image, src_image_type, "src_image");
-   }
-
-   const struct glsl_type *dst_image_type =
-      glsl_image_type(key->dst_is_1d ? GLSL_SAMPLER_DIM_1D :
-                      key->dst_is_msaa ? GLSL_SAMPLER_DIM_MS : GLSL_SAMPLER_DIM_2D,
-                      key->dst_has_z, img_data_type);
-
-   nir_variable *img_dst = nir_variable_create(b.shader, nir_var_image, dst_image_type, "dst_image");
-   /* NOTE: This is only correct for RADV where sampler and image bindings are in the same
-    * descriptor list. radeonsi puts sampler bindings in a separate descriptor list, so this should
-    * be 0 for has_src_sampler && !has_src_image when radeonsi starts using the sampler src.
-    */
-   img_dst->data.binding = has_src_sampler || has_src_image;
-
-   nir_deref_instr *img_src_deref = img_src ? nir_build_deref_var(&b, img_src) : NULL;
-   nir_deref_instr *img_dst_deref = nir_build_deref_var(&b, img_dst);
 
    unsigned lane_width = 1 << key->log_lane_width;
    unsigned lane_height = 1 << key->log_lane_height;
@@ -281,53 +290,59 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    /* Instructions. */
    /* Extract user data. */
    nir_def *user_data = nir_load_user_data_amd(&b);
+   nir_def *start_x = NULL, *start_y = NULL, *start_z = NULL, *clear_value = NULL;
+   nir_def *log_block_x = NULL, *log_block_y = NULL, *log_block_z = NULL;
+   nir_def *dst_x = NULL, *dst_y = NULL, *dst_z = NULL;
+   nir_def *src_x = NULL, *src_y = NULL, *src_z = NULL;
    unsigned num = 0;
 
-   nir_def *start_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 6);
-   nir_def *start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 6, 4);
-   nir_def *start_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 10, 3);
-   nir_def *log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 13, 3);
-   nir_def *log_block_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 16, 3);
-   nir_def *log_block_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 19, 3);
-   num++;
-   nir_def *dst_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
-                             coord_bit_size);
-   nir_def *dst_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
-                             coord_bit_size);
-   num++;
-   nir_def *dst_z = NULL, *src_x = NULL, *src_y = NULL, *src_z = NULL, *clear_value = NULL;
-
-   if (key->dst_has_z || key->src_has_z) {
-      dst_z = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+   if (0 /*format_is_96bit*/) {
+   } else {
+      start_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 6);
+      start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 6, 4);
+      start_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 10, 3);
+      log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 13, 3);
+      log_block_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 16, 3);
+      log_block_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 19, 3);
+      num++;
+      dst_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
                        coord_bit_size);
-      src_z = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+      dst_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
                        coord_bit_size);
       num++;
-   } else {
-      dst_z = zero_coord;
-      src_z = zero_coord;
-   }
 
-   if (!key->is_clear) {
-      src_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
-                       coord_bit_size);
-      src_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
-                       coord_bit_size);
-      num++;
-   } else {
-      if (key->d16) {
-         unsigned num_clear_dwords = DIV_ROUND_UP(key->last_dst_channel + 1, 2);
-         clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, num_clear_dwords));
-
-         if (num_clear_dwords == 2)
-            clear_value = nir_unpack_64_4x16(&b, nir_pack_64_2x32(&b, clear_value));
-         else
-            clear_value = nir_unpack_32_2x16(&b, clear_value);
-
-         num += num_clear_dwords;
+      if (key->dst_has_z || key->src_has_z) {
+         dst_z = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+                          coord_bit_size);
+         src_z = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+                          coord_bit_size);
+         num++;
       } else {
-         clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, key->last_dst_channel + 1));
-         num += key->last_dst_channel + 1;
+         dst_z = zero_coord;
+         src_z = zero_coord;
+      }
+
+      if (!key->is_clear) {
+         src_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
+                          coord_bit_size);
+         src_y = nir_u2uN(&b, nir_unpack_32_2x16_split_y(&b, nir_channel(&b, user_data, num)),
+                          coord_bit_size);
+         num++;
+      } else {
+         if (key->d16) {
+            unsigned num_clear_dwords = DIV_ROUND_UP(key->last_dst_channel + 1, 2);
+            clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, num_clear_dwords));
+
+            if (num_clear_dwords == 2)
+               clear_value = nir_unpack_64_4x16(&b, nir_pack_64_2x32(&b, clear_value));
+            else
+               clear_value = nir_unpack_32_2x16(&b, clear_value);
+
+            num += num_clear_dwords;
+         } else {
+            clear_value = nir_channels(&b, user_data, BITFIELD_RANGE(num, key->last_dst_channel + 1));
+            num += key->last_dst_channel + 1;
+         }
       }
    }
 
@@ -413,10 +428,12 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    nir_def *src_resinfo = NULL;
 
    if (key->is_clear) {
-      color[0] = clear_value;
+      if (1 /*!format_is_96bit*/) {
+         color[0] = clear_value;
 
-      foreach_pixel_in_lane(1, sample, x, y, z, i) {
-         color[i] = color[0];
+         foreach_pixel_in_lane(1, sample, x, y, z, i) {
+            color[i] = color[0];
+         }
       }
    } else {
       nir_def *coord_src[SI_MAX_COMPUTE_BLIT_LANE_SIZE * SI_MAX_COMPUTE_BLIT_SAMPLES] = {0};
@@ -605,16 +622,20 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    /* We need to load the descriptor here, otherwise the load would be after optimization
     * barriers waiting for image loads, i.e. after s_waitcnt vmcnt(0).
     */
-   nir_def *img_dst_desc =
-      nir_image_deref_descriptor_amd(&b, 8, 32, &img_dst_deref->def,
-                                     .image_dim = img_dst->type->sampler_dimensionality,
-                                     .image_array = img_dst->type->sampler_array);
-   if (lane_size > 1 && !b.shader->info.use_aco_amd)
-      img_dst_desc = nir_optimization_barrier_sgpr_amd(&b, 32, img_dst_desc);
+   nir_def *img_dst_desc = NULL;
 
-   /* Apply the blit output modifiers, once per sample.  */
-   foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
-      color[i] = apply_blit_output_modifiers(&b, color[i], key);
+   if (1 /*!format_is_96bit*/) {
+      img_dst_desc =
+         nir_image_deref_descriptor_amd(&b, 8, 32, &img_dst_deref->def,
+                                        .image_dim = img_dst->type->sampler_dimensionality,
+                                        .image_array = img_dst->type->sampler_array);
+      if (lane_size > 1 && !b.shader->info.use_aco_amd)
+         img_dst_desc = nir_optimization_barrier_sgpr_amd(&b, 32, img_dst_desc);
+
+      /* Apply the blit output modifiers, once per sample.  */
+      foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
+         color[i] = apply_blit_output_modifiers(&b, color[i], key);
+      }
    }
 
    /* Initialize dst coordinates, one vector per pixel. */
@@ -644,11 +665,14 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 
    /* Store the pixels, one per sample. */
    foreach_pixel_in_lane(dst_samples, sample, x, y, z, i) {
-      nir_bindless_image_store(&b, img_dst_desc, coord_dst[i],
-                               nir_channel(&b, coord_dst[i], num_dst_coords - 1),
-                               src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
-                               .image_dim = img_dst->type->sampler_dimensionality,
-                               .image_array = img_dst->type->sampler_array);
+      if (0 /*format_is_96bit*/) {
+      } else {
+         nir_bindless_image_store(&b, img_dst_desc, coord_dst[i],
+                                  nir_channel(&b, coord_dst[i], num_dst_coords - 1),
+                                  src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
+                                  .image_dim = img_dst->type->sampler_dimensionality,
+                                  .image_array = img_dst->type->sampler_array);
+      }
    }
 
    if (key->has_start_xyz)
@@ -1405,42 +1429,45 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    /* Set user data SGPR values. */
    unsigned num = 0;
 
-   dispatch->user_data[num++] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
-                                ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
-                                ((log_block_z & 0x7) << 19);
-   dispatch->user_data[num++] = (blit->dst.box.x & 0xffff) | (((uint32_t)blit->dst.box.y & 0xffff) << 16);
-
-   if (key.dst_has_z || key.src_has_z)
-      dispatch->user_data[num++] = (blit->dst.box.z & 0xffff) | (((uint32_t)blit->src.box.z & 0xffff) << 16);
-
-   if (!is_clear) {
-      dispatch->user_data[num++] = (blit->src.box.x & 0xffff) | (((uint32_t)blit->src.box.y & 0xffff) << 16);
+   if (0 /*format_is_96bit*/) {
    } else {
-      union pipe_color_union final_value;
-      memcpy(&final_value, &blit->clear_color, sizeof(final_value));
+      dispatch->user_data[num++] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
+                                   ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
+                                   ((log_block_z & 0x7) << 19);
+      dispatch->user_data[num++] = (blit->dst.box.x & 0xffff) | ((uint32_t)(blit->dst.box.y & 0xffff) << 16);
 
-      /* Do the conversion to sRGB here instead of the shader. */
-      if (util_format_is_srgb(blit->dst.format)) {
-         for (int i = 0; i < 3; i++)
-            final_value.f[i] = util_format_linear_to_srgb_float(final_value.f[i]);
-      }
+      if (key.dst_has_z || key.src_has_z)
+         dispatch->user_data[num++] = (blit->dst.box.z & 0xffff) | ((uint32_t)(blit->src.box.z & 0xffff) << 16);
 
-      if (key.d16) {
-         enum pipe_format data_format;
-
-         if (util_format_is_pure_uint(blit->dst.format))
-            data_format = PIPE_FORMAT_R16G16B16A16_UINT;
-         else if (util_format_is_pure_sint(blit->dst.format))
-            data_format = PIPE_FORMAT_R16G16B16A16_SINT;
-         else
-            data_format = PIPE_FORMAT_R16G16B16A16_FLOAT;
-
-         util_pack_color_union(data_format, (union util_color *)&dispatch->user_data[num],
-                               &final_value);
-         num += DIV_ROUND_UP(key.last_dst_channel + 1, 2);
+      if (!is_clear) {
+         dispatch->user_data[num++] = (blit->src.box.x & 0xffff) | ((uint32_t)(blit->src.box.y & 0xffff) << 16);
       } else {
-         memcpy(&dispatch->user_data[num], &final_value, sizeof(final_value));
-         num += key.last_dst_channel + 1;
+         union pipe_color_union final_value;
+         memcpy(&final_value, &blit->clear_color, sizeof(final_value));
+
+         /* Do the conversion to sRGB here instead of the shader. */
+         if (util_format_is_srgb(blit->dst.format)) {
+            for (int i = 0; i < 3; i++)
+               final_value.f[i] = util_format_linear_to_srgb_float(final_value.f[i]);
+         }
+
+         if (key.d16) {
+            enum pipe_format data_format;
+
+            if (util_format_is_pure_uint(blit->dst.format))
+               data_format = PIPE_FORMAT_R16G16B16A16_UINT;
+            else if (util_format_is_pure_sint(blit->dst.format))
+               data_format = PIPE_FORMAT_R16G16B16A16_SINT;
+            else
+               data_format = PIPE_FORMAT_R16G16B16A16_FLOAT;
+
+            util_pack_color_union(data_format, (union util_color *)&dispatch->user_data[num],
+                                  &final_value);
+            num += DIV_ROUND_UP(key.last_dst_channel + 1, 2);
+         } else {
+            memcpy(&dispatch->user_data[num], &final_value, sizeof(final_value));
+            num += key.last_dst_channel + 1;
+         }
       }
    }
 
