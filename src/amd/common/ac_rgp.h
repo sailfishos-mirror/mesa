@@ -18,6 +18,7 @@ struct radeon_info;
 struct ac_sqtt_trace;
 struct ac_sqtt;
 struct ac_spm_trace;
+struct rgp_sqtt_marker_barrier_end;
 
 /* Below values are from from llvm project
  * llvm/include/llvm/BinaryFormat/ELF.h
@@ -224,6 +225,10 @@ enum ac_rgp_flush_bits {
    AC_RGP_FLUSH_INVAL_DB = 0x4000,
    AC_RGP_FLUSH_INVAL_L1 = 0x8000,
 };
+
+void
+ac_rgp_flush_bits_to_barrier_marker(enum ac_rgp_flush_bits flush_bits,
+                                    struct rgp_sqtt_marker_barrier_end *marker);
 
 int ac_dump_rgp_capture(const struct radeon_info *info, struct ac_sqtt_trace *sqtt_trace,
                         const struct ac_spm_trace *spm_trace,
