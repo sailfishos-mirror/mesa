@@ -473,7 +473,7 @@ anv_cmd_buffer_set_rt_query_buffer(struct anv_cmd_buffer *cmd_buffer,
    if (ray_shadow_size > 0 &&
        (!cmd_buffer->state.ray_query_shadow_bo ||
         cmd_buffer->state.ray_query_shadow_bo->size < ray_shadow_size)) {
-      unsigned shadow_size_log2 = MAX2(util_logbase2_ceil(ray_shadow_size), 16);
+      uint64_t shadow_size_log2 = MAX2(util_logbase2_ceil64(ray_shadow_size), 16ull);
       unsigned bucket = shadow_size_log2 - 16;
       assert(bucket < ARRAY_SIZE(device->ray_query_shadow_bos[0]));
 
@@ -481,7 +481,7 @@ anv_cmd_buffer_set_rt_query_buffer(struct anv_cmd_buffer *cmd_buffer,
       if (bo == NULL) {
          struct anv_bo *new_bo;
          VkResult result = anv_device_alloc_bo(device, "RT queries shadow",
-                                               1 << shadow_size_log2,
+                                               1ull << shadow_size_log2,
                                                ANV_BO_ALLOC_INTERNAL, /* alloc_flags */
                                                0, /* explicit_address */
                                                &new_bo);
