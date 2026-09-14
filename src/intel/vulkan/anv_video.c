@@ -322,6 +322,12 @@ video_profile_supported(struct anv_physical_device *pdevice,
 #define ANV_AV1_REF_NAME_BIT(name) \
    (1u << (STD_VIDEO_AV1_REFERENCE_NAME_##name - STD_VIDEO_AV1_REFERENCE_NAME_LAST_FRAME))
 
+static bool
+anv_video_encode_brc_supported(const struct anv_physical_device *pdevice)
+{
+   return pdevice->info.ver >= 12 && pdevice->has_huc;
+}
+
 VkResult
 anv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice,
                                            const VkVideoProfileInfoKHR *pVideoProfile,
@@ -794,6 +800,34 @@ get_h265_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
 }
 
 static uint64_t
+get_brc_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
+{
+   switch (mem_idx) {
+   case ANV_VID_MEM_BRC_HISTORY:
+      return align64(6080, 4096);
+   case ANV_VID_MEM_BRC_VDENC_STATS:
+      return align64(1216, 4096);
+   case ANV_VID_MEM_BRC_EXEC_SLB:
+      /* - gen12:  MFX_AVC_IMG_STATE(84) + VDENC_IMG_STATE(140) + BBE(4) = 228
+       * - gen125: MFX_AVC_IMG_STATE(84) + VDENC_CMD3(92) +
+       *           VDENC_AVC_IMG_STATE(80) + BBE(4) = 260
+       * Choose the worse one.
+       */
+      return align64(260, 4096);
+   case ANV_VID_MEM_BRC_WP_DATA:
+      return 4 * 4096;
+   case ANV_VID_MEM_BRC_PAK_INFO:
+   case ANV_VID_MEM_BRC_PAK_STATS:
+   case ANV_VID_MEM_BRC_DEBUG:
+   case ANV_VID_MEM_BRC_PAK_MMIO_SEM:
+   case ANV_VID_MEM_BRC_HUC_ERR_SEM:
+      return 4096;
+   default:
+      UNREACHABLE("unknown brc memory");
+   }
+}
+
+static uint64_t
 get_vp9_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
 {
    uint32_t width_in_ctb =
@@ -853,7 +887,27 @@ get_vp9_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
 }
 
 static void
-get_h264_video_session_mem_reqs(struct anv_video_session *vid,
+get_brc_video_session_mem_reqs(struct anv_video_session *vid,
+                               struct __vk_outarray *base,
+                               uint32_t memory_types)
+{
+   vk_outarray(VkVideoSessionMemoryRequirementsKHR) *out = (void *)base;
+
+   for (unsigned i = ANV_VID_MEM_BRC_HISTORY; i < ANV_VID_MEM_BRC_MAX; i++) {
+      uint64_t size = get_brc_video_mem_size(vid, i);
+
+      vk_outarray_append_typed(VkVideoSessionMemoryRequirementsKHR, out, p) {
+         p->memoryBindIndex = i;
+         p->memoryRequirements.size = size;
+         p->memoryRequirements.alignment = 4096;
+         p->memoryRequirements.memoryTypeBits = memory_types;
+      }
+   }
+}
+
+static void
+get_h264_video_session_mem_reqs(struct anv_device *dev,
+                                struct anv_video_session *vid,
                                 VkVideoSessionMemoryRequirementsKHR *mem_reqs,
                                 uint32_t *pVideoSessionMemoryRequirementsCount,
                                 uint32_t memory_types)
@@ -873,6 +927,11 @@ get_h264_video_session_mem_reqs(struct anv_video_session *vid,
          p->memoryRequirements.alignment = 4096;
          p->memoryRequirements.memoryTypeBits = memory_types;
       }
+   }
+
+   if ((vid->vk.op & VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR) &&
+        anv_video_encode_brc_supported(dev->physical)) {
+      get_brc_video_session_mem_reqs(vid, &out.base, memory_types);
    }
 }
 
@@ -1180,7 +1239,7 @@ anv_GetVideoSessionMemoryRequirementsKHR(VkDevice _device,
    switch (vid->vk.op) {
    case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:
    case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR:
-      get_h264_video_session_mem_reqs(vid,
+      get_h264_video_session_mem_reqs(device, vid,
                                       mem_reqs,
                                       pVideoSessionMemoryRequirementsCount,
                                       memory_types);

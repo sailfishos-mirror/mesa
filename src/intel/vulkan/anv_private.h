@@ -7157,6 +7157,29 @@ enum anv_vid_mem_av1_types {
    ANV_VID_MEM_AV1_MAX,
 };
 
+/* HuC BRC session buffers, shared by the encode codecs. Based past every
+ * per-codec range so they never collide in vid_mem[].
+ */
+enum anv_vid_mem_brc_types {
+   ANV_VID_MEM_BRC_HISTORY = ANV_VID_MEM_AV1_MAX,
+   ANV_VID_MEM_BRC_VDENC_STATS,
+   ANV_VID_MEM_BRC_EXEC_SLB,
+   ANV_VID_MEM_BRC_WP_DATA,
+   ANV_VID_MEM_BRC_PAK_INFO,
+   ANV_VID_MEM_BRC_PAK_STATS,
+   ANV_VID_MEM_BRC_DEBUG,
+   ANV_VID_MEM_BRC_PAK_MMIO_SEM,
+   ANV_VID_MEM_BRC_HUC_ERR_SEM,
+   ANV_VID_MEM_BRC_MAX,
+};
+
+static_assert((unsigned)ANV_VID_MEM_H264_MAX <= (unsigned)ANV_VID_MEM_AV1_MAX,
+              "H.264 video memory range overlaps the BRC range");
+static_assert((unsigned)ANV_VID_MEM_H265_ENC_MAX <= (unsigned)ANV_VID_MEM_AV1_MAX,
+              "H.265 video memory range overlaps the BRC range");
+static_assert((unsigned)ANV_VID_MEM_VP9_DEC_MAX <= (unsigned)ANV_VID_MEM_AV1_MAX,
+              "VP9 video memory range overlaps the BRC range");
+
 #define ANV_VID_MEM_ADDR(vid_, type_)                                        \
    (struct anv_address) { (vid_)->vid_mem[type_].mem->bo,                    \
                           (vid_)->vid_mem[type_].offset }
@@ -7225,7 +7248,7 @@ struct anv_video_session {
    struct anv_video_rc_state rc;
 
    /* the decoder needs some private memory allocations */
-   struct anv_vid_mem vid_mem[ANV_VID_MEM_AV1_MAX];
+   struct anv_vid_mem vid_mem[ANV_VID_MEM_BRC_MAX];
    struct anv_av1_video_refs_info prev_refs[ANV_VIDEO_AV1_MAX_DPB_SLOTS];
 
    /* For VP9 decoding from here */
