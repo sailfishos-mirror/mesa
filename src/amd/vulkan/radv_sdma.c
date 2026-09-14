@@ -281,11 +281,56 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
    ac_emit_sdma_copy_t2t_sub_window(cs->b, &pdev->info, src, dst, extent.width, extent.height, extent.depth);
 }
 
+static void
+radv_sdma_copy_buffer_image_split(const struct radv_device *device, struct radv_cmd_stream *cs,
+                                  const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img,
+                                  const VkExtent3D extent, bool to_image)
+{
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const uint32_t max_extent = ac_sdma_max_img_extent(pdev->info.sdma_ip_version);
+   const uint32_t first_part = util_next_power_of_two(max_extent) / 2;
+   VkExtent3D e = extent;
+   struct ac_sdma_surf b = *buf;
+   struct ac_sdma_surf i = *img;
+
+   if (extent.width > max_extent) {
+      e.width = first_part;
+      radv_sdma_copy_buffer_image(device, cs, &b, &i, e, to_image);
+
+      const uint32_t second_part = extent.width - first_part;
+      e.width = second_part;
+      b.offset.x += first_part;
+      i.offset.x += first_part;
+      radv_sdma_copy_buffer_image(device, cs, &b, &i, e, to_image);
+
+      return;
+   }
+
+   if (extent.height > max_extent) {
+      e.height = first_part;
+      radv_sdma_copy_buffer_image(device, cs, &b, &i, e, to_image);
+
+      const uint32_t second_part = extent.height - first_part;
+      e.height = second_part;
+      b.offset.y += first_part;
+      i.offset.y += first_part;
+      radv_sdma_copy_buffer_image(device, cs, &b, &i, e, to_image);
+   }
+}
+
 void
 radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_stream *cs,
                             const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img, const VkExtent3D extent,
                             bool to_image)
 {
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const uint32_t max_extent = ac_sdma_max_img_extent(pdev->info.sdma_ip_version);
+
+   if (extent.width > max_extent || extent.height > max_extent) {
+      radv_sdma_copy_buffer_image_split(device, cs, buf, img, extent, to_image);
+      return;
+   }
+
    if (img->surf->is_linear) {
       if (to_image)
          radv_sdma_emit_copy_linear_sub_window(device, cs, buf, img, extent);
@@ -365,10 +410,54 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    }
 }
 
+static void
+radv_sdma_copy_image_split(const struct radv_device *device, struct radv_cmd_stream *cs, const struct ac_sdma_surf *src,
+                           const struct ac_sdma_surf *dst, const VkExtent3D extent)
+{
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const uint32_t max_extent = ac_sdma_max_img_extent(pdev->info.sdma_ip_version);
+   const uint32_t first_part = util_next_power_of_two(max_extent) / 2;
+   VkExtent3D e = extent;
+   struct ac_sdma_surf s = *src;
+   struct ac_sdma_surf d = *dst;
+
+   if (extent.width > max_extent) {
+      e.width = first_part;
+      radv_sdma_copy_image(device, cs, &s, &d, e);
+
+      const uint32_t second_part = extent.width - first_part;
+      e.width = second_part;
+      s.offset.x += first_part;
+      d.offset.x += first_part;
+      radv_sdma_copy_image(device, cs, &s, &d, e);
+
+      return;
+   }
+
+   if (extent.height > max_extent) {
+      e.height = first_part;
+      radv_sdma_copy_image(device, cs, &s, &d, e);
+
+      const uint32_t second_part = extent.height - first_part;
+      e.height = second_part;
+      s.offset.y += first_part;
+      d.offset.y += first_part;
+      radv_sdma_copy_image(device, cs, &s, &d, e);
+   }
+}
+
 void
 radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *cs, const struct ac_sdma_surf *src,
                      const struct ac_sdma_surf *dst, const VkExtent3D extent)
 {
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const uint32_t max_extent = ac_sdma_max_img_extent(pdev->info.sdma_ip_version);
+
+   if (extent.width > max_extent || extent.height > max_extent) {
+      radv_sdma_copy_image_split(device, cs, src, dst, extent);
+      return;
+   }
+
    if (src->surf->is_linear) {
       if (dst->surf->is_linear) {
          radv_sdma_emit_copy_linear_sub_window(device, cs, src, dst, extent);

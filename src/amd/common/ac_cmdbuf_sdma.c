@@ -86,7 +86,7 @@ ac_sdma_7_0_get_mall_policy(enum sdma_version sdma_ip_version, bool is_copy)
    return 0;
 }
 
-static uint32_t
+uint32_t
 ac_sdma_max_img_extent(const enum sdma_version ver)
 {
    if (ver >= SDMA_7_0)

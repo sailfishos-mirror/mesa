@@ -62,6 +62,8 @@ struct ac_sdma_surf {
    };
 };
 
+uint32_t ac_sdma_max_img_extent(const enum sdma_version ver);
+
 void ac_emit_sdma_nop(struct ac_cmdbuf *cs);
 
 void ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version, uint64_t va);
