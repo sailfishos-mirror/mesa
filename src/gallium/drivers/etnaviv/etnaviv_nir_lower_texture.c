@@ -493,7 +493,15 @@ etna_nir_lower_texture(nir_shader *s, struct etna_shader_key *key, const struct 
       .lower_txs_lod = true,
       .lower_invalid_implicit_lod = true,
       .lower_offset_filter = lower_offset_filter,
+      .swizzle_result = key->tex_is_128bit,
    };
+
+   u_foreach_bit(i, key->tex_is_128bit) {
+      lower_tex_options.swizzles[i][0] = key->tex_swizzle[i].swizzle_r;
+      lower_tex_options.swizzles[i][1] = key->tex_swizzle[i].swizzle_g;
+      lower_tex_options.swizzles[i][2] = key->tex_swizzle[i].swizzle_b;
+      lower_tex_options.swizzles[i][3] = key->tex_swizzle[i].swizzle_a;
+   }
 
    NIR_PASS(progress, s, nir_lower_tex, &lower_tex_options);
 

@@ -361,6 +361,14 @@ get_texture_swiz(enum pipe_format fmt, unsigned swizzle_r,
       swizzle_r, swizzle_g, swizzle_b, swizzle_a,
    };
 
+   /* 128-bit texels are swizzled in the shader once the halves are joined. */
+   if (format_is_128bit(fmt)) {
+      swiz[0] = PIPE_SWIZZLE_X;
+      swiz[1] = PIPE_SWIZZLE_Y;
+      swiz[2] = PIPE_SWIZZLE_Z;
+      swiz[3] = PIPE_SWIZZLE_W;
+   }
+
    if (unlikely(fmt == PIPE_FORMAT_DXT1_RGB)) {
       /* The HW uses the same decompression scheme for RGB and RGBA DXT1
        * textures, tell it to 1-fill the alpha channel for plain RGB.

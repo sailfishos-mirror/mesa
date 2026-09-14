@@ -138,6 +138,16 @@ etna_context_destroy(struct pipe_context *pctx)
    FREE(pctx);
 }
 
+static inline void
+etna_shader_key_set_tex_swizzle(struct etna_shader_key *key, unsigned i,
+                                const struct pipe_sampler_view *view)
+{
+   key->tex_swizzle[i].swizzle_r = view->swizzle_r;
+   key->tex_swizzle[i].swizzle_g = view->swizzle_g;
+   key->tex_swizzle[i].swizzle_b = view->swizzle_b;
+   key->tex_swizzle[i].swizzle_a = view->swizzle_a;
+}
+
 static bool
 etna_get_vs(struct etna_context *ctx, struct etna_shader_key* const key)
 {
@@ -145,9 +155,15 @@ etna_get_vs(struct etna_context *ctx, struct etna_shader_key* const key)
 
    key->tex_is_128bit = ctx->tex_is_128bit[MESA_SHADER_VERTEX];
 
-   if (key->tex_is_128bit)
+   if (key->tex_is_128bit) {
+      const unsigned offset = ctx->screen->specs.vertex_sampler_offset;
+
       for (unsigned i = 0; i < ctx->screen->specs.vertex_sampler_count; i++)
          key->sampler_companion[i] = ctx->sampler_companion[MESA_SHADER_VERTEX][i];
+
+      u_foreach_bit(i, key->tex_is_128bit)
+         etna_shader_key_set_tex_swizzle(key, i, ctx->sampler_view[offset + i]);
+   }
 
    ctx->shader.vs = etna_shader_variant(ctx->shader.bind_vs, key, &ctx->base.debug, true);
 
@@ -187,19 +203,20 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
       key->has_sample_tex_compare = 1;
       key->num_texture_states = ctx->num_fragment_sampler_views;
 
-      key->tex_swizzle[i].swizzle_r = ctx->sampler_view[i]->swizzle_r;
-      key->tex_swizzle[i].swizzle_g = ctx->sampler_view[i]->swizzle_g;
-      key->tex_swizzle[i].swizzle_b = ctx->sampler_view[i]->swizzle_b;
-      key->tex_swizzle[i].swizzle_a = ctx->sampler_view[i]->swizzle_a;
+      etna_shader_key_set_tex_swizzle(key, i, ctx->sampler_view[i]);
 
       key->tex_compare_func[i] = ctx->sampler[i]->compare_func;
    }
 
    key->tex_is_128bit = ctx->tex_is_128bit[MESA_SHADER_FRAGMENT];
 
-   if (key->tex_is_128bit)
+   if (key->tex_is_128bit) {
       for (unsigned i = 0; i < ctx->screen->specs.fragment_sampler_count; i++)
          key->sampler_companion[i] = ctx->sampler_companion[MESA_SHADER_FRAGMENT][i];
+
+      u_foreach_bit(i, key->tex_is_128bit)
+         etna_shader_key_set_tex_swizzle(key, i, ctx->sampler_view[i]);
+   }
 
    ctx->shader.fs = etna_shader_variant(ctx->shader.bind_fs, key, &ctx->base.debug, true);
 
