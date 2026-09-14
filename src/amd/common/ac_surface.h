@@ -532,6 +532,17 @@ ac_surface_get_legacy_tiling_index(const struct radeon_surf *const surf,
       return surf->u.legacy.tiling_index[level];
 }
 
+static inline const struct legacy_surf_level *
+ac_surface_get_legacy_level(const struct radeon_surf *const surf,
+                            const unsigned level,
+                            const bool stencil)
+{
+   if (stencil)
+      return &surf->u.legacy.zs.stencil_level[level];
+   else
+      return &surf->u.legacy.level[level];
+}
+
 unsigned ac_surface_get_nplanes(const struct radeon_surf *surf);
 uint64_t ac_surface_get_plane_offset(enum amd_gfx_level gfx_level,
                                      const struct radeon_surf *surf,

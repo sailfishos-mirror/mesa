@@ -337,6 +337,34 @@ ac_sdma5_get_metadata_config(const struct radeon_info *info,
           SDMA5_DCC_TMZ(tmz);
 }
 
+/**
+ * Return the maximum pitch of a tiled surface in units of tiles.
+ */
+static uint32_t
+ac_sdma2_get_pitch_in_tile_max(const struct ac_sdma_surf *tiled)
+{
+   const uint32_t tile_width = 8;
+   const struct legacy_surf_level *legacy_level =
+      ac_surface_get_legacy_level(tiled->surf, tiled->first_level, tiled->is_stencil);
+
+   return legacy_level->nblk_x / tile_width;
+}
+
+/**
+ * Return the maximum slice pitch of a tiled surface in units of tiles.
+ */
+static uint32_t
+ac_sdma2_get_slice_pitch_in_tile_max(const struct ac_sdma_surf *tiled)
+{
+   const uint32_t tile_width = 8;
+   const uint32_t tile_height = 8;
+   const uint32_t tile_pixels = tile_width * tile_height;
+   const struct legacy_surf_level *legacy_level =
+      ac_surface_get_legacy_level(tiled->surf, tiled->first_level, tiled->is_stencil);
+
+   return (uint64_t)legacy_level->slice_size_dw * 4 / tiled->bpp / tile_pixels;
+}
+
 void
 ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_info *info,
                                    const struct ac_sdma_surf *linear,
@@ -344,12 +372,17 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
                                    bool detile, uint32_t width, uint32_t height,
                                    uint32_t depth, bool tmz)
 {
+   const enum sdma_version sdma_ip_version = info->sdma_ip_version;
+
+   assert(width <= ac_sdma_max_img_extent(sdma_ip_version));
+   assert(height <= ac_sdma_max_img_extent(sdma_ip_version));
+
    const uint32_t header_dword =
-      ac_sdma_get_tiled_header_dword(info->sdma_ip_version, tiled);
+      ac_sdma_get_tiled_header_dword(sdma_ip_version, tiled);
    const uint32_t info_dword =
       ac_sdma_get_tiled_info_dword(info, tiled);
    const bool dcc =
-      info->sdma_ip_version >= SDMA_7_0 ? (linear->is_compressed || tiled->is_compressed)
+      sdma_ip_version >= SDMA_7_0 ? (linear->is_compressed || tiled->is_compressed)
                                         : tiled->is_compressed;
    uint32_t tiled_cp = 0, linear_cp = 0;
    bool cpv = false;
@@ -380,7 +413,7 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    /* Sanity checks. */
    const bool uses_depth = linear->offset.z != 0 || tiled->offset.z != 0 || depth != 1;
    assert(util_is_power_of_two_nonzero(tiled->bpp));
-   ac_sdma_check_pitches(info->sdma_ip_version, linear->pitch, linear->slice_pitch,
+   ac_sdma_check_pitches(sdma_ip_version, linear->pitch, linear->slice_pitch,
                          tiled->bpp, uses_depth);
    if (!info->sdma_supports_compression)
       assert(!tiled->is_compressed);
@@ -392,27 +425,32 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    ac_cmdbuf_emit(tiled->va);
    ac_cmdbuf_emit(tiled->va >> 32);
    ac_cmdbuf_emit(tiled->offset.x | tiled->offset.y << 16);
-   ac_cmdbuf_emit(tiled->offset.z | (tiled->extent.width - 1) << 16);
-   ac_cmdbuf_emit((tiled->extent.height - 1) | (tiled->extent.depth - 1) << 16);
+   if (sdma_ip_version >= SDMA_4_0) {
+      ac_cmdbuf_emit(tiled->offset.z | (tiled->extent.width - 1) << 16);
+      ac_cmdbuf_emit((tiled->extent.height - 1) | (tiled->extent.depth - 1) << 16);
+   } else {
+      ac_cmdbuf_emit(tiled->offset.z | (ac_sdma2_get_pitch_in_tile_max(tiled) - 1) << 16);
+      ac_cmdbuf_emit(ac_sdma2_get_slice_pitch_in_tile_max(tiled) - 1);
+   }
    ac_cmdbuf_emit(info_dword);
    ac_cmdbuf_emit(linear->va);
    ac_cmdbuf_emit(linear->va >> 32);
    ac_cmdbuf_emit(linear->offset.x | linear->offset.y << 16);
    ac_cmdbuf_emit(linear->offset.z | (linear->pitch - 1) << 16);
    ac_cmdbuf_emit(linear->slice_pitch - 1);
-   if (info->sdma_ip_version == SDMA_2_0) {
-      ac_cmdbuf_emit(width | (height << 16));
-      ac_cmdbuf_emit(depth);
-   } else {
+   if (sdma_ip_version >= SDMA_2_4) {
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
       ac_cmdbuf_emit((depth - 1) |
                      (cpv ? SDMA_5_2_COPY_TILED_SUB_WINDOW_TILED_CP(tiled_cp) |
                             SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(linear_cp)
                           : 0));
+   } else {
+      ac_cmdbuf_emit(width | (height << 16));
+      ac_cmdbuf_emit(depth);
    }
 
    if (dcc) {
-      if (info->sdma_ip_version >= SDMA_7_0) {
+      if (sdma_ip_version >= SDMA_7_0) {
          const struct ac_sdma_surf *src = detile ? tiled : linear;
          const struct ac_sdma_surf *dst = detile ? linear : tiled;
          const uint32_t meta_config = ac_sdma7_get_metadata_config(info, src, dst);
