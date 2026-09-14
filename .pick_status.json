@@ -5954,7 +5954,7 @@
         "description": "vulkan/overlay: Draw on the present queue when possible",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20c370c6b16282424f3a2fc3166132c1ed82863a",
         "notes": null
