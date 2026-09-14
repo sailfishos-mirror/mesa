@@ -70,15 +70,6 @@ vk_address_binding_report(struct vk_instance *instance,
                           uint64_t size,
                           VkDeviceAddressBindingTypeEXT type);
 
-void
-vk_emit_device_memory_report(struct vk_device* device,
-                             VkDeviceMemoryReportEventTypeEXT type,
-                             uint64_t mem_obj_id,
-                             VkDeviceSize size,
-                             VkObjectType obj_type,
-                             uint64_t obj_handle,
-                             uint32_t heap_index);
-
 static inline void
 vk_device_memory_report_emit(struct vk_device* device,
                              VkResult result,
