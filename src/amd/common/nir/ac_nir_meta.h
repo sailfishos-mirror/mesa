@@ -50,6 +50,8 @@ typedef union {
       /* Workgroup settings. */
       uint8_t wg_dim:2; /* 1, 2, or 3 */
       bool has_start_xyz:1;
+      bool format_is_96bit:1;
+      bool addr_math_64bit:1;
       /* The size of a block of pixels that a single thread will process. */
       uint8_t log_lane_width:3;
       uint8_t log_lane_height:2;
@@ -120,6 +122,13 @@ typedef struct {
     * When resolving, copy sample 0 to the single-sample destination.
     */
    bool sample0_only;
+
+   /* Whether src and dst are 96-bit formats.
+    * The bindings should be storage buffers, whose 64-bit address is extracted to get >4GB
+    * addressing. All coordinates must be in bounds. X coordinates and widths should be
+    * multiplied by 3 by the caller. If clearing, the clear value has 3 dwords.
+    */
+   bool format_is_96bit;
 
    /* If src.surf == NULL, this is the clear color. */
    union pipe_color_union clear_color;
