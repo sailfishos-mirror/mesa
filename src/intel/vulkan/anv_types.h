@@ -527,6 +527,12 @@ struct anv_dgc_gfx_state {
 struct anv_dgc_cs_descriptor {
    union {
       struct {
+         uint32_t compute_walker_2[64];
+         uint32_t inline_dwords_count;
+         uint8_t  inline_dwords[16];
+      } gfx350;
+
+      struct {
          uint32_t compute_walker[40];
          uint32_t inline_dwords_count;
          uint8_t  inline_dwords[8];
@@ -555,7 +561,7 @@ struct anv_dgc_cs_descriptor {
    uint32_t push_data_offset;
 
    /* Align the struct to 64B */
-   uint32_t pad[1];
+   uint32_t pad[7];
 };
 
 /**

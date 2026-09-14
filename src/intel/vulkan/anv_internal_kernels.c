@@ -218,6 +218,18 @@ anv_call_internal_shader(nir_builder *b,
          load_compute_index(b));
       return sizeof(struct anv_dgc_cs_params);
 
+   case ANV_INTERNAL_KERNEL_DGC_GFX_POSTPROCESS_FRAGMENT:
+      anv_genX(devinfo, libanv_postprocess_gfx_generate)(
+         b,
+         load_param(b, devinfo, 64, struct anv_dgc_gfx_params, data_addr),
+         load_param(b, devinfo, 32, struct anv_dgc_gfx_params, data_stride),
+         load_param(b, devinfo, 64, struct anv_dgc_gfx_params, seq_count_addr),
+         load_param(b, devinfo, 32, struct anv_dgc_gfx_params, max_seq_count),
+         load_param(b, devinfo, 32, struct anv_dgc_gfx_params, data_prolog_size),
+         load_param(b, devinfo, 32, struct anv_dgc_gfx_params, flags),
+         load_fragment_index(b));
+      return sizeof(struct anv_dgc_gfx_params);
+
    case ANV_INTERNAL_KERNEL_DGC_DUMP_COMPUTE:
    case ANV_INTERNAL_KERNEL_DGC_DUMP_FRAGMENT:
       anv_genX(devinfo, libanv_dgc_dump)(
@@ -550,6 +562,13 @@ anv_device_get_internal_shader(struct anv_device *device,
          },
          .stage      = MESA_SHADER_FRAGMENT,
          .send_count = 0 /* too complex */,
+      },
+      [ANV_INTERNAL_KERNEL_DGC_GFX_POSTPROCESS_FRAGMENT] = {
+         .key        = {
+            .name    = "anv-dgc-postprocess-fragment",
+         },
+         .stage      = MESA_SHADER_FRAGMENT,
+         .send_count = 0,
       },
       [ANV_INTERNAL_KERNEL_DGC_CS_COMPUTE] = {
          .key        = {
