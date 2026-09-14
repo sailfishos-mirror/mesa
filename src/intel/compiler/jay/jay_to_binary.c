@@ -538,7 +538,7 @@ emit(struct jay_codegen *jc,
                 jay_def_stride(f->shader, I->src[s]) <= JAY_STRIDE_4);
       }
 
-      gen->exec_size = 32;
+      gen->exec_size *= 2;
       gen->chan_offset = 0;
       gen->dst = gen_retype(gen->dst, GEN_TYPE_UW);
       gen->src[0] = gen_retype(gen->src[0], GEN_TYPE_UW);
