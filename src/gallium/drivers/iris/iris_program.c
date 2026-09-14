@@ -45,8 +45,9 @@ vue_layout(bool separate_shader)
    return separate_shader ? INTEL_VUE_LAYOUT_SEPARATE : INTEL_VUE_LAYOUT_FIXED;
 }
 
-#define KEY_INIT(prefix)                                   \
-   .prefix.program_string_id = ish->program_id
+#define KEY_INIT(prefix, efficient_64bit)                 \
+   .prefix.program_string_id = ish->program_id,           \
+   .prefix.use_efficient_64bit = efficient_64bit
 #define BRW_KEY_INIT(base_key, _vue_layout) \
    .base.vue_layout = _vue_layout
 
@@ -533,6 +534,7 @@ iris_to_brw_vs_key(const struct iris_screen *screen,
    return (struct brw_vs_prog_key) {
       BRW_KEY_INIT(key->vue.base, key->vue.layout),
       .max_payload_percent = 90,
+      .base.use_efficient_64bit = key->vue.base.use_efficient_64bit,
    };
 }
 
@@ -546,6 +548,7 @@ iris_to_brw_tcs_key(const struct iris_screen *screen,
       .input_vertices = key->input_vertices,
       .patch_outputs_written = key->patch_outputs_written,
       .outputs_written = key->outputs_written,
+      .base.use_efficient_64bit = key->vue.base.use_efficient_64bit,
    };
 }
 
@@ -557,6 +560,7 @@ iris_to_brw_tes_key(const struct iris_screen *screen,
       BRW_KEY_INIT(key->vue.base, key->vue.layout),
       .patch_inputs_read = key->patch_inputs_read,
       .inputs_read = key->inputs_read,
+      .base.use_efficient_64bit = key->vue.base.use_efficient_64bit,
    };
 }
 
@@ -566,6 +570,7 @@ iris_to_brw_gs_key(const struct iris_screen *screen,
 {
    return (struct brw_gs_prog_key) {
       BRW_KEY_INIT(key->vue.base, key->vue.layout),
+      .base.use_efficient_64bit = key->vue.base.use_efficient_64bit,
    };
 }
 
@@ -581,6 +586,7 @@ iris_to_brw_fs_key(const struct iris_screen *screen,
       .persample_interp = key->persample_interp ? INTEL_ALWAYS : INTEL_NEVER,
       .multisample_fbo = key->multisample_fbo ? INTEL_ALWAYS : INTEL_NEVER,
       .ignore_sample_mask_out = !key->multisample_fbo,
+      .base.use_efficient_64bit = key->base.use_efficient_64bit,
    };
 }
 
@@ -590,6 +596,7 @@ iris_to_brw_cs_key(const struct iris_screen *screen,
 {
    return (struct brw_cs_prog_key) {
       BRW_KEY_INIT(key->base, INTEL_VUE_LAYOUT_SEPARATE),
+      .base.use_efficient_64bit = key->base.use_efficient_64bit,
    };
 }
 
@@ -2029,7 +2036,7 @@ iris_update_compiled_vs(struct iris_context *ice)
       ice->shaders.uncompiled[MESA_SHADER_VERTEX];
 
    struct iris_vs_prog_key key = {
-      KEY_INIT(vue.base),
+      KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
       .vue.layout = vue_layout(ish->nir->info.separate_shader),
    };
    screen->vtbl.populate_vs_key(ice, &ish->nir->info, last_vue_stage(ice), &key);
@@ -2281,6 +2288,7 @@ iris_update_compiled_tcs(struct iris_context *ice)
    struct iris_tcs_prog_key key = {
       .vue.base.program_string_id = tcs ? tcs->program_id : 0,
       .vue.layout = vue_layout(tcs ? tcs->nir->info.separate_shader : false),
+      .vue.base.use_efficient_64bit = iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr),
       ._tes_primitive_mode = tes_info->tess._primitive_mode,
       .input_vertices =
          !tcs || intel_use_tcs_multi_patch(devinfo) ? ice->state.vertices_per_patch : 0,
@@ -2495,7 +2503,7 @@ iris_update_compiled_tes(struct iris_context *ice)
       ice->shaders.uncompiled[MESA_SHADER_TESS_EVAL];
 
    struct iris_tes_prog_key key = {
-      KEY_INIT(vue.base),
+      KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
       .vue.layout = vue_layout(ish->nir->info.separate_shader),
    };
    get_unified_tess_slots(ice, &key.inputs_read, &key.patch_inputs_read);
@@ -2685,7 +2693,7 @@ iris_update_compiled_gs(struct iris_context *ice)
 
    if (ish) {
       struct iris_gs_prog_key key = {
-         KEY_INIT(vue.base),
+         KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
          .vue.layout = vue_layout(ish->nir->info.separate_shader),
       };
       screen->vtbl.populate_gs_key(ice, &ish->nir->info, last_vue_stage(ice), &key);
@@ -2885,7 +2893,7 @@ iris_update_compiled_fs(struct iris_context *ice)
       ice->shaders.uncompiled[MESA_SHADER_FRAGMENT];
    struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
    struct iris_fs_prog_key key = {
-      KEY_INIT(base),
+      KEY_INIT(base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
       .vue_layout = vue_layout(ish->nir->info.separate_shader),
    };
    screen->vtbl.populate_fs_key(ice, &ish->nir->info, &key);
@@ -3218,7 +3226,9 @@ iris_update_compiled_cs(struct iris_context *ice)
    struct iris_uncompiled_shader *ish =
       ice->shaders.uncompiled[MESA_SHADER_COMPUTE];
    struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
-   struct iris_cs_prog_key key = { KEY_INIT(base) };
+   struct iris_cs_prog_key key = {
+      KEY_INIT(base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
+   };
    screen->vtbl.populate_cs_key(ice, &key);
 
    struct iris_compiled_shader *old = ice->shaders.prog[IRIS_CACHE_CS];
@@ -3429,7 +3439,9 @@ iris_create_compute_state(struct pipe_context *ctx,
    // XXX: disallow more than 64KB of shared variables
 
    if (screen->precompile) {
-      struct iris_cs_prog_key key = { KEY_INIT(base) };
+      struct iris_cs_prog_key key = {
+         KEY_INIT(base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
+      };
 
       struct iris_compiled_shader *shader =
          iris_create_shader_variant(screen, NULL, MESA_SHADER_COMPUTE,
@@ -3475,7 +3487,9 @@ iris_get_compute_state_subgroup_size(struct pipe_context *ctx, void *state,
    struct u_upload_mgr *uploader = ice->shaders.uploader_driver;
    struct iris_uncompiled_shader *ish = state;
 
-   struct iris_cs_prog_key key = { KEY_INIT(base) };
+   struct iris_cs_prog_key key = {
+      KEY_INIT(base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
+   };
    screen->vtbl.populate_cs_key(ice, &key);
 
    bool added;
@@ -3555,15 +3569,14 @@ iris_create_shader_state(struct pipe_context *ctx,
          ish->nos |= (1ull << IRIS_NOS_RASTERIZER);
 
       key.vs = (struct iris_vs_prog_key) {
-         KEY_INIT(vue.base),
-         .vue.layout = vue_layout(ish->nir->info.separate_shader),
+         KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
       };
       key_size = sizeof(key.vs);
       break;
 
    case MESA_SHADER_TESS_CTRL: {
       key.tcs = (struct iris_tcs_prog_key) {
-         KEY_INIT(vue.base),
+         KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
          .vue.layout = vue_layout(ish->nir->info.separate_shader),
          // XXX: make sure the linker fills this out from the TES...
          ._tes_primitive_mode =
@@ -3591,7 +3604,7 @@ iris_create_shader_state(struct pipe_context *ctx,
          ish->nos |= (1ull << IRIS_NOS_RASTERIZER);
 
       key.tes = (struct iris_tes_prog_key) {
-         KEY_INIT(vue.base),
+         KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
          .vue.layout = vue_layout(ish->nir->info.separate_shader),
          // XXX: not ideal, need TCS output/TES input unification
          .inputs_read = info->inputs_read,
@@ -3605,7 +3618,7 @@ iris_create_shader_state(struct pipe_context *ctx,
       ish->nos |= (1ull << IRIS_NOS_RASTERIZER);
 
       key.gs = (struct iris_gs_prog_key) {
-         KEY_INIT(vue.base),
+         KEY_INIT(vue.base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
          .vue.layout = vue_layout(ish->nir->info.separate_shader),
       };
       key_size = sizeof(key.gs);
@@ -3639,7 +3652,7 @@ iris_create_shader_state(struct pipe_context *ctx,
          util_bitcount64(info->inputs_read & BRW_FS_VARYING_INPUT_MASK) <= 16;
 
       key.fs = (struct iris_fs_prog_key) {
-         KEY_INIT(base),
+         KEY_INIT(base, iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)),
          .vue_layout = vue_layout(ish->nir->info.separate_shader),
          .nr_color_regions = util_bitcount(color_outputs) ?: dual_color,
          .coherent_fb_fetch = devinfo->ver >= 9 && devinfo->ver < 20,
