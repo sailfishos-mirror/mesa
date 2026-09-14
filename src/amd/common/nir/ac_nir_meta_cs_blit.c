@@ -865,7 +865,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
     */
    if (blit->dst.surf->bpe <= 8 && (is_resolve ? src_samples : dst_samples) <= 4 &&
        /* Small blits don't benefit. */
-       width * height * depth * blit->dst.surf->bpe * dst_samples > 128 * 1024 &&
+       (uint64_t)width * height * depth * blit->dst.surf->bpe * dst_samples > 128 * 1024 &&
        info->has_image_opcodes) {
       if (is_3d_tiling) {
          /* Thick tiling. */
@@ -1013,7 +1013,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
 
       /* Only use this if the middle blit is large enough. */
       if (!slow && middle.width > 0 && middle.height > 0 && middle.depth > 0 &&
-          middle.width * middle.height * middle.depth * blit->dst.surf->bpe * dst_samples >
+          (uint64_t)middle.width * middle.height * middle.depth * blit->dst.surf->bpe * dst_samples >
           128 * 1024) {
          /* Compute the size of unaligned regions on all sides of the box. */
          struct pipe_box top, left, right, bottom, front, back;
@@ -1355,9 +1355,9 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    assert(start_x <= 63 && start_y <= 15 && start_z <= 7);
    assert(log_block_x <= 7 && log_block_y <= 7 && log_block_z <= 7);
 
-   dispatch->user_data[0] = (blit->src.box.x & 0xffff) | ((blit->dst.box.x & 0xffff) << 16);
-   dispatch->user_data[1] = (blit->src.box.y & 0xffff) | ((blit->dst.box.y & 0xffff) << 16);
-   dispatch->user_data[2] = (blit->src.box.z & 0xffff) | ((blit->dst.box.z & 0xffff) << 16);
+   dispatch->user_data[0] = (blit->src.box.x & 0xffff) | (((uint32_t)blit->dst.box.x & 0xffff) << 16);
+   dispatch->user_data[1] = (blit->src.box.y & 0xffff) | (((uint32_t)blit->dst.box.y & 0xffff) << 16);
+   dispatch->user_data[2] = (blit->src.box.z & 0xffff) | (((uint32_t)blit->dst.box.z & 0xffff) << 16);
    dispatch->user_data[3] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
                             ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
                             ((log_block_z & 0x7) << 19);
