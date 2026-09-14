@@ -160,8 +160,8 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
       radv_transfer_fixup_copy_dst_metadata(cmd_buffer, image, &region->imageSubresource);
 }
 
-static void
-radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout image_layout,
+void
+radv_meta_fixup_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout image_layout,
                              const VkImageSubresourceLayers *subresource, const VkOffset3D *offset,
                              const VkExtent3D *extent, bool before)
 {
@@ -259,7 +259,7 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, VkAddres
    assert(image->vk.samples == 1);
 
    if (use_compute) {
-      radv_fixup_copy_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
+      radv_meta_fixup_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
                                    &region->imageOffset, &region->imageExtent, true);
    }
 
@@ -345,7 +345,7 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, VkAddres
    }
 
    if (use_compute) {
-      radv_fixup_copy_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
+      radv_meta_fixup_dst_metadata(cmd_buffer, image, region->imageLayout, &region->imageSubresource,
                                    &region->imageOffset, &region->imageExtent, false);
    }
 }
@@ -838,7 +838,7 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    }
 
    if (use_compute) {
-      radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
+      radv_meta_fixup_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
                                    &region->extent, true);
    }
 
@@ -875,7 +875,7 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
    }
 
    if (use_compute) {
-      radv_fixup_copy_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
+      radv_meta_fixup_dst_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource, &region->dstOffset,
                                    &region->extent, false);
    }
 }
