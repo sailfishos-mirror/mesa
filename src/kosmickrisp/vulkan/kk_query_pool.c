@@ -204,7 +204,6 @@ kk_CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo *pCreateInfo,
          kk_DestroyQueryPool(device, kk_query_pool_to_handle(pool), pAllocator);
          return vk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
       }
-      pool->ts.stage_map = UTIL_DYNARRAY_INIT;
    }
 
    if (pCreateInfo->flags & VK_QUERY_POOL_CREATE_RESET_BIT_KHR)
@@ -233,7 +232,6 @@ kk_DestroyQueryPool(VkDevice device, VkQueryPool queryPool,
    } else if (kk_pool_is_ts(pool)) {
       if (pool->ts.heap)
          mtl_release(pool->ts.heap);
-      util_dynarray_fini(&pool->ts.stage_map);
    }
 
    kk_destroy_bo(dev, pool->bo);
@@ -373,9 +371,9 @@ kk_CmdWriteTimestamp2(VkCommandBuffer commandBuffer,
        * because reissuing might return a 0 timestamp
        */
       bool reused = false;
-      util_dynarray_foreach(&pool->ts.stage_map, struct kk_ts_stage_entry,
+      util_dynarray_foreach(&cmd->ts_stage_map, struct kk_ts_stage_entry,
                             entry) {
-         if (entry->stage == mtl_stage && entry->pass == cmd->metal.render) {
+         if (entry->stage == mtl_stage && entry->heap == pool->ts.heap) {
             heap_index = entry->index;
             reused = true;
             break;
@@ -383,10 +381,10 @@ kk_CmdWriteTimestamp2(VkCommandBuffer commandBuffer,
       }
 
       if (!reused) {
-         struct kk_ts_stage_entry entry = {.stage = mtl_stage,
-                                           .pass = cmd->metal.render,
+         struct kk_ts_stage_entry entry = {.heap = pool->ts.heap,
+                                           .stage = mtl_stage,
                                            .index = query};
-         util_dynarray_append(&pool->ts.stage_map, entry);
+         util_dynarray_append(&cmd->ts_stage_map, entry);
 
          mtl_render_write_timestamp(cmd->metal.render, mtl_stage, pool->ts.heap,
                                     query);
