@@ -3208,7 +3208,7 @@ radv_needs_null_export_workaround(const struct radv_device *device, const struct
     */
    return (gfx_level <= GFX9 || ps->info.ps.can_discard || ps->info.ps.pops || ps->info.ps.uses_fbfetch_output ||
            (custom_blend_mode == V_028808_CB_DCC_DECOMPRESS_GFX11 && gfx_level >= GFX11)) &&
-          !ps->info.ps.writes_z && !ps->info.ps.writes_stencil && !ps->info.ps.writes_sample_mask;
+          !radv_ps_writes_mrtz(&ps->info);
 }
 
 static VkResult
