@@ -1,7 +1,56 @@
-/*
- * Copyright 2024 Advanced Micro Devices, Inc.
+/* Copyright 2024 Advanced Micro Devices, Inc.
+ * Copyright 2026 Valve Corporation
  *
  * SPDX-License-Identifier: MIT
+ */
+
+/* This is a universal image clear/copy/blit/resolve compute shader generator optimized for AMD GPUs.
+ * ac_prepare_compute_blit generates the shader key, computes dispatch parameters, and encodes user
+ * data SGPRs. The caller should then call ac_create_blit_cs to generate the NIR shader from the key.
+ *
+ * The shader has the same or better performance than trivial image copy shaders such as 1 image load
+ * and store per invocation, and in some cases, it vastly outperforms them (e.g. 4x).
+ *
+ * The shader is based on the experimental observations that:
+ * 1. Loading and storing a small number of bytes per invocation is slow.
+ * 2. When a wave (more specifically a VMEM clause of image stores in a wave) only partially covers
+ *    a microtile or partially covers a 256B block (memory channel interleave), performance suffers.
+ *    It has also been observed that image stores with DCC decrease performance even further
+ *    on older generations if a wave doesn't cover a whole 256B block.
+ *
+ * To eliminate those limitations:
+ * - The shader loads and stores 16 bytes per invocation in most cases. If the image format is
+ *   smaller, each invocation loads and stores multiple pixels. All loads and stores must be
+ *   in a VMEM clause. Thus, using wave64, each wave ends up loading and storing 1KB of data.
+ *   MSAA resolving may store 4-8B per invocation but load a lot more than that.
+ * - For sufficiently large regions, coordinates are shifted to try to keep each 256B block within
+ *   one wave. The exceptions are linear layouts, which use the cache line size, and small regions,
+ *   which are left as-is. (all tile sizes are hardcoded here, ideally we would get them from
+ *   addrlib - TODO)
+ * - If the destination area covers some 256B blocks only partially, the intent is for each wave
+ *   to own whole 256B blocks regardless, even though the invocations outside the destination area
+ *   then do nothing. That greatly benefits overall throughput since the 256B blocks that don't
+ *   intersect the unaligned boundary stay on the fast path throughout the memory system.
+ * - The dispatch logic first selects the mini tile size (the "lane_size" variable) that each
+ *   invocation (lane) stores, e.g. 2x2, 4x1, or 2x1x2 (for 3D), then it selects the memory block
+ *   alignment corresponding to a 256B block in most cases (the "align" variable), which is used
+ *   to shift the starting dispatch coordinates to the starting coordinates of the top-left 256B
+ *   block intersecting the destination area. Then the variable workgroup size is determined for
+ *   the dispatch, which favors sizes 64x1 (for linear), 8x8 (for 2D), and 4x4x4 (for 3D), and it
+ *   deviates from those when such sizes result in suboptimal lane occupancy.
+ *   (TODO - "align / lane_size" should be used for optimal workgroup size determination to
+ *   guarantee each 256B block is owned by only 1 wave)
+ * - To reduce complexity, all invocations always store their whole mini tile or do nothing.
+ *   If the destination area is unaligned such that an invocation would have to only partially
+ *   store its mini tile, the compute dispatch is split into multiple dispatches: First,
+ *   the greatest aligned area is carved out from the destination area and processed by a compute
+ *   dispatch using the ideal mini tile size, and the leftover regions are processed by separate
+ *   dispatches using less optimal mini tile sizes. If the destination area is so small such that
+ *   executing multiple dispatches would be limited by CP overhead instead of the shader, a less
+ *   optimal mini tile size is selected for the whole destination area and only 1 compute dispatch
+ *   is issued.
+ * - A few cases of linear->tiled and tiled->linear copies use custom rules for tile size selection
+ *   to make such copies more efficient.
  */
 
 #include "ac_nir_meta.h"
