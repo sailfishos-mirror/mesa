@@ -1230,6 +1230,7 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
                   pVideoSessionParametersInfo->videoSessionParameters);
    size_t total_size = 0;
    size_t size_limit = 0;
+   VkBool32 has_overrides = VK_FALSE;
 
    if (pData)
       size_limit = *pDataSize;
@@ -1238,11 +1239,20 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
    case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR: {
       const struct VkVideoEncodeH264SessionParametersGetInfoKHR *h264_get_info =
          vk_find_struct_const(pVideoSessionParametersInfo->pNext, VIDEO_ENCODE_H264_SESSION_PARAMETERS_GET_INFO_KHR);
+      struct VkVideoEncodeH264SessionParametersFeedbackInfoKHR *h264_feedback_info =
+         pFeedbackInfo ? vk_find_struct(pFeedbackInfo->pNext, VIDEO_ENCODE_H264_SESSION_PARAMETERS_FEEDBACK_INFO_KHR)
+                       : NULL;
       size_t sps_size = 0, pps_size = 0;
       if (h264_get_info->writeStdSPS) {
          for (unsigned i = 0; i < params->h264_enc.h264_sps_count; i++)
-            if (params->h264_enc.h264_sps[i].base.seq_parameter_set_id == h264_get_info->stdSPSId)
+            if (params->h264_enc.h264_sps[i].base.seq_parameter_set_id == h264_get_info->stdSPSId) {
                vk_video_encode_h264_sps(&params->h264_enc.h264_sps[i].base, size_limit, &sps_size, pData);
+               if (h264_feedback_info) {
+                  /* SPS parameters are modified at session parameters creation */
+                  h264_feedback_info->hasStdSPSOverrides = VK_TRUE;
+               }
+               has_overrides = VK_TRUE;
+            }
       }
       if (h264_get_info->writeStdPPS) {
          char *data_ptr = pData ? (char *)pData + sps_size : NULL;
@@ -1251,6 +1261,9 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
                vk_video_encode_h264_pps(&params->h264_enc.h264_pps[i].base,
                                         params->h264_enc.profile_idc == STD_VIDEO_H264_PROFILE_IDC_HIGH,
                                         size_limit, &pps_size, data_ptr);
+               if (h264_feedback_info)
+                  h264_feedback_info->hasStdPPSOverrides = VK_TRUE;
+               has_overrides = VK_TRUE;
             }
       }
       total_size = sps_size + pps_size;
@@ -1259,17 +1272,26 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
    case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR: {
       const struct VkVideoEncodeH265SessionParametersGetInfoKHR *h265_get_info =
          vk_find_struct_const(pVideoSessionParametersInfo->pNext, VIDEO_ENCODE_H265_SESSION_PARAMETERS_GET_INFO_KHR);
+      struct VkVideoEncodeH265SessionParametersFeedbackInfoKHR *h265_feedback_info =
+         pFeedbackInfo ? vk_find_struct(pFeedbackInfo->pNext, VIDEO_ENCODE_H265_SESSION_PARAMETERS_FEEDBACK_INFO_KHR)
+                       : NULL;
       size_t sps_size = 0, pps_size = 0, vps_size = 0;
       if (h265_get_info->writeStdVPS) {
          for (unsigned i = 0; i < params->h265_enc.h265_vps_count; i++)
-            if (params->h265_enc.h265_vps[i].base.vps_video_parameter_set_id == h265_get_info->stdVPSId)
+            if (params->h265_enc.h265_vps[i].base.vps_video_parameter_set_id == h265_get_info->stdVPSId) {
                vk_video_encode_h265_vps(&params->h265_enc.h265_vps[i].base, size_limit, &vps_size, pData);
+               if (h265_feedback_info)
+                  h265_feedback_info->hasStdVPSOverrides = VK_FALSE;
+            }
       }
       if (h265_get_info->writeStdSPS) {
          char *data_ptr = pData ? (char *)pData + vps_size : NULL;
          for (unsigned i = 0; i < params->h265_enc.h265_sps_count; i++)
             if (params->h265_enc.h265_sps[i].base.sps_seq_parameter_set_id == h265_get_info->stdSPSId) {
                vk_video_encode_h265_sps(&params->h265_enc.h265_sps[i].base, size_limit, &sps_size, data_ptr);
+               if (h265_feedback_info)
+                  h265_feedback_info->hasStdSPSOverrides = VK_TRUE;
+               has_overrides = VK_TRUE;
             }
       }
       if (h265_get_info->writeStdPPS) {
@@ -1277,6 +1299,9 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
          for (unsigned i = 0; i < params->h265_enc.h265_pps_count; i++)
             if (params->h265_enc.h265_pps[i].base.pps_seq_parameter_set_id == h265_get_info->stdPPSId) {
                vk_video_encode_h265_pps(&params->h265_enc.h265_pps[i].base, size_limit, &pps_size, data_ptr);
+               if (h265_feedback_info)
+                  h265_feedback_info->hasStdPPSOverrides = VK_TRUE;
+               has_overrides = VK_TRUE;
             }
       }
       total_size = sps_size + pps_size + vps_size;
@@ -1284,11 +1309,15 @@ anv_GetEncodedVideoSessionParametersKHR(VkDevice device,
    }
    case VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR: {
       vk_video_encode_av1_seq_hdr(params, size_limit, &total_size, pData);
+      has_overrides = VK_TRUE;
       break;
    }
    default:
       break;
    }
+
+   if (pFeedbackInfo)
+      pFeedbackInfo->hasOverrides = has_overrides;
 
    /* vk_video_encode_h26x functions support to be safe even if size_limit is not enough,
     * so we could just confirm whether pDataSize is valid afterwards.
