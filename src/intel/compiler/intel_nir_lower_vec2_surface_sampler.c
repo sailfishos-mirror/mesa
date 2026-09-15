@@ -113,9 +113,21 @@ lower_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *_)
    case nir_intrinsic_bindless_image_store:
    case nir_intrinsic_bindless_image_atomic:
    case nir_intrinsic_bindless_image_atomic_swap: {
+      nir_src *surface = nir_get_io_index_src(intrin);
+
+      /* For now Iris is building the 64-bit surface address directly with a
+       * single nir_resource_intel result instead of the vec2 (low, high) dword
+       * pair produced by the bindless-descriptor path.
+       * So there's nothing to lower in that case, the handle is already a
+       * single 64-bit value.
+       * We might change that in the future to use the vec2 (low, high) dword
+       * pair as well to benefit from the sendg messages that has a index field.
+       */
+      if (surface->ssa->num_components != 2 || surface->ssa->bit_size != 32)
+         return false;
+
       b->cursor = nir_before_instr(&intrin->instr);
 
-      nir_src *surface = nir_get_io_index_src(intrin);
       struct source_extract s = extract_handle_offset(
          b, surface->ssa, 64 * 31 /* 5 bits */, 64);
       nir_src_rewrite(surface, s.ret);
