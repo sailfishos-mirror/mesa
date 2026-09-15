@@ -2757,6 +2757,30 @@ static void handle_copy_memory(struct vk_cmd_queue_entry *cmd,
    }
 }
 
+static void
+apply_blit_depth_dst(const struct lvp_image *img, struct pipe_box *box, const VkImageSubresourceLayers *srl, const VkOffset3D *offsets)
+{
+   if (img->planes[0].bo->target != PIPE_TEXTURE_3D) {
+      box->z = srl->baseArrayLayer;
+      box->depth = subresource_layercount(img, srl);
+   } else {
+      box->z = MIN2(offsets[0].z, offsets[1].z);
+      box->depth = abs(offsets[0].z - offsets[1].z);
+   }
+}
+
+static void
+apply_blit_depth_src(const struct lvp_image *img, struct pipe_box *box, const VkImageSubresourceLayers *srl, const VkOffset3D *offsets, bool zflip)
+{
+   if (img->planes[0].bo->target != PIPE_TEXTURE_3D) {
+      box->z = srl->baseArrayLayer;
+      box->depth = subresource_layercount(img, srl);
+   } else {
+      box->z = offsets[zflip].z;
+      box->depth = offsets[!zflip].z - offsets[zflip].z;
+   }
+}
+
 static void handle_blit_image(struct vk_cmd_queue_entry *cmd,
                               struct rendering_state *state)
 {
@@ -2781,22 +2805,18 @@ static void handle_blit_image(struct vk_cmd_queue_entry *cmd,
    }
 
    for (uint32_t i = 0; i < blitcmd->regionCount; i++) {
-      int srcX0, srcX1, srcY0, srcY1, srcZ0, srcZ1;
-      unsigned dstX0, dstX1, dstY0, dstY1, dstZ0, dstZ1;
+      int srcX0, srcX1, srcY0, srcY1;
+      unsigned dstX0, dstX1, dstY0, dstY1;
 
       srcX0 = blitcmd->pRegions[i].srcOffsets[0].x;
       srcX1 = blitcmd->pRegions[i].srcOffsets[1].x;
       srcY0 = blitcmd->pRegions[i].srcOffsets[0].y;
       srcY1 = blitcmd->pRegions[i].srcOffsets[1].y;
-      srcZ0 = blitcmd->pRegions[i].srcOffsets[0].z;
-      srcZ1 = blitcmd->pRegions[i].srcOffsets[1].z;
 
       dstX0 = blitcmd->pRegions[i].dstOffsets[0].x;
       dstX1 = blitcmd->pRegions[i].dstOffsets[1].x;
       dstY0 = blitcmd->pRegions[i].dstOffsets[0].y;
       dstY1 = blitcmd->pRegions[i].dstOffsets[1].y;
-      dstZ0 = blitcmd->pRegions[i].dstOffsets[0].z;
-      dstZ1 = blitcmd->pRegions[i].dstOffsets[1].z;
 
       if (dstX0 < dstX1) {
          info.dst.box.x = dstX0;
@@ -2824,34 +2844,9 @@ static void handle_blit_image(struct vk_cmd_queue_entry *cmd,
 
       assert_subresource_layers(info.src.resource, src_image, &blitcmd->pRegions[i].srcSubresource, blitcmd->pRegions[i].srcOffsets);
       assert_subresource_layers(info.dst.resource, dst_image, &blitcmd->pRegions[i].dstSubresource, blitcmd->pRegions[i].dstOffsets);
-      if (src_image->planes[0].bo->target == PIPE_TEXTURE_3D) {
-         if (dstZ0 < dstZ1) {
-            if (dst_image->planes[0].bo->target == PIPE_TEXTURE_3D) {
-               info.dst.box.z = dstZ0;
-               info.dst.box.depth = dstZ1 - dstZ0;
-            } else {
-               info.dst.box.z = blitcmd->pRegions[i].dstSubresource.baseArrayLayer;
-               info.dst.box.depth = subresource_layercount(dst_image, &blitcmd->pRegions[i].dstSubresource);
-            }
-            info.src.box.z = srcZ0;
-            info.src.box.depth = srcZ1 - srcZ0;
-         } else {
-            if (dst_image->planes[0].bo->target == PIPE_TEXTURE_3D) {
-               info.dst.box.z = dstZ1;
-               info.dst.box.depth = dstZ0 - dstZ1;
-            } else {
-               info.dst.box.z = blitcmd->pRegions[i].dstSubresource.baseArrayLayer;
-               info.dst.box.depth = subresource_layercount(dst_image, &blitcmd->pRegions[i].dstSubresource);
-            }
-            info.src.box.z = srcZ1;
-            info.src.box.depth = srcZ0 - srcZ1;
-         }
-      } else {
-         info.src.box.z = blitcmd->pRegions[i].srcSubresource.baseArrayLayer;
-         info.dst.box.z = blitcmd->pRegions[i].dstSubresource.baseArrayLayer;
-         info.src.box.depth = subresource_layercount(src_image, &blitcmd->pRegions[i].srcSubresource);
-         info.dst.box.depth = subresource_layercount(dst_image, &blitcmd->pRegions[i].dstSubresource);
-      }
+      bool zflip = blitcmd->pRegions[i].dstOffsets[0].z > blitcmd->pRegions[i].dstOffsets[1].z;
+      apply_blit_depth_src(src_image, &info.src.box, &blitcmd->pRegions[i].srcSubresource, blitcmd->pRegions[i].srcOffsets, zflip);
+      apply_blit_depth_dst(dst_image, &info.dst.box, &blitcmd->pRegions[i].dstSubresource, blitcmd->pRegions[i].dstOffsets);
 
       info.src.level = blitcmd->pRegions[i].srcSubresource.mipLevel;
       info.dst.level = blitcmd->pRegions[i].dstSubresource.mipLevel;
