@@ -445,12 +445,12 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
    uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color, ctx->screen);
-   const uint64_t clear_bits =
+   bool is_128bit_format = format_is_128bit(dst->format);
+   const uint64_t clear_bits = is_128bit_format ? 0 :
       etna_calculate_clear_bits(translate_pe_internal_format(dst->format, ctx->screen), clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
    bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx);
    int msaa_xscale = 1, msaa_yscale = 1;
-   bool is_128bit_format = format_is_128bit(dst->format);
 
    translate_samples_to_xyscale(dst->texture->nr_samples,
                                 &msaa_xscale, &msaa_yscale);
@@ -498,15 +498,25 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    }
 
    if (is_128bit_format) {
+      const uint64_t rg_bits =
+         etna_calculate_clear_bits(translate_format_128bit_to_64bit(dst->format), clear_mask);
+
       clr.clear_value[0] = color->ui[0];
       clr.clear_value[1] = color->ui[1];
+      clr.clear_bits[0] = rg_bits;
+      clr.clear_bits[1] = rg_bits >> 32;
    }
 
    emit_blt_clearimage(ctx, &clr);
 
    if (is_128bit_format) {
+      const uint64_t ba_bits =
+         etna_calculate_clear_bits(translate_format_128bit_to_64bit(dst->format), clear_mask >> 2);
+
       clr.clear_value[0] = color->ui[2];
       clr.clear_value[1] = color->ui[3];
+      clr.clear_bits[0] = ba_bits;
+      clr.clear_bits[1] = ba_bits >> 32;
       clr.dest.addr.offset += etna_resource_level_second_plane_offset(dst_level);
 
       emit_blt_clearimage(ctx, &clr);
