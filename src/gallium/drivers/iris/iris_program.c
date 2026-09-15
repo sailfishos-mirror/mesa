@@ -1380,7 +1380,7 @@ skip_compacting_binding_tables(void)
  * Set up the binding table indices and apply to the shader.
  */
 static void
-iris_setup_binding_table(const struct intel_device_info *devinfo,
+iris_setup_binding_table(const struct iris_screen *screen,
                          struct nir_shader *nir,
                          struct iris_binding_table *bt,
                          unsigned num_render_targets,
@@ -1388,6 +1388,7 @@ iris_setup_binding_table(const struct intel_device_info *devinfo,
                          unsigned num_cbufs,
                          bool use_null_rt)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    const struct shader_info *info = &nir->info;
 
    memset(bt, 0, sizeof(*bt));
@@ -1942,7 +1943,7 @@ iris_compile_vs(struct iris_screen *screen,
                        &num_system_values, &num_cbufs);
 
    struct iris_binding_table bt;
-   iris_setup_binding_table(devinfo, nir, &bt, /* num_render_targets */ 0,
+   iris_setup_binding_table(screen, nir, &bt, /* num_render_targets */ 0,
                             num_system_values, num_cbufs, false);
 
    const char *error;
@@ -2203,7 +2204,7 @@ iris_compile_tcs(struct iris_screen *screen,
 
    iris_setup_uniforms(devinfo, mem_ctx, nir, &system_values,
                        &num_system_values, &num_cbufs);
-   iris_setup_binding_table(devinfo, nir, &bt, /* num_render_targets */ 0,
+   iris_setup_binding_table(screen, nir, &bt, /* num_render_targets */ 0,
                             num_system_values, num_cbufs, false);
 
    const char *error = NULL;
@@ -2405,7 +2406,7 @@ iris_compile_tes(struct iris_screen *screen,
                        &num_system_values, &num_cbufs);
 
    struct iris_binding_table bt;
-   iris_setup_binding_table(devinfo, nir, &bt, /* num_render_targets */ 0,
+   iris_setup_binding_table(screen, nir, &bt, /* num_render_targets */ 0,
                             num_system_values, num_cbufs, false);
 
    const char *error;
@@ -2599,7 +2600,7 @@ iris_compile_gs(struct iris_screen *screen,
                        &num_system_values, &num_cbufs);
 
    struct iris_binding_table bt;
-   iris_setup_binding_table(devinfo, nir, &bt, /* num_render_targets */ 0,
+   iris_setup_binding_table(screen, nir, &bt, /* num_render_targets */ 0,
                             num_system_values, num_cbufs, false);
 
    const char *error;
@@ -2824,7 +2825,7 @@ iris_compile_fs(struct iris_screen *screen,
                                key->alpha_to_coverage) ? 1 : 0;
 
    struct iris_binding_table bt;
-   iris_setup_binding_table(devinfo, nir, &bt,
+   iris_setup_binding_table(screen, nir, &bt,
                             MAX2(key->nr_color_regions, null_rts),
                             num_system_values, num_cbufs, null_rts != 0);
 
@@ -3173,7 +3174,7 @@ iris_compile_cs(struct iris_screen *screen,
                        &system_values, &num_system_values, &num_cbufs);
 
    struct iris_binding_table bt;
-   iris_setup_binding_table(devinfo, nir, &bt, /* num_render_targets */ 0,
+   iris_setup_binding_table(screen, nir, &bt, /* num_render_targets */ 0,
                             num_system_values, num_cbufs, false);
 
    const char *error;
