@@ -606,7 +606,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
             .WalkOrder                 = prog_data->walk_order,
             .TileLayout                = prog_data->walk_order == INTEL_WALK_ORDER_YXZ ?
                                          TileY32bpe : Linear,
-            .StatCountDisable          = true,/* TODO: should it be enabled? */
+            .StatCountDisable          = true,
             .DispatchWalkOrder         = prog_data->uses_sampler ? DWO_Morton2x2XYWalk : DWO_LinearWalk,
             .ThreadGroupBatchSize      = prog_data->uses_sampler ? TGBS_TG_BATCH_4 : TGBS_TG_BATCH_1,
             .ExecutionMask             = dispatch.right_mask,

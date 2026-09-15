@@ -1176,7 +1176,6 @@ emit_cs_shader(struct anv_batch *batch,
          .WalkOrder              = cs_prog_data->walk_order,
          .TileLayout             = cs_prog_data->walk_order == INTEL_WALK_ORDER_YXZ ?
                                    TL_TileY32bpe : TL_Linear,
-         .StatCountDisable       = true,/* TODO: should it be enabled? */
          .DispatchWalkOrder      = cs_prog_data->uses_sampler ? DWO_Morton2x2XYWalk : DWO_LinearWalk,
          .ThreadGroupBatchSize   = cs_prog_data->uses_sampler ? TGBS_TG_BATCH_4 : TGBS_TG_BATCH_1,
          .ExecutionMask          = dispatch.right_mask,
