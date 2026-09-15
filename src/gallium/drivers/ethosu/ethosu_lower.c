@@ -3820,10 +3820,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
                    ethosu_consumer_uses_depth_mean(consumer) ||
                    ethosu_eltwise_fuses_lut(poperations, count, consumer) ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_ARGMAX)) &&
                 !ethosu_check_linear_format_for_concat_split(
