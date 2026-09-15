@@ -425,21 +425,21 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
 
    if (util_format_is_depth_or_stencil(sv->base.format)) {
       /* A depth texture stores the border depth quantized to the
-       * D16 or D24 storage precision as an integer in the B slot.
+       * D16 or D24 storage precision as an integer in the red channel.
        * Everything but Z16 is stored as D24 (depth in the low bits).
        */
       const enum pipe_format zfmt =
          sv->base.format == PIPE_FORMAT_Z16_UNORM ? PIPE_FORMAT_Z16_UNORM
                                                  : PIPE_FORMAT_Z24X8_UNORM;
       packed = 0x01000000;
-      r = g = a = 0;
-      b = util_pack_z(zfmt, bc[0]);
+      r = util_pack_z(zfmt, bc[0]);
+      g = b = a = 0;
    } else {
       packed = (float_to_ubyte(bc[3]) << 24) | (float_to_ubyte(bc[0]) << 16) |
                (float_to_ubyte(bc[1]) << 8) | float_to_ubyte(bc[2]);
-      r = fui(bc[2]);
+      r = fui(bc[0]);
       g = fui(bc[1]);
-      b = fui(bc[0]);
+      b = fui(bc[2]);
       a = fui(bc[3]);
    }
 
