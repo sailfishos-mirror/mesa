@@ -508,6 +508,8 @@ void vc4_flush_jobs_writing_resource(struct vc4_context *vc4,
 void vc4_flush_jobs_reading_resource(struct vc4_context *vc4,
                                      struct pipe_resource *prsc);
 void vc4_emit_state(struct pipe_context *pctx);
+void vc4_get_clip_window(struct vc4_context *vc4,
+                         struct pipe_scissor_state *clip);
 void vc4_generate_code(struct vc4_context *vc4, struct vc4_compile *c);
 struct qpu_reg *vc4_register_allocate(struct vc4_context *vc4, struct vc4_compile *c);
 bool vc4_update_compiled_shaders(struct vc4_context *vc4, uint8_t prim_mode);
