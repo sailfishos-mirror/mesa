@@ -38,6 +38,9 @@ pub struct FAUModel {
     /// they need to be "aligned" to the same 64-bit address.
     /// This limit has been lifted from v14
     pub single_fau_ram_index: bool,
+
+    /// From v12 k0 does not consume any FAU bandwidth.
+    pub is_zero_free: bool,
 }
 
 impl FAUModel {
@@ -134,6 +137,7 @@ impl ValhallModel {
                 ValhallModel::special_fau(special, arch)
             }),
             single_fau_ram_index: arch < 14,
+            is_zero_free: arch >= 12,
         };
         ValhallModel {
             arch,
