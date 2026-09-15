@@ -1351,6 +1351,69 @@ rewrite_src_with_bti(nir_builder *b, struct iris_binding_table *bt,
    nir_src_rewrite(src, bti);
 }
 
+/**
+ * Load the 64-bit GPU address of this stage's 64-bit binding table, i.e.
+ * the array of SURFACE_STATEs built by iris_populate_64bit_binding_table().
+ */
+static nir_def *
+iris_load_eff_64bit_surfaces_base_address(nir_builder *b)
+{
+   return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
+                                   .base = 0, .range = 8);
+}
+
+/**
+ * Rewrite a surface index source into a 64-bit surface-state address,
+ * wrapped in a nir_resource_intel handle, instead of a binding table index.
+ *
+ * This is used in efficient 64bit addressing mode, rather than looking up
+ * the surface through the binding table, the shader computes the GPU
+ * address of the SURFACE_STATE record directly.
+ * Each surface's slot within that array is still determined by the
+ * same <group, index> -> compacted-slot-number mapping used for BTIs
+ * (iris_group_index_to_bti()), just multiplied by the SURFACE_STATE size
+ * instead of being used as a raw binding table index.
+ */
+static void
+rewrite_src_with_surface_address(nir_builder *b,
+                                 struct iris_binding_table *bt,
+                                 nir_instr *instr, nir_src *src,
+                                 enum iris_surface_group group,
+                                 unsigned ss_size)
+{
+   assert(bt->surf_count[group] > 0);
+
+   b->cursor = nir_before_instr(instr);
+
+   nir_def *base_addr = iris_load_eff_64bit_surfaces_base_address(b);
+   nir_def *byte_offset;
+
+   if (nir_src_is_const(*src)) {
+      uint32_t index = nir_src_as_uint(*src);
+      uint32_t slot = iris_group_index_to_bti(bt, group, index);
+      byte_offset = nir_imm_int(b, slot * ss_size);
+   } else {
+      assert(bt->used_mask[group] == BITFIELD64_MASK(bt->surf_count[group]));
+      nir_def *slot = nir_iadd_imm(b, src->ssa, bt->offsets[group]);
+      byte_offset = nir_imul_imm(b, nir_u2u32(b, slot), ss_size);
+   }
+
+   nir_def *addr64 = nir_iadd(b, base_addr, nir_u2u64(b, byte_offset));
+   nir_def *handle = nir_resource_intel(
+      b,
+      1, /* num_components */
+      64, /* bit size */
+      addr64, /* set_offset */
+      addr64, /* surface_index */
+      nir_imm_int(b, 0), /* array_index */
+      nir_imm_int(b, 0), /* bindless_base_offset */
+      .desc_set = 0,
+      .binding = 0,
+      .resource_access_intel = nir_resource_intel_internal);
+
+   nir_src_rewrite(src, handle);
+}
+
 static void
 mark_used_with_src(struct iris_binding_table *bt, nir_src *src,
                    enum iris_surface_group group)
@@ -1389,6 +1452,7 @@ iris_setup_binding_table(const struct iris_screen *screen,
                          bool use_null_rt)
 {
    const struct intel_device_info *devinfo = screen->devinfo;
+   const bool use_efficient_64bit = iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr);
    const struct shader_info *info = &nir->info;
 
    memset(bt, 0, sizeof(*bt));
@@ -1557,13 +1621,25 @@ iris_setup_binding_table(const struct iris_screen *screen,
             break;
 
          case nir_intrinsic_load_ubo:
-            rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
-                                 IRIS_SURFACE_GROUP_UBO);
+            if (use_efficient_64bit) {
+               rewrite_src_with_surface_address(&b, bt, instr, &intrin->src[0],
+                                                IRIS_SURFACE_GROUP_UBO,
+                                                screen->isl_dev.ss.size);
+            } else {
+               rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
+                                    IRIS_SURFACE_GROUP_UBO);
+            }
             break;
 
          case nir_intrinsic_store_ssbo:
-            rewrite_src_with_bti(&b, bt, instr, &intrin->src[1],
-                                 IRIS_SURFACE_GROUP_SSBO);
+            if (use_efficient_64bit) {
+               rewrite_src_with_surface_address(&b, bt, instr, &intrin->src[1],
+                                                IRIS_SURFACE_GROUP_SSBO,
+                                                screen->isl_dev.ss.size);
+            } else {
+               rewrite_src_with_bti(&b, bt, instr, &intrin->src[1],
+                                    IRIS_SURFACE_GROUP_SSBO);
+            }
             break;
 
          case nir_intrinsic_load_output:
@@ -1584,8 +1660,14 @@ iris_setup_binding_table(const struct iris_screen *screen,
          case nir_intrinsic_ssbo_atomic:
          case nir_intrinsic_ssbo_atomic_swap:
          case nir_intrinsic_load_ssbo:
-            rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
-                                 IRIS_SURFACE_GROUP_SSBO);
+            if (use_efficient_64bit) {
+               rewrite_src_with_surface_address(&b, bt, instr, &intrin->src[0],
+                                                IRIS_SURFACE_GROUP_SSBO,
+                                                screen->isl_dev.ss.size);
+            } else {
+               rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
+                                    IRIS_SURFACE_GROUP_SSBO);
+            }
             break;
 
          case nir_intrinsic_load_num_workgroups:
@@ -2762,8 +2844,7 @@ static nir_def *
 iris_rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
 {
    const struct isl_device *isl_dev = data;
-   nir_def *addr =
-      nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0), .base = 0, .range = 8);
+   nir_def *addr = iris_load_eff_64bit_surfaces_base_address(b);
 
    if (rt > 0) {
       nir_def *offset = nir_imm_int(b, (uint32_t)(rt * isl_dev->ss.size));
