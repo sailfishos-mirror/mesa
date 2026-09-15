@@ -1157,8 +1157,8 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
 
       .supportedDepthResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
       .supportedStencilResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
-      .independentResolveNone = false,
-      .independentResolve = false,
+      .independentResolveNone = true,
+      .independentResolve = true,
 
       .filterMinmaxImageComponentMapping = true,
       .filterMinmaxSingleComponentFormats = true,
