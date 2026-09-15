@@ -720,7 +720,9 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
        info->alpha_blend ||
        info->num_window_rectangles ||
        info->swizzle_enable ||
-       info->scissor_enable)
+       info->scissor_enable ||
+       util_format_is_depth_or_stencil(info->dst.format) ||
+       util_format_is_depth_or_stencil(info->src.format))
       return false;
 
    /* Image stores support DCC since GFX10. Fail only for gfx queues because compute queues
