@@ -1570,29 +1570,6 @@ impl V9Instr for OpFMin {
     }
 }
 
-impl V9Instr for OpFMul {
-    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
-        V9InstrInfo::from_isa(
-            Fmul::get_info(self.dst_type, arch),
-            src_map! {
-                src0: srcs[0],
-                src1: srcs[1],
-            },
-        )
-    }
-
-    fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(Fmul {
-            variant: self.dst_type.try_into().unwrap(),
-            dst: op_encode_dst(self, &self.dst),
-            src0: op_encode_src(self, &self.srcs[0]),
-            src1: op_encode_src(self, &self.srcs[1]),
-            clamp: ClampM::None,
-            round: Round::None,
-        })
-    }
-}
-
 impl V9Instr for OpFRcp {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -3558,7 +3535,6 @@ macro_rules! v9_op_match_else {
             Op::FmaRScale($x) => $y,
             Op::FMax($x) => $y,
             Op::FMin($x) => $y,
-            Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
             Op::FrexpE($x) => $y,
             Op::FrexpM($x) => $y,

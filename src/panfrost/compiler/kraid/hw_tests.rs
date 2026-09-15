@@ -1467,20 +1467,6 @@ fn test_op_fmin() {
 }
 
 #[test]
-fn test_op_fmul() {
-    const DATA_TYPES: &[DataType] = &[DataType::F32, DataType::V2F16];
-
-    for &dst_type in DATA_TYPES {
-        let op = OpFMul {
-            dst: DstRef::None.into(),
-            dst_type,
-            srcs: [0_u32.into(), 0_u32.into()],
-        };
-        test_foldable_op(op, Precision::Ulp(0));
-    }
-}
-
-#[test]
 fn test_op_fmax() {
     const DATA_TYPES: &[DataType] = &[DataType::F32, DataType::V2F16];
 

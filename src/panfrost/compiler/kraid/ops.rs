@@ -1934,39 +1934,6 @@ impl PerCompFoldable for OpFMin {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [F16, V2F16, F32])]
-pub struct OpFMul {
-    pub dst: Dst,
-    pub dst_type: DataType,
-    pub srcs: [Src; 2],
-}
-
-impl DisplayOp for OpFMul {
-    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FMUL.{}", self.dst_type)
-    }
-
-    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            " {} {}",
-            self.fmt_src(&self.srcs[0]),
-            self.fmt_src(&self.srcs[1]),
-        )
-    }
-}
-
-impl PerCompFoldable for OpFMul {
-    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
-        let ca = f.get_f32(&self.srcs[0]);
-        let cb = f.get_f32(&self.srcs[1]);
-
-        f.set_f32(&self.dst, ca * cb);
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, F32])]
 pub struct OpFRcp {
     pub dst: Dst,
@@ -4727,7 +4694,6 @@ pub enum Op {
     FmaRScale(Box<OpFmaRScale>),
     FMax(Box<OpFMax>),
     FMin(Box<OpFMin>),
-    FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),
     FrexpE(Box<OpFrexpE>),
     FrexpM(Box<OpFrexpM>),
