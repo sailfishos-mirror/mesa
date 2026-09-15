@@ -1191,7 +1191,7 @@ emit_cs_shader(struct anv_batch *batch,
             .RegistersPerThread                 = intel_register_blocks(devinfo,
                                                                         cs_prog_data->base.grf_used),
             .NumberofThreadsinGPGPUThreadGroup  = dispatch.threads,
-            .ThreadGroupDispatchSize            = intel_compute_threads_group_dispatch_size(dispatch.threads),
+            .ThreadGroupDispatchSize            = intel_compute_threads_group_dispatch_size_walker_2(dispatch.threads),
             .SharedLocalMemorySize              = intel_compute_slm_encode_size(GFX_VER, cs_prog_data->base.total_shared),
             .PreferredSLMAllocationSize         = intel_compute_preferred_slm_calc_encode_size(
                devinfo, cs_prog_data->base.total_shared, dispatch.group_size, dispatch.simd_size),
