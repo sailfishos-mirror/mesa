@@ -115,7 +115,6 @@ spec@!opengl 1.0@depth-clear-precision-check@depth24,Fail
 spec@!opengl 1.0@depth-clear-precision-check@depth24_stencil8,Fail
 spec@!opengl 1.0@depth-clear-precision-check@depth32,Fail
 spec@!opengl 1.0@gl-1.0-drawbuffer-modes,Fail
-spec@!opengl 1.0@gl-1.0-scissor-offscreen,Fail
 spec@!opengl 1.0@gl-1.0-user-clip-all-planes,Fail
 spec@arb_clear_texture@arb_clear_texture-3d,Fail
 spec@arb_clear_texture@arb_clear_texture-sized-formats,Fail
