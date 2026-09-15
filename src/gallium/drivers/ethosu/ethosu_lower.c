@@ -385,81 +385,20 @@ ethosu_concat_split_offset(struct pipe_tensor *const *slices,
    return offset;
 }
 
-/* Brick format (NHCWB16) packs 16 channels per brick.  A tensor is kept
- * linear (NHWC) in two cases.  The producer and every consumer must agree
- * on the written width and depth, checked here.  A channel-axis concat
- * start, or a split or unpack read, at an offset that is not a multiple of
- * 16 would place a branch mid-brick, checked in
- * ethosu_check_linear_format_for_concat_split(). */
+/* A channel-axis concatenation writes each input at the running sum of the
+ * preceding depths.  NHCWB16 packs 16 channels per brick, so a start that is
+ * not a multiple of 16 falls mid-brick and cannot be a brick base; such an
+ * output must stay linear (NHWC). */
 static bool
-ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
-                          const struct pipe_ml_operation *poperations,
-                          unsigned count,
-                          const struct pipe_ml_operation *producer,
-                          const struct pipe_tensor *ptensor)
+ethosu_concat_offset_needs_nhwc(const struct pipe_ml_operation *producer)
 {
-   unsigned written_width, written_depth;
-   bool has_consumer = false;
+   if (producer->type != PIPE_ML_OPERATION_TYPE_CONCATENATION ||
+       producer->conc.axis != 3)
+      return false;
 
-   ethosu_written_wd(subgraph, producer, ptensor, &written_width,
-                     &written_depth);
-
-   for (unsigned i = 0; i < count; i++) {
-      const struct pipe_ml_operation *consumer = &poperations[i];
-
-      for (unsigned j = 0; j < consumer->input_count; j++) {
-         unsigned read_width, read_depth;
-
-         if (consumer->input_tensors[j]->index != ptensor->index)
-            continue;
-
-         has_consumer = true;
-         ethosu_read_wd(subgraph, consumer, ptensor, &read_width,
-                        &read_depth);
-         if (read_width != written_width || read_depth != written_depth)
-            return false;
-      }
-   }
-
-   return has_consumer;
-}
-
-static bool
-ethosu_check_linear_format_for_concat_split(
-   const struct pipe_ml_operation *poperations, unsigned count,
-   const struct pipe_ml_operation *producer,
-   const struct pipe_tensor *ptensor)
-{
-   /* A channel-axis concatenation writes each input at the running sum of the
-    * preceding depths; every such start must be 16 aligned for a brick. */
-   if (producer->type == PIPE_ML_OPERATION_TYPE_CONCATENATION &&
-       producer->conc.axis == 3) {
-      for (unsigned i = 1; i < producer->input_count; i++)
-         if (ethosu_concat_split_offset(producer->input_tensors, i, 3) & 15)
-            return true;
-   }
-
-   /* A channel-axis split or unpack reads each output at the running sum of
-    * the preceding depths; the same alignment is required to read a brick. */
-   for (unsigned i = 0; i < count; i++) {
-      const struct pipe_ml_operation *op = &poperations[i];
-      bool is_unpack = op->type == PIPE_ML_OPERATION_TYPE_UNPACK;
-
-      if (!is_unpack && op->type != PIPE_ML_OPERATION_TYPE_SPLIT)
-         continue;
-      if (op->split.axis != 3 ||
-          op->input_tensors[0]->index != ptensor->index)
-         continue;
-
-      for (unsigned k = 1; k < op->output_count; k++) {
-         unsigned offset =
-            is_unpack ? k * op->output_tensors[k]->dims[3]
-                      : ethosu_concat_split_offset(op->output_tensors, k, 3);
-
-         if (offset & 15)
-            return true;
-      }
-   }
+   for (unsigned i = 1; i < producer->input_count; i++)
+      if (ethosu_concat_split_offset(producer->input_tensors, i, 3) & 15)
+         return true;
 
    return false;
 }
@@ -467,8 +406,7 @@ ethosu_check_linear_format_for_concat_split(
 static bool
 ethosu_consumer_uses_depth_mean(const struct pipe_ml_operation *poperation)
 {
-   return poperation &&
-          poperation->type == PIPE_ML_OPERATION_TYPE_MEAN &&
+   return poperation->type == PIPE_ML_OPERATION_TYPE_MEAN &&
           poperation->mean.axes == BITFIELD_BIT(3);
 }
 
@@ -668,36 +606,6 @@ ethosu_require_softmax_spans(struct ethosu_subgraph *subgraph,
       ethosu_require_feature_map_span(output_tensor, vector_shape, output->scale,
                                       output->zero_point, output->is_signed);
    }
-}
-
-static bool
-ethosu_softmax_requires_nhwc(const struct pipe_ml_operation *producer,
-                             const struct pipe_ml_operation *consumer)
-{
-   /*
-    * Softmax lowering reads its input as a [depth, spatial, 1] pooling
-    * view and writes its result through a vector view. NHCWB16 padding
-    * cannot represent either view of the original contiguous tensor.
-    */
-   return producer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX ||
-          consumer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX;
-}
-
-/* A reshape aliases its input buffer, so a producer feeding softmax through a
- * reshape must stay contiguous too, or the softmax reads brick-packed data. */
-static bool
-ethosu_reshape_feeds_softmax(const struct pipe_ml_operation *poperations,
-                             unsigned count,
-                             const struct pipe_ml_operation *consumer)
-{
-   while (consumer && consumer->type == PIPE_ML_OPERATION_TYPE_RESHAPE) {
-      consumer = ethosu_find_first_consumer(poperations, count,
-                                            consumer->output_tensors[0]->index);
-      if (consumer && consumer->type == PIPE_ML_OPERATION_TYPE_SOFTMAX)
-         return true;
-   }
-
-   return false;
 }
 
 static void
@@ -3752,9 +3660,6 @@ ethosu_eltwise_fuses_lut(const struct pipe_ml_operation *poperations,
                          unsigned count,
                          const struct pipe_ml_operation *operation)
 {
-   if (!operation)
-      return false;
-
    switch (operation->type) {
    case PIPE_ML_OPERATION_TYPE_ADD:
    case PIPE_ML_OPERATION_TYPE_MUL:
@@ -3766,6 +3671,118 @@ ethosu_eltwise_fuses_lut(const struct pipe_ml_operation *poperations,
    default:
       return false;
    }
+}
+
+/* Whether reading `tensor` through `reader` needs it linear (NHWC).  These
+ * lowerings read their input as a contiguous NHWC buffer, and a channel-axis
+ * split or unpack whose output starts mid-brick cannot address a brick. */
+static bool
+ethosu_reader_requires_nhwc(const struct pipe_ml_operation *poperations,
+                            unsigned count,
+                            const struct pipe_ml_operation *reader,
+                            const struct pipe_tensor *tensor)
+{
+   switch (reader->type) {
+   case PIPE_ML_OPERATION_TYPE_SOFTMAX:
+   case PIPE_ML_OPERATION_TYPE_BATCH_MATMUL:
+   case PIPE_ML_OPERATION_TYPE_TRANSPOSE:
+   case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
+   case PIPE_ML_OPERATION_TYPE_ARGMAX:
+      return true;
+   default:
+      break;
+   }
+
+   if (ethosu_consumer_uses_depth_mean(reader) ||
+       ethosu_eltwise_fuses_lut(poperations, count, reader))
+      return true;
+
+   if ((reader->type == PIPE_ML_OPERATION_TYPE_SPLIT ||
+        reader->type == PIPE_ML_OPERATION_TYPE_UNPACK) &&
+       reader->split.axis == 3 &&
+       reader->input_tensors[0]->index == tensor->index) {
+      bool is_unpack = reader->type == PIPE_ML_OPERATION_TYPE_UNPACK;
+
+      for (unsigned k = 1; k < reader->output_count; k++) {
+         unsigned offset =
+            is_unpack ? k * reader->output_tensors[k]->dims[3]
+                      : ethosu_concat_split_offset(reader->output_tensors,
+                                                   k, 3);
+         if (offset & 15)
+            return true;
+      }
+   }
+
+   return false;
+}
+
+/* Walk the readers of `tensor_index`, following through reshapes, which alias
+ * the buffer without copying.  A reshape is not itself a reader: the readers
+ * behind it read the producer's buffer and are checked against what the
+ * producer wrote (`width`, `depth`).  Returns false if a reader needs linear
+ * format or reads a differing width or depth, or if a reshape output leaves
+ * the graph, which is never brick and gets no copy.  *has_reader records that
+ * a reader was found behind the reshapes. */
+static bool
+ethosu_readers_keep_brick(const struct ethosu_subgraph *subgraph,
+                          const struct pipe_ml_operation *poperations,
+                          unsigned count, unsigned tensor_index,
+                          unsigned width, unsigned depth, bool *has_reader)
+{
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *reader = &poperations[i];
+
+      for (unsigned j = 0; j < reader->input_count; j++) {
+         const struct pipe_tensor *in = reader->input_tensors[j];
+         unsigned read_width, read_depth;
+
+         if (in->index != tensor_index)
+            continue;
+
+         if (reader->type == PIPE_ML_OPERATION_TYPE_RESHAPE) {
+            const struct pipe_tensor *out = reader->output_tensors[0];
+
+            if (out->is_external_output)
+               return false;
+            if (!ethosu_readers_keep_brick(subgraph, poperations, count,
+                                           out->index, width, depth,
+                                           has_reader))
+               return false;
+            continue;
+         }
+
+         *has_reader = true;
+         ethosu_read_wd(subgraph, reader, in, &read_width, &read_depth);
+         if (read_width != width || read_depth != depth)
+            return false;
+         if (ethosu_reader_requires_nhwc(poperations, count, reader, in))
+            return false;
+      }
+   }
+
+   return true;
+}
+
+/* A tensor keeps brick format (NHCWB16) only if a reader exists and every
+ * reader agrees on the written width and depth and reads brick-packed data.
+ * Reshapes are transparent to the walk. */
+static bool
+ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
+                          const struct pipe_ml_operation *poperations,
+                          unsigned count,
+                          const struct pipe_ml_operation *producer,
+                          const struct pipe_tensor *ptensor)
+{
+   unsigned width, depth;
+   bool has_reader = false;
+
+   ethosu_written_wd(subgraph, producer, ptensor, &width, &depth);
+
+   if (!ethosu_readers_keep_brick(subgraph, poperations, count,
+                                  ptensor->index, width, depth, &has_reader))
+      return false;
+
+   return has_reader;
 }
 
 static void
@@ -3809,23 +3826,14 @@ register_tensors(struct ethosu_subgraph *subgraph,
              poperation->type != PIPE_ML_OPERATION_TYPE_BATCH_MATMUL &&
              poperation->type != PIPE_ML_OPERATION_TYPE_SCATTER_ND &&
              poperation->type != PIPE_ML_OPERATION_TYPE_TRANSPOSE &&
+             poperation->type != PIPE_ML_OPERATION_TYPE_SOFTMAX &&
              poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
             const struct pipe_ml_operation *consumer =
                ethosu_find_first_consumer(poperations, count, ptensor->index);
             if (ethosu_tensor_keeps_brick(subgraph, poperations, count,
                                           poperation, ptensor) &&
-                !(consumer &&
-                  (ethosu_softmax_requires_nhwc(poperation, consumer) ||
-                   ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
-                   ethosu_consumer_uses_depth_mean(consumer) ||
-                   ethosu_eltwise_fuses_lut(poperations, count, consumer) ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_ARGMAX)) &&
-                !ethosu_check_linear_format_for_concat_split(
-                   poperations, count, poperation, ptensor)) {
+                !ethosu_concat_offset_needs_nhwc(poperation)) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
