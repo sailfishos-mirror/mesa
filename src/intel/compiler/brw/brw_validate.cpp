@@ -128,8 +128,10 @@ validate_memory_logical(const brw_shader &s, const brw_mem_inst *inst)
    if (mode == MEMORY_MODE_TYPED)
       VAL_ASSERT_EQ(inst->as_mem()->address_offset, 0);
 
-   /* Offset must be DWord aligned */
-   VAL_ASSERT_EQ((inst->as_mem()->address_offset % 4), 0);
+   if (!s.key->use_efficient_64bit) {
+      /* Offset must be DWord aligned */
+      VAL_ASSERT_EQ((inst->as_mem()->address_offset % 4), 0);
+   }
 
    switch (inst->opcode) {
    case SHADER_OPCODE_MEMORY_LOAD_LOGICAL:
