@@ -326,6 +326,7 @@ struct radeon_info {
                              */
    bool has_smem_partial_oob_access_bug;
    bool has_out_of_order_uncached_l2;
+   bool has_cp_dma_unaligned_copy_perf_issue;
 
    /* Display features. */
    /* There are 2 display DCC codepaths, because display expects unaligned DCC. */

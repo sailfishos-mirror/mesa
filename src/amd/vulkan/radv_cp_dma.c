@@ -255,7 +255,7 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    /* Assume that we are not going to sync after the last DMA operation. */
    cmd_buffer->state.dma_is_busy = true;
 
-   if (pdev->info.family <= CHIP_CARRIZO || pdev->info.family == CHIP_STONEY) {
+   if (pdev->info.has_cp_dma_unaligned_copy_perf_issue) {
       /* If the size is not aligned, we must add a dummy copy at the end
        * just to align the internal counter. Otherwise, the DMA engine
        * would slow down by an order of magnitude for following copies.

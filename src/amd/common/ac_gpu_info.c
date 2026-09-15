@@ -584,6 +584,9 @@ ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_devic
     */
    info->has_out_of_order_uncached_l2 = info->gfx_level == GFX12;
 
+   info->has_cp_dma_unaligned_copy_perf_issue = info->family <= CHIP_CARRIZO ||
+                                                info->family == CHIP_STONEY;
+
    info->max_tcc_blocks = device_info->num_tcc_blocks;
    if (info->gfx_level >= GFX10) {
       info->tcc_cache_line_size = info->gfx_level >= GFX12 ? 256 : 128;
@@ -2012,6 +2015,7 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_set_uconfig_pairs = %i\n", info->has_set_uconfig_pairs);
    fprintf(f, "    has_smem_partial_oob_access_bug = %i\n", info->has_smem_partial_oob_access_bug);
    fprintf(f, "    has_out_of_order_uncached_l2 = %i\n", info->has_out_of_order_uncached_l2);
+   fprintf(f, "    has_cp_dma_unaligned_copy_perf_issue = %i\n", info->has_cp_dma_unaligned_copy_perf_issue);
 
    if (info->gfx_level < GFX12) {
       fprintf(f, "Display features:\n");
