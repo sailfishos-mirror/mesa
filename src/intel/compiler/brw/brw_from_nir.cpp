@@ -5957,7 +5957,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
    const unsigned nir_bit_size =
       is_store ? instr->src[data_src].ssa->bit_size : instr->def.bit_size;
    const enum lsc_data_size data_size = lsc_bits_to_data_size(nir_bit_size);
-   uint32_t data_bit_size = lsc_data_size_bytes(data_size) * 8;
+   uint32_t data_bit_size = lsc_data_size_register_bytes(data_size) * 8;
 
    const brw_reg_type data_type =
       brw_type_with_size(BRW_TYPE_UD, data_bit_size);

@@ -430,7 +430,7 @@ lsc_op_num_data_values(unsigned _op)
 }
 
 static inline uint32_t
-lsc_data_size_bytes(enum lsc_data_size data_size)
+lsc_data_size_register_bytes(enum lsc_data_size data_size)
 {
    switch (data_size) {
    case LSC_DATA_SIZE_D8:      return 1;
@@ -439,6 +439,23 @@ lsc_data_size_bytes(enum lsc_data_size data_size)
    case LSC_DATA_SIZE_D8U32:
    case LSC_DATA_SIZE_D16U32:
    case LSC_DATA_SIZE_D16BF32: return 4;
+   case LSC_DATA_SIZE_D64:     return 8;
+   default:
+      assert(!"Unsupported LSC data size");
+      return 0;
+   }
+}
+
+static inline uint32_t
+lsc_data_size_memory_bytes(enum lsc_data_size data_size)
+{
+   switch (data_size) {
+   case LSC_DATA_SIZE_D8U32:
+   case LSC_DATA_SIZE_D8:      return 1;
+   case LSC_DATA_SIZE_D16U32:
+   case LSC_DATA_SIZE_D16BF32:
+   case LSC_DATA_SIZE_D16:     return 2;
+   case LSC_DATA_SIZE_D32:     return 4;
    case LSC_DATA_SIZE_D64:     return 8;
    default:
       assert(!"Unsupported LSC data size");
@@ -903,7 +920,7 @@ gen_inst_send_dst_len(const struct intel_device_info *devinfo, const gen_inst *i
    if (inst->opcode == GEN_OP_SENDG) {
       if (gen_is_lsc_translated_sfid(devinfo, inst->send.sfid)) {
          enum lsc_data_size data_size = gen_lsc_64bit_msg_desc_get_data_size(inst->send.combined_desc);
-         uint32_t data_size_bytes = lsc_data_size_bytes(data_size);
+         uint32_t data_size_bytes = lsc_data_size_register_bytes(data_size);
 
          return DIV_ROUND_UP(data_size_bytes * inst->exec_size, devinfo->grf_size);
       }

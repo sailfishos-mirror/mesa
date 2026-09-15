@@ -84,7 +84,7 @@ validate_memory_logical(const brw_shader &s, const brw_mem_inst *inst)
    enum memory_logical_mode mode = inst->mode;
 
    enum lsc_data_size data_size = inst->data_size;
-   unsigned data_size_B = lsc_data_size_bytes(data_size);
+   unsigned data_size_B = lsc_data_size_register_bytes(data_size);
 
    if (!devinfo->has_lsc) {
       VAL_ASSERT(data_size == LSC_DATA_SIZE_D8U32 ||

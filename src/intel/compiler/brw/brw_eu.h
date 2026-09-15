@@ -844,7 +844,7 @@ static inline unsigned
 brw_lsc_msg_dest_len(const struct intel_device_info *devinfo,
                      enum lsc_data_size data_sz, unsigned n)
 {
-   return DIV_ROUND_UP(lsc_data_size_bytes(data_sz) * n,
+   return DIV_ROUND_UP(lsc_data_size_register_bytes(data_sz) * n,
                        reg_unit(devinfo) * REG_SIZE) * reg_unit(devinfo);
 }
 
