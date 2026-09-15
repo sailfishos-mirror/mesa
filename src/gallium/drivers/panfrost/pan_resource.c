@@ -265,15 +265,18 @@ panfrost_resource_new_label(struct panfrost_resource *rsrc,
 {
    char *new_label = NULL;
 
-   asprintf(&new_label,
-            "%s format=%s extent=%ux%ux%u array_size=%u mip_count=%u samples=%u modifier=0x%"PRIx64"%s%s",
-            panfrost_resource_type_str(rsrc),
-            util_format_short_name(rsrc->base.format),
-            rsrc->base.width0, rsrc->base.height0, rsrc->base.depth0,
-            rsrc->base.array_size, rsrc->base.last_level,
-            rsrc->base.nr_storage_samples, modifier,
-            user_label ? " user_label=" : "",
-            user_label ? : "");
+   if (asprintf(&new_label,
+                "%s format=%s extent=%ux%ux%u array_size=%u mip_count=%u samples=%u modifier=0x%"PRIx64"%s%s",
+                panfrost_resource_type_str(rsrc),
+                util_format_short_name(rsrc->base.format),
+                rsrc->base.width0, rsrc->base.height0, rsrc->base.depth0,
+                rsrc->base.array_size, rsrc->base.last_level,
+                rsrc->base.nr_storage_samples, modifier,
+                user_label ? " user_label=" : "",
+                user_label ? : "") < 0) {
+      mesa_loge("asprintf fail on panfrost_resource_new_label\n");
+      return NULL;
+   }
 
    return new_label;
 }
@@ -1120,6 +1123,8 @@ panfrost_resource_create_with_modifier(struct pipe_screen *screen,
 
       char *res_label =
          panfrost_resource_new_label(so, so->image.props.modifier , NULL);
+      if (!res_label)
+         mesa_loge("Could not create resource: failed to create label");
 
       so->bo =
          panfrost_bo_create(dev, so->plane.layout.data_size_B, flags, res_label);
@@ -2136,6 +2141,8 @@ pan_resource_afbcp_pack(struct panfrost_context *ctx,
    }
    char *new_label = panfrost_resource_new_label(
       prsrc, modifier, old_user_label);
+   if (!new_label)
+      mesa_loge("pan_resource_afbcp_pack: failed to create label");
 
    prsrc->afbcp->packed_bo = panfrost_bo_create(
       dev, prsrc->afbcp->size, 0, new_label);
