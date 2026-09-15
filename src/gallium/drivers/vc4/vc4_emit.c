@@ -25,8 +25,10 @@
 
 /**
  * Computes the clip window for the current context.
+ *
+ * Returns false when the window is empty.
  */
-void
+bool
 vc4_get_clip_window(struct vc4_context *vc4, struct pipe_scissor_state *clip)
 {
         float *vpscale = vc4->viewport.scale;
@@ -59,6 +61,8 @@ vc4_get_clip_window(struct vc4_context *vc4, struct pipe_scissor_state *clip)
                 clip->maxy = MAX2(MIN2(vp_maxy, vc4->scissor.maxy),
                                   clip->miny);
         }
+
+        return clip->minx < clip->maxx && clip->miny < clip->maxy;
 }
 
 void
@@ -67,24 +71,31 @@ vc4_emit_state(struct pipe_context *pctx)
         struct vc4_context *vc4 = vc4_context(pctx);
         struct vc4_job *job = vc4->job;
 
-        if (vc4->dirty & (VC4_DIRTY_SCISSOR | VC4_DIRTY_VIEWPORT |
-                          VC4_DIRTY_RASTERIZER)) {
-                struct pipe_scissor_state clip;
-                vc4_get_clip_window(vc4, &clip);
+        if (vc4->dirty & VC4_DIRTY_CLIP_WINDOW) {
+                const struct pipe_scissor_state *clip = &vc4->clip_window;
+                assert(!vc4->clip_window_empty);
+
+#ifndef NDEBUG
+                /* Cached clip window shouldn't be modified by nested blits */
+                struct pipe_scissor_state check;
+                vc4_get_clip_window(vc4, &check);
+                assert(check.minx == clip->minx && check.miny == clip->miny &&
+                       check.maxx == clip->maxx && check.maxy == clip->maxy);
+#endif
 
                 cl_emit(&job->bcl, CLIP_WINDOW, window) {
-                        window.clip_window_left_pixel_coordinate = clip.minx;
-                        window.clip_window_bottom_pixel_coordinate = clip.miny;
+                        window.clip_window_left_pixel_coordinate = clip->minx;
+                        window.clip_window_bottom_pixel_coordinate = clip->miny;
                         window.clip_window_height_in_pixels =
-                                clip.maxy - clip.miny;
+                                clip->maxy - clip->miny;
                         window.clip_window_width_in_pixels =
-                                clip.maxx - clip.minx;
+                                clip->maxx - clip->minx;
                 }
 
-                job->draw_min_x = MIN2(job->draw_min_x, clip.minx);
-                job->draw_min_y = MIN2(job->draw_min_y, clip.miny);
-                job->draw_max_x = MAX2(job->draw_max_x, clip.maxx);
-                job->draw_max_y = MAX2(job->draw_max_y, clip.maxy);
+                job->draw_min_x = MIN2(job->draw_min_x, clip->minx);
+                job->draw_min_y = MIN2(job->draw_min_y, clip->miny);
+                job->draw_max_x = MAX2(job->draw_max_x, clip->maxx);
+                job->draw_max_y = MAX2(job->draw_max_y, clip->maxy);
         }
 
         if (vc4->dirty & (VC4_DIRTY_RASTERIZER |
