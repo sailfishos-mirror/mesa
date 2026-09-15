@@ -460,7 +460,9 @@ static VkResult pvr_drm_get_heap_static_data_descriptions(
                                 sizeof(*array) *
                                    query.static_data_areas.count));
 
-   query.static_data_areas.array = (__u64)array;
+   query.static_data_areas =
+      (struct drm_pvr_obj_array)DRM_PVR_OBJ_ARRAY(query.static_data_areas.count,
+                                                  array);
 
    /* Get the array */
    result = pvr_ioctlf(drm_ws->base.render_fd,
