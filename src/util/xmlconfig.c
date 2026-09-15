@@ -652,7 +652,7 @@ struct OptConfData {
    const char *driverName, *execName;
    const char *kernelDriverName;
    const char *deviceName;
-   const char *deviceVersion;
+   uint32_t deviceVersion;
    const char *engineName;
    const char *applicationName;
    union {
@@ -753,7 +753,10 @@ parseDeviceAttr(struct OptConfData *data, const char **attr)
       } else {
          regex_t re;
          if (regcomp(&re, device_version_regexp, REG_EXTENDED|REG_NOSUB) == 0) {
-            if (regexec(&re, data->deviceVersion, 0, NULL, 0) == REG_NOMATCH)
+            char device_version_str[32];
+            snprintf(device_version_str, sizeof(device_version_str), "%u", data->deviceVersion);
+
+            if (regexec(&re, device_version_str, 0, NULL, 0) == REG_NOMATCH)
                data->ignoringDevice = data->inDevice;
             regfree(&re);
          } else
