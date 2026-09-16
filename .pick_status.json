@@ -2744,7 +2744,7 @@
         "description": "util/format: make the FXT1 codec independent of host byte order",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6db87bc889ce33a1483ae2299e7e534c6fe235d6",
         "notes": null
