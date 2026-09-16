@@ -3934,7 +3934,7 @@
         "description": "gallivm: don't use the s3tc and rgtc JIT decoders on big-endian",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6f4083143bb8c478ccfcaef034d183d89b471993",
         "notes": null
