@@ -2804,7 +2804,7 @@
         "description": "mesa: store boolean custom glGet values in value_bool",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "42d31bf39095c8377a107510b90b3fea5fb3cc76",
         "notes": null
