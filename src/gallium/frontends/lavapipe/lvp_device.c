@@ -49,6 +49,10 @@
 #include "nir.h"
 #include "nir_builder.h"
 
+#ifdef HAVE_MALLINFO2
+#include <malloc.h>
+#endif
+
 #if DETECT_OS_LINUX
 #include <sys/mman.h>
 #include <sys/resource.h>
@@ -1801,12 +1805,15 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetPhysicalDeviceMemoryProperties2(
                                          &pMemoryProperties->memoryProperties);
    VkPhysicalDeviceMemoryBudgetPropertiesEXT *props = vk_find_struct(pMemoryProperties, PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT);
    if (props) {
-      props->heapBudget[0] = pMemoryProperties->memoryProperties.memoryHeaps[0].size;
-      if (os_get_available_system_memory(&props->heapUsage[0])) {
-         props->heapUsage[0] = props->heapBudget[0] - props->heapUsage[0];
-      } else {
-         props->heapUsage[0] = 0;
+      if (!os_get_available_system_memory(&props->heapBudget[0])) {
+         props->heapBudget[0] = 0;
       }
+#ifdef HAVE_MALLINFO2
+      struct mallinfo2 info = mallinfo2();
+      props->heapUsage[0] = info.uordblks;
+#else
+      props->heapUsage[0] = pMemoryProperties->memoryProperties.memoryHeaps[0].size - props->heapBudget[0];
+#endif
       memset(&props->heapBudget[1], 0, sizeof(props->heapBudget[0]) * (VK_MAX_MEMORY_HEAPS - 1));
       memset(&props->heapUsage[1], 0, sizeof(props->heapUsage[0]) * (VK_MAX_MEMORY_HEAPS - 1));
    }

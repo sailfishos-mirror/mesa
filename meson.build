@@ -1330,6 +1330,9 @@ endif
 if cc.has_function('fmemopen')
    pre_args += '-DHAVE_FMEMOPEN'
 endif
+if cc.has_function('mallinfo2')
+   pre_args += '-DHAVE_MALLINFO2'
+endif
 
 # TODO: this is very incomplete
 if ['linux', 'cygwin', 'gnu', 'freebsd', 'gnu/kfreebsd', 'haiku', 'android', 'managarm'].contains(host_machine.system())
