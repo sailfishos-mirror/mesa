@@ -2814,7 +2814,7 @@
         "description": "mesa: use a byte-array format for GL_RGBA8 texture buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "664355f05b39303fa0995b72160c82f5bf50e95e",
         "notes": null
