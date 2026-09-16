@@ -675,6 +675,24 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
+            nir_op_pack_half_2x16_split | nir_op_pack_half_2x16_rtz_split => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.get_src(1).bit_size() == 32);
+                assert!(alu.def.bit_size() == 32);
+                assert!(self.model.arch() <= 10);
+
+                let round = if alu.op == nir_op_pack_half_2x16_rtz_split {
+                    FRound::TowardsZero
+                } else {
+                    self.fround(16)
+                };
+                b.push_op(OpV2F32ToV2F16 {
+                    dst: dst.into(),
+                    srcs: [srcs(0), srcs(1)],
+                    round,
+                    clamp: FClamp::None,
+                });
+            }
             nir_op_u2f32 => {
                 assert!(
                     self.model.arch() <= 10 || alu.get_src(0).bit_size() == 32
