@@ -31,30 +31,49 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
 
         // Handle all immediates, including zero with logic ops
         if let Ok(imm) = u32::try_from(&copy.src.src_ref) {
-            let imm = copy.src.swizzle.fold_u32(imm.into()).unwrap();
             let mask = copy.dst.lanes.u32_mask().unwrap();
-
-            // For an immediate copy, we can just do and AND+OR
-            b.push_op(OpShiftLop {
-                dst: dst_reg.into(),
-                dst_type: DataType::U32,
-                shift_op: ShiftOp::None,
-                logic_op: LogicOp::And,
-                not_result: false,
-                src0: dst_reg.into(),
-                shift: 0_u8.into(),
-                src2: (!mask).into(),
-            });
-            if imm != 0 {
+            // For an immediate copy, we can just do and AND+ADD
+            if b.model().arch() >= 11 {
                 b.push_op(OpShiftLop {
                     dst: dst_reg.into(),
                     dst_type: DataType::U32,
                     shift_op: ShiftOp::None,
-                    logic_op: LogicOp::Or,
+                    logic_op: LogicOp::And,
                     not_result: false,
                     src0: dst_reg.into(),
                     shift: 0_u8.into(),
-                    src2: (imm & mask).into(),
+                    src2: (!mask).into(),
+                });
+            } else {
+                // AND_IMM is not implemented yet, we need to get creative
+                // We should do: `~(0xFF << i) & reg` but since .bnot is not
+                // available in src0, we apply De Morgan: `~((0xFF << i) | ~reg)`
+                let const_table = &b.model().fau().small_constants;
+                let offset = copy.dst.lanes.as_byte_range().unwrap().start;
+                let kFF = const_table.find_imm8(|x| x == u8::MAX).unwrap();
+                let kFF = kFF.swizzle(Swizzle::widen_u8(0));
+                b.push_op(OpShiftLop {
+                    dst: dst_reg.into(),
+                    dst_type: DataType::U32,
+                    shift_op: ShiftOp::LShift,
+                    logic_op: LogicOp::Or,
+                    not_result: true,
+                    src0: kFF,
+                    shift: const_table
+                        .find_imm8(|i| i == offset * 8)
+                        .expect("Cannot find small const offset"),
+                    src2: Src::from(dst_reg).bnot(),
+                });
+            }
+
+            // Add back the immediate now
+            let imm = copy.src.swizzle.fold_u32(imm).unwrap();
+            if imm != 0 {
+                b.push_op(OpIAdd {
+                    dst: dst_reg.into(),
+                    dst_type: DataType::I32,
+                    saturate: false,
+                    srcs: [dst_reg.into(), (imm & mask).into()],
                 });
             }
         } else {
