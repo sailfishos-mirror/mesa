@@ -3813,6 +3813,13 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
         lanes.remove(ir::DstLanes::B1);
         lanes.remove(ir::DstLanes::B3);
     }
+    if arch <= 10
+        && matches!(op, Op::FRcp(_) | Op::FRsq(_))
+        && op.variant().unwrap().bits() == 16
+    {
+        // Writing only to H1 just masks the high bits (so that's always 0)
+        lanes.remove(ir::DstLanes::H1);
+    }
 
     lanes
 }
