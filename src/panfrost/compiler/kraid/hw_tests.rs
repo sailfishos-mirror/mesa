@@ -4,6 +4,7 @@ use std::ops::Range;
 use std::sync::OnceLock;
 use std::{io, iter, slice};
 
+use crate::bitview::BitViewable;
 use crate::builder::*;
 use crate::data_type::NumericType;
 use crate::debug::{DEBUG, DebugFlags};
@@ -574,7 +575,10 @@ impl<'a> RawTestShaderBuilder<'a> {
         instr.flow.set_wait_bit(FlowWaitBit::Slot0);
     }
 
-    fn compile(self) -> CompiledTestCase {
+    fn compile_with(
+        self,
+        run_pass: impl FnOnce(&mut Shader),
+    ) -> CompiledTestCase {
         let Self {
             model,
             mut b,
@@ -592,7 +596,7 @@ impl<'a> RawTestShaderBuilder<'a> {
             CFGBuilder::new();
         cfg.add_node(start_block.label, start_block);
 
-        let s = Shader {
+        let mut s = Shader {
             model,
             ssa_alloc: Default::default(),
             phi_alloc: Default::default(),
@@ -605,6 +609,8 @@ impl<'a> RawTestShaderBuilder<'a> {
             eprintln!("Kraid raw shader before encoding:\n{s}");
         }
 
+        run_pass(&mut s);
+
         let bin = model.encode_shader(&s);
 
         CompiledTestCase {
@@ -614,6 +620,10 @@ impl<'a> RawTestShaderBuilder<'a> {
             fau_args_offset: 0,
             info: s.info,
         }
+    }
+
+    fn compile(self) -> CompiledTestCase {
+        self.compile_with(|_| {})
     }
 }
 
@@ -860,6 +870,73 @@ fn test_ld_pka() {
         _ => failures.is_empty(),
     };
     assert!(expected, "LD_PKA assumptions wrong for lanes: {failures:?}");
+}
+
+/// Test lower_copy.rs
+#[test]
+fn test_lower_copy() {
+    let run = RunSingleton::get();
+
+    const SOURCE: u32 = 0x89ABCDEF;
+    const INIT_DST: u32 = 0x41424344;
+
+    for test_imm in [false, true] {
+        for range in [
+            RegRange::Byte0,
+            RegRange::Byte1,
+            RegRange::Byte2,
+            RegRange::Byte3,
+            RegRange::Half0,
+            RegRange::Half1,
+            RegRange::Regs(1),
+        ] {
+            let lanes = DstLanes::from(range);
+            let mask = lanes.u32_mask().unwrap();
+
+            let bin = {
+                let mut b = RawTestShaderBuilder::new(&*run.model);
+                let copy_src = if test_imm {
+                    let start = usize::from(range.byte_offset() * 8);
+                    let end = start + usize::from(range.bytes() * 8);
+                    let imm = SOURCE.get_bit_range_u64(start..end) as u32;
+                    // The width picks the replicating swizzle lower_copy folds.
+                    match range.bytes() {
+                        1 => Src::from(imm as u8),
+                        2 => Src::from(imm as u16),
+                        _ => Src::from(imm),
+                    }
+                } else {
+                    let src = RegRef::new(2, RegRange::Regs(1));
+                    b.ld_test_data_to(src.into(), 0, 32);
+                    Src::from(src).swizzle(range.into())
+                };
+
+                let copy_reg = RegRef::new(3, RegRange::Regs(1));
+                b.ld_test_data_to(copy_reg.into(), 4, 32);
+
+                b.push_op(OpCopy {
+                    dst: RegRef::new(3, range).into(),
+                    dst_type: DataType::i(range.bytes() * 8),
+                    src: copy_src,
+                });
+
+                b.st_test_data(8, copy_reg);
+                b.compile_with(|s| s.lower_copy())
+            };
+
+            let mut data = [SOURCE, INIT_DST, 0xDEFDEFDE];
+            let case = bin.with_data(&mut data);
+            run.execute(case);
+
+            let expected = (INIT_DST & !mask) | (SOURCE & mask);
+            let got = data[2];
+
+            assert_eq!(
+                expected, got,
+                "lane {lanes} expected {expected:08x} got {got:08x}"
+            );
+        }
+    }
 }
 
 fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
