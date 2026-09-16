@@ -421,7 +421,17 @@ static LLVMValueRef first_active_invocation(struct lp_build_nir_soa_context *bld
    /* Turn it from N x i1 to iN, then extend it up to i32 so we can use a single
     * cttz intrinsic -- I assume the compiler will drop the extend if there are
     * smaller instructions available, since we have is_zero_poison.
+    *
+    * The bitcast puts element 0 in the most significant bit on big-endian
+    * hosts, so reverse the elements first there.
     */
+   if (UTIL_ARCH_BIG_ENDIAN) {
+      LLVMValueRef shuffles[LP_MAX_VECTOR_LENGTH];
+      for (unsigned i = 0; i < uint_bld->type.length; i++)
+         shuffles[i] = lp_build_const_int32(gallivm, uint_bld->type.length - 1 - i);
+      bitmask = LLVMBuildShuffleVector(builder, bitmask, LLVMGetUndef(LLVMTypeOf(bitmask)),
+                                       LLVMConstVector(shuffles, uint_bld->type.length), "");
+   }
    bitmask = LLVMBuildBitCast(builder, bitmask, LLVMIntTypeInContext(gallivm->context, uint_bld->type.length), "exec_bitmask");
    bitmask = LLVMBuildZExt(builder, bitmask, bld->int_bld.elem_type, "");
 
