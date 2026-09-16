@@ -56,45 +56,36 @@ vl_bitstream_get_byte_count(struct vl_bitstream_encoder *enc)
 static inline bool
 vl_bitstream_is_byte_aligned(struct vl_bitstream_encoder *enc)
 {
-   if (enc->overflow)
-      enc->bits_to_go = 32;
    return !(enc->bits_to_go & 7);
 }
 
 static inline void
 vl_bitstream_write_byte_start_code(struct vl_bitstream_encoder *enc, uint8_t val)
 {
-   int offset = enc->offset;
    uint8_t *buffer = enc->bits ? enc->bits + enc->offset : NULL;
+   bool insert_byte = false;
    if (enc->prevent_start_code && enc->offset > 1) {
       if (((val & 0xfc) | enc->last_bytes[0] | enc->last_bytes[1]) == 0) {
-         if (buffer)
-            *buffer++ = 3;
+         insert_byte = true;
          enc->last_bytes[0] = enc->last_bytes[1];
          enc->last_bytes[1] = 3;
-         offset++;
+         enc->offset++;
       }
    }
 
-   if (buffer)
-      *buffer = val;
+   enc->offset++;
    enc->last_bytes[0] = enc->last_bytes[1];
    enc->last_bytes[1] = val;
-   offset++;
-   enc->offset = offset;
-}
 
-static inline bool
-vl_bitstream_verify_buffer(struct vl_bitstream_encoder *enc, uint32_t bytes_to_write)
-{
-   if (enc->overflow)
-      return false;
-
-   if (enc->offset + bytes_to_write > enc->bits_buffer_size) {
-      enc->overflow = true;
-      return false;
+   if (buffer) {
+      if (enc->offset > enc->bits_buffer_size) {
+         enc->overflow = true;
+      } else {
+         if (insert_byte)
+            *buffer++ = 3;
+         *buffer = val;
+      }
    }
-   return true;
 }
 
 static inline void
@@ -104,10 +95,6 @@ vl_bitstream_flush(struct vl_bitstream_encoder *enc)
    assert (is_aligned);
 
    uint32_t temp = (uint32_t)(32 - enc->bits_to_go);
-
-   if (!vl_bitstream_verify_buffer(enc, temp >> 3)) {
-      return;
-   }
 
    while (temp > 0) {
       vl_bitstream_write_byte_start_code(enc, (uint8_t)(enc->enc_buffer >> 24));
@@ -128,7 +115,7 @@ vl_bitstream_put_bits(struct vl_bitstream_encoder *enc, int bits_count, uint32_t
    if (bits_count < enc->bits_to_go) {
       enc->enc_buffer |= (bits_val << (enc->bits_to_go - bits_count));
       enc->bits_to_go -= bits_count;
-   } else if (vl_bitstream_verify_buffer(enc, 4)) {
+   } else {
       int left_over_bits = bits_count - enc->bits_to_go;
       enc->enc_buffer |= (bits_val >> left_over_bits);
 

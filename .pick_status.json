@@ -4694,7 +4694,7 @@
         "description": "vl/bitstream: Move overflow check to vl_bitstream_write_byte_start_code",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
