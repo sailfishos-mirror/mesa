@@ -2764,7 +2764,7 @@
         "description": "util/format: store R11G11B10_FLOAT and R9G9B9E5_FLOAT in host byte order",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "14ded5ee61b2dfc23878c4a6f38021b15bd0a2fc",
         "notes": null
