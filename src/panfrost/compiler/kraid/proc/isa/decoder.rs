@@ -205,39 +205,6 @@ impl LoadField<'_> {
         }
     }
 
-    fn create_and_collect_into<'a, 'b>(
-        name: &str,
-        instr: &'b Instr,
-        phy_loads: &'a mut BTreeMap<String, LoadField<'b>>,
-        vir_loads: &'a mut Vec<LoadField<'b>>,
-    ) -> &'a LoadField<'b> {
-        let field = instr
-            .get_named_field(name)
-            .expect("modifier references non-existent field");
-
-        match field {
-            InstrField::Physical(f) => phy_loads
-                .entry(f.name.clone())
-                .or_insert(LoadField::new(f.name.as_str(), instr)),
-            InstrField::Virtual(f) => {
-                vir_loads.push(LoadField::new(f.name.as_str(), instr));
-                let load_idx = vir_loads.len() - 1;
-
-                for used_field in &f.expr.fields() {
-                    Self::create_and_collect_into(
-                        &used_field.name,
-                        instr,
-                        phy_loads,
-                        vir_loads,
-                    );
-                }
-
-                &vir_loads[load_idx]
-            }
-            InstrField::Reserved(_) => unreachable!("Can't load reserved"),
-        }
-    }
-
     fn print_from_alias(&self) -> bool {
         matches!(self.field.field_type(), Some(FieldType::Enum(_)))
     }
@@ -550,16 +517,66 @@ impl PrintField {
     }
 }
 
+struct InstrFields<'a> {
+    instr: &'a Instr,
+    phy_loads: BTreeMap<String, LoadField<'a>>,
+    vir_loads: Vec<LoadField<'a>>,
+}
+
+impl<'a> InstrFields<'a> {
+    pub fn new(instr: &Instr) -> InstrFields<'_> {
+        InstrFields {
+            instr,
+            phy_loads: Default::default(),
+            vir_loads: Default::default(),
+        }
+    }
+
+    pub fn load(&mut self, name: &str) -> &LoadField<'a> {
+        let field = self
+            .instr
+            .get_named_field(name)
+            .expect("modifier references non-existent field");
+
+        match field {
+            InstrField::Physical(f) => self
+                .phy_loads
+                .entry(f.name.clone())
+                .or_insert(LoadField::new(f.name.as_str(), self.instr)),
+            InstrField::Virtual(f) => {
+                self.vir_loads
+                    .push(LoadField::new(f.name.as_str(), self.instr));
+                let load_idx = self.vir_loads.len() - 1;
+
+                for used_field in &f.expr.fields() {
+                    self.load(&used_field.name);
+                }
+
+                &self.vir_loads[load_idx]
+            }
+            InstrField::Reserved(_) => unreachable!("Can't load reserved"),
+        }
+    }
+}
+
+impl ToTokens for InstrFields<'_> {
+    fn to_tokens(&self, ts: &mut TokenStream) {
+        self.phy_loads
+            .values()
+            .chain(self.vir_loads.iter())
+            .for_each(|l| l.to_tokens(ts));
+    }
+}
+
 struct InstrPrint<'a> {
     instr: &'a Instr,
-    loads: Vec<LoadField<'a>>,
+    fields: InstrFields<'a>,
     prints: Vec<PrintField>,
 }
 
 impl InstrPrint<'_> {
     pub fn new(instr: &Instr) -> InstrPrint<'_> {
-        let mut phy_loads: BTreeMap<String, LoadField> = Default::default();
-        let mut vir_loads: Vec<LoadField> = Default::default();
+        let mut fields = InstrFields::new(instr);
         let mut fragments: Vec<PrintField> = Default::default();
 
         // Collect all values needed for printing. This includes values that are
@@ -568,12 +585,7 @@ impl InstrPrint<'_> {
             match elem {
                 SyntaxElement::Name(n) => {
                     for mod_ in &n.mods {
-                        let ld = LoadField::create_and_collect_into(
-                            &mod_.name,
-                            instr,
-                            &mut phy_loads,
-                            &mut vir_loads,
-                        );
+                        let ld = fields.load(&mod_.name);
                         let pfield = PrintField::new(ld, true, PrintAs::Id);
                         fragments.push(pfield);
                     }
@@ -581,29 +593,15 @@ impl InstrPrint<'_> {
                 SyntaxElement::Staging(s) => {
                     let field = instr.get_sr_index_field(s.is_input).unwrap();
                     let print_as = PrintAsStaging::new(s.is_input, instr);
-                    LoadField::create_and_collect_into(
-                        &format!("{}", print_as.count_id),
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
-                    let ld = LoadField::create_and_collect_into(
-                        &format!("{}", field.ident().unwrap()),
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    fields.load(&format!("{}", print_as.count_id));
+                    let ld =
+                        fields.load(&format!("{}", field.ident().unwrap()));
                     let pf =
                         PrintField::new(ld, false, PrintAs::Staging(print_as));
                     fragments.push(pf);
                 }
                 SyntaxElement::Imm(s) => {
-                    let ld = LoadField::create_and_collect_into(
-                        &s.name,
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    let ld = fields.load(&s.name);
                     let print_as = PrintAs::Imm(s.type_.into());
                     let pf = PrintField::new(ld, false, print_as);
                     fragments.push(pf);
@@ -614,33 +612,18 @@ impl InstrPrint<'_> {
                         instr.variant.as_deref(),
                         Some("i64") | Some("u64") | Some("s64")
                     );
-                    let ld = LoadField::create_and_collect_into(
-                        fname,
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    let ld = fields.load(fname);
                     let pf = PrintField::new(ld, false, PrintAs::Dst(is64));
                     fragments.push(pf);
 
                     for mod_ in &d.mods {
-                        let ld = LoadField::create_and_collect_into(
-                            &mod_.name,
-                            instr,
-                            &mut phy_loads,
-                            &mut vir_loads,
-                        );
+                        let ld = fields.load(&mod_.name);
                         let pf = PrintField::new(ld, true, PrintAs::Id);
                         fragments.push(pf);
                     }
                 }
                 SyntaxElement::PcRelOffset(o) => {
-                    let ld = LoadField::create_and_collect_into(
-                        &o.name,
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    let ld = fields.load(&o.name);
                     let pf = PrintField::new(ld, false, PrintAs::PcRelOffset);
                     fragments.push(pf);
                 }
@@ -648,28 +631,13 @@ impl InstrPrint<'_> {
                     let field = instr.get_named_field(&s.name).unwrap();
                     let is64 =
                         matches!(field.field_type(), Some(FieldType::Source64));
-                    let ld = LoadField::create_and_collect_into(
-                        &s.name,
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    let ld = fields.load(&s.name);
                     let pf = PrintField::new(ld, false, PrintAs::Src(is64));
                     fragments.push(pf);
-                    LoadField::create_and_collect_into(
-                        "fau_page_index",
-                        instr,
-                        &mut phy_loads,
-                        &mut vir_loads,
-                    );
+                    fields.load("fau_page_index");
 
                     for mod_ in &s.mods {
-                        let ld = LoadField::create_and_collect_into(
-                            &mod_.name,
-                            instr,
-                            &mut phy_loads,
-                            &mut vir_loads,
-                        );
+                        let ld = fields.load(&mod_.name);
                         let pf = PrintField::new(ld, true, PrintAs::Id);
                         fragments.push(pf);
                     }
@@ -679,10 +647,7 @@ impl InstrPrint<'_> {
 
         InstrPrint {
             instr,
-            loads: phy_loads
-                .into_values()
-                .chain(vir_loads.into_iter())
-                .collect(),
+            fields,
             prints: fragments,
         }
     }
@@ -773,9 +738,7 @@ impl ToTokens for InstrPrint<'_> {
 
         let mut body_ts: TokenStream = Default::default();
 
-        for load in &self.loads {
-            load.to_tokens(&mut body_ts);
-        }
+        self.fields.to_tokens(&mut body_ts);
 
         // Name always comes first, ignore the order from the syntax elements.
         body_ts.extend(quote! {write!(f, #display_name)?;});
