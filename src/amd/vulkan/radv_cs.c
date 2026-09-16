@@ -34,29 +34,6 @@ radv_cs_emit_write_event_eop(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_
 }
 
 static void
-radv_cp_acquire_mem(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, unsigned gcr_cntl, unsigned engine,
-                    enum ac_rgp_flush_bits *rgp_flush_bits)
-{
-   if (gfx_level >= GFX10) {
-      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine, gcr_cntl);
-   } else {
-      const bool is_mec = cs->hw_ip == AMD_IP_COMPUTE && gfx_level >= GFX7;
-
-      /* This seems problematic with GFX7. */
-      if (gfx_level != GFX7)
-         gcr_cntl |= 1u << 31; /* don't sync PFP, i.e. execute the sync in ME */
-
-      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine, gcr_cntl);
-
-      if (engine == V_581A_PREFETCH_PARSER && !is_mec) {
-         ac_emit_cp_pfp_sync_me(cs->b, false);
-
-         *rgp_flush_bits |= AC_RGP_FLUSH_PFP_SYNC_ME;
-      }
-   }
-}
-
-static void
 gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, uint32_t *flush_cnt,
                           uint64_t flush_va, enum radv_cmd_flush_bits flush_bits,
                           enum radv_pws_acquire_point pws_acquire_point, enum ac_rgp_flush_bits *rgp_flush_bits)
@@ -273,9 +250,9 @@ gfx10_cs_emit_cache_flush(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_lev
 
    /* Ignore fields that only modify the behavior of other fields. */
    if (gcr_cntl & C_587_GL2_RANGE & C_587_SEQ & (gfx_level >= GFX12 ? ~0 : C_587_GL1_RANGE)) {
-      radv_cp_acquire_mem(cs, gfx_level, gcr_cntl,
-                          flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE,
-                          rgp_flush_bits);
+      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip,
+                             flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME ? V_581A_PREFETCH_PARSER : V_581A_MICRO_ENGINE,
+                             gcr_cntl, NULL, rgp_flush_bits);
    } else if (flush_bits & RADV_CMD_FLAG_PFP_SYNC_ME && !is_mec) {
       /* We need to ensure that PFP waits as well. */
       ac_emit_cp_pfp_sync_me(cs->b, false);
@@ -484,10 +461,10 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
    if ((flush_bits & RADV_CMD_FLAG_INV_L2) || (gfx_level <= GFX7 && (flush_bits & RADV_CMD_FLAG_WB_L2))) {
       /* Invalidate L1 & L2. WB must be set on GFX8+ when TC_ACTION is set. */
-      radv_cp_acquire_mem(cs, gfx_level,
-                          cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
-                             S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8),
-                          engine, rgp_flush_bits);
+      ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine,
+                             cp_coher_cntl | S_0085F0_TC_ACTION_ENA(1) | S_0085F0_TCL1_ACTION_ENA(1) |
+                                S_0301F0_TC_WB_ACTION_ENA(gfx_level >= GFX8),
+                             NULL, rgp_flush_bits);
 
       *rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2 | AC_RGP_FLUSH_INVAL_VMEM_L0;
    } else {
@@ -506,12 +483,13 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
           */
          const bool last_acquire_mem = !(flush_bits & RADV_CMD_FLAG_INV_VCACHE);
 
-         radv_cp_acquire_mem(
-            cs, gfx_level,
-            cp_coher_cntl | S_0301F0_TC_WB_ACTION_ENA(1) |
-               S_0301F0_TC_NC_ACTION_ENA(1), /* If this is not the last ACQUIRE_MEM, flush in ME.
-                                              * We only want to synchronize with PFP in the last ACQUIRE_MEM. */
-            last_acquire_mem ? engine : V_581A_MICRO_ENGINE, rgp_flush_bits);
+         ac_emit_cp_acquire_mem(
+            cs->b, gfx_level, cs->hw_ip,
+            /* If this is not the last ACQUIRE_MEM, flush in ME.
+             * We only want to synchronize with PFP in the last ACQUIRE_MEM. */
+            last_acquire_mem ? engine : V_581A_MICRO_ENGINE,
+            cp_coher_cntl | S_0301F0_TC_WB_ACTION_ENA(1) | S_0301F0_TC_NC_ACTION_ENA(1),
+            NULL, rgp_flush_bits);
 
          if (last_acquire_mem)
             flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
@@ -528,7 +506,7 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
       /* If there are still some cache flags left. */
       if (cp_coher_cntl) {
-         radv_cp_acquire_mem(cs, gfx_level, cp_coher_cntl, engine, rgp_flush_bits);
+         ac_emit_cp_acquire_mem(cs->b, gfx_level, cs->hw_ip, engine, cp_coher_cntl, NULL, rgp_flush_bits);
          flush_bits &= ~RADV_CMD_FLAG_PFP_SYNC_ME;
       }
 
