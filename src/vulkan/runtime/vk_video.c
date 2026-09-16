@@ -3246,8 +3246,10 @@ vk_video_encode_av1_seq_hdr(const struct vk_video_session_parameters *params,
    vk_video_encode_av1_code_leb128(obu_size_bin, 2, obu_size);
 
    /* update obu_size */
-   for (int i = 0; i < sizeof(obu_size_bin); i++) {
-      *(size_offset++) = obu_size_bin[i];
+   if (data_ptr && !enc.overflow) {
+      for (int i = 0; i < sizeof(obu_size_bin); i++) {
+         *(size_offset++) = obu_size_bin[i];
+      }
    }
 
    vl_bitstream_flush(&enc);

@@ -4734,7 +4734,7 @@
         "description": "vulkan/video: Don't update OBU size with NULL data_ptr",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
