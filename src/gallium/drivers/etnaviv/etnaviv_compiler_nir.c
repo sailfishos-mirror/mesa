@@ -402,6 +402,7 @@ get_src(struct etna_compile *c, nir_src *src)
       case nir_intrinsic_load_vertex_id:
       case nir_intrinsic_load_uniform:
       case nir_intrinsic_load_ubo:
+      case nir_intrinsic_load_constant:
       case nir_intrinsic_load_reg:
       case nir_intrinsic_ddx:
       case nir_intrinsic_ddy:
@@ -665,6 +666,17 @@ emit_intrinsic(struct etna_compile *c, nir_intrinsic_instr * intr)
          .dst = ra_def(c, &intr->def, &dst_swiz),
          .src[0] = get_src(c, &intr->src[1]),
          .src[1] = const_src(c, &CONST_VAL(ETNA_UNIFORM_UBO_ADDR, idx), 1),
+      });
+   } break;
+   case nir_intrinsic_load_constant: {
+      /* The byte offset is a src, so every load shares one address uniform. */
+      unsigned dst_swiz;
+      emit_inst(c, &(struct etna_inst) {
+         .opcode = ISA_OPC_LOAD,
+         .type = ISA_TYPE_U32,
+         .dst = ra_def(c, &intr->def, &dst_swiz),
+         .src[0] = get_src(c, &intr->src[0]),
+         .src[1] = const_src(c, &CONST_VAL(ETNA_UNIFORM_CONSTANT_DATA_ADDR, nir_intrinsic_base(intr)), 1),
       });
    } break;
    case nir_intrinsic_load_front_face:

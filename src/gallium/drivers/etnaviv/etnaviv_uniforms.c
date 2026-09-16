@@ -190,6 +190,14 @@ etna_uniforms_write(const struct etna_context *ctx,
          });
          break;
 
+      case ETNA_UNIFORM_CONSTANT_DATA_ADDR:
+         etna_cmd_stream_reloc(stream, &(struct etna_reloc) {
+            .bo = sobj->constant_bo,
+            .flags = ETNA_RELOC_READ,
+            .offset = val,
+         });
+         break;
+
       case ETNA_UNIFORM_UNUSED:
          etna_cmd_stream_emit(stream, 0);
          break;

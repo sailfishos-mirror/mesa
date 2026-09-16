@@ -333,10 +333,23 @@ etna_link_shaders(struct etna_context *ctx, struct compiled_shader_state *cs,
    return true;
 }
 
+static bool
+etna_upload_constant_data(struct etna_context *ctx, struct etna_shader_variant *v)
+{
+   if (!v->constant_data_size)
+      return true;
+
+   return upload_bo(ctx, &v->constant_bo, v->constant_data, v->constant_data_size);
+}
+
 bool
 etna_shader_link(struct etna_context *ctx)
 {
    if (!ctx->shader.vs || !ctx->shader.fs)
+      return false;
+
+   if (!etna_upload_constant_data(ctx, ctx->shader.vs) ||
+       !etna_upload_constant_data(ctx, ctx->shader.fs))
       return false;
 
    /* re-link vs and fs if needed */
@@ -349,6 +362,7 @@ etna_destroy_shader(struct etna_shader_variant *shader)
    assert(shader);
 
    FREE(shader->code);
+   FREE(shader->constant_data);
    FREE(shader->uniforms.data);
    FREE(shader->uniforms.contents);
    FREE(shader);
@@ -510,6 +524,9 @@ etna_variant_destroy_cb(struct util_shader_variant *base)
 
    if (v->bo)
       etna_bo_del(v->bo);
+
+   if (v->constant_bo)
+      etna_bo_del(v->constant_bo);
 
    etna_destroy_shader(v);
 }

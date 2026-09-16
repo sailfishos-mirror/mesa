@@ -132,6 +132,7 @@ enum etna_uniform_contents {
    ETNA_UNIFORM_SAMPLER_LOD_MAX,
    ETNA_UNIFORM_SAMPLER_LOD_BIAS,
    ETNA_UNIFORM_UBO_ADDR,
+   ETNA_UNIFORM_CONSTANT_DATA_ADDR,
 };
 
 struct etna_shader_uniform_info {
