@@ -2774,7 +2774,7 @@
         "description": "util: fix the Z32_FLOAT_S8X24_UINT clear value on big-endian",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8ff6f90c3f138fbe922d1eee6cecffc87234ef34",
         "notes": null
