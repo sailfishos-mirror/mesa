@@ -29,7 +29,7 @@ void si_cp_release_acquire_mem_pws(struct si_context *sctx, struct radeon_cmdbuf
 
 void si_cp_acquire_mem(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
                        enum amd_ip_type ip_type, unsigned gcr_cntl,
-                       unsigned engine, unsigned *context_roll,
+                       unsigned engine, bool *context_roll,
                        enum ac_rgp_flush_bits *flush_bits)
 {
    if (gfx_level >= GFX10) {
