@@ -998,12 +998,21 @@ impl<'a> ShaderFromNir<'a> {
                 debug_assert!(alu.def.num_components == 1);
 
                 let x16 = b.alloc_ssa(16);
-                b.push_op(OpF32ToF16 {
-                    dst: x16.into(),
-                    src: srcs(0),
-                    round: FRound::NearestEven,
-                    clamp: FClamp::None,
-                });
+                if self.model.arch() > 10 {
+                    b.push_op(OpF32ToF16 {
+                        dst: x16.into(),
+                        src: srcs(0),
+                        round: FRound::NearestEven,
+                        clamp: FClamp::None,
+                    });
+                } else {
+                    b.push_op(OpV2F32ToV2F16 {
+                        dst: x16.into(),
+                        srcs: [srcs(0), srcs(0)],
+                        round: FRound::NearestEven,
+                        clamp: FClamp::None,
+                    });
+                }
 
                 let flush16 = b.alloc_ssa(16);
                 b.push_op(OpFlush {
