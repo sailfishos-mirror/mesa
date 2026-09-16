@@ -1,6 +1,7 @@
 /*
  * Copyright © 2016 Red Hat.
  * Copyright © 2016 Bas Nieuwenhuizen
+ * Copyright © 2026 Advanced Micro Devices, Inc.
  *
  * based in part on anv driver which is:
  * Copyright © 2015 Intel Corporation
@@ -24,6 +25,7 @@
 #include "radv_radeon_winsys.h"
 #include "radv_video.h"
 #include "radv_wsi.h"
+#include "vk_android.h"
 #include "vk_debug_utils.h"
 #include "vk_format.h"
 #include "vk_log.h"
@@ -1285,10 +1287,17 @@ radv_destroy_image(struct radv_device *device, const VkAllocationCallbacks *pAll
    if ((image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) && image->bindings[0].bo)
       radv_bo_destroy(device, &image->vk.base, image->bindings[0].bo);
 
-   if (image->owned_memory != VK_NULL_HANDLE) {
-      VK_FROM_HANDLE(radv_device_memory, mem, image->owned_memory);
-      radv_free_memory(device, pAllocator, mem);
+#if DETECT_OS_ANDROID
+   /* Bind-time ANB memory is allocated with the device allocator because
+    * vkBindImageMemory2() has no allocation callbacks. Create-time ANB is
+    * allocated with vkCreateImage()'s pAllocator and is freed by
+    * vk_image_destroy().
+    */
+   if (vk_image_is_android_native_buffer_alias(&image->vk) && image->vk.anb_memory != VK_NULL_HANDLE) {
+      radv_FreeMemory(radv_device_to_handle(device), image->vk.anb_memory, &device->vk.alloc);
+      image->vk.anb_memory = VK_NULL_HANDLE;
    }
+#endif
 
    for (uint32_t i = 0; i < ARRAY_SIZE(image->bindings); i++) {
       if (!image->bindings[i].addr)
@@ -1299,8 +1308,7 @@ radv_destroy_image(struct radv_device *device, const VkAllocationCallbacks *pAll
    }
 
    radv_rmv_log_resource_destroy(device, (uint64_t)radv_image_to_handle(image));
-   vk_image_finish(&image->vk);
-   vk_free2(&device->vk.alloc, pAllocator, image);
+   vk_image_destroy(&device->vk, pAllocator, &image->vk);
 }
 
 static void
@@ -1366,6 +1374,24 @@ radv_select_modifier(const struct radv_device *dev, VkFormat format,
 }
 
 VkResult
+radv_image_init_layout(struct radv_device *device, struct radv_image_create_info create_info, uint64_t modifier,
+                       const struct VkImageDrmFormatModifierExplicitCreateInfoEXT *mod_info,
+                       const struct VkVideoProfileListInfoKHR *profile_list, struct radv_image *image)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const VkImageCreateInfo *pCreateInfo = create_info.vk_info;
+   VkFormat format = radv_select_android_external_format(pCreateInfo->pNext, pCreateInfo->format);
+   unsigned plane_count = radv_get_internal_plane_count(pdev, format);
+
+   for (unsigned plane = 0; plane < plane_count; ++plane) {
+      image->planes[plane].surface.flags = radv_get_surface_flags(device, image, plane, pCreateInfo, format);
+      image->planes[plane].surface.modifier = modifier;
+   }
+
+   return radv_image_create_layout(device, create_info, mod_info, profile_list, image);
+}
+
+VkResult
 radv_image_create(VkDevice _device, const struct radv_image_create_info *create_info,
                   const VkAllocationCallbacks *alloc, VkImage *pImage, bool is_internal)
 {
@@ -1421,22 +1447,25 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
       modifier = explicit_mod->drmFormatModifier;
    }
 
-   for (unsigned plane = 0; plane < plane_count; ++plane) {
-      image->planes[plane].surface.flags = radv_get_surface_flags(device, image, plane, pCreateInfo, format);
-      image->planes[plane].surface.modifier = modifier;
-   }
-
-   if (image->vk.external_handle_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID) {
+   if ((image->vk.external_handle_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID) ||
+       vk_image_is_android_native_buffer_alias(&image->vk)) {
 #if DETECT_OS_ANDROID
-      image->vk.ahb_format = radv_ahb_format_for_vk_format(image->vk.format);
+      if (image->vk.external_handle_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID)
+         image->vk.ahb_format = radv_ahb_format_for_vk_format(image->vk.format);
 #endif
+
+      result = vk_android_init_deferred_image(&device->vk, &image->vk, pCreateInfo, alloc);
+      if (result != VK_SUCCESS) {
+         radv_destroy_image(device, alloc, image);
+         return result;
+      }
 
       *pImage = radv_image_to_handle(image);
       assert(!(image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR));
       return VK_SUCCESS;
    }
 
-   result = radv_image_create_layout(device, *create_info, explicit_mod, profile_list, image);
+   result = radv_image_init_layout(device, *create_info, modifier, explicit_mod, profile_list, image);
    if (result != VK_SUCCESS) {
       radv_destroy_image(device, alloc, image);
       return result;
@@ -1795,6 +1824,23 @@ radv_BindImageMemory2(VkDevice _device, uint32_t bindInfoCount, const VkBindImag
          offset = 0;
       }
 #endif
+
+#if DETECT_OS_ANDROID
+      if (!mem) {
+         VkDeviceMemory memory_h = VK_NULL_HANDLE;
+         VkResult result = radv_android_get_wsi_memory(_device, &pBindInfos[i], &memory_h);
+
+         if (result != VK_SUCCESS) {
+            if (status)
+               *status->pResult = result;
+            return result;
+         }
+
+         mem = radv_device_memory_from_handle(memory_h);
+         offset = 0;
+      }
+#endif
+      assert(mem);
 
       const VkBindImagePlaneMemoryInfo *plane_info = NULL;
       uint32_t bind_idx = 0;

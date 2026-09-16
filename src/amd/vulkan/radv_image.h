@@ -70,9 +70,6 @@ struct radv_image {
     */
    uint64_t hiz_metadata_offset;
 
-   /* For VK_ANDROID_native_buffer, the WSI image owns the memory, */
-   VkDeviceMemory owned_memory;
-
    unsigned plane_count;
    bool disjoint;
    struct radv_image_plane planes[0];
@@ -421,6 +418,10 @@ struct radv_image_create_info {
    bool prime_blit_src;
    const struct radeon_bo_metadata *bo_metadata;
 };
+
+VkResult radv_image_init_layout(struct radv_device *device, struct radv_image_create_info create_info,
+                                uint64_t modifier, const struct VkImageDrmFormatModifierExplicitCreateInfoEXT *mod_info,
+                                const struct VkVideoProfileListInfoKHR *profile_list, struct radv_image *image);
 
 VkResult radv_image_create_layout(struct radv_device *device, struct radv_image_create_info create_info,
                                   const struct VkImageDrmFormatModifierExplicitCreateInfoEXT *mod_info,
