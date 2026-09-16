@@ -246,20 +246,43 @@ recompute_parent(BLOCK parent_block, uint32_t updated_idx,
    vec3 base = conservative_child_aabb.min;
    vec3 scale = ldexp(vec3(1.0), exp_i8 - 8);
 
-   for (uint32_t i = 0; i < child_count; ++i) {
-      vk_aabb child_bounds = cache_aabb[i];
+   /* This corresponds to the following fields of struct anv_internal_node:
+    *
+    * uint8_t lower_x[6];
+    * uint8_t upper_x[6];
+    * uint8_t lower_y[6];
+    * uint8_t upper_y[6];
+    * uint8_t lower_z[6];
+    * uint8_t upper_z[6];
+    * 
+    * We use a uint32_t[9] instead of a uint8_t[36] or uint8_t[6][6]
+    * as that makes it easier for the compiler to vectorize the memory
+    * writes these will eventually be used in.
+    */
+   uint32_t quantized_child_bounds[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+   for (uint32_t i_child = 0; i_child < child_count; i_child++) {
+      vk_aabb child_bounds = cache_aabb[i_child];
       vec3 lower = (child_bounds.min - base) / scale;
       vec3 upper = (child_bounds.max - base) / scale;
       lower = clamp(floor(lower), vec3(0.0), vec3(255.0));
       upper = clamp(ceil(upper), vec3(0.0), vec3(255.0));
 
-      DEREF(parent).lower_x[i] = uint8_t(lower.x);
-      DEREF(parent).lower_y[i] = uint8_t(lower.y);
-      DEREF(parent).lower_z[i] = uint8_t(lower.z);
-      DEREF(parent).upper_x[i] = uint8_t(upper.x);
-      DEREF(parent).upper_y[i] = uint8_t(upper.y);
-      DEREF(parent).upper_z[i] = uint8_t(upper.z);
+      for (uint32_t i_dim = 0; i_dim < 6; i_dim++) {
+         uint32_t idx = i_dim * 6 + i_child;
+         uint32_t i_u32 = idx / 4;
+         uint32_t shift = (idx % 4) * 8;
+         uint32_t val = i_dim % 2 == 1
+            ? uint32_t(upper[i_dim / 2])
+            : uint32_t(lower[i_dim / 2]);
+         quantized_child_bounds[i_u32] |= val << shift;
+      }
+   }
+
+   /* offsetof(struct anv_internal_node, lower_x) == 28 */ 
+   REF(uint32_t) qwords = REF(uint32_t)(OFFSET(parent, 28));
+   for (uint32_t i = 0; i < 9; i++) {
+      DEREF(INDEX(uint32_t, qwords, i)) = quantized_child_bounds[i];
    }
 
    return box;
