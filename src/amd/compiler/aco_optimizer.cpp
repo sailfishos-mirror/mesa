@@ -4166,16 +4166,24 @@ reassoc_omod_cb(opt_ctx& ctx, alu_opt_info& info)
    return false;
 }
 
-template <unsigned bits>
+template <unsigned bits, unsigned num_components = 1>
 bool
 shift_to_mad_cb(opt_ctx& ctx, alu_opt_info& info)
 {
-   aco_type type = {aco_base_type_uint, 1, 32};
-   uint64_t constant = 0;
-   if (!op_info_get_constant(ctx, info.operands[1], type, &constant))
+   aco_type type = {aco_base_type_uint, num_components, bits};
+   uint64_t shift = 0;
+   if (!op_info_get_constant(ctx, info.operands[1], type, &shift))
       return false;
 
-   info.operands[1] = {Operand::c32(1u << (constant % bits))};
+   uint32_t mul = 0;
+   for (unsigned i = 0; i < num_components; i++) {
+      uint32_t constant = (shift >> (i * bits)) & BITFIELD_MASK(bits);
+
+      mul |= (1u << (constant % bits)) << (i * bits);
+   }
+
+   info.operands[1] = {Operand::c32(mul)};
+   info.operands[1].extract[1] = num_components == 1 ? SubdwordSel::dword : SubdwordSel::uword1;
    return true;
 }
 
@@ -4541,19 +4549,36 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    } else if (info.opcode == aco_opcode::v_add_u16 && !info.clamp) {
       if (ctx.program->gfx_level < GFX9) {
          add_opt(v_mul_lo_u16, v_mad_legacy_u16, 0x3, "120");
+         add_opt(s_mul_i32, v_mad_legacy_u16, 0x3, "120");
+         add_opt(v_lshlrev_b16, v_mad_legacy_u16, 0x3, "210", shift_to_mad_cb<16>);
+         add_opt(s_lshl_b32, v_mad_legacy_u16, 0x3, "120", shift_to_mad_cb<32>);
       } else {
          add_opt(v_mul_lo_u16, v_mad_u16, 0x3, "120");
          add_opt(v_pk_mul_lo_u16, v_mad_u16, 0x3, "120");
+         add_opt(s_mul_i32, v_mad_u16, 0x3, "120");
+         add_opt(v_lshlrev_b16, v_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+         add_opt(v_pk_lshlrev_b16, v_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+         add_opt(s_lshl_b32, v_mad_u16, 0x3, "120", shift_to_mad_cb<32>);
       }
    } else if (info.opcode == aco_opcode::v_add_u16_e64 && !info.clamp) {
       add_opt(v_mul_lo_u16_e64, v_mad_u16, 0x3, "120");
       add_opt(v_pk_mul_lo_u16, v_mad_u16, 0x3, "120");
+      add_opt(s_mul_i32, v_mad_u16, 0x3, "120");
+      add_opt(v_lshlrev_b16_e64, v_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+      add_opt(v_pk_lshlrev_b16, v_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+      add_opt(s_lshl_b32, v_mad_u16, 0x3, "120", shift_to_mad_cb<32>);
    } else if (info.opcode == aco_opcode::v_pk_add_u16 && !info.clamp) {
       add_opt(v_pk_mul_lo_u16, v_pk_mad_u16, 0x3, "120");
-      if (ctx.program->gfx_level < GFX10)
+      add_opt(v_pk_lshlrev_b16, v_pk_mad_u16, 0x3, "210", shift_to_mad_cb<16, 2>);
+      add_opt(s_mul_i32, v_pk_mad_u16, 0x3, "120");
+      add_opt(s_lshl_b32, v_pk_mad_u16, 0x3, "120", shift_to_mad_cb<32>);
+      if (ctx.program->gfx_level < GFX10) {
          add_opt(v_mul_lo_u16, v_pk_mad_u16, 0x3, "120");
-      else
+         add_opt(v_lshlrev_b16, v_pk_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+      } else {
          add_opt(v_mul_lo_u16_e64, v_pk_mad_u16, 0x3, "120");
+         add_opt(v_lshlrev_b16_e64, v_pk_mad_u16, 0x3, "210", shift_to_mad_cb<16>);
+      }
    } else if (info.opcode == aco_opcode::v_or_b32) {
       add_opt(v_not_b32, v_bfi_b32, 0x3, "10", insert_const_cb<2, UINT32_MAX>, true);
       add_opt(s_not_b32, v_bfi_b32, 0x3, "10", insert_const_cb<2, UINT32_MAX>, true);
