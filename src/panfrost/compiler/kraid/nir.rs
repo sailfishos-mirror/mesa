@@ -2326,11 +2326,13 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_intrinsic_atest_pan => {
                 let dst = self.alloc_ssa(b, &intrin.def).into();
+                let datum =
+                    self.special_fau(SpecialFAU::ATestDatum).word(0).into();
                 b.push_op(OpATest {
                     dst,
                     coverage: self.get_src(&srcs[0]),
                     alpha: self.get_f32_src(&srcs[1]),
-                    datum: self.special_fau(SpecialFAU::ATestDatum).into(),
+                    datum,
                 });
             }
             nir_intrinsic_zs_emit_pan => {
