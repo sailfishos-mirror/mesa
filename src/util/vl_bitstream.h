@@ -125,6 +125,9 @@ vl_bitstream_flush(struct vl_bitstream_encoder *enc)
 static inline void
 vl_bitstream_put_bits(struct vl_bitstream_encoder *enc, int bits_count, uint32_t bits_val)
 {
+   if (!bits_count)
+      return;
+
    if (bits_count < enc->bits_to_go) {
       enc->enc_buffer |= (bits_val << (enc->bits_to_go - bits_count));
       enc->bits_to_go -= bits_count;
@@ -188,7 +191,8 @@ vl_bitstream_exp_golomb_ue(struct vl_bitstream_encoder *enc, uint32_t val)
 {
    if (val != UINT32_MAX) {
       int len = vl_bitstream_get_exp_golomb0_code_len(val);
-      vl_bitstream_put_bits(enc, (len << 1) + 1, val + 1);
+      vl_bitstream_put_bits(enc, len, 0);
+      vl_bitstream_put_bits(enc, len + 1, val + 1);
    } else {
       vl_bitstream_put_bits(enc, 32, 0);
       vl_bitstream_put_bits(enc, 1, 1);
