@@ -1819,7 +1819,8 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_INV_VCACHE;
 
    if (flags & VK_QUERY_RESULT_WAIT_BIT)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLUSH_AND_INV_FRAMEBUFFER;
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
+                                      RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
 
    radv_unaligned_dispatch(cmd_buffer, count, 1, 1);
 
