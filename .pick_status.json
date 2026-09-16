@@ -3904,7 +3904,7 @@
         "description": "gallivm: fix unpack_64_2x32_split for scalars on big-endian",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a57e8b2e97205cc2bff752fa2fc377f6f48d931f",
         "notes": null
