@@ -125,8 +125,12 @@ vl_bitstream_flush(struct vl_bitstream_encoder *enc)
 static inline void
 vl_bitstream_put_bits(struct vl_bitstream_encoder *enc, int bits_count, uint32_t bits_val)
 {
+   assert(bits_count <= 32);
+
    if (!bits_count)
       return;
+
+   bits_val &= (0xffffffff >> (32 - bits_count));
 
    if (bits_count < enc->bits_to_go) {
       enc->enc_buffer |= (bits_val << (enc->bits_to_go - bits_count));
