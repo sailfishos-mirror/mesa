@@ -288,7 +288,12 @@ pub extern "C" fn kraid_compile_nir(
             panic!("Unsupported ISA");
         }
     } else {
-        info.stats = pan_stats::default();
+        info.stats = pan_stats {
+            isa: PAN_STAT_VALHALL,
+            __bindgen_anon_1: pan_stats__bindgen_ty_1 {
+                valhall: valhall_stats::default(),
+            },
+        }
     }
 
     write_back_info(model.as_ref(), &s.info, nir, info);
