@@ -3924,7 +3924,7 @@
         "description": "gallivm: pick the right lane for image stores wider than 32 bits on big-endian",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ceb8d0ac5ac665a1cbb2537586d192374ab1e327",
         "notes": null
