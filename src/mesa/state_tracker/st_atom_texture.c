@@ -200,7 +200,7 @@ st_get_sampler_views(struct st_context *st,
             break;
 
          /* we need one additional R8G8 view: */
-         tmpl.format = PIPE_FORMAT_RG88_UNORM;
+         tmpl.format = PIPE_FORMAT_R8G8_UNORM;
          tmpl.swizzle_g = PIPE_SWIZZLE_Y;   /* tmpl from Y plane is R8 */
          extra = u_bit_scan(&free_slots);
          sampler_views[extra] =
@@ -213,7 +213,7 @@ st_get_sampler_views(struct st_context *st,
             break;
 
          /* we need one additional R8G8 view: */
-         tmpl.format = PIPE_FORMAT_RG88_UNORM;
+         tmpl.format = PIPE_FORMAT_R8G8_UNORM;
          tmpl.swizzle_g = PIPE_SWIZZLE_Y;   /* tmpl from Y plane is R8 */
          extra = u_bit_scan(&free_slots);
          sampler_views[extra] =
@@ -226,7 +226,7 @@ st_get_sampler_views(struct st_context *st,
             break;
 
          /* we need one additional R8G8 view: */
-         tmpl.format = PIPE_FORMAT_RG88_UNORM;
+         tmpl.format = PIPE_FORMAT_R8G8_UNORM;
          tmpl.swizzle_g = PIPE_SWIZZLE_Y;   /* tmpl from Y plane is R8 */
          extra = u_bit_scan(&free_slots);
          sampler_views[extra] =
@@ -237,7 +237,7 @@ st_get_sampler_views(struct st_context *st,
       case PIPE_FORMAT_NV24:
       case PIPE_FORMAT_NV42:
          /* we need one additional R8G8 view: */
-         tmpl.format = PIPE_FORMAT_RG88_UNORM;
+         tmpl.format = PIPE_FORMAT_R8G8_UNORM;
          tmpl.swizzle_g = PIPE_SWIZZLE_Y;   /* tmpl from Y plane is R8 */
          extra = u_bit_scan(&free_slots);
          sampler_views[extra] =
@@ -300,8 +300,8 @@ st_get_sampler_views(struct st_context *st,
             /* no additional views needed */
             break;
 
-         /* we need one additional BGRA8888 view of the chroma samples: */
-         tmpl.format = PIPE_FORMAT_BGRA8888_UNORM;
+         /* we need one additional B8G8R8A8 view of the chroma samples: */
+         tmpl.format = PIPE_FORMAT_B8G8R8A8_UNORM;
          tmpl.swizzle_b = PIPE_SWIZZLE_Z;
          tmpl.swizzle_a = PIPE_SWIZZLE_W;
          extra = u_bit_scan(&free_slots);
@@ -318,8 +318,8 @@ st_get_sampler_views(struct st_context *st,
             /* no additional views needed */
             break;
 
-         /* we need one additional RGBA8888 view of the chroma samples: */
-         tmpl.format = PIPE_FORMAT_RGBA8888_UNORM;
+         /* we need one additional R8G8B8A8 view of the chroma samples: */
+         tmpl.format = PIPE_FORMAT_R8G8B8A8_UNORM;
          tmpl.swizzle_b = PIPE_SWIZZLE_Z;
          tmpl.swizzle_a = PIPE_SWIZZLE_W;
          extra = u_bit_scan(&free_slots);
