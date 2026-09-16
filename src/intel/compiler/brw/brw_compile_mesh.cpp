@@ -355,6 +355,7 @@ brw_compile_task(const struct brw_compiler *compiler,
          .nir = shader,
          .dispatch_width = dispatch_width,
          .compiler = compiler,
+         .key = &key->base,
          .archiver = params->base.archiver,
       };
 
@@ -1079,6 +1080,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
          .nir = shader,
          .dispatch_width = dispatch_width,
          .compiler = compiler,
+         .key = &key->base,
          .archiver = params->base.archiver,
       };
 

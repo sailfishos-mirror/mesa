@@ -183,6 +183,19 @@ anv_physical_device_init_drirc(struct anv_physical_device *device)
       device->drirc.perf.rt_tile_y = 0;
    }
 
+   switch (device->drirc.perf.code_motion) {
+   case INTEL_CODE_MOTION_DEFAULT:
+   case INTEL_CODE_MOTION_LICM:
+   case INTEL_CODE_MOTION_GCM:
+      break;
+   default:
+      mesa_logw("Invalid value provided for drirc intel_code_motion=%d, "
+                "reverting to the compiler default.",
+                device->drirc.perf.code_motion);
+      device->drirc.perf.code_motion = INTEL_CODE_MOTION_DEFAULT;
+      break;
+   }
+
    return VK_SUCCESS;
 }
 

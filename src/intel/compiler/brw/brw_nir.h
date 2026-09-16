@@ -52,6 +52,9 @@ struct brw_nir_compiler_opts {
 
    /* Input vertices for TCS stage (0 means dynamic) */
    unsigned input_vertices;
+
+   /* Which code motion pass to run (0 means let the compiler pick) */
+   enum intel_code_motion code_motion;
 };
 
 /* UBO surface index can come in 2 flavors :

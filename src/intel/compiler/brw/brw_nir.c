@@ -2223,10 +2223,33 @@ brw_nir_lower_phis_to_scalar_cb(const nir_instr *instr, const void *_)
 #define LOOP_OPT BRW_NIR_LOOP_PASS
 #define LOOP_OPT_NOT_IDEMPOTENT BRW_NIR_LOOP_PASS_NOT_IDEMPOTENT
 
+static enum intel_code_motion
+brw_nir_code_motion(const brw_pass_tracker *pt)
+{
+   /* brw_compile_* passes the option in the key. brw_preprocess_nir() runs
+    * before there is a key, so it passes it in brw_nir_compiler_opts instead.
+    * Each one fills in only its own field, so take whichever is there.
+    */
+   assert(pt->key == NULL || pt->code_motion == INTEL_CODE_MOTION_DEFAULT);
+   const enum intel_code_motion driconf =
+      pt->key != NULL ? pt->key->code_motion : pt->code_motion;
+   if (driconf != INTEL_CODE_MOTION_DEFAULT)
+      return driconf;
+
+   return intel_use_jay(pt->compiler->devinfo, pt->nir) ?
+          INTEL_CODE_MOTION_LICM : INTEL_CODE_MOTION_GCM;
+}
+
 void
 brw_nir_optimize(brw_pass_tracker *pt, bool run_code_motion)
 {
    nir_shader *nir = pt->nir;
+
+   /* brw_nir_code_motion() always picks a pass, so _DEFAULT here means the
+    * caller asked for no code motion at all.
+    */
+   const enum intel_code_motion code_motion =
+      run_code_motion ? brw_nir_code_motion(pt) : INTEL_CODE_MOTION_DEFAULT;
 
    pass_tracker_new_loop(pt);
 
@@ -2299,12 +2322,10 @@ brw_nir_optimize(brw_pass_tracker *pt, bool run_code_motion)
          LOOP_OPT_NOT_IDEMPOTENT(nir_opt_loop_unroll);
       }
       LOOP_OPT(nir_opt_remove_phis);
-      if (run_code_motion) {
-         if (intel_use_jay(pt->compiler->devinfo, nir)) {
-            LOOP_OPT(nir_opt_licm, NULL);
-         } else {
-            LOOP_OPT(nir_opt_gcm, false);
-         }
+      if (code_motion == INTEL_CODE_MOTION_LICM) {
+         LOOP_OPT(nir_opt_licm, NULL);
+      } else if (code_motion == INTEL_CODE_MOTION_GCM) {
+         LOOP_OPT(nir_opt_gcm, false);
       }
       LOOP_OPT(nir_opt_undef);
       LOOP_OPT(nir_lower_pack);
@@ -2513,6 +2534,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    brw_pass_tracker pt_ = {
       .nir = nir,
       .compiler = compiler,
+      .code_motion = opts->code_motion,
    }, *pt = &pt_;
 
    nir_validate_ssa_dominance(nir, "before brw_preprocess_nir");
