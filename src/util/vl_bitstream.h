@@ -12,13 +12,13 @@ struct vl_bitstream_encoder {
    uint8_t *bits;
    uint32_t bits_buffer_size;
    uint32_t offset;
+   uint8_t last_bytes[2];
 
    uint32_t enc_buffer;
 
    int32_t bits_to_go;
    bool prevent_start_code;
 
-   bool internal_buffer;
    bool overflow;
 };
 
@@ -34,20 +34,11 @@ vl_bitstream_encoder_clear(struct vl_bitstream_encoder *enc,
    enc->bits_to_go = 32;
 
    if (!buffer_base) {
-      enc->bits = malloc(VL_BITSTREAM_MAX_BUFFER);
-      enc->bits_buffer_size = VL_BITSTREAM_MAX_BUFFER;
-      enc->internal_buffer = true;
+      enc->bits_buffer_size = UINT32_MAX;
    } else {
       enc->bits = (uint8_t *)buffer_base + buffer_offset;
       enc->bits_buffer_size = buffer_limit;
    }
-}
-
-static inline void
-vl_bitstream_encoder_free(struct vl_bitstream_encoder *enc)
-{
-   if (enc->internal_buffer)
-      free(enc->bits);
 }
 
 static inline int
@@ -74,15 +65,21 @@ static inline void
 vl_bitstream_write_byte_start_code(struct vl_bitstream_encoder *enc, uint8_t val)
 {
    int offset = enc->offset;
-   uint8_t *buffer = enc->bits + enc->offset;
+   uint8_t *buffer = enc->bits ? enc->bits + enc->offset : NULL;
    if (enc->prevent_start_code && enc->offset > 1) {
-      if (((val & 0xfc) | buffer[-2] | buffer[-1]) == 0) {
-         *buffer++ = 3;
+      if (((val & 0xfc) | enc->last_bytes[0] | enc->last_bytes[1]) == 0) {
+         if (buffer)
+            *buffer++ = 3;
+         enc->last_bytes[0] = enc->last_bytes[1];
+         enc->last_bytes[1] = 3;
          offset++;
       }
    }
 
-   *buffer = val;
+   if (buffer)
+      *buffer = val;
+   enc->last_bytes[0] = enc->last_bytes[1];
+   enc->last_bytes[1] = val;
    offset++;
    enc->offset = offset;
 }
