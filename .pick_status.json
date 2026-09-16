@@ -3914,7 +3914,7 @@
         "description": "gallivm: fix first_active_invocation() on big-endian",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8c2493d041c496452fbeae6e2b23f019524691c1",
         "notes": null
