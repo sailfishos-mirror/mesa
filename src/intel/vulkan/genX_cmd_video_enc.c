@@ -3892,6 +3892,7 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
          ASSERTED VkResult result =
             vk_video_encode_av1_frame_hdr(params, pic_info, base_q_idx,
                                           reference_select, false /* restoration_support */,
+                                          frame_info->generateObuExtensionHeader,
                                           frame_width, frame_height,
                                           sizeof(frame_hdr), &hdr_size, frame_hdr);
          assert(result == VK_SUCCESS);
