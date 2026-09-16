@@ -3259,6 +3259,16 @@ backpropagate_input_modifiers(opt_ctx& ctx, alu_opt_info& info, const alu_opt_op
    case aco_opcode::s_cvt_f32_f16:
    case aco_opcode::p_v_cvt_f16_f32_rtne:
    case aco_opcode::p_s_cvt_f16_f32_rtne:
+   case aco_opcode::v_trunc_f64:
+   case aco_opcode::v_trunc_f32:
+   case aco_opcode::v_trunc_f16:
+   case aco_opcode::s_trunc_f32:
+   case aco_opcode::s_trunc_f16:
+   case aco_opcode::v_rndne_f64:
+   case aco_opcode::v_rndne_f32:
+   case aco_opcode::v_rndne_f16:
+   case aco_opcode::s_rndne_f32:
+   case aco_opcode::s_rndne_f16:
       for (alu_opt_op& op : info.operands) {
          op.neg &= ~op_info.abs;
          op.abs |= op_info.abs;
@@ -3323,6 +3333,16 @@ backpropagate_input_modifiers(opt_ctx& ctx, alu_opt_info& info, const alu_opt_op
    case aco_opcode::s_max_f16:
    case aco_opcode::v_pk_min_f16:
    case aco_opcode::v_pk_max_f16:
+   case aco_opcode::v_floor_f64:
+   case aco_opcode::v_floor_f32:
+   case aco_opcode::v_floor_f16:
+   case aco_opcode::s_floor_f32:
+   case aco_opcode::s_floor_f16:
+   case aco_opcode::v_ceil_f64:
+   case aco_opcode::v_ceil_f32:
+   case aco_opcode::v_ceil_f16:
+   case aco_opcode::s_ceil_f32:
+   case aco_opcode::s_ceil_f16:
       if (op_info.abs)
          return false;
 
@@ -3354,6 +3374,16 @@ backpropagate_input_modifiers(opt_ctx& ctx, alu_opt_info& info, const alu_opt_op
       case aco_opcode::s_max_f16: info.opcode = aco_opcode::s_min_f16; break;
       case aco_opcode::v_pk_min_f16: info.opcode = aco_opcode::v_pk_max_f16; break;
       case aco_opcode::v_pk_max_f16: info.opcode = aco_opcode::v_pk_min_f16; break;
+      case aco_opcode::v_floor_f64: info.opcode = aco_opcode::v_ceil_f64; break;
+      case aco_opcode::v_floor_f32: info.opcode = aco_opcode::v_ceil_f32; break;
+      case aco_opcode::v_floor_f16: info.opcode = aco_opcode::v_ceil_f16; break;
+      case aco_opcode::s_floor_f32: info.opcode = aco_opcode::s_ceil_f32; break;
+      case aco_opcode::s_floor_f16: info.opcode = aco_opcode::s_ceil_f16; break;
+      case aco_opcode::v_ceil_f64: info.opcode = aco_opcode::v_floor_f64; break;
+      case aco_opcode::v_ceil_f32: info.opcode = aco_opcode::v_floor_f32; break;
+      case aco_opcode::v_ceil_f16: info.opcode = aco_opcode::v_floor_f16; break;
+      case aco_opcode::s_ceil_f32: info.opcode = aco_opcode::s_floor_f32; break;
+      case aco_opcode::s_ceil_f16: info.opcode = aco_opcode::s_floor_f16; break;
       default: UNREACHABLE("invalid op");
       }
       break;
@@ -3368,6 +3398,12 @@ backpropagate_input_modifiers(opt_ctx& ctx, alu_opt_info& info, const alu_opt_op
          }
          info.operands[comp].neg[0] ^= op_info.neg[comp];
       }
+      break;
+   case aco_opcode::v_sin_f32:
+   case aco_opcode::v_sin_f16:
+      if (op_info.abs)
+         return false;
+      info.operands[0].neg ^= op_info.neg;
       break;
    default: return false;
    }
