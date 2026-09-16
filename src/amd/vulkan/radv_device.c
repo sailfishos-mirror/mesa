@@ -1638,7 +1638,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    if (result != VK_SUCCESS)
       goto fail;
 
-   device->pbb_allowed = pdev->info.gfx_level >= GFX9 && !RADV_DEBUG(instance, NOBINNING);
+   device->pbb_allowed = pdev->info.gfx_level >= GFX9 && !RADV_DEBUG(instance, NOBINNING) &&
+                         !(pdev->info.gfx_level == GFX11 && pdev->drirc.debug.disable_binning_gfx11);
 
    /* The maximum number of scratch waves. Scratch space isn't divided
     * evenly between CUs. The number is only a function of the number of CUs.
