@@ -133,9 +133,10 @@ impl DecoderNode<'_> {
         }
     }
 
-    fn to_tokens<F>(&self, elem_cb: &F) -> TokenStream
+    fn to_tokens<F, G>(&self, elem_cb: &F, check_cb: &G) -> TokenStream
     where
         F: Fn(&Instr) -> TokenStream,
+        G: Fn(&Instr) -> TokenStream,
     {
         match self {
             DecoderNode::Leaf { options } => {
@@ -145,10 +146,14 @@ impl DecoderNode<'_> {
                         let fixed_mask = option.fixed_mask;
                         let expected_masked =
                             option.fixed_value & option.fixed_mask;
+                        let check_ts = check_cb(option.instr);
                         let val_ts = elem_cb(option.instr);
                         quote! {
                             if (input_value & #fixed_mask) == #expected_masked {
-                                return #val_ts ;
+                                result = #check_ts.map(|_| #val_ts);
+                                if result.is_ok() {
+                                    return result;
+                                }
                             }
                         }
                     })
@@ -156,8 +161,9 @@ impl DecoderNode<'_> {
 
                 quote! {
                     {
+                        let mut result = Err(InvalidInstrError::Any);
                         #cases
-                        return Err(InvalidInstrError::Any);
+                        return result;
                     }
                 }
             }
@@ -172,7 +178,7 @@ impl DecoderNode<'_> {
                         let child_impl = children
                             .get(key)
                             .expect("Key must exist")
-                            .to_tokens(elem_cb);
+                            .to_tokens(elem_cb, check_cb);
                         quote! {
                             #key => #child_impl,
                         }
@@ -568,10 +574,31 @@ impl ToTokens for InstrFields<'_> {
     }
 }
 
+fn unique_instr_ident(prefix: &str, instr: &Instr) -> Ident {
+    let variant = if let Some(var_name) = &instr.variant {
+        format!("_{}", var_name.to_lowercase())
+    } else {
+        String::from("")
+    };
+
+    Ident::new(
+        &format!(
+            "{}_{}{}_{}_{}",
+            prefix,
+            instr.name.to_lowercase(),
+            variant,
+            instr.arch.start,
+            instr.arch.end
+        ),
+        Span::call_site(),
+    )
+}
+
 struct InstrPrint<'a> {
     instr: &'a Instr,
     fields: InstrFields<'a>,
     prints: Vec<PrintField>,
+    fn_ident: Ident,
 }
 
 impl InstrPrint<'_> {
@@ -649,28 +676,8 @@ impl InstrPrint<'_> {
             instr,
             fields,
             prints: fragments,
+            fn_ident: unique_instr_ident("print", instr),
         }
-    }
-
-    pub fn fn_name(&self) -> Ident {
-        let instr = self.instr;
-
-        let variant = if let Some(var_name) = &instr.variant {
-            format!("_{}", var_name.to_lowercase())
-        } else {
-            String::from("")
-        };
-
-        Ident::new(
-            &format!(
-                "print_{}{}_{}_{}",
-                instr.name.to_lowercase(),
-                variant,
-                instr.arch.start,
-                instr.arch.end
-            ),
-            Span::call_site(),
-        )
     }
 
     pub fn dispatch_case_ts(&self) -> TokenStream {
@@ -680,7 +687,7 @@ impl InstrPrint<'_> {
         let arch_last = i.arch.end - 1;
         let arch_guard = quote! {#arch_first..=#arch_last};
 
-        let ident = self.fn_name();
+        let ident = &self.fn_ident;
         let mn = Ident::new(&i.name, Span::call_site());
         if let Some(var_name) = &i.variant {
             let vi = Ident::new(var_name, Span::call_site());
@@ -733,7 +740,6 @@ impl InstrPrint<'_> {
 
 impl ToTokens for InstrPrint<'_> {
     fn to_tokens(&self, ts: &mut TokenStream) {
-        let ident = self.fn_name();
         let display_name = self.instr.full_name();
 
         let mut body_ts: TokenStream = Default::default();
@@ -759,6 +765,7 @@ impl ToTokens for InstrPrint<'_> {
             had_non_mod |= !frag.is_modifier;
         }
 
+        let ident = &self.fn_ident;
         ts.extend(quote! {
             fn #ident (
                 v: u64, arch: u8, f: &mut impl std::io::Write, ctx: &PrintCtx
@@ -854,6 +861,49 @@ impl ToTokens for SimpleEnum {
     }
 }
 
+struct TryDecodeInstr<'a> {
+    fn_ident: Ident,
+    fields: InstrFields<'a>,
+}
+
+impl TryDecodeInstr<'_> {
+    pub fn new(instr: &Instr) -> TryDecodeInstr<'_> {
+        let mut fields = InstrFields::new(instr);
+
+        for field in &instr.fields {
+            match field {
+                InstrField::Physical(f) => {
+                    fields.load(&f.name);
+                }
+                InstrField::Virtual(f) => {
+                    fields.load(&f.name);
+                }
+                InstrField::Reserved(_) => (),
+            }
+        }
+
+        TryDecodeInstr {
+            fields,
+            fn_ident: unique_instr_ident("try_dec", instr),
+        }
+    }
+}
+
+impl ToTokens for TryDecodeInstr<'_> {
+    fn to_tokens(&self, ts: &mut TokenStream) {
+        let mut loads_ts: TokenStream = Default::default();
+        self.fields.to_tokens(&mut loads_ts);
+
+        let fname = &self.fn_ident;
+        ts.extend(quote! {
+            fn #fname (v: u64, arch: u8) -> Result<(), InvalidInstrError> {
+                #loads_ts
+                Ok(())
+            }
+        });
+    }
+}
+
 fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
     let mut decode_per_arch: BTreeMap<_, Box<DecoderNode>> = Default::default();
 
@@ -861,6 +911,13 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
         "F32_TO_F16", // FADD.f32 can falsely decode to this if the bits match but if the
                       // restriction on the dest narrowing modifier is not satisfied it's invalid.
     ];
+
+    let mut try_decode_instr_impls: TokenStream = Default::default();
+    for instr in &isa.instrs {
+        let try_decode = TryDecodeInstr::new(instr);
+        try_decode.to_tokens(&mut try_decode_instr_impls);
+    }
+
     for target_arch in isa.arch.clone() {
         let instrs: Vec<&Instr> = isa
             .instrs
@@ -882,19 +939,25 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
     // - Fixed bits correct but restrictions not fulfilled. If we have this case and the
     //   instruction is an alias, we can try the aliased (or next less specific?) instruction.
 
+    let make_ret_val = |instr: &Instr| {
+        let name = Ident::new(&instr.name, Span::call_site());
+        if let Some(variant) = &instr.variant {
+            let vi = Ident::new(variant, Span::call_site());
+            quote! { (M::#name, Some(V::#vi)) }
+        } else {
+            quote! { (M::#name, None) }
+        }
+    };
+
+    let make_check = |instr: &Instr| {
+        let fn_ident = unique_instr_ident("try_dec", instr);
+        quote! {#fn_ident(input_value, arch)}
+    };
+
     let decoder_cases_ts: TokenStream = decode_per_arch
         .iter()
         .map(|(arch, decoder)| {
-            let per_arch = decoder.to_tokens(&|instr| {
-                let name = Ident::new(&instr.name, Span::call_site());
-                if let Some(variant) = &instr.variant {
-                    let vi = Ident::new(variant, Span::call_site());
-                    quote! { Ok((M::#name, Some(V::#vi))) }
-                } else {
-                    quote! { Ok((M::#name, None)) }
-                }
-            });
-
+            let per_arch = decoder.to_tokens(&make_ret_val, &make_check);
             quote! {
                 #arch => #per_arch,
             }
@@ -902,6 +965,8 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
         .collect();
 
     quote! {
+        #try_decode_instr_impls
+
         pub fn try_decode(
             input_value: u64, arch: u8
         ) -> Result<(Mnemonic, Option<Variant>), InvalidInstrError> {
