@@ -411,7 +411,7 @@ anv_clear_out_bvh(struct anv_cmd_buffer *cmd_buffer,
 
    anv_cmd_buffer_fill_area(cmd_buffer, anv_bvh_addr, bvh_size, 0 /* data */);
 
-   vk_bvh_build_barrier_compute_to_compute(vk_command_buffer_to_handle(&cmd_buffer->vk), false);
+   vk_bvh_build_barrier_transfer_to_compute(vk_command_buffer_to_handle(&cmd_buffer->vk));
    genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 }
 
