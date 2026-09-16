@@ -6,8 +6,8 @@
 
 #include <stdlib.h>
 
-#include "util/log.h"
 #include "util/detect_os.h"
+#include "util/log.h"
 
 #define GOLDFISH_VK_OBJECT_DEBUG 0
 

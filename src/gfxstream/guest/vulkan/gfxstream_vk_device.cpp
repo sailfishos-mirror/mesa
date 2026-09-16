@@ -273,8 +273,8 @@ static VkResult gfxstream_vk_enumerate_devices(struct vk_instance* vk_instance) 
         for (uint32_t i = 0; i < deviceCount; i++) {
             struct gfxstream_vk_physical_device* gfxstream_physicalDevice =
                 (struct gfxstream_vk_physical_device*)vk_zalloc(
-                    &gfxstream_instance->vk.alloc, sizeof(struct gfxstream_vk_physical_device), GFXSTREAM_DEFAULT_ALIGN,
-                    VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+                    &gfxstream_instance->vk.alloc, sizeof(struct gfxstream_vk_physical_device),
+                    GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
             if (!gfxstream_physicalDevice) {
                 result = VK_ERROR_OUT_OF_HOST_MEMORY;
                 break;
@@ -584,7 +584,8 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     const VkAllocationCallbacks* pMesaAllocator =
         pAllocator ?: &gfxstream_physicalDevice->instance->vk.alloc;
     struct gfxstream_vk_device* gfxstream_device = (struct gfxstream_vk_device*)vk_zalloc(
-        pMesaAllocator, sizeof(struct gfxstream_vk_device), GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+        pMesaAllocator, sizeof(struct gfxstream_vk_device), GFXSTREAM_DEFAULT_ALIGN,
+        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (!gfxstream_device) {
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
@@ -617,9 +618,9 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     }
 
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-    result = vkEnc->vkCreateDevice(gfxstream_physicalDevice->internal_object, &localCreateInfo,
-                                   pAllocator, &gfxstream_device->internal_object,
-                                   true /* do lock */);
+    result =
+        vkEnc->vkCreateDevice(gfxstream_physicalDevice->internal_object, &localCreateInfo,
+                              pAllocator, &gfxstream_device->internal_object, true /* do lock */);
 
     if (mutablePhysicalDeviceGroupProperties) {
         // Revert the physicalDevice list in VkPhysicalDeviceGroupProperties to the user-set data
@@ -643,8 +644,8 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     vk_device_dispatch_table_from_entrypoints(&dispatch_table, &wsi_device_entrypoints, false);
 #endif
 
-    result = vk_device_init(&gfxstream_device->vk, &gfxstream_physicalDevice->vk,
-                            &dispatch_table, pCreateInfo, pMesaAllocator);
+    result = vk_device_init(&gfxstream_device->vk, &gfxstream_physicalDevice->vk, &dispatch_table,
+                            pCreateInfo, pMesaAllocator);
     if (result != VK_SUCCESS) {
         vkEnc->vkDestroyDevice(gfxstream_device->internal_object, pAllocator, true /* do lock */);
         vk_free(pMesaAllocator, gfxstream_device);

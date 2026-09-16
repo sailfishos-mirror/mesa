@@ -60,8 +60,7 @@ std::vector<VkSemaphoreSubmitInfo> transformVkSemaphoreSubmitInfoList(
     return outSemaphoreSubmitInfo;
 }
 
-float linearChannelToSRGB(float cl)
-{
+float linearChannelToSRGB(float cl) {
     if (cl <= 0.0f)
         return 0.0f;
     else if (cl < 0.0031308f)

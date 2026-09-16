@@ -392,7 +392,7 @@ static VkResult validateDescriptorSetAllocation(const VkDescriptorSetAllocateInf
     for (uint32_t i = 0; i < pAllocateInfo->descriptorSetCount; ++i) {
         if (!pAllocateInfo->pSetLayouts[i]) {
             mesa_logd("%s: Error: Tried to allocate a descriptor set with null set layout.\n",
-                  __func__);
+                      __func__);
             return VK_ERROR_INITIALIZATION_FAILED;
         }
 

@@ -22,8 +22,8 @@
 #include "VulkanHandleMapping.h"
 #include "VulkanHandles.h"
 #include "goldfish_vk_transform_guest.h"
-#include "util/perf/cpu_trace.h"
 #include "util/detect_os.h"
+#include "util/perf/cpu_trace.h"
 #include "vulkan/vulkan_core.h"
 
 /// Use installed headers or locally defined Fuchsia-specific bits
@@ -71,9 +71,10 @@ typedef uint64_t zx_koid_t;
 
 /// Use installed headers or locally defined Android-specific bits
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
+#include <android/hardware_buffer.h>
+
 #include "AndroidHardwareBuffer.h"
 #include "gfxstream/guest/GfxStreamGralloc.h"
-#include <android/hardware_buffer.h>
 #endif
 
 #if GFXSTREAM_ENABLE_GUEST_GOLDFISH
@@ -81,15 +82,16 @@ typedef uint64_t zx_koid_t;
 #include "gfxstream/guest/goldfish_sync.h"
 #endif
 
-#define vk_filter_struct(__start, __sType) { \
-    auto* curr = reinterpret_cast<VkBaseOutStructure*>(__start); \
-    while (curr != nullptr) { \
-        if (curr->pNext != nullptr && curr->pNext->sType == VK_STRUCTURE_TYPE_##__sType) { \
-            curr->pNext = curr->pNext->pNext; \
-        } \
-        curr = curr->pNext; \
-    } \
-} \
+#define vk_filter_struct(__start, __sType)                                                     \
+    {                                                                                          \
+        auto* curr = reinterpret_cast<VkBaseOutStructure*>(__start);                           \
+        while (curr != nullptr) {                                                              \
+            if (curr->pNext != nullptr && curr->pNext->sType == VK_STRUCTURE_TYPE_##__sType) { \
+                curr->pNext = curr->pNext->pNext;                                              \
+            }                                                                                  \
+            curr = curr->pNext;                                                                \
+        }                                                                                      \
+    }
 
 // This should be ABI identical with the variant in ResourceTracker.h
 struct GfxStreamVkFeatureInfo {

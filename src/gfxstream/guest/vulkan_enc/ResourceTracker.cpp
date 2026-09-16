@@ -22,11 +22,12 @@
 #include "vulkan/vulkan_core.h"
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
-#include "vk_format_info.h"
 #include <vndk/hardware_buffer.h>
+
+#include "vk_format_info.h"
 #endif
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <algorithm>
 #include <chrono>
@@ -41,10 +42,9 @@
 
 #define GFXSTREAM_TRACE_DEFAULT_CATEGORY "gfxstream.default"
 
-PERFETTO_DEFINE_CATEGORIES(
-    perfetto::Category(GFXSTREAM_TRACE_DEFAULT_CATEGORY));
+PERFETTO_DEFINE_CATEGORIES(perfetto::Category(GFXSTREAM_TRACE_DEFAULT_CATEGORY));
 
-#endif // HAVE_PERFETTO
+#endif  // HAVE_PERFETTO
 
 #include "vk_util.h"
 
@@ -638,7 +638,8 @@ VkResult addImageBufferCollectionConstraintsFUCHSIA(
         if (createInfo->format != VK_FORMAT_UNDEFINED &&
             !vkFormatMatchesSysmemFormat(createInfo->format, pixelFormat)) {
             mesa_logd("%s: VkFormat %u doesn't match sysmem pixelFormat %lu", __func__,
-                  static_cast<uint32_t>(createInfo->format), formatConstraints->sysmemPixelFormat);
+                      static_cast<uint32_t>(createInfo->format),
+                      formatConstraints->sysmemPixelFormat);
             return VK_ERROR_FORMAT_NOT_SUPPORTED;
         }
         imageConstraints.pixel_format.type = pixelFormat;
@@ -646,7 +647,7 @@ VkResult addImageBufferCollectionConstraintsFUCHSIA(
         auto pixel_format = vkFormatTypeToSysmem(createInfo->format);
         if (pixel_format == fuchsia_sysmem::wire::PixelFormatType::kInvalid) {
             mesa_logd("%s: Unsupported VkFormat %u", __func__,
-                  static_cast<uint32_t>(createInfo->format));
+                      static_cast<uint32_t>(createInfo->format));
             return VK_ERROR_FORMAT_NOT_SUPPORTED;
         }
         imageConstraints.pixel_format.type = pixel_format;
@@ -785,11 +786,8 @@ void ResourceTracker::EmitGuestAndHostTraceMarker(VkEncoder* encoder) {
 #ifdef HAVE_PERFETTO
     const uint64_t flowId = GeneratePseudoUniqueId();
 
-    TRACE_EVENT_INSTANT(
-        GFXSTREAM_TRACE_DEFAULT_CATEGORY,
-        "vkTraceAsyncGOOGLE",
-        perfetto::Flow::Global(flowId),
-        "flow id", flowId);
+    TRACE_EVENT_INSTANT(GFXSTREAM_TRACE_DEFAULT_CATEGORY, "vkTraceAsyncGOOGLE",
+                        perfetto::Flow::Global(flowId), "flow id", flowId);
 
     if (mCaps.vulkanCapset.hasTraceAsyncCommand) {
         encoder->vkTraceAsyncGOOGLE(flowId, true /* do lock */);
@@ -1056,7 +1054,8 @@ void ResourceTracker::ensureSyncDeviceFd() {
     if (mSyncDeviceFd >= 0) return;
     mSyncDeviceFd = goldfish_sync_open();
     if (mSyncDeviceFd >= 0) {
-        mesa_logd("%s: created sync device for current Vulkan process: %d\n", __func__, mSyncDeviceFd);
+        mesa_logd("%s: created sync device for current Vulkan process: %d\n", __func__,
+                  mSyncDeviceFd);
     } else {
         mesa_logd("%s: failed to create sync device for current Vulkan process\n", __func__);
     }
@@ -1688,13 +1687,10 @@ VkResult ResourceTracker::on_vkEnumerateInstanceExtensionProperties(
     void* context, VkResult, const char*, uint32_t* pPropertyCount,
     VkExtensionProperties* pProperties) {
     std::vector<const char*> allowedExtensionNames = {
-        "VK_KHR_get_physical_device_properties2",
-        "VK_KHR_sampler_ycbcr_conversion",
+        "VK_KHR_get_physical_device_properties2", "VK_KHR_sampler_ycbcr_conversion",
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
-        "VK_KHR_external_semaphore_capabilities",
-        "VK_KHR_external_memory_capabilities",
-        "VK_KHR_external_fence_capabilities",
-        "VK_EXT_debug_utils",
+        "VK_KHR_external_semaphore_capabilities", "VK_KHR_external_memory_capabilities",
+        "VK_KHR_external_fence_capabilities",     "VK_EXT_debug_utils",
 #endif
     };
 
@@ -2018,19 +2014,16 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
     // to lead errors if this function returns VK_SUCCESS with N elements (including a duplicate)
     // but the Vulkan Loader's trampoline function returns VK_INCOMPLETE with N-1 elements
     // (without the duplicate).
-    std::sort(filteredExts.begin(),
-              filteredExts.end(),
-              [](const VkExtensionProperties& a,
-                 const VkExtensionProperties& b) {
+    std::sort(filteredExts.begin(), filteredExts.end(),
+              [](const VkExtensionProperties& a, const VkExtensionProperties& b) {
                   return strcmp(a.extensionName, b.extensionName) < 0;
               });
-    filteredExts.erase(std::unique(filteredExts.begin(),
-                                   filteredExts.end(),
-                                   [](const VkExtensionProperties& a,
-                                      const VkExtensionProperties& b) {
-                                       return strcmp(a.extensionName, b.extensionName) == 0;
-                                   }),
-                       filteredExts.end());
+    filteredExts.erase(
+        std::unique(filteredExts.begin(), filteredExts.end(),
+                    [](const VkExtensionProperties& a, const VkExtensionProperties& b) {
+                        return strcmp(a.extensionName, b.extensionName) == 0;
+                    }),
+        filteredExts.end());
 
     // Spec:
     //
@@ -2246,8 +2239,8 @@ void ResourceTracker::on_vkGetPhysicalDeviceProperties2(void* context,
 
     const char* transport_name = instance ? "Virtio-GPU GFXStream" : "Goldfish GFXStream";
     char device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
-    int device_name_len = snprintf(device_name, sizeof(device_name), "%s (%s)",
-                                   transport_name, pProperties->properties.deviceName);
+    int device_name_len = snprintf(device_name, sizeof(device_name), "%s (%s)", transport_name,
+                                   pProperties->properties.deviceName);
     if (device_name_len >= (int)VK_MAX_PHYSICAL_DEVICE_NAME_SIZE) {
         memcpy(device_name + VK_MAX_PHYSICAL_DEVICE_NAME_SIZE - 5, "...)", 4);
         device_name_len = VK_MAX_PHYSICAL_DEVICE_NAME_SIZE - 1;
@@ -4532,7 +4525,8 @@ VkResult ResourceTracker::on_vkCreateImage(void* context, VkResult, VkDevice dev
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
     VkNativeBufferANDROID localAnb;
-    const VkNativeBufferANDROID* anbInfoPtr = vk_find_struct_const(pCreateInfo, NATIVE_BUFFER_ANDROID);
+    const VkNativeBufferANDROID* anbInfoPtr =
+        vk_find_struct_const(pCreateInfo, NATIVE_BUFFER_ANDROID);
     if (anbInfoPtr) {
         localAnb = vk_make_orphan_copy(*anbInfoPtr);
         vk_append_struct(&structChainIter, &localAnb);
@@ -4813,8 +4807,9 @@ VkResult ResourceTracker::on_vkCreateSampler(void* context, VkResult, VkDevice d
 
     VkSamplerBorderColorComponentMappingCreateInfoEXT
         localVkSamplerBorderColorComponentMappingCreateInfo;
-    const VkSamplerBorderColorComponentMappingCreateInfoEXT* samplerBorderColorComponentMappingCreateInfo =
-        vk_find_struct_const(pCreateInfo, SAMPLER_BORDER_COLOR_COMPONENT_MAPPING_CREATE_INFO_EXT);
+    const VkSamplerBorderColorComponentMappingCreateInfoEXT*
+        samplerBorderColorComponentMappingCreateInfo = vk_find_struct_const(
+            pCreateInfo, SAMPLER_BORDER_COLOR_COMPONENT_MAPPING_CREATE_INFO_EXT);
     if (samplerBorderColorComponentMappingCreateInfo) {
         localVkSamplerBorderColorComponentMappingCreateInfo =
             vk_make_orphan_copy(*samplerBorderColorComponentMappingCreateInfo);
@@ -5291,7 +5286,8 @@ VkResult ResourceTracker::on_vkCreateDescriptorPool(void* context, VkResult, VkD
 
     for (uint32_t i = 0; i < pCreateInfo->poolSizeCount; ++i) {
         dp->allocInfo->descriptorCountInfo.push_back({
-            pCreateInfo->pPoolSizes[i].type, pCreateInfo->pPoolSizes[i].descriptorCount,
+            pCreateInfo->pPoolSizes[i].type,
+            pCreateInfo->pPoolSizes[i].descriptorCount,
             0, /* used */
         });
     }
@@ -6277,9 +6273,9 @@ VkResult ResourceTracker::on_vkQueueSubmit(void* context, VkResult input_result,
      *    VK_SEMAPHORE_TYPE_TIMELINE, then its signalSemaphoreValueCount member must equal
      *    signalSemaphoreCount"
      *
-     * Internally, Mesa WSI creates placeholder semaphores/fences (see transformVkSemaphore functions
-     * in in gfxstream_vk_private.cpp).  We don't want to forward that to the host, since there is
-     * no host side Vulkan object associated with the placeholder sync objects.
+     * Internally, Mesa WSI creates placeholder semaphores/fences (see transformVkSemaphore
+     * functions in in gfxstream_vk_private.cpp).  We don't want to forward that to the host, since
+     * there is no host side Vulkan object associated with the placeholder sync objects.
      *
      * The way to test this behavior is Zink + glxgears, on Linux hosts.  It should fail without
      * this check.
@@ -6296,8 +6292,8 @@ VkResult ResourceTracker::on_vkQueueSubmit(void* context, VkResult input_result,
         }
     }
 
-    return on_vkQueueSubmitTemplate<VkSubmitInfo, VkSemaphore>(context, input_result, queue, submitCount,
-                                                  pSubmits, fence);
+    return on_vkQueueSubmitTemplate<VkSubmitInfo, VkSemaphore>(context, input_result, queue,
+                                                               submitCount, pSubmits, fence);
 }
 
 VkResult ResourceTracker::on_vkQueueSubmit2(void* context, VkResult input_result, VkQueue queue,
@@ -6305,8 +6301,8 @@ VkResult ResourceTracker::on_vkQueueSubmit2(void* context, VkResult input_result
                                             VkFence fence) {
     MESA_TRACE_SCOPE("on_vkQueueSubmit2");
     EmitGuestAndHostTraceMarker((VkEncoder*)context);
-    return on_vkQueueSubmitTemplate<VkSubmitInfo2, VkSemaphoreSubmitInfo>(context, input_result, queue, submitCount,
-                                                   pSubmits, fence);
+    return on_vkQueueSubmitTemplate<VkSubmitInfo2, VkSemaphoreSubmitInfo>(
+        context, input_result, queue, submitCount, pSubmits, fence);
 }
 
 VkResult ResourceTracker::vkQueueSubmitEnc(VkEncoder* enc, VkQueue queue, uint32_t submitCount,
@@ -6477,7 +6473,8 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
     VkEncoder* enc = (VkEncoder*)context;
 
     // The scope of all these "pruned" submitInfos, semLists, etc.. must be at the level that
-    // the encoder queue submission will be called, otherwise the vector storage will go out of scope
+    // the encoder queue submission will be called, otherwise the vector storage will go out of
+    // scope
     std::vector<VkSubmitInfoType> prunedSubmitInfos(submitCount);
     std::vector<std::vector<VkSemaphoreInfoType>> prunedWaitSemaphoreLists(submitCount);
     std::vector<std::vector<VkPipelineStageFlags>> prunedWaitDstStageMaskFlagLists(submitCount);
@@ -6550,21 +6547,25 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
                 }
             }
 
-            // Get the current TSSI from the unorphaned submitInfo, the prune functions may need this.
+            // Get the current TSSI from the unorphaned submitInfo, the prune functions may need
+            // this.
             const VkTimelineSemaphoreSubmitInfo* currTssi =
                 hasTimelineSemaphores
                     ? vk_find_struct_const(&pSubmits[i], TIMELINE_SEMAPHORE_SUBMIT_INFO)
                     : nullptr;
             // Start with an orphan copy of the current submitInfo
             prunedSubmitInfos[i] = vk_make_orphan_copy(pSubmits[i]);
-            // Do initial setup for the new tssi struct; prune functions may or may not actually add to submitInfo.
-            prunedTssis[i] = {
-                .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = NULL
-            };
+            // Do initial setup for the new tssi struct; prune functions may or may not actually add
+            // to submitInfo.
+            prunedTssis[i] = {.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+                              .pNext = NULL};
             // Finally, prune the wait/signal semaphores accordingly!
-            pruneWaitSemaphores(waitSemsToRemove, prunedSubmitInfos[i], currTssi, prunedWaitSemaphoreLists[i], prunedWaitDstStageMaskFlagLists[i], prunedTssis[i], prunedWaitSemaphoreValueLists[i]);
-            pruneSignalSemaphores(signalSemsToRemove, prunedSubmitInfos[i], currTssi, prunedSignalSemaphoreLists[i], prunedTssis[i], prunedSignalSemaphoreValueLists[i]);
+            pruneWaitSemaphores(waitSemsToRemove, prunedSubmitInfos[i], currTssi,
+                                prunedWaitSemaphoreLists[i], prunedWaitDstStageMaskFlagLists[i],
+                                prunedTssis[i], prunedWaitSemaphoreValueLists[i]);
+            pruneSignalSemaphores(signalSemsToRemove, prunedSubmitInfos[i], currTssi,
+                                  prunedSignalSemaphoreLists[i], prunedTssis[i],
+                                  prunedSignalSemaphoreValueLists[i]);
         }
     }
 
@@ -6648,7 +6649,7 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
 
             if (externalFenceFdToSignal >= 0) {
                 MESA_TRACE_SCOPE("%s: external fence real signal: %d\n", __func__,
-                          externalFenceFdToSignal);
+                                 externalFenceFdToSignal);
                 goldfish_sync_signal(externalFenceFdToSignal);
             }
 #endif
@@ -6704,7 +6705,8 @@ void ResourceTracker::unwrap_vkCreateImage_pCreateInfo(const VkImageCreateInfo* 
     const VkNativeBufferANDROID* inputNativeInfo =
         vk_find_struct_const(pCreateInfo, NATIVE_BUFFER_ANDROID);
 
-    VkNativeBufferANDROID* outputNativeInfo = vk_find_struct(local_pCreateInfo, NATIVE_BUFFER_ANDROID);
+    VkNativeBufferANDROID* outputNativeInfo =
+        vk_find_struct(local_pCreateInfo, NATIVE_BUFFER_ANDROID);
 
     unwrap_VkNativeBufferANDROID(inputNativeInfo, outputNativeInfo);
 #endif
@@ -6748,14 +6750,16 @@ void ResourceTracker::unwrap_VkBindImageMemory2_pBindInfos(
         const VkNativeBufferANDROID* inputNativeInfo =
             vk_find_struct_const(inputBindInfo, NATIVE_BUFFER_ANDROID);
 
-        VkNativeBufferANDROID* outputNativeInfo = vk_find_struct(outputBindInfo, NATIVE_BUFFER_ANDROID);
+        VkNativeBufferANDROID* outputNativeInfo =
+            vk_find_struct(outputBindInfo, NATIVE_BUFFER_ANDROID);
 
         unwrap_VkNativeBufferANDROID(inputNativeInfo, outputNativeInfo);
 
         const VkBindImageMemorySwapchainInfoKHR* inputBimsi =
             vk_find_struct_const(inputBindInfo, BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
 
-        VkBindImageMemorySwapchainInfoKHR* outputBimsi = vk_find_struct(outputBindInfo, BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
+        VkBindImageMemorySwapchainInfoKHR* outputBimsi =
+            vk_find_struct(outputBindInfo, BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
 
         unwrap_VkBindImageMemorySwapchainInfoKHR(inputBimsi, outputBimsi);
     }
@@ -7152,7 +7156,8 @@ VkResult ResourceTracker::on_vkGetPhysicalDeviceImageFormatProperties2(
 #endif
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
-    VkAndroidHardwareBufferUsageANDROID* output_ahw_usage = vk_find_struct(pImageFormatProperties, ANDROID_HARDWARE_BUFFER_USAGE_ANDROID);
+    VkAndroidHardwareBufferUsageANDROID* output_ahw_usage =
+        vk_find_struct(pImageFormatProperties, ANDROID_HARDWARE_BUFFER_USAGE_ANDROID);
     supportedHandleType |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
 #endif
     const VkPhysicalDeviceExternalImageFormatInfo* ext_img_info =
@@ -7284,8 +7289,8 @@ void ResourceTracker::on_vkGetPhysicalDeviceExternalBufferProperties(
         }
     }
 
-    enc->vkGetPhysicalDeviceExternalBufferProperties(
-        physicalDevice, pExternalBufferInfo, pExternalBufferProperties, true /* do lock */);
+    enc->vkGetPhysicalDeviceExternalBufferProperties(physicalDevice, pExternalBufferInfo,
+                                                     pExternalBufferProperties, true /* do lock */);
 
     transformImpl_VkExternalMemoryProperties_fromhost(
         &pExternalBufferProperties->externalMemoryProperties, 0);
@@ -7474,7 +7479,7 @@ VkResult ResourceTracker::on_vkResetCommandBuffer(void* context, VkResult input_
     if (!supportsDeferredCommands()) {
         VkResult res = enc->vkResetCommandBuffer(commandBuffer, flags, true /* do lock */);
         resetCommandBufferStagingInfo(commandBuffer, true /* also reset primaries */,
-                                    true /* also clear pending descriptor sets */);
+                                      true /* also clear pending descriptor sets */);
         return res;
     }
 
@@ -7505,7 +7510,8 @@ VkResult ResourceTracker::on_vkCreateImageView(void* context, VkResult input_res
         }
     }
     VkSamplerYcbcrConversionInfo localVkSamplerYcbcrConversionInfo;
-    const VkSamplerYcbcrConversionInfo* samplerYcbcrConversionInfo = vk_find_struct_const(pCreateInfo, SAMPLER_YCBCR_CONVERSION_INFO);
+    const VkSamplerYcbcrConversionInfo* samplerYcbcrConversionInfo =
+        vk_find_struct_const(pCreateInfo, SAMPLER_YCBCR_CONVERSION_INFO);
     if (samplerYcbcrConversionInfo) {
         if (samplerYcbcrConversionInfo->conversion != VK_YCBCR_CONVERSION_DO_NOTHING) {
             localVkSamplerYcbcrConversionInfo = vk_make_orphan_copy(*samplerYcbcrConversionInfo);
@@ -7601,9 +7607,10 @@ void ResourceTracker::on_vkCmdPipelineBarrier(
                               updatedImageMemoryBarriers.data(), true /* do lock */);
 }
 
-void ResourceTracker::on_vkCmdClearColorImage(void* context, VkCommandBuffer commandBuffer, VkImage image,
-                             VkImageLayout imageLayout, const VkClearColorValue* pColor,
-                             uint32_t rangeCount, const VkImageSubresourceRange* pRanges) {
+void ResourceTracker::on_vkCmdClearColorImage(void* context, VkCommandBuffer commandBuffer,
+                                              VkImage image, VkImageLayout imageLayout,
+                                              const VkClearColorValue* pColor, uint32_t rangeCount,
+                                              const VkImageSubresourceRange* pRanges) {
     VkEncoder* enc = (VkEncoder*)context;
     if (!pColor) {
         mesa_loge("%s: Null VkClearColorValue requested", __func__);
@@ -7625,14 +7632,15 @@ void ResourceTracker::on_vkCmdClearColorImage(void* context, VkCommandBuffer com
     auto& imageInfo = imageInfoIt->second;
     VkFormat actualFormat = imageInfo.createInfo.format;
     if (imageInfo.hasAnb && srgbFormatNeedsConversionForClearColor(actualFormat)) {
-       // Perform linear to srgb conversion
-       // Backing image is UNORM for vkCmdClearColorImage so we convert pColor
-       convertedColor.float32[0] = linearChannelToSRGB(convertedColor.float32[0]);
-       convertedColor.float32[1] = linearChannelToSRGB(convertedColor.float32[1]);
-       convertedColor.float32[2] = linearChannelToSRGB(convertedColor.float32[2]);
+        // Perform linear to srgb conversion
+        // Backing image is UNORM for vkCmdClearColorImage so we convert pColor
+        convertedColor.float32[0] = linearChannelToSRGB(convertedColor.float32[0]);
+        convertedColor.float32[1] = linearChannelToSRGB(convertedColor.float32[1]);
+        convertedColor.float32[2] = linearChannelToSRGB(convertedColor.float32[2]);
     }
 #endif
-    enc->vkCmdClearColorImage(commandBuffer, image, imageLayout, &convertedColor, rangeCount, pRanges, true);
+    enc->vkCmdClearColorImage(commandBuffer, image, imageLayout, &convertedColor, rangeCount,
+                              pRanges, true);
     return;
 }
 

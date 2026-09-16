@@ -15,9 +15,9 @@ VkResult gfxstream_vk_CreateCommandPool(VkDevice device, const VkCommandPoolCrea
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     VkResult result = (VkResult)0;
     struct gfxstream_vk_command_pool* gfxstream_pCommandPool =
-        (gfxstream_vk_command_pool*)vk_zalloc2(&gfxstream_device->vk.alloc, pAllocator,
-                                               sizeof(gfxstream_vk_command_pool), GFXSTREAM_DEFAULT_ALIGN,
-                                               VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+        (gfxstream_vk_command_pool*)vk_zalloc2(
+            &gfxstream_device->vk.alloc, pAllocator, sizeof(gfxstream_vk_command_pool),
+            GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     result = gfxstream_pCommandPool ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
     if (VK_SUCCESS == result) {
         result = vk_command_pool_init(&gfxstream_device->vk, &gfxstream_pCommandPool->vk,
@@ -84,9 +84,9 @@ VkResult vk_command_buffer_createOp(struct vk_command_pool* commandPool, VkComma
                                     struct vk_command_buffer** pCommandBuffer) {
     VkResult result = VK_SUCCESS;
     struct gfxstream_vk_command_buffer* gfxstream_commandBuffer =
-        (struct gfxstream_vk_command_buffer*)vk_zalloc(&commandPool->alloc,
-                                                       sizeof(struct gfxstream_vk_command_buffer),
-                                                       GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+        (struct gfxstream_vk_command_buffer*)vk_zalloc(
+            &commandPool->alloc, sizeof(struct gfxstream_vk_command_buffer),
+            GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     if (gfxstream_commandBuffer) {
         result =
             vk_command_buffer_init(commandPool, &gfxstream_commandBuffer->vk,
@@ -178,8 +178,7 @@ void gfxstream_vk_FreeCommandBuffers(VkDevice device, VkCommandPool commandPool,
         }
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkFreeCommandBuffers(gfxstream_device->internal_object,
-                                    gfxstream_commandPool->internal_object,
-                                    internal_objects.size(),
+                                    gfxstream_commandPool->internal_object, internal_objects.size(),
                                     internal_objects.data(), true /* do lock */);
     }
     for (uint32_t i = 0; i < commandBufferCount; i++) {
