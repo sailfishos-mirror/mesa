@@ -3109,17 +3109,16 @@ lp_build_unpack(struct lp_build_context *bld, LLVMValueRef value,
       LLVMVectorType(LLVMIntTypeInContext(gallivm->context, dst_bit_size), num_components * length);
    value = LLVMBuildBitCast(builder, value, vec_type, "");
 
+   /* The bitcast puts the most significant bits first on big-endian. */
+   unsigned elem = UTIL_ARCH_LITTLE_ENDIAN ? component :
+                                             num_components - component - 1;
+
    if (length == 1)
-      return LLVMBuildExtractElement(builder, value, lp_build_const_int32(gallivm, component), "");
+      return LLVMBuildExtractElement(builder, value, lp_build_const_int32(gallivm, elem), "");
 
    LLVMValueRef shuffle[LP_MAX_VECTOR_WIDTH / 32];
-   for (unsigned i = 0; i < length; i++) {
-#if UTIL_ARCH_LITTLE_ENDIAN
-      shuffle[i] = lp_build_const_int32(gallivm, (i * num_components) + component);
-#else
-      shuffle[i] = lp_build_const_int32(gallivm, (i * num_components) + (num_components - component - 1));
-#endif
-   }
+   for (unsigned i = 0; i < length; i++)
+      shuffle[i] = lp_build_const_int32(gallivm, (i * num_components) + elem);
    return LLVMBuildShuffleVector(builder, value, LLVMGetUndef(vec_type),
                                  LLVMConstVector(shuffle, length), "");
 }
