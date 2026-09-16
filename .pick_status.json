@@ -2794,7 +2794,7 @@
         "description": "mesa: pack GL_MAX_COMBINED_DIMENSIONS without depending on byte order",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e976a30db8f24ec81259140f157a224c49aa373e",
         "notes": null
