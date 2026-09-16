@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "util/bitset.h"
+#include "util/macros.h"
 
 enum etna_feature {
    ETNA_FEATURE_CORE_GPU,
@@ -139,4 +140,44 @@ static inline void
 etna_core_enable_feature(struct etna_core_info *info, enum etna_feature feature)
 {
    BITSET_SET(info->feature, feature);
+}
+
+/* The unified shader cache is split between the vertex attribute buffer and
+ * the L1 texture cache. The Vivante kernel derives the split from the USC size,
+ * nominal L1 size and tessellation feature, with the L1 using one of a fixed
+ * set of shares.
+ *
+ * Mirror gcmCONFIGUSC2 from the Vivante kernel driver to determine how much
+ * cache is left for vertex attributes.
+ */
+static inline unsigned
+etna_core_usc_attrib_size(const struct etna_core_info *info)
+{
+   static const unsigned share[] = { 32, 24, 16, 8, 4, 2, 1, 0 };
+   const unsigned usc_size = info->gpu.usc_size;
+   const unsigned l1 = info->gpu.l1_cache_size;
+   const unsigned attrib = etna_core_has_feature(info, ETNA_FEATURE_TESSELLATION_SHADERS) ? 42 : 8;
+   const unsigned needed = attrib < usc_size ? usc_size - attrib : 2;
+   unsigned best = 0;
+
+   for (unsigned i = 0; i < ARRAY_SIZE(share); i++) {
+      if (l1 * share[i] <= needed * 32) {
+         best = share[i];
+         break;
+      }
+   }
+
+   return usc_size - l1 * best / 32;
+}
+
+/* The vertex shader gets what is left of the attribute buffer, in KB. */
+static inline unsigned
+etna_core_vs_usc_budget(const struct etna_core_info *info)
+{
+   unsigned attrib = etna_core_usc_attrib_size(info);
+
+   if (attrib < 2)
+      return 31;
+
+   return MIN2(attrib - 2, 31);
 }
