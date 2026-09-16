@@ -4772,6 +4772,14 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
       add_opt(v_add_u32, v_add_lshl_u32, 0x2, "120", nullptr, true);
       add_opt(s_add_u32, v_add_lshl_u32, 0x2, "120", nullptr, true);
       add_opt(s_add_i32, v_add_lshl_u32, 0x2, "120", nullptr, true);
+   } else if (info.opcode == aco_opcode::v_lshrrev_b32) {
+      add_opt(v_lshlrev_b32, v_alignbyte_b32, 0x1, "021",
+              and_cb<remove_const_cb<3>, insert_const_cb<0, 0>>);
+      add_opt(s_lshl_b32, v_alignbyte_b32, 0x1, "012",
+              and_cb<remove_const_cb<3>, insert_const_cb<0, 0>>);
+   } else if (info.opcode == aco_opcode::v_alignbit_b32) {
+      add_opt(v_lshlrev_b32, v_alignbyte_b32, 0x4, "0132", remove_const_cb<3>);
+      add_opt(s_lshl_b32, v_alignbyte_b32, 0x4, "0123", remove_const_cb<3>);
    } else if (info.opcode == aco_opcode::v_and_b32) {
       add_opt(v_not_b32, v_bfi_b32, 0x3, "10", insert_const_cb<1, 0>, true);
       add_opt(s_not_b32, v_bfi_b32, 0x3, "10", insert_const_cb<1, 0>, true);
