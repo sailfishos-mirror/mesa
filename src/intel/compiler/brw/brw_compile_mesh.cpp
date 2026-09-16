@@ -362,7 +362,7 @@ brw_compile_task(const struct brw_compiler *compiler,
       brw_nir_apply_key(pt, &key->base, dispatch_width);
 
       brw_nir_opt_vectorize_urb(pt);
-      brw_nir_optimize(pt);
+      brw_nir_optimize(pt, true);
       /* brw_nir_optimize undoes late lowerings. */
       BRW_NIR_PASS(nir_opt_algebraic_late);
       brw_postprocess_nir_out_of_ssa(pt, debug_enabled);
@@ -1090,7 +1090,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
       /* Load uniforms can do a better job for constants, so fold before it. */
       BRW_NIR_PASS(nir_opt_constant_folding);
 
-      brw_nir_optimize(pt);
+      brw_nir_optimize(pt, true);
       /* brw_nir_optimize undoes late lowerings. */
       BRW_NIR_PASS(nir_opt_algebraic_late);
       brw_postprocess_nir_out_of_ssa(pt, debug_enabled);
