@@ -794,7 +794,7 @@
         "description": "dri: allocate MSAA color buffers for drisw image loader buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "df96cac2cfe08a2473e665bb12f3eb00974bf553",
         "notes": null
