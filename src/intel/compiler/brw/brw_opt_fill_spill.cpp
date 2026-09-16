@@ -16,6 +16,35 @@
  * brw_lower_vgrfs_to_fixed_grfs.
  */
 
+static void
+validate_spill_fill_counts(brw_shader &s)
+{
+#ifndef NDEBUG
+   unsigned spill_count = 0;
+   unsigned fill_count = 0;
+
+   foreach_block_and_inst (block, brw_inst, inst, s.cfg) {
+      switch (inst->opcode) {
+      case SHADER_OPCODE_LSC_FILL:
+         fill_count++;
+         break;
+      case SHADER_OPCODE_LSC_SPILL:
+         spill_count++;
+         break;
+      default:
+         break;
+      }
+   }
+
+   /* It would be great if these could be checked for equality, but
+    * nir_intrinsic_load_scratch_intel and nir_intrinsic_store_scratch_intel
+    * translate into generic SENDs that count as fills and spills.
+    */
+   assert(spill_count <= s.shader_stats.spill_count);
+   assert(fill_count <= s.shader_stats.fill_count);
+#endif
+}
+
 static bool
 scratch_intersects(const intel_device_info *devinfo,
                    const brw_scratch_inst *a, const brw_scratch_inst *b)
@@ -181,6 +210,8 @@ brw_opt_fill_and_spill(brw_shader &s)
 
    brw_inst **tmp = NULL;
    unsigned tmp_size = 0;
+
+   validate_spill_fill_counts(s);
 
    foreach_block(block, s.cfg) {
       bool block_progress = false;
@@ -366,5 +397,6 @@ brw_opt_fill_and_spill(brw_shader &s)
       s.invalidate_analysis(BRW_DEPENDENCY_INSTRUCTIONS |
                             BRW_DEPENDENCY_VARIABLES);
 
+   validate_spill_fill_counts(s);
    return progress;
 }

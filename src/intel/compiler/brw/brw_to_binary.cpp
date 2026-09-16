@@ -2128,7 +2128,14 @@ brw_generator::generate_code(const brw_shader &s,
     * shared function use.  Otherwise, subtle changes to scheduling or
     * register allocation could cause it to fluctuate wildly - and that
     * effect is already counted in spill/fill counts.
+    *
+    * If brw_opt_fill_and_spill forgets to update the spill count or fill
+    * count, send_count may count fewer total SENDs than the total spills and
+    * fills. This will cause some wild results in the SEND count shader stats.
     */
+   assert((unsigned)send_count >= (shader_stats.spill_count +
+                                   shader_stats.fill_count));
+
    send_count -= shader_stats.spill_count;
    send_count -= shader_stats.fill_count;
 
