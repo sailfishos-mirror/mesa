@@ -1504,7 +1504,7 @@ static struct pipe_surface create_img_surface(struct rendering_state *state,
    VkImageSubresourceRange imgv_subres =
       vk_image_view_subresource_range(&imgv->vk);
 
-   return create_img_surface_bo(state, &imgv_subres, image->planes[0].bo,
+   return create_img_surface_bo(state, &imgv_subres, image->planes[imgv->planes[0].image_plane].bo,
                                 lvp_vk_format_to_pipe_format(format),
                                 base_layer, layer_count, 0);
 }
@@ -1738,8 +1738,8 @@ resolve_ds(struct rendering_state *state, bool multi)
 
       struct pipe_blit_info info = {0};
 
-      info.src.resource = src_image->planes[0].bo;
-      info.dst.resource = dst_image->planes[0].bo;
+      info.src.resource = src_image->planes[src_imgv->planes[0].image_plane].bo;
+      info.dst.resource = dst_image->planes[dst_imgv->planes[0].image_plane].bo;
       info.src.format = src_imgv->pformat;
       info.dst.format = dst_imgv->pformat;
       info.filter = PIPE_TEX_FILTER_NEAREST;
@@ -1788,8 +1788,8 @@ resolve_color(struct rendering_state *state, bool multi)
 
       struct pipe_blit_info info = { 0 };
 
-      info.src.resource = src_image->planes[0].bo;
-      info.dst.resource = dst_image->planes[0].bo;
+      info.src.resource = src_image->planes[src_imgv->planes[0].image_plane].bo;
+      info.dst.resource = dst_image->planes[dst_imgv->planes[0].image_plane].bo;
       info.src.format = src_imgv->pformat;
       info.dst.format = dst_imgv->pformat;
       info.filter = PIPE_TEX_FILTER_NEAREST;
@@ -1841,12 +1841,12 @@ replicate_attachment(struct rendering_state *state,
       .x = 0,
       .y = 0,
       .z = 0,
-      .width = u_minify(dst_image->planes[0].bo->width0, level),
-      .height = u_minify(dst_image->planes[0].bo->height0, level),
-      .depth = u_minify(dst_image->planes[0].bo->depth0, level),
+      .width = u_minify(dst_image->planes[dst->planes[0].image_plane].bo->width0, level),
+      .height = u_minify(dst_image->planes[dst->planes[0].image_plane].bo->height0, level),
+      .depth = u_minify(dst_image->planes[dst->planes[0].image_plane].bo->depth0, level),
    };
-   state->pctx->resource_copy_region(state->pctx, dst_image->planes[0].bo, level,
-                                     0, 0, 0, src_image->planes[0].bo, level, &box);
+   state->pctx->resource_copy_region(state->pctx, dst_image->planes[dst->planes[0].image_plane].bo, level,
+                                     0, 0, 0, src_image->planes[src->planes[0].image_plane].bo, level, &box);
 }
 
 static struct lvp_image_view *
