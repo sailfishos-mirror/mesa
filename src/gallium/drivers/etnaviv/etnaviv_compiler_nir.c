@@ -296,6 +296,10 @@ const_src(struct etna_compile *c, nir_const_value *value, unsigned num_component
    unsigned i;
    int swiz = -1;
    for (i = 0; swiz < 0; i++) {
+      if (i >= ETNA_MAX_IMM / 4) {
+         c->error = true;
+         return SRC_CONST(0, INST_SWIZ_IDENTITY);
+      }
       uint64_t *a = &c->consts[i*4];
       uint64_t save[4];
       memcpy(save, a, sizeof(save));
@@ -311,10 +315,102 @@ const_src(struct etna_compile *c, nir_const_value *value, unsigned num_component
       }
    }
 
-   assert(i <= ETNA_MAX_IMM / 4);
    c->const_count = MAX2(c->const_count, i);
 
    return SRC_CONST(i - 1, swiz);
+}
+
+static bool
+needs_uniform_slot(const nir_load_const_instr *load_const)
+{
+   unsigned type;
+   uint32_t imm;
+
+   if (load_const->def.bit_size != 32)
+      return false;
+
+   return load_const->def.num_components > 1 ||
+          !inline_immediate(load_const->value[0].u32, &type, &imm);
+}
+
+static bool
+has_alu_use(const nir_def *def)
+{
+   nir_foreach_use(src, def) {
+      if (nir_src_use_instr(src)->type == nir_instr_type_alu)
+         return true;
+   }
+
+   return false;
+}
+
+static unsigned
+constant_data_add(nir_shader *s, const nir_load_const_instr *load_const)
+{
+   unsigned size = load_const->def.num_components * 4;
+   uint32_t value[4];
+
+   nir_const_value_to_array(value, load_const->value,
+                            load_const->def.num_components, u32);
+
+   for (unsigned off = 0; off + size <= s->constant_data_size; off += 4) {
+      if (!memcmp((char *)s->constant_data + off, value, size))
+         return off;
+   }
+
+   unsigned offset = s->constant_data_size;
+
+   s->constant_data_size += size;
+   s->constant_data = rerzalloc_size(s, s->constant_data, offset,
+                                     s->constant_data_size);
+   memcpy((char *)s->constant_data + offset, value, size);
+
+   return offset;
+}
+
+static bool
+etna_nir_spill_constants(nir_shader *s)
+{
+   bool progress = false;
+
+   nir_foreach_function_impl(impl, s) {
+      nir_builder b = nir_builder_create(impl);
+      bool impl_progress = false;
+
+      nir_foreach_block(block, impl) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_load_const)
+               continue;
+
+            nir_load_const_instr *load_const = nir_instr_as_load_const(instr);
+            nir_def *def = &load_const->def;
+
+            if (!needs_uniform_slot(load_const) || !has_alu_use(def))
+               continue;
+
+            unsigned offset = constant_data_add(s, load_const);
+
+            nir_foreach_use_safe(src, def) {
+               nir_instr *parent = nir_src_use_instr(src);
+
+               if (parent->type != nir_instr_type_alu)
+                  continue;
+
+               b.cursor = nir_before_instr(parent);
+               nir_def *load = nir_load_constant(&b, def->num_components, 32,
+                                                 nir_imm_int(&b, offset),
+                                                 .align_mul = 4);
+               nir_src_rewrite(src, load);
+               impl_progress = true;
+            }
+         }
+      }
+
+      nir_progress(impl_progress, impl, nir_metadata_control_flow);
+      progress |= impl_progress;
+   }
+
+   return progress;
 }
 
 /* how to swizzle when used as a src */
@@ -1130,7 +1226,7 @@ emit_shader(struct etna_compile *c, unsigned *num_temps, unsigned *num_consts)
 
    *num_temps = etna_ra_finish(c);
    *num_consts = c->const_count;
-   return true;
+   return !c->error;
 }
 
 static inline unsigned
@@ -1250,8 +1346,8 @@ alu_width_cb(const nir_instr *instr, UNUSED const void *cb_data)
    return 4;
 }
 
-bool
-etna_compile_shader(struct etna_shader_variant *v)
+static bool
+compile_shader(struct etna_shader_variant *v, bool spill_constants)
 {
    if (unlikely(!v))
       return false;
@@ -1259,6 +1355,9 @@ etna_compile_shader(struct etna_shader_variant *v)
    struct etna_compile *c = CALLOC_STRUCT(etna_compile);
    if (!c)
       return false;
+
+   /* a retry starts from a clean variant */
+   memset(VARIANT_CACHE_PTR(v), 0, VARIANT_CACHE_SIZE);
 
    c->variant = v;
    c->info = v->shader->info;
@@ -1386,6 +1485,9 @@ etna_compile_shader(struct etna_shader_variant *v)
    NIR_PASS(_, s, nir_lower_bool_to_int32);
    NIR_PASS(_, s, etna_lower_alu, c->specs->has_new_transcendentals);
 
+   if (spill_constants)
+      NIR_PASS(_, s, etna_nir_spill_constants);
+
    /* needs to be the last pass that touches pass_flags! */
    NIR_PASS(_, s, etna_nir_lower_to_source_mods);
 
@@ -1396,8 +1498,12 @@ etna_compile_shader(struct etna_shader_variant *v)
    c->block_ptr = block_ptr;
 
    unsigned num_consts;
-   ASSERTED bool ok = emit_shader(c, &v->num_temps, &num_consts);
-   assert(ok);
+   bool ok = emit_shader(c, &v->num_temps, &num_consts);
+   if (!ok || num_consts > max_uniforms(v)) {
+      ralloc_free(c->nir);
+      FREE(c);
+      return false;
+   }
 
    /* empty shader, emit NOP */
    if (!c->inst_ptr)
@@ -1426,10 +1532,29 @@ etna_compile_shader(struct etna_shader_variant *v)
       fill_vs_mystery(v);
    }
 
+   if (s->constant_data_size) {
+      v->constant_data = MALLOC(s->constant_data_size);
+      memcpy(v->constant_data, s->constant_data, s->constant_data_size);
+      v->constant_data_size = s->constant_data_size;
+   }
+
    bool result = etna_compile_check_limits(v);
    ralloc_free(c->nir);
    FREE(c);
    return result;
+}
+
+bool
+etna_compile_shader(struct etna_shader_variant *v)
+{
+   if (compile_shader(v, false))
+      return true;
+
+   /* the spilled constants are read with LOAD, which needs halti2 */
+   if (!v || v->shader->info->halti < 2)
+      return false;
+
+   return compile_shader(v, true);
 }
 
 static const struct etna_shader_inout *
