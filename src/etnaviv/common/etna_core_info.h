@@ -78,6 +78,7 @@ enum etna_feature {
    ETNA_FEATURE_UNIFIED_SAMPLERS,
    ETNA_FEATURE_PE_A8B8G8R8,
    ETNA_FEATURE_TX_INTEGER_COORDINATE_V2,
+   ETNA_FEATURE_TESSELLATION_SHADERS,
    ETNA_FEATURE_NUM,
 };
 
@@ -91,6 +92,9 @@ struct etna_core_gpu_info {
    unsigned pixel_pipes;               /* available pixel pipes */
    unsigned max_varyings;              /* maximum number of varyings */
    unsigned num_constants;             /* number of constants */
+   unsigned result_window_max_size;    /* maximum size of the vertex shader result window */
+   unsigned usc_size;                  /* size of the unified shader cache in KB */
+   unsigned l1_cache_size;             /* nominal size of the L1 texture cache in KB */
 };
 
 struct etna_core_npu_info {
