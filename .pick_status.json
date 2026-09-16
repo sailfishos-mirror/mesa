@@ -2754,7 +2754,7 @@
         "description": "util/astc: read the 128-bit block as little-endian words",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "38ab39f6501f78ea7048e8a16a97fdb075b9d8c7",
         "notes": null
