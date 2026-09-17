@@ -174,7 +174,7 @@
         "description": "radv: do not abort when the app specifies an invalid modifier",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
