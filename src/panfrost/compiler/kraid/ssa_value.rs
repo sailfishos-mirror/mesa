@@ -44,7 +44,17 @@ impl SSAValueMeta {
     }
 }
 
-/// An SSA value
+/// A scalar SSA value.  SSA values in Kraid are 8, 16, or 32 bits and
+/// represent a single register or sub-register value.  SSA values can be
+/// combined together into an SSARef for larger values.
+///
+/// SSA values can only be created with the SSAValueAllocator and can never be
+/// modified.  This allows us to make them Copy while also ensuring that you
+/// can always get basic information from an SSAValue such as the number of
+/// bits and the index without ever risking inconsistencies in the IR.  For any
+/// given SSAValueAllocator and any given SSA value index, bits() and is_mem()
+/// will always return the same, no matter which instance of SSAValue they're
+/// called on.
 #[repr(transparent)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SSAValue(SSAValueInner);
@@ -122,6 +132,28 @@ enum SSARefInner {
     Long(Box<SSARefInnerLong>),
 }
 
+/// A reference to one or more SSA values.  SSA values in Kraid are 8, 16, or
+/// 32 bits and represent a single register or sub-register value.  An SSARef
+/// groups together one or more SSA values to construct a larger value.  There
+/// is, however, one important rule:  If an SSARef references more than one
+/// SSAValue, all referenced SSA values must be 32-bit.
+///
+/// This design ensures that there is exactly one unique way to construct and
+/// SSARef for any given bit size.  It also means that RA and other components
+/// never have to deal with heterogeneous vectors, such as a vector of 8, 16,
+/// and 8 bits for a total of 32.  Everything is either a single SSAValue or
+/// a vector of 32-bit elements.  It does, however, come with the downside
+/// that there is no way to make an SSARef of 24 or 48 bits.  However, small
+/// 3-component vectors are unlikely enough and the space savings is small
+/// enough that this was considered an acceptible trade-off.
+///
+/// The other downside with this design is that we still have to use MKVEC to
+/// construct vectors of 8 or 16-bit elements.  However, since the ops producing
+/// such values will usually be vectorized,  we likely either already have a
+/// vector or we're components from two or more distinct vectors, in which case
+/// we need a MKVEC anyway.  Also, RA is capable of eliminating some MKVEC ops
+/// by simply allocating the scalars consecutively.  In practice, this hasn't
+/// been shown to be much of a problem.
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct SSARef(SSARefInner);
 
