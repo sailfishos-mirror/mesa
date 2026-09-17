@@ -4464,7 +4464,7 @@
         "description": "aco/optimizer: do not truncate constants before resolving extracts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5abc9615145f271d807852e3c5f3839b72382326",
         "notes": null
