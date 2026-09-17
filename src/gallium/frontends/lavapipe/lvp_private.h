@@ -176,6 +176,8 @@ struct lvp_physical_device {
 struct lvp_instance {
    struct vk_instance vk;
 
+   struct list_head link;
+
    struct lvp_drirc drirc;
 
    uint64_t debug_flags;

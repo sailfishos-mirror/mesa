@@ -37,6 +37,7 @@
 #include "pipe/p_context.h"
 #include "draw/draw_context.h"
 #include "frontend/drisw_api.h"
+#include "lp_screen.h"
 
 #include "util/u_inlines.h"
 #include "util/os_file.h"
@@ -79,6 +80,9 @@
 
 #define LVP_SAMPLE_COUNTS (VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT | \
                            VK_SAMPLE_COUNT_8_BIT)
+
+static struct list_head instance_list = {&instance_list, &instance_list};
+static simple_mtx_t instance_lock = SIMPLE_MTX_INITIALIZER;
 
 extern unsigned lp_native_vector_width;
 
@@ -1612,6 +1616,10 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateInstance(
    vk_instance_dispatch_table_from_entrypoints(
       &dispatch_table, &wsi_instance_entrypoints, false);
 
+   simple_mtx_lock(&instance_lock);
+   list_addtail(&instance->link, &instance_list);
+   simple_mtx_unlock(&instance_lock);
+
    result = vk_instance_init(&instance->vk,
                              &lvp_instance_extensions_supported,
                              &dispatch_table,
@@ -1656,6 +1664,11 @@ VKAPI_ATTR void VKAPI_CALL lvp_DestroyInstance(
    driDestroyOptionInfo(&instance->drirc.available_options);
 
    vk_instance_finish(&instance->vk);
+
+   simple_mtx_lock(&instance_lock);
+   list_del(&instance->link);
+   simple_mtx_unlock(&instance_lock);
+
    vk_free(&instance->vk.alloc, instance);
 }
 
@@ -1814,6 +1827,17 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetPhysicalDeviceMemoryProperties2(
 #else
       props->heapUsage[0] = pMemoryProperties->memoryProperties.memoryHeaps[0].size - props->heapBudget[0];
 #endif
+
+      simple_mtx_lock(&instance_lock);
+      struct lvp_instance *instance;
+      LIST_FOR_EACH_ENTRY(instance, &instance_list, link) {
+         struct lvp_physical_device *device;
+         LIST_FOR_EACH_ENTRY(device, &instance->vk.physical_devices.list, vk.link) {
+            uint64_t mem_file_size = llvmpipe_get_mem_file_size(device->pscreen);
+            props->heapUsage[0] += mem_file_size;
+         }
+      }
+      simple_mtx_unlock(&instance_lock);
       memset(&props->heapBudget[1], 0, sizeof(props->heapBudget[0]) * (VK_MAX_MEMORY_HEAPS - 1));
       memset(&props->heapUsage[1], 0, sizeof(props->heapUsage[0]) * (VK_MAX_MEMORY_HEAPS - 1));
    }
