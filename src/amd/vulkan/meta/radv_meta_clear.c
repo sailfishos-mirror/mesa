@@ -834,8 +834,8 @@ radv_clear_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    uint32_t layer_count = vk_image_subresource_layer_count(&image->vk, range);
    uint32_t flush_bits = 0;
 
-   /* Mark the image as being compressed. */
-   radv_update_dcc_metadata(cmd_buffer, image, range, true);
+   /* Mark the image as being compressed if needed. */
+   radv_update_dcc_metadata(cmd_buffer, image, range, value != DCC_UNCOMPRESSED);
 
    for (uint32_t l = 0; l < level_count; l++) {
       uint64_t dcc_offset = image->planes[0].surface.meta_offset;
