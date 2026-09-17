@@ -1616,8 +1616,14 @@ iris_setup_binding_table(const struct iris_screen *screen,
          case nir_intrinsic_image_atomic_swap:
          case nir_intrinsic_image_load_raw_intel:
          case nir_intrinsic_image_store_raw_intel:
-            rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
-                                 IRIS_SURFACE_GROUP_IMAGE);
+            if (use_efficient_64bit) {
+               rewrite_src_with_surface_address(&b, bt, instr, &intrin->src[0],
+                                                IRIS_SURFACE_GROUP_IMAGE,
+                                                screen->isl_dev.ss.size);
+            } else {
+               rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
+                                    IRIS_SURFACE_GROUP_IMAGE);
+            }
             break;
 
          case nir_intrinsic_load_ubo:
