@@ -598,6 +598,7 @@ pub enum ClperInactiveResult {
 }
 
 impl ClperInactiveResult {
+    #[allow(dead_code)]
     fn to_bits(self) -> u32 {
         let v2i16 = |u: u16| {
             let u = u32::from(u);

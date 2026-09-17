@@ -1777,6 +1777,7 @@ pub trait Opcode:
         self.dsts().iter().zip(t)
     }
 
+    #[allow(dead_code)]
     fn dsts_types_mut(&mut self) -> impl Iterator<Item = (&mut Dst, DataType)> {
         let t = self.dst_types();
         self.dsts_mut().iter_mut().zip(t)

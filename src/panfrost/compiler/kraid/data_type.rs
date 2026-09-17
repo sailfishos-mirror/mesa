@@ -115,6 +115,7 @@ pub enum PartialDataType {
 impl PartialDataType {
     pub const DEFAULT: PartialDataType = PartialDataType::None;
 
+    #[allow(dead_code)]
     pub fn bits(&self) -> Option<NonZeroU8> {
         NonZeroU8::new(self.to_pieces().2)
     }

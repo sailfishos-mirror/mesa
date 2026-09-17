@@ -542,6 +542,7 @@ impl<'a> RawTestShaderBuilder<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn ld_test_data_to(&mut self, dst: Dst, offset: u16, bits: u8) {
         self.max_data_offset = self.max_data_offset.max(offset);
 
@@ -634,6 +635,7 @@ impl Builder for RawTestShaderBuilder<'_> {
 struct InvocationArgs<'a>(InvocationInfo<'a>);
 
 impl<'a> InvocationArgs<'a> {
+    #[allow(dead_code)]
     pub fn with_fau(mut self, fau: &'a [u32]) -> Self {
         self.0.fau = fau;
         self
@@ -648,6 +650,7 @@ impl<'a> InvocationArgs<'a> {
 struct CompiledTestCase {
     code: Vec<u32>,
     info: ShaderInfo,
+    #[allow(dead_code)]
     max_data_offset: u16,
     fau_args_offset: usize,
 }
