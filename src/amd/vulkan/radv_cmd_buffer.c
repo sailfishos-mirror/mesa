@@ -2111,7 +2111,8 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
 
          if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
             flags |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
-                     RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META |
+                     RADV_CMD_FLAG_FLUSH_AND_INV_DB |
+                     (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0) |
                      (pdev->info.gfx_level < GFX12 ? RADV_CMD_FLAG_INV_L2_METADATA : 0);
       }
 
@@ -5833,7 +5834,8 @@ radv_emit_fb_mip_change_flush(struct radv_cmd_buffer *cmd_buffer)
       if ((radv_htile_enabled(iview->image, iview->vk.base_mip_level) ||
            radv_htile_enabled(iview->image, cmd_buffer->state.ds_mip)) &&
           cmd_buffer->state.ds_mip != iview->vk.base_mip_level) {
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+         cmd_buffer->state.flush_bits |=
+            RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
       }
 
       cmd_buffer->state.ds_mip = iview->vk.base_mip_level;
@@ -5867,7 +5869,8 @@ radv_emit_mip_change_flush_default(struct radv_cmd_buffer *cmd_buffer)
    }
 
    if (cmd_buffer->state.ds_mip) {
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+      cmd_buffer->state.flush_bits |=
+         RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
    }
 
    memset(cmd_buffer->state.cb_mip, 0, sizeof(cmd_buffer->state.cb_mip));
@@ -7923,6 +7926,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
                       const VkImageSubresourceRange *range)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
 
    src_flags = vk_expand_src_access_flags2(src_stages, src_flags);
 
@@ -7974,7 +7978,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
       flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
       if (!image_is_coherent)
          flush_bits |= RADV_CMD_FLAG_INV_L2;
-      if (has_DB_meta)
+      if (pdev->info.gfx_level < GFX10 && has_DB_meta)
          flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    }
 
@@ -7985,7 +7989,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
          flush_bits |= RADV_CMD_FLAG_INV_L2;
       if (has_CB_meta)
          flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_CB_META;
-      if (has_DB_meta)
+      if (pdev->info.gfx_level < GFX10 && has_DB_meta)
          flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    }
 
@@ -8137,7 +8141,7 @@ radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
    if (dst_flags & VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT) {
       if (flush_DB)
          flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
-      if (has_DB_meta)
+      if (pdev->info.gfx_level < GFX10 && has_DB_meta)
          flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    }
 
@@ -15848,7 +15852,8 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    if (radv_layout_is_htile_compressed(device, image, range->baseMipLevel, src_layout, src_queue_mask) &&
        !radv_layout_is_htile_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+      cmd_buffer->state.flush_bits |=
+         RADV_CMD_FLAG_FLUSH_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? RADV_CMD_FLAG_FLUSH_AND_INV_DB_META : 0);
 
       radv_expand_depth_stencil(cmd_buffer, image, range, sample_locs);
    }
