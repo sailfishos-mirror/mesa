@@ -15494,42 +15494,49 @@ radv_init_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, co
    return radv_clear_fmask(cmd_buffer, image, range, value);
 }
 
+static bool
+radv_image_need_dcc_fixup(const struct radv_device *device, const struct radv_image *image, uint32_t *dcc_fixup_offset)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   if (pdev->info.gfx_level != GFX8)
+      return false;
+
+   /* Compute the size of all fast clearable DCC levels. */
+   for (unsigned i = 0; i < image->planes[0].surface.num_meta_levels; i++) {
+      const struct legacy_surf_dcc_level *dcc_level = &image->planes[0].surface.u.legacy.color.dcc_level[i];
+      unsigned dcc_fast_clear_size = dcc_level->dcc_slice_fast_clear_size * image->vk.array_layers;
+
+      if (!dcc_fast_clear_size)
+         break;
+
+      *dcc_fixup_offset = dcc_level->dcc_offset + dcc_fast_clear_size;
+   }
+
+   /* Initialize the mipmap levels without DCC. */
+   return *dcc_fixup_offset != image->planes[0].surface.meta_size;
+}
+
 uint32_t
 radv_init_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
               uint32_t value)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_barrier_data barrier = {0};
    uint32_t flush_bits = 0;
-   unsigned size = 0;
+   unsigned dcc_fixup_offset = 0;
 
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
    flush_bits |= radv_clear_dcc(cmd_buffer, image, range, value);
 
-   if (pdev->info.gfx_level == GFX8) {
-      /* When DCC is enabled with mipmaps, some levels might not
-       * support fast clears and we have to initialize them as "fully
-       * expanded".
-       */
-      /* Compute the size of all fast clearable DCC levels. */
-      for (unsigned i = 0; i < image->planes[0].surface.num_meta_levels; i++) {
-         struct legacy_surf_dcc_level *dcc_level = &image->planes[0].surface.u.legacy.color.dcc_level[i];
-         unsigned dcc_fast_clear_size = dcc_level->dcc_slice_fast_clear_size * image->vk.array_layers;
-
-         if (!dcc_fast_clear_size)
-            break;
-
-         size = dcc_level->dcc_offset + dcc_fast_clear_size;
-      }
-
-      /* Initialize the mipmap levels without DCC. */
-      if (size != image->planes[0].surface.meta_size) {
-         flush_bits |= radv_fill_image(cmd_buffer, image, image->planes[0].surface.meta_offset + size,
-                                       image->planes[0].surface.meta_size - size, 0xffffffff);
-      }
+   /* When DCC is enabled with mipmaps, some levels might not support fast clears and we have to
+    * initialize them as "fully expanded".
+    */
+   if (radv_image_need_dcc_fixup(device, image, &dcc_fixup_offset)) {
+      flush_bits |= radv_fill_image(cmd_buffer, image, image->planes[0].surface.meta_offset + dcc_fixup_offset,
+                                    image->planes[0].surface.meta_size - dcc_fixup_offset, 0xffffffff);
    }
 
    return flush_bits;
@@ -15586,7 +15593,10 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
 
    /* Skip redundant operations when the image is already zero-initialized. */
    if (src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
-      need_dcc_init = dcc_init_value != DCC_CLEAR_0000 || radv_image_use_dcc_predication(device, image);
+      uint32_t dcc_fixup_offset = 0;
+
+      need_dcc_init = dcc_init_value != DCC_CLEAR_0000 || radv_image_use_dcc_predication(device, image) ||
+                      radv_image_need_dcc_fixup(device, image, &dcc_fixup_offset);
       need_metadata_init = false;
    }
 
