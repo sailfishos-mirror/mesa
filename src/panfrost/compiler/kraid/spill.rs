@@ -781,8 +781,9 @@ fn spill(s: &mut Shader, live: impl Liveness, limit: u32) {
                         }
                     }
 
-                    let rel_pressure =
-                        u32::from(bl.get_instr_pressure(s.model, ip, &instr));
+                    let rel_pressure = u32::from(
+                        bl.get_instr_pressure_top_down(s.model, ip, &instr),
+                    );
                     let abs_pressure = live.bytes().reg + rel_pressure;
 
                     if abs_pressure > limit {

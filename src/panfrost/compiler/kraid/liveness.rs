@@ -132,6 +132,24 @@ impl LiveSet {
         }
     }
 
+    /// This method updates the live set for the given instruction, assuming a
+    /// bottom-up walk of the instructions.  We assume that the live set
+    /// represents the values live after the instruction and update it to
+    /// represent the values live before the instruction.
+    ///
+    /// Since SSA values only ever have a single static definition, none of the
+    /// SSA values written by this instruction are live before it and so can
+    /// be removed from the live set.  All SSA values used by this instruction
+    /// must be live before it and so they are added to the live set.
+    /// Importantly, unlike updating the live set for a top-down walk, neither
+    /// of those actions depends on global liveness analysis.
+    ///
+    /// The returned live bytes represent the maximum number of bytes live
+    /// before, after, or during the execution of the given instruction. With
+    /// the exception of OpCopy, the destinations of instructions are assumed
+    /// to go live before sources are killed.  This can lead to slightly higher
+    /// instantaneous pressure but gives the register allocator more freedom
+    /// when making register choices.
     pub fn insert_instr_bottom_up(
         &mut self,
         model: &dyn Model,
@@ -169,6 +187,24 @@ impl LiveSet {
         }
     }
 
+    /// This method updates the live set for the given instruction, assuming a
+    /// top-down walk of the instructions.  We assume that the live set
+    /// represents the values live before the instruction and update it to
+    /// represent the values live after the instruction.
+    ///
+    /// Any SSA values written by this instruction are added to the set.  Any
+    /// SSA values used (read or written) by this instruction are removed from
+    /// the set if killed by this instruction.  (A value is killed if
+    /// BlockLiveness::is_used_after_ip() returns false.)  Since this depends
+    /// on liveness analysis, a BlockLiveness and the ip of the instruction
+    /// are required.
+    ///
+    /// The returned live bytes represent the maximum number of bytes live
+    /// before, after, or during the execution of the given instruction. With
+    /// the exception of OpCopy, the destinations of instructions are assumed
+    /// to go live before sources are killed.  This can lead to slightly higher
+    /// instantaneous pressure but gives the register allocator more freedom
+    /// when making register choices.
     pub fn insert_instr_top_down<L: BlockLiveness>(
         &mut self,
         model: &dyn Model,
@@ -277,7 +313,17 @@ pub trait BlockLiveness {
         self.live_out_set().contains(val.idx())
     }
 
-    fn get_instr_pressure(
+    /// Returns the instantaneous pressure delta for the given instruction,
+    /// assuming a top-down walk of the instructions.  This is the number of
+    /// additional bytes which this instruction will instantaneously use.
+    /// This includes any SSA values written by this instruction as well as
+    /// padding bytes.  For OpBlend, this includes and any bytes clobbered.
+    ///
+    /// For OpCopy, the does not include any source SSA values which are killed
+    /// by this instruction.  For all other instructions, however, we assume
+    /// that the destinations go live before the sources are killed and so the
+    /// instantaneous pressure includes both sources and destinations.
+    fn get_instr_pressure_top_down(
         &self,
         model: &dyn Model,
         ip: usize,
