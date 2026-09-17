@@ -25,6 +25,7 @@
 #include "compiler/nir/nir.h"
 #include "compiler/nir/nir_builder.h"
 #include "compiler/nir/nir_serialize.h"
+#include "intel/common/intel_common.h"
 #include "intel/compiler/brw/brw_compiler.h"
 #include "intel/compiler/brw/brw_eu.h"
 #include "intel/compiler/brw/brw_nir.h"
@@ -1363,6 +1364,18 @@ iris_load_eff_64bit_surfaces_base_address(nir_builder *b)
 }
 
 /**
+ * Load the 64-bit GPU address of this stage's sampler-state table, i.e.
+ * the array of SAMPLER_STATE_EXTENDED records built by
+ * iris_upload_sampler_states().
+ */
+static nir_def *
+iris_load_eff_64bit_sampler_base_address(nir_builder *b)
+{
+   return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
+                                   .base = 8, .range = 8);
+}
+
+/**
  * Rewrite a surface index source into a 64-bit surface-state address,
  * wrapped in a nir_resource_intel handle, instead of a binding table index.
  *
@@ -1412,6 +1425,55 @@ rewrite_src_with_surface_address(nir_builder *b,
       .resource_access_intel = nir_resource_intel_internal);
 
    nir_src_rewrite(src, handle);
+}
+
+/**
+ * Rewrite a nir_tex_instr's texture/sampler index into a 64-bit
+ * nir_resource_intel handle (nir_tex_src_texture_handle /
+ * nir_tex_src_sampler_handle), analogous to rewrite_src_with_surface_address().
+ *
+ * The texture handle addresses into the same 64-bit binding table used for
+ * UBO/SSBO/images (built by iris_populate_64bit_binding_table()).
+ * The sampler handle addresses into the separate sampler-state table instead,
+ * whose base address is delivered via a different push constant
+ * (see iris_load_eff_64bit_sampler_base_address()), its per-sampler stride is
+ * the SAMPLER_STATE_EXTENDED size instead of the SURFACE_STATE size.
+ */
+static void
+rewrite_tex_with_surface_address(nir_builder *b,
+                                 nir_tex_instr *tex,
+                                 nir_def *base_addr,
+                                 uint32_t slot,
+                                 nir_def *dynamic_index,
+                                 uint32_t state_size,
+                                 nir_tex_src_type src_type)
+{
+   b->cursor = nir_before_instr(&tex->instr);
+
+   nir_def *byte_offset;
+
+   if (dynamic_index) {
+      nir_def *slot_def = nir_iadd_imm(b, dynamic_index, slot);
+
+      byte_offset = nir_imul_imm(b, nir_u2u32(b, slot_def), state_size);
+   } else {
+      byte_offset = nir_imm_int(b, slot * state_size);
+   }
+
+   nir_def *addr64 = nir_iadd(b, base_addr, nir_u2u64(b, byte_offset));
+   nir_def *handle = nir_resource_intel(
+      b,
+      1, /* num_components */
+      64, /* bit size */
+      addr64, /* set_offset */
+      addr64, /* surface_index */
+      nir_imm_int(b, 0), /* array_index */
+      nir_imm_int(b, 0), /* bindless_base_offset */
+      .desc_set = 0,
+      .binding = 0,
+      .resource_access_intel = nir_resource_intel_internal);
+
+   nir_tex_instr_add_src(tex, src_type, handle);
 }
 
 static void
@@ -1592,14 +1654,68 @@ iris_setup_binding_table(const struct iris_screen *screen,
       nir_foreach_instr_safe (instr, block) {
          if (instr->type == nir_instr_type_tex) {
             nir_tex_instr *tex = nir_instr_as_tex(instr);
+            enum iris_surface_group group;
+            unsigned group_index;
+
             if (tex->texture_index < 64) {
-               tex->texture_index =
-                  iris_group_index_to_bti(bt, IRIS_SURFACE_GROUP_TEXTURE_LOW64,
-                                          tex->texture_index);
+               group = IRIS_SURFACE_GROUP_TEXTURE_LOW64;
+               group_index = tex->texture_index;
             } else {
-               tex->texture_index =
-                  iris_group_index_to_bti(bt, IRIS_SURFACE_GROUP_TEXTURE_HIGH64,
-                                          tex->texture_index - 64);
+               group = IRIS_SURFACE_GROUP_TEXTURE_HIGH64;
+               group_index = tex->texture_index - 64;
+            }
+
+            if (use_efficient_64bit) {
+               uint32_t slot = iris_group_index_to_bti(bt, group, group_index);
+
+               b.cursor = nir_before_instr(instr);
+
+               int tex_offset_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_offset);
+               nir_def *tex_dynamic_index = NULL;
+
+               if (tex_offset_idx >= 0) {
+                  assert(bt->used_mask[group] == BITFIELD64_MASK(bt->surf_count[group]));
+                  tex_dynamic_index = tex->src[tex_offset_idx].src.ssa;
+                  nir_tex_instr_remove_src(tex, tex_offset_idx);
+               }
+
+               nir_def *surf_base_addr = iris_load_eff_64bit_surfaces_base_address(&b);
+               rewrite_tex_with_surface_address(&b, tex, surf_base_addr, slot,
+                                                tex_dynamic_index,
+                                                screen->isl_dev.ss.size,
+                                                nir_tex_src_texture_handle);
+               tex->texture_index = 0;
+
+               int sampler_offset_idx = nir_tex_instr_src_index(tex, nir_tex_src_sampler_offset);
+
+               if (nir_tex_instr_need_sampler(tex)) {
+                  nir_def *sampler_base_addr = iris_load_eff_64bit_sampler_base_address(&b);
+                  uint32_t state_size = intel_sampler_state_size(use_efficient_64bit);
+                  nir_def *sampler_dynamic_index = NULL;
+
+                  if (sampler_offset_idx >= 0) {
+                     sampler_dynamic_index = tex->src[sampler_offset_idx].src.ssa;
+                     nir_tex_instr_remove_src(tex, sampler_offset_idx);
+                  }
+
+                  rewrite_tex_with_surface_address(&b, tex, sampler_base_addr,
+                                                   tex->sampler_index,
+                                                   sampler_dynamic_index,
+                                                   state_size,
+                                                   nir_tex_src_sampler_handle);
+               } else {
+                  /* Some instructions don't need a sampler, but may still carry
+                   * a leftover sampler_offset source from the front-end
+                   * (since texture and sampler indices are combined in GL).
+                   * Remove it instead of leaving a stale 32-bit offset behind,
+                   * which would later fail the 64-bit sampler assertion in the backend.
+                   */
+                  if (sampler_offset_idx >= 0)
+                     nir_tex_instr_remove_src(tex, sampler_offset_idx);
+               }
+               tex->sampler_index = 0;
+            } else {
+               tex->texture_index = iris_group_index_to_bti(bt, group, group_index);
             }
             continue;
          }
