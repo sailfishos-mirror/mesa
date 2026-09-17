@@ -2112,7 +2112,7 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
          if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
             flags |= RADV_CMD_FLAG_FLUSH_AND_INV_CB | RADV_CMD_FLAG_FLUSH_AND_INV_CB_META |
                      RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META |
-                     RADV_CMD_FLAG_INV_L2_METADATA;
+                     (pdev->info.gfx_level < GFX12 ? RADV_CMD_FLAG_INV_L2_METADATA : 0);
       }
 
       assert((flags & (RADV_CMD_FLAG_VS_PARTIAL_FLUSH | RADV_CMD_FLAG_PS_PARTIAL_FLUSH)) ==
