@@ -42,6 +42,7 @@ pub enum NumericType {
 }
 
 /// Data type
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum PartialDataType {
     None,

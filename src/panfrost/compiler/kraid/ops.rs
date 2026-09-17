@@ -470,6 +470,7 @@ impl VirtualOpcode for OpBlendCall {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum BranchCombineOp {
     /// Branch if != 0
@@ -546,6 +547,7 @@ impl fmt::Display for SubgroupSize {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum ClperLaneOp {
     #[default]
@@ -574,6 +576,7 @@ impl fmt::Display for ClperLaneOp {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum ClperInactiveResult {
     Zero,
@@ -1302,6 +1305,7 @@ impl Foldable for OpFAddLScale {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum CmpAccumOp {
     None,
@@ -1329,6 +1333,7 @@ impl CmpAccumOp {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum CmpResultType {
     I1,
@@ -1366,6 +1371,7 @@ impl CmpResultType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum CmpOp {
     Eq,
@@ -1628,6 +1634,7 @@ impl DisplayOp for OpFLogD {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum FlushNanMode {
     #[default]
@@ -1959,6 +1966,7 @@ impl PerCompFoldable for OpFRcp {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum FrexpMode {
     /// Normal operation F -> (M, E) s.t. F = M * 2^E with abs(M) in [0.5, 1.0)
@@ -3017,6 +3025,7 @@ impl DisplayOp for OpLdVarFlat {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum VarSpecialName {
     /// Point coordinate (x,y from 0.0 to 1.0)
@@ -3323,6 +3332,7 @@ impl VirtualOpcode for OpMkVecV4I8 {
 /// sub-matrix.  Similarly, MMUL.f16 is a 4x4*4x8 matrix multiply where the A
 /// matrix is a 4x4 sub-matrix of the 4x8 input matrix.  This enum selects
 /// which of the two 4x4 sub-matrices in the 4x8 matrix gets read.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum F16SubMat {
     /// No submatrix operation.  This is used for F32 4x4 source matrices.
@@ -3484,6 +3494,7 @@ impl DisplayOp for OpMov {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum MuxOp {
     Neg,
@@ -4128,6 +4139,7 @@ impl fmt::Display for TexDim {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum TexCoordMode {
     F32,
@@ -4162,6 +4174,7 @@ impl fmt::Display for TexGatherComp {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum TexLodMode {
     #[default]
