@@ -889,7 +889,7 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
 
    s.debug_optimizer(nir, "post_ra_alloc", iteration, pass_num);
 
-   if (s.spilled_any_registers) {
+   if (s.spilled_any_registers && devinfo->has_lsc) {
       if (!INTEL_DEBUG(DEBUG_NO_FILL_OPT))
          OPT(brw_opt_fill_and_spill);
 
