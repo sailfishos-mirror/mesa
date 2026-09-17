@@ -2044,7 +2044,7 @@ get_properties(const struct anv_physical_device *pdevice,
       props->imageDescriptorAlignment = ANV_SURFACE_STATE_SIZE;
       props->bufferDescriptorAlignment = ANV_SURFACE_STATE_SIZE;
       props->maxPushDataSize = MAX_PUSH_CONSTANTS_SIZE;
-      props->imageCaptureReplayOpaqueDataSize = 8;
+      props->imageCaptureReplayOpaqueDataSize = sizeof(struct anv_image_opaque_capture_data);
       props->maxDescriptorHeapEmbeddedSamplers = MAX_EMBEDDED_SAMPLERS;
       props->samplerYcbcrConversionCount = 3;
       props->sparseDescriptorHeaps = pdevice->info.kmd_type == INTEL_KMD_TYPE_XE;
