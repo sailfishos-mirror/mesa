@@ -536,10 +536,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     access_group = parser.add_argument_group("Access options")
-    pipeline_discovery = parser.add_argument_group("Pipeline discovery options")
-    target_group = parser.add_argument_group("Target options")
-    stress_group = parser.add_argument_group("Stress test options")
-    flowctrl_group = parser.add_argument_group("Flow control options")
 
     access_group.add_argument(
         "--server",
@@ -548,6 +544,47 @@ def parse_args() -> argparse.Namespace:
         default=GITLAB_URL,
         help=f"Specify the GitLab server work with (Default: {GITLAB_URL})",
     )
+    access_group.add_argument(
+        "--project",
+        metavar="name",
+        type=str,
+        default="mesa",
+        help="GitLab project in the format <user>/<project> or just <project>",
+    )
+    access_group.add_argument(
+        "--token",
+        metavar="token",
+        type=str,
+        default=get_token_from_default_dir(),
+        help="Use the provided GitLab token (with `api` scope) or token file, "
+             f"otherwise it's read from {TOKEN_DIR / 'gitlab-token'}",
+    )
+
+    pipeline_discovery = parser.add_argument_group("Pipeline discovery options")
+
+    mutex_group1 = pipeline_discovery.add_mutually_exclusive_group()
+    mutex_group1.add_argument(
+        "--rev",
+        metavar="id",
+        type=str,
+        default="HEAD",
+        help="Repository git commit-ish, tag or branch name (default: HEAD)",
+    )
+    mutex_group1.add_argument(
+        "--pipeline-url",
+        metavar="url",
+        type=str,
+        help="URL of the pipeline to use, instead of auto-detecting it.",
+    )
+    mutex_group1.add_argument(
+        "--mr",
+        metavar="id",
+        type=int,
+        help="ID of a merge request; the latest pipeline in that MR will be used.",
+    )
+
+    target_group = parser.add_argument_group("Target options")
+
     target_group.add_argument(
         "--target",
         metavar="target-job",
@@ -596,18 +633,9 @@ def parse_args() -> argparse.Namespace:
         default=[],
         nargs=argparse.ONE_OR_MORE,
     )
-    access_group.add_argument(
-        "--token",
-        metavar="token",
-        type=str,
-        default=get_token_from_default_dir(),
-        help="Use the provided GitLab token (with `api` scope) or token file, "
-             f"otherwise it's read from {TOKEN_DIR / 'gitlab-token'}",
-    )
-    flowctrl_group.add_argument(
-        "--force-manual", action="store_true",
-        help="Deprecated argument; manual jobs are always force-enabled"
-    )
+
+    stress_group = parser.add_argument_group("Stress test options")
+
     stress_group.add_argument(
         "--stress",
         metavar="n",
@@ -617,18 +645,29 @@ def parse_args() -> argparse.Namespace:
              "or use -1 for indefinite. Defaults to 0. If jobs have already been executed, "
              "this will ensure the total run count respects the specified number.",
     )
-    access_group.add_argument(
-        "--project",
-        metavar="name",
-        type=str,
-        default="mesa",
-        help="GitLab project in the format <user>/<project> or just <project>",
+    stress_group.add_argument(
+        "--no-new-job-after",
+        metavar="duration",
+        type=parse_deadline,
+        help="Quit starting new jobs once ci_run_n_monitor has been running for "
+             "that long. Note that existing jobs will continue running until "
+             "they finish. Value must be positive int or float, and valid "
+             "suffixes are: "
+             f"{', '.join(f'`{s}` for {n}' for s, n in DEADLINE_SUFFIXES.items())}"
     )
+
+    flowctrl_group = parser.add_argument_group("Flow control options")
+
     flowctrl_group.add_argument(
         "--dry-run",
         action="store_true",
         help="Exit after printing target jobs and dependencies",
     )
+    flowctrl_group.add_argument(
+        "--force-manual", action="store_true",
+        help="Deprecated argument; manual jobs are always force-enabled"
+    )
+
     flowctrl_group.add_argument(
         "--no-job-log",
         action="store_true",
@@ -641,37 +680,7 @@ def parse_args() -> argparse.Namespace:
         help=f"Specify the waiting seconds between monitor loops. (Default: {REFRESH_WAIT_JOBS})",
     )
 
-    mutex_group1 = pipeline_discovery.add_mutually_exclusive_group()
-    mutex_group1.add_argument(
-        "--rev",
-        metavar="id",
-        type=str,
-        default="HEAD",
-        help="Repository git commit-ish, tag or branch name (default: HEAD)",
-    )
-    mutex_group1.add_argument(
-        "--pipeline-url",
-        metavar="url",
-        type=str,
-        help="URL of the pipeline to use, instead of auto-detecting it.",
-    )
-    mutex_group1.add_argument(
-        "--mr",
-        metavar="id",
-        type=int,
-        help="ID of a merge request; the latest pipeline in that MR will be used.",
-    )
 
-    stress_group.add_argument(
-        "--no-new-job-after",
-        metavar="duration",
-        type=parse_deadline,
-        help="Quit starting new jobs once ci_run_n_monitor has been running for "
-             "that long. Note that existing jobs will continue running until "
-             "they finish. Value must be positive int or float, and valid "
-             "suffixes are: "
-             f"{', '.join(f'`{s}` for {n}' for s, n in DEADLINE_SUFFIXES.items())}"
-    )
 
     args = parser.parse_args()
 
