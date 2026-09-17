@@ -169,10 +169,12 @@ pub struct InstructionSrcInfo<S: EnumAsU8> {
     pub has_not: bool,
     // If it's a staging-register that reads
     // register_format/vecsize
+    #[allow(dead_code)]
     pub has_vecsize: bool,
 }
 
 impl<S: EnumAsU8> InstructionSrcInfo<S> {
+    #[allow(dead_code)]
     pub fn exists(&self) -> bool {
         !self.allowed_swizzles.is_empty()
     }
@@ -233,6 +235,7 @@ pub struct EncodedDst<L: Copy> {
 #[derive(Clone, Copy)]
 pub struct SrRead {
     pub index: u8,
+    #[allow(dead_code)]
     pub count: u8,
     pub data_type: DataType,
 }
@@ -240,6 +243,7 @@ pub struct SrRead {
 #[derive(Clone, Copy)]
 pub struct SrReadSwizzle<S: Copy> {
     pub index: u8,
+    #[allow(dead_code)]
     pub count: u8,
     pub swizzle: S,
 }
@@ -247,6 +251,7 @@ pub struct SrReadSwizzle<S: Copy> {
 #[derive(Clone, Copy)]
 pub struct SrWrite {
     pub index: u8,
+    #[allow(dead_code)]
     pub count: u8,
     pub data_type: DataType,
 }
@@ -254,6 +259,7 @@ pub struct SrWrite {
 #[derive(Clone, Copy)]
 pub struct SrWriteLanes<L: Copy> {
     pub index: u8,
+    #[allow(dead_code)]
     pub count: u8,
     pub lanes: L,
 }
