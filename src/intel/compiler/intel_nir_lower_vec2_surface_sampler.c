@@ -150,24 +150,31 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *_)
    if (index != -1) {
       b->cursor = nir_before_instr(&tex->instr);
 
-      struct source_extract s =
-         extract_handle_offset(b, tex->src[index].src.ssa,
-                               64 * 31 /* 5 bits */, 64);
-      nir_src_rewrite(&tex->src[index].src, s.ret);
-      tex->texture_index = s.const_index;
-      progress = true;
+      nir_def *handle = tex->src[index].src.ssa;
+
+      /* See return ealier comment in lower_intrinsic() */
+      if (handle->num_components == 2 && handle->bit_size == 32) {
+         struct source_extract s = extract_handle_offset(b, handle,
+                                                         64 * 31 /* 5 bits */, 64);
+         nir_src_rewrite(&tex->src[index].src, s.ret);
+         tex->texture_index = s.const_index;
+         progress = true;
+      }
    }
 
    index = nir_tex_instr_src_index(tex, nir_tex_src_sampler_handle);
    if (index != -1) {
       b->cursor = nir_before_instr(&tex->instr);
 
-      struct source_extract s =
-         extract_handle_offset(b, tex->src[index].src.ssa,
-                               32 * 7 /* 3 bits */, 32);
-      nir_src_rewrite(&tex->src[index].src, s.ret);
-      tex->sampler_index = s.const_index;
-      progress = true;
+      nir_def *handle = tex->src[index].src.ssa;
+
+      if (handle->num_components == 2 && handle->bit_size == 32) {
+         struct source_extract s = extract_handle_offset(b, handle,
+                                                         32 * 7 /* 3 bits */, 32);
+         nir_src_rewrite(&tex->src[index].src, s.ret);
+         tex->sampler_index = s.const_index;
+         progress = true;
+      }
    }
 
    return progress;
