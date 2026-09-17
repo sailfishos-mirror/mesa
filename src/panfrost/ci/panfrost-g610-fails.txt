@@ -298,7 +298,7 @@ program@execute@vector-conversion,Fail
 Images (clCopyImage 1D),Fail
 Images (clCopyImage 1D)@1D,Fail
 Images (clCopyImage 1D)@1Darray,Fail
-Images (clCopyImage 2D),Crash
+Images (clCopyImage 2D),Fail
 Images (clCopyImage 2D)@2D,Fail
 Images (clCopyImage 2D)@2Darrayto2D,Fail
 Images (clCopyImage 2D)@2Darrayto3D,Fail
