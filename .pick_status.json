@@ -284,7 +284,7 @@
         "description": "radv: fix checking whether a FS is present",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e45e9e136c9eb37ee1d1b854fa658e7aeca595bb",
         "notes": null
