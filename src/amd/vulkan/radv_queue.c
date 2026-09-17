@@ -1088,8 +1088,7 @@ radv_update_preamble_cs(struct radv_queue_state *queue, struct radv_device *devi
                flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS;
          }
 
-         radv_cs_emit_cache_flush(ws, cs, gfx_level, NULL, 0, flush_bits, &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP,
-                                  0);
+         radv_cs_emit_cache_flush(ws, cs, gfx_level, NULL, 0, flush_bits, &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP, 0);
       }
 
       /* Emit task rings after the initial cache flush and wait
@@ -1333,7 +1332,7 @@ radv_create_flush_postamble(struct radv_queue *queue)
    uint32_t flush_cnt = 0;
 
    radv_cs_emit_cache_flush(ws, cs, pdev->info.gfx_level, &flush_cnt, 0, flush_bits, &rgp_flush_bits,
-                            RADV_PWS_ACQUIRE_POINT_PFP, 0);
+                            AC_PWS_ACQUIRE_POINT_PFP, 0);
 
    result = radv_finalize_cmd_stream(device, cs);
    if (result != VK_SUCCESS) {

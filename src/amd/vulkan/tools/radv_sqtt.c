@@ -48,7 +48,7 @@ radv_emit_wait_for_idle(const struct radv_device *device, struct radv_cmd_stream
       (cs->hw_ip == AMD_IP_COMPUTE ? AC_BARRIER_SYNC_CS
                                    : (AC_BARRIER_SYNC_CS | AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS)) |
          AC_BARRIER_INV_ICACHE | AC_BARRIER_INV_SMEM | AC_BARRIER_INV_VMEM | AC_BARRIER_INV_L2,
-      &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
+      &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP, 0);
 }
 
 static void

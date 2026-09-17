@@ -35,27 +35,10 @@ radv_cs_emit_write_event_eop(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_
                           eop_bug_va);
 }
 
-static enum ac_pws_acquire_point
-radv_to_ac_pws_acquire_point(enum radv_pws_acquire_point pws_acquire_point)
-{
-   switch (pws_acquire_point) {
-   case RADV_PWS_ACQUIRE_POINT_NONE:
-      return AC_PWS_ACQUIRE_POINT_NONE;
-   case RADV_PWS_ACQUIRE_POINT_PRE_DEPTH:
-      return AC_PWS_ACQUIRE_POINT_PRE_DEPTH;
-   case RADV_PWS_ACQUIRE_POINT_ME:
-      return AC_PWS_ACQUIRE_POINT_ME;
-   case RADV_PWS_ACQUIRE_POINT_PFP:
-      return AC_PWS_ACQUIRE_POINT_PFP;
-   default:
-      UNREACHABLE("Invalid RADV PWS acquire point");
-   }
-}
-
 void
 radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level,
                          uint32_t *flush_cnt, uint64_t flush_va, enum ac_barrier_flags flush_bits,
-                         enum ac_rgp_flush_bits *rgp_flush_bits, enum radv_pws_acquire_point pws_acquire_point,
+                         enum ac_rgp_flush_bits *rgp_flush_bits, enum ac_pws_acquire_point pws_acquire_point,
                          uint64_t gfx9_eop_bug_va)
 {
    /* TODO: Stop setting this barrier flags. */
@@ -67,7 +50,7 @@ radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, e
 
    struct ac_barrier_state barrier = {
       .flags = flush_bits,
-      .pws_acquire_point = radv_to_ac_pws_acquire_point(pws_acquire_point),
+      .pws_acquire_point = pws_acquire_point,
       .wait_mem_va = flush_va,
       .wait_mem_number = flush_cnt,
       .eop_bug_va = gfx9_eop_bug_va,

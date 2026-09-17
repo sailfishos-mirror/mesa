@@ -1824,7 +1824,7 @@ radv_gang_cache_flush(struct radv_cmd_buffer *cmd_buffer)
    enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
    radv_cs_emit_cache_flush(device->ws, ace_cs, pdev->info.gfx_level, NULL, 0, flush_bits, &rgp_flush_bits,
-                            RADV_PWS_ACQUIRE_POINT_PFP, 0);
+                            AC_PWS_ACQUIRE_POINT_PFP, 0);
 
    cmd_buffer->gang.flush_bits = 0;
 }
@@ -2120,14 +2120,14 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_f
 
       /* Force wait for graphics or compute engines to be idle. */
       radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                               cmd_buffer->gfx9_fence_va, flags, &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP,
+                               cmd_buffer->gfx9_fence_va, flags, &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP,
                                cmd_buffer->gfx9_eop_bug_va);
 
       if ((flags & (AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS)) &&
           radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
          /* Force wait for compute engines to be idle on the internal cmdbuf. */
          radv_cs_emit_cache_flush(device->ws, cmd_buffer->gang.cs, pdev->info.gfx_level, NULL, 0, AC_BARRIER_SYNC_CS,
-                                  &rgp_flush_bits, RADV_PWS_ACQUIRE_POINT_PFP, 0);
+                                  &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP, 0);
       }
    }
 
@@ -7995,13 +7995,13 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
 }
 
 /* Return the latest PWS acquire point at which a barrier's destination stages may wait. */
-static enum radv_pws_acquire_point
+static enum ac_pws_acquire_point
 radv_dst_stage_to_acquire_point(VkPipelineStageFlags2 dst_stages)
 {
    dst_stages = radv_get_dst_stage_flags2(dst_stages);
 
    if (!dst_stages)
-      return RADV_PWS_ACQUIRE_POINT_NONE;
+      return AC_PWS_ACQUIRE_POINT_NONE;
 
    const VkPipelineStageFlags2 pfp_stages =
       VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_COPY_INDIRECT_BIT_KHR |
@@ -8017,10 +8017,10 @@ radv_dst_stage_to_acquire_point(VkPipelineStageFlags2 dst_stages)
    const VkPipelineStageFlags2 me_stages = ~(pfp_stages | pre_depth_stages);
 
    if (dst_stages & pfp_stages)
-      return RADV_PWS_ACQUIRE_POINT_PFP;
+      return AC_PWS_ACQUIRE_POINT_PFP;
    if (dst_stages & me_stages)
-      return RADV_PWS_ACQUIRE_POINT_ME;
-   return RADV_PWS_ACQUIRE_POINT_PRE_DEPTH;
+      return AC_PWS_ACQUIRE_POINT_ME;
+   return AC_PWS_ACQUIRE_POINT_PRE_DEPTH;
 }
 
 /* Combine the PWS acquire point required by a barrier destination stage into the command buffer
@@ -8029,7 +8029,7 @@ radv_dst_stage_to_acquire_point(VkPipelineStageFlags2 dst_stages)
 static void
 radv_merge_pws_acquire_point(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 dst_stages)
 {
-   const enum radv_pws_acquire_point point = radv_dst_stage_to_acquire_point(dst_stages);
+   const enum ac_pws_acquire_point point = radv_dst_stage_to_acquire_point(dst_stages);
 
    cmd_buffer->state.pws_acquire_point = MAX2(point, cmd_buffer->state.pws_acquire_point);
 }
@@ -16221,7 +16221,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
       /* No flush to emit means no PWS ACQUIRE; drop any acquire point left by barriers that didn't
        * contribute flush bits so it stays in sync with flush_bits.
        */
-      cmd_buffer->state.pws_acquire_point = RADV_PWS_ACQUIRE_POINT_NONE;
+      cmd_buffer->state.pws_acquire_point = AC_PWS_ACQUIRE_POINT_NONE;
       radv_describe_barrier_end_delayed(cmd_buffer);
       return;
    }
@@ -16229,13 +16229,13 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    /* Resolve the PWS acquire point: if no barrier destination stage contributed to the pending
     * flush, fall back to the conservative PFP wait.
     */
-   enum radv_pws_acquire_point pws_acquire_point = cmd_buffer->state.pws_acquire_point;
-   if (pws_acquire_point == RADV_PWS_ACQUIRE_POINT_NONE)
-      pws_acquire_point = RADV_PWS_ACQUIRE_POINT_PFP;
+   enum ac_pws_acquire_point pws_acquire_point = cmd_buffer->state.pws_acquire_point;
+   if (pws_acquire_point == AC_PWS_ACQUIRE_POINT_NONE)
+      pws_acquire_point = AC_PWS_ACQUIRE_POINT_PFP;
 
    /* PRE_DEPTH is only reachable by a graphics draw */
-   if (pws_acquire_point == RADV_PWS_ACQUIRE_POINT_PRE_DEPTH && !pws_defer_allowed)
-      pws_acquire_point = RADV_PWS_ACQUIRE_POINT_ME;
+   if (pws_acquire_point == AC_PWS_ACQUIRE_POINT_PRE_DEPTH && !pws_defer_allowed)
+      pws_acquire_point = AC_PWS_ACQUIRE_POINT_ME;
 
    radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
                             cmd_buffer->gfx9_fence_va, cmd_buffer->state.flush_bits, &cmd_buffer->state.rgp_flush_bits,
@@ -16253,7 +16253,7 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    cmd_buffer->active_query_flush_bits &= ~cmd_buffer->state.flush_bits;
 
    cmd_buffer->state.flush_bits = 0;
-   cmd_buffer->state.pws_acquire_point = RADV_PWS_ACQUIRE_POINT_NONE;
+   cmd_buffer->state.pws_acquire_point = AC_PWS_ACQUIRE_POINT_NONE;
 
    /* If the driver used a compute shader for resetting a query pool, it
     * should be finished at this point.

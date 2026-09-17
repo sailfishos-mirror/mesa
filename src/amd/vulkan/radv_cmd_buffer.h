@@ -132,17 +132,6 @@ enum radv_cmd_dirty_bits {
    RADV_CMD_DIRTY_SHADER_QUERY = RADV_CMD_DIRTY_NGG_STATE | RADV_CMD_DIRTY_TASK_STATE,
 };
 
-/* PWS (Pixel Wait Sync) acquire point, i.e. the pipeline stage at which a GFX11+ PWS ACQUIRE
- * waits for a preceding RELEASE. The acquire point is derived from the barrier destination stage
- * so the wait can be deferred to the latest legal pipeline stage.
- */
-enum radv_pws_acquire_point {
-   RADV_PWS_ACQUIRE_POINT_NONE = 0,
-   RADV_PWS_ACQUIRE_POINT_PRE_DEPTH, /* Wait just before depth/fragment work. */
-   RADV_PWS_ACQUIRE_POINT_ME,        /* Wait at the CP micro-engine. */
-   RADV_PWS_ACQUIRE_POINT_PFP,       /* Wait at the CP prefetch parser (frontend). */
-};
-
 struct radv_streamout_binding {
    uint64_t va;
    VkDeviceSize size;
@@ -338,7 +327,7 @@ struct radv_cmd_state {
 
    enum ac_barrier_flags flush_bits;
    /* Earliest PWS acquire point required by the currently pending flush_bits*/
-   enum radv_pws_acquire_point pws_acquire_point;
+   enum ac_pws_acquire_point pws_acquire_point;
    unsigned active_occlusion_queries;
    bool perfect_occlusion_queries_enabled;
    unsigned active_pipeline_queries;
