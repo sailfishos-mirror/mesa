@@ -2956,7 +2956,8 @@ anv_physical_device_init_queue_families(struct anv_physical_device *pdevice)
       if (blit_count > 0) {
          pdevice->queue.families[family_count++] = (struct anv_queue_family) {
             .queueFlags = VK_QUEUE_TRANSFER_BIT |
-                          protected_flag,
+                          protected_flag |
+                          sparse_flags,
             .queueCount = blit_count,
             .engine_class = INTEL_ENGINE_CLASS_COPY,
          };
