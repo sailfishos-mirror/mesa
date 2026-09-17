@@ -824,9 +824,6 @@ void radv_unaligned_dispatch(struct radv_cmd_buffer *cmd_buffer, uint32_t x, uin
 uint32_t radv_init_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                          const VkImageSubresourceRange *range);
 
-uint32_t radv_init_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                       const VkImageSubresourceRange *range, uint32_t value);
-
 uint32_t radv_init_display_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, uint32_t value);
 
 void radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed);

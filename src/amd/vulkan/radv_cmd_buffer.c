@@ -15908,7 +15908,7 @@ radv_image_need_dcc_fixup(const struct radv_device *device, const struct radv_im
    return *dcc_fixup_offset != image->planes[0].surface.meta_size;
 }
 
-uint32_t
+static uint32_t
 radv_init_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
               uint32_t value)
 {

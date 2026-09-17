@@ -596,6 +596,6 @@ radv_decompress_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
                                                             VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
 
       /* Initialize the DCC metadata as "fully expanded". */
-      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, subresourceRange, DCC_UNCOMPRESSED);
+      cmd_buffer->state.flush_bits |= radv_clear_dcc(cmd_buffer, image, subresourceRange, DCC_UNCOMPRESSED);
    }
 }
