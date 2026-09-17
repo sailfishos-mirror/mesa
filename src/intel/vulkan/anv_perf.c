@@ -191,24 +191,32 @@ anv_oag_free_query_ids(struct anv_device *device, struct anv_query_pool *pool)
 #define ANV_OAG_ADDRESS_MASK             0xffffffc0u
 
 /* Find the report triggered by @marker within the OATAIL window recorded in
- * @snapshot and copy it over the snapshot. Must be called with
+ * @boundary and copy it to @snapshot. Must be called with
  * device->perf_oag.mutex held.
  */
 bool
 anv_oag_resolve_boundary(struct anv_device *device,
-                         struct anv_query_pool *pool,
+                         struct anv_oag_boundary *boundary,
                          void *snapshot, uint32_t marker)
 {
-   struct anv_oag_boundary *boundary = anv_oag_boundary(pool, snapshot);
-
    /* Already copied out by an earlier vkGetQueryPoolResults(). The OA buffer
     * is a ring, by now the report itself may be long gone.
     */
    if (boundary->resolved == ANV_OAG_RESOLVED_MAGIC)
       return true;
 
-   const uint8_t *oa_buffer = device->perf_oag.oa_buffer;
    const uint32_t report_size = device->physical->perf->oa_sample_size;
+
+   /* No trigger fired, accumulate a zero report instead of whatever an
+    * earlier execution left in the host snapshot.
+    */
+   if (boundary->resolved == ANV_OAG_ZEROED_MAGIC) {
+      memset(snapshot, 0, report_size);
+      boundary->resolved = ANV_OAG_RESOLVED_MAGIC;
+      return true;
+   }
+
+   const uint8_t *oa_buffer = device->perf_oag.oa_buffer;
    const uint32_t circ_size = device->perf_oag.oa_buffer_circ_size;
 
    if (!oa_buffer || circ_size < report_size)
@@ -288,9 +296,11 @@ anv_oag_resolve_all_pools_locked(struct anv_device *device)
       for (uint32_t q = 0; q < pool->vk.query_count; q++) {
          for (uint32_t p = 0; p < pool->n_passes; p++) {
             for (uint32_t end = 0; end < 2; end++) {
-               void *snapshot = pool->bo->map +
+               struct anv_oag_boundary *boundary = pool->bo->map +
                   khr_perf_query_data_offset(pool, q, p, end);
-               anv_oag_resolve_boundary(device, pool, snapshot,
+               void *snapshot = pool->oag_snapshots +
+                  khr_perf_query_snapshot_offset(pool, q, p, end);
+               anv_oag_resolve_boundary(device, boundary, snapshot,
                                         anv_oag_query_id(pool, q, p, end));
             }
          }

@@ -6894,8 +6894,11 @@ struct anv_query_pool {
    struct intel_perf_query_info                 **pass_query;
    /** First MMIO-trigger query ID; each query owns begin/end IDs. */
    uint32_t                                     oag_query_id_base;
+   uint32_t                                     oag_report_size;
    /** Link in anv_device::perf_oag.pools while holding a marker range. */
    struct list_head                             oag_link;
+
+   void                                        *oag_snapshots;
 
    /* Video encoding queries */
    VkVideoCodecOperationFlagsKHR                codec;
@@ -7414,6 +7417,11 @@ struct anv_oag_boundary {
 /* Value written to anv_oag_boundary::resolved, "OAGREPOR" in ASCII. */
 #define ANV_OAG_RESOLVED_MAGIC   UINT64_C(0x4f41475245504f52)
 
+/* Written by the GPU for queries that never fired a trigger, "OAGZEROD" in
+ * ASCII. Their host snapshots are zeroed at resolve time.
+ */
+#define ANV_OAG_ZEROED_MAGIC     UINT64_C(0x4f41475a45524f44)
+
 static inline uint64_t
 khr_perf_query_availability_offset(const struct anv_query_pool *pool,
                                    uint32_t query, uint32_t pass)
@@ -7429,6 +7437,15 @@ khr_perf_query_data_offset(const struct anv_query_pool *pool, uint32_t query,
           pool->data_offset + (end ? pool->snapshot_size : 0);
 }
 
+static inline uint64_t
+khr_perf_query_snapshot_offset(const struct anv_query_pool *pool, uint32_t query,
+                               uint32_t pass, bool end)
+{
+   return (uint64_t)pool->oag_report_size * 2 *
+          ((uint64_t)pool->n_passes * query + pass) +
+          (end ? pool->oag_report_size : 0);
+}
+
 /* Offset of the OAG boundary trailer of a snapshot, i.e. the OATAIL window and
  * the OASTATUS/OABUFFER values the GPU records around the MMIO trigger, plus
  * the "already copied out of the OA buffer" marker.
@@ -7439,14 +7456,6 @@ khr_perf_query_boundary_offset(const struct anv_query_pool *pool,
 {
    return khr_perf_query_data_offset(pool, query, pass, end) +
           pool->snapshot_size - sizeof(struct anv_oag_boundary);
-}
-
-static inline struct anv_oag_boundary *
-anv_oag_boundary(const struct anv_query_pool *pool, void *snapshot)
-{
-   return (struct anv_oag_boundary *)
-      ((uint8_t *)snapshot + pool->snapshot_size -
-       sizeof(struct anv_oag_boundary));
 }
 
 static inline uint32_t
@@ -7462,7 +7471,7 @@ VkResult anv_oag_alloc_query_ids(struct anv_device *device,
 void anv_oag_free_query_ids(struct anv_device *device,
                             struct anv_query_pool *pool);
 bool anv_oag_resolve_boundary(struct anv_device *device,
-                              struct anv_query_pool *pool,
+                              struct anv_oag_boundary *boundary,
                               void *snapshot, uint32_t marker);
 void anv_oag_resolve_all_pools(struct anv_device *device);
 

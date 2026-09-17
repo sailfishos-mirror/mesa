@@ -135,6 +135,7 @@ VkResult genX(CreateQueryPool)(
    const VkQueryPoolPerformanceCreateInfoKHR *perf_query_info = NULL;
    struct intel_perf_counter_pass *counter_pass;
    struct intel_perf_query_info **pass_query;
+   uint8_t *oag_snapshots = NULL;
    uint32_t n_passes = 0;
    uint32_t data_offset = 0;
    VK_MULTIALLOC(ma);
@@ -212,21 +213,20 @@ VkResult genX(CreateQueryPool)(
                              perf_query_info->counterIndexCount);
       vk_multialloc_add(&ma, &pass_query, struct intel_perf_query_info *,
                              n_passes);
-      uint32_t snapshot_bytes = layout->size;
-      /* Reserve the OAG boundary trailer at the tail of each snapshot rather
-       * than relying on the layout's alignment padding to fit it.
-       */
-      if (pdevice->perf->oag_global_enable) {
-         snapshot_bytes = align(snapshot_bytes +
-                                sizeof(struct anv_oag_boundary), 64);
-      }
       uint64s_per_slot = 1 /* availability */;
-      /* Align to the requirement of the layout */
-      uint64s_per_slot = align(uint64s_per_slot,
-                               DIV_ROUND_UP(layout->alignment, sizeof(uint64_t)));
-      data_offset = uint64s_per_slot * sizeof(uint64_t);
-      /* Add the query data for begin & end commands */
-      uint64s_per_slot += 2 * DIV_ROUND_UP(snapshot_bytes, sizeof(uint64_t));
+      if (pdevice->perf->oag_global_enable) {
+         data_offset = uint64s_per_slot * sizeof(uint64_t);
+         uint64s_per_slot += 2 * DIV_ROUND_UP(sizeof(struct anv_oag_boundary), 8);
+         vk_multialloc_add(&ma, &oag_snapshots, uint8_t,
+                           (pdevice->perf->oa_sample_size * 2 * n_passes * pCreateInfo->queryCount));
+      } else {
+         /* Align to the requirement of the layout */
+         uint64s_per_slot = align(uint64s_per_slot,
+                                  DIV_ROUND_UP(layout->alignment, sizeof(uint64_t)));
+         data_offset = uint64s_per_slot * sizeof(uint64_t);
+         /* Add the query data for begin & end commands */
+         uint64s_per_slot += 2 * DIV_ROUND_UP(layout->size, sizeof(uint64_t));
+      }
       /* Multiply by the number of passes */
       uint64s_per_slot *= n_passes;
       break;
@@ -285,6 +285,8 @@ VkResult genX(CreateQueryPool)(
                                      perf_query_info->pCounterIndices,
                                      perf_query_info->counterIndexCount,
                                      pool->counter_pass);
+      pool->oag_snapshots = oag_snapshots;
+      pool->oag_report_size = pdevice->perf->oa_sample_size;
       pool->n_passes = n_passes;
       pool->pass_query = pass_query;
       intel_perf_get_n_passes(pdevice->perf,
@@ -296,12 +298,6 @@ VkResult genX(CreateQueryPool)(
          result = anv_oag_alloc_query_ids(device, pool);
          if (result != VK_SUCCESS)
             goto fail;
-
-         /* A resolved snapshot holds a whole OA report followed by the
-          * boundary trailer, see khr_perf_query_boundary_offset().
-          */
-         assert(pool->snapshot_size >= pdevice->perf->oa_sample_size +
-                                       sizeof(struct anv_oag_boundary));
       }
    } else if (pool->vk.query_type == VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR) {
       const VkVideoProfileInfoKHR* pVideoProfile = vk_find_struct_const(pCreateInfo->pNext, VIDEO_PROFILE_INFO_KHR);
@@ -649,18 +645,17 @@ anv_oag_accumulate_triggered(struct anv_device *device,
                              const struct intel_perf_query_info *query,
                              struct intel_perf_query_result *result)
 {
-   /* A snapshot is snapshot_size bytes: the triggered OA report is copied to
-    * its start by anv_oag_resolve_boundary(), and the GPU-written boundary
-    * trailer sits at its end.
+   /* Snapshots live in host memory and receive the triggered OA reports from
+    * anv_oag_resolve_boundary(); the GPU-written boundaries stay in the BO.
     */
-   void *begin_snapshot =
+   void *begin_snapshot = pool->oag_snapshots +
+      khr_perf_query_snapshot_offset(pool, query_index, pass, false);
+   void *end_snapshot = pool->oag_snapshots +
+      khr_perf_query_snapshot_offset(pool, query_index, pass, true);
+   struct anv_oag_boundary *begin_boundary =
       pool->bo->map + khr_perf_query_data_offset(pool, query_index, pass, false);
-   void *end_snapshot =
+   struct anv_oag_boundary *end_boundary =
       pool->bo->map + khr_perf_query_data_offset(pool, query_index, pass, true);
-   const struct anv_oag_boundary *begin_boundary =
-      anv_oag_boundary(pool, begin_snapshot);
-   const struct anv_oag_boundary *end_boundary =
-      anv_oag_boundary(pool, end_snapshot);
    const uint32_t begin_marker =
       anv_oag_query_id(pool, query_index, pass, false);
    const uint32_t end_marker =
@@ -680,9 +675,9 @@ anv_oag_accumulate_triggered(struct anv_device *device,
 
    simple_mtx_lock(&device->perf_oag.mutex);
    const bool begin_resolved =
-      anv_oag_resolve_boundary(device, pool, begin_snapshot, begin_marker);
+      anv_oag_resolve_boundary(device, begin_boundary, begin_snapshot, begin_marker);
    const bool end_resolved =
-      anv_oag_resolve_boundary(device, pool, end_snapshot, end_marker);
+      anv_oag_resolve_boundary(device, end_boundary, end_snapshot, end_marker);
    simple_mtx_unlock(&device->perf_oag.mutex);
 
    if (!begin_resolved || !end_resolved) {
@@ -1091,8 +1086,8 @@ emit_zero_queries(struct anv_cmd_buffer *cmd_buffer,
             mi_memset(b, khr_perf_query_data_address(pool, first_index + i, p, false),
                          0, 2 * pool->snapshot_size);
             /* No trigger was ever fired for these queries, so their boundary
-             * reports will never show up in the OA buffer. Flag the zeroed
-             * snapshots as already resolved so the resolve path accumulates
+             * reports will never show up in the OA buffer. Flag them zeroed
+             * so the resolve path clears the host snapshots and accumulates
              * them (to zero) instead of waiting for reports that do not
              * exist.
              */
@@ -1103,7 +1098,7 @@ emit_zero_queries(struct anv_cmd_buffer *cmd_buffer,
                               khr_perf_query_boundary_address(
                                  pool, first_index + i, p, end),
                               offsetof(struct anv_oag_boundary, resolved))),
-                           mi_imm(ANV_OAG_RESOLVED_MAGIC));
+                           mi_imm(ANV_OAG_ZEROED_MAGIC));
                }
             }
             emit_query_mi_availability(b,
@@ -1267,22 +1262,22 @@ void genX(ResetQueryPool)(
    ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
 
    for (uint32_t i = 0; i < queryCount; i++) {
+      uint32_t q = firstQuery + i;
       if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
          for (uint32_t p = 0; p < pool->n_passes; p++) {
-            uint64_t *pass_slot = pool->bo->map +
-               khr_perf_query_availability_offset(pool, firstQuery + i, p);
-            *pass_slot = 0;
+            uint64_t *slot = pool->bo->map +
+               khr_perf_query_availability_offset(pool, q, p);
+            *slot = 0;
             if (pool->oag_query_id_base != 0) {
                for (uint32_t end = 0; end < 2; end++) {
                   memset(pool->bo->map +
-                         khr_perf_query_boundary_offset(pool, firstQuery + i,
-                                                        p, end),
+                         khr_perf_query_boundary_offset(pool, q, p, end),
                          0, sizeof(struct anv_oag_boundary));
                }
             }
          }
       } else {
-         uint64_t *slot = query_slot(pool, firstQuery + i);
+         uint64_t *slot = query_slot(pool, q);
          *slot = 0;
       }
    }
@@ -1384,8 +1379,8 @@ emit_perf_khr_oag_boundary(struct anv_cmd_buffer *cmd_buffer,
    for (uint32_t i = 0; i < ARRAY_SIZE(oag_boundary_stores); i++) {
       if (i == OAG_TRIGGER_STORE_IDX) {
          mi_store(b, mi_reg32(OAG_MMIOTRIGGER_REG),
-                  mi_iadd(b, mi_imm(anv_oag_query_id(pool, query, 0, end)),
-                          mi_reg32(ANV_PERF_QUERY_ID_OFFSET_REG)));
+                     mi_iadd(b, mi_imm(anv_oag_query_id(pool, query, 0, end)),
+                                mi_reg32(ANV_PERF_QUERY_ID_OFFSET_REG)));
       }
 
       void *dws = anv_batch_emitn(&cmd_buffer->batch,
@@ -1555,31 +1550,30 @@ void genX(CmdBeginQueryIndexedEXT)(
           */
          if (oag) {
             const uint64_t boundary_offset =
-               khr_perf_query_boundary_offset(pool, query, 0 /* pass */, end);
+               khr_perf_query_data_offset(pool, query, 0 /* pass */, end);
 
             for (uint32_t s = 0; s < ARRAY_SIZE(oag_boundary_stores); s++) {
                khr_perf_query_push_reloc(cmd_buffer, &b, pool, &reloc_idx,
                                          boundary_offset +
                                          oag_boundary_stores[s].offset);
             }
-            continue;
-         }
+         } else {
+            const uint64_t data_offset =
+               khr_perf_query_data_offset(pool, query, 0 /* pass */, end);
 
-         const uint64_t data_offset =
-            khr_perf_query_data_offset(pool, query, 0 /* pass */, end);
+            for (uint32_t r = 0; r < layout->n_fields; r++) {
+               const struct intel_perf_query_field *field =
+                  &layout->fields[end ? r : (layout->n_fields - 1 - r)];
 
-         for (uint32_t r = 0; r < layout->n_fields; r++) {
-            const struct intel_perf_query_field *field =
-               &layout->fields[end ? r : (layout->n_fields - 1 - r)];
-
-            khr_perf_query_push_reloc(cmd_buffer, &b, pool, &reloc_idx,
-                                      data_offset + field->location);
-
-            /* 64bit registers are stored with two MI_STORE_REGISTER_MEM. */
-            if (field->type != INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC &&
-                field->size == 8) {
                khr_perf_query_push_reloc(cmd_buffer, &b, pool, &reloc_idx,
-                                         data_offset + field->location + 4);
+                                         data_offset + field->location);
+
+               /* 64bit registers are stored with two MI_STORE_REGISTER_MEM. */
+               if (field->type != INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC &&
+                   field->size == 8) {
+                  khr_perf_query_push_reloc(cmd_buffer, &b, pool, &reloc_idx,
+                                            data_offset + field->location + 4);
+               }
             }
          }
       }
@@ -1617,7 +1611,8 @@ void genX(CmdBeginQueryIndexedEXT)(
          switch (field->type) {
          case INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC:
             if (oag) {
-               emit_perf_khr_oag_boundary(cmd_buffer, pool, &b, query_addr,
+               emit_perf_khr_oag_boundary(cmd_buffer, pool, &b,
+                                          anv_address_add(query_addr, pool->data_offset),
                                           query, false /* end */);
             } else {
                dws = anv_batch_emitn(&cmd_buffer->batch,
@@ -1848,7 +1843,8 @@ void genX(CmdEndQueryIndexedEXT)(
          switch (field->type) {
          case INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC:
             if (oag) {
-               emit_perf_khr_oag_boundary(cmd_buffer, pool, &b, query_addr,
+               emit_perf_khr_oag_boundary(cmd_buffer, pool, &b,
+                                          anv_address_add(query_addr, pool->data_offset),
                                           query, true /* end */);
             } else {
                dws = anv_batch_emitn(&cmd_buffer->batch,
