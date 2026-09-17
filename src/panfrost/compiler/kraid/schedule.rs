@@ -203,7 +203,7 @@ fn pressure_schedule_block(
     model: &dyn Model,
     ssa_alloc: &SSAValueAllocator,
     b: &mut BasicBlock,
-    bl: &impl BlockLiveness,
+    bl: &BlockLiveness,
 ) {
     let body_range = b.body_ip_range();
 
@@ -285,7 +285,7 @@ fn pressure_schedule_block(
 
 impl Shader<'_> {
     pub fn schedule_for_pressure(&mut self) {
-        let live = SimpleLiveness::for_shader(self);
+        let live = Liveness::for_shader(self);
         for (bi, block) in self.blocks.iter_mut().enumerate() {
             pressure_schedule_block(
                 self.model,

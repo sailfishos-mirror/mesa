@@ -660,7 +660,7 @@ struct AffinityMapBuilder<'a> {
 }
 
 impl AffinityMapBuilder<'_> {
-    fn add_instr(&mut self, bl: &impl BlockLiveness, instr: &Instr) {
+    fn add_instr(&mut self, bl: &BlockLiveness, instr: &Instr) {
         let def_order = &mut self.def_order;
         match &instr.op {
             Op::MkVecV2I16(op) => {
@@ -777,7 +777,7 @@ impl AffinityMap {
     fn for_shader(
         s: &Shader,
         arena: &Arena,
-        live: &impl Liveness,
+        live: &Liveness,
         phi_map: &PhiMap,
     ) -> AffinityMap {
         let ssa_count = s.ssa_alloc.count();
@@ -1386,7 +1386,7 @@ impl LocalRegAlloc<'_> {
 
     fn choose_src_bytes(
         &self,
-        bl: &impl BlockLiveness,
+        bl: &BlockLiveness,
         ip: usize,
         vec: &SSARef,
         align: RegAlignConstraint,
@@ -1462,7 +1462,7 @@ impl LocalRegAlloc<'_> {
         ip: usize,
         instr: &mut Instr,
         pcopy: &mut ParallelCopy,
-        bl: &impl BlockLiveness,
+        bl: &BlockLiveness,
     ) {
         // We use a bitmask for indices
         assert!(instr.srcs().len() <= 8);
@@ -1802,7 +1802,7 @@ impl LocalRegAlloc<'_> {
     fn try_coalesce_mkvec(
         &mut self,
         ip: usize,
-        bl: &impl BlockLiveness,
+        bl: &BlockLiveness,
         instr: &Instr,
     ) -> bool {
         debug_assert!(instr.dsts().len() == 1);
@@ -1964,7 +1964,7 @@ impl GlobalRegAlloc<'_> {
     fn start_block(
         &mut self,
         cfg: &CFG<BasicBlock>,
-        live: &impl Liveness,
+        live: &Liveness,
         ssa_alloc: &SSAValueAllocator,
         bi: usize,
     ) {
@@ -2038,7 +2038,7 @@ impl GlobalRegAlloc<'_> {
     fn end_block(
         &mut self,
         cfg: &CFG<BasicBlock>,
-        live: &impl Liveness,
+        live: &Liveness,
         ssa_alloc: &SSAValueAllocator,
         bi: usize,
         phi_srcs: &mut Vec<Box<OpPhiSrc>>,
@@ -2338,7 +2338,7 @@ impl GlobalRegAlloc<'_> {
     fn alloc_regs_block(
         &mut self,
         cfg: &mut CFG<BasicBlock>,
-        live: &impl Liveness,
+        live: &Liveness,
         ssa_alloc: &mut SSAValueAllocator,
         bi: usize,
         phi_map: &PhiMap,
@@ -2442,7 +2442,7 @@ impl GlobalRegAlloc<'_> {
     }
 }
 
-fn alloc_regs(s: &mut Shader, arena: &Arena, live: impl Liveness) {
+fn alloc_regs(s: &mut Shader, arena: &Arena, live: Liveness) {
     let phi_map = PhiMap::for_shader(s);
     let affinities = AffinityMap::for_shader(s, &arena, &live, &phi_map);
 
@@ -2465,7 +2465,7 @@ fn reg_ref_for_byte(b: u8, bytes: u8) -> RegRef {
 }
 
 fn ra_trivial(s: &mut Shader) {
-    let live = SimpleLiveness::for_shader(s);
+    let live = Liveness::for_shader(s);
 
     // Allocate in units of half registers.  We might be a dumb allocator but
     // we can at least try to exercise Kraid's half register model.
@@ -2758,7 +2758,7 @@ impl Shader<'_> {
 
             pass!(self.prop_oob_reg_in(&arena));
 
-            let live = SimpleLiveness::for_shader(self);
+            let live = Liveness::for_shader(self);
             assert!(
                 live.max_live_bytes().reg <= u32::from(arena.limit()),
                 "Blend shaders cannot spill"
@@ -2777,7 +2777,7 @@ impl Shader<'_> {
             u16::from(self.model.max_reg_count()) * 4
         };
 
-        let mut live = SimpleLiveness::for_shader(self);
+        let mut live = Liveness::for_shader(self);
         let max_live = live.max_live_bytes();
         assert_eq!(max_live.mem, 0);
         if max_live.reg > u32::from(reg_limit) {
@@ -2794,7 +2794,7 @@ impl Shader<'_> {
             pass!(self.repair_ssa());
             pass!(self.opt_dce());
 
-            live = SimpleLiveness::for_shader(self)
+            live = Liveness::for_shader(self)
         }
 
         let max_live = live.max_live_bytes();
@@ -2814,7 +2814,7 @@ impl Shader<'_> {
             });
             self.info.tls_size = mem_arena.bytes_used().into();
 
-            live = SimpleLiveness::for_shader(self)
+            live = Liveness::for_shader(self)
         }
 
         let live_reg_bytes = max_live.reg.try_into().unwrap();

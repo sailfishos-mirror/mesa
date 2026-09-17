@@ -205,12 +205,12 @@ impl LiveSet {
     /// to go live before sources are killed.  This can lead to slightly higher
     /// instantaneous pressure but gives the register allocator more freedom
     /// when making register choices.
-    pub fn insert_instr_top_down<L: BlockLiveness>(
+    pub fn insert_instr_top_down(
         &mut self,
         model: &dyn Model,
         ip: usize,
         instr: &Instr,
-        bl: &L,
+        bl: &BlockLiveness,
     ) -> LiveBytes {
         if let Op::Copy(op) = &instr.op {
             // Copy is a special case and we always lower it to something
@@ -290,27 +290,60 @@ impl Extend<SSAValue> for LiveSet {
     }
 }
 
-pub trait BlockLiveness {
-    /// Returns true if @val is still live after @ip
-    fn is_live_after_ip(&self, val: &SSAValue, ip: usize) -> bool;
+#[derive(Default)]
+pub struct BlockLiveness {
+    defs: BitSet<u32>,
+    uses: BitSet<u32>,
+    last_use: FxHashMap<SSAValue, usize>,
+    live_in: BitSet<u32>,
+    live_out: BitSet<u32>,
+    max_live: LiveBytes,
+}
+
+impl BlockLiveness {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn add_def(&mut self, ssa: SSAValue) {
+        self.defs.insert(ssa.idx());
+    }
+
+    fn add_use(&mut self, ssa: SSAValue, ip: usize) {
+        self.uses.insert(ssa.idx());
+        self.last_use.insert(ssa, ip);
+    }
+
+    pub fn is_live_after_ip(&self, val: &SSAValue, ip: usize) -> bool {
+        if self.live_out.contains(val.idx()) {
+            true
+        } else if let Some(last_use_ip) = self.last_use.get(val) {
+            *last_use_ip > ip
+        } else {
+            false
+        }
+    }
+
+    pub fn live_in_set(&self) -> &BitSet<u32> {
+        &self.live_in
+    }
+
+    pub fn live_out_set(&self) -> &BitSet<u32> {
+        &self.live_out
+    }
 
     /// Returns true if @val is live-in to this block
-    fn live_in_set(&self) -> &BitSet<u32>;
-
-    /// Returns true if @val is live-out of this block
-    fn live_out_set(&self) -> &BitSet<u32>;
-
-    /// Returns the maximum number of bytes live in this block
-    fn max_live_bytes(&self) -> LiveBytes;
-
-    /// Returns true if @val is live-in to this block
-    fn is_live_in(&self, val: &SSAValue) -> bool {
+    pub fn is_live_in(&self, val: &SSAValue) -> bool {
         self.live_in_set().contains(val.idx())
     }
 
     /// Returns true if @val is live-out of this block
-    fn is_live_out(&self, val: &SSAValue) -> bool {
+    pub fn is_live_out(&self, val: &SSAValue) -> bool {
         self.live_out_set().contains(val.idx())
+    }
+
+    pub fn max_live_bytes(&self) -> LiveBytes {
+        self.max_live
     }
 
     /// Returns the instantaneous pressure delta for the given instruction,
@@ -323,7 +356,7 @@ pub trait BlockLiveness {
     /// by this instruction.  For all other instructions, however, we assume
     /// that the destinations go live before the sources are killed and so the
     /// instantaneous pressure includes both sources and destinations.
-    fn get_instr_pressure_top_down(
+    pub fn get_instr_pressure_top_down(
         &self,
         model: &dyn Model,
         ip: usize,
@@ -361,80 +394,22 @@ pub trait BlockLiveness {
     }
 }
 
-pub trait Liveness {
-    type PerBlock: BlockLiveness;
-
-    fn block(&self, idx: usize) -> &Self::PerBlock;
-
-    /// Returns the maximum number of bytes live in the shader
-    fn max_live_bytes(&self) -> LiveBytes;
-}
-
-#[derive(Default)]
-pub struct SimpleBlockLiveness {
-    defs: BitSet<u32>,
-    uses: BitSet<u32>,
-    last_use: FxHashMap<SSAValue, usize>,
-    live_in: BitSet<u32>,
-    live_out: BitSet<u32>,
-    max_live: LiveBytes,
-}
-
-impl SimpleBlockLiveness {
-    fn new() -> Self {
-        Default::default()
-    }
-
-    fn add_def(&mut self, ssa: SSAValue) {
-        self.defs.insert(ssa.idx());
-    }
-
-    fn add_use(&mut self, ssa: SSAValue, ip: usize) {
-        self.uses.insert(ssa.idx());
-        self.last_use.insert(ssa, ip);
-    }
-}
-
-impl BlockLiveness for SimpleBlockLiveness {
-    fn is_live_after_ip(&self, val: &SSAValue, ip: usize) -> bool {
-        if self.live_out.contains(val.idx()) {
-            true
-        } else if let Some(last_use_ip) = self.last_use.get(val) {
-            *last_use_ip > ip
-        } else {
-            false
-        }
-    }
-
-    fn live_in_set(&self) -> &BitSet<u32> {
-        &self.live_in
-    }
-
-    fn live_out_set(&self) -> &BitSet<u32> {
-        &self.live_out
-    }
-
-    fn max_live_bytes(&self) -> LiveBytes {
-        self.max_live
-    }
-}
-
-pub struct SimpleLiveness {
+pub struct Liveness {
     ssa_block_ip: FxHashMap<SSAValue, (usize, usize)>,
-    blocks: Vec<SimpleBlockLiveness>,
+    blocks: Vec<BlockLiveness>,
     max_live: LiveBytes,
 }
 
-impl SimpleLiveness {
-    pub fn for_shader(s: &Shader) -> SimpleLiveness {
-        let mut l = SimpleLiveness {
+impl Liveness {
+    pub fn for_shader(s: &Shader) -> Liveness {
+        let mut l = Liveness {
             ssa_block_ip: Default::default(),
             blocks: Vec::new(),
             max_live: Default::default(),
         };
 
         for (bi, b) in s.blocks.iter().enumerate() {
-            let mut bl = SimpleBlockLiveness::new();
+            let mut bl = BlockLiveness::new();
 
             for (ip, instr) in b.instrs.iter().enumerate() {
                 for ssa in instr.iter_ssa_uses() {
@@ -511,9 +486,7 @@ impl SimpleLiveness {
 
         l
     }
-}
 
-impl SimpleLiveness {
     pub fn def_block_ip(&self, ssa: &SSAValue) -> (usize, usize) {
         *self.ssa_block_ip.get(ssa).unwrap()
     }
@@ -528,16 +501,12 @@ impl SimpleLiveness {
             Ordering::Greater => self.block(ab).is_live_after_ip(b, ai),
         }
     }
-}
 
-impl Liveness for SimpleLiveness {
-    type PerBlock = SimpleBlockLiveness;
-
-    fn block(&self, idx: usize) -> &SimpleBlockLiveness {
+    pub fn block(&self, idx: usize) -> &BlockLiveness {
         &self.blocks[idx]
     }
 
-    fn max_live_bytes(&self) -> LiveBytes {
+    pub fn max_live_bytes(&self) -> LiveBytes {
         self.max_live
     }
 }

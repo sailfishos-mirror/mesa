@@ -76,7 +76,7 @@ impl SSAValueSet {
 ///     must kill the source.
 fn legalize_fixed_srcs(
     b: &mut impl SSABuilder,
-    bl: &impl BlockLiveness,
+    bl: &BlockLiveness,
     instr: &mut Instr,
     ip: usize,
     ssa_used: &mut SSAValueSet,
@@ -462,7 +462,7 @@ fn legalize_fau_srcs(
 
 impl Shader<'_> {
     pub fn legalize(&mut self) {
-        let live = SimpleLiveness::for_shader(self);
+        let live = Liveness::for_shader(self);
 
         let model = self.model;
         let fau = model.fau();
