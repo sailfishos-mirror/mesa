@@ -1354,7 +1354,7 @@
         "description": "llvmpipe: use os_free_aligned for non-vma case",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2d794898097924fbac462031a00e69e7e5c212d1",
         "notes": null
