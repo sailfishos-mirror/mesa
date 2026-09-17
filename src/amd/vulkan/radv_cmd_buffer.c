@@ -15586,7 +15586,7 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
 
    /* Skip redundant operations when the image is already zero-initialized. */
    if (src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {
-      need_dcc_init = dcc_init_value != DCC_CLEAR_0000;
+      need_dcc_init = dcc_init_value != DCC_CLEAR_0000 || radv_image_use_dcc_predication(device, image);
       need_metadata_init = false;
    }
 
