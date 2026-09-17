@@ -8,7 +8,7 @@ use crate::ra;
 use compiler::bitset::BitSet;
 use compiler::dataflow::BackwardDataflow;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::cmp::{Ord, Ordering};
+use std::cmp::Ord;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct LiveBytes {
@@ -395,7 +395,6 @@ impl BlockLiveness {
 }
 
 pub struct Liveness {
-    ssa_block_ip: FxHashMap<SSAValue, (usize, usize)>,
     blocks: Vec<BlockLiveness>,
     max_live: LiveBytes,
 }
@@ -403,12 +402,11 @@ pub struct Liveness {
 impl Liveness {
     pub fn for_shader(s: &Shader) -> Liveness {
         let mut l = Liveness {
-            ssa_block_ip: Default::default(),
             blocks: Vec::new(),
             max_live: Default::default(),
         };
 
-        for (bi, b) in s.blocks.iter().enumerate() {
+        for b in s.blocks.iter() {
             let mut bl = BlockLiveness::new();
 
             for (ip, instr) in b.instrs.iter().enumerate() {
@@ -416,7 +414,6 @@ impl Liveness {
                     bl.add_use(*ssa, ip);
                 }
                 for ssa in instr.iter_ssa_defs() {
-                    l.ssa_block_ip.insert(*ssa, (bi, ip));
                     bl.add_def(*ssa);
                 }
             }
@@ -485,21 +482,6 @@ impl Liveness {
         }
 
         l
-    }
-
-    pub fn def_block_ip(&self, ssa: &SSAValue) -> (usize, usize) {
-        *self.ssa_block_ip.get(ssa).unwrap()
-    }
-
-    pub fn interferes(&self, a: &SSAValue, b: &SSAValue) -> bool {
-        let (ab, ai) = self.def_block_ip(a);
-        let (bb, bi) = self.def_block_ip(b);
-
-        match ab.cmp(&bb).then(ai.cmp(&bi)) {
-            Ordering::Equal => true,
-            Ordering::Less => self.block(bb).is_live_after_ip(a, bi),
-            Ordering::Greater => self.block(ab).is_live_after_ip(b, ai),
-        }
     }
 
     pub fn block(&self, idx: usize) -> &BlockLiveness {
