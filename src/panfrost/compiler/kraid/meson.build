@@ -115,8 +115,6 @@ libpanfrost_kraid = static_library(
   rust_args : [
     panfrost_rust_args,
     '--cfg', 'kraid_isa_xml_path="' + meson.current_source_dir() + '"',
-    # Disable dead code warnings for now
-    '-A', 'dead_code',
     # Otherwise, rustc trips up on -pthread
     '-Clink-arg=-Wno-unused-command-line-argument',
   ],
@@ -140,8 +138,6 @@ libpanfrost_kraid_rs = static_library(
   rust_args : [
     panfrost_rust_args,
     '--cfg', 'kraid_isa_xml_path="' + meson.current_source_dir() + '"',
-    # Disable dead code warnings for now
-    '-A', 'dead_code',
     # Otherwise, rustc trips up on -pthread
     '-Clink-arg=-Wno-unused-command-line-argument',
   ],
