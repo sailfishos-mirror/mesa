@@ -1126,6 +1126,18 @@ nir_umin_imm(nir_builder *build, nir_def *x, uint64_t y)
 }
 
 static inline nir_def *
+nir_fmax_imm(nir_builder *build, nir_def *x, double y)
+{
+   return nir_fmax(build, x, nir_imm_floatN_t(build, y, x->bit_size));
+}
+
+static inline nir_def *
+nir_fmin_imm(nir_builder *build, nir_def *x, double y)
+{
+   return nir_fmin(build, x, nir_imm_floatN_t(build, y, x->bit_size));
+}
+
+static inline nir_def *
 _nir_mul_imm(nir_builder *build, nir_def *x, uint64_t y, bool amul)
 {
    assert(x->bit_size <= 64);
