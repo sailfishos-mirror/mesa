@@ -1124,7 +1124,7 @@
         "description": "intel/compiler: fix bounds check in Wa_18035690555",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8736d1a9a6b323fc2c6c1bdb5d6a445f1cef1575",
         "notes": null
