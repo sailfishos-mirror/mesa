@@ -1942,7 +1942,10 @@ radv_GetImageOpaqueCaptureDescriptorDataEXT(VkDevice device, const VkImageCaptur
 {
    VK_FROM_HANDLE(radv_image, image, pInfo->image);
 
-   *(uint64_t *)pData = image->bindings[0].addr;
+   if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
+      memcpy(pData, &image->bindings[0].addr, sizeof(image->bindings[0].addr));
+   else
+      memset(pData, 0, sizeof(image->bindings[0].addr));
    return VK_SUCCESS;
 }
 
@@ -1953,7 +1956,10 @@ radv_GetImageOpaqueCaptureDataEXT(VkDevice device, uint32_t imageCount, const Vk
    for (uint32_t i = 0; i < imageCount; i++) {
       VK_FROM_HANDLE(radv_image, image, pImages[i]);
 
-      *(uint64_t *)pDatas[i].address = image->bindings[0].addr;
+      if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
+         memcpy(pDatas[i].address, &image->bindings[0].addr, sizeof(image->bindings[0].addr));
+      else
+         memset(pDatas[i].address, 0, sizeof(image->bindings[0].addr));
    }
 
    return VK_SUCCESS;
