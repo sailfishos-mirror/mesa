@@ -1689,6 +1689,19 @@ alloc_private_binding(struct anv_device *device,
       }
    }
 
+   if (create_info->flags & VK_IMAGE_CREATE_DESCRIPTOR_HEAP_CAPTURE_REPLAY_BIT_EXT) {
+      alloc_flags |= ANV_BO_ALLOC_CLIENT_VISIBLE_ADDRESS;
+
+      const VkOpaqueCaptureDataCreateInfoEXT *opaque_info =
+         vk_find_struct_const(create_info->pNext,
+                              OPAQUE_CAPTURE_DATA_CREATE_INFO_EXT);
+      if (opaque_info) {
+         const struct anv_image_opaque_capture_data *explicit_addresses =
+            opaque_info->pData->address;
+         explicit_address = explicit_addresses->private_binding;
+      }
+   }
+
    VkResult result = anv_device_alloc_bo(device, "image-binding-private",
                                          binding->memory_range.size,
                                          alloc_flags, explicit_address,
@@ -4442,18 +4455,16 @@ VkResult anv_GetImageOpaqueCaptureDataEXT(
    for (uint32_t i = 0; i < imageCount; i++) {
       ANV_FROM_HANDLE(anv_image, image, pImages[i]);
 
-      if (anv_image_is_sparse(image) &&
-          (image->vk.create_flags & VK_IMAGE_CREATE_DESCRIPTOR_HEAP_CAPTURE_REPLAY_BIT_EXT)) {
-         struct anv_image_opaque_capture_data bound_addresses;
-         memset(&bound_addresses, 0, sizeof(bound_addresses));
+      struct anv_image_opaque_capture_data bound_addresses;
+      memset(&bound_addresses, 0, sizeof(bound_addresses));
+      /* Main binding is the sparse VA, we should return 0 consistently for non-sparse. */
+      if (anv_image_is_sparse(image)) {
          bound_addresses.main_binding =
             anv_address_physical(image->bindings[ANV_IMAGE_MEMORY_BINDING_MAIN].address);
-         bound_addresses.private_binding =
-            anv_address_physical(image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address);
-         memcpy(pDatas[i].address, &bound_addresses, sizeof(struct anv_image_opaque_capture_data));
-      } else {
-         memset(pDatas[i].address, 0, sizeof(struct anv_image_opaque_capture_data));
       }
+      bound_addresses.private_binding =
+         anv_address_physical(image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address);
+      memcpy(pDatas[i].address, &bound_addresses, sizeof(struct anv_image_opaque_capture_data));
    }
 
    return VK_SUCCESS;
