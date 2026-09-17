@@ -1543,12 +1543,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       }
    }
 
-   /* Only require gfx or compute. */
-   if (!info->ip[AMD_IP_GFX].num_queues && !info->ip[AMD_IP_COMPUTE].num_queues) {
-      fprintf(stderr, "amdgpu: failed to find gfx or compute.\n");
-      return AC_QUERY_GPU_INFO_FAIL;
-   }
-
    r = ac_drm_query_firmware_version(dev, AMDGPU_INFO_FW_GFX_ME, 0, 0, &info->me_fw_version,
                                      &info->me_fw_feature);
    if (r) {

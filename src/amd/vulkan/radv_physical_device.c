@@ -2710,6 +2710,17 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       goto fail;
    }
 
+   /* Vulkan requires either gfx or compute queues to be available.
+    * Fail initialization if neither are present (e.g., decode-only configurations).
+    */
+   if (!pdev->info.ip[AMD_IP_GFX].num_queues && !pdev->info.ip[AMD_IP_COMPUTE].num_queues) {
+      if (RADV_DEBUG(instance, STARTUP))
+         fprintf(stderr, "radv: info: device '%s' has no gfx or compute queues available.\n",
+                 ac_get_family_name(pdev->info.family));
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail;
+   }
+
    pdev->addrlib = ac_addrlib_create(&pdev->info, &pdev->info.max_alignment);
    if (!pdev->addrlib) {
       result = VK_ERROR_INITIALIZATION_FAILED;
