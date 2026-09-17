@@ -834,9 +834,6 @@ radv_clear_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    uint32_t layer_count = vk_image_subresource_layer_count(&image->vk, range);
    uint32_t flush_bits = 0;
 
-   /* Mark the image as being compressed if needed. */
-   radv_update_dcc_metadata(cmd_buffer, image, range, value != DCC_UNCOMPRESSED);
-
    for (uint32_t l = 0; l < level_count; l++) {
       uint64_t dcc_offset = image->planes[0].surface.meta_offset;
       uint32_t level = range->baseMipLevel + l;
@@ -1442,6 +1439,8 @@ radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
          need_decompress_pass = true;
 
       flush_bits |= radv_clear_dcc(cmd_buffer, iview->image, &range, reset_value);
+
+      radv_update_dcc_metadata(cmd_buffer, iview->image, &range, true);
 
       if (reset_value == radv_dcc_single_clear_value(device)) {
          /* Write the clear color to the first byte of each 256B block when the image supports DCC

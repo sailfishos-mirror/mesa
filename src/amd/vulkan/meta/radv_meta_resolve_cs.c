@@ -174,8 +174,11 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
          /* Fixup DCC after a copy on compute, but not for partial copies because decompressing the
           * image also means that DCC is re-initialized to its uncompressed state.
           */
-         if (!is_partial_resolve)
+         if (!is_partial_resolve) {
             cmd_buffer->state.flush_bits |= radv_clear_dcc(cmd_buffer, image, &range, DCC_UNCOMPRESSED);
+
+            radv_update_dcc_metadata(cmd_buffer, image, &range, false);
+         }
       }
    } else {
       if (pdev->info.gfx_level >= GFX12) {
