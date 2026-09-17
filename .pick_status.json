@@ -1624,7 +1624,7 @@
         "description": "pan/kmod: dummy BO is per VM for emulated sparse",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "306539a3c70e18a8498b069362f979088423a93f",
         "notes": null
