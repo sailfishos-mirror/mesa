@@ -4174,17 +4174,6 @@ pub enum TexLodMode {
     GradientDesc,
 }
 
-impl TexLodMode {
-    pub fn force_delta(self) -> TexLodMode {
-        use TexLodMode::*;
-        match self {
-            Computed | ComputedForceDelta => ComputedForceDelta,
-            ComputedBias | ComputedBiasForceDelta => ComputedBiasForceDelta,
-            _ => panic!("No force_delta enum"),
-        }
-    }
-}
-
 impl fmt::Display for TexLodMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

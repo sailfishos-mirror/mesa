@@ -294,10 +294,6 @@ struct SpillMap {
 }
 
 impl SpillMap {
-    fn contains(&self, ssa: &SSAValue) -> bool {
-        self.map.contains_key(ssa)
-    }
-
     fn get(&self, ssa: &SSAValue) -> Option<&SpillValue> {
         self.map.get(ssa)
     }

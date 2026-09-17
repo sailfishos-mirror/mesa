@@ -471,10 +471,6 @@ pub struct SSAValueAllocator {
 }
 
 impl SSAValueAllocator {
-    pub fn new() -> SSAValueAllocator {
-        Default::default()
-    }
-
     pub fn count(&self) -> u32 {
         self.meta.len().try_into().unwrap()
     }
@@ -510,17 +506,9 @@ impl<T: Default> SSAValueIndexedVec<T> {
         SSAValueIndexedVec(vec)
     }
 
-    pub fn get(&self, ssa: SSAValue) -> &T {
-        self.get_by_idx(ssa.idx())
-    }
-
     pub fn get_by_idx(&self, idx: u32) -> &T {
         let idx = usize::try_from(idx).unwrap();
         &self.0[idx]
-    }
-
-    pub fn get_mut(&mut self, ssa: SSAValue) -> &mut T {
-        self.get_mut_by_idx(ssa.idx())
     }
 
     pub fn get_mut_by_idx(&mut self, idx: u32) -> &mut T {

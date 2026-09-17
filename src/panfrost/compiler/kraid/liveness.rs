@@ -92,12 +92,6 @@ impl LiveSet {
         &self.bit_set
     }
 
-    pub fn clear(&mut self) {
-        self.bytes = Default::default();
-        self.set.clear();
-        self.bit_set.clear();
-    }
-
     pub fn contains(&self, ssa: &SSAValue) -> bool {
         self.bit_set.contains(ssa.idx())
     }
