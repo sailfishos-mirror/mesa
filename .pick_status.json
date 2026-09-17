@@ -1344,7 +1344,7 @@
         "description": "ir3: interpret const @load/store_global_offset offset as unsigned",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c784af5ca02173383da9ac08ccd99d91f8120f9d",
         "notes": null
