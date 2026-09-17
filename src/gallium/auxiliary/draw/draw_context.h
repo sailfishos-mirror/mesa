@@ -428,5 +428,6 @@ draw_set_disk_cache_callbacks(struct draw_context *draw,
                                                     struct lp_cached_code *cache,
                                                     unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN]));
 
-
+void
+draw_set_tess_ccw_flip(struct draw_context *draw, bool enable);
 #endif /* DRAW_CONTEXT_H */

@@ -29,6 +29,7 @@
 #include "pipe/p_context.h"
 #include "pipe/p_state.h"
 #include "lvp_conv.h"
+#include "lp_state.h"
 
 #include "pipe/p_shader_tokens.h"
 #include "tgsi/tgsi_from_mesa.h"
@@ -215,7 +216,6 @@ struct rendering_state {
    bool compute_shader_dirty;
 
    bool tess_ccw;
-   void *tess_states[2];
 
    struct util_dynarray push_desc_sets;
 
@@ -795,7 +795,7 @@ update_samplelocs(struct rendering_state *state,
 }
 
 static void
-handle_graphics_stages(struct rendering_state *state, VkShaderStageFlagBits shader_stages, bool dynamic_tess_origin)
+handle_graphics_stages(struct rendering_state *state, VkShaderStageFlagBits shader_stages)
 {
    u_foreach_bit(b, shader_stages) {
       VkShaderStageFlagBits vk_stage = (1 << b);
@@ -819,17 +819,7 @@ handle_graphics_stages(struct rendering_state *state, VkShaderStageFlagBits shad
          state->pctx->bind_tcs_state(state->pctx, state->shaders[MESA_SHADER_TESS_CTRL]->shader_cso);
          break;
       case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
-         state->tess_states[0] = NULL;
-         state->tess_states[1] = NULL;
-         if (dynamic_tess_origin) {
-            state->tess_states[0] = state->shaders[MESA_SHADER_TESS_EVAL]->shader_cso;
-            state->tess_states[1] = state->shaders[MESA_SHADER_TESS_EVAL]->tess_ccw_cso;
-            state->pctx->bind_tes_state(state->pctx, state->tess_states[state->tess_ccw]);
-         } else {
-            state->pctx->bind_tes_state(state->pctx, state->shaders[MESA_SHADER_TESS_EVAL]->shader_cso);
-         }
-         if (!dynamic_tess_origin)
-            state->tess_ccw = false;
+         state->pctx->bind_tes_state(state->pctx, state->shaders[MESA_SHADER_TESS_EVAL]->shader_cso);
          break;
       case VK_SHADER_STAGE_TASK_BIT_EXT:
          state->pctx->bind_ts_state(state->pctx, state->shaders[MESA_SHADER_TASK]->shader_cso);
@@ -903,7 +893,6 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
 {
    const struct vk_graphics_pipeline_state *ps = &pipeline->graphics_state;
    lvp_pipeline_shaders_compile(pipeline, true);
-   bool dynamic_tess_origin = BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN);
    unbind_graphics_stages(state,
                           (~pipeline->graphics_state.shader_stages) &
                           (VK_SHADER_STAGE_ALL_GRAPHICS |
@@ -914,7 +903,7 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
          state->shaders[sh] = &pipeline->shaders[sh];
    }
 
-   handle_graphics_stages(state, pipeline->graphics_state.shader_stages, dynamic_tess_origin);
+   handle_graphics_stages(state, pipeline->graphics_state.shader_stages);
    lvp_forall_gfx_stage(sh) {
       handle_graphics_pushconsts(state, sh, &pipeline->shaders[sh]);
    }
@@ -1209,10 +1198,16 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
    if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE) && ps->ia)
       state->info.primitive_restart = ps->ia->primitive_restart_enable;
 
-   if (ps->ts && !BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_TS_PATCH_CONTROL_POINTS)) {
-      if (state->patch_vertices != ps->ts->patch_control_points)
-         state->pctx->set_patch_vertices(state->pctx, ps->ts->patch_control_points);
-      state->patch_vertices = ps->ts->patch_control_points;
+   if (ps->ts) {
+      if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_TS_PATCH_CONTROL_POINTS)) {
+         if (state->patch_vertices != ps->ts->patch_control_points)
+            state->pctx->set_patch_vertices(state->pctx, ps->ts->patch_control_points);
+         state->patch_vertices = ps->ts->patch_control_points;
+      }
+      if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN)) {
+         state->tess_ccw = ps->ts->domain_origin == VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT;
+         llvmpipe_set_tess_ccw_flip(state->pctx, state->tess_ccw);
+      }
    }
 
    if (ps->vp) {
@@ -4201,8 +4196,7 @@ static void handle_set_tessellation_domain_origin(struct vk_cmd_queue_entry *cmd
    if (tess_ccw == state->tess_ccw)
       return;
    state->tess_ccw = tess_ccw;
-   if (state->tess_states[state->tess_ccw])
-      state->pctx->bind_tes_state(state->pctx, state->tess_states[state->tess_ccw]);
+   llvmpipe_set_tess_ccw_flip(state->pctx, tess_ccw);
 }
 
 static void handle_set_depth_clamp_enable(struct vk_cmd_queue_entry *cmd,
@@ -4443,7 +4437,7 @@ handle_shaders(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
    if ((new_stages | null_stages) & LVP_STAGE_MASK_GFX) {
       VkShaderStageFlags all_gfx = VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_TASK_BIT_EXT;
       unbind_graphics_stages(state, null_stages & all_gfx);
-      handle_graphics_stages(state, vkstages & all_gfx, true);
+      handle_graphics_stages(state, vkstages & all_gfx);
       u_foreach_bit(i, new_stages) {
          handle_graphics_pushconsts(state, i, state->shaders[i]);
       }
@@ -6096,6 +6090,7 @@ VkResult lvp_execute_cmds(struct lvp_device *device,
 
    state->start_vb = -1;
    state->num_vb = 0;
+   llvmpipe_set_tess_ccw_flip(state->pctx, false);
    cso_unbind_context(queue->cso);
    for (unsigned i = 0; i < ARRAY_SIZE(state->so_targets); i++) {
       if (state->so_targets[i]) {

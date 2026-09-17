@@ -257,6 +257,8 @@ struct draw_context
    bool flushing;         /**< debugging/sanity */
    bool suspend_flushing; /**< internally set */
 
+   bool tess_ccw_flip; /**< flip tess ccw during execution */
+
    /* Flags set if API requires clipping in these planes and the
     * driver doesn't indicate that it can do it for us.
     */

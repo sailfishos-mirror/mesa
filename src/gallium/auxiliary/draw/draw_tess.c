@@ -363,7 +363,7 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
    struct pipe_tessellator_data data = { 0 };
    struct pipe_tessellator *ptess = p_tess_init(tess_info->prim_mode,
                                                 tess_info->spacing,
-                                                !tess_info->vertex_order_ccw,
+                                                draw->tess_ccw_flip ? !tess_info->vertex_order_ccw : tess_info->vertex_order_ccw,
                                                 tess_info->point_mode);
    unsigned first_patch = input_prims->start / draw->pt.vertices_per_patch;
    for (unsigned i = 0; i < input_prims->primitive_count; i++) {

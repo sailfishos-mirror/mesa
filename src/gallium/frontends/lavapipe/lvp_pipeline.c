@@ -71,14 +71,11 @@ shader_destroy(struct lvp_device *device, struct lvp_shader *shader, bool locked
 
    if (shader->shader_cso)
       destroy[stage](device->queue.ctx, shader->shader_cso);
-   if (shader->tess_ccw_cso)
-      destroy[stage](device->queue.ctx, shader->tess_ccw_cso);
 
    if (!locked)
       simple_mtx_unlock(&device->queue.lock);
 
    lvp_pipeline_nir_ref(&shader->pipeline_nir, NULL);
-   lvp_pipeline_nir_ref(&shader->tess_ccw, NULL);
 }
 
 void
@@ -699,45 +696,6 @@ lvp_shader_compile_to_ir(struct lvp_pipeline *pipeline, const void *pipeline_pNe
 }
 
 static void
-merge_tess_info(struct shader_info *tes_info,
-                const struct shader_info *tcs_info)
-{
-   /* The Vulkan 1.0.38 spec, section 21.1 Tessellator says:
-    *
-    *    "PointMode. Controls generation of points rather than triangles
-    *     or lines. This functionality defaults to disabled, and is
-    *     enabled if either shader stage includes the execution mode.
-    *
-    * and about Triangles, Quads, IsoLines, VertexOrderCw, VertexOrderCcw,
-    * PointMode, SpacingEqual, SpacingFractionalEven, SpacingFractionalOdd,
-    * and OutputVertices, it says:
-    *
-    *    "One mode must be set in at least one of the tessellation
-    *     shader stages."
-    *
-    * So, the fields can be set in either the TCS or TES, but they must
-    * agree if set in both.  Our backend looks at TES, so bitwise-or in
-    * the values from the TCS.
-    */
-   assert(tcs_info->tess.tcs_vertices_out == 0 ||
-          tes_info->tess.tcs_vertices_out == 0 ||
-          tcs_info->tess.tcs_vertices_out == tes_info->tess.tcs_vertices_out);
-   tes_info->tess.tcs_vertices_out |= tcs_info->tess.tcs_vertices_out;
-
-   assert(tcs_info->tess.spacing == TESS_SPACING_UNSPECIFIED ||
-          tes_info->tess.spacing == TESS_SPACING_UNSPECIFIED ||
-          tcs_info->tess.spacing == tes_info->tess.spacing);
-   tes_info->tess.spacing |= tcs_info->tess.spacing;
-
-   assert(tcs_info->tess._primitive_mode == 0 ||
-          tes_info->tess._primitive_mode == 0 ||
-          tcs_info->tess._primitive_mode == tes_info->tess._primitive_mode);
-   tes_info->tess._primitive_mode |= tcs_info->tess._primitive_mode;
-   tes_info->tess.ccw |= tcs_info->tess.ccw;
-   tes_info->tess.point_mode |= tcs_info->tess.point_mode;
-}
-
-static void
 lvp_shader_xfb_init(struct lvp_shader *shader)
 {
    nir_xfb_info *xfb_info = shader->pipeline_nir->nir->xfb_info;
@@ -938,9 +896,7 @@ copy_shader_sanitized(struct lvp_shader *dst, const struct lvp_shader *src)
 {
    *dst = *src;
    dst->pipeline_nir = NULL; //this gets handled later
-   dst->tess_ccw = NULL; //this gets handled later
    assert(!dst->shader_cso);
-   assert(!dst->tess_ccw_cso);
 }
 
 static VkResult
@@ -1060,15 +1016,6 @@ lvp_graphics_pipeline_init(struct lvp_pipeline *pipeline,
    }
    if (pCreateInfo->stageCount && pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir) {
       nir_lower_patch_vertices(pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir, pipeline->shaders[MESA_SHADER_TESS_CTRL].pipeline_nir->nir->info.tess.tcs_vertices_out, NULL);
-      merge_tess_info(&pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir->info, &pipeline->shaders[MESA_SHADER_TESS_CTRL].pipeline_nir->nir->info);
-      if (BITSET_TEST(pipeline->graphics_state.dynamic,
-                      MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN)) {
-         pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw = lvp_create_pipeline_nir(nir_shader_clone(NULL, pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir));
-         pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw->nir->info.tess.ccw = !pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir->info.tess.ccw;
-      } else if (pipeline->graphics_state.ts &&
-                 pipeline->graphics_state.ts->domain_origin == VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT) {
-         pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir->info.tess.ccw = !pipeline->shaders[MESA_SHADER_TESS_EVAL].pipeline_nir->nir->info.tess.ccw;
-      }
    }
    if (libstate) {
        for (unsigned i = 0; i < libstate->libraryCount; i++) {
@@ -1084,8 +1031,6 @@ lvp_graphics_pipeline_init(struct lvp_pipeline *pipeline,
                 if (p->shaders[j].pipeline_nir)
                    lvp_pipeline_nir_ref(&pipeline->shaders[j].pipeline_nir, p->shaders[j].pipeline_nir);
              }
-             if (p->shaders[MESA_SHADER_TESS_EVAL].tess_ccw)
-                lvp_pipeline_nir_ref(&pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw, p->shaders[MESA_SHADER_TESS_EVAL].tess_ccw);
           }
        }
    } else if (pipeline->stages & VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT) {
@@ -1141,9 +1086,6 @@ lvp_pipeline_shaders_compile(struct lvp_pipeline *pipeline, bool locked)
 
       pipeline->shaders[stage].shader_cso = lvp_shader_compile(device, &pipeline->shaders[stage],
          nir_shader_clone(NULL, pipeline->shaders[stage].pipeline_nir->nir), locked);
-      if (pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw)
-         pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw_cso = lvp_shader_compile(device, &pipeline->shaders[stage],
-            nir_shader_clone(NULL, pipeline->shaders[MESA_SHADER_TESS_EVAL].tess_ccw->nir), locked);
    }
    pipeline->compiled = true;
 }
@@ -1458,9 +1400,6 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
    if (stage == MESA_SHADER_TESS_EVAL) {
       /* spec requires that all tess modes are set in both shaders */
       nir_lower_patch_vertices(shader->pipeline_nir->nir, shader->pipeline_nir->nir->info.tess.tcs_vertices_out, NULL);
-      shader->tess_ccw = lvp_create_pipeline_nir(nir_shader_clone(NULL, shader->pipeline_nir->nir));
-      shader->tess_ccw->nir->info.tess.ccw = !shader->pipeline_nir->nir->info.tess.ccw;
-      shader->tess_ccw_cso = lvp_shader_compile(device, shader, nir_shader_clone(NULL, shader->tess_ccw->nir), false);
    }
    nir_serialize(&shader->blob, nir, true);
 

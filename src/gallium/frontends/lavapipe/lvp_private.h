@@ -459,9 +459,7 @@ struct lvp_shader {
    struct lp_sampler_descriptor *embedded_samplers_map;
    struct pipe_resource *embedded_samplers;
    struct lvp_pipeline_nir *pipeline_nir;
-   struct lvp_pipeline_nir *tess_ccw;
    void *shader_cso;
-   void *tess_ccw_cso;
    struct pipe_stream_output_info stream_output;
    struct blob blob; //preserved for GetShaderBinaryDataEXT
    uint32_t push_constant_size;
