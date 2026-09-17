@@ -4292,6 +4292,17 @@ distribute_src_mods = [
    # must be applied to the second source.
    (('fneg', ('fdph_replicated(is_used_once)', a, b)), ('fdph_replicated', a, ('fneg', b)), 'true', TestStatus.XFAIL),
 
+   (('fneg', ('frcp(is_used_once)', a)), ('frcp', ('fneg', a))),
+   (('fabs', ('frcp(is_used_once)', a)), ('frcp', ('fabs', a))),
+
+   (('fneg', ('fceil(is_used_once)', a)), ('ffloor', ('fneg', a))),
+   (('fneg', ('ffloor(is_used_once)', a)), ('fceil', ('fneg', a))),
+   (('fneg', ('ftrunc(is_used_once)', a)), ('ftrunc', ('fneg', a))),
+   (('fabs', ('ftrunc(is_used_once)', a)), ('ftrunc', ('fabs', a))),
+   (('fneg', ('fround_even(is_used_once)', a)), ('fround_even', ('fneg', a))),
+   (('fabs', ('fround_even(is_used_once)', a)), ('fround_even', ('fabs', a))),
+
+
    (('fneg', ('fsign(is_used_once)', a)), ('fsign', ('fneg', a))),
    (('fabs', ('fsign(is_used_once)', a)), ('fsign', ('fabs', a))),
 ]
