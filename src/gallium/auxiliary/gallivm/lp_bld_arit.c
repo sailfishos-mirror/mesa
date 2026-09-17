@@ -1784,8 +1784,9 @@ lp_build_round_arch(struct lp_build_context *bld,
                     LLVMValueRef a,
                     enum lp_build_round_mode mode)
 {
+   /* VMX vrfi* honor VSCR[NJ]; VSX follows IEEE for denormals. */
    if (util_get_cpu_caps()->has_sse4_1 || util_get_cpu_caps()->has_neon ||
-       DETECT_ARCH_S390 == true) {
+       util_get_cpu_caps()->has_vsx || DETECT_ARCH_S390 == true) {
       LLVMBuilderRef builder = bld->gallivm->builder;
       const struct lp_type type = bld->type;
       const char *intrinsic_root;
