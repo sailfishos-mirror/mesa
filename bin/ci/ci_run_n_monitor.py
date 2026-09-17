@@ -534,14 +534,21 @@ def parse_args() -> argparse.Namespace:
         epilog="Example: %(prog)s --rev $(git rev-parse HEAD) "
         + '--target ".*traces" ',
     )
-    parser.add_argument(
+
+    access_group = parser.add_argument_group("Access options")
+    pipeline_discovery = parser.add_argument_group("Pipeline discovery options")
+    target_group = parser.add_argument_group("Target options")
+    stress_group = parser.add_argument_group("Stress test options")
+    flowctrl_group = parser.add_argument_group("Flow control options")
+
+    access_group.add_argument(
         "--server",
         metavar="gitlab-server",
         type=str,
         default=GITLAB_URL,
         help=f"Specify the GitLab server work with (Default: {GITLAB_URL})",
     )
-    parser.add_argument(
+    target_group.add_argument(
         "--target",
         metavar="target-job",
         help="Target job regex. For multiple targets, pass multiple values, "
@@ -551,13 +558,13 @@ def parse_args() -> argparse.Namespace:
         default=[],
         nargs=argparse.ONE_OR_MORE,
     )
-    parser.add_argument(
+    target_group.add_argument(
         "--profile",
         metavar="name",
         choices=PROFILES,
         help="Use a predefined set of target jobs",
     )
-    parser.add_argument(
+    target_group.add_argument(
         "--include-stage",
         metavar="include-stage",
         help="Job stages to include when searching for target jobs. "
@@ -566,7 +573,7 @@ def parse_args() -> argparse.Namespace:
         default=[".*"],
         nargs=argparse.ONE_OR_MORE,
     )
-    parser.add_argument(
+    target_group.add_argument(
         "--exclude-stage",
         metavar="exclude-stage",
         help="Job stages to exclude when searching for target jobs. "
@@ -577,7 +584,7 @@ def parse_args() -> argparse.Namespace:
         default=["performance", ".*-postmerge", ".*-nightly"],
         nargs=argparse.ONE_OR_MORE,
     )
-    parser.add_argument(
+    target_group.add_argument(
         "--job-tags",
         metavar="job-tags",
         help="Job tags to require when searching for target jobs. If multiple "
@@ -589,7 +596,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         nargs=argparse.ONE_OR_MORE,
     )
-    parser.add_argument(
+    access_group.add_argument(
         "--token",
         metavar="token",
         type=str,
@@ -597,11 +604,11 @@ def parse_args() -> argparse.Namespace:
         help="Use the provided GitLab token (with `api` scope) or token file, "
              f"otherwise it's read from {TOKEN_DIR / 'gitlab-token'}",
     )
-    parser.add_argument(
+    flowctrl_group.add_argument(
         "--force-manual", action="store_true",
         help="Deprecated argument; manual jobs are always force-enabled"
     )
-    parser.add_argument(
+    stress_group.add_argument(
         "--stress",
         metavar="n",
         type=int,
@@ -610,31 +617,31 @@ def parse_args() -> argparse.Namespace:
              "or use -1 for indefinite. Defaults to 0. If jobs have already been executed, "
              "this will ensure the total run count respects the specified number.",
     )
-    parser.add_argument(
+    access_group.add_argument(
         "--project",
         metavar="name",
         type=str,
         default="mesa",
         help="GitLab project in the format <user>/<project> or just <project>",
     )
-    parser.add_argument(
+    flowctrl_group.add_argument(
         "--dry-run",
         action="store_true",
         help="Exit after printing target jobs and dependencies",
     )
-    parser.add_argument(
+    flowctrl_group.add_argument(
         "--no-job-log",
         action="store_true",
         help="When there is only one target job, inhibit the job trace output in the console.",
     )
-    parser.add_argument(
+    flowctrl_group.add_argument(
         "--polling-period",
         type=int,
         default=REFRESH_WAIT_JOBS,
         help=f"Specify the waiting seconds between monitor loops. (Default: {REFRESH_WAIT_JOBS})",
     )
 
-    mutex_group1 = parser.add_mutually_exclusive_group()
+    mutex_group1 = pipeline_discovery.add_mutually_exclusive_group()
     mutex_group1.add_argument(
         "--rev",
         metavar="id",
@@ -655,7 +662,7 @@ def parse_args() -> argparse.Namespace:
         help="ID of a merge request; the latest pipeline in that MR will be used.",
     )
 
-    parser.add_argument(
+    stress_group.add_argument(
         "--no-new-job-after",
         metavar="duration",
         type=parse_deadline,
