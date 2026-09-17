@@ -976,8 +976,8 @@ get_features(const struct anv_physical_device *pdevice,
       .shaderSharedFloat64AtomicAdd =  false,
       .shaderImageFloat32Atomics =     true,
       .shaderImageFloat32AtomicAdd =   pdevice->info.ver >= 20,
-      .sparseImageFloat32Atomics =     false,
-      .sparseImageFloat32AtomicAdd =   false,
+      .sparseImageFloat32Atomics =     has_sparse_or_fake,
+      .sparseImageFloat32AtomicAdd =   has_sparse_or_fake && pdevice->info.ver >= 20,
 
       /* VK_EXT_shader_atomic_float2 */
       .shaderBufferFloat16Atomics      = pdevice->info.has_lsc,
@@ -992,8 +992,8 @@ get_features(const struct anv_physical_device *pdevice,
       .shaderSharedFloat16AtomicMinMax = pdevice->info.has_lsc,
       .shaderSharedFloat32AtomicMinMax = true,
       .shaderSharedFloat64AtomicMinMax = false,
-      .shaderImageFloat32AtomicMinMax  = false,
-      .sparseImageFloat32AtomicMinMax  = false,
+      .shaderImageFloat32AtomicMinMax  = pdevice->info.ver >= 20,
+      .sparseImageFloat32AtomicMinMax  = has_sparse_or_fake && pdevice->info.ver >= 20,
 
       /* VK_KHR_shader_clock */
       .shaderSubgroupClock = true,
