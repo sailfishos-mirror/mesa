@@ -171,7 +171,6 @@ HANDLES_TRANSLATE = {
     "VkPhysicalDevice",
     "VkDevice",
     "VkQueue",
-    "VkCommandPool",
     "VkCommandBuffer",
 }
 

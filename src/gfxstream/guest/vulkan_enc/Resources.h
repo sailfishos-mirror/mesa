@@ -39,11 +39,7 @@ extern "C" {
 #define goldfish_VkBuffer gfxstream_vk_buffer
 #define goldfish_VkFence gfxstream_vk_fence
 #define goldfish_VkSemaphore gfxstream_vk_semaphore
-
-struct goldfish_vk_object_list {
-    void* obj;
-    struct goldfish_vk_object_list* next;
-};
+#define goldfish_VkCommandPool gfxstream_vk_command_pool
 
 #if DETECT_OS_ANDROID
 #define DECLARE_HWVULKAN_DISPATCH hwvulkan_dispatch_t dispatch;
@@ -62,19 +58,11 @@ struct goldfish_vk_object_list {
         gfxstream::vk::VkEncoder* privateEncoder;           \
         gfxstream::guest::IOStream* privateStream;          \
         uint32_t flags;                                     \
-        struct goldfish_vk_object_list* poolObjects;        \
-        struct goldfish_vk_object_list* subObjects;         \
-        struct goldfish_vk_object_list* superObjects;       \
-        void* userPtr;                                      \
     };
 
 #define GOLDFISH_VK_DEFINE_TRIVIAL_NON_DISPATCHABLE_HANDLE_STRUCT(type) \
     struct goldfish_##type {                                            \
         uint64_t underlying;                                            \
-        struct goldfish_vk_object_list* poolObjects;                    \
-        struct goldfish_vk_object_list* subObjects;                     \
-        struct goldfish_vk_object_list* superObjects;                   \
-        void* userPtr;                                                  \
     };
 
 #define GOLDFISH_VK_NEW_FROM_HOST_DECL(type) type new_from_host_##type(type);
@@ -134,9 +122,9 @@ struct goldfish_VkCommandBuffer {
     gfxstream::vk::VkEncoder* privateEncoder;
     gfxstream::guest::IOStream* privateStream;
     uint32_t flags;
-    struct goldfish_vk_object_list* poolObjects;
-    struct goldfish_vk_object_list* subObjects;
-    struct goldfish_vk_object_list* superObjects;
+    struct gfxstream_vk_object_list* poolObjects;
+    struct gfxstream_vk_object_list* subObjects;
+    struct gfxstream_vk_object_list* superObjects;
     void* userPtr;
     bool isSecondary;
     VkDevice device;
@@ -147,10 +135,10 @@ struct goldfish_VkCommandBuffer {
 namespace gfxstream {
 namespace vk {
 
-void appendObject(struct goldfish_vk_object_list** begin, void* val);
-void eraseObject(struct goldfish_vk_object_list** begin, void* val);
-void eraseObjects(struct goldfish_vk_object_list** begin);
-void forAllObjects(struct goldfish_vk_object_list* begin, std::function<void(void*)> func);
+void appendObject(struct gfxstream_vk_object_list** begin, void* val);
+void eraseObject(struct gfxstream_vk_object_list** begin, void* val);
+void eraseObjects(struct gfxstream_vk_object_list** begin);
+void forAllObjects(struct gfxstream_vk_object_list* begin, std::function<void(void*)> func);
 
 }  // namespace vk
 }  // namespace gfxstream

@@ -29,38 +29,25 @@ extern "C" {
 #define SET_HWVULKAN_DISPATCH_MAGIC
 #endif
 
-#define GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_IMPL(type)                   \
-    type new_from_host_##type(type underlying) {                            \
-        struct goldfish_##type* res =                                       \
-            static_cast<goldfish_##type*>(malloc(sizeof(goldfish_##type))); \
-        if (!res) {                                                         \
-            mesa_loge("FATAL: Failed to alloc " #type " handle");           \
-            abort();                                                        \
-        }                                                                   \
-        SET_HWVULKAN_DISPATCH_MAGIC                                         \
-        res->underlying = (uint64_t)underlying;                             \
-        res->lastUsedEncoder = nullptr;                                     \
-        res->sequenceNumber = 0;                                            \
-        res->privateEncoder = 0;                                            \
-        res->privateStream = 0;                                             \
-        res->flags = 0;                                                     \
-        res->poolObjects = 0;                                               \
-        res->subObjects = 0;                                                \
-        res->superObjects = 0;                                              \
-        res->userPtr = 0;                                                   \
-        return reinterpret_cast<type>(res);                                 \
+#define GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_IMPL(type)                      \
+    type new_from_host_##type(type underlying) {                               \
+        struct goldfish_##type* res =                                          \
+            static_cast<goldfish_##type*>(calloc(1, sizeof(goldfish_##type))); \
+        if (!res) {                                                            \
+            mesa_loge("FATAL: Failed to alloc " #type " handle");              \
+            abort();                                                           \
+        }                                                                      \
+        SET_HWVULKAN_DISPATCH_MAGIC                                            \
+        res->underlying = (uint64_t)underlying;                                \
+        return reinterpret_cast<type>(res);                                    \
     }
 
-#define GOLDFISH_VK_NEW_TRIVIAL_NON_DISPATCHABLE_FROM_HOST_IMPL(type)       \
-    type new_from_host_##type(type underlying) {                            \
-        struct goldfish_##type* res =                                       \
-            static_cast<goldfish_##type*>(malloc(sizeof(goldfish_##type))); \
-        res->underlying = (uint64_t)underlying;                             \
-        res->poolObjects = 0;                                               \
-        res->subObjects = 0;                                                \
-        res->superObjects = 0;                                              \
-        res->userPtr = 0;                                                   \
-        return reinterpret_cast<type>(res);                                 \
+#define GOLDFISH_VK_NEW_TRIVIAL_NON_DISPATCHABLE_FROM_HOST_IMPL(type)          \
+    type new_from_host_##type(type underlying) {                               \
+        struct goldfish_##type* res =                                          \
+            static_cast<goldfish_##type*>(calloc(1, sizeof(goldfish_##type))); \
+        res->underlying = (uint64_t)underlying;                                \
+        return reinterpret_cast<type>(res);                                    \
     }
 
 #define GOLDFISH_VK_AS_GOLDFISH_IMPL(type)                    \
@@ -84,38 +71,25 @@ extern "C" {
 #define GOLDFISH_VK_IDENTITY_IMPL(type) \
     type vk_handle_identity_##type(type handle) { return handle; }
 
-#define GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_U64_IMPL(type)               \
-    type new_from_host_u64_##type(uint64_t underlying) {                    \
-        struct goldfish_##type* res =                                       \
-            static_cast<goldfish_##type*>(malloc(sizeof(goldfish_##type))); \
-        if (!res) {                                                         \
-            mesa_loge("FATAL: Failed to alloc " #type " handle");           \
-            abort();                                                        \
-        }                                                                   \
-        SET_HWVULKAN_DISPATCH_MAGIC                                         \
-        res->underlying = underlying;                                       \
-        res->lastUsedEncoder = nullptr;                                     \
-        res->sequenceNumber = 0;                                            \
-        res->privateEncoder = 0;                                            \
-        res->privateStream = 0;                                             \
-        res->flags = 0;                                                     \
-        res->poolObjects = 0;                                               \
-        res->subObjects = 0;                                                \
-        res->superObjects = 0;                                              \
-        res->userPtr = 0;                                                   \
-        return reinterpret_cast<type>(res);                                 \
+#define GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_U64_IMPL(type)                  \
+    type new_from_host_u64_##type(uint64_t underlying) {                       \
+        struct goldfish_##type* res =                                          \
+            static_cast<goldfish_##type*>(calloc(1, sizeof(goldfish_##type))); \
+        if (!res) {                                                            \
+            mesa_loge("FATAL: Failed to alloc " #type " handle");              \
+            abort();                                                           \
+        }                                                                      \
+        SET_HWVULKAN_DISPATCH_MAGIC                                            \
+        res->underlying = underlying;                                          \
+        return reinterpret_cast<type>(res);                                    \
     }
 
 #define GOLDFISH_VK_NEW_TRIVIAL_NON_DISPATCHABLE_FROM_HOST_U64_IMPL(type)          \
     type new_from_host_u64_##type(uint64_t underlying) {                           \
         struct goldfish_##type* res =                                              \
-            static_cast<goldfish_##type*>(malloc(sizeof(goldfish_##type)));        \
+            static_cast<goldfish_##type*>(calloc(1, sizeof(goldfish_##type)));     \
         res->underlying = underlying;                                              \
         D("guest %p: host u64: 0x%llx", res, (unsigned long long)res->underlying); \
-        res->poolObjects = 0;                                                      \
-        res->subObjects = 0;                                                       \
-        res->superObjects = 0;                                                     \
-        res->userPtr = 0;                                                          \
         return reinterpret_cast<type>(res);                                        \
     }
 
@@ -170,6 +144,29 @@ GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(VkBuffer, VK_OBJECT_TYPE_BUFFER)
 GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(VkFence, VK_OBJECT_TYPE_FENCE)
 GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(VkSemaphore, VK_OBJECT_TYPE_SEMAPHORE)
 
+VkCommandPool new_from_host_u64_VkCommandPool(uint64_t underlying) {
+    struct goldfish_VkCommandPool* res =
+        static_cast<goldfish_VkCommandPool*>(calloc(1, sizeof(goldfish_VkCommandPool)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_COMMAND_POOL);
+    list_inithead(&res->vk.command_buffers);
+    for (uint32_t i = 0; i < ARRAY_SIZE(res->vk.free_command_buffers); i++) {
+        list_inithead(&res->vk.free_command_buffers[i]);
+    }
+    res->underlying = underlying;
+    return reinterpret_cast<VkCommandPool>(res);
+}
+
+VkCommandPool new_from_host_VkCommandPool(VkCommandPool underlying) {
+    return new_from_host_u64_VkCommandPool((uint64_t)underlying);
+}
+
+void delete_goldfish_VkCommandPool(VkCommandPool toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkCommandPool(toDelete);
+    vk_command_pool_finish(&res->vk);
+    free(res);
+}
+
 VkDescriptorPool new_from_host_VkDescriptorPool(VkDescriptorPool underlying) {
     struct goldfish_VkDescriptorPool* res =
         static_cast<goldfish_VkDescriptorPool*>(malloc(sizeof(goldfish_VkDescriptorPool)));
@@ -211,9 +208,9 @@ VkDescriptorSetLayout new_from_host_u64_VkDescriptorSetLayout(uint64_t underlyin
 namespace gfxstream {
 namespace vk {
 
-void appendObject(struct goldfish_vk_object_list** begin, void* val) {
+void appendObject(struct gfxstream_vk_object_list** begin, void* val) {
     D("for %p", val);
-    struct goldfish_vk_object_list* o = new goldfish_vk_object_list;
+    struct gfxstream_vk_object_list* o = new gfxstream_vk_object_list;
     o->next = nullptr;
     o->obj = val;
     D("new ptr: %p", o);
@@ -223,8 +220,8 @@ void appendObject(struct goldfish_vk_object_list** begin, void* val) {
         return;
     }
 
-    struct goldfish_vk_object_list* q = *begin;
-    struct goldfish_vk_object_list* p = q;
+    struct gfxstream_vk_object_list* q = *begin;
+    struct gfxstream_vk_object_list* p = q;
 
     while (q) {
         p = q;
@@ -235,18 +232,18 @@ void appendObject(struct goldfish_vk_object_list** begin, void* val) {
     p->next = o;
 }
 
-void eraseObject(struct goldfish_vk_object_list** begin, void* val) {
+void eraseObject(struct gfxstream_vk_object_list** begin, void* val) {
     D("for val %p", val);
     if (!*begin) {
         D("val %p notfound", val);
         return;
     }
 
-    struct goldfish_vk_object_list* q = *begin;
-    struct goldfish_vk_object_list* p = q;
+    struct gfxstream_vk_object_list* q = *begin;
+    struct gfxstream_vk_object_list* p = q;
 
     while (q) {
-        struct goldfish_vk_object_list* n = q->next;
+        struct gfxstream_vk_object_list* n = q->next;
         if (val == q->obj) {
             D("val %p found, delete", val);
             delete q;
@@ -266,9 +263,9 @@ void eraseObject(struct goldfish_vk_object_list** begin, void* val) {
     D("val %p notfound after looping", val);
 }
 
-void eraseObjects(struct goldfish_vk_object_list** begin) {
-    struct goldfish_vk_object_list* q = *begin;
-    struct goldfish_vk_object_list* p = q;
+void eraseObjects(struct gfxstream_vk_object_list** begin) {
+    struct gfxstream_vk_object_list* q = *begin;
+    struct gfxstream_vk_object_list* p = q;
 
     while (q) {
         p = q;
@@ -279,9 +276,9 @@ void eraseObjects(struct goldfish_vk_object_list** begin) {
     *begin = nullptr;
 }
 
-void forAllObjects(struct goldfish_vk_object_list* begin, std::function<void(void*)> func) {
-    struct goldfish_vk_object_list* q = begin;
-    struct goldfish_vk_object_list* p = q;
+void forAllObjects(struct gfxstream_vk_object_list* begin, std::function<void(void*)> func) {
+    struct gfxstream_vk_object_list* q = begin;
+    struct gfxstream_vk_object_list* p = q;
 
     D("call");
     while (q) {

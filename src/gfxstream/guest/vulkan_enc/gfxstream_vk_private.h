@@ -105,9 +105,19 @@ struct gfxstream_vk_buffer {
     uint64_t underlying;
 };
 
+struct gfxstream_vk_object_list {
+    void* obj;
+    struct gfxstream_vk_object_list* next;
+};
+
 struct gfxstream_vk_command_pool {
     struct vk_command_pool vk;
-    VkCommandPool internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
+
+    // The command buffers allocated from this pool.
+    struct gfxstream_vk_object_list* subObjects;
 };
 
 struct gfxstream_vk_command_buffer {

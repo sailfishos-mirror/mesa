@@ -1791,11 +1791,10 @@ void gfxstream_vk_TrimCommandPool(VkDevice device, VkCommandPool commandPool,
                                   VkCommandPoolTrimFlags flags) {
     MESA_TRACE_SCOPE("vkTrimCommandPool");
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_command_pool, gfxstream_commandPool, commandPool);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkTrimCommandPool(gfxstream_device->internal_object,
-                                 gfxstream_commandPool->internal_object, flags, true /* do lock */);
+        vkEnc->vkTrimCommandPool(gfxstream_device->internal_object, commandPool, flags,
+                                 true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceExternalBufferProperties(
@@ -2949,11 +2948,9 @@ void gfxstream_vk_TrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
                                      VkCommandPoolTrimFlags flags) {
     MESA_TRACE_SCOPE("vkTrimCommandPoolKHR");
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_command_pool, gfxstream_commandPool, commandPool);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkTrimCommandPoolKHR(gfxstream_device->internal_object,
-                                    gfxstream_commandPool->internal_object, flags,
+        vkEnc->vkTrimCommandPoolKHR(gfxstream_device->internal_object, commandPool, flags,
                                     true /* do lock */);
     }
 }

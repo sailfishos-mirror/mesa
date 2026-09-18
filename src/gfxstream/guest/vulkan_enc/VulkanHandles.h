@@ -145,7 +145,6 @@ namespace vk {
     f(VkDeviceMemory)                                                        \
     f(VkImage)                                                               \
     f(VkDescriptorUpdateTemplate)                                            \
-    f(VkCommandPool)                                                         \
     f(VkSampler)                                                             \
     f(VkPrivateDataSlot)                                                     \
     __GOLDFISH_VK_LIST_NON_DISPATCHABLE_HANDLE_TYPES_FUCHSIA(f)              \
@@ -155,6 +154,7 @@ namespace vk {
     f(VkBuffer)                                                         \
     f(VkFence)                                                          \
     f(VkSemaphore)                                                      \
+    f(VkCommandPool)                                                    \
     f(VkDescriptorPool)                                                 \
     f(VkDescriptorSetLayout)                                            \
     f(VkDescriptorSet)
