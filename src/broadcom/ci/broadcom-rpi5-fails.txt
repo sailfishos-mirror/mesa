@@ -59,8 +59,6 @@ spec@arb_depth_texture@texwrap formats,Fail
 spec@arb_depth_texture@texwrap formats@GL_DEPTH_COMPONENT16- NPOT,Fail
 spec@arb_depth_texture@texwrap formats@GL_DEPTH_COMPONENT24- NPOT,Fail
 spec@arb_depth_texture@texwrap formats@GL_DEPTH_COMPONENT32- NPOT,Fail
-spec@arb_direct_state_access@gettextureimage-formats init-by-rendering,Fail
-spec@arb_direct_state_access@gettextureimage-formats,Fail
 spec@arb_framebuffer_object@fbo-blit-scaled-linear,Fail
 spec@arb_shader_storage_buffer_object@compiler@atomicmin-swizzle.vert,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgrad,Fail
@@ -72,8 +70,6 @@ spec@arb_texture_buffer_object@texture-buffer-size-clamp@rgba8ui_texture_buffer_
 spec@arb_texture_rectangle@1-1-linear-texture,Fail
 spec@ext_framebuffer_multisample@interpolation 2 centroid-edges,Fail
 spec@ext_framebuffer_multisample@interpolation 4 centroid-edges,Fail
-spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render,Fail
-spec@ext_framebuffer_object@getteximage-formats init-by-rendering,Fail
 spec@ext_packed_depth_stencil@texwrap formats bordercolor,Fail
 spec@ext_packed_depth_stencil@texwrap formats bordercolor-swizzled,Fail
 spec@ext_packed_depth_stencil@texwrap formats bordercolor-swizzled@GL_DEPTH24_STENCIL8- swizzled- border color only,Fail
@@ -189,9 +185,6 @@ spec@!opengl 1.1@polygon-mode-offset@config 6: Expected white pixel on top edge,
 # V3D does not support PIPE_FORMAT_{R8,R8G8,R8G8B8A8}_SNORM for
 # rendering
 spec@arb_texture_view@rendering-formats,Crash
-
-# V3D does not support blending for GL_R{GBA}32F
-spec@!opengl 1.1@getteximage-formats,Fail
 
 # OpenGL 3.x applies non-seamless cubemap texturing, while our
 # driver/GLES uses seamless cubemap texturing.
