@@ -54,17 +54,6 @@ extern "C" {
 #define DECLARE_HWVULKAN_DISPATCH
 #endif
 
-#define GOLDFISH_VK_DEFINE_DISPATCHABLE_HANDLE_STRUCT(type) \
-    struct goldfish_##type {                                \
-        DECLARE_HWVULKAN_DISPATCH                           \
-        uint64_t underlying;                                \
-        gfxstream::vk::VkEncoder* lastUsedEncoder;          \
-        uint32_t sequenceNumber;                            \
-        gfxstream::vk::VkEncoder* privateEncoder;           \
-        gfxstream::guest::IOStream* privateStream;          \
-        uint32_t flags;                                     \
-    };
-
 #define GOLDFISH_VK_DEFINE_TRIVIAL_NON_DISPATCHABLE_HANDLE_STRUCT(type) \
     struct goldfish_##type {                                            \
         uint64_t underlying;                                            \
@@ -84,8 +73,7 @@ extern "C" {
 
 #define GOLDFISH_VK_GET_HOST_U64_DECL(type) uint64_t get_host_u64_##type(type);
 
-GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(
-    GOLDFISH_VK_DEFINE_DISPATCHABLE_HANDLE_STRUCT)
+
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_NEW_FROM_HOST_DECL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_DECL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_DECL)
