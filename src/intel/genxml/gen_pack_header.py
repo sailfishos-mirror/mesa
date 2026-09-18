@@ -40,8 +40,7 @@ pack_header = """%(license)s
  * This file has been generated, do not hand edit.
  */
 
-#ifndef %(guard)s
-#define %(guard)s
+#pragma once
 
 #ifndef __OPENCL_VERSION__
 #include <stdio.h>
@@ -384,9 +383,9 @@ class Group(object):
             if dw.size == 32:
                 if dw.address:
                     if self.parser.opencl:
-                        print("   dw[%d] = __gen_address(values->%s, %d, %d) | %s;" %
-                              (index, dw.address.name + field.dim,
-                               dw.address.start - dword_start, dw.address.end - dword_start, v))
+                        print("   dw[%d] = __gen_address(NULL, NULL, values->%s, %s, %d, %d);" %
+                              (index, dw.address.name + field.dim, v,
+                               dw.address.start - dword_start, dw.address.end - dword_start))
                     else:
                         print("   dw[%d] = __gen_address(data, &dw[%d], values->%s, %s, %d, %d);" %
                               (index, index, dw.address.name + field.dim, v,
@@ -396,9 +395,9 @@ class Group(object):
             if dw.address:
                 v_address = "v%d_address" % index
                 if self.parser.opencl:
-                    print("   const uint64_t %s =\n      __gen_address(values->%s, %d, %d) | %s;" %
-                          (v_address, dw.address.name + field.dim,
-                           dw.address.start - dword_start, dw.address.end - dword_start, v))
+                    print("   const uint64_t %s =\n      __gen_address(NULL, NULL, values->%s, %s, %d, %d);" %
+                          (v_address, dw.address.name + field.dim, v,
+                           dw.address.start - dword_start, dw.address.end - dword_start))
                 else:
                     print("   const uint64_t %s =\n      __gen_address(data, &dw[%d], values->%s, %s, %d, %d);" %
                           (v_address, index, dw.address.name + field.dim, v,
@@ -412,6 +411,63 @@ class Group(object):
             print("   dw[%d] = %s;" % (index, v))
             print("   dw[%d] = %s >> 32;" % (index + 1, v))
 
+    # Given a field (start, end) contained in word `index`, generate the 32-bit
+    # mask of present bits relative to the word
+    def mask_for_word(self, index, start, end):
+        field_word_start = index * 32
+        start -= field_word_start
+        end -= field_word_start
+        # Cap multiword at one word
+        start = max(start, 0)
+        end = min(end, 32 - 1)
+        count = (end - start + 1)
+        return (((1 << count) - 1) << start)
+
+    def emit_unpack_function(self, dwords, length):
+        validation = []
+
+        for index in range(length):
+            # Handle MBZ dwords
+            if not index in dwords:
+                continue
+
+            dw = dwords[index]
+            for field in dw.fields:
+                convert = None
+
+                if field.type == "mbz":
+                    continue
+
+                args = []
+                args.append('(CONST uint32_t *) cl')
+                args.append(str(field.start))
+                args.append(str(field.end))
+
+                if field.type in set(["uint", "address", "offset"]) | self.parser.enums:
+                    convert = "__gen_unpack_uint"
+                elif field.type == "int":
+                    convert = "__gen_unpack_sint"
+                elif field.type == "bool":
+                    convert = "__gen_unpack_uint"
+                elif field.type == "float":
+                    convert = "__gen_unpack_float"
+                elif field.type == "sfixed" or field.type == "ufixed":
+                    print(f' /* unhandled field {field.name}, type {field.type} */')
+                    continue
+
+                suffix = ""
+                prefix = ""
+
+                if field.is_enum_type():
+                    prefix = f"(enum {self.parser.gen_prefix(safe_name(field.type))}) {prefix}"
+
+                decoded = f"{prefix}{convert}({', '.join(args)}){suffix}"
+
+                if convert is None:
+                    print(f'   {self.parser.gen_prefix(safe_name(field.type))}_unpack(&cl[{index}], &values->{field.name});')
+                else:
+                    print(f'   values->{field.name + field.dim} = {decoded};')
+
 class Value(object):
     def __init__(self, attrs):
         self.name = safe_name(attrs["name"])
@@ -419,14 +475,16 @@ class Value(object):
         self.dont_use = int(attrs["dont_use"]) != 0 if "dont_use" in attrs else False
 
 class Parser(object):
-    def __init__(self, opencl, repack):
+    def __init__(self, opencl, pack, repack, unpack):
         self.instruction = None
         self.structs = {}
         # Set of enum names we've seen.
         self.enums = set()
         self.registers = {}
         self.opencl = opencl
+        self.pack = pack
         self.repack = repack
+        self.unpack = unpack
 
     def gen_prefix(self, name):
         if name[0] == "_":
@@ -566,6 +624,23 @@ class Parser(object):
 
         print("}\n")
 
+    def emit_unpack_function(self, name, group):
+        name = self.gen_prefix(name)
+        if self.opencl:
+            print("static inline void")
+            print("%s_unpack(CONST void * restrict cl,\n%sstruct %s * restrict values)\n{" %
+                  (name.upper(), ' ' * (len(name) + 8), name))
+        else:
+            print("static inline void")
+            print("%s_unpack(FILE *fp, CONST uint8_t * restrict cl,\n%sstruct %s * restrict values)\n{" %
+                  (name.upper(), ' ' * (len(name) + 8), name))
+
+        (dwords, length) = group.collect_dwords_and_length()
+        if length:
+            group.emit_unpack_function(dwords, length)
+
+        print("}\n")
+
     def emit_instruction(self):
         name = self.instruction
 
@@ -595,9 +670,12 @@ class Parser(object):
             print('')
 
         self.emit_template_struct(self.instruction, self.group)
-        self.emit_pack_function(self.instruction, self.group)
+        if self.pack:
+            self.emit_pack_function(self.instruction, self.group)
         if self.repack:
             self.emit_pack_function(self.instruction, self.group, repack=True)
+        if self.unpack:
+            self.emit_unpack_function(self.instruction, self.group)
 
     def emit_register(self):
         name = self.register
@@ -610,7 +688,12 @@ class Parser(object):
                   (self.gen_prefix(name + "_length"), self.length))
 
         self.emit_template_struct(self.register, self.group)
-        self.emit_pack_function(self.register, self.group)
+        if self.pack:
+            self.emit_pack_function(self.register, self.group)
+        if self.repack:
+            self.emit_pack_function(self.register, self.group, repack=True)
+        if self.unpack:
+            self.emit_unpack_function(self.register, self.group)
 
     def emit_struct(self):
         name = self.struct
@@ -619,9 +702,13 @@ class Parser(object):
                   (self.gen_prefix(name + "_length"), self.length))
 
         self.emit_template_struct(self.struct, self.group)
-        self.emit_pack_function(self.struct, self.group)
+
+        if self.pack:
+            self.emit_pack_function(self.struct, self.group)
         if self.repack:
             self.emit_pack_function(self.struct, self.group, repack=True)
+        if self.unpack:
+            self.emit_unpack_function(self.struct, self.group)
 
     def emit_enum(self):
         print('enum %s {' % self.gen_prefix(self.enum))
@@ -640,7 +727,6 @@ class Parser(object):
         print(pack_header % {'license': license, 'platform': self.platform, 'guard': self.gen_guard()})
         for item in root:
             self.process_item(item)
-        print('#endif /* %s */' % self.gen_guard())
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -651,7 +737,9 @@ def parse_args():
     p.add_argument('--include-symbols', nargs='?', type=str, action='store',
                    help="List of instruction/structures to generate")
     p.add_argument('--opencl', action='store_true', help="Generate OpenCL code")
+    p.add_argument('--pack', action='store_true', help="Emit packing code")
     p.add_argument('--repack', action='store_true', help="Emit repacking code")
+    p.add_argument('--unpack', action='store_true', help="Emit unpacking code")
 
     pargs = p.parse_args()
 
@@ -678,7 +766,7 @@ def main():
     genxml.filter_engines(engines)
     if pargs.include_symbols:
         genxml.filter_symbols(pargs.include_symbols.split(','))
-    p = Parser(pargs.opencl, pargs.repack)
+    p = Parser(pargs.opencl, pargs.pack, pargs.repack, pargs.unpack)
     p.emit_genxml(genxml)
 
 if __name__ == '__main__':
