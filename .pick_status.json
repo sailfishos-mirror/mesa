@@ -5544,7 +5544,7 @@
         "description": "radv: do not abort when a GPU hang report is created with deviceFaultVendorBinary",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b0ee9510d75aa7781ffdc8fb9ebe382e39a694d7",
         "notes": null
