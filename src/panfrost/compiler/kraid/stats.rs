@@ -1,6 +1,9 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use std::fmt;
+
+use crate::debug::{DEBUG, DebugFlags};
 use crate::ir::*;
 use crate::isa::ExecUnit;
 use crate::ops::*;
@@ -167,6 +170,29 @@ impl VaStatCount {
         self.t /= rates.texel as f32;
     }
 
+    fn fmt_instr_details(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let stats = [
+            ("fma", self.fma),
+            ("cvt", self.cvt),
+            ("sfu", self.sfu),
+            ("v", self.v),
+            ("t", self.t),
+            ("ls", self.ls),
+            ("spill", self.spills as f32),
+            ("fill", self.fills as f32),
+            ("spill_cost", self.spill_cost as f32),
+        ];
+        let stats = stats.iter().filter(|(_n, c)| *c != 0.0);
+
+        for (i, (name, unit)) in stats.enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{name}={unit:.3}")?;
+        }
+        Ok(())
+    }
+
     fn into_c_stats(
         self,
         s: &Shader,
@@ -206,6 +232,28 @@ impl VaStatCount {
     }
 }
 
+fn per_spill_cost(s: &Shader, bi: usize) -> u32 {
+    // The cost of a spill/fill is 10*depth for now.  This matches the old
+    // Bifrost compiler
+    u32::try_from(10 * (s.blocks.loop_depth(bi) + 1)).unwrap_or(u32::MAX)
+}
+
+/// Print the shader annotating each instruction with its cost
+fn report_stats_per_instr(s: &Shader) {
+    eprintln!("Kraid shader per-instruction stats details:");
+    eprint!(
+        "{}",
+        Fmt(|f| s.fmt_annotate(f, |bi, _ii, i| {
+            let per_spill_cost = per_spill_cost(s, bi);
+            let mut stats = VaStatCount::default();
+
+            stats.visit_instr(i, per_spill_cost, s.model);
+            stats.normalize(s.model);
+            format!("{}", Fmt(|f| stats.fmt_instr_details(f)))
+        }))
+    )
+}
+
 fn get_va_stats(s: &Shader) -> valhall_stats {
     let mut stats = VaStatCount::default();
     let mut instrs = 0usize;
@@ -217,11 +265,7 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
         }
         instrs += block.instrs.len();
 
-        // The cost of a spill/fill is 10*depth for now.  This matches the old
-        // Bifrost compiler
-        let per_spill_cost =
-            u32::try_from(10 * (s.blocks.loop_depth(i) + 1)).unwrap();
-
+        let per_spill_cost = per_spill_cost(s, i);
         for instr in &block.instrs {
             stats.visit_instr(instr, per_spill_cost, s.model);
         }
@@ -233,6 +277,10 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
 
 impl Shader<'_> {
     pub fn get_stats(&self) -> pan_stats {
+        if DEBUG.contains(DebugFlags::PRINT) {
+            report_stats_per_instr(self);
+        }
+
         if self.model.arch() >= 9 {
             pan_stats {
                 isa: PAN_STAT_VALHALL,
