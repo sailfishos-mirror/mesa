@@ -6,6 +6,7 @@
 from mako.template import Template
 import sys
 import argparse
+import yaml
 from enum import Enum
 
 def max_bitfield_val(high, low, shift):
@@ -14,6 +15,8 @@ def max_bitfield_val(high, low, shift):
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--import-path', required=True)
 parser.add_argument('--nvtop', action='store_true')
+parser.add_argument('-q', '--quirks', action='store_true',
+                    help='List quirks applied to specified GPU (chip-id or name)')
 args = parser.parse_args()
 sys.path.insert(0, args.import_path)
 
@@ -297,8 +300,36 @@ static const struct msm_id_struct msm_ids[] = {
 };
 """
 
+def get_quirks(id, info):
+    quirks = set()
+    for q, val in vars(info.quirks).items():
+        q = q.split("_")[0]
+        if val:
+            quirks.add(q)
+    magic = {}
+    for r in info.magic_raw:
+        offset = hex(r[0])
+        val = hex(r[1])
+        magic[offset] = val
+    return {
+        'name':    id.name,
+        'chip_id': hex(id.chip_id),
+        'quirks':  list(quirks),
+        'magic':   magic,
+    }
+
+def print_quirk_report():
+    quirk_report = []
+    for id, info in s.gpus.items():
+        if info.chip < 6:
+            continue
+        quirk_report.append(get_quirks(id, info))
+    print(yaml.dump(quirk_report))
+
 def main():
     if args.nvtop:
         print(Template(nvtop_template).render(s=s, unique_props=GPUProps.unique_props))
+    elif args.quirks:
+        print_quirk_report()
     else:
         print(Template(template).render(s=s, unique_props=GPUProps.unique_props))
