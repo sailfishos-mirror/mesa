@@ -7979,6 +7979,7 @@ void ResourceTracker::clearCommandPool(VkCommandPool commandPool) {
     struct goldfish_VkCommandPool* p = as_goldfish_VkCommandPool(commandPool);
     forAllObjects(p->subObjects, [this](void* commandBuffer) {
         this->unregister_VkCommandBuffer((VkCommandBuffer)commandBuffer);
+        delete_goldfish_VkCommandBuffer((VkCommandBuffer)commandBuffer);
     });
     eraseObjects(&p->subObjects);
 }

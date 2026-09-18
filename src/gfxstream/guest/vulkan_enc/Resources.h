@@ -40,6 +40,7 @@ extern "C" {
 #define goldfish_VkFence gfxstream_vk_fence
 #define goldfish_VkSemaphore gfxstream_vk_semaphore
 #define goldfish_VkCommandPool gfxstream_vk_command_pool
+#define goldfish_VkCommandBuffer gfxstream_vk_command_buffer
 
 #if DETECT_OS_ANDROID
 #define DECLARE_HWVULKAN_DISPATCH hwvulkan_dispatch_t dispatch;
@@ -112,22 +113,6 @@ struct goldfish_VkDescriptorSet {
 struct goldfish_VkDescriptorSetLayout {
     uint64_t underlying;
     gfxstream::vk::DescriptorSetLayoutInfo* layoutInfo;
-};
-
-struct goldfish_VkCommandBuffer {
-    DECLARE_HWVULKAN_DISPATCH
-    uint64_t underlying;
-    gfxstream::vk::VkEncoder* lastUsedEncoder;
-    uint32_t sequenceNumber;
-    gfxstream::vk::VkEncoder* privateEncoder;
-    gfxstream::guest::IOStream* privateStream;
-    uint32_t flags;
-    struct gfxstream_vk_object_list* poolObjects;
-    struct gfxstream_vk_object_list* subObjects;
-    struct gfxstream_vk_object_list* superObjects;
-    void* userPtr;
-    bool isSecondary;
-    VkDevice device;
 };
 
 }  // extern "C"

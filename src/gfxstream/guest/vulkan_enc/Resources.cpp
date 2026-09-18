@@ -101,13 +101,15 @@ extern "C" {
         return as_goldfish->underlying;                                                         \
     }
 
-GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_IMPL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_IMPL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_IMPL)
-GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_DELETE_GOLDFISH_IMPL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_IDENTITY_IMPL)
-GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_U64_IMPL)
 GOLDFISH_VK_LIST_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_U64_IMPL)
+GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(
+    GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_IMPL)
+GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(
+    GOLDFISH_VK_NEW_DISPATCHABLE_FROM_HOST_U64_IMPL)
+GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_DELETE_GOLDFISH_IMPL)
 
 GOLDFISH_VK_LIST_NON_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_IMPL)
 GOLDFISH_VK_LIST_NON_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_IMPL)
@@ -164,6 +166,26 @@ void delete_goldfish_VkCommandPool(VkCommandPool toDelete) {
     if (!toDelete) return;
     auto* res = as_goldfish_VkCommandPool(toDelete);
     vk_command_pool_finish(&res->vk);
+    free(res);
+}
+
+VkCommandBuffer new_from_host_u64_VkCommandBuffer(uint64_t underlying) {
+    struct goldfish_VkCommandBuffer* res =
+        static_cast<goldfish_VkCommandBuffer*>(calloc(1, sizeof(goldfish_VkCommandBuffer)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_COMMAND_BUFFER);
+    list_inithead(&res->vk.pool_link);
+    res->underlying = underlying;
+    return reinterpret_cast<VkCommandBuffer>(res);
+}
+
+VkCommandBuffer new_from_host_VkCommandBuffer(VkCommandBuffer underlying) {
+    return new_from_host_u64_VkCommandBuffer((uint64_t)underlying);
+}
+
+void delete_goldfish_VkCommandBuffer(VkCommandBuffer toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkCommandBuffer(toDelete);
+    vk_command_buffer_finish(&res->vk);
     free(res);
 }
 

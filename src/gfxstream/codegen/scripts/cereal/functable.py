@@ -171,7 +171,6 @@ HANDLES_TRANSLATE = {
     "VkPhysicalDevice",
     "VkDevice",
     "VkQueue",
-    "VkCommandBuffer",
 }
 
 # Consolidated handle types that need vk.base.device initialized after creation
@@ -515,7 +514,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
 
         def genEncoderOrResourceTrackerCall(declareResources=True):
             if is_cmdbuf_dispatch(api):
-                cgen.stmt("auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(%s->%s)" % (paramNameToObjectName(api.parameters[0].paramName), INTERNAL_OBJECT_NAME))
+                cgen.stmt("auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(%s)" % api.parameters[0].paramName)
             elif is_queue_dispatch(api):
                 cgen.stmt("auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(%s->%s)" % (paramNameToObjectName(api.parameters[0].paramName), INTERNAL_OBJECT_NAME))
             else:

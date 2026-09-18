@@ -59,6 +59,15 @@
 
 #define GFXSTREAM_DEFAULT_ALIGN 8
 
+namespace gfxstream {
+namespace guest {
+class IOStream;
+}  // namespace guest
+namespace vk {
+class VkEncoder;
+}  // namespace vk
+}  // namespace gfxstream
+
 struct gfxstream_vk_instance {
     struct vk_instance vk;
     uint32_t api_version;
@@ -122,7 +131,21 @@ struct gfxstream_vk_command_pool {
 
 struct gfxstream_vk_command_buffer {
     struct vk_command_buffer vk;
-    VkCommandBuffer internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
+
+    gfxstream::vk::VkEncoder* lastUsedEncoder;
+    uint32_t sequenceNumber;
+    gfxstream::vk::VkEncoder* privateEncoder;
+    gfxstream::guest::IOStream* privateStream;
+    uint32_t flags;
+    struct gfxstream_vk_object_list* poolObjects;
+    struct gfxstream_vk_object_list* subObjects;
+    struct gfxstream_vk_object_list* superObjects;
+    void* userPtr;
+    bool isSecondary;
+    VkDevice device;
 };
 
 struct gfxstream_vk_fence {
