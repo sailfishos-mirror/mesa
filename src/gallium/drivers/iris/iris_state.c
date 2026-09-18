@@ -646,12 +646,36 @@ iris_copy_mem_mem(struct iris_batch *batch,
 }
 
 static void
-iris_rewrite_compute_walker_pc(struct iris_batch *batch,
-                               uint32_t *walker,
-                               struct iris_bo *bo,
-                               uint32_t offset)
+iris_rewrite_compute_walker_2_pc(struct iris_batch *batch,
+                                 uint32_t *walker,
+                                 struct iris_bo *bo,
+                                 uint32_t offset)
 {
+#if GFX_VERx10 >= 350
+   struct iris_screen *screen = batch->screen;
+   struct iris_address addr = rw_bo(bo, offset, IRIS_DOMAIN_OTHER_WRITE);
+
+   uint32_t dwords[GENX(COMPUTE_WALKER_2_length)];
+
+   _iris_pack_command(batch, GENX(COMPUTE_WALKER_2), dwords, cw) {
+      cw.body.Post_sync_opn0.Operation = WriteTimestamp;
+      cw.body.Post_sync_opn0.DestinationAddress = addr;
+      cw.body.Post_sync_opn0.MOCS = iris_mocs(NULL, &screen->isl_dev, 0);
+   }
+
+   for (uint32_t i = 0; i < GENX(COMPUTE_WALKER_length); i++)
+      walker[i] |= dwords[i];
+#endif
+}
+
+
 #if GFX_VERx10 >= 125
+static void
+iris_rewrite_compute_walker_1_pc(struct iris_batch *batch,
+                                 uint32_t *walker,
+                                 struct iris_bo *bo,
+                                 uint32_t offset)
+{
    struct iris_screen *screen = batch->screen;
    struct iris_address addr = rw_bo(bo, offset, IRIS_DOMAIN_OTHER_WRITE);
 
@@ -665,6 +689,22 @@ iris_rewrite_compute_walker_pc(struct iris_batch *batch,
 
    for (uint32_t i = 0; i < GENX(COMPUTE_WALKER_length); i++)
       walker[i] |= dwords[i];
+}
+#endif
+
+static void
+iris_rewrite_compute_walker_pc(struct iris_batch *batch,
+                               uint32_t *walker,
+                               struct iris_bo *bo,
+                               uint32_t offset)
+{
+#if GFX_VERx10 >= 125
+   struct iris_screen *screen = batch->screen;
+
+   if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr))
+      iris_rewrite_compute_walker_2_pc(batch, walker, bo, offset);
+   else
+      iris_rewrite_compute_walker_1_pc(batch, walker, bo, offset);
 
 #if INTEL_NEEDS_WA_14025112257
    if (batch->name == IRIS_BATCH_COMPUTE) {
@@ -1653,9 +1693,11 @@ iris_init_compute_context(struct iris_batch *batch)
 #endif
 
 #if GFX_VERx10 >= 125
-   iris_emit_cmd(batch, GENX(CFE_STATE), cfe) {
-      cfe.MaximumNumberofThreads =
-         devinfo->max_cs_threads * devinfo->subslice_total;
+   if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr)) {
+      iris_emit_cmd(batch, GENX(CFE_STATE), cfe) {
+         cfe.MaximumNumberofThreads =
+            devinfo->max_cs_threads * devinfo->subslice_total;
+      }
    }
 #endif
 
@@ -9517,6 +9559,110 @@ static bool iris_emit_indirect_dispatch_supported(const struct intel_device_info
    return devinfo->has_indirect_unroll;
 }
 
+static void
+iris_emit_compute_walker2(struct iris_context *ice,
+                          struct iris_batch *batch,
+                          const struct pipe_grid_info *grid)
+{
+#if GFX_VERx10 >= 350
+   struct iris_screen *screen = batch->screen;
+   const struct intel_device_info *devinfo = screen->devinfo;
+   struct iris_shader_state *shs = &ice->state.shaders[MESA_SHADER_COMPUTE];
+   struct iris_compiled_shader *shader =
+      ice->shaders.prog[MESA_SHADER_COMPUTE];
+   const struct iris_cs_data *cs_data = iris_cs_data(shader);
+   const struct intel_cs_dispatch_info dispatch =
+      iris_get_cs_dispatch_info(devinfo, shader, grid->block);
+   uint32_t total_shared = shader->total_shared + grid->variable_shared_mem;
+
+   iris_compute_engine_async_threads_limits(batch, dispatch.threads,
+                                            total_shared, cs_data->uses_barrier,
+                                            false);
+
+   struct GENX(INTERFACE_DESCRIPTOR_DATA_2) idd = {
+      .KernelStartPointer = KSP(shader) + iris_cs_data_prog_offset(cs_data, dispatch.simd_size),
+      .RegistersPerThread = intel_register_blocks(devinfo, shader->brw_prog_data->grf_used),
+      .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
+      .ThreadGroupDispatchSize = intel_compute_threads_group_dispatch_size_walker_2(dispatch.threads),
+      .SharedLocalMemorySize = intel_compute_slm_encode_size(GFX_VER, total_shared),
+      .PreferredSLMAllocationSize =
+         intel_compute_preferred_slm_calc_encode_size(devinfo,
+                                                      total_shared,
+                                                      dispatch.group_size,
+                                                      dispatch.simd_size),
+      .NumberOfBarriers = cs_data->uses_barrier,
+      .PSAsyncThreadLimit = ice->state.pixel_async_compute_thread_limit,
+      .ZPassAsyncComputeThreadLimit = ice->state.z_pass_async_compute_thread_limit,
+      .NP_ZAsyncThrottlesettings = ice->state.np_z_async_throttle_settings,
+   };
+
+   struct GENX(COMPUTE_WALKER_BODY_2) body = {
+      .MaximumNumberofThreads = devinfo->max_cs_threads * devinfo->subslice_total,
+      .StackIDControl = SIC_512,
+      .SIMDSize = dispatch.simd_size / 16,
+      .MessageSIMD = dispatch.simd_size / 16,
+      .GenerateLocalID = cs_data->generate_local_id != 0,
+      .EmitLocal = cs_data->generate_local_id,
+      .EmitInlineParameter = true,
+      .WalkOrder = cs_data->walk_order,
+      .TileLayout = cs_data->walk_order == INTEL_WALK_ORDER_YXZ ? TileY32bpe : Linear,
+      .StatCountDisable = false,
+      .DispatchWalkOrder = cs_data->uses_sampler ? MortonWalk : LinearWalk,
+      .ThreadGroupBatchSize = cs_data->uses_sampler ? TG_BATCH_4 : TG_BATCH_1,
+      .ExecutionMask = dispatch.right_mask,
+      .LocalXMaximum = grid->block[0] - 1,
+      .LocalYMaximum = grid->block[1] - 1,
+      .LocalZMaximum = grid->block[2] - 1,
+      .ThreadGroupIDXDimension = grid->grid[0],
+      .ThreadGroupIDYDimension = grid->grid[1],
+      .ThreadGroupIDZDimension = grid->grid[2],
+      .Post_sync_opn0.MOCS = iris_mocs(NULL, &screen->isl_dev, 0),
+      .Post_sync_opn1.MOCS = iris_mocs(NULL, &screen->isl_dev, 0),
+      .Post_sync_opn2.MOCS = iris_mocs(NULL, &screen->isl_dev, 0),
+      .Post_sync_opn3.MOCS = iris_mocs(NULL, &screen->isl_dev, 0),
+      .InterfaceDescriptor = idd,
+      .InlineData = {
+         [0] = batch->render_target_surfs_state_addr[MESA_SHADER_COMPUTE] & 0xffffffff,
+         [1] = batch->render_target_surfs_state_addr[MESA_SHADER_COMPUTE] >> 32,
+         [2] = shs->sampler_table.offset & 0xffffffff,
+         [3] = shs->sampler_table.offset >> 32,
+      },
+   };
+
+   if (iris_emit_indirect_dispatch_supported(devinfo) && grid->indirect) {
+      struct iris_bo *indirect = iris_resource_bo(grid->indirect);
+      struct iris_address indirect_bo = ro_bo(indirect, grid->indirect_offset);
+
+      body.ThreadGroupIDXDimension = 0;
+      body.ThreadGroupIDYDimension = 0;
+      body.ThreadGroupIDZDimension = 0;
+
+      iris_emit_cmd(batch, GENX(EXECUTE_INDIRECT_DISPATCH_2), ind) {
+         ind.PredicateEnable            =
+            ice->state.predicate == IRIS_PREDICATE_STATE_USE_BIT;
+         ind.MaxCount                   = 1;
+         ind.body                       = body;
+         ind.ArgumentBufferStartAddress = indirect_bo;
+         ind.MOCS                       =
+            MOCS_GET_INDEX(iris_mocs(indirect_bo.bo, &screen->isl_dev, 0));
+      }
+   } else {
+      if (grid->indirect)
+         iris_load_indirect_location(ice, batch, grid);
+
+      ice->utrace.last_compute_walker =
+         iris_emit_dwords(batch, GENX(COMPUTE_WALKER_2_length));
+
+      _iris_pack_command(batch, GENX(COMPUTE_WALKER_2),
+                         ice->utrace.last_compute_walker, cw) {
+         cw.IndirectParameterEnable        = grid->indirect;
+         cw.body                           = body;
+         assert(iris_cs_push_const_total_size(shader, dispatch.threads) == 0);
+      }
+   }
+#endif
+}
+
 #if GFX_VERx10 >= 125
 
 static void
@@ -9639,11 +9785,16 @@ iris_upload_compute_walker(struct iris_context *ice,
                            struct iris_batch *batch,
                            const struct pipe_grid_info *grid)
 {
+   struct iris_screen *screen = batch->screen;
+
    trace_intel_begin_compute(&batch->trace);
 
    iris_measure_snapshot(ice, batch, INTEL_SNAPSHOT_COMPUTE, NULL, NULL, NULL);
 
-   iris_emit_compute_walker(ice, batch, grid);
+   if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr))
+      iris_emit_compute_walker2(ice, batch, grid);
+   else
+      iris_emit_compute_walker(ice, batch, grid);
 
 #if INTEL_NEEDS_WA_14025112257
    if (batch->name == IRIS_BATCH_COMPUTE) {
