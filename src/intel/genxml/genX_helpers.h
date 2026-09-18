@@ -26,7 +26,7 @@ __gen_offset(uint64_t v, ASSERTED uint32_t start, ASSERTED uint32_t end)
 {
    __gen_validate_value(v);
 #ifndef NDEBUG
-   uint64_t mask = (~0ull >> (64 - (end - start + 1))) << start;
+   uint64_t mask = (UINT64_MAX >> (64 - (end - start + 1))) << start;
 
    assert((v & ~mask) == 0);
 #endif
