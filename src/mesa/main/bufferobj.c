@@ -297,6 +297,7 @@ bufferobj_data(struct gl_context *ctx,
    struct pipe_context *pipe = ctx->pipe;
    struct pipe_screen *screen = pipe->screen;
    bool is_mapped = _mesa_bufferobj_mapped(obj, MAP_USER);
+   GLboolean success = GL_TRUE;
 
    if (size > UINT32_MAX || offset > UINT32_MAX) {
       /* pipe_resource.width0 is 32 bits only and increasing it
@@ -391,7 +392,10 @@ bufferobj_data(struct gl_context *ctx,
       if (!obj->buffer) {
          /* out of memory */
          obj->Size = 0;
-         return GL_FALSE;
+         /* Keep going after allocation failure so bound buffer users are
+          * revalidated now that the old backing resource has been released.
+          */
+         success = GL_FALSE;
       }
    }
 
@@ -411,7 +415,7 @@ bufferobj_data(struct gl_context *ctx,
    if (obj->UsageHistory & USAGE_ATOMIC_COUNTER_BUFFER)
       ST_SET_STATES(ctx->NewDriverState, ctx->DriverFlags.NewAtomicBuffer);
 
-   return GL_TRUE;
+   return success;
 }
 
 /**
