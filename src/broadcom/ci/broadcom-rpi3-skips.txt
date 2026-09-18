@@ -36,3 +36,4 @@ spec@!opengl 1.1@copypixels-draw-sync
 spec@!opengl 1.1@draw-copypixels-sync
 spec@!opengl 1.1@draw-sync
 spec@arb_vertex_buffer_object@vbo-subdata-many drawrangeelements
+spec@ext_texture_env_combine@texture-env-combine
