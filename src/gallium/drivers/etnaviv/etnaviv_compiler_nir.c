@@ -1121,14 +1121,20 @@ emit_shader(struct etna_compile *c, unsigned *num_temps, unsigned *num_consts)
    return true;
 }
 
+static inline unsigned
+max_uniforms(const struct etna_shader_variant *v)
+{
+   const struct etna_specs *specs = v->shader->specs;
+
+   return v->stage == MESA_SHADER_VERTEX ? specs->max_vs_uniforms
+                                         : specs->max_ps_uniforms;
+}
+
 static bool
 etna_compile_check_limits(struct etna_shader_variant *v)
 {
    const struct etna_core_info *info = v->shader->info;
    const struct etna_specs *specs = v->shader->specs;
-   int max_uniforms = (v->stage == MESA_SHADER_VERTEX)
-                         ? specs->max_vs_uniforms
-                         : specs->max_ps_uniforms;
 
    if (!specs->has_icache && v->needs_icache) {
       DBG("Number of instructions (%d) exceeds maximum %d", v->code_size / 4,
@@ -1142,9 +1148,9 @@ etna_compile_check_limits(struct etna_shader_variant *v)
       return false;
    }
 
-   if (v->uniforms.count / 4 > max_uniforms) {
+   if (v->uniforms.count / 4 > max_uniforms(v)) {
       DBG("Number of uniforms (%d) exceeds maximum %d",
-          v->uniforms.count / 4, max_uniforms);
+          v->uniforms.count / 4, max_uniforms(v));
       return false;
    }
 
