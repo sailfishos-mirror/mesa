@@ -834,7 +834,7 @@
         "description": "nir/lower_tex: copy texture/sampler_non_uniform flags",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3bd54576415130465f096d73b7940dfbe02bb71b",
         "notes": null
