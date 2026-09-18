@@ -184,7 +184,7 @@
         "description": "nir/lower_abort: fix payload alignment to 8-bytes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8c9995e7fadce73e69e15d18615ccc00c4d82216",
         "notes": null
