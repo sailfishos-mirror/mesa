@@ -55,6 +55,7 @@ mod debug {
             const SPILL = 1 << 2;
             const SERIAL = 1 << 3;
             const PRINT_RAW_CONST = 1 << 4;
+            const STATS = 1 << 5;
         }
     }
 
@@ -72,6 +73,7 @@ mod debug {
                 "spill" => flags |= DebugFlags::SPILL,
                 "serial" => flags |= DebugFlags::SERIAL,
                 "print-raw-constants" => flags |= DebugFlags::PRINT_RAW_CONST,
+                "stats" => flags |= DebugFlags::STATS,
                 unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
             }
         }

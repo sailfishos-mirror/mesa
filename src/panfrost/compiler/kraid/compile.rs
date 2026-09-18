@@ -8,6 +8,7 @@ use crate::ir::*;
 use crate::model::model_for_gpu_id;
 use crate::ops::OpNop;
 use compiler::bindings::*;
+use compiler::memstream::MemStream;
 use kraid_bindings::*;
 
 use std::collections::HashMap;
@@ -321,4 +322,35 @@ pub extern "C" fn kraid_compile_nir(
 
     write_back_info(model.as_ref(), &s.info, nir, info);
     unsafe { pan_shader_update_info(info, nir, inputs) };
+
+    if DEBUG.contains(DebugFlags::STATS) {
+        let mut stream = MemStream::new().expect("Failed to open memstream");
+
+        unsafe {
+            // Both binding crates generate their own stdio FILE, those are the
+            // same type underneath
+            let f = stream.c_file() as *mut kraid_bindings::FILE;
+            let prefix =
+                kraid_shader_stage_name(nir.info.stage(), inputs.is_blend);
+
+            pan_stats_verbose_prologue(
+                f,
+                prefix,
+                inputs.gpu_id,
+                inputs.gpu_variant,
+                model.arch().into(),
+            );
+            // TODO: min/max statistics
+            pan_valhall_stats_verbose(
+                f,
+                &info.stats.__bindgen_anon_1.valhall,
+                std::ptr::null(),
+                std::ptr::null(),
+                info.tls_size,
+            );
+            pan_stats_verbose_epilogue(f, info);
+        }
+
+        eprint!("{}", stream.take_utf8_string_lossy().unwrap());
+    }
 }
