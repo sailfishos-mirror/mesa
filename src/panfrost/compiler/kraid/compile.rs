@@ -3,6 +3,7 @@
 
 use crate::data_type::NumericType;
 use crate::debug::*;
+use crate::decode::{Args, disassemble};
 use crate::ir::*;
 use crate::model::model_for_gpu_id;
 use crate::ops::OpNop;
@@ -223,6 +224,27 @@ fn encode_no_psiz_variant(
     dynarray_append_vec(binary, bin);
 }
 
+fn print_disassembly(bin: &[u32], arch: u8) {
+    if !DEBUG.contains(DebugFlags::PRINT) {
+        return;
+    }
+    let mut lock = std::io::stderr().lock();
+    let args = Args {
+        arch,
+        print_offset: true,
+        print_hexdump: true,
+    };
+    let mut instrs: Vec<u64> = Default::default();
+    for idx in (0..bin.len()).step_by(2) {
+        let instr = (bin[idx] as u64) | (bin[idx + 1] as u64) << 32;
+        if instr == 0 {
+            break;
+        }
+        instrs.push(instr);
+    }
+    let _ = disassemble(&mut lock, &args, &instrs);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kraid_compile_nir(
     nir: &mut nir_shader,
@@ -277,6 +299,7 @@ pub extern "C" fn kraid_compile_nir(
         pass!(s.lower_blend_call());
 
         let bin = model.encode_shader(&s);
+        print_disassembly(&bin, model.arch());
         let code_size = std::mem::size_of_val(&bin[..]);
         dynarray_append_vec(binary, bin);
 
