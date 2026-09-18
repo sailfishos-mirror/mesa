@@ -148,24 +148,26 @@ GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorPool)
 GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorSet)
 GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorSetLayout)
 
-VkBuffer new_from_host_u64_VkBuffer(uint64_t underlying) {
-    struct goldfish_VkBuffer* res =
-        static_cast<goldfish_VkBuffer*>(calloc(1, sizeof(goldfish_VkBuffer)));
-    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_BUFFER);
-    res->underlying = underlying;
-    return reinterpret_cast<VkBuffer>(res);
-}
+#define GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(type, vk_obj_type)         \
+    type new_from_host_u64_##type(uint64_t underlying) {                       \
+        struct goldfish_##type* res =                                          \
+            static_cast<goldfish_##type*>(calloc(1, sizeof(goldfish_##type))); \
+        vk_object_base_init(nullptr, &res->vk.base, vk_obj_type);              \
+        res->underlying = underlying;                                          \
+        return reinterpret_cast<type>(res);                                    \
+    }                                                                          \
+    type new_from_host_##type(type underlying) {                               \
+        return new_from_host_u64_##type((uint64_t)underlying);                 \
+    }                                                                          \
+    void delete_goldfish_##type(type toDelete) {                               \
+        if (!toDelete) return;                                                 \
+        auto* res = as_goldfish_##type(toDelete);                              \
+        vk_object_base_finish(&res->vk.base);                                  \
+        free(res);                                                             \
+    }
 
-VkBuffer new_from_host_VkBuffer(VkBuffer underlying) {
-    return new_from_host_u64_VkBuffer((uint64_t)underlying);
-}
-
-void delete_goldfish_VkBuffer(VkBuffer toDelete) {
-    if (!toDelete) return;
-    auto* res = as_goldfish_VkBuffer(toDelete);
-    vk_object_base_finish(&res->vk.base);
-    free(res);
-}
+GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(VkBuffer, VK_OBJECT_TYPE_BUFFER)
+GOLDFISH_VK_GFXSTREAM_NON_DISPATCHABLE_IMPL(VkFence, VK_OBJECT_TYPE_FENCE)
 
 VkDescriptorPool new_from_host_VkDescriptorPool(VkDescriptorPool underlying) {
     struct goldfish_VkDescriptorPool* res =

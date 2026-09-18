@@ -123,7 +123,6 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
     MESA_TRACE_SCOPE("vkQueueSubmit");
     VkResult vkQueueSubmit_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc =
             gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
@@ -161,10 +160,9 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
                 internal_VkSubmitInfo_pSignalSemaphores[i].size();
         }
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkQueueSubmit_VkResult_return = resources->on_vkQueueSubmit(
-            vkEnc, VK_SUCCESS, gfxstream_queue->internal_object, submitCount,
-            internal_pSubmits.data(),
-            gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE);
+        vkQueueSubmit_VkResult_return =
+            resources->on_vkQueueSubmit(vkEnc, VK_SUCCESS, gfxstream_queue->internal_object,
+                                        submitCount, internal_pSubmits.data(), fence);
     }
     return vkQueueSubmit_VkResult_return;
 }
@@ -337,7 +335,6 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
     MESA_TRACE_SCOPE("vkQueueBindSparse");
     VkResult vkQueueBindSparse_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc =
             gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
@@ -364,10 +361,9 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
             internal_pBindInfo[i].signalSemaphoreCount =
                 internal_VkBindSparseInfo_pSignalSemaphores[i].size();
         }
-        vkQueueBindSparse_VkResult_return = vkEnc->vkQueueBindSparse(
-            gfxstream_queue->internal_object, bindInfoCount, internal_pBindInfo.data(),
-            gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE,
-            true /* do lock */);
+        vkQueueBindSparse_VkResult_return =
+            vkEnc->vkQueueBindSparse(gfxstream_queue->internal_object, bindInfoCount,
+                                     internal_pBindInfo.data(), fence, true /* do lock */);
     }
     return vkQueueBindSparse_VkResult_return;
 }
@@ -376,17 +372,16 @@ VkResult gfxstream_vk_CreateFence(VkDevice device, const VkFenceCreateInfo* pCre
     MESA_TRACE_SCOPE("vkCreateFence");
     VkResult vkCreateFence_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    struct gfxstream_vk_fence* gfxstream_pFence = (gfxstream_vk_fence*)vk_object_zalloc(
-        &gfxstream_device->vk, pAllocator, sizeof(gfxstream_vk_fence), VK_OBJECT_TYPE_FENCE);
-    vkCreateFence_VkResult_return = gfxstream_pFence ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
-    if (VK_SUCCESS == vkCreateFence_VkResult_return) {
+    {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkCreateFence_VkResult_return = resources->on_vkCreateFence(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pCreateInfo, pAllocator,
-            &gfxstream_pFence->internal_object);
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pCreateInfo, pAllocator, pFence);
     }
-    *pFence = gfxstream_vk_fence_to_handle(gfxstream_pFence);
+    if (VK_SUCCESS == vkCreateFence_VkResult_return) {
+        VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_pFence, *pFence);
+        gfxstream_pFence->vk.base.device = &gfxstream_device->vk;
+    }
     return vkCreateFence_VkResult_return;
 }
 void gfxstream_vk_DestroyFence(VkDevice device, VkFence fence,
@@ -396,14 +391,11 @@ void gfxstream_vk_DestroyFence(VkDevice device, VkFence fence,
         return;
     }
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkDestroyFence(gfxstream_device->internal_object,
-                              gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE,
-                              pAllocator, true /* do lock */);
+        vkEnc->vkDestroyFence(gfxstream_device->internal_object, fence, pAllocator,
+                              true /* do lock */);
     }
-    vk_object_free(&gfxstream_device->vk, pAllocator, (void*)gfxstream_fence);
 }
 VkResult gfxstream_vk_ResetFences(VkDevice device, uint32_t fenceCount, const VkFence* pFences) {
     MESA_TRACE_SCOPE("vkResetFences");
@@ -412,7 +404,7 @@ VkResult gfxstream_vk_ResetFences(VkDevice device, uint32_t fenceCount, const Vk
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         std::vector<VkFence> internal_pFences(fenceCount);
-        internal_pFences = transformVkFenceList(pFences, fenceCount);
+        internal_pFences = FilterNoopFences(pFences, fenceCount);
         pFences = internal_pFences.data();
         fenceCount = internal_pFences.size();
         auto resources = gfxstream::vk::ResourceTracker::get();
@@ -426,12 +418,11 @@ VkResult gfxstream_vk_GetFenceStatus(VkDevice device, VkFence fence) {
     MESA_TRACE_SCOPE("vkGetFenceStatus");
     VkResult vkGetFenceStatus_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkGetFenceStatus_VkResult_return = resources->on_vkGetFenceStatus(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, gfxstream_fence->internal_object);
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, fence);
     }
     return vkGetFenceStatus_VkResult_return;
 }
@@ -443,7 +434,7 @@ VkResult gfxstream_vk_WaitForFences(VkDevice device, uint32_t fenceCount, const 
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         std::vector<VkFence> internal_pFences(fenceCount);
-        internal_pFences = transformVkFenceList(pFences, fenceCount);
+        internal_pFences = FilterNoopFences(pFences, fenceCount);
         pFences = internal_pFences.data();
         fenceCount = internal_pFences.size();
         auto resources = gfxstream::vk::ResourceTracker::get();
@@ -2238,7 +2229,6 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
     MESA_TRACE_SCOPE("vkQueueSubmit2");
     VkResult vkQueueSubmit2_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc =
             gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
@@ -2288,10 +2278,9 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].size();
         }
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkQueueSubmit2_VkResult_return = resources->on_vkQueueSubmit2(
-            vkEnc, VK_SUCCESS, gfxstream_queue->internal_object, submitCount,
-            internal_pSubmits.data(),
-            gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE);
+        vkQueueSubmit2_VkResult_return =
+            resources->on_vkQueueSubmit2(vkEnc, VK_SUCCESS, gfxstream_queue->internal_object,
+                                         submitCount, internal_pSubmits.data(), fence);
     }
     return vkQueueSubmit2_VkResult_return;
 }
@@ -3222,18 +3211,9 @@ VkResult gfxstream_vk_ImportFenceFdKHR(VkDevice device,
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        std::vector<VkImportFenceFdInfoKHR> internal_pImportFenceFdInfo(1);
-        for (uint32_t i = 0; i < 1; ++i) {
-            internal_pImportFenceFdInfo[i] = pImportFenceFdInfo[i];
-            /* VkImportFenceFdInfoKHR::fence */
-            VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence,
-                           internal_pImportFenceFdInfo[i].fence);
-            internal_pImportFenceFdInfo[i].fence = gfxstream_fence->internal_object;
-        }
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkImportFenceFdKHR_VkResult_return =
-            resources->on_vkImportFenceFdKHR(vkEnc, VK_SUCCESS, gfxstream_device->internal_object,
-                                             internal_pImportFenceFdInfo.data());
+        vkImportFenceFdKHR_VkResult_return = resources->on_vkImportFenceFdKHR(
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pImportFenceFdInfo);
     }
     return vkImportFenceFdKHR_VkResult_return;
 }
@@ -3244,16 +3224,9 @@ VkResult gfxstream_vk_GetFenceFdKHR(VkDevice device, const VkFenceGetFdInfoKHR* 
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        std::vector<VkFenceGetFdInfoKHR> internal_pGetFdInfo(1);
-        for (uint32_t i = 0; i < 1; ++i) {
-            internal_pGetFdInfo[i] = pGetFdInfo[i];
-            /* VkFenceGetFdInfoKHR::fence */
-            VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, internal_pGetFdInfo[i].fence);
-            internal_pGetFdInfo[i].fence = gfxstream_fence->internal_object;
-        }
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkGetFenceFdKHR_VkResult_return = resources->on_vkGetFenceFdKHR(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, internal_pGetFdInfo.data(), pFd);
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pGetFdInfo, pFd);
     }
     return vkGetFenceFdKHR_VkResult_return;
 }
@@ -3515,7 +3488,6 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
     MESA_TRACE_SCOPE("vkQueueSubmit2KHR");
     VkResult vkQueueSubmit2KHR_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc =
             gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
@@ -3564,10 +3536,9 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
             internal_pSubmits[i].signalSemaphoreInfoCount =
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].size();
         }
-        vkQueueSubmit2KHR_VkResult_return = vkEnc->vkQueueSubmit2KHR(
-            gfxstream_queue->internal_object, submitCount, internal_pSubmits.data(),
-            gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE,
-            true /* do lock */);
+        vkQueueSubmit2KHR_VkResult_return =
+            vkEnc->vkQueueSubmit2KHR(gfxstream_queue->internal_object, submitCount,
+                                     internal_pSubmits.data(), fence, true /* do lock */);
     }
     return vkQueueSubmit2KHR_VkResult_return;
 }
@@ -3833,13 +3804,11 @@ VkResult gfxstream_vk_AcquireImageANDROID(VkDevice device, VkImage image, int na
     VkResult vkAcquireImageANDROID_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, semaphore);
-    VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, fence);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkAcquireImageANDROID_VkResult_return = vkEnc->vkAcquireImageANDROID(
             gfxstream_device->internal_object, image, nativeFenceFd,
-            gfxstream_semaphore ? gfxstream_semaphore->internal_object : VK_NULL_HANDLE,
-            gfxstream_fence ? gfxstream_fence->internal_object : VK_NULL_HANDLE,
+            gfxstream_semaphore ? gfxstream_semaphore->internal_object : VK_NULL_HANDLE, fence,
             true /* do lock */);
     }
     return vkAcquireImageANDROID_VkResult_return;

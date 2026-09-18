@@ -23,12 +23,12 @@ static bool isNoopSemaphore(gfxstream_vk_semaphore* semaphore) {
             vk_sync_type_is_dummy(semaphore->vk.temporary->type));
 }
 
-std::vector<VkFence> transformVkFenceList(const VkFence* pFences, uint32_t fenceCount) {
+std::vector<VkFence> FilterNoopFences(const VkFence* pFences, uint32_t fenceCount) {
     std::vector<VkFence> outFences;
     for (uint32_t j = 0; j < fenceCount; ++j) {
         VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_fence, pFences[j]);
         if (!isNoopFence(gfxstream_fence)) {
-            outFences.push_back(gfxstream_fence->internal_object);
+            outFences.push_back(pFences[j]);
         }
     }
     return outFences;

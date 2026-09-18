@@ -117,7 +117,9 @@ struct gfxstream_vk_command_buffer {
 
 struct gfxstream_vk_fence {
     struct vk_fence vk;
-    VkFence internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 struct gfxstream_vk_semaphore {
@@ -147,7 +149,7 @@ void gfxstream_vk_wsi_finish(struct gfxstream_vk_physical_device* physical_devic
 std::vector<VkSemaphore> transformVkSemaphoreList(const VkSemaphore* pSemaphores,
                                                   uint32_t semaphoreCount);
 
-std::vector<VkFence> transformVkFenceList(const VkFence* pFences, uint32_t fenceCount);
+std::vector<VkFence> FilterNoopFences(const VkFence* pFences, uint32_t fenceCount);
 
 std::vector<VkSemaphoreSubmitInfo> transformVkSemaphoreSubmitInfoList(
     const VkSemaphoreSubmitInfo* pSemaphoreSubmitInfos, uint32_t semaphoreSubmitInfoCount);

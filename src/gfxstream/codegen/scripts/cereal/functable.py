@@ -173,21 +173,21 @@ HANDLES_TRANSLATE = {
     "VkQueue",
     "VkCommandPool",
     "VkCommandBuffer",
-    "VkFence",
     "VkSemaphore",
 }
 
 # Consolidated handle types that need vk.base.device initialized after creation
 HANDLES_POST_CREATE_INIT_DEVICE = {
     "VkBuffer",
+    "VkFence",
 }
 
 # Types that have a corresponding method for transforming
 # an input list to its internal counterpart
 TYPES_TRANSFORM_LIST_METHOD = {
-    "VkFence",
-    "VkSemaphore",
-    "VkSemaphoreSubmitInfo",
+    "VkFence": "FilterNoopFences",
+    "VkSemaphore": "transformVkSemaphoreList",
+    "VkSemaphoreSubmitInfo": "transformVkSemaphoreSubmitInfoList",
 }
 
 def is_cmdbuf_dispatch(api):
@@ -231,7 +231,7 @@ def typeNameToObjectType(typeName):
     return "gfxstream_vk_%s" % typeNameToBaseName(typeName)
 
 def transformListFuncName(typeName):
-    return "transform%sList" % (typeName)
+    return TYPES_TRANSFORM_LIST_METHOD[typeName]
 
 def isAllocatorParam(param):
     ALLOCATOR_TYPE_NAME = "VkAllocationCallbacks"
@@ -295,21 +295,23 @@ class VulkanFuncTable(VulkanWrapperGenerator):
         def handleTranslationRequired(typeName):
             return typeName in HANDLE_TYPES and typeName in HANDLES_TRANSLATE
 
-        def translationRequired(typeName):
-            if isCompoundType(typeName):
-                struct = typeInfo.structs[typeName]
+        def paramTranslationRequired(param):
+            if isArrayParam(param) and param.typeName in TYPES_TRANSFORM_LIST_METHOD:
+                return True
+            if isCompoundType(param.typeName):
+                struct = typeInfo.structs[param.typeName]
                 for member in struct.members:
-                    if translationRequired(member.typeName):
+                    if paramTranslationRequired(member):
                         return True
                 return False
             else:
-                return handleTranslationRequired(typeName)
+                return handleTranslationRequired(param.typeName)
 
         def genDestroyGfxstreamObjects():
             destroyParam = getDestroyParam(api)
             if not destroyParam:
                 return
-            if not translationRequired(destroyParam.typeName):
+            if not handleTranslationRequired(destroyParam.typeName):
                 return
             objectName = paramNameToObjectName(destroyParam.paramName)
             allocatorParam = "NULL"
@@ -406,7 +408,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
                 raise
             if isCompoundType(param.typeName):
                 for member in typeInfo.structs[param.typeName].members:
-                    if translationRequired(member.typeName):
+                    if paramTranslationRequired(member):
                         if handleTranslationRequired(member.typeName) and not isArrayParam(member):
                             # No declarations for non-array handleType
                             continue
@@ -417,7 +419,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
             nextLoopVar = None
             cgen.stmt("%s = %s" % (outName, inName))
             for member in typeInfo.structs[param.typeName].members:
-                if not translationRequired(member.typeName):
+                if not paramTranslationRequired(member):
                     continue
                 cgen.line("/* %s::%s */" % (param.typeName, member.paramName))
                 nestedOutName = ("%s[%s]" % (internalNestedParamName(member), currLoopVar))
@@ -486,7 +488,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
             outParams = copy.deepcopy(api.parameters)
             nextLoopVar = getNextLoopVar()
             for param in outParams:
-                if not translationRequired(param.typeName):
+                if not paramTranslationRequired(param):
                     continue
                 elif isArrayParam(param) or isCompoundType(param.typeName):
                     if param.possiblyOutput():

@@ -37,6 +37,7 @@ extern "C" {
 
 // TODO: remove these after fully consolidating to gfxstream_vk_* structs.
 #define goldfish_VkBuffer gfxstream_vk_buffer
+#define goldfish_VkFence gfxstream_vk_fence
 
 struct goldfish_vk_object_list {
     void* obj;
