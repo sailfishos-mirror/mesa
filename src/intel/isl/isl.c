@@ -3957,8 +3957,12 @@ find_next_divisor(int64_t divisor, int64_t num)
    /* Go from 'divisor + 1' up to sqrt(num). If we find a factor, it's the
     * first one, so just return it.
     */
-   for (int64_t i = divisor + 1; i <= num / i; i++) {
-      if (num % i == 0)
+   for (int64_t i = divisor + 1; ; i++) {
+      int64_t quo = num / i;
+      int64_t rem = num % i;
+      if (i > quo)
+         break;
+      if (rem == 0)
          return i;
    }
 
@@ -3969,8 +3973,10 @@ find_next_divisor(int64_t divisor, int64_t num)
     */
    int64_t upper_bound = MIN2(divisor, num / divisor);
    for (int64_t i = upper_bound; i > 1; i--) {
-      if ((num % i == 0) && (num / i > divisor))
-         return num / i;
+      int64_t quo = num / i;
+      int64_t rem = num % i;
+      if (rem == 0 && quo > divisor)
+         return quo;
    }
 
    return num;
