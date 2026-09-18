@@ -538,7 +538,7 @@ class Parser(object):
                 static inline __attribute__((always_inline)) void
                 %s_repack(__attribute__((unused)) __gen_user_data *data,
                         %s__attribute__((unused)) void * restrict dst,
-                        %s__attribute__((unused)) global const uint32_t * origin,
+                        %s__attribute__((unused)) const uint32_t * origin,
                         %s__attribute__((unused)) const struct %s * restrict values)
                 {""") % (name, ' ' * len(name), ' ' * len(name), ' ' * len(name), name))
         else:
