@@ -2641,7 +2641,7 @@ apply_mov_half_shared_quirk(struct ir3_context *ctx,
                             struct ir3_instruction *src,
                             struct ir3_instruction *dst)
 {
-   if (!ctx->compiler->info->props.mov_half_shared_quirk) {
+   if (!IR3_QUIRK(ctx->compiler, QCTDD06363318_movs_half)) {
       return dst;
    }
 

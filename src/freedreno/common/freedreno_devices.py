@@ -154,10 +154,11 @@ a6xx_base = GPUProps(
         max_sets = 5,
         line_width_min = 1.0,
         line_width_max = 1.0,
-        mov_half_shared_quirk = True,
         max_draw_states = 32,
         max_texel_buffer_range_elements = 1 << 27,
         max_storage_buffer_range_bytes = 1 << 27,
+
+        QCTDD06363318 = True,
     )
 
 

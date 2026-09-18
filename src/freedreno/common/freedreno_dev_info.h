@@ -166,9 +166,6 @@ struct fd_dev_info {
        */
       bool has_getfiberid;
 
-      /* Whether half register shared->non-shared moves are broken. */
-      bool mov_half_shared_quirk;
-
       /* Whether movs is supported for subgroupBroadcast. */
       bool has_movs;
 
@@ -494,6 +491,10 @@ struct fd_dev_info {
 
 #define FD_QUIRK(info, name) (info)->quirks.name
    struct {
+      /* movs performs half->full conversion if src_type is half, regardless
+       * of dst_type
+       */
+      bool QCTDD06363318_movs_half : 1;
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
       /* The last stsc before a consumer should be repeated to ensure

@@ -555,7 +555,7 @@ ir3_lower_copies(struct ir3_shader_variant *v)
              * components of the normal src and its even neighbor and then
              * unswap afterwords to make it work for everything.
              */
-            if (v->compiler->info->props.mov_half_shared_quirk &&
+            if (IR3_QUIRK(v->compiler, QCTDD06363318_movs_half) &&
                 (instr->dsts[0]->flags & IR3_REG_SHARED) &&
                 (instr->dsts[0]->flags & IR3_REG_HALF) &&
                 !(instr->srcs[0]->flags & (IR3_REG_SHARED | IR3_REG_IMMED |
