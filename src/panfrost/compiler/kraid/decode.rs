@@ -154,18 +154,24 @@ mod tests {
     }
 
     macro_rules! disasm_case {
-        ($val:tt, $result:literal, $ctx:expr) => {
+        ($val:tt, $result:literal, $ctx:expr, $arch:literal) => {
             paste! {
                 #[test]
                 fn [<decode_ $val>]() {
-                    let res = decode_to_string($val, 13u8, $ctx);
+                    let res = decode_to_string($val, $arch, $ctx);
                     assert!(res.is_ok());
                     assert_eq!(res.unwrap().as_str(), $result);
                 }
             }
         };
+        ($val:tt, $result:literal, $arch:literal) => {
+            disasm_case!($val, $result, Default::default(), $arch);
+        };
+        ($val:tt, $result:literal, $ctx:expr) => {
+            disasm_case!($val, $result, $ctx, 13u8);
+        };
         ($val:tt, $result:literal) => {
-            disasm_case!($val, $result, Default::default());
+            disasm_case!($val, $result, Default::default(), 13u8);
         };
     }
 
