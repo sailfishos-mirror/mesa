@@ -4305,7 +4305,13 @@ distribute_src_mods = [
 
    (('fneg', ('fsign(is_used_once)', a)), ('fsign', ('fneg', a))),
    (('fabs', ('fsign(is_used_once)', a)), ('fsign', ('fabs', a))),
+
+   # Immediately clean up some of the src mods that might have been distributed
+   # to be next to each other.  fneg(fneg(x)) is handled above.
+   (('fabs', ('fneg', a)), ('fabs', a)),
+   (('fabs', ('fabs', a)), ('fabs', a)),
 ]
+
 
 # Reassociate multiplication of mat*mat*vec. The typical case of
 # mat4*mat4*vec4 is 80 scalar multiplications, but mat4*(mat4*vec4) is only 32.
