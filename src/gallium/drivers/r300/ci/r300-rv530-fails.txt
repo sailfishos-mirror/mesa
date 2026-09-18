@@ -1,6 +1,3 @@
-dEQP-GLES2.functional.polygon_offset.default_factor_1_slope,Fail
-dEQP-GLES2.functional.polygon_offset.fixed16_factor_1_slope,Fail
-
 dEQP-GLES2.functional.shaders.loops.do_while_dynamic_iterations.mixed_break_continue_fragment,Fail
 
 # Piglit gpu tests
