@@ -97,7 +97,8 @@ struct gfxstream_vk_device {
     uint32_t* queue_families;
     uint32_t queue_family_count;
 
-    VkDevice internal_object;
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 struct gfxstream_vk_queue {

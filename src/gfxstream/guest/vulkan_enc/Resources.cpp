@@ -228,6 +228,24 @@ void delete_goldfish_VkPhysicalDevice(VkPhysicalDevice toDelete) {
     free(res);
 }
 
+VkDevice new_from_host_u64_VkDevice(uint64_t underlying) {
+    struct goldfish_VkDevice* res =
+        static_cast<goldfish_VkDevice*>(calloc(1, sizeof(goldfish_VkDevice)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_DEVICE);
+    res->underlying = underlying;
+    return reinterpret_cast<VkDevice>(res);
+}
+
+VkDevice new_from_host_VkDevice(VkDevice underlying) {
+    return new_from_host_u64_VkDevice((uint64_t)underlying);
+}
+
+void delete_goldfish_VkDevice(VkDevice toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkDevice(toDelete);
+    free(res);
+}
+
 VkDescriptorPool new_from_host_VkDescriptorPool(VkDescriptorPool underlying) {
     struct goldfish_VkDescriptorPool* res =
         static_cast<goldfish_VkDescriptorPool*>(malloc(sizeof(goldfish_VkDescriptorPool)));

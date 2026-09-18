@@ -168,7 +168,6 @@ NON_AUTOGEN_ENTRYPOINTS = [
 # Handles that need to be translated to/from their corresponding gfxstream object types
 HANDLES_TRANSLATE = {
     "VkInstance",
-    "VkDevice",
 }
 
 # Consolidated handle types that need vk.base.device initialized after creation
@@ -554,8 +553,9 @@ class VulkanFuncTable(VulkanWrapperGenerator):
                 deviceParam = api.parameters[0]
                 if "VkDevice" == deviceParam.typeName and retVar:
                     cgen.beginIf("%s == %s" % (SUCCESS_VAL[retTypeName][0], retVar))
+                    gfxstreamDevice = genVkFromHandle(deviceParam, deviceParam.paramName)
                     gfxstreamObject = genVkFromHandle(createParam, "*%s" % createParam.paramName)
-                    cgen.stmt("%s->vk.base.device = &%s->vk" % (gfxstreamObject, paramNameToObjectName(deviceParam.paramName)))
+                    cgen.stmt("%s->vk.base.device = &%s->vk" % (gfxstreamObject, gfxstreamDevice))
                     cgen.endIf()
 
             if retTypeName != "void":

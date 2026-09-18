@@ -474,7 +474,8 @@ static VkResult gfxstream_vk_queue_init(struct gfxstream_vk_device* dev,
 
     VkQueue queue = VK_NULL_HANDLE;
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-    vkEnc->vkGetDeviceQueue2(dev->internal_object, &device_queue_info, &queue, true /* do lock */);
+    vkEnc->vkGetDeviceQueue2(gfxstream_vk_device_to_handle(dev), &device_queue_info, &queue,
+                             true /* do lock */);
     if (queue == VK_NULL_HANDLE) {
         return VK_ERROR_INITIALIZATION_FAILED;
     }
@@ -571,12 +572,7 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
 
     const VkAllocationCallbacks* pMesaAllocator =
         pAllocator ?: &gfxstream_physicalDevice->instance->vk.alloc;
-    struct gfxstream_vk_device* gfxstream_device = (struct gfxstream_vk_device*)vk_zalloc(
-        pMesaAllocator, sizeof(struct gfxstream_vk_device), GFXSTREAM_DEFAULT_ALIGN,
-        VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-    if (!gfxstream_device) {
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
+
 
     // Full local copy of pCreateInfo
     VkDeviceCreateInfo localCreateInfo = *pCreateInfo;
@@ -588,13 +584,13 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     localCreateInfo.ppEnabledExtensionNames = filteredExts.data();
 
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-    result = vkEnc->vkCreateDevice(physicalDevice, &localCreateInfo, pAllocator,
-                                   &gfxstream_device->internal_object, true /* do lock */);
-
+    result = vkEnc->vkCreateDevice(physicalDevice, &localCreateInfo, pAllocator, pDevice,
+                                   true /* do lock */);
     if (result != VK_SUCCESS) {
-        vk_free(pMesaAllocator, gfxstream_device);
         return result;
     }
+
+    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, *pDevice);
 
     struct vk_device_dispatch_table dispatch_table;
     memset(&dispatch_table, 0, sizeof(struct vk_device_dispatch_table));
@@ -607,8 +603,8 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     result = vk_device_init(&gfxstream_device->vk, &gfxstream_physicalDevice->vk, &dispatch_table,
                             pCreateInfo, pMesaAllocator);
     if (result != VK_SUCCESS) {
-        vkEnc->vkDestroyDevice(gfxstream_device->internal_object, pAllocator, true /* do lock */);
-        vk_free(pMesaAllocator, gfxstream_device);
+        vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
+        *pDevice = VK_NULL_HANDLE;
         return result;
     }
 
@@ -618,8 +614,8 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     result = gfxstream_vk_device_queue_family_init(gfxstream_device, pCreateInfo);
     if (result != VK_SUCCESS) {
         vk_device_finish(&gfxstream_device->vk);
-        vkEnc->vkDestroyDevice(gfxstream_device->internal_object, pAllocator, true /* do lock */);
-        vk_free(pMesaAllocator, gfxstream_device);
+        vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
+        *pDevice = VK_NULL_HANDLE;
         return result;
     }
 
@@ -627,33 +623,28 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     if (result != VK_SUCCESS) {
         gfxstream_vk_device_queue_family_fini(gfxstream_device);
         vk_device_finish(&gfxstream_device->vk);
-        vkEnc->vkDestroyDevice(gfxstream_device->internal_object, pAllocator, true /* do lock */);
-        vk_free(pMesaAllocator, gfxstream_device);
+        vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
+        *pDevice = VK_NULL_HANDLE;
         return result;
     }
 
-    *pDevice = gfxstream_vk_device_to_handle(gfxstream_device);
     return VK_SUCCESS;
 }
 
 void gfxstream_vk_DestroyDevice(VkDevice device, const VkAllocationCallbacks* pAllocator) {
     MESA_TRACE_SCOPE("vkDestroyDevice");
-    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     if (device == VK_NULL_HANDLE) return;
-
-    const VkAllocationCallbacks* alloc = pAllocator ? pAllocator : &gfxstream_device->vk.alloc;
+    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
 
     vk_foreach_queue_safe(queue, &gfxstream_device->vk) {
         gfxstream_vk_queue_fini((struct gfxstream_vk_queue*)queue);
     }
 
     gfxstream_vk_device_queue_family_fini(gfxstream_device);
+    vk_device_finish(&gfxstream_device->vk);
 
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-    vkEnc->vkDestroyDevice(gfxstream_device->internal_object, pAllocator, true /* do lock */);
-
-    vk_device_finish(&gfxstream_device->vk);
-    vk_free(alloc, gfxstream_device);
+    vkEnc->vkDestroyDevice(device, pAllocator, true /* do lock */);
 }
 
 /* The loader wants us to expose a second GetInstanceProcAddr function
@@ -682,14 +673,12 @@ VkResult gfxstream_vk_AllocateMemory(VkDevice device, const VkMemoryAllocateInfo
                                      const VkAllocationCallbacks* pAllocator,
                                      VkDeviceMemory* pMemory) {
     MESA_TRACE_SCOPE("vkAllocateMemory");
-    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     VkResult vkAllocateMemory_VkResult_return = (VkResult)0;
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkAllocateMemory_VkResult_return =
-            resources->on_vkAllocateMemory(vkEnc, VK_SUCCESS, gfxstream_device->internal_object,
-                                           pAllocateInfo, pAllocator, pMemory);
+        vkAllocateMemory_VkResult_return = resources->on_vkAllocateMemory(
+            vkEnc, VK_SUCCESS, device, pAllocateInfo, pAllocator, pMemory);
     }
     return vkAllocateMemory_VkResult_return;
 }
@@ -777,16 +766,15 @@ void gfxstream_vk_UpdateDescriptorSets(VkDevice device, uint32_t descriptorWrite
                                        uint32_t descriptorCopyCount,
                                        const VkCopyDescriptorSet* pDescriptorCopies) {
     MESA_TRACE_SCOPE("vkUpdateDescriptorSets");
-    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfoStorage;
         std::vector<VkWriteDescriptorSet> internal_pDescriptorWrites = transformDescriptorSetList(
             pDescriptorWrites, descriptorWriteCount, descriptorBufferInfoStorage);
         auto resources = gfxstream::vk::ResourceTracker::get();
-        resources->on_vkUpdateDescriptorSets(
-            vkEnc, gfxstream_device->internal_object, descriptorWriteCount,
-            internal_pDescriptorWrites.data(), descriptorCopyCount, pDescriptorCopies);
+        resources->on_vkUpdateDescriptorSets(vkEnc, device, descriptorWriteCount,
+                                             internal_pDescriptorWrites.data(), descriptorCopyCount,
+                                             pDescriptorCopies);
     }
 }
 

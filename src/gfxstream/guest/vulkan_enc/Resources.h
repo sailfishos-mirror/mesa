@@ -43,6 +43,7 @@ extern "C" {
 #define goldfish_VkCommandBuffer gfxstream_vk_command_buffer
 #define goldfish_VkQueue gfxstream_vk_queue
 #define goldfish_VkPhysicalDevice gfxstream_vk_physical_device
+#define goldfish_VkDevice gfxstream_vk_device
 
 #if DETECT_OS_ANDROID
 #define DECLARE_HWVULKAN_DISPATCH hwvulkan_dispatch_t dispatch;
