@@ -1519,12 +1519,12 @@ iris_init_render_context(struct iris_batch *batch)
 }
 
 #if GFX_VERx10 >= 125
-static void
-iris_compute_emit_engine_async_threads_limits(struct iris_batch *batch,
-                                              const uint32_t hw_threads_in_wg,
-                                              uint32_t total_shared,
-                                              bool uses_barrier,
-                                              bool force_emit)
+static bool
+iris_compute_engine_async_threads_limits(struct iris_batch *batch,
+                                         const uint32_t hw_threads_in_wg,
+                                         uint32_t total_shared,
+                                         bool uses_barrier,
+                                         bool force_emit)
 {
    uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
            np_z_async_throttle_settings;
@@ -1550,8 +1550,15 @@ iris_compute_emit_engine_async_threads_limits(struct iris_batch *batch,
       changed = true;
    }
 
-   if (!changed && !force_emit)
-      return;
+   return changed || force_emit;
+}
+
+static void
+iris_emit_engine_async_threads_limits(struct iris_batch *batch)
+{
+   struct iris_screen *screen = batch->screen;
+   UNUSED const struct intel_device_info *devinfo = screen->devinfo;
+   struct iris_context *ice = batch->ice;
 
    iris_emit_cmd(batch, GENX(STATE_COMPUTE_MODE), cm) {
 #if GFX_VER >= 30
@@ -1559,19 +1566,19 @@ iris_compute_emit_engine_async_threads_limits(struct iris_batch *batch,
       cm.EnableVariableRegisterSizeAllocation = !INTEL_DEBUG(DEBUG_NO_VRT);
 #endif
 #if GFX_VER >= 20
-      cm.AsyncComputeThreadLimit = pixel_async_compute_thread_limit;
-      cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
-      cm.ZAsyncThrottlesettings = np_z_async_throttle_settings;
+      cm.AsyncComputeThreadLimit = ice->state.pixel_async_compute_thread_limit;
+      cm.ZPassAsyncComputeThreadLimit = ice->state.z_pass_async_compute_thread_limit;
+      cm.ZAsyncThrottlesettings = ice->state.np_z_async_throttle_settings;
       cm.AsyncComputeThreadLimitMask = 0x7;
       cm.ZPassAsyncComputeThreadLimitMask = 0x7;
       cm.ZAsyncThrottlesettingsMask = 0x3;
 #else
-      cm.PixelAsyncComputeThreadLimit = pixel_async_compute_thread_limit;
-      cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
+      cm.PixelAsyncComputeThreadLimit = ice->state.pixel_async_compute_thread_limit;
+      cm.ZPassAsyncComputeThreadLimit = ice->state.z_pass_async_compute_thread_limit;
       cm.PixelAsyncComputeThreadLimitMask = 0x7;
       cm.ZPassAsyncComputeThreadLimitMask = 0x7;
       if (intel_device_info_is_mtl_or_arl(devinfo)) {
-         cm.ZAsyncThrottlesettings = np_z_async_throttle_settings;
+         cm.ZAsyncThrottlesettings = ice->state.np_z_async_throttle_settings;
          cm.ZAsyncThrottlesettingsMask = 0x3;
       }
 #endif
@@ -1641,7 +1648,8 @@ iris_init_compute_context(struct iris_batch *batch)
                                    PIPE_CONTROL_INSTRUCTION_INVALIDATE |
                                    PIPE_CONTROL_FLUSH_HDC);
 
-   iris_compute_emit_engine_async_threads_limits(batch, 0, 0, false, true);
+   if (iris_compute_engine_async_threads_limits(batch, 0, 0, false, true))
+      iris_emit_engine_async_threads_limits(batch);
 #endif
 
 #if GFX_VERx10 >= 125
@@ -9540,9 +9548,10 @@ iris_upload_compute_walker(struct iris_context *ice,
       }
    }
 
-   iris_compute_emit_engine_async_threads_limits(batch, dispatch.threads,
-                                                 total_shared, cs_data->uses_barrier,
-                                                 false);
+   if (iris_compute_engine_async_threads_limits(batch, dispatch.threads,
+                                                total_shared, cs_data->uses_barrier,
+                                                false))
+      iris_emit_engine_async_threads_limits(batch);
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) idd = {};
    idd.KernelStartPointer =
