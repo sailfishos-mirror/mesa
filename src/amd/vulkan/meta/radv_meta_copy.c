@@ -16,11 +16,11 @@ vk_format_for_size(int bs)
    case 1:
       return VK_FORMAT_R8_UINT;
    case 2:
-      return VK_FORMAT_R8G8_UINT;
+      return VK_FORMAT_R16_UINT;
    case 4:
-      return VK_FORMAT_R8G8B8A8_UINT;
+      return VK_FORMAT_R32_UINT;
    case 8:
-      return VK_FORMAT_R16G16B16A16_UINT;
+      return VK_FORMAT_R32G32_UINT;
    case 12:
       return VK_FORMAT_R32G32B32_UINT;
    case 16:
