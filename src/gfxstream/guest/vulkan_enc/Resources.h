@@ -42,6 +42,7 @@ extern "C" {
 #define goldfish_VkCommandPool gfxstream_vk_command_pool
 #define goldfish_VkCommandBuffer gfxstream_vk_command_buffer
 #define goldfish_VkQueue gfxstream_vk_queue
+#define goldfish_VkInstance gfxstream_vk_instance
 #define goldfish_VkPhysicalDevice gfxstream_vk_physical_device
 #define goldfish_VkDevice gfxstream_vk_device
 

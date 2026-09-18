@@ -72,7 +72,9 @@ struct gfxstream_vk_instance {
     struct vk_instance vk;
     uint32_t api_version;
     bool init_failed;
-    VkInstance internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 struct gfxstream_vk_physical_device {

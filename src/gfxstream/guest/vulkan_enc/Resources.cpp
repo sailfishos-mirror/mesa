@@ -209,6 +209,29 @@ void delete_goldfish_VkQueue(VkQueue toDelete) {
     free(res);
 }
 
+VkInstance new_from_host_u64_VkInstance(uint64_t underlying) {
+    struct goldfish_VkInstance* res =
+        static_cast<goldfish_VkInstance*>(calloc(1, sizeof(goldfish_VkInstance)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_INSTANCE);
+    list_inithead(&res->vk.debug_report.callbacks);
+    list_inithead(&res->vk.debug_utils.callbacks);
+    list_inithead(&res->vk.debug_utils.instance_callbacks);
+    list_inithead(&res->vk.physical_devices.list);
+    res->underlying = underlying;
+    return reinterpret_cast<VkInstance>(res);
+}
+
+VkInstance new_from_host_VkInstance(VkInstance underlying) {
+    return new_from_host_u64_VkInstance((uint64_t)underlying);
+}
+
+void delete_goldfish_VkInstance(VkInstance toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkInstance(toDelete);
+    vk_instance_finish(&res->vk);
+    free(res);
+}
+
 VkPhysicalDevice new_from_host_u64_VkPhysicalDevice(uint64_t underlying) {
     struct goldfish_VkPhysicalDevice* res =
         static_cast<goldfish_VkPhysicalDevice*>(calloc(1, sizeof(goldfish_VkPhysicalDevice)));

@@ -2366,12 +2366,10 @@ VkResult gfxstream_vk_CreateAndroidSurfaceKHR(VkInstance instance,
                                               VkSurfaceKHR* pSurface) {
     MESA_TRACE_SCOPE("vkCreateAndroidSurfaceKHR");
     VkResult vkCreateAndroidSurfaceKHR_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_instance, gfxstream_instance, instance);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkCreateAndroidSurfaceKHR_VkResult_return =
-            vkEnc->vkCreateAndroidSurfaceKHR(gfxstream_instance->internal_object, pCreateInfo,
-                                             pAllocator, pSurface, true /* do lock */);
+        vkCreateAndroidSurfaceKHR_VkResult_return = vkEnc->vkCreateAndroidSurfaceKHR(
+            instance, pCreateInfo, pAllocator, pSurface, true /* do lock */);
     }
     return vkCreateAndroidSurfaceKHR_VkResult_return;
 }

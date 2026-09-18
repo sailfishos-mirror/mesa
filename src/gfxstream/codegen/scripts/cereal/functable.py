@@ -166,9 +166,7 @@ NON_AUTOGEN_ENTRYPOINTS = [
 ]
 
 # Handles that need to be translated to/from their corresponding gfxstream object types
-HANDLES_TRANSLATE = {
-    "VkInstance",
-}
+HANDLES_TRANSLATE = set()
 
 # Consolidated handle types that need vk.base.device initialized after creation
 HANDLES_POST_CREATE_INIT_DEVICE = {

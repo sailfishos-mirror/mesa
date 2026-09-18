@@ -135,9 +135,10 @@ namespace vk {
     GOLDFISH_VK_LIST_TRIVIAL_DISPATCHABLE_HANDLE_TYPES(f) \
     GOLDFISH_VK_LIST_TRIVIAL_NON_DISPATCHABLE_HANDLE_TYPES(f)
 
-#define GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(f) f(VkInstance)
+#define GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_DISPATCHABLE_HANDLE_TYPES(f)
 
 #define GOLDFISH_VK_LIST_MANUAL_STRUCT_DISPATCHABLE_HANDLE_TYPES(f) \
+    f(VkInstance)                                                   \
     f(VkPhysicalDevice)                                             \
     f(VkDevice)                                                     \
     f(VkCommandBuffer)                                              \
