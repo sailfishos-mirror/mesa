@@ -15960,7 +15960,7 @@ radv_init_htile(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, co
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
-   return radv_clear_htile(cmd_buffer, image, range, htile_value, false);
+   return radv_clear_htile(cmd_buffer, image, range, htile_value, 0);
 }
 
 static uint32_t

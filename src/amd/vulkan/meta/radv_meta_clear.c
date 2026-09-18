@@ -606,56 +606,73 @@ radv_get_htile_fast_clear_value(const struct radv_device *device, const struct r
 
 static uint32_t
 radv_get_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, VkImageAspectFlags aspects,
-                    bool is_clear)
+                    enum radv_meta_htile_preserve_flags preserve)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   assert(preserve != RADV_HTILE_PRESERVE_ALL);
 
-   if (radv_image_tile_stencil_disabled(device, image)) {
-      /* All the HTILE buffer is used when there is no stencil. */
+   if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
+      /* Clear the whole dword on SDMA because SDMA can't do read-modify-write if not executing
+       * as a gang with compute.
+       * TODO: We can't do this if we want to pass CTS.
+       */
       return UINT32_MAX;
-   } else {
-      if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
-         /* Clear both aspects on SDMA, it's not ideal but there is no other way to initialize the
-          * HTILE buffer.
-          */
-         return UINT32_MAX;
-      }
-
-      uint32_t mask = 0;
-
-      if (radv_image_has_vrs_htile(device, image)) {
-         /* Preserve VRS rates during clears but not during initialization. */
-         uint32_t vrs_mask = is_clear ? 0 : 0x3;
-
-         if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
-            mask |= HTILE_ZS_VRS_CODE(.zmask = 0xF,
-                                      .zdelta = 0x3F,
-                                      .zbase = 0x3FFF,
-                                      .vrs_x = vrs_mask,
-                                      .vrs_y = vrs_mask);
-         }
-         if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
-            mask |= HTILE_ZS_VRS_CODE(.sr0 = 0x3,
-                                      .smem = 0x3,
-                                      .vrs_x = vrs_mask,
-                                      .vrs_y = vrs_mask);
-         }
-      } else {
-         if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
-            mask |= HTILE_ZS_CODE(.zmask = 0xF,
-                                  .zdelta = 0x3F,
-                                  .zbase = 0x3FFF,
-                                  .unused = 0x3);
-         }
-         if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
-            mask |= HTILE_ZS_CODE(.sr0 = 0x3,
-                                  .sr1 = 0x3,
-                                  .smem = 0x3);
-         }
-      }
-
-      return mask;
    }
+
+   /* Only preserve depth/stencil fields when they exist, and don't preserve them when they don't,
+    * so that we get read-modify-write less often.
+    */
+   if (vk_format_has_depth(image->vk.format)) {
+      if (!(aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
+         preserve |= RADV_HTILE_PRESERVE_Z_COMPRESSION | RADV_HTILE_PRESERVE_HIZ_RANGE;
+   } else {
+      assert(!(aspects & VK_IMAGE_ASPECT_DEPTH_BIT));
+      preserve &= ~(RADV_HTILE_PRESERVE_Z_COMPRESSION | RADV_HTILE_PRESERVE_HIZ_RANGE);
+   }
+
+   if (vk_format_has_stencil(image->vk.format)) {
+      if (!(aspects & VK_IMAGE_ASPECT_STENCIL_BIT))
+         preserve |= RADV_HTILE_PRESERVE_STENCIL_COMPRESSION;
+   } else {
+      assert(!(aspects & VK_IMAGE_ASPECT_STENCIL_BIT));
+      preserve &= ~RADV_HTILE_PRESERVE_STENCIL_COMPRESSION;
+   }
+
+   if (preserve == RADV_HTILE_PRESERVE_ALL)
+      return 0;
+
+   const uint32_t zmask_mask = preserve & RADV_HTILE_PRESERVE_Z_COMPRESSION ? 0 : ~0;
+   const uint32_t zrange_mask = preserve & RADV_HTILE_PRESERVE_HIZ_RANGE ? 0 : ~0;
+   const uint32_t smem_mask = preserve & RADV_HTILE_PRESERVE_STENCIL_COMPRESSION ? 0 : ~0;
+   const uint32_t vrs_mask = preserve & RADV_HTILE_PRESERVE_VRS ? 0 : ~0;
+   uint32_t mask = 0;
+
+   // clang-format off
+   if (radv_image_has_vrs_htile(device, image)) {
+      mask |= HTILE_ZS_VRS_CODE(.zmask = zmask_mask,
+                                .zdelta = zrange_mask,
+                                .zbase = zrange_mask,
+                                .sr0 = 0x3,
+                                .smem = smem_mask,
+                                .vrs_x = vrs_mask,
+                                .vrs_y = vrs_mask);
+   } else if (!radv_image_tile_stencil_disabled(device, image)) {
+      mask |= HTILE_ZS_CODE(.zmask = zmask_mask,
+                            .zdelta = zrange_mask,
+                            .zbase = zrange_mask,
+                            .sr0 = 0x3,
+                            .sr1 = 0x3,
+                            .smem = smem_mask,
+                            .unused = 0x3);
+   } else {
+      assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
+      mask |= HTILE_Z_CODE(.zmask = zmask_mask,
+                           .minz = zrange_mask,
+                           .maxz = zrange_mask);
+   }
+   // clang-format on
+
+   return mask;
 }
 
 static bool
@@ -740,7 +757,7 @@ radv_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
       *pre_flush |= cmd_buffer->state.flush_bits;
    }
 
-   flush_bits = radv_clear_htile(cmd_buffer, iview->image, &range, clear_word, true);
+   flush_bits = radv_clear_htile(cmd_buffer, iview->image, &range, clear_word, RADV_HTILE_PRESERVE_VRS);
 
    if (iview->image->planes[0].surface.has_stencil &&
        !(aspects == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))) {
@@ -1049,7 +1066,7 @@ radv_clear_dcc_comp_to_single(struct radv_cmd_buffer *cmd_buffer, struct radv_im
 
 uint32_t
 radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
-                 const VkImageSubresourceRange *range, uint32_t value, bool is_clear)
+                 const VkImageSubresourceRange *range, uint32_t value, enum radv_meta_htile_preserve_flags flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -1058,7 +1075,10 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
    uint32_t flush_bits = 0;
    uint32_t htile_mask;
 
-   htile_mask = radv_get_htile_mask(cmd_buffer, image, range->aspectMask, is_clear);
+   htile_mask = radv_get_htile_mask(cmd_buffer, image, range->aspectMask, flags);
+
+   if (!htile_mask)
+      return 0;
 
    /* Invalidate the VMEM cache for read-modify-write HTILE clears because HTILE could be cached in VMEM
     * from previous such clears, causing VMEM loads to return stale values. This happens when HTILE bits

@@ -135,6 +135,20 @@ enum radv_meta_object_key_type {
    RADV_META_OBJECT_KEY_BVH_HEADER,
 };
 
+enum radv_meta_htile_preserve_flags {
+   /* Implied when the depth aspect bit is not set. */
+   RADV_HTILE_PRESERVE_Z_COMPRESSION = BITFIELD_BIT(0),
+   RADV_HTILE_PRESERVE_HIZ_RANGE = BITFIELD_BIT(1),
+
+   /* Implied when the stencil aspect bit is not set. */
+   RADV_HTILE_PRESERVE_STENCIL_COMPRESSION = BITFIELD_BIT(2),
+
+   /* PRESERVE_VRS is never implied. */
+   RADV_HTILE_PRESERVE_VRS = BITFIELD_BIT(3),
+
+   RADV_HTILE_PRESERVE_ALL = BITFIELD_MASK(4),
+};
+
 VkResult radv_device_init_meta(struct radv_device *device);
 void radv_device_finish_meta(struct radv_device *device);
 
@@ -359,7 +373,8 @@ uint32_t radv_clear_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 uint32_t radv_clear_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                         const VkImageSubresourceRange *range, uint32_t value);
 uint32_t radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
-                          const VkImageSubresourceRange *range, uint32_t value, bool is_clear);
+                          const VkImageSubresourceRange *range, uint32_t value,
+                          enum radv_meta_htile_preserve_flags flags);
 
 uint32_t radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                         const VkImageSubresourceRange *range, uint32_t value);
