@@ -163,7 +163,7 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, VkAddressCopyFlag
 static void
 radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout image_layout,
                              const VkImageSubresourceLayers *subresource, const VkOffset3D *offset,
-                             const VkExtent3D *extent, bool before_copy)
+                             const VkExtent3D *extent, bool before)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -177,41 +177,70 @@ radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
    };
 
    if (pdev->info.gfx_level >= GFX12) {
-      /* Expand HiZ to [0,1] after the copy because image stores don't update HiZ and the clear can
-       * run in parallel.
+      /* Expand HiZ to [0,1] because image stores to the Z image have no access to HiZ data. This
+       * executes in parallel with the caller's dispatch.
        */
-      if (radv_image_has_hiz(image) && (subresource->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && !before_copy)
+      if (radv_image_has_hiz(image) && (subresource->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && !before)
          radv_expand_hiz_range(cmd_buffer, image, &range);
    } else {
+      if (!radv_htile_enabled(image, subresource->mipLevel))
+         return;
+
+      const bool is_partial_region = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
+                                     extent->height != image->vk.extent.height ||
+                                     extent->depth != image->vk.extent.depth;
       const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf);
-      if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
-         return;
+      const bool has_zs_compression =
+         radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask);
+      const bool image_stores_decompress = radv_image_decompress_htile_on_image_stores(device, image);
 
-      if (radv_image_decompress_htile_on_image_stores(device, image))
-         return;
+      /* To keep it simple, we just decompress if the region is not the whole subresource.
+       * If the region is the whole subresource, decompression is useless because there are
+       * no pixels to preserve, so we just clear HTILE to uncompressed after the caller's
+       * dispatch.
+       */
+      const bool decompress_before = is_partial_region && has_zs_compression && !image_stores_decompress;
 
-      const bool is_partial_copy = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
-                                   extent->height != image->vk.extent.height || extent->depth != image->vk.extent.depth;
-
-      if (before_copy) {
-         /* For partial copies, HTILE is decompressed before because image stores don't write the
-          * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
-          * uncompressed state after the copy.
-          */
-         if (is_partial_copy) {
+      if (before) {
+         if (decompress_before) {
             radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
             radv_decompress_depth_stencil(cmd_buffer, image, &range, NULL);
             radv_describe_barrier_end(cmd_buffer);
          }
-      } else {
-         if (!is_partial_copy) {
-            /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing the
-             * image also means that HTILE is re-initialized to its uncompressed state.
-             */
-            const uint32_t htile_value = radv_get_htile_initial_value(device, image);
+      } else if (!decompress_before) {
+         /* Decompression does this for us, so we have to do this only if we don't decompress.
+          *
+          * Reset HTILE after the caller's dispatch or in parallel with it. Certain HTILE fields
+          * are preserved if necessary.
+          *
+          * This expands Z bounds in HTILE and sets the HTILE compression bits to uncompressed if
+          * image stores don't decompress.
+          *
+          * If Z compression is disabled (like with the GENERAL layout), HiZ stays enabled, so we
+          * must expand the Z bounds in this case too.
+          */
+         enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS;
 
-            cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, 0);
+         /* The tiles outside the region may still be compressed, so we must preserve that. */
+         if (has_zs_compression && image_stores_decompress)
+            preserve |= RADV_HTILE_PRESERVE_Z_COMPRESSION | RADV_HTILE_PRESERVE_STENCIL_COMPRESSION;
+
+         /* If image stores update HTILE, we must wait before clearing, otherwise image stores
+          * from the caller's dispatch updating HTILE would race with this HTILE clear.
+          *
+          * Note that this expects that the caller uses a compute shader.
+          */
+         if (image_stores_decompress) {
+            cmd_buffer->state.flush_bits |=
+               AC_BARRIER_SYNC_CS |
+               radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                     VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, 0, image, &range) |
+               radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                     VK_ACCESS_2_SHADER_STORAGE_READ_BIT, 0, image, &range);
          }
+
+         const uint32_t htile_value = radv_get_htile_initial_value(device, image);
+         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, preserve);
       }
    }
 }
