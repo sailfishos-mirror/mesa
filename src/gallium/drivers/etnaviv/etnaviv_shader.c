@@ -40,19 +40,29 @@
 #include "util/u_math.h"
 #include "util/u_memory.h"
 
-/* Upload shader code to bo, if not already done */
-static bool etna_icache_upload_shader(struct etna_context *ctx, struct etna_shader_variant *v)
+static inline bool
+upload_bo(struct etna_context *ctx, struct etna_bo **bo, const void *data, uint32_t size)
 {
-   if (v->bo)
+   if (*bo)
       return true;
-   v->bo = etna_bo_new(ctx->screen->dev, v->code_size*4, DRM_ETNA_GEM_CACHE_WC);
-   if (!v->bo)
+
+   *bo = etna_bo_new(ctx->screen->dev, size, DRM_ETNA_GEM_CACHE_WC);
+   if (!*bo)
       return false;
 
-   void *buf = etna_bo_map(v->bo);
-   etna_bo_cpu_prep(v->bo, DRM_ETNA_PREP_WRITE);
-   memcpy(buf, v->code, v->code_size*4);
-   etna_bo_cpu_fini(v->bo);
+   void *buf = etna_bo_map(*bo);
+   etna_bo_cpu_prep(*bo, DRM_ETNA_PREP_WRITE);
+   memcpy(buf, data, size);
+   etna_bo_cpu_fini(*bo);
+
+   return true;
+}
+
+static bool etna_icache_upload_shader(struct etna_context *ctx, struct etna_shader_variant *v)
+{
+   if (!upload_bo(ctx, &v->bo, v->code, v->code_size * 4))
+      return false;
+
    DBG("Uploaded %s of %u words to bo %p", v->stage == MESA_SHADER_FRAGMENT ? "fs":"vs", v->code_size, v->bo);
    return true;
 }
