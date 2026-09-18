@@ -9520,9 +9520,9 @@ static bool iris_emit_indirect_dispatch_supported(const struct intel_device_info
 #if GFX_VERx10 >= 125
 
 static void
-iris_upload_compute_walker(struct iris_context *ice,
-                           struct iris_batch *batch,
-                           const struct pipe_grid_info *grid)
+iris_emit_compute_walker(struct iris_context *ice,
+                         struct iris_batch *batch,
+                         const struct pipe_grid_info *grid)
 {
    const uint64_t stage_dirty = ice->state.stage_dirty;
    struct iris_screen *screen = batch->screen;
@@ -9535,8 +9535,6 @@ iris_upload_compute_walker(struct iris_context *ice,
    const struct intel_cs_dispatch_info dispatch =
       iris_get_cs_dispatch_info(devinfo, shader, grid->block);
    uint32_t total_shared = shader->total_shared + grid->variable_shared_mem;
-
-   trace_intel_begin_compute(&batch->trace);
 
    if (stage_dirty & IRIS_STAGE_DIRTY_CS) {
       iris_emit_cmd(batch, GENX(CFE_STATE), cfe) {
@@ -9603,8 +9601,6 @@ struct GENX(COMPUTE_WALKER_BODY) body = {
 #endif
    };
 
-   iris_measure_snapshot(ice, batch, INTEL_SNAPSHOT_COMPUTE, NULL, NULL, NULL);
-
    if (iris_emit_indirect_dispatch_supported(devinfo) && grid->indirect) {
       struct iris_bo *indirect = iris_resource_bo(grid->indirect);
       struct iris_address indirect_bo = ro_bo(indirect, grid->indirect_offset);
@@ -9636,6 +9632,18 @@ struct GENX(COMPUTE_WALKER_BODY) body = {
          assert(iris_cs_push_const_total_size(shader, dispatch.threads) == 0);
       }
    }
+}
+
+static void
+iris_upload_compute_walker(struct iris_context *ice,
+                           struct iris_batch *batch,
+                           const struct pipe_grid_info *grid)
+{
+   trace_intel_begin_compute(&batch->trace);
+
+   iris_measure_snapshot(ice, batch, INTEL_SNAPSHOT_COMPUTE, NULL, NULL, NULL);
+
+   iris_emit_compute_walker(ice, batch, grid);
 
 #if INTEL_NEEDS_WA_14025112257
    if (batch->name == IRIS_BATCH_COMPUTE) {
