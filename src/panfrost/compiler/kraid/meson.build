@@ -48,6 +48,7 @@ _kraid_bindings_rs = rust.bindgen(
     '--allowlist-function', 'pan_.*',
     '--allowlist-function', 'kraid_.*',
     '--allowlist-function', 'val_.*',
+    '--allowlist-function', 'fwrite|fflush',
     '--allowlist-var', 'BI_VA_LOD_MODE_.*',
     '--no-prepend-enum-name',
     '--with-derive-default',

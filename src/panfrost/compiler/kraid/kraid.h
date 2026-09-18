@@ -21,6 +21,9 @@ void kraid_compile_nir(nir_shader *nir,
                        struct util_dynarray *binary,
                        struct pan_shader_info *info);
 
+void kraid_disassemble(FILE *fp, const void *code, size_t size, bool verbose,
+                       unsigned char arch);
+
 #ifdef __cplusplus
 } /* extern C */
 #endif
