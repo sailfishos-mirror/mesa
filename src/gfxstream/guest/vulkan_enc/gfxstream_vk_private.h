@@ -95,16 +95,17 @@ struct gfxstream_vk_device {
     uint32_t* queue_families;
     uint32_t queue_family_count;
 
-    struct gfxstream_vk_queue* queues;
-    uint32_t queue_count;
-
     VkDevice internal_object;
 };
 
 struct gfxstream_vk_queue {
     struct vk_queue vk;
     struct gfxstream_vk_device* device;
-    VkQueue internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
+    gfxstream::vk::VkEncoder* lastUsedEncoder;
+    uint32_t sequenceNumber;
 };
 
 struct gfxstream_vk_buffer {

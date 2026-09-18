@@ -189,6 +189,26 @@ void delete_goldfish_VkCommandBuffer(VkCommandBuffer toDelete) {
     free(res);
 }
 
+VkQueue new_from_host_u64_VkQueue(uint64_t underlying) {
+    struct goldfish_VkQueue* res =
+        static_cast<goldfish_VkQueue*>(calloc(1, sizeof(goldfish_VkQueue)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_QUEUE);
+    list_inithead(&res->vk.link);
+    res->underlying = underlying;
+    return reinterpret_cast<VkQueue>(res);
+}
+
+VkQueue new_from_host_VkQueue(VkQueue underlying) {
+    return new_from_host_u64_VkQueue((uint64_t)underlying);
+}
+
+void delete_goldfish_VkQueue(VkQueue toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkQueue(toDelete);
+    vk_queue_finish(&res->vk);
+    free(res);
+}
+
 VkDescriptorPool new_from_host_VkDescriptorPool(VkDescriptorPool underlying) {
     struct goldfish_VkDescriptorPool* res =
         static_cast<goldfish_VkDescriptorPool*>(malloc(sizeof(goldfish_VkDescriptorPool)));

@@ -122,10 +122,8 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
                                   VkFence fence) {
     MESA_TRACE_SCOPE("vkQueueSubmit");
     VkResult vkQueueSubmit_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         std::vector<VkSubmitInfo> internal_pSubmits(submitCount);
         std::vector<std::vector<VkSemaphore>> internal_VkSubmitInfo_pWaitSemaphores;
         std::vector<std::vector<VkSemaphore>> internal_VkSubmitInfo_pSignalSemaphores;
@@ -148,22 +146,18 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
                 internal_VkSubmitInfo_pSignalSemaphores[i].size();
         }
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkQueueSubmit_VkResult_return =
-            resources->on_vkQueueSubmit(vkEnc, VK_SUCCESS, gfxstream_queue->internal_object,
-                                        submitCount, internal_pSubmits.data(), fence);
+        vkQueueSubmit_VkResult_return = resources->on_vkQueueSubmit(
+            vkEnc, VK_SUCCESS, queue, submitCount, internal_pSubmits.data(), fence);
     }
     return vkQueueSubmit_VkResult_return;
 }
 VkResult gfxstream_vk_QueueWaitIdle(VkQueue queue) {
     MESA_TRACE_SCOPE("vkQueueWaitIdle");
     VkResult vkQueueWaitIdle_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkQueueWaitIdle_VkResult_return =
-            resources->on_vkQueueWaitIdle(vkEnc, VK_SUCCESS, gfxstream_queue->internal_object);
+        vkQueueWaitIdle_VkResult_return = resources->on_vkQueueWaitIdle(vkEnc, VK_SUCCESS, queue);
     }
     return vkQueueWaitIdle_VkResult_return;
 }
@@ -322,10 +316,8 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
                                       const VkBindSparseInfo* pBindInfo, VkFence fence) {
     MESA_TRACE_SCOPE("vkQueueBindSparse");
     VkResult vkQueueBindSparse_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         std::vector<VkBindSparseInfo> internal_pBindInfo(bindInfoCount);
         std::vector<std::vector<VkSemaphore>> internal_VkBindSparseInfo_pWaitSemaphores;
         std::vector<std::vector<VkSemaphore>> internal_VkBindSparseInfo_pSignalSemaphores;
@@ -349,9 +341,8 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
             internal_pBindInfo[i].signalSemaphoreCount =
                 internal_VkBindSparseInfo_pSignalSemaphores[i].size();
         }
-        vkQueueBindSparse_VkResult_return =
-            vkEnc->vkQueueBindSparse(gfxstream_queue->internal_object, bindInfoCount,
-                                     internal_pBindInfo.data(), fence, true /* do lock */);
+        vkQueueBindSparse_VkResult_return = vkEnc->vkQueueBindSparse(
+            queue, bindInfoCount, internal_pBindInfo.data(), fence, true /* do lock */);
     }
     return vkQueueBindSparse_VkResult_return;
 }
@@ -2055,10 +2046,8 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
                                    const VkSubmitInfo2* pSubmits, VkFence fence) {
     MESA_TRACE_SCOPE("vkQueueSubmit2");
     VkResult vkQueueSubmit2_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         std::vector<VkSubmitInfo2> internal_pSubmits(submitCount);
         std::vector<std::vector<VkSemaphoreSubmitInfo>> internal_VkSubmitInfo2_pWaitSemaphoreInfos;
         std::vector<std::vector<VkSemaphoreSubmitInfo>>
@@ -2087,9 +2076,8 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].size();
         }
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkQueueSubmit2_VkResult_return =
-            resources->on_vkQueueSubmit2(vkEnc, VK_SUCCESS, gfxstream_queue->internal_object,
-                                         submitCount, internal_pSubmits.data(), fence);
+        vkQueueSubmit2_VkResult_return = resources->on_vkQueueSubmit2(
+            vkEnc, VK_SUCCESS, queue, submitCount, internal_pSubmits.data(), fence);
     }
     return vkQueueSubmit2_VkResult_return;
 }
@@ -3150,10 +3138,8 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
                                       const VkSubmitInfo2* pSubmits, VkFence fence) {
     MESA_TRACE_SCOPE("vkQueueSubmit2KHR");
     VkResult vkQueueSubmit2KHR_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         std::vector<VkSubmitInfo2> internal_pSubmits(submitCount);
         std::vector<std::vector<VkSemaphoreSubmitInfo>> internal_VkSubmitInfo2_pWaitSemaphoreInfos;
         std::vector<std::vector<VkSemaphoreSubmitInfo>>
@@ -3181,9 +3167,8 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
             internal_pSubmits[i].signalSemaphoreInfoCount =
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].size();
         }
-        vkQueueSubmit2KHR_VkResult_return =
-            vkEnc->vkQueueSubmit2KHR(gfxstream_queue->internal_object, submitCount,
-                                     internal_pSubmits.data(), fence, true /* do lock */);
+        vkQueueSubmit2KHR_VkResult_return = vkEnc->vkQueueSubmit2KHR(
+            queue, submitCount, internal_pSubmits.data(), fence, true /* do lock */);
     }
     return vkQueueSubmit2KHR_VkResult_return;
 }
@@ -3425,10 +3410,8 @@ VkResult gfxstream_vk_QueueSignalReleaseImageANDROID(VkQueue queue, uint32_t wai
                                                      VkImage image, int* pNativeFenceFd) {
     MESA_TRACE_SCOPE("vkQueueSignalReleaseImageANDROID");
     VkResult vkQueueSignalReleaseImageANDROID_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
     {
-        auto vkEnc =
-            gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
+        auto vkEnc = gfxstream::vk::ResourceTracker::getQueueEncoder(queue);
         std::vector<VkSemaphore> internal_pWaitSemaphores(waitSemaphoreCount);
         internal_pWaitSemaphores = FilterNoopSemaphores(pWaitSemaphores, waitSemaphoreCount);
         pWaitSemaphores = internal_pWaitSemaphores.data();
@@ -3436,8 +3419,8 @@ VkResult gfxstream_vk_QueueSignalReleaseImageANDROID(VkQueue queue, uint32_t wai
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkQueueSignalReleaseImageANDROID_VkResult_return =
             resources->on_vkQueueSignalReleaseImageANDROID(
-                vkEnc, VK_SUCCESS, gfxstream_queue->internal_object, waitSemaphoreCount,
-                internal_pWaitSemaphores.data(), image, pNativeFenceFd);
+                vkEnc, VK_SUCCESS, queue, waitSemaphoreCount, internal_pWaitSemaphores.data(),
+                image, pNativeFenceFd);
     }
     return vkQueueSignalReleaseImageANDROID_VkResult_return;
 }
