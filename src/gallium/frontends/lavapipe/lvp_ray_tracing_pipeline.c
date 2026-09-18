@@ -596,6 +596,12 @@ lvp_handle_aabb_intersection(nir_builder *b, struct lvp_leaf_intersection *inter
       offsetof(struct lvp_ray_tracing_group_handle, index));
    nir_store_var(b, compiler->state.shader_record_ptr, isec_entry.shader_record_ptr, 0x1);
 
+   nir_def *hit_attribs_offset = nir_load_var(b, state->stack_ptr);
+
+   nir_def *prev_hit_attribs[LVP_RAY_HIT_ATTRIBS_SIZE / sizeof(uint32_t)];
+   for (uint32_t i = 0; i < LVP_RAY_HIT_ATTRIBS_SIZE / sizeof(uint32_t); i++)
+      prev_hit_attribs[i] = nir_load_scratch(b, 1, 32, nir_iadd_imm(b, hit_attribs_offset, i * sizeof(uint32_t)));
+
    for (uint32_t i = 0; i < compiler->pipeline->rt.group_count; i++) {
       struct lvp_ray_tracing_group *group = compiler->pipeline->rt.groups + i;
       if (group->isec_index == VK_SHADER_UNUSED_KHR)
@@ -628,6 +634,8 @@ lvp_handle_aabb_intersection(nir_builder *b, struct lvp_leaf_intersection *inter
    }
    nir_push_else(b, NULL);
    {
+      for (uint32_t i = 0; i < LVP_RAY_HIT_ATTRIBS_SIZE / sizeof(uint32_t); i++)
+         nir_store_scratch(b, prev_hit_attribs[i], nir_iadd_imm(b, hit_attribs_offset, i * sizeof(uint32_t)));
       nir_store_var(b, state->instance_addr, prev_instance_addr, 0x1);
       nir_store_var(b, state->primitive_id, prev_primitive_id, 0x1);
       nir_store_var(b, state->geometry_id_and_flags, prev_geometry_id_and_flags, 0x1);
