@@ -65,6 +65,9 @@ class IOStream;
 }  // namespace guest
 namespace vk {
 class VkEncoder;
+struct DescriptorPoolAllocationInfo;
+struct ReifiedDescriptorSet;
+struct DescriptorSetLayoutInfo;
 }  // namespace vk
 }  // namespace gfxstream
 
@@ -164,6 +167,184 @@ struct gfxstream_vk_fence {
 struct gfxstream_vk_semaphore {
     struct vk_semaphore vk;
 
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_descriptor_pool {
+    // The untyped host handle.
+    uint64_t underlying;
+    gfxstream::vk::DescriptorPoolAllocationInfo* allocInfo;
+};
+
+struct gfxstream_vk_descriptor_set {
+    // The untyped host handle.
+    uint64_t underlying;
+    gfxstream::vk::ReifiedDescriptorSet* reified;
+};
+
+struct gfxstream_vk_descriptor_set_layout {
+    // The untyped host handle.
+    uint64_t underlying;
+    gfxstream::vk::DescriptorSetLayoutInfo* layoutInfo;
+};
+
+struct gfxstream_vk_device_memory {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_image {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_descriptor_update_template {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_sampler {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_private_data_slot {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_buffer_collection_fuchsia {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_buffer_view {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_image_view {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_shader_module {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_pipeline {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_pipeline_cache {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_pipeline_layout {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_render_pass {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_framebuffer {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_event {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_query_pool {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_sampler_ycbcr_conversion {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_surface_khr {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_swapchain_khr {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_display_khr {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_display_mode_khr {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_validation_cache_ext {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_debug_report_callback_ext {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_debug_utils_messenger_ext {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_micromap_ext {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_cu_module_nvx {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_cu_function_nvx {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_object_table_nvx {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_indirect_commands_layout_nvx {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_indirect_commands_layout_nv {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_acceleration_structure_nv {
+    // The untyped host handle.
+    uint64_t underlying;
+};
+
+struct gfxstream_vk_acceleration_structure_khr {
     // The untyped host handle.
     uint64_t underlying;
 };
