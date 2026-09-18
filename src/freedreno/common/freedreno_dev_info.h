@@ -350,11 +350,6 @@ struct fd_dev_info {
        * A7XX / gen7
        */
 
-      /* stsc may need to be done twice for the same range to workaround
-       * _something_, observed in blob's disassembly.
-       */
-      bool stsc_duplication_quirk;
-
       /* Whether there is CP_EVENT_WRITE7::WRITE_SAMPLE_COUNT */
       bool has_event_write_sample_count;
 
@@ -501,6 +496,11 @@ struct fd_dev_info {
    struct {
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
+      /* The last stsc before a consumer should be repeated to ensure
+       * the following (ss) waits for the stsc to complete.  The inserted
+       * stsc need only have a length of 1.
+       */
+      bool QCTDD08901551_stsc_ss : 1;
       /* Blob executes a special compute dispatch at the start of each
        * command buffers. We copy this dispatch as is.
        */

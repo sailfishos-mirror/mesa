@@ -858,7 +858,6 @@ a7xx_gen1 = GPUProps(
     )
 
 a7xx_gen2 = GPUProps(
-        stsc_duplication_quirk = True,
         has_event_write_sample_count = True,
         ubwc_unorm_snorm_int_compatible = True,
         supports_uav_ubwc = True,
@@ -874,6 +873,8 @@ a7xx_gen2 = GPUProps(
         has_image_processing = True,
         has_64b_image_atomics = True,
         has_implicit_fragface_fragcoord_ij_linear = True,
+
+        QCTDD08901551 = True,
     )
 
 a7xx_gen3 = GPUProps(
@@ -906,6 +907,7 @@ a7xx_gen3 = GPUProps(
         has_implicit_fragface_fragcoord_ij_linear = True,
         subpass_fence_cleans_resolve = True,
 
+        QCTDD08901551 = False,
         QCTDD12766770 = True,
         QCTDD13523866 = True,
     )

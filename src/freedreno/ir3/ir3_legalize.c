@@ -990,7 +990,7 @@ apply_push_consts_load_macro(struct ir3_legalize_ctx *ctx,
          stsc->cat6.iim_val = n->push_consts.src_size;
          stsc->cat6.type = TYPE_U32;
 
-         if (ctx->compiler->info->props.stsc_duplication_quirk) {
+         if (IR3_QUIRK(ctx->compiler, QCTDD08901551_stsc_ss)) {
             struct ir3_builder build = ir3_builder_at(ir3_after_instr(stsc));
             struct ir3_instruction *nop = ir3_NOP(&build);
             nop->flags |= IR3_INSTR_SS;
