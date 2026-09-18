@@ -143,7 +143,29 @@ GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_NON_DISPATCHABLE_HANDLE_TYPES(
     GOLDFISH_VK_NEW_TRIVIAL_NON_DISPATCHABLE_FROM_HOST_IMPL)
 GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_NON_DISPATCHABLE_HANDLE_TYPES(
     GOLDFISH_VK_NEW_TRIVIAL_NON_DISPATCHABLE_FROM_HOST_U64_IMPL)
-GOLDFISH_VK_LIST_NON_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_DELETE_GOLDFISH_IMPL)
+GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_NON_DISPATCHABLE_HANDLE_TYPES(GOLDFISH_VK_DELETE_GOLDFISH_IMPL)
+GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorPool)
+GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorSet)
+GOLDFISH_VK_DELETE_GOLDFISH_IMPL(VkDescriptorSetLayout)
+
+VkBuffer new_from_host_u64_VkBuffer(uint64_t underlying) {
+    struct goldfish_VkBuffer* res =
+        static_cast<goldfish_VkBuffer*>(calloc(1, sizeof(goldfish_VkBuffer)));
+    vk_object_base_init(nullptr, &res->vk.base, VK_OBJECT_TYPE_BUFFER);
+    res->underlying = underlying;
+    return reinterpret_cast<VkBuffer>(res);
+}
+
+VkBuffer new_from_host_VkBuffer(VkBuffer underlying) {
+    return new_from_host_u64_VkBuffer((uint64_t)underlying);
+}
+
+void delete_goldfish_VkBuffer(VkBuffer toDelete) {
+    if (!toDelete) return;
+    auto* res = as_goldfish_VkBuffer(toDelete);
+    vk_object_base_finish(&res->vk.base);
+    free(res);
+}
 
 VkDescriptorPool new_from_host_VkDescriptorPool(VkDescriptorPool underlying) {
     struct goldfish_VkDescriptorPool* res =

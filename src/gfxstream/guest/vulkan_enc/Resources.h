@@ -16,6 +16,7 @@
 #include <functional>
 
 #include "VulkanHandles.h"
+#include "gfxstream_vk_private.h"
 
 namespace gfxstream {
 namespace guest {
@@ -33,6 +34,9 @@ struct DescriptorSetLayoutInfo;
 }  // namespace gfxstream
 
 extern "C" {
+
+// TODO: remove these after fully consolidating to gfxstream_vk_* structs.
+#define goldfish_VkBuffer gfxstream_vk_buffer
 
 struct goldfish_vk_object_list {
     void* obj;

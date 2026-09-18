@@ -100,7 +100,9 @@ struct gfxstream_vk_queue {
 
 struct gfxstream_vk_buffer {
     struct vk_buffer vk;
-    VkBuffer internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 struct gfxstream_vk_command_pool {

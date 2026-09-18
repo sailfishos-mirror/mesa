@@ -175,7 +175,10 @@ HANDLES_TRANSLATE = {
     "VkCommandBuffer",
     "VkFence",
     "VkSemaphore",
-    # TODO: Still need this translation to avoid descriptorSets crash
+}
+
+# Consolidated handle types that need vk.base.device initialized after creation
+HANDLES_POST_CREATE_INIT_DEVICE = {
     "VkBuffer",
 }
 
@@ -536,6 +539,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
 
         def genReturnExpression():
             retTypeName = api.getRetTypeExpr()
+            retVar = api.getRetVarExpr()
             # Set the createParam output, if applicable
             createParam = getCreateParam(api)
             if createParam and handleTranslationRequired(createParam.typeName):
@@ -548,6 +552,13 @@ class VulkanFuncTable(VulkanWrapperGenerator):
                     "%s_to_handle" % typeNameToObjectType(createParam.typeName),
                     [paramNameToObjectName(createParam.paramName)]
                 )
+            elif createParam and createParam.typeName in HANDLES_POST_CREATE_INIT_DEVICE:
+                deviceParam = api.parameters[0]
+                if "VkDevice" == deviceParam.typeName and retVar:
+                    cgen.beginIf("%s == %s" % (SUCCESS_VAL[retTypeName][0], retVar))
+                    gfxstreamObject = genVkFromHandle(createParam, "*%s" % createParam.paramName)
+                    cgen.stmt("%s->vk.base.device = &%s->vk" % (gfxstreamObject, paramNameToObjectName(deviceParam.paramName)))
+                    cgen.endIf()
 
             if retTypeName != "void":
                 cgen.stmt("return %s" % api.getRetVarExpr())

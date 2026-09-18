@@ -726,15 +726,6 @@ VkResult gfxstream_vk_AllocateMemory(VkDevice device, const VkMemoryAllocateInfo
     MESA_TRACE_SCOPE("vkAllocateMemory");
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     VkResult vkAllocateMemory_VkResult_return = (VkResult)0;
-    /* VkMemoryDedicatedAllocateInfo */
-    VkMemoryDedicatedAllocateInfo* dedicatedAllocInfoPtr = vk_find_struct(
-        const_cast<VkMemoryAllocateInfo*>(pAllocateInfo), MEMORY_DEDICATED_ALLOCATE_INFO);
-    if (dedicatedAllocInfoPtr) {
-        if (dedicatedAllocInfoPtr->buffer) {
-            VK_FROM_HANDLE(gfxstream_vk_buffer, gfxstream_buffer, dedicatedAllocInfoPtr->buffer);
-            dedicatedAllocInfoPtr->buffer = gfxstream_buffer->internal_object;
-        }
-    }
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
@@ -812,8 +803,7 @@ static std::vector<VkWriteDescriptorSet> transformDescriptorSetList(
                 bufferInfo[j].buffer = VK_NULL_HANDLE;
                 if (vk_descriptor_type_has_descriptor_buffer(srcDescriptorSet.descriptorType) &&
                     srcBufferInfo[j].buffer) {
-                    VK_FROM_HANDLE(gfxstream_vk_buffer, gfxstreamBuffer, srcBufferInfo[j].buffer);
-                    bufferInfo[j].buffer = gfxstreamBuffer->internal_object;
+                    bufferInfo[j].buffer = srcBufferInfo[j].buffer;
                 }
             } else {
                 memset(&bufferInfo[j], 0, sizeof(VkDescriptorBufferInfo));

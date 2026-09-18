@@ -7018,14 +7018,6 @@ void ResourceTracker::on_vkUpdateDescriptorSetWithTemplate(
                 memcpy(((uint8_t*)bufferInfos) + currBufferInfoOffset, user,
                        sizeof(VkDescriptorBufferInfo));
 
-                // TODO(b/355497683): move this into gfxstream_vk_UpdateDescriptorSetWithTemplate().
-#if DETECT_OS_LINUX || defined(VK_USE_PLATFORM_ANDROID_KHR)
-                // Convert mesa to internal for objects in the user buffer
-                VkDescriptorBufferInfo* internalBufferInfo =
-                    (VkDescriptorBufferInfo*)(((uint8_t*)bufferInfos) + currBufferInfoOffset);
-                VK_FROM_HANDLE(gfxstream_vk_buffer, gfxstream_buffer, internalBufferInfo->buffer);
-                internalBufferInfo->buffer = gfxstream_buffer->internal_object;
-#endif
                 currBufferInfoOffset += sizeof(VkDescriptorBufferInfo);
             }
 
