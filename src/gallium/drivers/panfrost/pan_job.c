@@ -94,6 +94,8 @@ panfrost_batch_init(struct panfrost_context *ctx,
    if (dev->arch >= 10)
       u_trace_init(&batch->trace, &ctx->trace_context);
 
+   BITSET_SET(ctx->batches.active, panfrost_batch_idx(batch));
+
    return screen->vtbl.init_batch(batch);
 }
 
@@ -182,9 +184,6 @@ panfrost_get_batch(struct panfrost_context *ctx,
       batch->seqnum = 0;
       return NULL;
    }
-
-   unsigned batch_idx = panfrost_batch_idx(batch);
-   BITSET_SET(ctx->batches.active, batch_idx);
 
    return batch;
 }
