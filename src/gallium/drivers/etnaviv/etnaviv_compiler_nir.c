@@ -258,25 +258,39 @@ const_add(uint64_t *c, uint64_t value)
    return -1;
 }
 
+static inline bool
+inline_immediate(uint32_t bits, unsigned *type, uint32_t *imm)
+{
+   if ((bits & 0xfff) == 0) {
+      /* "float" - shifted by 12 */
+      *type = 0;
+      *imm = bits >> 12;
+   } else if (bits < (1 << 20)) {
+      /* "unsigned" - raw 20 bit value */
+      *type = 2;
+      *imm = bits;
+   } else if (bits >= 0xfff80000) {
+      /* "signed" - sign extended 20-bit (sign included) value */
+      *type = 1;
+      *imm = bits;
+   } else {
+      return false;
+   }
+
+   return true;
+}
+
 static hw_src
 const_src(struct etna_compile *c, nir_const_value *value, unsigned num_components)
 {
    /* use inline immediates if possible */
    if (c->info->halti >= 2 && num_components == 1 &&
        value[0].u64 >> 32 == ETNA_UNIFORM_CONSTANT) {
-      uint32_t bits = value[0].u32;
+      unsigned type;
+      uint32_t imm;
 
-      /* "float" - shifted by 12 */
-      if ((bits & 0xfff) == 0)
-         return etna_immediate_src(0, bits >> 12);
-
-      /* "unsigned" - raw 20 bit value */
-      if (bits < (1 << 20))
-         return etna_immediate_src(2, bits);
-
-      /* "signed" - sign extended 20-bit (sign included) value */
-      if (bits >= 0xfff80000)
-         return etna_immediate_src(1, bits);
+      if (inline_immediate(value[0].u32, &type, &imm))
+         return etna_immediate_src(type, imm);
    }
 
    unsigned i;
