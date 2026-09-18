@@ -51,6 +51,9 @@ struct v3dv_subpass {
    bool has_tlb_color_input_self_dependency;
    bool is_tlb_color_memory_barrier_safe;
 
+   /* Static compatibility with the previous subpass; job state is checked later. */
+   bool can_merge_with_previous;
+
    /* If we need to emit the clear of the depth/stencil attachment using a
     * a draw call instead of using the TLB (GFXH-1461).
     */

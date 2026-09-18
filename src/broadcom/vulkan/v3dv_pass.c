@@ -237,6 +237,50 @@ check_do_depth_stencil_clear_with_draw(struct v3dv_device *device,
    }
 }
 
+static bool
+subpasses_can_merge(const struct v3dv_subpass *prev_subpass,
+                    const struct v3dv_subpass *subpass)
+{
+   /* Two subpasses can be merged in the same job if we can emit a single RCL
+    * for them (since the RCL includes the END_OF_RENDERING command that
+    * triggers the "render job finished" interrupt). We can do this so long
+    * as both subpasses render against the same attachments.
+    */
+   if (subpass->ds_attachment.attachment !=
+       prev_subpass->ds_attachment.attachment)
+      return false;
+
+   if (subpass->color_count != prev_subpass->color_count)
+      return false;
+
+   for (uint32_t i = 0; i < subpass->color_count; i++) {
+      if (subpass->color_attachments[i].attachment !=
+          prev_subpass->color_attachments[i].attachment) {
+         return false;
+      }
+   }
+
+   /* Don't merge if the subpasses have different view masks, since in that
+    * case the framebuffer setup is different and we need to emit different
+    * RCLs.
+    */
+   if (subpass->view_mask != prev_subpass->view_mask)
+      return false;
+
+   /* FIXME: Since some attachment formats can't be resolved using the TLB we
+    * need to emit separate resolve jobs for them and that would not be
+    * compatible with subpass merges. We could fix that by testing if any of
+    * the attachments to resolve doesn't support TLB resolves.
+    */
+   if (prev_subpass->resolve_attachments || subpass->resolve_attachments ||
+       prev_subpass->resolve_depth || prev_subpass->resolve_stencil ||
+       subpass->resolve_depth || subpass->resolve_stencil) {
+      return false;
+   }
+
+   return true;
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 v3dv_CreateRenderPass2(VkDevice _device,
                        const VkRenderPassCreateInfo2 *pCreateInfo,
@@ -384,6 +428,10 @@ v3dv_CreateRenderPass2(VkDevice _device,
       }
 
       subpass_setup_tlb_input_attachments(subpass);
+      if (i > 0) {
+         subpass->can_merge_with_previous =
+            subpasses_can_merge(&pass->subpasses[i - 1], subpass);
+      }
    }
 
    pass_find_subpass_range_for_attachments(device, pass);

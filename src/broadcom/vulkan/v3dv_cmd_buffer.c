@@ -356,48 +356,9 @@ cmd_buffer_can_merge_subpass(struct v3dv_cmd_buffer *cmd_buffer,
    if (subpass_idx == 0)
       return false;
 
-   /* Two subpasses can be merged in the same job if we can emit a single RCL
-    * for them (since the RCL includes the END_OF_RENDERING command that
-    * triggers the "render job finished" interrupt). We can do this so long
-    * as both subpasses render against the same attachments.
-    */
    assert(state->subpass_idx == subpass_idx - 1);
-   struct v3dv_subpass *prev_subpass = &state->pass->subpasses[state->subpass_idx];
-   struct v3dv_subpass *subpass = &state->pass->subpasses[subpass_idx];
 
-   if (subpass->ds_attachment.attachment !=
-       prev_subpass->ds_attachment.attachment)
-      return false;
-
-   if (subpass->color_count != prev_subpass->color_count)
-      return false;
-
-   for (uint32_t i = 0; i < subpass->color_count; i++) {
-      if (subpass->color_attachments[i].attachment !=
-          prev_subpass->color_attachments[i].attachment) {
-         return false;
-      }
-   }
-
-   /* Don't merge if the subpasses have different view masks, since in that
-    * case the framebuffer setup is different and we need to emit different
-    * RCLs.
-    */
-   if (subpass->view_mask != prev_subpass->view_mask)
-      return false;
-
-   /* FIXME: Since some attachment formats can't be resolved using the TLB we
-    * need to emit separate resolve jobs for them and that would not be
-    * compatible with subpass merges. We could fix that by testing if any of
-    * the attachments to resolve doesn't support TLB resolves.
-    */
-   if (prev_subpass->resolve_attachments || subpass->resolve_attachments ||
-       prev_subpass->resolve_depth || prev_subpass->resolve_stencil ||
-       subpass->resolve_depth || subpass->resolve_stencil) {
-      return false;
-   }
-
-   return true;
+   return state->pass->subpasses[subpass_idx].can_merge_with_previous;
 }
 
 /**
