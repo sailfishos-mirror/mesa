@@ -219,4 +219,10 @@ mod tests {
     disasm_case!(0x0160c00404c00201, "FMUL_RSCALE.f32 r0, r1, r2, r4");
     // And if src2 is not 0 either, it should become FMA_RSCALE.
     disasm_case!(0x0160c00404030201, "FMA_RSCALE.f32 r0, r1, r2, r3.neg, r4");
+
+    disasm_case!(
+        0x092540b49ff00085,
+        "TEX_FETCH.slot2.wait0.skip.tex2d.dst32.rgba @r48:r49:r50:r51, @r0:r1, u2.zext",
+        14u8
+    );
 }
