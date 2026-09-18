@@ -20,7 +20,6 @@
 # IN THE SOFTWARE.
 
 dxcore_lib = cpp.find_library('dxcore')
-rc_compiler = find_program('rc')
 
 mediafoundation_link_args = ['runtimeobject.lib','mfplat.lib','mfuuid.lib','d3d12.lib','dxgi.lib']
 mediafoundation_link_depends = []
