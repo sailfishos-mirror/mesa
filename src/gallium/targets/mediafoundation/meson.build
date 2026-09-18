@@ -34,22 +34,6 @@ link_with_libmediafoundation_gallium = [
   libpipe_loader_static, libws_null, libwsw, libwsgdi
 ]
 
-mediafoundation_def_input = configure_file(
-  configuration: {
-    'MFInit': 'MFInit' + '@4',
-    'MFDestroy': 'MFDestroy' + '@4'
-  },
-  input: 'mediafoundation.def.in',
-  output: 'mediafoundation.def.in',
-)
-
-mediafoundation_def = custom_target(
-  'mediafoundation.def',
-  input: mediafoundation_def_input,
-  output : 'mediafoundation.def',
-  command : gen_vs_module_defs_normal_command,
-)
-
 winmod = import('windows')
 foreach codec : mft_codecs
   gallium_mf_name = 'ms' + codec + 'hmft'
@@ -89,7 +73,7 @@ foreach codec : mft_codecs
     'target.c',
     'dllmain.cpp',
     link_args : [mediafoundation_link_args, ld_args_gc_sections, ld_args_build_id],
-    vs_module_defs : 'dx12enchmft.def', #mediafoundation_def,
+    vs_module_defs : 'dx12enchmft.def',
     cpp_args : mf_codecs_cpp_args[codec],
     override_options: ['cpp_std=c++20'],
     include_directories : [
