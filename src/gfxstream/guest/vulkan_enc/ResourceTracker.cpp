@@ -6273,9 +6273,9 @@ VkResult ResourceTracker::on_vkQueueSubmit(void* context, VkResult input_result,
      *    VK_SEMAPHORE_TYPE_TIMELINE, then its signalSemaphoreValueCount member must equal
      *    signalSemaphoreCount"
      *
-     * Internally, Mesa WSI creates placeholder semaphores/fences (see transformVkSemaphore
-     * functions in in gfxstream_vk_private.cpp).  We don't want to forward that to the host, since
-     * there is no host side Vulkan object associated with the placeholder sync objects.
+     * Internally, Mesa WSI creates placeholder semaphores/fences (see FilterNoop* functions
+     * in gfxstream_vk_private.cpp).  We don't want to forward that to the host, since there is
+     * no host side Vulkan object associated with the placeholder sync objects.
      *
      * The way to test this behavior is Zink + glxgears, on Linux hosts.  It should fail without
      * this check.

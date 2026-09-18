@@ -134,7 +134,7 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
             internal_pSubmits[i] = pSubmits[i];
             /* VkSubmitInfo::pWaitSemaphores */
             internal_VkSubmitInfo_pWaitSemaphores.push_back(std::vector<VkSemaphore>());
-            internal_VkSubmitInfo_pWaitSemaphores[i] = transformVkSemaphoreList(
+            internal_VkSubmitInfo_pWaitSemaphores[i] = FilterNoopSemaphores(
                 internal_pSubmits[i].pWaitSemaphores, internal_pSubmits[i].waitSemaphoreCount);
             internal_pSubmits[i].pWaitSemaphores = internal_VkSubmitInfo_pWaitSemaphores[i].data();
             internal_pSubmits[i].waitSemaphoreCount =
@@ -152,7 +152,7 @@ VkResult gfxstream_vk_QueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
             internal_pSubmits[i].pCommandBuffers = internal_VkSubmitInfo_pCommandBuffers[i].data();
             /* VkSubmitInfo::pSignalSemaphores */
             internal_VkSubmitInfo_pSignalSemaphores.push_back(std::vector<VkSemaphore>());
-            internal_VkSubmitInfo_pSignalSemaphores[i] = transformVkSemaphoreList(
+            internal_VkSubmitInfo_pSignalSemaphores[i] = FilterNoopSemaphores(
                 internal_pSubmits[i].pSignalSemaphores, internal_pSubmits[i].signalSemaphoreCount);
             internal_pSubmits[i].pSignalSemaphores =
                 internal_VkSubmitInfo_pSignalSemaphores[i].data();
@@ -345,7 +345,7 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
             internal_pBindInfo[i] = pBindInfo[i];
             /* VkBindSparseInfo::pWaitSemaphores */
             internal_VkBindSparseInfo_pWaitSemaphores.push_back(std::vector<VkSemaphore>());
-            internal_VkBindSparseInfo_pWaitSemaphores[i] = transformVkSemaphoreList(
+            internal_VkBindSparseInfo_pWaitSemaphores[i] = FilterNoopSemaphores(
                 internal_pBindInfo[i].pWaitSemaphores, internal_pBindInfo[i].waitSemaphoreCount);
             internal_pBindInfo[i].pWaitSemaphores =
                 internal_VkBindSparseInfo_pWaitSemaphores[i].data();
@@ -354,8 +354,8 @@ VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
             /* VkBindSparseInfo::pSignalSemaphores */
             internal_VkBindSparseInfo_pSignalSemaphores.push_back(std::vector<VkSemaphore>());
             internal_VkBindSparseInfo_pSignalSemaphores[i] =
-                transformVkSemaphoreList(internal_pBindInfo[i].pSignalSemaphores,
-                                         internal_pBindInfo[i].signalSemaphoreCount);
+                FilterNoopSemaphores(internal_pBindInfo[i].pSignalSemaphores,
+                                     internal_pBindInfo[i].signalSemaphoreCount);
             internal_pBindInfo[i].pSignalSemaphores =
                 internal_VkBindSparseInfo_pSignalSemaphores[i].data();
             internal_pBindInfo[i].signalSemaphoreCount =
@@ -450,19 +450,17 @@ VkResult gfxstream_vk_CreateSemaphore(VkDevice device, const VkSemaphoreCreateIn
     MESA_TRACE_SCOPE("vkCreateSemaphore");
     VkResult vkCreateSemaphore_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    struct gfxstream_vk_semaphore* gfxstream_pSemaphore = (gfxstream_vk_semaphore*)vk_object_zalloc(
-        &gfxstream_device->vk, pAllocator, sizeof(gfxstream_vk_semaphore),
-        VK_OBJECT_TYPE_SEMAPHORE);
-    vkCreateSemaphore_VkResult_return =
-        gfxstream_pSemaphore ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
-    if (VK_SUCCESS == vkCreateSemaphore_VkResult_return) {
+    {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
-        vkCreateSemaphore_VkResult_return = resources->on_vkCreateSemaphore(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pCreateInfo, pAllocator,
-            &gfxstream_pSemaphore->internal_object);
+        vkCreateSemaphore_VkResult_return =
+            resources->on_vkCreateSemaphore(vkEnc, VK_SUCCESS, gfxstream_device->internal_object,
+                                            pCreateInfo, pAllocator, pSemaphore);
     }
-    *pSemaphore = gfxstream_vk_semaphore_to_handle(gfxstream_pSemaphore);
+    if (VK_SUCCESS == vkCreateSemaphore_VkResult_return) {
+        VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_pSemaphore, *pSemaphore);
+        gfxstream_pSemaphore->vk.base.device = &gfxstream_device->vk;
+    }
     return vkCreateSemaphore_VkResult_return;
 }
 void gfxstream_vk_DestroySemaphore(VkDevice device, VkSemaphore semaphore,
@@ -472,16 +470,12 @@ void gfxstream_vk_DestroySemaphore(VkDevice device, VkSemaphore semaphore,
         return;
     }
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, semaphore);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
-        resources->on_vkDestroySemaphore(
-            vkEnc, gfxstream_device->internal_object,
-            gfxstream_semaphore ? gfxstream_semaphore->internal_object : VK_NULL_HANDLE,
-            pAllocator);
+        resources->on_vkDestroySemaphore(vkEnc, gfxstream_device->internal_object, semaphore,
+                                         pAllocator);
     }
-    vk_object_free(&gfxstream_device->vk, pAllocator, (void*)gfxstream_semaphore);
 }
 VkResult gfxstream_vk_CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo* pCreateInfo,
                                       const VkAllocationCallbacks* pAllocator,
@@ -1960,12 +1954,10 @@ VkResult gfxstream_vk_GetSemaphoreCounterValue(VkDevice device, VkSemaphore sema
     MESA_TRACE_SCOPE("vkGetSemaphoreCounterValue");
     VkResult vkGetSemaphoreCounterValue_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, semaphore);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkGetSemaphoreCounterValue_VkResult_return = vkEnc->vkGetSemaphoreCounterValue(
-            gfxstream_device->internal_object, gfxstream_semaphore->internal_object, pValue,
-            true /* do lock */);
+            gfxstream_device->internal_object, semaphore, pValue, true /* do lock */);
     }
     return vkGetSemaphoreCounterValue_VkResult_return;
 }
@@ -1982,7 +1974,7 @@ VkResult gfxstream_vk_WaitSemaphores(VkDevice device, const VkSemaphoreWaitInfo*
             internal_pWaitInfo[i] = pWaitInfo[i];
             /* VkSemaphoreWaitInfo::pSemaphores */
             internal_VkSemaphoreWaitInfo_pSemaphores.push_back(std::vector<VkSemaphore>());
-            internal_VkSemaphoreWaitInfo_pSemaphores[i] = transformVkSemaphoreList(
+            internal_VkSemaphoreWaitInfo_pSemaphores[i] = FilterNoopSemaphores(
                 internal_pWaitInfo[i].pSemaphores, internal_pWaitInfo[i].semaphoreCount);
             internal_pWaitInfo[i].pSemaphores = internal_VkSemaphoreWaitInfo_pSemaphores[i].data();
             internal_pWaitInfo[i].semaphoreCount =
@@ -2000,16 +1992,8 @@ VkResult gfxstream_vk_SignalSemaphore(VkDevice device, const VkSemaphoreSignalIn
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        std::vector<VkSemaphoreSignalInfo> internal_pSignalInfo(1);
-        for (uint32_t i = 0; i < 1; ++i) {
-            internal_pSignalInfo[i] = pSignalInfo[i];
-            /* VkSemaphoreSignalInfo::semaphore */
-            VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore,
-                           internal_pSignalInfo[i].semaphore);
-            internal_pSignalInfo[i].semaphore = gfxstream_semaphore->internal_object;
-        }
         vkSignalSemaphore_VkResult_return = vkEnc->vkSignalSemaphore(
-            gfxstream_device->internal_object, internal_pSignalInfo.data(), true /* do lock */);
+            gfxstream_device->internal_object, pSignalInfo, true /* do lock */);
     }
     return vkSignalSemaphore_VkResult_return;
 }
@@ -2244,8 +2228,8 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
             internal_VkSubmitInfo2_pWaitSemaphoreInfos.push_back(
                 std::vector<VkSemaphoreSubmitInfo>());
             internal_VkSubmitInfo2_pWaitSemaphoreInfos[i] =
-                transformVkSemaphoreSubmitInfoList(internal_pSubmits[i].pWaitSemaphoreInfos,
-                                                   internal_pSubmits[i].waitSemaphoreInfoCount);
+                FilterNoopSemaphoreSubmitInfos(internal_pSubmits[i].pWaitSemaphoreInfos,
+                                               internal_pSubmits[i].waitSemaphoreInfoCount);
             internal_pSubmits[i].pWaitSemaphoreInfos =
                 internal_VkSubmitInfo2_pWaitSemaphoreInfos[i].data();
             internal_pSubmits[i].waitSemaphoreInfoCount =
@@ -2270,8 +2254,8 @@ VkResult gfxstream_vk_QueueSubmit2(VkQueue queue, uint32_t submitCount,
             internal_VkSubmitInfo2_pSignalSemaphoreInfos.push_back(
                 std::vector<VkSemaphoreSubmitInfo>());
             internal_VkSubmitInfo2_pSignalSemaphoreInfos[i] =
-                transformVkSemaphoreSubmitInfoList(internal_pSubmits[i].pSignalSemaphoreInfos,
-                                                   internal_pSubmits[i].signalSemaphoreInfoCount);
+                FilterNoopSemaphoreSubmitInfos(internal_pSubmits[i].pSignalSemaphoreInfos,
+                                               internal_pSubmits[i].signalSemaphoreInfoCount);
             internal_pSubmits[i].pSignalSemaphoreInfos =
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].data();
             internal_pSubmits[i].signalSemaphoreInfoCount =
@@ -3042,18 +3026,9 @@ VkResult gfxstream_vk_ImportSemaphoreFdKHR(
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        std::vector<VkImportSemaphoreFdInfoKHR> internal_pImportSemaphoreFdInfo(1);
-        for (uint32_t i = 0; i < 1; ++i) {
-            internal_pImportSemaphoreFdInfo[i] = pImportSemaphoreFdInfo[i];
-            /* VkImportSemaphoreFdInfoKHR::semaphore */
-            VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore,
-                           internal_pImportSemaphoreFdInfo[i].semaphore);
-            internal_pImportSemaphoreFdInfo[i].semaphore = gfxstream_semaphore->internal_object;
-        }
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkImportSemaphoreFdKHR_VkResult_return = resources->on_vkImportSemaphoreFdKHR(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object,
-            internal_pImportSemaphoreFdInfo.data());
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pImportSemaphoreFdInfo);
     }
     return vkImportSemaphoreFdKHR_VkResult_return;
 }
@@ -3064,17 +3039,9 @@ VkResult gfxstream_vk_GetSemaphoreFdKHR(VkDevice device, const VkSemaphoreGetFdI
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        std::vector<VkSemaphoreGetFdInfoKHR> internal_pGetFdInfo(1);
-        for (uint32_t i = 0; i < 1; ++i) {
-            internal_pGetFdInfo[i] = pGetFdInfo[i];
-            /* VkSemaphoreGetFdInfoKHR::semaphore */
-            VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore,
-                           internal_pGetFdInfo[i].semaphore);
-            internal_pGetFdInfo[i].semaphore = gfxstream_semaphore->internal_object;
-        }
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkGetSemaphoreFdKHR_VkResult_return = resources->on_vkGetSemaphoreFdKHR(
-            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, internal_pGetFdInfo.data(), pFd);
+            vkEnc, VK_SUCCESS, gfxstream_device->internal_object, pGetFdInfo, pFd);
     }
     return vkGetSemaphoreFdKHR_VkResult_return;
 }
@@ -3503,8 +3470,8 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
             internal_VkSubmitInfo2_pWaitSemaphoreInfos.push_back(
                 std::vector<VkSemaphoreSubmitInfo>());
             internal_VkSubmitInfo2_pWaitSemaphoreInfos[i] =
-                transformVkSemaphoreSubmitInfoList(internal_pSubmits[i].pWaitSemaphoreInfos,
-                                                   internal_pSubmits[i].waitSemaphoreInfoCount);
+                FilterNoopSemaphoreSubmitInfos(internal_pSubmits[i].pWaitSemaphoreInfos,
+                                               internal_pSubmits[i].waitSemaphoreInfoCount);
             internal_pSubmits[i].pWaitSemaphoreInfos =
                 internal_VkSubmitInfo2_pWaitSemaphoreInfos[i].data();
             internal_pSubmits[i].waitSemaphoreInfoCount =
@@ -3529,8 +3496,8 @@ VkResult gfxstream_vk_QueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
             internal_VkSubmitInfo2_pSignalSemaphoreInfos.push_back(
                 std::vector<VkSemaphoreSubmitInfo>());
             internal_VkSubmitInfo2_pSignalSemaphoreInfos[i] =
-                transformVkSemaphoreSubmitInfoList(internal_pSubmits[i].pSignalSemaphoreInfos,
-                                                   internal_pSubmits[i].signalSemaphoreInfoCount);
+                FilterNoopSemaphoreSubmitInfos(internal_pSubmits[i].pSignalSemaphoreInfos,
+                                               internal_pSubmits[i].signalSemaphoreInfoCount);
             internal_pSubmits[i].pSignalSemaphoreInfos =
                 internal_VkSubmitInfo2_pSignalSemaphoreInfos[i].data();
             internal_pSubmits[i].signalSemaphoreInfoCount =
@@ -3803,13 +3770,11 @@ VkResult gfxstream_vk_AcquireImageANDROID(VkDevice device, VkImage image, int na
     MESA_TRACE_SCOPE("vkAcquireImageANDROID");
     VkResult vkAcquireImageANDROID_VkResult_return = (VkResult)0;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
-    VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, semaphore);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkAcquireImageANDROID_VkResult_return = vkEnc->vkAcquireImageANDROID(
-            gfxstream_device->internal_object, image, nativeFenceFd,
-            gfxstream_semaphore ? gfxstream_semaphore->internal_object : VK_NULL_HANDLE, fence,
-            true /* do lock */);
+        vkAcquireImageANDROID_VkResult_return =
+            vkEnc->vkAcquireImageANDROID(gfxstream_device->internal_object, image, nativeFenceFd,
+                                         semaphore, fence, true /* do lock */);
     }
     return vkAcquireImageANDROID_VkResult_return;
 }
@@ -3823,7 +3788,7 @@ VkResult gfxstream_vk_QueueSignalReleaseImageANDROID(VkQueue queue, uint32_t wai
         auto vkEnc =
             gfxstream::vk::ResourceTracker::getQueueEncoder(gfxstream_queue->internal_object);
         std::vector<VkSemaphore> internal_pWaitSemaphores(waitSemaphoreCount);
-        internal_pWaitSemaphores = transformVkSemaphoreList(pWaitSemaphores, waitSemaphoreCount);
+        internal_pWaitSemaphores = FilterNoopSemaphores(pWaitSemaphores, waitSemaphoreCount);
         pWaitSemaphores = internal_pWaitSemaphores.data();
         waitSemaphoreCount = internal_pWaitSemaphores.size();
         auto resources = gfxstream::vk::ResourceTracker::get();

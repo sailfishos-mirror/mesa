@@ -124,7 +124,9 @@ struct gfxstream_vk_fence {
 
 struct gfxstream_vk_semaphore {
     struct vk_semaphore vk;
-    VkSemaphore internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 VK_DEFINE_HANDLE_CASTS(gfxstream_vk_command_buffer, vk.base, VkCommandBuffer,
@@ -146,12 +148,12 @@ VkResult gfxstream_vk_wsi_init(struct gfxstream_vk_physical_device* physical_dev
 
 void gfxstream_vk_wsi_finish(struct gfxstream_vk_physical_device* physical_device);
 
-std::vector<VkSemaphore> transformVkSemaphoreList(const VkSemaphore* pSemaphores,
-                                                  uint32_t semaphoreCount);
+std::vector<VkSemaphore> FilterNoopSemaphores(const VkSemaphore* pSemaphores,
+                                              uint32_t semaphoreCount);
 
 std::vector<VkFence> FilterNoopFences(const VkFence* pFences, uint32_t fenceCount);
 
-std::vector<VkSemaphoreSubmitInfo> transformVkSemaphoreSubmitInfoList(
+std::vector<VkSemaphoreSubmitInfo> FilterNoopSemaphoreSubmitInfos(
     const VkSemaphoreSubmitInfo* pSemaphoreSubmitInfos, uint32_t semaphoreSubmitInfoCount);
 
 float linearChannelToSRGB(float cl);

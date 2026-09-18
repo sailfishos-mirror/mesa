@@ -34,26 +34,25 @@ std::vector<VkFence> FilterNoopFences(const VkFence* pFences, uint32_t fenceCoun
     return outFences;
 }
 
-std::vector<VkSemaphore> transformVkSemaphoreList(const VkSemaphore* pSemaphores,
-                                                  uint32_t semaphoreCount) {
+std::vector<VkSemaphore> FilterNoopSemaphores(const VkSemaphore* pSemaphores,
+                                              uint32_t semaphoreCount) {
     std::vector<VkSemaphore> outSemaphores;
     for (uint32_t j = 0; j < semaphoreCount; ++j) {
         VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, pSemaphores[j]);
         if (!isNoopSemaphore(gfxstream_semaphore)) {
-            outSemaphores.push_back(gfxstream_semaphore->internal_object);
+            outSemaphores.push_back(pSemaphores[j]);
         }
     }
     return outSemaphores;
 }
 
-std::vector<VkSemaphoreSubmitInfo> transformVkSemaphoreSubmitInfoList(
+std::vector<VkSemaphoreSubmitInfo> FilterNoopSemaphoreSubmitInfos(
     const VkSemaphoreSubmitInfo* pSemaphoreSubmitInfos, uint32_t semaphoreSubmitInfoCount) {
     std::vector<VkSemaphoreSubmitInfo> outSemaphoreSubmitInfo;
     for (uint32_t j = 0; j < semaphoreSubmitInfoCount; ++j) {
         VkSemaphoreSubmitInfo outInfo = pSemaphoreSubmitInfos[j];
         VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_semaphore, outInfo.semaphore);
         if (!isNoopSemaphore(gfxstream_semaphore)) {
-            outInfo.semaphore = gfxstream_semaphore->internal_object;
             outSemaphoreSubmitInfo.push_back(outInfo);
         }
     }

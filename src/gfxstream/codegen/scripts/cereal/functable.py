@@ -173,21 +173,21 @@ HANDLES_TRANSLATE = {
     "VkQueue",
     "VkCommandPool",
     "VkCommandBuffer",
-    "VkSemaphore",
 }
 
 # Consolidated handle types that need vk.base.device initialized after creation
 HANDLES_POST_CREATE_INIT_DEVICE = {
     "VkBuffer",
     "VkFence",
+    "VkSemaphore",
 }
 
 # Types that have a corresponding method for transforming
 # an input list to its internal counterpart
 TYPES_TRANSFORM_LIST_METHOD = {
     "VkFence": "FilterNoopFences",
-    "VkSemaphore": "transformVkSemaphoreList",
-    "VkSemaphoreSubmitInfo": "transformVkSemaphoreSubmitInfoList",
+    "VkSemaphore": "FilterNoopSemaphores",
+    "VkSemaphoreSubmitInfo": "FilterNoopSemaphoreSubmitInfos",
 }
 
 def is_cmdbuf_dispatch(api):

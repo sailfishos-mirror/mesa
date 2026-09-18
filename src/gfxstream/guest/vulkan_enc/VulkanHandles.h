@@ -144,7 +144,6 @@ namespace vk {
 #define GOLDFISH_VK_LIST_AUTODEFINED_STRUCT_NON_DISPATCHABLE_HANDLE_TYPES(f) \
     f(VkDeviceMemory)                                                        \
     f(VkImage)                                                               \
-    f(VkSemaphore)                                                           \
     f(VkDescriptorUpdateTemplate)                                            \
     f(VkCommandPool)                                                         \
     f(VkSampler)                                                             \
@@ -155,6 +154,7 @@ namespace vk {
 #define GOLDFISH_VK_LIST_MANUAL_STRUCT_NON_DISPATCHABLE_HANDLE_TYPES(f) \
     f(VkBuffer)                                                         \
     f(VkFence)                                                          \
+    f(VkSemaphore)                                                      \
     f(VkDescriptorPool)                                                 \
     f(VkDescriptorSetLayout)                                            \
     f(VkDescriptorSet)
