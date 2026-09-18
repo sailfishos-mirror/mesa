@@ -371,12 +371,6 @@ struct fd_dev_info {
        */
       bool ubwc_unorm_snorm_int_compatible;
 
-      /* Having zero consts in one FS may corrupt consts in follow up FSs,
-       * on such GPUs blob never has zero consts in FS. The mechanism of
-       * corruption is unknown.
-       */
-      bool fs_must_have_non_zero_constlen_quirk;
-
       /* On a750 there is a hardware bug where certain VPC sizes in a GS with
        * an input primitive type that is a triangle with adjacency can hang
        * with a high enough vertex count.
@@ -497,6 +491,11 @@ struct fd_dev_info {
       bool QCTDD06363318_movs_half : 1;
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
+      /* Having zero consts in one FS may corrupt consts in follow up FSs,
+       * on such GPUs blob never has zero consts in FS. The mechanism of
+       * corruption is unknown.
+       */
+      bool QCTDD08517960_fs_constlen : 1;
       /* The last stsc before a consumer should be repeated to ensure
        * the following (ss) waits for the stsc to complete.  The inserted
        * stsc need only have a length of 1.

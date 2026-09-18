@@ -6289,7 +6289,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
    so->constlen = ir3_constlen(so);
 
    if (ctx->so->type == MESA_SHADER_FRAGMENT &&
-       compiler->info->props.fs_must_have_non_zero_constlen_quirk) {
+       IR3_QUIRK(compiler, QCTDD08517960_fs_constlen)) {
       so->constlen = MAX2(so->constlen, 4);
    }
 

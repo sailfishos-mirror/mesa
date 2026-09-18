@@ -852,17 +852,16 @@ a7xx_base = GPUProps(
 
 a7xx_gen1 = GPUProps(
         supports_uav_ubwc = True,
-        fs_must_have_non_zero_constlen_quirk = True,
         enable_tp_ubwc_flag_hint = True,
         reading_shading_rate_requires_smask_quirk = True,
         QCTDD08407086 = True,
+        QCTDD08517960 = True,
     )
 
 a7xx_gen2 = GPUProps(
         has_event_write_sample_count = True,
         ubwc_unorm_snorm_int_compatible = True,
         supports_uav_ubwc = True,
-        fs_must_have_non_zero_constlen_quirk = True,
         # Most devices with a740 have blob v6xx which doesn't have
         # this hint set. Match them for better compatibility by default.
         enable_tp_ubwc_flag_hint = False,
@@ -876,6 +875,7 @@ a7xx_gen2 = GPUProps(
         has_implicit_fragface_fragcoord_ij_linear = True,
 
         QCTDD08901551 = True,
+        QCTDD08517960 = True,
     )
 
 a7xx_gen3 = GPUProps(
