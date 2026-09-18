@@ -168,7 +168,6 @@ NON_AUTOGEN_ENTRYPOINTS = [
 # Handles that need to be translated to/from their corresponding gfxstream object types
 HANDLES_TRANSLATE = {
     "VkInstance",
-    "VkPhysicalDevice",
     "VkDevice",
 }
 

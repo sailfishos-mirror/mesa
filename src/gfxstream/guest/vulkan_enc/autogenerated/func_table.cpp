@@ -48,22 +48,19 @@
 void gfxstream_vk_GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice,
                                             VkPhysicalDeviceFeatures* pFeatures) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFeatures");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFeatures(gfxstream_physicalDevice->internal_object, pFeatures,
-                                           true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceFeatures(physicalDevice, pFeatures, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDevice,
                                                     VkFormat format,
                                                     VkFormatProperties* pFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFormatProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFormatProperties(gfxstream_physicalDevice->internal_object,
-                                                   format, pFormatProperties, true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties,
+                                                   true /* do lock */);
     }
 }
 VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties(
@@ -72,13 +69,12 @@ VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties(
     VkImageFormatProperties* pImageFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceImageFormatProperties");
     VkResult vkGetPhysicalDeviceImageFormatProperties_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkGetPhysicalDeviceImageFormatProperties_VkResult_return =
-            vkEnc->vkGetPhysicalDeviceImageFormatProperties(
-                gfxstream_physicalDevice->internal_object, format, type, tiling, usage, flags,
-                pImageFormatProperties, true /* do lock */);
+            vkEnc->vkGetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling,
+                                                            usage, flags, pImageFormatProperties,
+                                                            true /* do lock */);
     }
     return vkGetPhysicalDeviceImageFormatProperties_VkResult_return;
 }
@@ -86,22 +82,19 @@ void gfxstream_vk_GetPhysicalDeviceQueueFamilyProperties(
     VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount,
     VkQueueFamilyProperties* pQueueFamilyProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceQueueFamilyProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceQueueFamilyProperties(gfxstream_physicalDevice->internal_object,
-                                                        pQueueFamilyPropertyCount,
+        vkEnc->vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount,
                                                         pQueueFamilyProperties, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceMemoryProperties(
     VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties* pMemoryProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceMemoryProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceMemoryProperties(gfxstream_physicalDevice->internal_object,
-                                                   pMemoryProperties, true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties,
+                                                   true /* do lock */);
     }
 }
 VkResult gfxstream_vk_EnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice,
@@ -109,12 +102,10 @@ VkResult gfxstream_vk_EnumerateDeviceLayerProperties(VkPhysicalDevice physicalDe
                                                      VkLayerProperties* pProperties) {
     MESA_TRACE_SCOPE("vkEnumerateDeviceLayerProperties");
     VkResult vkEnumerateDeviceLayerProperties_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnumerateDeviceLayerProperties_VkResult_return = vkEnc->vkEnumerateDeviceLayerProperties(
-            gfxstream_physicalDevice->internal_object, pPropertyCount, pProperties,
-            true /* do lock */);
+            physicalDevice, pPropertyCount, pProperties, true /* do lock */);
     }
     return vkEnumerateDeviceLayerProperties_VkResult_return;
 }
@@ -304,12 +295,11 @@ void gfxstream_vk_GetPhysicalDeviceSparseImageFormatProperties(
     VkSampleCountFlagBits samples, VkImageUsageFlags usage, VkImageTiling tiling,
     uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceSparseImageFormatProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceSparseImageFormatProperties(
-            gfxstream_physicalDevice->internal_object, format, type, samples, usage, tiling,
-            pPropertyCount, pProperties, true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceSparseImageFormatProperties(physicalDevice, format, type, samples,
+                                                              usage, tiling, pPropertyCount,
+                                                              pProperties, true /* do lock */);
     }
 }
 VkResult gfxstream_vk_QueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
@@ -1574,23 +1564,20 @@ void gfxstream_vk_GetImageSparseMemoryRequirements2(
 void gfxstream_vk_GetPhysicalDeviceFeatures2(VkPhysicalDevice physicalDevice,
                                              VkPhysicalDeviceFeatures2* pFeatures) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFeatures2");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFeatures2(gfxstream_physicalDevice->internal_object, pFeatures,
-                                            true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceFeatures2(physicalDevice, pFeatures, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
                                                      VkFormat format,
                                                      VkFormatProperties2* pFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFormatProperties2");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
-        resources->on_vkGetPhysicalDeviceFormatProperties2(
-            vkEnc, gfxstream_physicalDevice->internal_object, format, pFormatProperties);
+        resources->on_vkGetPhysicalDeviceFormatProperties2(vkEnc, physicalDevice, format,
+                                                           pFormatProperties);
     }
 }
 VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties2(
@@ -1598,14 +1585,12 @@ VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties2(
     VkImageFormatProperties2* pImageFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceImageFormatProperties2");
     VkResult vkGetPhysicalDeviceImageFormatProperties2_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
         vkGetPhysicalDeviceImageFormatProperties2_VkResult_return =
             resources->on_vkGetPhysicalDeviceImageFormatProperties2(
-                vkEnc, VK_SUCCESS, gfxstream_physicalDevice->internal_object, pImageFormatInfo,
-                pImageFormatProperties);
+                vkEnc, VK_SUCCESS, physicalDevice, pImageFormatInfo, pImageFormatProperties);
     }
     return vkGetPhysicalDeviceImageFormatProperties2_VkResult_return;
 }
@@ -1613,34 +1598,29 @@ void gfxstream_vk_GetPhysicalDeviceQueueFamilyProperties2(
     VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount,
     VkQueueFamilyProperties2* pQueueFamilyProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceQueueFamilyProperties2");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceQueueFamilyProperties2(
-            gfxstream_physicalDevice->internal_object, pQueueFamilyPropertyCount,
-            pQueueFamilyProperties, true /* do lock */);
+            physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceMemoryProperties2(
     VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties2* pMemoryProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceMemoryProperties2");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceMemoryProperties2(gfxstream_physicalDevice->internal_object,
-                                                    pMemoryProperties, true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceMemoryProperties2(physicalDevice, pMemoryProperties,
+                                                    true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceSparseImageFormatProperties2(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSparseImageFormatInfo2* pFormatInfo,
     uint32_t* pPropertyCount, VkSparseImageFormatProperties2* pProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceSparseImageFormatProperties2");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceSparseImageFormatProperties2(
-            gfxstream_physicalDevice->internal_object, pFormatInfo, pPropertyCount, pProperties,
-            true /* do lock */);
+            physicalDevice, pFormatInfo, pPropertyCount, pProperties, true /* do lock */);
     }
 }
 void gfxstream_vk_TrimCommandPool(VkDevice device, VkCommandPool commandPool,
@@ -1657,26 +1637,22 @@ void gfxstream_vk_GetPhysicalDeviceExternalBufferProperties(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,
     VkExternalBufferProperties* pExternalBufferProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalBufferProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
         resources->on_vkGetPhysicalDeviceExternalBufferProperties(
-            vkEnc, gfxstream_physicalDevice->internal_object, pExternalBufferInfo,
-            pExternalBufferProperties);
+            vkEnc, physicalDevice, pExternalBufferInfo, pExternalBufferProperties);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceExternalFenceProperties(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo,
     VkExternalFenceProperties* pExternalFenceProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalFenceProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
         resources->on_vkGetPhysicalDeviceExternalFenceProperties(
-            vkEnc, gfxstream_physicalDevice->internal_object, pExternalFenceInfo,
-            pExternalFenceProperties);
+            vkEnc, physicalDevice, pExternalFenceInfo, pExternalFenceProperties);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceExternalSemaphoreProperties(
@@ -1684,12 +1660,11 @@ void gfxstream_vk_GetPhysicalDeviceExternalSemaphoreProperties(
     const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo,
     VkExternalSemaphoreProperties* pExternalSemaphoreProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalSemaphoreProperties");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceExternalSemaphoreProperties(
-            gfxstream_physicalDevice->internal_object, pExternalSemaphoreInfo,
-            pExternalSemaphoreProperties, true /* do lock */);
+            physicalDevice, pExternalSemaphoreInfo, pExternalSemaphoreProperties,
+            true /* do lock */);
     }
 }
 #endif
@@ -1960,12 +1935,10 @@ VkResult gfxstream_vk_GetPhysicalDeviceToolProperties(
     VkPhysicalDeviceToolProperties* pToolProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceToolProperties");
     VkResult vkGetPhysicalDeviceToolProperties_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkGetPhysicalDeviceToolProperties_VkResult_return =
-            vkEnc->vkGetPhysicalDeviceToolProperties(gfxstream_physicalDevice->internal_object,
-                                                     pToolCount, pToolProperties,
+            vkEnc->vkGetPhysicalDeviceToolProperties(physicalDevice, pToolCount, pToolProperties,
                                                      true /* do lock */);
     }
     return vkGetPhysicalDeviceToolProperties_VkResult_return;
@@ -2574,33 +2547,27 @@ void gfxstream_vk_CmdEndRenderingKHR(VkCommandBuffer commandBuffer) {
 void gfxstream_vk_GetPhysicalDeviceFeatures2KHR(VkPhysicalDevice physicalDevice,
                                                 VkPhysicalDeviceFeatures2* pFeatures) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFeatures2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFeatures2KHR(gfxstream_physicalDevice->internal_object, pFeatures,
-                                               true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceFeatures2KHR(physicalDevice, pFeatures, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceProperties2KHR(VkPhysicalDevice physicalDevice,
                                                   VkPhysicalDeviceProperties2* pProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceProperties2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         auto resources = gfxstream::vk::ResourceTracker::get();
-        resources->on_vkGetPhysicalDeviceProperties2KHR(
-            vkEnc, gfxstream_physicalDevice->internal_object, pProperties);
+        resources->on_vkGetPhysicalDeviceProperties2KHR(vkEnc, physicalDevice, pProperties);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceFormatProperties2KHR(VkPhysicalDevice physicalDevice,
                                                         VkFormat format,
                                                         VkFormatProperties2* pFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFormatProperties2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFormatProperties2KHR(gfxstream_physicalDevice->internal_object,
-                                                       format, pFormatProperties,
+        vkEnc->vkGetPhysicalDeviceFormatProperties2KHR(physicalDevice, format, pFormatProperties,
                                                        true /* do lock */);
     }
 }
@@ -2609,13 +2576,11 @@ VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties2KHR(
     VkImageFormatProperties2* pImageFormatProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceImageFormatProperties2KHR");
     VkResult vkGetPhysicalDeviceImageFormatProperties2KHR_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkGetPhysicalDeviceImageFormatProperties2KHR_VkResult_return =
             vkEnc->vkGetPhysicalDeviceImageFormatProperties2KHR(
-                gfxstream_physicalDevice->internal_object, pImageFormatInfo, pImageFormatProperties,
-                true /* do lock */);
+                physicalDevice, pImageFormatInfo, pImageFormatProperties, true /* do lock */);
     }
     return vkGetPhysicalDeviceImageFormatProperties2KHR_VkResult_return;
 }
@@ -2623,34 +2588,29 @@ void gfxstream_vk_GetPhysicalDeviceQueueFamilyProperties2KHR(
     VkPhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount,
     VkQueueFamilyProperties2* pQueueFamilyProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceQueueFamilyProperties2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceQueueFamilyProperties2KHR(
-            gfxstream_physicalDevice->internal_object, pQueueFamilyPropertyCount,
-            pQueueFamilyProperties, true /* do lock */);
+            physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties, true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceMemoryProperties2KHR(
     VkPhysicalDevice physicalDevice, VkPhysicalDeviceMemoryProperties2* pMemoryProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceMemoryProperties2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceMemoryProperties2KHR(gfxstream_physicalDevice->internal_object,
-                                                       pMemoryProperties, true /* do lock */);
+        vkEnc->vkGetPhysicalDeviceMemoryProperties2KHR(physicalDevice, pMemoryProperties,
+                                                       true /* do lock */);
     }
 }
 void gfxstream_vk_GetPhysicalDeviceSparseImageFormatProperties2KHR(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSparseImageFormatInfo2* pFormatInfo,
     uint32_t* pPropertyCount, VkSparseImageFormatProperties2* pProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceSparseImageFormatProperties2KHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceSparseImageFormatProperties2KHR(
-            gfxstream_physicalDevice->internal_object, pFormatInfo, pPropertyCount, pProperties,
-            true /* do lock */);
+            physicalDevice, pFormatInfo, pPropertyCount, pProperties, true /* do lock */);
     }
 }
 #endif
@@ -2671,12 +2631,10 @@ void gfxstream_vk_GetPhysicalDeviceExternalBufferPropertiesKHR(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,
     VkExternalBufferProperties* pExternalBufferProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalBufferPropertiesKHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceExternalBufferPropertiesKHR(
-            gfxstream_physicalDevice->internal_object, pExternalBufferInfo,
-            pExternalBufferProperties, true /* do lock */);
+            physicalDevice, pExternalBufferInfo, pExternalBufferProperties, true /* do lock */);
     }
 }
 #endif
@@ -2717,12 +2675,11 @@ void gfxstream_vk_GetPhysicalDeviceExternalSemaphorePropertiesKHR(
     const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo,
     VkExternalSemaphoreProperties* pExternalSemaphoreProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalSemaphorePropertiesKHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(
-            gfxstream_physicalDevice->internal_object, pExternalSemaphoreInfo,
-            pExternalSemaphoreProperties, true /* do lock */);
+            physicalDevice, pExternalSemaphoreInfo, pExternalSemaphoreProperties,
+            true /* do lock */);
     }
 }
 #endif
@@ -2859,12 +2816,10 @@ void gfxstream_vk_GetPhysicalDeviceExternalFencePropertiesKHR(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo,
     VkExternalFenceProperties* pExternalFenceProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceExternalFencePropertiesKHR");
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPhysicalDeviceExternalFencePropertiesKHR(
-            gfxstream_physicalDevice->internal_object, pExternalFenceInfo, pExternalFenceProperties,
-            true /* do lock */);
+            physicalDevice, pExternalFenceInfo, pExternalFenceProperties, true /* do lock */);
     }
 }
 #endif
@@ -3552,12 +3507,10 @@ VkResult gfxstream_vk_GetPhysicalDeviceToolPropertiesEXT(
     VkPhysicalDeviceToolProperties* pToolProperties) {
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceToolPropertiesEXT");
     VkResult vkGetPhysicalDeviceToolPropertiesEXT_VkResult_return = (VkResult)0;
-    VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice, physicalDevice);
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkGetPhysicalDeviceToolPropertiesEXT_VkResult_return =
-            vkEnc->vkGetPhysicalDeviceToolPropertiesEXT(gfxstream_physicalDevice->internal_object,
-                                                        pToolCount, pToolProperties,
+            vkEnc->vkGetPhysicalDeviceToolPropertiesEXT(physicalDevice, pToolCount, pToolProperties,
                                                         true /* do lock */);
     }
     return vkGetPhysicalDeviceToolPropertiesEXT_VkResult_return;

@@ -199,10 +199,10 @@ static void get_device_extensions(VkPhysicalDevice physDevInternal,
 }
 
 static VkResult gfxstream_vk_physical_device_init(
-    struct gfxstream_vk_physical_device* physical_device, struct gfxstream_vk_instance* instance,
-    VkPhysicalDevice internal_object) {
+    struct gfxstream_vk_physical_device* physical_device, struct gfxstream_vk_instance* instance) {
     struct vk_device_extension_table supported_extensions = {};
-    get_device_extensions(internal_object, &supported_extensions);
+    get_device_extensions(gfxstream_vk_physical_device_to_handle(physical_device),
+                          &supported_extensions);
 
     // VK_EXT_image_drm_format_modifier support is either emulated, or passthrough using
     // host functionality
@@ -227,8 +227,6 @@ static VkResult gfxstream_vk_physical_device_init(
                                               &supported_extensions, NULL, NULL, &dispatch_table);
 
     if (result == VK_SUCCESS) {
-        // Set the gfxstream-internal object
-        physical_device->internal_object = internal_object;
         physical_device->instance = instance;
         // Note: Must use dummy_sync for correct sync object path in WSI operations
         physical_device->sync_types[0] = &vk_sync_dummy_type;
@@ -249,8 +247,11 @@ static void gfxstream_vk_physical_device_finish(
 }
 
 static void gfxstream_vk_destroy_physical_device(struct vk_physical_device* physical_device) {
-    gfxstream_vk_physical_device_finish((struct gfxstream_vk_physical_device*)physical_device);
-    vk_free(&physical_device->instance->alloc, physical_device);
+    auto* gfxstream_physical_device = (struct gfxstream_vk_physical_device*)physical_device;
+    VkPhysicalDevice handle = gfxstream_vk_physical_device_to_handle(gfxstream_physical_device);
+    gfxstream_vk_physical_device_finish(gfxstream_physical_device);
+    gfxstream::vk::ResourceTracker::get()->unregister_VkPhysicalDevice(handle);
+    delete_goldfish_VkPhysicalDevice(handle);
 }
 
 static VkResult gfxstream_vk_enumerate_devices(struct vk_instance* vk_instance) {
@@ -267,27 +268,21 @@ static VkResult gfxstream_vk_enumerate_devices(struct vk_instance* vk_instance) 
     result = resources->on_vkEnumeratePhysicalDevices(
         vkEnc, VK_SUCCESS, gfxstream_instance->internal_object, &deviceCount, NULL);
     if (result != VK_SUCCESS) return result;
-    std::vector<VkPhysicalDevice> internal_list(deviceCount);
-    result = resources->on_vkEnumeratePhysicalDevices(
-        vkEnc, VK_SUCCESS, gfxstream_instance->internal_object, &deviceCount, internal_list.data());
+    std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
+    result = resources->on_vkEnumeratePhysicalDevices(vkEnc, VK_SUCCESS,
+                                                      gfxstream_instance->internal_object,
+                                                      &deviceCount, physicalDevices.data());
 
     if (result == VK_SUCCESS) {
         for (uint32_t i = 0; i < deviceCount; i++) {
-            struct gfxstream_vk_physical_device* gfxstream_physicalDevice =
-                (struct gfxstream_vk_physical_device*)vk_zalloc(
-                    &gfxstream_instance->vk.alloc, sizeof(struct gfxstream_vk_physical_device),
-                    GFXSTREAM_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-            if (!gfxstream_physicalDevice) {
-                result = VK_ERROR_OUT_OF_HOST_MEMORY;
-                break;
-            }
-            result = gfxstream_vk_physical_device_init(gfxstream_physicalDevice, gfxstream_instance,
-                                                       internal_list[i]);
+            VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice,
+                           physicalDevices[i]);
+            result =
+                gfxstream_vk_physical_device_init(gfxstream_physicalDevice, gfxstream_instance);
             if (result == VK_SUCCESS) {
                 list_addtail(&gfxstream_physicalDevice->vk.link,
                              &gfxstream_instance->vk.physical_devices.list);
             } else {
-                vk_free(&gfxstream_instance->vk.alloc, gfxstream_physicalDevice);
                 break;
             }
         }
@@ -592,37 +587,9 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     localCreateInfo.enabledExtensionCount = static_cast<uint32_t>(filteredExts.size());
     localCreateInfo.ppEnabledExtensionNames = filteredExts.data();
 
-    /* pNext = VkPhysicalDeviceGroupProperties */
-    std::vector<VkPhysicalDevice> initialPhysicalDeviceList;
-    VkPhysicalDeviceGroupProperties* mutablePhysicalDeviceGroupProperties =
-        vk_find_struct(&localCreateInfo, PHYSICAL_DEVICE_GROUP_PROPERTIES);
-    if (mutablePhysicalDeviceGroupProperties) {
-        // Temporarily modify the VkPhysicalDeviceGroupProperties structure to use translated
-        // VkPhysicalDevice references for the encoder call
-        for (uint32_t physDev = 0;
-             physDev < mutablePhysicalDeviceGroupProperties->physicalDeviceCount; physDev++) {
-            initialPhysicalDeviceList.push_back(
-                mutablePhysicalDeviceGroupProperties->physicalDevices[physDev]);
-            VK_FROM_HANDLE(gfxstream_vk_physical_device, gfxstream_physicalDevice,
-                           mutablePhysicalDeviceGroupProperties->physicalDevices[physDev]);
-            mutablePhysicalDeviceGroupProperties->physicalDevices[physDev] =
-                gfxstream_physicalDevice->internal_object;
-        }
-    }
-
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-    result =
-        vkEnc->vkCreateDevice(gfxstream_physicalDevice->internal_object, &localCreateInfo,
-                              pAllocator, &gfxstream_device->internal_object, true /* do lock */);
-
-    if (mutablePhysicalDeviceGroupProperties) {
-        // Revert the physicalDevice list in VkPhysicalDeviceGroupProperties to the user-set data
-        for (uint32_t physDev = 0;
-             physDev < mutablePhysicalDeviceGroupProperties->physicalDeviceCount; physDev++) {
-            mutablePhysicalDeviceGroupProperties->physicalDevices[physDev] =
-                initialPhysicalDeviceList[physDev];
-        }
-    }
+    result = vkEnc->vkCreateDevice(physicalDevice, &localCreateInfo, pAllocator,
+                                   &gfxstream_device->internal_object, true /* do lock */);
 
     if (result != VK_SUCCESS) {
         vk_free(pMesaAllocator, gfxstream_device);

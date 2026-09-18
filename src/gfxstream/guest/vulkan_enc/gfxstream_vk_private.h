@@ -82,7 +82,9 @@ struct gfxstream_vk_physical_device {
     const struct vk_sync_type* sync_types[2];
     struct gfxstream_vk_instance* instance;
     bool doImageDrmFormatModifierEmulation;
-    VkPhysicalDevice internal_object;
+
+    // The untyped host handle.
+    uint64_t underlying;
 };
 
 struct gfxstream_vk_device {
