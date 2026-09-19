@@ -232,10 +232,7 @@ typedef struct etna_inst_src hw_src;
 static inline hw_src
 src_swizzle(hw_src src, unsigned swizzle)
 {
-   if (src.rgroup != ISA_REG_GROUP_IMMED)
-      src.swiz = inst_swiz_compose(src.swiz, swizzle);
-
-   return src;
+   return etna_src_swizzle(src, swizzle);
 }
 
 /* constants are represented as 64-bit ints
