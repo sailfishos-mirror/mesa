@@ -570,10 +570,12 @@ etna_blit_clear_zs_blt(struct pipe_context *pctx, struct pipe_surface *dst,
    switch (dst->format) {
    case PIPE_FORMAT_Z16_UNORM:
    case PIPE_FORMAT_X8Z24_UNORM:
+   case PIPE_FORMAT_Z32_FLOAT:
       clear_bits_depth = 0xffffffff;
       clear_bits_stencil = 0x00000000;
       break;
    case PIPE_FORMAT_S8_UINT_Z24_UNORM:
+   case PIPE_FORMAT_Z32_FLOAT_S8X24_UINT:
       clear_bits_depth = 0xffffff00;
       clear_bits_stencil = clear_mask;
       break;
