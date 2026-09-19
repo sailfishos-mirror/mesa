@@ -239,17 +239,10 @@ static VkResult gfxstream_vk_physical_device_init(
     return result;
 }
 
-static void gfxstream_vk_physical_device_finish(
-    struct gfxstream_vk_physical_device* physical_device) {
-    gfxstream_vk_wsi_finish(physical_device);
-
-    vk_physical_device_finish(&physical_device->vk);
-}
-
 static void gfxstream_vk_destroy_physical_device(struct vk_physical_device* physical_device) {
     auto* gfxstream_physical_device = (struct gfxstream_vk_physical_device*)physical_device;
     VkPhysicalDevice handle = gfxstream_vk_physical_device_to_handle(gfxstream_physical_device);
-    gfxstream_vk_physical_device_finish(gfxstream_physical_device);
+    gfxstream_vk_wsi_finish(gfxstream_physical_device);
     gfxstream::vk::ResourceTracker::get()->unregister_VkPhysicalDevice(handle);
     delete_goldfish_VkPhysicalDevice(handle);
 }
@@ -379,6 +372,9 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     pAllocator = pAllocator ?: vk_default_allocator();
     result = vk_instance_init(&instance->vk, extensions, &dispatch_table, pCreateInfo, pAllocator);
     if (result != VK_SUCCESS) {
+        list_inithead(&instance->vk.physical_devices.list);
+        list_inithead(&instance->vk.debug_utils.callbacks);
+        list_inithead(&instance->vk.debug_utils.instance_callbacks);
         if (!instance->init_failed) {
             auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
             vkEnc->vkDestroyInstance(*pInstance, pAllocator, true /* do lock */);
@@ -598,6 +594,7 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     result = vk_device_init(&gfxstream_device->vk, &gfxstream_physicalDevice->vk, &dispatch_table,
                             pCreateInfo, pMesaAllocator);
     if (result != VK_SUCCESS) {
+        list_inithead(&gfxstream_device->vk.queues);
         vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
         *pDevice = VK_NULL_HANDLE;
         return result;
@@ -608,7 +605,6 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
 
     result = gfxstream_vk_device_queue_family_init(gfxstream_device, pCreateInfo);
     if (result != VK_SUCCESS) {
-        vk_device_finish(&gfxstream_device->vk);
         vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
         *pDevice = VK_NULL_HANDLE;
         return result;
@@ -617,7 +613,6 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     result = gfxstream_vk_device_init_queues(gfxstream_device, pCreateInfo);
     if (result != VK_SUCCESS) {
         gfxstream_vk_device_queue_family_fini(gfxstream_device);
-        vk_device_finish(&gfxstream_device->vk);
         vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
         *pDevice = VK_NULL_HANDLE;
         return result;
@@ -636,7 +631,6 @@ void gfxstream_vk_DestroyDevice(VkDevice device, const VkAllocationCallbacks* pA
     }
 
     gfxstream_vk_device_queue_family_fini(gfxstream_device);
-    vk_device_finish(&gfxstream_device->vk);
 
     auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
     vkEnc->vkDestroyDevice(device, pAllocator, true /* do lock */);
