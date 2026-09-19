@@ -180,7 +180,7 @@ etna_link_shaders(struct etna_context *ctx, struct compiled_shader_state *cs,
    /* vs outputs (varyings) */
    DEFINE_ETNA_BITARRAY(vs_output, ARRAY_SIZE(cs->VS_OUTPUT) * 4, 8) = {0};
    int varid = 0;
-   etna_bitarray_set(vs_output, 8, varid++, vs->vs_pos_out_reg);
+   etna_bitarray_set(vs_output, 8, varid++, MAX2(vs->vs_pos_out_reg, 0));
    for (int idx = 0; idx < link.num_varyings; ++idx)
       etna_bitarray_set(vs_output, 8, varid++, link.varyings[idx].reg);
    if (vs->vs_pointsize_out_reg >= 0)
