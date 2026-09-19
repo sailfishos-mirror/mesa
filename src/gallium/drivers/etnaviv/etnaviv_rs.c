@@ -299,7 +299,7 @@ etna_rs_gen_clear_cmd(struct etna_context *ctx,
    struct etna_resource_level *level = &res->levels[psurf->level];
    uint32_t format;
 
-   switch (util_format_get_blocksizebits(psurf->format)) {
+   switch (util_format_get_blocksizebits(res->internal_format)) {
    case 8:
       assert(VIV_FEATURE(screen, ETNA_FEATURE_S8));
       format = RS_FORMAT_S8;
