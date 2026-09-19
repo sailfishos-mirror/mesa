@@ -11,6 +11,7 @@
 #include "util/u_memory.h"
 #include "util/u_string.h"
 
+#include "fd2_context.h"
 #include "fd2_texture.h"
 #include "fd2_util.h"
 
@@ -106,18 +107,21 @@ static void
 fd2_sampler_states_bind(struct pipe_context *pctx, mesa_shader_stage shader,
                         unsigned start, unsigned nr, void **hwcso) in_dt
 {
+   struct fd_context *ctx = fd_context(pctx);
+
    if (!hwcso)
       nr = 0;
 
    if (shader == MESA_SHADER_FRAGMENT) {
-      struct fd_context *ctx = fd_context(pctx);
-
       /* on a2xx, since there is a flat address space for textures/samplers,
        * a change in # of fragment textures/samplers will trigger patching and
        * re-emitting the vertex shader:
        */
       if (nr != ctx->tex[MESA_SHADER_FRAGMENT].num_samplers)
          ctx->dirty |= FD_DIRTY_TEXSTATE;
+   } else if (fd2_context(ctx)->mag_switchover_half) {
+      /* the vertex shader variant depends on the sampler filters */
+      ctx->dirty |= FD_DIRTY_TEXSTATE;
    }
 
    fd_sampler_states_bind(pctx, shader, start, nr, hwcso);

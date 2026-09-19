@@ -1170,6 +1170,13 @@ ir2_nir_compile(struct ir2_context *ctx, bool binning)
 
    ctx->nir = nir_shader_clone(NULL, so->nir);
 
+   if (ctx->tex_mag_switchover) {
+      OPT_V(ctx->nir, nir_lower_tex,
+            &(struct nir_lower_tex_options){
+               .lower_txl_mag_switchover = ctx->tex_mag_switchover,
+            });
+   }
+
    if (binning)
       cleanup_binning(ctx);
 
