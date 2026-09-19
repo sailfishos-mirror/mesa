@@ -352,7 +352,7 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
             return vk_error(NULL, result);
         }
     } else {
-        *pInstance = new_from_host_VkInstance(VK_NULL_HANDLE);
+        *pInstance = new_from_host_u64_VkInstance(0);
         if (!*pInstance) {
             return vk_error(NULL, VK_ERROR_OUT_OF_HOST_MEMORY);
         }

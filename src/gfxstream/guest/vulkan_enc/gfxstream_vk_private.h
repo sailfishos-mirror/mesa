@@ -73,7 +73,6 @@ struct DescriptorSetLayoutInfo;
 
 #define GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_type, vk_type)             \
     extern "C" vk_type new_from_host_u64_##vk_type(uint64_t underlying); \
-    extern "C" vk_type new_from_host_##vk_type(vk_type underlying);      \
     extern "C" void delete_goldfish_##vk_type(vk_type toDelete);         \
     extern "C" uint64_t gfxstream_type##_to_host_u64(const vk_type obj);
 

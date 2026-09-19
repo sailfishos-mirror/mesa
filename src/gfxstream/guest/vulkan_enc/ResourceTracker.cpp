@@ -143,12 +143,12 @@ uint64_t GeneratePseudoUniqueId() {
         GOLDFISH_VK_LIST_HANDLE_TYPES(impl)              \
     };
 
-#define CREATE_MAPPING_IMPL_FOR_TYPE(type_name)                                \
-    MAKE_HANDLE_MAPPING_FOREACH(                                               \
-        type_name, handles[i] = new_from_host_##type_name(handles[i]);         \
-        ResourceTracker::get()->register_##type_name(handles[i]);              \
-        , handle_u64s[i] = (uint64_t)new_from_host_##type_name(handles[i]),    \
-        handles[i] = (type_name)new_from_host_u64_##type_name(handle_u64s[i]); \
+#define CREATE_MAPPING_IMPL_FOR_TYPE(type_name)                                           \
+    MAKE_HANDLE_MAPPING_FOREACH(                                                          \
+        type_name, handles[i] = new_from_host_u64_##type_name((uint64_t)handles[i]);      \
+        ResourceTracker::get()->register_##type_name(handles[i]);                         \
+        , handle_u64s[i] = (uint64_t)new_from_host_u64_##type_name((uint64_t)handles[i]), \
+        handles[i] = (type_name)new_from_host_u64_##type_name(handle_u64s[i]);            \
         ResourceTracker::get()->register_##type_name(handles[i]);)
 
 #define DESTROY_MAPPING_IMPL_FOR_TYPE(type_name)                                               \
@@ -3421,7 +3421,7 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
             // for suballocated memory, create an alias VkDeviceMemory handle for application
             // memory used for suballocations will still be VkDeviceMemory associated with
             // CoherentMemory
-            auto mem = new_from_host_VkDeviceMemory(VK_NULL_HANDLE);
+            auto mem = new_from_host_u64_VkDeviceMemory(0);
             info_VkDeviceMemory[mem] = info;
             *pMemory = mem;
             return VK_SUCCESS;
