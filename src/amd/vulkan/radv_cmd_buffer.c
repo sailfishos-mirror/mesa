@@ -1779,7 +1779,8 @@ radv_gang_barrier(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 src_
    dst_stage_mask = radv_get_dst_stage_flags2(dst_stage_mask);
 
    /* Update flush bits from the main cmdbuf, except the stage flush. */
-   cmd_buffer->gang.flush_bits |= cmd_buffer->state.flush_bits & AC_BARRIER_ALL_COMPUTE & ~AC_BARRIER_SYNC_CS;
+   cmd_buffer->gang.flush_bits |= cmd_buffer->state.flush_bits & AC_BARRIER_ALL_COMPUTE &
+                                  ~(AC_BARRIER_SYNC_CS | AC_BARRIER_PIPELINESTAT_START | AC_BARRIER_PIPELINESTAT_STOP);
 
    /* Add stage flush only when necessary:
     * - graphics command buffer: task shaders and DGC preprocess
@@ -2105,7 +2106,8 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_f
       enum ac_rgp_flush_bits rgp_flush_bits = 0;
 
       if (RADV_DEBUG(instance, FULL_SYNC)) {
-         flags |= AC_BARRIER_ALL_COMPUTE & ~AC_BARRIER_SYNC_CS;
+         flags |= AC_BARRIER_ALL_COMPUTE &
+                  ~(AC_BARRIER_SYNC_CS | AC_BARRIER_PIPELINESTAT_START | AC_BARRIER_PIPELINESTAT_STOP);
 
          if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
             flags |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META | AC_BARRIER_SYNC_AND_INV_DB |

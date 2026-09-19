@@ -77,8 +77,9 @@ enum ac_barrier_flags {
 };
 
 #define AC_BARRIER_ALL_COMPUTE \
-   (AC_BARRIER_INV_ICACHE | AC_BARRIER_INV_SMEM | AC_BARRIER_INV_VMEM | \
-    AC_BARRIER_INV_L2 | AC_BARRIER_WB_L2 | AC_BARRIER_SYNC_CS)
+   (AC_BARRIER_INV_ICACHE | AC_BARRIER_INV_SMEM | AC_BARRIER_INV_VMEM | AC_BARRIER_INV_L2 | \
+    AC_BARRIER_WB_L2 | AC_BARRIER_SYNC_CS | AC_BARRIER_PIPELINESTAT_START | \
+    AC_BARRIER_PIPELINESTAT_STOP)
 
 /* PWS (Pixel Wait Sync) acquire point, i.e. the pipeline stage at which a
  * GFX11+ PWS ACQUIRE waits for a preceding RELEASE. The acquire point is
