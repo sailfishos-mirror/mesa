@@ -1272,14 +1272,6 @@ radv_bind_dynamic_state(struct radv_cmd_buffer *cmd_buffer, const struct radv_dy
    }
 }
 
-bool
-radv_cmd_buffer_uses_mec(struct radv_cmd_buffer *cmd_buffer)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   return cmd_buffer->qf == RADV_QUEUE_COMPUTE && pdev->info.gfx_level >= GFX7;
-}
-
 static void
 radv_emit_clear_data(struct radv_cmd_buffer *cmd_buffer, unsigned engine_sel, uint64_t va, unsigned size)
 {
@@ -1395,6 +1387,7 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
    }
 
    cmd_buffer->qf = vk_queue_to_radv(pdev, pool->queue_family_index);
+   cmd_buffer->is_mec = pdev->info.gfx_level >= GFX7 && cmd_buffer->qf == RADV_QUEUE_COMPUTE;
 
    if (cmd_buffer->qf != RADV_QUEUE_SPARSE) {
       const enum amd_ip_type ip = radv_queue_family_to_ring(pdev, cmd_buffer->qf);
@@ -15043,7 +15036,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
       }
    }
 
-   if (!radv_cmd_buffer_uses_mec(cmd_buffer)) {
+   if (!cmd_buffer->is_mec) {
       radeon_check_space(device->ws, cs->b, 2);
 
       ac_emit_cp_pfp_sync_me(cs->b, cmd_buffer->state.cond_render.enabled);
@@ -15171,7 +15164,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          radeon_end();
       }
 
-      if (radv_cmd_buffer_uses_mec(cmd_buffer)) {
+      if (cmd_buffer->is_mec) {
          uint64_t indirect_va = info->indirect_va;
          const bool needs_align32_workaround = pdev->info.has_async_compute_align32_bug &&
                                                cmd_buffer->qf == RADV_QUEUE_COMPUTE &&

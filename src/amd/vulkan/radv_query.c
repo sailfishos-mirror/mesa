@@ -680,7 +680,7 @@ radv_begin_pipeline_stat_query(struct radv_cmd_buffer *cmd_buffer, struct radv_q
 
    radv_update_hw_pipelinestat(cmd_buffer);
 
-   if (radv_cmd_buffer_uses_mec(cmd_buffer)) {
+   if (cmd_buffer->is_mec) {
       uint32_t cs_invoc_offset =
          radv_get_pipelinestat_query_offset(VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT);
       va += cs_invoc_offset;
@@ -758,7 +758,7 @@ radv_end_pipeline_stat_query(struct radv_cmd_buffer *cmd_buffer, struct radv_que
 
    va += pipelinestat_block_size;
 
-   if (radv_cmd_buffer_uses_mec(cmd_buffer)) {
+   if (cmd_buffer->is_mec) {
       uint32_t cs_invoc_offset =
          radv_get_pipelinestat_query_offset(VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT);
       va += cs_invoc_offset;
