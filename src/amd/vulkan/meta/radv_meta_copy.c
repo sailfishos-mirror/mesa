@@ -203,15 +203,15 @@ radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
 
             u_foreach_bit (i, subresource->aspectMask) {
                unsigned aspect_mask = 1u << i;
-               radv_expand_depth_stencil(cmd_buffer, image,
-                                         &(VkImageSubresourceRange){
-                                            .aspectMask = aspect_mask,
-                                            .baseMipLevel = subresource->mipLevel,
-                                            .levelCount = 1,
-                                            .baseArrayLayer = subresource->baseArrayLayer,
-                                            .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
-                                         },
-                                         NULL);
+               radv_decompress_depth_stencil(cmd_buffer, image,
+                                             &(VkImageSubresourceRange){
+                                                .aspectMask = aspect_mask,
+                                                .baseMipLevel = subresource->mipLevel,
+                                                .levelCount = 1,
+                                                .baseArrayLayer = subresource->baseArrayLayer,
+                                                .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
+                                             },
+                                             NULL);
             }
 
             radv_describe_barrier_end(cmd_buffer);

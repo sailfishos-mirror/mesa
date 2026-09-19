@@ -200,7 +200,7 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
                 * uncompressed DWORD to HTILE. And then it's needed to re-initialize HTILE to its
                 * uncompressed state after the copy.
                 */
-               radv_expand_depth_stencil(cmd_buffer, image, &range, NULL);
+               radv_decompress_depth_stencil(cmd_buffer, image, &range, NULL);
             }
          } else {
             /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing

@@ -16060,7 +16060,7 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
       cmd_buffer->state.flush_bits |=
          AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
 
-      radv_expand_depth_stencil(cmd_buffer, image, range, sample_locs);
+      radv_decompress_depth_stencil(cmd_buffer, image, range, sample_locs);
    }
 }
 
