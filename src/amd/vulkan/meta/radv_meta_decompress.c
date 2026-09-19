@@ -464,7 +464,7 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
       /* Reset the HiZ range in HTILE to [0, 1] because the decompress pass doesn't do it. */
       uint32_t htile_value = radv_get_htile_initial_value(device, image);
 
-      cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, subresourceRange, htile_value, 0);
+      cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
    } else {
       radv_expand_depth_stencil_compute(cmd_buffer, image, subresourceRange);
 
@@ -476,7 +476,7 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
          /* Initialize the HTILE metadata as "fully expanded". */
          uint32_t htile_value = radv_get_htile_initial_value(device, image);
 
-         cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, subresourceRange, htile_value, 0);
+         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
       }
    }
 }

@@ -372,9 +372,9 @@ uint32_t radv_clear_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
                           const VkImageSubresourceRange *range, uint32_t value);
 uint32_t radv_clear_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                         const VkImageSubresourceRange *range, uint32_t value);
-uint32_t radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
-                          const VkImageSubresourceRange *range, uint32_t value,
-                          enum radv_meta_htile_preserve_flags flags);
+uint32_t radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
+                              const VkImageSubresourceRange *range, uint32_t value,
+                              enum radv_meta_htile_preserve_flags flags);
 
 uint32_t radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                         const VkImageSubresourceRange *range, uint32_t value);

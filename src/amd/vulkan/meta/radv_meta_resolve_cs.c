@@ -209,7 +209,7 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
             if (!is_partial_resolve) {
                uint32_t htile_value = radv_get_htile_initial_value(device, image);
 
-               cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, 0);
+               cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, 0);
             }
          }
       }
