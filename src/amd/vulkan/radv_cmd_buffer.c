@@ -9368,7 +9368,8 @@ radv_bind_fragment_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
    if (!previous_ps || previous_ps->regs.ps.db_shader_control != ps->regs.ps.db_shader_control ||
        previous_ps->info.ps.pops_is_per_sample != ps->info.ps.pops_is_per_sample ||
-       previous_ps->info.ps.uses_fbfetch_output != ps->info.ps.uses_fbfetch_output)
+       previous_ps->info.ps.uses_fbfetch_output != ps->info.ps.uses_fbfetch_output ||
+       previous_ps->info.ps.has_epilog != ps->info.ps.has_epilog)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_DB_SHADER_CONTROL;
 }
 
