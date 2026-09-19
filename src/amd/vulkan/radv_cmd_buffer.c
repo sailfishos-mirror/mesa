@@ -8336,9 +8336,14 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
       cmd_buffer->state.cond_render.mec_inv_pred_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + pred_offset;
    }
 
-   if (pdev->info.gfx_level >= GFX9 && cmd_buffer->qf == RADV_QUEUE_GENERAL) {
-      unsigned num_db = pdev->info.max_render_backends;
-      bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
+   const bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
+
+   /* Allocate the EOP fence buffer for barriers. GFX11 gfx queues don't need it because they use
+    * PWS instead (which uses on-chip counters instead of memory).
+    *
+    * TODO: This is sometimes allocated in GTT, which makes barriers using it significantly slower.
+    */
+   if ((pdev->info.gfx_level < GFX11 && cmd_buffer->qf == RADV_QUEUE_GENERAL) || cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
       if (!is_secure) {
          unsigned fence_offset;
 
@@ -8368,12 +8373,17 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
          radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->eop_fence_bo_tmz, 0, 8, 0);
       }
 
-      radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->eop_fence_va, 8);
+      radv_emit_clear_data(cmd_buffer,
+                           cmd_buffer->qf == RADV_QUEUE_COMPUTE ? V_371_MICRO_ENGINE : V_371_PREFETCH_PARSER,
+                           cmd_buffer->eop_fence_va, 8);
 
-      if (pdev->info.gfx_level == GFX9) {
-         const uint32_t eop_bug_bo_size = 16 * num_db;
+      /* See ac_emit_cp_release_mem for when eop_bug_va is needed. */
+      if (pdev->info.gfx_level >= GFX7 && pdev->info.gfx_level <= GFX9 && cmd_buffer->qf == RADV_QUEUE_GENERAL) {
+         /* On GFX9, eop_bug_va is used with ZPASS_DONE. On GFX7-8, it's only used to write a dummy 32-bit fence. */
+         const uint32_t eop_bug_bo_size = pdev->info.gfx_level == GFX9 ? 16 * pdev->info.max_render_backends : 4;
+
          if (!is_secure) {
-            /* Allocate a buffer for the EOP bug on GFX9. */
+            /* Allocate a buffer for the EOP bug on GFX9 and a different EOP bug on GFX7-8. */
             unsigned eop_bug_offset;
             if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, &eop_bug_offset, NULL)) {
                vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
