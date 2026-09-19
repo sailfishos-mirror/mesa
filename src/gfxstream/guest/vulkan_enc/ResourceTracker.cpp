@@ -151,12 +151,6 @@ uint64_t GeneratePseudoUniqueId() {
         handles[i] = (type_name)new_from_host_u64_##type_name(handle_u64s[i]); \
         ResourceTracker::get()->register_##type_name(handles[i]);)
 
-#define UNWRAP_MAPPING_IMPL_FOR_TYPE(type_name)                          \
-    MAKE_HANDLE_MAPPING_FOREACH(                                         \
-        type_name, handles[i] = get_host_##type_name(handles[i]),        \
-        handle_u64s[i] = (uint64_t)get_host_u64_##type_name(handles[i]), \
-        handles[i] = (type_name)get_host_##type_name((type_name)handle_u64s[i]))
-
 #define DESTROY_MAPPING_IMPL_FOR_TYPE(type_name)                                               \
     MAKE_HANDLE_MAPPING_FOREACH(type_name,                                                     \
                                 ResourceTracker::get()->unregister_##type_name(handles[i]);    \
@@ -820,7 +814,7 @@ static VkResult createFence(VkDevice device, uint64_t hostFenceHandle, int64_t& 
     struct gfxstreamCreateExportSyncVK exportSync = {};
     VirtGpuDevice* instance = VirtGpuDevice::getInstance();
 
-    uint64_t hostDeviceHandle = get_host_u64_VkDevice(device);
+    uint64_t hostDeviceHandle = gfxstream_vk_device_to_host_u64(device);
 
     exportSync.hdr.opCode = GFXSTREAM_CREATE_EXPORT_SYNC_VK;
     exportSync.deviceHandleLo = (uint32_t)hostDeviceHandle;
@@ -5055,7 +5049,7 @@ VkResult ResourceTracker::on_vkGetFenceFdKHR(void* context, VkResult, VkDevice d
         if (mFeatureInfo.hasVirtioGpuNativeSync) {
             VkResult result;
             int64_t osHandle;
-            uint64_t hostFenceHandle = get_host_u64_VkFence(pGetFdInfo->fence);
+            uint64_t hostFenceHandle = gfxstream_vk_fence_to_host_u64(pGetFdInfo->fence);
 
             result = createFence(device, hostFenceHandle, osHandle);
             if (result != VK_SUCCESS) return result;
@@ -5064,7 +5058,7 @@ VkResult ResourceTracker::on_vkGetFenceFdKHR(void* context, VkResult, VkDevice d
         } else {
 #if GFXSTREAM_ENABLE_GUEST_GOLDFISH
             goldfish_sync_queue_work(
-                mSyncDeviceFd, get_host_u64_VkFence(pGetFdInfo->fence) /* the handle */,
+                mSyncDeviceFd, gfxstream_vk_fence_to_host_u64(pGetFdInfo->fence) /* the handle */,
                 GOLDFISH_SYNC_VULKAN_SEMAPHORE_SYNC /* thread handle (doubling as type field) */,
                 pFd);
 #endif
@@ -5917,7 +5911,7 @@ VkResult ResourceTracker::on_vkCreateSemaphore(void* context, VkResult input_res
             !(mCaps.params[kParamFencePassing] && mCaps.vulkanCapset.externalSync)) {
             VkResult result;
             int64_t osHandle;
-            uint64_t hostFenceHandle = get_host_u64_VkSemaphore(*pSemaphore);
+            uint64_t hostFenceHandle = gfxstream_vk_semaphore_to_host_u64(*pSemaphore);
 
             result = createFence(device, hostFenceHandle, osHandle);
             if (result != VK_SUCCESS) return result;
@@ -5930,7 +5924,7 @@ VkResult ResourceTracker::on_vkCreateSemaphore(void* context, VkResult input_res
             if (exportSyncFd) {
                 int syncFd = -1;
                 goldfish_sync_queue_work(
-                    mSyncDeviceFd, get_host_u64_VkSemaphore(*pSemaphore) /* the handle */,
+                    mSyncDeviceFd, gfxstream_vk_semaphore_to_host_u64(*pSemaphore) /* the handle */,
                     GOLDFISH_SYNC_VULKAN_SEMAPHORE_SYNC /* thread handle (doubling as type field) */
                     ,
                     &syncFd);
@@ -7664,14 +7658,14 @@ VkResult ResourceTracker::on_vkAllocateCommandBuffers(
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
 VkResult ResourceTracker::exportSyncFdForQSRILocked(VkImage image, int* fd) {
     mesa_logd("%s: call for image %p host image handle 0x%llx\n", __func__, (void*)image,
-              (unsigned long long)get_host_u64_VkImage(image));
+              (unsigned long long)gfxstream_vk_image_to_host_u64(image));
 
     if (mFeatureInfo.hasVirtioGpuNativeSync) {
         struct VirtGpuExecBuffer exec = {};
         struct gfxstreamCreateQSRIExportVK exportQSRI = {};
         VirtGpuDevice* instance = VirtGpuDevice::getInstance();
 
-        uint64_t hostImageHandle = get_host_u64_VkImage(image);
+        uint64_t hostImageHandle = gfxstream_vk_image_to_host_u64(image);
 
         exportQSRI.hdr.opCode = GFXSTREAM_CREATE_QSRI_EXPORT_VK;
         exportQSRI.imageHandleLo = (uint32_t)hostImageHandle;
@@ -7687,7 +7681,7 @@ VkResult ResourceTracker::exportSyncFdForQSRILocked(VkImage image, int* fd) {
 #if GFXSTREAM_ENABLE_GUEST_GOLDFISH
         ensureSyncDeviceFd();
         goldfish_sync_queue_work(
-            mSyncDeviceFd, get_host_u64_VkImage(image) /* the handle */,
+            mSyncDeviceFd, gfxstream_vk_image_to_host_u64(image) /* the handle */,
             GOLDFISH_SYNC_VULKAN_QSRI /* thread handle (doubling as type field) */, fd);
 #endif
     }

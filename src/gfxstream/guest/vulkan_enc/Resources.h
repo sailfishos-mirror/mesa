@@ -83,16 +83,7 @@ extern "C" {
 
 #define GOLDFISH_VK_AS_GOLDFISH_DECL(type) struct goldfish_##type* as_goldfish_##type(type);
 
-#define GOLDFISH_VK_GET_HOST_DECL(type) type get_host_##type(type);
-
-#define GOLDFISH_VK_IDENTITY_DECL(type) type vk_handle_identity_##type(type);
-
-#define GOLDFISH_VK_GET_HOST_U64_DECL(type) uint64_t get_host_u64_##type(type);
-
 GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_DECL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_DECL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_IDENTITY_DECL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_U64_DECL)
 
 }  // extern "C"
 

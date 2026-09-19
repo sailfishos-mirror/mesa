@@ -166,7 +166,7 @@ def emit_marshal(typeInfo, param, cgen):
             VulkanReservedMarshalingCodegen( \
                 cgen, "guest", STREAM, ROOT_TYPE_DEFAULT_VALUE, param.paramName, "streamPtrPtr",
                API_PREFIX_RESERVEDMARSHAL,
-               "" if forOutput else "get_host_u64_",
+               "" if forOutput else "gfxstream_to_host_u64",
                direction="write"))
     if not res:
         cgen.stmt("(void)%s" % param.paramName)

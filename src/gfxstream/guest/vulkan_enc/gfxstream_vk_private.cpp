@@ -76,17 +76,21 @@ float srgbFormatNeedsConversionForClearColor(const VkFormat& format) {
 
 extern "C" {
 
-#define GFXSTREAM_DEFINE_VK_OBJECT_CREATE(gfxstream_type, vk_type, vk_object_type)  \
-    vk_type new_from_host_u64_##vk_type(uint64_t underlying) {                      \
-        struct gfxstream_type* res =                                                \
-            static_cast<gfxstream_type*>(calloc(1, sizeof(gfxstream_type)));        \
-        vk_object_base_init(nullptr, reinterpret_cast<struct vk_object_base*>(res), \
-                            vk_object_type);                                        \
-        res->underlying = underlying;                                               \
-        return reinterpret_cast<vk_type>(res);                                      \
-    }                                                                               \
-    vk_type new_from_host_##vk_type(vk_type underlying) {                           \
-        return new_from_host_u64_##vk_type((uint64_t)underlying);                   \
+#define GFXSTREAM_DEFINE_VK_OBJECT_CREATE(gfxstream_type, vk_type, vk_object_type)     \
+    vk_type new_from_host_u64_##vk_type(uint64_t underlying) {                         \
+        struct gfxstream_type* res =                                                   \
+            static_cast<gfxstream_type*>(calloc(1, sizeof(gfxstream_type)));           \
+        vk_object_base_init(nullptr, reinterpret_cast<struct vk_object_base*>(res),    \
+                            vk_object_type);                                           \
+        res->common.underlying = underlying;                                           \
+        return reinterpret_cast<vk_type>(res);                                         \
+    }                                                                                  \
+    vk_type new_from_host_##vk_type(vk_type underlying) {                              \
+        return new_from_host_u64_##vk_type((uint64_t)underlying);                      \
+    }                                                                                  \
+    uint64_t gfxstream_type##_to_host_u64(const vk_type obj) {                         \
+        if (!obj) return 0;                                                            \
+        return reinterpret_cast<const struct gfxstream_type*>(obj)->common.underlying; \
     }
 
 #define GFXSTREAM_DEFINE_TRIVIAL_VK_OBJECT_DELETE(gfxstream_type, vk_type, vk_object_type) \

@@ -206,7 +206,7 @@ void VkEncoder::vkDestroyInstance(VkInstance instance, const VkAllocationCallbac
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkInstance((*&local_instance));
+    *&cgen_var_0 = gfxstream_vk_instance_to_host_u64((*&local_instance));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -275,7 +275,7 @@ VkResult VkEncoder::vkEnumeratePhysicalDevices(VkInstance instance, uint32_t* pP
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkInstance((*&local_instance));
+    *&cgen_var_0 = gfxstream_vk_instance_to_host_u64((*&local_instance));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -380,7 +380,7 @@ void VkEncoder::vkGetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceFeatures(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -439,7 +439,7 @@ void VkEncoder::vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice physicalDev
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -513,7 +513,7 @@ VkResult VkEncoder::vkGetPhysicalDeviceImageFormatProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -582,7 +582,7 @@ void VkEncoder::vkGetPhysicalDeviceProperties(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceProperties(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -653,7 +653,7 @@ void VkEncoder::vkGetPhysicalDeviceQueueFamilyProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -757,7 +757,7 @@ void VkEncoder::vkGetPhysicalDeviceMemoryProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceMemoryProperties(
@@ -814,7 +814,7 @@ PFN_vkVoidFunction VkEncoder::vkGetInstanceProcAddr(VkInstance instance, const c
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkInstance((*&local_instance));
+    *&cgen_var_0 = gfxstream_vk_instance_to_host_u64((*&local_instance));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     {
@@ -873,7 +873,7 @@ PFN_vkVoidFunction VkEncoder::vkGetDeviceProcAddr(VkDevice device, const char* p
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     {
@@ -958,7 +958,7 @@ VkResult VkEncoder::vkCreateDevice(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -1043,7 +1043,7 @@ void VkEncoder::vkDestroyDevice(VkDevice device, const VkAllocationCallbacks* pA
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -1279,7 +1279,7 @@ VkResult VkEncoder::vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physic
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     if (stream->getFeatureBits() & VULKAN_STREAM_FEATURE_NULL_OPTIONAL_STRINGS_BIT) {
@@ -1530,7 +1530,7 @@ VkResult VkEncoder::vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDe
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -1638,7 +1638,7 @@ void VkEncoder::vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uin
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_queueFamilyIndex, sizeof(uint32_t));
@@ -1722,7 +1722,7 @@ VkResult VkEncoder::vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_submitCount, sizeof(uint32_t));
@@ -1732,7 +1732,7 @@ VkResult VkEncoder::vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
                                      (VkSubmitInfo*)(local_pSubmits + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkQueueSubmit_VkResult_return = (VkResult)0;
@@ -1777,7 +1777,7 @@ VkResult VkEncoder::vkQueueWaitIdle(VkQueue queue, uint32_t doLock) {
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkQueueWaitIdle_VkResult_return = (VkResult)0;
@@ -1822,7 +1822,7 @@ VkResult VkEncoder::vkDeviceWaitIdle(VkDevice device, uint32_t doLock) {
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkDeviceWaitIdle_VkResult_return = (VkResult)0;
@@ -1899,7 +1899,7 @@ VkResult VkEncoder::vkAllocateMemory(VkDevice device, const VkMemoryAllocateInfo
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkMemoryAllocateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -1987,11 +1987,11 @@ void VkEncoder::vkFreeMemory(VkDevice device, VkDeviceMemory memory,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -2089,7 +2089,7 @@ VkResult VkEncoder::vkFlushMappedMemoryRanges(VkDevice device, uint32_t memoryRa
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_memoryRangeCount, sizeof(uint32_t));
@@ -2194,7 +2194,7 @@ VkResult VkEncoder::vkInvalidateMappedMemoryRanges(VkDevice device, uint32_t mem
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_memoryRangeCount, sizeof(uint32_t));
@@ -2282,11 +2282,11 @@ void VkEncoder::vkGetDeviceMemoryCommitment(VkDevice device, VkDeviceMemory memo
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)pCommittedMemoryInBytes, sizeof(VkDeviceSize));
@@ -2349,15 +2349,15 @@ VkResult VkEncoder::vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDevic
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_2 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_memoryOffset, sizeof(VkDeviceSize));
@@ -2422,15 +2422,15 @@ VkResult VkEncoder::vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_2 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_memoryOffset, sizeof(VkDeviceSize));
@@ -2487,11 +2487,11 @@ void VkEncoder::vkGetBufferMemoryRequirements(VkDevice device, VkBuffer buffer,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -2552,11 +2552,11 @@ void VkEncoder::vkGetImageMemoryRequirements(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -2632,11 +2632,11 @@ void VkEncoder::vkGetImageSparseMemoryRequirements(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -2773,7 +2773,7 @@ void VkEncoder::vkGetPhysicalDeviceSparseImageFormatProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -2911,7 +2911,7 @@ VkResult VkEncoder::vkQueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -2921,7 +2921,7 @@ VkResult VkEncoder::vkQueueBindSparse(VkQueue queue, uint32_t bindInfoCount,
                                          (VkBindSparseInfo*)(local_pBindInfo + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkQueueBindSparse_VkResult_return = (VkResult)0;
@@ -2997,7 +2997,7 @@ VkResult VkEncoder::vkCreateFence(VkDevice device, const VkFenceCreateInfo* pCre
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkFenceCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -3084,11 +3084,11 @@ void VkEncoder::vkDestroyFence(VkDevice device, VkFence fence,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -3152,7 +3152,7 @@ VkResult VkEncoder::vkResetFences(VkDevice device, uint32_t fenceCount, const Vk
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_fenceCount, sizeof(uint32_t));
@@ -3160,7 +3160,7 @@ VkResult VkEncoder::vkResetFences(VkDevice device, uint32_t fenceCount, const Vk
     if (fenceCount) {
         uint8_t* cgen_var_1_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < fenceCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkFence(local_pFences[k]);
+            uint64_t tmpval = gfxstream_vk_fence_to_host_u64(local_pFences[k]);
             memcpy(cgen_var_1_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * fenceCount;
@@ -3212,11 +3212,11 @@ VkResult VkEncoder::vkGetFenceStatus(VkDevice device, VkFence fence, uint32_t do
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkGetFenceStatus_VkResult_return = (VkResult)0;
@@ -3277,7 +3277,7 @@ VkResult VkEncoder::vkWaitForFences(VkDevice device, uint32_t fenceCount, const 
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_fenceCount, sizeof(uint32_t));
@@ -3285,7 +3285,7 @@ VkResult VkEncoder::vkWaitForFences(VkDevice device, uint32_t fenceCount, const 
     if (fenceCount) {
         uint8_t* cgen_var_1_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < fenceCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkFence(local_pFences[k]);
+            uint64_t tmpval = gfxstream_vk_fence_to_host_u64(local_pFences[k]);
             memcpy(cgen_var_1_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * fenceCount;
@@ -3369,7 +3369,7 @@ VkResult VkEncoder::vkCreateSemaphore(VkDevice device, const VkSemaphoreCreateIn
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSemaphoreCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -3458,11 +3458,11 @@ void VkEncoder::vkDestroySemaphore(VkDevice device, VkSemaphore semaphore,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSemaphore((*&local_semaphore));
+    *&cgen_var_1 = gfxstream_vk_semaphore_to_host_u64((*&local_semaphore));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -3549,7 +3549,7 @@ VkResult VkEncoder::vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkQueryPoolCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -3638,11 +3638,11 @@ void VkEncoder::vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_1 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -3721,11 +3721,11 @@ VkResult VkEncoder::vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_1 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstQuery, sizeof(uint32_t));
@@ -3818,7 +3818,7 @@ VkResult VkEncoder::vkCreateBuffer(VkDevice device, const VkBufferCreateInfo* pC
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -3905,11 +3905,11 @@ void VkEncoder::vkDestroyBuffer(VkDevice device, VkBuffer buffer,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -3996,7 +3996,7 @@ VkResult VkEncoder::vkCreateImage(VkDevice device, const VkImageCreateInfo* pCre
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -4083,11 +4083,11 @@ void VkEncoder::vkDestroyImage(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -4164,11 +4164,11 @@ void VkEncoder::vkGetImageSubresourceLayout(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSubresource(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -4252,7 +4252,7 @@ VkResult VkEncoder::vkCreateImageView(VkDevice device, const VkImageViewCreateIn
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageViewCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -4341,11 +4341,11 @@ void VkEncoder::vkDestroyImageView(VkDevice device, VkImageView imageView,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImageView((*&local_imageView));
+    *&cgen_var_1 = gfxstream_vk_image_view_to_host_u64((*&local_imageView));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -4432,7 +4432,7 @@ VkResult VkEncoder::vkCreateCommandPool(VkDevice device, const VkCommandPoolCrea
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCommandPoolCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -4522,11 +4522,11 @@ void VkEncoder::vkDestroyCommandPool(VkDevice device, VkCommandPool commandPool,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandPool((*&local_commandPool));
+    *&cgen_var_1 = gfxstream_vk_command_pool_to_host_u64((*&local_commandPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -4590,11 +4590,11 @@ VkResult VkEncoder::vkResetCommandPool(VkDevice device, VkCommandPool commandPoo
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandPool((*&local_commandPool));
+    *&cgen_var_1 = gfxstream_vk_command_pool_to_host_u64((*&local_commandPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkCommandPoolResetFlags*)&local_flags, sizeof(VkCommandPoolResetFlags));
@@ -4662,7 +4662,7 @@ VkResult VkEncoder::vkAllocateCommandBuffers(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCommandBufferAllocateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -4750,11 +4750,11 @@ void VkEncoder::vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandPool((*&local_commandPool));
+    *&cgen_var_1 = gfxstream_vk_command_pool_to_host_u64((*&local_commandPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_commandBufferCount, sizeof(uint32_t));
@@ -4768,7 +4768,7 @@ void VkEncoder::vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool,
         if (commandBufferCount) {
             uint8_t* cgen_var_2_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < commandBufferCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkCommandBuffer(local_pCommandBuffers[k]);
+                uint64_t tmpval = gfxstream_vk_command_buffer_to_host_u64(local_pCommandBuffers[k]);
                 memcpy(cgen_var_2_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * commandBufferCount;
@@ -4830,7 +4830,7 @@ VkResult VkEncoder::vkBeginCommandBuffer(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -4875,7 +4875,7 @@ VkResult VkEncoder::vkEndCommandBuffer(VkCommandBuffer commandBuffer, uint32_t d
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -4921,7 +4921,7 @@ VkResult VkEncoder::vkResetCommandBuffer(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -4999,16 +4999,16 @@ void VkEncoder::vkCmdCopyBuffer(VkCommandBuffer commandBuffer, VkBuffer srcBuffe
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_srcBuffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_srcBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_dstBuffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_dstBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_regionCount, sizeof(uint32_t));
@@ -5092,18 +5092,18 @@ void VkEncoder::vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcImage,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_srcImage));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_srcImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_srcImageLayout, sizeof(VkImageLayout));
     *streamPtrPtr += sizeof(VkImageLayout);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_dstImage));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_dstImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_dstImageLayout, sizeof(VkImageLayout));
@@ -5188,16 +5188,16 @@ void VkEncoder::vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer s
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_srcBuffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_srcBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_dstImage));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_dstImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_dstImageLayout, sizeof(VkImageLayout));
@@ -5282,18 +5282,18 @@ void VkEncoder::vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImage sr
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_srcImage));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_srcImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_srcImageLayout, sizeof(VkImageLayout));
     *streamPtrPtr += sizeof(VkImageLayout);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_dstBuffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_dstBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_regionCount, sizeof(uint32_t));
@@ -5354,12 +5354,12 @@ void VkEncoder::vkCmdUpdateBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuf
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_dstBuffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_dstBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_dstOffset, sizeof(VkDeviceSize));
@@ -5421,12 +5421,12 @@ void VkEncoder::vkCmdFillBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffe
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_dstBuffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_dstBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_dstOffset, sizeof(VkDeviceSize));
@@ -5558,7 +5558,7 @@ void VkEncoder::vkCmdPipelineBarrier(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -5636,12 +5636,12 @@ void VkEncoder::vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool query
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -5692,12 +5692,12 @@ void VkEncoder::vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPo
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -5749,12 +5749,12 @@ void VkEncoder::vkCmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool q
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstQuery, sizeof(uint32_t));
@@ -5809,7 +5809,7 @@ void VkEncoder::vkCmdWriteTimestamp(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -5817,7 +5817,7 @@ void VkEncoder::vkCmdWriteTimestamp(VkCommandBuffer commandBuffer,
            sizeof(VkPipelineStageFlagBits));
     *streamPtrPtr += sizeof(VkPipelineStageFlagBits);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -5886,12 +5886,12 @@ void VkEncoder::vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQuery
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstQuery, sizeof(uint32_t));
@@ -5899,7 +5899,7 @@ void VkEncoder::vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQuery
     memcpy(*streamPtrPtr, (uint32_t*)&local_queryCount, sizeof(uint32_t));
     *streamPtrPtr += sizeof(uint32_t);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_dstBuffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_dstBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_dstOffset, sizeof(VkDeviceSize));
@@ -5953,7 +5953,7 @@ void VkEncoder::vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t com
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -5962,7 +5962,7 @@ void VkEncoder::vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t com
     if (commandBufferCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < commandBufferCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkCommandBuffer(local_pCommandBuffers[k]);
+            uint64_t tmpval = gfxstream_vk_command_buffer_to_host_u64(local_pCommandBuffers[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * commandBufferCount;
@@ -6039,7 +6039,7 @@ VkResult VkEncoder::vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCre
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkEventCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -6126,11 +6126,11 @@ void VkEncoder::vkDestroyEvent(VkDevice device, VkEvent event,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_1 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -6189,11 +6189,11 @@ VkResult VkEncoder::vkGetEventStatus(VkDevice device, VkEvent event, uint32_t do
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_1 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkGetEventStatus_VkResult_return = (VkResult)0;
@@ -6243,11 +6243,11 @@ VkResult VkEncoder::vkSetEvent(VkDevice device, VkEvent event, uint32_t doLock) 
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_1 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkSetEvent_VkResult_return = (VkResult)0;
@@ -6297,11 +6297,11 @@ VkResult VkEncoder::vkResetEvent(VkDevice device, VkEvent event, uint32_t doLock
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_1 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkResetEvent_VkResult_return = (VkResult)0;
@@ -6379,7 +6379,7 @@ VkResult VkEncoder::vkCreateBufferView(VkDevice device, const VkBufferViewCreate
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferViewCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -6468,11 +6468,11 @@ void VkEncoder::vkDestroyBufferView(VkDevice device, VkBufferView bufferView,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBufferView((*&local_bufferView));
+    *&cgen_var_1 = gfxstream_vk_buffer_view_to_host_u64((*&local_bufferView));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -6560,7 +6560,7 @@ VkResult VkEncoder::vkCreateShaderModule(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkShaderModuleCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -6650,11 +6650,11 @@ void VkEncoder::vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModu
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkShaderModule((*&local_shaderModule));
+    *&cgen_var_1 = gfxstream_vk_shader_module_to_host_u64((*&local_shaderModule));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -6742,7 +6742,7 @@ VkResult VkEncoder::vkCreatePipelineCache(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPipelineCacheCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -6832,11 +6832,11 @@ void VkEncoder::vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipeline
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineCache((*&local_pipelineCache));
+    *&cgen_var_1 = gfxstream_vk_pipeline_cache_to_host_u64((*&local_pipelineCache));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -6910,11 +6910,11 @@ VkResult VkEncoder::vkGetPipelineCacheData(VkDevice device, VkPipelineCache pipe
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineCache((*&local_pipelineCache));
+    *&cgen_var_1 = gfxstream_vk_pipeline_cache_to_host_u64((*&local_pipelineCache));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -7018,11 +7018,11 @@ VkResult VkEncoder::vkMergePipelineCaches(VkDevice device, VkPipelineCache dstCa
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineCache((*&local_dstCache));
+    *&cgen_var_1 = gfxstream_vk_pipeline_cache_to_host_u64((*&local_dstCache));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_srcCacheCount, sizeof(uint32_t));
@@ -7030,7 +7030,7 @@ VkResult VkEncoder::vkMergePipelineCaches(VkDevice device, VkPipelineCache dstCa
     if (srcCacheCount) {
         uint8_t* cgen_var_2_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < srcCacheCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkPipelineCache(local_pSrcCaches[k]);
+            uint64_t tmpval = gfxstream_vk_pipeline_cache_to_host_u64(local_pSrcCaches[k]);
             memcpy(cgen_var_2_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * srcCacheCount;
@@ -7128,11 +7128,11 @@ VkResult VkEncoder::vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineCache((*&local_pipelineCache));
+    *&cgen_var_1 = gfxstream_vk_pipeline_cache_to_host_u64((*&local_pipelineCache));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_createInfoCount, sizeof(uint32_t));
@@ -7233,11 +7233,11 @@ void VkEncoder::vkDestroyPipeline(VkDevice device, VkPipeline pipeline,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipeline((*&local_pipeline));
+    *&cgen_var_1 = gfxstream_vk_pipeline_to_host_u64((*&local_pipeline));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -7326,7 +7326,7 @@ VkResult VkEncoder::vkCreatePipelineLayout(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPipelineLayoutCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -7416,11 +7416,11 @@ void VkEncoder::vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipeli
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineLayout((*&local_pipelineLayout));
+    *&cgen_var_1 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_pipelineLayout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -7506,7 +7506,7 @@ VkResult VkEncoder::vkCreateSampler(VkDevice device, const VkSamplerCreateInfo* 
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSamplerCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -7593,11 +7593,11 @@ void VkEncoder::vkDestroySampler(VkDevice device, VkSampler sampler,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSampler((*&local_sampler));
+    *&cgen_var_1 = gfxstream_vk_sampler_to_host_u64((*&local_sampler));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -7688,7 +7688,7 @@ VkResult VkEncoder::vkCreateDescriptorSetLayout(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorSetLayoutCreateInfo(
@@ -7780,11 +7780,11 @@ void VkEncoder::vkDestroyDescriptorSetLayout(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorSetLayout((*&local_descriptorSetLayout));
+    *&cgen_var_1 = gfxstream_vk_descriptor_set_layout_to_host_u64((*&local_descriptorSetLayout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -7874,7 +7874,7 @@ VkResult VkEncoder::vkCreateDescriptorPool(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorPoolCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -7964,11 +7964,11 @@ void VkEncoder::vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descri
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorPool((*&local_descriptorPool));
+    *&cgen_var_1 = gfxstream_vk_descriptor_pool_to_host_u64((*&local_descriptorPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -8033,11 +8033,11 @@ VkResult VkEncoder::vkResetDescriptorPool(VkDevice device, VkDescriptorPool desc
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorPool((*&local_descriptorPool));
+    *&cgen_var_1 = gfxstream_vk_descriptor_pool_to_host_u64((*&local_descriptorPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDescriptorPoolResetFlags*)&local_flags,
@@ -8106,7 +8106,7 @@ VkResult VkEncoder::vkAllocateDescriptorSets(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorSetAllocateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -8194,11 +8194,11 @@ VkResult VkEncoder::vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorPool((*&local_descriptorPool));
+    *&cgen_var_1 = gfxstream_vk_descriptor_pool_to_host_u64((*&local_descriptorPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_descriptorSetCount, sizeof(uint32_t));
@@ -8212,7 +8212,7 @@ VkResult VkEncoder::vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
         if (descriptorSetCount) {
             uint8_t* cgen_var_2_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < descriptorSetCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkDescriptorSet(local_pDescriptorSets[k]);
+                uint64_t tmpval = gfxstream_vk_descriptor_set_to_host_u64(local_pDescriptorSets[k]);
                 memcpy(cgen_var_2_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * descriptorSetCount;
@@ -8317,7 +8317,7 @@ void VkEncoder::vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorWrite
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_descriptorWriteCount, sizeof(uint32_t));
@@ -8380,7 +8380,7 @@ void VkEncoder::vkCmdBindPipeline(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -8388,7 +8388,7 @@ void VkEncoder::vkCmdBindPipeline(VkCommandBuffer commandBuffer,
            sizeof(VkPipelineBindPoint));
     *streamPtrPtr += sizeof(VkPipelineBindPoint);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPipeline((*&local_pipeline));
+    *&cgen_var_0 = gfxstream_vk_pipeline_to_host_u64((*&local_pipeline));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     ++encodeCount;
@@ -8456,7 +8456,7 @@ void VkEncoder::vkCmdBindDescriptorSets(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -8464,7 +8464,7 @@ void VkEncoder::vkCmdBindDescriptorSets(
            sizeof(VkPipelineBindPoint));
     *streamPtrPtr += sizeof(VkPipelineBindPoint);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPipelineLayout((*&local_layout));
+    *&cgen_var_0 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_layout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstSet, sizeof(uint32_t));
@@ -8474,7 +8474,7 @@ void VkEncoder::vkCmdBindDescriptorSets(
     if (descriptorSetCount) {
         uint8_t* cgen_var_1_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < descriptorSetCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkDescriptorSet(local_pDescriptorSets[k]);
+            uint64_t tmpval = gfxstream_vk_descriptor_set_to_host_u64(local_pDescriptorSets[k]);
             memcpy(cgen_var_1_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * descriptorSetCount;
@@ -8567,12 +8567,12 @@ void VkEncoder::vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage imag
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_imageLayout, sizeof(VkImageLayout));
@@ -8631,7 +8631,7 @@ void VkEncoder::vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCount
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -8685,12 +8685,12 @@ void VkEncoder::vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer bu
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -8739,12 +8739,12 @@ void VkEncoder::vkCmdSetEvent(VkCommandBuffer commandBuffer, VkEvent event,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkPipelineStageFlags*)&local_stageMask, sizeof(VkPipelineStageFlags));
@@ -8793,12 +8793,12 @@ void VkEncoder::vkCmdResetEvent(VkCommandBuffer commandBuffer, VkEvent event,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkPipelineStageFlags*)&local_stageMask, sizeof(VkPipelineStageFlags));
@@ -8933,7 +8933,7 @@ void VkEncoder::vkCmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCou
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -8942,7 +8942,7 @@ void VkEncoder::vkCmdWaitEvents(VkCommandBuffer commandBuffer, uint32_t eventCou
     if (eventCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < eventCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkEvent(local_pEvents[k]);
+            uint64_t tmpval = gfxstream_vk_event_to_host_u64(local_pEvents[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * eventCount;
@@ -9027,12 +9027,12 @@ void VkEncoder::vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayo
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPipelineLayout((*&local_layout));
+    *&cgen_var_0 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_layout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkShaderStageFlags*)&local_stageFlags, sizeof(VkShaderStageFlags));
@@ -9137,11 +9137,11 @@ VkResult VkEncoder::vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineCache((*&local_pipelineCache));
+    *&cgen_var_1 = gfxstream_vk_pipeline_cache_to_host_u64((*&local_pipelineCache));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_createInfoCount, sizeof(uint32_t));
@@ -9255,7 +9255,7 @@ VkResult VkEncoder::vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkFramebufferCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -9345,11 +9345,11 @@ void VkEncoder::vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFramebuffer((*&local_framebuffer));
+    *&cgen_var_1 = gfxstream_vk_framebuffer_to_host_u64((*&local_framebuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -9436,7 +9436,7 @@ VkResult VkEncoder::vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkRenderPassCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -9526,11 +9526,11 @@ void VkEncoder::vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkRenderPass((*&local_renderPass));
+    *&cgen_var_1 = gfxstream_vk_render_pass_to_host_u64((*&local_renderPass));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -9593,11 +9593,11 @@ void VkEncoder::vkGetRenderAreaGranularity(VkDevice device, VkRenderPass renderP
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkRenderPass((*&local_renderPass));
+    *&cgen_var_1 = gfxstream_vk_render_pass_to_host_u64((*&local_renderPass));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkExtent2D(stream, VK_STRUCTURE_TYPE_MAX_ENUM, (VkExtent2D*)(pGranularity),
@@ -9667,7 +9667,7 @@ void VkEncoder::vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstVi
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9739,7 +9739,7 @@ void VkEncoder::vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstSci
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9789,7 +9789,7 @@ void VkEncoder::vkCmdSetLineWidth(VkCommandBuffer commandBuffer, float lineWidth
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9841,7 +9841,7 @@ void VkEncoder::vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depthBias
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9890,7 +9890,7 @@ void VkEncoder::vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const floa
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9938,7 +9938,7 @@ void VkEncoder::vkCmdSetDepthBounds(VkCommandBuffer commandBuffer, float minDept
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -9989,7 +9989,7 @@ void VkEncoder::vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10039,7 +10039,7 @@ void VkEncoder::vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStenci
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10089,7 +10089,7 @@ void VkEncoder::vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStenci
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10144,12 +10144,12 @@ void VkEncoder::vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer buf
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -10209,7 +10209,7 @@ void VkEncoder::vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t f
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10220,7 +10220,7 @@ void VkEncoder::vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t f
     if (bindingCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < bindingCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkBuffer(local_pBuffers[k]);
+            uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pBuffers[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * bindingCount;
@@ -10278,7 +10278,7 @@ void VkEncoder::vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10342,7 +10342,7 @@ void VkEncoder::vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCo
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10407,12 +10407,12 @@ void VkEncoder::vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -10472,12 +10472,12 @@ void VkEncoder::vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -10564,18 +10564,18 @@ void VkEncoder::vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_srcImage));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_srcImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_srcImageLayout, sizeof(VkImageLayout));
     *streamPtrPtr += sizeof(VkImageLayout);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_dstImage));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_dstImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_dstImageLayout, sizeof(VkImageLayout));
@@ -10673,12 +10673,12 @@ void VkEncoder::vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkIma
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_imageLayout, sizeof(VkImageLayout));
@@ -10774,7 +10774,7 @@ void VkEncoder::vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10867,18 +10867,18 @@ void VkEncoder::vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImag
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkImage((*&local_srcImage));
+    *&cgen_var_0 = gfxstream_vk_image_to_host_u64((*&local_srcImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_srcImageLayout, sizeof(VkImageLayout));
     *streamPtrPtr += sizeof(VkImageLayout);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_dstImage));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_dstImage));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkImageLayout*)&local_dstImageLayout, sizeof(VkImageLayout));
@@ -10943,7 +10943,7 @@ void VkEncoder::vkCmdBeginRenderPass(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -10991,7 +10991,7 @@ void VkEncoder::vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -11032,7 +11032,7 @@ void VkEncoder::vkCmdEndRenderPass(VkCommandBuffer commandBuffer, uint32_t doLoc
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -11143,7 +11143,7 @@ VkResult VkEncoder::vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -11222,7 +11222,7 @@ VkResult VkEncoder::vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -11289,7 +11289,7 @@ void VkEncoder::vkGetDeviceGroupPeerMemoryFeatures(VkDevice device, uint32_t hea
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_heapIndex, sizeof(uint32_t));
@@ -11341,7 +11341,7 @@ void VkEncoder::vkCmdSetDeviceMask(VkCommandBuffer commandBuffer, uint32_t devic
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -11406,7 +11406,7 @@ VkResult VkEncoder::vkEnumeratePhysicalDeviceGroups(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkInstance((*&local_instance));
+    *&cgen_var_0 = gfxstream_vk_instance_to_host_u64((*&local_instance));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -11532,7 +11532,7 @@ void VkEncoder::vkGetImageMemoryRequirements2(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageMemoryRequirementsInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -11607,7 +11607,7 @@ void VkEncoder::vkGetBufferMemoryRequirements2(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferMemoryRequirementsInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -11698,7 +11698,7 @@ void VkEncoder::vkGetImageSparseMemoryRequirements2(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSparseMemoryRequirementsInfo2(
@@ -11807,7 +11807,7 @@ void VkEncoder::vkGetPhysicalDeviceFeatures2(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceFeatures2(
@@ -11863,7 +11863,7 @@ void VkEncoder::vkGetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceProperties2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -11923,7 +11923,7 @@ void VkEncoder::vkGetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDe
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -11998,7 +11998,7 @@ VkResult VkEncoder::vkGetPhysicalDeviceImageFormatProperties2(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceImageFormatInfo2(
@@ -12075,7 +12075,7 @@ void VkEncoder::vkGetPhysicalDeviceQueueFamilyProperties2(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -12179,7 +12179,7 @@ void VkEncoder::vkGetPhysicalDeviceMemoryProperties2(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceMemoryProperties2(
@@ -12269,7 +12269,7 @@ void VkEncoder::vkGetPhysicalDeviceSparseImageFormatProperties2(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceSparseImageFormatInfo2(
@@ -12379,11 +12379,11 @@ void VkEncoder::vkTrimCommandPool(VkDevice device, VkCommandPool commandPool,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandPool((*&local_commandPool));
+    *&cgen_var_1 = gfxstream_vk_command_pool_to_host_u64((*&local_commandPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkCommandPoolTrimFlags*)&local_flags, sizeof(VkCommandPoolTrimFlags));
@@ -12446,7 +12446,7 @@ void VkEncoder::vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* pQu
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceQueueInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -12526,7 +12526,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalBufferProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalBufferInfo(
@@ -12605,7 +12605,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalFenceProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalFenceInfo(
@@ -12684,7 +12684,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalSemaphoreProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalSemaphoreInfo(
@@ -12759,7 +12759,7 @@ void VkEncoder::vkCmdDispatchBase(VkCommandBuffer commandBuffer, uint32_t baseGr
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -12850,7 +12850,7 @@ VkResult VkEncoder::vkCreateDescriptorUpdateTemplate(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorUpdateTemplateCreateInfo(
@@ -12944,11 +12944,12 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplate(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_1 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -13024,15 +13025,16 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplate(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorSet((*&local_descriptorSet));
+    *&cgen_var_1 = gfxstream_vk_descriptor_set_to_host_u64((*&local_descriptorSet));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_2 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -13106,7 +13108,7 @@ void VkEncoder::vkGetDescriptorSetLayoutSupport(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorSetLayoutCreateInfo(
@@ -13196,7 +13198,7 @@ VkResult VkEncoder::vkCreateSamplerYcbcrConversion(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSamplerYcbcrConversionCreateInfo(
@@ -13288,11 +13290,11 @@ void VkEncoder::vkDestroySamplerYcbcrConversion(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSamplerYcbcrConversion((*&local_ycbcrConversion));
+    *&cgen_var_1 = gfxstream_vk_sampler_ycbcr_conversion_to_host_u64((*&local_ycbcrConversion));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -13361,11 +13363,11 @@ void VkEncoder::vkResetQueryPool(VkDevice device, VkQueryPool queryPool, uint32_
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_1 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstQuery, sizeof(uint32_t));
@@ -13420,11 +13422,11 @@ VkResult VkEncoder::vkGetSemaphoreCounterValue(VkDevice device, VkSemaphore sema
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSemaphore((*&local_semaphore));
+    *&cgen_var_1 = gfxstream_vk_semaphore_to_host_u64((*&local_semaphore));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)pValue, sizeof(uint64_t));
@@ -13489,7 +13491,7 @@ VkResult VkEncoder::vkWaitSemaphores(VkDevice device, const VkSemaphoreWaitInfo*
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSemaphoreWaitInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -13554,7 +13556,7 @@ VkResult VkEncoder::vkSignalSemaphore(VkDevice device, const VkSemaphoreSignalIn
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSemaphoreSignalInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -13619,7 +13621,7 @@ VkDeviceAddress VkEncoder::vkGetBufferDeviceAddress(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferDeviceAddressInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -13684,7 +13686,7 @@ uint64_t VkEncoder::vkGetBufferOpaqueCaptureAddress(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferDeviceAddressInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -13751,7 +13753,7 @@ uint64_t VkEncoder::vkGetDeviceMemoryOpaqueCaptureAddress(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceMemoryOpaqueCaptureAddressInfo(
@@ -13822,18 +13824,18 @@ void VkEncoder::vkCmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer b
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
     *streamPtrPtr += sizeof(VkDeviceSize);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_countBuffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_countBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_countBufferOffset, sizeof(VkDeviceSize));
@@ -13902,18 +13904,18 @@ void VkEncoder::vkCmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkB
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
     *streamPtrPtr += sizeof(VkDeviceSize);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkBuffer((*&local_countBuffer));
+    *&cgen_var_1 = gfxstream_vk_buffer_to_host_u64((*&local_countBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_countBufferOffset, sizeof(VkDeviceSize));
@@ -13994,7 +13996,7 @@ VkResult VkEncoder::vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkRenderPassCreateInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -14091,7 +14093,7 @@ void VkEncoder::vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -14165,7 +14167,7 @@ void VkEncoder::vkCmdNextSubpass2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -14223,7 +14225,7 @@ void VkEncoder::vkCmdEndRenderPass2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -14289,7 +14291,7 @@ VkResult VkEncoder::vkGetPhysicalDeviceToolProperties(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -14424,7 +14426,7 @@ VkResult VkEncoder::vkCreatePrivateDataSlot(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPrivateDataSlotCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -14514,11 +14516,11 @@ void VkEncoder::vkDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot priv
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -14589,7 +14591,7 @@ VkResult VkEncoder::vkSetPrivateData(VkDevice device, VkObjectType objectType,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkObjectType*)&local_objectType, sizeof(VkObjectType));
@@ -14597,7 +14599,7 @@ VkResult VkEncoder::vkSetPrivateData(VkDevice device, VkObjectType objectType,
     memcpy(*streamPtrPtr, (uint64_t*)&local_objectHandle, sizeof(uint64_t));
     *streamPtrPtr += sizeof(uint64_t);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)&local_data, sizeof(uint64_t));
@@ -14658,7 +14660,7 @@ void VkEncoder::vkGetPrivateData(VkDevice device, VkObjectType objectType, uint6
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkObjectType*)&local_objectType, sizeof(VkObjectType));
@@ -14666,7 +14668,7 @@ void VkEncoder::vkGetPrivateData(VkDevice device, VkObjectType objectType, uint6
     memcpy(*streamPtrPtr, (uint64_t*)&local_objectHandle, sizeof(uint64_t));
     *streamPtrPtr += sizeof(uint64_t);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)pData, sizeof(uint64_t));
@@ -14721,7 +14723,7 @@ void VkEncoder::vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -14774,14 +14776,14 @@ void VkEncoder::vkCmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineSt
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     memcpy(*streamPtrPtr, (VkPipelineStageFlags2*)&local_stage, sizeof(VkPipelineStageFlags2));
     *streamPtrPtr += sizeof(VkPipelineStageFlags2);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -14852,7 +14854,7 @@ VkResult VkEncoder::vkQueueSubmit2(VkQueue queue, uint32_t submitCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_submitCount, sizeof(uint32_t));
@@ -14862,7 +14864,7 @@ VkResult VkEncoder::vkQueueSubmit2(VkQueue queue, uint32_t submitCount,
                                       (VkSubmitInfo2*)(local_pSubmits + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkQueueSubmit2_VkResult_return = (VkResult)0;
@@ -14917,7 +14919,7 @@ void VkEncoder::vkCmdCopyBuffer2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -14972,7 +14974,7 @@ void VkEncoder::vkCmdCopyImage2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15031,7 +15033,7 @@ void VkEncoder::vkCmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15091,7 +15093,7 @@ void VkEncoder::vkCmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15158,7 +15160,7 @@ void VkEncoder::vkGetDeviceBufferMemoryRequirements(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceBufferMemoryRequirements(
@@ -15233,7 +15235,7 @@ void VkEncoder::vkGetDeviceImageMemoryRequirements(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -15324,7 +15326,7 @@ void VkEncoder::vkGetDeviceImageSparseMemoryRequirements(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -15445,12 +15447,12 @@ void VkEncoder::vkCmdSetEvent2(VkCommandBuffer commandBuffer, VkEvent event,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDependencyInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -15499,12 +15501,12 @@ void VkEncoder::vkCmdResetEvent2(VkCommandBuffer commandBuffer, VkEvent event,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkPipelineStageFlags2*)&local_stageMask, sizeof(VkPipelineStageFlags2));
@@ -15575,7 +15577,7 @@ void VkEncoder::vkCmdWaitEvents2(VkCommandBuffer commandBuffer, uint32_t eventCo
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15584,7 +15586,7 @@ void VkEncoder::vkCmdWaitEvents2(VkCommandBuffer commandBuffer, uint32_t eventCo
     if (eventCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < eventCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkEvent(local_pEvents[k]);
+            uint64_t tmpval = gfxstream_vk_event_to_host_u64(local_pEvents[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * eventCount;
@@ -15645,7 +15647,7 @@ void VkEncoder::vkCmdBlitImage2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15701,7 +15703,7 @@ void VkEncoder::vkCmdResolveImage2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15757,7 +15759,7 @@ void VkEncoder::vkCmdBeginRendering(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15798,7 +15800,7 @@ void VkEncoder::vkCmdEndRendering(VkCommandBuffer commandBuffer, uint32_t doLock
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15841,7 +15843,7 @@ void VkEncoder::vkCmdSetCullMode(VkCommandBuffer commandBuffer, VkCullModeFlags 
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15886,7 +15888,7 @@ void VkEncoder::vkCmdSetFrontFace(VkCommandBuffer commandBuffer, VkFrontFace fro
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15931,7 +15933,7 @@ void VkEncoder::vkCmdSetPrimitiveTopology(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -15995,7 +15997,7 @@ void VkEncoder::vkCmdSetViewportWithCount(VkCommandBuffer commandBuffer, uint32_
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16062,7 +16064,7 @@ void VkEncoder::vkCmdSetScissorWithCount(VkCommandBuffer commandBuffer, uint32_t
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16146,7 +16148,7 @@ void VkEncoder::vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t 
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16163,7 +16165,7 @@ void VkEncoder::vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t 
         if (bindingCount) {
             uint8_t* cgen_var_0_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < bindingCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBuffer(local_pBuffers[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pBuffers[k]);
                 memcpy(cgen_var_0_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * bindingCount;
@@ -16235,7 +16237,7 @@ void VkEncoder::vkCmdSetDepthTestEnable(VkCommandBuffer commandBuffer, VkBool32 
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16280,7 +16282,7 @@ void VkEncoder::vkCmdSetDepthWriteEnable(VkCommandBuffer commandBuffer, VkBool32
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16325,7 +16327,7 @@ void VkEncoder::vkCmdSetDepthCompareOp(VkCommandBuffer commandBuffer, VkCompareO
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16370,7 +16372,7 @@ void VkEncoder::vkCmdSetDepthBoundsTestEnable(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16415,7 +16417,7 @@ void VkEncoder::vkCmdSetStencilTestEnable(VkCommandBuffer commandBuffer, VkBool3
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16473,7 +16475,7 @@ void VkEncoder::vkCmdSetStencilOp(VkCommandBuffer commandBuffer, VkStencilFaceFl
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16526,7 +16528,7 @@ void VkEncoder::vkCmdSetRasterizerDiscardEnable(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16571,7 +16573,7 @@ void VkEncoder::vkCmdSetDepthBiasEnable(VkCommandBuffer commandBuffer, VkBool32 
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16616,7 +16618,7 @@ void VkEncoder::vkCmdSetPrimitiveRestartEnable(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -16700,7 +16702,7 @@ void VkEncoder::vkGetDeviceImageSubresourceLayout(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageSubresourceInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -16775,11 +16777,11 @@ void VkEncoder::vkGetImageSubresourceLayout2(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSubresource2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -16848,7 +16850,7 @@ VkResult VkEncoder::vkCopyMemoryToImage(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyMemoryToImageInfo(
@@ -16914,7 +16916,7 @@ VkResult VkEncoder::vkCopyImageToMemory(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyImageToMemoryInfo(
@@ -16980,7 +16982,7 @@ VkResult VkEncoder::vkCopyImageToImage(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyImageToImageInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -17056,7 +17058,7 @@ VkResult VkEncoder::vkTransitionImageLayout(VkDevice device, uint32_t transition
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_transitionCount, sizeof(uint32_t));
@@ -17146,7 +17148,7 @@ void VkEncoder::vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17154,7 +17156,7 @@ void VkEncoder::vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer,
            sizeof(VkPipelineBindPoint));
     *streamPtrPtr += sizeof(VkPipelineBindPoint);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPipelineLayout((*&local_layout));
+    *&cgen_var_0 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_layout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_set, sizeof(uint32_t));
@@ -17224,16 +17226,17 @@ void VkEncoder::vkCmdPushDescriptorSetWithTemplate(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_0 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineLayout((*&local_layout));
+    *&cgen_var_1 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_layout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_set, sizeof(uint32_t));
@@ -17300,7 +17303,7 @@ void VkEncoder::vkCmdBindDescriptorSets2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17358,7 +17361,7 @@ void VkEncoder::vkCmdPushConstants2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17417,7 +17420,7 @@ void VkEncoder::vkCmdPushDescriptorSet2(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17481,7 +17484,7 @@ void VkEncoder::vkCmdPushDescriptorSetWithTemplate2(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17533,7 +17536,7 @@ void VkEncoder::vkCmdSetLineStipple(VkCommandBuffer commandBuffer, uint32_t line
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17592,12 +17595,12 @@ void VkEncoder::vkCmdBindIndexBuffer2(VkCommandBuffer commandBuffer, VkBuffer bu
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -17664,7 +17667,7 @@ void VkEncoder::vkGetRenderingAreaGranularity(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkRenderingAreaInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -17729,7 +17732,7 @@ void VkEncoder::vkCmdSetRenderingAttachmentLocations(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17791,7 +17794,7 @@ void VkEncoder::vkCmdSetRenderingInputAttachmentIndices(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17849,7 +17852,7 @@ void VkEncoder::vkCmdBeginRenderingKHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17890,7 +17893,7 @@ void VkEncoder::vkCmdEndRenderingKHR(VkCommandBuffer commandBuffer, uint32_t doL
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -17940,7 +17943,7 @@ void VkEncoder::vkGetPhysicalDeviceFeatures2KHR(VkPhysicalDevice physicalDevice,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceFeatures2(
@@ -17995,7 +17998,7 @@ void VkEncoder::vkGetPhysicalDeviceProperties2KHR(VkPhysicalDevice physicalDevic
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceProperties2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -18056,7 +18059,7 @@ void VkEncoder::vkGetPhysicalDeviceFormatProperties2KHR(VkPhysicalDevice physica
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -18131,7 +18134,7 @@ VkResult VkEncoder::vkGetPhysicalDeviceImageFormatProperties2KHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceImageFormatInfo2(
@@ -18208,7 +18211,7 @@ void VkEncoder::vkGetPhysicalDeviceQueueFamilyProperties2KHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -18313,7 +18316,7 @@ void VkEncoder::vkGetPhysicalDeviceMemoryProperties2KHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceMemoryProperties2(
@@ -18403,7 +18406,7 @@ void VkEncoder::vkGetPhysicalDeviceSparseImageFormatProperties2KHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceSparseImageFormatInfo2(
@@ -18515,11 +18518,11 @@ void VkEncoder::vkTrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandPool((*&local_commandPool));
+    *&cgen_var_1 = gfxstream_vk_command_pool_to_host_u64((*&local_commandPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkCommandPoolTrimFlags*)&local_flags, sizeof(VkCommandPoolTrimFlags));
@@ -18591,7 +18594,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalBufferPropertiesKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalBufferInfo(
@@ -18676,7 +18679,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalSemaphoreInfo(
@@ -18752,7 +18755,7 @@ VkResult VkEncoder::vkImportSemaphoreFdKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImportSemaphoreFdInfoKHR(
@@ -18817,7 +18820,7 @@ VkResult VkEncoder::vkGetSemaphoreFdKHR(VkDevice device, const VkSemaphoreGetFdI
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSemaphoreGetFdInfoKHR(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -18906,7 +18909,7 @@ VkResult VkEncoder::vkCreateDescriptorUpdateTemplateKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorUpdateTemplateCreateInfo(
@@ -18997,11 +19000,12 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplateKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_1 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -19077,15 +19081,16 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplateKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorSet((*&local_descriptorSet));
+    *&cgen_var_1 = gfxstream_vk_descriptor_set_to_host_u64((*&local_descriptorSet));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_2 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -19157,16 +19162,17 @@ void VkEncoder::vkCmdPushDescriptorSetWithTemplateKHR(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_0 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPipelineLayout((*&local_layout));
+    *&cgen_var_1 = gfxstream_vk_pipeline_layout_to_host_u64((*&local_layout));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_set, sizeof(uint32_t));
@@ -19255,7 +19261,7 @@ VkResult VkEncoder::vkCreateRenderPass2KHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkRenderPassCreateInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -19352,7 +19358,7 @@ void VkEncoder::vkCmdBeginRenderPass2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -19426,7 +19432,7 @@ void VkEncoder::vkCmdNextSubpass2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -19484,7 +19490,7 @@ void VkEncoder::vkCmdEndRenderPass2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -19554,7 +19560,7 @@ void VkEncoder::vkGetPhysicalDeviceExternalFencePropertiesKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPhysicalDeviceExternalFenceInfo(
@@ -19627,7 +19633,7 @@ VkResult VkEncoder::vkImportFenceFdKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImportFenceFdInfoKHR(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -19690,7 +19696,7 @@ VkResult VkEncoder::vkGetFenceFdKHR(VkDevice device, const VkFenceGetFdInfoKHR* 
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkFenceGetFdInfoKHR(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -19763,7 +19769,7 @@ void VkEncoder::vkGetImageMemoryRequirements2KHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageMemoryRequirementsInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -19838,7 +19844,7 @@ void VkEncoder::vkGetBufferMemoryRequirements2KHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferMemoryRequirementsInfo2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -19930,7 +19936,7 @@ void VkEncoder::vkGetImageSparseMemoryRequirements2KHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSparseMemoryRequirementsInfo2(
@@ -20072,7 +20078,7 @@ VkResult VkEncoder::vkCreateSamplerYcbcrConversionKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkSamplerYcbcrConversionCreateInfo(
@@ -20164,11 +20170,11 @@ void VkEncoder::vkDestroySamplerYcbcrConversionKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSamplerYcbcrConversion((*&local_ycbcrConversion));
+    *&cgen_var_1 = gfxstream_vk_sampler_ycbcr_conversion_to_host_u64((*&local_ycbcrConversion));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -20251,7 +20257,7 @@ VkResult VkEncoder::vkBindBufferMemory2KHR(VkDevice device, uint32_t bindInfoCou
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -20329,7 +20335,7 @@ VkResult VkEncoder::vkBindImageMemory2KHR(VkDevice device, uint32_t bindInfoCoun
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -20404,7 +20410,7 @@ void VkEncoder::vkGetDescriptorSetLayoutSupportKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDescriptorSetLayoutCreateInfo(
@@ -20477,7 +20483,7 @@ VkDeviceAddress VkEncoder::vkGetBufferDeviceAddressKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferDeviceAddressInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -20542,7 +20548,7 @@ uint64_t VkEncoder::vkGetBufferOpaqueCaptureAddressKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferDeviceAddressInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -20609,7 +20615,7 @@ uint64_t VkEncoder::vkGetDeviceMemoryOpaqueCaptureAddressKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceMemoryOpaqueCaptureAddressInfo(
@@ -20691,7 +20697,7 @@ VkResult VkEncoder::vkGetPipelineExecutablePropertiesKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPipelineInfoKHR(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -20827,7 +20833,7 @@ VkResult VkEncoder::vkGetPipelineExecutableStatisticsKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPipelineExecutableInfoKHR(
@@ -20970,7 +20976,7 @@ VkResult VkEncoder::vkGetPipelineExecutableInternalRepresentationsKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPipelineExecutableInfoKHR(
@@ -21096,12 +21102,12 @@ void VkEncoder::vkCmdSetEvent2KHR(VkCommandBuffer commandBuffer, VkEvent event,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDependencyInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -21150,12 +21156,12 @@ void VkEncoder::vkCmdResetEvent2KHR(VkCommandBuffer commandBuffer, VkEvent event
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkEvent((*&local_event));
+    *&cgen_var_0 = gfxstream_vk_event_to_host_u64((*&local_event));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkPipelineStageFlags2*)&local_stageMask, sizeof(VkPipelineStageFlags2));
@@ -21226,7 +21232,7 @@ void VkEncoder::vkCmdWaitEvents2KHR(VkCommandBuffer commandBuffer, uint32_t even
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21235,7 +21241,7 @@ void VkEncoder::vkCmdWaitEvents2KHR(VkCommandBuffer commandBuffer, uint32_t even
     if (eventCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < eventCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkEvent(local_pEvents[k]);
+            uint64_t tmpval = gfxstream_vk_event_to_host_u64(local_pEvents[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * eventCount;
@@ -21294,7 +21300,7 @@ void VkEncoder::vkCmdPipelineBarrier2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21347,14 +21353,14 @@ void VkEncoder::vkCmdWriteTimestamp2KHR(VkCommandBuffer commandBuffer, VkPipelin
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     memcpy(*streamPtrPtr, (VkPipelineStageFlags2*)&local_stage, sizeof(VkPipelineStageFlags2));
     *streamPtrPtr += sizeof(VkPipelineStageFlags2);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -21427,7 +21433,7 @@ VkResult VkEncoder::vkQueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_submitCount, sizeof(uint32_t));
@@ -21437,7 +21443,7 @@ VkResult VkEncoder::vkQueueSubmit2KHR(VkQueue queue, uint32_t submitCount,
                                       (VkSubmitInfo2*)(local_pSubmits + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkQueueSubmit2KHR_VkResult_return = (VkResult)0;
@@ -21494,7 +21500,7 @@ void VkEncoder::vkCmdCopyBuffer2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21549,7 +21555,7 @@ void VkEncoder::vkCmdCopyImage2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21608,7 +21614,7 @@ void VkEncoder::vkCmdCopyBufferToImage2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21668,7 +21674,7 @@ void VkEncoder::vkCmdCopyImageToBuffer2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21724,7 +21730,7 @@ void VkEncoder::vkCmdBlitImage2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21781,7 +21787,7 @@ void VkEncoder::vkCmdResolveImage2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -21850,7 +21856,7 @@ void VkEncoder::vkGetDeviceBufferMemoryRequirementsKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceBufferMemoryRequirements(
@@ -21926,7 +21932,7 @@ void VkEncoder::vkGetDeviceImageMemoryRequirementsKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -22017,7 +22023,7 @@ void VkEncoder::vkGetDeviceImageSparseMemoryRequirementsKHR(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -22135,12 +22141,12 @@ void VkEncoder::vkCmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer, VkBuffer
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_buffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_buffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_offset, sizeof(VkDeviceSize));
@@ -22207,7 +22213,7 @@ void VkEncoder::vkGetRenderingAreaGranularityKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkRenderingAreaInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -22278,7 +22284,7 @@ void VkEncoder::vkGetDeviceImageSubresourceLayoutKHR(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkDeviceImageSubresourceInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -22353,11 +22359,11 @@ void VkEncoder::vkGetImageSubresourceLayout2KHR(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSubresource2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -22413,7 +22419,7 @@ void VkEncoder::vkCmdSetLineStippleKHR(VkCommandBuffer commandBuffer, uint32_t l
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22476,7 +22482,7 @@ void VkEncoder::vkCmdBindDescriptorSets2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22534,7 +22540,7 @@ void VkEncoder::vkCmdPushConstants2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22593,7 +22599,7 @@ void VkEncoder::vkCmdPushDescriptorSet2KHR(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22658,7 +22664,7 @@ void VkEncoder::vkCmdPushDescriptorSetWithTemplate2KHR(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22721,7 +22727,7 @@ void VkEncoder::vkCmdSetDescriptorBufferOffsets2EXT(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22788,7 +22794,7 @@ void VkEncoder::vkCmdBindDescriptorBufferEmbeddedSamplers2EXT(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -22847,7 +22853,7 @@ VkResult VkEncoder::vkGetSwapchainGrallocUsageANDROID(VkDevice device, VkFormat 
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -22921,21 +22927,21 @@ VkResult VkEncoder::vkAcquireImageANDROID(VkDevice device, VkImage image, int na
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (int*)&local_nativeFenceFd, sizeof(int));
     *streamPtrPtr += sizeof(int);
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkSemaphore((*&local_semaphore));
+    *&cgen_var_2 = gfxstream_vk_semaphore_to_host_u64((*&local_semaphore));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_3;
-    *&cgen_var_3 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_3 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_3, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkAcquireImageANDROID_VkResult_return = (VkResult)0;
@@ -23003,7 +23009,7 @@ VkResult VkEncoder::vkQueueSignalReleaseImageANDROID(VkQueue queue, uint32_t wai
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_waitSemaphoreCount, sizeof(uint32_t));
@@ -23017,14 +23023,14 @@ VkResult VkEncoder::vkQueueSignalReleaseImageANDROID(VkQueue queue, uint32_t wai
         if (waitSemaphoreCount) {
             uint8_t* cgen_var_1_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < waitSemaphoreCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkSemaphore(local_pWaitSemaphores[k]);
+                uint64_t tmpval = gfxstream_vk_semaphore_to_host_u64(local_pWaitSemaphores[k]);
                 memcpy(cgen_var_1_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * waitSemaphoreCount;
         }
     }
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_2 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (int*)pNativeFenceFd, sizeof(int));
@@ -23088,7 +23094,7 @@ VkResult VkEncoder::vkGetSwapchainGrallocUsage2ANDROID(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -23172,7 +23178,7 @@ void VkEncoder::vkCmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuff
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23183,7 +23189,7 @@ void VkEncoder::vkCmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuff
     if (bindingCount) {
         uint8_t* cgen_var_0_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < bindingCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkBuffer(local_pBuffers[k]);
+            uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pBuffers[k]);
             memcpy(cgen_var_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * bindingCount;
@@ -23264,7 +23270,7 @@ void VkEncoder::vkCmdBeginTransformFeedbackEXT(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23281,7 +23287,7 @@ void VkEncoder::vkCmdBeginTransformFeedbackEXT(
         if (counterBufferCount) {
             uint8_t* cgen_var_0_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < counterBufferCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBuffer(local_pCounterBuffers[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pCounterBuffers[k]);
                 memcpy(cgen_var_0_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * counterBufferCount;
@@ -23360,7 +23366,7 @@ void VkEncoder::vkCmdEndTransformFeedbackEXT(
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23377,7 +23383,7 @@ void VkEncoder::vkCmdEndTransformFeedbackEXT(
         if (counterBufferCount) {
             uint8_t* cgen_var_0_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < counterBufferCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBuffer(local_pCounterBuffers[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pCounterBuffers[k]);
                 memcpy(cgen_var_0_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * counterBufferCount;
@@ -23446,12 +23452,12 @@ void VkEncoder::vkCmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQuery
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -23507,12 +23513,12 @@ void VkEncoder::vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueryPool((*&local_queryPool));
+    *&cgen_var_0 = gfxstream_vk_query_pool_to_host_u64((*&local_queryPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_query, sizeof(uint32_t));
@@ -23578,7 +23584,7 @@ void VkEncoder::vkCmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer, uin
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23587,7 +23593,7 @@ void VkEncoder::vkCmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer, uin
     memcpy(*streamPtrPtr, (uint32_t*)&local_firstInstance, sizeof(uint32_t));
     *streamPtrPtr += sizeof(uint32_t);
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkBuffer((*&local_counterBuffer));
+    *&cgen_var_0 = gfxstream_vk_buffer_to_host_u64((*&local_counterBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_counterBufferOffset, sizeof(VkDeviceSize));
@@ -23649,11 +23655,11 @@ VkResult VkEncoder::vkGetImageDrmFormatModifierPropertiesEXT(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageDrmFormatModifierPropertiesEXT(
@@ -23728,7 +23734,7 @@ VkResult VkEncoder::vkGetPhysicalDeviceToolPropertiesEXT(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkPhysicalDevice((*&local_physicalDevice));
+    *&cgen_var_0 = gfxstream_vk_physical_device_to_host_u64((*&local_physicalDevice));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -23833,7 +23839,7 @@ void VkEncoder::vkCmdSetLineStippleEXT(VkCommandBuffer commandBuffer, uint32_t l
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23882,7 +23888,7 @@ void VkEncoder::vkCmdSetCullModeEXT(VkCommandBuffer commandBuffer, VkCullModeFla
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23927,7 +23933,7 @@ void VkEncoder::vkCmdSetFrontFaceEXT(VkCommandBuffer commandBuffer, VkFrontFace 
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -23973,7 +23979,7 @@ void VkEncoder::vkCmdSetPrimitiveTopologyEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24037,7 +24043,7 @@ void VkEncoder::vkCmdSetViewportWithCountEXT(VkCommandBuffer commandBuffer, uint
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24104,7 +24110,7 @@ void VkEncoder::vkCmdSetScissorWithCountEXT(VkCommandBuffer commandBuffer, uint3
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24188,7 +24194,7 @@ void VkEncoder::vkCmdBindVertexBuffers2EXT(VkCommandBuffer commandBuffer, uint32
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24205,7 +24211,7 @@ void VkEncoder::vkCmdBindVertexBuffers2EXT(VkCommandBuffer commandBuffer, uint32
         if (bindingCount) {
             uint8_t* cgen_var_0_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < bindingCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBuffer(local_pBuffers[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_to_host_u64(local_pBuffers[k]);
                 memcpy(cgen_var_0_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * bindingCount;
@@ -24277,7 +24283,7 @@ void VkEncoder::vkCmdSetDepthTestEnableEXT(VkCommandBuffer commandBuffer, VkBool
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24322,7 +24328,7 @@ void VkEncoder::vkCmdSetDepthWriteEnableEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24367,7 +24373,7 @@ void VkEncoder::vkCmdSetDepthCompareOpEXT(VkCommandBuffer commandBuffer, VkCompa
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24412,7 +24418,7 @@ void VkEncoder::vkCmdSetDepthBoundsTestEnableEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24457,7 +24463,7 @@ void VkEncoder::vkCmdSetStencilTestEnableEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24516,7 +24522,7 @@ void VkEncoder::vkCmdSetStencilOpEXT(VkCommandBuffer commandBuffer, VkStencilFac
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -24589,7 +24595,7 @@ VkResult VkEncoder::vkCopyMemoryToImageEXT(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyMemoryToImageInfo(
@@ -24655,7 +24661,7 @@ VkResult VkEncoder::vkCopyImageToMemoryEXT(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyImageToMemoryInfo(
@@ -24721,7 +24727,7 @@ VkResult VkEncoder::vkCopyImageToImageEXT(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkCopyImageToImageInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -24797,7 +24803,7 @@ VkResult VkEncoder::vkTransitionImageLayoutEXT(VkDevice device, uint32_t transit
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_transitionCount, sizeof(uint32_t));
@@ -24872,11 +24878,11 @@ void VkEncoder::vkGetImageSubresourceLayout2EXT(VkDevice device, VkImage image,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_1 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageSubresource2(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -24965,7 +24971,7 @@ VkResult VkEncoder::vkCreatePrivateDataSlotEXT(VkDevice device,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkPrivateDataSlotCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -25056,11 +25062,11 @@ void VkEncoder::vkDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot p
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -25132,7 +25138,7 @@ VkResult VkEncoder::vkSetPrivateDataEXT(VkDevice device, VkObjectType objectType
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkObjectType*)&local_objectType, sizeof(VkObjectType));
@@ -25140,7 +25146,7 @@ VkResult VkEncoder::vkSetPrivateDataEXT(VkDevice device, VkObjectType objectType
     memcpy(*streamPtrPtr, (uint64_t*)&local_objectHandle, sizeof(uint64_t));
     *streamPtrPtr += sizeof(uint64_t);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)&local_data, sizeof(uint64_t));
@@ -25202,7 +25208,7 @@ void VkEncoder::vkGetPrivateDataEXT(VkDevice device, VkObjectType objectType, ui
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkObjectType*)&local_objectType, sizeof(VkObjectType));
@@ -25210,7 +25216,7 @@ void VkEncoder::vkGetPrivateDataEXT(VkDevice device, VkObjectType objectType, ui
     memcpy(*streamPtrPtr, (uint64_t*)&local_objectHandle, sizeof(uint64_t));
     *streamPtrPtr += sizeof(uint64_t);
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkPrivateDataSlot((*&local_privateDataSlot));
+    *&cgen_var_1 = gfxstream_vk_private_data_slot_to_host_u64((*&local_privateDataSlot));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)pData, sizeof(uint64_t));
@@ -25257,7 +25263,7 @@ void VkEncoder::vkCmdSetPatchControlPointsEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25303,7 +25309,7 @@ void VkEncoder::vkCmdSetRasterizerDiscardEnableEXT(VkCommandBuffer commandBuffer
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25348,7 +25354,7 @@ void VkEncoder::vkCmdSetDepthBiasEnableEXT(VkCommandBuffer commandBuffer, VkBool
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25393,7 +25399,7 @@ void VkEncoder::vkCmdSetLogicOpEXT(VkCommandBuffer commandBuffer, VkLogicOp logi
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25439,7 +25445,7 @@ void VkEncoder::vkCmdSetPrimitiveRestartEnableEXT(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25490,7 +25496,7 @@ void VkEncoder::vkCmdSetColorWriteEnableEXT(VkCommandBuffer commandBuffer, uint3
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25559,11 +25565,11 @@ VkResult VkEncoder::vkMapMemoryIntoAddressSpaceGOOGLE(VkDevice device, VkDeviceM
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -25740,15 +25746,16 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplateSizedGOOGLE(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorSet((*&local_descriptorSet));
+    *&cgen_var_1 = gfxstream_vk_descriptor_set_to_host_u64((*&local_descriptorSet));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_2 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_imageInfoCount, sizeof(uint32_t));
@@ -25826,7 +25833,7 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplateSizedGOOGLE(
         if (bufferViewCount) {
             uint8_t* cgen_var_8_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < bufferViewCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBufferView(local_pBufferViews[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_view_to_host_u64(local_pBufferViews[k]);
                 memcpy(cgen_var_8_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * bufferViewCount;
@@ -25884,7 +25891,7 @@ void VkEncoder::vkBeginCommandBufferAsyncGOOGLE(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25926,7 +25933,7 @@ void VkEncoder::vkEndCommandBufferAsyncGOOGLE(VkCommandBuffer commandBuffer, uin
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -25970,7 +25977,7 @@ void VkEncoder::vkResetCommandBufferAsyncGOOGLE(VkCommandBuffer commandBuffer,
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -26019,7 +26026,7 @@ void VkEncoder::vkCommandBufferHostSyncGOOGLE(VkCommandBuffer commandBuffer, uin
     streamPtr += sizeof(uint32_t);
     if (!queueSubmitWithCommandsEnabled) {
         uint64_t cgen_var_0;
-        *&cgen_var_0 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
         memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
         *streamPtrPtr += 1 * 8;
     }
@@ -26102,7 +26109,7 @@ VkResult VkEncoder::vkCreateImageWithRequirementsGOOGLE(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -26213,7 +26220,7 @@ VkResult VkEncoder::vkCreateBufferWithRequirementsGOOGLE(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkBufferCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -26316,11 +26323,11 @@ VkResult VkEncoder::vkGetMemoryHostAddressInfoGOOGLE(VkDevice device, VkDeviceMe
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -26442,11 +26449,11 @@ VkResult VkEncoder::vkFreeMemorySyncGOOGLE(VkDevice device, VkDeviceMemory memor
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     // WARNING PTR CHECK
@@ -26510,7 +26517,7 @@ void VkEncoder::vkQueueHostSyncGOOGLE(VkQueue queue, uint32_t needHostSync, uint
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_needHostSync, sizeof(uint32_t));
@@ -26586,7 +26593,7 @@ void VkEncoder::vkQueueSubmitAsyncGOOGLE(VkQueue queue, uint32_t submitCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_submitCount, sizeof(uint32_t));
@@ -26596,7 +26603,7 @@ void VkEncoder::vkQueueSubmitAsyncGOOGLE(VkQueue queue, uint32_t submitCount,
                                      (VkSubmitInfo*)(local_pSubmits + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     stream->flush();
@@ -26640,7 +26647,7 @@ void VkEncoder::vkQueueWaitIdleAsyncGOOGLE(VkQueue queue, uint32_t doLock) {
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     stream->flush();
@@ -26714,7 +26721,7 @@ void VkEncoder::vkQueueBindSparseAsyncGOOGLE(VkQueue queue, uint32_t bindInfoCou
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_bindInfoCount, sizeof(uint32_t));
@@ -26724,7 +26731,7 @@ void VkEncoder::vkQueueBindSparseAsyncGOOGLE(VkQueue queue, uint32_t bindInfoCou
                                          (VkBindSparseInfo*)(local_pBindInfo + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     stream->flush();
@@ -26775,7 +26782,7 @@ void VkEncoder::vkGetLinearImageLayoutGOOGLE(VkDevice device, VkFormat format,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkFormat*)&local_format, sizeof(VkFormat));
@@ -26844,7 +26851,7 @@ void VkEncoder::vkGetLinearImageLayout2GOOGLE(VkDevice device, const VkImageCrea
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     reservedmarshal_VkImageCreateInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
@@ -26967,7 +26974,7 @@ void VkEncoder::vkQueueCommitDescriptorSetUpdatesGOOGLE(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_descriptorPoolCount, sizeof(uint32_t));
@@ -26975,7 +26982,7 @@ void VkEncoder::vkQueueCommitDescriptorSetUpdatesGOOGLE(
     if (descriptorPoolCount) {
         uint8_t* cgen_var_1_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < descriptorPoolCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkDescriptorPool(local_pDescriptorPools[k]);
+            uint64_t tmpval = gfxstream_vk_descriptor_pool_to_host_u64(local_pDescriptorPools[k]);
             memcpy(cgen_var_1_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * descriptorPoolCount;
@@ -26985,7 +26992,7 @@ void VkEncoder::vkQueueCommitDescriptorSetUpdatesGOOGLE(
     if (descriptorSetCount) {
         uint8_t* cgen_var_2_ptr = (uint8_t*)(*streamPtrPtr);
         for (uint32_t k = 0; k < descriptorSetCount; ++k) {
-            uint64_t tmpval = get_host_u64_VkDescriptorSetLayout(local_pSetLayouts[k]);
+            uint64_t tmpval = gfxstream_vk_descriptor_set_layout_to_host_u64(local_pSetLayouts[k]);
             memcpy(cgen_var_2_ptr + k * 8, &tmpval, sizeof(uint64_t));
         }
         *streamPtrPtr += 8 * descriptorSetCount;
@@ -27073,11 +27080,11 @@ void VkEncoder::vkCollectDescriptorPoolIdsGOOGLE(VkDevice device, VkDescriptorPo
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorPool((*&local_descriptorPool));
+    *&cgen_var_1 = gfxstream_vk_descriptor_pool_to_host_u64((*&local_descriptorPool));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)pPoolIdCount, sizeof(uint32_t));
@@ -27166,7 +27173,7 @@ void VkEncoder::vkQueueSignalReleaseImageANDROIDAsyncGOOGLE(VkQueue queue,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_waitSemaphoreCount, sizeof(uint32_t));
@@ -27180,14 +27187,14 @@ void VkEncoder::vkQueueSignalReleaseImageANDROIDAsyncGOOGLE(VkQueue queue,
         if (waitSemaphoreCount) {
             uint8_t* cgen_var_1_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < waitSemaphoreCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkSemaphore(local_pWaitSemaphores[k]);
+                uint64_t tmpval = gfxstream_vk_semaphore_to_host_u64(local_pWaitSemaphores[k]);
                 memcpy(cgen_var_1_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * waitSemaphoreCount;
         }
     }
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkImage((*&local_image));
+    *&cgen_var_2 = gfxstream_vk_image_to_host_u64((*&local_image));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     stream->flush();
@@ -27252,15 +27259,15 @@ void VkEncoder::vkQueueFlushCommandsFromAuxMemoryGOOGLE(VkQueue queue,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkCommandBuffer((*&local_commandBuffer));
+    *&cgen_var_1 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDeviceMemory((*&local_deviceMemory));
+    *&cgen_var_2 = gfxstream_vk_device_memory_to_host_u64((*&local_deviceMemory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (VkDeviceSize*)&local_dataOffset, sizeof(VkDeviceSize));
@@ -27315,11 +27322,11 @@ VkResult VkEncoder::vkGetBlobGOOGLE(VkDevice device, VkDeviceMemory memory, uint
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDeviceMemory((*&local_memory));
+    *&cgen_var_1 = gfxstream_vk_device_memory_to_host_u64((*&local_memory));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     VkResult vkGetBlobGOOGLE_VkResult_return = (VkResult)0;
@@ -27487,15 +27494,16 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplateSized2GOOGLE(
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkDescriptorSet((*&local_descriptorSet));
+    *&cgen_var_1 = gfxstream_vk_descriptor_set_to_host_u64((*&local_descriptorSet));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_2;
-    *&cgen_var_2 = get_host_u64_VkDescriptorUpdateTemplate((*&local_descriptorUpdateTemplate));
+    *&cgen_var_2 =
+        gfxstream_vk_descriptor_update_template_to_host_u64((*&local_descriptorUpdateTemplate));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_imageInfoCount, sizeof(uint32_t));
@@ -27575,7 +27583,7 @@ void VkEncoder::vkUpdateDescriptorSetWithTemplateSized2GOOGLE(
         if (bufferViewCount) {
             uint8_t* cgen_var_8_0_ptr = (uint8_t*)(*streamPtrPtr);
             for (uint32_t k = 0; k < bufferViewCount; ++k) {
-                uint64_t tmpval = get_host_u64_VkBufferView(local_pBufferViews[k]);
+                uint64_t tmpval = gfxstream_vk_buffer_view_to_host_u64(local_pBufferViews[k]);
                 memcpy(cgen_var_8_0_ptr + k * 8, &tmpval, sizeof(uint64_t));
             }
             *streamPtrPtr += 8 * bufferViewCount;
@@ -27662,7 +27670,7 @@ void VkEncoder::vkQueueSubmitAsync2GOOGLE(VkQueue queue, uint32_t submitCount,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkQueue((*&local_queue));
+    *&cgen_var_0 = gfxstream_vk_queue_to_host_u64((*&local_queue));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint32_t*)&local_submitCount, sizeof(uint32_t));
@@ -27672,7 +27680,7 @@ void VkEncoder::vkQueueSubmitAsync2GOOGLE(VkQueue queue, uint32_t submitCount,
                                       (VkSubmitInfo2*)(local_pSubmits + i), streamPtrPtr);
     }
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkFence((*&local_fence));
+    *&cgen_var_1 = gfxstream_vk_fence_to_host_u64((*&local_fence));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     stream->flush();
@@ -27725,11 +27733,11 @@ VkResult VkEncoder::vkGetSemaphoreGOOGLE(VkDevice device, VkSemaphore semaphore,
         streamPtr += sizeof(uint32_t);
     }
     uint64_t cgen_var_0;
-    *&cgen_var_0 = get_host_u64_VkDevice((*&local_device));
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
     *streamPtrPtr += 1 * 8;
     uint64_t cgen_var_1;
-    *&cgen_var_1 = get_host_u64_VkSemaphore((*&local_semaphore));
+    *&cgen_var_1 = gfxstream_vk_semaphore_to_host_u64((*&local_semaphore));
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
     *streamPtrPtr += 1 * 8;
     memcpy(*streamPtrPtr, (uint64_t*)&local_syncId, sizeof(uint64_t));

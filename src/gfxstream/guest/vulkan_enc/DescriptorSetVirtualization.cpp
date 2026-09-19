@@ -460,7 +460,7 @@ void fillDescriptorSetInfoForPool(VkDescriptorPool pool, VkDescriptorSetLayout s
     DescriptorPoolAllocationInfo* allocInfo = as_goldfish_VkDescriptorPool(pool)->allocInfo;
 
     ReifiedDescriptorSet* newReified = new ReifiedDescriptorSet;
-    newReified->poolId = as_goldfish_VkDescriptorSet(set)->underlying;
+    newReified->poolId = gfxstream_vk_descriptor_set_to_host_u64(set);
     newReified->allocationPending = true;
 
     as_goldfish_VkDescriptorSet(set)->reified = newReified;

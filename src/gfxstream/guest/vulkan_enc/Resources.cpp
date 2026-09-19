@@ -26,28 +26,7 @@ extern "C" {
         return reinterpret_cast<goldfish_##type*>(toCast);    \
     }
 
-#define GOLDFISH_VK_GET_HOST_IMPL(type)                   \
-    type get_host_##type(type toUnwrap) {                 \
-        if (!toUnwrap) return VK_NULL_HANDLE;             \
-        auto* as_goldfish = as_goldfish_##type(toUnwrap); \
-        return (type)(as_goldfish->underlying);           \
-    }
-
-#define GOLDFISH_VK_GET_HOST_U64_IMPL(type)                                                     \
-    uint64_t get_host_u64_##type(type toUnwrap) {                                               \
-        if (!toUnwrap) return 0;                                                                \
-        auto* as_goldfish = as_goldfish_##type(toUnwrap);                                       \
-        D("guest %p: host u64: 0x%llx", toUnwrap, (unsigned long long)as_goldfish->underlying); \
-        return as_goldfish->underlying;                                                         \
-    }
-
-#define GOLDFISH_VK_IDENTITY_IMPL(type) \
-    type vk_handle_identity_##type(type handle) { return handle; }
-
 GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_IMPL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_IMPL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_GET_HOST_U64_IMPL)
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_IDENTITY_IMPL)
 
 }  // extern "C"
 
