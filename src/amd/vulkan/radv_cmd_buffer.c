@@ -1338,9 +1338,9 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->upload.upload_bo);
       }
 
-      if (cmd_buffer->gfx9_fence_bo_tmz) {
-         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gfx9_fence_bo_tmz);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_fence_bo_tmz);
+      if (cmd_buffer->eop_fence_bo_tmz) {
+         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->eop_fence_bo_tmz);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->eop_fence_bo_tmz);
       }
 
       if (cmd_buffer->gang.sem.bo) {
@@ -1348,9 +1348,9 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gang.sem.bo);
       }
 
-      if (cmd_buffer->gfx9_eop_bug_bo_tmz) {
-         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gfx9_eop_bug_bo_tmz);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_eop_bug_bo_tmz);
+      if (cmd_buffer->eop_bug_bo_tmz) {
+         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->eop_bug_bo_tmz);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->eop_bug_bo_tmz);
       }
 
       if (cmd_buffer->cs)
@@ -1485,12 +1485,12 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.upload_bo);
    cmd_buffer->upload.offset = 0;
 
-   if (cmd_buffer->gfx9_fence_bo_tmz) {
-      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->gfx9_fence_bo_tmz);
+   if (cmd_buffer->eop_fence_bo_tmz) {
+      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->eop_fence_bo_tmz);
    }
 
-   if (cmd_buffer->gfx9_eop_bug_bo_tmz) {
-      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->gfx9_eop_bug_bo_tmz);
+   if (cmd_buffer->eop_bug_bo_tmz) {
+      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->eop_bug_bo_tmz);
    }
 
    for (unsigned i = 0; i < MAX_BIND_POINTS; i++) {
@@ -1983,7 +1983,7 @@ radv_flush_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_st
 
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, ace_fence_flags,
                                    EOP_DST_SEL_MEM, EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT,
-                                   fence_va, value, cmd_buffer->gfx9_eop_bug_va);
+                                   fence_va, value, cmd_buffer->eop_bug_va);
    }
 
    assert(cs->b->cdw <= cdw_max);
@@ -2120,9 +2120,9 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_f
              flags & AC_BARRIER_SYNC_CS);
 
       /* Force wait for graphics or compute engines to be idle. */
-      radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                               cmd_buffer->gfx9_fence_va, flags, &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP,
-                               cmd_buffer->gfx9_eop_bug_va);
+      radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->eop_fence_idx,
+                               cmd_buffer->eop_fence_va, flags, &rgp_flush_bits, AC_PWS_ACQUIRE_POINT_PFP,
+                               cmd_buffer->eop_bug_va);
 
       if ((flags & (AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS)) &&
           radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -8346,9 +8346,9 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
             vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
          }
-         cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
-         cmd_buffer->gfx9_fence_va += fence_offset;
-      } else if (!cmd_buffer->gfx9_fence_bo_tmz) {
+         cmd_buffer->eop_fence_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
+         cmd_buffer->eop_fence_va += fence_offset;
+      } else if (!cmd_buffer->eop_fence_bo_tmz) {
          struct radeon_winsys_bo *fence_bo = NULL;
 
          result = radv_bo_create(device, &cmd_buffer->vk.base, 8, 4096, device->ws->cs_domain(device->ws),
@@ -8361,14 +8361,14 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
             return result;
          }
 
-         cmd_buffer->gfx9_fence_bo_tmz = fence_bo;
-         cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->gfx9_fence_bo_tmz);
+         cmd_buffer->eop_fence_bo_tmz = fence_bo;
+         cmd_buffer->eop_fence_va = radv_buffer_get_va(cmd_buffer->eop_fence_bo_tmz);
 
          radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, fence_bo);
-         radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->gfx9_fence_bo_tmz, 0, 8, 0);
+         radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->eop_fence_bo_tmz, 0, 8, 0);
       }
 
-      radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->gfx9_fence_va, 8);
+      radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->eop_fence_va, 8);
 
       if (pdev->info.gfx_level == GFX9) {
          const uint32_t eop_bug_bo_size = 16 * num_db;
@@ -8380,9 +8380,9 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
                return VK_ERROR_OUT_OF_HOST_MEMORY;
             }
 
-            cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
-            cmd_buffer->gfx9_eop_bug_va += eop_bug_offset;
-         } else if (!cmd_buffer->gfx9_eop_bug_bo_tmz) {
+            cmd_buffer->eop_bug_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
+            cmd_buffer->eop_bug_va += eop_bug_offset;
+         } else if (!cmd_buffer->eop_bug_bo_tmz) {
             struct radeon_winsys_bo *eop_bug_bo = NULL;
             result =
                radv_bo_create(device, &cmd_buffer->vk.base, eop_bug_bo_size, 4096, device->ws->cs_domain(device->ws),
@@ -8395,14 +8395,14 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
                return result;
             }
 
-            cmd_buffer->gfx9_eop_bug_bo_tmz = eop_bug_bo;
-            cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->gfx9_eop_bug_bo_tmz);
+            cmd_buffer->eop_bug_bo_tmz = eop_bug_bo;
+            cmd_buffer->eop_bug_va = radv_buffer_get_va(cmd_buffer->eop_bug_bo_tmz);
 
             radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, eop_bug_bo);
-            radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->gfx9_eop_bug_bo_tmz, 0, eop_bug_bo_size, 0);
+            radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->eop_bug_bo_tmz, 0, eop_bug_bo_size, 0);
          }
 
-         radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->gfx9_eop_bug_va, eop_bug_bo_size);
+         radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->eop_bug_va, eop_bug_bo_size);
       }
    }
 
@@ -16273,9 +16273,9 @@ radv_emit_cache_flush(struct radv_cmd_buffer *cmd_buffer, bool pws_defer_allowed
    if (pws_acquire_point == AC_PWS_ACQUIRE_POINT_PRE_DEPTH && !pws_defer_allowed)
       pws_acquire_point = AC_PWS_ACQUIRE_POINT_ME;
 
-   radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->gfx9_fence_idx,
-                            cmd_buffer->gfx9_fence_va, cmd_buffer->state.flush_bits, &cmd_buffer->state.rgp_flush_bits,
-                            pws_acquire_point, cmd_buffer->gfx9_eop_bug_va);
+   radv_cs_emit_cache_flush(device->ws, cs, pdev->info.gfx_level, &cmd_buffer->eop_fence_idx, cmd_buffer->eop_fence_va,
+                            cmd_buffer->state.flush_bits, &cmd_buffer->state.rgp_flush_bits, pws_acquire_point,
+                            cmd_buffer->eop_bug_va);
 
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
@@ -16550,7 +16550,7 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
 
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, event_type, 0, EOP_DST_SEL_MEM,
                                    EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, va, value,
-                                   cmd_buffer->gfx9_eop_bug_va);
+                                   cmd_buffer->eop_bug_va);
    }
 
    assert(cs->b->cdw <= cdw_max);
@@ -17301,7 +17301,7 @@ radv_CmdWriteMarkerToMemoryAMD(VkCommandBuffer commandBuffer, const VkMemoryMark
    } else {
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
                                    EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, va, pInfo->marker,
-                                   cmd_buffer->gfx9_eop_bug_va);
+                                   cmd_buffer->eop_bug_va);
    }
 
    assert(cs->b->cdw <= cdw_max);

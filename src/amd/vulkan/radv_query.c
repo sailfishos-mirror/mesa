@@ -753,7 +753,7 @@ radv_end_pipeline_stat_query(struct radv_cmd_buffer *cmd_buffer, struct radv_que
 
    radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
                                 EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, avail_va, 1,
-                                cmd_buffer->gfx9_eop_bug_va);
+                                cmd_buffer->eop_bug_va);
 }
 
 static void
@@ -1621,7 +1621,7 @@ radv_end_ms_prim_query(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t
 
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
                                    EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, avail_va, 1,
-                                   cmd_buffer->gfx9_eop_bug_va);
+                                   cmd_buffer->eop_bug_va);
    } else {
       gfx10_copy_shader_query_gfx(cmd_buffer, true, RADV_SHADER_QUERY_MS_PRIM_GEN_OFFSET, va + 8);
       ac_emit_cp_write_data_imm(cs->b, V_371_MICRO_ENGINE, va + 12, 0x80000000);
@@ -2781,7 +2781,7 @@ radv_write_timestamp(struct radv_cmd_buffer *cmd_buffer, uint64_t va, VkPipeline
    } else {
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
                                    EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_TIMESTAMP, va, 0,
-                                   cmd_buffer->gfx9_eop_bug_va);
+                                   cmd_buffer->eop_bug_va);
    }
 }
 

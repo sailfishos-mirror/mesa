@@ -216,12 +216,12 @@ radv_cs_write_data(const struct radv_device *device, struct radv_cmd_stream *cs,
 
 void radv_cs_emit_write_event_eop(struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level, unsigned event,
                                   unsigned event_flags, unsigned dst_sel, unsigned int_sel, unsigned data_sel,
-                                  uint64_t va, uint32_t new_fence, uint64_t gfx9_eop_bug_va);
+                                  uint64_t va, uint32_t new_fence, uint64_t eop_bug_va);
 
 void radv_cs_emit_cache_flush(struct radeon_winsys *ws, struct radv_cmd_stream *cs, enum amd_gfx_level gfx_level,
                               uint32_t *flush_cnt, uint64_t flush_va, enum ac_barrier_flags flush_bits,
                               enum ac_rgp_flush_bits *rgp_flush_bits, enum ac_pws_acquire_point pws_acquire_point,
-                              uint64_t gfx9_eop_bug_va);
+                              uint64_t eop_bug_va);
 
 VkResult radv_create_cmd_stream(const struct radv_device *device, const enum amd_ip_type ip_type,
                                 const bool is_secondary, struct radv_cmd_stream **cs_out);
