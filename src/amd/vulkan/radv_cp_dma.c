@@ -179,17 +179,11 @@ radv_cp_dma_prefetch(struct radv_cmd_buffer *cmd_buffer, uint64_t va, unsigned s
 }
 
 static void
-radv_cp_dma_prepare(struct radv_cmd_buffer *cmd_buffer, uint64_t byte_count, uint64_t remaining_size, unsigned *flags)
+radv_cp_dma_prepare(struct radv_cmd_buffer *cmd_buffer)
 {
    /* Flush the caches for the first copy only. */
    if (cmd_buffer->state.flush_bits)
       radv_emit_cache_flush(cmd_buffer, false);
-
-   /* Do the synchronization after the last dma, so that all data
-    * is written to memory.
-    */
-   if (byte_count == remaining_size)
-      *flags |= CP_DMA_SYNC;
 }
 
 static void
@@ -197,7 +191,6 @@ radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 {
    uint64_t va;
    uint32_t offset;
-   unsigned dma_flags = 0;
    unsigned buf_size = SI_CPDMA_ALIGNMENT * 2;
 
    assert(size < SI_CPDMA_ALIGNMENT);
@@ -207,9 +200,9 @@ radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
    va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
    va += offset;
 
-   radv_cp_dma_prepare(cmd_buffer, size, size, &dma_flags);
+   radv_cp_dma_prepare(cmd_buffer);
 
-   radv_emit_cp_dma(cmd_buffer, va, va + SI_CPDMA_ALIGNMENT, size, dma_flags);
+   radv_emit_cp_dma(cmd_buffer, va, va + SI_CPDMA_ALIGNMENT, size, 0);
 }
 
 void
@@ -268,9 +261,7 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
          dma_flags |= CP_DMA_USE_L2;
       }
 
-      radv_cp_dma_prepare(cmd_buffer, byte_count, size + skipped_size + realign_size, &dma_flags);
-
-      dma_flags &= ~CP_DMA_SYNC;
+      radv_cp_dma_prepare(cmd_buffer);
 
       radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count, dma_flags);
 
@@ -280,12 +271,11 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    }
 
    if (skipped_size) {
-      unsigned dma_flags = 0;
+      radv_cp_dma_prepare(cmd_buffer);
 
-      radv_cp_dma_prepare(cmd_buffer, skipped_size, size + skipped_size + realign_size, &dma_flags);
-
-      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, dma_flags);
+      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, 0);
    }
+
    if (realign_size)
       radv_cp_dma_realign_engine(cmd_buffer, realign_size);
 
@@ -324,10 +314,10 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
          dma_flags |= CP_DMA_USE_L2;
       }
 
-      radv_cp_dma_prepare(cmd_buffer, byte_count, size, &dma_flags);
+      radv_cp_dma_prepare(cmd_buffer);
 
       /* Emit the clear packet. */
-      radv_emit_cp_dma(cmd_buffer, va, value, byte_count, dma_flags);
+      radv_emit_cp_dma(cmd_buffer, va, value, byte_count, dma_flags | (size == byte_count ? CP_DMA_SYNC : 0));
 
       size -= byte_count;
       va += byte_count;
