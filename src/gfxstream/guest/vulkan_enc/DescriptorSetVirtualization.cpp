@@ -496,7 +496,7 @@ VkResult validateAndApplyVirtualDescriptorSetAllocation(
         uint64_t id = allocInfo->freePoolIds.back();
         allocInfo->freePoolIds.pop_back();
 
-        VkDescriptorSet newSet = new_from_host_u64_VkDescriptorSet(id);
+        VkDescriptorSet newSet = create_gfxstream_vk_descriptor_set(id);
         pSets[i] = newSet;
 
         fillDescriptorSetInfoForPool(pool, pAllocateInfo->pSetLayouts[i], newSet);

@@ -77,7 +77,7 @@ float srgbFormatNeedsConversionForClearColor(const VkFormat& format) {
 extern "C" {
 
 #define GFXSTREAM_DEFINE_VK_OBJECT_CREATE(gfxstream_type, vk_type, vk_object_type)     \
-    vk_type new_from_host_u64_##vk_type(uint64_t underlying) {                         \
+    vk_type create_##gfxstream_type(uint64_t underlying) {                             \
         struct gfxstream_type* res =                                                   \
             static_cast<gfxstream_type*>(calloc(1, sizeof(gfxstream_type)));           \
         vk_object_base_init(nullptr, reinterpret_cast<struct vk_object_base*>(res),    \
@@ -92,7 +92,7 @@ extern "C" {
 
 #define GFXSTREAM_DEFINE_TRIVIAL_VK_OBJECT_DELETE(gfxstream_type, vk_type, vk_object_type) \
     GFXSTREAM_DEFINE_VK_OBJECT_CREATE(gfxstream_type, vk_type, vk_object_type)             \
-    void delete_goldfish_##vk_type(vk_type toDelete) {                                     \
+    void delete_##gfxstream_type(vk_type toDelete) {                                       \
         if (!toDelete) return;                                                             \
         auto* obj = reinterpret_cast<gfxstream_type*>(toDelete);                           \
         vk_object_base_finish(reinterpret_cast<struct vk_object_base*>(obj));              \
@@ -101,7 +101,7 @@ extern "C" {
 
 #define GFXSTREAM_DEFINE_VK_OBJECT_DELETE(gfxstream_type, vk_type, vk_object_type, finish_func) \
     GFXSTREAM_DEFINE_VK_OBJECT_CREATE(gfxstream_type, vk_type, vk_object_type)                  \
-    void delete_goldfish_##vk_type(vk_type toDelete) {                                          \
+    void delete_##gfxstream_type(vk_type toDelete) {                                            \
         if (!toDelete) return;                                                                  \
         auto* obj = reinterpret_cast<gfxstream_type*>(toDelete);                                \
         finish_func(&obj->vk);                                                                  \

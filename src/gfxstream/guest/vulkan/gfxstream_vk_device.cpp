@@ -244,7 +244,7 @@ static void gfxstream_vk_destroy_physical_device(struct vk_physical_device* phys
     VkPhysicalDevice handle = gfxstream_vk_physical_device_to_handle(gfxstream_physical_device);
     gfxstream_vk_wsi_finish(gfxstream_physical_device);
     gfxstream::vk::ResourceTracker::get()->unregister_VkPhysicalDevice(handle);
-    delete_goldfish_VkPhysicalDevice(handle);
+    delete_gfxstream_vk_physical_device(handle);
 }
 
 static VkResult gfxstream_vk_enumerate_devices(struct vk_instance* vk_instance) {
@@ -352,7 +352,7 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
             return vk_error(NULL, result);
         }
     } else {
-        *pInstance = new_from_host_u64_VkInstance(0);
+        *pInstance = create_gfxstream_vk_instance(0);
         if (!*pInstance) {
             return vk_error(NULL, VK_ERROR_OUT_OF_HOST_MEMORY);
         }
@@ -379,7 +379,7 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
             auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
             vkEnc->vkDestroyInstance(*pInstance, pAllocator, true /* do lock */);
         } else {
-            delete_goldfish_VkInstance(*pInstance);
+            delete_gfxstream_vk_instance(*pInstance);
         }
         *pInstance = VK_NULL_HANDLE;
         return vk_error(NULL, result);
@@ -403,7 +403,7 @@ void gfxstream_vk_DestroyInstance(VkInstance _instance, const VkAllocationCallba
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkDestroyInstance(_instance, pAllocator, true /* do lock */);
     } else {
-        delete_goldfish_VkInstance(_instance);
+        delete_gfxstream_vk_instance(_instance);
     }
 
     // To make End2EndTests happy, since now the host connection is statically linked to
@@ -449,7 +449,7 @@ VkResult gfxstream_vk_EnumerateDeviceExtensionProperties(VkPhysicalDevice physic
 static void gfxstream_vk_queue_fini(struct gfxstream_vk_queue* gfxstream_queue) {
     VkQueue queue = gfxstream_vk_queue_to_handle(gfxstream_queue);
     gfxstream::vk::ResourceTracker::get()->unregister_VkQueue(queue);
-    delete_goldfish_VkQueue(queue);
+    delete_gfxstream_vk_queue(queue);
 }
 
 static VkResult gfxstream_vk_queue_init(struct gfxstream_vk_device* dev,

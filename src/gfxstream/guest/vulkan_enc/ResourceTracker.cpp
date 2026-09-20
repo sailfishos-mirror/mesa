@@ -143,20 +143,25 @@ uint64_t GeneratePseudoUniqueId() {
         GOLDFISH_VK_LIST_HANDLE_TYPES(impl)              \
     };
 
-#define CREATE_MAPPING_IMPL_FOR_TYPE(type_name)                                           \
-    MAKE_HANDLE_MAPPING_FOREACH(                                                          \
-        type_name, handles[i] = new_from_host_u64_##type_name((uint64_t)handles[i]);      \
-        ResourceTracker::get()->register_##type_name(handles[i]);                         \
-        , handle_u64s[i] = (uint64_t)new_from_host_u64_##type_name((uint64_t)handles[i]), \
-        handles[i] = (type_name)new_from_host_u64_##type_name(handle_u64s[i]);            \
+#define GFXSTREAM_CONCAT_INNER(a, b) a##b
+#define GFXSTREAM_CONCAT(a, b) GFXSTREAM_CONCAT_INNER(a, b)
+#define CREATE_GFXSTREAM_VK_OBJECT(type_name) GFXSTREAM_CONCAT(create_, goldfish_##type_name)
+#define DELETE_GFXSTREAM_VK_OBJECT(type_name) GFXSTREAM_CONCAT(delete_, goldfish_##type_name)
+
+#define CREATE_MAPPING_IMPL_FOR_TYPE(type_name)                                                   \
+    MAKE_HANDLE_MAPPING_FOREACH(                                                                  \
+        type_name, handles[i] = CREATE_GFXSTREAM_VK_OBJECT(type_name)((uint64_t)handles[i]);      \
+        ResourceTracker::get()->register_##type_name(handles[i]);                                 \
+        , handle_u64s[i] = (uint64_t)CREATE_GFXSTREAM_VK_OBJECT(type_name)((uint64_t)handles[i]), \
+        handles[i] = (type_name)CREATE_GFXSTREAM_VK_OBJECT(type_name)(handle_u64s[i]);            \
         ResourceTracker::get()->register_##type_name(handles[i]);)
 
-#define DESTROY_MAPPING_IMPL_FOR_TYPE(type_name)                                               \
-    MAKE_HANDLE_MAPPING_FOREACH(type_name,                                                     \
-                                ResourceTracker::get()->unregister_##type_name(handles[i]);    \
-                                delete_goldfish_##type_name(handles[i]), (void)handle_u64s[i]; \
-                                delete_goldfish_##type_name(handles[i]), (void)handles[i];     \
-                                delete_goldfish_##type_name((type_name)handle_u64s[i]))
+#define DESTROY_MAPPING_IMPL_FOR_TYPE(type_name)                                                        \
+    MAKE_HANDLE_MAPPING_FOREACH(type_name,                                                              \
+                                ResourceTracker::get()->unregister_##type_name(handles[i]);             \
+                                DELETE_GFXSTREAM_VK_OBJECT(type_name)(handles[i]), (void)handle_u64s[i]; \
+                                DELETE_GFXSTREAM_VK_OBJECT(type_name)(handles[i]), (void)handles[i];     \
+                                DELETE_GFXSTREAM_VK_OBJECT(type_name)((type_name)handle_u64s[i]))
 
 DEFINE_RESOURCE_TRACKING_CLASS(CreateMapping, CREATE_MAPPING_IMPL_FOR_TYPE)
 DEFINE_RESOURCE_TRACKING_CLASS(DestroyMapping, DESTROY_MAPPING_IMPL_FOR_TYPE)
@@ -764,7 +769,7 @@ CoherentMemoryPtr ResourceTracker::freeCoherentMemoryLocked(VkDeviceMemory memor
                                                             VkDeviceMemory_Info& info) {
     if (info.coherentMemory && info.ptr) {
         if (info.coherentMemory->getDeviceMemory() != memory) {
-            delete_goldfish_VkDeviceMemory(memory);
+            delete_gfxstream_vk_device_memory(memory);
         }
 
         info.coherentMemory->release(info.coherentMemoryOffset);
@@ -1268,7 +1273,7 @@ void ResourceTracker::freeDescriptorSetsIfHostAllocated(VkEncoder* enc, VkDevice
         struct goldfish_VkDescriptorSet* ds = as_goldfish_VkDescriptorSet(sets[i]);
         if (ds->reified->allocationPending) {
             unregister_VkDescriptorSet(sets[i]);
-            delete_goldfish_VkDescriptorSet(sets[i]);
+            delete_gfxstream_vk_descriptor_set(sets[i]);
         } else {
             enc->vkFreeDescriptorSets(device, ds->reified->pool, 1, &sets[i], false /* no lock */);
         }
@@ -1286,7 +1291,7 @@ void ResourceTracker::clearDescriptorPoolAndUnregisterDescriptorSets(void* conte
             decDescriptorSetLayoutRef(context, device, setLayout, nullptr);
         }
         unregister_VkDescriptorSet(set);
-        delete_goldfish_VkDescriptorSet(set);
+        delete_gfxstream_vk_descriptor_set(set);
     }
 }
 
@@ -3421,7 +3426,7 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
             // for suballocated memory, create an alias VkDeviceMemory handle for application
             // memory used for suballocations will still be VkDeviceMemory associated with
             // CoherentMemory
-            auto mem = new_from_host_u64_VkDeviceMemory(0);
+            auto mem = create_gfxstream_vk_device_memory(0);
             info_VkDeviceMemory[mem] = info;
             *pMemory = mem;
             return VK_SUCCESS;
@@ -7973,7 +7978,7 @@ void ResourceTracker::clearCommandPool(VkCommandPool commandPool) {
     struct goldfish_VkCommandPool* p = as_goldfish_VkCommandPool(commandPool);
     forAllObjects(p->subObjects, [this](void* commandBuffer) {
         this->unregister_VkCommandBuffer((VkCommandBuffer)commandBuffer);
-        delete_goldfish_VkCommandBuffer((VkCommandBuffer)commandBuffer);
+        delete_gfxstream_vk_command_buffer((VkCommandBuffer)commandBuffer);
     });
     eraseObjects(&p->subObjects);
 }
