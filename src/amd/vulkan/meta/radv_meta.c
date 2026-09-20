@@ -422,12 +422,12 @@ radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoi
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_descriptor_set_layout *set_layout = layout->set[0].layout;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   uint32_t upload_offset;
+   uint64_t va;
    uint8_t *ptr;
 
    assert(layout->num_sets == 1);
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, set_layout->size, 4, &upload_offset, (void *)&ptr))
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, set_layout->size, 4, &va, (void *)&ptr))
       return;
 
    radv_meta_save(cmd_buffer, (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS ? RADV_META_SAVE_GRAPHICS_DESCRIPTORS
@@ -461,7 +461,7 @@ radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoi
 
    const VkDescriptorBufferBindingInfoEXT descriptor_buffer_binding = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT,
-      .address = radv_buffer_get_va(cmd_buffer->upload.bo) + upload_offset,
+      .address = va,
       .usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
    };
 

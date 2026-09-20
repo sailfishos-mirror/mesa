@@ -51,9 +51,9 @@ radv_video_get_db_alignment(struct radv_physical_device *pdev, int width, bool i
 }
 
 static bool
-radv_vid_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned *out_offset, void **ptr)
+radv_vid_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, uint64_t *out_va, void **ptr)
 {
-   return radv_cmd_buffer_upload_alloc(cmd_buffer, size, VID_DEFAULT_ALIGNMENT, out_offset, ptr);
+   return radv_cmd_buffer_upload_alloc(cmd_buffer, size, VID_DEFAULT_ALIGNMENT, out_va, ptr);
 }
 
 /* vcn unified queue (sq) ib header */
@@ -1246,11 +1246,8 @@ radv_CmdControlVideoCodingKHR(VkCommandBuffer commandBuffer, const VkVideoCoding
       radv_cs_add_buffer(device->ws, cs->b, vid->sessionctx.mem->bo);
    }
 
-   if (vid->dec->embedded_size) {
-      uint32_t offset;
-      radv_vid_buffer_upload_alloc(cmd_buffer, vid->dec->embedded_size, &offset, &cmd.embedded_ptr);
-      cmd.embedded_va = radv_buffer_get_va(cmd_buffer->upload.bo) + offset;
-   }
+   if (vid->dec->embedded_size)
+      radv_vid_buffer_upload_alloc(cmd_buffer, vid->dec->embedded_size, &cmd.embedded_va, &cmd.embedded_ptr);
 
    ASSERTED int ret = vid->dec->build_create_cmd(vid->dec, &cmd);
    cs->b->cdw += cmd.out.cmd_dw;
@@ -1971,11 +1968,8 @@ radv_CmdDecodeVideoKHR(VkCommandBuffer commandBuffer, const VkVideoDecodeInfoKHR
       radv_cs_add_buffer(device->ws, cs->b, vid->sessionctx.mem->bo);
    }
 
-   if (vid->dec->embedded_size) {
-      uint32_t offset;
-      radv_vid_buffer_upload_alloc(cmd_buffer, vid->dec->embedded_size, &offset, &cmd.embedded_ptr);
-      cmd.embedded_va = radv_buffer_get_va(cmd_buffer->upload.bo) + offset;
-   }
+   if (vid->dec->embedded_size)
+      radv_vid_buffer_upload_alloc(cmd_buffer, vid->dec->embedded_size, &cmd.embedded_va, &cmd.embedded_ptr);
 
    switch (vid->vk.op) {
    case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:

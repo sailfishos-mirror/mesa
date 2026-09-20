@@ -645,10 +645,10 @@ radv_get_num_pipeline_stat_queries(struct radv_cmd_buffer *cmd_buffer)
 }
 
 bool radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
-                                  unsigned *out_offset, void **ptr);
+                                  uint64_t *out_va, void **ptr);
 
 bool radv_cmd_buffer_upload_data(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
-                                 const void *data, unsigned *out_offset);
+                                 const void *data, uint64_t *out_va);
 
 void radv_cmd_buffer_trace_emit(struct radv_cmd_buffer *cmd_buffer);
 

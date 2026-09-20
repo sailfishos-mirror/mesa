@@ -901,7 +901,7 @@ radv_alloc_shader_query_buf(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   unsigned offset;
+   uint64_t va;
    void *ptr;
 
    assert(pdev->info.gfx_level >= GFX11);
@@ -909,13 +909,11 @@ radv_alloc_shader_query_buf(struct radv_cmd_buffer *cmd_buffer)
    if (cmd_buffer->state.shader_query_buf_va)
       return;
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, RADV_SHADER_QUERY_BUF_SIZE, 64, &offset, &ptr))
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, RADV_SHADER_QUERY_BUF_SIZE, 64, &va, &ptr))
       return;
 
    memset(ptr, 0, RADV_SHADER_QUERY_BUF_SIZE);
-
-   cmd_buffer->state.shader_query_buf_va = radv_buffer_get_va(cmd_buffer->upload.bo);
-   cmd_buffer->state.shader_query_buf_va += offset;
+   cmd_buffer->state.shader_query_buf_va = va;
 }
 
 static void

@@ -166,16 +166,11 @@ static void
 radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 {
    uint64_t va;
-   uint32_t offset;
    unsigned buf_size = SI_CPDMA_ALIGNMENT * 2;
 
    assert(size < SI_CPDMA_ALIGNMENT);
 
-   radv_cmd_buffer_upload_alloc(cmd_buffer, buf_size, SI_CPDMA_ALIGNMENT, &offset, NULL);
-
-   va = radv_buffer_get_va(cmd_buffer->upload.bo);
-   va += offset;
-
+   radv_cmd_buffer_upload_alloc(cmd_buffer, buf_size, SI_CPDMA_ALIGNMENT, &va, NULL);
    radv_emit_cp_dma(cmd_buffer, va, va + SI_CPDMA_ALIGNMENT, size, 0);
 }
 
