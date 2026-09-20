@@ -281,6 +281,72 @@ subpasses_can_merge(const struct v3dv_subpass *prev_subpass,
    return true;
 }
 
+/**
+ * This computes the maximum bpp used by any of the render targets used by
+ * a particular subpass and checks if any of those render targets are
+ * multisampled.
+ */
+static void
+pass_compute_subpass_config(struct v3dv_device *device,
+                            struct v3dv_render_pass *pass)
+{
+   STATIC_ASSERT(V3D_INTERNAL_BPP_32 == 0);
+   for (uint32_t i = 0; i < pass->subpass_count; i++) {
+      struct v3dv_subpass *subpass = &pass->subpasses[i];
+      subpass->view_layers = util_last_bit(subpass->view_mask);
+      subpass->msaa = false;
+
+      subpass->max_internal_bpp = V3D_INTERNAL_BPP_32;
+      subpass->total_color_bpp = 0;
+
+      for (uint32_t j = 0; j < subpass->color_count; j++) {
+         uint32_t a =
+            subpass->color_attachments[j].attachment;
+         if (a == VK_ATTACHMENT_UNUSED)
+            continue;
+
+         struct v3dv_render_pass_attachment *attachment =
+            &pass->attachments[a];
+         const VkAttachmentDescription2 *desc = &attachment->desc;
+         const struct v3dv_format *format =
+            v3d_X((&device->devinfo), get_format)(desc->format);
+         assert(format && format->plane_count == 1);
+
+         uint32_t internal_type, internal_bpp;
+         v3d_X((&device->devinfo), get_internal_type_bpp_for_output_format)
+            (format->planes[0].rt_type, &internal_type, &internal_bpp);
+
+         subpass->max_internal_bpp =
+            MAX2(subpass->max_internal_bpp, internal_bpp);
+         subpass->total_color_bpp += 4 * v3d_internal_bpp_words(internal_bpp);
+         subpass->msaa |= desc->samples > VK_SAMPLE_COUNT_1_BIT;
+      }
+
+      if (!subpass->msaa &&
+          subpass->ds_attachment.attachment != VK_ATTACHMENT_UNUSED) {
+         const VkAttachmentDescription2 *desc =
+            &pass->attachments[subpass->ds_attachment.attachment].desc;
+         subpass->msaa = desc->samples > VK_SAMPLE_COUNT_1_BIT;
+      }
+
+      /* Attachmentless subpasses get their sample mode from the pipeline. */
+      for (uint32_t msaa = 0; msaa < 2; msaa++) {
+         v3d_choose_tile_size(&device->devinfo,
+                              subpass->color_count,
+                              subpass->max_internal_bpp,
+                              subpass->total_color_bpp, msaa, false,
+                              &subpass->tile_size[msaa].width,
+                              &subpass->tile_size[msaa].height);
+      }
+      v3d_choose_tile_size(&device->devinfo,
+                           subpass->color_count,
+                           subpass->max_internal_bpp, subpass->total_color_bpp,
+                           false, true,
+                           &subpass->double_buffer_tile_size.width,
+                           &subpass->double_buffer_tile_size.height);
+   }
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 v3dv_CreateRenderPass2(VkDevice _device,
                        const VkRenderPassCreateInfo2 *pCreateInfo,
@@ -444,7 +510,7 @@ v3dv_CreateRenderPass2(VkDevice _device,
       pass->subpasses[dependency->srcSubpass].has_tlb_color_input_self_dependency = true;
       /* FIXME: handle other subpass dependencies? */
    }
-
+   pass_compute_subpass_config(device, pass);
    *pRenderPass = v3dv_render_pass_to_handle(pass);
 
    return VK_SUCCESS;
@@ -788,6 +854,7 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
    check_do_depth_stencil_clear_with_draw(device, pass, subpass);
 
    pass->attachment_count = a;
+   pass_compute_subpass_config(device, pass);
 }
 
 void

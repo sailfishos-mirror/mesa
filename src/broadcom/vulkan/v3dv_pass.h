@@ -54,6 +54,15 @@ struct v3dv_subpass {
    /* Static compatibility with the previous subpass; job state is checked later. */
    bool can_merge_with_previous;
 
+   uint8_t max_internal_bpp;
+   uint8_t total_color_bpp;
+   uint8_t view_layers;
+   bool msaa;
+
+   /* Tile sizes with MSAA disabled/enabled, and with double-buffer enabled. */
+   VkExtent2D tile_size[2];
+   VkExtent2D double_buffer_tile_size;
+
    /* If we need to emit the clear of the depth/stencil attachment using a
     * a draw call instead of using the TLB (GFXH-1461).
     */

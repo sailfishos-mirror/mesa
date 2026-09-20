@@ -314,7 +314,8 @@ void v3dv_job_start_frame(struct v3dv_job *job,
                           uint32_t render_target_count,
                           uint8_t max_internal_bpp,
                           uint8_t total_color_bpp,
-                          bool msaa);
+                          bool msaa,
+                          const VkExtent2D *tile_size);
 
 bool v3dv_job_type_is_gpu(struct v3dv_job *job);
 

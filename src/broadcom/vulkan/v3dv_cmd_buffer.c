@@ -374,7 +374,8 @@ job_compute_frame_tiling(struct v3dv_job *job,
                          uint8_t max_internal_bpp,
                          uint8_t total_color_bpp,
                          bool msaa,
-                         bool double_buffer)
+                         bool double_buffer,
+                         const VkExtent2D *tile_size)
 {
    assert(job);
    struct v3dv_frame_tiling *tiling = &job->frame_tiling;
@@ -406,11 +407,22 @@ job_compute_frame_tiling(struct v3dv_job *job,
    /* Double-buffer is incompatible with MSAA */
    assert(!tiling->msaa || !tiling->double_buffer);
 
-   v3d_choose_tile_size(&job->device->devinfo,
-                        render_target_count,
-                        max_internal_bpp, total_color_bpp, msaa,
-                        tiling->double_buffer,
-                        &tiling->tile_width, &tiling->tile_height);
+   /* For jobs that we spawn for render passes we pre-compute the tile size
+    * as part of the render pass setup, however, for some jobs spawned directly
+    * from the driver (such as the case of some meta operations), we don't
+    * have a render pass so we won't have a tile_size here and we'll need
+    * to compute now.
+    */
+   if (tile_size) {
+      tiling->tile_width = tile_size->width;
+      tiling->tile_height = tile_size->height;
+   } else {
+      v3d_choose_tile_size(&job->device->devinfo,
+                           render_target_count,
+                           max_internal_bpp, total_color_bpp, msaa,
+                           tiling->double_buffer,
+                           &tiling->tile_width, &tiling->tile_height);
+   }
 
    tiling->draw_tiles_x = DIV_ROUND_UP(width, tiling->tile_width);
    tiling->draw_tiles_y = DIV_ROUND_UP(height, tiling->tile_height);
@@ -493,7 +505,8 @@ v3dv_job_start_frame(struct v3dv_job *job,
                      uint32_t render_target_count,
                      uint8_t max_internal_bpp,
                      uint8_t total_color_bpp,
-                     bool msaa)
+                     bool msaa,
+                     const VkExtent2D *tile_size)
 {
    assert(job);
 
@@ -503,7 +516,7 @@ v3dv_job_start_frame(struct v3dv_job *job,
    const struct v3dv_frame_tiling *tiling =
       job_compute_frame_tiling(job, width, height, layers,
                                render_target_count, max_internal_bpp,
-                               total_color_bpp, msaa, false);
+                               total_color_bpp, msaa, false, tile_size);
 
    v3dv_cl_ensure_space_with_branch(&job->bcl, 256);
    v3dv_return_if_oom(NULL, job);
@@ -543,6 +556,8 @@ cmd_buffer_end_render_pass_frame(struct v3dv_cmd_buffer *cmd_buffer)
        */
       if (job_should_enable_double_buffer(job)) {
          assert(!job->frame_tiling.double_buffer);
+         const struct v3dv_subpass *subpass =
+            &cmd_buffer->state.pass->subpasses[cmd_buffer->state.subpass_idx];
          job_compute_frame_tiling(job,
                                   job->frame_tiling.width,
                                   job->frame_tiling.height,
@@ -551,7 +566,7 @@ cmd_buffer_end_render_pass_frame(struct v3dv_cmd_buffer *cmd_buffer)
                                   job->frame_tiling.internal_bpp,
                                   job->frame_tiling.total_color_bpp,
                                   job->frame_tiling.msaa,
-                                  true);
+                                  true, &subpass->double_buffer_tile_size);
 
          v3d_X((&job->device->devinfo), job_emit_enable_double_buffer)(job);
       }
@@ -1750,12 +1765,6 @@ cmd_buffer_subpass_create_job(struct v3dv_cmd_buffer *cmd_buffer,
 
       const struct v3dv_framebuffer *framebuffer = state->framebuffer;
 
-      uint8_t max_internal_bpp, total_color_bpp;
-      bool msaa;
-      v3d_X((&job->device->devinfo), framebuffer_compute_internal_bpp_msaa)
-         (framebuffer, state->attachments, subpass,
-          &max_internal_bpp, &total_color_bpp, &msaa);
-
       /* From the Vulkan spec:
        *
        *    "If the render pass uses multiview, then layers must be one and
@@ -1769,7 +1778,7 @@ cmd_buffer_subpass_create_job(struct v3dv_cmd_buffer *cmd_buffer,
       uint32_t layers = framebuffer->layers;
       if (subpass->view_mask != 0) {
          assert(framebuffer->layers == 1);
-         layers = util_last_bit(subpass->view_mask);
+         layers = subpass->view_layers;
       }
 
       uint32_t width =
@@ -1783,9 +1792,10 @@ cmd_buffer_subpass_create_job(struct v3dv_cmd_buffer *cmd_buffer,
                            layers,
                            true,
                            subpass->color_count,
-                           max_internal_bpp,
-                           total_color_bpp,
-                           msaa);
+                           subpass->max_internal_bpp,
+                           subpass->total_color_bpp,
+                           subpass->msaa,
+                           &subpass->tile_size[subpass->msaa]);
    }
 
    return job;
@@ -2770,6 +2780,9 @@ cmd_buffer_restart_job_for_msaa_if_needed(struct v3dv_cmd_buffer *cmd_buffer)
                  cmd_buffer->state.subpass_idx);
    cmd_buffer->state.job = job;
 
+   const struct v3dv_subpass *subpass =
+      &cmd_buffer->state.pass->subpasses[cmd_buffer->state.subpass_idx];
+
    v3dv_job_start_frame(job,
                         old_job->frame_tiling.width,
                         old_job->frame_tiling.height,
@@ -2778,7 +2791,7 @@ cmd_buffer_restart_job_for_msaa_if_needed(struct v3dv_cmd_buffer *cmd_buffer)
                         old_job->frame_tiling.render_target_count,
                         old_job->frame_tiling.internal_bpp,
                         old_job->frame_tiling.total_color_bpp,
-                        true /* msaa */);
+                        true /* msaa */, &subpass->tile_size[1]);
 
    v3dv_job_destroy(old_job);
 }

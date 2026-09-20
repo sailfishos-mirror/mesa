@@ -140,7 +140,7 @@ clear_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
 
       v3dv_job_start_frame(job, width, height, max_layer, false, 1,
                            internal_bpp, 4 * v3d_internal_bpp_words(internal_bpp),
-                           image->vk.samples > VK_SAMPLE_COUNT_1_BIT);
+                           image->vk.samples > VK_SAMPLE_COUNT_1_BIT, NULL);
 
       struct v3dv_meta_framebuffer framebuffer;
       v3d_X((&job->device->devinfo), meta_framebuffer_init)(&framebuffer, fb_format,
