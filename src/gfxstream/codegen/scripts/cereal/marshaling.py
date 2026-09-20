@@ -701,7 +701,8 @@ class VulkanMarshaling(VulkanWrapperGenerator):
 
     def onBegin(self,):
         VulkanWrapperGenerator.onBegin(self)
-        self.module.appendImpl(self.cgenImpl.makeFuncDecl(self.extensionMarshalPrototype))
+        if self.variant != "guest":
+            self.module.appendImpl(self.cgenImpl.makeFuncDecl(self.extensionMarshalPrototype))
         self.module.appendImpl(self.cgenImpl.makeFuncDecl(self.extensionUnmarshalPrototype))
 
     def onBeginFeature(self, featureName, featureType):
@@ -717,9 +718,11 @@ class VulkanMarshaling(VulkanWrapperGenerator):
         category = self.typeInfo.categoryOf(name)
 
         if category in ["struct", "union"] and alias:
-            self.module.appendHeader(
-                self.cgenHeader.makeFuncAlias(API_PREFIX_MARSHAL + name,
-                                              API_PREFIX_MARSHAL + alias))
+            # Guest only uses reservedmarshal.
+            if self.variant != "guest":
+                self.module.appendHeader(
+                    self.cgenHeader.makeFuncAlias(API_PREFIX_MARSHAL + name,
+                                                  API_PREFIX_MARSHAL + alias))
             self.module.appendHeader(
                 self.cgenHeader.makeFuncAlias(API_PREFIX_UNMARSHAL + name,
                                               API_PREFIX_UNMARSHAL + alias))
@@ -798,24 +801,25 @@ class VulkanMarshaling(VulkanWrapperGenerator):
                     iterateVulkanType(self.typeInfo, structInfo.members[0], self.writeCodegen)
                 self.writeCodegen.doFiltering = True
 
-            self.module.appendHeader(
-                self.cgenHeader.makeFuncDecl(marshalPrototype))
-
-            if name in CUSTOM_MARSHAL_TYPES and CUSTOM_MARSHAL_TYPES[name].get("marshaling"):
-                self.module.appendImpl(
-                    self.cgenImpl.makeFuncImpl(
-                        marshalPrototype, structMarshalingCustom))
-            else:
-                self.module.appendImpl(
-                    self.cgenImpl.makeFuncImpl(
-                        marshalPrototype, structMarshalingDef))
-
-            if freeParams != []:
+            if self.variant != "guest":
                 self.module.appendHeader(
-                    self.cgenHeader.makeFuncDecl(marshalPrototypeNoFilter))
-                self.module.appendImpl(
-                    self.cgenImpl.makeFuncImpl(
-                        marshalPrototypeNoFilter, structMarshalingDefNoFilter))
+                    self.cgenHeader.makeFuncDecl(marshalPrototype))
+
+                if name in CUSTOM_MARSHAL_TYPES and CUSTOM_MARSHAL_TYPES[name].get("marshaling"):
+                    self.module.appendImpl(
+                        self.cgenImpl.makeFuncImpl(
+                            marshalPrototype, structMarshalingCustom))
+                else:
+                    self.module.appendImpl(
+                        self.cgenImpl.makeFuncImpl(
+                            marshalPrototype, structMarshalingDef))
+
+                if freeParams != []:
+                    self.module.appendHeader(
+                        self.cgenHeader.makeFuncDecl(marshalPrototypeNoFilter))
+                    self.module.appendImpl(
+                        self.cgenImpl.makeFuncImpl(
+                            marshalPrototypeNoFilter, structMarshalingDefNoFilter))
 
             unmarshalPrototype = \
                 VulkanAPI(API_PREFIX_UNMARSHAL + name,
@@ -830,7 +834,7 @@ class VulkanMarshaling(VulkanWrapperGenerator):
             def structUnmarshalingCustom(cgen):
                 self.readCodegen.cgen = cgen
                 self.readCodegen.currentStructInfo = structInfo
-                self.writeCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
+                self.readCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
 
                 unmarshalingCode = \
                     CUSTOM_MARSHAL_TYPES[name]["common"] + \
@@ -845,7 +849,7 @@ class VulkanMarshaling(VulkanWrapperGenerator):
             def structUnmarshalingDef(cgen):
                 self.readCodegen.cgen = cgen
                 self.readCodegen.currentStructInfo = structInfo
-                self.writeCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
+                self.readCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
 
                 if category == "struct":
                     # unmarshal 'let' parameters first
@@ -861,7 +865,7 @@ class VulkanMarshaling(VulkanWrapperGenerator):
                 self.readCodegen.cgen = cgen
                 self.readCodegen.currentStructInfo = structInfo
                 self.readCodegen.doFiltering = False
-                self.writeCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
+                self.readCodegen.cgen.stmt("(void)%s" % ROOT_TYPE_VAR_NAME)
 
                 if category == "struct":
                     # unmarshal 'let' parameters first
@@ -982,16 +986,17 @@ class VulkanMarshaling(VulkanWrapperGenerator):
             cgen.funcCall(None, API_PREFIX_UNMARSHAL + ext.name,
                           [VULKAN_STREAM_VAR_NAME, ROOT_TYPE_VAR_NAME, castedAccess])
 
-        self.module.appendImpl(
-            self.cgenImpl.makeFuncImpl(
-                self.extensionMarshalPrototype,
-                lambda cgen: self.doExtensionStructMarshalingCodegen(
-                    cgen,
-                    STREAM_RET_TYPE,
-                    STRUCT_EXTENSION_PARAM,
-                    forEachExtensionMarshal,
+        if self.variant != "guest":
+            self.module.appendImpl(
+                self.cgenImpl.makeFuncImpl(
                     self.extensionMarshalPrototype,
-                    "write")))
+                    lambda cgen: self.doExtensionStructMarshalingCodegen(
+                        cgen,
+                        STREAM_RET_TYPE,
+                        STRUCT_EXTENSION_PARAM,
+                        forEachExtensionMarshal,
+                        self.extensionMarshalPrototype,
+                        "write")))
 
         self.module.appendImpl(
             self.cgenImpl.makeFuncImpl(
