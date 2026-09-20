@@ -192,7 +192,7 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    uint64_t main_src_va, main_dest_va;
    uint64_t skipped_size = 0, realign_size = 0;
 
-   if (!(pdev->info.cp_dma_use_L2 && pdev->info.gfx_level >= GFX9)) {
+   if (!pdev->info.cp_dma_use_L2) {
       /* Invalidate L2 in case "src_va" or "dest_va" were previously written through L2. */
       cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
    }
@@ -226,24 +226,9 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
       radv_emit_cache_flush(cmd_buffer, false);
 
    while (size) {
-      unsigned dma_flags = 0;
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(pdev));
 
-      if (pdev->info.gfx_level >= GFX9) {
-         /* DMA operations via L2 are coherent and faster.
-          * TODO: GFX7-GFX8 should also support this but it
-          * requires tests/benchmarks.
-          *
-          * Also enable on GFX9 so we can use L2 at rest on GFX9+. On Raven
-          * this didn't seem to be worse.
-          *
-          * Note that we only use CP DMA for small copies and fills
-          * so this is really unlikely to cause significant thrashing.
-          */
-         dma_flags |= CP_DMA_USE_L2;
-      }
-
-      radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count, dma_flags);
+      radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count, CP_DMA_USE_L2);
 
       size -= byte_count;
       main_src_va += byte_count;
@@ -251,7 +236,7 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    }
 
    if (skipped_size)
-      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, 0);
+      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, CP_DMA_USE_L2);
 
    if (realign_size)
       radv_cp_dma_realign_engine(cmd_buffer, realign_size);
