@@ -411,7 +411,7 @@ radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t siz
    } else {
       uint32_t buf_offset;
 
-      radv_cmd_buffer_upload_data(cmd_buffer, size, 0, data, &buf_offset);
+      radv_cmd_buffer_upload_data(cmd_buffer, size, 4, data, &buf_offset);
 
       const VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_bo(cmd_buffer->upload.bo);
       const uint64_t src_va = radv_buffer_get_va(cmd_buffer->upload.bo) + buf_offset;
