@@ -109,14 +109,11 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
     * indices. If we wanted to execute CP DMA in PFP, this packet
     * should precede it.
     */
-   if (flags & CP_DMA_SYNC) {
-      if (cmd_buffer->qf == RADV_QUEUE_GENERAL) {
-         ac_emit_cp_pfp_sync_me(cs->b, cond_render->enabled);
-      }
+   if (flags & CP_DMA_SYNC && cmd_buffer->qf == RADV_QUEUE_GENERAL)
+      ac_emit_cp_pfp_sync_me(cs->b, cond_render->enabled);
 
-      /* CP will see the sync flag and wait for all DMAs to complete. */
-      cmd_buffer->state.dma_is_busy = false;
-   }
+   /* CP will see the sync flag and wait for all DMAs to complete. */
+   cmd_buffer->state.dma_is_busy = !(flags & CP_DMA_SYNC);
 
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
@@ -240,9 +237,6 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
       cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
    }
 
-   /* Assume that we are not going to sync after the last DMA operation. */
-   cmd_buffer->state.dma_is_busy = true;
-
    if (pdev->info.has_cp_dma_unaligned_copy_perf_issue) {
       /* If the size is not aligned, we must add a dummy copy at the end
        * just to align the internal counter. Otherwise, the DMA engine
@@ -327,9 +321,6 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
 
    enum amd_gfx_level gfx_level = pdev->info.gfx_level;
 
-   /* Assume that we are not going to sync after the last DMA operation. */
-   cmd_buffer->state.dma_is_busy = true;
-
    while (size) {
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(gfx_level));
       unsigned dma_flags = CP_DMA_CLEAR;
@@ -367,6 +358,4 @@ radv_cp_dma_wait_for_idle(struct radv_cmd_buffer *cmd_buffer)
     * for all DMAs to complete.
     */
    radv_emit_cp_dma(cmd_buffer, 0, 0, 0, CP_DMA_SYNC);
-
-   cmd_buffer->state.dma_is_busy = false;
 }
