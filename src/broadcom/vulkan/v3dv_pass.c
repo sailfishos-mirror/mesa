@@ -287,6 +287,33 @@ subpasses_can_merge(const struct v3dv_subpass *prev_subpass,
  * multisampled.
  */
 static void
+subpass_update_double_buffer_config(
+   struct v3dv_subpass *subpass,
+   const struct v3dv_render_pass_attachment *attachment,
+   VkImageAspectFlags aspects)
+{
+   subpass->double_buffer.aspects |= aspects;
+   subpass->double_buffer.first_subpass =
+      MIN2(subpass->double_buffer.first_subpass, attachment->first_subpass);
+   subpass->double_buffer.last_subpass =
+      MAX2(subpass->double_buffer.last_subpass, attachment->last_subpass);
+
+   const VkAttachmentDescription2 *desc = &attachment->desc;
+   if (aspects & (VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT)) {
+      if (desc->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+         subpass->double_buffer.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+      if (desc->storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+         subpass->double_buffer.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+   }
+   if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+      if (desc->stencilLoadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+         subpass->double_buffer.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+      if (desc->stencilStoreOp == VK_ATTACHMENT_STORE_OP_STORE)
+         subpass->double_buffer.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+   }
+}
+
+static void
 pass_compute_subpass_config(struct v3dv_device *device,
                             struct v3dv_render_pass *pass)
 {
@@ -300,6 +327,12 @@ pass_compute_subpass_config(struct v3dv_device *device,
 
       subpass->max_internal_bpp = V3D_INTERNAL_BPP_32;
       subpass->total_color_bpp = 0;
+
+      subpass->double_buffer.aspects = 0;
+      subpass->double_buffer.first_subpass = pass->subpass_count;
+      subpass->double_buffer.last_subpass = 0;
+      subpass->double_buffer.load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      subpass->double_buffer.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
       for (uint32_t j = 0; j < subpass->color_count; j++) {
          uint32_t a =
@@ -322,13 +355,18 @@ pass_compute_subpass_config(struct v3dv_device *device,
             MAX2(subpass->max_internal_bpp, internal_bpp);
          subpass->total_color_bpp += 4 * v3d_internal_bpp_words(internal_bpp);
          subpass->msaa |= desc->samples > VK_SAMPLE_COUNT_1_BIT;
+
+         subpass_update_double_buffer_config(subpass, attachment,
+                                             VK_IMAGE_ASPECT_COLOR_BIT);
       }
 
-      if (!subpass->msaa &&
-          subpass->ds_attachment.attachment != VK_ATTACHMENT_UNUSED) {
-         const VkAttachmentDescription2 *desc =
-            &pass->attachments[subpass->ds_attachment.attachment].desc;
-         subpass->msaa = desc->samples > VK_SAMPLE_COUNT_1_BIT;
+      if (subpass->ds_attachment.attachment != VK_ATTACHMENT_UNUSED) {
+         const struct v3dv_render_pass_attachment *attachment =
+            &pass->attachments[subpass->ds_attachment.attachment];
+         const VkAttachmentDescription2 *desc = &attachment->desc;
+         subpass->msaa |= desc->samples > VK_SAMPLE_COUNT_1_BIT;
+         subpass_update_double_buffer_config(subpass, attachment,
+                                             vk_format_aspects(desc->format));
       }
 
       /* Attachmentless subpasses get their sample mode from the pipeline. */

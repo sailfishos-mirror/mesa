@@ -63,6 +63,17 @@ struct v3dv_subpass {
    VkExtent2D tile_size[2];
    VkExtent2D double_buffer_tile_size;
 
+   /* Combined color/depth/stencil requirements for double-buffer eligibility:
+    * earliest first use, latest last use, and whether any aspect loads/stores.
+    */
+   struct {
+      VkImageAspectFlags aspects;
+      uint32_t first_subpass;
+      uint32_t last_subpass;
+      VkAttachmentLoadOp load_op;
+      VkAttachmentStoreOp store_op;
+   } double_buffer;
+
    /* If we need to emit the clear of the depth/stencil attachment using a
     * a draw call instead of using the TLB (GFXH-1461).
     */

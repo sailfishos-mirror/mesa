@@ -1649,77 +1649,28 @@ cmd_buffer_subpass_check_double_buffer_mode(struct v3dv_cmd_buffer *cmd_buffer,
     * to execute rendering of a new tile while we store the previous one to
     * hide latency on the tile store operation.
     */
-   bool has_stores = false;
-   for (uint32_t i = 0; i < subpass->color_count; i++) {
-      uint32_t attachment_idx = subpass->color_attachments[i].attachment;
-      if (attachment_idx == VK_ATTACHMENT_UNUSED)
-         continue;
-
-      const struct v3dv_render_pass_attachment *attachment =
-         &state->pass->attachments[attachment_idx];
-
-      /* FIXME: This will check 'tile_aligned_render_area' but that was
-       * computed with a tile size without double-buffer. That is okay
-       * because if the larger tile size is aligned then we know the smaller
-       * tile size for double-buffer will be as well. However, we might
-       * still benefit from doing this check with the smaller tile size
-       * because it can happen that the smaller size is aligned and the
-       * larger size is not.
-       */
-      if (v3dv_cmd_buffer_check_needs_load(state,
-                                           VK_IMAGE_ASPECT_COLOR_BIT,
-                                           attachment->first_subpass,
-                                           attachment->desc.loadOp,
-                                           attachment->last_subpass,
-                                           attachment->desc.storeOp)) {
-         return;
-      }
-
-      if (v3dv_cmd_buffer_check_needs_store(state,
-                                            VK_IMAGE_ASPECT_COLOR_BIT,
-                                            attachment->last_subpass,
-                                            attachment->desc.storeOp)) {
-         has_stores = true;
-      }
+   /* FIXME: This will check 'tile_aligned_render_area' but that was
+    * computed with a tile size without double-buffer. That is okay
+    * because if the larger tile size is aligned then we know the smaller
+    * tile size for double-buffer will be as well. However, we might
+    * still benefit from doing this check with the smaller tile size
+    * because it can happen that the smaller size is aligned and the
+    * larger size is not.
+    */
+   if (v3dv_cmd_buffer_check_needs_load(state,
+                                        subpass->double_buffer.aspects,
+                                        subpass->double_buffer.first_subpass,
+                                        subpass->double_buffer.load_op,
+                                        subpass->double_buffer.last_subpass,
+                                        subpass->double_buffer.store_op)) {
+      return;
    }
 
-   if (subpass->ds_attachment.attachment != VK_ATTACHMENT_UNUSED) {
-      uint32_t ds_attachment_idx = subpass->ds_attachment.attachment;
-      const struct v3dv_render_pass_attachment *ds_attachment =
-         &state->pass->attachments[ds_attachment_idx];
-
-      const VkImageAspectFlags ds_aspects =
-         vk_format_aspects(ds_attachment->desc.format);
-
-      if (v3dv_cmd_buffer_check_needs_load(state,
-                                           ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT,
-                                           ds_attachment->first_subpass,
-                                           ds_attachment->desc.loadOp,
-                                           ds_attachment->last_subpass,
-                                           ds_attachment->desc.storeOp)) {
-         return;
-      }
-
-      if (v3dv_cmd_buffer_check_needs_load(state,
-                                           ds_aspects & VK_IMAGE_ASPECT_STENCIL_BIT,
-                                           ds_attachment->first_subpass,
-                                           ds_attachment->desc.stencilLoadOp,
-                                           ds_attachment->last_subpass,
-                                           ds_attachment->desc.stencilStoreOp)) {
-         return;
-      }
-
-      has_stores |= v3dv_cmd_buffer_check_needs_store(state,
-                                                      ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                      ds_attachment->last_subpass,
-                                                      ds_attachment->desc.storeOp);
-      has_stores |= v3dv_cmd_buffer_check_needs_store(state,
-                                                      ds_aspects & VK_IMAGE_ASPECT_STENCIL_BIT,
-                                                      ds_attachment->last_subpass,
-                                                      ds_attachment->desc.stencilStoreOp);
-   }
-
-   job->can_use_double_buffer = has_stores;
+   job->can_use_double_buffer =
+      v3dv_cmd_buffer_check_needs_store(state,
+                                        subpass->double_buffer.aspects,
+                                        subpass->double_buffer.last_subpass,
+                                        subpass->double_buffer.store_op);
 }
 
 static struct v3dv_job *
