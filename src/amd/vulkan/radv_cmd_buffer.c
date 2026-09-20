@@ -1501,16 +1501,17 @@ const struct vk_command_buffer_ops radv_cmd_buffer_ops = {
 };
 
 static bool
-radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer, uint64_t min_needed)
+radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer,
+                                           struct radv_linear_suballoc_buffer *suballoc, uint64_t min_needed)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint64_t new_size;
    struct radeon_winsys_bo *bo = NULL;
-   struct radv_linear_suballoc_buffer *upload;
+   struct radv_linear_suballoc_buffer *saved_suballoc;
 
    new_size = MAX2(min_needed, 16 * 1024);
-   new_size = MAX2(new_size, 2 * cmd_buffer->upload.size);
+   new_size = MAX2(new_size, 2 * suballoc->size);
 
    VkResult result = radv_bo_create(
       device, &cmd_buffer->vk.base, new_size, 4096, device->ws->cs_domain(device->ws),
@@ -1523,37 +1524,37 @@ radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer, u
    }
 
    radv_cs_add_buffer(device->ws, cs->b, bo);
-   if (cmd_buffer->upload.bo) {
-      upload = malloc(sizeof(*upload));
+   if (suballoc->bo) {
+      saved_suballoc = malloc(sizeof(*saved_suballoc));
 
-      if (!upload) {
+      if (!saved_suballoc) {
          vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
          radv_bo_destroy(device, &cmd_buffer->vk.base, bo);
          return false;
       }
 
-      memcpy(upload, &cmd_buffer->upload, sizeof(*upload));
-      list_add(&upload->list, &cmd_buffer->upload.list);
+      memcpy(saved_suballoc, suballoc, sizeof(*saved_suballoc));
+      list_add(&saved_suballoc->list, &suballoc->list);
    }
 
-   cmd_buffer->upload.bo = bo;
-   cmd_buffer->upload.size = new_size;
-   cmd_buffer->upload.offset = 0;
-   cmd_buffer->upload.cpu_map = radv_buffer_map(device->ws, cmd_buffer->upload.bo);
+   suballoc->bo = bo;
+   suballoc->size = new_size;
+   suballoc->offset = 0;
+   suballoc->cpu_map = radv_buffer_map(device->ws, bo);
 
-   if (!cmd_buffer->upload.cpu_map) {
+   if (!suballoc->cpu_map) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
       return false;
    }
 
-   radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->upload.bo, 0, cmd_buffer->upload.size, 0);
+   radv_rmv_log_command_buffer_bo_create(device, suballoc->bo, 0, suballoc->size, 0);
 
    return true;
 }
 
 static bool
-radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
-                                unsigned *out_offset, void **ptr)
+radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, struct radv_linear_suballoc_buffer *suballoc,
+                                unsigned size, unsigned alignment, unsigned *out_offset, void **ptr)
 {
    assert(size % 4 == 0);
 
@@ -1564,7 +1565,7 @@ radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, unsigned siz
    /* Align to the scalar cache line size if it results in this allocation
     * being placed in less of them.
     */
-   unsigned offset = cmd_buffer->upload.offset;
+   unsigned offset = suballoc->offset;
    unsigned line_size = gpu_info->gfx_level >= GFX10 ? 64 : 32;
    unsigned gap = align(offset, line_size) - offset;
    if ((size & (line_size - 1)) > gap)
@@ -1572,17 +1573,17 @@ radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, unsigned siz
 
    if (alignment)
       offset = align(offset, alignment);
-   if (offset + size > cmd_buffer->upload.size) {
-      if (!radv_cmd_buffer_resize_linear_suballoc_buf(cmd_buffer, size))
+   if (offset + size > suballoc->size) {
+      if (!radv_cmd_buffer_resize_linear_suballoc_buf(cmd_buffer, suballoc, size))
          return false;
       offset = 0;
    }
 
    *out_offset = offset;
    if (ptr)
-      *ptr = cmd_buffer->upload.cpu_map + offset;
+      *ptr = suballoc->cpu_map + offset;
 
-   cmd_buffer->upload.offset = offset + size;
+   suballoc->offset = offset + size;
    return true;
 }
 
@@ -1590,13 +1591,13 @@ bool
 radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
                                      unsigned *out_offset, void **ptr)
 {
-   return radv_cmd_buffer_linear_suballoc(cmd_buffer, size, alignment, out_offset, ptr);
+   return radv_cmd_buffer_linear_suballoc(cmd_buffer, &cmd_buffer->upload, size, alignment, out_offset, ptr);
 }
 
 bool
 radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned *out_offset, void **ptr)
 {
-   return radv_cmd_buffer_linear_suballoc(cmd_buffer, size, 0, out_offset, ptr);
+   return radv_cmd_buffer_linear_suballoc(cmd_buffer, &cmd_buffer->upload, size, 0, out_offset, ptr);
 }
 
 bool
