@@ -381,7 +381,8 @@ radv_init_update_scratch(VkCommandBuffer commandBuffer, const struct vk_accelera
 
       /* Prepare ready counts for internal nodes */
       radv_fill_memory(cmd_buffer, scratch + layout.internal_ready_count_offset,
-                       layout.size - layout.internal_ready_count_offset, 0x0, VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR);
+                       layout.size - layout.internal_ready_count_offset, 0x0, VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR,
+                       false);
    }
 
    for (uint32_t i = 0; i < build_count; i++) {
@@ -1092,7 +1093,7 @@ static void
 radv_cmd_fill_buffer_addr(VkCommandBuffer commandBuffer, VkDeviceAddress addr, VkDeviceSize size, uint32_t data)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   radv_fill_memory(cmd_buffer, addr, size, data, VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR);
+   radv_fill_memory(cmd_buffer, addr, size, data, VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR, false);
 }
 
 static void

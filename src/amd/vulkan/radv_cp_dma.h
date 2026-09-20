@@ -23,7 +23,7 @@ void radv_cs_cp_dma_prefetch(const struct radv_device *device, struct radv_cmd_s
 void radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uint64_t dest_va, uint64_t size);
 
 void radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, unsigned value,
-                             bool cb_db_coherent);
+                             bool cb_db_cp_coherent);
 
 void radv_cp_dma_wait_for_idle(struct radv_cmd_buffer *cmd_buffer);
 

@@ -178,7 +178,7 @@ radv_sdma_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
       const uint64_t va = image->bindings[0].addr + hiz->offset +
                           (uint64_t)(range->baseArrayLayer + layer) * hiz->slice_size + clear_offset;
 
-      radv_fill_memory(cmd_buffer, va, clear_end - clear_offset, value, 0);
+      radv_fill_memory(cmd_buffer, va, clear_end - clear_offset, value, 0, false);
    }
 }
 

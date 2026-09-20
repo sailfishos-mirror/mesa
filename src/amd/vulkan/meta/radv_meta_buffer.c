@@ -187,7 +187,7 @@ radv_prepare_cs_clear_copy_buffer(const struct radv_cmd_buffer *cmd_buffer,
 
 static uint32_t
 radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, uint64_t dst_va,
-                          uint64_t size, uint32_t value, VkAddressCopyFlagsKHR dst_copy_flags)
+                          uint64_t size, uint32_t value, VkAddressCopyFlagsKHR dst_copy_flags, bool cp_coherent)
 {
    assert(!(dst_va & 3));
    assert(!(size & 3));
@@ -217,7 +217,7 @@ radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
    } else if (size) {
-      radv_cp_dma_fill_memory(cmd_buffer, dst_va, size, value, image != NULL);
+      radv_cp_dma_fill_memory(cmd_buffer, dst_va, size, value, image || cp_coherent);
       flush_bits = AC_BARRIER_SYNC_CP_DMA;
    }
 
@@ -226,9 +226,9 @@ radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
 uint32_t
 radv_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, uint32_t value,
-                 VkAddressCopyFlagsKHR copy_flags)
+                 VkAddressCopyFlagsKHR copy_flags, bool cp_coherent)
 {
-   return radv_fill_memory_internal(cmd_buffer, NULL, va, size, value, copy_flags);
+   return radv_fill_memory_internal(cmd_buffer, NULL, va, size, value, copy_flags, cp_coherent);
 }
 
 uint32_t
@@ -243,12 +243,12 @@ radv_fill_image(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *ima
 
    radv_cs_add_buffer(device->ws, cs->b, bo);
 
-   return radv_fill_memory_internal(cmd_buffer, image, va, size, value, copy_flags);
+   return radv_fill_memory_internal(cmd_buffer, image, va, size, value, copy_flags, false);
 }
 
 uint32_t
 radv_fill_buffer(struct radv_cmd_buffer *cmd_buffer, struct radeon_winsys_bo *bo, uint64_t va, uint64_t size,
-                 uint32_t value)
+                 uint32_t value, bool cp_coherent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const VkAddressCopyFlagsKHR copy_flags = radv_get_copy_flags_from_bo(bo);
@@ -256,7 +256,7 @@ radv_fill_buffer(struct radv_cmd_buffer *cmd_buffer, struct radeon_winsys_bo *bo
 
    radv_cs_add_buffer(device->ws, cs->b, bo);
 
-   return radv_fill_memory(cmd_buffer, va, size, value, copy_flags);
+   return radv_fill_memory(cmd_buffer, va, size, value, copy_flags, cp_coherent);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -272,7 +272,7 @@ radv_CmdFillBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSi
 
    fillSize = vk_buffer_range(&dst_buffer->vk, dstOffset, fillSize) & ~3ull;
 
-   radv_fill_buffer(cmd_buffer, dst_buffer->bo, vk_buffer_address(&dst_buffer->vk, dstOffset), fillSize, data);
+   radv_fill_buffer(cmd_buffer, dst_buffer->bo, vk_buffer_address(&dst_buffer->vk, dstOffset), fillSize, data, false);
 
    radv_meta_end(cmd_buffer);
 
@@ -290,7 +290,7 @@ radv_CmdFillMemoryKHR(VkCommandBuffer commandBuffer, const VkDeviceAddressRangeK
 
    radv_meta_begin(cmd_buffer);
 
-   radv_fill_memory(cmd_buffer, pDstRange->address, pDstRange->size, data, dst_copy_flags);
+   radv_fill_memory(cmd_buffer, pDstRange->address, pDstRange->size, data, dst_copy_flags, false);
 
    radv_meta_end(cmd_buffer);
 
