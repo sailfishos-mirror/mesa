@@ -214,6 +214,8 @@ struct gfxstream_vk_descriptor_pool {
 
     gfxstream::vk::DescriptorPoolAllocationInfo* allocInfo;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_descriptor_pool, base, VkDescriptorPool,
+                               VK_OBJECT_TYPE_DESCRIPTOR_POOL)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_descriptor_pool, VkDescriptorPool)
 
 struct gfxstream_vk_descriptor_set {
@@ -224,6 +226,8 @@ struct gfxstream_vk_descriptor_set {
 
     gfxstream::vk::ReifiedDescriptorSet* reified;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_descriptor_set, base, VkDescriptorSet,
+                               VK_OBJECT_TYPE_DESCRIPTOR_SET)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_descriptor_set, VkDescriptorSet)
 
 struct gfxstream_vk_descriptor_set_layout {
@@ -232,6 +236,8 @@ struct gfxstream_vk_descriptor_set_layout {
     struct gfxstream_vk_object_common common;
     gfxstream::vk::DescriptorSetLayoutInfo* layoutInfo;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_descriptor_set_layout, base, VkDescriptorSetLayout,
+                               VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_descriptor_set_layout, VkDescriptorSetLayout)
 
 struct gfxstream_vk_device_memory {
@@ -239,6 +245,8 @@ struct gfxstream_vk_device_memory {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_device_memory, base, VkDeviceMemory,
+                               VK_OBJECT_TYPE_DEVICE_MEMORY)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_device_memory, VkDeviceMemory)
 
 struct gfxstream_vk_image {
@@ -246,6 +254,7 @@ struct gfxstream_vk_image {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_image, base, VkImage, VK_OBJECT_TYPE_IMAGE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_image, VkImage)
 
 struct gfxstream_vk_descriptor_update_template {
@@ -253,6 +262,9 @@ struct gfxstream_vk_descriptor_update_template {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_descriptor_update_template, base,
+                               VkDescriptorUpdateTemplate,
+                               VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_descriptor_update_template, VkDescriptorUpdateTemplate)
 
 struct gfxstream_vk_sampler {
@@ -260,6 +272,7 @@ struct gfxstream_vk_sampler {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_sampler, base, VkSampler, VK_OBJECT_TYPE_SAMPLER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_sampler, VkSampler)
 
 struct gfxstream_vk_private_data_slot {
@@ -267,6 +280,8 @@ struct gfxstream_vk_private_data_slot {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_private_data_slot, base, VkPrivateDataSlot,
+                               VK_OBJECT_TYPE_PRIVATE_DATA_SLOT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_private_data_slot, VkPrivateDataSlot)
 
 #ifdef VK_USE_PLATFORM_FUCHSIA
@@ -275,6 +290,8 @@ struct gfxstream_vk_buffer_collection_fuchsia {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer_collection_fuchsia, base,
+                               VkBufferCollectionFUCHSIA, VK_OBJECT_TYPE_BUFFER_COLLECTION_FUCHSIA)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_buffer_collection_fuchsia, VkBufferCollectionFUCHSIA)
 #endif
 
@@ -283,6 +300,8 @@ struct gfxstream_vk_buffer_view {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer_view, base, VkBufferView,
+                               VK_OBJECT_TYPE_BUFFER_VIEW)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_buffer_view, VkBufferView)
 
 struct gfxstream_vk_image_view {
@@ -290,6 +309,8 @@ struct gfxstream_vk_image_view {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_image_view, base, VkImageView,
+                               VK_OBJECT_TYPE_IMAGE_VIEW)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_image_view, VkImageView)
 
 struct gfxstream_vk_shader_module {
@@ -297,6 +318,8 @@ struct gfxstream_vk_shader_module {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_shader_module, base, VkShaderModule,
+                               VK_OBJECT_TYPE_SHADER_MODULE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_shader_module, VkShaderModule)
 
 struct gfxstream_vk_pipeline {
@@ -304,6 +327,7 @@ struct gfxstream_vk_pipeline {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_pipeline, base, VkPipeline, VK_OBJECT_TYPE_PIPELINE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_pipeline, VkPipeline)
 
 struct gfxstream_vk_pipeline_cache {
@@ -311,6 +335,8 @@ struct gfxstream_vk_pipeline_cache {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_pipeline_cache, base, VkPipelineCache,
+                               VK_OBJECT_TYPE_PIPELINE_CACHE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_pipeline_cache, VkPipelineCache)
 
 struct gfxstream_vk_pipeline_layout {
@@ -318,6 +344,8 @@ struct gfxstream_vk_pipeline_layout {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_pipeline_layout, base, VkPipelineLayout,
+                               VK_OBJECT_TYPE_PIPELINE_LAYOUT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_pipeline_layout, VkPipelineLayout)
 
 struct gfxstream_vk_render_pass {
@@ -325,6 +353,8 @@ struct gfxstream_vk_render_pass {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_render_pass, base, VkRenderPass,
+                               VK_OBJECT_TYPE_RENDER_PASS)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_render_pass, VkRenderPass)
 
 struct gfxstream_vk_framebuffer {
@@ -332,6 +362,8 @@ struct gfxstream_vk_framebuffer {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_framebuffer, base, VkFramebuffer,
+                               VK_OBJECT_TYPE_FRAMEBUFFER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_framebuffer, VkFramebuffer)
 
 struct gfxstream_vk_event {
@@ -339,6 +371,7 @@ struct gfxstream_vk_event {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_event, base, VkEvent, VK_OBJECT_TYPE_EVENT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_event, VkEvent)
 
 struct gfxstream_vk_query_pool {
@@ -346,6 +379,8 @@ struct gfxstream_vk_query_pool {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_query_pool, base, VkQueryPool,
+                               VK_OBJECT_TYPE_QUERY_POOL)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_query_pool, VkQueryPool)
 
 struct gfxstream_vk_sampler_ycbcr_conversion {
@@ -353,6 +388,8 @@ struct gfxstream_vk_sampler_ycbcr_conversion {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_sampler_ycbcr_conversion, base,
+                               VkSamplerYcbcrConversion, VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_sampler_ycbcr_conversion, VkSamplerYcbcrConversion)
 
 struct gfxstream_vk_surface_khr {
@@ -360,6 +397,8 @@ struct gfxstream_vk_surface_khr {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_surface_khr, base, VkSurfaceKHR,
+                               VK_OBJECT_TYPE_SURFACE_KHR)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_surface_khr, VkSurfaceKHR)
 
 struct gfxstream_vk_swapchain_khr {
@@ -367,6 +406,8 @@ struct gfxstream_vk_swapchain_khr {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_swapchain_khr, base, VkSwapchainKHR,
+                               VK_OBJECT_TYPE_SWAPCHAIN_KHR)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_swapchain_khr, VkSwapchainKHR)
 
 struct gfxstream_vk_display_khr {
@@ -374,6 +415,8 @@ struct gfxstream_vk_display_khr {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_display_khr, base, VkDisplayKHR,
+                               VK_OBJECT_TYPE_DISPLAY_KHR)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_display_khr, VkDisplayKHR)
 
 struct gfxstream_vk_display_mode_khr {
@@ -381,6 +424,8 @@ struct gfxstream_vk_display_mode_khr {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_display_mode_khr, base, VkDisplayModeKHR,
+                               VK_OBJECT_TYPE_DISPLAY_MODE_KHR)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_display_mode_khr, VkDisplayModeKHR)
 
 struct gfxstream_vk_validation_cache_ext {
@@ -388,6 +433,8 @@ struct gfxstream_vk_validation_cache_ext {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_validation_cache_ext, base, VkValidationCacheEXT,
+                               VK_OBJECT_TYPE_VALIDATION_CACHE_EXT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_validation_cache_ext, VkValidationCacheEXT)
 
 struct gfxstream_vk_debug_report_callback_ext {
@@ -395,6 +442,8 @@ struct gfxstream_vk_debug_report_callback_ext {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_debug_report_callback_ext, base,
+                               VkDebugReportCallbackEXT, VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_debug_report_callback_ext, VkDebugReportCallbackEXT)
 
 struct gfxstream_vk_debug_utils_messenger_ext {
@@ -403,6 +452,8 @@ struct gfxstream_vk_debug_utils_messenger_ext {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_debug_utils_messenger_ext, base,
+                               VkDebugUtilsMessengerEXT, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_debug_utils_messenger_ext, VkDebugUtilsMessengerEXT)
 
 struct gfxstream_vk_micromap_ext {
@@ -411,6 +462,8 @@ struct gfxstream_vk_micromap_ext {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_micromap_ext, base, VkMicromapEXT,
+                               VK_OBJECT_TYPE_MICROMAP_EXT)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_micromap_ext, VkMicromapEXT)
 
 #ifdef VK_NVX_binary_import
@@ -420,6 +473,8 @@ struct gfxstream_vk_cu_module_nvx {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_cu_module_nvx, base, VkCuModuleNVX,
+                               VK_OBJECT_TYPE_CU_MODULE_NVX)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_cu_module_nvx, VkCuModuleNVX)
 
 struct gfxstream_vk_cu_function_nvx {
@@ -428,6 +483,8 @@ struct gfxstream_vk_cu_function_nvx {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_cu_function_nvx, base, VkCuFunctionNVX,
+                               VK_OBJECT_TYPE_CU_FUNCTION_NVX)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_cu_function_nvx, VkCuFunctionNVX)
 #endif
 
@@ -438,6 +495,8 @@ struct gfxstream_vk_object_table_nvx {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_object_table_nvx, base, VkObjectTableNVX,
+                               VK_OBJECT_TYPE_OBJECT_TABLE_NVX)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_object_table_nvx, VkObjectTableNVX)
 
 struct gfxstream_vk_indirect_commands_layout_nvx {
@@ -446,6 +505,9 @@ struct gfxstream_vk_indirect_commands_layout_nvx {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_indirect_commands_layout_nvx, base,
+                               VkIndirectCommandsLayoutNVX,
+                               VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_indirect_commands_layout_nvx, VkIndirectCommandsLayoutNVX)
 #endif
 
@@ -456,6 +518,9 @@ struct gfxstream_vk_indirect_commands_layout_nv {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_indirect_commands_layout_nv, base,
+                               VkIndirectCommandsLayoutNV,
+                               VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NV)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_indirect_commands_layout_nv, VkIndirectCommandsLayoutNV)
 #endif
 
@@ -466,6 +531,8 @@ struct gfxstream_vk_acceleration_structure_nv {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_acceleration_structure_nv, base,
+                               VkAccelerationStructureNV, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_acceleration_structure_nv, VkAccelerationStructureNV)
 #endif
 
@@ -476,6 +543,9 @@ struct gfxstream_vk_acceleration_structure_khr {
 
     struct gfxstream_vk_object_common common;
 };
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_acceleration_structure_khr, base,
+                               VkAccelerationStructureKHR,
+                               VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_acceleration_structure_khr, VkAccelerationStructureKHR)
 #endif
 

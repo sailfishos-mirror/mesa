@@ -19,17 +19,6 @@
 #endif
 #endif
 
-extern "C" {
-
-#define GOLDFISH_VK_AS_GOLDFISH_IMPL(type)                    \
-    struct goldfish_##type* as_goldfish_##type(type toCast) { \
-        return reinterpret_cast<goldfish_##type*>(toCast);    \
-    }
-
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_IMPL)
-
-}  // extern "C"
-
 namespace gfxstream {
 namespace vk {
 

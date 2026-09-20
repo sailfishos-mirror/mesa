@@ -81,10 +81,6 @@ extern "C" {
 #define goldfish_VkAccelerationStructureNV gfxstream_vk_acceleration_structure_nv
 #define goldfish_VkAccelerationStructureKHR gfxstream_vk_acceleration_structure_khr
 
-#define GOLDFISH_VK_AS_GOLDFISH_DECL(type) struct goldfish_##type* as_goldfish_##type(type);
-
-GOLDFISH_VK_LIST_HANDLE_TYPES(GOLDFISH_VK_AS_GOLDFISH_DECL)
-
 }  // extern "C"
 
 namespace gfxstream {
