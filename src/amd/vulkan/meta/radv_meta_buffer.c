@@ -217,7 +217,7 @@ radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
    } else if (size) {
-      radv_cp_dma_fill_memory(cmd_buffer, dst_va, size, value);
+      radv_cp_dma_fill_memory(cmd_buffer, dst_va, size, value, image != NULL);
       flush_bits = AC_BARRIER_SYNC_CP_DMA;
    }
 

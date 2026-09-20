@@ -260,7 +260,8 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
 }
 
 void
-radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, unsigned value)
+radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, unsigned value,
+                        bool cb_db_coherent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -268,7 +269,7 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
    if (!size)
       return;
 
-   if (!(pdev->info.cp_dma_use_L2 && pdev->info.gfx_level >= GFX9)) {
+   if (!cb_db_coherent && !(pdev->info.cp_dma_use_L2 && pdev->info.gfx_level >= GFX9)) {
       /* Invalidate L2 in case "va" was previously written through L2. */
       cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2;
    }
