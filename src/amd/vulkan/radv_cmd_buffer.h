@@ -437,7 +437,7 @@ struct radv_enc_state {
    uint32_t coded_height;
 };
 
-struct radv_cmd_buffer_upload {
+struct radv_linear_suballoc_buffer {
    uint8_t *cpu_map;
    unsigned offset;
    uint64_t size;
@@ -496,7 +496,7 @@ struct radv_cmd_buffer {
    uint64_t descriptor_buffers[MAX_SETS];
    uint64_t descriptor_heaps[RADV_MAX_HEAPS];
 
-   struct radv_cmd_buffer_upload upload;
+   struct radv_linear_suballoc_buffer upload;
 
    struct radv_cmd_buffer_queue_state queue_state;
 

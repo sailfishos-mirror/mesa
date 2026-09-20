@@ -1316,7 +1316,7 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
       radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
       _mesa_set_destroy(cmd_buffer->accel_struct_buffers, NULL);
 
-      list_for_each_entry_safe (struct radv_cmd_buffer_upload, up, &cmd_buffer->upload.list, list) {
+      list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->upload.list, list) {
          radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
          radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
          list_del(&up->list);
@@ -1449,7 +1449,7 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       cmd_buffer->gang.cs = NULL;
    }
 
-   list_for_each_entry_safe (struct radv_cmd_buffer_upload, up, &cmd_buffer->upload.list, list) {
+   list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->upload.list, list) {
       radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
       radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
       list_del(&up->list);
@@ -1501,13 +1501,13 @@ const struct vk_command_buffer_ops radv_cmd_buffer_ops = {
 };
 
 static bool
-radv_cmd_buffer_resize_upload_buf(struct radv_cmd_buffer *cmd_buffer, uint64_t min_needed)
+radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer, uint64_t min_needed)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint64_t new_size;
    struct radeon_winsys_bo *bo = NULL;
-   struct radv_cmd_buffer_upload *upload;
+   struct radv_linear_suballoc_buffer *upload;
 
    new_size = MAX2(min_needed, 16 * 1024);
    new_size = MAX2(new_size, 2 * cmd_buffer->upload.size);
@@ -1551,9 +1551,9 @@ radv_cmd_buffer_resize_upload_buf(struct radv_cmd_buffer *cmd_buffer, uint64_t m
    return true;
 }
 
-bool
-radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
-                                     unsigned *out_offset, void **ptr)
+static bool
+radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
+                                unsigned *out_offset, void **ptr)
 {
    assert(size % 4 == 0);
 
@@ -1573,7 +1573,7 @@ radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigne
    if (alignment)
       offset = align(offset, alignment);
    if (offset + size > cmd_buffer->upload.size) {
-      if (!radv_cmd_buffer_resize_upload_buf(cmd_buffer, size))
+      if (!radv_cmd_buffer_resize_linear_suballoc_buf(cmd_buffer, size))
          return false;
       offset = 0;
    }
@@ -1587,9 +1587,16 @@ radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigne
 }
 
 bool
+radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
+                                     unsigned *out_offset, void **ptr)
+{
+   return radv_cmd_buffer_linear_suballoc(cmd_buffer, size, alignment, out_offset, ptr);
+}
+
+bool
 radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned *out_offset, void **ptr)
 {
-   return radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, size, 0, out_offset, ptr);
+   return radv_cmd_buffer_linear_suballoc(cmd_buffer, size, 0, out_offset, ptr);
 }
 
 bool
