@@ -3131,7 +3131,7 @@ radv_prepare_dgc_compute(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCo
 
    *upload_size = MAX2(*upload_size + alloc_size, 16);
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, upload_offset, upload_data)) {
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, 0, upload_offset, upload_data)) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
       return;
    }
@@ -3168,7 +3168,7 @@ static void
 radv_prepare_dgc_rt(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCommandsInfoEXT *pGeneratedCommandsInfo,
                     unsigned *upload_size, unsigned *upload_offset, void **upload_data, struct radv_dgc_params *params)
 {
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, upload_offset, upload_data)) {
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, 0, upload_offset, upload_data)) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
       return;
    }
@@ -3216,7 +3216,7 @@ radv_prepare_dgc_graphics(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedC
 
    *upload_size = MAX2(*upload_size + vb_size, 16);
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, upload_offset, upload_data)) {
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, *upload_size, 0, upload_offset, upload_data)) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
       return;
    }

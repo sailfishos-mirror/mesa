@@ -633,13 +633,11 @@ radv_get_num_pipeline_stat_queries(struct radv_cmd_buffer *cmd_buffer)
           cmd_buffer->state.active_prims_xfb_queries;
 }
 
-bool radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
-                                          unsigned *out_offset, void **ptr);
+bool radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
+                                  unsigned *out_offset, void **ptr);
 
-bool radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned *out_offset, void **ptr);
-
-bool radv_cmd_buffer_upload_data(struct radv_cmd_buffer *cmd_buffer, unsigned size, const void *data,
-                                 unsigned *out_offset);
+bool radv_cmd_buffer_upload_data(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
+                                 const void *data, unsigned *out_offset);
 
 void radv_cmd_buffer_trace_emit(struct radv_cmd_buffer *cmd_buffer);
 

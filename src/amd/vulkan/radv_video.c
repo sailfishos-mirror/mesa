@@ -53,7 +53,7 @@ radv_video_get_db_alignment(struct radv_physical_device *pdev, int width, bool i
 static bool
 radv_vid_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned *out_offset, void **ptr)
 {
-   return radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, size, VID_DEFAULT_ALIGNMENT, out_offset, ptr);
+   return radv_cmd_buffer_upload_alloc(cmd_buffer, size, VID_DEFAULT_ALIGNMENT, out_offset, ptr);
 }
 
 /* vcn unified queue (sq) ib header */

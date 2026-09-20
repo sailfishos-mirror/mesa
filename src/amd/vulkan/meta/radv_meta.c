@@ -427,7 +427,7 @@ radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoi
 
    assert(layout->num_sets == 1);
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, set_layout->size, &upload_offset, (void *)&ptr))
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, set_layout->size, 0, &upload_offset, (void *)&ptr))
       return;
 
    radv_meta_save(cmd_buffer, (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS ? RADV_META_SAVE_GRAPHICS_DESCRIPTORS

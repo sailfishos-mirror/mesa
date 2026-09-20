@@ -909,7 +909,7 @@ radv_alloc_shader_query_buf(struct radv_cmd_buffer *cmd_buffer)
    if (cmd_buffer->state.shader_query_buf_va)
       return;
 
-   if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, RADV_SHADER_QUERY_BUF_SIZE, 64, &offset, &ptr))
+   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, RADV_SHADER_QUERY_BUF_SIZE, 64, &offset, &ptr))
       return;
 
    memset(ptr, 0, RADV_SHADER_QUERY_BUF_SIZE);
