@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from copy import copy
-import hashlib, sys
+import hashlib, re, sys
 
 from .common.codegen import CodeGen, VulkanAPIWrapper
 from .common.vulkantypes import \
@@ -36,7 +36,9 @@ class VulkanMarshalingCodegen(VulkanTypeIterator):
                  dynAlloc = False,
                  mapHandles = True,
                  handleMapOverwrites = False,
-                 doFiltering = True):
+                 doFiltering = True,
+                 action = None,
+                 variant = "host"):
         self.cgen = cgen
         self.direction = direction
         self.processSimple = "write" if self.direction == "write" else "read"
@@ -61,6 +63,8 @@ class VulkanMarshalingCodegen(VulkanTypeIterator):
         self.mapHandles = mapHandles
         self.handleMapOverwrites = handleMapOverwrites
         self.doFiltering = doFiltering
+        self.action = action
+        self.variant = variant
 
     def getTypeForStreaming(self, vulkanType):
         res = copy(vulkanType)
@@ -123,7 +127,15 @@ class VulkanMarshalingCodegen(VulkanTypeIterator):
                 makeVulkanTypeSimple(False, "uint64_t", 0, paramName=handle64Var)
 
         if self.direction == "write":
-            if self.handleMapOverwrites:
+            if self.variant == "guest":
+                if lenAccess == "1":
+                    self.cgen.stmt("%s = (uint64_t)(uintptr_t)(*%s)" % (handle64Var, access))
+                else:
+                    self.cgen.beginFor("uint32_t k = 0", "k < %s" % lenAccess, "++k")
+                    self.cgen.stmt("%s[k] = (uint64_t)(uintptr_t)(%s[k])" % (handle64Var, access))
+                    self.cgen.endFor()
+                self.genStreamCall(handle64VarType, handle64VarAccess, handle64Bytes)
+            elif self.handleMapOverwrites:
                 self.cgen.stmt(
                     "static_assert(8 == sizeof(%s), \"handle map overwrite requires %s to be 8 bytes long\")" % \
                             (vulkanType.typeName, vulkanType.typeName))
@@ -141,12 +153,34 @@ class VulkanMarshalingCodegen(VulkanTypeIterator):
                 self.genStreamCall(handle64VarType, handle64VarAccess, handle64Bytes)
         else:
             self.genStreamCall(handle64VarType, handle64VarAccess, handle64Bytes)
-            self.cgen.stmt(
-                "%s->handleMapping()->mapHandles_u64_%s(%s, %s%s, %s)" %
-                (self.streamVarName, vulkanType.typeName,
-                handle64VarAccess,
-                self.makeCastExpr(vulkanType.getForNonConstAccess()), access,
-                lenAccess))
+            if self.action == "create":
+                gfxstreamType = "gfxstream_" + re.sub(r'(?<!^)(?=[A-Z][a-z]|(?<=[a-z])[A-Z])', '_', vulkanType.typeName).lower()
+                if lenAccess == "1":
+                    self.cgen.stmt("*%s = create_%s(%s)" % (access, gfxstreamType, handle64Var))
+                    self.cgen.stmt("sResourceTracker->register_%s(*%s)" % (vulkanType.typeName, access))
+                else:
+                    self.cgen.beginFor("uint32_t k = 0", "k < %s" % lenAccess, "++k")
+                    self.cgen.stmt("%s[k] = create_%s(%s[k])" % (access, gfxstreamType, handle64Var))
+                    self.cgen.stmt("sResourceTracker->register_%s(%s[k])" % (vulkanType.typeName, access))
+                    self.cgen.endFor()
+            elif self.variant == "guest":
+                if lenAccess == "1":
+                    self.cgen.stmt("*(%s%s) = (%s)(uintptr_t)%s" % (
+                        self.makeCastExpr(vulkanType.getForNonConstAccess()), access,
+                        vulkanType.typeName, handle64Var))
+                else:
+                    self.cgen.beginFor("uint32_t k = 0", "k < %s" % lenAccess, "++k")
+                    self.cgen.stmt("(%s%s)[k] = (%s)(uintptr_t)(%s[k])" % (
+                        self.makeCastExpr(vulkanType.getForNonConstAccess()), access,
+                        vulkanType.typeName, handle64Var))
+                    self.cgen.endFor()
+            else:
+                self.cgen.stmt(
+                    "%s->handleMapping()->mapHandles_u64_%s(%s, %s%s, %s)" %
+                    (self.streamVarName, vulkanType.typeName,
+                    handle64VarAccess,
+                    self.makeCastExpr(vulkanType.getForNonConstAccess()), access,
+                    lenAccess))
 
         if lenAccess != "1":
             self.cgen.endIf()
@@ -627,7 +661,8 @@ class VulkanMarshaling(VulkanWrapperGenerator):
                 ROOT_TYPE_VAR_NAME,
                 MARSHAL_INPUT_VAR_NAME,
                 API_PREFIX_MARSHAL,
-                direction = "write")
+                direction = "write",
+                variant = self.variant)
 
         self.readCodegen = \
             VulkanMarshalingCodegen(
@@ -637,7 +672,8 @@ class VulkanMarshaling(VulkanWrapperGenerator):
                 UNMARSHAL_INPUT_VAR_NAME,
                 API_PREFIX_UNMARSHAL,
                 direction = "read",
-                dynAlloc=self.dynAlloc)
+                dynAlloc=self.dynAlloc,
+                variant = self.variant)
 
         self.knownDefs = {}
 

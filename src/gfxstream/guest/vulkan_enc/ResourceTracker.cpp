@@ -117,55 +117,6 @@ uint64_t GeneratePseudoUniqueId() {
 
 }  // namespace
 
-#define MAKE_HANDLE_MAPPING_FOREACH(type_name, map_impl, map_to_u64_impl, map_from_u64_impl)       \
-    void mapHandles_##type_name(type_name* handles, size_t count) override {                       \
-        for (size_t i = 0; i < count; ++i) {                                                       \
-            map_impl;                                                                              \
-        }                                                                                          \
-    }                                                                                              \
-    void mapHandles_##type_name##_u64(const type_name* handles, uint64_t* handle_u64s,             \
-                                      size_t count) override {                                     \
-        for (size_t i = 0; i < count; ++i) {                                                       \
-            map_to_u64_impl;                                                                       \
-        }                                                                                          \
-    }                                                                                              \
-    void mapHandles_u64_##type_name(const uint64_t* handle_u64s, type_name* handles, size_t count) \
-        override {                                                                                 \
-        for (size_t i = 0; i < count; ++i) {                                                       \
-            map_from_u64_impl;                                                                     \
-        }                                                                                          \
-    }
-
-#define DEFINE_RESOURCE_TRACKING_CLASS(class_name, impl) \
-    class class_name : public VulkanHandleMapping {      \
-       public:                                           \
-        virtual ~class_name() {}                         \
-        GOLDFISH_VK_LIST_HANDLE_TYPES(impl)              \
-    };
-
-#define GFXSTREAM_CONCAT_INNER(a, b) a##b
-#define GFXSTREAM_CONCAT(a, b) GFXSTREAM_CONCAT_INNER(a, b)
-#define CREATE_GFXSTREAM_VK_OBJECT(type_name) GFXSTREAM_CONCAT(create_, goldfish_##type_name)
-#define DELETE_GFXSTREAM_VK_OBJECT(type_name) GFXSTREAM_CONCAT(delete_, goldfish_##type_name)
-
-#define CREATE_MAPPING_IMPL_FOR_TYPE(type_name)                                                   \
-    MAKE_HANDLE_MAPPING_FOREACH(                                                                  \
-        type_name, handles[i] = CREATE_GFXSTREAM_VK_OBJECT(type_name)((uint64_t)handles[i]);      \
-        ResourceTracker::get()->register_##type_name(handles[i]);                                 \
-        , handle_u64s[i] = (uint64_t)CREATE_GFXSTREAM_VK_OBJECT(type_name)((uint64_t)handles[i]), \
-        handles[i] = (type_name)CREATE_GFXSTREAM_VK_OBJECT(type_name)(handle_u64s[i]);            \
-        ResourceTracker::get()->register_##type_name(handles[i]);)
-
-#define DESTROY_MAPPING_IMPL_FOR_TYPE(type_name)                                                        \
-    MAKE_HANDLE_MAPPING_FOREACH(type_name,                                                              \
-                                ResourceTracker::get()->unregister_##type_name(handles[i]);             \
-                                DELETE_GFXSTREAM_VK_OBJECT(type_name)(handles[i]), (void)handle_u64s[i]; \
-                                DELETE_GFXSTREAM_VK_OBJECT(type_name)(handles[i]), (void)handles[i];     \
-                                DELETE_GFXSTREAM_VK_OBJECT(type_name)((type_name)handle_u64s[i]))
-
-DEFINE_RESOURCE_TRACKING_CLASS(CreateMapping, CREATE_MAPPING_IMPL_FOR_TYPE)
-DEFINE_RESOURCE_TRACKING_CLASS(DestroyMapping, DESTROY_MAPPING_IMPL_FOR_TYPE)
-
 static uint32_t* sSeqnoPtr = nullptr;
 
 // static
@@ -8020,20 +7971,9 @@ const VkPhysicalDeviceMemoryProperties& ResourceTracker::getPhysicalDeviceMemory
 
 static ResourceTracker* sTracker = nullptr;
 
-ResourceTracker::ResourceTracker() {
-    mCreateMapping = new CreateMapping();
-    mDestroyMapping = new DestroyMapping();
-    // nothing to do
-}
+ResourceTracker::ResourceTracker() {}
 
-ResourceTracker::~ResourceTracker() {
-    delete mCreateMapping;
-    delete mDestroyMapping;
-}
-
-VulkanHandleMapping* ResourceTracker::createMapping() { return mCreateMapping; }
-
-VulkanHandleMapping* ResourceTracker::destroyMapping() { return mDestroyMapping; }
+ResourceTracker::~ResourceTracker() {}
 
 // static
 ResourceTracker* ResourceTracker::get() {

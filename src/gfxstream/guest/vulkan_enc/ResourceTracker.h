@@ -19,7 +19,6 @@
 #include "HostVisibleMemoryVirtualization.h"
 #include "Sync.h"
 #include "VirtGpu.h"
-#include "VulkanHandleMapping.h"
 #include "VulkanHandles.h"
 #include "goldfish_vk_transform_guest.h"
 #include "util/detect_os.h"
@@ -125,9 +124,6 @@ class ResourceTracker {
     ResourceTracker();
     ~ResourceTracker();
     static ResourceTracker* get();
-
-    VulkanHandleMapping* createMapping();
-    VulkanHandleMapping* destroyMapping();
 
     using HostConnectionGetFunc = GfxStreamConnectionManager* (*)();
     using VkEncoderGetFunc = VkEncoder* (*)(GfxStreamConnectionManager*);
@@ -587,9 +583,6 @@ class ResourceTracker {
     LIST_TRIVIAL_TRANSFORMED_TYPES(DEFINE_TRANSFORMED_TYPE_PROTOTYPE)
 
    private:
-    VulkanHandleMapping* mCreateMapping = nullptr;
-    VulkanHandleMapping* mDestroyMapping = nullptr;
-
     uint32_t getColorBufferMemoryIndex(void* context, VkDevice device);
     const VkPhysicalDeviceMemoryProperties& getPhysicalDeviceMemoryProperties(
         void* context, VkDevice device, VkPhysicalDevice physicalDevice);

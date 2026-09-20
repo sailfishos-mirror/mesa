@@ -142,11 +142,10 @@ VkResult VkEncoder::vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_2;
     stream->read((uint64_t*)&cgen_var_2, 8);
-    stream->handleMapping()->mapHandles_u64_VkInstance(&cgen_var_2, (VkInstance*)pInstance, 1);
-    stream->unsetHandleMapping();
+    *pInstance = create_gfxstream_vk_instance(cgen_var_2);
+    sResourceTracker->register_VkInstance(*pInstance);
     VkResult vkCreateInstance_VkResult_return = (VkResult)0;
     stream->read(&vkCreateInstance_VkResult_return, sizeof(VkResult));
     sResourceTracker->on_vkCreateInstance(this, vkCreateInstance_VkResult_return, pCreateInfo,
@@ -219,7 +218,8 @@ void VkEncoder::vkDestroyInstance(VkInstance instance, const VkAllocationCallbac
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkInstance((VkInstance*)&instance);
+    sResourceTracker->unregister_VkInstance(instance);
+    delete_gfxstream_vk_instance(instance);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -316,7 +316,6 @@ VkResult VkEncoder::vkEnumeratePhysicalDevices(VkInstance instance, uint32_t* pP
         }
         stream->read((uint32_t*)pPhysicalDeviceCount, sizeof(uint32_t));
     }
-    stream->setHandleMapping(sResourceTracker->createMapping());
     // WARNING PTR CHECK
     VkPhysicalDevice* check_pPhysicalDevices;
     (void)check_pPhysicalDevices;
@@ -329,11 +328,12 @@ VkResult VkEncoder::vkEnumeratePhysicalDevices(VkInstance instance, uint32_t* pP
             uint64_t* cgen_var_4_0;
             stream->alloc((void**)&cgen_var_4_0, (*pPhysicalDeviceCount) * 8);
             stream->read((uint64_t*)cgen_var_4_0, (*pPhysicalDeviceCount) * 8);
-            stream->handleMapping()->mapHandles_u64_VkPhysicalDevice(
-                cgen_var_4_0, (VkPhysicalDevice*)pPhysicalDevices, (*pPhysicalDeviceCount));
+            for (uint32_t k = 0; k < (*pPhysicalDeviceCount); ++k) {
+                pPhysicalDevices[k] = create_gfxstream_vk_physical_device(cgen_var_4_0[k]);
+                sResourceTracker->register_VkPhysicalDevice(pPhysicalDevices[k]);
+            }
         }
     }
-    stream->unsetHandleMapping();
     VkResult vkEnumeratePhysicalDevices_VkResult_return = (VkResult)0;
     stream->read(&vkEnumeratePhysicalDevices_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -979,11 +979,10 @@ VkResult VkEncoder::vkCreateDevice(VkPhysicalDevice physicalDevice,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDevice(&cgen_var_3, (VkDevice*)pDevice, 1);
-    stream->unsetHandleMapping();
+    *pDevice = create_gfxstream_vk_device(cgen_var_3);
+    sResourceTracker->register_VkDevice(*pDevice);
     VkResult vkCreateDevice_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDevice_VkResult_return, sizeof(VkResult));
     sResourceTracker->on_vkCreateDevice(this, vkCreateDevice_VkResult_return, physicalDevice,
@@ -1056,7 +1055,8 @@ void VkEncoder::vkDestroyDevice(VkDevice device, const VkAllocationCallbacks* pA
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDevice((VkDevice*)&device);
+    sResourceTracker->unregister_VkDevice(device);
+    delete_gfxstream_vk_device(device);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -1651,11 +1651,10 @@ void VkEncoder::vkGetDeviceQueue(VkDevice device, uint32_t queueFamilyIndex, uin
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_2;
     stream->read((uint64_t*)&cgen_var_2, 8);
-    stream->handleMapping()->mapHandles_u64_VkQueue(&cgen_var_2, (VkQueue*)pQueue, 1);
-    stream->unsetHandleMapping();
+    *pQueue = create_gfxstream_vk_queue(cgen_var_2);
+    sResourceTracker->register_VkQueue(*pQueue);
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -1921,12 +1920,10 @@ VkResult VkEncoder::vkAllocateMemory(VkDevice device, const VkMemoryAllocateInfo
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDeviceMemory(&cgen_var_3, (VkDeviceMemory*)pMemory,
-                                                           1);
-    stream->unsetHandleMapping();
+    *pMemory = create_gfxstream_vk_device_memory(cgen_var_3);
+    sResourceTracker->register_VkDeviceMemory(*pMemory);
     VkResult vkAllocateMemory_VkResult_return = (VkResult)0;
     stream->read(&vkAllocateMemory_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -2004,7 +2001,8 @@ void VkEncoder::vkFreeMemory(VkDevice device, VkDeviceMemory memory,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDeviceMemory((VkDeviceMemory*)&memory);
+    sResourceTracker->unregister_VkDeviceMemory(memory);
+    delete_gfxstream_vk_device_memory(memory);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -3018,11 +3016,10 @@ VkResult VkEncoder::vkCreateFence(VkDevice device, const VkFenceCreateInfo* pCre
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkFence(&cgen_var_3, (VkFence*)pFence, 1);
-    stream->unsetHandleMapping();
+    *pFence = create_gfxstream_vk_fence(cgen_var_3);
+    sResourceTracker->register_VkFence(*pFence);
     VkResult vkCreateFence_VkResult_return = (VkResult)0;
     stream->read(&vkCreateFence_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -3101,7 +3098,8 @@ void VkEncoder::vkDestroyFence(VkDevice device, VkFence fence,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkFence((VkFence*)&fence);
+    sResourceTracker->unregister_VkFence(fence);
+    delete_gfxstream_vk_fence(fence);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -3391,11 +3389,10 @@ VkResult VkEncoder::vkCreateSemaphore(VkDevice device, const VkSemaphoreCreateIn
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkSemaphore(&cgen_var_3, (VkSemaphore*)pSemaphore, 1);
-    stream->unsetHandleMapping();
+    *pSemaphore = create_gfxstream_vk_semaphore(cgen_var_3);
+    sResourceTracker->register_VkSemaphore(*pSemaphore);
     VkResult vkCreateSemaphore_VkResult_return = (VkResult)0;
     stream->read(&vkCreateSemaphore_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -3475,7 +3472,8 @@ void VkEncoder::vkDestroySemaphore(VkDevice device, VkSemaphore semaphore,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkSemaphore((VkSemaphore*)&semaphore);
+    sResourceTracker->unregister_VkSemaphore(semaphore);
+    delete_gfxstream_vk_semaphore(semaphore);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -3571,11 +3569,10 @@ VkResult VkEncoder::vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkQueryPool(&cgen_var_3, (VkQueryPool*)pQueryPool, 1);
-    stream->unsetHandleMapping();
+    *pQueryPool = create_gfxstream_vk_query_pool(cgen_var_3);
+    sResourceTracker->register_VkQueryPool(*pQueryPool);
     VkResult vkCreateQueryPool_VkResult_return = (VkResult)0;
     stream->read(&vkCreateQueryPool_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -3655,7 +3652,8 @@ void VkEncoder::vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkQueryPool((VkQueryPool*)&queryPool);
+    sResourceTracker->unregister_VkQueryPool(queryPool);
+    delete_gfxstream_vk_query_pool(queryPool);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -3839,11 +3837,10 @@ VkResult VkEncoder::vkCreateBuffer(VkDevice device, const VkBufferCreateInfo* pC
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkBuffer(&cgen_var_3, (VkBuffer*)pBuffer, 1);
-    stream->unsetHandleMapping();
+    *pBuffer = create_gfxstream_vk_buffer(cgen_var_3);
+    sResourceTracker->register_VkBuffer(*pBuffer);
     VkResult vkCreateBuffer_VkResult_return = (VkResult)0;
     stream->read(&vkCreateBuffer_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -3922,7 +3919,8 @@ void VkEncoder::vkDestroyBuffer(VkDevice device, VkBuffer buffer,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkBuffer((VkBuffer*)&buffer);
+    sResourceTracker->unregister_VkBuffer(buffer);
+    delete_gfxstream_vk_buffer(buffer);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -4017,11 +4015,10 @@ VkResult VkEncoder::vkCreateImage(VkDevice device, const VkImageCreateInfo* pCre
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkImage(&cgen_var_3, (VkImage*)pImage, 1);
-    stream->unsetHandleMapping();
+    *pImage = create_gfxstream_vk_image(cgen_var_3);
+    sResourceTracker->register_VkImage(*pImage);
     VkResult vkCreateImage_VkResult_return = (VkResult)0;
     stream->read(&vkCreateImage_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -4100,7 +4097,8 @@ void VkEncoder::vkDestroyImage(VkDevice device, VkImage image,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkImage((VkImage*)&image);
+    sResourceTracker->unregister_VkImage(image);
+    delete_gfxstream_vk_image(image);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -4274,11 +4272,10 @@ VkResult VkEncoder::vkCreateImageView(VkDevice device, const VkImageViewCreateIn
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkImageView(&cgen_var_3, (VkImageView*)pView, 1);
-    stream->unsetHandleMapping();
+    *pView = create_gfxstream_vk_image_view(cgen_var_3);
+    sResourceTracker->register_VkImageView(*pView);
     VkResult vkCreateImageView_VkResult_return = (VkResult)0;
     stream->read(&vkCreateImageView_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -4358,7 +4355,8 @@ void VkEncoder::vkDestroyImageView(VkDevice device, VkImageView imageView,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkImageView((VkImageView*)&imageView);
+    sResourceTracker->unregister_VkImageView(imageView);
+    delete_gfxstream_vk_image_view(imageView);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -4454,12 +4452,10 @@ VkResult VkEncoder::vkCreateCommandPool(VkDevice device, const VkCommandPoolCrea
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkCommandPool(&cgen_var_3, (VkCommandPool*)pCommandPool,
-                                                          1);
-    stream->unsetHandleMapping();
+    *pCommandPool = create_gfxstream_vk_command_pool(cgen_var_3);
+    sResourceTracker->register_VkCommandPool(*pCommandPool);
     VkResult vkCreateCommandPool_VkResult_return = (VkResult)0;
     stream->read(&vkCreateCommandPool_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -4539,7 +4535,8 @@ void VkEncoder::vkDestroyCommandPool(VkDevice device, VkCommandPool commandPool,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkCommandPool((VkCommandPool*)&commandPool);
+    sResourceTracker->unregister_VkCommandPool(commandPool);
+    delete_gfxstream_vk_command_pool(commandPool);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -4678,15 +4675,15 @@ VkResult VkEncoder::vkAllocateCommandBuffers(VkDevice device,
         *streamPtrPtr += 8 * pAllocateInfo->commandBufferCount;
     }
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     if (pAllocateInfo->commandBufferCount) {
         uint64_t* cgen_var_2;
         stream->alloc((void**)&cgen_var_2, pAllocateInfo->commandBufferCount * 8);
         stream->read((uint64_t*)cgen_var_2, pAllocateInfo->commandBufferCount * 8);
-        stream->handleMapping()->mapHandles_u64_VkCommandBuffer(
-            cgen_var_2, (VkCommandBuffer*)pCommandBuffers, pAllocateInfo->commandBufferCount);
+        for (uint32_t k = 0; k < pAllocateInfo->commandBufferCount; ++k) {
+            pCommandBuffers[k] = create_gfxstream_vk_command_buffer(cgen_var_2[k]);
+            sResourceTracker->register_VkCommandBuffer(pCommandBuffers[k]);
+        }
     }
-    stream->unsetHandleMapping();
     VkResult vkAllocateCommandBuffers_VkResult_return = (VkResult)0;
     stream->read(&vkAllocateCommandBuffers_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -4775,8 +4772,10 @@ void VkEncoder::vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool,
         }
     }
     if (pCommandBuffers) {
-        sResourceTracker->destroyMapping()->mapHandles_VkCommandBuffer(
-            (VkCommandBuffer*)pCommandBuffers, commandBufferCount);
+        for (uint32_t i = 0; i < commandBufferCount; ++i) {
+            sResourceTracker->unregister_VkCommandBuffer(pCommandBuffers[i]);
+            delete_gfxstream_vk_command_buffer(pCommandBuffers[i]);
+        }
     }
     stream->flush();
     ++encodeCount;
@@ -6060,11 +6059,10 @@ VkResult VkEncoder::vkCreateEvent(VkDevice device, const VkEventCreateInfo* pCre
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkEvent(&cgen_var_3, (VkEvent*)pEvent, 1);
-    stream->unsetHandleMapping();
+    *pEvent = create_gfxstream_vk_event(cgen_var_3);
+    sResourceTracker->register_VkEvent(*pEvent);
     VkResult vkCreateEvent_VkResult_return = (VkResult)0;
     stream->read(&vkCreateEvent_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -6143,7 +6141,8 @@ void VkEncoder::vkDestroyEvent(VkDevice device, VkEvent event,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkEvent((VkEvent*)&event);
+    sResourceTracker->unregister_VkEvent(event);
+    delete_gfxstream_vk_event(event);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -6401,11 +6400,10 @@ VkResult VkEncoder::vkCreateBufferView(VkDevice device, const VkBufferViewCreate
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkBufferView(&cgen_var_3, (VkBufferView*)pView, 1);
-    stream->unsetHandleMapping();
+    *pView = create_gfxstream_vk_buffer_view(cgen_var_3);
+    sResourceTracker->register_VkBufferView(*pView);
     VkResult vkCreateBufferView_VkResult_return = (VkResult)0;
     stream->read(&vkCreateBufferView_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -6485,7 +6483,8 @@ void VkEncoder::vkDestroyBufferView(VkDevice device, VkBufferView bufferView,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkBufferView((VkBufferView*)&bufferView);
+    sResourceTracker->unregister_VkBufferView(bufferView);
+    delete_gfxstream_vk_buffer_view(bufferView);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -6582,12 +6581,10 @@ VkResult VkEncoder::vkCreateShaderModule(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkShaderModule(&cgen_var_3,
-                                                           (VkShaderModule*)pShaderModule, 1);
-    stream->unsetHandleMapping();
+    *pShaderModule = create_gfxstream_vk_shader_module(cgen_var_3);
+    sResourceTracker->register_VkShaderModule(*pShaderModule);
     VkResult vkCreateShaderModule_VkResult_return = (VkResult)0;
     stream->read(&vkCreateShaderModule_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -6667,7 +6664,8 @@ void VkEncoder::vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModu
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkShaderModule((VkShaderModule*)&shaderModule);
+    sResourceTracker->unregister_VkShaderModule(shaderModule);
+    delete_gfxstream_vk_shader_module(shaderModule);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -6764,12 +6762,10 @@ VkResult VkEncoder::vkCreatePipelineCache(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkPipelineCache(&cgen_var_3,
-                                                            (VkPipelineCache*)pPipelineCache, 1);
-    stream->unsetHandleMapping();
+    *pPipelineCache = create_gfxstream_vk_pipeline_cache(cgen_var_3);
+    sResourceTracker->register_VkPipelineCache(*pPipelineCache);
     VkResult vkCreatePipelineCache_VkResult_return = (VkResult)0;
     stream->read(&vkCreatePipelineCache_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -6849,8 +6845,8 @@ void VkEncoder::vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipeline
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkPipelineCache(
-        (VkPipelineCache*)&pipelineCache);
+    sResourceTracker->unregister_VkPipelineCache(pipelineCache);
+    delete_gfxstream_vk_pipeline_cache(pipelineCache);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -7162,15 +7158,15 @@ VkResult VkEncoder::vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
         *streamPtrPtr += 8 * createInfoCount;
     }
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     if (createInfoCount) {
         uint64_t* cgen_var_4;
         stream->alloc((void**)&cgen_var_4, createInfoCount * 8);
         stream->read((uint64_t*)cgen_var_4, createInfoCount * 8);
-        stream->handleMapping()->mapHandles_u64_VkPipeline(cgen_var_4, (VkPipeline*)pPipelines,
-                                                           createInfoCount);
+        for (uint32_t k = 0; k < createInfoCount; ++k) {
+            pPipelines[k] = create_gfxstream_vk_pipeline(cgen_var_4[k]);
+            sResourceTracker->register_VkPipeline(pPipelines[k]);
+        }
     }
-    stream->unsetHandleMapping();
     VkResult vkCreateComputePipelines_VkResult_return = (VkResult)0;
     stream->read(&vkCreateComputePipelines_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -7250,7 +7246,8 @@ void VkEncoder::vkDestroyPipeline(VkDevice device, VkPipeline pipeline,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkPipeline((VkPipeline*)&pipeline);
+    sResourceTracker->unregister_VkPipeline(pipeline);
+    delete_gfxstream_vk_pipeline(pipeline);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -7348,12 +7345,10 @@ VkResult VkEncoder::vkCreatePipelineLayout(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkPipelineLayout(&cgen_var_3,
-                                                             (VkPipelineLayout*)pPipelineLayout, 1);
-    stream->unsetHandleMapping();
+    *pPipelineLayout = create_gfxstream_vk_pipeline_layout(cgen_var_3);
+    sResourceTracker->register_VkPipelineLayout(*pPipelineLayout);
     VkResult vkCreatePipelineLayout_VkResult_return = (VkResult)0;
     stream->read(&vkCreatePipelineLayout_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -7433,8 +7428,8 @@ void VkEncoder::vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipeli
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkPipelineLayout(
-        (VkPipelineLayout*)&pipelineLayout);
+    sResourceTracker->unregister_VkPipelineLayout(pipelineLayout);
+    delete_gfxstream_vk_pipeline_layout(pipelineLayout);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -7527,11 +7522,10 @@ VkResult VkEncoder::vkCreateSampler(VkDevice device, const VkSamplerCreateInfo* 
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkSampler(&cgen_var_3, (VkSampler*)pSampler, 1);
-    stream->unsetHandleMapping();
+    *pSampler = create_gfxstream_vk_sampler(cgen_var_3);
+    sResourceTracker->register_VkSampler(*pSampler);
     VkResult vkCreateSampler_VkResult_return = (VkResult)0;
     stream->read(&vkCreateSampler_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -7610,7 +7604,8 @@ void VkEncoder::vkDestroySampler(VkDevice device, VkSampler sampler,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkSampler((VkSampler*)&sampler);
+    sResourceTracker->unregister_VkSampler(sampler);
+    delete_gfxstream_vk_sampler(sampler);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -7710,12 +7705,10 @@ VkResult VkEncoder::vkCreateDescriptorSetLayout(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDescriptorSetLayout(
-        &cgen_var_3, (VkDescriptorSetLayout*)pSetLayout, 1);
-    stream->unsetHandleMapping();
+    *pSetLayout = create_gfxstream_vk_descriptor_set_layout(cgen_var_3);
+    sResourceTracker->register_VkDescriptorSetLayout(*pSetLayout);
     VkResult vkCreateDescriptorSetLayout_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDescriptorSetLayout_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -7797,8 +7790,8 @@ void VkEncoder::vkDestroyDescriptorSetLayout(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDescriptorSetLayout(
-        (VkDescriptorSetLayout*)&descriptorSetLayout);
+    sResourceTracker->unregister_VkDescriptorSetLayout(descriptorSetLayout);
+    delete_gfxstream_vk_descriptor_set_layout(descriptorSetLayout);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -7896,12 +7889,10 @@ VkResult VkEncoder::vkCreateDescriptorPool(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDescriptorPool(&cgen_var_3,
-                                                             (VkDescriptorPool*)pDescriptorPool, 1);
-    stream->unsetHandleMapping();
+    *pDescriptorPool = create_gfxstream_vk_descriptor_pool(cgen_var_3);
+    sResourceTracker->register_VkDescriptorPool(*pDescriptorPool);
     VkResult vkCreateDescriptorPool_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDescriptorPool_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -7981,8 +7972,8 @@ void VkEncoder::vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descri
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDescriptorPool(
-        (VkDescriptorPool*)&descriptorPool);
+    sResourceTracker->unregister_VkDescriptorPool(descriptorPool);
+    delete_gfxstream_vk_descriptor_pool(descriptorPool);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -8122,15 +8113,15 @@ VkResult VkEncoder::vkAllocateDescriptorSets(VkDevice device,
         *streamPtrPtr += 8 * pAllocateInfo->descriptorSetCount;
     }
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     if (pAllocateInfo->descriptorSetCount) {
         uint64_t* cgen_var_2;
         stream->alloc((void**)&cgen_var_2, pAllocateInfo->descriptorSetCount * 8);
         stream->read((uint64_t*)cgen_var_2, pAllocateInfo->descriptorSetCount * 8);
-        stream->handleMapping()->mapHandles_u64_VkDescriptorSet(
-            cgen_var_2, (VkDescriptorSet*)pDescriptorSets, pAllocateInfo->descriptorSetCount);
+        for (uint32_t k = 0; k < pAllocateInfo->descriptorSetCount; ++k) {
+            pDescriptorSets[k] = create_gfxstream_vk_descriptor_set(cgen_var_2[k]);
+            sResourceTracker->register_VkDescriptorSet(pDescriptorSets[k]);
+        }
     }
-    stream->unsetHandleMapping();
     VkResult vkAllocateDescriptorSets_VkResult_return = (VkResult)0;
     stream->read(&vkAllocateDescriptorSets_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -8221,8 +8212,10 @@ VkResult VkEncoder::vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
     VkResult vkFreeDescriptorSets_VkResult_return = (VkResult)0;
     stream->read(&vkFreeDescriptorSets_VkResult_return, sizeof(VkResult));
     if (pDescriptorSets) {
-        sResourceTracker->destroyMapping()->mapHandles_VkDescriptorSet(
-            (VkDescriptorSet*)pDescriptorSets, descriptorSetCount);
+        for (uint32_t i = 0; i < descriptorSetCount; ++i) {
+            sResourceTracker->unregister_VkDescriptorSet(pDescriptorSets[i]);
+            delete_gfxstream_vk_descriptor_set(pDescriptorSets[i]);
+        }
     }
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -9171,15 +9164,15 @@ VkResult VkEncoder::vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
         *streamPtrPtr += 8 * createInfoCount;
     }
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     if (createInfoCount) {
         uint64_t* cgen_var_4;
         stream->alloc((void**)&cgen_var_4, createInfoCount * 8);
         stream->read((uint64_t*)cgen_var_4, createInfoCount * 8);
-        stream->handleMapping()->mapHandles_u64_VkPipeline(cgen_var_4, (VkPipeline*)pPipelines,
-                                                           createInfoCount);
+        for (uint32_t k = 0; k < createInfoCount; ++k) {
+            pPipelines[k] = create_gfxstream_vk_pipeline(cgen_var_4[k]);
+            sResourceTracker->register_VkPipeline(pPipelines[k]);
+        }
     }
-    stream->unsetHandleMapping();
     VkResult vkCreateGraphicsPipelines_VkResult_return = (VkResult)0;
     stream->read(&vkCreateGraphicsPipelines_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -9277,12 +9270,10 @@ VkResult VkEncoder::vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkFramebuffer(&cgen_var_3, (VkFramebuffer*)pFramebuffer,
-                                                          1);
-    stream->unsetHandleMapping();
+    *pFramebuffer = create_gfxstream_vk_framebuffer(cgen_var_3);
+    sResourceTracker->register_VkFramebuffer(*pFramebuffer);
     VkResult vkCreateFramebuffer_VkResult_return = (VkResult)0;
     stream->read(&vkCreateFramebuffer_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -9362,7 +9353,8 @@ void VkEncoder::vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkFramebuffer((VkFramebuffer*)&framebuffer);
+    sResourceTracker->unregister_VkFramebuffer(framebuffer);
+    delete_gfxstream_vk_framebuffer(framebuffer);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -9458,12 +9450,10 @@ VkResult VkEncoder::vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkRenderPass(&cgen_var_3, (VkRenderPass*)pRenderPass,
-                                                         1);
-    stream->unsetHandleMapping();
+    *pRenderPass = create_gfxstream_vk_render_pass(cgen_var_3);
+    sResourceTracker->register_VkRenderPass(*pRenderPass);
     VkResult vkCreateRenderPass_VkResult_return = (VkResult)0;
     stream->read(&vkCreateRenderPass_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -9543,7 +9533,8 @@ void VkEncoder::vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkRenderPass((VkRenderPass*)&renderPass);
+    sResourceTracker->unregister_VkRenderPass(renderPass);
+    delete_gfxstream_vk_render_pass(renderPass);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -12457,11 +12448,10 @@ void VkEncoder::vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* pQu
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_2;
     stream->read((uint64_t*)&cgen_var_2, 8);
-    stream->handleMapping()->mapHandles_u64_VkQueue(&cgen_var_2, (VkQueue*)pQueue, 1);
-    stream->unsetHandleMapping();
+    *pQueue = create_gfxstream_vk_queue(cgen_var_2);
+    sResourceTracker->register_VkQueue(*pQueue);
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -12872,12 +12862,10 @@ VkResult VkEncoder::vkCreateDescriptorUpdateTemplate(
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDescriptorUpdateTemplate(
-        &cgen_var_3, (VkDescriptorUpdateTemplate*)pDescriptorUpdateTemplate, 1);
-    stream->unsetHandleMapping();
+    *pDescriptorUpdateTemplate = create_gfxstream_vk_descriptor_update_template(cgen_var_3);
+    sResourceTracker->register_VkDescriptorUpdateTemplate(*pDescriptorUpdateTemplate);
     VkResult vkCreateDescriptorUpdateTemplate_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDescriptorUpdateTemplate_VkResult_return, sizeof(VkResult));
     sResourceTracker->on_vkCreateDescriptorUpdateTemplate(
@@ -12962,8 +12950,8 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplate(
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDescriptorUpdateTemplate(
-        (VkDescriptorUpdateTemplate*)&descriptorUpdateTemplate);
+    sResourceTracker->unregister_VkDescriptorUpdateTemplate(descriptorUpdateTemplate);
+    delete_gfxstream_vk_descriptor_update_template(descriptorUpdateTemplate);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -13220,12 +13208,10 @@ VkResult VkEncoder::vkCreateSamplerYcbcrConversion(
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkSamplerYcbcrConversion(
-        &cgen_var_3, (VkSamplerYcbcrConversion*)pYcbcrConversion, 1);
-    stream->unsetHandleMapping();
+    *pYcbcrConversion = create_gfxstream_vk_sampler_ycbcr_conversion(cgen_var_3);
+    sResourceTracker->register_VkSamplerYcbcrConversion(*pYcbcrConversion);
     VkResult vkCreateSamplerYcbcrConversion_VkResult_return = (VkResult)0;
     stream->read(&vkCreateSamplerYcbcrConversion_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -13307,8 +13293,8 @@ void VkEncoder::vkDestroySamplerYcbcrConversion(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkSamplerYcbcrConversion(
-        (VkSamplerYcbcrConversion*)&ycbcrConversion);
+    sResourceTracker->unregister_VkSamplerYcbcrConversion(ycbcrConversion);
+    delete_gfxstream_vk_sampler_ycbcr_conversion(ycbcrConversion);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -14018,12 +14004,10 @@ VkResult VkEncoder::vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkRenderPass(&cgen_var_3, (VkRenderPass*)pRenderPass,
-                                                         1);
-    stream->unsetHandleMapping();
+    *pRenderPass = create_gfxstream_vk_render_pass(cgen_var_3);
+    sResourceTracker->register_VkRenderPass(*pRenderPass);
     VkResult vkCreateRenderPass2_VkResult_return = (VkResult)0;
     stream->read(&vkCreateRenderPass2_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -14448,12 +14432,10 @@ VkResult VkEncoder::vkCreatePrivateDataSlot(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkPrivateDataSlot(
-        &cgen_var_3, (VkPrivateDataSlot*)pPrivateDataSlot, 1);
-    stream->unsetHandleMapping();
+    *pPrivateDataSlot = create_gfxstream_vk_private_data_slot(cgen_var_3);
+    sResourceTracker->register_VkPrivateDataSlot(*pPrivateDataSlot);
     VkResult vkCreatePrivateDataSlot_VkResult_return = (VkResult)0;
     stream->read(&vkCreatePrivateDataSlot_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -14533,8 +14515,8 @@ void VkEncoder::vkDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot priv
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkPrivateDataSlot(
-        (VkPrivateDataSlot*)&privateDataSlot);
+    sResourceTracker->unregister_VkPrivateDataSlot(privateDataSlot);
+    delete_gfxstream_vk_private_data_slot(privateDataSlot);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -18931,12 +18913,10 @@ VkResult VkEncoder::vkCreateDescriptorUpdateTemplateKHR(
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkDescriptorUpdateTemplate(
-        &cgen_var_3, (VkDescriptorUpdateTemplate*)pDescriptorUpdateTemplate, 1);
-    stream->unsetHandleMapping();
+    *pDescriptorUpdateTemplate = create_gfxstream_vk_descriptor_update_template(cgen_var_3);
+    sResourceTracker->register_VkDescriptorUpdateTemplate(*pDescriptorUpdateTemplate);
     VkResult vkCreateDescriptorUpdateTemplateKHR_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDescriptorUpdateTemplateKHR_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -19018,8 +18998,8 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplateKHR(
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkDescriptorUpdateTemplate(
-        (VkDescriptorUpdateTemplate*)&descriptorUpdateTemplate);
+    sResourceTracker->unregister_VkDescriptorUpdateTemplate(descriptorUpdateTemplate);
+    delete_gfxstream_vk_descriptor_update_template(descriptorUpdateTemplate);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -19283,12 +19263,10 @@ VkResult VkEncoder::vkCreateRenderPass2KHR(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkRenderPass(&cgen_var_3, (VkRenderPass*)pRenderPass,
-                                                         1);
-    stream->unsetHandleMapping();
+    *pRenderPass = create_gfxstream_vk_render_pass(cgen_var_3);
+    sResourceTracker->register_VkRenderPass(*pRenderPass);
     VkResult vkCreateRenderPass2KHR_VkResult_return = (VkResult)0;
     stream->read(&vkCreateRenderPass2KHR_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -20100,12 +20078,10 @@ VkResult VkEncoder::vkCreateSamplerYcbcrConversionKHR(
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkSamplerYcbcrConversion(
-        &cgen_var_3, (VkSamplerYcbcrConversion*)pYcbcrConversion, 1);
-    stream->unsetHandleMapping();
+    *pYcbcrConversion = create_gfxstream_vk_sampler_ycbcr_conversion(cgen_var_3);
+    sResourceTracker->register_VkSamplerYcbcrConversion(*pYcbcrConversion);
     VkResult vkCreateSamplerYcbcrConversionKHR_VkResult_return = (VkResult)0;
     stream->read(&vkCreateSamplerYcbcrConversionKHR_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -20187,8 +20163,8 @@ void VkEncoder::vkDestroySamplerYcbcrConversionKHR(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkSamplerYcbcrConversion(
-        (VkSamplerYcbcrConversion*)&ycbcrConversion);
+    sResourceTracker->unregister_VkSamplerYcbcrConversion(ycbcrConversion);
+    delete_gfxstream_vk_sampler_ycbcr_conversion(ycbcrConversion);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -24993,12 +24969,10 @@ VkResult VkEncoder::vkCreatePrivateDataSlotEXT(VkDevice device,
     memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_2, 8);
     *streamPtrPtr += 8;
     /* is handle, possibly out */;
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkPrivateDataSlot(
-        &cgen_var_3, (VkPrivateDataSlot*)pPrivateDataSlot, 1);
-    stream->unsetHandleMapping();
+    *pPrivateDataSlot = create_gfxstream_vk_private_data_slot(cgen_var_3);
+    sResourceTracker->register_VkPrivateDataSlot(*pPrivateDataSlot);
     VkResult vkCreatePrivateDataSlotEXT_VkResult_return = (VkResult)0;
     stream->read(&vkCreatePrivateDataSlotEXT_VkResult_return, sizeof(VkResult));
     ++encodeCount;
@@ -25079,8 +25053,8 @@ void VkEncoder::vkDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot p
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
-    sResourceTracker->destroyMapping()->mapHandles_VkPrivateDataSlot(
-        (VkPrivateDataSlot*)&privateDataSlot);
+    sResourceTracker->unregister_VkPrivateDataSlot(privateDataSlot);
+    delete_gfxstream_vk_private_data_slot(privateDataSlot);
     stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
@@ -26133,11 +26107,10 @@ VkResult VkEncoder::vkCreateImageWithRequirementsGOOGLE(
     reservedmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
                                          (VkMemoryRequirements*)(pMemoryRequirements),
                                          streamPtrPtr);
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkImage(&cgen_var_3, (VkImage*)pImage, 1);
-    stream->unsetHandleMapping();
+    *pImage = create_gfxstream_vk_image(cgen_var_3);
+    sResourceTracker->register_VkImage(*pImage);
     unmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
                                    (VkMemoryRequirements*)(pMemoryRequirements));
     if (pMemoryRequirements) {
@@ -26244,11 +26217,10 @@ VkResult VkEncoder::vkCreateBufferWithRequirementsGOOGLE(
     reservedmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
                                          (VkMemoryRequirements*)(pMemoryRequirements),
                                          streamPtrPtr);
-    stream->setHandleMapping(sResourceTracker->createMapping());
     uint64_t cgen_var_3;
     stream->read((uint64_t*)&cgen_var_3, 8);
-    stream->handleMapping()->mapHandles_u64_VkBuffer(&cgen_var_3, (VkBuffer*)pBuffer, 1);
-    stream->unsetHandleMapping();
+    *pBuffer = create_gfxstream_vk_buffer(cgen_var_3);
+    sResourceTracker->register_VkBuffer(*pBuffer);
     unmarshal_VkMemoryRequirements(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
                                    (VkMemoryRequirements*)(pMemoryRequirements));
     if (pMemoryRequirements) {
@@ -26468,7 +26440,8 @@ VkResult VkEncoder::vkFreeMemorySyncGOOGLE(VkDevice device, VkDeviceMemory memor
     }
     VkResult vkFreeMemorySyncGOOGLE_VkResult_return = (VkResult)0;
     stream->read(&vkFreeMemorySyncGOOGLE_VkResult_return, sizeof(VkResult));
-    sResourceTracker->destroyMapping()->mapHandles_VkDeviceMemory((VkDeviceMemory*)&memory);
+    sResourceTracker->unregister_VkDeviceMemory(memory);
+    delete_gfxstream_vk_device_memory(memory);
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
