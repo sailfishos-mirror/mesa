@@ -61,8 +61,8 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
    else
       command |= S_415_BYTE_COUNT(size);
 
-   /* Sync flags. Only present for PFP/ME. MEC always sync. */
-   if ((flags & CP_DMA_SYNC) && cs->hw_ip == AMD_IP_GFX)
+   /* Sync flags. Only present for PFP/ME. MEC always syncs. */
+   if (!cmd_buffer->is_mec && flags & CP_DMA_SYNC)
       header |= S_501_CP_SYNC(1);
 
    /* Src and dst flags. */
@@ -104,7 +104,7 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
       ac_emit_cp_pfp_sync_me(cs->b, false);
 
    /* CP will see the sync flag and wait for all DMAs to complete. */
-   cmd_buffer->state.dma_is_busy = !(flags & CP_DMA_SYNC);
+   cmd_buffer->state.dma_is_busy = !cmd_buffer->is_mec && !(flags & CP_DMA_SYNC);
 
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
@@ -309,6 +309,8 @@ radv_cp_dma_wait_for_idle(struct radv_cmd_buffer *cmd_buffer)
 {
    if (!cmd_buffer->state.dma_is_busy)
       return;
+
+   assert(!cmd_buffer->is_mec);
 
    /* Issue a dummy DMA that copies zero bytes.
     *
