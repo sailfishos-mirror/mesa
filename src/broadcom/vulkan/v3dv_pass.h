@@ -102,6 +102,8 @@ struct v3dv_render_pass {
 
    bool multiview_enabled;
 
+   VkExtent2D granularity;
+
    uint32_t attachment_count;
    struct v3dv_render_pass_attachment *attachments;
 

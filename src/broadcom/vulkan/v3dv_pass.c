@@ -291,6 +291,8 @@ pass_compute_subpass_config(struct v3dv_device *device,
                             struct v3dv_render_pass *pass)
 {
    STATIC_ASSERT(V3D_INTERNAL_BPP_32 == 0);
+   pass->granularity = (VkExtent2D) { 64, 64 };
+
    for (uint32_t i = 0; i < pass->subpass_count; i++) {
       struct v3dv_subpass *subpass = &pass->subpasses[i];
       subpass->view_layers = util_last_bit(subpass->view_mask);
@@ -338,6 +340,12 @@ pass_compute_subpass_config(struct v3dv_device *device,
                               &subpass->tile_size[msaa].width,
                               &subpass->tile_size[msaa].height);
       }
+
+      pass->granularity.width =
+         MIN2(pass->granularity.width, subpass->tile_size[subpass->msaa].width);
+      pass->granularity.height =
+         MIN2(pass->granularity.height, subpass->tile_size[subpass->msaa].height);
+
       v3d_choose_tile_size(&device->devinfo,
                            subpass->color_count,
                            subpass->max_internal_bpp, subpass->total_color_bpp,
@@ -567,54 +575,13 @@ get_granularity(struct v3dv_device *device,
    };
 }
 
-static void
-subpass_get_granularity(struct v3dv_device *device,
-                        struct v3dv_render_pass *pass,
-                        uint32_t subpass_idx,
-                        VkExtent2D *granularity)
-{
-   /* Granularity is defined by the tile size */
-   assert(subpass_idx < pass->subpass_count);
-   struct v3dv_subpass *subpass = &pass->subpasses[subpass_idx];
-   const uint32_t subpass_color_count = subpass->color_count;
-   assert(subpass_color_count <= V3D_MAX_DRAW_BUFFERS);
-
-   VkFormat formats[V3D_MAX_DRAW_BUFFERS];
-   bool msaa = false;
-   uint32_t color_count = 0;
-   for (uint32_t i = 0; i < subpass_color_count; i++) {
-      uint32_t attachment_idx = subpass->color_attachments[i].attachment;
-      if (attachment_idx == VK_ATTACHMENT_UNUSED)
-         continue;
-      const VkAttachmentDescription2 *desc =
-         &pass->attachments[attachment_idx].desc;
-      formats[color_count++] = desc->format;
-      if (desc->samples > VK_SAMPLE_COUNT_1_BIT)
-         msaa = true;
-   }
-
-   get_granularity(device, color_count, formats, msaa, granularity);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 v3dv_GetRenderAreaGranularity(VkDevice _device,
                               VkRenderPass renderPass,
                               VkExtent2D *pGranularity)
 {
    V3DV_FROM_HANDLE(v3dv_render_pass, pass, renderPass);
-   V3DV_FROM_HANDLE(v3dv_device, device, _device);
-
-   *pGranularity = (VkExtent2D) {
-      .width = 64,
-      .height = 64,
-   };
-
-   for (uint32_t i = 0; i < pass->subpass_count; i++) {
-      VkExtent2D sg;
-      subpass_get_granularity(device, pass, i, &sg);
-      pGranularity->width = MIN2(pGranularity->width, sg.width);
-      pGranularity->height = MIN2(pGranularity->height, sg.height);
-   }
+   *pGranularity = pass->granularity;
 }
 
 /* This is for dynamic rendering, introduced with VK_KHR_maintenance5 */
@@ -665,9 +632,9 @@ v3dv_subpass_area_is_tile_aligned(struct v3dv_device *device,
                                   uint32_t subpass_idx)
 {
    assert(subpass_idx < pass->subpass_count);
+   struct v3dv_subpass *subpass = &pass->subpasses[subpass_idx];
 
-   VkExtent2D granularity;
-   subpass_get_granularity(device, pass, subpass_idx, &granularity);
+   const VkExtent2D granularity = subpass->tile_size[subpass->msaa];
 
    return area->offset.x % granularity.width == 0 &&
           area->offset.y % granularity.height == 0 &&
