@@ -132,6 +132,12 @@ enum radv_cmd_dirty_bits {
    RADV_CMD_DIRTY_SHADER_QUERY = RADV_CMD_DIRTY_NGG_STATE | RADV_CMD_DIRTY_TASK_STATE,
 };
 
+enum radv_linear_suballocator {
+   RADV_SUBALLOCATOR_CPU_UPLOAD,
+
+   RADV_NUM_LINEAR_SUBALLOCATORS,
+};
+
 struct radv_streamout_binding {
    uint64_t va;
    VkDeviceSize size;
@@ -496,7 +502,12 @@ struct radv_cmd_buffer {
    uint64_t descriptor_buffers[MAX_SETS];
    uint64_t descriptor_heaps[RADV_MAX_HEAPS];
 
-   struct radv_linear_suballoc_buffer upload;
+   union {
+      struct radv_linear_suballoc_buffer linear_suballocators[RADV_NUM_LINEAR_SUBALLOCATORS];
+      struct {
+         struct radv_linear_suballoc_buffer upload; /* TODO: remove this */
+      };
+   };
 
    struct radv_cmd_buffer_queue_state queue_state;
 

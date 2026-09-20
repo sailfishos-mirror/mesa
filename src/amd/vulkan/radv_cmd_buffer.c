@@ -1316,16 +1316,19 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
       radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
       _mesa_set_destroy(cmd_buffer->accel_struct_buffers, NULL);
 
-      list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->upload.list, list) {
-         radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
-         list_del(&up->list);
-         free(up);
-      }
+      for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++) {
+         list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->linear_suballocators[i].list,
+                                   list) {
+            radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
+            radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
+            list_del(&up->list);
+            free(up);
+         }
 
-      if (cmd_buffer->upload.bo) {
-         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->upload.bo);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->upload.bo);
+         if (cmd_buffer->linear_suballocators[i].bo) {
+            radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->linear_suballocators[i].bo);
+            radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->linear_suballocators[i].bo);
+         }
       }
 
       if (cmd_buffer->eop_fence_bo_tmz) {
@@ -1389,7 +1392,9 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
 
    if (cmd_buffer->qf != RADV_QUEUE_SPARSE) {
       const enum amd_ip_type ip = radv_queue_family_to_ring(pdev, cmd_buffer->qf);
-      list_inithead(&cmd_buffer->upload.list);
+
+      for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++)
+         list_inithead(&cmd_buffer->linear_suballocators[i].list);
 
       radv_cmd_buffer_init_shader_part_cache(device, cmd_buffer);
       result =
@@ -1449,11 +1454,14 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       cmd_buffer->gang.cs = NULL;
    }
 
-   list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->upload.list, list) {
-      radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
-      radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
-      list_del(&up->list);
-      free(up);
+   for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++) {
+      list_for_each_entry_safe (struct radv_linear_suballoc_buffer, up, &cmd_buffer->linear_suballocators[i].list,
+                                list) {
+         radv_rmv_log_command_buffer_bo_destroy(device, up->bo);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, up->bo);
+         list_del(&up->list);
+         free(up);
+      }
    }
 
    util_dynarray_clear(&cmd_buffer->ray_history);
@@ -1472,9 +1480,11 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    memset(&cmd_buffer->queue_state, 0, sizeof(cmd_buffer->queue_state));
    memset(&cmd_buffer->state, 0, sizeof(cmd_buffer->state));
 
-   if (cmd_buffer->upload.bo)
-      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.bo);
-   cmd_buffer->upload.offset = 0;
+   for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++) {
+      if (cmd_buffer->linear_suballocators[i].bo)
+         radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->linear_suballocators[i].bo);
+      cmd_buffer->linear_suballocators[i].offset = 0;
+   }
 
    if (cmd_buffer->eop_fence_bo_tmz) {
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->eop_fence_bo_tmz);
