@@ -342,6 +342,7 @@ struct radv_cmd_state {
 
    /* Whether CP DMA is busy/idle. */
    bool dma_is_busy;
+   bool cp_dma_realignment_is_busy;
 
    /* Whether any images that are not L2 coherent are dirty from the CB. */
    bool rb_noncoherent_dirty;

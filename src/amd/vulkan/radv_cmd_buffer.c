@@ -8933,6 +8933,7 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   ASSERTED const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_cmd_stream *ace_cs = cmd_buffer->gang.cs;
 
@@ -8976,6 +8977,15 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
    }
 
    if (is_gfx_or_ace) {
+      /* If the CP DMA realignment packet is busy, make sure we wait for it instead of the preceding
+       * CP DMA packet.
+       */
+      if (cmd_buffer->state.cp_dma_realignment_is_busy) {
+         assert(pdev->info.has_cp_dma_unaligned_copy_perf_issue);
+         cmd_buffer->state.dma_is_busy = true;
+         device->ws->cs_set_last_cp_dma_header(cmd_buffer->cs->b, NULL);
+      }
+
       /* Make sure CP DMA is idle at the end of IBs because the kernel
        * doesn't wait for it.
        */
@@ -10475,6 +10485,7 @@ radv_invalidate_state(struct radv_cmd_buffer *cmd_buffer)
    uint32_t active_pipeline_queries_save = cmd_buffer->state.active_pipeline_queries;
    uint32_t active_emulated_pipeline_queries_save = cmd_buffer->state.active_emulated_pipeline_queries;
    uint32_t active_occlusion_queries_save = cmd_buffer->state.active_occlusion_queries;
+   bool cp_dma_realignment_busy = cmd_buffer->state.cp_dma_realignment_is_busy;
    uint32_t perfect_occlusion_queries_enabled_save = cmd_buffer->state.perfect_occlusion_queries_enabled;
    bool uses_draw_indirect = cmd_buffer->state.uses_draw_indirect;
 
@@ -10493,6 +10504,7 @@ radv_invalidate_state(struct radv_cmd_buffer *cmd_buffer)
    cmd_buffer->state.active_pipeline_queries = active_pipeline_queries_save;
    cmd_buffer->state.active_emulated_pipeline_queries = active_emulated_pipeline_queries_save;
    cmd_buffer->state.active_occlusion_queries = active_occlusion_queries_save;
+   cmd_buffer->state.cp_dma_realignment_is_busy = cp_dma_realignment_busy;
    cmd_buffer->state.perfect_occlusion_queries_enabled = perfect_occlusion_queries_enabled_save;
    cmd_buffer->state.uses_draw_indirect = uses_draw_indirect;
 

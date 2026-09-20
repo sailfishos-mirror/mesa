@@ -284,6 +284,9 @@ struct radeon_winsys {
 
    void (*cs_grow)(struct ac_cmdbuf *cs, size_t min_size);
 
+   void (*cs_set_last_cp_dma_header)(struct ac_cmdbuf *cs, uint32_t *ib_ptr);
+   uint32_t *(*cs_get_last_cp_dma_header)(struct ac_cmdbuf *cs);
+
    VkResult (*cs_submit)(struct radeon_winsys_ctx *ctx, const struct radv_winsys_submit_info *submit,
                          uint32_t wait_count, const struct vk_sync_wait *waits, uint32_t signal_count,
                          const struct vk_sync_signal *signals);

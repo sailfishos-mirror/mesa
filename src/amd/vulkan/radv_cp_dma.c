@@ -22,6 +22,8 @@
 #define CP_DMA_USE_L2 (1 << 1)
 #define CP_DMA_CLEAR  (1 << 2)
 
+#define CP_DMA_SAVE_HEADER_PTR_FOR_SYNC (1 << 4)
+
 /* Alignment for optimal performance. */
 #define SI_CPDMA_ALIGNMENT 32
 
@@ -77,6 +79,8 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
    radeon_begin(cs);
    if (pdev->info.gfx_level >= GFX7) {
       radeon_emit(PKT3(PKT3_DMA_DATA, 5, 0));
+      if (!cmd_buffer->is_mec && flags & CP_DMA_SAVE_HEADER_PTR_FOR_SYNC)
+         device->ws->cs_set_last_cp_dma_header(cs->b, &__cs_buf[__cs_num]);
       radeon_emit(header);
       radeon_emit(src_va);       /* SRC_ADDR_LO [31:0] */
       radeon_emit(src_va >> 32); /* SRC_ADDR_HI [31:0] */
@@ -88,15 +92,14 @@ radv_emit_cp_dma(struct radv_cmd_buffer *cmd_buffer, uint64_t dst_va, uint64_t s
       header |= S_412_SRC_ADDR_HI(src_va >> 32);
       radeon_emit(PKT3(PKT3_CP_DMA, 4, 0));
       radeon_emit(src_va);                  /* SRC_ADDR_LO [31:0] */
+      if (!cmd_buffer->is_mec && flags & CP_DMA_SAVE_HEADER_PTR_FOR_SYNC)
+         device->ws->cs_set_last_cp_dma_header(cs->b, &__cs_buf[__cs_num]);
       radeon_emit(header);                  /* SRC_ADDR_HI [15:0] + flags. */
       radeon_emit(dst_va);                  /* DST_ADDR_LO [31:0] */
       radeon_emit((dst_va >> 32) & 0xffff); /* DST_ADDR_HI [15:0] */
       radeon_emit(command);
    }
    radeon_end();
-
-   /* CP will see the sync flag and wait for all DMAs to complete. */
-   cmd_buffer->state.dma_is_busy = !cmd_buffer->is_mec && !(flags & CP_DMA_SYNC);
 
    if (radv_device_fault_detection_enabled(device))
       radv_cmd_buffer_trace_emit(cmd_buffer);
@@ -220,7 +223,8 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    while (size) {
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(pdev));
 
-      radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count, CP_DMA_USE_L2);
+      radv_emit_cp_dma(cmd_buffer, main_dest_va, main_src_va, byte_count,
+                       CP_DMA_USE_L2 | (!skipped_size ? CP_DMA_SAVE_HEADER_PTR_FOR_SYNC : 0));
 
       size -= byte_count;
       main_src_va += byte_count;
@@ -228,12 +232,15 @@ radv_cp_dma_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uin
    }
 
    if (skipped_size)
-      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, CP_DMA_USE_L2);
+      radv_emit_cp_dma(cmd_buffer, dest_va, src_va, skipped_size, CP_DMA_USE_L2 | CP_DMA_SAVE_HEADER_PTR_FOR_SYNC);
 
-   if (realign_size)
+   if (realign_size) {
       radv_cp_dma_realign_engine(cmd_buffer, realign_size);
+      cmd_buffer->state.cp_dma_realignment_is_busy = !cmd_buffer->is_mec;
+   }
 
    radv_utrace_end_cp_dma_copy_memory(cmd_buffer);
+   cmd_buffer->state.dma_is_busy = !cmd_buffer->is_mec;
 }
 
 void
@@ -262,26 +269,46 @@ radv_cp_dma_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
    while (size) {
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(pdev));
 
-      radv_emit_cp_dma(cmd_buffer, va, value, byte_count, CP_DMA_CLEAR | (use_L2 ? CP_DMA_USE_L2 : 0));
+      radv_emit_cp_dma(cmd_buffer, va, value, byte_count,
+                       CP_DMA_CLEAR | (use_L2 ? CP_DMA_USE_L2 : 0) | CP_DMA_SAVE_HEADER_PTR_FOR_SYNC);
 
       size -= byte_count;
       va += byte_count;
    }
+
+   cmd_buffer->state.dma_is_busy = !cmd_buffer->is_mec;
 }
 
 void
 radv_cp_dma_wait_for_idle(struct radv_cmd_buffer *cmd_buffer)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+
    if (!cmd_buffer->state.dma_is_busy)
       return;
 
    assert(!cmd_buffer->is_mec);
 
-   /* Issue a dummy DMA that copies zero bytes.
-    *
-    * The DMA engine will see that there's no work to do and skip this
-    * DMA request, however, the CP will see the sync flag and still wait
-    * for all DMAs to complete.
-    */
-   radv_emit_cp_dma(cmd_buffer, 0, 0, 0, CP_DMA_SYNC);
+   uint32_t *last_cp_dma_header = device->ws->cs_get_last_cp_dma_header(cmd_buffer->cs->b);
+
+   if (last_cp_dma_header && cmd_buffer->cs->b->buf < last_cp_dma_header &&
+       cmd_buffer->cs->b->buf + cmd_buffer->cs->b->cdw > last_cp_dma_header &&
+       cmd_buffer->cs->b->buf + cmd_buffer->cs->b->cdw - last_cp_dma_header < 30) {
+      /* Sync in the last CP DMA packet because it's close. */
+      *last_cp_dma_header |= S_501_CP_SYNC(1);
+   } else {
+      /* Issue a dummy DMA that copies zero bytes.
+       *
+       * The DMA engine will see that there's no work to do and skip this
+       * DMA request, however, the CP will see the sync flag and still wait
+       * for all DMAs to complete.
+       */
+      radv_emit_cp_dma(cmd_buffer, 0, 0, 0, CP_DMA_SYNC);
+
+      /* Only the explicit sync packet guarantees that the realignment is done. */
+      cmd_buffer->state.cp_dma_realignment_is_busy = false;
+   }
+
+   cmd_buffer->state.dma_is_busy = false;
+   device->ws->cs_set_last_cp_dma_header(cmd_buffer->cs->b, NULL);
 }

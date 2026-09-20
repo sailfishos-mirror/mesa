@@ -77,6 +77,9 @@ struct radv_amdgpu_cs {
    unsigned hw_ip;
 
    struct hash_table *annotations;
+
+   /* The header dword of the last CP DMA packet in the command buffer. */
+   uint32_t *last_cp_dma_header;
 };
 
 struct radv_winsys_sem_counts {
@@ -259,6 +262,7 @@ radv_amdgpu_cs_get_new_ib(struct ac_cmdbuf *_cs, uint32_t ib_size)
    cs->base.max_dw = ib_size / 4 - 4;
    cs->ib.size = 0;
    cs->ib.ip_type = cs->hw_ip;
+   cs->last_cp_dma_header = NULL;
 
    if (cs->chain_ib)
       cs->ib_size_ptr = &cs->ib.size;
@@ -445,6 +449,23 @@ radv_amdgpu_cs_grow(struct ac_cmdbuf *_cs, size_t min_size)
    cs->base.cdw = 0;
    cs->base.reserved_dw = 0;
    cs->base.max_dw = ib_size / 4 - 4;
+   cs->last_cp_dma_header = NULL;
+}
+
+static void
+radv_amdgpu_cs_set_last_cp_dma_header(struct ac_cmdbuf *_cs, uint32_t *ib_ptr)
+{
+   struct radv_amdgpu_cs *cs = radv_amdgpu_cs(_cs);
+
+   cs->last_cp_dma_header = ib_ptr;
+}
+
+static uint32_t *
+radv_amdgpu_cs_get_last_cp_dma_header(struct ac_cmdbuf *_cs)
+{
+   struct radv_amdgpu_cs *cs = radv_amdgpu_cs(_cs);
+
+   return cs->last_cp_dma_header;
 }
 
 static void
@@ -516,6 +537,7 @@ radv_amdgpu_cs_reset(struct ac_cmdbuf *_cs)
    cs->base.cdw = 0;
    cs->base.reserved_dw = 0;
    cs->status = VK_SUCCESS;
+   cs->last_cp_dma_header = NULL;
 
    for (unsigned i = 0; i < cs->num_buffers; ++i) {
       unsigned hash = cs->handles[i].bo_handle & (ARRAY_SIZE(cs->buffer_hash_table) - 1);
@@ -830,6 +852,7 @@ radv_amdgpu_cs_chain_dgc_ib(struct ac_cmdbuf *_cs, uint64_t va, uint32_t cdw, ui
       cs->base.cdw = 0;
       cs->base.reserved_dw = 0;
       cs->base.max_dw = ib_size / 4 - 4;
+      cs->last_cp_dma_header = NULL;
    }
 }
 
@@ -1895,6 +1918,8 @@ radv_amdgpu_cs_init_functions(struct radv_amdgpu_winsys *ws)
    ws->base.cs_create = radv_amdgpu_cs_create;
    ws->base.cs_destroy = radv_amdgpu_cs_destroy;
    ws->base.cs_grow = radv_amdgpu_cs_grow;
+   ws->base.cs_set_last_cp_dma_header = radv_amdgpu_cs_set_last_cp_dma_header;
+   ws->base.cs_get_last_cp_dma_header = radv_amdgpu_cs_get_last_cp_dma_header;
    ws->base.cs_finalize = radv_amdgpu_cs_finalize;
    ws->base.cs_reset = radv_amdgpu_cs_reset;
    ws->base.cs_chain = radv_amdgpu_cs_chain;
