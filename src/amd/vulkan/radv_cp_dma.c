@@ -17,10 +17,8 @@
 #include "radv_tracepoints.h"
 #include "sid.h"
 
-/* Set this if you want the 3D engine to wait until CP DMA is done.
- * It should be set on the last CP DMA packet. */
-#define CP_DMA_SYNC (1 << 0)
-
+/* This will cause CP to wait until CP DMA is done. */
+#define CP_DMA_SYNC   (1 << 0)
 #define CP_DMA_USE_L2 (1 << 1)
 #define CP_DMA_CLEAR  (1 << 2)
 
