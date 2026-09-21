@@ -133,7 +133,7 @@ lower_immed(struct ir3_cp_ctx *ctx, struct ir3_instruction *instr, unsigned n,
    new_flags &= ~IR3_REG_IMMED;
    new_flags |= IR3_REG_CONST;
 
-   if (!ir3_valid_flags(instr, n, new_flags))
+   if (!ir3_valid_flags(instr, n, new_flags & ~IR3_REG_SRC_MODS))
       return false;
 
    reg = ir3_reg_clone(ctx->shader, reg);
@@ -146,13 +146,13 @@ lower_immed(struct ir3_cp_ctx *ctx, struct ir3_instruction *instr, unsigned n,
    if (f_opcode && (new_flags & IR3_REG_HALF))
       reg->uim_val = fui(_mesa_half_to_float(reg->uim_val));
 
-   /* in some cases, there are restrictions on (abs)/(neg) plus const..
-    * so just evaluate those and clear the flags:
+   /* Strip off the src mods before we check if these flags are valid -- we'll
+    * re-add src mods as necessary to find an immediate.
     */
    reg->iim_val = ir3_evaluate_src_mods(reg->iim_val, new_flags);
    new_flags &= ~IR3_REG_SRC_MODS;
 
-   reg->num = ir3_const_find_imm(ctx->so, reg->uim_val);
+   reg->num = ir3_const_find_imm(ctx->so, instr, n, reg->iim_val, &new_flags);
 
    if (reg->num == INVALID_CONST_REG) {
       reg->num = ir3_const_add_imm(ctx->so, reg->uim_val);
