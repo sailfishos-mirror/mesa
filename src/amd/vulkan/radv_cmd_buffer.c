@@ -17057,7 +17057,7 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
     * The buffer must be initialized to 0 and the address must be aligned to 64
     * because it's faster when the atomic doesn't straddle a 64B block boundary.
     */
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, MAX_SO_BUFFERS * 8, 64, &so->state_va, NULL))
+   if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, MAX_SO_BUFFERS * 8, 64, &so->state_va))
       return;
 
    /* GE must be idle when GE_GS_ORDERED_ID is written. */
