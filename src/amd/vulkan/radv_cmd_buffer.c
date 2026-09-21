@@ -1331,19 +1331,9 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
          }
       }
 
-      if (cmd_buffer->eop_fence_bo_tmz) {
-         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->eop_fence_bo_tmz);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->eop_fence_bo_tmz);
-      }
-
       if (cmd_buffer->gang.sem.bo) {
          radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gang.sem.bo);
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gang.sem.bo);
-      }
-
-      if (cmd_buffer->eop_bug_bo_tmz) {
-         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->eop_bug_bo_tmz);
-         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->eop_bug_bo_tmz);
       }
 
       if (cmd_buffer->cs)
@@ -1484,14 +1474,6 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       if (cmd_buffer->linear_suballocators[i].bo)
          radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->linear_suballocators[i].bo);
       cmd_buffer->linear_suballocators[i].offset = 0;
-   }
-
-   if (cmd_buffer->eop_fence_bo_tmz) {
-      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->eop_fence_bo_tmz);
-   }
-
-   if (cmd_buffer->eop_bug_bo_tmz) {
-      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->eop_bug_bo_tmz);
    }
 
    for (unsigned i = 0; i < MAX_BIND_POINTS; i++) {
@@ -8334,37 +8316,13 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
       }
    }
 
-   const bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
-
    /* Allocate the EOP fence buffer for barriers. GFX11 gfx queues don't need it because they use
     * PWS instead (which uses on-chip counters instead of memory).
-    *
-    * TODO: This is sometimes allocated in GTT, which makes barriers using it significantly slower.
     */
    if ((pdev->info.gfx_level < GFX11 && cmd_buffer->qf == RADV_QUEUE_GENERAL) || cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
-      if (!is_secure) {
-         if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, 8, &cmd_buffer->eop_fence_va, NULL)) {
-            vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-         }
-      } else if (!cmd_buffer->eop_fence_bo_tmz) {
-         struct radeon_winsys_bo *fence_bo = NULL;
-
-         result = radv_bo_create(device, &cmd_buffer->vk.base, 8, 4096, device->ws->cs_domain(device->ws),
-                                 RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT |
-                                    RADEON_FLAG_GTT_WC | RADEON_FLAG_ENCRYPTED,
-                                 RADV_BO_PRIORITY_UPLOAD_BUFFER, 0, true, &fence_bo);
-
-         if (result != VK_SUCCESS) {
-            vk_command_buffer_set_error(&cmd_buffer->vk, result);
-            return result;
-         }
-
-         cmd_buffer->eop_fence_bo_tmz = fence_bo;
-         cmd_buffer->eop_fence_va = radv_buffer_get_va(cmd_buffer->eop_fence_bo_tmz);
-
-         radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, fence_bo);
-         radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->eop_fence_bo_tmz, 0, 8, 0);
+      if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, 8, 8, &cmd_buffer->eop_fence_va)) {
+         vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
       }
 
       radv_emit_clear_data(cmd_buffer,
@@ -8376,31 +8334,10 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
          /* On GFX9, eop_bug_va is used with ZPASS_DONE. On GFX7-8, it's only used to write a dummy 32-bit fence. */
          const uint32_t eop_bug_bo_size = pdev->info.gfx_level == GFX9 ? 16 * pdev->info.max_render_backends : 4;
 
-         if (!is_secure) {
-            /* Allocate a buffer for the EOP bug on GFX9 and a different EOP bug on GFX7-8. */
-            if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, 4, &cmd_buffer->eop_bug_va, NULL)) {
-               vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
-               return VK_ERROR_OUT_OF_HOST_MEMORY;
-            }
-
-         } else if (!cmd_buffer->eop_bug_bo_tmz) {
-            struct radeon_winsys_bo *eop_bug_bo = NULL;
-            result =
-               radv_bo_create(device, &cmd_buffer->vk.base, eop_bug_bo_size, 4096, device->ws->cs_domain(device->ws),
-                              RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT |
-                                 RADEON_FLAG_GTT_WC | RADEON_FLAG_ENCRYPTED,
-                              RADV_BO_PRIORITY_UPLOAD_BUFFER, 0, true, &eop_bug_bo);
-
-            if (result != VK_SUCCESS) {
-               vk_command_buffer_set_error(&cmd_buffer->vk, result);
-               return result;
-            }
-
-            cmd_buffer->eop_bug_bo_tmz = eop_bug_bo;
-            cmd_buffer->eop_bug_va = radv_buffer_get_va(cmd_buffer->eop_bug_bo_tmz);
-
-            radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, eop_bug_bo);
-            radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->eop_bug_bo_tmz, 0, eop_bug_bo_size, 0);
+         /* Allocate a buffer for the EOP bug on GFX9 and a different EOP bug on GFX7-8. */
+         if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, eop_bug_bo_size, 4, &cmd_buffer->eop_bug_va)) {
+            vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+            return VK_ERROR_OUT_OF_DEVICE_MEMORY;
          }
 
          radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->eop_bug_va, eop_bug_bo_size);
