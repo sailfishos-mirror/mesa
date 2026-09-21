@@ -550,6 +550,11 @@ emit(struct jay_codegen *jc,
       break;
 
    case JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS:
+      jay_foreach_src(I, s) {
+         assert(I->src[s].file != GPR ||
+                jay_def_stride(f->shader, I->src[s]) <= JAY_STRIDE_4);
+      }
+
       gen->exec_size = 32;
       gen->chan_offset = 0;
       gen->dst = gen_retype(gen->dst, GEN_TYPE_UW);
