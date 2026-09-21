@@ -1,5 +1,3 @@
-dEQP-GLES2.functional.shaders.loops.do_while_dynamic_iterations.mixed_break_continue_fragment,Fail
-
 # Piglit gpu tests
 
 shaders@glsl-arb-fragment-coord-conventions,Fail
