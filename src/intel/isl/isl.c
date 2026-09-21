@@ -5469,9 +5469,6 @@ isl_tiling_get_intratile_range_el(enum isl_tiling tiling,
                                       &_array_slice);
 
    if (tiling != ISL_TILING_LINEAR) {
-      struct isl_tile_info tile_info;
-      isl_tiling_get_info(tiling, dim, msaa_layout, bpb, samples, &tile_info);
-
       /* We want the range we return to be exclusive but the tile containing the
        * last pixel (what we just calculated) is inclusive. Add one and round up
        * to the tile size.
