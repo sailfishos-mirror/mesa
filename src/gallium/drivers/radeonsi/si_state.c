@@ -1955,12 +1955,12 @@ static unsigned si_tex_mipfilter(unsigned filter)
 {
    switch (filter) {
    case PIPE_TEX_MIPFILTER_NEAREST:
-      return V_008F38_SQ_TEX_Z_FILTER_POINT;
+      return V_008F38_SQ_TEX_MIP_FILTER_POINT;
    case PIPE_TEX_MIPFILTER_LINEAR:
-      return V_008F38_SQ_TEX_Z_FILTER_LINEAR;
+      return V_008F38_SQ_TEX_MIP_FILTER_LINEAR;
    default:
    case PIPE_TEX_MIPFILTER_NONE:
-      return V_008F38_SQ_TEX_Z_FILTER_NONE;
+      return V_008F38_SQ_TEX_MIP_FILTER_NONE;
    }
 }
 
