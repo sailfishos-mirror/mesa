@@ -711,6 +711,14 @@ struct iris_compiled_shader {
    unsigned nr_params;
    unsigned total_scratch;
    unsigned total_shared;
+
+   /**
+    * The shared scratch buffer this shader was compiled against, in efficient
+    * 64-bit addressing mode.
+    * NULL if total_scratch == 0 or if that mode is not enabled.
+    */
+   struct iris_scratch_buffer *scratch_buffer;
+
    unsigned program_size;
    unsigned const_data_offset;
    unsigned dispatch_grf_start_reg;
@@ -1375,6 +1383,12 @@ uint32_t
 iris_pin_scratch_space(struct iris_context *ice,
                        struct iris_batch *batch,
                        const struct iris_compiled_shader *shader);
+struct iris_scratch_buffer *
+iris_get_shared_scratch_buffer(struct iris_screen *screen,
+                               unsigned per_thread_scratch);
+void
+iris_scratch_buffer_reference(struct iris_scratch_buffer **dst,
+                              struct iris_scratch_buffer *src);
 uint32_t iris_group_index_to_bti(const struct iris_binding_table *bt,
                                  enum iris_surface_group group,
                                  uint32_t index);

@@ -3566,6 +3566,102 @@ iris_fill_cs_push_const_buffer(struct iris_screen *screen,
       dst[8 * t] = t;
 }
 
+static struct iris_scratch_buffer *
+iris_scratch_buffer_create(struct iris_screen *screen,
+                           unsigned per_thread_scratch)
+{
+   const struct intel_device_info *devinfo = screen->devinfo;
+
+   assert(per_thread_scratch > 0);
+   struct iris_scratch_buffer *buf = malloc(sizeof(struct iris_scratch_buffer));
+   if (!buf)
+      return NULL;
+
+   pipe_reference_init(&buf->ref, 1);
+   buf->per_thread_scratch = per_thread_scratch;
+
+   uint32_t size = per_thread_scratch * devinfo->max_scratch_ids[MESA_SHADER_COMPUTE];
+   buf->bo = iris_bo_alloc(screen->bufmgr, "scratch", size, 1024,
+                           IRIS_MEMZONE_SHADER, BO_ALLOC_PLAIN);
+   if (!buf->bo) {
+      free(buf);
+      return NULL;
+   }
+
+   buf->surf_bo = iris_bo_alloc(screen->bufmgr, "scratch surface state",
+                                screen->isl_dev.ss.size, 64,
+                                IRIS_MEMZONE_SCRATCH, BO_ALLOC_CPU_VISIBLE);
+   if (!buf->surf_bo) {
+      iris_bo_unreference(buf->bo);
+      free(buf);
+      return NULL;
+   }
+
+   void *map = iris_bo_map(NULL, buf->surf_bo, MAP_WRITE);
+   isl_buffer_fill_state(&screen->isl_dev, map,
+                         .address = buf->bo->address,
+                         .size_B = buf->bo->size,
+                         .format = ISL_FORMAT_RAW,
+                         .swizzle = ISL_SWIZZLE_IDENTITY,
+                         .usage = 0,
+                         .mocs = iris_mocs(buf->bo, &screen->isl_dev, 0),
+                         .stride_B = per_thread_scratch,
+                         .is_scratch = true);
+   iris_bo_unmap(buf->surf_bo);
+
+   return buf;
+}
+
+void
+iris_scratch_buffer_reference(struct iris_scratch_buffer **dst,
+                              struct iris_scratch_buffer *src)
+{
+   struct iris_scratch_buffer *old_dst = *dst;
+
+   if (pipe_reference(old_dst ? &old_dst->ref : NULL, src ? &src->ref : NULL)) {
+      iris_bo_unreference(old_dst->bo);
+      iris_bo_unreference(old_dst->surf_bo);
+      free(old_dst);
+   }
+
+   *dst = src;
+}
+
+/**
+ * Get a reference to the screen's shared scratch buffer for efficient
+ * 64-bit addressing mode, the caller owns and must eventually release
+ * with iris_scratch_buffer_reference(&ptr, NULL).
+ */
+struct iris_scratch_buffer *
+iris_get_shared_scratch_buffer(struct iris_screen *screen,
+                               unsigned per_thread_scratch)
+{
+   assert(iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr));
+   simple_mtx_lock(&screen->scratch_buffer_mutex);
+
+   struct iris_scratch_buffer *cur = screen->scratch_buffer;
+
+   per_thread_scratch = align(per_thread_scratch, 64);
+   if (!cur || cur->per_thread_scratch < per_thread_scratch) {
+      /* It has an initial reference count of 1 that iris_screen owns. */
+      struct iris_scratch_buffer *new = iris_scratch_buffer_create(screen, per_thread_scratch);
+
+      /* Update screen->scratch_buffer, descrese reference(iris_screen reference)
+       * of the old iris_scratch_buffer if any, increase reference of the new
+       * one for caller.
+       */
+      iris_scratch_buffer_reference(&screen->scratch_buffer, new);
+   } else {
+      struct iris_scratch_buffer *tmp = NULL;
+      /* Increase reference for caller, decreased in iris_delete_shader_variant() */
+      iris_scratch_buffer_reference(&tmp, screen->scratch_buffer);
+   }
+
+   simple_mtx_unlock(&screen->scratch_buffer_mutex);
+
+   return screen->scratch_buffer;
+}
+
 /**
  * Allocate scratch BOs as needed for the given per-thread size and stage.
  */
@@ -3646,6 +3742,21 @@ iris_pin_scratch_space(struct iris_context *ice,
 {
    struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
    uint32_t scratch_addr = 0;
+
+   if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr)) {
+      /* The scratch surface address was already baked into the shader's
+       * instructions at compile time (see iris_upload_shader()).
+       * We just need to keep the buffer resident for this batch.
+       */
+      if (shader->scratch_buffer) {
+         iris_use_pinned_bo(batch, shader->scratch_buffer->bo,
+                            true, IRIS_DOMAIN_NONE);
+         iris_use_pinned_bo(batch, shader->scratch_buffer->surf_bo,
+                            false, IRIS_DOMAIN_NONE);
+      }
+
+      return 0;
+   }
 
    if (shader->total_scratch > 0) {
       struct iris_bo *scratch_bo =
