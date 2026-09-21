@@ -600,6 +600,12 @@ ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_devic
       info->num_tcc_blocks = info->max_tcc_blocks;
    }
 
+   /* TODO: Get this from the kernel, see gc_scalar_data_cache_line_size. (or measure it with gpu-ratemeter) */
+   /* Measured SMEM cache info (line size, cache size) with gpu-ratemeter:
+    * - GFX10.3: 128B, 16K
+    */
+   info->smem_cache_line_size = info->gfx_level >= GFX10 ? 128 : 64;
+
    /* Firmware wrongly reports 0 bytes of MALL being present on Navi33.
     * Work around this by manually computing cache sizes. */
    if (info->gfx_level >= GFX11 && info->family != CHIP_NAVI33) {

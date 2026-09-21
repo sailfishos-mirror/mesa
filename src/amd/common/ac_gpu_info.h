@@ -358,6 +358,7 @@ struct radeon_info {
    bool r600_has_virtual_memory;
    uint32_t max_tcc_blocks;
    uint32_t tcc_cache_line_size;
+   uint32_t smem_cache_line_size;
    bool tcc_rb_non_coherent; /* whether L2 inv is needed for render->texture transitions */
    bool cp_sdma_ge_use_system_memory_scope;
    bool cp_dma_use_L2;

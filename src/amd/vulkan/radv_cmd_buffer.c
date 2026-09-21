@@ -1571,14 +1571,13 @@ radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, enum radv_li
 
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radeon_info *gpu_info = &pdev->info;
    struct radv_linear_suballoc_buffer *suballoc = &cmd_buffer->linear_suballocators[suballocator];
 
    /* Align to the scalar cache line size if it results in this allocation
     * being placed in less of them.
     */
    unsigned offset = suballoc->offset;
-   unsigned line_size = gpu_info->gfx_level >= GFX10 ? 64 : 32;
+   unsigned line_size = pdev->info.smem_cache_line_size;
    unsigned gap = align(offset, line_size) - offset;
    if ((size & (line_size - 1)) > gap)
       offset = align(offset, line_size);
