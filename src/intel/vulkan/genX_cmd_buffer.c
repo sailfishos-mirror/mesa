@@ -6971,7 +6971,7 @@ void genX(CmdBeginRendering)(
                                    ISL_SURF_USAGE_RENDER_TARGET_BIT,
                                    att->aux_usage, &att_clear->clear_color,
                                    0, /* anv_image_view_state_flags */
-                                   &att->surface_state);
+                                   &att->surface_state, NULL);
 
       add_surface_state_relocs(cmd_buffer, &att->surface_state);
 

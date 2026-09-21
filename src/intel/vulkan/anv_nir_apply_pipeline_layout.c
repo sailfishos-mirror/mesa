@@ -31,6 +31,8 @@
 
 #include "genxml/genX_bits.h"
 
+#define bitsizeof(type, field) (8 * sizeof(((type *)0)->field))
+
 /* Sampler tables don't actually have a maximum size but we pick one just so
  * that we don't end up emitting too much state on-the-fly.
  */
@@ -701,10 +703,11 @@ build_load_storage_3d_image_depth(nir_builder *b,
    const struct intel_device_info *devinfo = &state->pdevice->info;
 
    if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
-      return build_load_descriptor_mem_from_res_index(
-         b, res_index,
-         offsetof(struct anv_storage_image_descriptor, image_depth),
-         1, 32, state);
+      return nir_i2i32(b, build_load_descriptor_mem_from_res_index(
+                          b, res_index,
+                          offsetof(struct anv_image_descriptor, z_slice_count),
+                          1, bitsizeof(struct anv_image_descriptor, z_slice_count),
+                          state));
    } else {
       nir_def *data = build_load_descriptor_mem_from_res_index(
          b, res_index,
@@ -1022,6 +1025,7 @@ build_surface_index_for_binding(nir_builder *b,
             final_offset += plane * bind_layout->descriptor_data_surface_size;
          }
 
+         /* First component of anv_image_descriptor */
          surface_index = build_load_descriptor_mem_from_res_index(
             b, build_res_index(b, set, binding, array_index, state),
             final_offset, 1, 32, state);
@@ -1123,7 +1127,7 @@ build_sampler_handle_for_binding(nir_builder *b,
             final_offset += plane * bind_layout->descriptor_data_surface_size;
          }
 
-         /* This is anv_sampled_image_descriptor, the sampler handle is always
+         /* This is anv_image_descriptor, the sampler handle is always
           * in component 1.
           */
          nir_def *desc_data = build_load_descriptor_mem_from_res_index(
@@ -1735,38 +1739,41 @@ lower_image_load_intel_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
       case ISL_SURF_PARAM_BASE_ADDRESSS:
          desc = build_load_descriptor_mem_from_res_index(
             b, res_index,
-            offsetof(struct anv_storage_image_descriptor, image_address),
-            1, 64, state);
+            offsetof(struct anv_image_descriptor, address),
+            1, bitsizeof(struct anv_image_descriptor, address), state);
          break;
       case ISL_SURF_PARAM_TILE_MODE:
-         desc = build_load_descriptor_mem_from_res_index(
-            b, res_index,
-            offsetof(struct anv_storage_image_descriptor, tile_mode),
-            1, 32, state);
+         desc = nir_i2i32(
+            b, build_load_descriptor_mem_from_res_index(
+               b, res_index,
+               offsetof(struct anv_image_descriptor, tile_mode),
+               1, bitsizeof(struct anv_image_descriptor, tile_mode), state));
          break;
       case ISL_SURF_PARAM_PITCH:
          desc = build_load_descriptor_mem_from_res_index(
             b, res_index,
-            offsetof(struct anv_storage_image_descriptor, row_pitch_B),
-            1, 32, state);
+            offsetof(struct anv_image_descriptor, row_pitch_B),
+            1, bitsizeof(struct anv_image_descriptor, row_pitch_B), state);
          break;
       case ISL_SURF_PARAM_QPITCH:
          desc = build_load_descriptor_mem_from_res_index(
             b, res_index,
-            offsetof(struct anv_storage_image_descriptor, qpitch),
-            1, 32, state);
+            offsetof(struct anv_image_descriptor, qpitch),
+            1, bitsizeof(struct anv_image_descriptor, qpitch), state);
          break;
       case ISL_SURF_PARAM_FORMAT:
-         desc = build_load_descriptor_mem_from_res_index(
-            b, res_index,
-            offsetof(struct anv_storage_image_descriptor, format),
-            1, 32, state);
+         desc = nir_i2i32(
+            b, build_load_descriptor_mem_from_res_index(
+               b, res_index,
+               offsetof(struct anv_image_descriptor, format),
+               1, bitsizeof(struct anv_image_descriptor, format), state));
          break;
       case ISL_SURF_PARAM_MIN_ARRAY_ELEMENT:
-         desc = build_load_descriptor_mem_from_res_index(
-            b, res_index,
-            offsetof(struct anv_storage_image_descriptor, min_array_element),
-            1, 32, state);
+         desc = nir_i2i32(
+            b, build_load_descriptor_mem_from_res_index(
+               b, res_index,
+               offsetof(struct anv_image_descriptor, base_array_layer),
+               1, bitsizeof(struct anv_image_descriptor, base_array_layer), state));
          break;
       default:
          UNREACHABLE("Invalid surface parameter");

@@ -572,3 +572,82 @@ struct anv_dgc_rt_indirect_descriptor {
    uint64_t miss_sbt;
    uint64_t callable_sbt;
 };
+
+/** Struct representing an indirect image descriptor
+ *
+ * This descriptor layout is used for sampled images, bare sampler, and
+ * combined image/sampler descriptors.
+
+ * Only with legacy descriptors, pre Gfx12.5.
+ */
+struct anv_image_descriptor {
+   /** Bindless image handle
+    *
+    * This is expected to already be shifted such that the 20-bit
+    * SURFACE_STATE table index is in the top 20 bits.
+    */
+   uint32_t image;
+
+   /** Bindless sampler handle
+    *
+    * This is assumed to be a 32B-aligned SAMPLER_STATE pointer relative
+    * to the dynamic state base address.
+    *
+    * Unused for storage images.
+    */
+   uint32_t sampler;
+
+   /** Width */
+   uint32_t width;
+
+   /** Height */
+   uint16_t height;
+
+   /** Depth */
+   uint16_t depth_or_layer_count;
+
+   /** Slice count for VK_EXT_image_sliced_view_of_3d */
+   uint16_t z_slice_count;
+
+   /** Image tiling mode
+    *
+    * 0 for linear, ~0 otherwise.
+    */
+   uint16_t tile_mode;
+
+   /** Image row pitch in bytes */
+   uint32_t row_pitch_B;
+
+   /** Image Q pitch (rows between array slices) */
+   uint32_t qpitch;
+
+   /** Address */
+   uint64_t address;
+
+   /** Image Format (enum isl_format) */
+   uint16_t format;
+
+   /** Image View VkImageSubresourceRange::baseMipLevel */
+   uint16_t base_mip_level;
+
+   /** Image View VkImageSubresourceRange::levelCount */
+   uint16_t level_count;
+
+   /** Image View VkImageSubresourceRange::baseArrayLayer */
+   uint16_t base_array_layer;
+};
+
+/** Struct representing an indirect address/range descriptor
+ *
+ * The fields of this struct correspond directly to the data layout of
+ * nir_address_format_64bit_bounded_global addresses.  The last field is the
+ * offset in the NIR address so it must be zero so that when you load the
+ * descriptor you get a pointer to the start of the range.
+ *
+ * Only with legacy descriptors, pre Gfx12.5.
+ */
+struct anv_address_range_descriptor {
+   uint64_t address;
+   uint32_t range;
+   uint32_t zero;
+};

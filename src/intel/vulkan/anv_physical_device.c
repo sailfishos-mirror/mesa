@@ -338,7 +338,7 @@ get_device_descriptor_limits(const struct anv_physical_device *device,
       ANV_SURFACE_STATE_SIZE;
    const uint32_t sampler_descriptor_size =
       device->indirect_descriptors ?
-      sizeof(struct anv_sampled_image_descriptor) :
+      sizeof(struct anv_image_descriptor) :
       ANV_SAMPLER_STATE_SIZE;
 
    limits->max_ubos = descriptor_heap_size / buffer_descriptor_size;

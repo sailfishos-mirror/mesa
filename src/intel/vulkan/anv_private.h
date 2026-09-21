@@ -3572,93 +3572,6 @@ struct anv_vue_header {
    float PointWidth;
 };
 
-/** Struct representing a sampled image descriptor
- *
- * This descriptor layout is used for sampled images, bare sampler, and
- * combined image/sampler descriptors.
- */
-struct anv_sampled_image_descriptor {
-   /** Bindless image handle
-    *
-    * This is expected to already be shifted such that the 20-bit
-    * SURFACE_STATE table index is in the top 20 bits.
-    */
-   uint32_t image;
-
-   /** Bindless sampler handle
-    *
-    * This is assumed to be a 32B-aligned SAMPLER_STATE pointer relative
-    * to the dynamic state base address.
-    */
-   uint32_t sampler;
-};
-
-/** Struct representing a storage image descriptor */
-struct anv_storage_image_descriptor {
-   /** Bindless image handles
-    *
-    * These are expected to already be shifted such that the 20-bit
-    * SURFACE_STATE table index is in the top 20 bits.
-    */
-   uint32_t vanilla;
-
-   /** Image depth
-    *
-    * By default the HW RESINFO message allows us to query the depth of an image :
-    *
-    * From the Kaby Lake docs for the RESINFO message:
-    *
-    *    "Surface Type | ... | Blue
-    *    --------------+-----+----------------
-    *    SURFTYPE_3D  | ... | (Depth+1)»LOD"
-    *
-    * With VK_EXT_sliced_view_of_3d, we have to support a slice of a 3D image,
-    * meaning at a depth offset with a new depth value potentially reduced
-    * from the original image. Unfortunately if we change the Depth value of
-    * the image, we then run into issues with Yf/Ys tilings where the HW fetch
-    * data at incorrect locations.
-    *
-    * To solve this, we put the slice depth in the descriptor and recompose
-    * the vec3 (width, height, depth) using this field for z and xy using the
-    * RESINFO result.
-    */
-   uint32_t image_depth;
-
-   /** Image address */
-   uint64_t image_address;
-
-   /** Image tiling mode
-    *
-    * 0 for linear, ~0 otherwise.
-    */
-   uint32_t tile_mode;
-
-   /** Image row pitch in bytes */
-   uint32_t row_pitch_B;
-
-   /** Image Q pitch (rows between array slices) */
-   uint32_t qpitch;
-
-   /** Image Format (enum isl_format) */
-   uint32_t format;
-
-   /** Image View VkImageSubresourceRange::baseArrayLayer */
-   uint32_t min_array_element;
-};
-
-/** Struct representing a address/range descriptor
- *
- * The fields of this struct correspond directly to the data layout of
- * nir_address_format_64bit_bounded_global addresses.  The last field is the
- * offset in the NIR address so it must be zero so that when you load the
- * descriptor you get a pointer to the start of the range.
- */
-struct anv_address_range_descriptor {
-   uint64_t address;
-   uint32_t range;
-   uint32_t zero;
-};
-
 enum anv_descriptor_data {
    /** The descriptor contains a BTI reference to a surface state */
    ANV_DESCRIPTOR_BTI_SURFACE_STATE       = BITFIELD_BIT(0),
@@ -6717,6 +6630,29 @@ struct anv_image_view {
        * RENDER_SURFACE_STATE when using image as a storage image.
        */
       struct anv_surface_state storage;
+
+      /**
+       * Indirect descriptor data written in descriptor sets for sampled
+       * images, with general/local-read layout.
+       *
+       * Only used pre Gfx12.5.
+       */
+      struct anv_image_descriptor general_indirect_descriptor;
+
+      /**
+       * Indirect descriptor data written in descriptor sets for sampled
+       * images, with non general/local-read layout.
+       *
+       * Only used pre Gfx12.5.
+       */
+      struct anv_image_descriptor optimal_indirect_descriptor;
+
+      /**
+       * Indirect descriptor data written in descriptor sets for storage images.
+       *
+       * Only used pre Gfx12.5.
+       */
+      struct anv_image_descriptor storage_indirect_descriptor;
    } planes[3];
 };
 
@@ -6732,7 +6668,8 @@ void anv_image_fill_surface_state(struct anv_device *device,
                                   enum isl_aux_usage aux_usage,
                                   const union isl_color_value *clear_color,
                                   enum anv_image_view_state_flags flags,
-                                  struct anv_surface_state *state_inout);
+                                  struct anv_surface_state *state_inout,
+                                  struct anv_image_descriptor *out_indirect_desc);
 
 
 static inline const struct anv_surface_state *
@@ -6743,6 +6680,16 @@ anv_image_view_texture_surface_state(const struct anv_image_view *iview,
            layout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) ?
           &iview->planes[plane].general_sampler :
           &iview->planes[plane].optimal_sampler;
+}
+
+static inline const struct anv_image_descriptor *
+anv_image_view_texture_indirect_descriptor(const struct anv_image_view *iview,
+                                           uint32_t plane, VkImageLayout layout)
+{
+   return (layout == VK_IMAGE_LAYOUT_GENERAL ||
+           layout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) ?
+          &iview->planes[plane].general_indirect_descriptor :
+          &iview->planes[plane].optimal_indirect_descriptor;
 }
 
 static inline const struct anv_surface_state *
