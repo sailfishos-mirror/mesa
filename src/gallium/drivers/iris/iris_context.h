@@ -1371,11 +1371,10 @@ void iris_upload_ubo_ssbo_surf_state(struct iris_context *ice,
                                      isl_surf_usage_flags_t usage);
 const struct shader_info *iris_get_shader_info(const struct iris_context *ice,
                                                mesa_shader_stage stage);
-struct iris_bo *iris_get_scratch_space(struct iris_context *ice,
-                                       unsigned per_thread_scratch,
-                                       mesa_shader_stage stage);
-const struct iris_state_ref *iris_get_scratch_surf(struct iris_context *ice,
-                                                   unsigned per_thread_scratch);
+uint32_t
+iris_pin_scratch_space(struct iris_context *ice,
+                       struct iris_batch *batch,
+                       const struct iris_compiled_shader *shader);
 uint32_t iris_group_index_to_bti(const struct iris_binding_table *bt,
                                  enum iris_surface_group group,
                                  uint32_t index);

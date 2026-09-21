@@ -6277,36 +6277,6 @@ pin_depth_and_stencil_buffers(struct iris_batch *batch,
    }
 }
 
-static uint32_t
-pin_scratch_space(struct iris_context *ice,
-                  struct iris_batch *batch,
-                  const struct iris_compiled_shader *shader,
-                  mesa_shader_stage stage)
-{
-   uint32_t scratch_addr = 0;
-
-   if (shader->total_scratch > 0) {
-      struct iris_bo *scratch_bo =
-         iris_get_scratch_space(ice, shader->total_scratch, stage);
-      iris_use_pinned_bo(batch, scratch_bo, true, IRIS_DOMAIN_NONE);
-
-#if GFX_VERx10 >= 125
-      const struct iris_state_ref *ref =
-         iris_get_scratch_surf(ice, shader->total_scratch);
-      iris_use_pinned_bo(batch, iris_resource_bo(ref->res),
-                         false, IRIS_DOMAIN_NONE);
-      scratch_addr = ref->offset +
-                     iris_resource_bo(ref->res)->address -
-                     IRIS_MEMZONE_SCRATCH_START;
-      assert(util_is_aligned(scratch_addr, 64) && scratch_addr < (1 << 26));
-#else
-      scratch_addr = scratch_bo->address;
-#endif
-   }
-
-   return scratch_addr;
-}
-
 /* ------------------------------------------------------------------- */
 
 /**
@@ -6431,7 +6401,7 @@ iris_restore_render_saved_bos(struct iris_context *ice,
             struct iris_bo *bo = iris_resource_bo(shader->assembly.res);
             iris_use_pinned_bo(batch, bo, false, IRIS_DOMAIN_NONE);
 
-            pin_scratch_space(ice, batch, shader, stage);
+            iris_pin_scratch_space(ice, batch, shader);
          }
       }
    }
@@ -6497,7 +6467,7 @@ iris_restore_compute_saved_bos(struct iris_context *ice,
             iris_use_pinned_bo(batch, curbe_bo, false, IRIS_DOMAIN_NONE);
          }
 
-         pin_scratch_space(ice, batch, shader, stage);
+         iris_pin_scratch_space(ice, batch, shader);
       }
    }
 }
@@ -7858,7 +7828,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
          iris_use_pinned_bo(batch, cache->bo, false, IRIS_DOMAIN_NONE);
 
          uint32_t scratch_addr =
-            pin_scratch_space(ice, batch, shader, stage);
+            iris_pin_scratch_space(ice, batch, shader);
 
 #if GFX_VERx10 >= 125
          shader_program_uses_primitive_id(ice, batch, shader, stage,
@@ -9702,8 +9672,7 @@ iris_emit_compute_walker(struct iris_context *ice,
       iris_emit_cmd(batch, GENX(CFE_STATE), cfe) {
          cfe.MaximumNumberofThreads =
             devinfo->max_cs_threads * devinfo->subslice_total;
-         uint32_t scratch_addr = pin_scratch_space(ice, batch, shader,
-                                                   MESA_SHADER_COMPUTE);
+         uint32_t scratch_addr = iris_pin_scratch_space(ice, batch, shader);
          cfe.ScratchSpaceBuffer = scratch_addr >> SCRATCH_SPACE_BUFFER_SHIFT;
       }
    }
@@ -9860,8 +9829,7 @@ iris_upload_gpgpu_walker(struct iris_context *ice,
 
       iris_emit_cmd(batch, GENX(MEDIA_VFE_STATE), vfe) {
          if (shader->total_scratch) {
-            uint32_t scratch_addr =
-               pin_scratch_space(ice, batch, shader, MESA_SHADER_COMPUTE);
+            uint32_t scratch_addr = iris_pin_scratch_space(ice, batch, shader);
 
             vfe.PerThreadScratchSpace = ffs(shader->total_scratch) - 11;
             vfe.ScratchSpaceBasePointer =

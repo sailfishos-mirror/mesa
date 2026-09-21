@@ -3569,7 +3569,7 @@ iris_fill_cs_push_const_buffer(struct iris_screen *screen,
 /**
  * Allocate scratch BOs as needed for the given per-thread size and stage.
  */
-struct iris_bo *
+static struct iris_bo *
 iris_get_scratch_space(struct iris_context *ice,
                        unsigned per_thread_scratch,
                        mesa_shader_stage stage)
@@ -3602,7 +3602,7 @@ iris_get_scratch_space(struct iris_context *ice,
    return *bop;
 }
 
-const struct iris_state_ref *
+static const struct iris_state_ref *
 iris_get_scratch_surf(struct iris_context *ice,
                       unsigned per_thread_scratch)
 {
@@ -3637,6 +3637,36 @@ iris_get_scratch_surf(struct iris_context *ice,
                          .is_scratch = true);
 
    return ref;
+}
+
+uint32_t
+iris_pin_scratch_space(struct iris_context *ice,
+                       struct iris_batch *batch,
+                       const struct iris_compiled_shader *shader)
+{
+   struct iris_screen *screen = (struct iris_screen *)ice->ctx.screen;
+   uint32_t scratch_addr = 0;
+
+   if (shader->total_scratch > 0) {
+      struct iris_bo *scratch_bo =
+         iris_get_scratch_space(ice, shader->total_scratch, shader->stage);
+      iris_use_pinned_bo(batch, scratch_bo, true, IRIS_DOMAIN_NONE);
+
+      if (screen->devinfo->verx10 >= 125) {
+         const struct iris_state_ref *ref =
+            iris_get_scratch_surf(ice, shader->total_scratch);
+         iris_use_pinned_bo(batch, iris_resource_bo(ref->res),
+                            false, IRIS_DOMAIN_NONE);
+         scratch_addr = ref->offset +
+                        iris_resource_bo(ref->res)->address -
+                        IRIS_MEMZONE_SCRATCH_START;
+         assert(util_is_aligned(scratch_addr, 64) && scratch_addr < (1 << 26));
+      } else {
+         scratch_addr = scratch_bo->address;
+      }
+   }
+
+   return scratch_addr;
 }
 
 /* ------------------------------------------------------------------- */
