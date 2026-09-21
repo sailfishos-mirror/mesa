@@ -34,7 +34,6 @@ fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
         lower_bitfield_extract: true,
         lower_bitfield_extract8: true,
         lower_bitfield_extract16: true,
-        lower_insert_byte: true,
         has_bitfield_select: true,
 
         lower_pack_64_4x16: true,
