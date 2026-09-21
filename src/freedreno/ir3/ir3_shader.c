@@ -77,8 +77,14 @@ ir3_const_imm_index_to_reg(const struct ir3_const_state *const_state,
 int32_t
 ir3_evaluate_src_mods(int32_t val, unsigned flags)
 {
-   if (flags & IR3_REG_SABS)
-      val = abs(val);
+   /* Note that src mods apply after CONSTANT_DEMOTION_ENABLE (f2f16/u2u16). */
+
+   if (flags & IR3_REG_SABS) {
+      if (flags & IR3_REG_HALF)
+         val = abs((int16_t)val);
+      else
+         val = abs(val);
+   }
    /* Note: Being careful to not flush float denorms and to preserve NaNs --
     * source modifiers don't flush for mov and sel, even on a7xx where denorm
     * float ALU input and outputs flush.
@@ -91,6 +97,12 @@ ir3_evaluate_src_mods(int32_t val, unsigned flags)
       val ^= 0x80000000;
    if (flags & IR3_REG_BNOT)
       val = ~val;
+
+   /* Truncate down to 16 bits for ints */
+   if ((flags & IR3_REG_HALF) &&
+       (flags & (IR3_REG_SABS | IR3_REG_SNEG | IR3_REG_BNOT)))
+      val = val & 0xffff;
+
    return val;
 }
 
