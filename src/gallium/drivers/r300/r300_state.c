@@ -766,6 +766,8 @@ static void r300_set_blend_color(struct pipe_context* pipe,
             break;
         }
 
+        case PIPE_FORMAT_B4G4R4A4_UNORM:
+        case PIPE_FORMAT_B4G4R4X4_UNORM:
         case PIPE_FORMAT_B5G5R5A1_UNORM:
         case PIPE_FORMAT_B5G5R5X1_UNORM: {
             if (r300->screen->caps.is_r500)
