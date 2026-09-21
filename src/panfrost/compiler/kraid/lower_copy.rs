@@ -130,6 +130,15 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
                 dst_type: DataType::I32,
                 src: copy.src,
             });
+        } else if copy.dst_type.total_bits() == 64
+            && copy.src.swizzle == Swizzle::NONE
+        {
+            b.push_op(OpIAdd {
+                dst: copy.dst,
+                dst_type: DataType::I64,
+                saturate: false,
+                srcs: [copy.src, 0u32.into()],
+            });
         } else {
             // Everything else is ShiftLop
 
