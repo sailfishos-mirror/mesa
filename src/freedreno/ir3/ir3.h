@@ -201,6 +201,9 @@ typedef enum ir3_register_flags {
    IR3_REG_UNIFORM = BIT(24),
 } ir3_register_flags;
 
+#define IR3_REG_SRC_MODS (IR3_REG_FNEG | IR3_REG_FABS | IR3_REG_SNEG | \
+                          IR3_REG_SABS | IR3_REG_BNOT)
+
 struct ir3_register {
    BITMASK_ENUM(ir3_register_flags) flags;
 

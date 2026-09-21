@@ -63,8 +63,7 @@ is_eligible_mov(struct ir3_instruction *instr,
          return false;
 
       if (!allow_flags)
-         if (src->flags & (IR3_REG_FABS | IR3_REG_FNEG | IR3_REG_SABS |
-                           IR3_REG_SNEG | IR3_REG_BNOT))
+         if (src->flags & IR3_REG_SRC_MODS)
             return false;
 
       return true;
