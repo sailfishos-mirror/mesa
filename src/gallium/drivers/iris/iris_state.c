@@ -5959,9 +5959,6 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
    }
 
    for (enum iris_surface_group group = IRIS_SURFACE_GROUP_RENDER_TARGET_READ; group < IRIS_SURFACE_GROUP_COUNT; group++) {
-      if (group == IRIS_SURFACE_GROUP_CS_WORK_GROUPS)
-         continue;
-
       for (int index = 0; index < bt->surf_count[group]; index++) {
          if (iris_group_index_to_bti(bt, group, index) == IRIS_SURFACE_NOT_USED)
             continue;
@@ -6071,6 +6068,25 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
             } else {
                isl_null_fill_state(&screen->isl_dev, surface_state_map, .size = isl_extent3d(1, 1, 1));
             }
+            break;
+         }
+         case IRIS_SURFACE_GROUP_CS_WORK_GROUPS: {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+            struct iris_state_ref *grid_ref = &ice->state.grid_size;
+            struct iris_bo *grid_bo = iris_resource_bo(grid_ref->res);
+
+            iris_use_pinned_bo(batch, grid_bo, false,
+                               IRIS_DOMAIN_PULL_CONSTANT_READ);
+
+            isl_buffer_fill_state(&screen->isl_dev,
+                                  surface_state_map,
+                                  .address = grid_ref->offset + grid_bo->address,
+                                  .size_B = 3 * sizeof(uint32_t),
+                                  .format = ISL_FORMAT_RAW,
+                                  .stride_B = 1,
+                                  .usage = ISL_SURF_USAGE_CONSTANT_BUFFER_BIT,
+                                  .mocs = iris_mocs(grid_bo, isl_dev,
+                                                    ISL_SURF_USAGE_CONSTANT_BUFFER_BIT));
             break;
          }
          default:

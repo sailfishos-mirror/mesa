@@ -1802,20 +1802,45 @@ iris_setup_binding_table(const struct iris_screen *screen,
             }
             break;
 
-         case nir_intrinsic_load_num_workgroups:
+         case nir_intrinsic_load_num_workgroups: {
             b.cursor = nir_before_instr(instr);
+
+            nir_def *ubo_index;
+
+            if (use_efficient_64bit) {
+               uint32_t slot = iris_group_index_to_bti(bt, IRIS_SURFACE_GROUP_CS_WORK_GROUPS, 0);
+               nir_def *base_addr = iris_load_eff_64bit_surfaces_base_address(&b);
+               nir_def *addr64 = nir_iadd_imm(&b, base_addr, slot * screen->isl_dev.ss.size);
+
+               ubo_index = nir_resource_intel(
+                  &b,
+                  1, /* num_components */
+                  64, /* bit size */
+                  addr64, /* set_offset */
+                  addr64, /* surface_index */
+                  nir_imm_int(&b, 0), /* array_index */
+                  nir_imm_int(&b, 0), /* bindless_base_offset */
+                  .desc_set = 0,
+                  .binding = 0,
+                  .resource_access_intel = nir_resource_intel_internal);
+            } else {
+               uint32_t offset = bt->offsets[IRIS_SURFACE_GROUP_CS_WORK_GROUPS];
+
+               ubo_index = nir_imm_int(&b, offset);
+            }
+
             nir_def_replace(
                &intrin->def,
                nir_load_ubo(&b,
                             intrin->def.num_components,
                             intrin->def.bit_size,
-                            nir_imm_int(&b, bt->offsets[
-                                           IRIS_SURFACE_GROUP_CS_WORK_GROUPS]),
+                            ubo_index,
                             nir_imm_int(&b, 0),
                             .range_base = 0,
                             .range = intrin->def.num_components *
                                      intrin->def.bit_size / 8));
             break;
+         }
 
          default:
             break;
