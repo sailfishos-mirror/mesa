@@ -204,6 +204,14 @@ prune_old_swapchains(struct zink_screen *screen, struct kopper_displaytarget *cd
          zink_screen_timeline_wait(screen, u->usage, UINT64_MAX);
          cswap->batch_uses = NULL;
       }
+      hash_table_u64_foreach(cswap->presents, he) {
+         uint64_t next = he.key;
+         /* don't wait on 'next' timeline syncpoints which will never occur */
+         if (!wait || next < screen->curr_batch) {
+            if (!zink_screen_timeline_wait(screen, next, wait ? UINT64_MAX : 0))
+               return;
+         }
+      }
       cdt->old_swapchain = cswap->next;
       destroy_swapchain(screen, cswap);
    }
