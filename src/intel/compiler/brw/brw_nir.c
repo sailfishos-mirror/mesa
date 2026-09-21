@@ -2514,6 +2514,58 @@ lower_xehp_tg4_offset_filter(const nir_instr *instr, UNUSED const void *data)
    return offset_x < -8 || offset_x > 7 || offset_y < -8 || offset_y > 7;
 }
 
+static bool
+lower_txd_cb(const nir_tex_instr *tex, const void *data)
+{
+   const struct intel_device_info *devinfo = data;
+
+   int min_lod_index = nir_tex_instr_src_index(tex, nir_tex_src_min_lod);
+   if (tex->is_shadow && min_lod_index >= 0)
+      return true;
+
+   int offset_index = nir_tex_instr_src_index(tex, nir_tex_src_offset);
+   if (tex->is_shadow && offset_index >= 0 && min_lod_index >= 0)
+      return true;
+
+   /* Cases that require a sampler header and the payload is already too large
+    * for the HW to handle.
+    */
+   const int sampler_offset_idx =
+      nir_tex_instr_src_index(tex, nir_tex_src_sampler_deref);
+   if (min_lod_index >= 0 && sampler_offset_idx >= 0) {
+      /* if (!nir_src_is_const(tex->src[sampler_offset_idx].src) || */
+      /*     (nir_src_is_const(tex->src[sampler_offset_idx].src) && */
+      /*      (tex->sampler_index + */
+      /*       nir_src_as_uint(tex->src[sampler_offset_idx].src)) >= 16)) */
+         return true;
+   }
+
+   const int sampler_handle_idx =
+      nir_tex_instr_src_index(tex, nir_tex_src_sampler_deref);
+   if (sampler_handle_idx >= 0 && min_lod_index >= 0)
+      return true;
+
+   if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
+      return true;
+
+   if (devinfo->verx10 >= 125) {
+      /* For below, See bspec 45942, "Enable new message layout for cube
+       * array"
+       */
+      if (tex->sampler_dim == GLSL_SAMPLER_DIM_3D)
+         return true;
+
+      if (tex->is_array)
+         return true;
+   }
+
+   if (tex->is_shadow && offset_index >= 0 &&
+       !brw_nir_tex_offset_in_constant_range(tex, offset_index))
+      return true;
+
+   return false;
+}
+
 /* Does some simple lowering and runs the standard suite of optimizations
  *
  * This is intended to be called more-or-less directly after you get the
@@ -2709,11 +2761,41 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
     * nir_lower_system_values above.
     */
    if (nir->info.stage == MESA_SHADER_TESS_CTRL &&
-       intel_use_tcs_multi_patch(devinfo))
+       intel_use_tcs_multi_patch(devinfo)) {
       OPT(intel_nir_clamp_per_vertex_loads);
+   }
 
    /* Get rid of split copies */
    brw_nir_optimize(pt, true);
+
+   const nir_lower_tex_options tex_options = {
+      .lower_txp = ~0,
+      .lower_txf_offset = true,
+      .lower_rect_offset = true,
+      .lower_txb_shadow_clamp = true,
+      .lower_tg4_offsets = true,
+      .lower_txs_lod = true, /* Wa_14012320009 */
+      .lower_offset_filter =
+         devinfo->verx10 >= 125 ? lower_xehp_tg4_offset_filter : NULL,
+      .lower_invalid_implicit_lod = true,
+      .lower_index_to_offset = true,
+      .lower_txd_cb = lower_txd_cb,
+      .lower_txd_data = devinfo,
+   };
+
+   /* In the case where TG4 coords are lowered to offsets and we have a
+    * lower_xehp_tg4_offset_filter lowering those offsets further, we need to
+    * rerun the pass because the instructions inserted by the first lowering
+    * are not visible during that first pass.
+    */
+   if (OPT(nir_lower_tex, &tex_options))
+      OPT(nir_lower_tex, &tex_options);
+
+   const nir_lower_image_options image_options = {
+      .lower_cube_size = true,
+      .lower_image_samples_to_one = true,
+   };
+   OPT(nir_lower_image, &image_options);
 }
 
 static bool
@@ -3469,58 +3551,6 @@ nir_shader_has_local_variables(const nir_shader *nir)
 }
 
 static bool
-lower_txd_cb(const nir_tex_instr *tex, const void *data)
-{
-   const struct intel_device_info *devinfo = data;
-
-   int min_lod_index = nir_tex_instr_src_index(tex, nir_tex_src_min_lod);
-   if (tex->is_shadow && min_lod_index >= 0)
-      return true;
-
-   int offset_index = nir_tex_instr_src_index(tex, nir_tex_src_offset);
-   if (tex->is_shadow && offset_index >= 0 && min_lod_index >= 0)
-      return true;
-
-   /* Cases that require a sampler header and the payload is already too large
-    * for the HW to handle.
-    */
-   const int sampler_offset_idx =
-      nir_tex_instr_src_index(tex, nir_tex_src_sampler_offset);
-   if (min_lod_index >= 0 && sampler_offset_idx >= 0) {
-      if (!nir_src_is_const(tex->src[sampler_offset_idx].src) ||
-          (nir_src_is_const(tex->src[sampler_offset_idx].src) &&
-           (tex->sampler_index +
-            nir_src_as_uint(tex->src[sampler_offset_idx].src)) >= 16))
-         return true;
-   }
-
-   const int sampler_handle_idx =
-      nir_tex_instr_src_index(tex, nir_tex_src_sampler_handle);
-   if (sampler_handle_idx >= 0 && min_lod_index >= 0)
-      return true;
-
-   if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
-      return true;
-
-   if (devinfo->verx10 >= 125) {
-      /* For below, See bspec 45942, "Enable new message layout for cube
-       * array"
-       */
-      if (tex->sampler_dim == GLSL_SAMPLER_DIM_3D)
-         return true;
-
-      if (tex->is_array)
-         return true;
-   }
-
-   if (tex->is_shadow && offset_index >= 0 &&
-       !brw_nir_tex_offset_in_constant_range(tex, offset_index))
-      return true;
-
-   return false;
-}
-
-static bool
 flag_fused_eu_disable_instr(nir_builder *b, nir_instr *instr, void *data)
 {
    switch (instr->type) {
@@ -3639,34 +3669,15 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
    if (enabled_cases != 0)
       OPT(intel_nir_opt_atomic_branch, enabled_cases);
 
-   const nir_lower_tex_options tex_options = {
-      .lower_txp = ~0,
-      .lower_txf_offset = true,
-      .lower_rect_offset = true,
-      .lower_txb_shadow_clamp = true,
-      .lower_tg4_offsets = true,
-      .lower_txs_lod = true, /* Wa_14012320009 */
-      .lower_offset_filter =
-         devinfo->verx10 >= 125 ? lower_xehp_tg4_offset_filter : NULL,
-      .lower_invalid_implicit_lod = true,
-      .lower_index_to_offset = true,
-      .lower_txd_cb = lower_txd_cb,
-      .lower_txd_data = devinfo,
-   };
-
-   /* In the case where TG4 coords are lowered to offsets and we have a
-    * lower_xehp_tg4_offset_filter lowering those offsets further, we need to
-    * rerun the pass because the instructions inserted by the first lowering
-    * are not visible during that first pass.
-    */
-   if (OPT(nir_lower_tex, &tex_options))
-      OPT(nir_lower_tex, &tex_options);
 
    OPT(brw_nir_lower_mcs_fetch, devinfo);
 
    bool jay = intel_use_jay(devinfo, nir);
 
    OPT(intel_nir_lower_sparse_intrinsics, jay);
+
+   /* Remove texture_index/sampler_index values */
+   OPT(nir_lower_tex, &(nir_lower_tex_options) { .lower_index_to_offset = true, });
 
    /* Any constants leftover should be folded so we have constant textures */
    OPT(nir_opt_constant_folding);
