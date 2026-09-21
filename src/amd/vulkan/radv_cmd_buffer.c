@@ -15403,7 +15403,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          if (needs_align32_workaround) {
             const uint64_t unaligned_va = indirect_va;
 
-            if (!radv_cmd_buffer_upload_alloc(cmd_buffer, sizeof(VkDispatchIndirectCommand), 32, &indirect_va, NULL))
+            if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, sizeof(VkDispatchIndirectCommand), 32, &indirect_va))
                return;
 
             for (uint32_t i = 0; i < 3; i++) {
