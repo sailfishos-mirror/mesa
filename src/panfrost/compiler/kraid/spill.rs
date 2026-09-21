@@ -671,7 +671,7 @@ fn spill(s: &mut Shader, live: Liveness, limit: u32) {
                     live_min = p_live.clone();
                     live_max = p_live.clone();
                 } else {
-                    live_max &= p_live.s(..);
+                    live_min &= p_live.s(..);
                     live_max |= p_live.s(..);
                 }
 
