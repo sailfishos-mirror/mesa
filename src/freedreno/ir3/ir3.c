@@ -1223,7 +1223,7 @@ ir3_create_collect(struct ir3_builder *build,
    /* There should be at least one non-undef source to determine the type of the
     * destination.
     */
-   assert(non_undef_src != -1);
+   assume(non_undef_src != -1);
    unsigned flags = dest_flags(arr[non_undef_src]);
 
    /* If any of the sources are themselves collects, flatten their sources into
