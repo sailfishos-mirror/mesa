@@ -1359,6 +1359,11 @@ rewrite_src_with_bti(nir_builder *b, struct iris_binding_table *bt,
 static nir_def *
 iris_load_eff_64bit_surfaces_base_address(nir_builder *b)
 {
+   if (b->shader->info.stage == MESA_SHADER_COMPUTE) {
+      return nir_load_inline_data_intel(b, 1, 64, nir_imm_int(b, 0),
+                                        .base = 0, .range = 8);
+   }
+
    return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
                                    .base = 0, .range = 8);
 }
@@ -1371,6 +1376,11 @@ iris_load_eff_64bit_surfaces_base_address(nir_builder *b)
 static nir_def *
 iris_load_eff_64bit_sampler_base_address(nir_builder *b)
 {
+   if (b->shader->info.stage == MESA_SHADER_COMPUTE) {
+      return nir_load_inline_data_intel(b, 1, 64, nir_imm_int(b, 0),
+                                        .base = 8, .range = 8);
+   }
+
    return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
                                    .base = 8, .range = 8);
 }
