@@ -54,6 +54,7 @@
 
 #include "intel_hang_replay_xe.h"
 #include "intel_hang_replay_lib.h"
+#include "intel_hang_replay_rt.h"
 
 #include "intel_tools.h"
 
@@ -655,8 +656,14 @@ main(int argc, char *argv[])
          fprintf(stderr, "shader at 0x%016"PRIx64" not found\n", *addr);
    }
 
-   if (!list && util_dynarray_num_elements(&shader_addresses, uint64_t) == 0)
-      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx, &init, &exec, vm_flags, bo_dumpable, scratch);
+   if (!list && util_dynarray_num_elements(&shader_addresses, uint64_t) == 0) {
+      /* Validate captured RT state before proceeding with execution. */
+      intel_hang_replay_validate_rt(file_fd, file_stats.st_size,
+                                    &devinfo, &buffers, &exec);
+
+      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx,
+                      &init, &exec, vm_flags, bo_dumpable, scratch);
+   }
 
    close(drm_fd);
    close(file_fd);
