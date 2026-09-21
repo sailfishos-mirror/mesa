@@ -170,7 +170,7 @@ radv_cp_dma_realign_engine(struct radv_cmd_buffer *cmd_buffer, unsigned size)
 
    assert(size < SI_CPDMA_ALIGNMENT);
 
-   radv_cmd_buffer_upload_alloc(cmd_buffer, buf_size, SI_CPDMA_ALIGNMENT, &va, NULL);
+   radv_cmd_buffer_vram_suballoc(cmd_buffer, buf_size, SI_CPDMA_ALIGNMENT, &va);
    radv_emit_cp_dma(cmd_buffer, va, va + SI_CPDMA_ALIGNMENT, size, 0);
 }
 
