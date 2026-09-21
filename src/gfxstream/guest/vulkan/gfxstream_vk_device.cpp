@@ -223,7 +223,7 @@ static VkResult gfxstream_vk_physical_device_init(
 #endif
 
     // Initialize the mesa object
-    VkResult result = vk_physical_device_init(&physical_device->vk, &instance->vk,
+    VkResult result = vk_physical_device_init(&physical_device->base, &instance->base,
                                               &supported_extensions, NULL, NULL, &dispatch_table);
 
     if (result == VK_SUCCESS) {
@@ -231,7 +231,7 @@ static VkResult gfxstream_vk_physical_device_init(
         // Note: Must use dummy_sync for correct sync object path in WSI operations
         physical_device->sync_types[0] = &vk_sync_dummy_type;
         physical_device->sync_types[1] = NULL;
-        physical_device->vk.supported_sync_types = physical_device->sync_types;
+        physical_device->base.supported_sync_types = physical_device->sync_types;
 
         result = gfxstream_vk_wsi_init(physical_device);
     }
@@ -273,8 +273,8 @@ static VkResult gfxstream_vk_enumerate_devices(struct vk_instance* vk_instance) 
             result =
                 gfxstream_vk_physical_device_init(gfxstream_physicalDevice, gfxstream_instance);
             if (result == VK_SUCCESS) {
-                list_addtail(&gfxstream_physicalDevice->vk.link,
-                             &gfxstream_instance->vk.physical_devices.list);
+                list_addtail(&gfxstream_physicalDevice->base.link,
+                             &gfxstream_instance->base.physical_devices.list);
             } else {
                 break;
             }
@@ -370,11 +370,12 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
 #endif
 
     pAllocator = pAllocator ?: vk_default_allocator();
-    result = vk_instance_init(&instance->vk, extensions, &dispatch_table, pCreateInfo, pAllocator);
+    result =
+        vk_instance_init(&instance->base, extensions, &dispatch_table, pCreateInfo, pAllocator);
     if (result != VK_SUCCESS) {
-        list_inithead(&instance->vk.physical_devices.list);
-        list_inithead(&instance->vk.debug_utils.callbacks);
-        list_inithead(&instance->vk.debug_utils.instance_callbacks);
+        list_inithead(&instance->base.physical_devices.list);
+        list_inithead(&instance->base.debug_utils.callbacks);
+        list_inithead(&instance->base.debug_utils.instance_callbacks);
         if (!instance->init_failed) {
             auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
             vkEnc->vkDestroyInstance(*pInstance, pAllocator, true /* do lock */);
@@ -387,8 +388,8 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
 
     // Note: Do not support try_create_for_drm. virtio_gpu DRM device opened in
     // init_renderer above, which can still enumerate multiple physical devices on the host.
-    instance->vk.physical_devices.enumerate = gfxstream_vk_enumerate_devices;
-    instance->vk.physical_devices.destroy = gfxstream_vk_destroy_physical_device;
+    instance->base.physical_devices.enumerate = gfxstream_vk_enumerate_devices;
+    instance->base.physical_devices.destroy = gfxstream_vk_destroy_physical_device;
 
     return VK_SUCCESS;
 }
@@ -472,11 +473,11 @@ static VkResult gfxstream_vk_queue_init(struct gfxstream_vk_device* dev,
     }
 
     VK_FROM_HANDLE(gfxstream_vk_queue, gfxstream_queue, queue);
-    VkResult result = vk_queue_init(&gfxstream_queue->vk, &dev->vk, queue_info, queue_index);
+    VkResult result = vk_queue_init(&gfxstream_queue->base, &dev->base, queue_info, queue_index);
     if (result != VK_SUCCESS) {
         gfxstream::vk::ResourceTracker::get()->unregister_VkQueue(queue);
-        list_del(&gfxstream_queue->vk.link);
-        vk_object_base_finish(&gfxstream_queue->vk.base);
+        list_del(&gfxstream_queue->base.link);
+        vk_object_base_finish(&gfxstream_queue->base.base);
         free(gfxstream_queue);
         return result;
     }
@@ -493,7 +494,7 @@ static VkResult gfxstream_vk_device_init_queues(struct gfxstream_vk_device* dev,
         for (uint32_t j = 0; j < queue_info->queueCount; j++) {
             VkResult result = gfxstream_vk_queue_init(dev, queue_info, j);
             if (result != VK_SUCCESS) {
-                vk_foreach_queue_safe(queue, &dev->vk) {
+                vk_foreach_queue_safe(queue, &dev->base) {
                     gfxstream_vk_queue_fini((struct gfxstream_vk_queue*)queue);
                 }
                 return result;
@@ -506,7 +507,7 @@ static VkResult gfxstream_vk_device_init_queues(struct gfxstream_vk_device* dev,
 
 static VkResult gfxstream_vk_device_queue_family_init(struct gfxstream_vk_device* dev,
                                                       const VkDeviceCreateInfo* create_info) {
-    const VkAllocationCallbacks* alloc = &dev->vk.alloc;
+    const VkAllocationCallbacks* alloc = &dev->base.alloc;
     uint32_t* queue_families = NULL;
     uint32_t count = 0;
 
@@ -535,7 +536,7 @@ static VkResult gfxstream_vk_device_queue_family_init(struct gfxstream_vk_device
 }
 
 static inline void gfxstream_vk_device_queue_family_fini(struct gfxstream_vk_device* dev) {
-    vk_free(&dev->vk.alloc, dev->queue_families);
+    vk_free(&dev->base.alloc, dev->queue_families);
 }
 
 VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
@@ -562,7 +563,7 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     }
 
     const VkAllocationCallbacks* pMesaAllocator =
-        pAllocator ?: &gfxstream_physicalDevice->instance->vk.alloc;
+        pAllocator ?: &gfxstream_physicalDevice->instance->base.alloc;
 
 
     // Full local copy of pCreateInfo
@@ -591,17 +592,17 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     vk_device_dispatch_table_from_entrypoints(&dispatch_table, &wsi_device_entrypoints, false);
 #endif
 
-    result = vk_device_init(&gfxstream_device->vk, &gfxstream_physicalDevice->vk, &dispatch_table,
-                            pCreateInfo, pMesaAllocator);
+    result = vk_device_init(&gfxstream_device->base, &gfxstream_physicalDevice->base,
+                            &dispatch_table, pCreateInfo, pMesaAllocator);
     if (result != VK_SUCCESS) {
-        list_inithead(&gfxstream_device->vk.queues);
+        list_inithead(&gfxstream_device->base.queues);
         vkEnc->vkDestroyDevice(*pDevice, pAllocator, true /* do lock */);
         *pDevice = VK_NULL_HANDLE;
         return result;
     }
 
     gfxstream_device->physical_device = gfxstream_physicalDevice;
-    gfxstream_device->vk.command_dispatch_table = &gfxstream_device->cmd_dispatch;
+    gfxstream_device->base.command_dispatch_table = &gfxstream_device->cmd_dispatch;
 
     result = gfxstream_vk_device_queue_family_init(gfxstream_device, pCreateInfo);
     if (result != VK_SUCCESS) {
@@ -626,7 +627,7 @@ void gfxstream_vk_DestroyDevice(VkDevice device, const VkAllocationCallbacks* pA
     if (device == VK_NULL_HANDLE) return;
     VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
 
-    vk_foreach_queue_safe(queue, &gfxstream_device->vk) {
+    vk_foreach_queue_safe(queue, &gfxstream_device->base) {
         gfxstream_vk_queue_fini((struct gfxstream_vk_queue*)queue);
     }
 
@@ -649,13 +650,13 @@ vk_icdGetInstanceProcAddr(VkInstance instance, const char* pName) {
 
 PFN_vkVoidFunction gfxstream_vk_GetInstanceProcAddr(VkInstance _instance, const char* pName) {
     VK_FROM_HANDLE(gfxstream_vk_instance, instance, _instance);
-    return vk_instance_get_proc_addr(&instance->vk, &gfxstream_vk_instance_entrypoints, pName);
+    return vk_instance_get_proc_addr(&instance->base, &gfxstream_vk_instance_entrypoints, pName);
 }
 
 PFN_vkVoidFunction gfxstream_vk_GetDeviceProcAddr(VkDevice _device, const char* pName) {
     MESA_TRACE_SCOPE("vkGetDeviceProcAddr");
     VK_FROM_HANDLE(gfxstream_vk_device, device, _device);
-    return vk_device_get_proc_addr(&device->vk, pName);
+    return vk_device_get_proc_addr(&device->base, pName);
 }
 
 VkResult gfxstream_vk_AllocateMemory(VkDevice device, const VkMemoryAllocateInfo* pAllocateInfo,

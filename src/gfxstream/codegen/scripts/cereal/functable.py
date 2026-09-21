@@ -320,7 +320,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
             cgen.funcCall(
                 None,
                 "vk_object_free",
-                ["&%s->vk" % paramNameToObjectName(deviceParam.paramName), allocatorParam, mesaObjectDestroy]
+                ["&%s->base" % paramNameToObjectName(deviceParam.paramName), allocatorParam, mesaObjectDestroy]
             )
 
         def genMesaObjectAlloc(allocCallLhs):
@@ -338,7 +338,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
             cgen.funcCall(
                 allocCallLhs,
                 "(%s *)vk_object_zalloc" % objectType,
-                ["&%s->vk" % paramNameToObjectName(deviceParam.paramName), allocatorParam, ("sizeof(%s)" % objectType), typeNameToVkObjectType(createParam.typeName)]
+                ["&%s->base" % paramNameToObjectName(deviceParam.paramName), allocatorParam, ("sizeof(%s)" % objectType), typeNameToVkObjectType(createParam.typeName)]
             )
 
         # Alloc/create gfxstream_vk_* object
@@ -553,7 +553,7 @@ class VulkanFuncTable(VulkanWrapperGenerator):
                     cgen.beginIf("%s == %s" % (SUCCESS_VAL[retTypeName][0], retVar))
                     gfxstreamDevice = genVkFromHandle(deviceParam, deviceParam.paramName)
                     gfxstreamObject = genVkFromHandle(createParam, "*%s" % createParam.paramName)
-                    cgen.stmt("%s->vk.base.device = &%s->vk" % (gfxstreamObject, gfxstreamDevice))
+                    cgen.stmt("%s->base.base.device = &%s->base" % (gfxstreamObject, gfxstreamDevice))
                     cgen.endIf()
 
             if retTypeName != "void":

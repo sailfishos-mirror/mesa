@@ -18,7 +18,7 @@ VkResult gfxstream_vk_CreateCommandPool(VkDevice device, const VkCommandPoolCrea
     if (VK_SUCCESS == result) {
         VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
         VK_FROM_HANDLE(gfxstream_vk_command_pool, gfxstream_pCommandPool, *pCommandPool);
-        result = vk_command_pool_init(&gfxstream_device->vk, &gfxstream_pCommandPool->vk,
+        result = vk_command_pool_init(&gfxstream_device->base, &gfxstream_pCommandPool->base,
                                       pCreateInfo, pAllocator);
     }
     return result;
@@ -70,7 +70,7 @@ VkResult gfxstream_vk_AllocateCommandBuffers(VkDevice device,
             VK_FROM_HANDLE(gfxstream_vk_command_buffer, gfxstream_commandBuffer,
                            pCommandBuffers[i]);
             result =
-                vk_command_buffer_init(&gfxstream_commandPool->vk, &gfxstream_commandBuffer->vk,
+                vk_command_buffer_init(&gfxstream_commandPool->base, &gfxstream_commandBuffer->base,
                                        nullptr, pAllocateInfo->level);
             if (result != VK_SUCCESS) {
                 break;

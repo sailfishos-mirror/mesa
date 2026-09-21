@@ -332,7 +332,7 @@ VkResult gfxstream_vk_CreateFence(VkDevice device, const VkFenceCreateInfo* pCre
     if (VK_SUCCESS == vkCreateFence_VkResult_return) {
         VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
         VK_FROM_HANDLE(gfxstream_vk_fence, gfxstream_pFence, *pFence);
-        gfxstream_pFence->vk.base.device = &gfxstream_device->vk;
+        gfxstream_pFence->base.base.device = &gfxstream_device->base;
     }
     return vkCreateFence_VkResult_return;
 }
@@ -403,7 +403,7 @@ VkResult gfxstream_vk_CreateSemaphore(VkDevice device, const VkSemaphoreCreateIn
     if (VK_SUCCESS == vkCreateSemaphore_VkResult_return) {
         VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
         VK_FROM_HANDLE(gfxstream_vk_semaphore, gfxstream_pSemaphore, *pSemaphore);
-        gfxstream_pSemaphore->vk.base.device = &gfxstream_device->vk;
+        gfxstream_pSemaphore->base.base.device = &gfxstream_device->base;
     }
     return vkCreateSemaphore_VkResult_return;
 }
@@ -469,7 +469,7 @@ VkResult gfxstream_vk_CreateBuffer(VkDevice device, const VkBufferCreateInfo* pC
     if (VK_SUCCESS == vkCreateBuffer_VkResult_return) {
         VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
         VK_FROM_HANDLE(gfxstream_vk_buffer, gfxstream_pBuffer, *pBuffer);
-        gfxstream_pBuffer->vk.base.device = &gfxstream_device->vk;
+        gfxstream_pBuffer->base.base.device = &gfxstream_device->base;
     }
     return vkCreateBuffer_VkResult_return;
 }

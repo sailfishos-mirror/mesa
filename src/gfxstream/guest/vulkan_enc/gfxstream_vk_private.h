@@ -83,19 +83,19 @@ struct gfxstream_vk_object_common {
 
 struct gfxstream_vk_instance {
     // Must be first member.
-    struct vk_instance vk;
+    struct vk_instance base;
 
     struct gfxstream_vk_object_common common;
 
     uint32_t api_version;
     bool init_failed;
 };
-VK_DEFINE_HANDLE_CASTS(gfxstream_vk_instance, vk.base, VkInstance, VK_OBJECT_TYPE_INSTANCE)
+VK_DEFINE_HANDLE_CASTS(gfxstream_vk_instance, base.base, VkInstance, VK_OBJECT_TYPE_INSTANCE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_instance, VkInstance)
 
 struct gfxstream_vk_physical_device {
     // Must be first member.
-    struct vk_physical_device vk;
+    struct vk_physical_device base;
 
     struct gfxstream_vk_object_common common;
 
@@ -104,13 +104,13 @@ struct gfxstream_vk_physical_device {
     struct gfxstream_vk_instance* instance;
     bool doImageDrmFormatModifierEmulation;
 };
-VK_DEFINE_HANDLE_CASTS(gfxstream_vk_physical_device, vk.base, VkPhysicalDevice,
+VK_DEFINE_HANDLE_CASTS(gfxstream_vk_physical_device, base.base, VkPhysicalDevice,
                        VK_OBJECT_TYPE_PHYSICAL_DEVICE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_physical_device, VkPhysicalDevice)
 
 struct gfxstream_vk_device {
     // Must be first member.
-    struct vk_device vk;
+    struct vk_device base;
 
     struct gfxstream_vk_object_common common;
 
@@ -121,12 +121,12 @@ struct gfxstream_vk_device {
     uint32_t* queue_families;
     uint32_t queue_family_count;
 };
-VK_DEFINE_HANDLE_CASTS(gfxstream_vk_device, vk.base, VkDevice, VK_OBJECT_TYPE_DEVICE)
+VK_DEFINE_HANDLE_CASTS(gfxstream_vk_device, base.base, VkDevice, VK_OBJECT_TYPE_DEVICE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_device, VkDevice)
 
 struct gfxstream_vk_queue {
     // Must be first member.
-    struct vk_queue vk;
+    struct vk_queue base;
 
     struct gfxstream_vk_object_common common;
 
@@ -135,16 +135,16 @@ struct gfxstream_vk_queue {
     gfxstream::vk::VkEncoder* lastUsedEncoder;
     uint32_t sequenceNumber;
 };
-VK_DEFINE_HANDLE_CASTS(gfxstream_vk_queue, vk.base, VkQueue, VK_OBJECT_TYPE_QUEUE)
+VK_DEFINE_HANDLE_CASTS(gfxstream_vk_queue, base.base, VkQueue, VK_OBJECT_TYPE_QUEUE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_queue, VkQueue)
 
 struct gfxstream_vk_buffer {
     // Must be first member.
-    struct vk_buffer vk;
+    struct vk_buffer base;
 
     struct gfxstream_vk_object_common common;
 };
-VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer, vk.base, VkBuffer, VK_OBJECT_TYPE_BUFFER)
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer, base.base, VkBuffer, VK_OBJECT_TYPE_BUFFER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_buffer, VkBuffer)
 
 struct gfxstream_vk_object_list {
@@ -154,20 +154,20 @@ struct gfxstream_vk_object_list {
 
 struct gfxstream_vk_command_pool {
     // Must be first member.
-    struct vk_command_pool vk;
+    struct vk_command_pool base;
 
     struct gfxstream_vk_object_common common;
 
     // The command buffers allocated from this pool.
     struct gfxstream_vk_object_list* subObjects;
 };
-VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_command_pool, vk.base, VkCommandPool,
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_command_pool, base.base, VkCommandPool,
                                VK_OBJECT_TYPE_COMMAND_POOL)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_command_pool, VkCommandPool)
 
 struct gfxstream_vk_command_buffer {
     // Must be first member.
-    struct vk_command_buffer vk;
+    struct vk_command_buffer base;
 
     struct gfxstream_vk_object_common common;
 
@@ -183,26 +183,26 @@ struct gfxstream_vk_command_buffer {
     bool isSecondary;
     VkDevice device;
 };
-VK_DEFINE_HANDLE_CASTS(gfxstream_vk_command_buffer, vk.base, VkCommandBuffer,
+VK_DEFINE_HANDLE_CASTS(gfxstream_vk_command_buffer, base.base, VkCommandBuffer,
                        VK_OBJECT_TYPE_COMMAND_BUFFER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_command_buffer, VkCommandBuffer)
 
 struct gfxstream_vk_fence {
     // Must be first member.
-    struct vk_fence vk;
+    struct vk_fence base;
 
     struct gfxstream_vk_object_common common;
 };
-VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_fence, vk.base, VkFence, VK_OBJECT_TYPE_FENCE)
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_fence, base.base, VkFence, VK_OBJECT_TYPE_FENCE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_fence, VkFence)
 
 struct gfxstream_vk_semaphore {
     // Must be first member.
-    struct vk_semaphore vk;
+    struct vk_semaphore base;
 
     struct gfxstream_vk_object_common common;
 };
-VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_semaphore, vk.base, VkSemaphore,
+VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_semaphore, base.base, VkSemaphore,
                                VK_OBJECT_TYPE_SEMAPHORE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_semaphore, VkSemaphore)
 
