@@ -147,7 +147,7 @@ radv_compute_copy_memory_indirect(struct radv_cmd_buffer *cmd_buffer,
    VkPipeline pipeline;
    VkResult result;
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, copy_count * sizeof(VkDispatchIndirectCommand), 4, &va, NULL)) {
+   if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, copy_count * sizeof(VkDispatchIndirectCommand), 4, &va)) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
       return;
    }
@@ -381,7 +381,7 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
    VkPipeline pipeline;
    VkResult result;
 
-   if (!radv_cmd_buffer_upload_alloc(cmd_buffer, copy_count * sizeof(VkDispatchIndirectCommand), 4, &va, NULL)) {
+   if (!radv_cmd_buffer_vram_suballoc(cmd_buffer, copy_count * sizeof(VkDispatchIndirectCommand), 4, &va)) {
       vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY);
       return;
    }
