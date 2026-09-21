@@ -77,3 +77,4 @@ GL_MESA_shader_integer_functions on etnaviv/HALTI5
 GL_OES_draw_buffers_indexed on etnaviv/HALTI5
 GL_OES_EGL_image_external_essl3 on etnaviv/HALTI5
 GLES 3.0 on etnaviv/HALTI5
+VK_QCOM_rotated_copy_commands on Turnip
