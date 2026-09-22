@@ -921,9 +921,6 @@ build_desc_address64(nir_builder *b,
                      uint32_t range,
                      const struct apply_pipeline_layout_state *state)
 {
-   /* This helper is only use pre Gfx12.5 */
-   assert(!state->pdevice->info.has_lsc);
-   assert(!state->pdevice->uses_efficient_64bit);
    return nir_vec4(b,
                    nir_iadd(b,
                             nir_load_array_var(b, state->set_idx_to_addr_offset,
@@ -1881,6 +1878,44 @@ lower_image_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    return true;
 }
 
+static nir_def *
+build_image_resinfo(nir_builder *b,
+                    unsigned set,
+                    unsigned binding,
+                    unsigned plane,
+                    nir_def *array_index,
+                    nir_def *lod,
+                    unsigned num_components,
+                    enum glsl_sampler_dim dim,
+                    bool is_array, bool is_storage,
+                    struct apply_pipeline_layout_state *state)
+{
+   const struct anv_descriptor_set_binding_layout *bind_layout =
+      &state->set_layouts[set]->binding[binding];
+
+   nir_def *addr64 = nir_pack_64_2x32(
+      b, nir_trim_vector(
+         b, build_desc_address64(
+            b, NULL, set,
+            nir_iadd_imm(
+               b,
+               nir_iadd_imm(
+                  b,
+                  nir_imul_imm(b,
+                               array_index,
+                               binding_descriptor_stride(state, bind_layout, false)),
+                  plane * bind_layout->descriptor_data_surface_size),
+               binding_descriptor_offset(state, bind_layout, false)),
+            0, state), 2));
+
+   return anv_resinfo(b, &state->pdevice->info, addr64,
+                      lod == NULL ? nir_imm_int(b, 0) : lod,
+                      nir_imm_int(b, num_components),
+                      nir_imm_int(b, dim),
+                      nir_imm_bool(b, is_array),
+                      state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT);
+}
+
 static bool
 lower_image_size_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
                            struct apply_pipeline_layout_state *state)
@@ -1982,6 +2017,28 @@ lower_tex_deref(nir_builder *b, nir_tex_instr *tex,
 
    nir_src_rewrite(&tex->src[deref_src_idx].src, index);
    tex->src[deref_src_idx].src_type = offset_src_type;
+
+   if (tex->op == nir_texop_txs_lod0_intel) {
+      int sampler_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_sampler_deref);
+      if (sampler_src_idx >= 0)
+         nir_tex_instr_remove_src(tex, sampler_src_idx);
+
+      b->cursor = nir_after_instr(&tex->instr);
+      nir_def *lod = nir_get_tex_src(tex, nir_tex_src_lod);
+      lod = lod == NULL ? nir_imm_int(b, 0) : lod;
+
+      nir_def *resinfo_sw =
+         build_image_resinfo(b, set, binding, plane,
+                             array_index, lod,
+                             tex->def.num_components,
+                             tex->sampler_dim,
+                             tex->is_array,
+                             false,
+                             state);
+
+      nir_def_replace(&tex->def,
+                      nir_trim_vector(b, resinfo_sw, tex->def.num_components));
+   }
 }
 
 static uint32_t

@@ -502,6 +502,23 @@ tex_instr_get_and_remove_plane_src(nir_tex_instr *tex)
    return plane;
 }
 
+static nir_def *
+build_image_resinfo(nir_builder *b,
+                    nir_def *heap_offset,
+                    nir_def *lod,
+                    unsigned num_components,
+                    enum glsl_sampler_dim dim,
+                    bool is_array, bool is_storage,
+                    const struct anv_physical_device *pdevice)
+{
+   nir_def *desc_addr = build_descriptor_addr(b, heap_offset, pdevice);
+   return anv_resinfo(b, &pdevice->info, desc_addr,
+                      lod == NULL ? nir_imm_int(b, 0) : lod,
+                      nir_imm_int(b, num_components),
+                      nir_imm_int(b, dim), nir_imm_bool(b, is_array),
+                      false);
+}
+
 static bool
 lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
 {
@@ -512,6 +529,24 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
    uint32_t plane = tex_instr_get_and_remove_plane_src(tex);
 
    int surf_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_heap_offset);
+
+   if (tex->op == nir_texop_txs_lod0_intel) {
+      assert(surf_src_idx >= 0);
+
+      nir_def *lod = nir_get_tex_src(tex, nir_tex_src_lod);
+
+      nir_def_replace(&tex->def,
+                      nir_trim_vector(
+                         b,
+                         build_image_resinfo(b, tex->src[surf_src_idx].src.ssa,
+                                             lod, tex->def.num_components,
+                                             tex->sampler_dim, tex->is_array,
+                                             false, data),
+                         tex->def.num_components));
+      return true;
+   }
+
+
    if (surf_src_idx >= 0) {
       nir_src_rewrite(
          &tex->src[surf_src_idx].src,

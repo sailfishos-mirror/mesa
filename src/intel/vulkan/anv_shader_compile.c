@@ -388,6 +388,7 @@ anv_shader_preprocess_nir(struct vk_physical_device *device,
                              rs->images == VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT,
       /* Must match key->code_motion, see populate_base_prog_key(). */
       .code_motion = pdevice->drirc.perf.code_motion,
+      .lower_tex_use_txs_lod0_intel = true,
    };
    brw_preprocess_nir(compiler, nir, &opts);
 

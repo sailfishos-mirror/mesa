@@ -35,6 +35,7 @@
 #include "vk_nir.h"
 
 #include "anv_internal_kernels.h"
+#include "anv_nir.h"
 
 #include "intel_gfx90_shaders_binding.h"
 #include "intel_gfx110_shaders_binding.h"
@@ -43,6 +44,23 @@
 #include "intel_gfx200_shaders_binding.h"
 #include "intel_gfx300_shaders_binding.h"
 #include "intel_gfx350_shaders_binding.h"
+
+nir_def *
+anv_resinfo(nir_builder *b,
+            const struct intel_device_info *devinfo,
+            nir_def *surface_state,
+            nir_def *lod, nir_def *nr_comps,
+            nir_def *dim, nir_def *is_array,
+            bool is_indirect)
+{
+   if (is_indirect) {
+      return anv_genX(devinfo, resinfo_indirect)(b, surface_state, lod,
+                                                 nr_comps, dim, is_array);
+   } else {
+      return anv_genX(devinfo, resinfo)(b, surface_state, lod,
+                                        nr_comps, dim, is_array);
+   }
+}
 
 static nir_def *
 _load_param(nir_builder *b, const struct intel_device_info *devinfo,
