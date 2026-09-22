@@ -691,6 +691,17 @@ fn spill(s: &mut Shader, live: Liveness, limit: u32) {
                 }
             }
 
+            // Remove phi-src ssa which are live in the predecessors but dead now
+            // (every value still live must be in either live_in or a phi_dst)
+            let mut entry_values = bl.live_in_set().clone();
+            for op in blocks[b_idx].iter_phi_dsts() {
+                for ssa in op.iter_ssa_defs() {
+                    entry_values.insert(ssa.idx());
+                }
+            }
+            live_min &= entry_values.s(..);
+            live_max &= entry_values.s(..);
+
             // Now get an initial W
             let mut live = live_out[preds[0]].clone();
             let extra = BitSet::from(live.as_bit_set().s(..) - live_min.s(..));
