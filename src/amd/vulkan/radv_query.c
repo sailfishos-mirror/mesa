@@ -87,11 +87,22 @@ gfx10_copy_shader_query(struct radv_cmd_stream *cs, uint32_t src_sel, uint64_t s
 static void
 gfx10_copy_shader_query_gfx(struct radv_cmd_buffer *cmd_buffer, bool use_gds, uint32_t src_offset, uint64_t dst_va)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t src_sel;
    uint64_t src_va;
 
-   /* Make sure GE and/or GDS is idle before copying the value. */
-   cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_INV_L2;
+   /* Wait for shaders that update query counters via atomics to finish. */
+   cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS;
+
+   if (pdev->info.cp_sdma_ge_use_system_memory_scope) {
+      /* GFX12 doesn't have GDS. */
+      assert(!use_gds);
+
+      /* Flush shader atomics to memory for COPY_DATA src. */
+      cmd_buffer->state.flush_bits |= AC_BARRIER_WB_L2;
+   }
+
    radv_emit_cache_flush(cmd_buffer, false);
 
    if (use_gds) {
@@ -108,8 +119,14 @@ gfx10_copy_shader_query_gfx(struct radv_cmd_buffer *cmd_buffer, bool use_gds, ui
 static void
 gfx10_copy_shader_query_ace(struct radv_cmd_buffer *cmd_buffer, uint32_t src_offset, uint64_t dst_va)
 {
-   /* Make sure GDS is idle before copying the value. */
-   cmd_buffer->gang.flush_bits |= AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2;
+   ASSERTED const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   ASSERTED const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   /* Handling other generations in this function may require updating the flush flags. */
+   assert(pdev->info.gfx_level == GFX10_3);
+
+   /* Wait for shaders that update query counters via atomics to finish. */
+   cmd_buffer->gang.flush_bits |= AC_BARRIER_SYNC_CS;
    radv_gang_cache_flush(cmd_buffer);
 
    gfx10_copy_shader_query(cmd_buffer->gang.cs, COPY_DATA_GDS, src_offset, dst_va);
