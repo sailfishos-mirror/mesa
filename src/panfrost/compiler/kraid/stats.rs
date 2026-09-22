@@ -140,17 +140,19 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
 
     // v14 doesn't have rates anymore
     if s.model.arch() < 14 {
-        let rates = &s.model.pan_model().rates;
-        assert_ne!(rates.cvt, 0);
-        assert_ne!(rates.fma, 0);
-        assert_ne!(rates.sfu, 0);
-        assert_ne!(rates.varying, 0);
-        assert_ne!(rates.texel, 0);
-        cvt /= rates.cvt as f32;
-        fma /= rates.fma as f32;
-        sfu /= rates.sfu as f32;
-        v /= rates.varying as f32;
-        t /= rates.texel as f32;
+        if let Some(pm) = s.model.pan_model() {
+            let rates = &pm.rates;
+            assert_ne!(rates.cvt, 0);
+            assert_ne!(rates.fma, 0);
+            assert_ne!(rates.sfu, 0);
+            assert_ne!(rates.varying, 0);
+            assert_ne!(rates.texel, 0);
+            cvt /= rates.cvt as f32;
+            fma /= rates.fma as f32;
+            sfu /= rates.sfu as f32;
+            v /= rates.varying as f32;
+            t /= rates.texel as f32;
+        }
     }
     let alu =
         unsafe { pan_va_compute_alu_bound(s.model.arch(), fma, cvt, sfu) };

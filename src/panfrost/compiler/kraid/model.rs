@@ -55,7 +55,7 @@ impl FAUModel {
 pub trait Model {
     fn arch(&self) -> u8;
 
-    fn pan_model(&self) -> &PanModel;
+    fn pan_model(&self) -> Option<&PanModel>;
 
     fn fau(&self) -> &FAUModel;
 
@@ -115,7 +115,7 @@ pub trait Model {
 
 struct ValhallModel {
     arch: u8,
-    pan_model: std::ptr::NonNull<PanModel>,
+    pan_model: *const PanModel,
     fau: FAUModel,
 }
 
@@ -124,7 +124,7 @@ unsafe impl Send for ValhallModel {}
 unsafe impl Sync for ValhallModel {}
 
 impl ValhallModel {
-    fn new(arch: u8, pan_model: std::ptr::NonNull<PanModel>) -> ValhallModel {
+    fn new(arch: u8, pan_model: *const PanModel) -> ValhallModel {
         use crate::isa::{SmallConstantTable, v9};
         let sc_table = SmallConstantTable(v9::SmallConstantT::collect(arch));
         let fau = FAUModel {
@@ -199,7 +199,7 @@ impl Model for ValhallModel {
         self.arch
     }
 
-    fn pan_model(&self) -> &PanModel {
+    fn pan_model(&self) -> Option<&PanModel> {
         unsafe { self.pan_model.as_ref() }
     }
 
@@ -400,10 +400,7 @@ pub fn model_for_gpu_id(
 ) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
     // SAFETY: pan_arch() just translates one integer to another
     let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
-    let pan_model = unsafe {
-        let model = pan_get_model(gpu_id, gpu_variant) as *mut _;
-        std::ptr::NonNull::new(model).ok_or("Invalid GPU ID or variant")?
-    };
+    let pan_model = unsafe { pan_get_model(gpu_id, gpu_variant) };
 
     if arch >= 15 {
         Err("Kraid does not yet support this GPU")
