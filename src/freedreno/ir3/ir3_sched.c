@@ -514,6 +514,9 @@ check_instr(struct ir3_sched_ctx *ctx, struct ir3_sched_notes *notes,
     * bary.f is scheduled.  The hw seems unhappy if the thread
     * gets killed before the end-input (ei) flag is hit.
     *
+    * TODO: this isn't true anymore on newer gens (probably a5xx+) so we should
+    * evaluate if scheduling kills earlier would be better for performance.
+    *
     * We could do this by adding each bary.f instruction as
     * virtual ssa src for the kill instruction.  But we have
     * fixed length instr->srcs[].
