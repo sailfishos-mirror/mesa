@@ -1187,6 +1187,7 @@ ir3_max_const(const struct ir3_shader_variant *v)
    return _ir3_max_const(v, v->key.safe_constlen);
 }
 
+int32_t ir3_evaluate_src_mods(int32_t val, unsigned flags);
 bool ir3_const_ensure_imm_size(struct ir3_shader_variant *v, unsigned size);
 uint16_t ir3_const_imm_index_to_reg(const struct ir3_const_state *const_state,
                                     unsigned i);

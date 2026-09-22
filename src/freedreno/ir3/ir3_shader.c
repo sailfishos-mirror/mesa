@@ -74,6 +74,22 @@ ir3_const_imm_index_to_reg(const struct ir3_const_state *const_state,
    return i + (4 * const_state->allocs.max_const_offset_vec4);
 }
 
+int32_t
+ir3_evaluate_src_mods(int32_t val, unsigned flags)
+{
+   if (flags & IR3_REG_SABS)
+      val = abs(val);
+   if (flags & IR3_REG_FABS)
+      val = fui(fabs(uif((uint32_t)val)));
+   if (flags & IR3_REG_SNEG)
+      val = -val;
+   if (flags & IR3_REG_FNEG)
+      val = fui(-uif((uint32_t)val));
+   if (flags & IR3_REG_BNOT)
+      val = ~val;
+   return val;
+}
+
 uint16_t
 ir3_const_find_imm(struct ir3_shader_variant *v, uint32_t imm)
 {

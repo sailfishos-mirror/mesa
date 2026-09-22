@@ -149,25 +149,8 @@ lower_immed(struct ir3_cp_ctx *ctx, struct ir3_instruction *instr, unsigned n,
    /* in some cases, there are restrictions on (abs)/(neg) plus const..
     * so just evaluate those and clear the flags:
     */
-   if (new_flags & IR3_REG_SABS) {
-      reg->iim_val = abs(reg->iim_val);
-      new_flags &= ~IR3_REG_SABS;
-   }
-
-   if (new_flags & IR3_REG_FABS) {
-      reg->fim_val = fabs(reg->fim_val);
-      new_flags &= ~IR3_REG_FABS;
-   }
-
-   if (new_flags & IR3_REG_SNEG) {
-      reg->iim_val = -reg->iim_val;
-      new_flags &= ~IR3_REG_SNEG;
-   }
-
-   if (new_flags & IR3_REG_FNEG) {
-      reg->fim_val = -reg->fim_val;
-      new_flags &= ~IR3_REG_FNEG;
-   }
+   reg->iim_val = ir3_evaluate_src_mods(reg->iim_val, new_flags);
+   new_flags &= ~IR3_REG_SRC_MODS;
 
    reg->num = ir3_const_find_imm(ctx->so, reg->uim_val);
 
@@ -492,14 +475,8 @@ reg_cp(struct ir3_cp_ctx *ctx, struct ir3_instruction *instr,
             }
          }
 
-         if (new_flags & IR3_REG_SABS)
-            iim_val = abs(iim_val);
-
-         if (new_flags & IR3_REG_SNEG)
-            iim_val = -iim_val;
-
-         if (new_flags & IR3_REG_BNOT)
-            iim_val = ~iim_val;
+         iim_val = ir3_evaluate_src_mods(
+            iim_val, new_flags & (IR3_REG_SABS | IR3_REG_SNEG | IR3_REG_BNOT));
 
          if (ir3_valid_flags(instr, n, new_flags) &&
              ir3_valid_immediate(instr, iim_val)) {
