@@ -7160,6 +7160,12 @@ enum anv_vid_mem_av1_types {
       __VA_ARGS__                                                            \
    }
 
+#define ANV_VID_PIC(dev_, bo_, ...)                                          \
+   (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {                               \
+      .MOCS = anv_mocs(dev_, bo_, 0),                                        \
+      __VA_ARGS__                                                            \
+   }
+
 #define ANV_VID_MEM_INIT(buf_, field_, dev_, vid_, type_, ...)               \
    do {                                                                      \
       (buf_).field_##Address = ANV_VID_MEM_ADDR(vid_, type_);                \

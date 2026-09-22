@@ -411,35 +411,25 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_PIPE_BUF_ADDR_STATE), vdenc_buf) {
       /* TODO. add DSFWDREF and FWDREF */
-      vdenc_buf.DSFWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
-      vdenc_buf.DSFWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF1.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #if GFX_VERx10 == 125
-      vdenc_buf.DSBWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSBWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #endif
 
       vdenc_buf.OriginalUncompressedPicture.Address =
          anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer);
-      vdenc_buf.OriginalUncompressedPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.OriginalUncompressedPicture.Address.bo, 0),
-      };
+      vdenc_buf.OriginalUncompressedPicture.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.OriginalUncompressedPicture.Address.bo);
 
-      vdenc_buf.StreamInDataPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.StreamInDataPicture.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
       vdenc_buf.RowStoreScratchBuffer.Address =
          ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_MPR_ROW_SCRATCH);
 
-      vdenc_buf.RowStoreScratchBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.RowStoreScratchBuffer.Address.bo, 0),
-      };
+      vdenc_buf.RowStoreScratchBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.RowStoreScratchBuffer.Address.bo);
 
       const VkVideoReferenceSlotInfoKHR *l0_slots[2] = { NULL, NULL };
       const VkVideoReferenceSlotInfoKHR *l1_slot = NULL;
@@ -483,87 +473,63 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
                   anv_image_dmv_top_address(l1_iv, l1_slot->pPictureResource->baseArrayLayer);
       }
 
-      vdenc_buf.ColocatedMVReadBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo, 0),
-      };
+      vdenc_buf.ColocatedMVReadBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo);
 
-      vdenc_buf.FWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF0.Address.bo, 0),
-      };
+      vdenc_buf.FWDREF0.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.FWDREF0.Address.bo);
 
-      vdenc_buf.FWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF1.Address.bo, 0),
-      };
+      vdenc_buf.FWDREF1.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.FWDREF1.Address.bo);
 
-      vdenc_buf.FWDREF2.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.FWDREF2.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
-      vdenc_buf.BWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.BWDREF0.Address.bo, 0),
-      };
+      vdenc_buf.BWDREF0.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.BWDREF0.Address.bo);
 
-      vdenc_buf.VDEncStatisticsStreamOut.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncStatisticsStreamOut.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
 #if GFX_VER >= 11
-      vdenc_buf.DSFWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSFWDREF14X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSFWDREF14X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #if GFX_VERx10 < 125
-      vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #else
-      vdenc_buf.DSBWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSBWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #endif
-      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface8X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface4X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface8X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface4X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #endif
 #if GFX_VER >= 12
-      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #endif
 
 #if GFX_VERx10 == 125
-      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
       if (enc_info->pSetupReferenceSlot)
          vdenc_buf.ColocatedMVAVCWriteBuffer.Address =
             anv_image_dmv_top_address(base_ref_iv, base_ref_array_layer);
-      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.ColocatedMVAVCWriteBuffer.Address.bo, 0),
-      };
-      vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device,
+                     vdenc_buf.ColocatedMVAVCWriteBuffer.Address.bo);
+      vdenc_buf.Additional4XDSFWDREF.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #endif
    }
 
@@ -1777,36 +1743,27 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_PIPE_BUF_ADDR_STATE), vdenc_buf) {
       /* TODO. add DSFWDREF and FWDREF */
-      vdenc_buf.DSFWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
-      vdenc_buf.DSFWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF1.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
 #if GFX_VERx10 == 125
-      vdenc_buf.DSBWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSBWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #endif
 
       vdenc_buf.OriginalUncompressedPicture.Address =
          anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer);
-      vdenc_buf.OriginalUncompressedPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.OriginalUncompressedPicture.Address.bo, 0),
-      };
+      vdenc_buf.OriginalUncompressedPicture.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.OriginalUncompressedPicture.Address.bo);
 
-      vdenc_buf.StreamInDataPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.StreamInDataPicture.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
       vdenc_buf.RowStoreScratchBuffer.Address =
          ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_VDENC_INTRA_ROW_STORE);
 
-      vdenc_buf.RowStoreScratchBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.RowStoreScratchBuffer.Address.bo, 0),
-      };
+      vdenc_buf.RowStoreScratchBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.RowStoreScratchBuffer.Address.bo);
 
       const struct anv_image_view *ref_iv[3] = { 0, };
       const struct anv_image_view *bwd_ref_iv = NULL;
@@ -1843,92 +1800,68 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
                anv_image_dpb_address(ref_iv[0], ref_layer[0]);
       }
 
-      vdenc_buf.ColocatedMVReadBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo, 0),
-      };
+      vdenc_buf.ColocatedMVReadBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo);
 
-      vdenc_buf.FWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF0.Address.bo, 0),
-      };
+      vdenc_buf.FWDREF0.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.FWDREF0.Address.bo);
 
       if (ref_iv[1])
          vdenc_buf.FWDREF1.Address =
                anv_image_dpb_address(ref_iv[1], ref_layer[1]);
 
-      vdenc_buf.FWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF1.Address.bo, 0),
-      };
+      vdenc_buf.FWDREF1.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.FWDREF1.Address.bo);
 
       if (ref_iv[2])
          vdenc_buf.FWDREF2.Address =
                anv_image_dpb_address(ref_iv[2], ref_layer[2]);
 
-      vdenc_buf.FWDREF2.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.FWDREF2.Address.bo, 0),
-      };
+      vdenc_buf.FWDREF2.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.FWDREF2.Address.bo);
 
       if (bwd_ref_iv)
          vdenc_buf.BWDREF0.Address =
                anv_image_dpb_address(bwd_ref_iv, bwd_ref_layer);
 
-      vdenc_buf.BWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.BWDREF0.Address.bo, 0),
-      };
+      vdenc_buf.BWDREF0.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.BWDREF0.Address.bo);
 
-      vdenc_buf.VDEncStatisticsStreamOut.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncStatisticsStreamOut.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
-      vdenc_buf.DSFWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSFWDREF14X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSFWDREF14X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #if GFX_VERx10 < 125
-      vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #else
-      vdenc_buf.DSBWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSBWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 #endif
-      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface8X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface4X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface8X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface4X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
 #if GFX_VERx10 == 125
-      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.Additional4XDSFWDREF.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 #endif
    }
 
@@ -2828,102 +2761,66 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
    /* TODO: VDENC_DS_REF_SURFACE_STATE (8X/4X downscaled) - needs DS scratch surface allocation */
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_PIPE_BUF_ADDR_STATE), vdenc_buf) {
-      vdenc_buf.DSFWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSFWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSBWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.DSFWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSFWDREF1.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSBWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
 
       vdenc_buf.OriginalUncompressedPicture.Address =
          anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer);
-      vdenc_buf.OriginalUncompressedPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.OriginalUncompressedPicture.Address.bo, 0),
-      };
+      vdenc_buf.OriginalUncompressedPicture.PictureFields =
+         ANV_VID_PIC(cmd->device,
+                     vdenc_buf.OriginalUncompressedPicture.Address.bo);
 
-      vdenc_buf.StreamInDataPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.StreamInDataPicture.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
       vdenc_buf.RowStoreScratchBuffer.Address = (struct anv_address) { NULL, 0x25080 };
-      vdenc_buf.RowStoreScratchBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-         .CacheSelect = 1,
-      };
+      vdenc_buf.RowStoreScratchBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL, .CacheSelect = 1);
 
       if (primary_ref_iv) {
          vdenc_buf.ColocatedMVReadBuffer.Address =
                anv_image_dmv_top_address(primary_ref_iv, primary_ref_layer);
       }
-      vdenc_buf.ColocatedMVReadBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo, 0),
-      };
-      vdenc_buf.FWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.FWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.FWDREF2.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-
-      vdenc_buf.BWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncStatisticsStreamOut.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSFWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSFWDREF14X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.DSBWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface8X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.ScaledReferenceSurface4X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.ColocatedMVReadBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, vdenc_buf.ColocatedMVReadBuffer.Address.bo);
+      vdenc_buf.FWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.FWDREF1.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.FWDREF2.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.BWDREF0.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncStatisticsStreamOut.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSFWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSFWDREF14X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.DSBWDREF04X.PictureFields = ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface8X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.ScaledReferenceSurface4X.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamInBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VP9SegmentationMapStreamOutBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncTileRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
 
       vdenc_buf.IntraPredictionRowStoreBuffer.Address =
          ANV_VID_MEM_ADDR(vid,
                           ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE);
-      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo, 0),
-      };
+      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device,
+            vid->vid_mem[ANV_VID_MEM_AV1_INTRA_PREDICTION_LINE_ROWSTORE].mem->bo);
 
-      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
-      vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
-         .MOCS = anv_mocs(cmd->device, NULL, 0),
-      };
+      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
+      vdenc_buf.Additional4XDSFWDREF.PictureFields =
+         ANV_VID_PIC(cmd->device, NULL);
    }
 
    /* Multi-tile scaffold (phase 1): the per-tile block runs once for now.
