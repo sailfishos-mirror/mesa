@@ -3664,7 +3664,7 @@
         "description": "panvk/csf: check malloc return values in queue submit storage init",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c8fcbc29901744c44dfbe56452e95ffbf4b6af9f",
         "notes": null
