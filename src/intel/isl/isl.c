@@ -3422,12 +3422,12 @@ isl_calc_final_size(const struct isl_device *dev,
          uint64_t start_tile_B, end_tile_B;
          if (surf->dim == ISL_SURF_DIM_3D) {
             int last_z = u_minify(surf->logical_level0_px.d, lod) - 1;
-            isl_surf_get_image_range_B_tile(surf, lod, 0, last_z,
+            isl_surf_get_image_range_B_tile(surf, tile_info, lod, 0, last_z,
                                             &start_tile_B, &end_tile_B);
          } else {
             int last_layer = surf->logical_level0_px.a - 1;
-            isl_surf_get_image_range_B_tile(surf, lod, last_layer, 0,
-                                            &start_tile_B, &end_tile_B);
+            isl_surf_get_image_range_B_tile(surf, tile_info, lod, last_layer,
+                                            0, &start_tile_B, &end_tile_B);
          }
 
          end_tile_B_max = MAX2(end_tile_B_max, end_tile_B);
@@ -5139,17 +5139,20 @@ isl_surf_image_has_unique_tiles(const struct isl_surf *surf,
                                 uint64_t *start_tile_B,
                                 uint64_t *end_tile_B)
 {
+   struct isl_tile_info tile_info;
+   isl_surf_get_tile_info(surf, &tile_info);
+
    /* Get the memory range of the specified subresource range. */
    bool dim_is_3d = surf->dim == ISL_SURF_DIM_3D;
    uint32_t end_layer = start_layer + num_layers - 1;
-   isl_surf_get_image_range_B_tile(surf, level,
+   isl_surf_get_image_range_B_tile(surf, &tile_info, level,
                                    dim_is_3d ? 0 : start_layer,
                                    dim_is_3d ? start_layer : 0,
                                    start_tile_B, end_tile_B);
    if (num_layers > 1) {
       /* end_tile_B may be incorrect, recompute it with end_layer. */
       UNUSED uint64_t unused_start_tile_B;
-      isl_surf_get_image_range_B_tile(surf, level,
+      isl_surf_get_image_range_B_tile(surf, &tile_info, level,
                                       dim_is_3d ? 0 : end_layer,
                                       dim_is_3d ? end_layer : 0,
                                       &unused_start_tile_B, end_tile_B);
@@ -5166,7 +5169,7 @@ isl_surf_image_has_unique_tiles(const struct isl_surf *surf,
             continue;
 
          uint64_t start_tile_B_i, end_tile_B_i;
-         isl_surf_get_image_range_B_tile(surf, lod,
+         isl_surf_get_image_range_B_tile(surf, &tile_info, lod,
                                          dim_is_3d ? 0 : layer,
                                          dim_is_3d ? layer : 0,
                                          &start_tile_B_i, &end_tile_B_i);
@@ -5196,12 +5199,15 @@ isl_surf_image_has_unique_tiles(const struct isl_surf *surf,
 
 void
 isl_surf_get_image_range_B_tile(const struct isl_surf *surf,
+                                const struct isl_tile_info *tile_info,
                                 uint32_t level,
                                 uint32_t logical_array_layer,
                                 uint32_t logical_z_offset_px,
                                 uint64_t *start_tile_B,
                                 uint64_t *end_tile_B)
 {
+   assert(surf->tiling == tile_info->tiling);
+
    uint32_t start_x_offset_el, start_y_offset_el;
    uint32_t start_z_offset_el, start_array_slice;
    isl_surf_get_image_offset_el(surf, level, logical_array_layer,
@@ -5226,12 +5232,8 @@ isl_surf_get_image_range_B_tile(const struct isl_surf *surf,
       .a = 1,
    };
 
-   struct isl_tile_info tile_info;
-   isl_tiling_get_info(surf->tiling, surf->dim, surf->msaa_layout,
-                       fmtl->bpb, surf->samples, &tile_info);
-
    UNUSED uint32_t x_offset_el, y_offset_el, z_offset_el, array_slice;
-   isl_tile_info_get_intratile_range_el(&tile_info, surf->msaa_layout,
+   isl_tile_info_get_intratile_range_el(tile_info, surf->msaa_layout,
                                         fmtl->bpb,
                                         surf->samples,
                                         surf->row_pitch_B,
