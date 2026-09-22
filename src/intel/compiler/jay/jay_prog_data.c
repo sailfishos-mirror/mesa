@@ -366,11 +366,12 @@ populate_fs_prog_data(nir_shader *shader,
    prog_data->dual_src_blend =
       shader->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DUAL_SRC_BLEND);
 
-   /* Currently only the Vulkan API allows alpha_to_coverage to be dynamic. If
-    * persample_dispatch & multisample_fbo are not dynamic, Anv should be able
-    * to definitively tell whether alpha_to_coverage is on or off.
-    */
-   prog_data->alpha_to_coverage = key->alpha_to_coverage;
+   /* Gate alpha to coverage with the draw buffer 0 being written. */
+   prog_data->alpha_to_coverage = (shader->info.outputs_written &
+                                   (BITFIELD64_BIT(FRAG_RESULT_COLOR) |
+                                    BITFIELD64_BIT(FRAG_RESULT_DATA0))) != 0 ?
+                                     key->alpha_to_coverage :
+                                     INTEL_NEVER;
 
    assert(devinfo->verx10 >= 125 || key->mesh_input == INTEL_NEVER);
 
