@@ -1567,14 +1567,14 @@ struct isl_tile_info {
    struct isl_extent2d phys_extent_B;
 
    /**
-    * Swizzle of the virtual address
-    */
-   const uint8_t *swiz;
-
-   /**
     * Number of bit swizzles in swiz[]
     */
    uint8_t swiz_count;
+
+   /**
+    * Swizzle of the virtual address
+    */
+   const uint8_t *swiz;
 };
 
 typedef union {
