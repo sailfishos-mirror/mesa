@@ -2866,7 +2866,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       query_va += pool->stride;
    }
 
-   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP) | AC_BARRIER_INV_L2;
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP);
    assert(cs->b->cdw <= cdw_max);
 }
 
