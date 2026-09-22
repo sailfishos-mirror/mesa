@@ -2734,7 +2734,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       UNREACHABLE("ending unhandled query type");
    }
 
-   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, query_type) | AC_BARRIER_INV_L2;
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, query_type);
 }
 
 VKAPI_ATTR void VKAPI_CALL
