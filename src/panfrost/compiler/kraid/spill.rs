@@ -699,16 +699,20 @@ fn spill(s: &mut Shader, live: Liveness, limit: u32) {
             }
             debug_assert!(live.bytes().reg <= limit);
 
+            // W now contains the minimal set of live values that are already in
+            // registers (from every predecessors).  Add back everything we can
+            // afford from the "missing" set (live_max - live_min).  Items used
+            // first take precedence
             let mut heap = BinaryHeap::new();
 
             let mut missing = live_max;
             missing -= live_min.s(..);
             for idx in missing.iter() {
                 let next_use = next_use_map[idx].0;
-                heap.push(NextUse { idx, next_use });
+                heap.push(Reverse(NextUse { idx, next_use }));
             }
 
-            while let Some(nu) = heap.pop() {
+            while let Some(Reverse(nu)) = heap.pop() {
                 let ssa = s.ssa_alloc.lookup_by_idx(nu.idx);
                 if live.bytes().reg + u32::from(ssa.bytes()) > limit {
                     break;
