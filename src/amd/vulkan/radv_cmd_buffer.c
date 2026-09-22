@@ -14613,6 +14613,11 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
    if (rt) {
       radv_after_trace_rays(cmd_buffer);
    } else if (compute) {
+      /* Bound shaders/pipelines are undefined after executing an IES, reset the bound compute
+       * pipeline to make sure it's re-emitted on the next bind.
+       */
+      if (ies)
+         cmd_buffer->state.compute_pipeline = NULL;
       radv_after_dispatch(cmd_buffer);
    } else {
       if (!(layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_INDEXED))) {
