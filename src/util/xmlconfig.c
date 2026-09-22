@@ -944,7 +944,9 @@ static void
 parseEngineAttr(struct OptConfData *data, const char **attr)
 {
    uint32_t i;
-   const char *engine_name_match = NULL, *engine_versions = NULL;
+   const char *engine_name_match = NULL;
+   const char *engine_versions = NULL;
+   const char *application_versions = NULL;
    driOptionInfo version_range = {
       .type = DRI_INT,
    };
@@ -952,6 +954,8 @@ parseEngineAttr(struct OptConfData *data, const char **attr)
       if (!strcmp(attr[i], "name")) /* not needed here */;
       else if (!strcmp(attr[i], "engine_name_match")) engine_name_match = attr[i+1];
       else if (!strcmp(attr[i], "engine_versions")) engine_versions = attr[i+1];
+      else if (!strcmp(attr[i], "application_versions"))
+         application_versions = attr[i+1];
       else XML_WARNING("unknown application attribute: %s.", attr[i]);
    }
    if (engine_name_match) {
@@ -972,6 +976,16 @@ parseEngineAttr(struct OptConfData *data, const char **attr)
       } else {
          XML_WARNING("Failed to parse engine_versions range=\"%s\".",
                      engine_versions);
+      }
+   }
+   if (application_versions) {
+      driOptionValue v = { ._int = data->applicationVersion };
+      if (parseRange(&version_range, application_versions)) {
+         if (!checkValue(&v, &version_range))
+            data->ignoringApp = data->inApp;
+      } else {
+         XML_WARNING("Failed to parse application_versions range=\"%s\".",
+                     application_versions);
       }
    }
 }
@@ -1386,6 +1400,7 @@ parseStaticConfig(struct OptConfData *data)
          const char *engattr[] = {
             "engine_name_match", e->engine_name_match,
             "engine_versions", e->engine_versions,
+            "application_versions", e->application_versions,
             NULL
          };
 

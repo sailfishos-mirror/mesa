@@ -320,6 +320,23 @@ TEST_F(xmlconfig_test, drirc_app_version_range)
    driDestroyOptionCache(&cache);
 }
 
+TEST_F(xmlconfig_test, drirc_engine_application_versioned)
+{
+   driOptionCache cache = drirc_init("driver", "drm",
+                                     NULL,
+                                     "unknownapp", 6,
+                                     "Application Versioned Engine Name", 4);
+   EXPECT_EQ(driQueryOptioni(&cache, "mesa_drirc_option"), 9);
+   driDestroyOptionCache(&cache);
+
+   cache = drirc_init("driver", "drm",
+                      NULL,
+                      "unknownapp", 5,
+                      "Application Versioned Engine Name", 4);
+   EXPECT_EQ(driQueryOptioni(&cache, "mesa_drirc_option"), 0);
+   driDestroyOptionCache(&cache);
+}
+
 TEST_F(xmlconfig_test, drirc_exec_regexp)
 {
    driOptionCache cache = drirc_init("driver", "drm",
