@@ -24,7 +24,6 @@ use compiler::smallvec::*;
 use kraid_proc_macros::EnumAsU8;
 
 use std::fmt;
-use std::fmt::Write;
 use std::num::NonZeroU32;
 use std::ops::{Deref, DerefMut, Range};
 
@@ -2210,39 +2209,76 @@ impl Shader<'_> {
             && self.blocks[0].instrs.len() == 1
             && matches!(self.blocks[0].instrs[0].op, Op::Nop(_))
     }
-}
 
-impl fmt::Display for Shader<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut buf = String::new();
-        for b in &self.blocks {
-            write!(buf, "{}\n\n", b.deref())?;
+    pub fn fmt_annotate(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        mut annotator: impl FnMut(usize, usize, &Instr) -> String,
+    ) -> fmt::Result {
+        enum Line {
+            Empty,
+            Label(String),
+            Instr {
+                dst: String,
+                body: String,
+                annot: String,
+            },
+        }
+        let mut max_dst_len = 0usize;
+        let mut max_body_len = 0usize;
+        let space_before_instr = 4;
+
+        let mut rows = vec![];
+        for (bi, block) in self.blocks.iter().enumerate() {
+            rows.push(Line::Label(block.label.to_string()));
+
+            for (ip, instr) in block.instrs.iter().enumerate() {
+                let mut dst = format!("{}", Fmt(|f| instr.fmt_dsts(f)));
+                if !dst.is_empty() {
+                    dst = format!("{dst} = ");
+                }
+
+                let body = format!(
+                    "{}{}{}",
+                    Fmt(|f| instr.fmt_name(f)),
+                    instr.flow,
+                    Fmt(|f| instr.fmt_body(f)),
+                );
+                let annot = annotator(bi, ip, instr);
+
+                max_dst_len = max_dst_len.max(dst.chars().count());
+                max_body_len = max_body_len.max(body.chars().count());
+
+                rows.push(Line::Instr { dst, body, annot });
+            }
+            rows.push(Line::Empty);
         }
 
-        // Pad to correct width
-        let eq_pos = |s: &str| s.chars().position(|c| c == '=');
-        let max_eq = buf.lines().filter_map(eq_pos).max().unwrap_or(0);
+        let dst_align = space_before_instr + max_dst_len;
+        let body_align = max_body_len;
 
-        for line in buf.lines() {
-            let line = line.trim_end();
-            if line.is_empty() {
-                writeln!(f)?;
-            } else if line.starts_with("__") {
-                writeln!(f, "{line}")?;
-            } else if let Some(pos) = eq_pos(line) {
-                writeln!(f, "{:pad$}{line}", "", pad = max_eq - pos)?;
-            } else {
-                writeln!(
-                    f,
-                    "{:pad$}{}",
-                    "",
-                    line.trim_start(),
-                    pad = max_eq + 2
-                )?;
+        for row in rows {
+            match row {
+                Line::Empty => writeln!(f)?,
+                Line::Label(l) => writeln!(f, "{l}:")?,
+                Line::Instr { dst, body, annot } => {
+                    write!(f, "{dst:>dst_align$}")?;
+                    if annot.is_empty() {
+                        writeln!(f, "{body}")?;
+                    } else {
+                        writeln!(f, "{body:<body_align$} # {annot}")?;
+                    }
+                }
             }
         }
 
         Ok(())
+    }
+}
+
+impl fmt::Display for Shader<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_annotate(f, |_, _, _| String::new())
     }
 }
 
