@@ -4278,7 +4278,7 @@ distribute_src_mods = [
 
    (('fneg', ('ffma(is_used_once,nsz)', a, b, c)), ('ffma', ('fneg', a), b, ('fneg', c))),
    (('fneg', ('fmad(is_used_once,nsz)', a, b, c)), ('fmad', ('fneg', a), b, ('fneg', c))),
-   (('fneg', ('flrp(is_used_once)', a, b, c)), ('flrp', ('fneg', a), ('fneg', b), c), 'true', TestStatus.XFAIL), # XFAIL is -flrp(0, -1, 0) is 0.0 instead of -0.0
+   (('fneg', ('flrp(is_used_once,nsz)', a, b, c)), ('flrp', ('fneg', a), ('fneg', b), c), 'true'),
    (('fneg', ('fadd(is_used_once,nsz)', a, b)), ('fadd', ('fneg', a), ('fneg', b))),
 
    # Note that fmin <-> fmax.  I don't think there is a way to distribute
@@ -4286,13 +4286,13 @@ distribute_src_mods = [
    (('fneg', ('fmin(is_used_once)', a, b)), ('fmax', ('fneg', a), ('fneg', b))),
    (('fneg', ('fmax(is_used_once)', a, b)), ('fmin', ('fneg', a), ('fneg', b))),
 
-   (('fneg', ('fdot2_replicated(is_used_once)', a, b)), ('fdot2_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL), # -fdot2(-1, 0) replacement produces 0 instead of -0.
-   (('fneg', ('fdot3_replicated(is_used_once)', a, b)), ('fdot3_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL),
-   (('fneg', ('fdot4_replicated(is_used_once)', a, b)), ('fdot4_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL),
+   (('fneg', ('fdot2_replicated(is_used_once,nsz)', a, b)), ('fdot2_replicated', ('fneg', a), b), 'true'),
+   (('fneg', ('fdot3_replicated(is_used_once,nsz)', a, b)), ('fdot3_replicated', ('fneg', a), b), 'true'),
+   (('fneg', ('fdot4_replicated(is_used_once,nsz)', a, b)), ('fdot4_replicated', ('fneg', a), b), 'true'),
 
    # fdph works mostly like fdot, but to get the correct result, the negation
    # must be applied to the second source.
-   (('fneg', ('fdph_replicated(is_used_once)', a, b)), ('fdph_replicated', a, ('fneg', b)), 'true', TestStatus.XFAIL),
+   (('fneg', ('fdph_replicated(is_used_once,nsz)', a, b)), ('fdph_replicated', a, ('fneg', b)), 'true'),
 
    (('fneg', ('frcp(is_used_once)', a)), ('frcp', ('fneg', a))),
    (('fabs', ('frcp(is_used_once)', a)), ('frcp', ('fabs', a))),
