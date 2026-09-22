@@ -53,18 +53,21 @@
 #define DRI_CONF_ENUM(_value,text) { .value = _value, .desc = text },
 
 #define DRI_CONF_RANGE_I(min, max)              \
+      .has_range = true,                        \
       .range = {                                \
          .start = { ._int = min },              \
          .end = { ._int = max },                \
       }                                         \
 
 #define DRI_CONF_RANGE_U64(min, max)            \
+      .has_range = true,                        \
       .range = {                                \
          .start = { ._uint64 = min },           \
          .end = { ._uint64 = max },             \
       }
 
 #define DRI_CONF_RANGE_F(min, max)              \
+      .has_range = true,                        \
       .range = {                                \
          .start = { ._float = min },            \
          .end = { ._float = max },              \
