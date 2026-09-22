@@ -188,7 +188,13 @@ class A6xxGPUInfo(GPUInfo):
         for name, val in magic_regs.items():
             setattr(self.magic, name, val)
 
+        raw_magic_regs_set = set()
         if raw_magic_regs:
+            for r in raw_magic_regs:
+                offset = int(r[0])
+                if offset in raw_magic_regs_set:
+                    raise ValueError("duplicate raw magic reg")
+                raw_magic_regs_set.add(offset)
             self.magic_raw = [[int(r[0]), r[1]] for r in raw_magic_regs]
 
         templates = template if isinstance(template, list) else [template]
