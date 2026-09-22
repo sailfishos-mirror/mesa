@@ -57,6 +57,12 @@ radeon_check_space(struct radeon_winsys *ws, struct ac_cmdbuf *cs, unsigned need
       ac_cmdbuf_opt_set_ctx_reg(__tracked_regs, reg, reg_enum, value);                                                 \
    } while (0)
 
+#define radeon_opt_set_context_reg_idx(reg, idx, reg_enum, value)                                                      \
+   do {                                                                                                                \
+      struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
+      ac_cmdbuf_opt_set_ctx_reg_idx(__tracked_regs, reg, idx, reg_enum, value);                                        \
+   } while (0)
+
 #define radeon_opt_set_context_reg2(reg, reg_enum, v1, v2)                                                             \
    do {                                                                                                                \
       struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
@@ -89,6 +95,12 @@ radeon_check_space(struct radeon_winsys *ws, struct ac_cmdbuf *cs, unsigned need
 #define radeon_set_uconfig_reg(reg, value) ac_cmdbuf_set_ucfg_reg(reg, value)
 
 #define radeon_set_uconfig_reg_idx(info, reg, idx, value) ac_cmdbuf_set_ucfg_reg_idx(info, reg, idx, value)
+
+#define radeon_opt_set_uconfig_reg_idx(info, reg, idx, reg_enum, value)                                                \
+   do {                                                                                                                \
+      struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
+      ac_cmdbuf_opt_set_ucfg_reg_idx(__tracked_regs, info, reg, idx, reg_enum, value);                                 \
+   } while (0)
 
 #define radeon_set_uconfig_perfctr_reg_seq(gfx_level, ip_type, reg, num)                                               \
    ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type, reg, num)
