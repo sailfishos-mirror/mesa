@@ -2734,8 +2734,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       UNREACHABLE("ending unhandled query type");
    }
 
-   cmd_buffer->active_query_flush_bits |=
-      get_query_flush_bits(cmd_buffer, query_type) | AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, query_type) | AC_BARRIER_INV_L2;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -2867,8 +2866,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       query_va += pool->stride;
    }
 
-   cmd_buffer->active_query_flush_bits |=
-      get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP) | AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP) | AC_BARRIER_INV_L2;
    assert(cs->b->cdw <= cdw_max);
 }
 
