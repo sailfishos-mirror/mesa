@@ -380,7 +380,8 @@ jay_partition_grf(jay_shader *shader)
        * and if that fails, build one with it.
        */
       spilling_grfs = spilling ? shader->dispatch_width / ugpr_per_grf : 0;
-      uniform_grfs = DIV_ROUND_UP(demand[UGPR], ugpr_per_grf) + spilling_grfs;
+      uniform_grfs = DIV_ROUND_UP(MAX2(demand[UGPR], min_ugprs), ugpr_per_grf) +
+                     spilling_grfs;
 
       hw_grfs =
          intel_vrt_register_file_size(shader->devinfo,
@@ -397,10 +398,7 @@ jay_partition_grf(jay_shader *shader)
       }
 
       /* Finally, we need to snap to GPR bounds */
-      uniform_grfs =
-         CLAMP(uniform_grfs,
-               DIV_ROUND_UP(min_ugprs, ugpr_per_grf) + spilling_grfs,
-               hw_grfs - min_grf_for_gprs);
+      uniform_grfs = MIN2(uniform_grfs, hw_grfs - min_grf_for_gprs);
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
 
       assert(uniform_grfs <= hw_grfs);
