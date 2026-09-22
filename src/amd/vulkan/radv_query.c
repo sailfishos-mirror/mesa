@@ -36,6 +36,48 @@ static void radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType qu
                               uint32_t src_stride, uint32_t dst_stride, uint32_t count, uint32_t flags,
                               uint32_t pipeline_stats_mask, uint32_t avail_offset, bool uses_emulated_queries);
 
+static enum ac_barrier_flags
+get_query_flush_bits(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   /* Only BOTTOM_OF_PIPE barriers wait for EOP event writes.
+    * (with the possible exception of SAMPLE_STREAMOUTSTATS).
+    */
+   switch (query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+   case VK_QUERY_TYPE_TIMESTAMP:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_BOTTOM_LEVEL_POINTERS_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
+      return AC_BARRIER_SYNC_BOTTOM_OF_PIPE;
+
+   /* SAMPLE_STREAMOUTSTATS and shader emulation only need to wait for pre-rasterization shaders.
+    * (if SAMPLE_STREAMOUTSTATS starts failing, use RADV_CMD_FLAG_SYNC_BOTTOM_OF_PIPE)
+    */
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
+      return AC_BARRIER_SYNC_VS;
+
+   case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
+      /* On GFX10.3, we use shader atomics to emulate the query. */
+      return pdev->info.gfx_level >= GFX11 ? AC_BARRIER_SYNC_BOTTOM_OF_PIPE : AC_BARRIER_SYNC_VS;
+
+   /* Performance queries wait for idle in EndQuery. */
+   case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR:
+   /* Video queries don't use barrier bits. */
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
+   case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
+      return 0;
+
+   default:
+      UNREACHABLE("ending unhandled query type");
+   }
+}
+
 static void
 gfx10_copy_shader_query(struct radv_cmd_stream *cs, uint32_t src_sel, uint64_t src_va, uint64_t dst_va)
 {
@@ -1786,7 +1828,6 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
                   uint32_t flags, uint32_t pipeline_stats_mask, uint32_t avail_offset, bool uses_emulated_queries)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    VkPipelineLayout layout;
    VkPipeline pipeline;
    VkResult result;
@@ -1820,9 +1861,7 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
    cmd_buffer->state.flush_bits |= AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
 
    if (flags & VK_QUERY_RESULT_WAIT_BIT)
-      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_CB_META |
-                                      AC_BARRIER_SYNC_AND_INV_DB |
-                                      (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
+      cmd_buffer->state.flush_bits |= get_query_flush_bits(cmd_buffer, query_type);
 
    radv_unaligned_dispatch(cmd_buffer, count, 1, 1);
 
@@ -2666,9 +2705,6 @@ static void
 emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool, uint64_t va, uint64_t avail_va,
                VkQueryType query_type, uint32_t index)
 {
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
    switch (query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
       radv_end_occlusion_query(cmd_buffer, va);
@@ -2698,12 +2734,8 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       UNREACHABLE("ending unhandled query type");
    }
 
-   cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS |
-                                          AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2 |
-                                          AC_BARRIER_INV_VMEM;
-   if (pdev->info.gfx_level >= GFX9) {
-      cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB;
-   }
+   cmd_buffer->active_query_flush_bits |=
+      get_query_flush_bits(cmd_buffer, query_type) | AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -2835,13 +2867,8 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       query_va += pool->stride;
    }
 
-   cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS |
-                                          AC_BARRIER_SYNC_CS | AC_BARRIER_INV_L2 |
-                                          AC_BARRIER_INV_VMEM;
-   if (pdev->info.gfx_level >= GFX9) {
-      cmd_buffer->active_query_flush_bits |= AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB;
-   }
-
+   cmd_buffer->active_query_flush_bits |=
+      get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP) | AC_BARRIER_INV_L2 | AC_BARRIER_INV_VMEM;
    assert(cs->b->cdw <= cdw_max);
 }
 
