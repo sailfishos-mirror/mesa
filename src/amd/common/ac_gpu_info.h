@@ -409,7 +409,6 @@ struct radeon_info {
    bool has_sparse_unaligned_mip_size;
    /* Whether SR-IOV is enabled or amdgpu.mcbp=1 was set on the kernel command line. */
    bool has_kernelq_reg_shadowing;
-   bool has_default_zerovram_support;
    bool has_tmz_support;
    bool has_trap_handler_support;
    bool kernel_has_modifiers;
