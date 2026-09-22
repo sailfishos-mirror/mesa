@@ -1447,7 +1447,7 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    bool coherent_access = access & ACCESS_COHERENT;
 
    bool skip_helpers = data_src || (access & ACCESS_SKIP_HELPERS);
-   skip_helpers &= !(access & ACCESS_INCLUDE_HELPERS);
+   skip_helpers &= !((access & ACCESS_INCLUDE_HELPERS) || scratch);
 
    /* Bspec: Atomic instruction -> Cache section:
     *
@@ -1731,7 +1731,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    bool coherent_access = access & ACCESS_COHERENT;
 
    bool skip_helpers = data_src || (access & ACCESS_SKIP_HELPERS);
-   skip_helpers &= !(access & ACCESS_INCLUDE_HELPERS);
+   skip_helpers &= !((access & ACCESS_INCLUDE_HELPERS) || scratch);
 
    /* Skip L1 for coherent/volatile and URB access. */
    bool bypass_l1 = volatile_access || coherent_access || urb;
