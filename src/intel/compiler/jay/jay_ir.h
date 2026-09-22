@@ -1200,8 +1200,8 @@ typedef struct jay_block {
    struct u_sparse_bitset live_in;
    struct u_sparse_bitset live_out;
 
-   BITSET_DECLARE(postra_gpr_live_in, JAY_MAX_PHYS_GRF);
-   BITSET_DECLARE(postra_gpr_live_out, JAY_MAX_PHYS_GRF);
+   BITSET_DECLARE(postra_gpr_live_in, JAY_MAX_ACCUMS + JAY_MAX_PHYS_GRF);
+   BITSET_DECLARE(postra_gpr_live_out, JAY_MAX_ACCUMS + JAY_MAX_PHYS_GRF);
 
    /* Last-use bit for each non-null index in each source in each instruction in
     * the block, source order, left-to-right.
