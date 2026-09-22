@@ -104,6 +104,8 @@ build_partition(jay_shader *shader,
    signed j = -1;
    for (unsigned i = 0; i < n; ++i) {
       struct jay_partition_builder B = b[i];
+      assert(B.len_grf >= 0 && "precondition on partition");
+
       if (j >= 0 &&
           B.file == b[j].file &&
           B.stride == b[j].stride &&
@@ -400,6 +402,8 @@ jay_partition_grf(jay_shader *shader)
                DIV_ROUND_UP(min_ugprs, ugpr_per_grf) + spilling_grfs,
                hw_grfs - min_grf_for_gprs);
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
+
+      assert(uniform_grfs <= hw_grfs);
       nonuniform_grfs = hw_grfs - uniform_grfs;
 
       /* Set the targets for the virtual register file accordingly */
