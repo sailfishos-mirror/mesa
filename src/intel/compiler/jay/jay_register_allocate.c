@@ -787,7 +787,8 @@ pick_regs(jay_ra_state *ra,
    struct affinity affinity =
       ra->phi_web[phi_web_find(ra->phi_web, jay_channel(var, 0))].affinity;
 
-   assert(alignment >= size && "alignment must be a multiple of size");
+   /* The shuffle code relies on size being a multiple of alignment */
+   alignment = MAX2(alignment, size);
 
    /* We select registers roundrobin. This has several benefits:
     *
