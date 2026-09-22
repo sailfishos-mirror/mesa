@@ -1176,11 +1176,6 @@ void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info
    /* CDNA starting with GFX940 shouldn't use CP DMA. */
    info->has_cp_dma = info->has_graphics || info->family < CHIP_GFX940;
 
-   /* The kernel code translating tiling flags into a modifier was wrong
-    * until .58.
-    */
-   info->gfx12_supports_display_dcc = info->gfx_level >= GFX12 && info->drm_minor >= 58;
-
    /* AMDGPU always enables DCC compressed writes when a BO is moved back to
     * VRAM until .60.
     */
