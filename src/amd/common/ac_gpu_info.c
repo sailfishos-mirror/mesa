@@ -1107,7 +1107,6 @@ void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info
    info->has_sparse_image_standard_3d = info->gfx_level >= GFX9;
    info->has_sparse_unaligned_mip_size = info->gfx_level >= GFX7;
 
-   info->has_gpuvm_fault_query = info->drm_minor >= 55;
    info->has_tmz_support = device_info->ids_flags & AMDGPU_IDS_FLAGS_TMZ;
 
    /* On GFX8, the TBA/TMA registers can be configured from the userspace.
@@ -2115,7 +2114,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_vm_always_valid = %u\n", info->has_vm_always_valid);
    fprintf(f, "    has_eqaa_surface_allocator = %u\n", info->has_eqaa_surface_allocator);
    fprintf(f, "    has_sparse = %u\n", info->has_sparse);
-   fprintf(f, "    has_gpuvm_fault_query = %u\n", info->has_gpuvm_fault_query);
    fprintf(f, "    has_kernelq_reg_shadowing = %u\n", info->has_kernelq_reg_shadowing);
    fprintf(f, "    has_default_zerovram_support = %u\n", info->has_default_zerovram_support);
    fprintf(f, "    has_tmz_support = %u\n", info->has_tmz_support);

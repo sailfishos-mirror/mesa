@@ -928,11 +928,6 @@ radv_gpu_hang_occurred(struct radv_queue *queue, enum amd_ip_type ring)
 bool
 radv_vm_fault_occurred(struct radv_device *device, struct radv_winsys_gpuvm_fault_info *fault_info)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (!pdev->info.has_gpuvm_fault_query)
-      return false;
-
    return device->ws->query_gpuvm_fault(device->ws, fault_info);
 }
 

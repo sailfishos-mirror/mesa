@@ -408,7 +408,6 @@ struct radeon_info {
    bool has_sparse_image_standard_3d;
    /* Mip levels do not need to be aligned to the sparse block size */
    bool has_sparse_unaligned_mip_size;
-   bool has_gpuvm_fault_query;
    /* Whether SR-IOV is enabled or amdgpu.mcbp=1 was set on the kernel command line. */
    bool has_kernelq_reg_shadowing;
    bool has_default_zerovram_support;
