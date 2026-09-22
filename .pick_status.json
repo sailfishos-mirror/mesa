@@ -4634,7 +4634,7 @@
         "description": "pan/kmod: Make sure all executables live in the same 4G VA range",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "02e38664f32c46b34d05a2dff801761120d4309f",
         "notes": null
