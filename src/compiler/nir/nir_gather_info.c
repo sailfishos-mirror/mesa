@@ -1005,6 +1005,7 @@ gather_tex_info(nir_tex_instr *instr, nir_shader *shader)
    case nir_texop_txs:
    case nir_texop_query_levels:
    case nir_texop_texture_samples:
+   case nir_texop_resinfo_intel:
       shader->info.uses_resource_info_query = true;
       break;
    default:
