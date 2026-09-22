@@ -1493,9 +1493,9 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    assert(info->drm_major == 3);
    info->is_amdgpu = true;
 
-   if (info->drm_minor < 54) {
+   if (info->drm_minor < 59) {
       fprintf(stderr, "amdgpu: DRM version is %u.%u.%u, but this driver is "
-                      "only compatible with 3.54.0 (kernel 6.6+) or later.\n",
+                      "only compatible with 3.59.0 (kernel 6.11.2+) or later.\n",
               info->drm_major, info->drm_minor, info->drm_patchlevel);
       return AC_QUERY_GPU_INFO_FAIL;
    }
