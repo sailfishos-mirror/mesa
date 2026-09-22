@@ -2646,7 +2646,7 @@ build_descriptor_sets_bti_array(nir_builder *b,
    nir_variable *set_to_bti =
       nir_local_variable_create(b->impl, type, "set_to_bti");
 
-   for (uint32_t i = 0; i < MAX_SETS; i++) {
+   for (uint32_t i = 0; i < state->set_count; i++) {
       nir_store_array_var(b, set_to_bti, nir_imm_int(b, i),
                           build_descriptor_set_bti(b, i, state),
                           state->pdevice->uses_efficient_64bit ? 0x3 : 0x1);
@@ -2663,7 +2663,7 @@ build_descriptor_sets_bti_offset_array(nir_builder *b,
       b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
       "set_to_bti_offset");
 
-   for (uint32_t i = 0; i < MAX_SETS; i++) {
+   for (uint32_t i = 0; i < state->set_count; i++) {
       nir_store_array_var(b, set_to_bti_offset, nir_imm_int(b, i),
                           build_descriptor_set_bti_offset(b, i, state), 0x1);
    }
@@ -2679,7 +2679,7 @@ build_descriptor_sets_addr_base_array(nir_builder *b,
       b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
       "set_to_addr_base");
 
-   for (uint32_t i = 0; i < MAX_SETS; i++) {
+   for (uint32_t i = 0; i < state->set_count; i++) {
       nir_store_array_var(b, set_to_addr_base, nir_imm_int(b, i),
                           build_descriptor_set_addr_base(b, i, state), 0x1);
    }
@@ -2695,7 +2695,7 @@ build_descriptor_sets_addr_offset_array(nir_builder *b,
       b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
       "set_to_addr_offset");
 
-   for (uint32_t i = 0; i < MAX_SETS; i++) {
+   for (uint32_t i = 0; i < state->set_count; i++) {
       nir_store_array_var(b, set_to_addr_offset, nir_imm_int(b, i),
                           build_descriptor_set_addr_offset(b, i, state), 0x1);
    }
@@ -2711,7 +2711,7 @@ build_descriptor_sets_bindless_offset_array(nir_builder *b,
       b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
       "set_to_bindless_offset");
 
-   for (uint32_t i = 0; i < MAX_SETS; i++) {
+   for (uint32_t i = 0; i < state->set_count; i++) {
       nir_store_array_var(b, set_to_bindless_offset, nir_imm_int(b, i),
                           build_descriptor_set_bindless_offset(b, i, state), 0x1);
    }
