@@ -79,12 +79,16 @@ ir3_evaluate_src_mods(int32_t val, unsigned flags)
 {
    if (flags & IR3_REG_SABS)
       val = abs(val);
+   /* Note: Being careful to not flush float denorms and to preserve NaNs --
+    * source modifiers don't flush for mov and sel, even on a7xx where denorm
+    * float ALU input and outputs flush.
+    */
    if (flags & IR3_REG_FABS)
-      val = fui(fabs(uif((uint32_t)val)));
+      val &= 0x7fffffff;
    if (flags & IR3_REG_SNEG)
       val = -val;
    if (flags & IR3_REG_FNEG)
-      val = fui(-uif((uint32_t)val));
+      val ^= 0x80000000;
    if (flags & IR3_REG_BNOT)
       val = ~val;
    return val;
