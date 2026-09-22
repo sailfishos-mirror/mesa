@@ -1855,6 +1855,9 @@ static void
 radv_reset_query_pool(struct radv_device *device, struct radv_query_pool *pool, uint32_t first_query,
                       uint32_t query_count)
 {
+   if (!pool->bo)
+      return;
+
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t value = query_clear_value(pool->vk.query_type);
    uint32_t *data = (uint32_t *)(pool->ptr + first_query * pool->stride);
@@ -1876,10 +1879,11 @@ radv_destroy_query_pool(struct radv_device *device, const VkAllocationCallbacks 
    if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR)
       radv_pc_deinit_query_pool((struct radv_pc_query_pool *)pool);
 
-   if (pool->bo)
+   if (pool->bo) {
       radv_bo_destroy(device, &pool->vk.base, pool->bo);
+      radv_rmv_log_resource_destroy(device, (uint64_t)radv_query_pool_to_handle(pool));
+   }
 
-   radv_rmv_log_resource_destroy(device, (uint64_t)radv_query_pool_to_handle(pool));
    vk_query_pool_finish(&pool->vk);
    vk_free2(&device->vk.alloc, pAllocator, pool);
 }
@@ -1973,12 +1977,10 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
       }
       break;
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
-      {
-         const VkVideoProfileInfoKHR *profile = vk_find_struct_const(pCreateInfo->pNext, VIDEO_PROFILE_INFO_KHR);
-         assert(profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR ||
-                profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR ||
-                profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR);
-      }
+      if (pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR &&
+          pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR &&
+          pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR)
+         goto out;
       FALLTHROUGH;
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       /* base encode feedback size */
@@ -2025,8 +2027,10 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
    if (pCreateInfo->flags & VK_QUERY_POOL_CREATE_RESET_BIT_KHR)
       radv_reset_query_pool(device, pool, 0, pool->vk.query_count);
 
+out:
    *pQueryPool = radv_query_pool_to_handle(pool);
-   radv_rmv_log_query_pool_create(device, *pQueryPool);
+   if (pool->bo)
+      radv_rmv_log_query_pool_create(device, *pQueryPool);
    return VK_SUCCESS;
 }
 
@@ -2392,6 +2396,15 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          break;
       }
       case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
+         if (!pool->bo) {
+            /* this is a no-op pool that cannot be used */
+            if (flags & VK_QUERY_RESULT_64_BIT)
+               *(uint64_t *)data = VK_QUERY_RESULT_STATUS_NOT_READY_KHR;
+            else
+               *(uint32_t *)data = VK_QUERY_RESULT_STATUS_NOT_READY_KHR;
+            goto out;
+         }
+      FALLTHROUGH;
       case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR: {
          const bool write_memory =
             pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL;
@@ -2462,6 +2475,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
       }
    }
 
+out:
    if (result == VK_ERROR_DEVICE_LOST)
       vk_device_set_lost(&device->vk, "GetQueryPoolResults timed out");
 
@@ -2570,6 +2584,9 @@ radv_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uin
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t value = query_clear_value(pool->vk.query_type);
    uint32_t flush_bits = 0;
+
+   if (!pool->bo)
+      return;
 
    if (cmd_buffer->qf == RADV_QUEUE_VIDEO_DEC || cmd_buffer->qf == RADV_QUEUE_VIDEO_ENC)
       /* video queries don't work like this */
