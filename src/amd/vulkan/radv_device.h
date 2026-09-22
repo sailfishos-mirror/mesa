@@ -379,8 +379,6 @@ VkResult radv_device_acquire_performance_counters(struct radv_device *device, ui
 
 void radv_device_release_performance_counters(struct radv_device *device);
 
-bool radv_device_should_clear_vram(const struct radv_device *device);
-
 VkResult radv_device_init_utrace(struct radv_device *device);
 
 void radv_device_finish_utrace(struct radv_device *device);

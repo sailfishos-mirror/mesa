@@ -1524,7 +1524,7 @@ RADV driver environment variables
    ``syncshaders``
       synchronize shaders after all draws/dispatches
    ``zerovram``
-      initialize all memory allocated in VRAM as zero
+      initialize all memory allocated in VRAM as zero (deprecated)
    ``vs``
       Dump vertex shaders.
    ``tcs``

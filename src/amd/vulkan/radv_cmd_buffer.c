@@ -1878,8 +1878,7 @@ radv_gang_sem_init_with_separate_bo(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *const pdev = radv_device_physical(device);
 
    if (!cmd_buffer->gang.sem.bo) {
-      enum radeon_bo_flag flags =
-         RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_ZERO_VRAM;
+      enum radeon_bo_flag flags = RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING;
 
       /* BYPASS L2 cache when gang members are non-coherent. */
       if (!radv_gang_is_coherent(&pdev->info, cmd_buffer->cs->hw_ip, cmd_buffer->gang.cs->hw_ip))
