@@ -61,6 +61,7 @@ static struct vk_instance_extension_table gfxstream_vk_instance_extensions_suppo
 // Always provided by guest driver only; never encoded/decoded to/from host
 static const char* const kGuestEmulatedInstanceExtensions[] = {
     VK_KHR_SURFACE_EXTENSION_NAME,
+    VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME,
 #if defined(GFXSTREAM_VK_WAYLAND)
     VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
 #endif
