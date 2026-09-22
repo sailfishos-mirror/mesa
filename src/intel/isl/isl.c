@@ -4858,6 +4858,161 @@ isl_surf_get_image_offset_B_tile_sa(const struct isl_surf *surf,
 }
 
 void
+isl_tiling_get_intratile_offset_el(enum isl_tiling tiling,
+                                   enum isl_surf_dim dim,
+                                   enum isl_msaa_layout msaa_layout,
+                                   uint32_t bpb,
+                                   uint32_t samples,
+                                   uint32_t row_pitch_B,
+                                   uint32_t array_pitch_el_rows,
+                                   uint32_t total_x_offset_el,
+                                   uint32_t total_y_offset_el,
+                                   uint32_t total_z_offset_el,
+                                   uint32_t total_array_offset,
+                                   uint64_t *tile_offset_B,
+                                   uint32_t *x_offset_el,
+                                   uint32_t *y_offset_el,
+                                   uint32_t *z_offset_el,
+                                   uint32_t *array_offset)
+{
+   if (tiling == ISL_TILING_LINEAR) {
+      assert(bpb % 8 == 0);
+      assert(samples == 1);
+      assert(total_z_offset_el == 0 && total_array_offset == 0);
+      *tile_offset_B = (uint64_t)total_y_offset_el * row_pitch_B +
+                       (uint64_t)total_x_offset_el * (bpb / 8);
+      *x_offset_el = 0;
+      *y_offset_el = 0;
+      *z_offset_el = 0;
+      *array_offset = 0;
+      return;
+   }
+
+   struct isl_tile_info tile_info;
+   isl_tiling_get_info(tiling, dim, msaa_layout, bpb, samples, &tile_info);
+
+   /* Pitches must make sense with the tiling */
+   assert(row_pitch_B % tile_info.phys_extent_B.width == 0);
+   if (tile_info.logical_extent_el.d > 1 || tile_info.logical_extent_el.a > 1)
+      assert(array_pitch_el_rows % tile_info.logical_extent_el.h == 0);
+
+   /* For non-power-of-two formats, we need the address to be both tile and
+    * element-aligned.  The easiest way to achieve this is to work with a tile
+    * that is three times as wide as the regular tile.
+    *
+    * The tile info returned by get_tile_info has a logical size that is an
+    * integer number of tile_info.format_bpb size elements.  To scale the
+    * tile, we scale up the physical width and then treat the logical tile
+    * size as if it has bpb size elements.
+    */
+   const uint32_t tile_el_scale = bpb / tile_info.format_bpb;
+   struct isl_extent2d scaled_phys_extent_B = tile_info.phys_extent_B;
+   scaled_phys_extent_B.width *= tile_el_scale;
+
+   /* Compute the offset into the tile */
+   *x_offset_el = total_x_offset_el % tile_info.logical_extent_el.w;
+   *y_offset_el = total_y_offset_el % tile_info.logical_extent_el.h;
+   *z_offset_el = total_z_offset_el % tile_info.logical_extent_el.d;
+   *array_offset = total_array_offset % tile_info.logical_extent_el.a;
+
+   /* Compute the offset of the tile in units of whole tiles */
+   uint32_t x_offset_tl = total_x_offset_el / tile_info.logical_extent_el.w;
+   uint32_t y_offset_tl = total_y_offset_el / tile_info.logical_extent_el.h;
+   uint32_t z_offset_tl = total_z_offset_el / tile_info.logical_extent_el.d;
+   uint32_t a_offset_tl = total_array_offset / tile_info.logical_extent_el.a;
+
+   /* Compute an array pitch in number of tiles */
+   uint32_t array_pitch_tl_rows =
+      array_pitch_el_rows / tile_info.logical_extent_el.h;
+
+   /* Add the Z and array offset to the Y offset to get a 2D offset */
+   y_offset_tl += (z_offset_tl + a_offset_tl) * array_pitch_tl_rows;
+
+   *tile_offset_B =
+      (uint64_t)y_offset_tl * scaled_phys_extent_B.h * row_pitch_B +
+      (uint64_t)x_offset_tl * scaled_phys_extent_B.h * scaled_phys_extent_B.w;
+}
+
+void
+isl_tiling_get_intratile_range_el(enum isl_tiling tiling,
+                                  enum isl_surf_dim dim,
+                                  enum isl_msaa_layout msaa_layout,
+                                  uint32_t bpb,
+                                  uint32_t samples,
+                                  uint32_t row_pitch_B,
+                                  uint32_t array_pitch_el_rows,
+                                  uint32_t total_x_offset_el,
+                                  uint32_t total_y_offset_el,
+                                  uint32_t total_z_offset_el,
+                                  uint32_t total_array_offset,
+                                  struct isl_extent4d total_extent_el,
+                                  uint64_t *start_offset_B,
+                                  uint64_t *end_offset_B,
+                                  uint32_t *x_offset_el,
+                                  uint32_t *y_offset_el,
+                                  uint32_t *z_offset_el,
+                                  uint32_t *array_offset)
+{
+   isl_tiling_get_intratile_offset_el(tiling, dim,
+                                      msaa_layout, bpb,
+                                      samples,
+                                      row_pitch_B,
+                                      array_pitch_el_rows,
+                                      total_x_offset_el,
+                                      total_y_offset_el,
+                                      total_z_offset_el,
+                                      total_array_offset,
+                                      start_offset_B,
+                                      x_offset_el,
+                                      y_offset_el,
+                                      z_offset_el,
+                                      array_offset);
+
+   /* Find the last element */
+   uint32_t end_x_offset_el = total_x_offset_el + total_extent_el.w - 1;
+   uint32_t end_y_offset_el = total_y_offset_el + total_extent_el.h - 1;
+   uint32_t end_z_offset_el = total_z_offset_el + total_extent_el.d - 1;
+   uint32_t end_a_offset_el = total_array_offset + total_extent_el.a - 1;
+
+   struct isl_tile_info tile_info;
+   isl_tiling_get_info(tiling, dim, msaa_layout, bpb, samples, &tile_info);
+   if (msaa_layout == ISL_MSAA_LAYOUT_ARRAY) {
+      if (tile_info.logical_extent_el.a > 1)
+         end_a_offset_el += samples - 1;
+      else
+         end_y_offset_el += (samples - 1) * array_pitch_el_rows;
+   }
+
+
+   UNUSED uint32_t _x_offset_el, _y_offset_el, _z_offset_el, _array_slice;
+   isl_tiling_get_intratile_offset_el(tiling, dim,
+                                      msaa_layout, bpb,
+                                      samples,
+                                      row_pitch_B,
+                                      array_pitch_el_rows,
+                                      end_x_offset_el,
+                                      end_y_offset_el,
+                                      end_z_offset_el,
+                                      end_a_offset_el,
+                                      end_offset_B,
+                                      &_x_offset_el,
+                                      &_y_offset_el,
+                                      &_z_offset_el,
+                                      &_array_slice);
+
+   if (tiling != ISL_TILING_LINEAR) {
+      /* We want the range we return to be exclusive but the tile containing the
+       * last pixel (what we just calculated) is inclusive. Add one and round up
+       * to the tile size.
+       */
+      *end_offset_B = ALIGN_NPOT(*end_offset_B + 1, tile_info.phys_extent_B.w *
+                                                    tile_info.phys_extent_B.h);
+   } else {
+      *end_offset_B += bpb / 8;
+   }
+}
+
+void
 isl_surf_get_image_offset_B_tile_el(const struct isl_surf *surf,
                                     uint32_t level,
                                     uint32_t logical_array_layer,
@@ -5324,161 +5479,6 @@ isl_surf_get_uncompressed_surf(const struct isl_device *dev,
    }
 
    return true;
-}
-
-void
-isl_tiling_get_intratile_offset_el(enum isl_tiling tiling,
-                                   enum isl_surf_dim dim,
-                                   enum isl_msaa_layout msaa_layout,
-                                   uint32_t bpb,
-                                   uint32_t samples,
-                                   uint32_t row_pitch_B,
-                                   uint32_t array_pitch_el_rows,
-                                   uint32_t total_x_offset_el,
-                                   uint32_t total_y_offset_el,
-                                   uint32_t total_z_offset_el,
-                                   uint32_t total_array_offset,
-                                   uint64_t *tile_offset_B,
-                                   uint32_t *x_offset_el,
-                                   uint32_t *y_offset_el,
-                                   uint32_t *z_offset_el,
-                                   uint32_t *array_offset)
-{
-   if (tiling == ISL_TILING_LINEAR) {
-      assert(bpb % 8 == 0);
-      assert(samples == 1);
-      assert(total_z_offset_el == 0 && total_array_offset == 0);
-      *tile_offset_B = (uint64_t)total_y_offset_el * row_pitch_B +
-                       (uint64_t)total_x_offset_el * (bpb / 8);
-      *x_offset_el = 0;
-      *y_offset_el = 0;
-      *z_offset_el = 0;
-      *array_offset = 0;
-      return;
-   }
-
-   struct isl_tile_info tile_info;
-   isl_tiling_get_info(tiling, dim, msaa_layout, bpb, samples, &tile_info);
-
-   /* Pitches must make sense with the tiling */
-   assert(row_pitch_B % tile_info.phys_extent_B.width == 0);
-   if (tile_info.logical_extent_el.d > 1 || tile_info.logical_extent_el.a > 1)
-      assert(array_pitch_el_rows % tile_info.logical_extent_el.h == 0);
-
-   /* For non-power-of-two formats, we need the address to be both tile and
-    * element-aligned.  The easiest way to achieve this is to work with a tile
-    * that is three times as wide as the regular tile.
-    *
-    * The tile info returned by get_tile_info has a logical size that is an
-    * integer number of tile_info.format_bpb size elements.  To scale the
-    * tile, we scale up the physical width and then treat the logical tile
-    * size as if it has bpb size elements.
-    */
-   const uint32_t tile_el_scale = bpb / tile_info.format_bpb;
-   struct isl_extent2d scaled_phys_extent_B = tile_info.phys_extent_B;
-   scaled_phys_extent_B.width *= tile_el_scale;
-
-   /* Compute the offset into the tile */
-   *x_offset_el = total_x_offset_el % tile_info.logical_extent_el.w;
-   *y_offset_el = total_y_offset_el % tile_info.logical_extent_el.h;
-   *z_offset_el = total_z_offset_el % tile_info.logical_extent_el.d;
-   *array_offset = total_array_offset % tile_info.logical_extent_el.a;
-
-   /* Compute the offset of the tile in units of whole tiles */
-   uint32_t x_offset_tl = total_x_offset_el / tile_info.logical_extent_el.w;
-   uint32_t y_offset_tl = total_y_offset_el / tile_info.logical_extent_el.h;
-   uint32_t z_offset_tl = total_z_offset_el / tile_info.logical_extent_el.d;
-   uint32_t a_offset_tl = total_array_offset / tile_info.logical_extent_el.a;
-
-   /* Compute an array pitch in number of tiles */
-   uint32_t array_pitch_tl_rows =
-      array_pitch_el_rows / tile_info.logical_extent_el.h;
-
-   /* Add the Z and array offset to the Y offset to get a 2D offset */
-   y_offset_tl += (z_offset_tl + a_offset_tl) * array_pitch_tl_rows;
-
-   *tile_offset_B =
-      (uint64_t)y_offset_tl * scaled_phys_extent_B.h * row_pitch_B +
-      (uint64_t)x_offset_tl * scaled_phys_extent_B.h * scaled_phys_extent_B.w;
-}
-
-void
-isl_tiling_get_intratile_range_el(enum isl_tiling tiling,
-                                  enum isl_surf_dim dim,
-                                  enum isl_msaa_layout msaa_layout,
-                                  uint32_t bpb,
-                                  uint32_t samples,
-                                  uint32_t row_pitch_B,
-                                  uint32_t array_pitch_el_rows,
-                                  uint32_t total_x_offset_el,
-                                  uint32_t total_y_offset_el,
-                                  uint32_t total_z_offset_el,
-                                  uint32_t total_array_offset,
-                                  struct isl_extent4d total_extent_el,
-                                  uint64_t *start_offset_B,
-                                  uint64_t *end_offset_B,
-                                  uint32_t *x_offset_el,
-                                  uint32_t *y_offset_el,
-                                  uint32_t *z_offset_el,
-                                  uint32_t *array_offset)
-{
-   isl_tiling_get_intratile_offset_el(tiling, dim,
-                                      msaa_layout, bpb,
-                                      samples,
-                                      row_pitch_B,
-                                      array_pitch_el_rows,
-                                      total_x_offset_el,
-                                      total_y_offset_el,
-                                      total_z_offset_el,
-                                      total_array_offset,
-                                      start_offset_B,
-                                      x_offset_el,
-                                      y_offset_el,
-                                      z_offset_el,
-                                      array_offset);
-
-   /* Find the last element */
-   uint32_t end_x_offset_el = total_x_offset_el + total_extent_el.w - 1;
-   uint32_t end_y_offset_el = total_y_offset_el + total_extent_el.h - 1;
-   uint32_t end_z_offset_el = total_z_offset_el + total_extent_el.d - 1;
-   uint32_t end_a_offset_el = total_array_offset + total_extent_el.a - 1;
-
-   struct isl_tile_info tile_info;
-   isl_tiling_get_info(tiling, dim, msaa_layout, bpb, samples, &tile_info);
-   if (msaa_layout == ISL_MSAA_LAYOUT_ARRAY) {
-      if (tile_info.logical_extent_el.a > 1)
-         end_a_offset_el += samples - 1;
-      else
-         end_y_offset_el += (samples - 1) * array_pitch_el_rows;
-   }
-
-
-   UNUSED uint32_t _x_offset_el, _y_offset_el, _z_offset_el, _array_slice;
-   isl_tiling_get_intratile_offset_el(tiling, dim,
-                                      msaa_layout, bpb,
-                                      samples,
-                                      row_pitch_B,
-                                      array_pitch_el_rows,
-                                      end_x_offset_el,
-                                      end_y_offset_el,
-                                      end_z_offset_el,
-                                      end_a_offset_el,
-                                      end_offset_B,
-                                      &_x_offset_el,
-                                      &_y_offset_el,
-                                      &_z_offset_el,
-                                      &_array_slice);
-
-   if (tiling != ISL_TILING_LINEAR) {
-      /* We want the range we return to be exclusive but the tile containing the
-       * last pixel (what we just calculated) is inclusive. Add one and round up
-       * to the tile size.
-       */
-      *end_offset_B = ALIGN_NPOT(*end_offset_B + 1, tile_info.phys_extent_B.w *
-                                                    tile_info.phys_extent_B.h);
-   } else {
-      *end_offset_B += bpb / 8;
-   }
 }
 
 uint64_t
