@@ -4384,7 +4384,7 @@
         "description": "meson: list MIPS(64) in llvm_has_mcjit list",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "56f38672a28b91f4be8cf2bb89a47df75a67a663",
         "notes": null
