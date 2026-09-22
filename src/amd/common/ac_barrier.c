@@ -123,32 +123,32 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
    /* Flush CB/DB. Note that this also idles all shaders, including compute shaders. */
    if (flags & (AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB)) {
-      unsigned cb_db_event = 0;
+      unsigned eop_event = 0;
 
       /* Determine the TS event that we'll use to flush CB/DB. */
       if ((flags & AC_BARRIER_SYNC_AND_INV_CB && flags & AC_BARRIER_SYNC_AND_INV_DB) ||
           /* GFX11 can't use the DB_META event and must use a full flush to flush DB_META. */
           (gfx_level == GFX11 && flags & AC_BARRIER_SYNC_AND_INV_DB)) {
-         cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+         eop_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
          *rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB |
                             AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
       } else if (flags & AC_BARRIER_SYNC_AND_INV_CB) {
-         cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
+         eop_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
          *rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB;
       } else {
          assert(flags & AC_BARRIER_SYNC_AND_INV_DB);
-         cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
+         eop_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
          *rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
       }
 
       ac_cmdbuf_begin(cs);
 
       /* We must flush CMASK/FMASK/DCC separately if the main event only flushes CB_DATA. */
-      if (gfx_level < GFX12 && cb_db_event == V_028A90_FLUSH_AND_INV_CB_DATA_TS)
+      if (gfx_level < GFX12 && eop_event == V_028A90_FLUSH_AND_INV_CB_DATA_TS)
          ac_cmdbuf_event_write(V_028A90_FLUSH_AND_INV_CB_META);
 
       /* We must flush HTILE separately if the main event only flushes DB_DATA. */
-      if (gfx_level < GFX12 && cb_db_event == V_028A90_FLUSH_AND_INV_DB_DATA_TS)
+      if (gfx_level < GFX12 && eop_event == V_028A90_FLUSH_AND_INV_DB_DATA_TS)
          ac_cmdbuf_event_write(V_028A90_FLUSH_AND_INV_DB_META);
 
       ac_cmdbuf_end();
@@ -158,7 +158,7 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
       if (gfx_level >= GFX11) {
          /* Send an event that flushes caches. */
-         ac_emit_cp_release_mem_pws(cs, gfx_level, ip_type, cb_db_event,
+         ac_emit_cp_release_mem_pws(cs, gfx_level, ip_type, eop_event,
                                     gcr_cntl & C_587_GLI_INV);
 
          /* The RELEASE_MEM above already flushed the data caches, so the
@@ -202,7 +202,7 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          }
 
          /* Wait for the event and invalidate remaining caches if needed. */
-         ac_emit_cp_acquire_mem_pws(cs, gfx_level, ip_type, cb_db_event,
+         ac_emit_cp_acquire_mem_pws(cs, gfx_level, ip_type, eop_event,
                                     pws_stage, 0,
                                     gcr_cntl & ~C_587_GLI_INV /* keep only GLI_INV */);
 
@@ -242,7 +242,7 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          assert(state->wait_mem_number);
          (*state->wait_mem_number)++;
 
-         ac_emit_cp_release_mem(cs, gfx_level, ip_type, cb_db_event,
+         ac_emit_cp_release_mem(cs, gfx_level, ip_type, eop_event,
                                 S_491_GLM_WB(glm_wb) |
                                 S_491_GLM_INV(glm_inv) |
                                 S_491_GLV_INV(glv_inv) |
@@ -310,7 +310,7 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 {
    enum ac_barrier_flags flags =
       ac_get_reduced_barrier_flags(gfx_level, ip_type, state->flags);
-   const uint32_t flush_cb_db = flags & (AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB);
+   const uint32_t eop_flush_flags = flags & (AC_BARRIER_SYNC_AND_INV_CB | AC_BARRIER_SYNC_AND_INV_DB);
    const bool is_mec = ip_type == AMD_IP_COMPUTE && gfx_level >= GFX7;
    uint32_t cp_coher_cntl = 0;
 
@@ -387,7 +387,7 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
     * GFX9: The TS event is always written after full pipeline completion
     * regardless of CB/DB bindings.
     */
-   if (gfx_level <= GFX8 || !flush_cb_db) {
+   if (gfx_level <= GFX8 || !eop_flush_flags) {
       if (flags & AC_BARRIER_SYNC_PS) {
          ac_cmdbuf_event_write(V_028A90_PS_PARTIAL_FLUSH);
          *rgp_flush_bits |= AC_RGP_FLUSH_PS_PARTIAL_FLUSH;
@@ -407,21 +407,21 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
    /* GFX9: Wait for idle if we're flushing CB or DB. ACQUIRE_MEM doesn't
     * wait for idle on GFX9. We have to use a TS event.
     */
-   if (gfx_level == GFX9 && flush_cb_db) {
+   if (gfx_level == GFX9 && eop_flush_flags) {
       uint64_t va;
-      unsigned tc_flags, cb_db_event;
+      unsigned tc_flags, eop_event;
 
       /* Set the CB/DB flush event. */
-      switch (flush_cb_db) {
+      switch (eop_flush_flags) {
       case AC_BARRIER_SYNC_AND_INV_CB:
-         cb_db_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
+         eop_event = V_028A90_FLUSH_AND_INV_CB_DATA_TS;
          break;
       case AC_BARRIER_SYNC_AND_INV_DB:
-         cb_db_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
+         eop_event = V_028A90_FLUSH_AND_INV_DB_DATA_TS;
          break;
       default:
          /* both CB & DB */
-         cb_db_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
+         eop_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
       }
 
       /* These are the only allowed combinations. If you need to
@@ -462,7 +462,7 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
       va = state->wait_mem_va;
 
-      ac_emit_cp_release_mem(cs, gfx_level, ip_type, cb_db_event, tc_flags,
+      ac_emit_cp_release_mem(cs, gfx_level, ip_type, eop_event, tc_flags,
                              EOP_DST_SEL_MEM, EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
                              EOP_DATA_SEL_VALUE_32BIT, va,
                              *(state->wait_mem_number),
