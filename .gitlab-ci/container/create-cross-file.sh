@@ -31,7 +31,10 @@ else
 fi
 
 # shellcheck disable=SC1003 # how this sed doesn't seems to work for me locally
-sed -i -e '/\[binaries\]/a\' -e "rust = ['rustc', '--target=$rust_target', '-C', 'linker=$cc']" "$cross_file"
+sed -i -e '/\[binaries\]/a\' -e "rust = ['rustc', '--target=$rust_target']" "$cross_file"
+
+# shellcheck disable=SC1003 # how this sed doesn't seems to work for me locally
+sed -i -e '/\[binaries\]/a\' -e "rust_ld = '$cc'" "$cross_file"
 
 # Set up cmake cross compile toolchain file for dEQP builds
 toolchain_file="/toolchain-$arch.cmake"
