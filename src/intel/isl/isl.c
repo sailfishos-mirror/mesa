@@ -5375,7 +5375,8 @@ isl_tiling_get_intratile_offset_el(enum isl_tiling tiling,
     * size as if it has bpb size elements.
     */
    const uint32_t tile_el_scale = bpb / tile_info.format_bpb;
-   tile_info.phys_extent_B.width *= tile_el_scale;
+   struct isl_extent2d scaled_phys_extent_B = tile_info.phys_extent_B;
+   scaled_phys_extent_B.width *= tile_el_scale;
 
    /* Compute the offset into the tile */
    *x_offset_el = total_x_offset_el % tile_info.logical_extent_el.w;
@@ -5397,8 +5398,8 @@ isl_tiling_get_intratile_offset_el(enum isl_tiling tiling,
    y_offset_tl += (z_offset_tl + a_offset_tl) * array_pitch_tl_rows;
 
    *tile_offset_B =
-      (uint64_t)y_offset_tl * tile_info.phys_extent_B.h * row_pitch_B +
-      (uint64_t)x_offset_tl * tile_info.phys_extent_B.h * tile_info.phys_extent_B.w;
+      (uint64_t)y_offset_tl * scaled_phys_extent_B.h * row_pitch_B +
+      (uint64_t)x_offset_tl * scaled_phys_extent_B.h * scaled_phys_extent_B.w;
 }
 
 void
