@@ -228,7 +228,8 @@ process_intel_debug_variable_once(void)
     */
    intel_simd_overridden =
       ((intel_simd & DEBUG_FS_SIMD) ? (1 << MESA_SHADER_FRAGMENT) : 0) |
-      ((intel_simd & DEBUG_CS_SIMD) ? (1 << MESA_SHADER_COMPUTE)  : 0) |
+      ((intel_simd & DEBUG_CS_SIMD) ? (1 << MESA_SHADER_COMPUTE |
+                                       1 << MESA_SHADER_KERNEL)    : 0) |
       ((intel_simd & DEBUG_TS_SIMD) ? (1 << MESA_SHADER_TASK)     : 0) |
       ((intel_simd & DEBUG_MS_SIMD) ? (1 << MESA_SHADER_MESH)     : 0) |
       ((intel_simd & DEBUG_RT_SIMD) ? (1 << MESA_SHADER_RAYGEN |

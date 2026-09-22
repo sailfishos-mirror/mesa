@@ -191,6 +191,7 @@ intel_simd_debug_allowed_modes(mesa_shader_stage stage)
 {
    switch (stage) {
    case MESA_SHADER_COMPUTE:
+   case MESA_SHADER_KERNEL:
       return (intel_simd & DEBUG_CS_SIMD) >> (ffsll(DEBUG_CS_SIMD8) - 1);
    case MESA_SHADER_TASK:
       return (intel_simd & DEBUG_TS_SIMD) >> (ffsll(DEBUG_TS_SIMD8) - 1);
