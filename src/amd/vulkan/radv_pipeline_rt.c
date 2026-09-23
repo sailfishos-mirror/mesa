@@ -1387,9 +1387,10 @@ radv_rt_pipeline_create(VkDevice _device, VkPipelineCache _cache, const VkRayTra
    } else {
       result = radv_rt_pipeline_compile(device, pCreateInfo, pipeline, cache, &rt_state, capture_replay_blocks,
                                         creation_feedback);
-      if (result != VK_SUCCESS)
-         goto fail;
    }
+
+   if (result != VK_SUCCESS)
+      goto fail;
 
    if (!(pipeline->base.base.create_flags & VK_PIPELINE_CREATE_2_LIBRARY_BIT_KHR)) {
       compute_rt_stack_size(pCreateInfo, pipeline);
