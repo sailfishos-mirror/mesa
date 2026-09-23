@@ -1392,16 +1392,9 @@ radv_destroy_device(struct radv_device *device, const VkAllocationCallbacks *pAl
    radv_device_finish_border_color(device);
    radv_device_finish_vrs_image(device);
 
-   for (unsigned i = 0; i < RADV_MAX_QUEUE_FAMILIES; i++) {
-      for (unsigned q = 0; q < device->queue_count[i]; q++)
-         radv_queue_finish(&device->queues[i][q]);
-      for (unsigned q = 0; q < device->queue_count_protected[i]; q++)
-         radv_queue_finish(&device->queues_protected[i][q]);
-      if (device->queue_count[i])
-         vk_free(&device->vk.alloc, device->queues[i]);
-      if (device->queue_count_protected[i])
-         vk_free(&device->vk.alloc, device->queues_protected[i]);
-   }
+   for (unsigned i = 0; i < device->queue_count; i++)
+      radv_queue_finish(&device->queues[i]);
+   vk_free(&device->vk.alloc, device->queues);
    if (device->private_sdma_queue != VK_NULL_HANDLE) {
       radv_queue_finish(device->private_sdma_queue);
       vk_free(&device->vk.alloc, device->private_sdma_queue);
@@ -1595,31 +1588,27 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
          return result;
    }
 
+   uint32_t total_queue_count = 0;
+   for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
+      total_queue_count += pCreateInfo->pQueueCreateInfos[i].queueCount;
+
+   device->queues = vk_zalloc(&device->vk.alloc, total_queue_count * sizeof(struct radv_queue), 8,
+                              VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+   if (!device->queues) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto fail;
+   }
+
    for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++) {
       const VkDeviceQueueCreateInfo *queue_create = &pCreateInfo->pQueueCreateInfos[i];
-      uint32_t qfi = queue_create->queueFamilyIndex;
       const VkDeviceQueueGlobalPriorityCreateInfo *global_priority =
          vk_find_struct_const(queue_create->pNext, DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO);
 
-      struct radv_queue **queues = queue_create->flags & VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT
-                                      ? &device->queues_protected[qfi]
-                                      : &device->queues[qfi];
-      *queues = vk_zalloc(&device->vk.alloc, queue_create->queueCount * sizeof(struct radv_queue), 8,
-                          VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-      if (!*queues) {
-         result = VK_ERROR_OUT_OF_HOST_MEMORY;
-         goto fail;
-      }
-
-      if (queue_create->flags & VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT)
-         device->queue_count_protected[qfi] = queue_create->queueCount;
-      else
-         device->queue_count[qfi] = queue_create->queueCount;
-
       for (unsigned q = 0; q < queue_create->queueCount; q++) {
-         result = radv_queue_init(device, &(*queues)[q], q, queue_create, global_priority);
+         result = radv_queue_init(device, &device->queues[device->queue_count], q, queue_create, global_priority);
          if (result != VK_SUCCESS)
             goto fail;
+         device->queue_count++;
       }
    }
    device->private_sdma_queue = VK_NULL_HANDLE;

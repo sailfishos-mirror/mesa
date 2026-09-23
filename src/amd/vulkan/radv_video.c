@@ -305,11 +305,10 @@ radv_video_destroy_session(struct radv_device *device, struct radv_video_session
    struct radeon_winsys_bo *emb_bo = NULL;
    VkResult result;
 
-   for (uint32_t i = 0; i < RADV_MAX_QUEUE_FAMILIES; i++) {
-      if (device->queue_count[i]) {
-         queue = device->queues[i];
-         if (queue->state.qf == RADV_QUEUE_VIDEO_DEC)
-            break;
+   for (uint32_t i = 0; i < device->queue_count; i++) {
+      if (device->queues[i].state.qf == RADV_QUEUE_VIDEO_DEC) {
+         queue = &device->queues[i];
+         break;
       }
    }
    assert(queue && queue->state.qf == RADV_QUEUE_VIDEO_DEC);
