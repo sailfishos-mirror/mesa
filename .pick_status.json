@@ -1764,7 +1764,7 @@
         "description": "rusticl/platform: skip non SVM devices when creating the VM heap",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "da4de8d7e3344f5fea8e7cfb3ab2f94518b0201d",
         "notes": null
