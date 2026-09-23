@@ -17445,7 +17445,7 @@ radv_CmdBindShadersEXT(VkCommandBuffer commandBuffer, uint32_t stageCount, const
                        const VkShaderEXT *pShaders)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   VkShaderStageFlagBits stages = 0, bound_stages = 0;
+   VkShaderStageFlagBits stages = 0;
 
    for (uint32_t i = 0; i < stageCount; i++) {
       const mesa_shader_stage stage = vk_to_mesa_shader_stage(pStages[i]);
@@ -17460,26 +17460,22 @@ radv_CmdBindShadersEXT(VkCommandBuffer commandBuffer, uint32_t stageCount, const
       VK_FROM_HANDLE(radv_shader_object, shader_obj, pShaders[i]);
 
       cmd_buffer->state.shader_objs[stage] = shader_obj;
-
-      bound_stages |= pStages[i];
    }
 
-   if (bound_stages & VK_SHADER_STAGE_COMPUTE_BIT) {
+   if (stages & VK_SHADER_STAGE_COMPUTE_BIT) {
       radv_reset_pipeline_state(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
       radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
 
       radv_bind_compute_shader(cmd_buffer, cmd_buffer->state.shader_objs[MESA_SHADER_COMPUTE]);
    }
 
-   if (bound_stages & RADV_GRAPHICS_STAGE_BITS) {
+   if (stages & RADV_GRAPHICS_STAGE_BITS) {
       radv_reset_pipeline_state(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
       radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       /* Graphics shaders are handled at draw time because of shader variants. */
-   }
-
-   if (stages & RADV_GRAPHICS_STAGE_BITS)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GRAPHICS_SHADERS;
+   }
 }
 
 VKAPI_ATTR void VKAPI_CALL
