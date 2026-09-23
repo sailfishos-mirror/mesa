@@ -1302,10 +1302,12 @@ void genX(CmdBeginQueryIndexedEXT)(
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
       uint32_t cmds_size = 0;
+      const uint64_t query_pool_gpu_addr = anv_address_physical(anv_query_address(pool, 0));
+      const void* query_pool_cpu_addr = query_slot(pool, 0);
       if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
                                                          pool->metrics_library_query_pool,
-                                                         anv_address_physical(query_addr),
-                                                         query_slot(pool, query),
+                                                         query_pool_gpu_addr,
+                                                         query_pool_cpu_addr,
                                                          query,
                                                          cmd_buffer->intel_perf_marker,
                                                          true,
@@ -1316,8 +1318,8 @@ void genX(CmdBeginQueryIndexedEXT)(
          if (cmds)
             intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
                                                            pool->metrics_library_query_pool,
-                                                           anv_address_physical(query_addr),
-                                                           query_slot(pool, query),
+                                                           query_pool_gpu_addr,
+                                                           query_pool_cpu_addr,
                                                            query,
                                                            cmd_buffer->intel_perf_marker,
                                                            true,
@@ -1520,10 +1522,12 @@ void genX(CmdEndQueryIndexedEXT)(
 
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
       uint32_t cmds_size = 0;
+      const uint64_t query_pool_gpu_addr = anv_address_physical(anv_query_address(pool, 0));
+      const void* query_pool_cpu_addr = query_slot(pool, 0);
       if (intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
                                                          pool->metrics_library_query_pool,
-                                                         anv_address_physical(query_addr),
-                                                         query_slot(pool, query),
+                                                         query_pool_gpu_addr,
+                                                         query_pool_cpu_addr,
                                                          query,
                                                          cmd_buffer->intel_perf_marker,
                                                          false,
@@ -1534,8 +1538,8 @@ void genX(CmdEndQueryIndexedEXT)(
          if (cmds)
             intel_perf_metrics_library_get_perf_query_cmds(cmd_buffer->device->physical->perf,
                                                            pool->metrics_library_query_pool,
-                                                           anv_address_physical(query_addr),
-                                                           query_slot(pool, query),
+                                                           query_pool_gpu_addr,
+                                                           query_pool_cpu_addr,
                                                            query,
                                                            cmd_buffer->intel_perf_marker,
                                                            false,
