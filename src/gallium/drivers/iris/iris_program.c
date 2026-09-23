@@ -26,6 +26,7 @@
 #include "compiler/nir/nir_builder.h"
 #include "compiler/nir/nir_serialize.h"
 #include "intel/compiler/brw/brw_compiler.h"
+#include "intel/compiler/brw/brw_eu.h"
 #include "intel/compiler/brw/brw_nir.h"
 #include "intel/compiler/intel_nir.h"
 #include "intel/compiler/intel_prim.h"
@@ -1393,9 +1394,9 @@ iris_setup_binding_table(const struct intel_device_info *devinfo,
          BITFIELD64_MASK(num_render_targets);
 
       /* Setup render target read surface group in order to support non-coherent
-       * framebuffer fetch on Gfx8
+       * framebuffer fetch.
        */
-      if (devinfo->ver == 8 && info->outputs_read) {
+      if (!brw_can_coherent_fb_fetch(devinfo) && info->outputs_read) {
          bt->surf_count[IRIS_SURFACE_GROUP_RENDER_TARGET_READ] = num_render_targets;
          bt->used_mask[IRIS_SURFACE_GROUP_RENDER_TARGET_READ] =
             BITFIELD64_MASK(num_render_targets);
@@ -1449,7 +1450,7 @@ iris_setup_binding_table(const struct intel_device_info *devinfo,
             break;
 
          case nir_intrinsic_load_output:
-            if (devinfo->ver == 8) {
+            if (!brw_can_coherent_fb_fetch(devinfo)) {
                mark_used_with_src(bt, &intrin->src[0],
                                   IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
             }
@@ -1558,7 +1559,7 @@ iris_setup_binding_table(const struct intel_device_info *devinfo,
             break;
 
          case nir_intrinsic_load_output:
-            if (devinfo->ver == 8) {
+            if (!brw_can_coherent_fb_fetch(devinfo)) {
                /* We're using a BTI as the load_output offset here which
                 * breaks newer NIR assumptions.
                 */
