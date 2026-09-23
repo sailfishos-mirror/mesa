@@ -37,6 +37,12 @@
 
 #include "pan_csf.h"
 
+#define PAN_MAX_BATCHES        32
+#define PAN_MAX_RENDER_BATCHES (PAN_MAX_BATCHES - 1)
+
+/* Reserve last slot for compute. */
+#define PAN_COMPUTE_BATCH_SLOT PAN_MAX_RENDER_BATCHES
+
 #define SET_BIT(lval, bit, cond)                                               \
    if (cond)                                                                   \
       lval |= (bit);                                                           \
@@ -147,8 +153,8 @@ struct panfrost_context {
    /* Map from resources to panfrost_batches */
    struct hash_table *writers;
 
-   /* Bound job batch */
-   struct panfrost_batch *batch;
+   /* Current batches */
+   struct panfrost_batch *batch[PANFROST_BATCH_TYPE_COUNT];
 
    /* Within a launch_grid call.. */
    const struct pipe_grid_info *compute_grid;

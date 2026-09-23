@@ -416,7 +416,7 @@ panfrost_set_framebuffer_state(struct pipe_context *pctx,
    struct panfrost_context *ctx = pan_context(pctx);
 
    util_copy_framebuffer_state(&ctx->pipe_framebuffer, fb);
-   ctx->batch = NULL;
+   ctx->batch[PANFROST_BATCH_RENDER] = NULL;
 
    /* Hot draw call path needs the mask of active render targets */
    ctx->fb_rt_mask = 0;
@@ -700,7 +700,8 @@ panfrost_emit_write_timestamp(struct panfrost_context *ctx,
                               const char *reason)
 {
    struct panfrost_screen *screen = pan_screen(ctx->base.screen);
-   struct panfrost_batch *batch = panfrost_get_fresh_batch_for_fbo(ctx, reason);
+   struct panfrost_batch *batch =
+      panfrost_get_fresh_render_batch(ctx, reason);
 
    screen->vtbl.emit_write_timestamp(batch, rsrc, offset);
 }

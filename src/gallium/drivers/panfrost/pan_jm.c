@@ -544,7 +544,7 @@ jm_emit_tiler_draw(struct mali_draw_packed *out, struct panfrost_batch *batch,
          struct panfrost_resource *rsrc =
             pan_resource(ctx->occlusion_query->rsrc);
          cfg.occlusion = rsrc->plane.base;
-         panfrost_batch_write_rsrc(ctx->batch, rsrc);
+         panfrost_batch_write_rsrc(ctx->batch[PANFROST_BATCH_RENDER], rsrc);
       }
 
 #if PAN_ARCH >= 9

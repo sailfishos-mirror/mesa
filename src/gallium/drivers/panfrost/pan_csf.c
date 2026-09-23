@@ -492,19 +492,22 @@ GENX(csf_init_batch)(struct panfrost_batch *batch)
       .ls_sb_slot = 0,
    };
 
-   /* Setup the queue builder */
+   /* Setup the queue builder. Render batches need compute enabled for XFB. */
    batch->csf.cs.builder = malloc(sizeof(struct cs_builder));
    batch->csf.cs.current_ep_sb = ~0u;
    cs_builder_init(batch->csf.cs.builder, &conf, queue);
-   cs_req_res(batch->csf.cs.builder,
-              CS_COMPUTE_RES | CS_TILER_RES | CS_IDVS_RES | CS_FRAG_RES);
+   cs_req_res(batch->csf.cs.builder, batch->type == PANFROST_BATCH_RENDER ?
+              CS_TILER_RES | CS_IDVS_RES | CS_FRAG_RES | CS_COMPUTE_RES :
+              CS_COMPUTE_RES);
 
    /* Set up entries */
    csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
 
-   batch->framebuffer = alloc_fbd(batch);
-   if (!batch->framebuffer.gpu)
-      return -1;
+   if (batch->type == PANFROST_BATCH_RENDER) {
+      batch->framebuffer = alloc_fbd(batch);
+      if (!batch->framebuffer.gpu)
+         return -1;
+   }
 
    batch->tls = pan_pool_alloc_desc(&batch->pool.base, LOCAL_STORAGE);
    if (!batch->tls.cpu)
@@ -1631,7 +1634,7 @@ csf_emit_draw_state(struct panfrost_batch *batch,
    if (panfrost_occlusion_query_active(ctx)) {
       struct panfrost_resource *rsrc = pan_resource(ctx->occlusion_query->rsrc);
       cs_move64_to(b, cs_sr_reg64(b, IDVS, OQ), rsrc->plane.base);
-      panfrost_batch_write_rsrc(ctx->batch, rsrc);
+      panfrost_batch_write_rsrc(ctx->batch[PANFROST_BATCH_RENDER], rsrc);
    }
 
    cs_move32_to(b, cs_sr_reg32(b, IDVS, VARY_SIZE),

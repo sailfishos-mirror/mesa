@@ -2035,7 +2035,7 @@ pan_resource_afbcp_get_payload_sizes(struct panfrost_context *ctx,
 
    prsrc->afbcp->skip_access_updates = true;
 
-   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
+   struct panfrost_batch *batch = panfrost_get_compute_batch(ctx);
    for (unsigned level = 0; level <= last_level; ++level)
       screen->vtbl.afbc_size(batch, prsrc, prsrc->afbcp->layout_bo,
                              prsrc->afbcp->layout_offsets[level], level);
@@ -2184,7 +2184,7 @@ pan_resource_afbcp_pack(struct panfrost_context *ctx,
 
    prsrc->afbcp->skip_access_updates = true;
 
-   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
+   struct panfrost_batch *batch = panfrost_get_compute_batch(ctx);
    for (unsigned level = 0; level <= last_level; ++level)
       screen->vtbl.afbc_pack(batch, prsrc, prsrc->afbcp->packed_bo,
                              &prsrc->afbcp->plane.layout.slices[level],
@@ -2442,7 +2442,7 @@ panfrost_invalidate_resource(struct pipe_context *pctx,
                              struct pipe_resource *prsrc)
 {
    struct panfrost_context *ctx = pan_context(pctx);
-   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
+   struct panfrost_batch *batch = panfrost_get_render_batch(ctx);
    struct panfrost_resource *rsrc = pan_resource(prsrc);
 
    if (!batch) {
