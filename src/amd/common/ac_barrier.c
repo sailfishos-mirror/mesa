@@ -238,8 +238,8 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          unsigned gl2_wb = G_587_GL2_WB(gcr_cntl);
          unsigned gcr_seq = G_587_SEQ(gcr_cntl);
 
-         gcr_cntl &=
-            C_587_GLM_WB & C_587_GLM_INV & C_587_GLV_INV & C_587_GL1_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
+         gcr_cntl &= (gfx_level >= GFX12 ? ~0 : C_587_GLM_WB & C_587_GLM_INV & C_587_GL1_INV) &
+                     C_587_GLV_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
 
          assert(state->wait_mem_number);
          assert(state->wait_mem_va);
@@ -247,10 +247,9 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          (*state->wait_mem_number)++;
 
          ac_emit_cp_release_mem(cs, gfx_level, ip_type, eop_event,
-                                S_491_GLM_WB(glm_wb) |
-                                S_491_GLM_INV(glm_inv) |
+                                (gfx_level >= GFX12 ? 0 : S_491_GLM_WB(glm_wb) | S_491_GLM_INV(glm_inv) |
+                                                          S_491_GL1_INV(gl1_inv)) |
                                 S_491_GLV_INV(glv_inv) |
-                                S_491_GL1_INV(gl1_inv) |
                                 S_491_GL2_INV(gl2_inv) |
                                 S_491_GL2_WB(gl2_wb) |
                                 S_491_SEQ(gcr_seq),
