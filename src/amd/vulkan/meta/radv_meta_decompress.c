@@ -109,14 +109,6 @@ get_pipeline_gfx(struct radv_device *device, struct radv_image *image, VkPipelin
             .attachmentCount = 0,
             .pAttachments = NULL,
          },
-      .pDepthStencilState =
-         &(VkPipelineDepthStencilStateCreateInfo){
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = false,
-            .depthWriteEnable = false,
-            .depthBoundsTestEnable = false,
-            .stencilTestEnable = false,
-         },
       .pDynamicState =
          &(VkPipelineDynamicStateCreateInfo){
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,

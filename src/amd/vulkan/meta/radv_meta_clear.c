@@ -150,16 +150,6 @@ get_color_pipeline(struct radv_device *device, uint32_t samples, uint32_t frag_o
             .alphaToCoverageEnable = false,
             .alphaToOneEnable = false,
          },
-      .pDepthStencilState =
-         &(VkPipelineDepthStencilStateCreateInfo){
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .depthTestEnable = false,
-            .depthWriteEnable = false,
-            .depthBoundsTestEnable = false,
-            .stencilTestEnable = false,
-            .minDepthBounds = 0.0f,
-            .maxDepthBounds = 1.0f,
-         },
       .pColorBlendState =
          &(VkPipelineColorBlendStateCreateInfo){
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
