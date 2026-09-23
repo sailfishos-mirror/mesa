@@ -17449,17 +17449,13 @@ radv_CmdBindShadersEXT(VkCommandBuffer commandBuffer, uint32_t stageCount, const
 
    for (uint32_t i = 0; i < stageCount; i++) {
       const mesa_shader_stage stage = vk_to_mesa_shader_stage(pStages[i]);
+      struct radv_shader_object *shader_obj = NULL;
 
-      stages |= pStages[i];
-
-      if (!pShaders) {
-         cmd_buffer->state.shader_objs[stage] = NULL;
-         continue;
-      }
-
-      VK_FROM_HANDLE(radv_shader_object, shader_obj, pShaders[i]);
+      if (pShaders)
+         shader_obj = radv_shader_object_from_handle(pShaders[i]);
 
       cmd_buffer->state.shader_objs[stage] = shader_obj;
+      stages |= pStages[i];
    }
 
    if (stages & VK_SHADER_STAGE_COMPUTE_BIT) {
