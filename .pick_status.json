@@ -2684,7 +2684,7 @@
         "description": "radv/rt: fix checking errors for imported binaries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b4d6d88c6b451f49d2f0df850cc2548cfe55f82f",
         "notes": null
