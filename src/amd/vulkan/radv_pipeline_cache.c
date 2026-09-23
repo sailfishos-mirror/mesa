@@ -73,7 +73,11 @@ radv_shader_destroy(struct vk_device *_device, struct vk_pipeline_cache_object *
 struct radv_shader *
 radv_shader_deserialize(struct radv_device *device, const void *key_data, size_t key_size, struct blob_reader *blob)
 {
-   const struct radv_shader_binary *binary = blob_read_bytes(blob, sizeof(struct radv_shader_binary));
+   const struct radv_shader_binary *binary;
+
+   binary = blob_read_bytes(blob, sizeof(struct radv_shader_binary));
+   if (!binary)
+      return NULL;
 
    struct radv_shader *shader;
    radv_shader_create_uncached(device, binary, false, NULL, NULL, &shader);
@@ -304,17 +308,16 @@ radv_pipeline_cache_object_deserialize(struct vk_pipeline_cache *cache, const vo
    object->base.data_size = total_size;
 
    for (unsigned i = 0; i < num_shaders; i++) {
-      const uint8_t *hash = blob_read_bytes(blob, sizeof(blake3_hash));
-      struct vk_pipeline_cache_object *shader =
-         vk_pipeline_cache_lookup_object(cache, hash, sizeof(blake3_hash), &radv_shader_ops, NULL);
+      struct vk_pipeline_cache_object *shader;
+      const uint8_t *hash;
 
-      if (!shader) {
-         /* If some shader could not be created from cache, better return NULL here than having
-          * an incomplete cache object which needs to be fixed up later.
-          */
-         vk_pipeline_cache_object_unref(&device->vk, &object->base);
-         return NULL;
-      }
+      hash = blob_read_bytes(blob, sizeof(blake3_hash));
+      if (!hash)
+         goto fail;
+
+      shader = vk_pipeline_cache_lookup_object(cache, hash, sizeof(blake3_hash), &radv_shader_ops, NULL);
+      if (!shader)
+         goto fail;
 
       object->shaders[i] = container_of(shader, struct radv_shader, base);
    }
@@ -322,6 +325,13 @@ radv_pipeline_cache_object_deserialize(struct vk_pipeline_cache *cache, const vo
    blob_copy_bytes(blob, object->data, data_size);
 
    return &object->base;
+
+fail:
+   /* If some shader could not be created from cache, better return NULL here than having
+    * an incomplete cache object which needs to be fixed up later.
+    */
+   vk_pipeline_cache_object_unref(&device->vk, &object->base);
+   return NULL;
 }
 
 static bool

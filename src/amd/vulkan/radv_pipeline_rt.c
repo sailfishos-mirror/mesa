@@ -303,7 +303,7 @@ radv_rt_fill_stage_info(const struct radv_device *device, const VkRayTracingPipe
    }
 }
 
-static void
+static VkResult
 radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlags2 pipeline_flags,
                           const VkRayTracingPipelineCreateInfoKHR *pCreateInfo, struct radv_ray_tracing_stage *stages)
 {
@@ -317,6 +317,8 @@ radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlag
 
          const struct radv_ray_tracing_binary_header *header =
             (const struct radv_ray_tracing_binary_header *)blob_read_bytes(&blob, sizeof(*header));
+         if (!header)
+            return VK_ERROR_UNKNOWN;
 
          if (header->is_traversal_shader)
             continue;
@@ -333,6 +335,8 @@ radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlag
          _mesa_blake3_final(&ctx, stages[idx].blake3);
       }
    }
+
+   return VK_SUCCESS;
 }
 
 static bool
@@ -1272,7 +1276,9 @@ radv_generate_ray_tracing_state_key(struct radv_device *device, const VkRayTraci
    radv_rt_fill_stage_info(device, pCreateInfo, rt_state->stages);
 
    VkPipelineCreateFlags2 create_flags = vk_rt_pipeline_create_flags(pCreateInfo);
-   radv_init_rt_stage_hashes(device, create_flags, pCreateInfo, rt_state->stages);
+   result = radv_init_rt_stage_hashes(device, create_flags, pCreateInfo, rt_state->stages);
+   if (result != VK_SUCCESS)
+      goto fail;
 
    result = radv_rt_fill_group_info(device, pCreateInfo, rt_state->stages, rt_state->groups);
    if (result != VK_SUCCESS)
@@ -1303,6 +1309,7 @@ radv_ray_tracing_pipeline_import_binary(struct radv_device *device, struct radv_
 
       const struct radv_ray_tracing_binary_header *header =
          (const struct radv_ray_tracing_binary_header *)blob_read_bytes(&blob, sizeof(*header));
+      assert(header);
 
       if (header->is_traversal_shader) {
          shader = radv_shader_deserialize(device, pipeline_binary->key, sizeof(pipeline_binary->key), &blob);
