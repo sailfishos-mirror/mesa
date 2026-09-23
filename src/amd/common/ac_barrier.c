@@ -427,7 +427,8 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          eop_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
       }
 
-      *rgp_flush_bits |= AC_RGP_FLUSH_WAIT_ON_EOP_TS;
+      *rgp_flush_bits |= AC_RGP_FLUSH_WAIT_ON_EOP_TS | AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB |
+                         AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
 
       /* These are the only allowed combinations. If you need to
        * do multiple operations at once, do them separately.
@@ -443,22 +444,31 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
        */
       tc_flags = 0;
 
-      if (flags & AC_BARRIER_INV_L2_METADATA) {
-         tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_MD_ACTION_ENA;
-      }
+      /* Flush L2 (=TC) together with the TS event.
+       * - GFX6 doesn't have the TC bits in EVENT_WRITE_EOP.
+       * - GFX7 has a FW bug where even multiple EOP events seem insufficient.
+       */
+      if (gfx_level >= GFX8) {
+         if (flags & AC_BARRIER_INV_L2_METADATA) {
+            tc_flags = EVENT_TC_ACTION_ENA;
 
-      *rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_CB | AC_RGP_FLUSH_INVAL_CB |
-                         AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
+            if (gfx_level == GFX9)
+               tc_flags |= EVENT_TC_MD_ACTION_ENA; /* Only the metadata cache in L2. */
+            else
+               tc_flags |= EVENT_TC_WB_ACTION_ENA; /* Everything in L2. (GFX8 only, which doesn't have the MD flag) */
 
-      /* Ideally flush L2 together with CB/DB. */
-      if (flags & AC_BARRIER_INV_L2) {
-         /* Writeback and invalidate everything in L2 & L1. */
-         tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_WB_ACTION_ENA;
+            flags &= ~AC_BARRIER_INV_L2_METADATA;
+         }
 
-         /* Clear the flags. */
-         flags &= ~(AC_BARRIER_INV_L2 | AC_BARRIER_WB_L2);
+         if (flags & AC_BARRIER_INV_L2) {
+            /* Writeback and invalidate everything in L2. */
+            tc_flags = EVENT_TC_ACTION_ENA | EVENT_TC_WB_ACTION_ENA;
 
-         *rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2;
+            /* Clear the flags. */
+            flags &= ~(AC_BARRIER_INV_L2 | AC_BARRIER_WB_L2);
+
+            *rgp_flush_bits |= AC_RGP_FLUSH_INVAL_L2;
+         }
       }
 
       /* Do the flush (enqueue the event and wait for it). */
