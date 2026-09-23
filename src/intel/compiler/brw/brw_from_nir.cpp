@@ -1509,27 +1509,10 @@ brw_from_nir_emit_alu(nir_to_brw_state &ntb, nir_alu_instr *instr,
       bld.LZD(retype(result, BRW_TYPE_UD), op[0]);
       break;
 
-   case nir_op_ifind_msb: {
-      assert(instr->def.bit_size == 32);
-      assert(nir_src_bit_size(instr->src[0].src) == 32);
-
-      brw_reg tmp = bld.FBH(retype(op[0], BRW_TYPE_D));
-
-      /* FBH counts from the MSB side, while GLSL's findMSB() wants the count
-       * from the LSB side. If FBH didn't return an error (0xFFFFFFFF), then
-       * subtract the result from 31 to convert the MSB count into an LSB
-       * count.
-       */
-      brw_reg count_from_lsb = bld.ADD(negate(tmp), brw_imm_w(31));
-
-      /* The high word of the FBH result will be 0xffff or 0x0000. After
-       * calculating 31 - fbh, we can obtain the correct result for
-       * ifind_msb(0) by ORing the (sign extended) upper word of the
-       * intermediate result.
-       */
-      bld.OR(result, count_from_lsb, subscript(tmp, BRW_TYPE_W, 1));
+   case nir_op_ifind_msb_rev:
+   case nir_op_ufind_msb_rev:
+      bld.FBH(result, op[0]);
       break;
-   }
 
    case nir_op_find_lsb:
       assert(instr->def.bit_size == 32);
