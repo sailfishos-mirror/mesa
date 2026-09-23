@@ -13,7 +13,6 @@
 #include "util/u_debug.h"
 
 const struct nir_shader_compiler_options brw_scalar_nir_options = {
-   .avoid_ternary_with_two_constants = true,
    .compact_arrays = true,
    .discard_is_demote = true,
    .divergence_analysis_options =
@@ -193,6 +192,9 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
 
    nir_options->has_bitfield_select = devinfo->verx10 >= 125;
 
+   /* jay (>=xe2) shouldn't have this; brw (<=xe1) should */
+   nir_options->avoid_ternary_with_two_constants = devinfo->ver < 20;
+
    nir_options->lower_int64_options = int64_options;
    nir_options->lower_doubles_options = fp64_options;
    if (!(fp64_options & nir_lower_fp64_full_software))
@@ -222,7 +224,6 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
       stage_options->force_indirect_unrolling |= brw_nir_no_indirect_mask(i);
       stage_options->has_find_msb_rev = jay;
       stage_options->lower_ifind_msb = jay;
-      stage_options->avoid_ternary_with_two_constants = !jay;
    }
 
    /* Build a list of storage format compatible in component bit size &
