@@ -988,6 +988,8 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or 
     # can't do anything about it anyway
     '--raw-line', '#![allow(clippy::all)]',
     '--raw-line', '#![allow(warnings)]',
+    # Required for bindgen 0.71.1
+    '--raw-line', '#![allow(unsafe_op_in_unsafe_fn)]',
   ]
 
   rust_global_args = [
