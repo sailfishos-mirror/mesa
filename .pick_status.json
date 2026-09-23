@@ -2904,7 +2904,7 @@
         "description": "radeonsi: remove invalid assert",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c77828c8e99240f6a09276f8cef9b48ddb8a239f",
         "notes": null
