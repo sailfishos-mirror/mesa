@@ -3064,6 +3064,8 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
                        shader_remapped_sysval_offset(
                           vs, sysval_offset(graphics, vs.base_instance)));
          }
+
+         cs_flush_stores(b);
       }
 
       /* NIR expects zero-based instance ID, but even if it did have an
