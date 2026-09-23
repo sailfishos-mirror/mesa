@@ -141,6 +141,8 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          *rgp_flush_bits |= AC_RGP_FLUSH_FLUSH_DB | AC_RGP_FLUSH_INVAL_DB;
       }
 
+      *rgp_flush_bits |= AC_RGP_FLUSH_WAIT_ON_EOP_TS;
+
       ac_cmdbuf_begin(cs);
 
       /* We must flush CMASK/FMASK/DCC separately if the main event only flushes CB_DATA. */
@@ -240,6 +242,8 @@ ac_gfx10_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
             C_587_GLM_WB & C_587_GLM_INV & C_587_GLV_INV & C_587_GL1_INV & C_587_GL2_INV & C_587_GL2_WB; /* keep SEQ */
 
          assert(state->wait_mem_number);
+         assert(state->wait_mem_va);
+
          (*state->wait_mem_number)++;
 
          ac_emit_cp_release_mem(cs, gfx_level, ip_type, eop_event,
@@ -424,6 +428,8 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          eop_event = V_028A90_CACHE_FLUSH_AND_INV_TS_EVENT;
       }
 
+      *rgp_flush_bits |= AC_RGP_FLUSH_WAIT_ON_EOP_TS;
+
       /* These are the only allowed combinations. If you need to
        * do multiple operations at once, do them separately.
        * All operations that invalidate L2 also seem to invalidate
@@ -458,6 +464,8 @@ ac_gfx6_emit_barrier(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
       /* Do the flush (enqueue the event and wait for it). */
       assert(state->wait_mem_number);
+      assert(state->wait_mem_va);
+
       (*state->wait_mem_number)++;
 
       va = state->wait_mem_va;
