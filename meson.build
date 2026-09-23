@@ -1715,6 +1715,12 @@ foreach f, prefix: functions_to_detect
   endif
 endforeach
 
+# sysconf() existing does not mean it can answer _SC_PHYS_PAGES: that selector
+# is a glibc extension, unlike the POSIX-mandated _SC_PAGESIZE beside it.
+if cc.has_header_symbol('unistd.h', '_SC_PHYS_PAGES')
+  pre_args += '-DHAVE_SC_PHYS_PAGES'
+endif
+
 if cpp.links('''
     #define _GNU_SOURCE
     #include <stdlib.h>
