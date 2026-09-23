@@ -6089,6 +6089,39 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
                                                     ISL_SURF_USAGE_CONSTANT_BUFFER_BIT));
             break;
          }
+         case IRIS_SURFACE_GROUP_RENDER_TARGET_READ: {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+            struct iris_framebuffer_state *cso_fb = &ice->state.framebuffer;
+
+            if (!cso_fb->base.cbufs[index].texture) {
+               memcpy(surface_state_map, ice->state.null_fb_cpu, isl_dev->ss.size);
+               continue;
+            }
+
+            struct iris_surface *surf = &cso_fb->i_cbufs[index];
+            struct iris_resource *res = (struct iris_resource *)cso_fb->base.cbufs[index].texture;
+            const enum isl_aux_usage aux_usage = ice->state.draw_aux_usage[index];
+            uint8_t *surface_state_cpu = (uint8_t *)surf->surface_state.cpu;
+            const enum iris_domain access = IRIS_DOMAIN_RENDER_WRITE;
+            const bool writeable = true;
+
+            if (memcmp(&res->aux.clear_color, &surf->clear_color, sizeof(surf->clear_color)) != 0)
+               surf->clear_color = res->aux.clear_color;
+
+            if (res->aux.clear_color_bo)
+               iris_use_pinned_bo(batch, res->aux.clear_color_bo, false, access);
+
+            if (res->aux.bo)
+               iris_use_pinned_bo(batch, res->aux.bo, writeable, access);
+
+            iris_use_pinned_bo(batch, res->bo, writeable, access);
+
+            assert(surface_state_cpu);
+            surface_state_cpu += surf_state_offset_for_aux(surf->surface_state.aux_usages, aux_usage);
+            memcpy(surface_state_map, surface_state_cpu, isl_dev->ss.size);
+
+            break;
+         }
          default:
             UNREACHABLE("group not handled\n");
          }
