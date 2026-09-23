@@ -1783,8 +1783,15 @@ iris_setup_binding_table(const struct iris_screen *screen,
                io_sem.no_validate = true;
                nir_intrinsic_set_io_semantics(intrin, io_sem);
 
-               rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
-                                    IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
+               if (use_efficient_64bit) {
+                  rewrite_src_with_surface_address(&b, bt, instr,
+                                                   &intrin->src[0],
+                                                   IRIS_SURFACE_GROUP_RENDER_TARGET_READ,
+                                                   screen->isl_dev.ss.size);
+               } else {
+                  rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
+                                       IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
+               }
             }
             break;
 
