@@ -111,7 +111,7 @@ init_render_desc_ringbuf(struct panvk_gpu_queue *queue)
    /* We choose the alignment to guarantee that we won't ever cross a 4G
     * boundary when accessing the mapping. This way we can encode the wraparound
     * using 32-bit operations. */
-   dev_addr = panvk_as_alloc(dev, PANVK_PRIV_VA_HEAP, ringbuf->size * 2,
+   dev_addr = panvk_as_alloc(dev, PANVK_NO_EXEC_VA_HEAP, ringbuf->size * 2,
                              ringbuf->size * 2);
 
    if (!dev_addr)
@@ -269,7 +269,7 @@ init_subqueue_tracing(struct panvk_gpu_queue *queue,
 
    /* Add a guard page. */
    uint64_t pgsize = panvk_get_gpu_page_size(dev);
-   dev_addr = panvk_as_alloc(dev, PANVK_PRIV_VA_HEAP,
+   dev_addr = panvk_as_alloc(dev, PANVK_NO_EXEC_VA_HEAP,
                              subq->tracebuf.size + pgsize, pgsize);
 
    if (!dev_addr)

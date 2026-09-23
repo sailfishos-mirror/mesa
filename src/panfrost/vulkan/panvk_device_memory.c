@@ -164,15 +164,15 @@ panvk_AllocateMemory(VkDevice _device,
                                  MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO);
          if (capture_alloc_info == NULL ||
              capture_alloc_info->opaqueCaptureAddress == 0) {
-            op.va.start = panvk_as_alloc(device, PANVK_FIXED_PUB_VA_HEAP,
+            op.va.start = panvk_as_alloc(device, PANVK_FIXED_VA_HEAP,
                                          op.va.size, alignment);
          } else {
             op.va.start = panvk_as_alloc_fixed_address(
                device, capture_alloc_info->opaqueCaptureAddress, op.va.size);
          }
       } else {
-         op.va.start =
-            panvk_as_alloc(device, PANVK_PUB_VA_HEAP, op.va.size, alignment);
+         op.va.start = panvk_as_alloc(device, PANVK_NO_EXEC_VA_HEAP, op.va.size,
+                                      alignment);
       }
 
       if (!op.va.start) {

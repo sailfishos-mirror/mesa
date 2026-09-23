@@ -123,7 +123,7 @@ panvk_CreateBuffer(VkDevice _device, const VkBufferCreateInfo *pCreateInfo,
       uint64_t va_range = panvk_buffer_get_sparse_size(buffer);
 
       buffer->vk.device_address =
-         panvk_as_alloc(device, PANVK_PUB_VA_HEAP, va_range,
+         panvk_as_alloc(device, PANVK_NO_EXEC_VA_HEAP, va_range,
                         pan_choose_gpu_va_alignment(device->kmod.vm, va_range));
       if (!buffer->vk.device_address) {
          result = panvk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);

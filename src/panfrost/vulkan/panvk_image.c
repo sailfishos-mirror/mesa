@@ -814,7 +814,7 @@ panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
               STANDARD_SPARSE_BLOCK_SIZE_B);
 
       image->sparse.device_address =
-         panvk_as_alloc(dev, PANVK_PUB_VA_HEAP, va_range, alignment);
+         panvk_as_alloc(dev, PANVK_NO_EXEC_VA_HEAP, va_range, alignment);
       if (!image->sparse.device_address) {
          result = panvk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
          goto err_destroy_image;

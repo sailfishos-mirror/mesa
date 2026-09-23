@@ -338,25 +338,25 @@ static void
 init_va_heaps(struct panvk_device *device, uint64_t user_va_start, uint64_t user_va_end)
 {
    /* capture/replay requires a separate AS for fixed allocations. */
-   init_va_heap(&device->as.heaps[PANVK_FIXED_PUB_VA_HEAP],
+   init_va_heap(&device->as.heaps[PANVK_FIXED_VA_HEAP],
                 device->vk.enabled_features.bufferDeviceAddressCaptureReplay
                    ? user_va_end / 2
                    : user_va_end,
                 user_va_end);
 
-   /* Non-fixed heap starts at a 4G offset, and ends where the fixed heap
+   /* Non-executable heap starts at a 4G offset, and ends where the fixed heap
     * starts. If the fixed heap stars below the 4G boundary, then this heap
     * is empty. */
-   init_va_heap(&device->as.heaps[PANVK_PUB_VA_HEAP], 1ull << 32,
-                device->as.heaps[PANVK_FIXED_PUB_VA_HEAP].start);
+   init_va_heap(&device->as.heaps[PANVK_NO_EXEC_VA_HEAP], 1ull << 32,
+                device->as.heaps[PANVK_FIXED_VA_HEAP].start);
 
-   /* And Finally, we have the private heap, which covers at most the first
-    * 4G of the VA space. This is where we'll put all our private buffers,
-    * but public buffers can also live here if there's no space in the
-    * public heap. */
-   init_va_heap(&device->as.heaps[PANVK_PRIV_VA_HEAP], user_va_start,
-                MIN3(user_va_end, device->as.heaps[PANVK_PUB_VA_HEAP].start,
-                     device->as.heaps[PANVK_FIXED_PUB_VA_HEAP].start));
+   /* And Finally, we have the executable heap, which covers at most the
+    * first 4G of the VA space. This is where we'll map all our executable
+    * buffers, but non-executable buffers can also live here if there's no
+    * space in the no-exec heap. */
+   init_va_heap(&device->as.heaps[PANVK_EXEC_VA_HEAP], user_va_start,
+                MIN3(user_va_end, device->as.heaps[PANVK_NO_EXEC_VA_HEAP].start,
+                     device->as.heaps[PANVK_FIXED_VA_HEAP].start));
 }
 
 static void

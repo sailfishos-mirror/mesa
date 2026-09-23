@@ -60,8 +60,11 @@ panvk_priv_bo_create(struct panvk_device *dev, uint64_t size, uint32_t flags,
    };
 
    if (!(dev->kmod.vm->flags & PAN_KMOD_VM_FLAG_AUTO_VA)) {
+      enum panvk_va_heap_id heap = flags & PAN_KMOD_BO_FLAG_EXECUTABLE
+                                      ? PANVK_EXEC_VA_HEAP
+                                      : PANVK_NO_EXEC_VA_HEAP;
       op.va.start =
-         panvk_as_alloc(dev, PANVK_PRIV_VA_HEAP, op.va.size,
+         panvk_as_alloc(dev, heap, op.va.size,
                         pan_choose_gpu_va_alignment(dev->kmod.vm, op.va.size));
       if (!op.va.start) {
          result = panvk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);

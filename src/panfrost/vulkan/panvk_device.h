@@ -50,9 +50,9 @@ enum panvk_queue_family {
 
 enum panvk_va_heap_id {
    PANVK_INVALID_VA_HEAP = -1,
-   PANVK_PRIV_VA_HEAP = 0,
-   PANVK_PUB_VA_HEAP,
-   PANVK_FIXED_PUB_VA_HEAP,
+   PANVK_EXEC_VA_HEAP = 0,
+   PANVK_NO_EXEC_VA_HEAP,
+   PANVK_FIXED_VA_HEAP,
    PANVK_VA_HEAP_COUNT,
 };
 
@@ -200,13 +200,13 @@ static inline enum panvk_va_heap_id
 panvk_va_heap_fallback(enum panvk_va_heap_id heap)
 {
    switch (heap) {
-   /* Public objects can live in the private heap if there's no space left in
-    * the public one. */
-   case PANVK_PUB_VA_HEAP:
-      return PANVK_PRIV_VA_HEAP;
+   /* Non-executable objects can live in the executable heap if there's no space
+    * left in the non-executable one. */
+   case PANVK_NO_EXEC_VA_HEAP:
+      return PANVK_EXEC_VA_HEAP;
 
-   case PANVK_FIXED_PUB_VA_HEAP:
-   case PANVK_PRIV_VA_HEAP:
+   case PANVK_FIXED_VA_HEAP:
+   case PANVK_EXEC_VA_HEAP:
    default:
       return PANVK_INVALID_VA_HEAP;
    }
@@ -235,7 +235,7 @@ panvk_as_alloc_fixed_address(struct panvk_device *device, uint64_t address,
 {
    simple_mtx_lock(&device->as.lock);
    bool alloc_result = util_vma_heap_alloc_addr(
-      &device->as.heaps[PANVK_FIXED_PUB_VA_HEAP].heap, address, size);
+      &device->as.heaps[PANVK_FIXED_VA_HEAP].heap, address, size);
    simple_mtx_unlock(&device->as.lock);
    return alloc_result ? address : 0;
 }
