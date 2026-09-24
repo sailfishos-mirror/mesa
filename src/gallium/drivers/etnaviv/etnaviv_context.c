@@ -305,7 +305,7 @@ etna_reset_gpu_state(struct etna_context *ctx)
       etna_set_state(stream, VIVS_PS_HALTI3_UNK0103C, 0x76543210);
    }
    if (screen->info->halti >= 4) { /* Only on HALTI4+ */
-      etna_set_state(stream, VIVS_PE_HALTI4_UNK014C0, 0x00000000);
+      etna_set_state(stream, VIVS_PE_ADVANCED_ALPHA_CONFIG, 0x00000000);
    }
    if (screen->info->halti >= 5) { /* Only on HALTI5+ */
       etna_set_state(stream, VIVS_NTE_DESCRIPTOR_CONTROL,
