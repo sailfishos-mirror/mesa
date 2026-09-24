@@ -16,13 +16,9 @@ static enum ac_barrier_flags
 ac_get_reduced_barrier_flags(enum amd_gfx_level gfx_level, enum amd_ip_type ip_type,
                              enum ac_barrier_flags flags)
 {
-   if (ip_type == AMD_IP_COMPUTE) {
-      /* Only process compute flags. */
-      flags &= AC_BARRIER_INV_ICACHE | AC_BARRIER_INV_SMEM | AC_BARRIER_INV_VMEM |
-               AC_BARRIER_INV_L2 | AC_BARRIER_WB_L2 | AC_BARRIER_INV_L2_METADATA |
-               AC_BARRIER_SYNC_CS | AC_BARRIER_PIPELINESTAT_START |
-               AC_BARRIER_PIPELINESTAT_STOP;
-   }
+   /* Only process compute flags on compute queues. */
+   if (ip_type == AMD_IP_COMPUTE)
+      flags &= AC_BARRIER_ALL_COMPUTE;
 
    /* We use a TS event to flush CB/DB on GFX9+. */
    const bool uses_ts_event =
