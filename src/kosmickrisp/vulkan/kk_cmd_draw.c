@@ -1625,6 +1625,23 @@ kk_predicate_draws(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
    return true;
 }
 
+/* Points the draw at the 32-bit heap indices an unroll kernel wrote */
+static void
+kk_set_unrolled_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
+                     enum mesa_prim prim, uint64_t out_draws)
+{
+   data->prim = prim;
+   data->index_buffer = kk_heap_indices(cmd);
+   data->restart_index = UINT32_MAX;
+   data->index_buffer_el_size_B = 4u;
+   data->indirect = true;
+   data->indexed = true;
+   data->restart = false;
+   data->flatshade_first = true;
+   data->indirect_command.addr = out_draws;
+   data->indirect_command.stride = sizeof(VkDrawIndexedIndirectCommand);
+}
+
 /* Unrolling will always be done through indirect rendering, so if this is
  * called from non-indirect calls, we will fake it. */
 static bool
@@ -1661,16 +1678,43 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
    libkk_unroll_geometry_struct(cmd, kk_grid_1d(1024 * data->draw_count), true,
                                 info);
 
-   data->prim = u_decomposed_prim(data->prim);
-   data->index_buffer = kk_heap_indices(cmd);
-   data->restart_index = UINT32_MAX;
-   data->index_buffer_el_size_B = 4u;
-   data->indirect = true;
-   data->indexed = true;
-   data->restart = false;
-   data->flatshade_first = true;
-   data->indirect_command.addr = out_draws.gpu;
-   data->indirect_command.stride = sizeof(VkDrawIndexedIndirectCommand);
+   kk_set_unrolled_draw(cmd, data, u_decomposed_prim(data->prim),
+                        out_draws.gpu);
+
+   return true;
+}
+
+/* Metal has no adjacency topologies, so draws without a GS draw the lines or
+ * triangles they rasterize instead. */
+static bool
+kk_unroll_adjacency(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
+{
+   if (unlikely(!kk_convert_to_indirect_draw(cmd, data)))
+      return false;
+
+   struct kk_ptr out_draws = kk_pool_alloc(
+      cmd, data->draw_count * sizeof(VkDrawIndexedIndirectCommand), 4u);
+   if (unlikely(!out_draws.gpu))
+      return false;
+
+   struct libkk_unroll_adjacency_args info = {
+      .index_buffer = data->index_buffer.addr,
+      .heap = kk_heap(cmd),
+      .in_draw = data->indirect_command.addr,
+      .out_draw = out_draws.gpu,
+      .in_draw_stride_el = data->indirect_command.stride / sizeof(uint32_t),
+      .index_buffer_size_el =
+         data->indexed ? data->index_buffer.range / data->index_buffer_el_size_B
+                       : 0u,
+      .in_el_size_B = data->index_buffer_el_size_B,
+      .flatshade_first = data->flatshade_first,
+      .mode = data->prim,
+   };
+
+   libkk_unroll_adjacency_struct(cmd, kk_grid_1d(1024 * data->draw_count), true,
+                                 info);
+
+   kk_set_unrolled_draw(cmd, data, u_reduced_prim(data->prim), out_draws.gpu);
 
    return true;
 }
@@ -1877,12 +1921,14 @@ requires_unroll_restart(struct kk_cmd_buffer *cmd,
    if (!data->restart || !data->indexed)
       return false;
 
+   /* The adjacency rewrite reads restart-free input */
+   if (mesa_prim_has_adjacency(data->prim))
+      return true;
+
    switch (data->prim) {
    case MESA_PRIM_POINTS:
    case MESA_PRIM_LINES:
    case MESA_PRIM_TRIANGLES:
-   case MESA_PRIM_LINES_ADJACENCY:
-   case MESA_PRIM_TRIANGLES_ADJACENCY:
       /* Unroll list restart only if the user requests it, to avoid associated
        * cost otherwise. Some applications unintentionally leave the primitive
        * restart flag enabled while using list primitives without any restarts,
@@ -2304,6 +2350,10 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
 
    /* Unroll geometry. Skip draw if we fail. */
    if (requires_unroll(cmd, data) && !kk_unroll_geometry(cmd, data))
+      return;
+
+   if (!geom && mesa_prim_has_adjacency(data->prim) &&
+       !kk_unroll_adjacency(cmd, data))
       return;
 
    /* Patch lists do not restart, so only a GS fed by the input assembly needs
