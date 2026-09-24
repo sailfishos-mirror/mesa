@@ -367,6 +367,41 @@
 #define SDMA_5_2_COPY_T2T_SUB_WINDOW_CPV(x)        (((unsigned)(x) & 0x1) << 28)
 #define SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(x)     (((unsigned)(x) & 0x7) << 26)
 #define SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(x)     (((unsigned)(x) & 0x7) << 18)
+#define SDMA_5_2_COPY_LINEAR_CPV(x)                (((unsigned)(x) & 0x1) << 19)
+#define SDMA_5_2_COPY_LINEAR_DST_CP(x)             (((unsigned)(x) & 0x7) << 18)
+#define SDMA_5_2_COPY_LINEAR_SRC_CP(x)             (((unsigned)(x) & 0x7) << 26)
+#define SDMA_5_2_COPY_LINEAR_SUB_WINDOW_CPV(x)     (((unsigned)(x) & 0x1) << 19)
+#define SDMA_5_2_COPY_LINEAR_SUB_WINDOW_DST_CP(x)  (((unsigned)(x) & 0x7) << 18)
+#define SDMA_5_2_COPY_LINEAR_SUB_WINDOW_SRC_CP(x)  (((unsigned)(x) & 0x7) << 26)
+#define SDMA_5_2_WRITE_LINEAR_CPV(x)               (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_WRITE_LINEAR_CP(x)                (((unsigned)(x) & 0x7) << 26)
+#define SDMA_5_2_FENCE_CPV(x)                      (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_FENCE_CP(x)                       (((unsigned)(x) & 0x7) << 24)
+#define SDMA_5_2_POLL_REGMEM_CPV(x)                (((unsigned)(x) & 0x1) << 24)
+#define SDMA_5_2_POLL_REGMEM_CP(x)                 (((unsigned)(x) & 0x7) << 20)
+#define SDMA_5_2_CONSTANT_FILL_CPV(x)              (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_CONSTANT_FILL_CP(x)               (((unsigned)(x) & 0x7) << 24)
+#define SDMA_5_2_TIMESTAMP_CPV(x)                  (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_TIMESTAMP_CP(x)                   (((unsigned)(x) & 0x7) << 24)
+
+/* SDMA 7.0 MALL policy. */
+#define SDMA_7_0_MALL_POLICY_RT                              0x0
+#define SDMA_7_0_MALL_POLICY_NT                              0x1
+#define SDMA_7_0_MALL_POLICY_HT                              0x2
+#define SDMA_7_0_MALL_POLICY_LU                              0x3
+#define SDMA_7_0_COPY_LINEAR_DST_MALL_POLICY(x)              (((unsigned)(x) & 0x3) << 20)
+#define SDMA_7_0_COPY_LINEAR_SRC_MALL_POLICY(x)              (((unsigned)(x) & 0x3) << 28)
+#define SDMA_7_0_COPY_LINEAR_SUB_WINDOW_DST_MALL_POLICY(x)   (((unsigned)(x) & 0x3) << 20)
+#define SDMA_7_0_COPY_LINEAR_SUB_WINDOW_SRC_MALL_POLICY(x)   (((unsigned)(x) & 0x3) << 28)
+#define SDMA_7_0_COPY_TILED_SUB_WINDOW_LINEAR_MALL_POLICY(x) (((unsigned)(x) & 0x3) << 20)
+#define SDMA_7_0_COPY_TILED_SUB_WINDOW_TILED_MALL_POLICY(x)  (((unsigned)(x) & 0x3) << 28)
+#define SDMA_7_0_COPY_T2T_SUB_WINDOW_DST_MALL_POLICY(x)      (((unsigned)(x) & 0x3) << 20)
+#define SDMA_7_0_COPY_T2T_SUB_WINDOW_SRC_MALL_POLICY(x)      (((unsigned)(x) & 0x3) << 28)
+#define SDMA_7_0_WRITE_LINEAR_MALL_POLICY(x)                 (((unsigned)(x) & 0x3) << 28)
+#define SDMA_7_0_CONSTANT_FILL_MALL_POLICY(x)                (((unsigned)(x) & 0x3) << 26)
+#define SDMA_7_0_FENCE_MALL_POLICY(x)                        (((unsigned)(x) & 0x3) << 26)
+#define SDMA_7_0_TIMESTAMP_MALL_POLICY(x)                    (((unsigned)(x) & 0x3) << 26)
+#define SDMA_7_0_POLL_REGMEM_MALL_POLICY(x)                  (((unsigned)(x) & 0x3) << 22)
 
 /* There is apparently an undocumented HW limitation that
  * prevents the HW from copying the last 255 bytes of (1 << 22) - 1
