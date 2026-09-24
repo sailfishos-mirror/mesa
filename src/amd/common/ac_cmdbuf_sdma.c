@@ -133,7 +133,7 @@ ac_emit_sdma_copy_linear(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version
                          bool tmz)
 {
    const unsigned max_size_per_packet =
-      sdma_ip_version >= SDMA_5_2 ? SDMA_V5_2_COPY_MAX_BYTES : SDMA_V2_0_COPY_MAX_BYTES;
+      sdma_ip_version >= SDMA_5_2 ? SDMA_5_2_COPY_MAX_BYTES : SDMA_2_0_COPY_MAX_BYTES;
    uint32_t align = ~0u;
 
    assert(sdma_ip_version >= SDMA_2_0);
@@ -320,7 +320,7 @@ ac_sdma7_get_metadata_config(const struct radeon_info *info,
    uint32_t meta_config = 0;
 
    if (src->is_compressed) {
-      meta_config |= SDMA7_DCC_READ_CM(2);
+      meta_config |= SDMA_7_0_DCC_READ_CM(2);
    }
 
    if (dst->is_compressed) {
@@ -329,11 +329,11 @@ ac_sdma7_get_metadata_config(const struct radeon_info *info,
       const uint32_t dcc_max_compressed_block_size =
          dst->surf->u.gfx9.color.dcc.max_compressed_block_size;
 
-      meta_config |= SDMA7_DCC_DATA_FORMAT(data_format) |
-                     SDMA7_DCC_NUM_TYPE(number_type) |
-                     SDMA7_DCC_MAX_COM(dcc_max_compressed_block_size) |
-                     SDMA7_DCC_MAX_UCOM(1) |
-                     SDMA7_DCC_WRITE_CM(1);
+      meta_config |= SDMA_7_0_DCC_DATA_FORMAT(data_format) |
+                     SDMA_7_0_DCC_NUM_TYPE(number_type) |
+                     SDMA_7_0_DCC_MAX_COM(dcc_max_compressed_block_size) |
+                     SDMA_7_0_DCC_MAX_UCOM(1) |
+                     SDMA_7_0_DCC_WRITE_CM(1);
    }
 
    return meta_config;
@@ -353,15 +353,15 @@ ac_sdma5_get_metadata_config(const struct radeon_info *info,
                                  tiled->surf->u.gfx9.color.dcc.pipe_aligned;
    const bool dcc_write_compress = !detile && !tiled->htile_enabled;
 
-   return SDMA5_DCC_DATA_FORMAT(data_format) |
-          SDMA5_DCC_ALPHA_IS_ON_MSB(alpha_is_on_msb) |
-          SDMA5_DCC_NUM_TYPE(number_type) |
-          SDMA5_DCC_SURF_TYPE(tiled->surf_type) |
-          SDMA5_DCC_MAX_COM(dcc_max_compressed_block_size) |
-          SDMA5_DCC_PIPE_ALIGNED(dcc_pipe_aligned) |
-          SDMA5_DCC_MAX_UCOM(V_028C78_MAX_BLOCK_SIZE_256B) |
-          SDMA5_DCC_WRITE_COMPRESS(dcc_write_compress) |
-          SDMA5_DCC_TMZ(tmz);
+   return SDMA_5_0_DCC_DATA_FORMAT(data_format) |
+          SDMA_5_0_DCC_ALPHA_IS_ON_MSB(alpha_is_on_msb) |
+          SDMA_5_0_DCC_NUM_TYPE(number_type) |
+          SDMA_5_0_DCC_SURF_TYPE(tiled->surf_type) |
+          SDMA_5_0_DCC_MAX_COM(dcc_max_compressed_block_size) |
+          SDMA_5_0_DCC_PIPE_ALIGNED(dcc_pipe_aligned) |
+          SDMA_5_0_DCC_MAX_UCOM(V_028C78_MAX_BLOCK_SIZE_256B) |
+          SDMA_5_0_DCC_WRITE_COMPRESS(dcc_write_compress) |
+          SDMA_5_0_DCC_TMZ(tmz);
 }
 
 /**
