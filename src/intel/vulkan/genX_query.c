@@ -212,12 +212,9 @@ VkResult genX(CreateQueryPool)(
       uint64s_per_slot = 1 + 4;
       break;
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
-      uint64s_per_slot = pdevice->perf->metrics_library.gpu_report_size / sizeof(uint64_t);
-
-      metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pCreateInfo->queryCount);
-
-      if (!metrics_library_query_pool)
-         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      const uint32_t report_size = pdevice->perf->metrics_library.gpu_report_size;
+      assert(report_size % sizeof(uint64_t) == 0);
+      uint64s_per_slot = DIV_ROUND_UP(report_size, sizeof(uint64_t));
       break;
    }
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR: {
@@ -297,6 +294,17 @@ VkResult genX(CreateQueryPool)(
    pool->stride = uint64s_per_slot * sizeof(uint64_t);
 
    if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
+      if (pool->stride < intel_perf_query_availability_size()) {
+         result = vk_error(device, VK_ERROR_UNKNOWN);
+         goto fail;
+      }
+      metrics_library_query_pool = intel_perf_metrics_library_create_query_pool(pdevice->perf, pool->vk.query_count);
+
+      if (!metrics_library_query_pool) {
+         result = vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+         goto fail;
+      }
+
       pool->metrics_library_query_pool = metrics_library_query_pool;
    }
    else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
@@ -399,6 +407,10 @@ VkResult genX(CreateQueryPool)(
    return VK_SUCCESS;
 
  fail:
+   if (metrics_library_query_pool) {
+      intel_perf_metrics_library_destroy_query_pool(device->physical->perf, metrics_library_query_pool);
+   }
+
    anv_oag_free_query_ids(device, pool);
    vk_free2(&device->vk.alloc, pAllocator, pool);
 
