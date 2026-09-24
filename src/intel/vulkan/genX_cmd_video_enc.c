@@ -113,6 +113,19 @@ anv_vdenc_h265_picture_type(StdVideoH265PictureType pic_type)
    }
 }
 
+static uint32_t
+anv_video_encode_quantizer(const struct anv_video_session *vid,
+                           uint32_t constant, uint32_t driver_default)
+{
+   switch (vid->rc_mode) {
+   case VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR:
+      return constant;
+   case VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DEFAULT_KHR:
+   default:
+      return driver_default;
+   }
+}
+
 
 #if GFX_VERx10 < 125
 static void update_costs(uint8_t *mode_cost, uint8_t *mv_cost, uint8_t *hme_mv_cost, int qp, StdVideoH264PictureType pic_type)
@@ -514,9 +527,9 @@ anv_h264_slice_qp(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc_in
    const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
    const StdVideoH264PictureParameterSet *pps = anv_h264_pps(cmd, enc_info);
    const VkVideoEncodeH264NaluSliceInfoKHR *nalu = &frame_info->pNaluSliceEntries[slice_id];
-   bool rc_disable = cmd->video.vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
 
-   return rc_disable ? nalu->constantQp : pps->pic_init_qp_minus26 + 26;
+   return anv_video_encode_quantizer(cmd->video.vid, nalu->constantQp,
+                                     pps->pic_init_qp_minus26 + 26);
 }
 
 static uint32_t
@@ -1931,9 +1944,9 @@ anv_h265_slice_qp(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc_in
    const struct VkVideoEncodeH265PictureInfoKHR *frame_info = anv_h265_frame_info(enc_info);
    const StdVideoH265PictureParameterSet *pps = anv_h265_pps(cmd, enc_info);
    const VkVideoEncodeH265NaluSliceSegmentInfoKHR *nalu = &frame_info->pNaluSliceSegmentEntries[slice_id];
-   bool rc_disable = cmd->video.vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
 
-   return rc_disable ? nalu->constantQp : pps->init_qp_minus26 + 26;
+   return anv_video_encode_quantizer(cmd->video.vid, nalu->constantQp,
+                                     pps->init_qp_minus26 + 26);
 }
 
 static uint8_t
@@ -3534,12 +3547,10 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
       }
    }
 
-   bool rc_disable = vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
-
    bool is_intra = pic_info->frame_type == STD_VIDEO_AV1_FRAME_TYPE_KEY ||
                    pic_info->frame_type == STD_VIDEO_AV1_FRAME_TYPE_INTRA_ONLY;
-   uint32_t base_q_idx = rc_disable ? frame_info->constantQIndex :
-      (pic_info->pQuantization ? pic_info->pQuantization->base_q_idx : 0);
+   uint32_t base_q_idx = anv_video_encode_quantizer(vid, frame_info->constantQIndex,
+      pic_info->pQuantization ? pic_info->pQuantization->base_q_idx : 0);
 
    if (base_q_idx == 0) base_q_idx = 1;
    bool reference_select = !is_intra &&
@@ -3958,8 +3969,8 @@ anv_av1_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc
             buf.CDFTablesInitializationBufferAddress =
                anv_image_av1_table_address(primary_ref_iv, primary_ref_layer);
          } else {
-            uint32_t cdf_qindex = rc_disable ? frame_info->constantQIndex :
-               (pic_info->pQuantization ? pic_info->pQuantization->base_q_idx : 0);
+            uint32_t cdf_qindex = anv_video_encode_quantizer(vid, frame_info->constantQIndex,
+               pic_info->pQuantization ? pic_info->pQuantization->base_q_idx : 0);
             uint32_t cdf_index = cdf_qindex <= 20 ? 0 :
                                  cdf_qindex <= 60 ? 1 :
                                  cdf_qindex <= 120 ? 2 : 3;
