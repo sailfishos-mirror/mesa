@@ -397,6 +397,11 @@ with_any_intel = [
   with_intel_vk,
 ].contains(true)
 with_any_nouveau = with_gallium_nouveau or with_nouveau_vk
+with_any_panfrost = [
+  with_gallium_panfrost,
+  with_panfrost_vk,
+  with_tools.contains('panfrost'),
+].contains(true)
 
 # needed in the loader
 if with_nouveau_vk
