@@ -1,7 +1,7 @@
-# Copyright © 2025 Collabora, Ltd.
+# Copyright © 2026 Collabora, Ltd.
 # SPDX-License-Identifier: MIT
 
-nouveau_rust_args = [
+_util_rust_args = [
   rust_global_args,
   rust_2024_lint_args,
   '-Aclippy::identity_op',
@@ -18,3 +18,15 @@ nouveau_rust_args = [
   '-Aclippy::not_unsafe_ptr_arg_deref',
   '-Anon_snake_case',
 ]
+
+_libmesa_util_rs = static_library(
+  'mesa_util',
+  files('lib.rs'),
+  gnu_symbol_visibility : 'hidden',
+  rust_abi : 'rust',
+  rust_args : _util_rust_args,
+)
+
+idep_mesa_util_rs = declare_dependency(
+  link_with : _libmesa_util_rs,
+)
