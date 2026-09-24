@@ -40,6 +40,18 @@ ac_sdma_5_2_get_cache_policy_wr(enum sdma_version sdma_ip_version)
 }
 
 static uint32_t
+ac_sdma_7_0_get_mall_policy(enum sdma_version sdma_ip_version, bool is_copy)
+{
+   /* Use Non-Temporal policy for all copies because re-use isn't expected and
+    * it's supposedly better.
+    */
+   if (sdma_ip_version == SDMA_7_0)
+      return is_copy ? SDMA_7_0_MALL_POLICY_NT : SDMA_7_0_MALL_POLICY_RT;
+
+   return 0;
+}
+
+static uint32_t
 ac_sdma_max_img_extent(const enum sdma_version ver)
 {
    if (ver >= SDMA_7_0)
@@ -64,10 +76,11 @@ ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_ver
 {
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, false);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_TIMESTAMP, SDMA_TS_SUB_OPCODE_GET_GLOBAL_TIMESTAMP, 0) |
-                  SDMA_5_2_TIMESTAMP_CPV(cpv) | SDMA_5_2_TIMESTAMP_CP(cp));
+                  SDMA_5_2_TIMESTAMP_CPV(cpv) | SDMA_5_2_TIMESTAMP_CP(cp) | SDMA_7_0_TIMESTAMP_MALL_POLICY(mp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_end();
@@ -80,6 +93,7 @@ ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
 {
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, false);
 
    ac_cmdbuf_begin(cs);
 
@@ -91,7 +105,7 @@ ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
       ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_FENCE, 0, SDMA_FENCE_MTYPE_UC) |
-                  SDMA_5_2_FENCE_CPV(cpv) | SDMA_5_2_FENCE_CP(cp));
+                  SDMA_5_2_FENCE_CPV(cpv) | SDMA_5_2_FENCE_CP(cp) | SDMA_7_0_FENCE_MALL_POLICY(mp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(fence);
@@ -107,6 +121,7 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
 {
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, false);
 
    ac_cmdbuf_begin(cs);
 
@@ -118,7 +133,7 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
       ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_POLL_REGMEM, 0, 0) | op << 28 | SDMA_POLL_MEM |
-                  SDMA_5_2_POLL_REGMEM_CPV(cpv) | SDMA_5_2_POLL_REGMEM_CP(cp));
+                  SDMA_5_2_POLL_REGMEM_CPV(cpv) | SDMA_5_2_POLL_REGMEM_CP(cp) | SDMA_7_0_POLL_REGMEM_MALL_POLICY(mp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(ref);
@@ -133,6 +148,7 @@ ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, enum sdma_version ver, uint64
 {
    const bool cpv = ac_sdma_5_2_uses_cpv(ver);
    const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(ver);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(ver, false);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0) |
@@ -140,7 +156,7 @@ ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, enum sdma_version ver, uint64
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    if (ver >= SDMA_4_0)
-      ac_cmdbuf_emit((count - 1) | SDMA_5_2_WRITE_LINEAR_CP(cp));
+      ac_cmdbuf_emit((count - 1) | SDMA_5_2_WRITE_LINEAR_CP(cp) | SDMA_7_0_WRITE_LINEAR_MALL_POLICY(mp));
    else
       ac_cmdbuf_emit(count);
    ac_cmdbuf_end();
@@ -156,10 +172,12 @@ ac_emit_sdma_constant_fill(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_versi
    const uint64_t bytes_written = MIN2(size, max_fill_size);
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, false);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_CONSTANT_FILL, 0, 0) | (fill_size << 30) |
-                  SDMA_5_2_CONSTANT_FILL_CPV(cpv) | SDMA_5_2_CONSTANT_FILL_CP(cp));
+                  SDMA_5_2_CONSTANT_FILL_CPV(cpv) | SDMA_5_2_CONSTANT_FILL_CP(cp) |
+                  SDMA_7_0_CONSTANT_FILL_MALL_POLICY(mp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(value);
@@ -198,12 +216,15 @@ ac_emit_sdma_copy_linear(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t src_cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
    const uint32_t dst_cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, true);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, (tmz ? 4 : 0)) |
                   SDMA_5_2_COPY_LINEAR_CPV(cpv));
    ac_cmdbuf_emit(sdma_ip_version >= SDMA_4_0 ? bytes_written - 1 : bytes_written);
-   ac_cmdbuf_emit(SDMA_5_2_COPY_LINEAR_SRC_CP(src_cp) | SDMA_5_2_COPY_LINEAR_DST_CP(dst_cp));
+   ac_cmdbuf_emit(SDMA_5_2_COPY_LINEAR_SRC_CP(src_cp) | SDMA_5_2_COPY_LINEAR_DST_CP(dst_cp) |
+                  SDMA_7_0_COPY_LINEAR_SRC_MALL_POLICY(mp) |
+                  SDMA_7_0_COPY_LINEAR_DST_MALL_POLICY(mp));
    ac_cmdbuf_emit(src_va);
    ac_cmdbuf_emit(src_va >> 32);
    ac_cmdbuf_emit(dst_va);
@@ -256,6 +277,7 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
    const uint32_t src_cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
    const uint32_t dst_cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(sdma_ip_version, true);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR_SUB_WINDOW, 0) |
@@ -273,7 +295,9 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    if (sdma_ip_version >= SDMA_2_4) {
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
       ac_cmdbuf_emit((depth - 1) | SDMA_5_2_COPY_LINEAR_SUB_WINDOW_SRC_CP(src_cp) |
-                     SDMA_5_2_COPY_LINEAR_SUB_WINDOW_DST_CP(dst_cp));
+                     SDMA_5_2_COPY_LINEAR_SUB_WINDOW_DST_CP(dst_cp) |
+                     SDMA_7_0_COPY_LINEAR_SUB_WINDOW_SRC_MALL_POLICY(mp) |
+                     SDMA_7_0_COPY_LINEAR_SUB_WINDOW_DST_MALL_POLICY(mp));
    } else {
       ac_cmdbuf_emit(width | (height << 16));
       ac_cmdbuf_emit(depth);
@@ -485,6 +509,8 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    const uint32_t tiled_cp = detile ? rd_cp : wr_cp;
    const uint32_t linear_cp = detile ? wr_cp : rd_cp;
 
+   const uint32_t mall_policy = ac_sdma_7_0_get_mall_policy(info->sdma_ip_version, true);
+
    /* Sanity checks. */
    const bool uses_depth = linear->offset.z != 0 || tiled->offset.z != 0 || depth != 1;
    assert(util_is_power_of_two_nonzero(tiled->bpp));
@@ -517,7 +543,9 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
       ac_cmdbuf_emit((depth - 1) |
                      SDMA_5_2_COPY_TILED_SUB_WINDOW_TILED_CP(tiled_cp) |
-                     SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(linear_cp));
+                     SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(linear_cp) |
+                     SDMA_7_0_COPY_TILED_SUB_WINDOW_TILED_MALL_POLICY(mall_policy) |
+                     SDMA_7_0_COPY_TILED_SUB_WINDOW_LINEAR_MALL_POLICY(mall_policy));
    } else {
       ac_cmdbuf_emit(width | (height << 16));
       ac_cmdbuf_emit(depth);
@@ -593,6 +621,8 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
       dst_cp |= SDMA_5_2_CP_GL2_NOA;
    }
 
+   const uint32_t mp = ac_sdma_7_0_get_mall_policy(info->sdma_ip_version, true);
+
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_T2T_SUB_WINDOW, 0) |
                   dcc << 19 | dcc_dir << 31 | src_header_dword |
@@ -630,7 +660,9 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    if (sdma_ip_version >= SDMA_2_4)
       ac_cmdbuf_emit((depth - 1) |
                      SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(src_cp) |
-                     SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp));
+                     SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp) |
+                     SDMA_7_0_COPY_T2T_SUB_WINDOW_SRC_MALL_POLICY(mp) |
+                     SDMA_7_0_COPY_T2T_SUB_WINDOW_DST_MALL_POLICY(mp));
    else
       ac_cmdbuf_emit(depth);
 
