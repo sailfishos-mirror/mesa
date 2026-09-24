@@ -8,8 +8,8 @@ use std::iter;
 
 use compiler::float16::F16;
 use compiler::smallvec::SmallVec;
+use mesa_util::bitview::{BitMutViewable, BitViewable};
 
-use crate::bitview::{BitMutViewable, BitViewable};
 use crate::ir::*;
 
 pub trait FoldDataView {

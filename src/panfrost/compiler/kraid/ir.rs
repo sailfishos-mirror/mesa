@@ -2,7 +2,6 @@
 // Copyright © 2026 Arm Ltd.
 // SPDX-License-Identifier: MIT
 
-use crate::bitview::BitViewable;
 pub use crate::data_type::DataType;
 use crate::data_type::{NumericType, PartialDataType};
 use crate::debug::{DEBUG, DebugFlags};
@@ -22,6 +21,7 @@ use compiler::enum_as_u8::*;
 use compiler::float16::F16;
 use compiler::smallvec::*;
 use kraid_proc_macros::EnumAsU8;
+use mesa_util::bitview::BitViewable;
 
 use std::fmt;
 use std::num::NonZeroU32;

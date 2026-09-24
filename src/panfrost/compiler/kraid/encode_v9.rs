@@ -1,7 +1,6 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
-use crate::bitview::*;
 use crate::data_type::*;
 use crate::flow::*;
 use crate::ir;
@@ -13,6 +12,7 @@ use crate::ops::{self, *};
 use crate::swizzle::*;
 
 use compiler::{as_slice::AsArray, enum_as_u8::EnumAsU8, index_of};
+use mesa_util::bitview::*;
 use paste::paste;
 use rustc_hash::FxHashMap;
 

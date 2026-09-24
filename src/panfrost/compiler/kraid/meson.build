@@ -124,6 +124,7 @@ libpanfrost_kraid = static_library(
     dep_paste,
     dep_rustc_hash,
     idep_compiler_rs,
+    idep_mesa_util_rs,
   ],
   link_with : [
     _libkraid_bindings_rs,
@@ -147,6 +148,7 @@ libpanfrost_kraid_rs = static_library(
     dep_paste,
     dep_rustc_hash,
     idep_compiler_rs,
+    idep_mesa_util_rs,
   ],
   link_with : [
     _libkraid_bindings_rs,

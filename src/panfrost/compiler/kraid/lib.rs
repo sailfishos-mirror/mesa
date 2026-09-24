@@ -1,7 +1,8 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
-mod bitview;
+pub extern crate mesa_util;
+
 mod builder;
 mod compile;
 mod data_type;

@@ -4,7 +4,6 @@ use std::ops::Range;
 use std::sync::OnceLock;
 use std::{io, iter, slice};
 
-use crate::bitview::BitViewable;
 use crate::builder::*;
 use crate::data_type::NumericType;
 use crate::debug::{DEBUG, DebugFlags};
@@ -19,6 +18,7 @@ use acorn::Acorn;
 use compiler::cfg::CFGBuilder;
 use compiler::float16::F16;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
+use mesa_util::bitview::BitViewable;
 use rustc_hash::FxBuildHasher;
 
 /// Enables libpanfrost_decode logs for debugging purposes.
