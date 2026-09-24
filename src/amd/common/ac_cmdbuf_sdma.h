@@ -63,7 +63,7 @@ struct ac_sdma_surf {
 
 void ac_emit_sdma_nop(struct ac_cmdbuf *cs);
 
-void ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, uint64_t va);
+void ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version, uint64_t va);
 
 void ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
                         const enum sdma_version sdma_ip_version,

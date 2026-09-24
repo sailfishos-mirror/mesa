@@ -13,6 +13,32 @@
 
 #include "util/u_math.h"
 
+static bool
+ac_sdma_5_2_uses_cpv(enum sdma_version sdma_ip_version)
+{
+   return sdma_ip_version >= SDMA_5_2 && sdma_ip_version < SDMA_7_0;
+}
+
+static uint32_t
+ac_sdma_5_2_get_cache_policy_rd(enum sdma_version sdma_ip_version)
+{
+   /* Same cache policy as the kernel. */
+   if (ac_sdma_5_2_uses_cpv(sdma_ip_version))
+      return SDMA_5_2_CP_GL2_NOA | SDMA_5_2_CP_LLC_NOALLOC;
+
+   return 0;
+}
+
+static uint32_t
+ac_sdma_5_2_get_cache_policy_wr(enum sdma_version sdma_ip_version)
+{
+   /* Same cache policy as the kernel. */
+   if (ac_sdma_5_2_uses_cpv(sdma_ip_version))
+      return SDMA_5_2_CP_GL2_BYPASS | SDMA_5_2_CP_LLC_NOALLOC;
+
+   return 0;
+}
+
 static uint32_t
 ac_sdma_max_img_extent(const enum sdma_version ver)
 {
@@ -34,10 +60,14 @@ ac_emit_sdma_nop(struct ac_cmdbuf *cs)
 }
 
 void
-ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, uint64_t va)
+ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version, uint64_t va)
 {
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_TIMESTAMP, SDMA_TS_SUB_OPCODE_GET_GLOBAL_TIMESTAMP, 0));
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_TIMESTAMP, SDMA_TS_SUB_OPCODE_GET_GLOBAL_TIMESTAMP, 0) |
+                  SDMA_5_2_TIMESTAMP_CPV(cpv) | SDMA_5_2_TIMESTAMP_CP(cp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_end();
@@ -48,6 +78,9 @@ ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
                    const enum sdma_version sdma_ip_version,
                    const uint64_t va, const uint32_t fence)
 {
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+
    ac_cmdbuf_begin(cs);
 
    /* Use NOP before FENCE on SDMA 2.4-3.1 to prevent hangs.
@@ -57,7 +90,8 @@ ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
    if (sdma_ip_version >= SDMA_2_4 && sdma_ip_version <= SDMA_3_1)
       ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_FENCE, 0, SDMA_FENCE_MTYPE_UC));
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_FENCE, 0, SDMA_FENCE_MTYPE_UC) |
+                  SDMA_5_2_FENCE_CPV(cpv) | SDMA_5_2_FENCE_CP(cp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(fence);
@@ -71,6 +105,9 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
                       const uint32_t op, const uint64_t va,
                       const uint32_t ref, const uint32_t mask)
 {
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
+
    ac_cmdbuf_begin(cs);
 
    /* Use NOP before POLL_REGMEM on SDMA 2.4-3.1 to prevent hangs.
@@ -80,7 +117,8 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
    if (sdma_ip_version >= SDMA_2_4 && sdma_ip_version <= SDMA_3_1)
       ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_POLL_REGMEM, 0, 0) | op << 28 | SDMA_POLL_MEM);
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_POLL_REGMEM, 0, 0) | op << 28 | SDMA_POLL_MEM |
+                  SDMA_5_2_POLL_REGMEM_CPV(cpv) | SDMA_5_2_POLL_REGMEM_CP(cp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(ref);
@@ -93,12 +131,16 @@ ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
 void
 ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, enum sdma_version ver, uint64_t va, uint32_t count)
 {
+   const bool cpv = ac_sdma_5_2_uses_cpv(ver);
+   const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(ver);
+
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0) |
+                  SDMA_5_2_WRITE_LINEAR_CPV(cpv));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    if (ver >= SDMA_4_0)
-      ac_cmdbuf_emit(count - 1);
+      ac_cmdbuf_emit((count - 1) | SDMA_5_2_WRITE_LINEAR_CP(cp));
    else
       ac_cmdbuf_emit(count);
    ac_cmdbuf_end();
@@ -112,9 +154,12 @@ ac_emit_sdma_constant_fill(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_versi
 
    const uint64_t max_fill_size = BITFIELD64_MASK(sdma_ip_version >= SDMA_6_0 ? 30 : 22) & ~0x3;
    const uint64_t bytes_written = MIN2(size, max_fill_size);
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
 
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_CONSTANT_FILL, 0, 0) | (fill_size << 30));
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_CONSTANT_FILL, 0, 0) | (fill_size << 30) |
+                  SDMA_5_2_CONSTANT_FILL_CPV(cpv) | SDMA_5_2_CONSTANT_FILL_CP(cp));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(value);
@@ -150,11 +195,15 @@ ac_emit_sdma_copy_linear(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version
    }
 
    const uint64_t bytes_written = size >= 4 ? MIN2(size & align, max_size_per_packet) : size;
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t src_cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
+   const uint32_t dst_cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
 
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, (tmz ? 4 : 0)));
+   ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, (tmz ? 4 : 0)) |
+                  SDMA_5_2_COPY_LINEAR_CPV(cpv));
    ac_cmdbuf_emit(sdma_ip_version >= SDMA_4_0 ? bytes_written - 1 : bytes_written);
-   ac_cmdbuf_emit(0);
+   ac_cmdbuf_emit(SDMA_5_2_COPY_LINEAR_SRC_CP(src_cp) | SDMA_5_2_COPY_LINEAR_DST_CP(dst_cp));
    ac_cmdbuf_emit(src_va);
    ac_cmdbuf_emit(src_va >> 32);
    ac_cmdbuf_emit(dst_va);
@@ -204,9 +253,13 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    ac_sdma_check_pitches(sdma_ip_version, src->pitch, src->slice_pitch, src->bpp, false);
    ac_sdma_check_pitches(sdma_ip_version, dst->pitch, dst->slice_pitch, dst->bpp, false);
 
+   const bool cpv = ac_sdma_5_2_uses_cpv(sdma_ip_version);
+   const uint32_t src_cp = ac_sdma_5_2_get_cache_policy_rd(sdma_ip_version);
+   const uint32_t dst_cp = ac_sdma_5_2_get_cache_policy_wr(sdma_ip_version);
+
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR_SUB_WINDOW, 0) |
-                  util_logbase2(src->bpp) << 29);
+                  util_logbase2(src->bpp) << 29 | SDMA_5_2_COPY_LINEAR_SUB_WINDOW_CPV(cpv));
    ac_cmdbuf_emit(src->va);
    ac_cmdbuf_emit(src->va >> 32);
    ac_cmdbuf_emit(src->offset.x | src->offset.y << 16);
@@ -219,7 +272,8 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    ac_cmdbuf_emit(dst->slice_pitch - 1);
    if (sdma_ip_version >= SDMA_2_4) {
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
-      ac_cmdbuf_emit((depth - 1));
+      ac_cmdbuf_emit((depth - 1) | SDMA_5_2_COPY_LINEAR_SUB_WINDOW_SRC_CP(src_cp) |
+                     SDMA_5_2_COPY_LINEAR_SUB_WINDOW_DST_CP(dst_cp));
    } else {
       ac_cmdbuf_emit(width | (height << 16));
       ac_cmdbuf_emit(depth);
@@ -411,31 +465,25 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    const bool dcc =
       sdma_ip_version >= SDMA_7_0 ? (linear->is_compressed || tiled->is_compressed)
                                         : tiled->is_compressed;
-   uint32_t tiled_cp = 0, linear_cp = 0;
-   bool cpv = false;
+   const bool cpv = ac_sdma_5_2_uses_cpv(info->sdma_ip_version);
+   uint32_t rd_cp = ac_sdma_5_2_get_cache_policy_rd(info->sdma_ip_version);
+   uint32_t wr_cp = ac_sdma_5_2_get_cache_policy_wr(info->sdma_ip_version);
 
-   if (info->sdma_ip_version == SDMA_5_2) {
-      uint32_t rd_cp = SDMA_5_2_CP_LLC_NOALLOC;
-      uint32_t wr_cp = SDMA_5_2_CP_LLC_NOALLOC;
+   /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2 and
+    * DCC which causes random corruption. Overwrite the default cache policy
+    * and force NOA for writes and LRU for reads which seems the only
+    * combination to workaround it.
+    */
+   if (info->sdma_ip_version == SDMA_5_2 && dcc) {
+      rd_cp &= ~SDMA_5_2_CP_GL2_NOA;
+      rd_cp |= SDMA_5_2_CP_GL2_LRU;
 
-      if (dcc) {
-         /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2
-          * and DCC which causes random corruption. Overwrite the default
-          * cache policy and force NOA for writes and LRU for reads which
-          * seems the only combination to workaround it.
-          */
-         rd_cp |= SDMA_5_2_CP_GL2_LRU;
-         wr_cp |= SDMA_5_2_CP_GL2_NOA;
-      } else {
-         /* Use the default cache policy. */
-         rd_cp |= SDMA_5_2_CP_GL2_NOA;
-         wr_cp |= SDMA_5_2_CP_GL2_BYPASS;
-      }
-
-      tiled_cp = detile ? rd_cp : wr_cp;
-      linear_cp = detile ? wr_cp : rd_cp;
-      cpv = true;
+      wr_cp &= ~SDMA_5_2_CP_GL2_BYPASS;
+      wr_cp |= SDMA_5_2_CP_GL2_NOA;
    }
+
+   const uint32_t tiled_cp = detile ? rd_cp : wr_cp;
+   const uint32_t linear_cp = detile ? wr_cp : rd_cp;
 
    /* Sanity checks. */
    const bool uses_depth = linear->offset.z != 0 || tiled->offset.z != 0 || depth != 1;
@@ -468,9 +516,8 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    if (sdma_ip_version >= SDMA_2_4) {
       ac_cmdbuf_emit((width - 1) | (height - 1) << 16);
       ac_cmdbuf_emit((depth - 1) |
-                     (cpv ? SDMA_5_2_COPY_TILED_SUB_WINDOW_TILED_CP(tiled_cp) |
-                            SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(linear_cp)
-                          : 0));
+                     SDMA_5_2_COPY_TILED_SUB_WINDOW_TILED_CP(tiled_cp) |
+                     SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(linear_cp));
    } else {
       ac_cmdbuf_emit(width | (height << 16));
       ac_cmdbuf_emit(depth);
@@ -510,8 +557,6 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
       ac_sdma_get_tiled_header_dword(sdma_ip_version, src);
    const uint32_t src_info_dword = ac_sdma_get_tiled_info_dword(info, src);
    const uint32_t dst_info_dword = ac_sdma_get_tiled_info_dword(info, dst);
-   uint32_t src_cp = 0, dst_cp = 0;
-   bool cpv = false;
 
    /* On GFX10+ this supports DCC, but cannot copy a compressed surface to another compressed surface. */
    assert(!src->is_compressed || !dst->is_compressed);
@@ -531,24 +576,21 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    /* 0 = compress (src is uncompressed), 1 = decompress (src is compressed). */
    const uint32_t dcc_dir = src->is_compressed && !dst->is_compressed;
 
-   if (info->sdma_ip_version == SDMA_5_2) {
-      src_cp = SDMA_5_2_CP_LLC_NOALLOC;
-      dst_cp = SDMA_5_2_CP_LLC_NOALLOC;
-      cpv = true;
+   const bool cpv = ac_sdma_5_2_uses_cpv(info->sdma_ip_version);
+   uint32_t src_cp = ac_sdma_5_2_get_cache_policy_rd(info->sdma_ip_version);
+   uint32_t dst_cp = ac_sdma_5_2_get_cache_policy_wr(info->sdma_ip_version);
 
-      /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2 and
-       * DCC which causes random corruption. Overwrite the default cache
-       * policy and force NOA for writes and LRU for reads which seems the
-       * only combination to workaround it.
-       */
-      if (dcc) {
-         src_cp |= SDMA_5_2_CP_GL2_LRU;
-         dst_cp |= SDMA_5_2_CP_GL2_NOA;
-      } else {
-         /* Use the default cache policy. */
-         src_cp |= SDMA_5_2_CP_GL2_NOA;
-         dst_cp |= SDMA_5_2_CP_GL2_BYPASS;
-      }
+   /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2 and
+    * DCC which causes random corruption. Overwrite the default cache policy
+    * and force NOA for writes and LRU for reads which seems the only
+    * combination to workaround it.
+    */
+   if (info->sdma_ip_version == SDMA_5_2 && dcc) {
+      src_cp &= ~SDMA_5_2_CP_GL2_NOA;
+      src_cp |= SDMA_5_2_CP_GL2_LRU;
+
+      dst_cp &= ~SDMA_5_2_CP_GL2_BYPASS;
+      dst_cp |= SDMA_5_2_CP_GL2_NOA;
    }
 
    ac_cmdbuf_begin(cs);
@@ -587,9 +629,8 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
 
    if (sdma_ip_version >= SDMA_2_4)
       ac_cmdbuf_emit((depth - 1) |
-                     (cpv ? SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(src_cp) |
-                           SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp)
-                        : 0));
+                     SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(src_cp) |
+                     SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(dst_cp));
    else
       ac_cmdbuf_emit(depth);
 
