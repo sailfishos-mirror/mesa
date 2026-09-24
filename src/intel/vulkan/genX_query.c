@@ -124,6 +124,33 @@ emit_query_eop_availability(struct anv_cmd_buffer *cmd_buffer,
    }
 }
 
+/**
+ * VK_INTEL_performance_query layout :
+ *
+ * ---------------------------------
+ * |          query data           |
+ * |        (variable size)        |
+ * |-------------------------------|
+ * |         some padding          |
+ * |-------------------------------|
+ * |       availability (64b)      |
+ * ---------------------------------
+ */
+
+static uint32_t
+intel_perf_query_availability_size(void)
+{
+   return 64;
+}
+
+static uint32_t
+intel_perf_query_availability_offset(struct anv_query_pool *pool)
+{
+   return pool->stride > intel_perf_query_availability_size() ?
+      pool->stride - intel_perf_query_availability_size() :
+      0;
+}
+
 VkResult genX(CreateQueryPool)(
     VkDevice                                    _device,
     const VkQueryPoolCreateInfo*                pCreateInfo,
@@ -269,11 +296,8 @@ VkResult genX(CreateQueryPool)(
    vk_query_pool_init(&device->vk, &pool->vk, pCreateInfo);
    pool->stride = uint64s_per_slot * sizeof(uint64_t);
 
-   pool->metrics_library_query_pool = metrics_library_query_pool;
-
    if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL) {
-      pool->data_offset = data_offset;
-      pool->snapshot_size = (pool->stride - data_offset) / 2;
+      pool->metrics_library_query_pool = metrics_library_query_pool;
    }
    else if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
       pool->pass_size = pool->stride / n_passes;
@@ -359,7 +383,10 @@ VkResult genX(CreateQueryPool)(
    if (pCreateInfo->flags & VK_QUERY_POOL_CREATE_RESET_BIT_KHR) {
       for (uint32_t q = 0; q < pool->vk.query_count; q++) {
          uint64_t *slot = query_slot(pool, q);
-         *slot = 0;
+         if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL)
+            memset((uint8_t *)slot + intel_perf_query_availability_offset(pool), 0, intel_perf_query_availability_size());
+         else
+            *slot = 0;
       }
    }
 
@@ -503,34 +530,6 @@ khr_perf_query_push_reloc(struct anv_cmd_buffer *cmd_buffer,
 
    cmd_buffer->self_mod_locations[(*reloc_idx)++] =
       mi_store_relocated_address_reg64(b, addr);
-}
-
-/**
- * VK_INTEL_performance_query layout :
- *
- * ---------------------------------
- * |       availability (8b)       |
- * |-------------------------------|
- * |          marker (8b)          |
- * |-------------------------------|
- * |       some padding (see       |
- * | query_field_layout:alignment) |
- * |-------------------------------|
- * |           query data          |
- * | (2 * query_field_layout:size) |
- * ---------------------------------
- */
-
-static uint32_t
-intel_perf_marker_offset(void)
-{
-   return 8;
-}
-
-static uint32_t
-intel_perf_query_data_offset(struct anv_query_pool *pool, bool end)
-{
-   return pool->data_offset + (end ? pool->snapshot_size : 0);
 }
 
 static void
@@ -1109,14 +1108,17 @@ emit_zero_queries(struct anv_cmd_buffer *cmd_buffer,
       break;
    }
 
-   case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL:
+   case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
+      const uint32_t availability_offset = intel_perf_query_availability_offset(pool);
+      const uint32_t availability_size = intel_perf_query_availability_size();
       for (uint32_t i = 0; i < num_queries; i++) {
          struct anv_address slot_addr =
             anv_query_address(pool, first_index + i);
-         mi_memset(b, anv_address_add(slot_addr, 8), 0, pool->stride - 8);
-         emit_query_mi_availability(b, slot_addr, true);
+         mi_memset(b, slot_addr, 0, availability_offset);
+         mi_memset(b, anv_address_add(slot_addr, availability_offset), 1, availability_size);
       }
       break;
+   }
 
    default:
       UNREACHABLE("Unsupported query type");
@@ -1236,8 +1238,14 @@ void genX(CmdResetQueryPool)(
       struct mi_builder b;
       mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
 
-      for (uint32_t i = 0; i < queryCount; i++)
-         emit_query_mi_availability(&b, anv_query_address(pool, firstQuery + i), false);
+      const uint32_t availability_offset = intel_perf_query_availability_offset(pool);
+      const uint32_t availability_size = intel_perf_query_availability_size();
+
+      for (uint32_t i = 0; i < queryCount; i++) {
+         struct anv_address slot_addr =
+            anv_query_address(pool, firstQuery + i);
+         mi_memset(&b, anv_address_add(slot_addr, availability_offset), 0, availability_size);
+      }
       break;
    }
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
@@ -1261,9 +1269,29 @@ void genX(ResetQueryPool)(
 {
    ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
 
-   for (uint32_t i = 0; i < queryCount; i++) {
-      uint32_t q = firstQuery + i;
-      if (pool->vk.query_type == VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR) {
+   switch (pool->vk.query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+   case VK_QUERY_TYPE_TIMESTAMP:
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
+#if GFX_VERx10 >= 125
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_BOTTOM_LEVEL_POINTERS_KHR:
+   case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
+#endif
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
+   case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
+      for (uint32_t i = 0; i < queryCount; i++) {
+         uint64_t *slot = query_slot(pool, firstQuery + i);
+         *slot = 0;
+      }
+      break;
+   case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR:
+      for (uint32_t i = 0; i < queryCount; i++) {
+         uint32_t q = firstQuery + i;
          for (uint32_t p = 0; p < pool->n_passes; p++) {
             uint64_t *slot = pool->bo->map +
                khr_perf_query_availability_offset(pool, q, p);
@@ -1276,10 +1304,19 @@ void genX(ResetQueryPool)(
                }
             }
          }
-      } else {
-         uint64_t *slot = query_slot(pool, q);
-         *slot = 0;
       }
+      break;
+   case VK_QUERY_TYPE_PERFORMANCE_QUERY_INTEL: {
+      const uint32_t availability_offset = intel_perf_query_availability_offset(pool);
+      const uint32_t availability_size = intel_perf_query_availability_size();
+      for (uint32_t i = 0; i < queryCount; i++) {
+         uint8_t *slot = query_slot(pool, firstQuery + i);
+         memset(slot + availability_offset, 0, availability_size);
+      }
+      break;
+   }
+   default:
+      UNREACHABLE("Unsupported query type");
    }
 }
 
@@ -1391,52 +1428,6 @@ emit_perf_khr_oag_boundary(struct anv_cmd_buffer *cmd_buffer,
       mi_resolve_relocated_address_token(
          b, cmd_buffer->self_mod_locations[cmd_buffer->perf_reloc_idx++],
          dws + GENX(MI_STORE_REGISTER_MEM_MemoryAddress_start) / 8);
-   }
-}
-
-static void
-emit_perf_intel_query(struct anv_cmd_buffer *cmd_buffer,
-                      struct anv_query_pool *pool,
-                      struct mi_builder *b,
-                      struct anv_address query_addr,
-                      bool end)
-{
-   const struct intel_perf_query_field_layout *layout =
-      &cmd_buffer->device->physical->perf->query_layout;
-   struct anv_address data_addr =
-      anv_address_add(query_addr, intel_perf_query_data_offset(pool, end));
-
-   for (uint32_t f = 0; f < layout->n_fields; f++) {
-      const struct intel_perf_query_field *field =
-         &layout->fields[end ? f : (layout->n_fields - 1 - f)];
-
-      switch (field->type) {
-      case INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC:
-         anv_batch_emit(&cmd_buffer->batch, GENX(MI_REPORT_PERF_COUNT), rpc) {
-            rpc.MemoryAddress = anv_address_add(data_addr, field->location);
-         }
-         break;
-
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_PERFCNT:
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_RPSTAT:
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_A:
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_B:
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_C:
-      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_PEC: {
-         struct anv_address addr = anv_address_add(data_addr, field->location);
-         struct mi_value src = field->size == 8 ?
-            mi_reg64(field->mmio_offset) :
-            mi_reg32(field->mmio_offset);
-         struct mi_value dst = field->size == 8 ?
-            mi_mem64(addr) : mi_mem32(addr);
-         mi_store(b, dst, src);
-         break;
-      }
-
-      default:
-         UNREACHABLE("Invalid query field");
-         break;
-      }
    }
 }
 
