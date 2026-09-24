@@ -2524,7 +2524,7 @@
         "description": "pan/bi: Fix spill cost overestimation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bb7b0b6b1b47828e65ab01eed90a06b827530f9a",
         "notes": null
