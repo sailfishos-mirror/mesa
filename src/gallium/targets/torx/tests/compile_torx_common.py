@@ -10,7 +10,6 @@ import sys
 import warnings
 from pathlib import Path
 
-import numpy as np
 
 # Make the torx frontend package importable.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "frontends"))
@@ -125,18 +124,6 @@ def quantize_module(module, example_inputs, *, is_prepared=False):
         module = prepare_pt2e(module, TorxQuantizer())
     module(*example_inputs)  # calibration
     return convert_pt2e(module)
-
-
-def compute_max_quant_error(float_ref_path, quant_output):
-    """Return the max absolute error between the float reference and quantised output.
-
-    quant_output is expected to be a single tensor (callers iterate over multi-output
-    results themselves).
-    """
-    float_ref = np.fromfile(str(float_ref_path), dtype=np.float32)
-    return float(
-        np.abs(float_ref - quant_output.detach().numpy().flatten()).max()
-    )
 
 
 def write_stamp(stamp_file):

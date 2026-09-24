@@ -13,9 +13,9 @@ For each conv2d / add chain in the model it:
 
 Output per op:
 
-  <output_dir>/<model>/<op>/op.pt2            -- per-op ExportedProgram
-  <output_dir>/<model>/<op>/example_input.pt  -- float input tensor(s)
-  <output_dir>/<model>/<op>/output-{i}.data   -- float32 CPU reference(s)
+  <output_dir>/<model>/<op>/op.pt2                  -- per-op ExportedProgram
+  <output_dir>/<model>/<op>/example_input.pt        -- float input tensor(s)
+  <output_dir>/<model>/<op>/float-output-{i}.data   -- float32 CPU reference(s)
 
 The .pt2 and example_input.pt are consumed by compile_torx_tests.py
 (the second, parallelisable step) and not needed at test runtime.
@@ -409,7 +409,7 @@ def main():
                 float_output = module(*example_inputs)
             flat_outs = _flatten_outputs(float_output)
             for i, out in enumerate(flat_outs):
-                out.numpy().tofile(str(output_dir / f"output-{i}.data"))
+                out.numpy().tofile(str(output_dir / f"float-output-{i}.data"))
 
     stamp_file.parent.mkdir(parents=True, exist_ok=True)
     stamp_file.write_text("done\n")

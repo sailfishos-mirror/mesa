@@ -13,10 +13,11 @@ ExecuTorch orchestrating data movement between delegates.
 
 Output per op or model per device:
 
-  <dir>/<device>.pte            -- compiled program
-  <dir>/<device>-input-{i}.data -- float32 input(s)
-  <dir>/<device>.json           -- quantisation metadata
-  <dir>/output-{i}.data         -- float32 CPU reference (model mode)
+  <dir>/<device>.pte             -- compiled program
+  <dir>/<device>-input-{i}.data  -- float32 input(s)
+  <dir>/<device>.json            -- quantisation metadata
+  <dir>/output-{i}.data          -- quantised CPU output the test compares against
+  <dir>/float-output-{i}.data    -- float32 CPU reference
 
 Usage:
   python compile_torx_tests.py <op_dir> <stamp_file>
@@ -42,7 +43,6 @@ if str(_script_dir) not in sys.path:
 from compile_torx_common import (
     compile_to_pte,
     configure_known_warning_filters,
-    compute_max_quant_error,
     extract_quant_output_params,
     get_device,
     prepare_pt2e,
@@ -65,7 +65,7 @@ def _collect_tensors(obj):
 
 
 def _write_artifacts(out_dir, module, example_inputs, output_qparams, device):
-    """Persist inputs, quantisation metadata, and the compiled .pte."""
+    """Persist inputs, the quantised CPU output, metadata, and the .pte."""
     for i, inp in enumerate(example_inputs):
         inp.numpy().tofile(str(out_dir / (device + f"-input-{i}.data")))
 
@@ -74,11 +74,9 @@ def _write_artifacts(out_dir, module, example_inputs, output_qparams, device):
     quant_outputs = _collect_tensors(quant_output)
 
     num_outputs = len(output_qparams)
-    max_quant_errors = []
     for i in range(num_outputs):
-        max_quant_errors.append(
-            compute_max_quant_error(out_dir / f"output-{i}.data", quant_outputs[i])
-        )
+        quant_outputs[i].detach().numpy().flatten().tofile(
+            str(out_dir / f"output-{i}.data"))
 
     compile_to_pte(module, example_inputs, out_dir / (device + ".pte"))
 
@@ -86,7 +84,6 @@ def _write_artifacts(out_dir, module, example_inputs, output_qparams, device):
         "num_outputs": num_outputs,
         "output_scales": [float(s) for s, _ in output_qparams],
         "output_zero_points": [int(zp) for _, zp in output_qparams],
-        "max_quant_errors": max_quant_errors,
     })
 
 
@@ -173,7 +170,7 @@ def compile_model(pt2_path, out_dir, device):
     with torch.no_grad():
         float_output = module(*example_inputs)
     for i, out in enumerate(_collect_tensors(float_output)):
-        out.numpy().tofile(str(out_dir / f"output-{i}.data"))
+        out.numpy().tofile(str(out_dir / f"float-output-{i}.data"))
 
     torch.save(example_inputs, str(out_dir / "example_input.pt"))
 
