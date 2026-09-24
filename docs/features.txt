@@ -240,6 +240,8 @@ GL 4.6, GLSL 4.60 -- all DONE: radeonsi, virgl, zink, iris, crocus/gen7+, d3d12,
   GL_ARB_transform_feedback_overflow_query              DONE (freedreno/a6xx+, nvc0, softpipe, crocus/gen6+, r600/evergreen+)
   GL_KHR_no_error                                       DONE (all drivers)
 
+GLES3.0, GLSL ES 3.0 -- all DONE: freedreno, nv50, nvc0, r600, radeonsi, llvmpipe, softpipe, virgl, zink, d3d12, panfrost, asahi, iris, crocus/gen6+, v3d, etnaviv/HALTI5
+
 These are the extensions cherry-picked to make GLES 3.1
 GLES3.1, GLSL ES 3.1 -- all DONE: freedreno/a5xx+, nvc0, r600, radeonsi, virgl, v3d, softpipe, llvmpipe, zink, panfrost, d3d12, iris, crocus/gen7.5+, asahi
 
