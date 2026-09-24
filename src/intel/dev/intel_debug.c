@@ -190,6 +190,7 @@ uint32_t intel_debug_bkp_after_dispatch_count = 0;
 
 uint32_t intel_threads_per_eu_min = -1;
 uint64_t intel_threads_per_eu_srchash = -1;
+bool intel_force_probe_jay = false;
 
 static void
 process_intel_debug_variable_once(void)
@@ -215,6 +216,9 @@ process_intel_debug_variable_once(void)
       debug_get_num_option("INTEL_DEBUG_BKP_BEFORE_DISPATCH_COUNT", 0);
    intel_debug_bkp_after_dispatch_count =
       debug_get_num_option("INTEL_DEBUG_BKP_AFTER_DISPATCH_COUNT", 0);
+
+   intel_force_probe_jay =
+      debug_get_bool_option("INTEL_I_WANT_A_BROKEN_COMPILER", false);
 
    /* If INTEL_SIMD_DEBUG doesn't specify any options for a stage, then all
     * are allowed, except FS currently disables multipolygon modes by default.
@@ -283,11 +287,13 @@ intel_use_jay(const struct intel_device_info *devinfo, mesa_shader_stage stage)
    if (stage == MESA_SHADER_KERNEL)
       stage = MESA_SHADER_COMPUTE;
 
-   /* Gfx12.5 and Xe3P support is limited & experimental */
-   bool allowed = devinfo->verx10 >= 125;
-
    /* Jay is fully supported on Xe2 and Xe3 */
    bool by_default = devinfo->ver == 20 || devinfo->ver == 30;
+
+   /* Other platforms do not yet work with Jay. Do not probe except for Jay
+    * developers who want a broken compiler.
+    */
+   bool allowed = (by_default || intel_force_probe_jay);
 
    /* INTEL_JAY=fs enables per-stage on allowed platforms. INTEL_DEBUG=no-jay
     * disables on supported platforms.
