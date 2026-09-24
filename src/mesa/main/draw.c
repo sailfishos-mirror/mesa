@@ -1542,24 +1542,6 @@ dump_element_buffer(struct gl_context *ctx, GLenum type)
 }
 #endif
 
-static bool
-validate_index_bounds(struct gl_context *ctx, struct pipe_draw_info *info,
-                      const struct pipe_draw_start_count_bias *draws,
-                      unsigned num_draws)
-{
-   assert(info->index_size);
-
-   /* Get index bounds for user buffers. */
-   if (!info->index_bounds_valid && ctx->st->draw_needs_minmax_index) {
-      /* Return if this fails, which means all draws have count == 0. */
-      if (!vbo_get_minmax_indices_gallium(ctx, info, draws, num_draws))
-         return false;
-
-      info->index_bounds_valid = true;
-   }
-   return true;
-}
-
 /**
  * Inner support for both _mesa_DrawElements and _mesa_DrawRangeElements.
  * Do the rendering for a glDrawElements or glDrawRangeElements call after
@@ -1621,8 +1603,11 @@ _mesa_validated_drawrangeelements(struct gl_context *ctx,
     * because that's what switches it between tc_draw_vbo and u_vbuf_draw_vbo.
     */
    struct st_context *st = st_context(ctx);
-   if (index_bo && ctx->Driver.DrawGallium == st_draw_gallium &&
-       ctx->DrawID == 0) {
+   const bool prepared = index_bo &&
+                         ctx->Driver.DrawGallium == st_draw_gallium &&
+                         ctx->DrawID == 0;
+
+   if (prepared) {
       st_prepare_stipple_input_prim(ctx->st, mode);
       ST_PIPELINE_RENDER_STATE_MASK(mask);
       st_prepare_draw(ctx, mask);
@@ -1694,10 +1679,10 @@ _mesa_validated_drawrangeelements(struct gl_context *ctx,
    info.max_index = end;
    draw.count = count;
 
-   if (!validate_index_bounds(ctx, &info, &draw, 1))
-      return;
-
-   ctx->Driver.DrawGallium(ctx, &info, ctx->DrawID, NULL, &draw, 1);
+   if (prepared)
+      st_draw_gallium_prepared(ctx, &info, ctx->DrawID, NULL, &draw, 1);
+   else
+      ctx->Driver.DrawGallium(ctx, &info, ctx->DrawID, NULL, &draw, 1);
 
    if (MESA_DEBUG_FLAGS & DEBUG_ALWAYS_FLUSH) {
       _mesa_flush(ctx);
@@ -2102,9 +2087,6 @@ _mesa_validated_multidrawelements(struct gl_context *ctx,
          }
       }
 
-      if (!validate_index_bounds(ctx, &info, draw, primcount))
-         return;
-
       ctx->Driver.DrawGallium(ctx, &info, 0, NULL, draw, primcount);
    } else {
       /* draw[i].start would overflow. Draw one at a time. */
@@ -2123,9 +2105,6 @@ _mesa_validated_multidrawelements(struct gl_context *ctx,
          draw.start = 0;
          draw.index_bias = basevertex ? basevertex[i] : 0;
          draw.count = count[i];
-
-         if (!draw.count || !validate_index_bounds(ctx, &info, &draw, 1))
-            continue;
 
          ctx->Driver.DrawGallium(ctx, &info, i, NULL, &draw, 1);
       }
@@ -2548,9 +2527,10 @@ _mesa_MultiDrawElementsIndirect(GLenum mode, GLenum type,
          draw.count = cmd->count;
          draw.index_bias = cmd->baseVertex;
 
-         if (!draw.count || !validate_index_bounds(ctx, &info, &draw, 1))
+         if (!draw.count)
             continue;
 
+         info.index_bounds_valid = false;
          ctx->Driver.DrawGallium(ctx, &info, i, NULL, &draw, 1);
          ptr += stride;
       }

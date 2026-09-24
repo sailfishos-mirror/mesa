@@ -82,6 +82,21 @@ pointer_to_offset(const void *ptr)
 void
 st_prepare_draw(struct gl_context *ctx, const st_state_bitset state_mask);
 
+bool
+st_prepare_index_bounds(struct gl_context *ctx,
+                        struct pipe_draw_info *info,
+                        const struct pipe_draw_indirect_info *indirect,
+                        const struct pipe_draw_start_count_bias *draws,
+                        unsigned num_draws);
+
+void
+st_draw_gallium_prepared(struct gl_context *ctx,
+                         struct pipe_draw_info *info,
+                         unsigned drawid_offset,
+                         const struct pipe_draw_indirect_info *indirect,
+                         const struct pipe_draw_start_count_bias *draws,
+                         unsigned num_draws);
+
 void
 st_draw_gallium(struct gl_context *ctx,
                 struct pipe_draw_info *info,
