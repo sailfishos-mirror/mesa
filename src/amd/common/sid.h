@@ -353,6 +353,20 @@
 #define SDMA_TS_SUB_OPCODE_GET_GLOBAL_TIMESTAMP    0x2
 #define SDMA_OPCODE_SRBM_WRITE                     0xe
 
+/* SDMA 5.2-6.x cache policy: [1:0] = GL2 policy, [2] = LLC (MALL) no-alloc. */
+#define SDMA_5_2_CP_GL2_LRU                        0x0
+#define SDMA_5_2_CP_GL2_STREAM                     0x1
+#define SDMA_5_2_CP_GL2_NOA                        0x2
+#define SDMA_5_2_CP_GL2_BYPASS                     0x3
+#define SDMA_5_2_CP_LLC_ALLOC                      0x0
+#define SDMA_5_2_CP_LLC_NOALLOC                    0x4
+#define SDMA_5_2_COPY_TILED_SUB_WINDOW_CPV(x)      (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_COPY_TILED_SUB_WINDOW_TILED_CP(x) (((unsigned)(x) & 0x7) << 26)
+#define SDMA_5_2_COPY_TILED_SUB_WINDOW_LINEAR_CP(x) (((unsigned)(x) & 0x7) << 18)
+#define SDMA_5_2_COPY_T2T_SUB_WINDOW_CPV(x)        (((unsigned)(x) & 0x1) << 28)
+#define SDMA_5_2_COPY_T2T_SUB_WINDOW_SRC_CP(x)     (((unsigned)(x) & 0x7) << 26)
+#define SDMA_5_2_COPY_T2T_SUB_WINDOW_DST_CP(x)     (((unsigned)(x) & 0x7) << 18)
+
 /* There is apparently an undocumented HW limitation that
  * prevents the HW from copying the last 255 bytes of (1 << 22) - 1
  */
