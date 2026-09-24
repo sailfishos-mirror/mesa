@@ -87,6 +87,12 @@ struct kk_per_draw_data {
 
    uint64_t base_vertex_addr;
    uint64_t base_instance_addr;
+
+   /* Address of geometry param buffer if a GS is used, else 0 */
+   uint64_t geometry_params;
+
+   /* Whether the last vertex of a primitive is its provoking vertex */
+   uint32_t provoking_last;
 };
 
 struct kk_attachment {
@@ -180,6 +186,13 @@ struct kk_graphics_state {
       struct kk_tess_info info;
       enum mesa_prim prim;
    } tess;
+
+   /* Rasterization draw of the GS output */
+   struct {
+      struct kk_addr_range index;
+      uint32_t index_count;
+      uint32_t instance_count;
+   } gs;
 
    /* Needed by vk_command_buffer::dynamic_graphics_state */
    struct vk_vertex_input_state _dynamic_vi;

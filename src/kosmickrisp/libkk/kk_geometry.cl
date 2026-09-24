@@ -42,3 +42,18 @@ libkk_prefix_sum_tess(global struct poly_tess_params *p)
    desc[3] = 0;                  /* index_bias */
    desc[4] = 0;                  /* start_instance */
 }
+
+KERNEL(1)
+libkk_gs_setup_indirect(uint64_t index_buffer, constant uint *draw,
+                        global struct poly_vertex_params *vp,
+                        global struct poly_geometry_params *p,
+                        global struct poly_heap *heap, uint64_t vs_outputs,
+                        uint32_t index_size_B, uint32_t index_buffer_range_el,
+                        uint32_t prim, uint32_t max_indices,
+                        enum poly_gs_shape shape)
+{
+   /* Prefix summing only serves transform feedback */
+   poly_gs_setup_indirect(index_buffer, draw, vp, p, heap, vs_outputs,
+                          index_size_B, index_buffer_range_el, prim,
+                          false /* is_prefix_summing */, max_indices, shape);
+}

@@ -88,3 +88,17 @@ libkk_unroll_geometry(
                         index_buffer_size_el, in_el_size_B, out_el_size_B,
                         restart_index, flatshade_first, true, mode, scratch);
 }
+
+/* Unrolls restart without reordering vertices for a GS input. */
+KERNEL(1024)
+libkk_unroll_restart(uint64_t index_buffer, global struct poly_heap *heap,
+                     constant uint32_t *in_draw, global uint32_t *out_draw,
+                     uint32_t restart_index, uint32_t index_buffer_size_el,
+                     uint32_t index_size_B, uint32_t flatshade_first,
+                     uint32_t mode)
+{
+   POLY_DECL_UNROLL_RESTART_SCRATCH(scratch, 1024);
+   poly_unroll_restart(out_draw, heap, in_draw, index_buffer,
+                       index_buffer_size_el, index_size_B, restart_index,
+                       flatshade_first, mode, scratch);
+}
