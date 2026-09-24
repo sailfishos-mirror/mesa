@@ -1034,22 +1034,21 @@ pub fn gen_decoder(
 
     Ok(quote! {
         pub mod decode {
-        use super::*;
-        use crate::isa::*;
+            use super::*;
+            use crate::isa::*;
 
-        fn sign_ext(v: u32, enc_width: u8) -> i32 {
-            let r = 32 - enc_width;
-            ((v << r) as i32) >> r
-        }
+            fn sign_ext(v: u32, enc_width: u8) -> i32 {
+                let r = 32 - enc_width;
+                ((v << r) as i32) >> r
+            }
 
-        #instr_name_enum
+            #instr_name_enum
 
-        #instr_var_enum
+            #instr_var_enum
 
-        #decode_ts
+            #decode_ts
 
-        #printer_ts
-
+            #printer_ts
         }
     })
 }
