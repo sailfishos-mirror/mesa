@@ -336,8 +336,22 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    bool cpv = false;
 
    if (info->sdma_ip_version == SDMA_5_2) {
-      const uint32_t rd_cp = SDMA_5_2_CP_GL2_NOA | SDMA_5_2_CP_LLC_NOALLOC;
-      const uint32_t wr_cp = SDMA_5_2_CP_GL2_BYPASS | SDMA_5_2_CP_LLC_NOALLOC;
+      uint32_t rd_cp = SDMA_5_2_CP_LLC_NOALLOC;
+      uint32_t wr_cp = SDMA_5_2_CP_LLC_NOALLOC;
+
+      if (dcc) {
+         /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2
+          * and DCC which causes random corruption. Overwrite the default
+          * cache policy and force NOA for writes and LRU for reads which
+          * seems the only combination to workaround it.
+          */
+         rd_cp |= SDMA_5_2_CP_GL2_LRU;
+         wr_cp |= SDMA_5_2_CP_GL2_NOA;
+      } else {
+         /* Use the default cache policy. */
+         rd_cp |= SDMA_5_2_CP_GL2_NOA;
+         wr_cp |= SDMA_5_2_CP_GL2_BYPASS;
+      }
 
       tiled_cp = detile ? rd_cp : wr_cp;
       linear_cp = detile ? wr_cp : rd_cp;
@@ -432,9 +446,23 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    const uint32_t dcc_dir = src->is_compressed && !dst->is_compressed;
 
    if (info->sdma_ip_version == SDMA_5_2) {
-      src_cp = SDMA_5_2_CP_GL2_NOA | SDMA_5_2_CP_LLC_NOALLOC;
-      dst_cp = SDMA_5_2_CP_GL2_BYPASS | SDMA_5_2_CP_LLC_NOALLOC;
+      src_cp = SDMA_5_2_CP_LLC_NOALLOC;
+      dst_cp = SDMA_5_2_CP_LLC_NOALLOC;
       cpv = true;
+
+      /* SDMA 5.2 (GFX10.3) seems to have a cache coherency issue with GL2 and
+       * DCC which causes random corruption. Overwrite the default cache
+       * policy and force NOA for writes and LRU for reads which seems the
+       * only combination to workaround it.
+       */
+      if (dcc) {
+         src_cp |= SDMA_5_2_CP_GL2_LRU;
+         dst_cp |= SDMA_5_2_CP_GL2_NOA;
+      } else {
+         /* Use the default cache policy. */
+         src_cp |= SDMA_5_2_CP_GL2_NOA;
+         dst_cp |= SDMA_5_2_CP_GL2_BYPASS;
+      }
    }
 
    ac_cmdbuf_begin(cs);
