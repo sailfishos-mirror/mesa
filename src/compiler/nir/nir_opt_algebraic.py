@@ -4264,20 +4264,27 @@ late_optimizations += [
 distribute_src_mods = [
    # Try to remove some spurious negations rather than pushing them down.
    (('fmul', ('fneg', a), ('fneg', b)), ('fmul', a, b)),
+   (('fmulz', ('fneg', a), ('fneg', b)), ('fmulz', a, b)),
    (('ffma', ('fneg', a), ('fneg', b), c), ('ffma', a, b, c)),
+   (('ffmaz', ('fneg', a), ('fneg', b), c), ('ffmaz', a, b, c)),
    (('fmad', ('fneg', a), ('fneg', b), c), ('fmad', a, b, c)),
+   (('fmadz', ('fneg', a), ('fneg', b), c), ('fmadz', a, b, c)),
    (('fdot2_replicated', ('fneg', a), ('fneg', b)), ('fdot2_replicated', a, b)),
    (('fdot3_replicated', ('fneg', a), ('fneg', b)), ('fdot3_replicated', a, b)),
    (('fdot4_replicated', ('fneg', a), ('fneg', b)), ('fdot4_replicated', a, b)),
    (('fneg(is_only_used_as_float)', ('fneg', a)), a),
 
    (('fneg', ('fmul(is_used_once)', a, b)), ('fmul', ('fneg', a), b)),
+   (('fneg', ('fmulz(is_used_once,nsz)', a, b)), ('fmulz', ('fneg', a), b)),
    (('fneg', ('fmul_rtz(is_used_once)', a, b)), ('fmul_rtz', ('fneg', a), b)),
    (('fabs', ('fmul(is_used_once)', a, b)), ('fmul', ('fabs', a), ('fabs', b))),
+   (('fabs', ('fmulz(is_used_once)', a, b)), ('fmulz', ('fabs', a), ('fabs', b))),
    (('fabs', ('fmul_rtz(is_used_once)', a, b)), ('fmul_rtz', ('fabs', a), ('fabs', b))),
 
    (('fneg', ('ffma(is_used_once,nsz)', a, b, c)), ('ffma', ('fneg', a), b, ('fneg', c))),
+   (('fneg', ('ffmaz(is_used_once,nsz)', a, b, c)), ('ffmaz', ('fneg', a), b, ('fneg', c))),
    (('fneg', ('fmad(is_used_once,nsz)', a, b, c)), ('fmad', ('fneg', a), b, ('fneg', c))),
+   (('fneg', ('fmadz(is_used_once,nsz)', a, b, c)), ('fmadz', ('fneg', a), b, ('fneg', c))),
    (('fneg', ('flrp(is_used_once,nsz)', a, b, c)), ('flrp', ('fneg', a), ('fneg', b), c), 'true'),
    (('fneg', ('fadd(is_used_once,nsz)', a, b)), ('fadd', ('fneg', a), ('fneg', b))),
 
