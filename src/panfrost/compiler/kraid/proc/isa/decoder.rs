@@ -406,10 +406,8 @@ impl PrintAs {
                     "SourceEncoding"
                 };
                 let cls_id = Ident::new(n, Span::call_site());
-                ts.extend(
-                    quote! { let #ident = #cls_id::<SmallConstantT, FauSpecialIndexPage>::try_decode(
-                        #ident as u8, arch, (fau_page_index as u8), ctx.fau32)?; }
-                );
+                ts.extend(quote! { let #ident = #cls_id::try_decode(
+                #ident as u8, arch, (fau_page_index as u8), ctx.fau32)?; });
             }
             PrintAs::Staging(s) => {
                 let count_id = &s.count_id;
@@ -1036,6 +1034,11 @@ pub fn gen_decoder(
         pub mod decode {
             use super::*;
             use crate::isa::*;
+
+            pub type SourceEncoding =
+                super::SourceEncoding::<SmallConstantT, FauSpecialIndexPage>;
+            pub type SourceEncoding64 =
+                super::SourceEncoding64::<SmallConstantT, FauSpecialIndexPage>;
 
             fn sign_ext(v: u32, enc_width: u8) -> i32 {
                 let r = 32 - enc_width;
