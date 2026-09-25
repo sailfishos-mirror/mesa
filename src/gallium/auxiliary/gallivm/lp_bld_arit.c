@@ -135,8 +135,8 @@ lp_build_min_simple(struct lp_build_context *bld,
       }
    }
    else if (type.floating && util_get_cpu_caps()->has_altivec) {
-      /* vminfp returns NaN if either operand is NaN. */
-      if (type.width == 32 &&
+      /* vminfp returns NaN if either operand is NaN, and honors VSCR[NJ]. */
+      if (type.width == 32 && !util_get_cpu_caps()->has_vsx &&
           (nan_behavior == GALLIVM_NAN_BEHAVIOR_UNDEFINED ||
            nan_behavior == GALLIVM_NAN_RETURN_NAN_FIRST_NONNAN)) {
          intrinsic = "llvm.ppc.altivec.vminfp";
@@ -288,8 +288,8 @@ lp_build_max_simple(struct lp_build_context *bld,
       }
    }
    else if (type.floating && util_get_cpu_caps()->has_altivec) {
-      /* vmaxfp returns NaN if either operand is NaN. */
-      if (type.width == 32 &&
+      /* vmaxfp returns NaN if either operand is NaN, and honors VSCR[NJ]. */
+      if (type.width == 32 && !util_get_cpu_caps()->has_vsx &&
           (nan_behavior == GALLIVM_NAN_BEHAVIOR_UNDEFINED ||
            nan_behavior == GALLIVM_NAN_RETURN_NAN_FIRST_NONNAN)) {
          intrinsic = "llvm.ppc.altivec.vmaxfp";
