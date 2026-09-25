@@ -3154,7 +3154,7 @@
         "description": "vulkan/graphics_state: Don't get IAL state when not needed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "be2532fc00363cf60455390b3fb51d4c5969bd7c",
         "notes": null
