@@ -172,6 +172,12 @@ etna_resource_can_use_ts(struct etna_screen *screen,
    if (format_is_128bit(prsc->format))
       return false;
 
+   /* Without BLT_8bpp_256TILE_FC_FIX the BLT can not fast clear 8 bpp MSAA */
+   if (screen->specs.use_blt && prsc->nr_samples > 1 &&
+       util_format_get_blocksize(prsc->format) == 1 &&
+       !VIV_FEATURE(screen, ETNA_FEATURE_BLT_8BPP_256TILE_FC_FIX))
+      return false;
+
    return true;
 }
 
