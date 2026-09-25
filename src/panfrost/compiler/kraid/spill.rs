@@ -59,7 +59,7 @@ impl NextUseSet {
                 }
             }
             if self.0[si].idx == o.idx {
-                let o_next_use = o.next_use + delta;
+                let o_next_use = o.next_use.saturating_add(delta);
                 if self.0[si].next_use > o_next_use {
                     self.0[si].next_use = o_next_use;
                     changed = true;
