@@ -11,7 +11,6 @@ use crate::phi::PhiMap;
 use crate::ssa_value::*;
 use compiler::bitset::*;
 use compiler::cfg::CFG;
-use compiler::smallvec::*;
 use compiler::union_find::UnionFind;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::collections::VecDeque;
@@ -2459,186 +2458,6 @@ fn alloc_regs(s: &mut Shader, arena: &Arena, live: Liveness) {
     }
 }
 
-fn reg_ref_for_byte(b: u8, bytes: u8) -> RegRef {
-    let bytes = u16::from(b)..(u16::from(b) + u16::from(bytes));
-    RegRef::from_byte_range(bytes).unwrap()
-}
-
-fn ra_trivial(s: &mut Shader) {
-    let live = Liveness::for_shader(s);
-
-    // Allocate in units of half registers.  We might be a dumb allocator but
-    // we can at least try to exercise Kraid's half register model.
-    let mut byte_used: BitSet = Default::default();
-    let mut ssa_b: FxHashMap<SSAValue, u8> = Default::default();
-
-    for (bi, block) in s.blocks.iter_mut().enumerate() {
-        let bl = live.block(bi);
-        for (ip, mut instr) in
-            std::mem::take(&mut block.instrs).into_iter().enumerate()
-        {
-            if let Op::RegIn(op) = instr.op {
-                let DstRef::SSA(vec) = op.dst.dst_ref else {
-                    panic!("We must have SSA destinations");
-                };
-
-                let b = op.reg.idx * 4 + op.reg.range.byte_offset();
-                let bytes = vec.bytes();
-                debug_assert_eq!(bytes, op.reg.bytes());
-
-                for (i, ssa) in vec.iter().enumerate() {
-                    ssa_b.insert(*ssa, b + u8::try_from(i * 4).unwrap());
-                }
-                for i in 0..bytes {
-                    let b = usize::from(b) + usize::from(i);
-                    assert!(!byte_used.contains(b));
-                    byte_used.insert(b);
-                }
-
-                // Drop the actual instruction on the floor
-                continue;
-            }
-
-            for src in instr.srcs_mut() {
-                let SrcRef::SSA(vec) = &mut src.src_ref else {
-                    continue;
-                };
-
-                let mut vec_b = 0;
-                for (i, ssa) in vec.iter().enumerate() {
-                    let b = *ssa_b.get(ssa).unwrap();
-
-                    if !bl.is_live_after_ip(ssa, ip) {
-                        let bytes = ssa.bits() / 8;
-                        for b in b..(b + bytes) {
-                            byte_used.remove(b.into());
-                        }
-                    }
-
-                    if i == 0 {
-                        vec_b = b;
-                    } else {
-                        // We don't know how to move registers
-                        assert_eq!(b, vec_b + u8::try_from(i * 4).unwrap());
-                    }
-                }
-
-                let reg = reg_ref_for_byte(vec_b, vec.bytes());
-                let swz = Swizzle::from(reg.range);
-                src.swizzle = swz
-                    .swizzle(src.swizzle)
-                    .expect("16-bit and smaller sources have to swizzle");
-                src.src_ref = reg.into();
-            }
-
-            let mut dst_regs = SmallVec::new();
-            for dst in instr.dsts() {
-                let DstRef::SSA(vec) = &dst.dst_ref else {
-                    continue;
-                };
-
-                let mut alloc_lanes = dst.lanes;
-                while !s.model.op_dst_supports_lanes(&instr.op, alloc_lanes) {
-                    alloc_lanes = widen_lanes(alloc_lanes);
-                }
-
-                let bytes = vec.bytes();
-                let alloc_bytes = alloc_lanes.bytes(bytes);
-                let (align_mul, align_off) = if bytes > 4 {
-                    debug_assert_eq!(alloc_lanes, DstLanes::All);
-                    (bytes.next_power_of_two(), 0)
-                } else if s.model.op_dst_is_staging_reg(&instr.op) {
-                    // Staging register writes respect lanes in the sense that
-                    // that's where they put the data but they may not do
-                    // partial writes correctly.
-                    (4, 0)
-                } else {
-                    alloc_lanes.align()
-                };
-
-                let mut alloc_start = 0;
-                let (b, reg) = loop {
-                    let b = byte_used.find_aligned_unset_range(
-                        alloc_start,
-                        alloc_bytes.into(),
-                        align_mul.into(),
-                        align_off.into(),
-                    );
-
-                    assert!(
-                        b + usize::from(bytes) <= 256,
-                        "Ran out of registers trying to allocate {vec}"
-                    );
-                    let b = b as u8;
-                    let reg = reg_ref_for_byte(b, alloc_bytes);
-                    let lanes = DstLanes::from(reg.range);
-
-                    match alloc_lanes {
-                        DstLanes::All => debug_assert_eq!(lanes, DstLanes::All),
-                        DstLanes::AnyB => debug_assert!(lanes.is_byte()),
-                        DstLanes::AnyH => debug_assert!(lanes.is_half()),
-                        DstLanes::AnyHF => debug_assert!(lanes.is_half()),
-                        DstLanes::HF0 => debug_assert_eq!(lanes, DstLanes::H0),
-                        DstLanes::HF1 => debug_assert_eq!(lanes, DstLanes::H1),
-                        _ => debug_assert_eq!(lanes, alloc_lanes),
-                    }
-
-                    if s.model.op_dst_supports_lanes(&instr.op, lanes) {
-                        break (b, reg);
-                    }
-
-                    alloc_start = usize::from(b) + 1;
-                };
-
-                // In case when the SSA value is smaller than the region we
-                // just allocated, adjust accordingly.
-                let (dst_mul, dst_off) = dst.lanes.align();
-                let b = (b & !(dst_mul - 1)) | dst_off;
-
-                for (i, ssa) in vec.iter().enumerate() {
-                    ssa_b.insert(*ssa, b + u8::try_from(i * 4).unwrap());
-                }
-
-                // In case when the SSA value is smaller than the region we
-                // just allocated, this only marks the bytes consumed by the
-                // SSA value as used.  This effectively kills the other bytes
-                // immediately.
-                for i in 0..bytes {
-                    byte_used.insert(usize::from(b) + usize::from(i));
-                }
-
-                dst_regs.push(reg);
-            }
-
-            for dst in instr.dsts() {
-                let DstRef::SSA(vec) = &dst.dst_ref else {
-                    continue;
-                };
-
-                for ssa in vec {
-                    if !bl.is_live_after_ip(ssa, ip) {
-                        let vec_b = *ssa_b.get(ssa).unwrap();
-                        let bytes = ssa.bits() / 8;
-                        for b in 0..bytes {
-                            byte_used.remove((vec_b + b).into());
-                        }
-                    }
-                }
-            }
-
-            debug_assert_eq!(instr.dsts().len(), dst_regs.len());
-            for (dst, reg) in instr.dsts_mut().iter_mut().zip(dst_regs) {
-                let new_dst = Dst::from(reg);
-                dst.dst_ref = new_dst.dst_ref;
-                dst.lanes = fold_lanes(new_dst.lanes, dst.lanes);
-            }
-
-            block.instrs.push(instr);
-        }
-        s.info.registers_used = 64;
-    }
-}
-
 #[derive(Default)]
 struct SSARegMap {
     ssa_bytes: FxHashMap<SSAValue, Range<u16>>,
@@ -2747,10 +2566,6 @@ impl Shader<'_> {
     }
 
     pub fn assign_registers(&mut self) {
-        if false {
-            return ra_trivial(self);
-        }
-
         pass!(self.lower_repeated_phi_srcs());
 
         if self.info.is_blend {
