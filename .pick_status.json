@@ -4164,7 +4164,7 @@
         "description": "radv/rt: fix importing pipeline binaries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "64b4cb001c329a94e1bb9ca3c104c42dabb8c0fb",
         "notes": null
