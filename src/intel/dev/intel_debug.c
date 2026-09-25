@@ -121,7 +121,6 @@ static const struct debug_control_bitset debug_control[] = {
    OPT1("dispatch_bkp",      DEBUG_DISPATCH_BKP),
    OPT1("bat-stats",         DEBUG_BATCH_STATS),
    OPT1("reg-pressure",      DEBUG_REG_PRESSURE),
-   OPT1("shader-print",      DEBUG_SHADER_PRINT),
    OPT1("cl-quiet",          DEBUG_CL_QUIET),
    OPT1("no-send-gather",    DEBUG_NO_SEND_GATHER),
    OPT1("no-vrt",            DEBUG_NO_VRT),
