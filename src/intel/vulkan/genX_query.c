@@ -1925,11 +1925,17 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
     * consistent pipeline mode.
     */
    if (cmd_buffer->state.current_pipeline == UINT32_MAX) {
-      if (anv_cmd_buffer_is_render_queue(cmd_buffer))
-         genX(flush_pipeline_select_3d)(cmd_buffer);
-      else
+      if (anv_cmd_buffer_blorp_uses_compute(cmd_buffer))
          genX(flush_pipeline_select_gpgpu)(cmd_buffer, false);
+      else
+         genX(flush_pipeline_select_3d)(cmd_buffer);
    }
+
+#if GFX_VER >= 20
+   /* On Gfx20+ there is no pipeline switching cost and we run everything on the 3D engine */
+   if (anv_cmd_buffer_is_render_queue(cmd_buffer))
+      genX(flush_pipeline_select_3d)(cmd_buffer);
+#endif
 
    if ((cmd_buffer->state.queries.buffer_write_bits |
         cmd_buffer->state.queries.clear_bits) & ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT)
