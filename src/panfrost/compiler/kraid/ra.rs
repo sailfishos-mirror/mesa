@@ -1385,20 +1385,11 @@ impl LocalRegAlloc<'_> {
 
     fn choose_src_bytes(
         &self,
-        bl: &BlockLiveness,
-        ip: usize,
         vec: &SSARef,
+        is_killed: bool,
         align: RegAlignConstraint,
         src_bytes: &BitSet<usize>,
     ) -> Range<u16> {
-        let mut is_killed = true;
-        for ssa in vec {
-            if bl.is_live_after_ip(ssa, ip) {
-                is_killed = false;
-                break;
-            }
-        }
-
         let p = if is_killed {
             &self.pinned_in
         } else {
@@ -1469,6 +1460,7 @@ impl LocalRegAlloc<'_> {
 
         struct SrcDst {
             is_src: bool,
+            is_killed: bool,
             mask: u8,
             bytes: u8,
             align: RegAlignConstraint,
@@ -1527,7 +1519,12 @@ impl LocalRegAlloc<'_> {
                 // This is the first time we've seen this SSA ref.  Evict it
                 // and add it to the list.  The evict handling at the end will
                 // ensure we copy it back into place.
+                let mut is_killed = true;
                 for ssa in vec {
+                    if bl.is_live_after_ip(ssa, ip) {
+                        is_killed = false;
+                    }
+
                     let ssa_bytes = self.ssa_bytes(ssa);
                     src_bytes.set_range(
                         ssa_bytes.start.into()..ssa_bytes.end.into(),
@@ -1542,6 +1539,7 @@ impl LocalRegAlloc<'_> {
 
                 srcs_dsts.push(SrcDst {
                     is_src: true,
+                    is_killed,
                     mask: 1 << i,
                     bytes,
                     align,
@@ -1573,6 +1571,7 @@ impl LocalRegAlloc<'_> {
 
             srcs_dsts.push(SrcDst {
                 is_src: false,
+                is_killed: false,
                 mask: 1 << i,
                 bytes,
                 align,
@@ -1621,9 +1620,8 @@ impl LocalRegAlloc<'_> {
             } else if src_dst.is_src {
                 debug_assert_eq!(src_dst.bytes, src_dst.vec.bytes());
                 self.choose_src_bytes(
-                    bl,
-                    ip,
                     &src_dst.vec,
+                    src_dst.is_killed,
                     src_dst.align,
                     &src_bytes,
                 )
