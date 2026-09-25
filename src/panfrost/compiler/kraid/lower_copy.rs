@@ -149,18 +149,7 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
                 dst_type: DataType::I32,
                 src: copy.src,
             });
-        } else if copy.dst_type.total_bits() == 64
-            && copy.src.swizzle == Swizzle::NONE
-        {
-            b.push_op(OpIAdd {
-                dst: copy.dst,
-                dst_type: DataType::I64,
-                saturate: false,
-                srcs: [copy.src, 0u32.into()],
-            });
         } else {
-            // Everything else is ShiftLop
-
             // Upgrade to a 32-bit type.  The lane mask will take care of
             // masking off the unused components
             let bits = copy.dst_type.bits();
@@ -168,16 +157,29 @@ fn lower_copy(b: &mut impl Builder, copy: OpCopy) {
             let comps = 32_u8.div_ceil(bits);
             let dst_type = DataType::v(comps, DataType::u(bits));
 
-            b.push_op(OpShiftLop {
-                dst: copy.dst,
+            // Try to use IAdd if we can to try and prioritize the CVT pipe
+            // over the SFU pipe.
+            let op = Op::from(OpIAdd {
+                dst: copy.dst.clone(),
                 dst_type,
-                shift_op: ShiftOp::None,
-                logic_op: LogicOp::None,
-                not_result: false,
-                src0: copy.src,
-                shift: 0_u8.into(),
-                src2: 0_u32.into(),
+                saturate: false,
+                srcs: [copy.src.clone(), 0u32.into()],
             });
+            let src = &op.srcs()[0];
+            if b.model().op_src_supports_swizzle(&op, src, src.swizzle) {
+                b.push_op(op);
+            } else {
+                b.push_op(OpShiftLop {
+                    dst: copy.dst,
+                    dst_type,
+                    shift_op: ShiftOp::None,
+                    logic_op: LogicOp::None,
+                    not_result: false,
+                    src0: copy.src,
+                    shift: 0_u8.into(),
+                    src2: 0_u32.into(),
+                });
+            }
         }
     }
 }
