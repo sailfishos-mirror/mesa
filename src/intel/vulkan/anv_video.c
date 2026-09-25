@@ -100,6 +100,8 @@ anv_video_patch_encode_session_parameters(struct anv_device *device, struct vk_v
          sps->log2_diff_max_min_luma_coding_block_size = 3;
          sps->log2_min_luma_transform_block_size_minus2 = 0;
          sps->log2_diff_max_min_luma_transform_block_size = 3;
+         sps->max_transform_hierarchy_depth_inter = 2;
+         sps->max_transform_hierarchy_depth_intra = 2;
 
          /* maxSubLayerCount = 1 */
          sps->sps_max_sub_layers_minus1 = 0;

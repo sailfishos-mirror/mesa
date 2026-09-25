@@ -2598,8 +2598,8 @@ anv_h265_emit_hcp_pic_state(struct anv_cmd_buffer *cmd,
 
       pic.PictureCbQPOffset = pps->pps_cb_qp_offset & 0x1f;
       pic.PictureCrQPOffset = pps->pps_cr_qp_offset & 0x1f;
-      pic.IntraMaxTransformHierarchyDepth = 2;
-      pic.InterMaxTransformHierarchyDepth = 2;
+      pic.IntraMaxTransformHierarchyDepth = sps->max_transform_hierarchy_depth_intra;
+      pic.InterMaxTransformHierarchyDepth = sps->max_transform_hierarchy_depth_inter;
       pic.ChromaPCMSampleBitDepth = sps->pcm_sample_bit_depth_chroma_minus1 & 0xf;
       pic.LumaPCMSampleBitDepth = sps->pcm_sample_bit_depth_luma_minus1 & 0xf;
 
