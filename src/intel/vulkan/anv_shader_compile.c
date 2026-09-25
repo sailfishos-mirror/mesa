@@ -1946,11 +1946,6 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
 
       shader_data->archiver =
          debug_archiver_open(mem_ctx, name, PACKAGE_VERSION MESA_GIT_SHA1);
-
-      if (shader_data->archiver) {
-         debug_archiver_set_prefix(shader_data->archiver,
-            _mesa_shader_stage_to_abbrev(info->stage));
-      }
    }
 }
 
@@ -2002,6 +1997,32 @@ anv_bsr(const struct intel_device_info *devinfo,
           SET_BITS(local_arg_offset / 8, 2, 0);
 }
 
+static void
+set_debug_archive_filename(const struct anv_shader_data *shader_data,
+                           bool has_resume, int resume)
+{
+   if (!shader_data->archiver)
+      return;
+
+   if (!has_resume) {
+      debug_archiver_set_prefix(
+         shader_data->archiver,
+         _mesa_shader_stage_to_abbrev(shader_data->info->stage));
+   }
+
+   char directory_name[80];
+   if (resume < 0) {
+      snprintf(directory_name, sizeof(directory_name), "%s_main",
+               _mesa_shader_stage_to_abbrev(shader_data->info->stage));
+   } else {
+      snprintf(directory_name, sizeof(directory_name), "%s_resume%i",
+               _mesa_shader_stage_to_abbrev(shader_data->info->stage),
+               resume);
+   }
+   debug_archiver_set_prefix(shader_data->archiver, directory_name);
+}
+
+
 static struct jay_shader_bin *
 anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
                        nir_shader *nir,
@@ -2009,6 +2030,11 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
                        const struct anv_shader_data *shader_data)
 {
    struct brw_compile_params *compile_params = &params.base;
+   const bool has_resume_shaders = mesa_shader_stage_is_rt(nir->info.stage) &&
+      params.bs.num_resume_shaders > 0;
+
+   set_debug_archive_filename(shader_data, has_resume_shaders, -1);
+
    struct jay_shader_bin *main_bin =
       jay_compile(devinfo, mem_ctx, nir,
                   (union brw_any_prog_data *)compile_params->prog_data,
@@ -2066,6 +2092,8 @@ anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
        */
       resume_nir->constant_data = NULL;
       resume_nir->constant_data_size = 0;
+
+      set_debug_archive_filename(shader_data, has_resume_shaders, i);
 
       resume_shader_bins[i] = jay_compile(devinfo, mem_ctx,
                                           resume_nir,
@@ -2455,6 +2483,12 @@ anv_shader_compile(struct vk_device *vk_device,
             prog_data->local_size[2] = nir->info.workgroup_size[2];
          }
       } else {
+         const bool has_resume_shaders =
+            mesa_shader_stage_is_rt(nir->info.stage) &&
+            params.bs.num_resume_shaders > 0;
+
+         set_debug_archive_filename(shader_data, has_resume_shaders, -1);
+
          shader_data->code = brw_compile(compiler, compile_params);
       }
 
