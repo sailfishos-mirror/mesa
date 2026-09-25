@@ -770,7 +770,7 @@ jay_to_binary(jay_shader *s,
 
    gen_encode_params enc_params = {
       .devinfo = jc.devinfo,
-      .compact_all = true,
+      .compact_all = !INTEL_DEBUG(DEBUG_NO_COMPACTION),
 #ifdef NDEBUG
       .skip_validation = true,
 #endif
