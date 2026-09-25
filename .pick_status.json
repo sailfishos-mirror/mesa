@@ -3884,7 +3884,7 @@
         "description": "gallivm: don't use vminfp and vmaxfp when NaN operands must be ignored",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ea7d3dabd01608c1d0b020ef941912bd3893a96",
         "notes": null
