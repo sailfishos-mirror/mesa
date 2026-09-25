@@ -178,6 +178,9 @@ def declare_options(android_version):
         I("query_copy_with_shader_threshold", 6, 0, 0x7fffffff,
           "Query threshold count above which query copies are executed with a shader",
           c_name="query_copy_with_shader_threshold"),
+        B("anv_disable_jay", False,
+          "Disable Jay and fall back to the brw compiler",
+          c_name="disable_jay"),
 
         B("anv_enable_alloc_oversubscription", True,
           "Allow the optional alignment of allocation sizes to large page sizes",

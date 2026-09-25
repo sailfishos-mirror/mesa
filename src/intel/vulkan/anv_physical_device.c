@@ -3227,6 +3227,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    device->can_get_vm_faults =
       !device->has_scratch_page && xe_gem_supports_get_vm_faults(device->local_fd);
 
+   device->info.no_jay = device->drirc.perf.disable_jay;
+
    device->compiler = brw_compiler_create(NULL, &device->info);
    if (device->compiler == NULL) {
       result = vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);

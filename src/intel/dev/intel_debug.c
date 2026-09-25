@@ -305,10 +305,10 @@ intel_use_jay_for_stage(const struct intel_device_info *devinfo,
    bool allowed = (by_default || intel_force_probe_jay);
 
    /* INTEL_JAY=fs enables per-stage on allowed platforms. INTEL_DEBUG=no-jay
-    * disables on supported platforms.
+    * or a driver's devinfo->no_jay disables on supported platforms.
     */
    return ((allowed && (use_jay & BITFIELD_BIT(stage))) ||
-           (by_default && !INTEL_DEBUG(DEBUG_NO_JAY)));
+           (by_default && !INTEL_DEBUG(DEBUG_NO_JAY) && !devinfo->no_jay));
 }
 
 bool
