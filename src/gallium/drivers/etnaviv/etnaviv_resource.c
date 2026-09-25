@@ -230,6 +230,9 @@ etna_screen_resource_alloc_ts(struct pipe_screen *pscreen,
          else
             ts_mode = TS_MODE_128B;
       }
+   } else if (VIV_FEATURE(screen, ETNA_FEATURE_SMALL_MSAA) &&
+              prsc->nr_samples > 1 && ts_compress_fmt >= 0) {
+      ts_mode = TS_MODE_256B;
    }
 
    tile_size = etna_screen_get_tile_size(screen, ts_mode, prsc->nr_samples > 1);
