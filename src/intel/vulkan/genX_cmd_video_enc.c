@@ -309,6 +309,10 @@ struct anv_vdenc_pipe_buf {
    struct anv_address ds_bwd_ref_4x;
    struct anv_address scaled_8x;
    struct anv_address scaled_4x;
+   struct anv_address stats;
+   struct anv_address pak_obj;
+   struct anv_address tile_row_store;
+   struct anv_address cu_count;
 };
 
 static void
@@ -384,8 +388,9 @@ anv_vdenc_emit_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
       vdenc_buf.BWDREF0.Address = p->bwd_ref;
       vdenc_buf.BWDREF0.PictureFields = ANV_VID_PIC(cmd->device, p->bwd_ref.bo);
 
+      vdenc_buf.VDEncStatisticsStreamOut.Address = p->stats;
       vdenc_buf.VDEncStatisticsStreamOut.PictureFields =
-         ANV_VID_PIC(cmd->device, NULL);
+         ANV_VID_PIC(cmd->device, p->stats.bo);
 
 #if GFX_VER >= 11
       vdenc_buf.DSFWDREF04X.Address = p->ds_fwd_ref_4x[0];
@@ -402,8 +407,9 @@ anv_vdenc_emit_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
       vdenc_buf.DSBWDREF04X.PictureFields =
          ANV_VID_PIC(cmd->device, p->ds_bwd_ref_4x.bo);
 #endif
+      vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.Address = p->pak_obj;
       vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields =
-         ANV_VID_PIC(cmd->device, NULL);
+         ANV_VID_PIC(cmd->device, p->pak_obj.bo);
       vdenc_buf.ScaledReferenceSurface8X.Address = p->scaled_8x;
       vdenc_buf.ScaledReferenceSurface8X.PictureFields =
          ANV_VID_PIC(cmd->device, p->scaled_8x.bo);
@@ -416,10 +422,12 @@ anv_vdenc_emit_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
          ANV_VID_PIC(cmd->device, NULL);
 #endif
 #if GFX_VER >= 12
+      vdenc_buf.VDEncTileRowStoreBuffer.Address = p->tile_row_store;
       vdenc_buf.VDEncTileRowStoreBuffer.PictureFields =
-         ANV_VID_PIC(cmd->device, NULL);
+         ANV_VID_PIC(cmd->device, p->tile_row_store.bo);
+      vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.Address = p->cu_count;
       vdenc_buf.VDEncCumulativeCUCountStreamOutSurface.PictureFields =
-         ANV_VID_PIC(cmd->device, NULL);
+         ANV_VID_PIC(cmd->device, p->cu_count.bo);
       vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields =
          ANV_VID_PIC(cmd->device, NULL);
 #endif
@@ -1949,6 +1957,8 @@ anv_h265_emit_hcp_pipe_mode_select(struct anv_cmd_buffer *cmd,
       sel.CodecSelect = Encode;
       sel.CodecStandardSelect = HEVC;
       sel.VDEncMode = VM_VDEncMode;
+      sel.PAKPipelineStreamOutEnable = true;
+      sel.PAKFrameLevelStreamOutEnable = true;
    }
 }
 
@@ -2077,12 +2087,10 @@ anv_h265_emit_hcp_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
 
       ANV_VID_MEM_INIT(buf, StreamOutDataDestination, cmd->device, vid,
                        ANV_VID_MEM_H265_PAK_STREAMOUT);
-
-      buf.DecodedPictureStatusBufferAddressAttributes =
-         ANV_VID_ATTR(cmd->device, NULL);
-
-      buf.LCUILDBStreamOutBufferAddressAttributes =
-         ANV_VID_ATTR(cmd->device, NULL);
+      ANV_VID_MEM_INIT(buf, DecodedPictureStatusBuffer, cmd->device, vid,
+                       ANV_VID_MEM_H265_LCU_BASE_ADDR);
+      ANV_VID_MEM_INIT(buf, LCUILDBStreamOutBuffer, cmd->device, vid,
+                       ANV_VID_MEM_H265_LCU_ILDB_STREAMOUT);
 
       for (unsigned i = 0; i < enc_info->referenceSlotCount; i++) {
          const struct anv_image_view *ref_iv =
@@ -2113,8 +2121,11 @@ anv_h265_emit_hcp_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
       buf.SAOStreamOutDataDestinationBufferAddressAttributes =
          ANV_VID_ATTR(cmd->device,
                       buf.SAOStreamOutDataDestinationBufferBaseAddress.bo);
+      buf.FrameStatisticsStreamOutDataDestinationBufferBaseAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_FRAME_STATS_STREAMOUT);
       buf.FrameStatisticsStreamOutDataDestinationBufferAddressAttributes =
-         ANV_VID_ATTR(cmd->device, NULL);
+         ANV_VID_ATTR(cmd->device,
+                      buf.FrameStatisticsStreamOutDataDestinationBufferBaseAddress.bo);
 
       buf.SSESourcePixelRowStoreBufferBaseAddress =
          ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_SSE_SRC_PIX_ROW_STORE);
@@ -2141,13 +2152,16 @@ anv_h265_emit_hcp_ind_obj_base_addr_state(struct anv_cmd_buffer *cmd,
                                           const VkVideoEncodeInfoKHR *enc_info)
 {
    ANV_FROM_HANDLE(anv_buffer, dst_buffer, enc_info->dstBuffer);
+   struct anv_video_session *vid = cmd->video.vid;
 
    anv_batch_emit(&cmd->batch, GENX(HCP_IND_OBJ_BASE_ADDR_STATE), indirect) {
       indirect.HCPIndirectBitstreamObjectAddressAttributes =
          ANV_VID_ATTR(cmd->device, NULL);
 
+      indirect.HCPIndirectCUObjectBaseAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_MB_CODE);
       indirect.HCPIndirectCUObjectAddressAttributes =
-         ANV_VID_ATTR(cmd->device, NULL);
+         ANV_VID_ATTR(cmd->device, indirect.HCPIndirectCUObjectBaseAddress.bo);
 
       indirect.HCPPAKBSEObjectBaseAddress =
             anv_address_add(dst_buffer->address, align(enc_info->dstBufferOffset, 4096));
@@ -2336,6 +2350,10 @@ anv_h265_emit_vdenc_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
       .row_store = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_VDENC_INTRA_ROW_STORE),
       .scaled_8x = anv_image_ds_8x_address(base_ref_iv, base_ref_array_layer),
       .scaled_4x = anv_image_ds_4x_address(base_ref_iv, base_ref_array_layer),
+      .stats = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_VDENC_STATS_STREAMOUT),
+      .pak_obj = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_MB_CODE),
+      .tile_row_store = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_VDENC_TILE_ROW_STORE),
+      .cu_count = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H265_VDENC_CU_COUNT_STREAMOUT),
    };
 
    /* TODO. add DSFWDREF and FWDREF */

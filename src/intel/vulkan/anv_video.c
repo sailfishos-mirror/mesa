@@ -761,6 +761,29 @@ get_h265_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
          DIV_ROUND_UP(vid->vk.max_coded.width, ANV_MAX_H265_CTB_SIZE);
       return align64((uint64_t)width_in_max_lcu * 64 * 2 * 2, 4096);
    }
+   case ANV_VID_MEM_H265_VDENC_STATS_STREAMOUT:
+   case ANV_VID_MEM_H265_FRAME_STATS_STREAMOUT: {
+      uint32_t max_tiles = DIV_ROUND_UP(vid->vk.max_coded.width, 128) *
+                           DIV_ROUND_UP(vid->vk.max_coded.height, 128);
+      uint32_t per_tile = mem_idx == ANV_VID_MEM_H265_VDENC_STATS_STREAMOUT ? 1216 : 512;
+      return align64((uint64_t)per_tile * max_tiles, 4096);
+   }
+   case ANV_VID_MEM_H265_VDENC_TILE_ROW_STORE:
+      return align64((uint64_t)DIV_ROUND_UP(vid->vk.max_coded.width, 32) * 64 * 2, 4096);
+   case ANV_VID_MEM_H265_VDENC_CU_COUNT_STREAMOUT:
+   case ANV_VID_MEM_H265_MB_CODE: {
+      uint64_t num_lcu =
+         (uint64_t)DIV_ROUND_UP(vid->vk.max_coded.width, ANV_MAX_H265_CTB_SIZE) *
+         (DIV_ROUND_UP(vid->vk.max_coded.height, ANV_MAX_H265_CTB_SIZE) + 1);
+      if (mem_idx == ANV_VID_MEM_H265_VDENC_CU_COUNT_STREAMOUT)
+         return align64(num_lcu * 4, 4096);
+      return align64(2 * 4 * (num_lcu * 5 + num_lcu * 64 * 8), 4096);
+   }
+   case ANV_VID_MEM_H265_LCU_ILDB_STREAMOUT:
+      return 4096;
+   case ANV_VID_MEM_H265_LCU_BASE_ADDR:
+      return align64((uint64_t)DIV_ROUND_UP(vid->vk.max_coded.width, 16) *
+                     DIV_ROUND_UP(vid->vk.max_coded.height, 16) * 64, 4096);
    default:
       UNREACHABLE("unknown memory");
    }
