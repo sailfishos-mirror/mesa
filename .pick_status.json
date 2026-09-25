@@ -1534,7 +1534,7 @@
         "description": "etnaviv: Capture varyings not read by the fragment shader",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0c6c1fa484af4dce60bd23c98acee2f0a47a07c7",
         "notes": null
