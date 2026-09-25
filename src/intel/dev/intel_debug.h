@@ -103,6 +103,7 @@ enum intel_debug_flag {
    DEBUG_RT_NO_AHS,
    DEBUG_RT_NO_CHS,
    DEBUG_SHADERS_LINENO,
+   DEBUG_SHADER_HASH,
    /* Keep the stages grouped */
    DEBUG_VS,
    DEBUG_TCS,

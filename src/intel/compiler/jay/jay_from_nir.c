@@ -4947,6 +4947,13 @@ jay_compile_simd(const struct intel_device_info *devinfo,
       jay_print_partition(&s->partition);
    }
 
+   if (INTEL_DEBUG(DEBUG_SHADER_HASH)) {
+      jay_function *entry = jay_shader_get_entrypoint(s);
+      jay_builder b = jay_init_builder(entry, jay_after_block(jay_last_block(entry)));
+      jay_MOV(&b, jay_null(), (uint32_t) prog_data->base.source_hash);
+      jay_MOV(&b, jay_null(), (uint32_t) (prog_data->base.source_hash >> 32));
+   }
+
    struct jay_shader_bin *bin =
       jay_to_binary(s, nir->constant_data, nir->constant_data_size, debug);
    assert(bin->kernel);

@@ -2083,6 +2083,11 @@ brw_generator::generate_code(const brw_shader &s,
       }
    }
 
+   if (INTEL_DEBUG(DEBUG_SHADER_HASH)) {
+      append_MOV(retype(brw_null_reg(), BRW_TYPE_UD), brw_imm_ud(prog_data->source_hash & 0xffffffff));
+      append_MOV(retype(brw_null_reg(), BRW_TYPE_UD), brw_imm_ud(prog_data->source_hash >> 32));
+   }
+
 #ifndef NDEBUG
    /* Pad with NULLs so annotations same size as gen_insts. */
    label_annotations.resize(gen_insts.size(), NULL);

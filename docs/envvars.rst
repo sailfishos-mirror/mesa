@@ -632,6 +632,8 @@ Intel driver environment variables
    ``sf``
       emit messages about the strips & fans unit (for old gens, includes
       the SF program)
+   ``shader-hash``
+      emit dummy MOV instructions at the end of shaders with the shader hash
    ``soft64``
       enable implementation of software 64bit floating point support
    ``sparse``

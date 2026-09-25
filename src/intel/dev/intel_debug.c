@@ -126,6 +126,7 @@ static const struct debug_control_bitset debug_control[] = {
    OPT1("no-vrt",            DEBUG_NO_VRT),
    OPT1("no-jay",            DEBUG_NO_JAY),
    OPT1("shaders-lineno",    DEBUG_SHADERS_LINENO),
+   OPT1("shader-hash",       DEBUG_SHADER_HASH),
    { NULL, }
 #undef OPT1
 #undef OPT2
