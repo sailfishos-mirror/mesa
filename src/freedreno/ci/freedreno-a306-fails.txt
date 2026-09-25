@@ -743,3 +743,8 @@ spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xyuv,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y410,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yuv420,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
+
+# This test was hanging prior to mesa!44653, now it's failing instead.
+spec@!opengl es 3.0@gles-3.0-transform-feedback-uniform-buffer-object,Fail
+
+spec@arb_point_sprite@arb_point_sprite-interactions 1.0,Fail
