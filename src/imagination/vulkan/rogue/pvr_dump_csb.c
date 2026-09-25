@@ -2391,7 +2391,7 @@ void pvr_csb_dump(const struct pvr_csb *const csb,
 
    pvr_bo_store_dump(device);
 
-   pvr_dump_begin(&root_ctx, stderr, "CONTROL STREAM DUMP", 6);
+   pvr_dump_begin(&root_ctx, stderr, "CONTROL STREAM DUMP", 10);
 
    pvr_dump_field_u32(&root_ctx, "Frame num", frame_num);
    pvr_dump_field_u32(&root_ctx, "Job num", job_num);
