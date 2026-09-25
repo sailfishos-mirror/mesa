@@ -600,7 +600,7 @@ etna_blit_clear_zs_blt(struct pipe_context *pctx, struct pipe_surface *dst,
       new_clear_bits |= clear_bits_stencil;
 
    if (new_clear_bits == 0xffffffff && fast_clear)
-      dst_level->clear_value = new_clear_value;
+      dst_level->clear_value = (uint64_t)new_clear_value << 32 | new_clear_value;
 
    /* TODO unduplicate this */
    struct blt_clear_op clr = {};
