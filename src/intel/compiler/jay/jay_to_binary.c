@@ -830,10 +830,14 @@ jay_to_binary(jay_shader *s,
       }
 
       if (s->archiver) {
-         const char *filename =
-            ralloc_asprintf(s, "GEN%u/0", s->dispatch_width);
-         print_params.fp = debug_archiver_start_file(s->archiver, filename);
+         print_params.fp = debug_archiver_start_file(
+            s->archiver, ralloc_asprintf(s, "GEN%u/0", s->dispatch_width));
          gen_print(&print_params);
+         debug_archiver_finish_file(s->archiver);
+
+         FILE *bin_dump = debug_archiver_start_file(
+            s->archiver, ralloc_asprintf(s, "GEN%u/0.bin", s->dispatch_width));
+         fwrite(jc.output, 1, jc.output_size, bin_dump);
          debug_archiver_finish_file(s->archiver);
       }
    }

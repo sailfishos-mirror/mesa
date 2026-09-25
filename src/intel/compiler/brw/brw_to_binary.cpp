@@ -2262,9 +2262,9 @@ brw_generator::generate_code(const brw_shader &s,
          files[0] = stderr;
 
       if (params->archiver) {
-         const char *filename =
-            ralloc_asprintf(mem_ctx, "GEN%d/0", dispatch_width);
-         files[1] = debug_archiver_start_file(params->archiver, filename);
+         files[1] = debug_archiver_start_file(
+            params->archiver,
+            ralloc_asprintf(mem_ctx, "GEN%d/0", dispatch_width));
       }
 
       for (unsigned i = 0; i < ARRAY_SIZE(files); i++) {
@@ -2305,6 +2305,13 @@ brw_generator::generate_code(const brw_shader &s,
       }
 
       if (params->archiver) {
+         debug_archiver_finish_file(params->archiver);
+
+         FILE *bin_dump =
+            debug_archiver_start_file(
+               params->archiver,
+               ralloc_asprintf(mem_ctx, "GEN%d/0.bin", dispatch_width));
+         fwrite(output, 1, output_size, bin_dump);
          debug_archiver_finish_file(params->archiver);
       }
    }
