@@ -1727,6 +1727,14 @@ impl LocalRegAlloc<'_> {
                         src.swizzle = swz
                             .swizzle(src.swizzle)
                             .expect("8 and 16-bit sources have to swizzle");
+
+                        // If all the SSA values read by this source are killed,
+                        // mark this as the last use.  Only do this if the SSA
+                        // values in question consume whole registers because
+                        // the hardware's last-use concept is per-register, not
+                        // per-byte.
+                        let whole_regs = src_dst.vec[0].bits() == 32;
+                        src.last_use = src_dst.is_killed && whole_regs;
                     } else {
                         assert_eq!(src.swizzle, ra_src.swizzle);
                         instr.srcs_mut()[i].src_ref = ra_src.src_ref;
