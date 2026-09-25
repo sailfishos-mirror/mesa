@@ -1758,12 +1758,14 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    anv_video_emit_mi_flush_dw(cmd, true);
 }
 
-static uint8_t
+static bool
 anv_h265_get_ref_poc(const VkVideoEncodeInfoKHR *enc_info,
                      const uint8_t slot_num,
+                     int32_t *ref_poc,
                      bool *long_term)
 {
-   uint8_t ref_poc = 0xff;
+   *ref_poc = 0;
+   *long_term = false;
 
    for (unsigned i = 0; i < enc_info->referenceSlotCount; i++) {
       const VkVideoReferenceSlotInfoKHR ref_slot_info = enc_info->pReferenceSlots[i];
@@ -1774,13 +1776,13 @@ anv_h265_get_ref_poc(const VkVideoEncodeInfoKHR *enc_info,
          continue;
 
       if (ref_slot_info.slotIndex == slot_num) {
-         ref_poc = dpb->pStdReferenceInfo->PicOrderCntVal;
+         *ref_poc = dpb->pStdReferenceInfo->PicOrderCntVal;
          *long_term |= dpb->pStdReferenceInfo->flags.used_for_long_term_reference;
-         break;
+         return true;
       }
    }
 
-   return ref_poc;
+   return false;
 }
 
 static const VkVideoReferenceSlotInfoKHR *
@@ -2802,31 +2804,32 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
 
          bool long_term = false;
          uint8_t ref_slot = ref_lists->RefPicList0[0];
-         uint8_t cur_poc = frame_info->pStdPictureInfo->PicOrderCntVal;
-         uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
+         int32_t cur_poc = frame_info->pStdPictureInfo->PicOrderCntVal;
+         int32_t ref_poc;
+         bool found = anv_h265_get_ref_poc(enc_info, ref_slot, &ref_poc, &long_term);
          int8_t diff_poc = cur_poc - ref_poc;
 
          cmd2.POCNumberForRefid0InL0 = CLAMP(diff_poc, -16, 16);
          cmd2.LongTermReferenceFlagsL0 |= long_term;
 
          ref_slot = ref_lists->RefPicList0[1];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
-         diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
+         found = anv_h265_get_ref_poc(enc_info, ref_slot, &ref_poc, &long_term);
+         diff_poc = cur_poc - (found ? ref_poc : 0);
 
          cmd2.POCNumberForRefid1InL0 = CLAMP(diff_poc, -16, 16);
-         cmd2.LongTermReferenceFlagsL0 |= long_term;
+         cmd2.LongTermReferenceFlagsL0 |= long_term << 1;
 
          ref_slot = ref_lists->RefPicList0[2];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
-         diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
+         found = anv_h265_get_ref_poc(enc_info, ref_slot, &ref_poc, &long_term);
+         diff_poc = cur_poc - (found ? ref_poc : 0);
 
          cmd2.POCNumberForRefid2InL0 = CLAMP(diff_poc, -16, 16);
-         cmd2.LongTermReferenceFlagsL0 |= long_term;
+         cmd2.LongTermReferenceFlagsL0 |= long_term << 2;
 
 
          ref_slot = ref_lists->RefPicList1[0];
-         ref_poc = anv_h265_get_ref_poc(enc_info, ref_slot, &long_term);
-         diff_poc = ref_poc == 0xff ? 0 : cur_poc - ref_poc;
+         found = anv_h265_get_ref_poc(enc_info, ref_slot, &ref_poc, &long_term);
+         diff_poc = found ? cur_poc - ref_poc : 0;
 
          cmd2.POCNumberForRefid0InL1 = CLAMP(diff_poc, -16, 16);
          cmd2.LongTermReferenceFlagsL1 |= long_term;
@@ -2869,7 +2872,9 @@ anv_h265_emit_hcp_ref_idx_state(struct anv_cmd_buffer *cmd,
             if (slot == STD_VIDEO_H265_NO_REFERENCE_PICTURE)
                continue;
 
-            uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, slot, &long_term);
+            int32_t ref_poc;
+            bool found = anv_h265_get_ref_poc(enc_info, slot, &ref_poc, &long_term);
+            assert(found);
             int32_t diff_poc = frame_info->pStdPictureInfo->PicOrderCntVal - ref_poc;
 
             ref.ReferenceListEntry[i].ListEntry = dpb_idx[slot];
@@ -2892,7 +2897,9 @@ anv_h265_emit_hcp_ref_idx_state(struct anv_cmd_buffer *cmd,
             if (slot == STD_VIDEO_H265_NO_REFERENCE_PICTURE)
                continue;
 
-            uint8_t ref_poc = anv_h265_get_ref_poc(enc_info, slot, &long_term);
+            int32_t ref_poc;
+            bool found = anv_h265_get_ref_poc(enc_info, slot, &ref_poc, &long_term);
+            assert(found);
             int32_t diff_poc = frame_info->pStdPictureInfo->PicOrderCntVal - ref_poc;
 
             ref.ReferenceListEntry[i].ListEntry = dpb_idx[slot];
