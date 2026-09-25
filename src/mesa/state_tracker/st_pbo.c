@@ -454,8 +454,8 @@ create_fs(struct st_context *st, bool download,
 
    /* offset_pos = param.xy + f2i(coord.xy) */
    nir_def *offset_pos =
-      nir_iadd(&b, nir_channels(&b, param, 0x3),
-               nir_f2i32(&b, nir_channels(&b, coord, 0x3)));
+      nir_iadd(&b, nir_trim_vector(&b, param, 2),
+               nir_f2i32(&b, nir_trim_vector(&b, coord, 2)));
 
    /* addr = offset_pos.x + offset_pos.y * stride */
    nir_def *pbo_addr =
@@ -470,7 +470,7 @@ create_fs(struct st_context *st, bool download,
 
    nir_def *texcoord;
    if (download) {
-      texcoord = nir_f2i32(&b, nir_channels(&b, coord, 0x3));
+      texcoord = nir_f2i32(&b, nir_trim_vector(&b, coord, 2));
 
       if (target == PIPE_TEXTURE_1D) {
          unsigned sw = 0;
