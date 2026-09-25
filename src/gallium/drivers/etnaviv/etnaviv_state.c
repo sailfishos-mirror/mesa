@@ -1205,7 +1205,7 @@ etna_update_hwxfb(struct etna_context *ctx)
 
       ctx->streamout.TFB_DESCRIPTOR[i] =
          VIVS_TFB_DESCRIPTOR_OUTPUT_BUFFER(output->buffer) |
-         VIVS_TFB_DESCRIPTOR_INPUT_REGISTER(reg) |
+         VIVS_TFB_DESCRIPTOR_VS_OUTPUT_SLOT(reg) |
          VIVS_TFB_DESCRIPTOR_COMPONENT_OFFSET(output->component_offset) |
          COND(output->component_mask != 0xf, VIVS_TFB_DESCRIPTOR_COMPONENT_MASK(util_bitcount(output->component_mask)));
    }
