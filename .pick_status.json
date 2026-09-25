@@ -714,7 +714,7 @@
         "description": "vulkan/wsi: keep GOOGLE display timing records that do not fit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b1c48c8f0ee5852b865b5caa05521f84c9bd4da2",
         "notes": null
