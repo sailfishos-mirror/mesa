@@ -293,7 +293,7 @@ lp_build_max_simple(struct lp_build_context *bld,
          debug_printf("%s: altivec doesn't support nan return nan behavior\n",
                       __func__);
       }
-      if (type.width == 32 || type.length == 4) {
+      if (type.width == 32) {
          intrinsic = "llvm.ppc.altivec.vmaxfp";
          intr_size = 128;
       }
