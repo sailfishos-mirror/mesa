@@ -7274,6 +7274,20 @@ setup_autostrip_state(struct iris_context *ice,
 }
 
 static void
+iris_upload_render_sysvals(struct iris_context *ice, uint64_t *stage_dirty)
+{
+   for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
+      struct iris_shader_state *shs = &ice->state.shaders[stage];
+
+      if (!ice->shaders.prog[stage] || !shs->sysvals_need_upload)
+         continue;
+
+      upload_sysvals(ice, stage, NULL);
+      *stage_dirty |= IRIS_STAGE_DIRTY_BINDINGS_VS << stage;
+   }
+}
+
+static void
 iris_populate_binding_tables(struct iris_context *ice, struct iris_batch *batch,
                              uint64_t stage_dirty)
 {
@@ -7351,14 +7365,10 @@ iris_emit_push_constants(struct iris_context *ice, struct iris_batch *batch,
           !emit_const_wa)
          continue;
 
-      struct iris_shader_state *shs = &ice->state.shaders[stage];
       struct iris_compiled_shader *shader = ice->shaders.prog[stage];
 
       if (!shader)
          continue;
-
-      if (shs->sysvals_need_upload)
-         upload_sysvals(ice, stage, NULL);
 
       struct push_bos push_bos = {};
       setup_constant_buffers(ice, batch, stage, &push_bos);
@@ -7774,6 +7784,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    }
 #endif
 
+   iris_upload_render_sysvals(ice, &stage_dirty);
    iris_populate_binding_tables(ice, batch, stage_dirty);
    iris_emit_push_constants(ice, batch, dirty, stage_dirty);
    iris_emit_binding_tables(ice, batch, stage_dirty);
