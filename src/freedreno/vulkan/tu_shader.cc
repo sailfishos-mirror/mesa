@@ -1418,7 +1418,6 @@ gather_push_constants(nir_shader *shader, struct tu_shader *tu_shader)
             uint32_t range = nir_intrinsic_range(intrin);
             min = MIN2(min, base);
             max = MAX2(max, base + range);
-            break;
          }
       }
    }
