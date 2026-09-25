@@ -173,7 +173,6 @@ blt_compute_dest_img_config_bits(const struct blt_imginfo *img)
           COND(img->use_ts, BLT_DEST_IMAGE_CONFIG_TS) |
           COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_DEST_IMAGE_CONFIG_COMPRESSION) |
           BLT_DEST_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
-          BLT_DEST_IMAGE_CONFIG_UNK22 |
           COND(img->srgb, BLT_DEST_IMAGE_CONFIG_SRGB) |
           BLT_DEST_IMAGE_CONFIG_SWIZ_R(img->swizzle[0]) |
           BLT_DEST_IMAGE_CONFIG_SWIZ_G(img->swizzle[1]) |
@@ -288,6 +287,7 @@ emit_blt_copyimage(struct etna_context *ctx, const struct blt_imgcopy_op *op)
    etna_set_state(stream, VIVS_BLT_DEST_STRIDE, blt_compute_stride_bits(&op->dest));
    etna_set_state(stream, VIVS_BLT_DEST_CONFIG,
          blt_compute_dest_img_config_bits(&op->dest) |
+         BLT_DEST_IMAGE_CONFIG_UNK22 |
          COND(op->flip_y, BLT_DEST_IMAGE_CONFIG_FLIP_Y));
    assert(!op->dest.use_ts); /* Dest TS path doesn't work for copies? */
    if (op->dest.use_ts) {
