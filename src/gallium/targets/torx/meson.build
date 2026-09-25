@@ -54,6 +54,8 @@ if with_tests
   torx_model_pt2 = {}
   torx_model_dir = {}
   if zoo.found()
+    py_mod.find_installation(prog_python.full_path(), pure : false,
+      modules : ['torch', 'executorch', 'torchao'])
     zoo_test_dir = zoo.get_variable('zoo_test_dir')
     foreach model, formats : zoo.get_variable('zoo_test_models')
       if 'pt2' in formats
