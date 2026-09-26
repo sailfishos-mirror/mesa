@@ -1313,7 +1313,8 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
 
       radv_destroy_msrtss_transients(cmd_buffer);
 
-      radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
+      if (cmd_buffer->accel_struct_buffers)
+         radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
       _mesa_set_destroy(cmd_buffer->accel_struct_buffers, NULL);
 
       for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++) {
@@ -1385,6 +1386,7 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
 
       for (unsigned i = 0; i < ARRAY_SIZE(cmd_buffer->linear_suballocators); i++)
          list_inithead(&cmd_buffer->linear_suballocators[i].list);
+      list_inithead(&cmd_buffer->msrtss_transients);
 
       radv_cmd_buffer_init_shader_part_cache(device, cmd_buffer);
       result =
@@ -1398,8 +1400,11 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
          vk_object_base_init(&device->vk, &cmd_buffer->descriptors[i].push_set.set.base, VK_OBJECT_TYPE_DESCRIPTOR_SET);
 
       cmd_buffer->accel_struct_buffers = _mesa_pointer_set_create(NULL);
+      if (!cmd_buffer->accel_struct_buffers) {
+         radv_destroy_cmd_buffer(&cmd_buffer->vk);
+         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      }
       cmd_buffer->ray_history = UTIL_DYNARRAY_INIT;
-      list_inithead(&cmd_buffer->msrtss_transients);
    }
 
    if (device->utrace.context) {
