@@ -139,7 +139,7 @@ if with_tests
       override_options : ['b_asneeded=false'],
       dependencies : [
         dep_executorch,
-        dep_executorch_portable_ops,
+        dep_executorch_cpu_ops,
         dep_executorch_quantized_ops,
         idep_gtest,
         idep_mesautil,
