@@ -152,14 +152,12 @@ class TorxPartitioner(Partitioner):
                 node.meta.pop("delegation_tag", None)
                 continue
 
-            # For non Q/DQ nodes, if any input comes from outside the partition
-            # as float, this cannot be a pure int delegate boundary.
             if not is_q_node and not is_dq_node:
                 for input_node in node.all_input_nodes:
                     if _is_partitioned(input_node, tag):
                         continue
                     dtype = node_tensor_dtype(input_node)
-                    if dtype is not None and dtype.is_floating_point:
+                    if dtype is not None and dtype != torch.int8:
                         node.meta.pop("delegation_tag", None)
                         break
 
