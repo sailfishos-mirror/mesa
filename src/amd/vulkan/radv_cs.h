@@ -181,21 +181,6 @@ radv_gfx12_emit_buffered_regs(const struct radv_device *device, struct radv_cmd_
    cs->buffered_sh_regs.num = 0;
 }
 
-ALWAYS_INLINE static void
-radv_cp_wait_mem(struct radv_cmd_stream *cs, const uint32_t op, const uint64_t va, const uint32_t ref,
-                 const uint32_t mask)
-{
-   assert(op == WAIT_REG_MEM_EQUAL || op == WAIT_REG_MEM_NOT_EQUAL || op == WAIT_REG_MEM_GREATER_OR_EQUAL);
-
-   if (cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE) {
-      ac_emit_cp_wait_mem(cs->b, va, ref, mask, op);
-   } else if (cs->hw_ip == AMD_IP_SDMA) {
-      ac_emit_sdma_wait_mem(cs->b, op, va, ref, mask);
-   } else {
-      UNREACHABLE("unsupported queue family");
-   }
-}
-
 ALWAYS_INLINE static unsigned
 radv_cs_write_data_head(const struct radv_device *device, struct radv_cmd_stream *cs, const unsigned engine_sel,
                         const uint64_t va, const unsigned count, const bool predicating)
