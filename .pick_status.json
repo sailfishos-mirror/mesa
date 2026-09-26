@@ -1674,7 +1674,7 @@
         "description": "aco/insert_fp_mode: fix rounding mode for fma_mixhi_f16",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "46c1bd1147ca4683c9d8b8bf3f07d98b32eb75a3",
         "notes": null
