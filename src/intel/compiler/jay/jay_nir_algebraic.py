@@ -36,6 +36,9 @@ lower_fsign = [
     (('u2f32', ('extract_u16', a, 0)), ('u2f32', ('u2u16', a))),
     (('i2f32', ('extract_i8', a, 0)), ('i2f32', ('u2u8', a))),
     (('i2f32', ('extract_i16', a, 0)), ('i2f32', ('u2u16', a))),
+    (('i2f32', ('extract_u8', 'a@16', 0)), ('u2f32', ('u2u8', a))),
+    (('i2f32', ('extract_u8', 'a@32', 0)), ('u2f32', ('u2u8', a))),
+    (('i2f32', ('extract_u16', 'a@32', 0)), ('u2f32', ('u2u16', a))),
 ]
 
 for s in range(1, 31):
