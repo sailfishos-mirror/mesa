@@ -38,6 +38,7 @@ impl std::fmt::Display for EncodeError {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum InvalidInstrError {
     Any,
@@ -134,6 +135,7 @@ pub enum ExecUnit {
     Sfu,
 }
 
+#[allow(dead_code)]
 pub trait FauSpecialPageResolver {
     type P0: TryDecode<u8> + std::fmt::Display;
     type P1: TryDecode<u8> + std::fmt::Display;
@@ -267,9 +269,10 @@ pub mod v9 {
     use kraid_proc_macros::*;
     gen_isa_encode!("isa-v9-v14.xml", 9..=14);
 
+    #[cfg(kraid_disasm)]
     pub mod decode {
-        use crate::isa::*;
         use super::*;
+        use crate::isa::*;
 
         enum SourceEncodingX<const IS64: bool> {
             Register {
@@ -327,7 +330,11 @@ pub mod v9 {
                     }
                     (0b11, 0b1) => {
                         let idx32 = (v & 0x1f) >> 1;
-                        let name = FauSpecialIndexPage::get_name(fau_page_index, idx32, arch)?;
+                        let name = FauSpecialIndexPage::get_name(
+                            fau_page_index,
+                            idx32,
+                            arch,
+                        )?;
                         Ok(SourceEncodingX::FauSpec {
                             word_select: !IS64 && bit0,
                             name,

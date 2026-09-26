@@ -4496,6 +4496,7 @@ bi_compile_variant_nir(nir_shader *nir,
    }
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal) {
+#ifdef WITH_PANFROST_DISASSEMBLE
       if (ctx->arch <= 8) {
          disassemble_bifrost(stderr, binary->data + offset,
                              binary->size - offset,
@@ -4505,6 +4506,7 @@ bi_compile_variant_nir(nir_shader *nir,
                              binary->size - offset,
                              bifrost_debug & BIFROST_DBG_VERBOSE);
       }
+#endif
 
       if (ctx->constant_pool_size_B) {
          fprintf(stderr, "constant pool (%u bytes at offset %u):\n",

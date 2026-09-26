@@ -6,6 +6,7 @@ pub extern crate mesa_util;
 mod builder;
 mod compile;
 mod data_type;
+#[cfg(kraid_disasm)]
 pub mod decode;
 mod dst_mod_prop;
 mod encode_v9;
