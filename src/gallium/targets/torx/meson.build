@@ -57,10 +57,10 @@ if with_tests
     py_mod.find_installation(prog_python.full_path(), pure : false,
       modules : ['torch', 'executorch', 'torchao'])
     zoo_test_dir = zoo.get_variable('zoo_test_dir')
-    foreach model, formats : zoo.get_variable('zoo_test_models')
-      if 'pt2' in formats
+    foreach model, entry : zoo.get_variable('zoo_test_models')
+      if 'pt2' in entry['models']
         torx_available_models += model
-        torx_model_pt2 += {model : formats['pt2']}
+        torx_model_pt2 += {model : entry['models']['pt2']}
         torx_model_dir += {model : zoo_test_dir / model}
       endif
     endforeach
