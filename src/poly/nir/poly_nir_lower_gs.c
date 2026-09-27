@@ -637,6 +637,7 @@ strip_side_effect_from_main(nir_builder *b, nir_intrinsic_instr *intr,
    case nir_intrinsic_image_store:
    case nir_intrinsic_bindless_image_store:
    case nir_intrinsic_fence_pbe_to_tex_agx:
+   case nir_intrinsic_bindless_image_fence_kk:
       if (data) {
          nir_instr_remove(&intr->instr);
          return true;
