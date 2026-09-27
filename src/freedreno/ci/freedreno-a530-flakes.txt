@@ -40,6 +40,3 @@ KHR-GLES31.core.compute_shader.simple-compute-shared_context
 glx@glx_ext_no_config_context@no fbconfig
 KHR-GLES31.core.compute_shader.simple-compute-shared_context-persistent-buffer
 spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render
-
-# New flakes while the device was offline
-dEQP-GLES31.functional.shaders.builtin_functions.precision.*
