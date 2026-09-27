@@ -567,7 +567,6 @@ isl_genX(surf_fill_state_s)(const struct isl_device *dev, void *state,
    }
 #elif GFX_VER >= 8
    assert(isl_format_get_layout(info->view->format)->txc != ISL_TXC_ASTC);
-   assert(!isl_tiling_is_standard(info->surf->tiling));
    s.TileMode = isl_encode_tiling[info->surf->tiling];
 #else
    s.TiledSurface = info->surf->tiling != ISL_TILING_LINEAR,
