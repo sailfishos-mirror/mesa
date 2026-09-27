@@ -187,6 +187,7 @@ debian-x86_64-msan:
       -D install-precomp-compiler=true
       -D tools=panfrost
       -D panfrost-rust=true
+      -D panfrost-disassemble=false
 
 debian-x86_64-ubsan:
   extends:
@@ -414,6 +415,7 @@ debian-android:
       -D precomp-compiler=enabled
       -D install-precomp-compiler=true
       -D tools=panfrost
+      -D panfrost-disassemble=false
   script:
     # x86_64 build:
     - export CROSS=x86_64-linux-android
