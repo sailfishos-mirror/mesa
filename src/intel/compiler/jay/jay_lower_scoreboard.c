@@ -401,10 +401,12 @@ lower_sbid_local(jay_function *func,
          if (edge->tokens_bitset[sbid] == NULL) {
             edge->tokens_bitset[sbid] = alloc_sbid_bitset(edge->ctx);
          } else {
-            /* Dispose of the bitset's previous contents */
+            /* Dispose of the bitset's previous contents.  Waiting on $N.dst
+             * also retires $N's reads.
+             */
             jay_foreach_sbid_dep_type(type) {
-               uint32_t mask =
-                  type == DST ? (busy_dst | sync_dst) : (busy_src | sync_src);
+               uint32_t mask = type == DST ? (busy_dst | sync_dst) :
+                                             (busy_src | sync_src | sync_dst);
                if (mask & BITFIELD_BIT(sbid)) {
                   __bitset_zero(bitset_for(edge, sbid, type), edge->ctx->words);
                }
