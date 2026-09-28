@@ -596,6 +596,8 @@ emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
       emu_set_control_reg(emu, 0, 3 << 28);
    } else if (emu->fw_id == QRISC_A650) {
       emu_set_control_reg(emu, 0, 1 << 28);
+   } else if (emu->fw_id == QRISC_A702) {
+      emu_set_control_reg(emu, 0, 2 << 28);
    }
 }
 

@@ -287,6 +287,7 @@ int qrisc_util_init(enum qrisc_fwid fw_id, int *gpuver_out, bool colors)
    case QRISC_A630:
    case QRISC_A650:
    case QRISC_A660:
+   case QRISC_A702:
       name = "A6XX";
       variant = "A6XX";
       control_reg_name = "A6XX_CONTROL_REG";
