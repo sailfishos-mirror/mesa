@@ -5,6 +5,7 @@
 """Shared helpers for compile_torx_model.py and compile_torx_tests.py."""
 
 import json
+import math
 import os
 import sys
 import warnings
@@ -124,6 +125,37 @@ def quantize_module(module, example_inputs, *, is_prepared=False):
         module = prepare_pt2e(module, TorxQuantizer())
     module(*example_inputs)  # calibration
     return convert_pt2e(module)
+
+
+# Taken from the TOSA test suite in the Executorch backend for Arm
+QUANTISATION_ERROR_MAX = 0.15
+QUANTISATION_COSINE_MIN = 0.9
+
+
+class QuantisationError(Exception):
+    pass
+
+
+def check_quantisation(float_outputs, quant_outputs, output_qparams, name):
+    if len(quant_outputs) != len(float_outputs):
+        raise QuantisationError(
+            f"{name}: the quantised model returns {len(quant_outputs)} "
+            f"outputs, the float model {len(float_outputs)}")
+    for i, (ref, out) in enumerate(zip(float_outputs, quant_outputs)):
+        ref = ref.detach().flatten().to(torch.float32)
+        out = out.detach().flatten().to(torch.float32)
+        scale, _ = output_qparams[i]
+        ref_norm = torch.linalg.norm(ref).item()
+        if ref_norm <= float(scale) * math.sqrt(ref.numel()):
+            continue
+        error = torch.linalg.norm(out - ref).item() / ref_norm
+        cosine = torch.nn.functional.cosine_similarity(out, ref, dim=0).item()
+        if not (error <= QUANTISATION_ERROR_MAX
+                and cosine >= QUANTISATION_COSINE_MIN):
+            raise QuantisationError(
+                f"{name} output {i}: quantisation error {error:.3f} "
+                f"(limit {QUANTISATION_ERROR_MAX}), cosine similarity "
+                f"{cosine:.4f} (limit {QUANTISATION_COSINE_MIN})")
 
 
 def write_stamp(stamp_file):
