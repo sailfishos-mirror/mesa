@@ -27,8 +27,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <xf86drm.h>
-
 #include "anv_private.h"
 #include "anv_measure.h"
 
