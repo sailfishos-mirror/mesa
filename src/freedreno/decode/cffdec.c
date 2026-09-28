@@ -1837,6 +1837,9 @@ dump_bindless_descriptors(bool is_compute, int level)
    if (options->info->chip < 6)
       return;
 
+   if (quiet(2))
+      return;
+
    if (options->summary) {
       /* Ensure that updated shader stages are parsed.. in summary mode
        * this only happens when dumping reg values, which happens after
@@ -2339,12 +2342,15 @@ dump_register_summary(int level, const char *usage)
 
    struct regacc r = regacc(NULL);
 
-   /* dump current state of registers: */
-   printl(2, "%sdraw[%i] register values\n", levels[level], draw_count);
-
    bool changed = false;
    bool written = false;
    bool used = false;
+
+   if (quiet(2))
+      goto out;
+
+   /* dump current state of registers: */
+   printl(2, "%sdraw[%i] register values\n", levels[level], draw_count);
 
    for (i = 0; i < regcnt(); i++) {
       uint32_t regbase = i;
@@ -2391,6 +2397,7 @@ dump_register_summary(int level, const char *usage)
       }
    }
 
+out:
    clear_rewritten();
    reset_lastvals();
 
