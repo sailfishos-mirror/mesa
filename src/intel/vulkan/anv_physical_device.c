@@ -2735,20 +2735,14 @@ anv_physical_device_init_heaps(struct anv_physical_device *device, int fd)
 static VkResult
 anv_physical_device_init_uuids(struct anv_physical_device *device)
 {
-   const struct build_id_note *note =
-      build_id_find_nhdr_for_addr(anv_physical_device_init_uuids);
-   if (!note) {
+   blake3_hasher build_id_ctx;
+   _mesa_blake3_init(&build_id_ctx);
+   if (!disk_cache_get_function_identifier(anv_physical_device_init_uuids,
+                                           &build_id_ctx)) {
       return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
                        "Failed to find build-id");
    }
-
-   unsigned build_id_len = build_id_length(note);
-   if (build_id_len < BUILD_ID_EXPECTED_HASH_LENGTH) {
-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
-                       "build-id too short.  It needs to be a SHA");
-   }
-
-   copy_build_id_to_sha1(device->driver_build_sha1, note);
+   _mesa_blake3_final(&build_id_ctx, device->driver_build_sha1);
 
    /* Fills device->shader_binary_uuid, which the pipeline cache UUID and the
     * disk cache id below are also taken from.
