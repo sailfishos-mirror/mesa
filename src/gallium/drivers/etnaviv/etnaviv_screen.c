@@ -1030,8 +1030,10 @@ etna_get_specs(struct etna_screen *screen)
    screen->specs.pe_multitiled = screen->specs.pixel_pipes > 1 &&
                                  !screen->specs.single_buffer;
 
-   screen->specs.tex_astc = VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC) &&
-                            !VIV_FEATURE(screen, ETNA_FEATURE_NO_ASTC);
+   if (VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC) &&
+       !VIV_FEATURE(screen, ETNA_FEATURE_NO_ASTC))
+      perf_debug_ctx(NULL, "Hardware ASTC disabled, ASTC is decoded on the CPU");
+   screen->specs.tex_astc = false;
 
    screen->specs.use_blt = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE);
 
