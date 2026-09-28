@@ -34,6 +34,7 @@
 #include "pvr_winsys.h"
 
 typedef struct _pco_ctx pco_ctx;
+typedef struct _pdsc_program pdsc_program;
 
 struct pvr_border_color_table;
 struct pvr_device_static_clear_state;
@@ -149,6 +150,13 @@ struct pvr_device {
    } null_state;
 
    struct pvr_border_color_table *border_color_table;
+
+   struct {
+      pdsc_program *xfb_init;
+      pdsc_program *xfb_main;
+      pdsc_program *xfb_end;
+      pdsc_program *xfb_vertex_count;
+   } pdsc_precomp_programs;
 
    simple_mtx_t rs_mtx;
    struct list_head render_states;

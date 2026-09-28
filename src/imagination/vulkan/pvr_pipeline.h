@@ -220,7 +220,8 @@ pvr_stage_mask(VkPipelineStageFlags2 stage_mask)
                      VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
                      VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT |
                      VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT |
-                     VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT)) {
+                     VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT |
+                     VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT)) {
       stages |= PVR_PIPELINE_STAGE_GEOM_BIT;
    }
 

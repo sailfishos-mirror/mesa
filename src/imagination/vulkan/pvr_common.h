@@ -135,7 +135,7 @@ enum pvr_pipeline_stage_bits {
    (PVR_PIPELINE_STAGE_ALL_GRAPHICS_BITS | PVR_PIPELINE_STAGE_COMPUTE_BIT | \
     PVR_PIPELINE_STAGE_TRANSFER_BIT)
 
-#define PVR_NUM_SYNC_PIPELINE_STAGES 4U
+#define PVR_NUM_SYNC_PIPELINE_STAGES 5U
 
 /* Warning: Do not define an invalid stage as 0 since other code relies on 0
  * being the first shader stage. This allows for stages to be split or added
