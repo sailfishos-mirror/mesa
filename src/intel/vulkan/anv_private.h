@@ -7668,68 +7668,49 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(anv_indirect_execution_set, base,
 #  undef genX
 #endif
 
-static inline void
-anv_emit_device_memory_report(struct vk_device* device,
-                              VkDeviceMemoryReportEventTypeEXT type,
-                              uint64_t mem_obj_id,
-                              VkDeviceSize size,
-                              VkObjectType obj_type,
-                              uint64_t obj_handle,
-                              uint32_t heap_index)
-{
-   if (likely(!device->memory_reports))
-      return;
-
-   vk_emit_device_memory_report(device, type, mem_obj_id, size,
-                                obj_type, obj_handle, heap_index);
-}
-
 /* VK_EXT_device_memory_report specific reporting macros */
-#define ANV_DMR_BO_REPORT(_obj, _bo, _type) \
-   anv_emit_device_memory_report( \
-      (_obj)->device, _type, \
-      (_type) == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT ? \
-      0 : (_bo)->offset, \
-      (_type) == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT ? \
-      0 : (_bo)->actual_size, \
-      (_obj)->type, vk_object_to_u64_handle(_obj), 0)
-#define ANV_DMR_BO_ALLOC(_obj, _bo, _result)   \
-   ANV_DMR_BO_REPORT(_obj, _bo, \
-                     (_result) == VK_SUCCESS ? \
-                      VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT : \
-                     VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT)
-#define ANV_DMR_BO_FREE(_obj, _bo) \
-   ANV_DMR_BO_REPORT(_obj, _bo, \
-                     VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT)
-#define ANV_DMR_BO_ALLOC_IMPORT(_obj, _bo, _result, _import) \
-   ANV_DMR_BO_REPORT(_obj, _bo, \
-                     (_result) == VK_SUCCESS ? \
-                     ((_import) ? \
-                      VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT : \
-                      VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT) : \
-                     VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT)
-#define ANV_DMR_BO_FREE_IMPORT(_obj, _bo, _import) \
-   ANV_DMR_BO_REPORT(_obj, _bo, \
-                     (_import) ? \
-                     VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_UNIMPORT_EXT : \
-                     VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT)
+#define ANV_DMR_BO_ALLOC(_obj, _bo, _result) \
+vk_device_memory_report_emit( \
+   (_obj)->device, _result, /* is_alloc */ true, /* is_import */ false, \
+   (_result) == VK_SUCCESS ? (_bo)->offset : 0, \
+   (_result) == VK_SUCCESS ? (_bo)->actual_size : 0, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
 
-#define ANV_DMR_SP_REPORT(_obj, _pool, _state, _type) \
-   anv_emit_device_memory_report( \
-      (_obj)->device, _type, \
-      (_type) == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT ? \
-      0 : \
-      anv_address_physical(anv_state_pool_state_address((_pool), (_state))), \
-      (_type) == VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT ? \
-      0 : (_state).alloc_size, \
-      (_obj)->type, vk_object_to_u64_handle(_obj), 0)
+#define ANV_DMR_BO_FREE(_obj, _bo) \
+vk_device_memory_report_emit( \
+   (_obj)->device, VK_SUCCESS, /* is_alloc */ false, /* is_import */ false, \
+   (_bo)->offset, (_bo)->actual_size, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
+
+#define ANV_DMR_BO_ALLOC_IMPORT(_obj, _bo, _result, _import) \
+vk_device_memory_report_emit( \
+   (_obj)->device, _result, /* is_alloc */ true, (_import), \
+   (_result) == VK_SUCCESS ? (_bo)->offset : 0, \
+   (_result) == VK_SUCCESS ? (_bo)->actual_size : 0, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
+
+#define ANV_DMR_BO_FREE_IMPORT(_obj, _bo, _import) \
+vk_device_memory_report_emit( \
+   (_obj)->device, VK_SUCCESS, /* is_alloc */ false, (_import), \
+   (_bo)->offset, (_bo)->actual_size, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
+
 #define ANV_DMR_SP_ALLOC(_obj, _pool, _state) \
-      ANV_DMR_SP_REPORT(_obj, _pool, _state, \
-                        (_state).alloc_size == 0 ? \
-                        VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT : \
-                        VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT)
+vk_device_memory_report_emit( \
+   (_obj)->device, \
+   (_state).alloc_size == 0 ? VK_ERROR_OUT_OF_DEVICE_MEMORY : VK_SUCCESS, \
+   /* is_alloc */ true, /* is_import */ false, \
+   (_state).alloc_size == 0 ? 0 : \
+   anv_address_physical(anv_state_pool_state_address((_pool), (_state))), \
+   (_state).alloc_size, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
+
 #define ANV_DMR_SP_FREE(_obj, _pool, _state) \
-      ANV_DMR_SP_REPORT(_obj, _pool, _state, VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT)
+vk_device_memory_report_emit( \
+   (_obj)->device, VK_SUCCESS, /* is_alloc */ false, /* is_import */ false, \
+   anv_address_physical(anv_state_pool_state_address((_pool), (_state))), \
+   (_state).alloc_size, \
+   (_obj)->type, vk_object_to_u64_handle(_obj), 0)
 
 /* Address binding report macro helpers for VK_EXT_device_address_binding_report.
  *

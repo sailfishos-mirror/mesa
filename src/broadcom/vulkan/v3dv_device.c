@@ -2324,11 +2324,12 @@ device_import_bo(struct v3dv_device *device,
 
    v3dv_bo_init_import(*bo, handle, size, get_offset.offset, obj_type, obj_handle, false);
 
-   v3dv_emit_device_memory_report(&device->vk, VK_SUCCESS,
-                                  true, /* is_alloc */
-                                  true, /* is_import */
-                                  handle, (*bo)->size,
-                                  obj_type, obj_handle);
+   vk_device_memory_report_emit(&device->vk, VK_SUCCESS,
+                                true, /* is_alloc */
+                                true, /* is_import */
+                                handle, (*bo)->size,
+                                obj_type, obj_handle,
+                                0 /* heap_index */);
    return VK_SUCCESS;
 }
 
@@ -2459,12 +2460,13 @@ v3dv_AllocateMemory(VkDevice _device,
    uint64_t heap_used = p_atomic_read(&pdevice->heap_used);
    if (unlikely(alloc_size > MAX_MEMORY_ALLOCATION_SIZE + 4096u ||
       heap_used + alloc_size > pdevice->memory.memoryHeaps[0].size)) {
-      v3dv_emit_device_memory_report(&device->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY,
-                                     true, /* is_alloc */
-                                     false, /* is_import */
-                                     0, /* mem_obj_id */
-                                     alloc_size, VK_OBJECT_TYPE_DEVICE_MEMORY,
-                                     0 /* obj_handle */ );
+      vk_device_memory_report_emit(&device->vk, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                                   true, /* is_alloc */
+                                   false, /* is_import */
+                                   0, /* mem_obj_id */
+                                   alloc_size, VK_OBJECT_TYPE_DEVICE_MEMORY,
+                                   0, /* obj_handle */
+                                   0 /* heap_index */);
       return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
    }
 

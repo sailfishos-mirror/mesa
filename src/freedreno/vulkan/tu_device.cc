@@ -3667,32 +3667,32 @@ tu_memory_emit_report(struct tu_device *device,
                       const VkMemoryAllocateInfo *alloc_info,
                       VkResult result)
 {
-   if (likely(!device->vk.memory_reports))
-      return;
+   const bool is_alloc = alloc_info != NULL;
 
    if (result != VK_SUCCESS) {
-      vk_emit_device_memory_report(
-         &device->vk, VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT,
-         /* mem_obj_id */ 0, alloc_info->allocationSize,
+      vk_device_memory_report_emit(
+         &device->vk, result, is_alloc,
+         false, /* is_import */
+         0, /* mem_obj_id */
+         alloc_info->allocationSize,
          VK_OBJECT_TYPE_DEVICE_MEMORY,
-         /* obj_handle */ 0, /* heap_index */ 0);
+         0, /* obj_handle */
+         0 /* heap_index */);
       return;
    }
 
-   VkDeviceMemoryReportEventTypeEXT type;
-   if (alloc_info) {
-      type = mem->vk.import_handle_type
-                ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
-                : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT;
-   } else {
-      type = mem->vk.import_handle_type
-                ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_UNIMPORT_EXT
-                : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_FREE_EXT;
-   }
+   /* Lazy memory may or may not have a BO at any given time, so it must
+    * not depend on mem->bo. Use the memory object itself for the id and
+    * the requested size, so the alloc and free reports always match.
+    */
+   const uint64_t mem_obj_id =
+      mem->lazy ? (uintptr_t)mem : mem->bo->unique_id;
+   const VkDeviceSize size = mem->lazy ? mem->vk.size : mem->bo->size;
 
-   vk_emit_device_memory_report(&device->vk, type, mem->bo->unique_id,
-                                mem->bo->size, VK_OBJECT_TYPE_DEVICE_MEMORY,
-                                (uintptr_t)(mem), /* heap_index */ 0);
+   vk_device_memory_report_emit(
+      &device->vk, result, is_alloc, mem->vk.import_handle_type != 0,
+      mem_obj_id, size, VK_OBJECT_TYPE_DEVICE_MEMORY,
+      (uintptr_t)(mem), 0 /* heap_index */);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
