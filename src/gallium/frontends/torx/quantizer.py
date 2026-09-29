@@ -23,6 +23,7 @@ from torchao.quantization.pt2e.quantizer import (
     annotate_output_qspec,
 )
 
+from .dim_order_pass import merges_spatial_dims
 from .exir_to_gallium import (
     FUSABLE_ACTIVATION_OPS_ATEN,
     activation_is_absorbable,
@@ -38,11 +39,16 @@ def _shares_input_quantization(node: fx.Node) -> bool:
         return False
     target = node.target
     if target == torch.ops.aten.cat.default:
-        return output.dim() == 4
+        return output.dim() in (3, 4)
     if target == torch.ops.aten.upsample_nearest2d.vec:
         return is_2x_resize(node)
     if target == torch.ops.aten.max_pool2d.default:
         return output.dim() == 4
+    if target in (torch.ops.aten.view.default,
+                  torch.ops.aten.flatten.using_ints):
+        return merges_spatial_dims(node)
+    if target == torch.ops.aten.permute.default:
+        return output.dim() == 3
     return False
 
 
@@ -231,6 +237,12 @@ class TorxQuantizer(Quantizer):
                         )
 
                 elif node.target == torch.ops.aten.max_pool2d.default:
+                    if _shares_input_quantization(node):
+                        self._annotate_shared_io(node, [node.args[0]])
+
+                elif node.target in (torch.ops.aten.view.default,
+                                     torch.ops.aten.flatten.using_ints,
+                                     torch.ops.aten.permute.default):
                     if _shares_input_quantization(node):
                         self._annotate_shared_io(node, [node.args[0]])
 
