@@ -17,11 +17,11 @@ from torch.fx.passes.operator_support import OperatorSupportBase
 
 from .backend import TorxBackend
 from .debug import dump_graph_support, node_tensor_dtype
+from .dim_order_pass import AnnotateDimOrderPass, is_identity_clone, layout_run
 from .exir_to_gallium import (
     FUSABLE_ACTIVATION_OPS,
     fused_activation,
     get_ml_device,
-    is_identity_clone,
     is_torx_convertible,
     is_torx_supported,
     max_pool_values,
@@ -163,6 +163,7 @@ class TorxPartitioner(Partitioner):
                         break
 
     def partition(self, edge_exported_program: ExportedProgram) -> PartitionResult:
+        AnnotateDimOrderPass()(edge_exported_program.graph_module)
         dump_graph_support(edge_exported_program.graph_module, self.op_support)
 
         partition_tags = {}
@@ -191,6 +192,20 @@ class TorxPartitioner(Partitioner):
                 continue
 
             partition_tags[delegation_tag] = self.delegation_spec
+
+        graph_module = edge_exported_program.graph_module
+        name_to_node = {n.name: n for n in graph_module.graph.nodes}
+        for node in graph_module.graph.nodes:
+            run = layout_run(node)
+            if run is None:
+                continue
+            tags = {name_to_node[name].meta.get("delegation_tag")
+                    for name in run if name in name_to_node}
+            if len(tags) > 1:
+                raise RuntimeError(
+                    f"Torx: the data layout run {sorted(run)} was split "
+                    f"across partitions; it must be delegated whole or not "
+                    f"at all")
 
         return PartitionResult(
             tagged_exported_program=edge_exported_program,

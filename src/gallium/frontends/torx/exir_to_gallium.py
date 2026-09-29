@@ -100,18 +100,6 @@ IDENTITY_QPARAMS = QuantArgs(
     scale=1.0, zp=0, qmin=-128, qmax=127, dtype=torch.int8
 )
 
-CLONE_OP = exir_ops.edge.dim_order_ops._clone_dim_order.default
-
-
-def is_identity_clone(node: torch.fx.Node) -> bool:
-    """Return whether node is a _clone_dim_order that keeps the dim order."""
-    if node.target != CLONE_OP:
-        return False
-    val = node.meta.get("val")
-    input_val = node.args[0].meta.get("val")
-    return (val is not None and input_val is not None and
-            val.dim_order() == input_val.dim_order())
-
 @dataclass
 class GalliumGraph:
     """Converted Gallium graph plus owned backing storage for ctypes pointers."""
