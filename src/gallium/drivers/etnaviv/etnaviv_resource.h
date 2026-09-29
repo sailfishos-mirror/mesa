@@ -234,6 +234,8 @@ struct etna_resource {
    struct pipe_resource *texture;
    /* for when PE doesn't support the base layout */
    struct pipe_resource *render;
+   struct pipe_resource *border;
+   unsigned border_tail;
    /* PE can render to the base layout directly */
    bool render_compatible;
    /* frontend flushes resource via an explicit call to flush_resource */
@@ -381,6 +383,10 @@ etna_screen_resource_alloc_ts(struct pipe_screen *pscreen,
 struct pipe_resource *
 etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
                     uint64_t modifier, const struct pipe_resource *templat);
+
+struct etna_resource *
+etna_resource_alloc_border_shadow(struct pipe_context *pctx,
+                                  struct pipe_resource *prsc);
 
 void
 etna_resource_screen_init(struct pipe_screen *pscreen);

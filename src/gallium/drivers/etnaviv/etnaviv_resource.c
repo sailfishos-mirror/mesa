@@ -469,10 +469,57 @@ free_rsc:
    return NULL;
 }
 
-/* Create a new resource object, using the given template info */
-struct pipe_resource *
-etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
-                    uint64_t modifier, const struct pipe_resource *templat)
+/*
+ * Without TX_BORDER_CLAMP_FIX, the texture unit can sample one texel
+ * outside the level when using CLAMP_TO_BORDER.
+ *
+ * If the level exactly fills its padded width, x = width crosses into
+ * the next tile row. Only the last tile row needs extra memory, so one
+ * tile is sufficient.
+ *
+ * If the level exactly fills its padded height, y = height accesses the
+ * tile row after the last one. The corner case additionally needs the
+ * first tile of the row after that, so the worst case is one tile plus
+ * one tile row.
+ *
+ * 3D textures can also access the slice after the last one.
+ */
+static unsigned
+etna_resource_border_tail(const struct etna_resource *rsc)
+{
+   const struct pipe_resource *prsc = &rsc->base;
+   const struct etna_resource_level *lvl = &rsc->levels[prsc->last_level];
+   enum pipe_format fmt = translate_format_128bit_to_64bit(prsc->format);
+   int msaa_xscale = 1, msaa_yscale = 1;
+   unsigned tile_w = 1, tile_h = 1;
+   unsigned tail = 0;
+
+   translate_samples_to_xyscale(prsc->nr_samples, &msaa_xscale, &msaa_yscale);
+
+   if ((rsc->layout & ETNA_LAYOUT_BIT_SUPER) || util_format_is_compressed(prsc->format))
+      tile_w = tile_h = 64;
+   else if (rsc->layout != ETNA_LAYOUT_LINEAR)
+      tile_w = tile_h = 4;
+
+   const unsigned tile_bytes = util_format_get_stride(fmt, tile_w) * util_format_get_nblocksy(fmt, tile_h);
+   const unsigned tile_row_bytes = lvl->stride * util_format_get_nblocksy(fmt, tile_h);
+
+   if (lvl->padded_width == lvl->width * msaa_xscale)
+      tail += tile_bytes;
+
+   if (lvl->padded_height == lvl->height * msaa_yscale)
+      tail += tile_row_bytes;
+
+   if (prsc->target == PIPE_TEXTURE_3D)
+      tail += lvl->layer_stride;
+
+   return tail;
+}
+
+static struct pipe_resource *
+etna_resource_alloc_layout(struct pipe_screen *pscreen, unsigned layout,
+                           uint64_t modifier, const struct pipe_resource *templat,
+                           bool border_shadow)
 {
    struct etna_screen *screen = etna_screen(pscreen);
    struct etna_resource *rsc;
@@ -514,6 +561,12 @@ etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
 
    size = setup_miptree(rsc, paddingX, paddingY, msaa_xscale, msaa_yscale);
 
+   if (!(templat->bind & PIPE_BIND_SCANOUT) || !screen->ro)
+      rsc->border_tail = etna_resource_border_tail(rsc);
+
+   if (border_shadow)
+      size += rsc->border_tail;
+
    if (unlikely(templat->bind & PIPE_BIND_SCANOUT) && screen->ro) {
       struct pipe_resource scanout_templat = *templat;
       struct winsys_handle handle;
@@ -545,7 +598,8 @@ etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
    rsc->render_compatible = etna_resource_is_render_compatible(pscreen, rsc);
 
    /* Allocate TS for the resource if it is renderable and may use TS */
-   if ((templat->bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL)) &&
+   if (!border_shadow &&
+       (templat->bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL)) &&
        rsc->render_compatible &&
        etna_resource_can_use_ts(screen, rsc))
       etna_screen_resource_alloc_ts(pscreen, rsc, modifier);
@@ -562,6 +616,31 @@ etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
 free_rsc:
    FREE(rsc);
    return NULL;
+}
+
+/* Create a new resource object, using the given template info */
+struct pipe_resource *
+etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
+                    uint64_t modifier, const struct pipe_resource *templat)
+{
+   return etna_resource_alloc_layout(pscreen, layout, modifier, templat, false);
+}
+
+struct etna_resource *
+etna_resource_alloc_border_shadow(struct pipe_context *pctx,
+                                  struct pipe_resource *prsc)
+{
+   struct etna_resource *res = etna_resource(prsc);
+   struct pipe_resource templat = *prsc;
+
+   assert(!res->border && res->border_tail);
+
+   templat.bind &= ~(PIPE_BIND_SCANOUT | PIPE_BIND_SHARED);
+   res->border = etna_resource_alloc_layout(pctx->screen, res->layout,
+                                            DRM_FORMAT_MOD_LINEAR, &templat,
+                                            true);
+
+   return res->border ? etna_resource(res->border) : NULL;
 }
 
 static struct pipe_resource *
@@ -773,6 +852,7 @@ etna_resource_destroy(struct pipe_screen *pscreen, struct pipe_resource *prsc)
 
    pipe_resource_reference(&rsc->texture, NULL);
    pipe_resource_reference(&rsc->render, NULL);
+   pipe_resource_reference(&rsc->border, NULL);
 
    for (unsigned i = 0; i < ETNA_NUM_LOD; i++)
       FREE(rsc->levels[i].patch_offsets);
