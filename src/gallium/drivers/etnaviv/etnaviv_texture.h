@@ -83,4 +83,7 @@ etna_sampler_uses_border(const struct pipe_sampler_state *ss)
 void
 etna_update_sampler_source(struct pipe_sampler_view *view, int num);
 
+struct etna_resource *
+etna_sampler_view_resource(struct pipe_sampler_view *view);
+
 #endif

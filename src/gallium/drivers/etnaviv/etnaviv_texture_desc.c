@@ -282,11 +282,7 @@ etna_sampler_view_desc_ref_bo(struct etna_context *ctx,
                               struct etna_cmd_stream *stream,
                               struct etna_sampler_view_desc *sv)
 {
-   struct etna_resource *res = etna_resource(sv->base.texture);
-
-   if (res->texture) {
-      res = etna_resource(res->texture);
-   }
+   struct etna_resource *res = etna_sampler_view_resource(&sv->base);
 
    /* No need to ref LOD levels individually as they'll always come from the same bo */
    etna_cmd_stream_ref_bo(stream, res->bo, ETNA_RELOC_READ);
@@ -386,8 +382,7 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
       perf_debug_ctx(ctx, "Recomposing texture descriptor (key %x -> %x)",
                      sv->composed_key, key);
 
-   if (res->texture)
-      res = etna_resource(res->texture);
+   res = etna_sampler_view_resource(&sv->base);
 
    const bool is_128bit = format_is_128bit(sv->base.format);
    const unsigned num_descs = is_128bit ? 2 : 1;

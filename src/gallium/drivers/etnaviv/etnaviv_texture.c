@@ -161,6 +161,17 @@ etna_can_use_sampler_ts(struct pipe_sampler_view *view, int num)
    return true;
 }
 
+struct etna_resource *
+etna_sampler_view_resource(struct pipe_sampler_view *view)
+{
+   struct etna_resource *rsc = etna_resource(view->texture);
+
+   if (rsc->texture)
+      rsc = etna_resource(rsc->texture);
+
+   return rsc;
+}
+
 void
 etna_update_sampler_source(struct pipe_sampler_view *view, int num)
 {
