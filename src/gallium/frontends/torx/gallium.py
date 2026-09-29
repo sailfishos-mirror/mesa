@@ -3,7 +3,7 @@
 
 """Hand-written ctypes bindings for the Gallium ML interface.
 
-_check_abi() compares every offset, size and enum value with the ones libtorx
+check_abi() compares every offset, size and enum value with the ones libtorx
 was built with.
 """
 
@@ -252,7 +252,7 @@ _torx_abi_layout.argtypes = [POINTER(c_uint)]
 _torx_abi_layout.restype = POINTER(ctypes.c_uint32)
 
 
-def _check_abi():
+def check_abi():
     """Compare this mirror's layout with the one libtorx was built with.
 
     The entries here and in torx_abi_layout() must stay in the same
@@ -486,5 +486,3 @@ def _check_abi():
                 f"libtorx reports {got}; the ctypes mirror is out of sync "
                 f"with p_state.h")
 
-
-_check_abi()

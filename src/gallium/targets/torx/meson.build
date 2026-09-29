@@ -31,7 +31,9 @@ if with_tests
   torx_abi_check = custom_target(
     'torx-abi',
     command : [
-      prog_python, '-c', 'import sys, torx; open(sys.argv[1], "w").close()',
+      prog_python, '-c',
+      'import sys; from torx import gallium; gallium.check_abi(); '
+      + 'open(sys.argv[1], "w").close()',
       '@OUTPUT@',
     ],
     output : 'torx-abi.stamp',
