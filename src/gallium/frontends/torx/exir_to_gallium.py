@@ -10,7 +10,7 @@ import torch
 from executorch.exir.backend.utils import exir_ops
 
 from . import gallium
-from .dim_order_pass import dim_order
+from .dim_order_pass import delegates_layout_op, dim_order, is_data_layout_op
 from .fold_qdq_with_annotated_qparams_pass import QuantArgs
 
 supported_ops = {
@@ -19,12 +19,13 @@ supported_ops = {
     exir_ops.edge.aten.cat.default: gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION,
     exir_ops.edge.aten.sigmoid.default: gallium.PIPE_ML_OPERATION_TYPE_LOGISTIC,
     exir_ops.edge.aten.upsample_nearest2d.vec: gallium.PIPE_ML_OPERATION_TYPE_RESIZE,
+    exir_ops.edge.aten.view_copy.default: gallium.PIPE_ML_OPERATION_TYPE_RESHAPE,
+    exir_ops.edge.aten.permute_copy.default: gallium.PIPE_ML_OPERATION_TYPE_RESHAPE,
     exir_ops.edge.aten.max_pool2d_with_indices.default: gallium.PIPE_ML_OPERATION_TYPE_POOLING,
 }
 
 POOLING_STRIDE_MAX = 3
 
-ATEN_DIM_TO_TENSOR_AXIS = [0, 3, 1, 2]
 CHANNEL_DIM = 1
 SPATIAL_DIMS = (2, 3)
 
@@ -477,21 +478,33 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
         if activation is not None:
             output_qparams = activation.meta.get("output_qparams", {})
 
-    # The runtime backend only maps 4-D delegate IO tensors.
     output_val = output_node.meta.get('val')
-    if not isinstance(output_val, torch.Tensor) or output_val.dim() != 4:
+    if not isinstance(output_val, torch.Tensor):
         return None
+    rank = output_val.dim()
 
     operation = gallium.pipe_ml_operation()
     operation.type = supported_ops[node.target]
+
+    # Rank 3 is admitted only for the view, permute and concatenation
+    # the dim order pass admitted; every other operation reaches the
+    # driver as rank-4 NHWC, and a rank-4 view or permute is not lowered.
+    layout_op = is_data_layout_op(node)
+    if layout_op:
+        if not delegates_layout_op(node):
+            return None
+    elif rank != 4 or operation.type == gallium.PIPE_ML_OPERATION_TYPE_RESHAPE:
+        return None
 
     if (operation.type == gallium.PIPE_ML_OPERATION_TYPE_RESIZE and
             not is_2x_resize(node)):
         return None
 
     if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
-        dim = node.args[1] if len(node.args) > 1 else 0
-        if dim % 4 != CHANNEL_DIM or not isinstance(node.args[0], (list, tuple)):
+        if not isinstance(node.args[0], (list, tuple)):
+            return None
+        dim = (node.args[1] if len(node.args) > 1 else 0) % rank
+        if rank == 4 and dim != CHANNEL_DIM:
             return None
         input_nodes = list(node.args[0])
         list_arg_qparams = input_qparams.get(0, IDENTITY_QPARAMS)
@@ -511,7 +524,7 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
         if not isinstance(input_node, torch.fx.Node):
             return None
         input_tensor = input_node.meta['val']
-        if input_tensor.dim() != 4:
+        if input_tensor.dim() not in ((3, 4) if layout_op else (4,)):
             return None
         input_qp = input_qps[inp_idx]
         _require_quant_args_dtype_in(input_qp, f"input{inp_idx}", (torch.qint8, torch.int8))
@@ -552,7 +565,12 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
         operation.add.relu = fused_activation(node) is not None
 
     elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONCATENATION:
-        operation.conc.axis = ATEN_DIM_TO_TENSOR_AXIS[CHANNEL_DIM]
+        operation.conc.axis = 4 - rank + dim_order(output_node).index(dim)
+
+    elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_RESHAPE:
+        out = operation.output_tensors[0].contents
+        for i in range(4):
+            operation.reshape.shape[i] = out.dims[i]
 
     elif operation.type == gallium.PIPE_ML_OPERATION_TYPE_POOLING:
         fill_pooling(node, output_node, operation)
