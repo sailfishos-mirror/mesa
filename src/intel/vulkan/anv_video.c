@@ -177,6 +177,22 @@ anv_CreateVideoSessionParametersKHR(VkDevice _device, const VkVideoSessionParame
    return VK_SUCCESS;
 }
 
+VKAPI_ATTR VkResult VKAPI_CALL
+anv_UpdateVideoSessionParametersKHR(VkDevice _device,
+                                    VkVideoSessionParametersKHR videoSessionParameters,
+                                    const VkVideoSessionParametersUpdateInfoKHR *pUpdateInfo)
+{
+   ANV_FROM_HANDLE(anv_device, device, _device);
+   VK_FROM_HANDLE(vk_video_session_parameters, params, videoSessionParameters);
+
+   VkResult result = vk_video_session_parameters_update(params, pUpdateInfo);
+   if (result != VK_SUCCESS)
+      return result;
+
+   anv_video_patch_session_parameters(device, params);
+   return VK_SUCCESS;
+}
+
 static VkResult
 video_profile_supported(struct anv_physical_device *pdevice,
                   const VkVideoProfileInfoKHR *profile)
