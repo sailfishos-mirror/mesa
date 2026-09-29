@@ -2448,33 +2448,68 @@ anv_h265_emit_vdenc_cmd1(struct anv_cmd_buffer *cmd,
    bool is_intra =
       anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) == 0;
    uint32_t cmd1_qp = anv_h265_slice_qp(cmd, enc_info, 0);
+   unsigned type = is_intra ? 0 : 2;
 
-   /* TODO: handling low-delay / B-GOP weights for P/B frames. */
+   /* TODO: Currently ANV emits only I or low delay B,
+    * Needs to handle Lambda weights for hierarchical B. (GopRefDist 4/8)
+    */
    double weight = is_intra ? 0.60 : 0.65;
    double num = weight * hevc_vdenc_cmd1_qp_scale[cmd1_qp - 1];
    uint32_t par0 = MIN2(65535u, (uint32_t)(num * 4 + 0.5));
    uint32_t par1 = MIN2(65535u, (uint32_t)(sqrt(num) * 4 + 0.5));
 
-   static const uint8_t par2[8]  = { 0, 2, 3, 5, 6, 8, 9, 11 };
-   static const uint8_t par3[12] = { 4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92 };
+   uint8_t par[93] = { 0 };
+   memcpy(&par[8], hevc_vdenc_cmd1_par8_11_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par8_11_gen125[0]));
+   memcpy(&par[12], hevc_vdenc_cmd1_par12_15_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par12_15_gen125[0]));
+   memcpy(&par[16], hevc_vdenc_cmd1_par16_21_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par16_21_gen125[0]));
+   par[22] = 4;
+   par[23] = hevc_vdenc_cmd1_par23_gen125[type];
+   par[30] = hevc_vdenc_cmd1_par30_gen125[type];
+   memcpy(&par[34], hevc_vdenc_cmd1_par34_35[type],
+          sizeof(hevc_vdenc_cmd1_par34_35[0]));
+   memcpy(&par[36], hevc_vdenc_cmd1_par36_41_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par36_41_gen125[0]));
+   par[45] = 20;
+   memcpy(&par[47], hevc_vdenc_cmd1_par47_54_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par47_54_gen125[0]));
+   memcpy(&par[55], hevc_vdenc_cmd1_par55_86_gen125,
+          sizeof(hevc_vdenc_cmd1_par55_86_gen125));
+   memcpy(&par[87], hevc_vdenc_cmd1_par87_89_gen125[type],
+          sizeof(hevc_vdenc_cmd1_par87_89_gen125[0]));
+
+#define CMD1_BYTES(b0, b1, b2, b3) \
+   ((uint32_t)(b0) | (uint32_t)(b1) << 8 | (uint32_t)(b2) << 16 | (uint32_t)(b3) << 24)
 
    uint32_t v[32] = { 0 };
-   for (unsigned i = 0; i < 8; i++)
-      v[i / 4] |= (uint32_t)par2[i] << (8 * (i % 4));
-   for (unsigned i = 0; i < 12; i++) {
-      v[2 + i / 4] |= (uint32_t)par3[i] << (8 * (i % 4));
-      v[5 + i / 4] |= (uint32_t)par3[i] << (8 * (i % 4));
+   v[0] = CMD1_BYTES(hevc_vdenc_cmd1_par2[0], hevc_vdenc_cmd1_par2[1],
+                     hevc_vdenc_cmd1_par2[2], hevc_vdenc_cmd1_par2[3]);
+   v[1] = CMD1_BYTES(hevc_vdenc_cmd1_par2[4], hevc_vdenc_cmd1_par2[5],
+                     hevc_vdenc_cmd1_par2[6], hevc_vdenc_cmd1_par2[7]);
+   for (unsigned i = 0; i < 3; i++) {
+      v[2 + i] = CMD1_BYTES(hevc_vdenc_cmd1_par3[4 * i], hevc_vdenc_cmd1_par3[4 * i + 1],
+                            hevc_vdenc_cmd1_par3[4 * i + 2], hevc_vdenc_cmd1_par3[4 * i + 3]);
+      v[5 + i] = CMD1_BYTES(hevc_vdenc_cmd1_par4_gen125[4 * i],
+                            hevc_vdenc_cmd1_par4_gen125[4 * i + 1],
+                            hevc_vdenc_cmd1_par4_gen125[4 * i + 2],
+                            hevc_vdenc_cmd1_par4_gen125[4 * i + 3]);
    }
-   v[12] = 4u << 16;
-   v[15] = (uint32_t)(is_intra ? 21 : 7) << 16 | (uint32_t)(is_intra ? 0 : 4) << 24;
-   v[18] = 20u << 16;
-   v[19] = v[20] = 0x0c0c0c0c;
+   v[8] = CMD1_BYTES(par[5], par[6], par[7], 0);
+   v[9] = CMD1_BYTES(par[8], par[12], par[9], par[13]);
+   v[10] = CMD1_BYTES(par[10], par[14], par[11], par[15]);
+   for (unsigned i = 0; i < 7; i++)
+      v[11 + i] = CMD1_BYTES(par[16 + 4 * i], par[17 + 4 * i], par[18 + 4 * i], par[19 + 4 * i]);
+   v[18] = CMD1_BYTES(0, par[44], par[45], par[46]);
+   v[19] = CMD1_BYTES(par[47], par[48], par[49], par[50]);
+   v[20] = CMD1_BYTES(par[51], par[52], par[53], par[54]);
    v[21] = par0 | par1 << 16;
-   for (unsigned i = 22; i <= 29; i++)
-      v[i] = 0x10101010;
-   v[30] = (uint32_t)(is_intra ? 16 : 20) |
-           (uint32_t)(is_intra ? 16 : 20) << 8 |
-           (uint32_t)(is_intra ? 47 : 20) << 16;
+   for (unsigned i = 0; i < 8; i++)
+      v[22 + i] = CMD1_BYTES(par[55 + 4 * i], par[56 + 4 * i], par[57 + 4 * i], par[58 + 4 * i]);
+   v[30] = CMD1_BYTES(par[87], par[88], par[89], 0);
+   v[31] = CMD1_BYTES(par[90], par[91], par[92], 0);
+#undef CMD1_BYTES
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_CMD1), cmd1) {
       for (unsigned i = 0; i < 32; i++)
@@ -2491,7 +2526,8 @@ anv_h265_emit_vdenc_cmd1(struct anv_cmd_buffer *cmd,
       cmd1.Values[5] = 0x1c140c04;
       cmd1.Values[6] = 0x3c342c24;
       cmd1.Values[7] = 0x5c544c44;
-      cmd1.Values[13] = 0x0;
+      uint32_t vqi_qp = CLAMP(anv_h265_slice_qp(cmd, enc_info, 0), 10, 51);
+      cmd1.Values[13] = vqi_qp >= 22 ? hevc_vdenc_cmd1_vqi_dw14_gen12[vqi_qp - 22] : 0;
       cmd1.Values[14] = 0x0;
       cmd1.Values[15] &= 0xffff0000;
 
@@ -2685,8 +2721,39 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
       cmd2.Values23 |= 0xcccc0000;
       cmd2.Values53 |= hevc_vdenc_cmd2_dw52[target_usage];
       cmd2.Values55 |= hevc_vdenc_cmd2_dw54[target_usage][0];
-      cmd2.Values52 |= pic_type == 0 ? 0x20003552 : 0x22223552;
-      cmd2.Values54 |= pic_type == 0 ? 0x80000000 : 0xff000000;
+      cmd2.Values52 |= hevc_vdenc_cmd2_dw51_gen125[pic_type][target_usage];
+      cmd2.Values54 |= hevc_vdenc_cmd2_dw53_gen125[pic_type][target_usage];
+
+      /* TODO: palette, current picture reference, and RDOQ are not handled. */
+      cmd2.Values2 |= 0x3;
+      cmd2.Values8 |= hevc_vdenc_cmd2_dw8_gen125[pic_type][target_usage][low_delay];
+      cmd2.SubPelMode = 3;
+      cmd2.MinQp = 10;
+      cmd2.Values28 |= 0x07d00fa0;
+      cmd2.Values29 |= 0x02bc0bb8;
+      cmd2.Values30 |= 0x032003e8;
+      cmd2.Values31 |= 0x01f4012c;
+      cmd2.Values32 |= 0x190;
+      cmd2.Values35 |= 0xecc;
+
+      /* TODO Hierarchy-dependent rounding offsets. */
+      uint32_t round_intra = 10;
+      uint32_t round_inter = 4;
+      cmd2.Values32 |= round_inter << 16 | round_inter << 20 |
+                       round_intra << 24 | round_intra << 28;
+      cmd2.Values33 |= round_inter | round_inter << 4 | round_inter << 8 |
+                       round_inter << 12 | round_intra << 16 | round_intra << 20 |
+                       round_inter << 24 | round_inter << 28;
+      cmd2.Values34 |= round_inter | round_inter << 4 | round_intra << 8 |
+                       round_intra << 12 | round_inter << 16 | round_inter << 20;
+      cmd2.AV1L0RefID0 = 1;
+      cmd2.AV1L0RefID1 = 1;
+      cmd2.AV1L0RefID2 = 1;
+      cmd2.AV1L0RefID3 = 1;
+      cmd2.AV1L1RefID0 = 1;
+      cmd2.AV1L1RefID1 = 1;
+      cmd2.AV1L1RefID2 = 1;
+      cmd2.AV1L1RefID3 = 1;
 
       if (pic_type == 0) {
          /* Wa_22011549751 also forces intra frames to low delay B with both
@@ -2716,21 +2783,47 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
          }
       }
 #else
+      uint32_t pic_type = anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type);
+      /* TODO: target usage is fixed to 4 ("Normal mode"). */
+      uint32_t target_usage = 4;
+
+      /* TODO Hierarchy-dependent rounding offsets. */
+      uint32_t round_intra = 10;
+      uint32_t round_inter = 4;
+
+      cmd2.Values2  = hevc_vdenc_cmd2_dw2_gen12[pic_type][target_usage];
+      cmd2.Values5  = (cmd2.Values5 & 0xff7e03ff) | 0x80ac00;
       cmd2.Values5  = (cmd2.Values5 & 0xff83ffff) | 0x400000;
-      cmd2.Values9  = (cmd2.Values9 & 0xffff) | 0x43840000;
-      cmd2.Values12 = 0xffffffff;
+      if (frame_qp >= 22 && frame_qp <= 51)
+         cmd2.Values6 = (cmd2.Values6 & 0xc00fffff) | 0x1fb00000;
+      cmd2.Values7  = hevc_vdenc_cmd2_dw7_gen12[pic_type][target_usage];
+      cmd2.Values9  = hevc_vdenc_cmd2_dw9_gen12[target_usage];
+      cmd2.Values12 = hevc_vdenc_cmd2_dw12_gen12[target_usage];
       cmd2.Values14 = (cmd2.Values14 & 0xffff) | 0x7d00000;
       cmd2.Values15 = 0x4e201f40;
       cmd2.Values17 = (cmd2.Values17 & 0xfff00000) | 0x2710;
       cmd2.Values18 = (cmd2.Values18 & 0xffff) | 0x600000;
-      cmd2.Values19 = (cmd2.Values19 & 0x80ffffff) | 0x18000000;
+      cmd2.Values19 = (cmd2.Values19 & 0x80ff0000) | 0x180000c0;
       cmd2.Values20 &= 0xfffeffff;
       cmd2.Values21 &= 0xfffffff;
       cmd2.Values22 = 0x1f001102;
       cmd2.Values23 = 0xaaaa1f00;
 
-      bool is_inter =
-         anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) != 0;
+      cmd2.Values28 = 0x7d00fa0;
+      cmd2.Values29 = 0x2bc0bb8;
+      cmd2.Values30 = 0x32003e8;
+      cmd2.Values31 = 0x1f4012c;
+      cmd2.Values32 = hevc_vdenc_cmd2_rounding_dw32_gen12[round_inter - 2][round_intra - 8] | 0x190;
+      cmd2.Values33 = hevc_vdenc_cmd2_rounding_dw33_gen12[round_inter - 2][round_intra - 8];
+      cmd2.Values34 = hevc_vdenc_cmd2_rounding_dw34_gen12[round_inter - 2][round_intra - 8] |
+                      hevc_vdenc_cmd2_dw34_gen12[target_usage];
+      cmd2.Values35 = (cmd2.Values35 & 0xfffff0ff) | 0x700;
+      cmd2.MinQp = 10;
+
+      bool is_inter = pic_type != 0;
+
+      if (!is_inter)
+         cmd2.Values7 |= 0x80000;
 
       if (is_inter) {
          if (ref_lists->num_ref_idx_l0_active_minus1 == 0)
@@ -2786,7 +2879,11 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
       cmd2.TemporalMVPEnableFlag =
             anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) == 0 ?
             0 : sps->flags.sps_temporal_mvp_enabled_flag;
+#if GFX_VERx10 >= 125
+      cmd2.TransformSkip = false;
+#else
       cmd2.TransformSkip = pps->flags.transform_skip_enabled_flag;
+#endif
       cmd2.TilingEnable = pps->flags.tiles_enabled_flag;
 
       if (anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) != 0) {
@@ -2801,6 +2898,14 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
 
          cmd2.NumRefIdxL0MinusOne = ref_lists->num_ref_idx_l0_active_minus1;
          cmd2.NumRefIdxL1MinusOne = ref_lists->num_ref_idx_l1_active_minus1;
+
+#if GFX_VERx10 >= 125
+         uint32_t num_ref_l0 = ref_lists->num_ref_idx_l0_active_minus1 + 1;
+         uint32_t num_ref_l1 = ref_lists->num_ref_idx_l1_active_minus1 + 1;
+
+         if (num_ref_l0 < 5 && num_ref_l1 < 4)
+            cmd2.Values57 |= hevc_vdenc_cmd2_dw56_gen125[pic_type][num_ref_l0][num_ref_l1];
+#endif
 
          bool long_term = false;
          uint8_t ref_slot = ref_lists->RefPicList0[0];
@@ -2836,12 +2941,21 @@ anv_h265_emit_vdenc_cmd2(struct anv_cmd_buffer *cmd,
 
          cmd2.POCNumberForRefid1InL1 = cmd2.POCNumberForRefid1InL0;
          cmd2.POCNumberForRefid2InL1 = cmd2.POCNumberForRefid2InL0;
+#if GFX_VERx10 >= 125
+         cmd2.POCNumberForRefid3InL0 = 4;
+         cmd2.POCNumberForRefid3InL1 = -4;
+#else
+         cmd2.Values4 |= 0xfc040000;
+#endif
          cmd2.SubPelMode = 3;
       }
 
 #if GFX_VERx10 < 125
       int tbl_idx = anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type);
       cmd2.Values26 = hevc_sad_qp_lambda_tbl[tbl_idx][CLAMP(frame_qp, 10, 51) - 10];
+      if (tbl_idx == 0 && frame_qp >= 22 && frame_qp <= 51)
+         cmd2.Values26 = (cmd2.Values26 & 0xfe00ffff) |
+                         (uint32_t)hevc_vdenc_cmd2_vqi_sad_lambda_i_gen12[frame_qp - 22] << 16;
 #endif
    }
 }
