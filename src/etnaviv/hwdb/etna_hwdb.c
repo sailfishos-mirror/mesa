@@ -121,6 +121,7 @@ etna_query_feature_db(struct etna_core_info *info)
    ETNA_FEATURE(REG_UnifiedSamplers, UNIFIED_SAMPLERS);
    ETNA_FEATURE(PE_A8B8G8R8, PE_A8B8G8R8);
    ETNA_FEATURE(TX_INTEGER_COORDINATE_V2, TX_INTEGER_COORDINATE_V2);
+   ETNA_FEATURE(TX_BORDER_CLAMP_FIX, TX_BORDER_CLAMP_FIX);
 
    /* Limits: */
    if (etna_core_has_feature(info, ETNA_FEATURE_CORE_GPU)) {
