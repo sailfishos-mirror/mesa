@@ -2850,8 +2850,10 @@ VkResult pvr_arch_cmd_buffer_start_sub_cmd(struct pvr_cmd_buffer *cmd_buffer,
       }
       sub_cmd->gfx.view_index_wanted = sub_cmd->gfx.multiview_enabled;
 
-      if (state->vis_test_enabled)
-         sub_cmd->gfx.query_pool = state->query_pool;
+      if (state->vis_test_enabled) {
+         sub_cmd->gfx.query_pool =
+            state->query_pools[PVR_QUERY_POOL_INDEX_OCCLUSION];
+      }
 
       pvr_arch_reset_graphics_dirty_state(cmd_buffer, true);
 

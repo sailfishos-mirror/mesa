@@ -28,6 +28,7 @@ struct pvr_query_pool {
     */
    uint32_t result_stride;
 
+   VkQueryType query_type;
    uint32_t query_count;
 
    struct pvr_suballoc_bo *result_buffer;

@@ -533,6 +533,9 @@ struct pvr_cmd_buffer_state {
 
    const struct pvr_query_pool *query_pool;
    struct pvr_cmd_buffer_xfb_state xfb_state;
+
+   /* Query pool pointers indexed by query type */
+   const struct pvr_query_pool *query_pools[PVR_QUERY_POOL_INDEX_COUNT];
    bool vis_test_enabled;
    uint32_t vis_reg;
 

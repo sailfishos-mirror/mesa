@@ -46,18 +46,32 @@
 #include "vk_log.h"
 #include "vk_object.h"
 
-VkResult pvr_CreateQueryPool(VkDevice _device,
-                             const VkQueryPoolCreateInfo *pCreateInfo,
-                             const VkAllocationCallbacks *pAllocator,
-                             VkQueryPool *pQueryPool)
+static VkResult pvr_occlusion_query_pool_setup(struct pvr_device *device,
+                                               struct pvr_query_pool *pool)
 {
-   VK_FROM_HANDLE(pvr_device, device, _device);
    const uint32_t core_count = device->pdevice->dev_runtime_info.core_count;
-   const uint32_t query_size = pCreateInfo->queryCount * sizeof(uint32_t);
-   struct pvr_query_pool *pool;
    uint64_t alloc_size;
-   VkResult result;
+   uint32_t result_size;
 
+   /* Occlusion queries return 1 result per query. */
+   result_size = pool->query_count * sizeof(uint32_t);
+   pool->result_stride = ALIGN_POT(result_size, ROGUE_OQUERY_ALIGN);
+
+   /* Each Phantom writes to a separate offset within the vis test heap so
+    * allocate space for the total number of Phantoms.
+    */
+   alloc_size = (uint64_t)pool->result_stride * core_count;
+
+   return pvr_bo_suballoc(&device->suballoc_vis_test,
+                          alloc_size,
+                          ROGUE_OQUERY_ALIGN,
+                          false,
+                          &pool->result_buffer);
+}
+
+static VkResult pvr_query_pool_setup(struct pvr_device *device,
+                                     struct pvr_query_pool *pool)
+{
    /* Vulkan 1.0 supports only occlusion, timestamp, and pipeline statistics
     * query.
     * We don't currently support timestamp queries.
@@ -66,7 +80,46 @@ VkResult pvr_CreateQueryPool(VkDevice _device,
     * VkPhysicalDeviceFeatures->pipelineStatisticsQuery = false.
     */
    assert(!device->vk.enabled_features.pipelineStatisticsQuery);
-   assert(pCreateInfo->queryType == VK_QUERY_TYPE_OCCLUSION);
+
+   switch (pool->query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+      return pvr_occlusion_query_pool_setup(device, pool);
+
+   default:
+      UNREACHABLE("Unsupported query type");
+   }
+}
+
+static inline void
+pvr_occlusion_query_pool_cleanup(const struct pvr_query_pool *pool)
+{
+   pvr_bo_suballoc_free(pool->result_buffer);
+}
+
+static inline void pvr_query_pool_cleanup(const struct pvr_query_pool *pool)
+{
+   if (!pool)
+      return;
+
+   switch (pool->query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+      pvr_occlusion_query_pool_cleanup(pool);
+      break;
+
+   default:
+      break;
+   }
+}
+
+VkResult pvr_CreateQueryPool(VkDevice _device,
+                             const VkQueryPoolCreateInfo *pCreateInfo,
+                             const VkAllocationCallbacks *pAllocator,
+                             VkQueryPool *pQueryPool)
+{
+   VK_FROM_HANDLE(pvr_device, device, _device);
+   struct pvr_query_pool *pool;
+   uint32_t query_size;
+   VkResult result;
 
    pool = vk_object_alloc(&device->vk,
                           pAllocator,
@@ -75,20 +128,11 @@ VkResult pvr_CreateQueryPool(VkDevice _device,
    if (!pool)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   pool->result_stride = ALIGN_POT(query_size, ROGUE_OQUERY_ALIGN);
-
    pool->query_count = pCreateInfo->queryCount;
+   pool->query_type = pCreateInfo->queryType;
+   query_size = pCreateInfo->queryCount * sizeof(uint32_t);
 
-   /* Each Phantom writes to a separate offset within the vis test heap so
-    * allocate space for the total number of Phantoms.
-    */
-   alloc_size = (uint64_t)pool->result_stride * core_count;
-
-   result = pvr_bo_suballoc(&device->suballoc_vis_test,
-                            alloc_size,
-                            ROGUE_OQUERY_ALIGN,
-                            false,
-                            &pool->result_buffer);
+   result = pvr_query_pool_setup(device, pool);
    if (result != VK_SUCCESS)
       goto err_free_pool;
 
@@ -98,14 +142,14 @@ VkResult pvr_CreateQueryPool(VkDevice _device,
                             false,
                             &pool->availability_buffer);
    if (result != VK_SUCCESS)
-      goto err_free_result_buffer;
+      goto err_query_pool_cleanup;
 
    *pQueryPool = pvr_query_pool_to_handle(pool);
 
    return VK_SUCCESS;
 
-err_free_result_buffer:
-   pvr_bo_suballoc_free(pool->result_buffer);
+err_query_pool_cleanup:
+   pvr_query_pool_cleanup(pool);
 
 err_free_pool:
    vk_object_free(&device->vk, pAllocator, pool);
@@ -124,7 +168,7 @@ void pvr_DestroyQueryPool(VkDevice _device,
       return;
 
    pvr_bo_suballoc_free(pool->availability_buffer);
-   pvr_bo_suballoc_free(pool->result_buffer);
+   pvr_query_pool_cleanup(pool);
 
    vk_object_free(&device->vk, pAllocator, pool);
 }
@@ -194,6 +238,23 @@ static inline void pvr_write_query_to_buffer(uint8_t *buffer,
    }
 }
 
+static void
+pvr_occlusion_query_pool_get_result(struct pvr_device *device,
+                                    const struct pvr_query_pool *pool,
+                                    uint32_t query_idx,
+                                    uint64_t *count_out)
+{
+   volatile uint32_t *query_results =
+      pvr_bo_suballoc_get_map_addr(pool->result_buffer);
+   const uint32_t core_count = device->pdevice->dev_runtime_info.core_count;
+   uint64_t count = 0;
+
+   for (uint32_t i = 0; i < core_count; i++)
+      count += query_results[pool->result_stride * i + query_idx];
+
+   *count_out = count;
+}
+
 VkResult pvr_GetQueryPoolResults(VkDevice _device,
                                  VkQueryPool queryPool,
                                  uint32_t firstQuery,
@@ -207,8 +268,8 @@ VkResult pvr_GetQueryPoolResults(VkDevice _device,
    VK_FROM_HANDLE(pvr_device, device, _device);
    VG(volatile uint32_t *available =
          pvr_bo_suballoc_get_map_addr(pool->availability_buffer));
-   volatile uint32_t *query_results =
-      pvr_bo_suballoc_get_map_addr(pool->result_buffer);
+   VG(volatile uint32_t *query_results =
+      pvr_bo_suballoc_get_map_addr(pool->result_buffer));
    const uint32_t core_count = device->pdevice->dev_runtime_info.core_count;
    uint8_t *data = (uint8_t *)pData;
    VkResult result = VK_SUCCESS;
@@ -229,19 +290,26 @@ VkResult pvr_GetQueryPoolResults(VkDevice _device,
    }
 
    for (uint32_t i = 0; i < queryCount; i++) {
-      bool is_available = pvr_query_is_available(pool, firstQuery + i);
-      uint64_t count = 0;
+      const uint32_t query_idx = firstQuery + i;
+      bool is_available = pvr_query_is_available(pool, query_idx);
+      uint64_t count;
 
       if (flags & VK_QUERY_RESULT_WAIT_BIT && !is_available) {
-         result = pvr_wait_for_available(device, pool, firstQuery + i);
+         result = pvr_wait_for_available(device, pool, query_idx);
          if (result != VK_SUCCESS)
             return result;
 
          is_available = true;
       }
 
-      for (uint32_t j = 0; j < core_count; j++)
-         count += query_results[pool->result_stride * j + firstQuery + i];
+      switch (pool->query_type) {
+      case VK_QUERY_TYPE_OCCLUSION:
+         pvr_occlusion_query_pool_get_result(device, pool, query_idx, &count);
+         break;
+
+      default:
+         UNREACHABLE("Unsupported query type");
+      }
 
       if (is_available || (flags & VK_QUERY_RESULT_PARTIAL_BIT))
          pvr_write_query_to_buffer(data, flags, 0, count);
