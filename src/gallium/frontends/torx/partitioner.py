@@ -26,21 +26,12 @@ from .exir_to_gallium import (
     is_torx_supported,
     max_pool_values,
 )
+from .fold_qdq_with_annotated_qparams_pass import is_dequantize, is_quantize
 
 
 def _is_partitioned(node: torch.fx.Node, tag: str) -> bool:
     return node.meta.get("delegation_tag") == tag
 
-
-QUANTIZE_OPS = (
-    exir_ops.edge.quantized_decomposed.quantize_per_tensor.default,
-    torch.ops.quantized_decomposed.quantize_per_tensor.default,
-)
-
-DEQUANTIZE_OPS = (
-    exir_ops.edge.quantized_decomposed.dequantize_per_tensor.default,
-    torch.ops.quantized_decomposed.dequantize_per_tensor.default,
-)
 
 PER_CHANNEL_QDQ_OPS = (
     exir_ops.edge.quantized_decomposed.quantize_per_channel.default,
@@ -58,7 +49,7 @@ class TorxSupportedOperators(OperatorSupportBase):
     @staticmethod
     def _is_input_quantization(node: torch.fx.Node) -> bool:
         """A quantize_per_tensor that converts a graph input from float32 to int8."""
-        if node.target not in QUANTIZE_OPS:
+        if not is_quantize(node):
             return False
         return (
             len(node.args) > 0
@@ -69,7 +60,7 @@ class TorxSupportedOperators(OperatorSupportBase):
     @staticmethod
     def _is_output_dequantization(node: torch.fx.Node) -> bool:
         """A dequantize_per_tensor that converts int8 back to float32 for the graph output."""
-        if node.target not in DEQUANTIZE_OPS:
+        if not is_dequantize(node):
             return False
         users = list(node.users.keys())
         return len(users) == 1 and users[0].op == "output"
@@ -99,7 +90,7 @@ class TorxSupportedOperators(OperatorSupportBase):
 
         # Internal Q/DQ nodes (for weights, biases, inter-op) belong in the
         # delegate so FoldAndAnnotateQParamsPass can fold them in preprocess().
-        if node.target in QUANTIZE_OPS or node.target in DEQUANTIZE_OPS:
+        if is_quantize(node) or is_dequantize(node):
             return True
 
         # Same for per-channel Q/DQ nodes, which are only used for weights and biases.
@@ -146,8 +137,8 @@ class TorxPartitioner(Partitioner):
             if not _is_partitioned(node, tag):
                 continue
 
-            is_q_node = node.target in QUANTIZE_OPS
-            is_dq_node = node.target in DEQUANTIZE_OPS
+            is_q_node = is_quantize(node)
+            is_dq_node = is_dequantize(node)
 
             is_boundary_q_node = (
                 is_q_node

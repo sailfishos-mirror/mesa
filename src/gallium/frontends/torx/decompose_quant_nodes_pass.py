@@ -13,13 +13,13 @@ import torch
 from executorch.exir.dialects._ops import ops as exir_ops
 from executorch.exir.pass_base import ExportPass, PassResult
 
+from .fold_qdq_with_annotated_qparams_pass import is_dequantize, is_quantize
+
 
 exir_ops = cast(Any, exir_ops)
 
 qd = exir_ops.edge.quantized_decomposed
 
-QUANT_PER_TENSOR_OP = qd.quantize_per_tensor.default
-DEQUANT_PER_TENSOR_OP = qd.dequantize_per_tensor.default
 QUANT_PER_CHANNEL_OP = qd.quantize_per_channel.default
 DEQUANT_PER_CHANNEL_OP = qd.dequantize_per_channel.default
 
@@ -91,19 +91,13 @@ class DecomposeQuantNodesPass(ExportPass):
                     f"dequantize reaching the decompose pass; only a "
                     f"convolution's weights and biases are quantised per "
                     f"channel and they stay inside the delegate")
-            if node.target not in (
-                QUANT_PER_TENSOR_OP,
-                DEQUANT_PER_TENSOR_OP,
+            if not (is_quantize(node) or is_dequantize(node)):
+                continue
+            if is_dequantize(node) and all(
+                is_quantize(user) for user in node.users
             ):
                 continue
-            if node.target == DEQUANT_PER_TENSOR_OP and all(
-                user.target == QUANT_PER_TENSOR_OP for user in node.users
-            ):
-                continue
-            elif (
-                node.target == QUANT_PER_TENSOR_OP
-                and node.all_input_nodes[0].target == DEQUANT_PER_TENSOR_OP
-            ):
+            elif is_quantize(node) and is_dequantize(node.all_input_nodes[0]):
                 continue
             modified = True
             args = node.args
@@ -111,14 +105,14 @@ class DecomposeQuantNodesPass(ExportPass):
             input_dtype = x.meta["val"].dtype
             output_dtype = node.meta["val"].dtype
             fp_dtype = (
-                output_dtype if node.target == DEQUANT_PER_TENSOR_OP else input_dtype
+                output_dtype if is_dequantize(node) else input_dtype
             )
             # Instead of dividing by scale in quantization, we multiply by 1/scale
             # when quantizing.
             scale = cast(float, scale)
-            scale = scale if node.target == DEQUANT_PER_TENSOR_OP else 1.0 / scale
+            scale = scale if is_dequantize(node) else 1.0 / scale
             with graph_module.graph.inserting_before(node):
-                if node.target == QUANT_PER_TENSOR_OP:
+                if is_quantize(node):
                     # TODO MLETORCH-1587: Decompose quantization nodes using more integer arithmetic
                     scaled = create_node(
                         graph_module.graph,
