@@ -60,15 +60,23 @@ def activation_is_absorbable(activation: torch.fx.Node,
     return low == 0.0 and (high is None or high == 6.0)
 
 
+ACTIVATION_ABSORBING_OPS = {
+    gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION,
+    gallium.PIPE_ML_OPERATION_TYPE_ADD,
+}
+
+
 def fused_activation(node: torch.fx.Node) -> torch.fx.Node | None:
     """Return the activation user absorbed by node's operation, if any."""
     if node.target not in supported_ops:
         return None
+    op_type = supported_ops[node.target]
+    if op_type not in ACTIVATION_ABSORBING_OPS:
+        return None
     users = list(node.users.keys())
     if len(users) != 1 or users[0].target not in FUSABLE_ACTIVATION_OPS:
         return None
-    is_conv = (supported_ops[node.target] ==
-               gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION)
+    is_conv = (op_type == gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION)
     return users[0] if activation_is_absorbable(users[0], is_conv) else None
 
 
