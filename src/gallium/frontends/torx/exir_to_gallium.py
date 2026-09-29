@@ -10,6 +10,7 @@ import torch
 from executorch.exir.backend.utils import exir_ops
 
 from . import gallium
+from .dim_order_pass import dim_order
 from .fold_qdq_with_annotated_qparams_pass import QuantArgs
 
 supported_ops = {
@@ -168,9 +169,7 @@ def _derive_bias_qparams(input_qparams: QuantArgs, weight_qparams: QuantArgs) ->
         per_channel=False,
     )
 
-def fill_tensor(tensor: torch._subclasses.fake_tensor.FakeTensor, ptensor: gallium.pipe_tensor, graph: GalliumGraph, qparams: QuantArgs | None = None, *, index: int | None = None, is_constant: bool = False):
-    translation = [0, 2, 3, 1]  # NCHW to NHWC
-
+def fill_tensor(tensor: torch._subclasses.fake_tensor.FakeTensor, ptensor: gallium.pipe_tensor, graph: GalliumGraph, qparams: QuantArgs | None = None, *, index: int | None = None, is_constant: bool = False, dim_order: tuple):
     if index is not None:
         ptensor.index = index
     else:
@@ -210,12 +209,7 @@ def fill_tensor(tensor: torch._subclasses.fake_tensor.FakeTensor, ptensor: galli
     else:
         ptensor.type_size = tensor.element_size()
 
-    # A rank-4 tensor is stored NHWC; one below rank 4 keeps its logical
-    # order and sits in the trailing entries of the four dims.
-    if tensor.ndim == 4:
-        storage = [tensor.shape[axis] for axis in translation]
-    else:
-        storage = list(tensor.shape)
+    storage = [tensor.shape[axis] for axis in dim_order]
     assert len(storage) <= 4
     ptensor.dims[:] = [1] * (4 - len(storage)) + storage
 
@@ -234,30 +228,16 @@ def fill_conv(node: torch.fx.Node, poperation: gallium.pipe_ml_operation, graph:
     input_channels = node.args[0].meta['val'].shape[1]  # NCHW in ExIR
     is_depthwise = (groups == input_channels and input_channels > 1)
 
-    poperation.conv.weight_tensor = ctypes.pointer(gallium.pipe_tensor())
-    fill_tensor(weights.meta['val'], poperation.conv.weight_tensor.contents, graph, weight_qparams, is_constant=True)
+    # PyTorch stores convolution weights [C_out, C_in/g, kH, kW].  Gallium ML
+    # expects a full convolution's as [C_out, kH, kW, C_in] and a depthwise's as
+    # [1, kH, kW, C_out].
+    weight_order = (1, 2, 3, 0) if is_depthwise else (0, 2, 3, 1)
 
-    if is_depthwise:
-        # The Ethos-U NPU (and Teflon/TFLite) expects depthwise weights in
-        # [1, kH, kW, C_out] layout.  PyTorch shape is [C_out, 1, kH, kW];
-        # fill_tensor's NCHW→NHWC translation produces dims [C_out, kH, kW, 1],
-        # which is wrong.  Override dims to match the expected layout.
-        weight_shape = weights.meta['val'].shape  # [C_out, 1, kH, kW]
-        wt = poperation.conv.weight_tensor.contents
-        wt.dims[0] = 1
-        wt.dims[1] = weight_shape[2]  # kH
-        wt.dims[2] = weight_shape[3]  # kW
-        wt.dims[3] = weight_shape[0]  # C_out
+    poperation.conv.weight_tensor = ctypes.pointer(gallium.pipe_tensor())
+    fill_tensor(weights.meta['val'], poperation.conv.weight_tensor.contents, graph, weight_qparams, is_constant=True, dim_order=weight_order)
 
     if 'torx_data' in weights.meta:
-        if is_depthwise:
-            # PyTorch [C_out, 1, kH, kW] → [1, kH, kW, C_out] to match TFLite/Ethos-U
-            contents = weights.meta['torx_data'].permute(1, 2, 3, 0).contiguous()
-        else:
-            # PyTorch stores Conv2d weights in OIHW format; the Gallium driver
-            # expects OHWI.  The graph owns the transposed copy until the
-            # driver has read it.
-            contents = weights.meta['torx_data'].permute(0, 2, 3, 1).contiguous()
+        contents = weights.meta['torx_data'].permute(*weight_order).contiguous()
         _set_tensor_data(graph, poperation.conv.weight_tensor.contents, contents)
 
     biases = node.args[2] if len(node.args) > 2 else None
@@ -266,7 +246,7 @@ def fill_conv(node: torch.fx.Node, poperation: gallium.pipe_ml_operation, graph:
         # The Ethos-U NPU expects biases quantized with scale = input_scale * weight_scale.
         # Use derived qparams (not the independently observed ones from PyTorch).
         driver_bias_qp = _derive_bias_qparams(input_qparams, weight_qparams)
-        fill_tensor(biases.meta['val'], poperation.conv.bias_tensor.contents, graph, driver_bias_qp, is_constant=True)
+        fill_tensor(biases.meta['val'], poperation.conv.bias_tensor.contents, graph, driver_bias_qp, is_constant=True, dim_order=tuple(range(biases.meta['val'].ndim)))
         if 'torx_data' in biases.meta:
             # Re-quantize bias from PyTorch's observed scale to the scale the NPU
             # expects (input_scale * weight_scale).
@@ -537,7 +517,7 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
         _require_quant_args_dtype_in(input_qp, f"input{inp_idx}", (torch.qint8, torch.int8))
         operation.input_tensors[inp_idx] = ctypes.pointer(gallium.pipe_tensor())
         existing_idx = graph.node_to_tensor_idx.get(input_node)
-        fill_tensor(input_tensor, operation.input_tensors[inp_idx].contents, graph, input_qp, index=existing_idx)
+        fill_tensor(input_tensor, operation.input_tensors[inp_idx].contents, graph, input_qp, index=existing_idx, dim_order=dim_order(input_node))
         if input_node not in graph.node_to_tensor_idx:
             graph.node_to_tensor_idx[input_node] = operation.input_tensors[inp_idx].contents.index
 
@@ -548,7 +528,7 @@ def exir_to_operation(node: torch.fx.Node, graph: GalliumGraph) -> gallium.pipe_
     output_qp = output_qparams.get(0, IDENTITY_QPARAMS)
     _require_quant_args_dtype_in(output_qp, "output", (torch.qint8, torch.int8))
     operation.output_tensors[0] = ctypes.pointer(gallium.pipe_tensor())
-    fill_tensor(output_tensor, operation.output_tensors[0].contents, graph, output_qp)
+    fill_tensor(output_tensor, operation.output_tensors[0].contents, graph, output_qp, dim_order=dim_order(output_node))
     graph.node_to_tensor_idx[output_node] = operation.output_tensors[0].contents.index
 
     if operation.type == gallium.PIPE_ML_OPERATION_TYPE_CONVOLUTION:
