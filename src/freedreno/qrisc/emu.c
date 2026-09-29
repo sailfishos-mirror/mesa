@@ -589,7 +589,8 @@ emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
       emu_set_control_reg(emu, 0, 7 << 28);
       emu_set_control_reg(emu, 2, 0x40 << 8);
    } else if (emu->fw_id == QRISC_A730 || emu->fw_id == QRISC_A740 ||
-              emu->fw_id == QRISC_GEN70500) {
+              emu->fw_id == QRISC_GEN70500 || emu->fw_id == QRISC_GEN71500 ||
+              emu->fw_id == QRISC_GEN71700) {
       emu_set_control_reg(emu, 0xef, 1 << 21);
       emu_set_control_reg(emu, 0, 7 << 28);
    } else if (emu->fw_id == QRISC_A660) {

@@ -45,6 +45,8 @@ enum qrisc_fwid {
    QRISC_A730 = 0x730,
    QRISC_A740 = 0x740,
    QRISC_GEN70500 = 0x512,
+   QRISC_GEN71500 = 0x310,
+   QRISC_GEN71700 = 0x200,
    QRISC_A750 = 0x520,
 
    QRISC_A630 = 0x6ee,
