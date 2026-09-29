@@ -2657,7 +2657,11 @@ VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
       cmd_buffer->state.current_sub_cmd->event = (struct pvr_sub_cmd_event){
          .type = PVR_EVENT_TYPE_BARRIER,
          .barrier = {
-            .wait_for_stage_mask = PVR_PIPELINE_STAGE_FRAG_BIT,
+            .wait_for_stage_mask =
+               query_pool->query_type ==
+                     VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT
+                  ? PVR_PIPELINE_STAGE_GEOM_BIT
+                  : PVR_PIPELINE_STAGE_FRAG_BIT,
             .wait_at_stage_mask = PVR_PIPELINE_STAGE_QUERY_BIT,
          },
       };

@@ -25,6 +25,7 @@
 #include "pvr_macros.h"
 #include "pvr_physical_device.h"
 #include "pvr_pipeline.h"
+#include "pvr_query.h"
 #include "pvr_types.h"
 #include "pvr_xfb.h"
 
@@ -315,6 +316,47 @@ static VkResult pvr_xfb_end(struct pvr_cmd_buffer *cmd_buffer)
                    : 0,
    };
 
+   /* While a stream query is active, add this segment's primitive counts to
+    * its result elem, as the next transform feedback begin resets them.
+    */
+   const struct pvr_query_pool *const query_pool =
+      state->query_pools[PVR_QUERY_POOL_INDEX_XFB_STREAM_0];
+   const bool query_active = !!query_pool;
+   pvr_dev_addr_t query_result_addr = PVR_DEV_ADDR_INVALID;
+
+   if (query_active) {
+      const uint32_t query_idx =
+         state->query_pool_indices[PVR_QUERY_POOL_INDEX_XFB_STREAM_0];
+
+      query_result_addr =
+         PVR_DEV_ADDR_OFFSET(query_pool->result_buffer->dev_addr,
+                             query_pool->result_elem_stride * query_idx);
+   }
+
+   const struct pdsc_ld64_src0 query_result_ld_src0 = {
+      .slcmode = PDSC_SLC_MODE_LD_CACHED,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .dest = pdsc_load_ref(*end_program,
+                            PVR_XFB_END_REF_ID_QUERY_RESULT_LD_DEST),
+      .cmode = PDSC_CMODE_LD_CACHED,
+      .count8 = 1, /* 1 × 8 bytes: both query result counters */
+      .srcadd = query_result_addr.addr,
+   };
+
+   const struct pdsc_st32_src0 query_result_st_src0 = {
+      .cmode = PDSC_CMODE_ST_WRITE_THROUGH,
+      .slcmode = PDSC_SLC_MODE_ST_WRITE_THROUGH,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .count4 = 2, /* 2 × 4-byte words: query result counters */
+      .src = pdsc_load_ref(*end_program,
+                           PVR_XFB_END_REF_ID_QUERY_RESULT_ST_SRC0),
+      .dstadd = query_result_addr.addr,
+   };
+
    pdsc_patch patches_end[] = {
       { .patch_id = PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_COUNT,
         .value = end_input.counter_buffer_count },
@@ -334,6 +376,16 @@ static VkResult pvr_xfb_end(struct pvr_cmd_buffer *cmd_buffer)
       { .patch_id = PVR_XFB_END_PATCH_ID_COUNTER_BUFFER_ST_SRC0,
         .value = end_input.has_store_counter_buffers
                     ? pdsc_st32_src0_pack(*end_program, &st_src0)
+                    : 0 },
+
+      { .patch_id = PVR_XFB_END_PATCH_ID_QUERY_RESULT_LD_SRC0,
+        .value = query_active
+                    ? pdsc_ld64_src0_pack(*end_program, &query_result_ld_src0)
+                    : 0 },
+
+      { .patch_id = PVR_XFB_END_PATCH_ID_QUERY_RESULT_ST_SRC0,
+        .value = query_active
+                    ? pdsc_st32_src0_pack(*end_program, &query_result_st_src0)
                     : 0 },
    };
 
@@ -864,4 +916,246 @@ void PVR_PER_ARCH(CmdEndTransformFeedbackEXT)(
 
    if (state->gfx_pipeline->shader_state.xfb_shader_state.varying_count)
       pvr_xfb_end(cmd_buffer);
+}
+
+static void
+pvr_xfb_query_program_input_init(struct pvr_cmd_buffer *cmd_buffer,
+                                 struct pvr_query_pool *pool,
+                                 uint32_t query_idx,
+                                 struct pvr_pds_xfb_query_program_input *input)
+{
+   struct pvr_cmd_buffer_xfb_state *xfb_state = &cmd_buffer->state.xfb_state;
+
+   const uint32_t elem_size = pool->result_elem_stride;
+   const uint32_t result_offset = elem_size * query_idx;
+
+   input->availability_addr =
+      PVR_DEV_ADDR_OFFSET(pool->availability_buffer->dev_addr,
+                          query_idx * sizeof(uint32_t));
+   input->result_addr =
+      PVR_DEV_ADDR_OFFSET(pool->result_buffer->dev_addr, result_offset);
+   input->is_active = xfb_state->is_active;
+}
+
+static bool
+pvr_xfb_query_begin_program_generate(struct pvr_cmd_buffer *cmd_buffer,
+                                     struct pvr_query_pool *pool,
+                                     uint32_t query_idx)
+{
+   struct pvr_program_info *pds_query_upload =
+      &cmd_buffer->state.xfb_state.pds_query_begin_program;
+   struct pvr_pds_xfb_query_program_input input = { 0 };
+   const struct pvr_device_info *dev_info =
+      &cmd_buffer->device->pdevice->dev_info;
+   const uint32_t cache_line_size = pvr_get_slc_cache_line_size(dev_info);
+   pdsc_program **query_program;
+   VkResult result;
+
+   pvr_xfb_query_program_input_init(cmd_buffer, pool, query_idx, &input);
+
+   query_program = &cmd_buffer->device->pdsc_precomp_programs.xfb_query_begin;
+   *query_program = pdsc_precomp_xfb_query_begin_variant(NULL, 0);
+   pdsc_finalize_program(*query_program);
+
+   pds_query_upload->temp_size = pdsc_program_temps_used(*query_program);
+
+   const struct pdsc_st32_src0 availability_st_src0 = {
+      .cmode = PDSC_CMODE_ST_WRITE_THROUGH,
+      .slcmode = PDSC_SLC_MODE_ST_WRITE_THROUGH,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .count4 = 1, /* 1 × 4-byte word: availability flag */
+      .src = pdsc_load_ref(*query_program,
+                           PVR_XFB_QUERY_BEGIN_REF_ID_AVAILABILITY_ST_SRC0),
+      .dstadd = input.availability_addr.addr,
+   };
+   const struct pdsc_st32_src0 result_st_src0 = {
+      .cmode = PDSC_CMODE_ST_WRITE_THROUGH,
+      .slcmode = PDSC_SLC_MODE_ST_WRITE_THROUGH,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .count4 = 2, /* 2 × 4-byte words: query result counters */
+      .src = pdsc_load_ref(*query_program,
+                           PVR_XFB_QUERY_BEGIN_REF_ID_RESULT_ST_SRC0),
+      .dstadd = input.result_addr.addr,
+   };
+
+   pdsc_patch patches_begin[] = {
+      { .patch_id = PVR_XFB_QUERY_BEGIN_PATCH_ID_AVAILABILITY_ST_SRC0,
+        .value = pdsc_st32_src0_pack(*query_program, &availability_st_src0) },
+      { .patch_id = PVR_XFB_QUERY_BEGIN_PATCH_ID_RESULT_ST_SRC0,
+        .value = pdsc_st32_src0_pack(*query_program, &result_st_src0) },
+      { .patch_id = PVR_XFB_QUERY_BEGIN_PATCH_ID_OPEN_SEGMENT_SCALE,
+        .value = input.is_active ? UINT32_MAX : 0 },
+   };
+
+   assert((ARRAY_SIZE(patches_begin) < pdsc_program_data_size(*query_program)));
+   pdsc_patch_program(*query_program,
+                      ARRAY_SIZE(patches_begin),
+                      patches_begin,
+                      NULL);
+
+   result = pvr_arch_cmd_buffer_upload_pds(
+      cmd_buffer,
+      pdsc_program_data(*query_program),
+      pdsc_program_data_size(*query_program) / sizeof(uint32_t),
+      ROGUE_TA_STATE_STREAM_OUT1_PDS_DATA_SIZE_UNIT_SIZE,
+      pdsc_program_code(*query_program),
+      pdsc_program_code_size(*query_program) / sizeof(uint32_t),
+      ROGUE_TA_STATE_STREAM_OUT1_PDS_DATA_SIZE_UNIT_SIZE,
+      cache_line_size,
+      &pds_query_upload->pds_program);
+   if (result != VK_SUCCESS) {
+      pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
+      return false;
+   }
+
+   return true;
+}
+
+static bool
+pvr_xfb_query_store_program_generate(struct pvr_cmd_buffer *cmd_buffer,
+                                     struct pvr_query_pool *pool,
+                                     uint32_t query_idx)
+{
+   struct pvr_program_info *pds_query_upload =
+      &cmd_buffer->state.xfb_state.pds_query_end_program;
+   struct pvr_pds_xfb_query_program_input input = { 0 };
+   const struct pvr_device_info *dev_info =
+      &cmd_buffer->device->pdevice->dev_info;
+   const uint32_t cache_line_size = pvr_get_slc_cache_line_size(dev_info);
+   pdsc_program **query_program;
+   VkResult result;
+
+   pvr_xfb_query_program_input_init(cmd_buffer, pool, query_idx, &input);
+
+   query_program = &cmd_buffer->device->pdsc_precomp_programs.xfb_query_end;
+   *query_program = pdsc_precomp_xfb_query_end_variant(NULL, 0);
+   pdsc_finalize_program(*query_program);
+
+   pds_query_upload->temp_size = pdsc_program_temps_used(*query_program);
+
+   const struct pdsc_ld64_src0 result_ld_src0 = {
+      .slcmode = PDSC_SLC_MODE_LD_CACHED,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .dest = pdsc_load_ref(*query_program,
+                            PVR_XFB_QUERY_END_REF_ID_QUERY_COUNT_LD_DEST),
+      .cmode = PDSC_CMODE_LD_CACHED,
+      .count8 = 1, /* 1 × 8 bytes: both query result counters */
+      .srcadd = input.result_addr.addr,
+   };
+   const struct pdsc_st32_src0 result_written_st_src0 = {
+      .cmode = PDSC_CMODE_ST_WRITE_THROUGH,
+      .slcmode = PDSC_SLC_MODE_ST_WRITE_THROUGH,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .count4 = 2, /* 2 × 4-byte words: query result counters */
+      .src = pdsc_load_ref(*query_program,
+                           PVR_XFB_QUERY_END_REF_ID_RESULT_WRITTEN_ST_SRC0),
+      .dstadd = input.result_addr.addr,
+   };
+   const struct pdsc_st32_src0 availability_st_src0 = {
+      .cmode = PDSC_CMODE_ST_WRITE_THROUGH,
+      .slcmode = PDSC_SLC_MODE_ST_WRITE_THROUGH,
+      .ccpri = 0,
+      .ccslc = PDSC_CCSLC_LD_NORMAL,
+      .ccmcu = PDSC_CCMCU_LD_NORMAL,
+      .count4 = 1, /* 1 × 4-byte word: availability flag */
+      .src = pdsc_load_ref(*query_program,
+                           PVR_XFB_QUERY_END_REF_ID_AVAILABILITY_ST_SRC0),
+      .dstadd = input.availability_addr.addr,
+   };
+
+   /* Segments that ended inside the query were already accumulated by the
+    * transform feedback end program, so only a segment still open needs
+    * adding. A zero patch value skips the load and store.
+    */
+   const bool add_open_segment = cmd_buffer->state.xfb_state.is_active;
+
+   pdsc_patch patches_end[] = {
+      { .patch_id = PVR_XFB_QUERY_END_PATCH_ID_QUERY_COUNT_LD_SRC0,
+        .value = add_open_segment
+                    ? pdsc_ld64_src0_pack(*query_program, &result_ld_src0)
+                    : 0 },
+      { .patch_id = PVR_XFB_QUERY_END_PATCH_ID_RESULT_WRITTEN_ST_SRC0,
+        .value = add_open_segment
+                    ? pdsc_st32_src0_pack(*query_program,
+                                          &result_written_st_src0)
+                    : 0 },
+      { .patch_id = PVR_XFB_QUERY_END_PATCH_ID_AVAILABILITY_ST_SRC0,
+        .value = pdsc_st32_src0_pack(*query_program, &availability_st_src0) },
+   };
+
+   assert((ARRAY_SIZE(patches_end) < pdsc_program_data_size(*query_program)));
+   pdsc_patch_program(*query_program,
+                      ARRAY_SIZE(patches_end),
+                      patches_end,
+                      NULL);
+
+   result = pvr_arch_cmd_buffer_upload_pds(
+      cmd_buffer,
+      pdsc_program_data(*query_program),
+      pdsc_program_data_size(*query_program) / sizeof(uint32_t),
+      ROGUE_TA_STATE_STREAM_OUT1_PDS_DATA_SIZE_UNIT_SIZE,
+      pdsc_program_code(*query_program),
+      pdsc_program_code_size(*query_program) / sizeof(uint32_t),
+      ROGUE_TA_STATE_STREAM_OUT1_PDS_DATA_SIZE_UNIT_SIZE,
+      cache_line_size,
+      &pds_query_upload->pds_program);
+   if (result != VK_SUCCESS) {
+      pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
+      return false;
+   }
+
+   return true;
+}
+
+void PVR_PER_ARCH(xfb_query_pool_begin)(struct pvr_cmd_buffer *cmd_buffer,
+                                        struct pvr_query_pool *pool,
+                                        uint32_t query_idx)
+{
+   struct pvr_cmd_buffer_xfb_state *xfb_state = &cmd_buffer->state.xfb_state;
+   struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
+   VkResult result;
+
+   if (!pvr_xfb_query_begin_program_generate(cmd_buffer, pool, query_idx))
+      return;
+
+   const uint32_t query_pool_index = PVR_QUERY_POOL_INDEX_XFB_STREAM_0;
+
+   state->query_pool_indices[query_pool_index] = query_idx;
+   state->query_pools[query_pool_index] = pool;
+
+   result = pvr_arch_emit_xfb_sync_state(cmd_buffer,
+                                         &xfb_state->pds_query_begin_program);
+   if (result != VK_SUCCESS)
+      return;
+
+   pvr_arch_set_xfb_main_program_ppp_state(cmd_buffer);
+}
+
+void PVR_PER_ARCH(xfb_query_pool_end)(struct pvr_cmd_buffer *cmd_buffer,
+                                      struct pvr_query_pool *pool,
+                                      uint32_t query_idx)
+{
+   struct pvr_cmd_buffer_xfb_state *xfb_state = &cmd_buffer->state.xfb_state;
+   struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
+   VkResult result;
+
+   if (!pvr_xfb_query_store_program_generate(cmd_buffer, pool, query_idx))
+      return;
+
+   state->query_pools[PVR_QUERY_POOL_INDEX_XFB_STREAM_0] = NULL;
+
+   result = pvr_arch_emit_xfb_sync_state(cmd_buffer,
+                                         &xfb_state->pds_query_end_program);
+   if (result != VK_SUCCESS)
+      return;
+
+   pvr_arch_set_xfb_main_program_ppp_state(cmd_buffer);
 }

@@ -163,6 +163,8 @@ struct pvr_device {
       pdsc_program *xfb_main;
       pdsc_program *xfb_end;
       pdsc_program *xfb_vertex_count;
+      pdsc_program *xfb_query_begin;
+      pdsc_program *xfb_query_end;
    } pdsc_precomp_programs;
 
    simple_mtx_t rs_mtx;

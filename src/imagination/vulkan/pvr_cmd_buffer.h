@@ -462,6 +462,10 @@ struct pvr_cmd_buffer_xfb_state {
    struct pvr_program_info pds_init_program;
    struct pvr_program_info pds_end_program;
    struct pvr_program_info pds_draw_program;
+   struct pvr_program_info pds_query_begin_program;
+   struct pvr_program_info pds_query_end_program;
+
+   struct pvr_query_pool *pool;
 };
 
 struct pvr_cmd_buffer_state {
@@ -536,6 +540,7 @@ struct pvr_cmd_buffer_state {
 
    /* Query pool pointers indexed by query type */
    const struct pvr_query_pool *query_pools[PVR_QUERY_POOL_INDEX_COUNT];
+   uint32_t query_pool_indices[PVR_QUERY_POOL_INDEX_COUNT];
    bool vis_test_enabled;
    uint32_t vis_reg;
 

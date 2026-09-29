@@ -245,6 +245,9 @@ pvr_stage_mask(VkPipelineStageFlags2 stage_mask)
                      VK_PIPELINE_STAGE_2_CLEAR_BIT))
       stages |= PVR_PIPELINE_STAGE_TRANSFER_BIT;
 
+   if (stage_mask & (VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT))
+      stages |= PVR_PIPELINE_STAGE_QUERY_BIT;
+
    return stages;
 }
 

@@ -10,6 +10,7 @@
 #include "pvr_macros.h"
 #include "pvr_pass.h"
 #include "pvr_query.h"
+#include "pvr_xfb.h"
 
 void PVR_PER_ARCH(CmdResetQueryPool)(VkCommandBuffer commandBuffer,
                                      VkQueryPool queryPool,
@@ -234,6 +235,11 @@ void PVR_PER_ARCH(CmdBeginQueryIndexedEXT)(VkCommandBuffer commandBuffer,
       pvr_occlusion_query_begin(cmd_buffer, pool, query);
       break;
 
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      assert(index < PVR_XFB_MAX_STREAMS);
+      PVR_PER_ARCH(xfb_query_pool_begin)(cmd_buffer, pool, query);
+      break;
+
    default:
       UNREACHABLE("unsupported query type");
    }
@@ -252,6 +258,11 @@ void PVR_PER_ARCH(CmdEndQueryIndexedEXT)(VkCommandBuffer commandBuffer,
    switch (pool->query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
       pvr_occlusion_query_end(cmd_buffer);
+      break;
+
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      assert(index < PVR_XFB_MAX_STREAMS);
+      PVR_PER_ARCH(xfb_query_pool_end)(cmd_buffer, pool, query);
       break;
 
    default:

@@ -32,6 +32,7 @@
 #include <string.h>
 #include <vulkan/vulkan.h>
 
+#include "hwdef/pvr_hw_utils.h"
 #include "pvr_bo.h"
 #include "pvr_csb.h"
 #include "pvr_device.h"
@@ -41,6 +42,7 @@
 #include "pvr_macros.h"
 #include "pvr_pass.h"
 #include "pvr_physical_device.h"
+#include "pvr_xfb.h"
 #include "util/macros.h"
 #include "util/os_time.h"
 #include "vk_log.h"
@@ -51,6 +53,10 @@ static uint32_t pvr_reports_per_query(const struct pvr_query_pool *pool)
    switch (pool->query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
       return 1u;
+
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      /* {prims written, prims needed} */
+      return 2u;
 
    default:
       break;
@@ -84,6 +90,31 @@ static VkResult pvr_occlusion_query_pool_setup(struct pvr_device *device,
                           &pool->result_buffer);
 }
 
+static VkResult pvr_xfb_query_pool_setup(struct pvr_device *device,
+                                         struct pvr_query_pool *pool)
+{
+   const uint32_t counter_size =
+      pvr_xfb_get_counter_bytes(&device->pdevice->dev_info);
+   const uint32_t cache_line_size =
+      pvr_get_slc_cache_line_size(&device->pdevice->dev_info);
+   const uint32_t elem_size =
+      ALIGN_POT(pool->query_report_count * counter_size,
+                PVR_XFB_QUERY_RESULT_ALIGN);
+   const uint64_t result_buffer_alloc_size =
+      (uint64_t)pool->query_count * elem_size;
+
+   pool->result_elem_stride = elem_size;
+
+   if (result_buffer_alloc_size > UINT32_MAX)
+      return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+
+   return pvr_bo_suballoc(&device->suballoc_general,
+                          result_buffer_alloc_size,
+                          cache_line_size,
+                          true,
+                          &pool->result_buffer);
+}
+
 static VkResult pvr_query_pool_setup(struct pvr_device *device,
                                      struct pvr_query_pool *pool)
 {
@@ -102,6 +133,9 @@ static VkResult pvr_query_pool_setup(struct pvr_device *device,
    case VK_QUERY_TYPE_OCCLUSION:
       return pvr_occlusion_query_pool_setup(device, pool);
 
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      return pvr_xfb_query_pool_setup(device, pool);
+
    default:
       UNREACHABLE("Unsupported query type");
    }
@@ -109,6 +143,12 @@ static VkResult pvr_query_pool_setup(struct pvr_device *device,
 
 static inline void
 pvr_occlusion_query_pool_cleanup(const struct pvr_query_pool *pool)
+{
+   pvr_bo_suballoc_free(pool->result_buffer);
+}
+
+static inline void
+pvr_xfb_query_pool_cleanup(const struct pvr_query_pool *pool)
 {
    pvr_bo_suballoc_free(pool->result_buffer);
 }
@@ -121,6 +161,10 @@ static inline void pvr_query_pool_cleanup(const struct pvr_query_pool *pool)
    switch (pool->query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
       pvr_occlusion_query_pool_cleanup(pool);
+      break;
+
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      pvr_xfb_query_pool_cleanup(pool);
       break;
 
    default:
@@ -272,6 +316,24 @@ pvr_occlusion_query_pool_get_result(struct pvr_device *device,
    *count_out = count;
 }
 
+static void
+pvr_xfb_query_pool_get_result(struct pvr_device *device,
+                              const struct pvr_query_pool *pool,
+                              uint32_t query_idx,
+                              uint64_t *result_out)
+{
+   const volatile uint32_t *counter_data =
+      pvr_bo_suballoc_get_map_addr(pool->result_buffer);
+   uint32_t offset =
+      query_idx * pool->result_elem_stride / sizeof(*counter_data);
+   uint64_t result = 0;
+
+   for (uint32_t i = 0; i < pool->query_report_count; i++)
+      result += counter_data[offset + i];
+
+   *result_out = result;
+}
+
 VkResult pvr_GetQueryPoolResults(VkDevice _device,
                                  VkQueryPool queryPool,
                                  uint32_t firstQuery,
@@ -322,6 +384,10 @@ VkResult pvr_GetQueryPoolResults(VkDevice _device,
       switch (pool->query_type) {
       case VK_QUERY_TYPE_OCCLUSION:
          pvr_occlusion_query_pool_get_result(device, pool, query_idx, &count);
+         break;
+
+      case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+         pvr_xfb_query_pool_get_result(device, pool, query_idx, &count);
          break;
 
       default:

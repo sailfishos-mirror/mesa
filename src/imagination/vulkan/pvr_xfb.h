@@ -16,6 +16,7 @@
 struct pvr_device;
 struct pvr_physical_device;
 struct pvr_cmd_buffer;
+struct pvr_query_pool;
 struct pvr_suballoc_bo;
 
 struct pvr_pds_xfb_buffer_info {
@@ -85,7 +86,44 @@ struct pvr_pds_xfb_draw_program_input {
    } data;
 };
 
+struct pvr_pds_xfb_query_program_input {
+   bool is_active;
+
+   pvr_dev_addr_t result_addr;
+   pvr_dev_addr_t availability_addr;
+
+   pvr_dev_addr_t count_offset_addr;
+};
+
+/* pvr_xfb_get_counter_dwords - return the counter size in dword. */
+static inline uint32_t
+pvr_xfb_get_counter_dwords(const struct pvr_device_info *const dev_info)
+{
+   const uint32_t bits =
+      PVR_GET_FEATURE_VALUE(dev_info, transform_feedback_query_bits, 32U);
+   return bits == 64U ? 2 : 1;
+}
+
+/* pvr_xfb_get_counter_bytes - return the counter size in bytes. */
+static inline uint32_t
+pvr_xfb_get_counter_bytes(const struct pvr_device_info *const dev_info)
+{
+   const uint32_t bits =
+      PVR_GET_FEATURE_VALUE(dev_info, transform_feedback_query_bits, 32U);
+   return bits == 64U ? 8 : 4;
+}
+
+#define PVR_XFB_QUERY_RESULT_ALIGN 16
+
 #ifdef PVR_PER_ARCH
+
+void PVR_PER_ARCH(xfb_query_pool_begin)(struct pvr_cmd_buffer *cmd_buffer,
+                                        struct pvr_query_pool *pool,
+                                        uint32_t query_idx);
+
+void PVR_PER_ARCH(xfb_query_pool_end)(struct pvr_cmd_buffer *cmd_buffer,
+                                      struct pvr_query_pool *pool,
+                                      uint32_t query_idx);
 
 #endif /* PVR_PER_ARCH */
 #endif /* PVR_XFB_H */
