@@ -451,6 +451,7 @@ static inline bool is_inline_ubo(unsigned desc_set,
                                  unsigned binding,
                                  const pco_common_data *common)
 {
+   assert(desc_set < ARRAY_SIZE(common->desc_sets));
    const pco_descriptor_set_data *desc_set_data = &common->desc_sets[desc_set];
    assert(desc_set_data->bindings && binding < desc_set_data->binding_count);
 

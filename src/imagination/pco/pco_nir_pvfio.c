@@ -389,6 +389,7 @@ static bool lower_pfo_load(nir_builder *b,
    enum pipe_format format;
    /* Special case for input attachments. */
    if (location == FRAG_RESULT_COLOR) {
+      assert(base < ARRAY_SIZE(state->fs->ia_formats));
       format = state->fs->ia_formats[base];
    } else {
       assert(location >= FRAG_RESULT_DATA0);

@@ -468,6 +468,8 @@ lower_reduction(nir_builder *b,
    if (!cluster_size)
       cluster_size = ROGUE_MAX_INSTANCES_PER_TASK;
 
+   assert(cluster_size <= ROGUE_MAX_INSTANCES_PER_TASK);
+
    nir_def *cluster_num = nir_udiv_imm(b, invocation_id, cluster_size);
    nir_def *cluster_id = nir_umod_imm(b, invocation_id, cluster_size);
 
