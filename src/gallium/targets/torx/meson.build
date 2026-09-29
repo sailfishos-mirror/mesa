@@ -28,6 +28,22 @@ if with_tests
   torx_ml_devices = ['ethosu-65-256-98304', 'ethosu-85-256-2097152']
   torx_tests_dir = meson.current_build_dir() / 'tests'
 
+  torx_abi_check = custom_target(
+    'torx-abi',
+    command : [
+      prog_python, '-c', 'import sys, torx; open(sys.argv[1], "w").close()',
+      '@OUTPUT@',
+    ],
+    output : 'torx-abi.stamp',
+    build_by_default : true,
+    depends : libtorx,
+    depend_files : [torx_py_sources],
+    env : {
+      'LD_LIBRARY_PATH' : meson.current_build_dir(),
+      'PYTHONPATH' : meson.project_source_root() / 'src' / 'gallium' / 'frontends',
+    },
+  )
+
   # This is just so modifications to the wrap file will trigger a reconfigure.
   fs.read(meson.project_source_root() / 'subprojects' / 'npu-model-zoo.wrap')
 
@@ -81,7 +97,7 @@ if with_tests
         ],
         output : 'compile_@0@_@1@.stamp'.format(device, model),
         build_by_default : true,
-        depends : [libtorx, torx_split_targets[model]],
+        depends : [libtorx, torx_abi_check, torx_split_targets[model]],
         depend_files : [torx_py_sources, files('tests/compile_torx_common.py', 'tests/compile_torx_tests.py')],
         env : {
           'LD_LIBRARY_PATH' : meson.current_build_dir(),
@@ -100,7 +116,7 @@ if with_tests
         ],
         output : 'compile_model_@0@_@1@.stamp'.format(device, model),
         build_by_default : true,
-        depends : [libtorx, torx_split_targets[model]],
+        depends : [libtorx, torx_abi_check, torx_split_targets[model]],
         depend_files : [torx_py_sources, files('tests/compile_torx_common.py', 'tests/compile_torx_tests.py')],
         env : {
           'LD_LIBRARY_PATH' : meson.current_build_dir(),
