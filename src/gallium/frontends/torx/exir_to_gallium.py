@@ -650,6 +650,9 @@ def exir_to_gallium(nodes: list[torch.fx.Node]) -> GalliumGraph:
             activation = fused_activation(n)
             if activation is not None:
                 graph.node_to_tensor_idx[activation] = operation.output_tensors[0].contents.index
+        elif n.target in supported_ops:
+            raise RuntimeError(
+                f"Torx: '{n.name}' was delegated but could not be lowered")
     return graph
 
 ml_device = None
