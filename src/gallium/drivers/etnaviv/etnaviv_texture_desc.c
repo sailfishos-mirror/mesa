@@ -280,9 +280,10 @@ error:
 static void
 etna_sampler_view_desc_ref_bo(struct etna_context *ctx,
                               struct etna_cmd_stream *stream,
-                              struct etna_sampler_view_desc *sv)
+                              struct etna_sampler_view_desc *sv,
+                              unsigned num)
 {
-   struct etna_resource *res = etna_sampler_view_resource(&sv->base);
+   struct etna_resource *res = etna_sampler_view_resource(ctx, &sv->base, num);
 
    /* No need to ref LOD levels individually as they'll always come from the same bo */
    etna_cmd_stream_ref_bo(stream, res->bo, ETNA_RELOC_READ);
@@ -348,9 +349,10 @@ etna_sampler_hw_slot(struct etna_context *ctx, unsigned idx)
    return idx - vs_off + etna_vs_sampler_base(ctx);
 }
 
-#define ETNA_DESC_KEY_SEAMLESS     (1 << 0)
-#define ETNA_DESC_KEY_NATIVE_ORDER (1 << 1)
-#define ETNA_DESC_KEY_BORDER       (1 << 2)
+#define ETNA_DESC_KEY_SEAMLESS      (1 << 0)
+#define ETNA_DESC_KEY_NATIVE_ORDER  (1 << 1)
+#define ETNA_DESC_KEY_BORDER        (1 << 2)
+#define ETNA_DESC_KEY_BORDER_SHADOW (1 << 3)
 
 /* Compose the final descriptor(s) from the template and the current
  * dynamic state. Returns true if the descriptor address changed.
@@ -358,7 +360,8 @@ etna_sampler_hw_slot(struct etna_context *ctx, unsigned idx)
 static bool
 etna_sampler_view_desc_compose(struct etna_context *ctx,
                                struct etna_sampler_view_desc *sv,
-                               const struct etna_sampler_state_desc *ss)
+                               const struct etna_sampler_state_desc *ss,
+                               unsigned num)
 {
    struct etna_resource *res = etna_resource(sv->base.texture);
    uint32_t key = 0;
@@ -372,6 +375,8 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
 
    if (use_border)
       key |= ETNA_DESC_KEY_BORDER;
+   if (etna_sampler_view_uses_border_shadow(ctx, num))
+      key |= ETNA_DESC_KEY_BORDER_SHADOW;
 
    if (key == sv->composed_key &&
        (!use_border ||
@@ -382,7 +387,7 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
       perf_debug_ctx(ctx, "Recomposing texture descriptor (key %x -> %x)",
                      sv->composed_key, key);
 
-   res = etna_sampler_view_resource(&sv->base);
+   res = etna_sampler_view_resource(ctx, &sv->base, num);
 
    const bool is_128bit = format_is_128bit(sv->base.format);
    const unsigned num_descs = is_128bit ? 2 : 1;
@@ -538,7 +543,7 @@ etna_emit_texture_desc(struct etna_context *ctx)
       struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
 
       const uint32_t bit = 1u << x;
-      const bool updated = etna_sampler_view_desc_compose(ctx, sv, ss);
+      const bool updated = etna_sampler_view_desc_compose(ctx, sv, ss, x);
       const bool emit_addr = remap || updated || (bit & ctx->dirty_sampler_views);
 
       if (!emit_addr && !(bit & ctx->dirty_samplers))
@@ -549,7 +554,7 @@ etna_emit_texture_desc(struct etna_context *ctx)
 
       emit_desc_sampler_state(stream, hw, SAMP_CTRL0, ss, sv);
       if (emit_addr) {
-         etna_sampler_view_desc_ref_bo(ctx, stream, sv);
+         etna_sampler_view_desc_ref_bo(ctx, stream, sv, x);
          etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(hw), &sv->DESC_ADDR);
          updated_mask |= 1u << hw;
       }

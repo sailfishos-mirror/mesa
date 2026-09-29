@@ -229,6 +229,7 @@ struct etna_context {
    unsigned num_fragment_sampler_views;
    uint32_t active_sampler_views;
    uint32_t dirty_sampler_views;
+   uint32_t border_shadow_views;
    uint32_t dirty_samplers;
    struct pipe_sampler_view *sampler_view[PIPE_MAX_SAMPLERS];
    struct etna_constbuf_state constant_buffer[MESA_SHADER_STAGES];
@@ -305,6 +306,12 @@ static inline bool
 etna_framebuffer_rt_use_ts(const struct etna_context *ctx, unsigned i)
 {
    return ctx->framebuffer_s.rt_ts_mask & BITFIELD_BIT(i);
+}
+
+static inline bool
+etna_sampler_view_uses_border_shadow(const struct etna_context *ctx, unsigned num)
+{
+   return ctx->border_shadow_views & (1u << num);
 }
 
 struct pipe_context *

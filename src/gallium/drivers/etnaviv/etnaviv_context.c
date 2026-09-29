@@ -575,8 +575,14 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
    if (ctx->dirty & ETNA_DIRTY_SAMPLER_VIEWS) {
       /* Mark textures as being read */
-      u_foreach_bit(i, ctx->active_sampler_views)
-         resource_read(ctx, ctx->sampler_view[i]->texture);
+      u_foreach_bit(i, ctx->active_sampler_views) {
+         struct pipe_sampler_view *view = ctx->sampler_view[i];
+
+         resource_read(ctx, view->texture);
+
+         if (etna_sampler_view_uses_border_shadow(ctx, i))
+            resource_read(ctx, &etna_sampler_view_resource(ctx, view, i)->base);
+      }
    }
 
    /* Mark streamout buffers as being written. */
