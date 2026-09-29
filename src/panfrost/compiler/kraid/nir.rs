@@ -1461,7 +1461,7 @@ impl<'a> ShaderFromNir<'a> {
 
         let flags: pan_va_tex_flags =
             unsafe { std::mem::transmute(tex.backend_flags) };
-        let skip = flags.skip();
+        let skip = tex.skip_helpers() != 0;
         let wide_indices = flags.wide_indices();
         let array_enable = flags.array_enable();
         let texel_offset = flags.texel_offset();

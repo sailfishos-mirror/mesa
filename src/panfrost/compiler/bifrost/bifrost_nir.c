@@ -976,10 +976,20 @@ bifrost_postprocess_nir(nir_shader *nir,
    };
    NIR_PASS(_, nir, nir_lower_mem_access_bit_sizes, &mem_size_options);
 
-   /* The divergent scratch lowering must come after mem access bit lowering */
    nir_divergence_analysis(nir);
-   NIR_PASS(_, nir, pan_nir_lower_divergent_scratch, gpu_arch);
 
+   /* Write the .skip_helpers modifier when possible */
+   if (bi_use_kraid(nir, gpu_id) && nir->info.stage == MESA_SHADER_FRAGMENT) {
+      nir_opt_load_skip_helpers_options skip_helper_opts = {
+         .no_add_divergence = true,
+         .intrinsic_cb = NULL, /* Only tex instrs need .skip (TODO: bifrost) */
+         .intrinsic_cb_data = NULL,
+      };
+      NIR_PASS(_, nir, nir_opt_load_skip_helpers, &skip_helper_opts);
+   }
+
+   /* The divergent scratch lowering must come after mem access bit lowering */
+   NIR_PASS(_, nir, pan_nir_lower_divergent_scratch, gpu_arch);
    if (bi_use_kraid(nir, gpu_id))
       NIR_PASS(_, nir, pan_nir_lower_mem_to_global);
 
