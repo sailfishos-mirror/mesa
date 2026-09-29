@@ -17,6 +17,7 @@ from torchao.quantization.pt2e.quantizer import (
     Quantizer,
     QuantizationAnnotation,
     QuantizationSpec,
+    SharedQuantizationSpec,
     annotate_input_qspec_map,
     annotate_output_qspec,
 )
@@ -24,6 +25,14 @@ from torchao.quantization.pt2e.quantizer import (
 from .exir_to_gallium import FUSABLE_ACTIVATION_OPS_ATEN, activation_is_absorbable
 
 Q_ANNOTATION_KEY = "quantization_annotation"
+
+
+def _shares_input_quantization(node: fx.Node) -> bool:
+    output = node.meta.get("val")
+    if not isinstance(output, torch.Tensor) or not output.is_floating_point():
+        return False
+    return False
+
 
 def _derive_conv_bias_qparams(obs_or_fqs):
     """Derive a convolution's bias quantisation from its input activation
@@ -125,6 +134,18 @@ class TorxQuantizer(Quantizer):
                 output_qspec=self.io_spec,
                 _annotated=True,
             )
+
+    def _annotate_shared_io(self, node: fx.Node, inputs: list) -> None:
+        shared = SharedQuantizationSpec((inputs[0], node))
+        input_qspec_map = {inputs[0]: self.io_spec}
+        for input_node in inputs[1:]:
+            if input_node not in input_qspec_map:
+                input_qspec_map[input_node] = shared
+        node.meta[Q_ANNOTATION_KEY] = QuantizationAnnotation(
+            input_qspec_map=input_qspec_map,
+            output_qspec=shared,
+            _annotated=True,
+        )
 
     def _annotate_operations(self, model: fx.GraphModule):
         for node in model.graph.nodes:
