@@ -39,6 +39,7 @@ static const struct spirv_to_nir_options spirv_options = {
 /** NIR options. */
 static const nir_shader_compiler_options nir_options = {
    .discard_is_demote = true,
+   .has_imad32 = true,
    .float_mul_add32 = nir_float_muladd_support_has_ffma |
                       nir_float_muladd_support_fuse,
 
