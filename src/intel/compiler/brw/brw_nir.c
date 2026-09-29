@@ -3149,7 +3149,33 @@ get_mem_access_size_align(nir_intrinsic_op intrin, uint8_t bytes,
          };
       }
 
-      if (align < 4 || bytes < 8) {
+      if (devinfo->ver < 35 && align < 4 && bytes > align && is_load) {
+         /* According to hardware bug report 15016519430 fixed on
+          * xe3p, misaligned writes are completely uncached on the
+          * LSC, and reads hit an extremely slow path that leads to
+          * serialization of individual requests and has been reported
+          * to be up to 48x slower than splitting into reads that are
+          * aligned to their bit size.
+          *
+          * This only applies the workaround to loads since splitting
+          * up misaligned stores into sub-dword chunks skips the LSC
+          * cache in the same way as a misaligned full write would, so
+          * there isn't a performance benefit from splitting and we
+          * take the cost of emitting multiple store messages.  For
+          * loads though splitting is substantially faster because it
+          * avoids the pathological behavior of the LSC causing
+          * serialization.
+          *
+          * XXX - Use W/A framework for decision when W/A number is
+          *       available.
+          */
+         return (nir_mem_access_size_align) {
+            .bit_size = align * 8,
+            .num_components = 1,
+            .align = align,
+            .shift = nir_mem_access_shift_method_scalar,
+         };
+      } else if (align < 4 || bytes < 8) {
          /* Data size:           D8D32,D16D32,D32,D64
           * Address alignment:   1
           * Vector size allowed: 1
