@@ -213,8 +213,6 @@ etna_texture_desc_fill(struct etna_context *ctx,
                           TEXDESC_LOG_SIZE_EXT_HEIGHT(etna_log2_fixp88(base_height)));
    DESC_SET(SIZE, VIVS_TE_SAMPLER_SIZE_WIDTH(base_width) |
                   VIVS_TE_SAMPLER_SIZE_HEIGHT(base_height));
-   for (int lod = 0; lod <= res->base.last_level; ++lod)
-      DESC_SET(LOD_ADDR(lod), etna_bo_gpu_va(res->bo) + res->levels[lod].offset);
 #undef DESC_SET
 }
 
@@ -410,6 +408,9 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
    uint32_t *buf = etna_bo_map(etna_buffer_resource(sv->res)->bo) + offset;
 
    memcpy(buf, sv->templ, TEXTURE_DESC_SIZE);
+
+   for (int lod = 0; lod <= res->base.last_level; ++lod)
+      buf[TEXDESC_LOD_ADDR(lod) >> 2] = etna_bo_gpu_va(res->bo) + res->levels[lod].offset;
 
    if (key & ETNA_DESC_KEY_SEAMLESS)
       buf[TEXDESC_CONFIG1 >> 2] |= VIVS_TE_SAMPLER_CONFIG1_SEAMLESS_CUBE_MAP;
