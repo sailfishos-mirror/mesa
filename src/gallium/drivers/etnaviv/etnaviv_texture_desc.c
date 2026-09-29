@@ -372,10 +372,7 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
    if (sv->native_format && res->shared && res->shared_native_order)
       key |= ETNA_DESC_KEY_NATIVE_ORDER;
 
-   const bool use_border =
-      ss->base.wrap_s == PIPE_TEX_WRAP_CLAMP_TO_BORDER ||
-      ss->base.wrap_t == PIPE_TEX_WRAP_CLAMP_TO_BORDER ||
-      ss->base.wrap_r == PIPE_TEX_WRAP_CLAMP_TO_BORDER;
+   const bool use_border = etna_sampler_uses_border(&ss->base);
 
    if (use_border)
       key |= ETNA_DESC_KEY_BORDER;
