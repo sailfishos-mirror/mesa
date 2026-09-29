@@ -42,6 +42,7 @@ issues:
         'iris': 'iris'
         'isl': 'ISL'
         'kk': 'KosmicKrisp'
+        'kraid': 'Kraid'
         'lima': 'lima'
         'lima/ppir': 'lima'
         'llvmpipe': 'llvmpipe'
@@ -290,6 +291,7 @@ merge_requests:
         '^src/nouveau/vulkan/': ['NVK']
         '^src/nouveau/winsys/': ['NVK']
         '^src/panfrost/': ['panfrost']
+        '^src/panfrost/compiler/kraid/': ['Kraid']
         '^src/panfrost/vulkan/': ['panvk']
         '^src/poly/': ['poly']
         '^src/virtio/vulkan/': ['venus']
