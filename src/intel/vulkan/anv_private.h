@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <pthread.h>
 #include <assert.h>
 #include <stdint.h>
 #include "drm-uapi/drm_fourcc.h"
@@ -949,7 +948,7 @@ uint32_t anv_scratch_pool_get_surf(struct anv_device *device,
 /** Implements a BO cache that ensures a 1-1 mapping of GEM BOs to anv_bos */
 struct anv_bo_cache {
    struct util_sparse_array bo_map;
-   pthread_mutex_t mutex;
+   simple_mtx_t mutex;
 };
 
 VkResult anv_bo_cache_init(struct anv_bo_cache *cache,
@@ -2638,7 +2637,7 @@ struct anv_device {
     };
     int                                         fd;
 
-    pthread_mutex_t                             vma_mutex;
+    simple_mtx_t                                vma_mutex;
     struct util_vma_heap                        vma_lo;
     struct util_vma_heap                        vma_hi;
     struct util_vma_heap                        vma_null_initialized;
@@ -2783,7 +2782,7 @@ struct anv_device {
     struct anv_shader_internal                 *internal_kernels[ANV_INTERNAL_KERNEL_COUNT];
     const struct intel_l3_config               *internal_kernels_l3_config;
 
-    pthread_mutex_t                             mutex;
+    simple_mtx_t                                mutex;
 
     struct intel_batch_decode_ctx               decoder[ANV_MAX_QUEUE_FAMILIES];
     /*
