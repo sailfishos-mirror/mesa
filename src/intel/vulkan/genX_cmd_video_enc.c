@@ -33,6 +33,10 @@
 #include "h265_vdenc_tables.h"
 #include "av1_vdenc_tables.h"
 
+#if GFX_VER >= 12
+#include "genX_huc_brc.h"
+#endif
+
 static int
 anv_get_max_vmv_range(StdVideoH264LevelIdc level)
 {
@@ -629,7 +633,8 @@ anv_h264_emit_mfx_surface_state(struct anv_cmd_buffer *cmd,
 
 static void
 anv_h264_emit_mfx_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
-                                      const VkVideoEncodeInfoKHR *enc_info)
+                                      const VkVideoEncodeInfoKHR *enc_info,
+                                      bool brc_enabled)
 {
    const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
    const StdVideoH264PictureParameterSet *pps = anv_h264_pps(cmd, enc_info);
@@ -660,8 +665,15 @@ anv_h264_emit_mfx_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
          ANV_VID_ATTR(cmd->device,
                       buf.OriginalUncompressedPictureSourceAddress.bo);
 
+#if GFX_VER >= 12
+      /* BRC: the MFX frame statistics stream out into the PAK stats buffer the
+       * HuC BRC Update kernel reads(region 2). */
+      if (brc_enabled)
+         buf.StreamOutDataDestinationAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_BRC_PAK_STATS);
+#endif
       buf.StreamOutDataDestinationAttributes =
-         ANV_VID_ATTR(cmd->device, NULL);
+         ANV_VID_ATTR(cmd->device, buf.StreamOutDataDestinationAddress.bo);
 
       buf.IntraRowStoreScratchBufferAddress =
          ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_INTRA_ROW_STORE);
@@ -689,7 +701,17 @@ anv_h264_emit_mfx_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
 
       buf.ReferencePictureAttributes = ANV_VID_ATTR(cmd->device, ref_bo);
 
-      buf.MBStatusBufferAttributes = ANV_VID_ATTR(cmd->device, NULL);
+#if GFX_VER >= 12
+      /* BRC: the PAK writes the frame-level statistics the HuC BRC Update
+       * reads into the MB status buffer(region 2), so point it at the same
+       * PAK stats buffer.
+       */
+      if (brc_enabled)
+         buf.MBStatusBufferAddress =
+            ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_BRC_PAK_STATS);
+#endif
+      buf.MBStatusBufferAttributes =
+         ANV_VID_ATTR(cmd->device, buf.MBStatusBufferAddress.bo);
 
       buf.MBILDBStreamOutBufferAttributes = ANV_VID_ATTR(cmd->device, NULL);
       buf.SecondMBILDBStreamOutBufferAttributes =
@@ -751,7 +773,8 @@ anv_h264_emit_mfx_bsp_buf_base_addr_state(struct anv_cmd_buffer *cmd,
 
 static void
 anv_h264_emit_vdenc_pipe_mode_select(struct anv_cmd_buffer *cmd,
-                                     const VkVideoEncodeInfoKHR *enc_info)
+                                     const VkVideoEncodeInfoKHR *enc_info,
+                                     bool brc_enabled)
 {
    anv_batch_emit(&cmd->batch, GENX(VDENC_PIPE_MODE_SELECT), vdenc_pipe_mode) {
       vdenc_pipe_mode.StandardSelect = SS_AVC;
@@ -761,6 +784,10 @@ anv_h264_emit_vdenc_pipe_mode_select(struct anv_cmd_buffer *cmd,
       vdenc_pipe_mode.SourceChromaTLBPrefetchEnable = true;
       vdenc_pipe_mode.HzShift32Minus1Src = 3;
       vdenc_pipe_mode.PrefetchOffsetforSource = 4;
+      /* BRC: emit the VDENC per-frame statistics into region 1 so the HuC BRC
+       * Update kernel can drive the distortion-based QP adjustment. */
+      if (brc_enabled)
+         vdenc_pipe_mode.FrameStatisticsStreamOutEnable = true;
 #endif
    }
 }
@@ -813,7 +840,8 @@ anv_h264_emit_vdenc_ds_ref_surface_state(struct anv_cmd_buffer *cmd,
 static void
 anv_h264_emit_vdenc_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
                                         const VkVideoEncodeInfoKHR *enc_info,
-                                        const uint8_t *dpb_idx)
+                                        const uint8_t *dpb_idx,
+                                        bool brc_enabled)
 {
    struct anv_video_session *vid = cmd->video.vid;
    const struct anv_image_view *iv =
@@ -828,6 +856,10 @@ anv_h264_emit_vdenc_pipe_buf_addr_state(struct anv_cmd_buffer *cmd,
       .src = anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer),
       .row_store = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_H264_MPR_ROW_SCRATCH),
    };
+#if GFX_VER >= 12
+   if (brc_enabled)
+      buf.stats = ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_BRC_VDENC_STATS);
+#endif
 
    const VkVideoReferenceSlotInfoKHR *l0_slots[2] = { NULL, NULL };
    anv_h264_l0_slots(enc_info, dpb_idx, l0_slots);
@@ -940,7 +972,10 @@ anv_h264_emit_mfx_avc_img_state(struct anv_cmd_buffer *cmd,
 
       avc_img.WeightedBiPredictionIDC = pps->weighted_bipred_idc;
       avc_img.WeightedPredictionEnable = pps->flags.weighted_pred_flag;
-      avc_img.RhoDomainRateControlEnable = false;
+      avc_img.RhoDomainRateControlEnable = brc_enabled;
+#if GFX_VER >= 11
+      avc_img.ExtendedRhoDomainStatisticsEnable = brc_enabled;
+#endif
       avc_img.FirstChromaQPOffset = pps->chroma_qp_index_offset;
       avc_img.SecondChromaQPOffset = pps->second_chroma_qp_index_offset;
 
@@ -1044,6 +1079,9 @@ anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
    bool is_bframe = pic_type == STD_VIDEO_H264_PICTURE_TYPE_B;
    bool is_inter = is_bframe || pic_type == STD_VIDEO_H264_PICTURE_TYPE_P;
 
+   if (!batch)
+      batch = &cmd->batch;
+
    struct GENX(VDENC_AVC_IMG_STATE) img = {
       GENX(VDENC_AVC_IMG_STATE_header),
       .PictureType              = anv_vdenc_h264_picture_type(pic_type),
@@ -1056,9 +1094,6 @@ anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
       .QpPrimeY                 = slice_qp,
       .POCNumberForCurrentPicture = frame_info->pStdPictureInfo->PicOrderCnt & 0xff,
    };
-
-   if (!batch)
-      batch = &cmd->batch;
 
    if (is_inter) {
       /* Collocated MV write only when this frame is kept as a reference; collocated MV read
@@ -1720,6 +1755,75 @@ anv_h264_emit_vdenc_walker_state(struct anv_cmd_buffer *cmd,
    }
 }
 
+#if GFX_VER >= 12
+static void
+anv_h264_brc_init_update(struct anv_cmd_buffer *cmd,
+                         const VkVideoEncodeInfoKHR *enc_info,
+                         const uint8_t *dpb_idx,
+                         struct anv_state brc_input_slb)
+{
+   const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
+   const struct anv_video_session *vid = cmd->video.vid;
+
+   anv_h264_brc_build_input_slb(cmd, enc_info, dpb_idx, brc_input_slb);
+
+   /* frame_counter == 0 means the HuC BRC running state has not been set
+    * up yet (fresh session or after a RESET), so run the init pass. */
+   if (vid->rc.frame_counter == 0)
+      anv_h264_brc_emit_huc_init(cmd, frame_info);
+   anv_h264_brc_emit_huc_update(cmd, frame_info, 0, brc_input_slb);
+
+   /* The encode PAK reads the HuC-patched image state from the SLBB. */
+   anv_batch_emit(&cmd->batch, GENX(MI_BATCH_BUFFER_START), bbs) {
+      bbs.SecondLevelBatchBuffer = Secondlevelbatch;
+      bbs.AddressSpaceIndicator = ASI_PPGTT;
+      bbs.BatchBufferStartAddress =
+         ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_BRC_EXEC_SLB);
+   }
+}
+
+static void
+anv_h264_brc_store_pak_stats(struct anv_cmd_buffer *cmd,
+                             const VkVideoEncodeInfoKHR *enc_info,
+                             struct anv_state brc_input_slb)
+{
+   const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
+   const struct anv_video_session *vid = cmd->video.vid;
+
+   /* Stage this frame's PAK MMIO outputs into the persistent PAK info
+    * buffer. The next frame's HuC BRC Update copies them into its DMEM so
+    * it can measure the encoded size and drive the bitrate. */
+   struct anv_address pak_info =
+      ANV_VID_MEM_ADDR(vid, ANV_VID_MEM_BRC_PAK_INFO);
+   anv_batch_emit(&cmd->batch, GENX(MI_STORE_REGISTER_MEM), srm) {
+      srm.RegisterAddress = ANV_H264_MFC_BITSTREAM_BYTECOUNT_FRAME_OFFSET;
+      srm.AddCSMMIOStartOffset = 1;
+      srm.MemoryAddress = pak_info;
+   }
+   anv_batch_emit(&cmd->batch, GENX(MI_STORE_REGISTER_MEM), srm) {
+      srm.RegisterAddress = ANV_H264_MFC_IMAGE_STATUS_CTRL_OFFSET;
+      srm.AddCSMMIOStartOffset = 1;
+      srm.MemoryAddress = anv_address_add(pak_info, 4);
+   }
+   anv_batch_emit(&cmd->batch, GENX(MI_STORE_REGISTER_MEM), srm) {
+      srm.RegisterAddress = ANV_H264_MFC_AVC_NUM_SLICES_OFFSET;
+      srm.AddCSMMIOStartOffset = 1;
+      srm.MemoryAddress = anv_address_add(pak_info, 8);
+   }
+
+   /* Second BRC pass: after the encode, run the HuC BRC Update again with
+    * this frame's actual PAK result (now staged in PAK_INFO) so it folds
+    * the running rate state into the history buffer (region 0).
+    * The pass-0 update only predicts QP and does
+    * not write history, so without this pass the history never advances and
+    * the QP stays pinned at the init value.
+    */
+   anv_video_emit_mi_flush_dw(cmd, true);
+   anv_h264_brc_emit_huc_update(cmd, frame_info, 1, brc_input_slb);
+}
+
+#endif
+
 static void
 anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *enc_info)
 {
@@ -1733,6 +1837,16 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       dpb_idx[slot_idx] = i;
    }
 
+   bool brc_enabled = false;
+   struct anv_video_session *vid = cmd->video.vid;
+   brc_enabled =
+      vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_CBR_BIT_KHR ||
+      vid->rc_mode == VK_VIDEO_ENCODE_RATE_CONTROL_MODE_VBR_BIT_KHR;
+
+#if GFX_VER >= 12
+   struct anv_state brc_input_slb = ANV_STATE_NULL;
+#endif
+
    anv_video_emit_mi_flush_dw(cmd, true);
    anv_h264_emit_startup(cmd);
    anv_h264_emit_mfx_pipe_mode_select(cmd, enc_info);
@@ -1742,29 +1856,40 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 #endif
 
    anv_h264_emit_mfx_surface_state(cmd, enc_info);
-   anv_h264_emit_mfx_pipe_buf_addr_state(cmd, enc_info);
+   anv_h264_emit_mfx_pipe_buf_addr_state(cmd, enc_info, brc_enabled);
    anv_h264_emit_mfx_ind_obj_base_addr_state(cmd, enc_info);
    anv_h264_emit_mfx_bsp_buf_base_addr_state(cmd, enc_info);
-   anv_h264_emit_vdenc_pipe_mode_select(cmd, enc_info);
+   anv_h264_emit_vdenc_pipe_mode_select(cmd, enc_info, brc_enabled);
    anv_h264_emit_vdenc_src_surface_state(cmd, enc_info);
    anv_h264_emit_vdenc_ref_surface_state(cmd, enc_info);
    anv_h264_emit_vdenc_ds_ref_surface_state(cmd, enc_info);
-   anv_h264_emit_vdenc_pipe_buf_addr_state(cmd, enc_info, dpb_idx);
+   anv_h264_emit_vdenc_pipe_buf_addr_state(cmd, enc_info, dpb_idx, brc_enabled);
 
 #if GFX_VERx10 < 125
    anv_h264_emit_vdenc_const_qpt_state(cmd, enc_info);
 #endif
 
-   anv_h264_emit_mfx_avc_img_state(cmd, NULL, enc_info, false);
+#if GFX_VER >= 12
+   if (brc_enabled) {
+      brc_input_slb = anv_cmd_buffer_alloc_temporary_state(cmd,
+         align(ANV_H264_BRC_SLB_SIZE, 4096), 4096);
+      if (brc_input_slb.map == NULL)
+         return;
 
-#if GFX_VERx10 >= 125
-   /* VDENC_CONST_QPT_STATE_CMD and VDENC_IMG_STATE has been changed to
-    * VDENC_CMD3 and VDENC_AVC_IMG_STATE_CMD for Gen125 */
-   anv_h264_emit_vdenc_cmd3(cmd, NULL, enc_info);
-   anv_h264_emit_vdenc_avc_img_state(cmd, NULL, enc_info, dpb_idx);
-#else
-   anv_h264_emit_vdenc_img_state(cmd, NULL, enc_info);
+      anv_h264_brc_init_update(cmd, enc_info, dpb_idx, brc_input_slb);
+   } else
 #endif
+   {
+      anv_h264_emit_mfx_avc_img_state(cmd, NULL, enc_info, false);
+#if GFX_VERx10 >= 125
+      /* VDENC_CONST_QPT_STATE_CMD and VDENC_IMG_STATE has been changed to
+       * VDENC_CMD3 and VDENC_AVC_IMG_STATE_CMD for Gen125 */
+      anv_h264_emit_vdenc_cmd3(cmd, NULL, enc_info);
+      anv_h264_emit_vdenc_avc_img_state(cmd, NULL, enc_info, dpb_idx);
+#else
+      anv_h264_emit_vdenc_img_state(cmd, NULL, enc_info);
+#endif
+   }
 
    anv_h264_emit_mfx_qm_state(cmd, enc_info);
    anv_h264_emit_mfx_fqm_state(cmd, enc_info);
@@ -1786,6 +1911,13 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    }
 
    anv_video_emit_mi_flush_dw(cmd, true);
+
+#if GFX_VER >= 12
+   if (brc_enabled) {
+      anv_h264_brc_store_pak_stats(cmd, enc_info, brc_input_slb);
+      vid->rc.frame_counter++;
+   }
+#endif
 }
 
 static bool
@@ -3498,7 +3630,6 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    anv_video_emit_mi_flush_dw(cmd, false);
 
 #endif // GFX_VER >= 12
-
 }
 
 #define AVP_BITSTREAM_BYTECOUNT_TILE_NOHEADER_REG 0x1C2B4C

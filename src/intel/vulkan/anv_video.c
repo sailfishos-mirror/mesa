@@ -432,6 +432,15 @@ anv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice,
       enc_caps->flags = 0;
       enc_caps->rateControlModes = VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DEFAULT_KHR |
                                    VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
+
+      if ((pVideoProfile->videoCodecOperation ==
+           VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR) &&
+           anv_video_encode_brc_supported(pdevice)) {
+         enc_caps->rateControlModes |= VK_VIDEO_ENCODE_RATE_CONTROL_MODE_CBR_BIT_KHR |
+                                       VK_VIDEO_ENCODE_RATE_CONTROL_MODE_VBR_BIT_KHR;
+         enc_caps->maxBitrate = 160000000;
+      }
+
       enc_caps->maxRateControlLayers = 1;
       enc_caps->maxQualityLevels = 1;
       enc_caps->encodeInputPictureGranularity.width = 32;
