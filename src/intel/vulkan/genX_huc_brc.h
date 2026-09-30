@@ -1427,6 +1427,10 @@ anv_h264_brc_emit_huc_update(struct anv_cmd_buffer *cmd,
 #define ANV_H265_BRC_SLB_GROUP3_OFFSET    536
 #endif
 
+#define ANV_H265_HCP_BITSTREAM_BYTECOUNT_FRAME_OFFSET          0x28a0
+#define ANV_H265_HCP_BITSTREAM_BYTECOUNT_FRAME_NOHEADER_OFFSET 0x28a4
+#define ANV_H265_HCP_IMAGE_STATUS_CONTROL_OFFSET               0x28bc
+
 struct anv_huc_hevc_brc_init_dmem {
    uint32_t BRCFunc_U32;
    uint32_t UserMaxFrame;
@@ -2254,7 +2258,8 @@ anv_video_emit_mfx_wait(struct anv_cmd_buffer *cmd, struct anv_batch *batch);
 static void
 anv_h265_emit_hcp_pipe_mode_select(struct anv_cmd_buffer *cmd,
                                    struct anv_batch *batch,
-                                   const VkVideoEncodeInfoKHR *enc_info);
+                                   const VkVideoEncodeInfoKHR *enc_info,
+                                   bool brc_enabled);
 static void
 anv_h265_emit_vdenc_cmd1(struct anv_cmd_buffer *cmd,
                          struct anv_batch *batch,
@@ -2615,7 +2620,7 @@ anv_h265_brc_build_input_slb(struct anv_cmd_buffer *cmd,
    memset(slb_state.map, 0, slb_state.alloc_size);
 
    anv_video_emit_mfx_wait(cmd, &slb);
-   anv_h265_emit_hcp_pipe_mode_select(cmd, &slb, enc_info);
+   anv_h265_emit_hcp_pipe_mode_select(cmd, &slb, enc_info, true);
    anv_video_emit_mfx_wait(cmd, &slb);
    anv_batch_emit(&slb, GENX(MI_BATCH_BUFFER_END), bbe);
    anv_h265_brc_slb_pad_to(&slb, ANV_H265_BRC_SLB_GROUP1_SIZE);
