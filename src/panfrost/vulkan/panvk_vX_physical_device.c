@@ -63,6 +63,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_driver_properties = true,
       .KHR_dynamic_rendering = true,
       .KHR_dynamic_rendering_local_read = true,
+      .KHR_extended_flags = true,
       .KHR_external_fence = true,
       .KHR_external_fence_fd = true,
       .KHR_external_memory = true,
@@ -797,6 +798,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_ANDROID_external_format_resolve */
       .externalFormatResolve = has_gralloc && PAN_ARCH >= 10,
+
+      /* VK_KHR_extended_flags */
+      .extendedFlags = true,
    };
 }
 
