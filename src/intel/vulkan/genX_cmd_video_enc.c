@@ -920,14 +920,19 @@ anv_h264_emit_vdenc_const_qpt_state(struct anv_cmd_buffer *cmd,
 
 static void
 anv_h264_emit_mfx_avc_img_state(struct anv_cmd_buffer *cmd,
-                                const VkVideoEncodeInfoKHR *enc_info)
+                                struct anv_batch *batch,
+                                const VkVideoEncodeInfoKHR *enc_info,
+                                bool brc_enabled)
 {
    const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
    const StdVideoH264SequenceParameterSet *sps = anv_h264_sps(cmd, enc_info);
    const StdVideoH264PictureParameterSet *pps = anv_h264_pps(cmd, enc_info);
    StdVideoH264PictureType pic_type = frame_info->pStdPictureInfo->primary_pic_type;
 
-   anv_batch_emit(&cmd->batch, GENX(MFX_AVC_IMG_STATE), avc_img) {
+   if (!batch)
+      batch = &cmd->batch;
+
+   anv_batch_emit(batch, GENX(MFX_AVC_IMG_STATE), avc_img) {
       avc_img.FrameWidth = sps->pic_width_in_mbs_minus1;
       avc_img.FrameHeight = sps->pic_height_in_map_units_minus1;
       avc_img.FrameSize = (avc_img.FrameWidth + 1) * (avc_img.FrameHeight + 1);
@@ -986,12 +991,16 @@ anv_h264_emit_mfx_avc_img_state(struct anv_cmd_buffer *cmd,
 #if GFX_VERx10 >= 125
 static void
 anv_h264_emit_vdenc_cmd3(struct anv_cmd_buffer *cmd,
+                         struct anv_batch *batch,
                          const VkVideoEncodeInfoKHR *enc_info)
 {
    const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
    const StdVideoEncodeH264ReferenceListsInfo *ref_list_info = frame_info->pStdPictureInfo->pRefLists;
    StdVideoH264PictureType pic_type = frame_info->pStdPictureInfo->primary_pic_type;
    uint32_t slice_qp = anv_h264_frame_qp(cmd, enc_info);
+
+   if (!batch)
+      batch = &cmd->batch;
 
    /* The h264_vdenc_cmd3_table is taken from media-driver.
     *
@@ -1006,7 +1015,7 @@ anv_h264_emit_vdenc_cmd3(struct anv_cmd_buffer *cmd,
       cmd3_type = 2;
    else
       cmd3_type = 0;
-   anv_batch_emit(&cmd->batch, GENX(VDENC_CMD3), cmd3) {
+   anv_batch_emit(batch, GENX(VDENC_CMD3), cmd3) {
       for (unsigned i = 0; i < 22; i++)
          cmd3.Values[i] = h264_vdenc_cmd3_table[cmd3_type][cmd3_qp][i];
 
@@ -1020,6 +1029,7 @@ anv_h264_emit_vdenc_cmd3(struct anv_cmd_buffer *cmd,
 #if GFX_VERx10 >= 125
 static void
 anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
+                                  struct anv_batch *batch,
                                   const VkVideoEncodeInfoKHR *enc_info,
                                   const uint8_t *dpb_idx)
 {
@@ -1046,6 +1056,9 @@ anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
       .QpPrimeY                 = slice_qp,
       .POCNumberForCurrentPicture = frame_info->pStdPictureInfo->PicOrderCnt & 0xff,
    };
+
+   if (!batch)
+      batch = &cmd->batch;
 
    if (is_inter) {
       /* Collocated MV write only when this frame is kept as a reference; collocated MV read
@@ -1096,8 +1109,8 @@ anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
                       (enc_info->pSetupReferenceSlot ? 3 : 2);
    const uint32_t *cost = h264_vdenc_avc_img_state[4 - 1][img_type][0][0][0][0];
 
-   uint32_t *dw = anv_batch_emitn(&cmd->batch, 20, GENX(VDENC_AVC_IMG_STATE));
-   GENX(VDENC_AVC_IMG_STATE_pack)(&cmd->batch, dw, &img);
+   uint32_t *dw = anv_batch_emitn(batch, 20, GENX(VDENC_AVC_IMG_STATE));
+   GENX(VDENC_AVC_IMG_STATE_pack)(batch, dw, &img);
    for (unsigned i = 0; i < 19; i++)
       dw[i + 1] |= cost[i];
 
@@ -1110,6 +1123,7 @@ anv_h264_emit_vdenc_avc_img_state(struct anv_cmd_buffer *cmd,
 #if GFX_VERx10 < 125
 static void
 anv_h264_emit_vdenc_img_state(struct anv_cmd_buffer *cmd,
+                              struct anv_batch *batch,
                               const VkVideoEncodeInfoKHR *enc_info)
 {
    const struct VkVideoEncodeH264PictureInfoKHR *frame_info = anv_h264_frame_info(enc_info);
@@ -1122,7 +1136,10 @@ anv_h264_emit_vdenc_img_state(struct anv_cmd_buffer *cmd,
    uint8_t     mv_cost[8];
    uint8_t     hme_mv_cost[8];
 
-   anv_batch_emit(&cmd->batch, GENX(VDENC_IMG_STATE), vdenc_img) {
+   if (!batch)
+      batch = &cmd->batch;
+
+   anv_batch_emit(batch, GENX(VDENC_IMG_STATE), vdenc_img) {
       uint32_t slice_qp = anv_h264_frame_qp(cmd, enc_info);
 
       update_costs(mode_cost, mv_cost, hme_mv_cost, slice_qp, pic_type);
@@ -1738,15 +1755,15 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    anv_h264_emit_vdenc_const_qpt_state(cmd, enc_info);
 #endif
 
-   anv_h264_emit_mfx_avc_img_state(cmd, enc_info);
+   anv_h264_emit_mfx_avc_img_state(cmd, NULL, enc_info, false);
 
 #if GFX_VERx10 >= 125
    /* VDENC_CONST_QPT_STATE_CMD and VDENC_IMG_STATE has been changed to
     * VDENC_CMD3 and VDENC_AVC_IMG_STATE_CMD for Gen125 */
-   anv_h264_emit_vdenc_cmd3(cmd, enc_info);
-   anv_h264_emit_vdenc_avc_img_state(cmd, enc_info, dpb_idx);
+   anv_h264_emit_vdenc_cmd3(cmd, NULL, enc_info);
+   anv_h264_emit_vdenc_avc_img_state(cmd, NULL, enc_info, dpb_idx);
 #else
-   anv_h264_emit_vdenc_img_state(cmd, enc_info);
+   anv_h264_emit_vdenc_img_state(cmd, NULL, enc_info);
 #endif
 
    anv_h264_emit_mfx_qm_state(cmd, enc_info);
