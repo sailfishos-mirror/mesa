@@ -4224,7 +4224,7 @@
         "description": "radeonsi: correctly detect and set mesh shaders as dirty",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f06a1b0d07885e477dd4bb0f3e45f95a76c7ad41",
         "notes": null
