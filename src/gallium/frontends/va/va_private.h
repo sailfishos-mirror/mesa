@@ -100,24 +100,6 @@
 /* vaCreateContext flags */
 #define VL_VA_CREATE_CONTEXT_PROTECTED (1 << 16)
 
-static inline enum pipe_video_chroma_format
-ChromaToPipe(int format)
-{
-   switch (format) {
-   case VA_RT_FORMAT_YUV420:
-   case VA_RT_FORMAT_YUV420_10BPP:
-      return PIPE_VIDEO_CHROMA_FORMAT_420;
-   case VA_RT_FORMAT_YUV422:
-      return PIPE_VIDEO_CHROMA_FORMAT_422;
-   case VA_RT_FORMAT_YUV444:
-      return PIPE_VIDEO_CHROMA_FORMAT_444;
-   case VA_RT_FORMAT_YUV400:
-      return PIPE_VIDEO_CHROMA_FORMAT_400;
-   default:
-      return PIPE_VIDEO_CHROMA_FORMAT_NONE;
-   }
-}
-
 static inline enum pipe_format
 VaFourccToPipeFormat(unsigned format)
 {
