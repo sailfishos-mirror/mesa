@@ -2864,7 +2864,7 @@
         "description": "radeonsi/gfx12: dont set BO metadata on import",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "acb3d5f132f734a64e36c1c37cd37f51e01ba9a2",
         "notes": null
