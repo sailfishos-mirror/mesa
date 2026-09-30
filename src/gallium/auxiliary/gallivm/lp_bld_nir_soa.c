@@ -184,6 +184,8 @@ struct lp_build_nir_soa_context
    struct lp_build_context scalar_int64_bld;
    struct lp_build_context scalar_bool_bld;
 
+   bool is_callee;
+
    LLVMValueRef *ssa_defs;
    struct hash_table *regs;
    struct hash_table *vars;
@@ -374,6 +376,9 @@ lp_exec_mask_is_nz(struct lp_build_nir_soa_context *bld)
    if (bld->shader->info.stage == MESA_SHADER_FRAGMENT && bld->shader->info.fs.uses_discard)
       return false;
 
+   if (bld->is_callee)
+      return false;
+
    return !bld->exec_mask.has_mask;
 }
 
@@ -385,6 +390,9 @@ invocation_0_must_be_active(struct lp_build_nir_soa_context *bld)
     * lp_build_tgsi_params.mask setup in draw_llvm.c and lp_state_*.c)
     */
    if (bld->shader->info.stage == MESA_SHADER_FRAGMENT)
+      return false;
+
+   if (bld->is_callee)
       return false;
 
    /* If we're in some control flow right now, then invocation 0 may be
@@ -1291,7 +1299,7 @@ ssbo_base_pointer(struct lp_build_nir_soa_context *bld,
 
    LLVMValueRef ssbo_idx = invocation ? LLVMBuildExtractElement(gallivm->builder, index, invocation, "") : index;
 
-   if (!invocation_0_must_be_active(bld) &&
+   if (!lp_exec_mask_is_nz(bld) &&
        LLVMGetTypeKind(LLVMTypeOf(ssbo_idx)) == LLVMIntegerTypeKind &&
        LLVMGetIntTypeWidth(LLVMTypeOf(ssbo_idx)) == 64) {
       LLVMValueRef exec_mask = mask_vec_with_helpers(bld);
@@ -6018,6 +6026,7 @@ void lp_build_nir_soa_func(struct gallivm_state *gallivm,
    bld.fns = params->fns;
    bld.func = params->current_func;
    bld.mask = params->mask;
+   bld.is_callee = !impl->function->is_entrypoint;
    bld.inputs = params->inputs;
    bld.outputs = outputs;
    bld.consts_ptr = params->consts_ptr;
