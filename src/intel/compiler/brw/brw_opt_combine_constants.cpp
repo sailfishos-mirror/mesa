@@ -982,7 +982,8 @@ supports_src_as_imm(const struct intel_device_info *devinfo, const brw_inst *ins
 
    case BRW_OPCODE_CSEL:
       /* While MAD can mix F and HF sources on some platforms, CSEL cannot. */
-      return devinfo->ver >= 12 && inst->src[0].type != BRW_TYPE_F;
+      return devinfo->ver >= 12 && src_idx != 1 &&
+             inst->src[0].type != BRW_TYPE_F;
 
    case BRW_OPCODE_MAD:
       switch (devinfo->verx10) {
