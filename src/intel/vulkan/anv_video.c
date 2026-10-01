@@ -117,8 +117,12 @@ anv_video_patch_encode_session_parameters(struct anv_device *device, struct vk_v
          /* maxTiles = 1x1 */
          pps->flags.tiles_enabled_flag = 0;
 
-         /* rateControlModes is DEFAULT|DISABLED only — no cu_qp_delta path */
-         pps->flags.cu_qp_delta_enabled_flag = 0;
+         /* VDEnc always drives per-CU QP (HuC BRC adjusts the frame QP through
+          * the CU QP delta path and PAK uses fractional QP), so cu_qp_delta
+          * must be signalled in the PPS, so enabling it here keeps them consistent.
+          */
+         pps->flags.cu_qp_delta_enabled_flag = 1;
+         pps->diff_cu_qp_delta_depth = 0;
 
          /* Set 0 where we don't advertise via stdSyntaxFlags */
          pps->flags.weighted_pred_flag = 0;
@@ -433,9 +437,9 @@ anv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice,
       enc_caps->rateControlModes = VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DEFAULT_KHR |
                                    VK_VIDEO_ENCODE_RATE_CONTROL_MODE_DISABLED_BIT_KHR;
 
-      if ((pVideoProfile->videoCodecOperation ==
-           VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR) &&
-           anv_video_encode_brc_supported(pdevice)) {
+      if (((pVideoProfile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR) ||
+           (pVideoProfile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR)) &&
+            anv_video_encode_brc_supported(pdevice)) {
          enc_caps->rateControlModes |= VK_VIDEO_ENCODE_RATE_CONTROL_MODE_CBR_BIT_KHR |
                                        VK_VIDEO_ENCODE_RATE_CONTROL_MODE_VBR_BIT_KHR;
          enc_caps->maxBitrate = 160000000;
@@ -822,7 +826,10 @@ get_brc_video_mem_size(struct anv_video_session *vid, uint32_t mem_idx)
        *           VDENC_AVC_IMG_STATE(80) + BBE(4) = 260
        * Choose the worse one.
        */
-      return align64(260, 4096);
+      if (vid->vk.op & VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR)
+         return align64(260, 4096);
+      /* HEVC (HCP) slice layout, choose gen125 worst case. */
+      return align64(64 + 576 + 70 * 1152, 4096);
    case ANV_VID_MEM_BRC_WP_DATA:
       return 4 * 4096;
    case ANV_VID_MEM_BRC_PAK_INFO:
@@ -945,7 +952,8 @@ get_h264_video_session_mem_reqs(struct anv_device *dev,
 }
 
 static void
-get_h265_video_session_mem_reqs(struct anv_video_session *vid,
+get_h265_video_session_mem_reqs(struct anv_device *dev,
+                                struct anv_video_session *vid,
                                 VkVideoSessionMemoryRequirementsKHR *mem_reqs,
                                 uint32_t *pVideoSessionMemoryRequirementsCount,
                                 uint32_t memory_types)
@@ -969,6 +977,11 @@ get_h265_video_session_mem_reqs(struct anv_video_session *vid,
          p->memoryRequirements.alignment = 4096;
          p->memoryRequirements.memoryTypeBits = memory_types;
       }
+   }
+
+   if ((vid->vk.op & VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR) &&
+        anv_video_encode_brc_supported(dev->physical)) {
+      get_brc_video_session_mem_reqs(vid, &out.base, memory_types);
    }
 }
 
@@ -1255,7 +1268,7 @@ anv_GetVideoSessionMemoryRequirementsKHR(VkDevice _device,
       break;
    case VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR:
    case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR:
-      get_h265_video_session_mem_reqs(vid,
+      get_h265_video_session_mem_reqs(device, vid,
                                       mem_reqs,
                                       pVideoSessionMemoryRequirementsCount,
                                       memory_types);
