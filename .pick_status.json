@@ -1164,7 +1164,7 @@
         "description": "brw: CSEL cannot have immediate src1",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "033405cd4bd9ee93755eccdca82d56d6f06ee1af",
         "notes": null
