@@ -10,6 +10,7 @@
 #include "util/macros.h"
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
+#include "util/u_worklist.h"
 #include "jay_builder.h"
 #include "jay_ir.h"
 #include "jay_opcodes.h"
@@ -62,7 +63,9 @@ struct swsb_sbid_state {
    linear_ctx *lin_ctx;
    struct util_dynarray bitset_pool;
 
+   BITSET_WORD *assigned;
    struct swsb_sbid_edge *edges;
+   struct swsb_sbid_edge tmp;
 };
 
 static inline BITSET_WORD *
@@ -90,10 +93,17 @@ init_sbid_state(struct swsb_sbid_state *sbid_state,
    sbid_state->lin_ctx = linear_context(sbid_state->mem_ctx);
    util_dynarray_init(&sbid_state->bitset_pool, sbid_state->mem_ctx);
 
-   sbid_state->edges = linear_zalloc_array(sbid_state->lin_ctx,
-                                           struct swsb_sbid_edge, num_blocks);
+   sbid_state->assigned =
+      linear_zalloc_array(sbid_state->lin_ctx,
+                          BITSET_WORD, BITSET_WORDS(num_blocks));
+   sbid_state->edges =
+      linear_zalloc_array(sbid_state->lin_ctx,
+                          struct swsb_sbid_edge, num_blocks);
+
    for (unsigned i = 0; i < num_blocks; ++i)
       sbid_state->edges[i].ctx = sbid_state;
+
+   sbid_state->tmp.ctx = sbid_state;
 }
 
 static inline void store_sbid_edge(struct swsb_sbid_edge *edge,
@@ -107,6 +117,8 @@ clear_sbid_state(struct swsb_sbid_state *sbid_state, unsigned dirty_blocks)
       for (unsigned i = 0; i < dirty_blocks; ++i) {
          store_sbid_edge(&sbid_state->edges[i], NULL);
       }
+
+      BITSET_CLEAR_RANGE(sbid_state->assigned, 0, dirty_blocks);
    }
 }
 
@@ -193,83 +205,63 @@ store_sbid_edge(struct swsb_sbid_edge *dst, const struct swsb_sbid_edge *src)
    validate_edge(dst);
 }
 
-/** Merges two edges together and stores the result in out */
-static inline void
-merge_sbid_edges(const struct swsb_sbid_edge *a,
-                 const struct swsb_sbid_edge *b,
-                 struct swsb_sbid_edge *out)
+/** Merges bits from src into dst, returns true if dst changed */
+static inline bool
+merge_bitsets(BITSET_WORD *dst, const BITSET_WORD *src, unsigned words)
 {
-   validate_edge(a);
-   validate_edge(b);
-   uint32_t src_alloced = 0, dst_alloced = 0;
+   BITSET_WORD changed = 0;
 
-   jay_foreach_sbid_dep_type(dep) {
-      src_alloced |= a->tokens_busy[dep] | b->tokens_busy[dep];
-      dst_alloced |= out->tokens_busy[dep];
+   for (unsigned i = 0; i < words; ++i) {
+      BITSET_WORD prev = dst[i];
+      dst[i] = src[i] | prev;
+      changed |= dst[i] ^ prev;
+   }
+
+   return changed;
+}
+
+/** Merges dependencies from src into dst, returns true if dst changed */
+static inline bool
+merge_sbid_edges(struct swsb_sbid_edge *dst, const struct swsb_sbid_edge *src)
+{
+   validate_edge(src);
+   validate_edge(dst);
+   uint32_t src_alloced = 0, dst_alloced = 0;
+   bool changed = false;
+
+   jay_foreach_sbid_dep_type(type) {
+      src_alloced |= src->tokens_busy[type];
+      dst_alloced |= dst->tokens_busy[type];
    }
 
    u_foreach_bit(sbid, src_alloced & ~dst_alloced) {
-      out->tokens_bitset[sbid] = alloc_sbid_bitset(out->ctx);
+      dst->tokens_bitset[sbid] = alloc_sbid_bitset(dst->ctx);
    }
 
    jay_foreach_sbid_dep_type(type) {
-      uint32_t a_has = a->tokens_busy[type];
-      uint32_t b_has = b->tokens_busy[type];
-      uint32_t dst_has = out->tokens_busy[type];
+      uint32_t src_busy = src->tokens_busy[type];
+      uint32_t dst_busy = dst->tokens_busy[type];
+      changed |= src_busy & ~dst_busy;
 
-      u_foreach_bit(sbid, a_has & b_has) {
-         __bitset_or(bitset_for(out, sbid, type), bitset_for(a, sbid, type),
-                     bitset_for(b, sbid, type), out->ctx->words);
+      u_foreach_bit(sbid, src_busy & ~dst_busy) {
+         __bitset_copy(bitset_for(dst, sbid, type), bitset_for(src, sbid, type),
+                       dst->ctx->words);
       }
 
-      u_foreach_bit(sbid, a_has ^ b_has) {
-         __bitset_copy(bitset_for(out, sbid, type),
-                       bitset_for(a_has & BITFIELD_BIT(sbid) ? a : b, sbid,
-                                  type),
-                       out->ctx->words);
+      u_foreach_bit(sbid, src_busy & dst_busy) {
+         changed |=
+            merge_bitsets(bitset_for(dst, sbid, type),
+                          bitset_for(src, sbid, type), dst->ctx->words);
       }
 
-      u_foreach_bit(sbid, ~a_has & ~b_has & dst_has) {
-         __bitset_zero(bitset_for(out, sbid, type), out->ctx->words);
-      }
-
-      out->tokens_busy[type] = a_has | b_has;
+      dst->tokens_busy[type] = src_busy | dst_busy;
    }
 
-   u_foreach_bit(sbid, dst_alloced & ~src_alloced) {
-      release_sbid_bitset(out->ctx, &out->tokens_bitset[sbid]);
-   }
+   changed |= src->tdr_state & !dst->tdr_state;
+   dst->tdr_state |= src->tdr_state;
 
-   out->tdr_state = a->tdr_state | b->tdr_state;
-
-   validate_edge(out);
-}
-
-/**
- * Merges the edges of each of the block's predecessors together and stores
- * the result in edge_out
- */
-static inline void
-merge_sbid_edges_of_preds(struct swsb_sbid_state *state,
-                          jay_block *block,
-                          struct swsb_sbid_edge *edge_out)
-{
-   struct swsb_sbid_edge *accum = NULL;
-   jay_foreach_predecessor(block, pred, UGPR) {
-      struct swsb_sbid_edge *edge = &state->edges[(*pred)->index];
-
-      if (accum == NULL) {
-         accum = edge;
-      } else {
-         merge_sbid_edges(accum, edge, edge_out);
-         accum = edge_out;
-      }
-   }
-
-   if (edge_out != accum) {
-      assert(jay_num_predecessors(block, UGPR) < 2 && "the no-merge case");
-      store_sbid_edge(edge_out, accum);
-   }
+   validate_edge(dst);
+   return changed;
 }
 
 static inline unsigned
@@ -338,6 +330,13 @@ lower_sbid_local(jay_function *func,
     */
    unsigned hash = hash_block_index(block->index);
 
+   /* We assign SBIDs as soon as we first reach the block, this avoids any
+    * unnecessary SBID conflicts between edges of a block and it's dominators,
+    * but the back edges of loops are left untended.
+    */
+   bool assign_sbid = !BITSET_TEST(edge->ctx->assigned, block->index);
+   BITSET_SET(edge->ctx->assigned, block->index);
+
    jay_foreach_inst_in_block_safe(block, I) {
       jay_builder b = jay_init_builder(func, jay_before_inst(I));
       uint32_t sync_src = 0, sync_dst = 0;
@@ -378,7 +377,7 @@ lower_sbid_local(jay_function *func,
       if (jay_inst_has_sbid(func->shader->devinfo, I)) {
          unsigned sbid;
 
-         if (commit) {
+         if (!assign_sbid) {
             sbid = I->dep.sbid;
          } else {
             if (sync_dst) {
@@ -759,23 +758,36 @@ jay_lower_scoreboard(jay_shader *shader)
    struct swsb_sbid_state sbid_state;
    init_sbid_state(&sbid_state, max_blocks, nr_sbid_keys, max_sbids);
 
+   u_worklist sbid_worklist;
+   u_worklist_init(&sbid_worklist, max_blocks, sbid_state.mem_ctx);
+
    unsigned dirty_blocks = 0;
    jay_foreach_function(shader, f) {
       memset(regdists, 0, sizeof(*regdists) * jay_footprint_base(shader, ~0));
       clear_sbid_state(&sbid_state, dirty_blocks);
       dirty_blocks = f->num_blocks;
 
-      /* Thanks to programs always using structured control flow, and blocks
-       * being iterated in program order, global SBID scoreboarding can be
-       * accomplished in just two passes. This will no longer work if we ever
-       * start handling arbitrary GOTOs.
-       */
-      for (unsigned commit = 0; commit <= 1; ++commit) {
-         jay_foreach_block(f, block) {
-            struct swsb_sbid_edge *edge = &sbid_state.edges[block->index];
-            merge_sbid_edges_of_preds(&sbid_state, block, edge);
-            lower_sbid_local(f, block, edge, commit);
+      jay_foreach_block_rev(f, block) {
+         jay_worklist_push_tail(&sbid_worklist, block);
+      }
+
+      /* Propagate SBID dependencies until a fixed point is reached */
+      while (!u_worklist_is_empty(&sbid_worklist)) {
+         jay_block *block = jay_worklist_pop_tail(&sbid_worklist);
+         store_sbid_edge(&sbid_state.tmp, &sbid_state.edges[block->index]);
+         lower_sbid_local(f, block, &sbid_state.tmp, false);
+
+         jay_foreach_successor(block, succ, UGPR) {
+            struct swsb_sbid_edge *edge = &sbid_state.edges[(*succ)->index];
+            if (merge_sbid_edges(edge, &sbid_state.tmp)) {
+               jay_worklist_push_tail(&sbid_worklist, *succ);
+            }
          }
+      }
+
+      /* Apply the finished SBID dependencies to the program */
+      jay_foreach_block(f, block) {
+         lower_sbid_local(f, block, &sbid_state.edges[block->index], true);
       }
 
       struct swsb_regdist_state regdist_state = {
