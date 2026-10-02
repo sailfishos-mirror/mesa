@@ -3834,7 +3834,7 @@
         "description": "gfxstream: allow VK_EXT_vertex_attribute_divisor again",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4ac60d221fb2fe48b7025161182aaf6fcba246b7",
         "notes": null
