@@ -589,7 +589,6 @@ kopper_swap_buffers(struct dri_drawable *drawable)
 void
 kopperSetSwapInterval(struct dri_drawable *drawable, int interval)
 {
-   struct dri_screen *screen = drawable->screen;
    struct pipe_resource *ptex = drawable->textures[ST_ATTACHMENT_BACK_LEFT] ?
                                 drawable->textures[ST_ATTACHMENT_BACK_LEFT] :
                                 drawable->textures[ST_ATTACHMENT_FRONT_LEFT];
@@ -603,8 +602,9 @@ kopperSetSwapInterval(struct dri_drawable *drawable, int interval)
     * the swapchain is eventually created.
     */
    if (ptex) {
-      struct pipe_screen *pscreen = kopper_get_zink_screen(screen->base.screen);
-      zink_kopper_set_swap_interval(pscreen, ptex, interval);
+      struct dri_context *ctx = dri_get_current();
+      _mesa_glthread_finish(ctx->st->ctx);
+      zink_kopper_set_swap_interval(ctx->st->pipe, ptex, interval);
    }
 }
 
