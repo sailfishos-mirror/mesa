@@ -81,3 +81,4 @@ VK_QCOM_rotated_copy_commands on Turnip
 VK_KHR_maintenance10 on panvk
 VK_KHR_map_memory2 on v3dv
 VK_KHR_unified_image_layouts on v3dv
+VK_INTEL_shader_integer_functions2 on panvk

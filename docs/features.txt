@@ -744,7 +744,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_GOOGLE_user_type                                   DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
   VK_IMG_filter_cubic                                   DONE (tu/a650+, vn)
   VK_IMG_filter_linear_2d                               DONE (pvr)
-  VK_INTEL_shader_integer_functions2                    DONE (anv, hasvk, radv)
+  VK_INTEL_shader_integer_functions2                    DONE (anv, hasvk, panvk, radv)
   VK_MESA_image_alignment_control                       DONE (anv, nvk, radv)
   VK_NV_compute_shader_derivatives                      DONE (anv, hasvk, nvk, radv, tu, vn)
   VK_NV_shader_atomic_float16_vector                    DONE (nvk)

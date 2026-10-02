@@ -241,6 +241,7 @@ panvk_per_arch(get_physical_device_extensions)(
 #endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
+      .INTEL_shader_integer_functions2 = true,
 
       .VALVE_mutable_descriptor_type = PAN_ARCH >= 9,
 
@@ -756,6 +757,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_device_memory_report */
       .deviceMemoryReport = true,
+
+      /* VK_INTEL_shader_integer_functions2 */
+      .shaderIntegerFunctions2 = true,
 
       /* VK_ARM_shader_core_builtins */
       .shaderCoreBuiltins = true,
