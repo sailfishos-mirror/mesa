@@ -420,13 +420,23 @@ etna_layout_multiple(const struct etna_screen *screen,
    }
 }
 
+static struct etna_bo *
+etna_buffer_bo_new(struct etna_screen *screen, const struct pipe_resource *prsc)
+{
+   uint32_t flags = DRM_ETNA_GEM_CACHE_WC;
+
+   if (prsc->bind & PIPE_BIND_VERTEX_BUFFER)
+      flags |= DRM_ETNA_GEM_FORCE_MMU;
+
+   return etna_bo_new(screen->dev, pipe_buffer_size(prsc), flags);
+}
+
 static struct pipe_resource *
 etna_buffer_resource_alloc(struct pipe_screen *pscreen,
                            const struct pipe_resource *templat)
 {
    struct etna_screen *screen = etna_screen(pscreen);
    uint32_t size = pipe_buffer_size(templat);
-   uint32_t flags = DRM_ETNA_GEM_CACHE_WC;
    struct etna_buffer_resource *rsc;
 
    DBG_F(ETNA_DBG_RESOURCE_MSGS,
@@ -446,10 +456,7 @@ etna_buffer_resource_alloc(struct pipe_screen *pscreen,
    pipe_reference_init(&rsc->base.reference, 1);
    util_range_init(&rsc->valid_buffer_range);
 
-   if (templat->bind & PIPE_BIND_VERTEX_BUFFER)
-      flags |= DRM_ETNA_GEM_FORCE_MMU;
-
-   rsc->bo = etna_bo_new(screen->dev, size, flags);
+   rsc->bo = etna_buffer_bo_new(screen, &rsc->base);
    if (unlikely(!rsc->bo)) {
       BUG("Problem allocating video memory for resource");
       goto free_rsc;
@@ -1320,4 +1327,53 @@ etna_resource_screen_init(struct pipe_screen *pscreen)
    pscreen->transfer_helper =
       u_transfer_helper_create(&transfer_vtbl,
                                U_TRANSFER_HELPER_Z32F_S8_IN_Z24S8);
+}
+
+static void
+etna_buffer_rebind(struct etna_context *ctx, struct pipe_resource *prsc)
+{
+   struct etna_vertexbuf_state *vb = &ctx->vertex_buffer;
+   struct etna_streamout *so = &ctx->streamout;
+   struct etna_bo *bo = etna_buffer_resource(prsc)->bo;
+
+   u_foreach_bit(i, vb->enabled_mask) {
+      if (vb->vb[i].buffer.resource == prsc) {
+         vb->cvb[i].FE_VERTEX_STREAM_BASE_ADDR.bo = bo;
+         ctx->dirty |= ETNA_DIRTY_VERTEX_BUFFERS;
+      }
+   }
+
+   for (unsigned stage = 0; stage < ARRAY_SIZE(ctx->constant_buffer); stage++) {
+      struct etna_constbuf_state *cb = &ctx->constant_buffer[stage];
+
+      u_foreach_bit(i, cb->enabled_mask) {
+         if (cb->cb[i].buffer == prsc)
+            ctx->dirty |= ETNA_DIRTY_CONSTBUF;
+      }
+   }
+
+   for (unsigned i = 0; i < so->num_targets; i++) {
+      if (so->targets[i] && so->targets[i]->buffer == prsc) {
+         so->TFB_BUFFER_ADDR[i].bo = bo;
+         ctx->dirty |= ETNA_DIRTY_STREAMOUT;
+      }
+   }
+}
+
+bool
+etna_buffer_resource_realloc(struct etna_context *ctx,
+                             struct etna_buffer_resource *rsc)
+{
+   struct etna_bo *bo = etna_buffer_bo_new(ctx->screen, &rsc->base);
+
+   if (!bo)
+      return false;
+
+   etna_bo_del(rsc->bo);
+   rsc->bo = bo;
+   util_range_set_empty(&rsc->valid_buffer_range);
+
+   etna_buffer_rebind(ctx, &rsc->base);
+
+   return true;
 }

@@ -356,6 +356,10 @@ void
 etna_resource_used(struct etna_context *ctx, struct pipe_resource *prsc,
                    enum etna_resource_status status);
 
+bool
+etna_buffer_resource_realloc(struct etna_context *ctx,
+                             struct etna_buffer_resource *rsc);
+
 static inline void
 resource_read(struct etna_context *ctx, struct pipe_resource *prsc)
 {
