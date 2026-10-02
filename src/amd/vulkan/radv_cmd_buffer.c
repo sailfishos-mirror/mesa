@@ -14500,7 +14500,7 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
    /* Workaround for a VGT hang when streamout is enabled.
     * It must be done after drawing.
     */
-   if (radv_is_streamout_enabled(cmd_buffer) && pdev->info.has_streamout_vgt_hang_bug) {
+   if (pdev->info.has_streamout_vgt_hang_bug && radv_is_streamout_enabled(cmd_buffer)) {
       cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_STREAMOUT_SYNC;
    }
 
