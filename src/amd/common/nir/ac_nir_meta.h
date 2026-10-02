@@ -184,7 +184,8 @@ typedef struct {
    const struct radeon_info *info;
    uint64_t prefer_cp_dma_threshold; /* prefer CP DMA below the threshold when usable, even when slower */
    bool print_key;      /* print the shader key into stderr */
-   bool fail_if_slow;   /* fail if a gfx blit is faster, set to false on compute queues */
+   bool is_compute_queue;
+   bool fail_if_slow;   /* allow failing if CP DMA is faster */
    bool addr_user_data; /* pass src/dst addresses in user data SGPRs */
 } ac_cs_clear_copy_buffer_options;
 

@@ -440,6 +440,12 @@ ac_clear_copy_should_use_compute(const ac_cs_clear_copy_buffer_options *options,
    if (!options->fail_if_slow)
       return true;
 
+   /* CP DMA doesn't execute asynchronously on compute queues, meaning that every CP DMA packet
+    * implicitly waits for CP DMA to finish, which slows down command buffer execution.
+    */
+   if (options->is_compute_queue)
+      return true;
+
    switch (options->info->gfx_level) {
    /* GFX6-8: CP DMA clears are so slow that we risk getting a GPU timeout.
     * CP DMA copies are also slow but less.
@@ -669,6 +675,7 @@ ac_prepare_clear_value_user_data(const int clear_value_size,
    return num_clear_user_data_terms;
 }
 
+/* This returns false if CP DMA should be used. */
 bool
 ac_prepare_cs_clear_copy_buffer(const ac_cs_clear_copy_buffer_options *options,
                                 const ac_cs_clear_copy_buffer_info *info,
