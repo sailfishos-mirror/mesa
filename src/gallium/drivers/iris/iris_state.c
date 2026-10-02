@@ -7849,7 +7849,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    if (dirty & IRIS_DIRTY_RENDER_BUFFER)
       trace_framebuffer_state(&batch->trace, NULL, &ice->state.framebuffer.base);
 
-   if (ice->state.need_border_colors)
+   if (ice->state.need_border_colors && border_color_pool->bo)
       iris_use_pinned_bo(batch, border_color_pool->bo, false, IRIS_DOMAIN_NONE);
 
    if (dirty & IRIS_DIRTY_MULTISAMPLE) {
@@ -10089,7 +10089,7 @@ iris_upload_compute_state(struct iris_context *ice,
    iris_use_pinned_bo(batch, iris_resource_bo(shader->assembly.res), false,
                       IRIS_DOMAIN_NONE);
 
-   if (ice->state.need_border_colors)
+   if (ice->state.need_border_colors && border_color_pool->bo)
       iris_use_pinned_bo(batch, border_color_pool->bo, false,
                          IRIS_DOMAIN_NONE);
 

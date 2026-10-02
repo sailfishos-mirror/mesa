@@ -2594,7 +2594,8 @@ iris_bufmgr_create(struct intel_device_info *devinfo, int fd, bool bo_reuse, str
       assert(bufmgr->aux_map_ctx);
    }
 
-   iris_init_border_color_pool(bufmgr, &bufmgr->border_color_pool);
+   if (!iris_bufmgr_is_eff_64bit_enabled(bufmgr))
+      iris_init_border_color_pool(bufmgr, &bufmgr->border_color_pool);
 
    if (intel_needs_workaround(devinfo, 14019708328)) {
       bufmgr->dummy_aux_bo = iris_bo_alloc(bufmgr, "dummy_aux", 4096, 4096,
