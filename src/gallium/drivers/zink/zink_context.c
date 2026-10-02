@@ -5028,8 +5028,8 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
       goto end;
 
    const uint64_t ubo_mask = rebind_mask ?
-                             rebind_mask & BITFIELD64_RANGE(TC_BINDING_UBO_VS, MESA_SHADER_STAGES) :
-                             ((res->ubo_bind_count[0] ? BITFIELD64_RANGE(TC_BINDING_UBO_VS, (MESA_SHADER_STAGES - 1)) : 0) |
+                             rebind_mask & BITFIELD64_RANGE(TC_BINDING_UBO_VS, MESA_SHADER_MESH_STAGES) :
+                             ((res->ubo_bind_count[0] ? BITFIELD64_RANGE(TC_BINDING_UBO_VS, MESA_SHADER_MESH_STAGES) : 0) |
                               (res->ubo_bind_count[1] ? BITFIELD64_BIT(TC_BINDING_UBO_CS) : 0));
    u_foreach_bit(shader, ubo_mask >> TC_BINDING_UBO_VS) {
       u_foreach_bit(slot, res->ubo_bind_mask[shader]) {
@@ -5039,13 +5039,13 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
          num_rebinds++;
       }
    }
-   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_UBO_VS, MESA_SHADER_STAGES);
+   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_UBO_VS, MESA_SHADER_MESH_STAGES);
    if (expected_num_rebinds && num_rebinds >= expected_num_rebinds && !rebind_mask)
       goto end;
 
    const uint64_t ssbo_mask = rebind_mask ?
-                              rebind_mask & BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_STAGES) :
-                              BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_STAGES);
+                              rebind_mask & BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_MESH_STAGES) :
+                              BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_MESH_STAGES);
    u_foreach_bit(shader, ssbo_mask >> TC_BINDING_SSBO_VS) {
       u_foreach_bit(slot, res->ssbo_bind_mask[shader]) {
          struct pipe_shader_buffer *ssbo = &ctx->ssbos[shader][slot];
@@ -5056,12 +5056,12 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
          num_rebinds++;
       }
    }
-   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_STAGES);
+   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_SSBO_VS, MESA_SHADER_MESH_STAGES);
    if (expected_num_rebinds && num_rebinds >= expected_num_rebinds && !rebind_mask)
       goto end;
    const uint64_t sampler_mask = rebind_mask ?
-                                 rebind_mask & BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_STAGES) :
-                                 BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_STAGES);
+                                 rebind_mask & BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_MESH_STAGES) :
+                                 BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_MESH_STAGES);
    u_foreach_bit(shader, sampler_mask >> TC_BINDING_SAMPLERVIEW_VS) {
       u_foreach_bit(slot, res->sampler_binds[shader]) {
          struct zink_sampler_view *sampler_view = zink_sampler_view(ctx->sampler_views[shader][slot]);
@@ -5071,13 +5071,13 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
          num_rebinds++;
       }
    }
-   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_STAGES);
+   rebind_mask &= ~BITFIELD64_RANGE(TC_BINDING_SAMPLERVIEW_VS, MESA_SHADER_MESH_STAGES);
    if (expected_num_rebinds && num_rebinds >= expected_num_rebinds && !rebind_mask)
       goto end;
 
    const uint64_t image_mask = rebind_mask ?
-                               rebind_mask & BITFIELD64_RANGE(TC_BINDING_IMAGE_VS, MESA_SHADER_STAGES) :
-                               BITFIELD64_RANGE(TC_BINDING_IMAGE_VS, MESA_SHADER_STAGES);
+                               rebind_mask & BITFIELD64_RANGE(TC_BINDING_IMAGE_VS, MESA_SHADER_MESH_STAGES) :
+                               BITFIELD64_RANGE(TC_BINDING_IMAGE_VS, MESA_SHADER_MESH_STAGES);
    unsigned num_image_rebinds_remaining = rebind_mask ? expected_num_rebinds - num_rebinds : res->image_bind_count[0] + res->image_bind_count[1];
    u_foreach_bit(shader, image_mask >> TC_BINDING_IMAGE_VS) {
       for (unsigned slot = 0; num_image_rebinds_remaining && slot < ctx->di.num_images[shader]; slot++) {
@@ -5589,7 +5589,7 @@ rebind_image(struct zink_context *ctx, struct zink_resource *res)
    if (!zink_resource_has_binds(res))
       return;
    bool general_layout = zink_screen(ctx->base.screen)->driver_workarounds.general_layout;
-   for (unsigned i = 0; i < MESA_SHADER_STAGES; i++) {
+   for (unsigned i = 0; i < MESA_SHADER_MESH_STAGES; i++) {
       if (res->sampler_binds[i]) {
          for (unsigned j = 0; j < ctx->di.num_sampler_views[i]; j++) {
             struct zink_sampler_view *sv = zink_sampler_view(ctx->sampler_views[i][j]);
@@ -5635,7 +5635,7 @@ zink_rebind_all_buffers(struct zink_context *ctx)
    if (ctx->num_so_targets)
       zink_screen(ctx->base.screen)->buffer_barrier(ctx, zink_resource(ctx->dummy_xfb_buffer),
                                    VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT, VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT);
-   for (unsigned shader = MESA_SHADER_VERTEX; shader < MESA_SHADER_STAGES; shader++) {
+   for (unsigned shader = MESA_SHADER_VERTEX; shader < MESA_SHADER_MESH_STAGES; shader++) {
       for (unsigned slot = 0; slot < ctx->di.num_ubos[shader]; slot++) {
          struct zink_resource *res = rebind_ubo(ctx, shader, slot);
          if (res)
@@ -5693,7 +5693,7 @@ zink_rebind_all_images(struct zink_context *ctx)
       }
    }
    bool general_layout = zink_screen(ctx->base.screen)->driver_workarounds.general_layout;
-   for (unsigned i = 0; i < MESA_SHADER_STAGES; i++) {
+   for (unsigned i = 0; i < MESA_SHADER_MESH_STAGES; i++) {
       for (unsigned j = 0; j < ctx->di.num_sampler_views[i]; j++) {
          struct zink_sampler_view *sv = zink_sampler_view(ctx->sampler_views[i][j]);
          if (!sv || !sv->image_view || sv->base.texture->target == PIPE_BUFFER)
