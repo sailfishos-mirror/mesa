@@ -492,14 +492,10 @@ kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits
       VkXcbSurfaceCreateInfoKHR *xcb = (VkXcbSurfaceCreateInfoKHR *)&drawable->info.bos;
       xcb_connection_t *conn = xcb->connection;
 
-      int32_t eid = xcb_generate_id(conn);
-      if (drawable->is_window) {
-         xcb_present_select_input(conn, eid, xcb->window,
-                                  XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY);
-      }
-
+      drawable->present_eid = xcb_generate_id(conn);
       drawable->special_event =
-         xcb_register_for_special_xge(conn, &xcb_present_id, eid, NULL);
+         xcb_register_for_special_xge(conn, &xcb_present_id,
+                                      drawable->present_eid, NULL);
    }
 #endif
 }
@@ -647,6 +643,11 @@ kopperGetSyncValues(struct dri_drawable *drawable, int64_t target_msc, int64_t d
    VkXcbSurfaceCreateInfoKHR *xcb = (VkXcbSurfaceCreateInfoKHR *)&info->bos;
    xcb_connection_t *conn = xcb->connection;
 
+   if (!drawable->is_window)
+      return 0;
+
+   xcb_present_select_input(conn, drawable->present_eid, xcb->window,
+                            XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY);
    xcb_void_cookie_t cookie =
       xcb_present_notify_msc(conn, xcb->window, 0, target_msc, divisor, remainder);
 
@@ -679,6 +680,8 @@ kopperGetSyncValues(struct dri_drawable *drawable, int64_t target_msc, int64_t d
 
       free(event);
    }
+
+   xcb_present_select_input(conn, drawable->present_eid, xcb->window, 0);
 
    return ret;
 #else
