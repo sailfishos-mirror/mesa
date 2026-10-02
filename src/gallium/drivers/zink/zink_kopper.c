@@ -190,10 +190,12 @@ prune_old_swapchains(struct zink_screen *screen, struct kopper_displaytarget *cd
 {
    while (cdt->old_swapchain) {
       struct kopper_swapchain *cswap = cdt->old_swapchain;
-      if (cswap->async_presents) {
-         if (wait)
-            continue;
-         return;
+      /* present_fence is always in signalled state when !cdt->async */
+      if (cdt->async && !util_queue_fence_is_signalled(&cdt->swapchain->present_fence)) {
+         if (!wait)
+            return;
+         util_queue_fence_wait(&cdt->swapchain->present_fence);
+         assert(!p_atomic_read_relaxed(&cswap->async_presents));
       }
       struct zink_batch_usage *u = cswap->batch_uses;
       if (!zink_screen_usage_check_completion(screen, u)) {
