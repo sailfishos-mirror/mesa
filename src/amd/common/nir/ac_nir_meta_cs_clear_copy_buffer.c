@@ -434,9 +434,6 @@ ac_clear_copy_should_use_compute(const ac_cs_clear_copy_buffer_options *options,
    if (!can_use_cp_dma)
       return true;
 
-   if (info->size < options->prefer_cp_dma_threshold)
-      return false;
-
    if (!options->fail_if_slow)
       return true;
 

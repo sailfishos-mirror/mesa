@@ -182,7 +182,6 @@ typedef union {
 typedef struct {
    const nir_shader_compiler_options *nir_options;
    const struct radeon_info *info;
-   uint64_t prefer_cp_dma_threshold; /* prefer CP DMA below the threshold when usable, even when slower */
    bool print_key;      /* print the shader key into stderr */
    bool is_compute_queue;
    bool fail_if_slow;   /* allow failing if CP DMA is faster */
