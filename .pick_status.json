@@ -2704,7 +2704,7 @@
         "description": "kopper: move event selection for present into kopperGetSyncValues",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bf88b9b324f8149908a43c98d270f52022b321d5",
         "notes": null
