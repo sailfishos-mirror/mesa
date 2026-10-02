@@ -28,6 +28,31 @@
 extern "C" {
 #endif
 
+enum radv_buffer_meta_path {
+   RADV_BUFFER_META_PATH_CP_DMA = -1,
+   RADV_BUFFER_META_PATH_AUTO = 0,
+
+   /* This forces the compute shader path and selects the number of dwords that each compute shader
+    * invocation fills or copies.
+    */
+   RADV_BUFFER_META_PATH_COMPUTE_1DW = 1,
+   RADV_BUFFER_META_PATH_COMPUTE_2DW = 2,
+   RADV_BUFFER_META_PATH_COMPUTE_4DW = 4,
+};
+
+static inline bool
+radv_buffer_meta_path_forces_compute(enum radv_buffer_meta_path path)
+{
+   return path >= RADV_BUFFER_META_PATH_COMPUTE_1DW;
+}
+
+static inline unsigned
+radv_buffer_meta_path_get_dwords_per_thread(enum radv_buffer_meta_path path)
+{
+   assert(path == RADV_BUFFER_META_PATH_CP_DMA || util_is_power_of_two_or_zero(path));
+   return MAX2(path, 0);
+}
+
 /* Codepath selection for framebuffer clears, image clears, copies, blits, and MSAA resolves.
  * It has no effect on transfer queues. Compute queues ignore the fragment option.
  */

@@ -122,6 +122,10 @@ def declare_options():
         B("radv_force_exclusive_image", False,
           description="Force using exclusive images for apps that incorrectly use concurrent for everything.",
           c_name="force_exclusive_image"),
+        I("radv_buffer_meta_path", 0, -1, 4,
+          ("Override the codepath for buffer clears and copies. " +
+           "(0 = default; -1 = CP DMA; 1,2,4 = compute shader with this number of dwords stored per invocation)"),
+          c_name="buffer_meta_path"),
         I("radv_image_meta_path", 0, 0, 3,
           ("Override the codepath for framebuffer clears, image clears, copies, blits, and MSAA resolves. " +
            "(0 = default, 1 = fragment shader, 2 = compute shader, 3 = fast clear)"),
