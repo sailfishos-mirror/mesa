@@ -2764,7 +2764,7 @@
         "description": "zink/kopper: stop leaking swapchains harder",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "59ff7962e14b17ce4c80b0aaf101edd348005609",
         "notes": null
