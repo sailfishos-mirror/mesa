@@ -614,7 +614,7 @@
         "description": "nir/algebraic: Don't generate 64-bit iadd3 when not supported",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dcfc90a8fc0d59309e8c37926b9a2c6334356271",
         "notes": null
