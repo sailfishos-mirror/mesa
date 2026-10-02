@@ -425,7 +425,7 @@ update_swapchain(struct zink_screen *screen, struct kopper_displaytarget *cdt, u
    if (!cswap)
       return error;
    prune_old_swapchains(screen, cdt, false);
-   for (struct kopper_swapchain **pswap = &cdt->old_swapchain; *pswap; *pswap = (*pswap)->next) {
+   for (struct kopper_swapchain **pswap = &cdt->old_swapchain; *pswap; pswap = &(*pswap)->next) {
       if (!(*pswap)->next) {
          (*pswap)->next = cdt->swapchain;
          break;
