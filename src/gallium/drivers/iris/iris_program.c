@@ -3582,7 +3582,7 @@ iris_scratch_buffer_create(struct iris_screen *screen,
 
    uint32_t size = per_thread_scratch * devinfo->max_scratch_ids[MESA_SHADER_COMPUTE];
    buf->bo = iris_bo_alloc(screen->bufmgr, "scratch", size, 1024,
-                           IRIS_MEMZONE_SHADER, BO_ALLOC_PLAIN);
+                           IRIS_MEMZONE_OTHER, BO_ALLOC_PLAIN);
    if (!buf->bo) {
       free(buf);
       return NULL;
@@ -3590,7 +3590,7 @@ iris_scratch_buffer_create(struct iris_screen *screen,
 
    buf->surf_bo = iris_bo_alloc(screen->bufmgr, "scratch surface state",
                                 screen->isl_dev.ss.size, 64,
-                                IRIS_MEMZONE_SCRATCH, BO_ALLOC_CPU_VISIBLE);
+                                IRIS_MEMZONE_SURFACE, BO_ALLOC_CPU_VISIBLE);
    if (!buf->surf_bo) {
       iris_bo_unreference(buf->bo);
       free(buf);
