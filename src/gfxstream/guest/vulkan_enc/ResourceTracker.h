@@ -221,6 +221,15 @@ class ResourceTracker {
                                   VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset);
     VkResult on_vkBindImageMemory2(void* context, VkResult input_result, VkDevice device,
                                    uint32_t bindingCount, const VkBindImageMemoryInfo* pBindInfos);
+    VkResult on_vkBindImageMemory2KHR(void* context, VkResult input_result, VkDevice device,
+                                      uint32_t bindingCount,
+                                      const VkBindImageMemoryInfo* pBindInfos);
+    VkResult on_vkBindBufferMemory2(void* context, VkResult input_result, VkDevice device,
+                                    uint32_t bindInfoCount,
+                                    const VkBindBufferMemoryInfo* pBindInfos);
+    VkResult on_vkBindBufferMemory2KHR(void* context, VkResult input_result, VkDevice device,
+                                       uint32_t bindInfoCount,
+                                       const VkBindBufferMemoryInfo* pBindInfos);
 
     VkResult on_vkCreateBuffer(void* context, VkResult input_result, VkDevice device,
                                const VkBufferCreateInfo* pCreateInfo,

@@ -1877,8 +1877,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
 
         // Android requirements
         "VK_EXT_pipeline_protected_access",
-        // TODO(b/514638991): Serialization bugs in maintenance6 extension
-        // "VK_KHR_maintenance6",
+        "VK_KHR_maintenance6",
         "VK_KHR_maintenance7",
         "VK_KHR_maintenance8",
         "VK_KHR_maintenance9",
@@ -5734,7 +5733,61 @@ VkResult ResourceTracker::on_vkBindImageMemory2(void* context, VkResult, VkDevic
         }
     }
 
-    return enc->vkBindImageMemory2(device, bindingCount, pBindInfos, true /* do lock */);
+    VkResult res = enc->vkBindImageMemory2(device, bindingCount, pBindInfos, true /* do lock */);
+
+    // The host decoder historically treated the `const VkBindMemoryStatus*` as
+    // an input only parameter and did not return individual VkResult values in
+    // the `VkBindMemoryStatus`s. It would be a backwards incompatible change
+    // to update that now. Instead just propagate the overall result to each
+    // individual `VkBindMemoryStatus::pResult` as the spec says that the
+    // `vkBindImageMemory2()` call must return one of the failure results and
+    // that all images are left in an indeterminate state and must not be used:
+    // https://docs.vulkan.org/refpages/latest/refpages/source/vkBindImageMemory2.html.
+    for (uint32_t i = 0; i < bindingCount; i++) {
+        const VkBindMemoryStatus* bindStatus =
+            vk_find_struct_const(&pBindInfos[i], BIND_MEMORY_STATUS);
+        if (bindStatus && bindStatus->pResult) {
+            *bindStatus->pResult = res;
+        }
+    }
+    return res;
+}
+
+VkResult ResourceTracker::on_vkBindImageMemory2KHR(void* context, VkResult input_result,
+                                                   VkDevice device, uint32_t bindingCount,
+                                                   const VkBindImageMemoryInfo* pBindInfos) {
+    return on_vkBindImageMemory2(context, input_result, device, bindingCount, pBindInfos);
+}
+
+VkResult ResourceTracker::on_vkBindBufferMemory2(void* context, VkResult, VkDevice device,
+                                                 uint32_t bindInfoCount,
+                                                 const VkBindBufferMemoryInfo* pBindInfos) {
+    VkEncoder* enc = (VkEncoder*)context;
+
+    VkResult res = enc->vkBindBufferMemory2(device, bindInfoCount, pBindInfos, true /* do lock */);
+
+    // The host decoder historically treated the `const VkBindMemoryStatus*` as
+    // an input only parameter and did not return individual VkResult values in
+    // the `VkBindMemoryStatus`s. It would be a backwards incompatible change
+    // to update that now. Instead just propagate the overall result to each
+    // individual `VkBindMemoryStatus::pResult` as the spec says that the
+    // `vkBindBufferMemory2()` call must return one of the failure results and
+    // that all buffers are left in an indeterminate state and must not be used:
+    // https://docs.vulkan.org/refpages/latest/refpages/source/vkBindBufferMemory2.html
+    for (uint32_t i = 0; i < bindInfoCount; i++) {
+        const VkBindMemoryStatus* bindStatus =
+            vk_find_struct_const(&pBindInfos[i], BIND_MEMORY_STATUS);
+        if (bindStatus && bindStatus->pResult) {
+            *bindStatus->pResult = res;
+        }
+    }
+    return res;
+}
+
+VkResult ResourceTracker::on_vkBindBufferMemory2KHR(void* context, VkResult input_result,
+                                                    VkDevice device, uint32_t bindInfoCount,
+                                                    const VkBindBufferMemoryInfo* pBindInfos) {
+    return on_vkBindBufferMemory2(context, input_result, device, bindInfoCount, pBindInfos);
 }
 
 VkResult ResourceTracker::on_vkCreateBuffer(void* context, VkResult, VkDevice device,

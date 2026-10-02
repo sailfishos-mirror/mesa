@@ -1390,8 +1390,9 @@ VkResult gfxstream_vk_BindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
     VkResult vkBindBufferMemory2_VkResult_return = (VkResult)0;
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        auto resources = gfxstream::vk::ResourceTracker::get();
         vkBindBufferMemory2_VkResult_return =
-            vkEnc->vkBindBufferMemory2(device, bindInfoCount, pBindInfos, true /* do lock */);
+            resources->on_vkBindBufferMemory2(vkEnc, VK_SUCCESS, device, bindInfoCount, pBindInfos);
     }
     return vkBindBufferMemory2_VkResult_return;
 }
@@ -2753,8 +2754,9 @@ VkResult gfxstream_vk_BindBufferMemory2KHR(VkDevice device, uint32_t bindInfoCou
     VkResult vkBindBufferMemory2KHR_VkResult_return = (VkResult)0;
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkBindBufferMemory2KHR_VkResult_return =
-            vkEnc->vkBindBufferMemory2KHR(device, bindInfoCount, pBindInfos, true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        vkBindBufferMemory2KHR_VkResult_return = resources->on_vkBindBufferMemory2KHR(
+            vkEnc, VK_SUCCESS, device, bindInfoCount, pBindInfos);
     }
     return vkBindBufferMemory2KHR_VkResult_return;
 }
@@ -2764,8 +2766,9 @@ VkResult gfxstream_vk_BindImageMemory2KHR(VkDevice device, uint32_t bindInfoCoun
     VkResult vkBindImageMemory2KHR_VkResult_return = (VkResult)0;
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkBindImageMemory2KHR_VkResult_return =
-            vkEnc->vkBindImageMemory2KHR(device, bindInfoCount, pBindInfos, true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        vkBindImageMemory2KHR_VkResult_return = resources->on_vkBindImageMemory2KHR(
+            vkEnc, VK_SUCCESS, device, bindInfoCount, pBindInfos);
     }
     return vkBindImageMemory2KHR_VkResult_return;
 }
