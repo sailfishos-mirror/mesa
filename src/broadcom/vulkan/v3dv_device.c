@@ -225,6 +225,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_shader_integer_dot_product       = true,
       .KHR_shader_terminate_invocation      = true,
       .KHR_synchronization2                 = true,
+      .KHR_unified_image_layouts            = true,
       .KHR_workgroup_memory_explicit_layout = true,
 #ifdef V3DV_USE_WSI_PLATFORM
       .KHR_swapchain                        = true,
@@ -585,6 +586,10 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_KHR_maintenance5 */
       .maintenance5 = true,
+
+      /* VK_KHR_unified_layouts */
+      .unifiedImageLayouts = true,
+      .unifiedImageLayoutsVideo = false,
 
 #ifdef V3DV_USE_WSI_PLATFORM
       /* VK_KHR_swapchain_maintenance1 */
