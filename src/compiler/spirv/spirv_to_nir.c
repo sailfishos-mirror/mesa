@@ -3945,6 +3945,7 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
    case nir_texop_resinfo_intel:
    case nir_texop_sparse_residency_intel:
    case nir_texop_sparse_residency_txf_intel:
+   case nir_texop_txs_lod0_intel:
       vtn_fail("unexpected internal tex op");
       break;
    }

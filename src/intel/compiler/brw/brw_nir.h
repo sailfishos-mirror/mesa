@@ -55,6 +55,11 @@ struct brw_nir_compiler_opts {
 
    /* Which code motion pass to run (0 means let the compiler pick) */
    enum intel_code_motion code_motion;
+
+   /* Force nir_lower_tex to emit nir_texop_txs_lod0_intel instead of
+    * nir_texop_txs
+    */
+   bool lower_tex_use_txs_lod0_intel;
 };
 
 /* UBO surface index can come in 2 flavors :

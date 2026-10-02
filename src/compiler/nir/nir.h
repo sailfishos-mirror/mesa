@@ -2715,6 +2715,11 @@ typedef enum nir_texop {
    */
    nir_texop_block_match_sad_qcom,
    nir_texop_block_match_ssd_qcom,
+   /** txs at LOD0 in .xyz
+    *
+    * This avoids undefined behavior related to min LOD clamping HW behavior.
+    */
+   nir_texop_txs_lod0_intel,
    /** txs in .xyz and query_levels in .w */
    nir_texop_resinfo_intel,
 

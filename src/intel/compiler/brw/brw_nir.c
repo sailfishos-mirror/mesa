@@ -16,6 +16,7 @@
 #include "intel_nir.h"
 #include "nir.h"
 #include "nir_builder_opcodes.h"
+#include "nir_builtin_builder.h"
 #include "nir_intrinsics.h"
 #include "nir_intrinsics_indices.h"
 #include "shader_enums.h"
@@ -2566,6 +2567,18 @@ lower_txd_cb(const nir_tex_instr *tex, const void *data)
    return false;
 }
 
+static nir_def *
+build_txs_lod0_intel(nir_builder *b,
+                     nir_tex_instr *tex,
+                     void *data)
+{
+   b->cursor = nir_before_instr(&tex->instr);
+
+   return nir_build_texture_query(b, tex, nir_texop_txs_lod0_intel,
+                                  nir_tex_instr_dest_size(tex),
+                                  nir_type_int32, false, true);
+}
+
 /* Does some simple lowering and runs the standard suite of optimizations
  *
  * This is intended to be called more-or-less directly after you get the
@@ -2781,6 +2794,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .lower_index_to_offset = true,
       .lower_txd_cb = lower_txd_cb,
       .lower_txd_data = devinfo,
+      .build_txs_lod0 = opts->lower_tex_use_txs_lod0_intel ? build_txs_lod0_intel : NULL,
    };
 
    /* In the case where TG4 coords are lowered to offsets and we have a
