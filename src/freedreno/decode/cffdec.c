@@ -375,6 +375,12 @@ clear_lastvals(void)
    memset(lastvals, 0, sizeof(lastvals));
 }
 
+static void
+reset_lastvals(void)
+{
+   memcpy(lastvals, type0_reg_vals, sizeof(lastvals));
+}
+
 uint32_t
 reg_val(uint32_t regbase)
 {
@@ -1309,7 +1315,7 @@ skip_query(void)
             continue;
          }
          uint32_t lastval = reg_val(regbase);
-         if (lastval != lastvals[regbase]) {
+         if (lastval != reg_lastval(regbase)) {
             return false;
          }
       }
@@ -1364,7 +1370,7 @@ __do_query(const char *primtype, uint32_t num_indices)
       if (thread)
          printf("%s:", deprefix(thread, "CP_SET_THREAD_"));
       printf("\t%08"PRIx64, r.value);
-      if (r.value != lastvals[regbase]) {
+      if (r.value != reg_lastval(regbase)) {
          printf("!");
       } else {
          printf(" ");
@@ -2354,9 +2360,8 @@ dump_register_summary(int level, const char *usage)
        */
       if (!(options->allregs || written || used))
          continue;
-      if (lastval != lastvals[regbase]) {
+      if (lastval != reg_lastval(regbase)) {
          changed |= true;
-         lastvals[regbase] = lastval;
       }
       if (!quiet(2)) {
          if (regacc_push(&r, regbase, lastval)) {
@@ -2387,6 +2392,7 @@ dump_register_summary(int level, const char *usage)
    }
 
    clear_rewritten();
+   reset_lastvals();
 
    in_summary = false;
 
