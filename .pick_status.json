@@ -3614,7 +3614,7 @@
         "description": "etnaviv: Update valid_buffer_range for stream output buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "52bc3c2d20a1a53789c944b9e4717fcc7527c5e9",
         "notes": null
