@@ -6609,6 +6609,15 @@ typedef struct nir_lower_tex_options {
    bool lower_tg4_shadow_to_16bit;
 
    /**
+    * This callback will be use if non NULL, otherwise nir_get_texture_size()
+    * will be used.
+    *
+    * This is useful for HW with undefined behavior in some cases (like min
+    * LOD clamping).
+    */
+   nir_def *(*build_txs_lod0)(nir_builder *b, nir_tex_instr *tex, void *data);
+
+   /**
     * Payload data to be sent to callback / filter functions.
     */
    void *callback_data;
