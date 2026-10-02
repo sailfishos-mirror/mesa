@@ -14489,7 +14489,6 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radeon_info *gpu_info = &pdev->info;
    const bool has_prefetch = pdev->info.gfx_level >= GFX7;
 
    /* Start prefetches after the draw has been started. Both will run in parallel, but starting the
@@ -14501,8 +14500,7 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
    /* Workaround for a VGT hang when streamout is enabled.
     * It must be done after drawing.
     */
-   if (radv_is_streamout_enabled(cmd_buffer) &&
-       (gpu_info->family == CHIP_HAWAII || gpu_info->family == CHIP_TONGA || gpu_info->family == CHIP_FIJI)) {
+   if (radv_is_streamout_enabled(cmd_buffer) && pdev->info.has_streamout_vgt_hang_bug) {
       cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_STREAMOUT_SYNC;
    }
 

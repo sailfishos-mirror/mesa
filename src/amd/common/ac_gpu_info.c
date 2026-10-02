@@ -1080,6 +1080,10 @@ void ac_fill_bug_info(struct radeon_info *info)
    info->has_smem_partial_oob_access_bug = info->gfx_level == GFX9 &&
                                            info->family != CHIP_RENOIR &&
                                            info->family != CHIP_RAVEN2;
+
+   info->has_streamout_vgt_hang_bug = info->family == CHIP_HAWAII ||
+                                      info->family == CHIP_TONGA ||
+                                      info->family == CHIP_FIJI;
 }
 
 void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)

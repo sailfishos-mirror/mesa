@@ -2605,9 +2605,7 @@ static void si_draw(struct pipe_context *ctx,
 
    /* Workaround for a VGT hang when streamout is enabled.
     * It must be done after drawing. */
-   if (((GFX_VERSION == GFX7 && sctx->family == CHIP_HAWAII) ||
-        (GFX_VERSION == GFX8 && (sctx->family == CHIP_TONGA || sctx->family == CHIP_FIJI))) &&
-       si_get_streamout_enable_state(sctx)) {
+   if (sctx->screen->info.has_streamout_vgt_hang_bug && si_get_streamout_enable_state(sctx)) {
       radeon_begin(&sctx->gfx_cs);
       radeon_event_write(V_028A90_VGT_STREAMOUT_SYNC);
       radeon_end();
