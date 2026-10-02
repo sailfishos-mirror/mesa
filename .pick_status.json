@@ -1174,7 +1174,7 @@
         "description": "brw: CSEL cannot mix type sizes even for immediates",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a84e3a0f55d85fefb90450868e4cd01dce63e503",
         "notes": null
