@@ -1783,6 +1783,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         // Passthrough if available on host. Will otherwise be emulated by guest
         "VK_EXT_image_drm_format_modifier",
         "VK_KHR_external_memory_fd",
+        "VK_EXT_robustness2",
 #endif
         // Vulkan 1.1
         "VK_KHR_16bit_storage",
