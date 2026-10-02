@@ -266,7 +266,7 @@ static void pvr_physical_device_get_supported_features(
       .textureCompressionETC2 = true,
       .textureCompressionASTC_LDR = false,
       .textureCompressionBC = false,
-      .occlusionQueryPrecise = false,
+      .occlusionQueryPrecise = true,
       .pipelineStatisticsQuery = false,
       .vertexPipelineStoresAndAtomics = false,
       .fragmentStoresAndAtomics = true,

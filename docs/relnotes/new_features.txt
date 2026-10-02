@@ -86,3 +86,4 @@ VK_INTEL_shader_integer_functions2 on panvk
 VK_KHR_internally_synchronized_queues on NVK
 VK_KHR_maintenance11 on NVK
 VK_EXT_primitive_restart_index on NVK
+occlusionQueryPrecise on pvr
