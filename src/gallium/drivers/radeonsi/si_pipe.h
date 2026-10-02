@@ -1395,7 +1395,7 @@ struct pipe_resource *si_buffer_from_winsys_buffer(struct pipe_screen *screen,
                                                    bool take_ownership);
 void si_replace_buffer_storage(struct pipe_context *ctx, struct pipe_resource *dst,
                                struct pipe_resource *src, unsigned num_rebinds,
-                               uint32_t rebind_mask, uint32_t delete_buffer_id);
+                               uint64_t rebind_mask, uint32_t delete_buffer_id);
 bool si_reallocate_buffer_change_flags(struct si_context *sctx, struct pipe_resource *buf,
                                        unsigned usage, unsigned bind);
 void si_init_screen_buffer_functions(struct si_screen *sscreen);
