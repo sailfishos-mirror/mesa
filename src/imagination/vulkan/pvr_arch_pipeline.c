@@ -1581,7 +1581,7 @@ static void pvr_graphics_pipeline_setup_fragment_coeff_program(
                       "amend nir var linking.");
       }
 
-      unsigned count = vtxout_range->count;
+      unsigned count = cf_range->count / ROGUE_USC_COEFFICIENT_SET_SIZE;
 
       unsigned vtxout = vtxout_range->start;
 
