@@ -519,9 +519,6 @@ ac_clear_copy_calc_dwords_per_thread(const ac_cs_clear_copy_buffer_options *opti
                                      const ac_cs_clear_copy_buffer_info *info,
                                      const int clear_value_size)
 {
-   if (info->dwords_per_thread)
-      return info->dwords_per_thread;
-
    const bool is_copy = clear_value_size == 0;
 
    /* Determine optimal dwords_per_thread for performance.
@@ -612,6 +609,10 @@ ac_clear_copy_calc_dwords_per_thread(const ac_cs_clear_copy_buffer_options *opti
     */
    if (info->dst_is_sparse && dwords_per_thread == 3)
       dwords_per_thread = 4;
+
+   /* Override dwords per thread before validating the value. */
+   if (info->dwords_per_thread)
+      dwords_per_thread = info->dwords_per_thread;
 
    if (info->dst_is_sparse)
       assert(util_is_power_of_two_nonzero(dwords_per_thread));
