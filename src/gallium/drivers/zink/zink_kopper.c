@@ -1238,7 +1238,7 @@ zink_kopper_set_swap_interval(struct pipe_context *pctx, struct pipe_resource *p
       /* only update swapchain when there is no current acquire to avoid flickering,
        * otherwise the update is deferred to the next present
        */
-      VkResult ret = update_swapchain(screen, cdt, cdt->caps.currentExtent.width, cdt->caps.currentExtent.height);
+      VkResult ret = update_swapchain(screen, cdt, cdt->swapchain->scci.imageExtent.width, cdt->swapchain->scci.imageExtent.height);
       if (ret != VK_SUCCESS) {
          cdt->present_mode = old_present_mode;
          mesa_loge("zink: failed to set swap interval!");
