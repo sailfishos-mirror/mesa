@@ -88,7 +88,9 @@ radv_clear_copy_buffer_options(const struct radv_cmd_buffer *const cmd_buffer)
       .nir_options = &device->compiler_info.nir_options[MESA_SHADER_COMPUTE],
       .addr_user_data = true,
       .is_compute_queue = cmd_buffer->qf == RADV_QUEUE_COMPUTE,
-      .fail_if_slow = pdev->drirc.performance.buffer_meta_path == RADV_BUFFER_META_PATH_AUTO,
+      /* Don't fail if CP DMA can't use L2. We prefer to use the compute path in that case. */
+      .fail_if_slow =
+         pdev->drirc.performance.buffer_meta_path == RADV_BUFFER_META_PATH_AUTO && pdev->info.cp_dma_use_L2,
    };
 
    return options;
