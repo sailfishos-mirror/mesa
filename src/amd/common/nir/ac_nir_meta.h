@@ -211,6 +211,7 @@ typedef struct {
    unsigned workgroup_size;
    unsigned num_threads;
    unsigned dispatch_interleave; /* COMPUTE_DISPATCH_INTERLEAVE.INTERLEAVE/INTERLEAVE_1D */
+   bool cpdma_supported;
 
    struct {
       uint64_t offset;

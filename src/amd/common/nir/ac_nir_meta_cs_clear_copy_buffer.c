@@ -684,6 +684,7 @@ ac_prepare_cs_clear_copy_buffer(const ac_cs_clear_copy_buffer_options *options,
    bool is_copy = info->clear_value_size == 0;
 
    memset(out, 0, sizeof(*out));
+   out->cpdma_supported = ac_clear_copy_can_use_cp_dma(options, info);
 
    /* Expand 1-byte and 2-byte clear values to a dword. */
    int clear_value_size = info->clear_value_size;
