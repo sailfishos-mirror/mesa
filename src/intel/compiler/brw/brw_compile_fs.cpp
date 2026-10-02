@@ -1275,7 +1275,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
    BRW_NIR_SNAPSHOT("after_lower_io");
 
    if (!brw_can_coherent_fb_fetch(devinfo))
-      BRW_NIR_PASS(brw_nir_lower_fs_load_output, key);
+      BRW_NIR_PASS(brw_nir_lower_fs_load_output, key, 0);
 
    /* Do this lowering before brw_nir_populate_fs_prog_data(). */
    BRW_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);

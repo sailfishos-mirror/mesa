@@ -1555,7 +1555,7 @@ iris_setup_binding_table(const struct iris_screen *screen,
 
    assert(ARRAY_SIZE(info->textures_used) >= 4);
    int max_tex = BITSET_LAST_BIT(info->textures_used);
-   assert(max_tex <= 128);
+   assert(max_tex <= IRIS_MAX_TEXTURES);
    bt->surf_count[IRIS_SURFACE_GROUP_TEXTURE_LOW64] = MIN2(64, max_tex);
    bt->surf_count[IRIS_SURFACE_GROUP_TEXTURE_HIGH64] = MAX2(0, max_tex - 64);
    bt->used_mask[IRIS_SURFACE_GROUP_TEXTURE_LOW64] =
@@ -1597,6 +1597,7 @@ iris_setup_binding_table(const struct iris_screen *screen,
 
          case nir_intrinsic_load_output:
             if (!brw_can_coherent_fb_fetch(devinfo)) {
+               assert(screen->brw == NULL);
                mark_used_with_src(bt, &intrin->src[0],
                                   IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
             }
@@ -1668,7 +1669,13 @@ iris_setup_binding_table(const struct iris_screen *screen,
             enum iris_surface_group group;
             unsigned group_index;
 
-            if (tex->texture_index < 64) {
+            /* Framebuffer reads use indices beyond the sampler-view range
+             * until they are mapped to render-target-read surfaces here.
+             */
+            if (tex->texture_index >= IRIS_MAX_TEXTURES) {
+               group = IRIS_SURFACE_GROUP_RENDER_TARGET_READ;
+               group_index = tex->texture_index - IRIS_MAX_TEXTURES;
+            } else if (tex->texture_index < 64) {
                group = IRIS_SURFACE_GROUP_TEXTURE_LOW64;
                group_index = tex->texture_index;
             } else {
@@ -1777,22 +1784,18 @@ iris_setup_binding_table(const struct iris_screen *screen,
 
          case nir_intrinsic_load_output:
             if (!brw_can_coherent_fb_fetch(devinfo)) {
+               /* load_output should have been lowered to texture ops by
+                * brw_nir_lower_fs_load_output()
+                */
+               assert(screen->brw == NULL);
                /* We're using a BTI as the load_output offset here which
                 * breaks newer NIR assumptions.
                 */
                nir_io_semantics io_sem = nir_intrinsic_io_semantics(intrin);
                io_sem.no_validate = true;
                nir_intrinsic_set_io_semantics(intrin, io_sem);
-
-               if (use_efficient_64bit) {
-                  rewrite_src_with_surface_address(&b, bt, instr,
-                                                   &intrin->src[0],
-                                                   IRIS_SURFACE_GROUP_RENDER_TARGET_READ,
-                                                   screen->isl_dev.ss.size);
-               } else {
-                  rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
-                                       IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
-               }
+               rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
+                                    IRIS_SURFACE_GROUP_RENDER_TARGET_READ);
             }
             break;
 
@@ -3057,8 +3060,24 @@ iris_compile_fs(struct iris_screen *screen,
     * intrinsics to IRIS_SURFACE_GROUP_RENDER_TARGET_READ on Gfx8 for
     * non-coherent framebuffer fetches.
     */
-   elk_nir_lower_fs_outputs(nir);
+   if (!screen->brw)
+      elk_nir_lower_fs_outputs(nir);
 #endif
+
+   /* Lower non-coherent framebuffer reads to texture operations before
+    * binding-table setup.
+    * Reserve indices past the sampler views so iris_setup_binding_table() maps
+    * them to render-target-read surfaces.
+    * Coherent reads and the Elk path keep their load_output intrinsics.
+    */
+   if (screen->brw && !brw_can_coherent_fb_fetch(devinfo) &&
+       nir->info.outputs_read) {
+      struct brw_fs_prog_key brw_key = iris_to_brw_fs_key(screen, key);
+
+      brw_nir_lower_fs_outputs(nir);
+      NIR_PASS(_, nir, brw_nir_lower_fs_load_output, &brw_key,
+               IRIS_MAX_TEXTURES);
+   }
 
    int null_rts = key->nr_color_regions == 0 &&
       brw_nir_fs_needs_null_rt(devinfo, nir,

@@ -919,7 +919,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
 
       if (!brw_can_coherent_fb_fetch(devinfo))
-         JAY_NIR_PASS(brw_nir_lower_fs_load_output, &key->fs);
+         JAY_NIR_PASS(brw_nir_lower_fs_load_output, &key->fs, 0);
 
       /* Do this lowering before jay_populate_prog_data(). */
       JAY_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
