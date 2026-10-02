@@ -1497,14 +1497,10 @@ scan_for_force_probe(int pci_id, bool *force_on, bool *force_off)
    *force_off = false;
 
    const char *env = os_get_option("INTEL_FORCE_PROBE");
-   if (env == NULL)
+   if (env == NULL || env[0] == '\0')
       return;
 
-   size_t len = strlen(env);
-   if (len == 0)
-      return;
-
-   char *dup = strndup(env, len);
+   char *dup = strdup(env);
    if (dup == NULL)
       return;
 
