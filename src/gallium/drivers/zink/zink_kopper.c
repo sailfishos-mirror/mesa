@@ -419,6 +419,8 @@ update_swapchain(struct zink_screen *screen, struct kopper_displaytarget *cdt, u
    VkResult error = update_caps(screen, cdt);
    if (error != VK_SUCCESS)
       return error;
+   if (cdt->async)
+      util_queue_fence_wait(&cdt->swapchain->present_fence);
    struct kopper_swapchain *cswap = kopper_CreateSwapchain(screen, cdt, w, h, &error);
    if (!cswap)
       return error;
