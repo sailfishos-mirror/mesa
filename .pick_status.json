@@ -2854,7 +2854,7 @@
         "description": "winsys/amdgpu: fix import/destroy race again",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "85e74944c69a41736def2e945b62959ec7d805de",
         "notes": null
