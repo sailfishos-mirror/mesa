@@ -1220,13 +1220,15 @@ zink_kopper_check(struct pipe_resource *pres)
 }
 
 void
-zink_kopper_set_swap_interval(struct pipe_screen *pscreen, struct pipe_resource *pres, int interval)
+zink_kopper_set_swap_interval(struct pipe_context *pctx, struct pipe_resource *pres, int interval)
 {
    struct zink_resource *res = zink_resource(pres);
-   struct zink_screen *screen = zink_screen(pscreen);
+   struct zink_screen *screen = zink_screen(pctx->screen);
    assert(res->obj->dt);
    struct kopper_displaytarget *cdt = res->obj->dt;
    VkPresentModeKHR old_present_mode = cdt->present_mode;
+
+   zink_tc_context_unwrap(pctx);
 
    zink_kopper_set_present_mode_for_interval(cdt, interval);
 
