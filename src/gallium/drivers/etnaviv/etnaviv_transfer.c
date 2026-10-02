@@ -126,6 +126,26 @@ free_trans:
 }
 
 static void
+etna_invalidate_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
+{
+   struct etna_context *ctx = etna_context(pctx);
+   struct etna_buffer_resource *rsc;
+
+   if (prsc->target != PIPE_BUFFER)
+      return;
+
+   rsc = etna_buffer_resource(prsc);
+
+   if (rsc->valid_buffer_range.start > rsc->valid_buffer_range.end)
+      return;
+
+   if (etna_buffer_busy(ctx, rsc))
+      etna_buffer_resource_realloc(ctx, rsc);
+   else
+      util_range_set_empty(&rsc->valid_buffer_range);
+}
+
+static void
 etna_buffer_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
 {
    struct etna_buffer_resource *rsc = etna_buffer_resource(ptrans->resource);
@@ -550,5 +570,6 @@ etna_transfer_init(struct pipe_context *pctx)
    pctx->buffer_unmap = etna_buffer_unmap;
    pctx->texture_unmap = u_transfer_helper_transfer_unmap;
    pctx->buffer_subdata = u_default_buffer_subdata;
+   pctx->invalidate_resource = etna_invalidate_resource;
    pctx->texture_subdata = u_default_texture_subdata;
 }

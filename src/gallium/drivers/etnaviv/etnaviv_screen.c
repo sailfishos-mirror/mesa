@@ -275,6 +275,7 @@ etna_init_screen_caps(struct etna_screen *screen)
    /* Memory */
    caps->constant_buffer_offset_alignment = 256;
    caps->min_map_buffer_alignment = 4096;
+   caps->invalidate_buffer = true;
 
    caps->npot_textures = true; /* VIV_FEATURE(priv->dev, chipMinorFeatures1, NON_POWER_OF_TWO); */
 
