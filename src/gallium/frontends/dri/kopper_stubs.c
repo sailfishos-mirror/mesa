@@ -1,6 +1,7 @@
 /*  SPDX-License-Identifier: MIT */
 
 #include "dri_drawable.h"
+#include "dri_screen.h"
 #include "dri_util.h"
 
 int64_t
@@ -33,24 +34,17 @@ kopperGetSyncValues(struct dri_drawable *drawable, int64_t target_msc, int64_t d
    return 0;
 }
 
-const struct dri_config **
-kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred);
-const struct dri_config **
+struct pipe_screen *
 kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 {
    return NULL;
 }
 
-struct dri_drawable;
-void
-kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits);
 void
 kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
 {
 }
 
-void
-kopper_destroy_drawable(struct dri_drawable *drawable);
 void
 kopper_destroy_drawable(struct dri_drawable *drawable)
 {
