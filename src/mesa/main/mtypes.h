@@ -2566,12 +2566,6 @@ struct gl_renderbuffer
    /** Delete this renderbuffer */
    void (*Delete)(struct gl_context *ctx, struct gl_renderbuffer *rb);
 
-   /** Allocate new storage for this renderbuffer */
-   GLboolean (*AllocStorage)(struct gl_context *ctx,
-                             struct gl_renderbuffer *rb,
-                             GLenum internalFormat,
-                             GLuint width, GLuint height);
-
    struct pipe_resource *texture;
    enum pipe_format format_linear;
    enum pipe_format format_srgb;
