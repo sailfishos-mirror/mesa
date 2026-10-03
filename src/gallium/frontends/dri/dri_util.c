@@ -639,23 +639,14 @@ driCreateContextAttribs(struct dri_screen *screen, int api,
                               shared, data, thread_safe);
 }
 
-static struct dri_context *
-driCreateNewContextForAPI(struct dri_screen *screen, int api,
-                          const struct dri_config *config,
-                          struct dri_context *shared, void *data, bool thread_safe)
-{
-    unsigned error;
-
-    return driCreateContextAttribs(screen, api, config, shared, 0, NULL,
-                                   &error, data, thread_safe);
-}
-
 struct dri_context *
 driCreateNewContext(struct dri_screen *screen, const struct dri_config *config,
                     struct dri_context *shared, void *data, bool thread_safe)
 {
-    return driCreateNewContextForAPI(screen, __DRI_API_OPENGL,
-                                     config, shared, data, thread_safe);
+    unsigned error;
+
+    return driCreateContextAttribs(screen, __DRI_API_OPENGL, config, shared,
+                                   0, NULL, &error, data, thread_safe);
 }
 
 /**
