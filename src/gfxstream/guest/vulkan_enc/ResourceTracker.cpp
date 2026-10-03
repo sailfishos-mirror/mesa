@@ -3930,6 +3930,11 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
     VirtGpuResourcePtr bufferBlob = nullptr;
     int importedFd = -1;
 #if defined(LINUX_GUEST_BUILD)
+    hasDedicatedImage =
+        dedicatedAllocInfoPtr && (dedicatedAllocInfoPtr->image != VK_NULL_HANDLE);
+    hasDedicatedBuffer =
+        dedicatedAllocInfoPtr && (dedicatedAllocInfoPtr->buffer != VK_NULL_HANDLE);
+
     // Check for import first; this takes precedence over exportDmabuf in creating the
     // VirtGpuResource
     if (importDmabuf) {
@@ -3950,10 +3955,6 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
         importedFd = importFdInfoPtr->fd;
     } else if (exportDmabuf) {
         VirtGpuDevice* instance = VirtGpuDevice::getInstance();
-        hasDedicatedImage =
-            dedicatedAllocInfoPtr && (dedicatedAllocInfoPtr->image != VK_NULL_HANDLE);
-        hasDedicatedBuffer =
-            dedicatedAllocInfoPtr && (dedicatedAllocInfoPtr->buffer != VK_NULL_HANDLE);
 
         if (hasDedicatedImage) {
             VkImageCreateInfo imageCreateInfo;
@@ -4053,7 +4054,7 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
                     return VK_ERROR_OUT_OF_DEVICE_MEMORY;
                 }
             }
-        } else if (hasDedicatedBuffer) {
+        } else {
             uint32_t virglFormat = VIRGL_FORMAT_R8_UNORM;
             const uint32_t target = PIPE_BUFFER;
             uint32_t bind = VIRGL_BIND_LINEAR;
@@ -4107,20 +4108,16 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
                     return VK_ERROR_OUT_OF_DEVICE_MEMORY;
                 }
             }
-        } else {
-            mesa_logw(
-                "VkDeviceMemory is not exportable (VkExportMemoryAllocateInfo). Requires "
-                "VkMemoryDedicatedAllocateInfo::image to create external resource.");
         }
     }
 
     if (bufferBlob) {
-        if (hasDedicatedBuffer) {
-            importBufferInfo.buffer = bufferBlob->getResourceHandle();
-            vk_append_struct(&structChainIter, &importBufferInfo);
-        } else {
+        if (hasDedicatedImage) {
             importCbInfo.colorBuffer = bufferBlob->getResourceHandle();
             vk_append_struct(&structChainIter, &importCbInfo);
+        } else {
+            importBufferInfo.buffer = bufferBlob->getResourceHandle();
+            vk_append_struct(&structChainIter, &importBufferInfo);
         }
     }
 #endif
