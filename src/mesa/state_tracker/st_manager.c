@@ -1079,8 +1079,7 @@ st_api_create_context(struct pipe_frontend_screen *fscreen,
 
    st->can_scissor_clear = !!st->screen->caps.clear_scissored;
 
-   st->ctx->invalidate_on_gl_viewport =
-      fscreen->get_param(fscreen, ST_MANAGER_BROKEN_INVALIDATE);
+   st->ctx->invalidate_on_gl_viewport = fscreen->broken_invalidate;
 
    st->frontend_screen = fscreen;
 

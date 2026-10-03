@@ -556,13 +556,6 @@ dri_validate_egl_image(struct pipe_frontend_screen *fscreen,
       return true;
 }
 
-static int
-dri_get_param(struct pipe_frontend_screen *fscreen,
-              enum st_manager_param param)
-{
-   return 0;
-}
-
 void
 dri_release_screen(struct dri_screen * screen)
 {
@@ -615,7 +608,6 @@ dri_init_screen(struct dri_screen *screen,
 {
    screen->base.screen = pscreen;
    screen->base.get_egl_image = dri_get_egl_image;
-   screen->base.get_param = dri_get_param;
    screen->base.set_background_context = dri_set_background_context;
    screen->base.validate_egl_image = dri_validate_egl_image;
 

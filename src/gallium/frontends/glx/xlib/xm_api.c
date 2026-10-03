@@ -110,18 +110,6 @@ xmesa_strict_invalidate(void)
    return debug_get_option_xmesa_strict_invalidate();
 }
 
-static int
-xmesa_get_param(struct pipe_frontend_screen *fscreen,
-                enum st_manager_param param)
-{
-   switch(param) {
-   case ST_MANAGER_BROKEN_INVALIDATE:
-      return !xmesa_strict_invalidate();
-   default:
-      return 0;
-   }
-}
-
 /* linked list of XMesaDisplay hooks per display */
 typedef struct _XMesaExtDisplayInfo {
    struct _XMesaExtDisplayInfo *next;
@@ -251,7 +239,7 @@ xmesa_init_display( Display *display )
 
    /* At this point, both fscreen and screen are known to be valid */
    xmdpy->fscreen->screen = xmdpy->screen;
-   xmdpy->fscreen->get_param = xmesa_get_param;
+   xmdpy->fscreen->broken_invalidate = !xmesa_strict_invalidate();
    (void) mtx_init(&xmdpy->mutex, mtx_plain);
 
    /* chain to the list of displays */
