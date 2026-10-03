@@ -1653,8 +1653,8 @@ zink_bind_vertex_addresses(struct zink_context *ctx, const struct pipe_vertex_bu
          int offset = vb->buffer_offset;
          assert(res->obj->buffer);
          address = res->obj->bda + offset;
-         size = res->base.b.width0 - offset;
-         if (res->base.b.flags & PIPE_RESOURCE_FLAG_SPARSE)
+         size = res->size - offset;
+         if (res->is_sparse)
             flags &= ~VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
       }
       dac_vbs[i].sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR;

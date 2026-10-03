@@ -1822,6 +1822,8 @@ resource_create(struct pipe_screen *pscreen,
    }
 
    res->base.b = *templ;
+   res->size = templ->width0;
+   res->is_sparse = !!(templ->flags & PIPE_RESOURCE_FLAG_SPARSE);
 
    bool allow_cpu_storage = (templ->target == PIPE_BUFFER) &&
                             (templ->usage != PIPE_USAGE_STREAM) &&

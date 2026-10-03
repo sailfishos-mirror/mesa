@@ -1269,18 +1269,27 @@ struct zink_resource {
    struct threaded_resource base;
 
    enum pipe_format internal_format:16;
-
+   bool is_sparse;
+   uint32_t size;
    struct zink_resource_object *obj;
    struct zink_resource *transient; //for msrtt without EXT_multisampled_render_to_single_sampled and format view shadowing
+
+   alignas(64) VkPipelineStageFlagBits gfx_barrier;
+   union {
+      uint16_t bind_count[2]; //gfx, compute
+      uint32_t all_binds;
+   };
+   VkAccessFlagBits barrier_access[2]; //gfx, compute
+   uint32_t vbo_bind_mask;
+   uint8_t vbo_bind_count;
    uint32_t queue;
+
    union {
       struct {
          struct util_range valid_buffer_range;
          struct util_range *real_buffer_range; //only set on tc replace_buffer src
-         uint32_t vbo_bind_mask : PIPE_MAX_ATTRIBS;
          uint8_t ubo_bind_count[2];
          uint8_t ssbo_bind_count[2];
-         uint8_t vbo_bind_count;
          uint8_t so_bind_count; //not counted in all_binds
          bool so_valid;
          uint32_t ubo_bind_mask[MESA_SHADER_MESH_STAGES];
@@ -1308,14 +1317,6 @@ struct zink_resource {
       uint16_t bindless[2]; //tex, img
       uint32_t all_bindless;
    };
-   union {
-      uint16_t bind_count[2]; //gfx, compute
-      uint32_t all_binds;
-   };
-
-   VkPipelineStageFlagBits gfx_barrier;
-   VkAccessFlagBits barrier_access[2]; //gfx, compute
-
    unsigned rebind_count;
 
    VkRect2D damage;
