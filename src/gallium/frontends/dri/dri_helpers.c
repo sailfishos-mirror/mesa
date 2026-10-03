@@ -312,8 +312,7 @@ dri2_destroy_image(struct dri_image *img)
 {
    const __DRIimageLoaderExtension *imgLoader = img->screen->loader.image;
 
-   if (imgLoader && imgLoader->base.version >= 4 &&
-         imgLoader->destroyLoaderImageState) {
+   if (imgLoader && imgLoader->destroyLoaderImageState) {
       imgLoader->destroyLoaderImageState(img->loader_private);
    }
 

@@ -89,7 +89,7 @@ put_image_shm(struct dri_drawable *drawable, int shmid, char *shmaddr,
    const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    /* if we have the newer interface, don't have to add the offset_x here. */
-   if (loader->base.version > 4 && loader->putImageShm2)
+   if (loader->putImageShm2)
      loader->putImageShm2(drawable, __DRI_SWRAST_IMAGE_OP_SWAP,
                           x, y, width, height, stride,
                           shmid, shmaddr, offset, drawable->loaderPrivate);
@@ -113,8 +113,7 @@ get_image2(struct dri_drawable *drawable, int x, int y, int width, int height, i
 {
    const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
-   /* getImage2 support is only in version 3 or newer */
-   if (loader->base.version < 3)
+   if (!loader->getImage2)
       return;
 
    loader->getImage2(drawable, x, y, width, height, stride,
@@ -130,13 +129,13 @@ get_image_shm(struct dri_drawable *drawable, int x, int y, int width, int height
 
    whandle.type = WINSYS_HANDLE_TYPE_SHMID;
 
-   if (loader->base.version < 4 || !loader->getImageShm)
+   if (!loader->getImageShm)
       return false;
 
    if (!res->screen->resource_get_handle(res->screen, NULL, res, &whandle, PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE))
       return false;
 
-   if (loader->base.version > 5 && loader->getImageShm2)
+   if (loader->getImageShm2)
       return loader->getImageShm2(drawable, x, y, width, height, whandle.handle, drawable->loaderPrivate);
 
    loader->getImageShm(drawable, x, y, width, height, whandle.handle, drawable->loaderPrivate);
@@ -496,7 +495,7 @@ drisw_allocate_textures(struct dri_context *stctx,
 
          if (statts[i] == ST_ATTACHMENT_FRONT_LEFT &&
                     screen->base.screen->resource_create_front &&
-                    loader->base.version >= 3) {
+                    loader->getImage2) {
             drawable->textures[statts[i]] =
                screen->base.screen->resource_create_front(screen->base.screen, &templ, (const void *)drawable);
          } else
@@ -594,10 +593,8 @@ drisw_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 
    screen->swrast_no_present = debug_get_option_swrast_no_present();
 
-   if (loader->base.version >= 4) {
-      if (loader->putImageShm)
-         lf = &drisw_shm_lf;
-   }
+   if (loader->putImageShm)
+      lf = &drisw_shm_lf;
 
    bool success = false;
 #ifdef HAVE_DRISW_KMS

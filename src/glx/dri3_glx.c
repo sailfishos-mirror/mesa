@@ -342,8 +342,6 @@ dri3_flush_swap_buffers(struct dri_drawable *driDrawable, void *loaderPrivate)
 /* The image loader extension record for DRI3
  */
 static const __DRIimageLoaderExtension imageLoaderExtension = {
-   .base = { __DRI_IMAGE_LOADER, 3 },
-
    .getBuffers          = loader_dri3_get_buffers,
    .flushFrontBuffer    = dri3_flush_front_buffer,
    .flushSwapBuffers    = dri3_flush_swap_buffers,

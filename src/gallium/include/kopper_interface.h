@@ -72,11 +72,7 @@ struct kopper_loader_info {
    uint32_t compression;
 };
 
-#define __DRI_KOPPER_LOADER "DRI_KopperLoader"
-#define __DRI_KOPPER_LOADER_VERSION 0
 struct __DRIkopperLoaderExtensionRec {
-    __DRIextension base;
-
     /* Asks the loader to fill in VkWhateverSurfaceCreateInfo etc. */
     void (*SetSurfaceCreateInfo)(void *draw, struct kopper_loader_info *out);
     /* Asks the loader to fill in the drawable's width and height */

@@ -196,7 +196,6 @@ device_get_capability(void *loaderPrivate, enum dri_loader_cap cap)
 }
 
 static const __DRIimageLoaderExtension image_loader_extension = {
-   .base = {__DRI_IMAGE_LOADER, 2},
    .getBuffers = device_image_get_buffers,
    .flushFrontBuffer = device_flush_front_buffer,
    .getCapability = device_get_capability,

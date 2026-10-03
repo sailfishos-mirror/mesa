@@ -925,8 +925,6 @@ static const struct dri2_egl_display_vtbl dri2_x11_kopper_display_vtbl = {
 };
 
 static const __DRIswrastLoaderExtension swrast_loader_extension = {
-   .base = {__DRI_SWRAST_LOADER, 1},
-
    .getDrawableInfo = swrastGetDrawableInfo,
    .putImage = swrastPutImage,
    .putImage2 = swrastPutImage2,
@@ -934,8 +932,6 @@ static const __DRIswrastLoaderExtension swrast_loader_extension = {
 };
 
 static const __DRIswrastLoaderExtension swrast_loader_shm_extension = {
-   .base = {__DRI_SWRAST_LOADER, 4},
-
    .getDrawableInfo = swrastGetDrawableInfo,
    .putImage = swrastPutImage,
    .putImage2 = swrastPutImage2,
@@ -976,8 +972,6 @@ kopperGetDrawableInfo(struct dri_drawable *draw, int *w, int *h,
 }
 
 static const __DRIkopperLoaderExtension kopper_loader_extension = {
-   .base = {__DRI_KOPPER_LOADER, 1},
-
    .SetSurfaceCreateInfo = kopperSetSurfaceCreateInfo,
    .GetDrawableInfo = kopperGetDrawableInfo,
 };

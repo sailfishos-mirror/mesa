@@ -883,8 +883,6 @@ static const struct dri2_egl_display_vtbl droid_display_vtbl = {
 };
 
 static const __DRIimageLoaderExtension droid_image_loader_extension = {
-   .base = {__DRI_IMAGE_LOADER, 4},
-
    .getBuffers = droid_image_get_buffers,
    .flushFrontBuffer = droid_flush_front_buffer,
    .getCapability = droid_get_capability,
@@ -988,8 +986,6 @@ droid_swrast_get_image(struct dri_drawable *read, int x, int y, int w, int h,
 }
 
 static const __DRIswrastLoaderExtension swrast_loader_extension = {
-   .base = {__DRI_SWRAST_LOADER, 2},
-
    .getDrawableInfo = droid_swrast_get_drawable_info,
    .putImage = droid_swrast_put_image,
    .getImage = droid_swrast_get_image,
@@ -998,7 +994,6 @@ static const __DRIswrastLoaderExtension swrast_loader_extension = {
 
 static const __DRImutableRenderBufferLoaderExtension
    droid_mutable_render_buffer_extension = {
-      .base = {__DRI_MUTABLE_RENDER_BUFFER_LOADER, 1},
       .displaySharedBuffer = droid_display_shared_buffer,
 };
 

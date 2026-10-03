@@ -423,8 +423,6 @@ dri3_flush_front_buffer(struct dri_drawable *driDrawable, void *loaderPrivate)
 }
 
 const __DRIimageLoaderExtension dri3_image_loader_extension = {
-   .base = {__DRI_IMAGE_LOADER, 1},
-
    .getBuffers = loader_dri3_get_buffers,
    .flushFrontBuffer = dri3_flush_front_buffer,
 };

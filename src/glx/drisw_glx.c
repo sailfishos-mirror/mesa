@@ -364,8 +364,6 @@ swrastGetImageShm(struct dri_drawable * read,
 }
 
 static const __DRIswrastLoaderExtension swrastLoaderExtension_shm = {
-   .base = {__DRI_SWRAST_LOADER, 6 },
-
    .getDrawableInfo     = swrastGetDrawableInfo,
    .putImage            = swrastPutImage,
    .getImage            = swrastGetImage,
@@ -378,8 +376,6 @@ static const __DRIswrastLoaderExtension swrastLoaderExtension_shm = {
 };
 
 static const __DRIswrastLoaderExtension swrastLoaderExtension = {
-   .base = {__DRI_SWRAST_LOADER, 3 },
-
    .getDrawableInfo     = swrastGetDrawableInfo,
    .putImage            = swrastPutImage,
    .getImage            = swrastGetImage,
@@ -412,8 +408,6 @@ kopperGetDrawableInfo(struct dri_drawable * draw,
 }
 
 static const __DRIkopperLoaderExtension kopperLoaderExtension = {
-    .base = { __DRI_KOPPER_LOADER, 1 },
-
     .SetSurfaceCreateInfo   = kopperSetSurfaceCreateInfo,
     .GetDrawableInfo        = kopperGetDrawableInfo,
 };

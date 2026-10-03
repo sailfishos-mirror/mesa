@@ -1601,8 +1601,6 @@ dri2_wl_get_capability(void *loaderPrivate, enum dri_loader_cap cap)
 }
 
 static const __DRIimageLoaderExtension image_loader_extension = {
-   .base = {__DRI_IMAGE_LOADER, 2},
-
    .getBuffers = image_get_buffers,
    .flushFrontBuffer = dri2_wl_flush_front_buffer,
    .getCapability = dri2_wl_get_capability,
@@ -2500,8 +2498,6 @@ dri2_wl_kopper_get_drawable_info(struct dri_drawable *draw, int *w,
 }
 
 static const __DRIkopperLoaderExtension kopper_loader_extension = {
-   .base = {__DRI_KOPPER_LOADER, 1},
-
    .SetSurfaceCreateInfo = kopperSetSurfaceCreateInfo,
    .GetDrawableInfo = dri2_wl_kopper_get_drawable_info,
 };
@@ -3147,8 +3143,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_swrast_display_vtbl = {
 };
 
 static const __DRIswrastLoaderExtension swrast_loader_extension = {
-   .base = {__DRI_SWRAST_LOADER, 2},
-
    .getDrawableInfo = dri2_wl_swrast_get_drawable_info,
    .putImage = dri2_wl_swrast_put_image,
    .getImage = dri2_wl_swrast_get_image,

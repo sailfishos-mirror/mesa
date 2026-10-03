@@ -207,23 +207,17 @@ kopper_get_drawable_info(struct dri_drawable *driDrawable,
 }
 
 static const __DRIimageLookupExtension image_lookup_extension = {
-   .base = { __DRI_IMAGE_LOOKUP, 2 },
-
    .validateEGLImage        = dri_validate_egl_image,
    .lookupEGLImageValidated = dri_lookup_egl_image_validated,
 };
 
 static const __DRIimageLoaderExtension image_loader_extension = {
-   .base = { __DRI_IMAGE_LOADER, 2 },
-
    .getBuffers          = image_get_buffers,
    .flushFrontBuffer    = dri_flush_front_buffer,
    .getCapability       = dri_get_capability,
 };
 
 static const __DRIswrastLoaderExtension swrast_loader_extension = {
-   .base = { __DRI_SWRAST_LOADER, 2 },
-
    .getDrawableInfo = swrast_get_drawable_info,
    .putImage        = swrast_put_image,
    .getImage        = swrast_get_image,
@@ -231,8 +225,6 @@ static const __DRIswrastLoaderExtension swrast_loader_extension = {
 };
 
 static const __DRIkopperLoaderExtension kopper_loader_extension = {
-    .base = { __DRI_KOPPER_LOADER, 1 },
-
     .SetSurfaceCreateInfo   = NULL,
     .GetDrawableInfo        = kopper_get_drawable_info,
 };

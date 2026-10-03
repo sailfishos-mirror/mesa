@@ -131,9 +131,7 @@ typedef signed long
  *
  * Version 1 is advertised by the X server.
  */
-#define __DRI_SWRAST_LOADER "DRI_SWRastLoader"
 typedef struct {
-    __DRIextension base;
 
     /*
      * Drawable position and size
@@ -573,11 +571,7 @@ enum __DRIFixedRateCompression {
  * but future versions could support other EGLImage-like, opaque types
  * with new lookup functions.
  */
-#define __DRI_IMAGE_LOOKUP "DRI_IMAGE_LOOKUP"
-
 typedef struct {
-    __DRIextension base;
-
     /**
      * Check if EGLImage is associated with the EGL display before lookup with
      * lookupEGLImageValidated(). It will hold EGLDisplay.Mutex, so is separated
@@ -674,11 +668,7 @@ struct __DRIimageList {
    struct dri_image *front;
 };
 
-#define __DRI_IMAGE_LOADER "DRI_IMAGE_LOADER"
-
 typedef struct {
-    __DRIextension base;
-
    /**
     * Allocate color buffers.
     *
@@ -752,11 +742,7 @@ typedef struct {
  *
  * \see __DRI_MUTABLE_RENDER_BUFFER_DRIVER
  */
-#define __DRI_MUTABLE_RENDER_BUFFER_LOADER "DRI_MutableRenderBufferLoader"
-
 typedef struct {
-   __DRIextension base;
-
    /**
     * Inform the display engine (that is, SurfaceFlinger and/or hwcomposer)
     * that the struct dri_drawable has new content.

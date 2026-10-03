@@ -67,8 +67,7 @@ dri_loader_get_cap(struct dri_screen *screen, enum dri_loader_cap cap)
 {
    const __DRIimageLoaderExtension *image_loader = screen->loader.image;
 
-   if (image_loader && image_loader->base.version >= 2 &&
-       image_loader->getCapability)
+   if (image_loader && image_loader->getCapability)
       return image_loader->getCapability(screen->loaderPrivate, cap);
 
    return 0;

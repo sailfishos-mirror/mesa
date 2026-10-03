@@ -204,14 +204,12 @@ dri2_get_image(struct dri_drawable *read, int x, int y, int w, int h, char *data
 /* HACK: technically we should have swrast_null, instead of these.
  */
 const __DRIswrastLoaderExtension swrast_pbuffer_loader_extension = {
-   .base = {__DRI_SWRAST_LOADER, 1},
    .getDrawableInfo = dri2_get_pbuffer_drawable_info,
    .putImage = dri2_put_image,
    .getImage = dri2_get_image,
 };
 
 const __DRIkopperLoaderExtension kopper_pbuffer_loader_extension = {
-   .base = {__DRI_KOPPER_LOADER, 1},
    .GetDrawableInfo = dri2_kopper_get_pbuffer_drawable_info,
    .SetSurfaceCreateInfo = NULL,
 };
@@ -562,8 +560,6 @@ dri2_lookup_egl_image_validated(void *image, void *data)
 }
 
 const __DRIimageLookupExtension image_lookup_extension = {
-   .base = {__DRI_IMAGE_LOOKUP, 2},
-
    .validateEGLImage = dri2_validate_egl_image,
    .lookupEGLImageValidated = dri2_lookup_egl_image_validated,
 };
