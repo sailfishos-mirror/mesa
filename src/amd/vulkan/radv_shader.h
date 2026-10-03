@@ -849,9 +849,22 @@ void radv_shader_combine_cfg_tes_gs(const struct radv_device *device, const stru
                                     const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out,
                                     uint32_t *rsrc4_out);
 
-const struct radv_userdata_info *radv_get_user_sgpr_info(const struct radv_shader *shader, int idx);
+static inline const struct radv_userdata_info *
+radv_get_user_sgpr_info(const struct radv_shader *shader, int idx)
+{
+   return &shader->info.user_sgprs_locs.shader_data[idx];
+}
 
-uint32_t radv_get_user_sgpr_loc(const struct radv_shader *shader, int idx);
+static inline uint32_t
+radv_get_user_sgpr_loc(const struct radv_shader *shader, int idx)
+{
+   const struct radv_userdata_info *loc = radv_get_user_sgpr_info(shader, idx);
+
+   if (loc->sgpr_idx == -1)
+      return 0;
+
+   return shader->info.user_data_0 + loc->sgpr_idx * 4;
+}
 
 uint32_t radv_get_user_sgpr(const struct radv_shader *shader, int idx);
 

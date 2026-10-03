@@ -3988,23 +3988,6 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
    return spi_ps_input;
 }
 
-const struct radv_userdata_info *
-radv_get_user_sgpr_info(const struct radv_shader *shader, int idx)
-{
-   return &shader->info.user_sgprs_locs.shader_data[idx];
-}
-
-uint32_t
-radv_get_user_sgpr_loc(const struct radv_shader *shader, int idx)
-{
-   const struct radv_userdata_info *loc = radv_get_user_sgpr_info(shader, idx);
-
-   if (loc->sgpr_idx == -1)
-      return 0;
-
-   return shader->info.user_data_0 + loc->sgpr_idx * 4;
-}
-
 uint32_t
 radv_get_user_sgpr(const struct radv_shader *shader, int idx)
 {
