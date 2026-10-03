@@ -210,6 +210,7 @@ dri3_create_surface(_EGLDisplay *disp, EGLint type, _EGLConfig *conf,
 
    dri3_surf->loader_drawable.is_protected_content =
       dri3_surf->surf.base.ProtectedContent;
+   dri3_surf->surf.dri_drawable = dri3_surf->loader_drawable.dri_drawable;
 
    return &dri3_surf->surf.base;
 
@@ -480,14 +481,6 @@ dri3_query_surface(_EGLDisplay *disp, _EGLSurface *surf, EGLint attribute,
    return _eglQuerySurface(disp, surf, attribute, value);
 }
 
-static struct dri_drawable *
-dri3_get_dri_drawable(_EGLSurface *surf)
-{
-   struct dri3_egl_surface *dri3_surf = dri3_egl_surface(surf);
-
-   return dri3_surf->loader_drawable.dri_drawable;
-}
-
 static void
 dri3_close_screen_notify(_EGLDisplay *disp)
 {
@@ -510,7 +503,6 @@ struct dri2_egl_display_vtbl dri3_x11_display_vtbl = {
    .query_surface = dri3_query_surface,
    .get_sync_values = dri3_get_sync_values,
    .get_msc_rate = dri2_x11_get_msc_rate,
-   .get_dri_drawable = dri3_get_dri_drawable,
    .close_screen_notify = dri3_close_screen_notify,
 };
 

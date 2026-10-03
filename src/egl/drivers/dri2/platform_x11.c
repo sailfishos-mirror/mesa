@@ -565,7 +565,7 @@ dri2_query_surface(_EGLDisplay *disp, _EGLSurface *surf, EGLint attribute,
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(surf);
    int x, y, w, h;
 
-   struct dri_drawable *drawable = dri2_dpy->vtbl->get_dri_drawable(surf);
+   struct dri_drawable *drawable = dri2_surface_get_dri_drawable(surf);
 
    switch (attribute) {
    case EGL_WIDTH:
@@ -904,7 +904,6 @@ static const struct dri2_egl_display_vtbl dri2_x11_swrast_display_vtbl = {
    /* XXX: should really implement this since X11 has pixmaps */
    .query_surface = dri2_query_surface,
    .get_msc_rate = dri2_x11_get_msc_rate,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
 
 static const struct dri2_egl_display_vtbl dri2_x11_kopper_display_vtbl = {
@@ -921,7 +920,6 @@ static const struct dri2_egl_display_vtbl dri2_x11_kopper_display_vtbl = {
    /* XXX: should really implement this since X11 has pixmaps */
    .query_surface = dri2_query_surface,
    .get_msc_rate = dri2_x11_get_msc_rate,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
 
 static const __DRIswrastLoaderExtension swrast_loader_extension = {

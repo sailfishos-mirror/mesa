@@ -1898,7 +1898,7 @@ dri2_wl_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
    if (dri2_dpy->fd_render_gpu != dri2_dpy->fd_display_gpu) {
       _EGLContext *ctx = _eglGetCurrentContext();
       struct dri2_egl_context *dri2_ctx = dri2_egl_context(ctx);
-      struct dri_drawable *dri_drawable = dri2_dpy->vtbl->get_dri_drawable(draw);
+      struct dri_drawable *dri_drawable = dri2_surface_get_dri_drawable(draw);
       dri2_blit_image(
          dri2_ctx->dri_context, dri2_surf->current->linear_copy,
          dri2_surf->current->dri_image, 0, 0, dri2_surf->base.Width,
@@ -2342,7 +2342,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
    .create_image = dri2_create_image_khr,
    .swap_buffers = dri2_wl_swap_buffers,
    .query_buffer_age = dri2_wl_query_buffer_age,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
 
 static const struct dri_loader_funcs dri2_loader_funcs = {
@@ -2407,7 +2406,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_kopper_display_vtbl = {
    .destroy_surface = dri2_wl_destroy_surface,
    .create_image = dri2_create_image_khr,
    .swap_buffers = dri2_wl_kopper_swap_buffers,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
    .query_buffer_age = dri2_wl_kopper_query_buffer_age,
 };
 
@@ -3138,7 +3136,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_swrast_display_vtbl = {
    .swap_interval = dri2_wl_swap_interval,
    .create_image = dri2_create_image_khr,
    .swap_buffers = dri2_wl_swrast_swap_buffers,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
    .query_buffer_age = dri2_wl_swrast_query_buffer_age,
 };
 

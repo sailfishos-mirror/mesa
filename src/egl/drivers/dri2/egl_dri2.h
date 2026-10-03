@@ -160,9 +160,6 @@ struct dri2_egl_display_vtbl {
    EGLBoolean (*get_msc_rate)(_EGLDisplay *display, _EGLSurface *surface,
                               EGLint *numerator, EGLint *denominator);
 
-   /* mandatory */
-   struct dri_drawable *(*get_dri_drawable)(_EGLSurface *surf);
-
    /* optional */
    void (*close_screen_notify)(_EGLDisplay *disp);
 

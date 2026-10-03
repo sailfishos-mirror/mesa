@@ -177,7 +177,6 @@ static const struct dri2_egl_display_vtbl dri2_surfaceless_display_vtbl = {
    .create_pbuffer_surface = dri2_surfaceless_create_pbuffer_surface,
    .destroy_surface = surfaceless_destroy_surface,
    .create_image = dri2_create_image_khr,
-   .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
 
 static void
