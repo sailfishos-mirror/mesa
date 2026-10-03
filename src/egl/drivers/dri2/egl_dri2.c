@@ -821,7 +821,7 @@ dri2_create_screen(_EGLDisplay *disp)
           */
          if (strcmp(dri2_dpy->driver_name, driver_name_display_gpu) == 0) {
             dri2_dpy->dri_screen_display_gpu = driCreateNewScreen3(
-               0, dri2_dpy->fd_display_gpu, dri2_dpy->loader_extensions,
+               0, dri2_dpy->fd_display_gpu, dri2_dpy->loader_funcs,
                type, &dri2_dpy->driver_configs, false, dri2_dpy->multibuffers_available, disp);
          }
          free(driver_name_display_gpu);
@@ -830,7 +830,7 @@ dri2_create_screen(_EGLDisplay *disp)
 
    int screen_fd = dri2_dpy->swrast_not_kms ? -1 : dri2_dpy->fd_render_gpu;
    dri2_dpy->dri_screen_render_gpu = driCreateNewScreen3(
-      0, screen_fd, dri2_dpy->loader_extensions, type,
+      0, screen_fd, dri2_dpy->loader_funcs, type,
       &dri2_dpy->driver_configs, false, dri2_dpy->multibuffers_available, disp);
 
    if (dri2_dpy->dri_screen_render_gpu == NULL) {

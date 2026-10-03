@@ -64,20 +64,7 @@ struct dri_screen
 
    enum dri_screen_type type;
 
-   const __DRIswrastLoaderExtension *swrast_loader;
-   const __DRIkopperLoaderExtension *kopper_loader;
-
-   struct {
-       const __DRIimageLookupExtension *image;
-   } dri2;
-
-   struct {
-       const __DRIimageLoaderExtension *loader;
-   } image;
-
-   struct {
-      const __DRImutableRenderBufferLoaderExtension *loader;
-   } mutableRenderBuffer;
+   struct dri_loader_funcs loader;
 
    driOptionCache optionInfo;
    driOptionCache optionCache;
@@ -114,12 +101,6 @@ struct dri_screen
    bool has_dmabuf;
    bool is_sw;
 };
-
-static inline const __DRIkopperLoaderExtension *
-dri_screen_get_kopper(struct dri_screen *screen)
-{
-   return screen->kopper_loader;
-}
 
 struct dri_image {
    struct pipe_resource *texture;

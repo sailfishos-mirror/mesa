@@ -74,20 +74,6 @@ driOptionDescription __dri2ConfigOptions[] = {
 /*****************************************************************/
 /*@{*/
 
-static void
-setupLoaderExtensions(struct dri_screen *screen,
-                      const __DRIextension **extensions)
-{
-   static const struct dri_extension_match matches[] = {
-       {__DRI_IMAGE_LOOKUP, 1, offsetof(struct dri_screen, dri2.image), true},
-       {__DRI_SWRAST_LOADER, 1, offsetof(struct dri_screen, swrast_loader), true},
-       {__DRI_IMAGE_LOADER, 1, offsetof(struct dri_screen, image.loader), true},
-       {__DRI_MUTABLE_RENDER_BUFFER_LOADER, 1, offsetof(struct dri_screen, mutableRenderBuffer.loader), true},
-       {__DRI_KOPPER_LOADER, 1, offsetof(struct dri_screen, kopper_loader), true},
-   };
-   loader_bind_extensions(screen, matches, ARRAY_SIZE(matches), extensions);
-}
-
 /**
  * This is the first entrypoint in the driver called by the DRI driver loader
  * after dlopen()ing it.
@@ -97,7 +83,7 @@ setupLoaderExtensions(struct dri_screen *screen,
  */
 struct dri_screen *
 driCreateNewScreen3(int scrn, int fd,
-                    const __DRIextension **loader_extensions,
+                    const struct dri_loader_funcs *loader,
                     enum dri_screen_type type,
                     const struct dri_config ***driver_configs, bool driver_name_is_inferred,
                     bool has_multibuffer, void *data)
@@ -108,7 +94,7 @@ driCreateNewScreen3(int scrn, int fd,
     if (!screen)
        return NULL;
 
-    setupLoaderExtensions(screen, loader_extensions);
+    screen->loader = *loader;
 
     screen->loaderPrivate = data;
 
@@ -846,7 +832,7 @@ driGetAPIMask(struct dri_screen *screen)
 void
 driSwapBuffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
-   assert(drawable->screen->swrast_loader);
+   assert(drawable->screen->loader.swrast);
 
    switch (drawable->screen->type) {
    case DRI_SCREEN_DRI3:

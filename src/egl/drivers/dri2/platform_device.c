@@ -202,18 +202,16 @@ static const __DRIimageLoaderExtension image_loader_extension = {
    .getCapability = device_get_capability,
 };
 
-static const __DRIextension *image_loader_extensions[] = {
-   &image_loader_extension.base,
-   &image_lookup_extension.base,
-   &kopper_pbuffer_loader_extension.base,
-   NULL,
+static const struct dri_loader_funcs image_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &image_loader_extension,
+   .kopper = &kopper_pbuffer_loader_extension,
 };
 
-static const __DRIextension *swrast_loader_extensions[] = {
-   &swrast_pbuffer_loader_extension.base,
-   &image_lookup_extension.base,
-   &kopper_pbuffer_loader_extension.base,
-   NULL,
+static const struct dri_loader_funcs swrast_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .swrast = &swrast_pbuffer_loader_extension,
+   .kopper = &kopper_pbuffer_loader_extension,
 };
 
 static int
@@ -290,7 +288,7 @@ device_probe_device(_EGLDisplay *disp)
 
    dri2_detect_swrast_kopper(disp);
 
-   dri2_dpy->loader_extensions = image_loader_extensions;
+   dri2_dpy->loader_funcs = &image_loader_funcs;
    return true;
 
 err_name:
@@ -313,7 +311,7 @@ device_probe_device_sw(_EGLDisplay *disp)
    /* HACK: should be driver_swrast_null */
    dri2_detect_swrast_kopper(disp);
 
-   dri2_dpy->loader_extensions = swrast_loader_extensions;
+   dri2_dpy->loader_funcs = &swrast_loader_funcs;
    return true;
 }
 

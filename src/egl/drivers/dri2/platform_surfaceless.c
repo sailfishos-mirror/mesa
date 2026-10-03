@@ -206,18 +206,20 @@ static const __DRIimageLoaderExtension image_loader_extension = {
    .getCapability = surfaceless_get_capability,
 };
 
-static const __DRIextension *image_loader_extensions[] = {
-   &image_loader_extension.base,  &image_lookup_extension.base, NULL,
+static const struct dri_loader_funcs image_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &image_loader_extension,
 };
 
-static const __DRIextension *swrast_loader_extensions[] = {
-   &swrast_pbuffer_loader_extension.base, &image_loader_extension.base,
-   &image_lookup_extension.base, NULL,
+static const struct dri_loader_funcs swrast_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &image_loader_extension,
+   .swrast = &swrast_pbuffer_loader_extension,
 };
 
-static const __DRIextension *kopper_loader_extensions[] = {
-   &kopper_pbuffer_loader_extension.base, &image_lookup_extension.base,
-   &image_lookup_extension.base, NULL,
+static const struct dri_loader_funcs kopper_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .kopper = &kopper_pbuffer_loader_extension,
 };
 
 static bool
@@ -289,11 +291,11 @@ surfaceless_probe_device(_EGLDisplay *disp, bool swrast, bool zink)
       if (dri2_dpy->driver_name) {
          dri2_detect_swrast_kopper(disp);
          if (dri2_dpy->kopper)
-            dri2_dpy->loader_extensions = kopper_loader_extensions;
+            dri2_dpy->loader_funcs = &kopper_loader_funcs;
          else if (swrast)
-            dri2_dpy->loader_extensions = swrast_loader_extensions;
+            dri2_dpy->loader_funcs = &swrast_loader_funcs;
          else
-            dri2_dpy->loader_extensions = image_loader_extensions;
+            dri2_dpy->loader_funcs = &image_loader_funcs;
 
          if (!dri2_create_screen(disp)) {
             _eglLog(_EGL_WARNING, "DRI2: failed to create screen");
@@ -361,9 +363,9 @@ surfaceless_probe_device_sw(_EGLDisplay *disp)
    dri2_detect_swrast_kopper(disp);
 
    if (dri2_dpy->kopper)
-      dri2_dpy->loader_extensions = kopper_loader_extensions;
+      dri2_dpy->loader_funcs = &kopper_loader_funcs;
    else
-      dri2_dpy->loader_extensions = swrast_loader_extensions;
+      dri2_dpy->loader_funcs = &swrast_loader_funcs;
 
    dri2_dpy->fd_display_gpu = dri2_dpy->fd_render_gpu;
 

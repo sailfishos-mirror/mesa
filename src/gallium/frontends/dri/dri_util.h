@@ -106,7 +106,7 @@ struct __DriverContextConfig {
 
 PUBLIC struct dri_screen *
 driCreateNewScreen3(int scrn, int fd,
-                    const __DRIextension **loader_extensions,
+                    const struct dri_loader_funcs *loader,
                     enum dri_screen_type type,
                     const struct dri_config ***driver_configs, bool driver_name_is_inferred,
                     bool has_multibuffer, void *data);

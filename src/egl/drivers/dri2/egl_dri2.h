@@ -249,7 +249,7 @@ struct dri2_egl_display {
 
    char *driver_name;
 
-   const __DRIextension **loader_extensions;
+   const struct dri_loader_funcs *loader_funcs;
 
    bool has_dmabuf_import;
    bool has_dmabuf_export;

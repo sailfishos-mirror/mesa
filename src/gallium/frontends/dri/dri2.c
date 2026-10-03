@@ -142,7 +142,7 @@ dri_image_drawable_get_buffers(struct dri_drawable *drawable,
     *    st_api_make_current
     *    st_manager_validate_framebuffers (part of st_validate_state)
     */
-   return drawable->screen->image.loader->getBuffers(
+   return drawable->screen->loader.image->getBuffers(
                                           drawable,
                                           color_format,
                                           (uint32_t *)&drawable->base.stamp,
@@ -172,7 +172,7 @@ dri2_allocate_textures(struct dri_context *ctx,
    struct pipe_resource templ;
    bool alloc_depthstencil = false;
    unsigned i, j;
-   const __DRIimageLoaderExtension *image = screen->image.loader;
+   const __DRIimageLoaderExtension *image = screen->loader.image;
    /* Image specific variables */
    struct __DRIimageList images;
 
@@ -339,9 +339,9 @@ dri2_flush_frontbuffer(struct dri_context *ctx,
                        struct dri_drawable *drawable,
                        enum st_attachment_type statt)
 {
-   const __DRIimageLoaderExtension *image = drawable->screen->image.loader;
+   const __DRIimageLoaderExtension *image = drawable->screen->loader.image;
    const __DRImutableRenderBufferLoaderExtension *shared_buffer_loader =
-      drawable->screen->mutableRenderBuffer.loader;
+      drawable->screen->loader.mutable_render_buffer;
    struct pipe_context *pipe = ctx->st->pipe;
    struct pipe_fence_handle *fence = NULL;
    int fence_fd = -1;
@@ -400,7 +400,7 @@ void
 dri2_flush_swapbuffers(struct dri_context *ctx,
                        struct dri_drawable *drawable)
 {
-   const __DRIimageLoaderExtension *image = drawable->screen->image.loader;
+   const __DRIimageLoaderExtension *image = drawable->screen->loader.image;
 
    if (image && image->flushSwapBuffers) {
       image->flushSwapBuffers(drawable, drawable->loaderPrivate);

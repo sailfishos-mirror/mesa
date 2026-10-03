@@ -310,7 +310,7 @@ dri_create_image_from_renderbuffer(struct dri_context *dri_ctx,
 void
 dri2_destroy_image(struct dri_image *img)
 {
-   const __DRIimageLoaderExtension *imgLoader = img->screen->image.loader;
+   const __DRIimageLoaderExtension *imgLoader = img->screen->loader.image;
 
    if (imgLoader && imgLoader->base.version >= 4 &&
          imgLoader->destroyLoaderImageState) {

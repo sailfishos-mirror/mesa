@@ -941,7 +941,7 @@ dri_bind_tex_image(__GLXDRIdrawable *base, int buffer, const int *attrib_list)
 }
 
 bool
-dri_screen_init(struct glx_screen *psc, struct glx_display *priv, int screen, int fd, const __DRIextension **loader_extensions, bool driver_name_is_inferred)
+dri_screen_init(struct glx_screen *psc, struct glx_display *priv, int screen, int fd, const struct dri_loader_funcs *loader_funcs, bool driver_name_is_inferred)
 {
    const struct dri_config **driver_configs;
    struct glx_config *configs = NULL, *visuals = NULL;
@@ -965,7 +965,7 @@ dri_screen_init(struct glx_screen *psc, struct glx_display *priv, int screen, in
    }
 
    psc->frontend_screen = driCreateNewScreen3(screen, fd,
-                                                 loader_extensions,
+                                                 loader_funcs,
                                                  type,
                                                  &driver_configs, driver_name_is_inferred,
                                                  psc->display->has_multibuffer, psc);

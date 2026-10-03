@@ -54,7 +54,7 @@ DEBUG_GET_ONCE_BOOL_OPTION(swrast_no_present, "SWRAST_NO_PRESENT", false);
 static inline void
 get_drawable_info(struct dri_drawable *drawable, int *x, int *y, int *w, int *h)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    loader->getDrawableInfo(drawable, x, y, w, h,
                            drawable->loaderPrivate);
@@ -63,7 +63,7 @@ get_drawable_info(struct dri_drawable *drawable, int *x, int *y, int *w, int *h)
 static inline void
 put_image(struct dri_drawable *drawable, void *data, unsigned width, unsigned height)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    loader->putImage(drawable, __DRI_SWRAST_IMAGE_OP_SWAP,
                     0, 0, width, height,
@@ -74,7 +74,7 @@ static inline void
 put_image2(struct dri_drawable *drawable, void *data, int x, int y,
            unsigned width, unsigned height, unsigned stride)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    loader->putImage2(drawable, __DRI_SWRAST_IMAGE_OP_SWAP,
                      x, y, width, height, stride,
@@ -86,7 +86,7 @@ put_image_shm(struct dri_drawable *drawable, int shmid, char *shmaddr,
               unsigned offset, unsigned offset_x, int x, int y,
               unsigned width, unsigned height, unsigned stride)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    /* if we have the newer interface, don't have to add the offset_x here. */
    if (loader->base.version > 4 && loader->putImageShm2)
@@ -102,7 +102,7 @@ put_image_shm(struct dri_drawable *drawable, int shmid, char *shmaddr,
 static inline void
 get_image(struct dri_drawable *drawable, int x, int y, int width, int height, void *data)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    loader->getImage(drawable, x, y, width, height,
                     data, drawable->loaderPrivate);
@@ -111,7 +111,7 @@ get_image(struct dri_drawable *drawable, int x, int y, int width, int height, vo
 static inline void
 get_image2(struct dri_drawable *drawable, int x, int y, int width, int height, int stride, void *data)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
    /* getImage2 support is only in version 3 or newer */
    if (loader->base.version < 3)
@@ -125,7 +125,7 @@ static inline bool
 get_image_shm(struct dri_drawable *drawable, int x, int y, int width, int height,
               struct pipe_resource *res)
 {
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
    struct winsys_handle whandle;
 
    whandle.type = WINSYS_HANDLE_TYPE_SHMID;
@@ -382,12 +382,12 @@ drisw_allocate_textures(struct dri_context *stctx,
                         unsigned count)
 {
    struct dri_screen *screen = drawable->screen;
-   const __DRIswrastLoaderExtension *loader = drawable->screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
    struct pipe_resource templ;
    unsigned width, height;
    bool resized;
    unsigned i;
-   const __DRIimageLoaderExtension *image = screen->image.loader;
+   const __DRIimageLoaderExtension *image = screen->loader.image;
    struct __DRIimageList images;
    bool imported_buffers = true;
 
@@ -583,7 +583,7 @@ static const struct drisw_loader_funcs drisw_shm_lf = {
 struct pipe_screen *
 drisw_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 {
-   const __DRIswrastLoaderExtension *loader = screen->swrast_loader;
+   const __DRIswrastLoaderExtension *loader = screen->loader.swrast;
    struct pipe_screen *pscreen = NULL;
    const struct drisw_loader_funcs *lf = &drisw_lf;
 
@@ -617,7 +617,7 @@ drisw_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 void
 driswCopySubBuffer(struct dri_drawable *drawable, int x, int y, int w, int h)
 {
-   assert(drawable->screen->swrast_loader);
+   assert(drawable->screen->loader.swrast);
 
    drisw_copy_sub_buffer(drawable, x, y, w, h);
 }

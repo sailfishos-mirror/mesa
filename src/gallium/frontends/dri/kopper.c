@@ -57,7 +57,7 @@ kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 {
    struct pipe_screen *pscreen = NULL;
 
-   if (!screen->kopper_loader) {
+   if (!screen->loader.kopper) {
       fprintf(stderr, "mesa: Kopper interface not found!\n"
                       "      Ensure the versions of %s built with this version of Zink are\n"
                       "      in your library path!\n", KOPPER_LIB_NAMES);
@@ -180,7 +180,7 @@ kopper_allocate_textures(struct dri_context *ctx,
    bool resized;
    unsigned i;
    struct __DRIimageList images;
-   const __DRIimageLoaderExtension *image = screen->image.loader;
+   const __DRIimageLoaderExtension *image = screen->loader.image;
 
    bool is_window = drawable->is_window;
    bool is_pixmap = !is_window && drawable->info.bos.sType == VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
@@ -349,7 +349,7 @@ XXX do this once swapinterval is hooked up
 static inline void
 get_drawable_info(struct dri_drawable *drawable, int *w, int *h)
 {
-   const __DRIkopperLoaderExtension *loader = drawable->screen->kopper_loader;
+   const __DRIkopperLoaderExtension *loader = drawable->screen->loader.kopper;
 
    if (loader)
       loader->GetDrawableInfo(drawable, w, h, drawable->loaderPrivate);
@@ -462,8 +462,8 @@ kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits
    struct dri_screen *screen = drawable->screen;
 
    drawable->info.has_alpha = alphaBits > 0;
-   if (screen->kopper_loader->SetSurfaceCreateInfo)
-      screen->kopper_loader->SetSurfaceCreateInfo(drawable->loaderPrivate,
+   if (screen->loader.kopper->SetSurfaceCreateInfo)
+      screen->loader.kopper->SetSurfaceCreateInfo(drawable->loaderPrivate,
                                                   &drawable->info);
    drawable->is_window = !isPixmap && drawable->info.bos.sType != 0;
 

@@ -418,22 +418,14 @@ static const __DRIkopperLoaderExtension kopperLoaderExtension = {
     .GetDrawableInfo        = kopperGetDrawableInfo,
 };
 
-static const __DRIextension *loader_extensions_shm[] = {
-   &swrastLoaderExtension_shm.base,
-   &kopperLoaderExtension.base,
-   NULL
+static const struct dri_loader_funcs loader_funcs_shm = {
+   .swrast = &swrastLoaderExtension_shm,
+   .kopper = &kopperLoaderExtension,
 };
 
-static const __DRIextension *loader_extensions_noshm[] = {
-   &swrastLoaderExtension.base,
-   &kopperLoaderExtension.base,
-   NULL
-};
-
-static const __DRIextension *kopper_extensions_noshm[] = {
-   &swrastLoaderExtension.base,
-   &kopperLoaderExtension.base,
-   NULL
+static const struct dri_loader_funcs loader_funcs_noshm = {
+   .swrast = &swrastLoaderExtension,
+   .kopper = &kopperLoaderExtension,
 };
 
 /**
@@ -629,7 +621,7 @@ driswCreateScreen(int screen, struct glx_display *priv, enum glx_driver glx_driv
 {
    __GLXDRIscreen *psp;
    struct drisw_screen *psc;
-   const __DRIextension **loader_extensions_local;
+   const struct dri_loader_funcs *loader_funcs;
    bool kopper_disable = debug_get_bool_option("LIBGL_KOPPER_DISABLE", false);
 
    /* this is only relevant if zink bits are set */
@@ -643,16 +635,16 @@ driswCreateScreen(int screen, struct glx_display *priv, enum glx_driver glx_driv
    psc->base.driverName = strdup(driver);
 
    if (glx_driver)
-      loader_extensions_local = kopper_extensions_noshm;
+      loader_funcs = &loader_funcs_noshm;
 #ifdef HAVE_SYS_SHM_H
    else if (!x11_xcb_display_supports_xshm(XGetXCBConnection(priv->dpy), &xshm_opcode))
-      loader_extensions_local = loader_extensions_noshm;
+      loader_funcs = &loader_funcs_noshm;
 #endif
    else
-      loader_extensions_local = loader_extensions_shm;
+      loader_funcs = &loader_funcs_shm;
    priv->driver = glx_driver ? GLX_DRIVER_ZINK_YES : GLX_DRIVER_SW;
 
-   if (!dri_screen_init(&psc->base, priv, screen, -1, loader_extensions_local, driver_name_is_inferred)) {
+   if (!dri_screen_init(&psc->base, priv, screen, -1, loader_funcs, driver_name_is_inferred)) {
       if (!glx_driver || !driver_name_is_inferred)
          ErrorMessageF("glx: failed to create drisw screen\n");
       goto handle_error;

@@ -778,6 +778,16 @@ typedef struct {
                                void *loaderPrivate);
 } __DRImutableRenderBufferLoaderExtension;
 
+struct __DRIkopperLoaderExtensionRec;
+
+struct dri_loader_funcs {
+   const __DRIimageLookupExtension *image_lookup;
+   const __DRIimageLoaderExtension *image;
+   const __DRIswrastLoaderExtension *swrast;
+   const __DRImutableRenderBufferLoaderExtension *mutable_render_buffer;
+   const struct __DRIkopperLoaderExtensionRec *kopper;
+};
+
 /* Mesa-internal interface between the GLX, GBM, and EGL DRI driver loaders, and
  * the gallium dri_util.c code.
  */

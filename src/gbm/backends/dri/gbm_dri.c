@@ -237,12 +237,11 @@ static const __DRIkopperLoaderExtension kopper_loader_extension = {
     .GetDrawableInfo        = kopper_get_drawable_info,
 };
 
-static const __DRIextension *gbm_dri_screen_extensions[] = {
-   &image_lookup_extension.base,
-   &image_loader_extension.base,
-   &swrast_loader_extension.base,
-   &kopper_loader_extension.base,
-   NULL,
+static const struct dri_loader_funcs gbm_dri_screen_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &image_loader_extension,
+   .swrast = &swrast_loader_extension,
+   .kopper = &kopper_loader_extension,
 };
 
 static int
@@ -263,9 +262,8 @@ dri_screen_create_for_driver(struct gbm_dri_device *dri, char *driver_name, bool
 
    dri->swrast = swrast;
 
-   dri->loader_extensions = gbm_dri_screen_extensions;
    dri->screen = driCreateNewScreen3(0, swrast ? -1 : dri->base.v0.fd,
-                                             dri->loader_extensions,
+                                             &gbm_dri_screen_funcs,
                                              type,
                                              &dri->driver_configs, driver_name_is_inferred, true, dri);
    if (dri->screen == NULL)

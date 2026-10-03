@@ -982,22 +982,19 @@ static const __DRIkopperLoaderExtension kopper_loader_extension = {
    .GetDrawableInfo = kopperGetDrawableInfo,
 };
 
-static const __DRIextension *kopper_loader_extensions[] = {
-   &kopper_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs kopper_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .kopper = &kopper_loader_extension,
 };
 
-static const __DRIextension *swrast_loader_extensions[] = {
-   &swrast_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs swrast_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .swrast = &swrast_loader_extension,
 };
 
-static const __DRIextension *swrast_loader_shm_extensions[] = {
-   &swrast_loader_shm_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs swrast_loader_shm_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .swrast = &swrast_loader_shm_extension,
 };
 
 static int
@@ -1131,7 +1128,7 @@ dri2_initialize_x11_kopper(_EGLDisplay *disp, bool force_zink)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
 
-   dri2_dpy->loader_extensions = kopper_loader_extensions;
+   dri2_dpy->loader_funcs = &kopper_loader_funcs;
 
    if (!platform_x11_finalize(disp, force_zink))
       return EGL_FALSE;
@@ -1150,9 +1147,9 @@ dri2_initialize_x11_swrast(_EGLDisplay *disp)
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
 
    if (x11_xcb_display_supports_xshm(dri2_dpy->conn, NULL)) {
-      dri2_dpy->loader_extensions = swrast_loader_shm_extensions;
+      dri2_dpy->loader_funcs = &swrast_loader_shm_funcs;
    } else {
-      dri2_dpy->loader_extensions = swrast_loader_extensions;
+      dri2_dpy->loader_funcs = &swrast_loader_funcs;
    }
 
    if (!platform_x11_finalize(disp, false))
@@ -1167,10 +1164,9 @@ dri2_initialize_x11_swrast(_EGLDisplay *disp)
 }
 
 #ifdef HAVE_LIBDRM
-static const __DRIextension *dri3_image_loader_extensions[] = {
-   &dri3_image_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs dri3_image_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &dri3_image_loader_extension,
 };
 
 static EGLBoolean
@@ -1178,7 +1174,7 @@ dri2_initialize_x11_dri3(_EGLDisplay *disp)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
 
-   dri2_dpy->loader_extensions = dri3_image_loader_extensions;
+   dri2_dpy->loader_funcs = &dri3_image_loader_funcs;
 
    if (!platform_x11_finalize(disp, false))
       return EGL_FALSE;

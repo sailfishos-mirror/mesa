@@ -2347,10 +2347,9 @@ static const struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
    .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
 
-static const __DRIextension *dri2_loader_extensions[] = {
-   &image_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs dri2_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .image = &image_loader_extension,
 };
 
 static EGLBoolean
@@ -2507,10 +2506,9 @@ static const __DRIkopperLoaderExtension kopper_loader_extension = {
    .GetDrawableInfo = dri2_wl_kopper_get_drawable_info,
 };
 
-static const __DRIextension *kopper_loader_extensions[] = {
-   &kopper_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs kopper_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .kopper = &kopper_loader_extension,
 };
 
 static void
@@ -2706,8 +2704,8 @@ dri2_initialize_wayland_drm(_EGLDisplay *disp)
 
    dri2_detect_swrast_kopper(disp);
 
-   dri2_dpy->loader_extensions = dri2_dpy->kopper ? kopper_loader_extensions
-                                                  : dri2_loader_extensions;
+   dri2_dpy->loader_funcs = dri2_dpy->kopper ? &kopper_loader_funcs
+                                             : &dri2_loader_funcs;
 
    if (!dri2_create_screen(disp))
       goto cleanup;
@@ -3157,10 +3155,9 @@ static const __DRIswrastLoaderExtension swrast_loader_extension = {
    .putImage2 = dri2_wl_swrast_put_image2,
 };
 
-static const __DRIextension *swrast_loader_extensions[] = {
-   &swrast_loader_extension.base,
-   &image_lookup_extension.base,
-   NULL,
+static const struct dri_loader_funcs swrast_loader_funcs = {
+   .image_lookup = &image_lookup_extension,
+   .swrast = &swrast_loader_extension,
 };
 
 static EGLBoolean
@@ -3208,8 +3205,8 @@ dri2_initialize_wayland_swrast(_EGLDisplay *disp)
    dri2_dpy->driver_name = strdup(disp->Options.Zink ? "zink" : "swrast");
    dri2_detect_swrast_kopper(disp);
 
-   dri2_dpy->loader_extensions = dri2_dpy->kopper ? kopper_loader_extensions
-                                                  : swrast_loader_extensions;
+   dri2_dpy->loader_funcs = dri2_dpy->kopper ? &kopper_loader_funcs
+                                             : &swrast_loader_funcs;
 
    if (!dri2_create_screen(disp))
       goto cleanup;

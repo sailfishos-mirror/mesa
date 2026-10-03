@@ -65,7 +65,7 @@ dri_init_options(struct dri_screen *screen)
 static unsigned
 dri_loader_get_cap(struct dri_screen *screen, enum dri_loader_cap cap)
 {
-   const __DRIimageLoaderExtension *image_loader = screen->image.loader;
+   const __DRIimageLoaderExtension *image_loader = screen->loader.image;
 
    if (image_loader && image_loader->base.version >= 2 &&
        image_loader->getCapability)
@@ -512,7 +512,7 @@ dri_get_egl_image(struct pipe_frontend_screen *fscreen,
                   struct st_egl_image *stimg)
 {
    struct dri_screen *screen = (struct dri_screen *)fscreen;
-   const __DRIimageLookupExtension *loader = screen->dri2.image;
+   const __DRIimageLookupExtension *loader = screen->loader.image_lookup;
    struct dri_image *img = NULL;
    const struct dri2_format_mapping *map;
 
@@ -549,7 +549,7 @@ dri_validate_egl_image(struct pipe_frontend_screen *fscreen,
                        void *egl_image)
 {
    struct dri_screen *screen = (struct dri_screen *)fscreen;
-   const __DRIimageLookupExtension *loader = screen->dri2.image;
+   const __DRIimageLookupExtension *loader = screen->loader.image_lookup;
 
    if (loader)
       return loader->validateEGLImage(egl_image, screen->loaderPrivate);
