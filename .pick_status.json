@@ -354,7 +354,7 @@
         "description": "freedreno/a3xx: replace HLSQ_FLUSH guard with WFI",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5b20e08af15f0d0af3531ccaed41cc6e88da3891",
         "notes": null
