@@ -48,8 +48,6 @@ struct dri_drawable
 
    struct dri_screen *screen;
 
-   __DRIbuffer old[__DRI_BUFFER_COUNT];
-   unsigned old_num;
    unsigned old_w;
    unsigned old_h;
 

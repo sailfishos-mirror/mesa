@@ -51,8 +51,6 @@ struct mesa_glinterop_export_in;
 struct mesa_glinterop_export_out;
 struct mesa_glinterop_flush_out;
 
-#define __DRI_BACKEND_VTABLE "DRI_DriverVtable"
-
 struct dri_config {
     struct gl_config modes;
 };

@@ -51,15 +51,6 @@
 #endif
 #define MSAA_VISUAL_MAX_SAMPLES 32
 
-#undef false
-
-const __DRIconfigOptionsExtension gallium_config_options = {
-   .base = { __DRI_CONFIG_OPTIONS, 2 },
-   .getXml = pipe_loader_get_driinfo_xml
-};
-
-#define false 0
-
 void
 dri_init_options(struct dri_screen *screen)
 {

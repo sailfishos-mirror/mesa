@@ -103,9 +103,6 @@ struct dri_screen
 
    bool swrast_no_present;
 
-   /* DRI exts on this screen. Populated at init time based on device caps. */
-   const __DRIextension *screen_extensions[14];
-
    /* OpenCL interop */
    mtx_t opencl_func_mutex;
    opencl_dri_event_add_ref_t opencl_dri_event_add_ref;
@@ -180,16 +177,6 @@ struct pipe_screen *
 kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred);
 struct pipe_screen *
 drisw_init_screen(struct dri_screen *screen, bool driver_name_is_inferred);
-
-extern const struct __DriverAPIRec dri_swrast_kms_driver_api;
-extern const __DRIextension *dri_swrast_kms_driver_extensions[];
-extern const struct __DriverAPIRec galliumdrm_driver_api;
-extern const __DRIextension *galliumdrm_driver_extensions[];
-extern const struct __DriverAPIRec galliumsw_driver_api;
-extern const __DRIextension *galliumsw_driver_extensions[];
-extern const struct __DriverAPIRec galliumvk_driver_api;
-extern const __DRIextension *galliumvk_driver_extensions[];
-extern const __DRIconfigOptionsExtension gallium_config_options;
 
 #endif
 

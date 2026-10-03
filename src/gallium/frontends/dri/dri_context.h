@@ -68,11 +68,6 @@ struct dri_context
     */
    void *loaderPrivate;
 
-   struct {
-       int draw_stamp;
-       int read_stamp;
-   } dri2;
-
    /* gallium */
    struct st_context *st;
    struct hud_context *hud;

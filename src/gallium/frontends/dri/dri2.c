@@ -59,18 +59,6 @@
 
 #include "drm-uapi/drm_fourcc.h"
 
-struct dri2_buffer
-{
-   __DRIbuffer base;
-   struct pipe_resource *resource;
-};
-
-static inline struct dri2_buffer *
-dri2_buffer(__DRIbuffer * driBufferPriv)
-{
-   return (struct dri2_buffer *) driBufferPriv;
-}
-
 /**
  * Invalidate the drawable.
  *
@@ -160,15 +148,6 @@ dri_image_drawable_get_buffers(struct dri_drawable *drawable,
                                           (uint32_t *)&drawable->base.stamp,
                                           drawable->loaderPrivate, buffer_mask,
                                           images);
-}
-
-static void
-dri2_release_buffer(__DRIbuffer *bPriv)
-{
-   struct dri2_buffer *buffer = dri2_buffer(bPriv);
-
-   pipe_resource_reference(&buffer->resource, NULL);
-   FREE(buffer);
 }
 
 void

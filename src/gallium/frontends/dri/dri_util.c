@@ -830,20 +830,6 @@ dri2GalliumConfigQuerys(struct dri_screen *screen, const char *var, char **val)
     return 0;
 }
 
-/**
- * \brief the DRI2ConfigQueryExtension struct.
- *
- * We first query the driver option cache. Then the dri2 option cache.
- */
-const __DRI2configQueryExtension dri2GalliumConfigQueryExtension = {
-   .base = { __DRI2_CONFIG_QUERY, 2 },
-
-   .configQueryb        = dri2GalliumConfigQueryb,
-   .configQueryi        = dri2GalliumConfigQueryi,
-   .configQueryf        = dri2GalliumConfigQueryf,
-   .configQuerys        = dri2GalliumConfigQuerys,
-};
-
 
 unsigned int
 driGetAPIMask(struct dri_screen *screen)

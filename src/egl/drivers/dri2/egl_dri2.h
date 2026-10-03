@@ -253,7 +253,6 @@ struct dri2_egl_display {
 
    bool has_dmabuf_import;
    bool has_dmabuf_export;
-   bool explicit_modifiers;
    bool multibuffers_available;
 #ifdef HAVE_X11_PLATFORM
    xcb_connection_t *conn;
@@ -305,8 +304,6 @@ struct dri2_egl_context {
 struct dri2_egl_surface {
    _EGLSurface base;
    struct dri_drawable *dri_drawable;
-   __DRIbuffer buffers[5];
-   bool have_fake_front;
 
 #ifdef HAVE_X11_PLATFORM
    xcb_drawable_t drawable;

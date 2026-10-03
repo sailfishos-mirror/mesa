@@ -1477,24 +1477,6 @@ get_back_bo(struct dri2_egl_surface *dri2_surf,
    return 0;
 }
 
-static void
-back_bo_to_dri_buffer(struct dri2_egl_surface *dri2_surf, __DRIbuffer *buffer)
-{
-   struct dri_image *image;
-   int name, pitch;
-
-   image = dri2_surf->back->dri_image;
-
-   dri2_query_image(image, __DRI_IMAGE_ATTRIB_NAME, &name);
-   dri2_query_image(image, __DRI_IMAGE_ATTRIB_STRIDE, &pitch);
-
-   buffer->attachment = __DRI_BUFFER_BACK_LEFT;
-   buffer->name = name;
-   buffer->pitch = pitch;
-   buffer->cpp = 4;
-   buffer->flags = 0;
-}
-
 /* Value chosen empirically as a compromise between avoiding frequent
  * reallocations and extended time of increased memory consumption due to
  * unused buffers being kept.

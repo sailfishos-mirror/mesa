@@ -51,7 +51,6 @@ struct loader_dri3_blit_context {
    simple_mtx_t mtx;
    struct dri_context *ctx;
    struct dri_screen *cur_screen;
-   const __DRIcoreExtension *core;
 };
 
 /* For simplicity we maintain the cache only for a single screen at a time */
