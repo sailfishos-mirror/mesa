@@ -885,6 +885,25 @@ dri_create_image(struct dri_screen *screen,
    if (!map)
       return NULL;
 
+   if (modifiers && count > 0) {
+      bool has_valid_modifier = false;
+
+      /* It's acceptable to create an image with INVALID modifier in the list,
+       * but it cannot be on the only modifier (since it will certainly fail
+       * later). While we could easily catch this after modifier creation, doing
+       * the check here is a convenient debug check likely pointing at whatever
+       * interface the client is using to build its modifier list.
+       */
+      for (unsigned i = 0; i < count; i++) {
+         if (modifiers[i] != DRM_FORMAT_MOD_INVALID) {
+            has_valid_modifier = true;
+            break;
+         }
+      }
+      if (!has_valid_modifier)
+         return NULL;
+   }
+
    if (!pscreen->resource_create_with_modifiers && count > 0)
       return NULL;
 

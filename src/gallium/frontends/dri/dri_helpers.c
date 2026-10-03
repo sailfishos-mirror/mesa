@@ -828,40 +828,6 @@ dri_query_dma_buf_formats(struct dri_screen *screen, int max, int *formats,
    return true;
 }
 
-
-struct dri_image *
-dri_create_image_with_modifiers(struct dri_screen *screen,
-                                 uint32_t width, uint32_t height,
-                                 uint32_t dri_format, uint32_t dri_usage,
-                                 const uint64_t *modifiers,
-                                 unsigned int modifiers_count,
-                                 void *loaderPrivate)
-{
-   if (modifiers && modifiers_count > 0) {
-      bool has_valid_modifier = false;
-      int i;
-
-      /* It's acceptable to create an image with INVALID modifier in the list,
-       * but it cannot be on the only modifier (since it will certainly fail
-       * later). While we could easily catch this after modifier creation, doing
-       * the check here is a convenient debug check likely pointing at whatever
-       * interface the client is using to build its modifier list.
-       */
-      for (i = 0; i < modifiers_count; i++) {
-         if (modifiers[i] != DRM_FORMAT_MOD_INVALID) {
-            has_valid_modifier = true;
-            break;
-         }
-      }
-      if (!has_valid_modifier)
-         return NULL;
-   }
-
-   return dri_create_image(screen, width, height, dri_format,
-                           modifiers, modifiers_count, dri_usage,
-                           loaderPrivate);
-}
-
 void
 dri_image_fence_sync(struct dri_context *ctx, struct dri_image *img)
 {

@@ -1193,10 +1193,10 @@ create_dri_image(struct dri2_egl_surface *dri2_surf,
       num_modifiers = 0;
    }
 
-   dri2_surf->back->dri_image = dri_create_image_with_modifiers(
+   dri2_surf->back->dri_image = dri_create_image(
       dri2_dpy->dri_screen_render_gpu, dri2_surf->base.Width,
-      dri2_surf->base.Height, pipe_format, use_flags,
-      modifiers, num_modifiers, NULL);
+      dri2_surf->base.Height, pipe_format, modifiers, num_modifiers,
+      use_flags, NULL);
 
    if (surf_modifiers_count > 0) {
       u_vector_finish(&modifiers_subset);
@@ -1356,11 +1356,11 @@ get_back_bo(struct dri2_egl_surface *dri2_surf,
             display_num_modifiers = 1;
          }
 
-         linear_copy_display_gpu_image = dri_create_image_with_modifiers(
+         linear_copy_display_gpu_image = dri_create_image(
             dri2_dpy->dri_screen_display_gpu,
             dri2_surf->base.Width, dri2_surf->base.Height,
-            linear_pipe_format, use_flags | __DRI_IMAGE_USE_LINEAR,
-            display_modifiers, display_num_modifiers, NULL);
+            linear_pipe_format, display_modifiers, display_num_modifiers,
+            use_flags | __DRI_IMAGE_USE_LINEAR, NULL);
 
          if (linear_copy_display_gpu_image) {
             int i, ret = 1;
@@ -1441,11 +1441,11 @@ get_back_bo(struct dri2_egl_surface *dri2_surf,
       }
 
       if (!dri2_surf->back->linear_copy) {
-         dri2_surf->back->linear_copy = dri_create_image_with_modifiers(
+         dri2_surf->back->linear_copy = dri_create_image(
             dri2_dpy->dri_screen_render_gpu,
             dri2_surf->base.Width, dri2_surf->base.Height,
-            linear_pipe_format, use_flags | __DRI_IMAGE_USE_LINEAR,
-            render_modifiers, render_num_modifiers, NULL);
+            linear_pipe_format, render_modifiers, render_num_modifiers,
+            use_flags | __DRI_IMAGE_USE_LINEAR, NULL);
       }
 
       if (dri2_surf->back->linear_copy == NULL)

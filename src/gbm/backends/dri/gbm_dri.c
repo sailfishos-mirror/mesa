@@ -1002,11 +1002,10 @@ gbm_dri_bo_create(struct gbm_device *gbm,
       mods_comp = NULL;
    }
 
-   bo->image = dri_create_image_with_modifiers(dri->screen, width, height,
-                                       pipe_format, dri_use,
-                                       mods_filtered ? mods_filtered : modifiers,
-                                       mods_filtered ? count_filtered : count,
-                                       bo);
+   bo->image = dri_create_image(dri->screen, width, height, pipe_format,
+                                mods_filtered ? mods_filtered : modifiers,
+                                mods_filtered ? count_filtered : count,
+                                dri_use, bo);
    if (bo->image == NULL)
       goto failed;
 
