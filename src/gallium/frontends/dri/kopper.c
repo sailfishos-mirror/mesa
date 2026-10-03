@@ -90,12 +90,6 @@ kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
 
 // copypasta alert
 
-extern bool
-dri_image_drawable_get_buffers(struct dri_drawable *drawable,
-                               struct __DRIimageList *images,
-                               const enum st_attachment_type *statts,
-                               unsigned statts_count);
-
 #ifdef VK_USE_PLATFORM_XCB_KHR
 /* Translate from the pipe_format enums used by Gallium to the DRM FourCC
  * codes used by dmabuf import */
@@ -195,45 +189,8 @@ kopper_allocate_textures(struct dri_context *ctx,
       if (!dri_image_drawable_get_buffers(drawable, &images,
                                           statts, statts_count))
          return;
-   }
 
-   if (image) {
-      if (images.image_mask & __DRI_IMAGE_BUFFER_FRONT) {
-         struct pipe_resource **buf =
-            &drawable->textures[ST_ATTACHMENT_FRONT_LEFT];
-         struct pipe_resource *texture = images.front->texture;
-
-         drawable->w = texture->width0;
-         drawable->h = texture->height0;
-
-         pipe_resource_reference(buf, texture);
-      }
-
-      if (images.image_mask & __DRI_IMAGE_BUFFER_BACK) {
-         struct pipe_resource **buf =
-            &drawable->textures[ST_ATTACHMENT_BACK_LEFT];
-         struct pipe_resource *texture = images.back->texture;
-
-         drawable->w = texture->width0;
-         drawable->h = texture->height0;
-
-         pipe_resource_reference(buf, texture);
-      }
-
-      if (images.image_mask & __DRI_IMAGE_BUFFER_SHARED) {
-         struct pipe_resource **buf =
-            &drawable->textures[ST_ATTACHMENT_BACK_LEFT];
-         struct pipe_resource *texture = images.back->texture;
-
-         drawable->w = texture->width0;
-         drawable->h = texture->height0;
-
-         pipe_resource_reference(buf, texture);
-
-         ctx->is_shared_buffer_bound = true;
-      } else {
-         ctx->is_shared_buffer_bound = false;
-      }
+      ctx->is_shared_buffer_bound = dri_drawable_bind_images(ctx, drawable, &images);
    }
 
    /* check size after possible loader image resize */

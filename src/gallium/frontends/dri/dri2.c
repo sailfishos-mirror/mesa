@@ -94,11 +94,6 @@ bool
 dri_image_drawable_get_buffers(struct dri_drawable *drawable,
                                struct __DRIimageList *images,
                                const enum st_attachment_type *statts,
-                               unsigned statts_count);
-bool
-dri_image_drawable_get_buffers(struct dri_drawable *drawable,
-                               struct __DRIimageList *images,
-                               const enum st_attachment_type *statts,
                                unsigned statts_count)
 {
    enum pipe_format color_format = PIPE_FORMAT_NONE;
@@ -241,45 +236,7 @@ dri2_allocate_textures(struct dri_context *ctx,
    templ.depth0 = 1;
    templ.array_size = 1;
 
-   if (images.image_mask & __DRI_IMAGE_BUFFER_FRONT) {
-      struct pipe_resource **buf =
-         &drawable->textures[ST_ATTACHMENT_FRONT_LEFT];
-      struct pipe_resource *texture = images.front->texture;
-
-      drawable->w = texture->width0;
-      drawable->h = texture->height0;
-
-      pipe_resource_reference(buf, texture);
-      dri_image_fence_sync(ctx, images.front);
-   }
-
-   if (images.image_mask & __DRI_IMAGE_BUFFER_BACK) {
-      struct pipe_resource **buf =
-         &drawable->textures[ST_ATTACHMENT_BACK_LEFT];
-      struct pipe_resource *texture = images.back->texture;
-
-      drawable->w = texture->width0;
-      drawable->h = texture->height0;
-
-      pipe_resource_reference(buf, texture);
-      dri_image_fence_sync(ctx, images.back);
-   }
-
-   if (images.image_mask & __DRI_IMAGE_BUFFER_SHARED) {
-      struct pipe_resource **buf =
-         &drawable->textures[ST_ATTACHMENT_BACK_LEFT];
-      struct pipe_resource *texture = images.back->texture;
-
-      drawable->w = texture->width0;
-      drawable->h = texture->height0;
-
-      pipe_resource_reference(buf, texture);
-      dri_image_fence_sync(ctx, images.back);
-
-      ctx->is_shared_buffer_bound = true;
-   } else {
-      ctx->is_shared_buffer_bound = false;
-   }
+   ctx->is_shared_buffer_bound = dri_drawable_bind_images(ctx, drawable, &images);
 
    /* Note: if there is both a back and a front buffer,
     * then they have the same size.

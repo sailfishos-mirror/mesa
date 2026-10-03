@@ -140,6 +140,16 @@ dri_flush(struct dri_context *ctx,
 void
 dri_flush_drawable(struct dri_drawable *dPriv);
 
+bool
+dri_image_drawable_get_buffers(struct dri_drawable *drawable,
+                               struct __DRIimageList *images,
+                               const enum st_attachment_type *statts,
+                               unsigned statts_count);
+bool
+dri_drawable_bind_images(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         struct __DRIimageList *images);
+
 void
 dri2_allocate_textures(struct dri_context *ctx,
                        struct dri_drawable *drawable,

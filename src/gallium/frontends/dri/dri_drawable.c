@@ -32,6 +32,7 @@
 #include "dri_screen.h"
 #include "dri_context.h"
 #include "dri_drawable.h"
+#include "dri_helpers.h"
 
 #include "pipe/p_screen.h"
 #include "util/format/u_format.h"
@@ -385,6 +386,37 @@ dri_set_tex_buffer2(struct dri_context *ctx, GLint target,
 
       st_context_teximage(ctx->st, target, 0, internal_format, pt, false);
    }
+}
+
+bool
+dri_drawable_bind_images(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         struct __DRIimageList *images)
+{
+   if (images->image_mask & __DRI_IMAGE_BUFFER_FRONT) {
+      struct pipe_resource *texture = images->front->texture;
+
+      drawable->w = texture->width0;
+      drawable->h = texture->height0;
+
+      pipe_resource_reference(&drawable->textures[ST_ATTACHMENT_FRONT_LEFT],
+                              texture);
+      dri_image_fence_sync(ctx, images->front);
+   }
+
+   if (images->image_mask & (__DRI_IMAGE_BUFFER_BACK |
+                             __DRI_IMAGE_BUFFER_SHARED)) {
+      struct pipe_resource *texture = images->back->texture;
+
+      drawable->w = texture->width0;
+      drawable->h = texture->height0;
+
+      pipe_resource_reference(&drawable->textures[ST_ATTACHMENT_BACK_LEFT],
+                              texture);
+      dri_image_fence_sync(ctx, images->back);
+   }
+
+   return images->image_mask & __DRI_IMAGE_BUFFER_SHARED;
 }
 
 /**
