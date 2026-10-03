@@ -1440,7 +1440,9 @@ bind_buffer_object(struct gl_context *ctx,
    if (unlikely(_mesa_is_same_buffer_object(oldBufObj, buffer)))
       return;   /* rebinding the same buffer object- no change */
 
-   newBufObj = _mesa_lookup_bufferobj(ctx, buffer);
+   newBufObj = (struct gl_buffer_object *)
+      _mesa_HashLookupMaybeLocked(&ctx->Shared->BufferObjects, buffer,
+                                  ctx->BufferObjectsLocked);
    /* Get a new buffer object if it hasn't been created. */
    if (unlikely(!handle_bind_buffer_gen(ctx, buffer, &newBufObj, "glBindBuffer",
                                         no_error)))
