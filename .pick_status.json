@@ -1554,7 +1554,7 @@
         "description": "radv: fix to use HTILE fills instead of RMW shaders to restore previous behavior",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6f36a2be2ea599677e2fa180cbfbcb1c0744dc96",
         "notes": null
