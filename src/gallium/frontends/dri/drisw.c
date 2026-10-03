@@ -60,8 +60,8 @@ get_drawable_info(struct dri_drawable *drawable, int *x, int *y, int *w, int *h)
                            drawable->loaderPrivate);
 }
 
-static inline void
-put_image(struct dri_drawable *drawable, void *data, unsigned width, unsigned height)
+static void
+drisw_put_image(struct dri_drawable *drawable, void *data, unsigned width, unsigned height)
 {
    const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
@@ -70,9 +70,9 @@ put_image(struct dri_drawable *drawable, void *data, unsigned width, unsigned he
                     data, drawable->loaderPrivate);
 }
 
-static inline void
-put_image2(struct dri_drawable *drawable, void *data, int x, int y,
-           unsigned width, unsigned height, unsigned stride)
+static void
+drisw_put_image2(struct dri_drawable *drawable, void *data, int x, int y,
+                 unsigned width, unsigned height, unsigned stride)
 {
    const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
@@ -81,10 +81,10 @@ put_image2(struct dri_drawable *drawable, void *data, int x, int y,
                      data, drawable->loaderPrivate);
 }
 
-static inline void
-put_image_shm(struct dri_drawable *drawable, int shmid, char *shmaddr,
-              unsigned offset, unsigned offset_x, int x, int y,
-              unsigned width, unsigned height, unsigned stride)
+static void
+drisw_put_image_shm(struct dri_drawable *drawable, int shmid, char *shmaddr,
+                    unsigned offset, unsigned offset_x, int x, int y,
+                    unsigned width, unsigned height, unsigned stride)
 {
    const __DRIswrastLoaderExtension *loader = drawable->screen->loader.swrast;
 
@@ -159,31 +159,6 @@ drisw_get_image(struct dri_drawable *drawable,
 
    get_drawable_info(drawable, &draw_x, &draw_y, &draw_w, &draw_h);
    get_image2(drawable, x, y, draw_w, draw_h, stride, data);
-}
-
-static void
-drisw_put_image(struct dri_drawable *drawable,
-                void *data, unsigned width, unsigned height)
-{
-   put_image(drawable, data, width, height);
-}
-
-static void
-drisw_put_image2(struct dri_drawable *drawable,
-                 void *data, int x, int y, unsigned width, unsigned height,
-                 unsigned stride)
-{
-   put_image2(drawable, data, x, y, width, height, stride);
-}
-
-static inline void
-drisw_put_image_shm(struct dri_drawable *drawable,
-                    int shmid, char *shmaddr, unsigned offset,
-                    unsigned offset_x,
-                    int x, int y, unsigned width, unsigned height,
-                    unsigned stride)
-{
-   put_image_shm(drawable, shmid, shmaddr, offset, offset_x, x, y, width, height, stride);
 }
 
 static inline void
