@@ -528,6 +528,34 @@ bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *b
       zink_bind_vertex_buffers_dynamic(ctx, buffers);
 }
 
+ALWAYS_INLINE static void
+bind_index_buffer(struct zink_context *ctx, struct zink_resource *res, unsigned index_offset, unsigned index_size)
+{
+   const VkIndexType index_type[] = {
+      VK_INDEX_TYPE_UINT32,
+      VK_INDEX_TYPE_UINT8_EXT,
+      VK_INDEX_TYPE_UINT16,
+      VK_INDEX_TYPE_UINT32,
+      VK_INDEX_TYPE_UINT32,
+   };
+
+   if (zink_screen(ctx->base.screen)->info.have_KHR_device_address_commands) {
+      VkBindIndexBuffer3InfoKHR info;
+      info.sType = VK_STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR;
+      info.pNext = NULL;
+      info.addressRange.address = res->obj->bda + index_offset;
+      info.addressRange.size = res->size - index_offset;
+      info.addressFlags = VK_ADDRESS_COMMAND_STORAGE_BUFFER_USAGE_BIT_KHR |
+                          VK_ADDRESS_COMMAND_TRANSFORM_FEEDBACK_BUFFER_USAGE_BIT_KHR;
+      if (!res->is_sparse)
+         info.addressFlags |= VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+      info.indexType = index_type[index_size];
+      VKCTX(CmdBindIndexBuffer3KHR)(ctx->bs->cmdbuf, &info);
+   } else {
+      VKCTX(CmdBindIndexBuffer)(ctx->bs->cmdbuf, res->obj->buffer, index_offset, index_type[index_size]);
+   }
+}
+
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, bool DRAW_STATE>
 void
 zink_draw(struct pipe_context *pctx,
@@ -710,17 +738,8 @@ zink_draw(struct pipe_context *pctx,
       zink_set_primitive_emulation_keys(ctx);
    }
 
-   if (index_buffer) {
-      const VkIndexType index_type[] = {
-         VK_INDEX_TYPE_UINT32,
-         VK_INDEX_TYPE_UINT8_EXT,
-         VK_INDEX_TYPE_UINT16,
-         VK_INDEX_TYPE_UINT32,
-         VK_INDEX_TYPE_UINT32,
-      };
-      struct zink_resource *res = zink_resource(index_buffer);
-      VKCTX(CmdBindIndexBuffer)(bs->cmdbuf, res->obj->buffer, index_offset, index_type[index_size]);
-   }
+   if (index_buffer)
+      bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
    if (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2) {
       if (ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart)
          ctx->gfx_pipeline_state.dirty = true;
