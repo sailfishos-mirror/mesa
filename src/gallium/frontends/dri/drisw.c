@@ -143,7 +143,7 @@ get_image_shm(struct dri_drawable *drawable, int x, int y, int width, int height
    return true;
 }
 
-static void
+void
 drisw_update_drawable_info(struct dri_drawable *drawable)
 {
    int x, y;
@@ -222,7 +222,7 @@ drisw_copy_to_front(struct pipe_context *pipe,
  * Backend functions for pipe_frontend_drawable and swap_buffers.
  */
 
-static void
+void
 drisw_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
    /* Damage regions still require us to update the whole front buffer
@@ -311,7 +311,7 @@ drisw_copy_sub_buffer(struct dri_drawable *drawable, int x, int y,
    }
 }
 
-static bool
+bool
 drisw_flush_frontbuffer(struct dri_context *ctx,
                         struct dri_drawable *drawable,
                         enum st_attachment_type statt)
@@ -375,7 +375,7 @@ handle_in_fence(struct dri_context *ctx, struct dri_image *img)
  * as they are requested. Unused attachments are not removed, not until the
  * framebuffer is resized or destroyed.
  */
-static void
+void
 drisw_allocate_textures(struct dri_context *stctx,
                         struct dri_drawable *drawable,
                         const enum st_attachment_type *statts,
@@ -579,16 +579,6 @@ static const struct drisw_loader_funcs drisw_shm_lf = {
    .put_image2 = drisw_put_image2,
    .put_image_shm = drisw_put_image_shm
 };
-
-void
-drisw_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
-{
-   drawable->allocate_textures = drisw_allocate_textures;
-   drawable->update_drawable_info = drisw_update_drawable_info;
-   drawable->flush_frontbuffer = drisw_flush_frontbuffer;
-   drawable->update_tex_buffer = drisw_update_tex_buffer;
-   drawable->swap_buffers = drisw_swap_buffers;
-}
 
 struct pipe_screen *
 drisw_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)

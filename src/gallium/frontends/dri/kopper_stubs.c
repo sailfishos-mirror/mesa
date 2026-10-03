@@ -55,3 +55,31 @@ void
 kopper_destroy_drawable(struct dri_drawable *drawable)
 {
 }
+
+void
+kopper_allocate_textures(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         const enum st_attachment_type *statts,
+                         unsigned statts_count)
+{
+}
+
+void
+kopper_update_drawable_info(struct dri_drawable *drawable)
+{
+}
+
+bool
+kopper_flush_frontbuffer(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         enum st_attachment_type statt)
+{
+   return false;
+}
+
+void
+kopper_update_tex_buffer(struct dri_drawable *drawable,
+                         struct dri_context *ctx,
+                         struct pipe_resource *res)
+{
+}

@@ -99,26 +99,6 @@ struct dri_drawable
    xcb_special_event_t *special_event;
    uint32_t present_eid;
 #endif
-
-   /* hooks filled in by dri2 & drisw */
-   void (*allocate_textures)(struct dri_context *ctx,
-                             struct dri_drawable *drawable,
-                             const enum st_attachment_type *statts,
-                             unsigned count);
-
-   void (*update_drawable_info)(struct dri_drawable *drawable);
-
-   bool (*flush_frontbuffer)(struct dri_context *ctx,
-                             struct dri_drawable *drawable,
-                             enum st_attachment_type statt);
-
-   void (*update_tex_buffer)(struct dri_drawable *drawable,
-                             struct dri_context *ctx,
-                             struct pipe_resource *res);
-   void (*flush_swapbuffers)(struct dri_context *ctx,
-                             struct dri_drawable *drawable);
-
-   void (*swap_buffers)(struct dri_drawable *drawable, int nrects, const int *rects);
 };
 
 static inline void
@@ -161,18 +141,100 @@ void
 dri_flush_drawable(struct dri_drawable *dPriv);
 
 void
+dri2_allocate_textures(struct dri_context *ctx,
+                       struct dri_drawable *drawable,
+                       const enum st_attachment_type *statts,
+                       unsigned statts_count);
+bool
+dri2_flush_frontbuffer(struct dri_context *ctx,
+                       struct dri_drawable *drawable,
+                       enum st_attachment_type statt);
+void
+dri2_flush_swapbuffers(struct dri_context *ctx,
+                       struct dri_drawable *drawable);
+static inline void
+dri2_update_drawable_info(struct dri_drawable *drawable)
+{
+}
+static inline void
+dri2_update_tex_buffer(struct dri_drawable *drawable,
+                       struct dri_context *ctx,
+                       struct pipe_resource *res)
+{
+}
+static inline void
+dri2_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
+{
+}
+static inline void
+dri2_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
+{
+}
+static inline void
+dri2_destroy_drawable(struct dri_drawable *drawable)
+{
+}
+
+void
+drisw_allocate_textures(struct dri_context *ctx,
+                        struct dri_drawable *drawable,
+                        const enum st_attachment_type *statts,
+                        unsigned count);
+void
+drisw_update_drawable_info(struct dri_drawable *drawable);
+bool
+drisw_flush_frontbuffer(struct dri_context *ctx,
+                        struct dri_drawable *drawable,
+                        enum st_attachment_type statt);
+void
 drisw_update_tex_buffer(struct dri_drawable *drawable,
                         struct dri_context *ctx,
                         struct pipe_resource *res);
+void
+drisw_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects);
+static inline void
+drisw_flush_swapbuffers(struct dri_context *ctx,
+                        struct dri_drawable *drawable)
+{
+}
+static inline void
+drisw_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
+{
+}
+static inline void
+drisw_destroy_drawable(struct dri_drawable *drawable)
+{
+}
 
+void
+kopper_allocate_textures(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         const enum st_attachment_type *statts,
+                         unsigned statts_count);
+void
+kopper_update_drawable_info(struct dri_drawable *drawable);
+bool
+kopper_flush_frontbuffer(struct dri_context *ctx,
+                         struct dri_drawable *drawable,
+                         enum st_attachment_type statt);
+void
+kopper_update_tex_buffer(struct dri_drawable *drawable,
+                         struct dri_context *ctx,
+                         struct pipe_resource *res);
 void
 kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits);
 void
-drisw_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits);
-void
-dri2_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits);
-void
 kopper_destroy_drawable(struct dri_drawable *drawable);
+static inline void
+kopper_flush_swapbuffers(struct dri_context *ctx,
+                         struct dri_drawable *drawable)
+{
+}
+static inline void
+kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
+{
+   kopperSwapBuffers(drawable, 0, nrects, rects);
+}
 #endif
 
 /* vim: set sw=3 ts=8 sts=3 expandtab: */

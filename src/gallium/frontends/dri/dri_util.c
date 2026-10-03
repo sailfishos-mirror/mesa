@@ -848,7 +848,18 @@ driSwapBuffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
    assert(drawable->screen->swrast_loader);
 
-   drawable->swap_buffers(drawable, nrects, rects);
+   switch (drawable->screen->type) {
+   case DRI_SCREEN_DRI3:
+   case DRI_SCREEN_KMS_SWRAST:
+      dri2_swap_buffers(drawable, nrects, rects);
+      break;
+   case DRI_SCREEN_SWRAST:
+      drisw_swap_buffers(drawable, nrects, rects);
+      break;
+   case DRI_SCREEN_KOPPER:
+      kopper_swap_buffers(drawable, nrects, rects);
+      break;
+   }
 }
 
 int

@@ -162,7 +162,7 @@ dri2_set_in_fence_fd(struct dri_image *img, int fd)
  * Backend functions for pipe_frontend_drawable.
  */
 
-static void
+void
 dri2_allocate_textures(struct dri_context *ctx,
                        struct dri_drawable *drawable,
                        const enum st_attachment_type *statts,
@@ -334,7 +334,7 @@ dri2_allocate_textures(struct dri_context *ctx,
    }
 }
 
-static bool
+bool
 dri2_flush_frontbuffer(struct dri_context *ctx,
                        struct dri_drawable *drawable,
                        enum st_attachment_type statt)
@@ -396,7 +396,7 @@ dri2_flush_frontbuffer(struct dri_context *ctx,
 /**
  * The struct dri_drawable flush_swapbuffers callback
  */
-static void
+void
 dri2_flush_swapbuffers(struct dri_context *ctx,
                        struct dri_drawable *drawable)
 {
@@ -405,14 +405,6 @@ dri2_flush_swapbuffers(struct dri_context *ctx,
    if (image && image->flushSwapBuffers) {
       image->flushSwapBuffers(drawable, drawable->loaderPrivate);
    }
-}
-
-static void
-dri2_update_tex_buffer(struct dri_drawable *drawable,
-                       struct dri_context *ctx,
-                       struct pipe_resource *res)
-{
-   /* no-op */
 }
 
 static const struct dri2_format_mapping r8_b8_g8_mapping = {
@@ -1661,19 +1653,6 @@ dri_set_blob_cache_funcs(struct dri_screen *screen, __DRIblobCacheSet set,
       return;
 
    disk_cache_set_callbacks(cache, set, get);
-}
-
-/*
- * Backend function init_screen.
- */
-
-void
-dri2_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
-{
-   drawable->allocate_textures = dri2_allocate_textures;
-   drawable->flush_frontbuffer = dri2_flush_frontbuffer;
-   drawable->update_tex_buffer = dri2_update_tex_buffer;
-   drawable->flush_swapbuffers = dri2_flush_swapbuffers;
 }
 
 /**

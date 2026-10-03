@@ -168,7 +168,7 @@ kopper_get_pixmap_buffer(struct dri_drawable *drawable,
 }
 #endif //VK_USE_PLATFORM_XCB_KHR
 
-static void
+void
 kopper_allocate_textures(struct dri_context *ctx,
                          struct dri_drawable *drawable,
                          const enum st_attachment_type *statts,
@@ -355,7 +355,7 @@ get_drawable_info(struct dri_drawable *drawable, int *w, int *h)
       loader->GetDrawableInfo(drawable, w, h, drawable->loaderPrivate);
 }
 
-static void
+void
 kopper_update_drawable_info(struct dri_drawable *drawable)
 {
    struct dri_screen *screen = drawable->screen;
@@ -393,7 +393,7 @@ kopper_copy_to_front(struct pipe_context *pipe,
    p_atomic_inc(&drawable->base.stamp);
 }
 
-static bool
+bool
 kopper_flush_frontbuffer(struct dri_context *ctx,
                          struct dri_drawable *drawable,
                          enum st_attachment_type statt)
@@ -445,7 +445,7 @@ kopper_flush_frontbuffer(struct dri_context *ctx,
    return true;
 }
 
-static void
+void
 kopper_update_tex_buffer(struct dri_drawable *drawable,
                          struct dri_context *ctx,
                          struct pipe_resource *res)
@@ -456,27 +456,10 @@ kopper_update_tex_buffer(struct dri_drawable *drawable,
    drisw_update_tex_buffer(drawable, ctx, res);
 }
 
-static void
-kopper_flush_swapbuffers(struct dri_context *ctx,
-                         struct dri_drawable *drawable)
-{
-   /* does this actually need to do anything? */
-}
-
-static void
-kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects);
-
 void
 kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
 {
    struct dri_screen *screen = drawable->screen;
-
-   drawable->allocate_textures = kopper_allocate_textures;
-   drawable->update_drawable_info = kopper_update_drawable_info;
-   drawable->flush_frontbuffer = kopper_flush_frontbuffer;
-   drawable->update_tex_buffer = kopper_update_tex_buffer;
-   drawable->flush_swapbuffers = kopper_flush_swapbuffers;
-   drawable->swap_buffers = kopper_swap_buffers;
 
    drawable->info.has_alpha = alphaBits > 0;
    if (screen->kopper_loader->SetSurfaceCreateInfo)
@@ -558,12 +541,6 @@ kopperSwapBuffers(struct dri_drawable *drawable, uint32_t flush_flags, int nrect
    drawable->textures[ST_ATTACHMENT_FRONT_LEFT] = ptex;
 
    return 0;
-}
-
-static void
-kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
-{
-   kopperSwapBuffers(drawable, 0, nrects, rects);
 }
 
 void
