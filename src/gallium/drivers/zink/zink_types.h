@@ -1212,14 +1212,15 @@ struct zink_resource_object {
    bool copies_valid;
    bool copies_need_reset; //for use with batch state resets
 
-   struct u_rwlock copy_lock;
-   struct util_dynarray copies[16]; //regions being copied to; for barrier omission
-
    union {
       VkBuffer buffer;
       VkImage image;
    };
    VkDeviceAddress bda;
+   struct zink_bo *bo;
+
+   struct u_rwlock copy_lock;
+   struct util_dynarray copies[16]; //regions being copied to; for barrier omission
 
    struct set surface_cache;
    simple_mtx_t surface_mtx;
@@ -1236,7 +1237,6 @@ struct zink_resource_object {
 
    /* TODO: this should be a union */
    int handle;
-   struct zink_bo *bo;
    // struct {
    struct kopper_displaytarget *dt;
    uint32_t dt_idx;
