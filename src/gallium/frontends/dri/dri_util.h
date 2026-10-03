@@ -62,48 +62,6 @@ enum dri_screen_type {
    DRI_SCREEN_KMS_SWRAST,
 };
 
-/**
- * Description of the attributes used to create a config.
- *
- * This is passed as the context_config parameter to CreateContext. The idea
- * with this struct is that it can be extended without having to modify all of
- * the drivers. The first three members (major/minor_version and flags) are
- * always valid, but the remaining members are only valid if the corresponding
- * flag is set for the attribute. If the flag is not set then the default
- * value should be assumed. That way the driver can quickly check if any
- * attributes were set that it doesn't understand and report an error.
- */
-struct __DriverContextConfig {
-    /* These members are always valid */
-    unsigned major_version;
-    unsigned minor_version;
-    uint32_t flags;
-
-    /* Flags describing which of the remaining members are valid */
-    uint32_t attribute_mask;
-
-    /* Only valid if __DRIVER_CONTEXT_ATTRIB_RESET_STRATEGY is set */
-    int reset_strategy;
-
-    /* Only valid if __DRIVER_CONTEXT_PRIORITY is set */
-    unsigned priority;
-
-    /* Only valid if __DRIVER_CONTEXT_ATTRIB_RELEASE_BEHAVIOR is set */
-    int release_behavior;
-
-    /* Only valid if __DRIVER_CONTEXT_ATTRIB_NO_ERROR is set */
-    int no_error;
-
-    /* Only valid if __DRIVER_CONTEXT_ATTRIB_PROTECTED is set */
-    int protected_context;
-};
-
-#define __DRIVER_CONTEXT_ATTRIB_RESET_STRATEGY   (1 << 0)
-#define __DRIVER_CONTEXT_ATTRIB_PRIORITY         (1 << 1)
-#define __DRIVER_CONTEXT_ATTRIB_RELEASE_BEHAVIOR (1 << 2)
-#define __DRIVER_CONTEXT_ATTRIB_NO_ERROR         (1 << 3)
-#define __DRIVER_CONTEXT_ATTRIB_PROTECTED        (1 << 4)
-
 PUBLIC struct dri_screen *
 driCreateNewScreen3(int scrn, int fd,
                     const struct dri_loader_funcs *loader,
