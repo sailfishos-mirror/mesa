@@ -1053,6 +1053,7 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const uint32_t layer_count = vk_image_subresource_layer_count(&image->vk, range);
    uint32_t level_count = vk_image_subresource_level_count(&image->vk, range);
    uint32_t flush_bits = 0;
    uint32_t htile_mask;
@@ -1071,28 +1072,32 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
    if (level_count != image->vk.mip_levels) {
       assert(pdev->info.gfx_level >= GFX10);
 
-      /* Clear individuals levels separately. */
-      for (uint32_t l = 0; l < level_count; l++) {
-         uint32_t level = range->baseMipLevel + l;
-         uint64_t htile_offset =
-            image->planes[0].surface.meta_offset + image->planes[0].surface.u.gfx9.meta_levels[level].offset;
-         uint32_t size = image->planes[0].surface.u.gfx9.meta_levels[level].size;
+      /* Clear individuals levels separately. Each layer is a separate mip tree, so it must be cleared
+       * separately too.
+       */
+      for (uint32_t layer = 0; layer < layer_count; layer++) {
+         for (uint32_t l = 0; l < level_count; l++) {
+            uint32_t level = range->baseMipLevel + l;
+            uint64_t htile_offset = image->planes[0].surface.meta_offset +
+                                    image->planes[0].surface.meta_slice_size * (range->baseArrayLayer + layer) +
+                                    image->planes[0].surface.u.gfx9.meta_levels[level].offset;
+            uint32_t size = image->planes[0].surface.u.gfx9.meta_levels[level].size;
 
-         /* Do not clear this level if it can be compressed. */
-         if (!size)
-            continue;
+            /* Do not clear this level if HTILE is disabled for it. */
+            if (!size)
+               continue;
 
-         if (htile_mask == UINT32_MAX) {
-            /* Clear the whole HTILE buffer. */
-            flush_bits |= radv_fill_image(cmd_buffer, image, htile_offset, size, value);
-         } else {
-            /* Only clear depth or stencil bytes in the HTILE buffer. */
-            flush_bits |= clear_htile_mask(cmd_buffer, image, image->bindings[0].bo,
-                                           image->bindings[0].addr + htile_offset, size, value, htile_mask);
+            if (htile_mask == UINT32_MAX) {
+               /* Clear the whole HTILE buffer. */
+               flush_bits |= radv_fill_image(cmd_buffer, image, htile_offset, size, value);
+            } else {
+               /* Only clear depth or stencil bytes in the HTILE buffer. */
+               flush_bits |= clear_htile_mask(cmd_buffer, image, image->bindings[0].bo,
+                                              image->bindings[0].addr + htile_offset, size, value, htile_mask);
+            }
          }
       }
    } else {
-      unsigned layer_count = vk_image_subresource_layer_count(&image->vk, range);
       uint64_t size = image->planes[0].surface.meta_slice_size * layer_count;
       uint64_t htile_offset =
          image->planes[0].surface.meta_offset + image->planes[0].surface.meta_slice_size * range->baseArrayLayer;
