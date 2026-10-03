@@ -1635,42 +1635,38 @@ zink_bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buff
 void
 zink_bind_vertex_addresses(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers)
 {
-#define DAC_VB_INIT \
-      {.sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR, .setStride = VK_FALSE, \
-       .addressFlags = (VK_ADDRESS_COMMAND_STORAGE_BUFFER_USAGE_BIT_KHR | VK_ADDRESS_COMMAND_TRANSFORM_FEEDBACK_BUFFER_USAGE_BIT_KHR)}
-   VkBindVertexBuffer3InfoKHR dac_vbs[PIPE_MAX_ATTRIBS] = {
-      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
-      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
-      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
-      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
-   };
-#undef DAC_VB_INIT
+   VkBindVertexBuffer3InfoKHR dac_vbs[PIPE_MAX_ATTRIBS];
    struct zink_vertex_elements_state *elems = ctx->element_state;
+   const unsigned num_bindings = elems->hw_state.num_bindings;
 
-   if (!elems->hw_state.num_bindings)
+   if (!num_bindings)
       return;
-   for (unsigned i = 0; i < elems->hw_state.num_bindings; i++) {
+   for (unsigned i = 0; i < num_bindings; i++) {
       const struct pipe_vertex_buffer *vb = &vbuffers[elems->hw_state.binding_map[i]];
+      VkAddressCommandFlagsKHR flags = VK_ADDRESS_COMMAND_STORAGE_BUFFER_USAGE_BIT_KHR |
+                                       VK_ADDRESS_COMMAND_TRANSFORM_FEEDBACK_BUFFER_USAGE_BIT_KHR |
+                                       VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+      VkDeviceAddress address = 0;
+      VkDeviceSize size = 0;
       if (vb->buffer.resource) {
          struct zink_resource *res = zink_resource(vb->buffer.resource);
          int offset = vb->buffer_offset;
          assert(res->obj->buffer);
-         dac_vbs[i].addressRange.address = res->obj->bda + offset;
-         dac_vbs[i].addressRange.size = res->base.b.width0 - offset;
+         address = res->obj->bda + offset;
+         size = res->base.b.width0 - offset;
          if (res->base.b.flags & PIPE_RESOURCE_FLAG_SPARSE)
-            dac_vbs[i].addressFlags &= ~VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
-         else
-            dac_vbs[i].addressFlags |= VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
-      } else {
-         dac_vbs[i].addressRange.address = 0;
-         dac_vbs[i].addressRange.size = 0;
-         dac_vbs[i].addressFlags |= VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+            flags &= ~VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
       }
+      dac_vbs[i].sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR;
+      dac_vbs[i].pNext = NULL;
+      dac_vbs[i].setStride = VK_FALSE;
+      dac_vbs[i].addressRange.address = address;
+      dac_vbs[i].addressRange.size = size;
+      dac_vbs[i].addressRange.stride = 0;
+      dac_vbs[i].addressFlags = flags;
    }
 
-   VKCTX(CmdBindVertexBuffers3KHR)(ctx->bs->cmdbuf, 0,
-                                   elems->hw_state.num_bindings,
-                                   dac_vbs);
+   VKCTX(CmdBindVertexBuffers3KHR)(ctx->bs->cmdbuf, 0, num_bindings, dac_vbs);
 
    ctx->vertex_buffers_dirty = false;
 }
