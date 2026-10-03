@@ -213,6 +213,9 @@ class ResourceTracker {
     VkResult on_vkGetImageDrmFormatModifierPropertiesEXT(
         void* context, VkResult input_result, VkDevice device, VkImage image,
         VkImageDrmFormatModifierPropertiesEXT* pProperties);
+    void on_vkGetImageSubresourceLayout(void* context, VkDevice device, VkImage image,
+                                        const VkImageSubresource* pSubresource,
+                                        VkSubresourceLayout* pLayout);
 
     VkResult on_vkBindImageMemory(void* context, VkResult input_result, VkDevice device,
                                   VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset);
@@ -437,6 +440,9 @@ class ResourceTracker {
     void on_vkGetPhysicalDeviceFormatProperties2(void* context, VkPhysicalDevice physicalDevice,
                                                  VkFormat format,
                                                  VkFormatProperties2* pFormatProperties);
+    void on_vkGetPhysicalDeviceFormatProperties2KHR(void* context, VkPhysicalDevice physicalDevice,
+                                                    VkFormat format,
+                                                    VkFormatProperties2* pFormatProperties);
 
     VkResult on_vkGetPhysicalDeviceImageFormatProperties2(
         void* context, VkResult input_result, VkPhysicalDevice physicalDevice,
@@ -773,6 +779,11 @@ class ResourceTracker {
 #endif
 #ifdef VK_USE_PLATFORM_FUCHSIA
         bool isSysmemBackedMemory = false;
+#endif
+#ifdef LINUX_GUEST_BUILD
+        bool emulatedDrmFormatModifier = false;
+        bool hasExplicitDrmModifier = false;
+        VkSubresourceLayout explicitPlaneLayout = {};
 #endif
     };
 

@@ -515,8 +515,8 @@ void gfxstream_vk_GetImageSubresourceLayout(VkDevice device, VkImage image,
     MESA_TRACE_SCOPE("vkGetImageSubresourceLayout");
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetImageSubresourceLayout(device, image, pSubresource, pLayout,
-                                           true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        resources->on_vkGetImageSubresourceLayout(vkEnc, device, image, pSubresource, pLayout);
     }
 }
 VkResult gfxstream_vk_CreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo,
@@ -2415,8 +2415,9 @@ void gfxstream_vk_GetPhysicalDeviceFormatProperties2KHR(VkPhysicalDevice physica
     MESA_TRACE_SCOPE("vkGetPhysicalDeviceFormatProperties2KHR");
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetPhysicalDeviceFormatProperties2KHR(physicalDevice, format, pFormatProperties,
-                                                       true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        resources->on_vkGetPhysicalDeviceFormatProperties2KHR(vkEnc, physicalDevice, format,
+                                                              pFormatProperties);
     }
 }
 VkResult gfxstream_vk_GetPhysicalDeviceImageFormatProperties2KHR(
