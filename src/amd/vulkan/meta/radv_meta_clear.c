@@ -1059,6 +1059,15 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
 
    htile_mask = radv_get_htile_mask(cmd_buffer, image, range->aspectMask, is_clear);
 
+   /* Invalidate the VMEM cache for read-modify-write HTILE clears because HTILE could be cached in VMEM
+    * from previous such clears, causing VMEM loads to return stale values. This happens when HTILE bits
+    * of depth and stencil are cleared separately - when clearing stencil bits, stale depth bits predating
+    * the depth bits clear could be returned from the VMEM cache.
+    */
+   cmd_buffer->state.flush_bits |=
+      radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                            htile_mask != UINT32_MAX ? VK_ACCESS_2_SHADER_STORAGE_READ_BIT : 0, 0, image, range);
+
    if (level_count != image->vk.mip_levels) {
       assert(pdev->info.gfx_level >= GFX10);
 
@@ -1073,7 +1082,7 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
          if (!size)
             continue;
 
-         if (htile_mask == UINT_MAX) {
+         if (htile_mask == UINT32_MAX) {
             /* Clear the whole HTILE buffer. */
             flush_bits |= radv_fill_image(cmd_buffer, image, htile_offset, size, value);
          } else {
@@ -1088,7 +1097,7 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
       uint64_t htile_offset =
          image->planes[0].surface.meta_offset + image->planes[0].surface.meta_slice_size * range->baseArrayLayer;
 
-      if (htile_mask == UINT_MAX) {
+      if (htile_mask == UINT32_MAX) {
          /* Clear the whole HTILE buffer. */
          flush_bits = radv_fill_image(cmd_buffer, image, htile_offset, size, value);
       } else {

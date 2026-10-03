@@ -15960,15 +15960,6 @@ radv_init_htile(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, co
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
-   if (image->planes[0].surface.has_stencil &&
-       !(range->aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))) {
-      /* Flush caches before performing a separate aspect initialization because it's a
-       * read-modify-write operation.
-       */
-      cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                                                            VK_ACCESS_2_SHADER_READ_BIT, 0, image, range);
-   }
-
    return radv_clear_htile(cmd_buffer, image, range, htile_value, false);
 }
 
