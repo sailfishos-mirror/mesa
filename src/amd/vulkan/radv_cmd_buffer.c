@@ -2248,7 +2248,7 @@ radv_save_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoint bi
    radv_cs_write_data(device, cmd_buffer->cs, V_371_MICRO_ENGINE, va, MAX_SETS * 2, data, false);
 }
 
-static void
+ALWAYS_INLINE static void
 radv_emit_userdata_address(const struct radv_device *device, struct radv_cmd_stream *cs,
                            const struct radv_shader *shader, int idx, uint64_t va)
 {
@@ -7733,7 +7733,7 @@ radv_emit_ia_multi_vgt_param(struct radv_cmd_buffer *cmd_buffer, bool instanced_
    radeon_end();
 }
 
-static void
+ALWAYS_INLINE static void
 gfx10_emit_ge_cntl(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_cmd_state *state = &cmd_buffer->state;
