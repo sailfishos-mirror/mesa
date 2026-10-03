@@ -209,31 +209,6 @@ struct dd_function_table {
    /**@}*/
 
    /**
-    * Query reset status for GL_ARB_robustness
-    *
-    * Per \c glGetGraphicsResetStatusARB, this function should return a
-    * non-zero value once after a reset.  If a reset is non-atomic, the
-    * non-zero status should be returned for the duration of the reset.
-    */
-   GLenum (*GetGraphicsResetStatus)(struct gl_context *ctx);
-
-   /**
-    * \name GL_ARB_get_program_binary
-    */
-   /*@{*/
-   /**
-    * Calls to retrieve/store a binary serialized copy of the current program.
-    */
-   void (*ProgramBinarySerializeDriverBlob)(struct gl_context *ctx,
-                                            struct gl_shader_program *shProg,
-                                            struct gl_program *prog);
-
-   void (*ProgramBinaryDeserializeDriverBlob)(struct gl_context *ctx,
-                                              struct gl_shader_program *shProg,
-                                              struct gl_program *prog);
-   /*@}*/
-
-   /**
     * \name Disk shader cache functions
     */
    /*@{*/

@@ -779,14 +779,7 @@ st_init_driver_functions(struct pipe_screen *screen,
    st_init_draw_functions(screen, functions);
 
    functions->NewProgram = _mesa_new_program;
-   st_init_flush_functions(screen, functions);
-
-   /* GL_ARB_get_program_binary */
    functions->ShaderCacheSerializeDriverBlob =  st_serialise_nir_program;
-   functions->ProgramBinarySerializeDriverBlob =
-      st_serialise_nir_program_binary;
-   functions->ProgramBinaryDeserializeDriverBlob =
-      st_deserialise_nir_program;
 }
 
 
