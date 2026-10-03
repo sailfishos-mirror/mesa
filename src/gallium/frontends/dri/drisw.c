@@ -321,27 +321,6 @@ dri_image_drawable_get_buffers(struct dri_drawable *drawable,
                                const enum st_attachment_type *statts,
                                unsigned statts_count);
 
-static void
-handle_in_fence(struct dri_context *ctx, struct dri_image *img)
-{
-   struct pipe_context *pipe = ctx->st->pipe;
-   struct pipe_fence_handle *fence;
-   int fd = img->in_fence_fd;
-
-   if (fd == -1)
-      return;
-
-   validate_fence_fd(fd);
-
-   img->in_fence_fd = -1;
-
-   pipe->create_fence_fd(pipe, &fence, fd, PIPE_FD_TYPE_NATIVE_SYNC);
-   pipe->fence_server_sync(pipe, fence, 0);
-   pipe->screen->fence_reference(pipe->screen, &fence, NULL);
-
-   close(fd);
-}
-
 /**
  * Allocate framebuffer attachments.
  *
@@ -410,7 +389,7 @@ drisw_allocate_textures(struct dri_context *stctx,
          drawable->h = texture->height0;
 
          pipe_resource_reference(buf, texture);
-         handle_in_fence(stctx, images.front);
+         dri_image_fence_sync(stctx, images.front);
       }
 
       if (images.image_mask & __DRI_IMAGE_BUFFER_BACK) {
@@ -422,7 +401,7 @@ drisw_allocate_textures(struct dri_context *stctx,
          drawable->h = texture->height0;
 
          pipe_resource_reference(buf, texture);
-         handle_in_fence(stctx, images.back);
+         dri_image_fence_sync(stctx, images.back);
       }
 
       if (images.image_mask & __DRI_IMAGE_BUFFER_SHARED) {
@@ -434,7 +413,7 @@ drisw_allocate_textures(struct dri_context *stctx,
          drawable->h = texture->height0;
 
          pipe_resource_reference(buf, texture);
-         handle_in_fence(stctx, images.back);
+         dri_image_fence_sync(stctx, images.back);
       }
 
       /* Note: if there is both a back and a front buffer,
