@@ -1430,7 +1430,7 @@ struct zink_screen {
    struct set mesh_pipeline_libs[2];
    simple_mtx_t mesh_pipeline_libs_lock[2];
 
-   simple_mtx_t desc_set_layouts_lock;
+   simple_mtx_t ralloc_lock;
    struct hash_table desc_set_layouts[ZINK_DESCRIPTOR_BASE_TYPES];
    simple_mtx_t desc_pool_keys_lock;
    struct set desc_pool_keys[ZINK_DESCRIPTOR_BASE_TYPES];

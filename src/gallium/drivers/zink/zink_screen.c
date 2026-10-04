@@ -2226,11 +2226,13 @@ retry:
       }
 
       if (screen->info.have_EXT_image_drm_format_modifier && mod_props.drmFormatModifierCount) {
+         simple_mtx_lock(&screen->ralloc_lock);
          /* The A8_UNORM workaround below can retry this query for the same pformat. */
          ralloc_free(screen->modifier_props[pformat].pDrmFormatModifierProperties);
 
          screen->modifier_props[pformat].drmFormatModifierCount = mod_props.drmFormatModifierCount;
          screen->modifier_props[pformat].pDrmFormatModifierProperties = ralloc_array(screen, VkDrmFormatModifierPropertiesEXT, mod_props.drmFormatModifierCount);
+         simple_mtx_unlock(&screen->ralloc_lock);
          if (mod_props.pDrmFormatModifierProperties) {
             for (unsigned j = 0; j < mod_props.drmFormatModifierCount; j++)
                screen->modifier_props[pformat].pDrmFormatModifierProperties[j] = mod_props.pDrmFormatModifierProperties[j];
@@ -3407,6 +3409,7 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
 
    screen->driver_name_is_inferred = config && config->driver_name_is_inferred;
    screen->drm_fd = -1;
+   simple_mtx_init(&screen->ralloc_lock, mtx_plain);
 
    glsl_type_singleton_init_or_ref();
    zink_debug = debug_get_option_zink_debug();
