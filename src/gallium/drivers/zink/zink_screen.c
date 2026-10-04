@@ -1981,10 +1981,6 @@ zink_flush_frontbuffer(struct pipe_screen *pscreen,
    if (ctx->swapchain || ctx->needs_present) {
       ctx->bs->has_work = true;
       pctx->flush(pctx, NULL, PIPE_FLUSH_END_OF_FRAME);
-      if (ctx->last_batch_state && screen->threaded_submit) {
-         struct zink_batch_state *bs = ctx->last_batch_state;
-         util_queue_fence_wait(&bs->flush_completed);
-      }
    }
    res->use_damage = false;
 
