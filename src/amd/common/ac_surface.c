@@ -4971,8 +4971,8 @@ uint64_t ac_surface_get_plane_stride(enum amd_gfx_level gfx_level,
                                     const struct radeon_surf *surf,
                                     unsigned plane, unsigned level)
 {
-   /* pitch/surf_pitch is in 32-bit elements for 96bpp, so we need to multiply it by 4 to get bytes. */
-   const unsigned bpe = surf->bpe == 12 ? 4 : surf->bpe;
+   /* pitch/surf_pitch is in 32-bit elements for 96bpp on gfx9+, so we need to multiply it by 4 to get bytes. */
+   const unsigned bpe = gfx_level >= GFX9 && surf->bpe == 12 ? 4 : surf->bpe;
 
    switch (plane) {
    case 0:
