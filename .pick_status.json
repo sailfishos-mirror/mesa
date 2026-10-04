@@ -2844,7 +2844,7 @@
         "description": "zink: check unflushed under the usage mutex in the unflushed wait",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

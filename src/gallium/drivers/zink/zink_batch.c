@@ -843,7 +843,9 @@ submit_queue(void *data, void *gdata, int thread_index)
 
    bs->usage.submit_count++;
 end:
+   mtx_lock(&bs->usage.mtx);
    cnd_broadcast(&bs->usage.flush);
+   mtx_unlock(&bs->usage.mtx);
 
    post_submit(bs, screen);
 
@@ -1212,7 +1214,7 @@ zink_batch_usage_unflushed_wait(struct zink_context *ctx, struct zink_batch_usag
          if (trywait) {
             struct timespec ts = {0, 10000};
             cnd_timedwait(&u->flush, &u->mtx, &ts);
-         } else
+         } else if (u->unflushed)
             cnd_wait(&u->flush, &u->mtx);
          mtx_unlock(&u->mtx);
       }
