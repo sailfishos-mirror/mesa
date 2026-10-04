@@ -110,6 +110,9 @@ zink_bo_init(struct zink_screen *screen);
 void
 zink_bo_deinit(struct zink_screen *screen);
 
+void
+zink_bo_release_unused(struct zink_screen *screen);
+
 struct pb_buffer_lean *
 zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, enum zink_heap heap, enum zink_alloc_flag flags, unsigned mem_type_idx, const void *pNext,
                struct zink_clientptr_heap *clientptr_heap);

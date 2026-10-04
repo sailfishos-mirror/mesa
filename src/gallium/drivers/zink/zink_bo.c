@@ -195,6 +195,8 @@ bo_slab_destroy(struct zink_screen *screen, struct zink_bo *bo)
 
    bo_clear_vis_vram_full(screen, bo);
    pb_slab_free(slabs, &bo->u.slab.entry);
+   if (!p_atomic_read_relaxed(&screen->base.num_contexts))
+      pb_slabs_reclaim(slabs);
 }
 
 static bool
@@ -228,7 +230,7 @@ bo_destroy_or_cache(struct zink_screen *screen, struct zink_bo *bo)
    bo->reads.u = NULL;
    bo->writes.u = NULL;
 
-   if (bo->u.real.use_reusable_pool)
+   if (bo->u.real.use_reusable_pool && p_atomic_read_relaxed(&screen->base.num_contexts))
       pb_cache_add_buffer(&screen->pb.bo_cache, bo->cache_entry);
    else
       bo_destroy(screen, bo);
@@ -1406,6 +1408,12 @@ static struct pb_slab *
 bo_slab_alloc_normal(void *priv, unsigned mem_type_idx, unsigned entry_size, unsigned group_index)
 {
    return bo_slab_alloc(priv, mem_type_idx, entry_size, group_index, false, NULL);
+}
+
+void
+zink_bo_release_unused(struct zink_screen *screen)
+{
+   clean_up_buffer_managers(screen);
 }
 
 bool

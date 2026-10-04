@@ -300,6 +300,9 @@ zink_context_destroy(struct pipe_context *pctx)
    }
    util_dynarray_fini(&ctx->di.global_bindings);
 
+   if (!p_atomic_read_relaxed(&screen->base.num_contexts))
+      zink_bo_release_unused(screen);
+
    ralloc_free(ctx);
 }
 
