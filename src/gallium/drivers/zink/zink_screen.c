@@ -1693,6 +1693,7 @@ zink_destroy_screen(struct pipe_screen *pscreen)
 #endif
    disk_cache_destroy(screen->disk_cache);
 
+   zink_resource_object_cache_release(screen);
    zink_bo_deinit(screen);
    util_live_shader_cache_deinit(&screen->shaders);
 
@@ -4073,6 +4074,10 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
 
    simple_mtx_init(&screen->free_batch_states_lock, mtx_plain);
    simple_mtx_init(&screen->submit_lock, mtx_plain);
+   simple_mtx_init(&screen->buffer_objs.lock, mtx_plain);
+   screen->buffer_objs.max_bytes = MIN2(ZINK_OBJ_CACHE_MAX_BYTES, get_video_mem(screen) / ZINK_OBJ_CACHE_MEM_DIV);
+   for (unsigned i = 0; i < ARRAY_SIZE(screen->buffer_objs.buckets); i++)
+      list_inithead(&screen->buffer_objs.buckets[i]);
    simple_mtx_init(&screen->active_batch_states_lock, mtx_plain);
    simple_mtx_init(&screen->dt_lock, mtx_plain);
 

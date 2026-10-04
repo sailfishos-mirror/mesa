@@ -1337,6 +1337,15 @@ struct zink_resource_object {
    bool immutable_handle;
 
    struct pipe_clientptr_heap *clientptr_heap;
+
+   /* the key a buffer must match to reuse this object from the screen's cache */
+   bool cacheable;
+   uint8_t cache_usage;
+   uint32_t cache_width0;
+   uint32_t cache_bind;
+   uint32_t cache_flags;
+   int64_t cache_time;
+   struct list_head cache_link;
 };
 
 /* "gfx" includes mesh here */
@@ -1499,6 +1508,16 @@ struct zink_screen {
       uint32_t count; //next never-used index
       uint32_t idx_offset; //offset of the uint32_t index in the pooled struct
    } resource_structs;
+
+   /* idle buffer objects kept for reuse, oldest first in each bucket */
+   struct {
+      simple_mtx_t lock;
+      struct list_head buckets[64];
+      unsigned count;
+      uint64_t bytes;
+      uint64_t max_bytes;
+      int64_t last_sweep;
+   } buffer_objs;
 
    struct zink_batch_state *active_batch_states; //active batch states
    struct zink_batch_state *last_active_batch_state; //for appending

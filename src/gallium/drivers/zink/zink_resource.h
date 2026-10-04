@@ -50,6 +50,12 @@ void
 zink_resource_struct_pools_init(struct zink_screen *screen);
 void
 zink_resource_struct_pools_deinit(struct zink_screen *screen);
+#define ZINK_OBJ_CACHE_MAX_BYTES (256 * 1024 * 1024)
+/* the byte limit is also capped to this fraction of device memory */
+#define ZINK_OBJ_CACHE_MEM_DIV 64
+
+unsigned
+zink_resource_object_cache_release(struct zink_screen *screen);
 
 void
 zink_context_resource_init(struct pipe_context *pctx);

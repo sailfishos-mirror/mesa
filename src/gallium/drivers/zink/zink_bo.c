@@ -202,7 +202,8 @@ bo_slab_destroy(struct zink_screen *screen, struct zink_bo *bo)
 static bool
 clean_up_buffer_managers(struct zink_screen *screen)
 {
-   unsigned num_reclaims = pb_slabs_reclaim(&screen->pb.bo_slabs);
+   unsigned num_reclaims = zink_resource_object_cache_release(screen);
+   num_reclaims += pb_slabs_reclaim(&screen->pb.bo_slabs);
    num_reclaims += pb_cache_release_all_buffers(&screen->pb.bo_cache);
    return !!num_reclaims;
 }
