@@ -1767,6 +1767,7 @@ zink_destroy_screen(struct pipe_screen *pscreen)
       free(screen->video_format_prop_output[i].pVideoFormatProperties);
    }
    slab_destroy_parent(&screen->transfer_pool);
+   zink_resource_struct_pools_deinit(screen);
    ralloc_free(screen);
    glsl_type_singleton_decref();
 }
@@ -3663,6 +3664,7 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
          mesa_loge("ZINK: failed to allocate screen");
       return NULL;
    }
+   zink_resource_struct_pools_init(screen);
 
    screen->driver_name_is_inferred = config && config->driver_name_is_inferred;
    screen->drm_fd = -1;

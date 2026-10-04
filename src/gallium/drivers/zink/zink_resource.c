@@ -222,6 +222,57 @@ zink_destroy_resource_surface_cache(struct zink_screen *screen, struct set *ht, 
    }
 }
 
+/* elements per sparse array node */
+#define ZINK_STRUCT_POOL_NODE_SIZE 64
+
+/* never returns NULL: util_sparse_array has no allocation failure path */
+static void *
+struct_pool_alloc(struct zink_struct_pool *pool)
+{
+   uint32_t idx;
+   /* freed structs are reused as is, so everything but the pool fields is zeroed below */
+   void *ptr = util_sparse_array_free_list_pop_elem(&pool->free_list);
+   if (ptr) {
+      idx = *(uint32_t*)((char*)ptr + pool->idx_offset);
+   } else {
+      idx = p_atomic_inc_return(&pool->count) - 1;
+      ptr = util_sparse_array_get(&pool->arr, idx);
+   }
+   memset(ptr, 0, pool->arr.elem_size);
+   *(uint32_t*)((char*)ptr + pool->idx_offset) = idx;
+   return ptr;
+}
+
+static void
+struct_pool_free(struct zink_struct_pool *pool, void *ptr)
+{
+   uint32_t idx = *(uint32_t*)((char*)ptr + pool->idx_offset);
+   /* the struct stays allocated in the array, only its index goes on the free list */
+   util_sparse_array_free_list_push(&pool->free_list, &idx, 1);
+}
+
+static void
+struct_pool_init(struct zink_struct_pool *pool, size_t elem_size, uint32_t idx_offset, uint32_t next_offset)
+{
+   /* cache-line sized elements keep the alignment the structs had with CALLOC_STRUCT_CL */
+   util_sparse_array_init(&pool->arr, align(elem_size, MESA_CACHE_LINE_SIZE), ZINK_STRUCT_POOL_NODE_SIZE);
+   util_sparse_array_free_list_init(&pool->free_list, &pool->arr, UINT32_MAX, next_offset);
+   pool->idx_offset = idx_offset;
+}
+
+void
+zink_resource_struct_pools_init(struct zink_screen *screen)
+{
+   struct_pool_init(&screen->resource_structs, sizeof(struct zink_resource),
+                    offsetof(struct zink_resource, pool_idx), offsetof(struct zink_resource, pool_next));
+}
+
+void
+zink_resource_struct_pools_deinit(struct zink_screen *screen)
+{
+   util_sparse_array_finish(&screen->resource_structs.arr);
+}
+
 void
 zink_destroy_resource_object(struct zink_screen *screen, struct zink_resource_object *obj)
 {
@@ -284,7 +335,7 @@ zink_resource_destroy(struct pipe_screen *pscreen,
       pipe_clientptr_heap_reference(pscreen, &res->base.b.clientptr_heap, NULL);
    }
 
-   FREE_CL(res);
+   struct_pool_free(&screen->resource_structs, res);
 }
 
 static VkImageAspectFlags
@@ -1992,12 +2043,7 @@ resource_create(struct pipe_screen *pscreen,
                 const void *loader_private, const void *user_mem)
 {
    struct zink_screen *screen = zink_screen(pscreen);
-   struct zink_resource *res = CALLOC_STRUCT_CL(zink_resource);
-
-   if (!res) {
-      mesa_loge("ZINK: failed to allocate res!");
-      return NULL;
-   }
+   struct zink_resource *res = struct_pool_alloc(&screen->resource_structs);
 
    if (modifiers_count > 0 && screen->info.have_EXT_image_drm_format_modifier) {
       /* for rebinds */
@@ -2171,7 +2217,7 @@ fail:
       renderonly_scanout_destroy(res->ro_scanout, screen->ro);
 #endif
    free(res->modifiers);
-   FREE_CL(res);
+   struct_pool_free(&screen->resource_structs, res);
    return NULL;
 }
 
@@ -2194,11 +2240,7 @@ zink_resource_create_with_modifiers(struct pipe_screen *pscreen, const struct pi
    res_planes[0] = res;
    unsigned num_planes = util_format_get_num_planes(templ->format);
    for (unsigned p = 1; p < num_planes; p++) {
-      struct zink_resource *res_plane = CALLOC_STRUCT_CL(zink_resource);
-      if (!res_plane) {
-         pipe_resource_reference(&pres, NULL);
-         return NULL;
-      }
+      struct zink_resource *res_plane = struct_pool_alloc(&zink_screen(pscreen)->resource_structs);
       res_plane->base.b = *templ;
       res_plane->base.b.width0 = util_format_get_plane_width(templ->format, p, templ->width0);
       res_plane->base.b.height0 = util_format_get_plane_height(templ->format, p, templ->height0);

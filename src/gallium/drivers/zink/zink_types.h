@@ -54,6 +54,7 @@
 #include "util/set.h"
 #include "util/simple_mtx.h"
 #include "util/slab.h"
+#include "util/sparse_array.h"
 #include "util/u_blitter.h"
 #include "util/u_dynarray.h"
 #include "util/u_idalloc.h"
@@ -1412,6 +1413,10 @@ struct zink_resource {
 #ifdef HAVE_LIBDRM
    struct renderonly_scanout *ro_scanout;
 #endif
+
+   /* keep these last since c++ ignores the alignas(64) union and would disagree on the layout */
+   uint32_t pool_idx;
+   uint32_t pool_next;
 };
 
 static inline struct zink_resource *
@@ -1487,6 +1492,13 @@ struct zink_screen {
    struct zink_batch_state *last_free_batch_state; //for appending
    simple_mtx_t free_batch_states_lock;
    simple_mtx_t submit_lock;
+
+   struct zink_struct_pool {
+      struct util_sparse_array arr;
+      struct util_sparse_array_free_list free_list;
+      uint32_t count; //next never-used index
+      uint32_t idx_offset; //offset of the uint32_t index in the pooled struct
+   } resource_structs;
 
    struct zink_batch_state *active_batch_states; //active batch states
    struct zink_batch_state *last_active_batch_state; //for appending

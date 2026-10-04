@@ -46,6 +46,10 @@ zink_resource_image_hic_transition(struct zink_screen *screen, struct zink_resou
 
 bool
 zink_screen_resource_init(struct pipe_screen *pscreen);
+void
+zink_resource_struct_pools_init(struct zink_screen *screen);
+void
+zink_resource_struct_pools_deinit(struct zink_screen *screen);
 
 void
 zink_context_resource_init(struct pipe_context *pctx);
