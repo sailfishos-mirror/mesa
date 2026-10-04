@@ -723,9 +723,8 @@ zink_kopper_acquire(struct zink_context *ctx, struct zink_resource *res, uint64_
    } else if (is_swapchain_kill(ret)) {
       kill_swapchain(ctx, res);
    }
-   bool is_kill = is_swapchain_kill(ret);
    zink_batch_usage_set(&cdt->swapchain->batch_uses, ctx->bs);
-   return !is_kill;
+   return ret == VK_SUCCESS || ret == VK_SUBOPTIMAL_KHR;
 }
 
 VkSemaphore
