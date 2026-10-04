@@ -3218,6 +3218,17 @@ init_driver_workarounds(struct zink_screen *screen)
        screen->info.feats.features.geometryShader)
       screen->driver_workarounds.no_linesmooth = true;
 
+   /* non-strict default lines match rectangular ones up to 2 pixels wide and are faster */
+   switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_MESA_RADV:
+   case VK_DRIVER_ID_AMD_OPEN_SOURCE:
+   case VK_DRIVER_ID_AMD_PROPRIETARY:
+      if (!screen->info.props.limits.strictLines)
+         screen->driver_workarounds.no_thin_rectangular_lines = true;
+      break;
+   default: break;
+   }
+
    /* these drivers don't use VK_PIPELINE_CREATE_COLOR_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT, so it can always be set */
    switch (zink_driverid(screen)) {
    case VK_DRIVER_ID_MESA_RADV:

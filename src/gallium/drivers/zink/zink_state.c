@@ -631,7 +631,8 @@ zink_create_rasterizer_state(struct pipe_context *pctx,
    state->dynamic_line_mode = state->hw_state.line_mode;
    switch (state->hw_state.line_mode) {
    case VK_LINE_RASTERIZATION_MODE_RECTANGULAR:
-      if (!screen->info.line_rast_feats.rectangularLines)
+      if (!screen->info.line_rast_feats.rectangularLines ||
+          (screen->driver_workarounds.no_thin_rectangular_lines && rs_state->line_width <= 2.0f))
          state->dynamic_line_mode = VK_LINE_RASTERIZATION_MODE_DEFAULT;
       break;
    case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH:
