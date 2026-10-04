@@ -883,7 +883,7 @@ tc_add_shader_bindings_to_buffer_list(struct threaded_context *tc,
                                       mesa_shader_stage shader)
 {
    tc_add_bindings_to_buffer_list(buffer_list, tc->const_buffers[shader],
-                                  tc->max_const_buffers);
+                                  tc->num_const_buffers[shader]);
    if (tc->seen_shader_buffers[shader]) {
       tc_add_bindings_to_buffer_list(buffer_list, tc->shader_buffers[shader],
                                      tc->max_shader_buffers);
@@ -905,7 +905,7 @@ tc_rebind_shader_bindings(struct threaded_context *tc, uint32_t old_id,
    unsigned ubo = 0, ssbo = 0, img = 0, sampler = 0;
 
    ubo = tc_rebind_bindings(old_id, new_id, tc->const_buffers[shader],
-                            tc->max_const_buffers);
+                            tc->num_const_buffers[shader]);
    if (ubo)
       *rebind_mask |= BITFIELD64_BIT(TC_BINDING_UBO_VS) << shader;
    if (tc->seen_shader_buffers[shader]) {
@@ -1797,6 +1797,7 @@ tc_set_constant_buffer(struct pipe_context *_pipe,
    if (buffer) {
       tc_bind_buffer(&tc->const_buffers[shader][index],
                      &tc->buffer_lists[tc->next_buf_list], buffer);
+      tc->num_const_buffers[shader] = MAX2(tc->num_const_buffers[shader], index + 1);
    } else {
       tc_unbind_buffer(&tc->const_buffers[shader][index]);
    }
@@ -6044,8 +6045,6 @@ threaded_context_create(struct pipe_context *pipe,
 
    /* If you have different limits in each shader stage, set the maximum. */
    struct pipe_screen *screen = pipe->screen;;
-   tc->max_const_buffers =
-      screen->shader_caps[MESA_SHADER_FRAGMENT].max_const_buffers;
    tc->max_shader_buffers =
       screen->shader_caps[MESA_SHADER_FRAGMENT].max_shader_buffers;
    tc->max_images =

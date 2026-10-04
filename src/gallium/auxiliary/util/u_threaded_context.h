@@ -684,7 +684,7 @@ struct threaded_context {
    int8_t batch_generation;
 
    uint8_t num_vertex_buffers;
-   unsigned max_const_buffers;
+   uint8_t num_const_buffers[MESA_SHADER_MESH_STAGES];
    unsigned max_shader_buffers;
    unsigned max_images;
    unsigned max_samplers;
