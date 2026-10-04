@@ -473,10 +473,18 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
       }
    }
 
-   /* If image stores update HTILE, we must invalidate L2 metadata before clearing. Unfortunately,
-    * only VK_ACCESS_2_SHADER_STORAGE_READ_BIT sets that, while WRITE_BIT doesn't.
-    */
-   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && radv_image_decompress_htile_on_image_stores(device, image)) {
+   enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS;
+
+   if (cmd_buffer->qf == RADV_QUEUE_GENERAL) {
+      /* Z/S decompression via DB always sets the compression bits. */
+      preserve |= RADV_HTILE_PRESERVE_Z_COMPRESSION | RADV_HTILE_PRESERVE_STENCIL_COMPRESSION;
+   } else if (radv_image_decompress_htile_on_image_stores(device, image)) {
+      /* Clear the Z/S compression bits only if image stores don't decompress Z/S. */
+      preserve |= RADV_HTILE_PRESERVE_Z_COMPRESSION | RADV_HTILE_PRESERVE_STENCIL_COMPRESSION;
+
+      /* If image stores update HTILE, we must invalidate L2 metadata before clearing. Unfortunately,
+       * only VK_ACCESS_2_SHADER_STORAGE_READ_BIT sets that, while WRITE_BIT doesn't.
+       */
       cmd_buffer->state.flush_bits |= radv_dst_access_flush(
          cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
          VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, 0, image, subresourceRange);
@@ -489,5 +497,5 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
     */
    uint32_t htile_value = radv_get_htile_initial_value(device, image);
 
-   cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
+   cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, preserve);
 }
