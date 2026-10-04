@@ -460,11 +460,6 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
 
       cmd_buffer->state.flush_bits |=
          AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
-
-      /* Reset the HiZ range in HTILE to [0, 1] because the decompress pass doesn't do it. */
-      uint32_t htile_value = radv_get_htile_initial_value(device, image);
-
-      cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
    } else {
       u_foreach_bit (i, subresourceRange->aspectMask) {
          VkImageSubresourceRange range = *subresourceRange;
@@ -475,20 +470,24 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
          cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CS | AC_BARRIER_INV_VMEM |
                                          radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                                VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, &range);
-
-         /* If image stores update HTILE, we must invalidate L2 metadata before clearing. Unfortunately,
-          * only VK_ACCESS_2_SHADER_STORAGE_READ_BIT sets that, while WRITE_BIT doesn't.
-          */
-         if (radv_image_decompress_htile_on_image_stores(device, image)) {
-            cmd_buffer->state.flush_bits |= radv_dst_access_flush(
-               cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-               VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, 0, image, &range);
-         }
-
-         /* Initialize the HTILE metadata as "fully expanded". */
-         uint32_t htile_value = radv_get_htile_initial_value(device, image);
-
-         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, 0);
       }
    }
+
+   /* If image stores update HTILE, we must invalidate L2 metadata before clearing. Unfortunately,
+    * only VK_ACCESS_2_SHADER_STORAGE_READ_BIT sets that, while WRITE_BIT doesn't.
+    */
+   if (cmd_buffer->qf != RADV_QUEUE_GENERAL && radv_image_decompress_htile_on_image_stores(device, image)) {
+      cmd_buffer->state.flush_bits |= radv_dst_access_flush(
+         cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+         VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, 0, image, subresourceRange);
+   }
+
+   /* Reset the HiZ range in HTILE to [0, 1] because the decompress pass doesn't do it.
+    *
+    * For compute-based decompression without image stores updating HTILE, we also need to clear the compression
+    * bits to uncompressed.
+    */
+   uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+   cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
 }
