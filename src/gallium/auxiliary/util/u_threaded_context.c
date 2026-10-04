@@ -1083,14 +1083,22 @@ tc_is_buffer_on_busy_list(const struct threaded_context *tc, const struct thread
 {
    uint32_t id_hash = tbuf->buffer_id_unique & TC_BUFFER_ID_MASK;
 
-   for (unsigned i = 0; i < TC_MAX_BUFFER_LISTS; i++) {
+   unsigned i = tc->next_buf_list;
+
+   for (unsigned n = 0; n < TC_MAX_BUFFER_LISTS; n++) {
       struct tc_buffer_list *buf_list = (void*)&tc->buffer_lists[i];
+
+      /* Buffer lists are used and flushed in ring order, so all lists which are older than
+       * a flushed one have been flushed too. */
+      if (util_queue_fence_is_signalled(&buf_list->driver_flushed_fence))
+         break;
 
       /* If the buffer is referenced by a batch that hasn't been flushed (by tc or the driver),
        * then the buffer is considered busy. */
-      if (!util_queue_fence_is_signalled(&buf_list->driver_flushed_fence) &&
-          BITSET_TEST(buf_list->buffer_list, id_hash))
+      if (BITSET_TEST(buf_list->buffer_list, id_hash))
          return true;
+
+      i = i ? i - 1 : TC_MAX_BUFFER_LISTS - 1;
    }
    return false;
 }
