@@ -466,17 +466,22 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
 
       cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
    } else {
-      radv_expand_depth_stencil_compute(cmd_buffer, image, subresourceRange);
+      u_foreach_bit (i, subresourceRange->aspectMask) {
+         VkImageSubresourceRange range = *subresourceRange;
+         range.aspectMask = 1 << i;
 
-      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CS | AC_BARRIER_INV_VMEM |
-                                      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                            VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
+         radv_expand_depth_stencil_compute(cmd_buffer, image, &range);
 
-      if (!radv_image_decompress_htile_on_image_stores(device, image)) {
-         /* Initialize the HTILE metadata as "fully expanded". */
-         uint32_t htile_value = radv_get_htile_initial_value(device, image);
+         cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_CS | AC_BARRIER_INV_VMEM |
+                                         radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                               VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, &range);
 
-         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, subresourceRange, htile_value, 0);
+         if (!radv_image_decompress_htile_on_image_stores(device, image)) {
+            /* Initialize the HTILE metadata as "fully expanded". */
+            uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+            cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, 0);
+         }
       }
    }
 }
