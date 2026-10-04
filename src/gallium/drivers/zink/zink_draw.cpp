@@ -227,6 +227,12 @@ update_gfx_pipeline(struct zink_context *ctx, struct zink_batch_state *bs, enum 
 {
    VkPipeline prev_pipeline = ctx->gfx_pipeline_state.pipeline;
    const struct zink_screen *screen = zink_screen(ctx->base.screen);
+   if (BATCH_CHANGED && ctx->curr_program) {
+      if (zink_gfx_program_needs_replacement(ctx->curr_program))
+         zink_gfx_program_queue_replacement(ctx, ctx->curr_program);
+      else if (zink_gfx_program_has_replacement(ctx->curr_program))
+         ctx->gfx_dirty = true;
+   }
    bool shaders_changed = ctx->gfx_dirty || ctx->dirty_gfx_stages;
    if (screen->optimal_keys && !ctx->is_generated_gs_bound)
       zink_gfx_program_update_optimal(ctx);
@@ -1248,6 +1254,12 @@ update_mesh_pipeline(struct zink_context *ctx, struct zink_batch_state *bs, bool
 {
    VkPipeline prev_pipeline = ctx->gfx_pipeline_state.pipeline;
    const struct zink_screen *screen = zink_screen(ctx->base.screen);
+   if (BATCH_CHANGED && ctx->mesh_program) {
+      if (zink_gfx_program_needs_replacement(ctx->mesh_program))
+         zink_gfx_program_queue_replacement(ctx, ctx->mesh_program);
+      else if (zink_gfx_program_has_replacement(ctx->mesh_program))
+         ctx->mesh_dirty = true;
+   }
    bool shaders_changed = ctx->mesh_dirty || ctx->dirty_mesh_stages;
    zink_mesh_program_update_optimal(ctx);
    bool pipeline_changed = false;

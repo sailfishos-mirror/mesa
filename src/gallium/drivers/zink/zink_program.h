@@ -422,6 +422,29 @@ zink_can_use_pipeline_libs(const struct zink_context *ctx)
           !ctx->is_generated_gs_bound;
 }
 
+/* batches a link-time shader-object program is bound in before its full program is queued */
+#define ZINK_FULL_PROG_BATCHES 2
+
+/* count a batch for the program and queue its full program once it has been bound enough */
+void
+zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_program *prog);
+
+/* a link-time shader-object program which has not yet queued its full program */
+ALWAYS_INLINE static bool
+zink_gfx_program_needs_replacement(struct zink_gfx_program *prog)
+{
+   return prog->base.uses_shobj && !prog->is_separable && !prog->full_queued;
+}
+
+/* the separable program or its queued full program has finished compiling */
+ALWAYS_INLINE static bool
+zink_gfx_program_has_replacement(struct zink_gfx_program *prog)
+{
+   if (prog->is_separable)
+      return util_queue_fence_is_signalled(&prog->base.cache_fence);
+   return prog->base.uses_shobj && util_queue_fence_is_signalled(&prog->full_fence) && prog->full_prog;
+}
+
 /* stricter requirements */
 ALWAYS_INLINE static bool
 zink_can_use_shader_objects(const struct zink_context *ctx)

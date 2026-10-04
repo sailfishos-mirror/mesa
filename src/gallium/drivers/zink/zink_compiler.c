@@ -5963,6 +5963,7 @@ gfx_shader_prune(struct zink_screen *screen, struct zink_shader *shader)
    mesa_shader_stage stage = shader->info.stage;
    assert(!mesa_shader_stage_is_compute(stage));
    util_queue_fence_wait(&prog->base.cache_fence);
+   util_queue_drop_job(&screen->cache_get_thread, &prog->full_fence);
    unsigned stages_present = prog->stages_present;
    bool is_mesh = (stages_present & BITFIELD_BIT(MESA_SHADER_MESH)) > 0;
    unsigned stages_remaining = prog->stages_remaining;
