@@ -810,7 +810,9 @@ radv_amdgpu_cs_chain_dgc_ib(struct ac_cmdbuf *_cs, uint64_t va, uint32_t cdw, ui
       uint64_t *ib_va_ptr = (uint64_t *)(cs->base.buf + cs->base.cdw - 3);
       uint32_t *ib_size_ptr = cs->base.buf + cs->base.cdw - 1;
 
-      /* Writeback L2 because CP isn't coherent with L2 on GFX6-8. */
+      /* L2 should typically already be invalidated here, but GFX8 seems to need another L2
+       * invalidation after the above WRITE_DATA packet.
+       */
       if (cs->ws->info.gfx_level == GFX8) {
          ac_emit_cp_acquire_mem(&cs->base, GFX8, AMD_IP_COMPUTE, V_581A_MICRO_ENGINE,
                                 S_0301F0_TC_WB_ACTION_ENA(1) | S_0301F0_TC_NC_ACTION_ENA(1), NULL, NULL);
