@@ -16622,7 +16622,15 @@ radv_CmdWaitEvents2(VkCommandBuffer commandBuffer, uint32_t eventCount, const Vk
 
       ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 7);
 
-      radv_cp_wait_mem(cs, WAIT_REG_MEM_EQUAL, va, 1, 0xffffffff);
+      if (cs->hw_ip == AMD_IP_SDMA) {
+         ac_emit_sdma_wait_mem(cs->b, WAIT_REG_MEM_EQUAL, va, 1, 0xffffffff);
+      } else {
+         assert(cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE);
+         uint32_t flags = WAIT_REG_MEM_EQUAL;
+
+         ac_emit_cp_wait_mem(cs->b, va, 1, 0xffffffff, flags);
+      }
+
       assert(cs->b->cdw <= cdw_max);
    }
 
