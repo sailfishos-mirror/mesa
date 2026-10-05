@@ -959,9 +959,6 @@ spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
 spec@glsl-1.10@execution@loops@glsl-fs-unroll-explosion,Crash
 spec@glsl-1.10@execution@loops@glsl-vs-unroll-explosion,Crash
 
-# https://gitlab.freedesktop.org/mesa/piglit/-/merge_requests/1206
-spec@egl_mesa_configless_context@basic,Fail
-
 # Driver is not handling VERT_{ATTRIB,BIT}_EDFLAG at all
 spec@!opengl 1.0@gl-1.0-edgeflag,Fail
 spec@!opengl 1.0@gl-1.0-edgeflag-const,Fail
