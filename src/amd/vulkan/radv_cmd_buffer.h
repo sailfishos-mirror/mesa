@@ -279,6 +279,7 @@ struct radv_vertex_buffer_state {
 struct radv_index_buffer_state {
    uint64_t va;
    uint32_t index_type;
+   uint32_t index_size;
    uint32_t max_index_count;
 };
 
