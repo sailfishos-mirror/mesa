@@ -3102,6 +3102,14 @@ print_shader_info(const struct shader_info *info, FILE *fp)
       print_nz_bool(fp, "nv", info->mesh.nv);
       break;
 
+   case MESA_SHADER_RAYGEN:
+   case MESA_SHADER_ANY_HIT:
+   case MESA_SHADER_CLOSEST_HIT:
+   case MESA_SHADER_MISS:
+   case MESA_SHADER_INTERSECTION:
+   case MESA_SHADER_CALLABLE:
+      break;
+
    default:
       fprintf(fp, "Unhandled stage %d\n", info->stage);
    }
