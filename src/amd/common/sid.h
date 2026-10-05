@@ -93,6 +93,7 @@
 #define   WAIT_REG_MEM_GREATER_OR_EQUAL               5
 #define   WAIT_REG_MEM_MEM_SPACE(x)                   (((unsigned)(x)&0x3) << 4)
 #define   WAIT_REG_MEM_PFP                            (1 << 8)
+#define   WAIT_REG_MEM_UNCACHED_VI_MEC                (1 << 10)
 #define PKT3_MEM_WRITE                             0x3D /* GFX6 only */
 #define PKT3_INDIRECT_BUFFER                       0x3F /* GFX6+ */
 #define PKT3_COPY_DATA                             0x40
