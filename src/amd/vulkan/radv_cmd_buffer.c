@@ -8696,7 +8696,8 @@ radv_CmdBindIndexBuffer3KHR(VkCommandBuffer commandBuffer, const VkBindIndexBuff
 
    index_buffer->index_type = vk_to_index_type(pInfo->indexType);
    index_buffer->index_size = radv_get_vgt_index_size(index_buffer->index_type);
-   cmd_buffer->state.primitive_restart_index = radv_get_primitive_restart_index(pInfo->indexType);
+
+   radv_cmd_set_primitive_restart_index(cmd_buffer, radv_get_primitive_restart_index(pInfo->indexType));
 
    if (pInfo->addressRange.size) {
       index_buffer->va = pInfo->addressRange.address;
