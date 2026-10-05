@@ -59,7 +59,6 @@ enum {
    RADV_PREFETCH_RT = (1 << 7),
    RADV_PREFETCH_GFX_SHADERS = (RADV_PREFETCH_VS | RADV_PREFETCH_TCS | RADV_PREFETCH_TES | RADV_PREFETCH_GS |
                                 RADV_PREFETCH_PS | RADV_PREFETCH_MS),
-   RADV_PREFETCH_GRAPHICS = RADV_PREFETCH_GFX_SHADERS,
 };
 
 typedef enum {
@@ -3089,7 +3088,7 @@ ALWAYS_INLINE static void
 radv_emit_graphics_prefetch(struct radv_cmd_buffer *cmd_buffer, bool first_stage_only)
 {
    struct radv_cmd_state *state = &cmd_buffer->state;
-   uint32_t mask = state->prefetch_L2_mask & RADV_PREFETCH_GRAPHICS;
+   uint32_t mask = state->prefetch_L2_mask & RADV_PREFETCH_GFX_SHADERS;
 
    if (!mask)
       return;
