@@ -68,7 +68,7 @@ tu_cmd_buffer_status_check_idle(struct tu_cmd_buffer *cmd_buffer)
       return VK_SUCCESS;
 
    const enum tu_cmd_buffer_status status =
-      *(enum tu_cmd_buffer_status *)cmd_buffer->status_bo->map;
+      *static_cast<enum tu_cmd_buffer_status *>(cmd_buffer->status_bo->map);
 
    switch (status) {
    case TU_CMD_BUFFER_STATUS_IDLE:
@@ -98,7 +98,7 @@ tu_cmd_buffer_status_gpu_write(struct tu_cmd_buffer *cmd_buffer,
                  "Code below needs adjusting");
    tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 3);
    tu_cs_emit_qw(cs, cmd_buffer->status_bo->iova);
-   tu_cs_emit(cs, (uint32_t)status);
+   tu_cs_emit(cs, static_cast<uint32_t>(status));
 }
 
 static void
@@ -489,8 +489,8 @@ tu_add_cb_barrier_info(struct tu_cmd_buffer *cmd_buffer)
       if (info->type == TU_CB_CONTROL_TYPE_CB_ENABLED) {
          break;
       }
-      (void) util_dynarray_pop(&cmd_buffer->cb_control_points,
-                               struct tu_cb_control_point);
+      static_cast<void>(util_dynarray_pop(&cmd_buffer->cb_control_points,
+                               struct tu_cb_control_point));
    }
 
    struct tu_cb_control_point barrier_info = {
@@ -704,20 +704,20 @@ emit_rb_ccu_cntl(struct tu_cs *cs, struct tu_device *dev, bool gmem)
    depth_offset &= 0x1fffff;
 
    enum a6xx_ccu_cache_size color_cache_size = !gmem ? CCU_CACHE_SIZE_FULL : !gmem ? CCU_CACHE_SIZE_FULL :
-      (a6xx_ccu_cache_size)(dev->physical_device->info->props.gmem_ccu_color_cache_fraction);
+      static_cast<a6xx_ccu_cache_size>(dev->physical_device->info->props.gmem_ccu_color_cache_fraction);
 
    if (CHIP == A8XX) {
       tu_cs_emit_regs(cs, RB_CCU_CACHE_CNTL(CHIP,
-         .depth_cache_size = (enum a6xx_ccu_cache_size)cfg->depth_cache_fraction,
+         .depth_cache_size = static_cast<enum a6xx_ccu_cache_size>(cfg->depth_cache_fraction),
          .depth_offset = cfg->depth_ccu_offset,
-         .color_cache_size = (enum a6xx_ccu_cache_size)cfg->color_cache_fraction,
+         .color_cache_size = static_cast<enum a6xx_ccu_cache_size>(cfg->color_cache_fraction),
          .color_offset = cfg->color_ccu_offset,
       ));
    } else if (CHIP == A7XX) {
       tu_cs_emit_regs(cs, RB_CCU_CACHE_CNTL(CHIP,
          .depth_offset_hi = depth_offset_hi,
          .color_offset_hi = color_offset_hi,
-         .depth_cache_size = (enum a6xx_ccu_cache_size)cfg->depth_cache_fraction,
+         .depth_cache_size = static_cast<enum a6xx_ccu_cache_size>(cfg->depth_cache_fraction),
          .depth_offset = depth_offset,
          .color_cache_size = color_cache_size,
          .color_offset = color_offset
@@ -730,7 +730,7 @@ emit_rb_ccu_cntl(struct tu_cs *cs, struct tu_device *dev, bool gmem)
             dev->physical_device->info->props.concurrent_resolve,
          .depth_offset_hi = depth_offset_hi,
          .color_offset_hi = color_offset_hi,
-         .depth_cache_size = (enum a6xx_ccu_cache_size)cfg->depth_cache_fraction,
+         .depth_cache_size = static_cast<enum a6xx_ccu_cache_size>(cfg->depth_cache_fraction),
          .depth_offset = depth_offset,
          .color_cache_size = color_cache_size,
          .color_offset = color_offset
@@ -910,7 +910,7 @@ tu6_emit_mrt(struct tu_cmd_buffer *cmd,
          remapped, .dword = iview->view.FLAG_BUFFER_PITCH));
 
       if (remapped == 0)
-         mrt0_format = (enum a6xx_format) (iview->view.SP_PS_MRT_REG & 0xff);
+         mrt0_format = static_cast<enum a6xx_format>(iview->view.SP_PS_MRT_REG & 0xff);
 
       written |= 1u << remapped;
    }
@@ -1351,7 +1351,7 @@ static void
 tu6_update_msaa_disable(struct tu_cmd_buffer *cmd)
 {
    VkPrimitiveTopology topology =
-      (VkPrimitiveTopology)cmd->vk.dynamic_graphics_state.ia.primitive_topology;
+      static_cast<VkPrimitiveTopology>(cmd->vk.dynamic_graphics_state.ia.primitive_topology);
    bool is_line =
       topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
       topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY ||
@@ -1741,12 +1741,14 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
 
          VkOffset2D bin_offset = tu_bin_offset(fdm_offsets[i], tiling);
 
-         bins[i].offset.x = MAX2(0, (int32_t)x1 - bin_offset.x);
-         bins[i].offset.y = MAX2(0, (int32_t)y1 - bin_offset.y);
+         bins[i].offset.x = MAX2(0, static_cast<int32_t>(x1) - bin_offset.x);
+         bins[i].offset.y = MAX2(0, static_cast<int32_t>(y1) - bin_offset.y);
          bins[i].extent.width =
-            MAX2(MIN2((int32_t)x1 + bin.extent.width - bin_offset.x, MAX_VIEWPORT_SIZE) - bins[i].offset.x, 0);
+            MAX2(MIN2(static_cast<int32_t>(x1) + bin.extent.width - bin_offset.x, MAX_VIEWPORT_SIZE) -
+                 bins[i].offset.x, 0);
          bins[i].extent.height =
-            MAX2(MIN2((int32_t)y1 + bin.extent.height - bin_offset.y, MAX_VIEWPORT_SIZE) - bins[i].offset.y, 0);
+            MAX2(MIN2(static_cast<int32_t>(y1) + bin.extent.height - bin_offset.y, MAX_VIEWPORT_SIZE) -
+                 bins[i].offset.y, 0);
       }
 
       if (cmd->device->physical_device->info->props.has_hw_bin_scaling) {
@@ -1776,18 +1778,18 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
             with_crb (cs, 26) {
                crb.add(GRAS_BIN_FOVEAT(CHIP,
                      .binscaleen = bin_scale_en,
-                     .xscale_0 = (enum a7xx_bin_scale)util_logbase2(frag_areas[0].width),
-                     .yscale_0 = (enum a7xx_bin_scale)util_logbase2(frag_areas[0].height),
-                     .xscale_1 = (enum a7xx_bin_scale)util_logbase2(frag_areas[1].width),
-                     .yscale_1 = (enum a7xx_bin_scale)util_logbase2(frag_areas[1].height),
-                     .xscale_2 = (enum a7xx_bin_scale)util_logbase2(frag_areas[2].width),
-                     .yscale_2 = (enum a7xx_bin_scale)util_logbase2(frag_areas[2].height),
-                     .xscale_3 = (enum a7xx_bin_scale)util_logbase2(frag_areas[3].width),
-                     .yscale_3 = (enum a7xx_bin_scale)util_logbase2(frag_areas[3].height),
-                     .xscale_4 = (enum a7xx_bin_scale)util_logbase2(frag_areas[4].width),
-                     .yscale_4 = (enum a7xx_bin_scale)util_logbase2(frag_areas[4].height),
-                     .xscale_5 = (enum a7xx_bin_scale)util_logbase2(frag_areas[5].width),
-                     .yscale_5 = (enum a7xx_bin_scale)util_logbase2(frag_areas[5].height)))
+                     .xscale_0 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[0].width)),
+                     .yscale_0 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[0].height)),
+                     .xscale_1 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[1].width)),
+                     .yscale_1 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[1].height)),
+                     .xscale_2 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[2].width)),
+                     .yscale_2 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[2].height)),
+                     .xscale_3 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[3].width)),
+                     .yscale_3 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[3].height)),
+                     .xscale_4 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[4].width)),
+                     .yscale_4 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[4].height)),
+                     .xscale_5 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[5].width)),
+                     .yscale_5 = static_cast<enum a7xx_bin_scale>(util_logbase2(frag_areas[5].height))))
                   .add(RB_BIN_FOVEAT(CHIP,
                      .binscaleen = bin_scale_en));
 
@@ -3951,10 +3953,10 @@ tu_emit_subsampled(struct tu_cmd_buffer *cmd,
       TU_CMD_FLAG_WAIT_FOR_IDLE;
 
    VkRect2D *dst =
-      (VkRect2D *)malloc(8 * vsc->tile_count.width * vsc->tile_count.height *
-                         (sizeof(VkRect2D) + sizeof(struct tu_rect2d_float)));
+      static_cast<VkRect2D *>(malloc(8 * vsc->tile_count.width * vsc->tile_count.height *
+                         (sizeof(VkRect2D) + sizeof(struct tu_rect2d_float))));
    struct tu_rect2d_float *src =
-      (struct tu_rect2d_float *)(dst + 8 * vsc->tile_count.width * vsc->tile_count.height);
+      reinterpret_cast<struct tu_rect2d_float *>(dst + 8 * vsc->tile_count.width * vsc->tile_count.height);
    unsigned count;
 
    /* Iterate over layers and then attachments so that we don't recompute the
@@ -4239,9 +4241,9 @@ tu_create_cmd_buffer(struct vk_command_pool *pool,
       container_of(pool->base.device, struct tu_device, vk);
    struct tu_cmd_buffer *cmd_buffer;
 
-   cmd_buffer = (struct tu_cmd_buffer *) vk_zalloc(
+   cmd_buffer = static_cast<struct tu_cmd_buffer *>(vk_zalloc(
       &pool->alloc, sizeof(*cmd_buffer), 8,
-      VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      VK_SYSTEM_ALLOCATION_SCOPE_OBJECT));
 
    if (cmd_buffer == NULL)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
@@ -4555,7 +4557,7 @@ tu_BeginCommandBuffer(VkCommandBuffer commandBuffer,
          switch (sType) {
          case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT: {
             const VkCommandBufferInheritanceConditionalRenderingInfoEXT *cond_rend =
-               (VkCommandBufferInheritanceConditionalRenderingInfoEXT *) ext;
+               static_cast<const VkCommandBufferInheritanceConditionalRenderingInfoEXT *>(ext);
             cmd_buffer->state.predication_active = cond_rend->conditionalRenderingEnable;
             break;
          }
@@ -4803,10 +4805,12 @@ tu6_emit_descriptor_sets(struct tu_cmd_buffer *cmd,
 
    if (descriptors_state->max_sets_bound > 0) {
       tu_cs_emit_pkt4(cs, sp_bindless_base_reg, 2 * descriptors_state->max_sets_bound);
-      tu_cs_emit_array(cs, (const uint32_t*)descriptors_state->set_iova, 2 * descriptors_state->max_sets_bound);
+      tu_cs_emit_array(cs, reinterpret_cast<const uint32_t*>(descriptors_state->set_iova),
+                       2 * descriptors_state->max_sets_bound);
       if (CHIP == A6XX) {
          tu_cs_emit_pkt4(cs, hlsq_bindless_base_reg, 2 * descriptors_state->max_sets_bound);
-         tu_cs_emit_array(cs, (const uint32_t*)descriptors_state->set_iova, 2 * descriptors_state->max_sets_bound);
+         tu_cs_emit_array(cs, reinterpret_cast<const uint32_t*>(descriptors_state->set_iova),
+                          2 * descriptors_state->max_sets_bound);
       }
    }
 
@@ -4914,7 +4918,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                   /* Note: we can assume here that the addition won't roll
                    * over and change the SIZE field.
                    */
-                  uint64_t va = src[0] | ((uint64_t)src[1] << 32);
+                  uint64_t va = src[0] | (static_cast<uint64_t>(src[1]) << 32);
                   va += offset;
                   dst[0] = va;
                   dst[1] = va >> 32;
@@ -5155,7 +5159,7 @@ tu_push_descriptor_set_update_layout(struct tu_device *device,
                     VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
       if (!new_buf)
          return VK_ERROR_OUT_OF_HOST_MEMORY;
-      set->mapped_ptr = (uint32_t *) new_buf;
+      set->mapped_ptr = static_cast<uint32_t *>(new_buf);
       set->host_size = layout->size;
    }
    return VK_SUCCESS;
@@ -5299,7 +5303,7 @@ tu_CmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuffer,
 
       /* BUFFER_BASE is 32-byte aligned, add remaining offset to BUFFER_OFFSET */
       uint32_t offset = iova & 0x1f;
-      iova &= ~(uint64_t) 0x1f;
+      iova &= ~static_cast<uint64_t>(0x1f);
 
       tu_cs_emit_regs(cs, VPC_SO_BUFFER_BASE(CHIP, idx, .qword = iova),
                       VPC_SO_BUFFER_SIZE(CHIP, idx, size + offset));
@@ -5380,7 +5384,7 @@ tu_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
    for (uint32_t i = 0; i < IR3_MAX_SO_BUFFERS; i++) {
       /* note: FLUSH_BASE is always the same, so it could go in init_hw()? */
       tu_cs_emit_regs(cs, VPC_SO_FLUSH_BASE(CHIP, i, .qword = global_iova_arr(cmd, flush_base, i)));
-      tu_emit_event_write<CHIP>(cmd, cs, (enum fd_gpu_event) (FD_FLUSH_SO_0 + i));
+      tu_emit_event_write<CHIP>(cmd, cs, static_cast<enum fd_gpu_event>(FD_FLUSH_SO_0 + i));
    }
 
    for (uint32_t i = 0; i < (pCounterBuffers ? counterBufferCount : 0); i++) {
@@ -5420,7 +5424,7 @@ tu_CmdPushConstants2KHR(VkCommandBuffer commandBuffer,
                         const VkPushConstantsInfoKHR *pPushConstantsInfo)
 {
    VK_FROM_HANDLE(tu_cmd_buffer, cmd, commandBuffer);
-   memcpy((char *) cmd->push_constants + pPushConstantsInfo->offset,
+   memcpy(reinterpret_cast<char *>(cmd->push_constants) + pPushConstantsInfo->offset,
           pPushConstantsInfo->pValues, pPushConstantsInfo->size);
    cmd->state.dirty |= TU_CMD_DIRTY_SHADER_CONSTS;
 }
@@ -6971,7 +6975,7 @@ tu7_emit_subpass_shading_rate(struct tu_cmd_buffer *cmd,
       cs,
       GRAS_QUALITY_BUFFER_INFO(
          CHIP, .layered = true,
-         .tile_mode = (a6xx_tile_mode) iview->image->layout[0].tile_mode, ),
+         .tile_mode = static_cast<a6xx_tile_mode>(iview->image->layout[0].tile_mode), ),
       GRAS_QUALITY_BUFFER_DIMENSION(CHIP, .width = iview->view.width,
                                     .height = iview->view.height));
    tu_cs_emit_regs(
@@ -7848,7 +7852,8 @@ tu7_emit_inline_ubo(struct tu_cs *cs,
    }
 
    /* A7XX TODO: Emit data via sub_cs instead of NOP */
-   uint64_t iova = tu_cs_emit_data_nop(cs, (uint32_t *)addresses, const_state->num_inline_ubos * 2, 4);
+   uint64_t iova = tu_cs_emit_data_nop(cs, reinterpret_cast<uint32_t *>(addresses),
+                                       const_state->num_inline_ubos * 2, 4);
 
    tu_cs_emit_pkt7(cs, tu6_stage2opcode(type), 5);
    tu_cs_emit(cs, CP_LOAD_STATE6_0_DST_OFF(offset) |
@@ -7859,7 +7864,7 @@ tu7_emit_inline_ubo(struct tu_cs *cs,
    tu_cs_emit(cs, CP_LOAD_STATE6_1_EXT_SRC_ADDR(0));
    tu_cs_emit(cs, CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI(0));
    int size_vec4s = DIV_ROUND_UP(const_state->num_inline_ubos * 2, 4);
-   tu_cs_emit_qw(cs, iova | ((uint64_t)A6XX_UBO_1_SIZE(size_vec4s) << 32));
+   tu_cs_emit_qw(cs, iova | (static_cast<uint64_t>(A6XX_UBO_1_SIZE(size_vec4s)) << 32));
 }
 
 static void
@@ -7948,7 +7953,7 @@ tu6_const_size(struct tu_cmd_buffer *cmd,
          dwords += tu6_user_consts_size(&cmd->state.shaders[type]->const_state,
                                         ldgk,
                                         load_shader_consts_via_preamble,
-                                        (mesa_shader_stage) type);
+                                        static_cast<mesa_shader_stage>(type));
    }
 
    return dwords;
@@ -8012,7 +8017,7 @@ tu7_emit_bindless_base_addresses(struct tu_cs *cs,
 
    /* A7XX TODO: Emit data via sub_cs instead of NOP */
    uint64_t iova = tu_cs_emit_data_nop(
-      cs, (uint32_t *) addresses, const_state->num_bindless_base_addresses * 2, 4);
+      cs, reinterpret_cast<uint32_t *>(addresses), const_state->num_bindless_base_addresses * 2, 4);
    unsigned size_vec4s =
       DIV_ROUND_UP(const_state->num_bindless_base_addresses * 2, 4);
 
@@ -8024,7 +8029,7 @@ tu7_emit_bindless_base_addresses(struct tu_cs *cs,
             CP_LOAD_STATE6_0_NUM_UNIT(1));
    tu_cs_emit(cs, CP_LOAD_STATE6_1_EXT_SRC_ADDR(0));
    tu_cs_emit(cs, CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI(0));
-   tu_cs_emit_qw(cs, iova | ((uint64_t) A6XX_UBO_1_SIZE(size_vec4s) << 32));
+   tu_cs_emit_qw(cs, iova | (static_cast<uint64_t>(A6XX_UBO_1_SIZE(size_vec4s)) << 32));
 }
 
 static void
@@ -8092,14 +8097,14 @@ tu_emit_consts(struct tu_cmd_buffer *cmd, bool compute)
             &cmd->state.program.link[type];
          tu6_emit_per_stage_push_consts(&cs, &link->tu_const_state,
                                         &link->const_state,
-                                        (mesa_shader_stage) type,
+                                        static_cast<mesa_shader_stage>(type),
                                         cmd->push_constants);
          tu_emit_inline_ubo(&cs, &link->tu_const_state,
                             &link->const_state, link->constlen,
-                            (mesa_shader_stage) type, descriptors);
+                            static_cast<mesa_shader_stage>(type), descriptors);
          tu_emit_bindless_base_addresses(&cs, &link->tu_const_state,
                                          &link->const_state,
-                                         (mesa_shader_stage) type,
+                                         static_cast<mesa_shader_stage>(type),
                                          descriptors);
       }
    }
@@ -8179,12 +8184,12 @@ tu6_update_simplified_stencil_state(struct tu_cmd_buffer *cmd)
    bool stencil_front_writemask = ds->stencil.front.write_mask;
    bool stencil_back_writemask = ds->stencil.back.write_mask;
 
-   VkStencilOp front_fail_op = (VkStencilOp)ds->stencil.front.op.fail;
-   VkStencilOp front_pass_op = (VkStencilOp)ds->stencil.front.op.pass;
-   VkStencilOp front_depth_fail_op = (VkStencilOp)ds->stencil.front.op.depth_fail;
-   VkStencilOp back_fail_op = (VkStencilOp)ds->stencil.back.op.fail;
-   VkStencilOp back_pass_op = (VkStencilOp)ds->stencil.back.op.pass;
-   VkStencilOp back_depth_fail_op = (VkStencilOp)ds->stencil.back.op.depth_fail;
+   VkStencilOp front_fail_op = static_cast<VkStencilOp>(ds->stencil.front.op.fail);
+   VkStencilOp front_pass_op = static_cast<VkStencilOp>(ds->stencil.front.op.pass);
+   VkStencilOp front_depth_fail_op = static_cast<VkStencilOp>(ds->stencil.front.op.depth_fail);
+   VkStencilOp back_fail_op = static_cast<VkStencilOp>(ds->stencil.back.op.fail);
+   VkStencilOp back_pass_op = static_cast<VkStencilOp>(ds->stencil.back.op.pass);
+   VkStencilOp back_depth_fail_op = static_cast<VkStencilOp>(ds->stencil.back.op.depth_fail);
 
    bool stencil_front_op_writes =
       front_pass_op != VK_STENCIL_OP_KEEP ||
@@ -8218,8 +8223,8 @@ tu6_writes_depth(struct tu_cmd_buffer *cmd, bool depth_test_enable)
    bool depth_write_enable =
       cmd->vk.dynamic_graphics_state.ds.depth.write_enable;
 
-   VkCompareOp depth_compare_op = (VkCompareOp)
-      cmd->vk.dynamic_graphics_state.ds.depth.compare_op;
+   VkCompareOp depth_compare_op = static_cast<VkCompareOp>(
+      cmd->vk.dynamic_graphics_state.ds.depth.compare_op);
 
    bool depth_compare_op_writes = depth_compare_op != VK_COMPARE_OP_NEVER;
 
@@ -8381,7 +8386,7 @@ fdm_apply_fs_params(struct tu_cmd_buffer *cmd,
                     bool binning)
 {
    const struct apply_fs_params_state *state =
-      (const struct apply_fs_params_state *)data;
+      static_cast<const struct apply_fs_params_state *>(data);
    unsigned num_consts = state->num_consts;
 
    for (unsigned i = 0; i < DIV_ROUND_UP(num_consts, 2); i++) {
@@ -8572,7 +8577,7 @@ tu7_emit_fs_params(struct tu_cmd_buffer *cmd)
    tu_cs_emit(&cs, CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI(0));
    tu_cs_emit_qw(&cs,
                  fdm_ubo.iova |
-                 (uint64_t)A6XX_UBO_1_SIZE(num_units) << 32);
+                 static_cast<uint64_t>(A6XX_UBO_1_SIZE(num_units)) << 32);
 
    cmd->state.fs_params = tu_cs_end_draw_state(&cmd->sub_cs, &cs);
 }
@@ -8713,7 +8718,7 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
                    MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN) ||
        (dirty & TU_CMD_DIRTY_DRAW_STATE)) {
       bool tess_upper_left_domain_origin =
-         (VkTessellationDomainOrigin)cmd->vk.dynamic_graphics_state.ts.domain_origin ==
+         static_cast<VkTessellationDomainOrigin>(cmd->vk.dynamic_graphics_state.ts.domain_origin) ==
          VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT;
       tu_cs_emit_regs(cs, PC_DS_PARAM(CHIP,
             .spacing = tess_params->spacing,
@@ -8916,16 +8921,16 @@ static uint32_t
 tu_draw_initiator(struct tu_cmd_buffer *cmd, enum pc_di_src_sel src_sel)
 {
    enum pc_di_primtype primtype =
-      tu6_primtype((VkPrimitiveTopology)cmd->vk.dynamic_graphics_state.ia.primitive_topology);
+      tu6_primtype(static_cast<VkPrimitiveTopology>(cmd->vk.dynamic_graphics_state.ia.primitive_topology));
 
    if (primtype == DI_PT_PATCHES0)
-      primtype = (enum pc_di_primtype) (primtype +
+      primtype = static_cast<enum pc_di_primtype>(primtype +
                                         cmd->vk.dynamic_graphics_state.ts.patch_control_points);
 
    uint32_t initiator =
       CP_DRAW_INDX_OFFSET_0_PRIM_TYPE(primtype) |
       CP_DRAW_INDX_OFFSET_0_SOURCE_SELECT(src_sel) |
-      CP_DRAW_INDX_OFFSET_0_INDEX_SIZE((enum a4xx_index_size) cmd->state.index_size) |
+      CP_DRAW_INDX_OFFSET_0_INDEX_SIZE(static_cast<enum a4xx_index_size>(cmd->state.index_size)) |
       CP_DRAW_INDX_OFFSET_0_VIS_CULL(USE_VISIBILITY);
 
    if (cmd->state.shaders[MESA_SHADER_GEOMETRY]->variant)
@@ -9678,7 +9683,7 @@ tu_emit_compute_driver_params(struct tu_cmd_buffer *cmd,
       tu_cs_emit(cs, CP_LOAD_STATE6_1_EXT_SRC_ADDR(0));
       tu_cs_emit(cs, CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI(0));
       int size_vec4s = DIV_ROUND_UP(num_consts, 4);
-      tu_cs_emit_qw(cs, iova | ((uint64_t)A6XX_UBO_1_SIZE(size_vec4s) << 32));
+      tu_cs_emit_qw(cs, iova | (static_cast<uint64_t>(A6XX_UBO_1_SIZE(size_vec4s)) << 32));
 
    } else {
       uint32_t offset =
@@ -9706,7 +9711,7 @@ tu_emit_compute_driver_params(struct tu_cmd_buffer *cmd,
                   CP_LOAD_STATE6_0_NUM_UNIT(num_consts / 4));
          tu_cs_emit(cs, 0);
          tu_cs_emit(cs, 0);
-         tu_cs_emit_array(cs, (uint32_t *)&driver_params, num_consts);
+         tu_cs_emit_array(cs, reinterpret_cast<uint32_t *>(&driver_params), num_consts);
       } else if (!(info->indirect & 0xf)) {
          tu_cs_emit_pkt7(cs, tu6_stage2opcode(type), 3);
          tu_cs_emit(cs, CP_LOAD_STATE6_0_DST_OFF(offset) |
@@ -9978,7 +9983,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
 
    if (info->indirect) {
       trace_start_compute_indirect(&cmd->trace, cs, cmd, info->unaligned,
-                                   (char *)shader->variant->blake3_str);
+                                   const_cast<char *>(shader->variant->blake3_str));
 
       if (info->unaligned) {
          tu_cs_emit_pkt7(cs, CP_RUN_OPENCL, 1);
@@ -10003,7 +10008,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
       trace_start_compute(&cmd->trace, cs, cmd, info->indirect != 0,
                           info->unaligned, local_size[0], local_size[1],
                           local_size[2], info->blocks[0], info->blocks[1],
-                          info->blocks[2], (char *)shader->variant->blake3_str);
+                          info->blocks[2], const_cast<char *>(shader->variant->blake3_str));
 
       if (info->unaligned) {
          tu_cs_emit_pkt7(cs, CP_EXEC_CS, 4);
@@ -10696,7 +10701,7 @@ tu_write_buffer_cp(VkCommandBuffer commandBuffer,
 
    tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 2 + size / 4);
    tu_cs_emit_qw(cs, addr);
-   tu_cs_emit_array(cs, (uint32_t *)data, size / 4);
+   tu_cs_emit_array(cs, static_cast<uint32_t *>(data), size / 4);
 }
 
 void
@@ -10706,5 +10711,5 @@ tu_flush_buffer_write_cp(VkCommandBuffer commandBuffer)
 
    struct tu_cache_state *cache = &cmd->state.cache;
    TU_CALLX(cmd->device, tu_flush_for_access)(cache, TU_ACCESS_CP_WRITE,
-                                              (enum tu_cmd_access_mask)0);
+                                              static_cast<enum tu_cmd_access_mask>(0));
 }
