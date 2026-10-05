@@ -1433,11 +1433,15 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
     * in a multi-process environment, because task shader dispatches are not
     * meant to be executed on multiple compute engines at the same time.
     */
-   ac_emit_cp_wait_mem(
-      ace_pre_cs->b, ace_wait_va, 1, 0xffffffff,
-      S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE) | S_3C1_OPERATION(V_3C1_WAIT_MEM_PREEMPTABLE));
+
+   uint32_t ace_pre_wait_flags = S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE);
+   if (pdev->info.gfx_level >= GFX9)
+      ace_pre_wait_flags |= S_3C1_OPERATION(V_3C1_WAIT_MEM_PREEMPTABLE);
+
+   ac_emit_cp_wait_mem(ace_pre_cs->b, ace_wait_va, 1, 0xffffffff, ace_pre_wait_flags);
    radv_cs_write_data(device, ace_pre_cs, V_371_MICRO_ENGINE, ace_wait_va, 1, &zero, false);
    radv_cs_write_data(device, leader_pre_cs, V_371_MICRO_ENGINE, ace_wait_va, 1, &one, false);
+
    /* Create postambles for gang submission.
     * This ensures that the gang leader waits for the whole gang,
     * which is necessary because the kernel signals the userspace fence
