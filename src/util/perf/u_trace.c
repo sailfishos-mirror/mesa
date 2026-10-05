@@ -156,8 +156,7 @@ print_txt_event(struct u_trace_context *utctx,
 
    if (evt->tp->print)
       evt->tp->print(utctx->out, evt->payload, indirect);
-   else
-      fprintf(utctx->out, "\n");
+   fprintf(utctx->out, "\n");
 
    if (evt->tp->type == u_tracepoint_type_begin_range)
       utctx->indentation++;
@@ -214,11 +213,9 @@ print_csv_event(struct u_trace_context *utctx,
 {
    fprintf(utctx->out, "%u,%u,%"PRIu64",%s,",
            utctx->frame_nr, utctx->batch_nr, ns, evt->tp->name);
-   if (evt->tp->print) {
+   if (evt->tp->print)
       evt->tp->print(utctx->out, evt->payload, indirect);
-   } else {
-      fprintf(utctx->out, "\n");
-   }
+   fprintf(utctx->out, "\n");
 }
 
 static struct u_trace_printer csv_printer = {
