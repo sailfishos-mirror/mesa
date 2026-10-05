@@ -101,6 +101,11 @@ fn legalize_fixed_srcs(
     for reg in ra::instr_clobbered_regs(b.model(), &instr.op) {
         clobbered.insert_range(reg.byte_range());
     }
+    for dst in instr.dsts() {
+        if let Some(reg) = b.model().op_fixed_dst_reg(&instr.op, dst) {
+            clobbered.insert_range(reg.byte_range());
+        }
+    }
 
     for src_idx in 0..instr.srcs().len() {
         let src = &instr.srcs()[src_idx];
