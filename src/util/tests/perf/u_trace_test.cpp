@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <string>
 #include <gtest/gtest.h>
 
 #include "c11/threads.h"
@@ -28,12 +30,64 @@ protected:
    }
 };
 
+static void
+init_context(struct u_trace_context *ctx)
+{
+   memset(ctx, 0, sizeof(*ctx));
+   u_trace_context_init(ctx, NULL, 8, 0, NULL, NULL, NULL,
+                        NULL, NULL, NULL, NULL);
+}
+
+/* Opens and closes one frame with an empty batch, which needs no timestamp
+ * callbacks, and waits for it to be printed.
+ */
+static void
+process_frame(struct u_trace_context *ctx)
+{
+   struct u_trace ut;
+   u_trace_init(&ut, ctx);
+   u_trace_flush(&ut, NULL, 0, false);
+   u_trace_fini(&ut);
+   u_trace_context_process(ctx, true);
+   util_queue_finish(&ctx->queue);
+}
+
+static std::string
+read_file(const char *path)
+{
+   std::string contents;
+   FILE *f = fopen(path, "rb");
+   if (!f)
+      return contents;
+
+   char buf[256];
+   size_t n;
+   while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+      contents.append(buf, n);
+   fclose(f);
+   return contents;
+}
+
+static int
+count_lines_starting_with(const std::string &contents, const std::string &prefix)
+{
+   int count = 0;
+   for (size_t pos = 0; pos < contents.size();) {
+      if (contents.compare(pos, prefix.size(), prefix) == 0)
+         count++;
+      size_t newline = contents.find('\n', pos);
+      if (newline == std::string::npos)
+         break;
+      pos = newline + 1;
+   }
+   return count;
+}
+
 static int
 test_thread(void *_state)
 {
-   struct u_trace_context ctx = {};
-   u_trace_context_init(&ctx, NULL, 8, 0, NULL, NULL, NULL,
-                        NULL, NULL, NULL, NULL);
+   struct u_trace_context ctx;
+   init_context(&ctx);
    u_trace_context_fini(&ctx);
 
    return 0;
@@ -50,4 +104,19 @@ TEST_F(UtilPerfTraceTest, Multithread)
       int ret;
       thrd_join(threads[i], &ret);
    }
+}
+
+TEST_F(UtilPerfTraceTest, EndOfFrameOnce)
+{
+   os_set_option("MESA_GPU_TRACEFILE", trace_file_path, true);
+   os_set_option("MESA_GPU_TRACES", "print", true);
+
+   struct u_trace_context ctx;
+   init_context(&ctx);
+   process_frame(&ctx);
+   u_trace_context_fini(&ctx);
+   u_trace_state_reset();
+
+   std::string out = read_file(trace_file_path);
+   EXPECT_EQ(count_lines_starting_with(out, "END OF FRAME"), 1) << out;
 }

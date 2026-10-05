@@ -509,7 +509,7 @@ u_trace_context_fini(struct u_trace_context *utctx)
    _mesa_hash_table_fini(&utctx->tracepoint_ranges, free_tracepoint_ranges_entry);
 
    if (utctx->out) {
-      if (utctx->batch_nr > 0) {
+      if (!utctx->start_of_frame) {
          utctx->out_printer->end_of_frame(utctx);
       }
 
