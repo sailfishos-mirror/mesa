@@ -244,6 +244,14 @@ radv_compression_control_enabled(const struct radv_physical_device *pdev)
    return pdev->info.gfx_level < GFX12;
 }
 
+static bool
+radv_shader_abort_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return !pdev->use_llvm && !(instance->experimental_flags & RADV_EXPERIMENTAL_ELF);
+}
+
 bool
 radv_is_rt_wave64_enabled(const struct radv_physical_device *pdev)
 {
@@ -760,7 +768,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_sampler_mirror_clamp_to_edge = true,
       .KHR_sampler_ycbcr_conversion = true,
       .KHR_separate_depth_stencil_layouts = true,
-      .KHR_shader_abort = true,
+      .KHR_shader_abort = radv_shader_abort_enabled(pdev),
       .KHR_shader_atomic_int64 = true,
       .KHR_shader_bfloat16 = radv_bfloat16_enabled(pdev),
       .KHR_shader_clock = true,
@@ -1675,7 +1683,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .deviceFaultDeviceLostOnMasked = false,
 
       /* VK_KHR_shader_abort */
-      .shaderAbort = true,
+      .shaderAbort = radv_shader_abort_enabled(pdev),
 
       /* VK_EXT_shader_split_barrier */
       .shaderSplitBarrier = radv_split_barrier_enabled(pdev),
