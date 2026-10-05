@@ -653,6 +653,8 @@ radv_get_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image 
 
    // clang-format off
    if (radv_image_has_vrs_htile(device, image)) {
+      assert(zmask_mask || zrange_mask || smem_mask || vrs_mask);
+
       mask |= HTILE_ZS_VRS_CODE(.zmask = zmask_mask,
                                 .zdelta = zrange_mask,
                                 .zbase = zrange_mask,
@@ -661,6 +663,9 @@ radv_get_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image 
                                 .vrs_x = vrs_mask,
                                 .vrs_y = vrs_mask);
    } else if (!radv_image_tile_stencil_disabled(device, image)) {
+      if (!zmask_mask && !zrange_mask && !smem_mask)
+         return 0;
+
       mask |= HTILE_ZS_CODE(.zmask = zmask_mask,
                             .zdelta = zrange_mask,
                             .zbase = zrange_mask,
