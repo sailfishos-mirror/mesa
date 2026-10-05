@@ -2814,7 +2814,7 @@
         "description": "panfrost: fix UB in pan_csf pointer based type-punning",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
