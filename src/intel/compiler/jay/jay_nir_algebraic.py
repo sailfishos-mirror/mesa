@@ -74,12 +74,17 @@ lower_fsign.extend([
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
 ])
 
-for i in range(2, 15):
+# Fuse iadd+ishl. Prefer imad over umad so we can fold more modifiers.
+for i in range(2, 14):
     lower_fsign.extend([
         (('iadd', ('ishl(is_only_used_by_iadd)', 'b@32', i), c),
-         ('umad_32x16_intel', b, 1 << i, c)),
+         ('imad_32x16_intel', b, 1 << i, c)),
     ])
 
+lower_fsign.extend([
+    (('iadd', ('ishl(is_only_used_by_iadd)', 'b@32', i), c),
+     ('umad_32x16_intel', b, 1 << 15, c)),
+])
 
 lower_bool = [
     # Try to use conditional modifiers more
