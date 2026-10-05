@@ -10147,6 +10147,17 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkGetPhysicalDeviceSparseImageFormatProperties2KHR";
         }
 #endif
+#ifdef VK_KHR_device_group
+        case OP_vkGetDeviceGroupPeerMemoryFeaturesKHR: {
+            return "OP_vkGetDeviceGroupPeerMemoryFeaturesKHR";
+        }
+        case OP_vkCmdSetDeviceMaskKHR: {
+            return "OP_vkCmdSetDeviceMaskKHR";
+        }
+        case OP_vkCmdDispatchBaseKHR: {
+            return "OP_vkCmdDispatchBaseKHR";
+        }
+#endif
 #ifdef VK_KHR_maintenance1
         case OP_vkTrimCommandPoolKHR: {
             return "OP_vkTrimCommandPoolKHR";

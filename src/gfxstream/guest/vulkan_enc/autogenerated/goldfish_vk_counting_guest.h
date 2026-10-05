@@ -1289,6 +1289,26 @@ DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceSparseImageFormatInfo2,
                       count_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group
+DEFINE_ALIAS_FUNCTION(count_VkMemoryAllocateFlagsInfo, count_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkDeviceGroupRenderPassBeginInfo,
+                      count_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkDeviceGroupCommandBufferBeginInfo,
+                      count_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkDeviceGroupSubmitInfo, count_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkDeviceGroupBindSparseInfo, count_VkDeviceGroupBindSparseInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkBindBufferMemoryDeviceGroupInfo,
+                      count_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkBindImageMemoryDeviceGroupInfo,
+                      count_VkBindImageMemoryDeviceGroupInfoKHR)
+
+#endif
 #ifdef VK_KHR_device_group_creation
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceGroupProperties,
                       count_VkPhysicalDeviceGroupPropertiesKHR)

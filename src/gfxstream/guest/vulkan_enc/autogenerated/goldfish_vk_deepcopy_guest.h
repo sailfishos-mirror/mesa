@@ -1427,6 +1427,26 @@ DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceSparseImageFormatInfo2,
                       deepcopy_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group
+DEFINE_ALIAS_FUNCTION(deepcopy_VkMemoryAllocateFlagsInfo, deepcopy_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkDeviceGroupRenderPassBeginInfo,
+                      deepcopy_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkDeviceGroupCommandBufferBeginInfo,
+                      deepcopy_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkDeviceGroupSubmitInfo, deepcopy_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkDeviceGroupBindSparseInfo, deepcopy_VkDeviceGroupBindSparseInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkBindBufferMemoryDeviceGroupInfo,
+                      deepcopy_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkBindImageMemoryDeviceGroupInfo,
+                      deepcopy_VkBindImageMemoryDeviceGroupInfoKHR)
+
+#endif
 #ifdef VK_KHR_device_group_creation
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceGroupProperties,
                       deepcopy_VkPhysicalDeviceGroupPropertiesKHR)

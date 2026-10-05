@@ -129,6 +129,7 @@ NON_AUTOGEN_ENTRYPOINTS = [
     "vkGetDeviceProcAddr",
     "vkEnumeratePhysicalDevices",
     "vkEnumeratePhysicalDeviceGroups",
+    "vkEnumeratePhysicalDeviceGroupsKHR",
     "vkCreateDevice",
     "vkDestroyDevice",
     # Manual alloc/free + vk_*_init/free() call w/ special params

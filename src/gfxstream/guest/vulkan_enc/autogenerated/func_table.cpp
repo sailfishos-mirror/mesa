@@ -2469,6 +2469,36 @@ void gfxstream_vk_GetPhysicalDeviceSparseImageFormatProperties2KHR(
     }
 }
 #endif
+#ifdef VK_KHR_device_group
+void gfxstream_vk_GetDeviceGroupPeerMemoryFeaturesKHR(
+    VkDevice device, uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex,
+    VkPeerMemoryFeatureFlags* pPeerMemoryFeatures) {
+    MESA_TRACE_SCOPE("vkGetDeviceGroupPeerMemoryFeaturesKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkEnc->vkGetDeviceGroupPeerMemoryFeaturesKHR(device, heapIndex, localDeviceIndex,
+                                                     remoteDeviceIndex, pPeerMemoryFeatures,
+                                                     true /* do lock */);
+    }
+}
+void gfxstream_vk_CmdSetDeviceMaskKHR(VkCommandBuffer commandBuffer, uint32_t deviceMask) {
+    MESA_TRACE_SCOPE("vkCmdSetDeviceMaskKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdSetDeviceMaskKHR(commandBuffer, deviceMask, true /* do lock */);
+    }
+}
+void gfxstream_vk_CmdDispatchBaseKHR(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
+                                     uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX,
+                                     uint32_t groupCountY, uint32_t groupCountZ) {
+    MESA_TRACE_SCOPE("vkCmdDispatchBaseKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdDispatchBaseKHR(commandBuffer, baseGroupX, baseGroupY, baseGroupZ, groupCountX,
+                                    groupCountY, groupCountZ, true /* do lock */);
+    }
+}
+#endif
 #ifdef VK_KHR_maintenance1
 void gfxstream_vk_TrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
                                      VkCommandPoolTrimFlags flags) {
@@ -2477,22 +2507,6 @@ void gfxstream_vk_TrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkTrimCommandPoolKHR(device, commandPool, flags, true /* do lock */);
     }
-}
-#endif
-#ifdef VK_KHR_device_group_creation
-VkResult gfxstream_vk_EnumeratePhysicalDeviceGroupsKHR(
-    VkInstance instance, uint32_t* pPhysicalDeviceGroupCount,
-    VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) {
-    MESA_TRACE_SCOPE("vkEnumeratePhysicalDeviceGroupsKHR");
-    VkResult vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return = (VkResult)0;
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return =
-            vkEnc->vkEnumeratePhysicalDeviceGroupsKHR(instance, pPhysicalDeviceGroupCount,
-                                                      pPhysicalDeviceGroupProperties,
-                                                      true /* do lock */);
-    }
-    return vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return;
 }
 #endif
 #ifdef VK_KHR_external_memory_capabilities

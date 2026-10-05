@@ -1529,6 +1529,30 @@ DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceSparseImageFormatInfo2,
 #define OP_vkGetPhysicalDeviceMemoryProperties2KHR 20203
 #define OP_vkGetPhysicalDeviceSparseImageFormatProperties2KHR 20204
 #endif
+#ifdef VK_KHR_device_group
+DEFINE_ALIAS_FUNCTION(unmarshal_VkMemoryAllocateFlagsInfo, unmarshal_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkDeviceGroupRenderPassBeginInfo,
+                      unmarshal_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkDeviceGroupCommandBufferBeginInfo,
+                      unmarshal_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkDeviceGroupSubmitInfo, unmarshal_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkDeviceGroupBindSparseInfo,
+                      unmarshal_VkDeviceGroupBindSparseInfoKHR)
+
+#define OP_vkGetDeviceGroupPeerMemoryFeaturesKHR 20205
+#define OP_vkCmdSetDeviceMaskKHR 20206
+#define OP_vkCmdDispatchBaseKHR 20207
+DEFINE_ALIAS_FUNCTION(unmarshal_VkBindBufferMemoryDeviceGroupInfo,
+                      unmarshal_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkBindImageMemoryDeviceGroupInfo,
+                      unmarshal_VkBindImageMemoryDeviceGroupInfoKHR)
+
+#endif
 #ifdef VK_KHR_maintenance1
 #define OP_vkTrimCommandPoolKHR 20208
 #endif

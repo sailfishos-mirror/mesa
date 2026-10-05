@@ -713,6 +713,17 @@ class VkEncoder {
         VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSparseImageFormatInfo2* pFormatInfo,
         uint32_t* pPropertyCount, VkSparseImageFormatProperties2* pProperties, uint32_t doLock);
 #endif
+#ifdef VK_KHR_device_group
+    void vkGetDeviceGroupPeerMemoryFeaturesKHR(VkDevice device, uint32_t heapIndex,
+                                               uint32_t localDeviceIndex,
+                                               uint32_t remoteDeviceIndex,
+                                               VkPeerMemoryFeatureFlags* pPeerMemoryFeatures,
+                                               uint32_t doLock);
+    void vkCmdSetDeviceMaskKHR(VkCommandBuffer commandBuffer, uint32_t deviceMask, uint32_t doLock);
+    void vkCmdDispatchBaseKHR(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
+                              uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX,
+                              uint32_t groupCountY, uint32_t groupCountZ, uint32_t doLock);
+#endif
 #ifdef VK_KHR_maintenance1
     void vkTrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
                               VkCommandPoolTrimFlags flags, uint32_t doLock);

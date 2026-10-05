@@ -105,6 +105,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_push_descriptor",
     "VK_KHR_depth_stencil_resolve",
     "VK_KHR_dynamic_rendering_local_read",
+    "VK_KHR_device_group",
     "VK_KHR_shader_integer_dot_product",
     "VK_KHR_shader_non_semantic_info",
     "VK_KHR_shader_terminate_invocation",

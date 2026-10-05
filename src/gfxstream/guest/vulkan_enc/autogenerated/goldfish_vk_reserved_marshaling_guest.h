@@ -1428,6 +1428,29 @@ DEFINE_ALIAS_FUNCTION(reservedmarshal_VkPhysicalDeviceSparseImageFormatInfo2,
                       reservedmarshal_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkMemoryAllocateFlagsInfo,
+                      reservedmarshal_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkDeviceGroupRenderPassBeginInfo,
+                      reservedmarshal_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkDeviceGroupCommandBufferBeginInfo,
+                      reservedmarshal_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkDeviceGroupSubmitInfo,
+                      reservedmarshal_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkDeviceGroupBindSparseInfo,
+                      reservedmarshal_VkDeviceGroupBindSparseInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkBindBufferMemoryDeviceGroupInfo,
+                      reservedmarshal_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkBindImageMemoryDeviceGroupInfo,
+                      reservedmarshal_VkBindImageMemoryDeviceGroupInfoKHR)
+
+#endif
 #ifdef VK_KHR_device_group_creation
 DEFINE_ALIAS_FUNCTION(reservedmarshal_VkPhysicalDeviceGroupProperties,
                       reservedmarshal_VkPhysicalDeviceGroupPropertiesKHR)

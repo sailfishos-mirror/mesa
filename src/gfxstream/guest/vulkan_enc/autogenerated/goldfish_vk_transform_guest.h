@@ -2194,6 +2194,50 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceSparseImageFormatInfo2,
                       transform_fromhost_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkMemoryAllocateFlagsInfo,
+                      transform_tohost_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkMemoryAllocateFlagsInfo,
+                      transform_fromhost_VkMemoryAllocateFlagsInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceGroupRenderPassBeginInfo,
+                      transform_tohost_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceGroupRenderPassBeginInfo,
+                      transform_fromhost_VkDeviceGroupRenderPassBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceGroupCommandBufferBeginInfo,
+                      transform_tohost_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceGroupCommandBufferBeginInfo,
+                      transform_fromhost_VkDeviceGroupCommandBufferBeginInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceGroupSubmitInfo,
+                      transform_tohost_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceGroupSubmitInfo,
+                      transform_fromhost_VkDeviceGroupSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceGroupBindSparseInfo,
+                      transform_tohost_VkDeviceGroupBindSparseInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceGroupBindSparseInfo,
+                      transform_fromhost_VkDeviceGroupBindSparseInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkBindBufferMemoryDeviceGroupInfo,
+                      transform_tohost_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkBindBufferMemoryDeviceGroupInfo,
+                      transform_fromhost_VkBindBufferMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkBindImageMemoryDeviceGroupInfo,
+                      transform_tohost_VkBindImageMemoryDeviceGroupInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkBindImageMemoryDeviceGroupInfo,
+                      transform_fromhost_VkBindImageMemoryDeviceGroupInfoKHR)
+
+#endif
 #ifdef VK_KHR_device_group_creation
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceGroupProperties,
                       transform_tohost_VkPhysicalDeviceGroupPropertiesKHR)

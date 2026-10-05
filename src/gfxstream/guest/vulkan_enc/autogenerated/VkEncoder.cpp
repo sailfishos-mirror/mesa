@@ -18464,6 +18464,192 @@ void VkEncoder::vkGetPhysicalDeviceSparseImageFormatProperties2KHR(
 }
 
 #endif
+#ifdef VK_KHR_device_group
+void VkEncoder::vkGetDeviceGroupPeerMemoryFeaturesKHR(VkDevice device, uint32_t heapIndex,
+                                                      uint32_t localDeviceIndex,
+                                                      uint32_t remoteDeviceIndex,
+                                                      VkPeerMemoryFeatureFlags* pPeerMemoryFeatures,
+                                                      uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkDevice local_device;
+    uint32_t local_heapIndex;
+    uint32_t local_localDeviceIndex;
+    uint32_t local_remoteDeviceIndex;
+    local_device = device;
+    local_heapIndex = heapIndex;
+    local_localDeviceIndex = localDeviceIndex;
+    local_remoteDeviceIndex = remoteDeviceIndex;
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(VkPeerMemoryFeatureFlags);
+    }
+    uint32_t packetSize_vkGetDeviceGroupPeerMemoryFeaturesKHR =
+        4 + 4 + (queueSubmitWithCommandsEnabled ? 4 : 0) + count;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkGetDeviceGroupPeerMemoryFeaturesKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkGetDeviceGroupPeerMemoryFeaturesKHR =
+        OP_vkGetDeviceGroupPeerMemoryFeaturesKHR;
+    uint32_t seqno;
+    if (queueSubmitWithCommandsEnabled) seqno = ResourceTracker::nextSeqno();
+    memcpy(streamPtr, &opcode_vkGetDeviceGroupPeerMemoryFeaturesKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkGetDeviceGroupPeerMemoryFeaturesKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (queueSubmitWithCommandsEnabled) {
+        memcpy(streamPtr, &seqno, sizeof(uint32_t));
+        streamPtr += sizeof(uint32_t);
+    }
+    uint64_t cgen_var_0;
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    memcpy(*streamPtrPtr, (uint32_t*)&local_heapIndex, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_localDeviceIndex, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_remoteDeviceIndex, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (VkPeerMemoryFeatureFlags*)pPeerMemoryFeatures,
+           sizeof(VkPeerMemoryFeatureFlags));
+    *streamPtrPtr += sizeof(VkPeerMemoryFeatureFlags);
+    stream->read((VkPeerMemoryFeatureFlags*)pPeerMemoryFeatures, sizeof(VkPeerMemoryFeatureFlags));
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+}
+
+void VkEncoder::vkCmdSetDeviceMaskKHR(VkCommandBuffer commandBuffer, uint32_t deviceMask,
+                                      uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkCommandBuffer local_commandBuffer;
+    uint32_t local_deviceMask;
+    local_commandBuffer = commandBuffer;
+    local_deviceMask = deviceMask;
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        *countPtr += sizeof(uint32_t);
+    }
+    uint32_t packetSize_vkCmdSetDeviceMaskKHR = 4 + 4 + count;
+    if (queueSubmitWithCommandsEnabled) packetSize_vkCmdSetDeviceMaskKHR -= 8;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkCmdSetDeviceMaskKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkCmdSetDeviceMaskKHR = OP_vkCmdSetDeviceMaskKHR;
+    memcpy(streamPtr, &opcode_vkCmdSetDeviceMaskKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkCmdSetDeviceMaskKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (!queueSubmitWithCommandsEnabled) {
+        uint64_t cgen_var_0;
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
+        memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+        *streamPtrPtr += 1 * 8;
+    }
+    memcpy(*streamPtrPtr, (uint32_t*)&local_deviceMask, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+}
+
+void VkEncoder::vkCmdDispatchBaseKHR(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
+                                     uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX,
+                                     uint32_t groupCountY, uint32_t groupCountZ, uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkCommandBuffer local_commandBuffer;
+    uint32_t local_baseGroupX;
+    uint32_t local_baseGroupY;
+    uint32_t local_baseGroupZ;
+    uint32_t local_groupCountX;
+    uint32_t local_groupCountY;
+    uint32_t local_groupCountZ;
+    local_commandBuffer = commandBuffer;
+    local_baseGroupX = baseGroupX;
+    local_baseGroupY = baseGroupY;
+    local_baseGroupZ = baseGroupZ;
+    local_groupCountX = groupCountX;
+    local_groupCountY = groupCountY;
+    local_groupCountZ = groupCountZ;
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+        *countPtr += sizeof(uint32_t);
+    }
+    uint32_t packetSize_vkCmdDispatchBaseKHR = 4 + 4 + count;
+    if (queueSubmitWithCommandsEnabled) packetSize_vkCmdDispatchBaseKHR -= 8;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkCmdDispatchBaseKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkCmdDispatchBaseKHR = OP_vkCmdDispatchBaseKHR;
+    memcpy(streamPtr, &opcode_vkCmdDispatchBaseKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkCmdDispatchBaseKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (!queueSubmitWithCommandsEnabled) {
+        uint64_t cgen_var_0;
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
+        memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+        *streamPtrPtr += 1 * 8;
+    }
+    memcpy(*streamPtrPtr, (uint32_t*)&local_baseGroupX, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_baseGroupY, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_baseGroupZ, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_groupCountX, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_groupCountY, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    memcpy(*streamPtrPtr, (uint32_t*)&local_groupCountZ, sizeof(uint32_t));
+    *streamPtrPtr += sizeof(uint32_t);
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+}
+
+#endif
 #ifdef VK_KHR_maintenance1
 void VkEncoder::vkTrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
                                      VkCommandPoolTrimFlags flags, uint32_t doLock) {
