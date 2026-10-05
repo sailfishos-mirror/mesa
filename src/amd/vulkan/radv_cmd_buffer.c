@@ -2030,6 +2030,8 @@ radv_wait_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_str
    } else {
       assert(cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE);
       uint32_t flags = S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE);
+      if (pdev->info.gfx_level == GFX8 && cs->hw_ip == AMD_IP_COMPUTE)
+         flags |= WAIT_REG_MEM_UNCACHED_VI_MEC;
 
       ac_emit_cp_wait_mem(cs->b, va, value, 0xffffffff, flags);
    }
