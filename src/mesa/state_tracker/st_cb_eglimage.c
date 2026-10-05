@@ -433,8 +433,13 @@ st_egl_image_target_renderbuffer_storage(struct gl_context *ctx,
       surf_tmpl.first_layer = stimg.layer;
       surf_tmpl.last_layer = stimg.layer;
 
-      rb->Format = st_pipe_format_to_mesa_format(surf_tmpl.format);
-      rb->_BaseFormat = st_pipe_format_to_base_format(surf_tmpl.format);
+      /* an image with the fixed little-endian variant of its format */
+      enum pipe_format format = surf_tmpl.format;
+      if (util_format_le_byte_order(stimg.format) == format)
+         format = stimg.format;
+
+      rb->Format = st_pipe_format_to_mesa_format(format);
+      rb->_BaseFormat = st_pipe_format_to_base_format(format);
       rb->InternalFormat = rb->_BaseFormat;
 
       st_set_ws_renderbuffer_surface(rb, &surf_tmpl);
@@ -660,7 +665,7 @@ st_bind_egl_image(struct gl_context *ctx,
    if (st->screen->resource_changed)
       st->screen->resource_changed(st->screen, texImage->pt);
 
-   texObj->surface_format = stimg->format;
+   texObj->surface_format = st_get_surface_format(stimg->format, texObj->pt);
 
    /* Cache whether the extra YUV plane-view / lowering setup in
     * st_get_sampler_views() and st_get_external_sampler_key() must run for

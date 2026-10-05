@@ -2169,7 +2169,8 @@ dri2_check_dma_buf_attribs(const _EGLImageAttribs *attrs)
 static unsigned
 dri2_num_fourcc_format_planes(EGLint format)
 {
-   switch (format) {
+   /* The driver decides which formats it takes in big-endian form. */
+   switch (format & ~DRM_FORMAT_BIG_ENDIAN) {
    case DRM_FORMAT_R8:
    case DRM_FORMAT_RG88:
    case DRM_FORMAT_GR88:

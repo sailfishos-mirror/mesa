@@ -50,6 +50,14 @@ bool
 dri2_yuv_dma_buf_supported(struct dri_screen *screen,
                            const struct dri2_format_mapping *map);
 
+int
+dri2_get_host_fourcc(struct dri_screen *screen,
+                     const struct dri2_format_mapping *map);
+
+const struct dri2_format_mapping *
+dri2_get_import_mapping(struct dri_screen *screen, int fourcc,
+                        struct dri2_format_mapping *import_map);
+
 bool
 dri2_validate_egl_image(struct dri_screen *screen, void *handle);
 void

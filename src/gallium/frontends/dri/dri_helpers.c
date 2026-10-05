@@ -793,6 +793,67 @@ dri2_yuv_dma_buf_supported(struct dri_screen *screen,
    return true;
 }
 
+/**
+ * A dma-buf has the little-endian layout of its fourcc, so on a big-endian
+ * host it is imported with the fixed little-endian variant of \p format, if
+ * there is one and the driver can sample it.
+ */
+static enum pipe_format
+dri2_get_import_format(struct dri_screen *screen, enum pipe_format format)
+{
+   struct pipe_screen *pscreen = screen->base.screen;
+   enum pipe_format le_format = util_format_le_byte_order(format);
+
+   if (UTIL_ARCH_BIG_ENDIAN && le_format != format &&
+       pscreen->is_format_supported(pscreen, le_format, screen->target, 0, 0,
+                                    PIPE_BIND_SAMPLER_VIEW))
+      return le_format;
+
+   return format;
+}
+
+/**
+ * The fourcc of a host-endian image described by \p map. It has
+ * DRM_FORMAT_BIG_ENDIAN set if a dma-buf with the plain fourcc is imported
+ * with a different format.
+ */
+int
+dri2_get_host_fourcc(struct dri_screen *screen,
+                     const struct dri2_format_mapping *map)
+{
+   if (dri2_get_import_format(screen, map->pipe_format) != map->pipe_format)
+      return map->dri_fourcc | DRM_FORMAT_BIG_ENDIAN;
+
+   return map->dri_fourcc;
+}
+
+/**
+ * The mapping to import a dma-buf of \p fourcc with, or NULL. Unless
+ * \p fourcc is one from dri2_get_host_fourcc(), this is \p import_map, a
+ * copy of the table entry with the formats from dri2_get_import_format().
+ */
+const struct dri2_format_mapping *
+dri2_get_import_mapping(struct dri_screen *screen, int fourcc,
+                        struct dri2_format_mapping *import_map)
+{
+   const struct dri2_format_mapping *map = dri2_get_mapping_by_fourcc(fourcc);
+
+   if (!map) {
+      map = dri2_get_mapping_by_fourcc(fourcc & ~DRM_FORMAT_BIG_ENDIAN);
+      if (map && dri2_get_host_fourcc(screen, map) != fourcc)
+         map = NULL;
+      return map;
+   }
+
+   *import_map = *map;
+   import_map->pipe_format = dri2_get_import_format(screen, map->pipe_format);
+   for (unsigned i = 0; i < map->nplanes; i++)
+      import_map->planes[i].dri_format =
+         dri2_get_import_format(screen, map->planes[i].dri_format);
+
+   return import_map;
+}
+
 bool
 dri_query_dma_buf_formats(struct dri_screen *screen, int max, int *formats,
                            int *count)

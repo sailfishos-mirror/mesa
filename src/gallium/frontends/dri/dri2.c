@@ -928,7 +928,7 @@ dri_create_image(struct dri_screen *screen,
    img->level = 0;
    img->layer = 0;
    img->dri_format = format;
-   img->dri_fourcc = map->dri_fourcc;
+   img->dri_fourcc = dri2_get_host_fourcc(screen, map);
    img->use = use;
    img->in_fence_fd = -1;
 
@@ -957,7 +957,7 @@ dri2_query_image_common(struct dri_image *image, int attrib, int *value)
          if (!map)
             return false;
 
-         *value = map->dri_fourcc;
+         *value = dri2_get_host_fourcc(image->screen, map);
       }
       return true;
    case __DRI_IMAGE_ATTRIB_COMPRESSION_RATE:
@@ -1316,7 +1316,9 @@ dri2_from_dma_bufs(struct dri_screen *screen,
                     void *loaderPrivate)
 {
    struct dri_image *img;
-   const struct dri2_format_mapping *map = dri2_get_mapping_by_fourcc(fourcc);
+   struct dri2_format_mapping import_map;
+   const struct dri2_format_mapping *map =
+      dri2_get_import_mapping(screen, fourcc, &import_map);
 
    if (!screen->dmabuf_import) {
       if (error)
@@ -1336,8 +1338,9 @@ dri2_from_dma_bufs(struct dri_screen *screen,
    if (dri_flags & __DRI_IMAGE_PRIME_LINEAR_BUFFER)
       flags |= PIPE_BIND_PRIME_BLIT_DST;
 
-   const int expected_num_fds = dri2_get_modifier_num_planes(screen, modifier, fourcc);
-   if (!map || expected_num_fds == 0) {
+   const int expected_num_fds =
+      map ? dri2_get_modifier_num_planes(screen, modifier, map->dri_fourcc) : 0;
+   if (expected_num_fds == 0) {
       err = __DRI_IMAGE_ERROR_BAD_MATCH;
       goto exit;
    }
