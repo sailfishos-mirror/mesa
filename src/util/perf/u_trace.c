@@ -50,6 +50,22 @@ static struct u_trace_state u_trace_state = { .once = UTIL_ONCE_FLAG_INIT };
 /* Incremented for each initialized context to assign u_trace_context::id. */
 static uint32_t u_trace_context_count;
 
+/* Serializes contexts writing to a shared trace file. Taken around every
+ * printer callback, whether or not the output is actually shared: it is
+ * uncontended in that case and costs less than the write it wraps. Kept off
+ * the surrounding timestamp reads, which can block.
+ */
+static simple_mtx_t shared_out_mtx = SIMPLE_MTX_INITIALIZER;
+
+/* Flushes utctx->out after each batch so a crash still leaves the trace
+ * readable up to the last processed submit.
+ */
+static void
+flush_output(struct u_trace_context *utctx)
+{
+   fflush(utctx->out);
+}
+
 #ifdef HAVE_PERFETTO
 /**
  * Global list of contexts, so we can defer starting the queue until
@@ -265,7 +281,6 @@ static void
 print_json_end_of_frame(struct u_trace_context *utctx)
 {
    fprintf(utctx->out, "]\n}\n");
-   fflush(utctx->out);
 }
 
 static void
@@ -540,7 +555,9 @@ u_trace_context_init(struct u_trace_context *utctx,
       return;
 
    if (utctx->out) {
+      simple_mtx_lock(&shared_out_mtx);
       utctx->out_printer->start(utctx);
+      simple_mtx_unlock(&shared_out_mtx);
    }
 }
 
@@ -566,12 +583,14 @@ u_trace_context_fini(struct u_trace_context *utctx)
    _mesa_hash_table_fini(&utctx->tracepoint_ranges, free_tracepoint_ranges_entry);
 
    if (utctx->out) {
+      simple_mtx_lock(&shared_out_mtx);
       if (!utctx->start_of_frame) {
          utctx->out_printer->end_of_frame(utctx);
       }
-
       utctx->out_printer->end(utctx);
-      fflush(utctx->out);
+      simple_mtx_unlock(&shared_out_mtx);
+
+      flush_output(utctx);
       if (utctx->out_owned)
          fclose(utctx->out);
    }
@@ -710,7 +729,9 @@ process_flush(void *job, void *gdata, int thread_index)
    if (flush->frame_nr != U_TRACE_FRAME_UNKNOWN &&
        flush->frame_nr != utctx->frame_nr) {
       if (utctx->out) {
+         simple_mtx_lock(&shared_out_mtx);
          utctx->out_printer->end_of_frame(utctx);
+         simple_mtx_unlock(&shared_out_mtx);
       }
       utctx->frame_nr = flush->frame_nr;
       utctx->start_of_frame = true;
@@ -720,13 +741,17 @@ process_flush(void *job, void *gdata, int thread_index)
       utctx->start_of_frame = false;
       utctx->batch_nr = 0;
       if (utctx->out) {
+         simple_mtx_lock(&shared_out_mtx);
          utctx->out_printer->start_of_frame(utctx);
+         simple_mtx_unlock(&shared_out_mtx);
       }
    }
 
    utctx->event_nr = 0;
    if (utctx->out) {
+      simple_mtx_lock(&shared_out_mtx);
       utctx->out_printer->start_of_batch(utctx);
+      simple_mtx_unlock(&shared_out_mtx);
    }
 
    uint64_t last_timestamp = 0;
@@ -817,7 +842,9 @@ process_flush(void *job, void *gdata, int thread_index)
       }
 
       if (utctx->out) {
+         simple_mtx_lock(&shared_out_mtx);
          utctx->out_printer->event(utctx, event, timestamp, delta, indirect_data);
+         simple_mtx_unlock(&shared_out_mtx);
       }
 #ifdef HAVE_PERFETTO
       if (event->tp->perfetto &&
@@ -832,7 +859,9 @@ process_flush(void *job, void *gdata, int thread_index)
    }
 
    if (utctx->out) {
+      simple_mtx_lock(&shared_out_mtx);
       utctx->out_printer->end_of_batch(utctx);
+      simple_mtx_unlock(&shared_out_mtx);
    }
 
    utctx->batch_nr++;
@@ -841,7 +870,9 @@ process_flush(void *job, void *gdata, int thread_index)
 
    if (flush->eof) {
       if (utctx->out) {
+         simple_mtx_lock(&shared_out_mtx);
          utctx->out_printer->end_of_frame(utctx);
+         simple_mtx_unlock(&shared_out_mtx);
       }
       utctx->frame_nr++;
       utctx->start_of_frame = true;
@@ -852,6 +883,9 @@ process_flush(void *job, void *gdata, int thread_index)
          print_ranges(utctx, &utctx->tracepoint_ranges, 0);
       }
    }
+
+   if (utctx->out)
+      flush_output(utctx);
 }
 
 static void

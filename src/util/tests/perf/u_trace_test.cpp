@@ -103,6 +103,9 @@ TEST_F(UtilPerfTraceTest, Multithread)
 {
    thrd_t threads[NUM_DEBUG_TEST_THREAD];
    os_set_option("MESA_GPU_TRACEFILE", trace_file_path, true);
+   /* No "%i", so all threads share one file; exercises shared_out_mtx. */
+   os_set_option("MESA_GPU_TRACES", "print_csv", true);
+
    for (unsigned i = 0; i < NUM_DEBUG_TEST_THREAD; i++) {
         thrd_create(&threads[i], test_thread, NULL);
    }
@@ -110,6 +113,20 @@ TEST_F(UtilPerfTraceTest, Multithread)
       int ret;
       thrd_join(threads[i], &ret);
    }
+   u_trace_state_reset();
+
+   /* Each thread writes one known header line and one blank line; check
+    * none got torn or merged by concurrent writers.
+    */
+   std::string out = read_file(trace_file_path);
+   EXPECT_EQ(count_lines_starting_with(out, "frame,batch,time_ns,event,"),
+             NUM_DEBUG_TEST_THREAD) << out;
+   int newlines = 0;
+   for (char c : out) {
+      if (c == '\n')
+         newlines++;
+   }
+   EXPECT_EQ(newlines, 2 * NUM_DEBUG_TEST_THREAD) << out;
 }
 
 TEST_F(UtilPerfTraceTest, EndOfFrameOnce)
