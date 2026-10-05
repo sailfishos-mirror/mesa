@@ -1437,6 +1437,8 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
    uint32_t ace_pre_wait_flags = S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE);
    if (pdev->info.gfx_level >= GFX9)
       ace_pre_wait_flags |= S_3C1_OPERATION(V_3C1_WAIT_MEM_PREEMPTABLE);
+   else if (pdev->info.gfx_level == GFX8)
+      ace_pre_wait_flags |= WAIT_REG_MEM_UNCACHED_VI_MEC;
 
    ac_emit_cp_wait_mem(ace_pre_cs->b, ace_wait_va, 1, 0xffffffff, ace_pre_wait_flags);
    radv_cs_write_data(device, ace_pre_cs, V_371_MICRO_ENGINE, ace_wait_va, 1, &zero, false);
