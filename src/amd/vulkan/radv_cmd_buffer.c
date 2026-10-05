@@ -14354,9 +14354,8 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
    radv_emit_graphics_states(cmd_buffer, info);
    radv_upload_graphics_shader_descriptors(cmd_buffer);
 
-   if (pdev->info.gfx_level >= GFX12) {
-      radv_gfx12_emit_buffered_regs(device, cs);
-   }
+   /* Only GFX12 buffers SH registers. */
+   radv_gfx12_emit_buffered_regs(device, cs);
 
    /* A graphics draw consumes this flush, so the PWS acquire point may defer to PRE_DEPTH. DGC is
     * excluded because the pending flush also makes the generated commands visible to the CP, which
@@ -14394,7 +14393,6 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
                           bool dgc)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    /* For direct draws, this makes sure we don't draw anything.
@@ -14444,12 +14442,9 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    if (pc_stages)
       radv_flush_constants(cmd_buffer, pc_stages, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-   if (pdev->info.gfx_level >= GFX12) {
-      radv_gfx12_emit_buffered_regs(device, cs);
-
-      if (task_shader)
-         radv_gfx12_emit_buffered_regs(device, cmd_buffer->gang.cs);
-   }
+   radv_gfx12_emit_buffered_regs(device, cs);
+   if (task_shader)
+      radv_gfx12_emit_buffered_regs(device, cmd_buffer->gang.cs);
 
    /* The mesh shader reaches the fragment/depth stage, so PRE_DEPTH deferral is legal here. DGC is
     * excluded because the pending flush also makes the generated commands visible to the CP, which
@@ -15401,7 +15396,6 @@ radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pip
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool pipeline_is_dirty = !!(cmd_buffer->state.dirty & RADV_CMD_DIRTY_COMPUTE_PIPELINE);
 
    /* Use the optimal packet order similar to draws. */
@@ -15412,8 +15406,7 @@ radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pip
 
    radv_upload_compute_shader_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-   if (pdev->info.gfx_level >= GFX12)
-      radv_gfx12_emit_buffered_regs(device, cs);
+   radv_gfx12_emit_buffered_regs(device, cs);
 
    if (cs == cmd_buffer->cs)
       radv_emit_cache_flush(cmd_buffer, false);
@@ -15469,7 +15462,6 @@ static void
 radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracing_pipeline *pipeline)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool pipeline_is_dirty = !!(cmd_buffer->state.dirty & RADV_CMD_DIRTY_RAY_TRACING_PIPELINE);
 
    /* Use the optimal packet order similar to draws. */
@@ -15482,8 +15474,7 @@ radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_traci
 
    radv_upload_compute_shader_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
 
-   if (pdev->info.gfx_level >= GFX12)
-      radv_gfx12_emit_buffered_regs(device, cmd_buffer->cs);
+   radv_gfx12_emit_buffered_regs(device, cmd_buffer->cs);
 
    radv_emit_cache_flush(cmd_buffer, false);
 
