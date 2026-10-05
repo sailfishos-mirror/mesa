@@ -13957,12 +13957,12 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
 }
 
 static void
-radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info)
+radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
+                              uint64_t dynamic_states)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   const uint64_t dynamic_states = cmd_buffer->state.dirty_dynamic & radv_get_needed_dynamic_states(cmd_buffer);
    if (cmd_buffer->state.dirty & (RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
    }
@@ -14202,6 +14202,27 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
    }
 }
 
+ALWAYS_INLINE static void
+radv_emit_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const uint64_t dynamic_states = cmd_buffer->state.dirty_dynamic & radv_get_needed_dynamic_states(cmd_buffer);
+   uint64_t dirty_mask = RADV_CMD_DIRTY_ALL & ~(RADV_CMD_DIRTY_COMPUTE_PIPELINE | RADV_CMD_DIRTY_RAY_TRACING_PIPELINE |
+                                                RADV_CMD_DIRTY_INDEX_BUFFER | RADV_CMD_DIRTY_VERTEX_BUFFER |
+                                                RADV_CMD_DIRTY_STREAMOUT_BUFFER);
+
+   if (info->indexed && info->indirect_va)
+      dirty_mask |= RADV_CMD_DIRTY_INDEX_BUFFER;
+
+   if (dynamic_states || (cmd_buffer->state.dirty & dirty_mask) || pdev->info.has_gfx9_scissor_bug) {
+      radv_emit_all_graphics_states(cmd_buffer, info, dynamic_states);
+      return;
+   }
+
+   radv_emit_draw_registers(cmd_buffer, info);
+}
+
 static void
 radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -14344,7 +14365,7 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
     * to draw before prefetches because we want to start fetching indices before shaders. The idea
     * is to minimize the time when the CUs are idle.
     */
-   radv_emit_all_graphics_states(cmd_buffer, info);
+   radv_emit_graphics_states(cmd_buffer, info);
    radv_upload_graphics_shader_descriptors(cmd_buffer);
 
    if (pdev->info.gfx_level >= GFX12) {
@@ -14416,7 +14437,7 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    ASSERTED const unsigned ace_cdw_max =
       !ace_cs ? 0 : radeon_check_space(device->ws, ace_cs->b, 4096 + 128 * (drawCount - 1));
 
-   radv_emit_all_graphics_states(cmd_buffer, info);
+   radv_emit_graphics_states(cmd_buffer, info);
 
    struct radv_descriptor_state *descriptors_state =
       radv_get_descriptors_state(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
