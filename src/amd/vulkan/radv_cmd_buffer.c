@@ -7810,7 +7810,7 @@ radv_is_primitive_restart_enabled(struct radv_cmd_buffer *cmd_buffer, const stru
    return (draw_info->indexed || pdev->info.gfx_level >= GFX11) && d->vk.ia.primitive_restart_enable;
 }
 
-static void
+ALWAYS_INLINE static void
 radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *draw_info)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -11683,7 +11683,7 @@ radv_invalidate_vertex_draw_state(struct radv_cmd_buffer *cmd_buffer)
    cmd_buffer->state.last_vertex_offset_valid = false;
 }
 
-static void
+ALWAYS_INLINE static void
 radv_cs_emit_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t vertex_count, uint32_t use_opaque)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -11705,7 +11705,7 @@ radv_cs_emit_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t vertex_cou
  * indexes allocated in the index buffer *past that point* is specified by "max_index_count".
  * Hardware uses this information to return 0 for out-of-bounds reads.
  */
-static void
+ALWAYS_INLINE static void
 radv_cs_emit_draw_indexed_packet(struct radv_cmd_buffer *cmd_buffer, uint64_t index_va, uint32_t max_index_count,
                                  uint32_t index_count, bool not_eop)
 {
