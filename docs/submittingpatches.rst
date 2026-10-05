@@ -33,12 +33,12 @@ us to shape the changeset into a form that can be accepted in the project.
 
 If you want to contribute code to Mesa, we highly recommend the following:
 
--  Familiarize yourself with `Git <https://git-scm.com>`__.
--  Understand the code you write at least well enough to be able
-   to explain why your changes are beneficial to the project.
--  It's up you what tools you use to write code (development environment,
-   coding assistant, etc.), but keep in mind that no tool can substitute
-   actual understanding.
+- Familiarize yourself with `Git <https://git-scm.com>`__.
+- Understand the code you write at least well enough to be able
+  to explain why your changes are beneficial to the project.
+- It's up you what tools you use to write code (development environment,
+  coding assistant, etc.), but keep in mind that no tool can substitute
+  actual understanding.
 
 In case you are not familiar with the code base, it's okay to ask for help
 and guidance from more experienced developers.
@@ -77,23 +77,23 @@ normal communication and the community should be able to get to know them.
 Disclosure is always required when "AI" was involved in the creative
 process of coming up with the code, except in the following cases:
 
--  Trivial or small changes that wouldn't be copyrightable regardless of
-   "AI" involvement. For example something like a "min" function fit this
-   category.
--  Mechanical changes where the expected result is obvious and not up to
-   interpretation, ie. when it would be the same regardless of what
-   tooling was used. For example, autocomplete, refactoring the name of a
-   variable and similar activities fit this category. In these cases it is
-   still recommended (but not required) to disclose the tool used,
-   eg. "AI", "sed", "cocinelle", etc. in order to ease the review process.
+- Trivial or small changes that wouldn't be copyrightable regardless of
+  "AI" involvement. For example something like a "min" function fit this
+  category.
+- Mechanical changes where the expected result is obvious and not up to
+  interpretation, ie. when it would be the same regardless of what
+  tooling was used. For example, autocomplete, refactoring the name of a
+  variable and similar activities fit this category. In these cases it is
+  still recommended (but not required) to disclose the tool used,
+  eg. "AI", "sed", "cocinelle", etc. in order to ease the review process.
 
 We suggest the following scheme to disclose the level "AI" tooling was
 involved:
 
--  ``Assisted-by: TOOL (OPTIONAL: MODEL)`` for when "AI" was involved in making
-   decisions or also generated parts of the code.
--  ``Generated-by: TOOL (OPTIONAL: MODEL)`` for when almost all the code was
-   generated through "AI".
+- ``Assisted-by: TOOL (OPTIONAL: MODEL)`` for when "AI" was involved in making
+  decisions or also generated parts of the code.
+- ``Generated-by: TOOL (OPTIONAL: MODEL)`` for when almost all the code was
+  generated through "AI".
 
 Do not use the ``Co-authored-by`` tag as this one is reserved for human
 co-authors.
@@ -108,103 +108,103 @@ testing changes, etc.
 Basic guidelines
 ----------------
 
--  Patches should not mix code changes with code formatting changes
-   (except, perhaps, in very trivial cases.)
--  Code patches should follow Mesa :doc:`coding
-   conventions <codingstyle>`.
--  Whenever possible, patches should only affect individual Mesa/Gallium
-   components.
--  Patches should never introduce build breaks and should be bisectable
-   (see ``Git bisect``.)
--  Patches should be properly :ref:`formatted <formatting>`.
--  Patches should be sufficiently :ref:`tested <testing>` before
-   submitting.
--  Patches should be :ref:`submitted <submit>` via a merge request for
-   :ref:`review <reviewing>`.
+- Patches should not mix code changes with code formatting changes
+  (except, perhaps, in very trivial cases.)
+- Code patches should follow Mesa :doc:`coding
+  conventions <codingstyle>`.
+- Whenever possible, patches should only affect individual Mesa/Gallium
+  components.
+- Patches should never introduce build breaks and should be bisectable
+  (see ``Git bisect``.)
+- Patches should be properly :ref:`formatted <formatting>`.
+- Patches should be sufficiently :ref:`tested <testing>` before
+  submitting.
+- Patches should be :ref:`submitted <submit>` via a merge request for
+  :ref:`review <reviewing>`.
 
 .. _formatting:
 
 Patch formatting
 ----------------
 
--  Lines should be limited to 75 characters or less so that Git logs
-   displayed in 80-column terminals avoid line wrapping. Note that
-   ``git log`` uses 4 spaces of indentation (4 + 75 < 80).
--  The first line should be a short, concise summary of the change
-   prefixed with a module name. Examples:
+- Lines should be limited to 75 characters or less so that Git logs
+  displayed in 80-column terminals avoid line wrapping. Note that
+  ``git log`` uses 4 spaces of indentation (4 + 75 < 80).
+- The first line should be a short, concise summary of the change
+  prefixed with a module name. Examples:
 
-   ::
+  ::
 
-      mesa: Add support for querying GL_VERTEX_ATTRIB_ARRAY_LONG
+     mesa: Add support for querying GL_VERTEX_ATTRIB_ARRAY_LONG
 
-      gallium: add pipe_caps.device_reset_status_query
+     gallium: add pipe_caps.device_reset_status_query
 
-      i965: Fix missing type in local variable declaration.
+     i965: Fix missing type in local variable declaration.
 
--  Subsequent patch comments should describe the change in more detail,
-   if needed. For example:
+- Subsequent patch comments should describe the change in more detail,
+  if needed. For example:
 
-   ::
+  ::
 
-      i965: Remove end-of-thread SEND alignment code.
+     i965: Remove end-of-thread SEND alignment code.
 
-      This was present in Eric's initial implementation of the compaction code
-      for Sandybridge (commit 077d01b6). There is no documentation saying this
-      is necessary, and removing it causes no regressions in piglit on any
-      platform.
+     This was present in Eric's initial implementation of the compaction code
+     for Sandybridge (commit 077d01b6). There is no documentation saying this
+     is necessary, and removing it causes no regressions in piglit on any
+     platform.
 
--  A "Signed-off-by:" line is not required, but not discouraged either.
--  If a patch addresses an issue in GitLab, use the Closes: tag For
-   example:
+- A "Signed-off-by:" line is not required, but not discouraged either.
+- If a patch addresses an issue in GitLab, use the Closes: tag For
+  example:
 
-   ::
+  ::
 
-      Closes: https://gitlab.freedesktop.org/mesa/mesa/-/work_items/1
+     Closes: https://gitlab.freedesktop.org/mesa/mesa/-/work_items/1
 
-   Prefer the full URL to just ``Closes: #1``, since the URL makes it
-   easier to get to the bug page from ``git log``
+  Prefer the full URL to just ``Closes: #1``, since the URL makes it
+  easier to get to the bug page from ``git log``
 
-   **Do not use the ``Fixes:`` tag for this!** Mesa already uses
-   ``Fixes:`` for something else.
-   See :ref:`below <fixes>`.
+  **Do not use the ``Fixes:`` tag for this!** Mesa already uses
+  ``Fixes:`` for something else.
+  See :ref:`below <fixes>`.
 
--  If there have been several revisions to a patch during the review
-   process, they should be noted such as in this example:
+- If there have been several revisions to a patch during the review
+  process, they should be noted such as in this example:
 
-   ::
+  ::
 
-      st/mesa: add ARB_texture_stencil8 support (v4)
+     st/mesa: add ARB_texture_stencil8 support (v4)
 
-      if we support stencil texturing, enable texture_stencil8
-      there is no requirement to support native S8 for this,
-      the texture can be converted to x24s8 fine.
+     if we support stencil texturing, enable texture_stencil8
+     there is no requirement to support native S8 for this,
+     the texture can be converted to x24s8 fine.
 
-      v2: fold fixes from Marek in:
-         a) put S8 last in the list
-         b) fix renderable to always test for d/s renderable
-           fixup the texture case to use a stencil only format
-           for picking the format for the texture view.
-      v3: hit fallback for getteximage
-      v4: put s8 back in front, it shouldn't get picked now (Ilia)
+     v2: fold fixes from Marek in:
+        a) put S8 last in the list
+        b) fix renderable to always test for d/s renderable
+          fixup the texture case to use a stencil only format
+          for picking the format for the texture view.
+     v3: hit fallback for getteximage
+     v4: put s8 back in front, it shouldn't get picked now (Ilia)
 
--  If someone tested your patch, document it with a line like this:
+- If someone tested your patch, document it with a line like this:
 
-   ::
+  ::
 
-      Tested-by: Joe Hacker <jhacker@foo.com>
+     Tested-by: Joe Hacker <jhacker@foo.com>
 
--  If the patch was reviewed (usually the case) or acked by someone,
-   that should be documented with:
+- If the patch was reviewed (usually the case) or acked by someone,
+  that should be documented with:
 
-   ::
+  ::
 
-      Reviewed-by: Joe Hacker <jhacker@foo.com>
-      Acked-by: Joe Hacker <jhacker@foo.com>
+     Reviewed-by: Joe Hacker <jhacker@foo.com>
+     Acked-by: Joe Hacker <jhacker@foo.com>
 
--  When updating a merge request add all the tags (``Acked-by:``, ``Reviewed-by:``,
-   ``Fixes:``, ``Backport-to:`` and/or other) to the commit messages.
-   This provides reviewers with quick feedback if the patch has already
-   been reviewed.
+- When updating a merge request add all the tags (``Acked-by:``, ``Reviewed-by:``,
+  ``Fixes:``, ``Backport-to:`` and/or other) to the commit messages.
+  This provides reviewers with quick feedback if the patch has already
+  been reviewed.
 
 .. _fixes:
 
@@ -301,12 +301,12 @@ Submitting Patches
 Patches are submitted to the Mesa project via a
 `GitLab <https://gitlab.freedesktop.org/mesa/mesa>`__ Merge Request (MR).
 
--  Please do NOT submit your patches in email to a mailing list,
-   we only review patches on GitLab.
--  Please do NOT paste your patches as comments in a conversation,
-   unless it is small or unless that is what the maintainers requested.
--  If you are not familiar with how to use git, please learn that
-   before making a contribution to Mesa.
+- Please do NOT submit your patches in email to a mailing list,
+  we only review patches on GitLab.
+- Please do NOT paste your patches as comments in a conversation,
+  unless it is small or unless that is what the maintainers requested.
+- If you are not familiar with how to use git, please learn that
+  before making a contribution to Mesa.
 
 When opening a merge request, we recommend the following best practices:
 
@@ -320,11 +320,11 @@ If you are already in the 'developer' role,
 add labels to your MR to help reviewers find your MR.
 For example:
 
--  Mesa changes affecting all drivers: mesa
--  Hardware vendor specific code: AMD common, intel, ...
--  Driver specific code: ANV, freedreno, i965, iris, radeonsi, RADV,
-   vc4, ...
--  Other tag examples: gallium, util
+- Mesa changes affecting all drivers: mesa
+- Hardware vendor specific code: AMD common, intel, ...
+- Driver specific code: ANV, freedreno, i965, iris, radeonsi, RADV,
+  vc4, ...
+- Other tag examples: gallium, util
 
 If you don't add any labels, a bot will attempt to add the correct ones.
 
@@ -347,17 +347,17 @@ in it.
 
 Some other notes:
 
--  Make changes and update your branch based on feedback
--  After an update, for the feedback you handled, close the feedback
-   discussion with the "Resolve Discussion" button. This way the
-   reviewers know which feedback got handled and which didn't.
--  Old, stale MR may be closed, but you can reopen it if you still want
-   to pursue the changes
--  You should periodically check to see if your MR needs to be rebased
--  Make sure your MR is closed if your patches get pushed outside of
-   GitLab
--  Please send MRs from a personal fork rather than from the main Mesa
-   repository, as it clutters it unnecessarily.
+- Make changes and update your branch based on feedback
+- After an update, for the feedback you handled, close the feedback
+  discussion with the "Resolve Discussion" button. This way the
+  reviewers know which feedback got handled and which didn't.
+- Old, stale MR may be closed, but you can reopen it if you still want
+  to pursue the changes
+- You should periodically check to see if your MR needs to be rebased
+- Make sure your MR is closed if your patches get pushed outside of
+  GitLab
+- Please send MRs from a personal fork rather than from the main Mesa
+  repository, as it clutters it unnecessarily.
 
 .. _reviewing:
 
@@ -491,34 +491,34 @@ mechanism described above. The following rules define which patches are
 accepted and which are not. The stable-release manager is also given
 broad discretion in rejecting patches that have been nominated.
 
--  Patch must conform with the :ref:`Basic guidelines <guidelines>`
--  Patch must have landed in main first. In case where the original
-   patch is too large and/or otherwise contradicts with the rules set
-   within, a backport is appropriate.
--  It must not introduce a regression - be that build or runtime wise.
+- Patch must conform with the :ref:`Basic guidelines <guidelines>`
+- Patch must have landed in main first. In case where the original
+  patch is too large and/or otherwise contradicts with the rules set
+  within, a backport is appropriate.
+- It must not introduce a regression - be that build or runtime wise.
 
-   .. note::
-      If the regression is due to faulty Piglit/dEQP/CTS/other test
-      the latter must be fixed first. A reference to the offending test(s)
-      and respective fix(es) should be provided in the nominated patch.
+  .. note::
+     If the regression is due to faulty Piglit/dEQP/CTS/other test
+     the latter must be fixed first. A reference to the offending test(s)
+     and respective fix(es) should be provided in the nominated patch.
 
--  Patch cannot be larger than 100 lines.
--  Patches that move code around with no functional change should be
-   rejected.
--  Patch must be a bug fix and not a new feature.
+- Patch cannot be larger than 100 lines.
+- Patches that move code around with no functional change should be
+  rejected.
+- Patch must be a bug fix and not a new feature.
 
-   .. note::
-      An exception to this rule, are hardware-enabling "features". For
-      example, :ref:`backports <backports>` of new code to support a
-      newly-developed hardware product can be accepted if they can be
-      reasonably determined not to have effects on other hardware.
+  .. note::
+     An exception to this rule, are hardware-enabling "features". For
+     example, :ref:`backports <backports>` of new code to support a
+     newly-developed hardware product can be accepted if they can be
+     reasonably determined not to have effects on other hardware.
 
--  Patch must be reviewed, For example, the commit message has
-   Reviewed-by, Signed-off-by, or Tested-by tags from someone but the
-   author.
--  Performance patches are considered only if they provide information
-   about the hardware, program in question and observed improvement. Use
-   numbers to represent your measurements.
+- Patch must be reviewed, For example, the commit message has
+  Reviewed-by, Signed-off-by, or Tested-by tags from someone but the
+  author.
+- Performance patches are considered only if they provide information
+  about the hardware, program in question and observed improvement. Use
+  numbers to represent your measurements.
 
 If the patch complies with the rules it will be
 :ref:`cherry-picked <pickntest>`. Alternatively the release
@@ -588,17 +588,17 @@ merge-request.
 Git tips
 --------
 
--  ``git rebase -i ...`` is your friend. Don't be afraid to use it.
--  Apply a fixup to commit FOO.
+- ``git rebase -i ...`` is your friend. Don't be afraid to use it.
+- Apply a fixup to commit FOO.
 
-   .. code-block:: sh
+  .. code-block:: sh
 
-      git add ...
-      git commit --fixup=FOO
-      git rebase -i --autosquash ...
+     git add ...
+     git commit --fixup=FOO
+     git rebase -i --autosquash ...
 
--  Test for build breakage between patches e.g last 8 commits.
+- Test for build breakage between patches e.g last 8 commits.
 
-   .. code-block:: sh
+  .. code-block:: sh
 
-      git rebase -i --exec="ninja -C build/" HEAD~8
+     git rebase -i --exec="ninja -C build/" HEAD~8
