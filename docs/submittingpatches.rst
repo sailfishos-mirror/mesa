@@ -502,7 +502,6 @@ broad discretion in rejecting patches that have been nominated.
      the latter must be fixed first. A reference to the offending test(s)
      and respective fix(es) should be provided in the nominated patch.
 
-- Patch cannot be larger than 100 lines.
 - Patches that move code around with no functional change should be
   rejected.
 - Patch must be a bug fix and not a new feature.
