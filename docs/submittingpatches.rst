@@ -515,9 +515,9 @@ broad discretion in rejecting patches that have been nominated.
 - Patch must be reviewed, For example, the commit message has
   Reviewed-by, Signed-off-by, or Tested-by tags from someone but the
   author.
-- Performance patches are considered only if they provide information
-  about the hardware, program in question and observed improvement. Use
-  numbers to represent your measurements.
+- Patches for performance regressions are considered only if they provide
+  information about the hardware, program in question and observed
+  improvement. Use numbers to represent your measurements.
 
 If the patch complies with the rules it will be
 :ref:`cherry-picked <pickntest>`. Alternatively the release
