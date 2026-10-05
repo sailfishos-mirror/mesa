@@ -67,7 +67,10 @@ void ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, uint64_t va);
 
 void ac_emit_sdma_fence(struct ac_cmdbuf *cs, uint64_t va, uint32_t fence);
 
-void ac_emit_sdma_wait_mem(struct ac_cmdbuf *cs, uint32_t op, uint64_t va, uint32_t ref, uint32_t mask);
+void ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
+                           const enum sdma_version sdma_ip_version,
+                           const uint32_t op, const uint64_t va,
+                           const uint32_t ref, const uint32_t mask);
 
 void ac_emit_sdma_write_data_head(struct ac_cmdbuf *cs, enum sdma_version ver, uint64_t va, uint32_t count);
 

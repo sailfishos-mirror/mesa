@@ -2018,13 +2018,15 @@ radv_wait_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_str
                          const uint32_t value)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    const uint64_t va = cmd_buffer->gang.sem.va + va_off;
 
    assert(cmd_buffer->gang.sem.va);
    radeon_check_space(device->ws, cs->b, 7);
 
    if (cs->hw_ip == AMD_IP_SDMA) {
-      ac_emit_sdma_wait_mem(cs->b, V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE, va, value, 0xffffffff);
+      ac_emit_sdma_wait_mem(cs->b, pdev->info.sdma_ip_version, V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE, va, value,
+                            0xffffffff);
    } else {
       assert(cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE);
       uint32_t flags = S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE);
@@ -16609,6 +16611,7 @@ radv_CmdWaitEvents2(VkCommandBuffer commandBuffer, uint32_t eventCount, const Vk
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (cmd_buffer->qf == RADV_QUEUE_VIDEO_DEC || cmd_buffer->qf == RADV_QUEUE_VIDEO_ENC)
@@ -16623,7 +16626,7 @@ radv_CmdWaitEvents2(VkCommandBuffer commandBuffer, uint32_t eventCount, const Vk
       ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 7);
 
       if (cs->hw_ip == AMD_IP_SDMA) {
-         ac_emit_sdma_wait_mem(cs->b, WAIT_REG_MEM_EQUAL, va, 1, 0xffffffff);
+         ac_emit_sdma_wait_mem(cs->b, pdev->info.sdma_ip_version, WAIT_REG_MEM_EQUAL, va, 1, 0xffffffff);
       } else {
          assert(cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE);
          uint32_t flags = WAIT_REG_MEM_EQUAL;

@@ -55,15 +55,27 @@ ac_emit_sdma_fence(struct ac_cmdbuf *cs, uint64_t va, uint32_t fence)
 }
 
 void
-ac_emit_sdma_wait_mem(struct ac_cmdbuf *cs, uint32_t op, uint64_t va, uint32_t ref, uint32_t mask)
+ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
+                      const enum sdma_version sdma_ip_version,
+                      const uint32_t op, const uint64_t va,
+                      const uint32_t ref, const uint32_t mask)
 {
    ac_cmdbuf_begin(cs);
+
+   /* Use NOP before POLL_REGMEM on SDMA 2.4-3.1 to prevent hangs.
+    * We noticed the hang on the Polaris 10 job in the Mesa CI.
+    * Note that this issue is not documented or acknowledged by AMD.
+    */
+   if (sdma_ip_version >= SDMA_2_4 && sdma_ip_version <= SDMA_3_1)
+      ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_POLL_REGMEM, 0, 0) | op << 28 | SDMA_POLL_MEM);
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(ref);
    ac_cmdbuf_emit(mask);
    ac_cmdbuf_emit(SDMA_POLL_INTERVAL_160_CLK | SDMA_POLL_RETRY_INDEFINITELY << 16);
+
    ac_cmdbuf_end();
 }
 

@@ -1452,7 +1452,8 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
    const uint32_t leader_engine_sel = ip == AMD_IP_GFX ? V_371_PREFETCH_PARSER : V_371_MICRO_ENGINE;
 
    if (ip == AMD_IP_SDMA) {
-      ac_emit_sdma_wait_mem(leader_post_cs->b, WAIT_REG_MEM_GREATER_OR_EQUAL, leader_wait_va, 1, 0xffffffff);
+      ac_emit_sdma_wait_mem(leader_post_cs->b, pdev->info.sdma_ip_version, WAIT_REG_MEM_GREATER_OR_EQUAL,
+                            leader_wait_va, 1, 0xffffffff);
    } else {
       uint32_t cp_post_wait_flags =
          S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE) | S_3C1_ENGINE_SEL(leader_engine_sel);
