@@ -341,6 +341,13 @@ void u_trace_move(struct u_trace *dst, struct u_trace *src);
 void u_trace_fini(struct u_trace *ut);
 
 void u_trace_state_init(void);
+
+/* Closes any trace file the process-wide state opened and re-arms its
+ * one-time initialisation, so the next context reads the environment again.
+ * Only for tests, which need several configurations in one process; no
+ * trace context may exist across the call.
+ */
+void u_trace_state_reset(void);
 bool u_trace_is_enabled(enum u_trace_type type);
 
 bool u_trace_has_points(struct u_trace *ut);

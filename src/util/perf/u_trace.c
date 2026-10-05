@@ -316,12 +316,11 @@ static const struct debug_named_value config_control[] = {
    DEBUG_NAMED_VALUE_END
 };
 
-DEBUG_GET_ONCE_OPTION(trace_file, "MESA_GPU_TRACEFILE", NULL)
-
 static void
 trace_file_fini(void)
 {
-   fclose(u_trace_state.trace_file);
+   if (u_trace_state.trace_file && u_trace_state.trace_file != stdout)
+      fclose(u_trace_state.trace_file);
    u_trace_state.trace_file = NULL;
 }
 
@@ -330,7 +329,7 @@ u_trace_state_init_once(void)
 {
    u_trace_state.enabled_traces =
       debug_get_flags_option("MESA_GPU_TRACES", config_control, 0);
-   const char *tracefile_name = debug_get_option_trace_file();
+   const char *tracefile_name = debug_get_option("MESA_GPU_TRACEFILE", NULL);
    if (tracefile_name && __normal_user()) {
       u_trace_state.trace_file = fopen(tracefile_name, "w");
       if (u_trace_state.trace_file != NULL) {
@@ -346,6 +345,13 @@ void
 u_trace_state_init(void)
 {
    util_call_once(&u_trace_state.once, u_trace_state_init_once);
+}
+
+void
+u_trace_state_reset(void)
+{
+   trace_file_fini();
+   u_trace_state = (struct u_trace_state) { .once = UTIL_ONCE_FLAG_INIT };
 }
 
 bool

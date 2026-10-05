@@ -8,6 +8,26 @@
 
 #define NUM_DEBUG_TEST_THREAD 8
 
+static const char *trace_file_path =
+   "tracefile_for_test-b5ba5a0c-6ed1-4901-a38d-755991182663";
+
+/* u_trace reads its MESA_GPU_TRACE* options once, so the state is reset
+ * around each test to let every case set its own.
+ */
+class UtilPerfTraceTest : public ::testing::Test {
+protected:
+   void SetUp() override
+   {
+      u_trace_state_reset();
+   }
+
+   void TearDown() override
+   {
+      u_trace_state_reset();
+      remove(trace_file_path);
+   }
+};
+
 static int
 test_thread(void *_state)
 {
@@ -19,10 +39,10 @@ test_thread(void *_state)
    return 0;
 }
 
-TEST(UtilPerfTraceTest, Multithread)
+TEST_F(UtilPerfTraceTest, Multithread)
 {
    thrd_t threads[NUM_DEBUG_TEST_THREAD];
-   os_set_option("MESA_GPU_TRACEFILE", "tracefile_for_test-b5ba5a0c-6ed1-4901-a38d-755991182663", true);
+   os_set_option("MESA_GPU_TRACEFILE", trace_file_path, true);
    for (unsigned i = 0; i < NUM_DEBUG_TEST_THREAD; i++) {
         thrd_create(&threads[i], test_thread, NULL);
    }
