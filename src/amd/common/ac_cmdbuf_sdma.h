@@ -65,7 +65,9 @@ void ac_emit_sdma_nop(struct ac_cmdbuf *cs);
 
 void ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, uint64_t va);
 
-void ac_emit_sdma_fence(struct ac_cmdbuf *cs, uint64_t va, uint32_t fence);
+void ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
+                        const enum sdma_version sdma_ip_version,
+                        const uint64_t va, const uint32_t fence);
 
 void ac_emit_sdma_wait_mem(struct ac_cmdbuf *const cs,
                            const enum sdma_version sdma_ip_version,

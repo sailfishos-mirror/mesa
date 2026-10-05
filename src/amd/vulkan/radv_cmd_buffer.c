@@ -1965,7 +1965,7 @@ radv_flush_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_st
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 12);
 
    if (cs->hw_ip == AMD_IP_SDMA) {
-      ac_emit_sdma_fence(cs->b, cmd_buffer->gang.sem.va + va_off, value);
+      ac_emit_sdma_fence(cs->b, pdev->info.sdma_ip_version, cmd_buffer->gang.sem.va + va_off, value);
    } else {
       const uint64_t fence_va = cmd_buffer->gang.sem.va + va_off;
       uint32_t ace_fence_flags = 0;
@@ -17325,8 +17325,8 @@ radv_CmdWriteMarkerToMemoryAMD(VkCommandBuffer commandBuffer, const VkMemoryMark
    const uint64_t va = pInfo->dstRange.address;
 
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
-      radeon_check_space(device->ws, cs->b, 4);
-      ac_emit_sdma_fence(cmd_buffer->cs->b, va, pInfo->marker);
+      radeon_check_space(device->ws, cs->b, 5);
+      ac_emit_sdma_fence(cmd_buffer->cs->b, pdev->info.sdma_ip_version, va, pInfo->marker);
       return;
    }
 

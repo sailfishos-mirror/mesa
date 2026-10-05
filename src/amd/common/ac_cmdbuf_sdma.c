@@ -44,13 +44,24 @@ ac_emit_sdma_write_timestamp(struct ac_cmdbuf *cs, uint64_t va)
 }
 
 void
-ac_emit_sdma_fence(struct ac_cmdbuf *cs, uint64_t va, uint32_t fence)
+ac_emit_sdma_fence(struct ac_cmdbuf *const cs,
+                   const enum sdma_version sdma_ip_version,
+                   const uint64_t va, const uint32_t fence)
 {
    ac_cmdbuf_begin(cs);
+
+   /* Use NOP before FENCE on SDMA 2.4-3.1 to prevent hangs.
+    * We noticed the hang on the Polaris 10 job in the Mesa CI.
+    * Note that this issue is not documented or acknowledged by AMD.
+    */
+   if (sdma_ip_version >= SDMA_2_4 && sdma_ip_version <= SDMA_3_1)
+      ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_FENCE, 0, SDMA_FENCE_MTYPE_UC));
    ac_cmdbuf_emit(va);
    ac_cmdbuf_emit(va >> 32);
    ac_cmdbuf_emit(fence);
+
    ac_cmdbuf_end();
 }
 
