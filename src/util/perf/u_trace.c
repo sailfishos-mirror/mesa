@@ -25,11 +25,18 @@
 
 #include <inttypes.h>
 
+#include "util/detect_os.h"
 #include "util/list.h"
 #include "util/log.h"
 #include "util/u_call_once.h"
 #include "util/u_debug.h"
 #include "util/u_vector.h"
+
+#if DETECT_OS_WINDOWS
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #if U_TRACE_HAS_COMPRESS
 #include <zlib.h>
@@ -44,9 +51,10 @@ struct u_trace_state {
    util_once_flag once;
    FILE *trace_file;
    /* Set instead of trace_file when MESA_GPU_TRACEFILE contains "%i": each
-    * context opens its own file with "%i" replaced by the context ID.
+    * context opens its own file with "%i" replaced by the context ID. An
+    * owned copy, with "%p" already expanded.
     */
-   const char *tracefile_template;
+   char *tracefile_template;
    enum u_trace_type enabled_traces;
 
 #if U_TRACE_HAS_COMPRESS
@@ -429,13 +437,55 @@ path_wants_compression(const char *path)
    return len >= 3 && !strcmp(path + len - 3, ".gz");
 }
 
+static unsigned
+trace_process_id(void)
+{
+#if DETECT_OS_WINDOWS
+   return (unsigned) GetCurrentProcessId();
+#else
+   return (unsigned) getpid();
+#endif
+}
+
+/* Returns a newly allocated copy of path with the first occurrence of token,
+ * if any, replaced by value.
+ */
+static char *
+expand_path_token(const char *path, const char *token, unsigned value)
+{
+   const char *pos = strstr(path, token);
+   if (!pos)
+      return strdup(path);
+
+   size_t len = strlen(path) + 16;
+   char *expanded = malloc(len);
+   if (!expanded)
+      return NULL;
+
+   snprintf(expanded, len, "%.*s%u%s", (int) (pos - path), path, value,
+            pos + strlen(token));
+   return expanded;
+}
+
 static void
 u_trace_state_init_once(void)
 {
    u_trace_state.enabled_traces =
       debug_get_flags_option("MESA_GPU_TRACES", config_control, 0);
    const char *tracefile_name = debug_get_option("MESA_GPU_TRACEFILE", NULL);
+   char *expanded = NULL;
    if (tracefile_name && __normal_user()) {
+      /* "%p" is substituted here, before anything else looks at the name, so
+       * it applies in every mode. It separates processes, where "%i" separates
+       * contexts within one: a driver environment variable set for a whole
+       * session reaches every process in it, and their context IDs all start
+       * at zero, so without this they would name the same file and truncate
+       * each other's output.
+       */
+      expanded = expand_path_token(tracefile_name, "%p", trace_process_id());
+      if (expanded)
+         tracefile_name = expanded;
+
 #if !U_TRACE_HAS_COMPRESS
       if (path_wants_compression(tracefile_name)) {
          mesa_logw("u_trace: MESA_GPU_TRACEFILE requests gzip compression "
@@ -444,7 +494,9 @@ u_trace_state_init_once(void)
       }
 #endif
       if (strstr(tracefile_name, "%i")) {
-         u_trace_state.tracefile_template = tracefile_name;
+         /* Kept for the process lifetime, so hand ownership over. */
+         u_trace_state.tracefile_template = expanded;
+         expanded = NULL;
 #if U_TRACE_HAS_COMPRESS
       } else if (path_wants_compression(tracefile_name)) {
          u_trace_state.trace_file_gz = gzopen(tracefile_name, "wb");
@@ -458,6 +510,7 @@ u_trace_state_init_once(void)
          }
       }
    }
+   free(expanded);
    if (!u_trace_state.trace_file && !u_trace_state.tracefile_template
 #if U_TRACE_HAS_COMPRESS
        && !u_trace_state.trace_file_gz
@@ -471,15 +524,10 @@ u_trace_state_init_once(void)
 static bool
 open_tracefile_for_context(struct u_trace_context *utctx)
 {
-   const char *template = u_trace_state.tracefile_template;
-   const char *token = strstr(template, "%i");
-   size_t len = strlen(template) + 16;
-   char *name = malloc(len);
+   char *name = expand_path_token(u_trace_state.tracefile_template, "%i",
+                                  utctx->id);
    if (!name)
       return false;
-
-   snprintf(name, len, "%.*s%u%s", (int) (token - template), template,
-            utctx->id, token + 2);
 
 #if U_TRACE_HAS_COMPRESS
    if (path_wants_compression(name)) {
@@ -512,6 +560,7 @@ void
 u_trace_state_reset(void)
 {
    trace_file_fini();
+   free(u_trace_state.tracefile_template);
    u_trace_state = (struct u_trace_state) { .once = UTIL_ONCE_FLAG_INIT };
    u_trace_context_count = 0;
 }

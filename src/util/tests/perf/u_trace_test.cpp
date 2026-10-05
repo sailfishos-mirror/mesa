@@ -4,6 +4,14 @@
 #include <string>
 #include <gtest/gtest.h>
 
+#ifdef _WIN32
+#include <process.h>
+#define test_getpid _getpid
+#else
+#include <unistd.h>
+#define test_getpid getpid
+#endif
+
 #include "c11/threads.h"
 #include "util/perf/u_trace.h"
 #include "util/os_misc.h"
@@ -195,6 +203,25 @@ TEST_F(UtilPerfTraceTest, PerContextFiles)
       EXPECT_EQ(count_lines_starting_with(out, marker), 1) << out;
       remove(path.c_str());
    }
+}
+
+TEST_F(UtilPerfTraceTest, PerProcessFile)
+{
+   std::string path_template = trace_file_with("-%p");
+   os_set_option("MESA_GPU_TRACEFILE", path_template.c_str(), true);
+   os_set_option("MESA_GPU_TRACES", "print", true);
+
+   struct u_trace_context ctx;
+   init_context(&ctx);
+   process_frame(&ctx);
+   u_trace_context_fini(&ctx);
+   u_trace_state_reset();
+
+   std::string path =
+      trace_file_with(("-" + std::to_string(test_getpid())).c_str());
+   std::string out = read_file(path.c_str());
+   EXPECT_EQ(count_lines_starting_with(out, "END OF FRAME 0 (ctx 0)"), 1) << out;
+   remove(path.c_str());
 }
 
 #if U_TRACE_HAS_COMPRESS

@@ -61,6 +61,10 @@ u_trace is controlled by environment variables:
    file. ``print_json`` needs ``%i`` to produce valid JSON with more than
    one context.
 
+   ``%p`` is replaced by the process ID, in every mode. Context IDs are
+   only unique within a process, so a variable set for a whole session
+   needs this to keep one process from truncating another's trace.
+
    If the file name ends in ``.gz`` the output is gzip-compressed (needs
    a zlib-enabled build). It is flushed every batch, so a trace stays
    readable up to the last processed submit even if the application
