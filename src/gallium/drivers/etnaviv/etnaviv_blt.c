@@ -35,6 +35,7 @@
 #include "etnaviv_translate.h"
 
 #include "util/format/u_format.h"
+#include "util/perf/cpu_trace.h"
 #include "util/u_math.h"
 #include "pipe/p_defines.h"
 #include "pipe/p_state.h"
@@ -717,6 +718,7 @@ etna_generate_mipmap_blt(struct pipe_context *pctx,
                          unsigned first_layer,
                          unsigned last_layer)
 {
+   MESA_TRACE_FUNC();
    struct etna_resource *rsc = etna_resource(prsc);
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource_level *src_lev = &rsc->levels[base_level];

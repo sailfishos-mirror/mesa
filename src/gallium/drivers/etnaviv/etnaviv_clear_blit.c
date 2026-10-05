@@ -40,6 +40,7 @@
 #include "pipe/p_defines.h"
 #include "pipe/p_state.h"
 #include "util/compiler.h"
+#include "util/perf/cpu_trace.h"
 #include "util/u_blitter.h"
 #include "util/u_dump.h"
 #include "util/u_inlines.h"
@@ -154,6 +155,7 @@ etna_blit_stencil_fallback(struct pipe_context *pctx,
 static void
 etna_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    struct pipe_blit_info info = *blit_info;
    struct etna_resource *src = etna_resource(info.src.resource);
@@ -261,6 +263,7 @@ etna_resource_copy_region(struct pipe_context *pctx, struct pipe_resource *dst,
                           unsigned dstz, struct pipe_resource *src,
                           unsigned src_level, const struct pipe_box *src_box)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
 
    if (src->target != PIPE_BUFFER && dst->target != PIPE_BUFFER &&
@@ -278,6 +281,7 @@ etna_resource_copy_region(struct pipe_context *pctx, struct pipe_resource *dst,
 static void
 etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *rsc = etna_resource(prsc);
 
@@ -335,6 +339,7 @@ etna_copy_resource(struct pipe_context *pctx, struct pipe_resource *dst,
                    struct pipe_resource *src, int first_level, int last_level,
                    bool rb_swap)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *src_priv = etna_resource(src);
    struct etna_resource *dst_priv = etna_resource(dst);

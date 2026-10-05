@@ -36,6 +36,7 @@
 
 #include "nir/nir_xfb_info.h"
 #include "nir/tgsi_to_nir.h"
+#include "util/perf/cpu_trace.h"
 #include "util/u_atomic.h"
 #include "util/u_cpu_detect.h"
 #include "util/u_math.h"
@@ -408,6 +409,7 @@ etna_upload_constant_data(struct etna_context *ctx, struct etna_shader_variant *
 bool
 etna_shader_link(struct etna_context *ctx)
 {
+   MESA_TRACE_FUNC();
    if (!ctx->shader.vs || !ctx->shader.fs)
       return false;
 
@@ -552,6 +554,7 @@ etna_variant_equal(const void *a, const void *b)
 static struct util_shader_variant *
 etna_variant_compile(UNUSED void *user_data, void *cso, const void *spec_key)
 {
+   MESA_TRACE_FUNC();
    struct etna_shader *shader = cso;
    const struct etna_shader_key *key = spec_key;
 
@@ -647,6 +650,7 @@ initial_variants_synchronous(struct etna_context *ctx)
 static void
 create_initial_variants_async(void *job, void *gdata, int thread_index)
 {
+   MESA_TRACE_FUNC();
    struct etna_shader *shader = job;
    struct util_debug_callback debug = {};
    static struct etna_shader_key key;

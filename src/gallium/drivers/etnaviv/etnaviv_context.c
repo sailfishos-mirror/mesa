@@ -51,6 +51,7 @@
 #include "pipe/p_context.h"
 #include "pipe/p_state.h"
 #include "util/hash_table.h"
+#include "util/perf/cpu_trace.h"
 #include "util/u_blitter.h"
 #include "util/u_draw.h"
 #include "util/u_helpers.h"
@@ -699,6 +700,7 @@ void
 etna_flush(struct pipe_context *pctx, struct pipe_fence_handle **fence,
            enum pipe_flush_flags flags, bool internal)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    int out_fence_fd = -1;
 

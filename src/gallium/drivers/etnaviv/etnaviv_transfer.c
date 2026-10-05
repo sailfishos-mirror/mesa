@@ -38,6 +38,7 @@
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"
 #include "util/format/u_format.h"
+#include "util/perf/cpu_trace.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #include "util/u_surface.h"
@@ -61,6 +62,7 @@ etna_buffer_map(struct pipe_context *pctx, struct pipe_resource *prsc,
                 unsigned level, unsigned usage, const struct pipe_box *box,
                 struct pipe_transfer **out_transfer)
 {
+   MESA_TRACE_FUNC();
    struct etna_buffer_resource *rsc = etna_buffer_resource(prsc);
    struct etna_context *ctx = etna_context(pctx);
    struct etna_transfer *trans;
@@ -234,6 +236,7 @@ static void etna_unpatch_data(void *buffer, const struct pipe_transfer *ptrans)
 void
 etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    struct etna_transfer *trans = etna_transfer(ptrans);
    struct etna_resource *rsc = etna_resource(ptrans->resource);
@@ -329,6 +332,7 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
                  unsigned level, unsigned usage, const struct pipe_box *box,
                  struct pipe_transfer **out_transfer)
 {
+   MESA_TRACE_FUNC();
    struct etna_context *ctx = etna_context(pctx);
    struct etna_screen *screen = ctx->screen;
    struct etna_resource *rsc = etna_resource(prsc);

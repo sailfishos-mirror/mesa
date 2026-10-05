@@ -28,6 +28,7 @@
 #include "etnaviv_debug.h"
 #include "etnaviv_disk_cache.h"
 #include "nir_serialize.h"
+#include "util/perf/cpu_trace.h"
 
 #define debug 0
 
@@ -130,6 +131,7 @@ store_variant(struct blob *blob, const struct etna_shader_variant *v)
 bool
 etna_disk_cache_retrieve(struct etna_compiler *compiler, struct etna_shader_variant *v)
 {
+   MESA_TRACE_FUNC();
    if (!compiler->disk_cache)
       return false;
 
@@ -166,6 +168,7 @@ etna_disk_cache_retrieve(struct etna_compiler *compiler, struct etna_shader_vari
 void
 etna_disk_cache_store(struct etna_compiler *compiler, struct etna_shader_variant *v)
 {
+   MESA_TRACE_FUNC();
    if (!compiler->disk_cache)
       return;
 
