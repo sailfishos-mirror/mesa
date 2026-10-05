@@ -345,7 +345,7 @@ radv_gfx12_write_draw_marker(struct radv_cmd_buffer *cmd_buffer, const struct ra
 }
 
 void
-radv_describe_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *draw_info, bool use_gang_cs)
+radv_describe_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info draw_info, bool use_gang_cs)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -356,7 +356,7 @@ radv_describe_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_in
                            RADV_SQTT_USERDATA_MAIN_CS | (use_gang_cs ? RADV_SQTT_USERDATA_GANG_CS : 0));
 
    if (pdev->info.gfx_level >= GFX12)
-      radv_gfx12_write_draw_marker(cmd_buffer, draw_info);
+      radv_gfx12_write_draw_marker(cmd_buffer, &draw_info);
 }
 
 void

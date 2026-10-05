@@ -13942,7 +13942,7 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
 }
 
 static void
-radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
+radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info info,
                               uint64_t dynamic_states)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -14035,7 +14035,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
     * 2. any dirty dynamic flags that may cause context rolls
     */
    const bool late_scissor_emission =
-      pdev->info.has_gfx9_scissor_bug ? radv_need_late_scissor_emission(cmd_buffer, info) : false;
+      pdev->info.has_gfx9_scissor_bug ? radv_need_late_scissor_emission(cmd_buffer, &info) : false;
 
    cmd_buffer->state.dirty_dynamic &= ~dynamic_states;
 
@@ -14077,7 +14077,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
       cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_DB_SHADER_CONTROL;
    }
 
-   if (info->indexed && info->indirect_va && cmd_buffer->state.dirty & RADV_CMD_DIRTY_INDEX_BUFFER) {
+   if (info.indexed && info.indirect_va && cmd_buffer->state.dirty & RADV_CMD_DIRTY_INDEX_BUFFER) {
       radv_emit_index_buffer(cmd_buffer);
       cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_INDEX_BUFFER;
    }
@@ -14179,7 +14179,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
 
    radv_emit_shaders_state(cmd_buffer);
 
-   radv_emit_draw_registers(cmd_buffer, info);
+   radv_emit_draw_registers(cmd_buffer, &info);
 
    if (late_scissor_emission) {
       radv_emit_scissor_state(cmd_buffer);
@@ -14201,7 +14201,7 @@ radv_emit_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       dirty_mask |= RADV_CMD_DIRTY_INDEX_BUFFER;
 
    if (dynamic_states || (cmd_buffer->state.dirty & dirty_mask) || pdev->info.has_gfx9_scissor_bug) {
-      radv_emit_all_graphics_states(cmd_buffer, info, dynamic_states);
+      radv_emit_all_graphics_states(cmd_buffer, *info, dynamic_states);
       return;
    }
 
@@ -14374,7 +14374,7 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
    }
 
    if (device->sqtt.bo && !dgc)
-      radv_describe_draw(cmd_buffer, info, false);
+      radv_describe_draw(cmd_buffer, *info, false);
    if (likely(!info->indirect_va)) {
       struct radv_cmd_state *state = &cmd_buffer->state;
       assert(state->vtx_base_sgpr);
@@ -14470,7 +14470,7 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    }
 
    if (device->sqtt.bo && !dgc)
-      radv_describe_draw(cmd_buffer, info, !!task_shader);
+      radv_describe_draw(cmd_buffer, *info, !!task_shader);
    if (likely(!info->indirect_va)) {
       struct radv_cmd_state *state = &cmd_buffer->state;
       if (unlikely(state->last_num_instances != 1)) {
