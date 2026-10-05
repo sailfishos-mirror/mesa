@@ -394,10 +394,10 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intr, const lower_cma
          SWAP(col_offset, row_offset);
       }
 
-      col_offset = nir_imul(b, col_offset, stride);
-
       col_offset = nir_u2uN(b, col_offset, idx_bits);
       row_offset = nir_u2uN(b, row_offset, idx_bits);
+
+      col_offset = nir_imul(b, col_offset, nir_u2uN(b, stride, idx_bits));
 
       nir_deref_instr *iter_deref = nir_build_deref_ptr_as_array(b, deref, col_offset);
       iter_deref = nir_build_deref_cast(b, &iter_deref->def, deref->modes, glsl_scalar_type(desc.element_type),
