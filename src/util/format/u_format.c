@@ -578,7 +578,8 @@ util_is_format_compatible(const struct util_format_description *src_desc,
 
    if (src_desc->block.bits != dst_desc->block.bits ||
        src_desc->nr_channels != dst_desc->nr_channels ||
-       src_desc->colorspace != dst_desc->colorspace) {
+       src_desc->colorspace != dst_desc->colorspace ||
+       src_desc->is_byte_swapped != dst_desc->is_byte_swapped) {
       return false;
    }
 
