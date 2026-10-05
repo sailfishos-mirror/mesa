@@ -6,6 +6,7 @@ SUPPORTED_INSTANCE_EXTENSIONS = [
     "VK_KHR_external_semaphore_capabilities",
     "VK_KHR_external_memory_capabilities",
     "VK_KHR_external_fence_capabilities",
+    "VK_KHR_device_group_creation",
     "VK_EXT_debug_utils",
     "VK_EXT_debug_report",
     "VK_EXT_validation_features",

@@ -1427,6 +1427,14 @@ DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceSparseImageFormatInfo2,
                       deepcopy_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group_creation
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceGroupProperties,
+                      deepcopy_VkPhysicalDeviceGroupPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkDeviceGroupDeviceCreateInfo,
+                      deepcopy_VkDeviceGroupDeviceCreateInfoKHR)
+
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 DEFINE_ALIAS_FUNCTION(deepcopy_VkExternalMemoryProperties, deepcopy_VkExternalMemoryPropertiesKHR)
 

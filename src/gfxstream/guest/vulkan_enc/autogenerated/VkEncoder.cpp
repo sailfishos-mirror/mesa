@@ -18525,6 +18525,132 @@ void VkEncoder::vkTrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
 }
 
 #endif
+#ifdef VK_KHR_device_group_creation
+VkResult VkEncoder::vkEnumeratePhysicalDeviceGroupsKHR(
+    VkInstance instance, uint32_t* pPhysicalDeviceGroupCount,
+    VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties, uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkInstance local_instance;
+    local_instance = instance;
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        // WARNING PTR CHECK
+        *countPtr += 8;
+        if (pPhysicalDeviceGroupCount) {
+            *countPtr += sizeof(uint32_t);
+        }
+        // WARNING PTR CHECK
+        *countPtr += 8;
+        if (pPhysicalDeviceGroupProperties) {
+            if (pPhysicalDeviceGroupCount) {
+                for (uint32_t i = 0; i < (uint32_t)(*pPhysicalDeviceGroupCount); ++i) {
+                    count_VkPhysicalDeviceGroupProperties(
+                        sFeatureBits, VK_STRUCTURE_TYPE_MAX_ENUM,
+                        (VkPhysicalDeviceGroupProperties*)(pPhysicalDeviceGroupProperties + i),
+                        countPtr);
+                }
+            }
+        }
+    }
+    uint32_t packetSize_vkEnumeratePhysicalDeviceGroupsKHR =
+        4 + 4 + (queueSubmitWithCommandsEnabled ? 4 : 0) + count;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkEnumeratePhysicalDeviceGroupsKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkEnumeratePhysicalDeviceGroupsKHR = OP_vkEnumeratePhysicalDeviceGroupsKHR;
+    uint32_t seqno;
+    if (queueSubmitWithCommandsEnabled) seqno = ResourceTracker::nextSeqno();
+    memcpy(streamPtr, &opcode_vkEnumeratePhysicalDeviceGroupsKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkEnumeratePhysicalDeviceGroupsKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (queueSubmitWithCommandsEnabled) {
+        memcpy(streamPtr, &seqno, sizeof(uint32_t));
+        streamPtr += sizeof(uint32_t);
+    }
+    uint64_t cgen_var_0;
+    *&cgen_var_0 = gfxstream_vk_instance_to_host_u64((*&local_instance));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    // WARNING PTR CHECK
+    uint64_t cgen_var_1 = (uint64_t)(uintptr_t)pPhysicalDeviceGroupCount;
+    memcpy((*streamPtrPtr), &cgen_var_1, 8);
+    gfxstream::aemu::Stream::toBe64((uint8_t*)(*streamPtrPtr));
+    *streamPtrPtr += 8;
+    if (pPhysicalDeviceGroupCount) {
+        memcpy(*streamPtrPtr, (uint32_t*)pPhysicalDeviceGroupCount, sizeof(uint32_t));
+        *streamPtrPtr += sizeof(uint32_t);
+    }
+    // WARNING PTR CHECK
+    uint64_t cgen_var_2 = (uint64_t)(uintptr_t)pPhysicalDeviceGroupProperties;
+    memcpy((*streamPtrPtr), &cgen_var_2, 8);
+    gfxstream::aemu::Stream::toBe64((uint8_t*)(*streamPtrPtr));
+    *streamPtrPtr += 8;
+    if (pPhysicalDeviceGroupProperties) {
+        for (uint32_t i = 0; i < (uint32_t)(*pPhysicalDeviceGroupCount); ++i) {
+            reservedmarshal_VkPhysicalDeviceGroupProperties(
+                stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+                (VkPhysicalDeviceGroupProperties*)(pPhysicalDeviceGroupProperties + i),
+                streamPtrPtr);
+        }
+    }
+    // WARNING PTR CHECK
+    uint32_t* check_pPhysicalDeviceGroupCount;
+    (void)check_pPhysicalDeviceGroupCount;
+    check_pPhysicalDeviceGroupCount = (uint32_t*)(uintptr_t)stream->getBe64();
+    if (pPhysicalDeviceGroupCount) {
+        if (!(check_pPhysicalDeviceGroupCount)) {
+            GFXSTREAM_ERROR("fatal: pPhysicalDeviceGroupCount inconsistent between guest and host");
+        }
+        stream->read((uint32_t*)pPhysicalDeviceGroupCount, sizeof(uint32_t));
+    }
+    // WARNING PTR CHECK
+    VkPhysicalDeviceGroupProperties* check_pPhysicalDeviceGroupProperties;
+    (void)check_pPhysicalDeviceGroupProperties;
+    check_pPhysicalDeviceGroupProperties =
+        (VkPhysicalDeviceGroupProperties*)(uintptr_t)stream->getBe64();
+    if (pPhysicalDeviceGroupProperties) {
+        if (!(check_pPhysicalDeviceGroupProperties)) {
+            GFXSTREAM_ERROR(
+                "fatal: pPhysicalDeviceGroupProperties inconsistent between guest and host");
+        }
+        if (pPhysicalDeviceGroupCount) {
+            for (uint32_t i = 0; i < (uint32_t)(*pPhysicalDeviceGroupCount); ++i) {
+                unmarshal_VkPhysicalDeviceGroupProperties(
+                    stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+                    (VkPhysicalDeviceGroupProperties*)(pPhysicalDeviceGroupProperties + i));
+            }
+        }
+    }
+    if (pPhysicalDeviceGroupCount) {
+        if (pPhysicalDeviceGroupProperties) {
+            for (uint32_t i = 0; i < (uint32_t)(*pPhysicalDeviceGroupCount); ++i) {
+                transform_fromhost_VkPhysicalDeviceGroupProperties(
+                    sResourceTracker,
+                    (VkPhysicalDeviceGroupProperties*)(pPhysicalDeviceGroupProperties + i));
+            }
+        }
+    }
+    VkResult vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return = (VkResult)0;
+    stream->read(&vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return, sizeof(VkResult));
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+    return vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return;
+}
+
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 void VkEncoder::vkGetPhysicalDeviceExternalBufferPropertiesKHR(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,

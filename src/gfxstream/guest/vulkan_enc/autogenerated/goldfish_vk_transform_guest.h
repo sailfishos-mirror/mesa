@@ -2194,6 +2194,20 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceSparseImageFormatInfo2,
                       transform_fromhost_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group_creation
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceGroupProperties,
+                      transform_tohost_VkPhysicalDeviceGroupPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceGroupProperties,
+                      transform_fromhost_VkPhysicalDeviceGroupPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceGroupDeviceCreateInfo,
+                      transform_tohost_VkDeviceGroupDeviceCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceGroupDeviceCreateInfo,
+                      transform_fromhost_VkDeviceGroupDeviceCreateInfoKHR)
+
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkExternalMemoryProperties,
                       transform_tohost_VkExternalMemoryPropertiesKHR)

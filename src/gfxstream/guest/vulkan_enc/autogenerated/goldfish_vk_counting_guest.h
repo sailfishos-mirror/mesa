@@ -1289,6 +1289,13 @@ DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceSparseImageFormatInfo2,
                       count_VkPhysicalDeviceSparseImageFormatInfo2KHR)
 
 #endif
+#ifdef VK_KHR_device_group_creation
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceGroupProperties,
+                      count_VkPhysicalDeviceGroupPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkDeviceGroupDeviceCreateInfo, count_VkDeviceGroupDeviceCreateInfoKHR)
+
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 DEFINE_ALIAS_FUNCTION(count_VkExternalMemoryProperties, count_VkExternalMemoryPropertiesKHR)
 

@@ -1532,6 +1532,15 @@ DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceSparseImageFormatInfo2,
 #ifdef VK_KHR_maintenance1
 #define OP_vkTrimCommandPoolKHR 20208
 #endif
+#ifdef VK_KHR_device_group_creation
+DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceGroupProperties,
+                      unmarshal_VkPhysicalDeviceGroupPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkDeviceGroupDeviceCreateInfo,
+                      unmarshal_VkDeviceGroupDeviceCreateInfoKHR)
+
+#define OP_vkEnumeratePhysicalDeviceGroupsKHR 20209
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 DEFINE_ALIAS_FUNCTION(unmarshal_VkExternalMemoryProperties, unmarshal_VkExternalMemoryPropertiesKHR)
 

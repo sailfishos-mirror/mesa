@@ -717,6 +717,11 @@ class VkEncoder {
     void vkTrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
                               VkCommandPoolTrimFlags flags, uint32_t doLock);
 #endif
+#ifdef VK_KHR_device_group_creation
+    VkResult vkEnumeratePhysicalDeviceGroupsKHR(
+        VkInstance instance, uint32_t* pPhysicalDeviceGroupCount,
+        VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties, uint32_t doLock);
+#endif
 #ifdef VK_KHR_external_memory_capabilities
     void vkGetPhysicalDeviceExternalBufferPropertiesKHR(
         VkPhysicalDevice physicalDevice,

@@ -10152,6 +10152,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkTrimCommandPoolKHR";
         }
 #endif
+#ifdef VK_KHR_device_group_creation
+        case OP_vkEnumeratePhysicalDeviceGroupsKHR: {
+            return "OP_vkEnumeratePhysicalDeviceGroupsKHR";
+        }
+#endif
 #ifdef VK_KHR_external_memory_capabilities
         case OP_vkGetPhysicalDeviceExternalBufferPropertiesKHR: {
             return "OP_vkGetPhysicalDeviceExternalBufferPropertiesKHR";

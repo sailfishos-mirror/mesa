@@ -2479,6 +2479,22 @@ void gfxstream_vk_TrimCommandPoolKHR(VkDevice device, VkCommandPool commandPool,
     }
 }
 #endif
+#ifdef VK_KHR_device_group_creation
+VkResult gfxstream_vk_EnumeratePhysicalDeviceGroupsKHR(
+    VkInstance instance, uint32_t* pPhysicalDeviceGroupCount,
+    VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) {
+    MESA_TRACE_SCOPE("vkEnumeratePhysicalDeviceGroupsKHR");
+    VkResult vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return = (VkResult)0;
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return =
+            vkEnc->vkEnumeratePhysicalDeviceGroupsKHR(instance, pPhysicalDeviceGroupCount,
+                                                      pPhysicalDeviceGroupProperties,
+                                                      true /* do lock */);
+    }
+    return vkEnumeratePhysicalDeviceGroupsKHR_VkResult_return;
+}
+#endif
 #ifdef VK_KHR_external_memory_capabilities
 void gfxstream_vk_GetPhysicalDeviceExternalBufferPropertiesKHR(
     VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,

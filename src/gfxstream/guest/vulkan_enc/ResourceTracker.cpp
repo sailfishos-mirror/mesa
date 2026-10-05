@@ -1728,6 +1728,7 @@ VkResult ResourceTracker::on_vkEnumerateInstanceExtensionProperties(
     VkExtensionProperties* pProperties) {
     std::vector<const char*> allowedExtensionNames = {
         "VK_KHR_get_physical_device_properties2", "VK_KHR_sampler_ycbcr_conversion",
+        "VK_KHR_device_group_creation",
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
         "VK_KHR_external_semaphore_capabilities", "VK_KHR_external_memory_capabilities",
         "VK_KHR_external_fence_capabilities",     "VK_EXT_debug_utils",
