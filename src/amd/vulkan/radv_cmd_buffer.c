@@ -2018,10 +2018,19 @@ radv_wait_gang_semaphore(struct radv_cmd_buffer *cmd_buffer, struct radv_cmd_str
                          const uint32_t value)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const uint64_t va = cmd_buffer->gang.sem.va + va_off;
 
    assert(cmd_buffer->gang.sem.va);
    radeon_check_space(device->ws, cs->b, 7);
-   radv_cp_wait_mem(cs, WAIT_REG_MEM_GREATER_OR_EQUAL, cmd_buffer->gang.sem.va + va_off, value, 0xffffffff);
+
+   if (cs->hw_ip == AMD_IP_SDMA) {
+      ac_emit_sdma_wait_mem(cs->b, V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE, va, value, 0xffffffff);
+   } else {
+      assert(cs->hw_ip == AMD_IP_GFX || cs->hw_ip == AMD_IP_COMPUTE);
+      uint32_t flags = S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE);
+
+      ac_emit_cp_wait_mem(cs->b, va, value, 0xffffffff, flags);
+   }
 }
 
 void
