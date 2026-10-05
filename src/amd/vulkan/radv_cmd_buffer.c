@@ -7721,14 +7721,10 @@ radv_emit_ia_multi_vgt_param(struct radv_cmd_buffer *cmd_buffer, bool instanced_
 static void
 gfx10_emit_ge_cntl(struct radv_cmd_buffer *cmd_buffer)
 {
-   const struct radv_shader *last_vgt_shader = cmd_buffer->state.last_vgt_shader;
    struct radv_cmd_state *state = &cmd_buffer->state;
    bool break_wave_at_eoi = false;
    unsigned primgroup_size;
    unsigned ge_cntl;
-
-   if (last_vgt_shader->info.is_ngg)
-      return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TESS_CTRL)) {
       const struct radv_shader *tes = radv_get_shader(cmd_buffer->state.shaders, MESA_SHADER_TESS_EVAL);
@@ -7824,7 +7820,8 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
 
    /* Draw state. */
    if (gpu_info->gfx_level >= GFX10) {
-      gfx10_emit_ge_cntl(cmd_buffer);
+      if (!state->last_vgt_shader->info.is_ngg)
+         gfx10_emit_ge_cntl(cmd_buffer);
    } else {
       radv_emit_ia_multi_vgt_param(cmd_buffer, draw_info->instance_count > 1, !!draw_info->indirect_va,
                                    !!draw_info->strmout_va, draw_info->indirect_va ? 0 : draw_info->count);
