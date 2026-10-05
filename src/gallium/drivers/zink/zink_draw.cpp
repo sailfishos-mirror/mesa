@@ -1100,6 +1100,9 @@ zink_draw_atoms(struct zink_context *ctx,
          zink_set_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH, false);
    }
    emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj, 0);
+   /* this draw replaces the vertex input and buffers a vertex-state draw left bound */
+   if (VBS != ZINK_VBS_VERTEX_STATE)
+      ctx->vstate_bound.input_valid = false;
 
    if (BATCH_CHANGED) {
       ctx->pipeline_changed[ZINK_PIPELINE_GFX] = false;
@@ -1498,14 +1501,36 @@ zink_bind_vertex_state(struct zink_context *ctx, struct pipe_vertex_state *vstat
    if (!vstate->input.vbuffer.buffer.resource)
       return;
 
-   zink_vertex_state_mask<HAS_POPCNT>(ctx, vstate, partial_velem_mask);
+   const unsigned num_bindings = zstate->velems.hw_state.num_bindings;
+   const unsigned num_attribs = zstate->velems.hw_state.num_attribs;
+   /* different vertex states usually share a layout, so compare contents and not pointers */
+   if (!ctx->vstate_bound.input_valid ||
+       ctx->vstate_bound.full_velem_mask != vstate->input.full_velem_mask ||
+       ctx->vstate_bound.partial_velem_mask != partial_velem_mask ||
+       ctx->vstate_bound.num_bindings != num_bindings ||
+       ctx->vstate_bound.num_attribs != num_attribs ||
+       memcmp(ctx->vstate_bound.bindings, zstate->velems.hw_state.dynbindings, num_bindings * sizeof(ctx->vstate_bound.bindings[0])) ||
+       memcmp(ctx->vstate_bound.attribs, zstate->velems.hw_state.dynattribs, num_attribs * sizeof(ctx->vstate_bound.attribs[0]))) {
+      zink_vertex_state_mask<HAS_POPCNT>(ctx, vstate, partial_velem_mask);
+      ctx->vstate_bound.input_valid = true;
+      ctx->vstate_bound.full_velem_mask = vstate->input.full_velem_mask;
+      ctx->vstate_bound.partial_velem_mask = partial_velem_mask;
+      ctx->vstate_bound.num_bindings = num_bindings;
+      ctx->vstate_bound.num_attribs = num_attribs;
+      memcpy(ctx->vstate_bound.bindings, zstate->velems.hw_state.dynbindings, num_bindings * sizeof(ctx->vstate_bound.bindings[0]));
+      memcpy(ctx->vstate_bound.attribs, zstate->velems.hw_state.dynattribs, num_attribs * sizeof(ctx->vstate_bound.attribs[0]));
+      ctx->vstate_bound.buffer_valid = false;
+   }
 
    struct zink_resource *res = zink_resource(vstate->input.vbuffer.buffer.resource);
    zink_batch_resource_usage_set(ctx->bs, res, false, true);
    VkDeviceSize offset = vstate->input.vbuffer.buffer_offset;
-   VKCTX(CmdBindVertexBuffers)(cmdbuf, 0,
-                               zstate->velems.hw_state.num_bindings,
-                               &res->obj->buffer, &offset);
+   if (!ctx->vstate_bound.buffer_valid || ctx->vstate_bound.buffer != res->obj->buffer || ctx->vstate_bound.offset != offset) {
+      VKCTX(CmdBindVertexBuffers)(cmdbuf, 0, num_bindings, &res->obj->buffer, &offset);
+      ctx->vstate_bound.buffer_valid = true;
+      ctx->vstate_bound.buffer = res->obj->buffer;
+      ctx->vstate_bound.offset = offset;
+   }
 }
 
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, util_popcnt HAS_POPCNT, bool BATCH_CHANGED>
@@ -1530,6 +1555,9 @@ zink_draw_vertex_state(struct pipe_context *pctx,
                                 VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
    if (!ctx->unordered_blitting)
       zink_resource_disable_unordered(res, false);
+   /* a new command buffer has no vertex input or buffers bound */
+   if (BATCH_CHANGED)
+      ctx->vstate_bound.input_valid = false;
    zink_bind_vertex_state<HAS_POPCNT>(ctx, vstate, partial_velem_mask);
 
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_VERTEX_STATE>(pctx, &dinfo, 0, NULL, draws, num_draws, vstate, partial_velem_mask);

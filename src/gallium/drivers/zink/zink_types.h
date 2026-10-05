@@ -2205,6 +2205,19 @@ struct zink_context {
    bool needs_transfer_sync : 1;
    bool can_promote_depth_op : 1;
    bool depth_op_promoted : 1;
+   /* vertex input and buffer last bound by a vertex-state draw in this batch */
+   struct {
+      bool input_valid;
+      bool buffer_valid;
+      uint32_t full_velem_mask;
+      uint32_t partial_velem_mask;
+      unsigned num_bindings;
+      unsigned num_attribs;
+      VkVertexInputBindingDescription2EXT bindings[PIPE_MAX_ATTRIBS];
+      VkVertexInputAttributeDescription2EXT attribs[PIPE_MAX_ATTRIBS];
+      VkBuffer buffer;
+      VkDeviceSize offset;
+   } vstate_bound;
 };
 
 static inline struct zink_context *
