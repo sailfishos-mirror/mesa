@@ -2273,12 +2273,14 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
             dest += util_bitcount(pool->vk.pipeline_statistics) * 8;
             for (int i = 0; i < ARRAY_SIZE(pipeline_statistics_indices); ++i) {
                if (pool->vk.pipeline_statistics & (1u << i)) {
-                  if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT)) {
+                  if (available) {
                      *dst = stop[pipeline_statistics_indices[i]] - start[pipeline_statistics_indices[i]];
 
                      if (pool->uses_emulated_queries &&
                          (1u << i) == VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT)
                         *dst += ngg_emu_result;
+                  } else if (flags & VK_QUERY_RESULT_PARTIAL_BIT) {
+                     *dst = 0;
                   }
                   dst++;
                }
@@ -2289,12 +2291,14 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
             dest += util_bitcount(pool->vk.pipeline_statistics) * 4;
             for (int i = 0; i < ARRAY_SIZE(pipeline_statistics_indices); ++i) {
                if (pool->vk.pipeline_statistics & (1u << i)) {
-                  if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT)) {
+                  if (available) {
                      *dst = stop[pipeline_statistics_indices[i]] - start[pipeline_statistics_indices[i]];
 
                      if (pool->uses_emulated_queries &&
                          (1u << i) == VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT)
                         *dst += ngg_emu_result;
+                  } else if (flags & VK_QUERY_RESULT_PARTIAL_BIT) {
+                     *dst = 0;
                   }
                   dst++;
                }
@@ -2304,8 +2308,8 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
       }
       case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT: {
          p_atomic_uint64_t const *src64 = (p_atomic_uint64_t const *)src;
-         uint64_t num_primitives_written;
-         uint64_t primitive_storage_needed;
+         uint64_t num_primitives_written = 0;
+         uint64_t primitive_storage_needed = 0;
 
          /* SAMPLE_STREAMOUTSTATS stores this structure:
           * {
@@ -2326,8 +2330,10 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          else if (!available && !(flags & VK_QUERY_RESULT_PARTIAL_BIT))
             result = VK_NOT_READY;
 
-         num_primitives_written = p_atomic_read_relaxed(&src64[3].value) - p_atomic_read_relaxed(&src64[1].value);
-         primitive_storage_needed = p_atomic_read_relaxed(&src64[2].value) - p_atomic_read_relaxed(&src64[0].value);
+         if (available) {
+            num_primitives_written = p_atomic_read_relaxed(&src64[3].value) - p_atomic_read_relaxed(&src64[1].value);
+            primitive_storage_needed = p_atomic_read_relaxed(&src64[2].value) - p_atomic_read_relaxed(&src64[0].value);
+         }
 
          if (flags & VK_QUERY_RESULT_64_BIT) {
             if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT))
@@ -2349,7 +2355,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
       case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT: {
          const bool uses_emulated_queries = pool->uses_emulated_queries && pdev->info.gfx_level < GFX11;
          p_atomic_uint64_t const *src64 = (p_atomic_uint64_t const *)src;
-         uint64_t primitive_storage_needed;
+         uint64_t primitive_storage_needed = 0;
 
          /* SAMPLE_STREAMOUTSTATS stores this structure:
           * {
@@ -2374,11 +2380,14 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          else if (!available && !(flags & VK_QUERY_RESULT_PARTIAL_BIT))
             result = VK_NOT_READY;
 
-         primitive_storage_needed = p_atomic_read_relaxed(&src64[2].value) - p_atomic_read_relaxed(&src64[0].value);
+         if (available) {
+            primitive_storage_needed = p_atomic_read_relaxed(&src64[2].value) - p_atomic_read_relaxed(&src64[0].value);
 
-         if (uses_emulated_queries) {
-            /* Accumulate the result that was copied from the emulated queries in case NGG shader has been used. */
-            primitive_storage_needed += p_atomic_read_relaxed(&src64[5].value) - p_atomic_read_relaxed(&src64[4].value);
+            if (uses_emulated_queries) {
+               /* Accumulate the result that was copied from the emulated queries in case NGG shader has been used. */
+               primitive_storage_needed +=
+                  p_atomic_read_relaxed(&src64[5].value) - p_atomic_read_relaxed(&src64[4].value);
+            }
          }
 
          if (flags & VK_QUERY_RESULT_64_BIT) {
@@ -2410,7 +2419,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          break;
       }
       case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT: {
-         uint64_t ms_prim_gen;
+         uint64_t ms_prim_gen = 0;
 
          if (pdev->info.gfx_level >= GFX11) {
             unsigned pipelinestat_block_size = radv_get_pipelinestat_query_size(device);
@@ -2424,7 +2433,8 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
             const uint64_t *start = (uint64_t *)src;
             const uint64_t *stop = (uint64_t *)(src + pipelinestat_block_size);
 
-            ms_prim_gen = stop[pipeline_statistics_indices[13]] - start[pipeline_statistics_indices[13]];
+            if (available)
+               ms_prim_gen = stop[pipeline_statistics_indices[13]] - start[pipeline_statistics_indices[13]];
          } else {
             p_atomic_uint64_t const *src64 = (p_atomic_uint64_t const *)src;
 
@@ -2437,7 +2447,8 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
             } while (!available && (flags & VK_QUERY_RESULT_WAIT_BIT) &&
                      !(timed_out = (atimeout < os_time_get_nano())));
 
-            ms_prim_gen = p_atomic_read_relaxed(&src64[1].value) - p_atomic_read_relaxed(&src64[0].value);
+            if (available)
+               ms_prim_gen = p_atomic_read_relaxed(&src64[1].value) - p_atomic_read_relaxed(&src64[0].value);
          }
 
          if (timed_out)
