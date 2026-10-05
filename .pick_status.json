@@ -1184,7 +1184,7 @@
         "description": "util/format: fix typo in the BPTC compressor",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "17cde55c538009764207bd29b78a909d2c5d14b4",
         "notes": null
