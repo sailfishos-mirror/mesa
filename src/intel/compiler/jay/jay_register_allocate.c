@@ -66,8 +66,8 @@ struct affinity {
     */
    unsigned align     :7;
    unsigned align_offs:7;
-   unsigned nr        :4;
-   unsigned padding   :6;
+   unsigned nr        :8;
+   unsigned padding   :2;
 };
 static_assert(sizeof(struct affinity) == 8, "packed");
 
@@ -1373,7 +1373,7 @@ jay_register_allocate_function(jay_function *f)
 
             ra.affinities[index].repr = repr;
             ra.affinities[index].offset = repr == index ? c : c - repr_c;
-            ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 15);
+            ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 255);
          }
 
          if (jay_is_early_eot_send(shader, I) && I->src[s].file != FLAG) {
