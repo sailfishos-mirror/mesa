@@ -2626,6 +2626,20 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkQueueFamilyGlobalPriorityProperties,
                       transform_fromhost_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_depth_stencil_resolve
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkSubpassDescriptionDepthStencilResolve,
+                      transform_tohost_VkSubpassDescriptionDepthStencilResolveKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkSubpassDescriptionDepthStencilResolve,
+                      transform_fromhost_VkSubpassDescriptionDepthStencilResolveKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceDepthStencilResolveProperties,
+                      transform_tohost_VkPhysicalDeviceDepthStencilResolvePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceDepthStencilResolveProperties,
+                      transform_fromhost_VkPhysicalDeviceDepthStencilResolvePropertiesKHR)
+
+#endif
 #ifdef VK_KHR_timeline_semaphore
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceTimelineSemaphoreFeatures,
                       transform_tohost_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)

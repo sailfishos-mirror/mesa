@@ -1504,6 +1504,14 @@ DEFINE_ALIAS_FUNCTION(count_VkQueueFamilyGlobalPriorityProperties,
                       count_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_depth_stencil_resolve
+DEFINE_ALIAS_FUNCTION(count_VkSubpassDescriptionDepthStencilResolve,
+                      count_VkSubpassDescriptionDepthStencilResolveKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceDepthStencilResolveProperties,
+                      count_VkPhysicalDeviceDepthStencilResolvePropertiesKHR)
+
+#endif
 #ifdef VK_KHR_timeline_semaphore
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceTimelineSemaphoreFeatures,
                       count_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)

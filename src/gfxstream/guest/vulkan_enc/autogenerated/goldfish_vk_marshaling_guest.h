@@ -1780,6 +1780,14 @@ DEFINE_ALIAS_FUNCTION(unmarshal_VkQueueFamilyGlobalPriorityProperties,
                       unmarshal_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_depth_stencil_resolve
+DEFINE_ALIAS_FUNCTION(unmarshal_VkSubpassDescriptionDepthStencilResolve,
+                      unmarshal_VkSubpassDescriptionDepthStencilResolveKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceDepthStencilResolveProperties,
+                      unmarshal_VkPhysicalDeviceDepthStencilResolvePropertiesKHR)
+
+#endif
 #ifdef VK_KHR_timeline_semaphore
 DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceTimelineSemaphoreFeatures,
                       unmarshal_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)

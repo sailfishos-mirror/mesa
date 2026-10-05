@@ -1652,6 +1652,14 @@ DEFINE_ALIAS_FUNCTION(deepcopy_VkQueueFamilyGlobalPriorityProperties,
                       deepcopy_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_depth_stencil_resolve
+DEFINE_ALIAS_FUNCTION(deepcopy_VkSubpassDescriptionDepthStencilResolve,
+                      deepcopy_VkSubpassDescriptionDepthStencilResolveKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceDepthStencilResolveProperties,
+                      deepcopy_VkPhysicalDeviceDepthStencilResolvePropertiesKHR)
+
+#endif
 #ifdef VK_KHR_timeline_semaphore
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceTimelineSemaphoreFeatures,
                       deepcopy_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
