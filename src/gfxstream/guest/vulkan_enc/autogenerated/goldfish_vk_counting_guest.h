@@ -1499,6 +1499,22 @@ DEFINE_ALIAS_FUNCTION(count_VkQueueFamilyGlobalPriorityProperties,
                       count_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_timeline_semaphore
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceTimelineSemaphoreFeatures,
+                      count_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceTimelineSemaphoreProperties,
+                      count_VkPhysicalDeviceTimelineSemaphorePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkSemaphoreTypeCreateInfo, count_VkSemaphoreTypeCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkTimelineSemaphoreSubmitInfo, count_VkTimelineSemaphoreSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkSemaphoreWaitInfo, count_VkSemaphoreWaitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkSemaphoreSignalInfo, count_VkSemaphoreSignalInfoKHR)
+
+#endif
 #ifdef VK_KHR_vulkan_memory_model
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceVulkanMemoryModelFeatures,
                       count_VkPhysicalDeviceVulkanMemoryModelFeaturesKHR)

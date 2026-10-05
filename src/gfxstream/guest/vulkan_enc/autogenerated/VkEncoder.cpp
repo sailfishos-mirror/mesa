@@ -20418,6 +20418,199 @@ void VkEncoder::vkGetDescriptorSetLayoutSupportKHR(
 }
 
 #endif
+#ifdef VK_KHR_timeline_semaphore
+VkResult VkEncoder::vkGetSemaphoreCounterValueKHR(VkDevice device, VkSemaphore semaphore,
+                                                  uint64_t* pValue, uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkDevice local_device;
+    VkSemaphore local_semaphore;
+    local_device = device;
+    local_semaphore = semaphore;
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        uint64_t cgen_var_1;
+        (void)cgen_var_1;
+        *countPtr += 1 * 8;
+        *countPtr += sizeof(uint64_t);
+    }
+    uint32_t packetSize_vkGetSemaphoreCounterValueKHR =
+        4 + 4 + (queueSubmitWithCommandsEnabled ? 4 : 0) + count;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkGetSemaphoreCounterValueKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkGetSemaphoreCounterValueKHR = OP_vkGetSemaphoreCounterValueKHR;
+    uint32_t seqno;
+    if (queueSubmitWithCommandsEnabled) seqno = ResourceTracker::nextSeqno();
+    memcpy(streamPtr, &opcode_vkGetSemaphoreCounterValueKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkGetSemaphoreCounterValueKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (queueSubmitWithCommandsEnabled) {
+        memcpy(streamPtr, &seqno, sizeof(uint32_t));
+        streamPtr += sizeof(uint32_t);
+    }
+    uint64_t cgen_var_0;
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    uint64_t cgen_var_1;
+    *&cgen_var_1 = gfxstream_vk_semaphore_to_host_u64((*&local_semaphore));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_1, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    memcpy(*streamPtrPtr, (uint64_t*)pValue, sizeof(uint64_t));
+    *streamPtrPtr += sizeof(uint64_t);
+    stream->read((uint64_t*)pValue, sizeof(uint64_t));
+    VkResult vkGetSemaphoreCounterValueKHR_VkResult_return = (VkResult)0;
+    stream->read(&vkGetSemaphoreCounterValueKHR_VkResult_return, sizeof(VkResult));
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+    return vkGetSemaphoreCounterValueKHR_VkResult_return;
+}
+
+VkResult VkEncoder::vkWaitSemaphoresKHR(VkDevice device, const VkSemaphoreWaitInfo* pWaitInfo,
+                                        uint64_t timeout, uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkDevice local_device;
+    VkSemaphoreWaitInfo* local_pWaitInfo;
+    uint64_t local_timeout;
+    local_device = device;
+    local_pWaitInfo = nullptr;
+    if (pWaitInfo) {
+        local_pWaitInfo = (VkSemaphoreWaitInfo*)pool->alloc(sizeof(const VkSemaphoreWaitInfo));
+        deepcopy_VkSemaphoreWaitInfo(pool, VK_STRUCTURE_TYPE_MAX_ENUM, pWaitInfo,
+                                     (VkSemaphoreWaitInfo*)(local_pWaitInfo));
+    }
+    local_timeout = timeout;
+    if (local_pWaitInfo) {
+        transform_tohost_VkSemaphoreWaitInfo(sResourceTracker,
+                                             (VkSemaphoreWaitInfo*)(local_pWaitInfo));
+    }
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        count_VkSemaphoreWaitInfo(sFeatureBits, VK_STRUCTURE_TYPE_MAX_ENUM,
+                                  (VkSemaphoreWaitInfo*)(local_pWaitInfo), countPtr);
+        *countPtr += sizeof(uint64_t);
+    }
+    uint32_t packetSize_vkWaitSemaphoresKHR =
+        4 + 4 + (queueSubmitWithCommandsEnabled ? 4 : 0) + count;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkWaitSemaphoresKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkWaitSemaphoresKHR = OP_vkWaitSemaphoresKHR;
+    uint32_t seqno;
+    if (queueSubmitWithCommandsEnabled) seqno = ResourceTracker::nextSeqno();
+    memcpy(streamPtr, &opcode_vkWaitSemaphoresKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkWaitSemaphoresKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (queueSubmitWithCommandsEnabled) {
+        memcpy(streamPtr, &seqno, sizeof(uint32_t));
+        streamPtr += sizeof(uint32_t);
+    }
+    uint64_t cgen_var_0;
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    reservedmarshal_VkSemaphoreWaitInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+                                        (VkSemaphoreWaitInfo*)(local_pWaitInfo), streamPtrPtr);
+    memcpy(*streamPtrPtr, (uint64_t*)&local_timeout, sizeof(uint64_t));
+    *streamPtrPtr += sizeof(uint64_t);
+    VkResult vkWaitSemaphoresKHR_VkResult_return = (VkResult)0;
+    stream->read(&vkWaitSemaphoresKHR_VkResult_return, sizeof(VkResult));
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+    return vkWaitSemaphoresKHR_VkResult_return;
+}
+
+VkResult VkEncoder::vkSignalSemaphoreKHR(VkDevice device, const VkSemaphoreSignalInfo* pSignalInfo,
+                                         uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkDevice local_device;
+    VkSemaphoreSignalInfo* local_pSignalInfo;
+    local_device = device;
+    local_pSignalInfo = nullptr;
+    if (pSignalInfo) {
+        local_pSignalInfo =
+            (VkSemaphoreSignalInfo*)pool->alloc(sizeof(const VkSemaphoreSignalInfo));
+        deepcopy_VkSemaphoreSignalInfo(pool, VK_STRUCTURE_TYPE_MAX_ENUM, pSignalInfo,
+                                       (VkSemaphoreSignalInfo*)(local_pSignalInfo));
+    }
+    if (local_pSignalInfo) {
+        transform_tohost_VkSemaphoreSignalInfo(sResourceTracker,
+                                               (VkSemaphoreSignalInfo*)(local_pSignalInfo));
+    }
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        count_VkSemaphoreSignalInfo(sFeatureBits, VK_STRUCTURE_TYPE_MAX_ENUM,
+                                    (VkSemaphoreSignalInfo*)(local_pSignalInfo), countPtr);
+    }
+    uint32_t packetSize_vkSignalSemaphoreKHR =
+        4 + 4 + (queueSubmitWithCommandsEnabled ? 4 : 0) + count;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkSignalSemaphoreKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkSignalSemaphoreKHR = OP_vkSignalSemaphoreKHR;
+    uint32_t seqno;
+    if (queueSubmitWithCommandsEnabled) seqno = ResourceTracker::nextSeqno();
+    memcpy(streamPtr, &opcode_vkSignalSemaphoreKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkSignalSemaphoreKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (queueSubmitWithCommandsEnabled) {
+        memcpy(streamPtr, &seqno, sizeof(uint32_t));
+        streamPtr += sizeof(uint32_t);
+    }
+    uint64_t cgen_var_0;
+    *&cgen_var_0 = gfxstream_vk_device_to_host_u64((*&local_device));
+    memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+    *streamPtrPtr += 1 * 8;
+    reservedmarshal_VkSemaphoreSignalInfo(stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+                                          (VkSemaphoreSignalInfo*)(local_pSignalInfo),
+                                          streamPtrPtr);
+    VkResult vkSignalSemaphoreKHR_VkResult_return = (VkResult)0;
+    stream->read(&vkSignalSemaphoreKHR_VkResult_return, sizeof(VkResult));
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+    return vkSignalSemaphoreKHR_VkResult_return;
+}
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 VkDeviceAddress VkEncoder::vkGetBufferDeviceAddressKHR(VkDevice device,
                                                        const VkBufferDeviceAddressInfo* pInfo,

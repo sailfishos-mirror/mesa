@@ -814,6 +814,14 @@ class VkEncoder {
                                             VkDescriptorSetLayoutSupport* pSupport,
                                             uint32_t doLock);
 #endif
+#ifdef VK_KHR_timeline_semaphore
+    VkResult vkGetSemaphoreCounterValueKHR(VkDevice device, VkSemaphore semaphore, uint64_t* pValue,
+                                           uint32_t doLock);
+    VkResult vkWaitSemaphoresKHR(VkDevice device, const VkSemaphoreWaitInfo* pWaitInfo,
+                                 uint64_t timeout, uint32_t doLock);
+    VkResult vkSignalSemaphoreKHR(VkDevice device, const VkSemaphoreSignalInfo* pSignalInfo,
+                                  uint32_t doLock);
+#endif
 #ifdef VK_KHR_buffer_device_address
     VkDeviceAddress vkGetBufferDeviceAddressKHR(VkDevice device,
                                                 const VkBufferDeviceAddressInfo* pInfo,

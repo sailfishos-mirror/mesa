@@ -1774,6 +1774,26 @@ DEFINE_ALIAS_FUNCTION(unmarshal_VkQueueFamilyGlobalPriorityProperties,
                       unmarshal_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_timeline_semaphore
+DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceTimelineSemaphoreFeatures,
+                      unmarshal_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceTimelineSemaphoreProperties,
+                      unmarshal_VkPhysicalDeviceTimelineSemaphorePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkSemaphoreTypeCreateInfo, unmarshal_VkSemaphoreTypeCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkTimelineSemaphoreSubmitInfo,
+                      unmarshal_VkTimelineSemaphoreSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkSemaphoreWaitInfo, unmarshal_VkSemaphoreWaitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(unmarshal_VkSemaphoreSignalInfo, unmarshal_VkSemaphoreSignalInfoKHR)
+
+#define OP_vkGetSemaphoreCounterValueKHR 229059496
+#define OP_vkWaitSemaphoresKHR 263904357
+#define OP_vkSignalSemaphoreKHR 269919108
+#endif
 #ifdef VK_KHR_vulkan_memory_model
 DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceVulkanMemoryModelFeatures,
                       unmarshal_VkPhysicalDeviceVulkanMemoryModelFeaturesKHR)

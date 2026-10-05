@@ -2618,6 +2618,43 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkQueueFamilyGlobalPriorityProperties,
                       transform_fromhost_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_timeline_semaphore
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceTimelineSemaphoreFeatures,
+                      transform_tohost_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceTimelineSemaphoreFeatures,
+                      transform_fromhost_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceTimelineSemaphoreProperties,
+                      transform_tohost_VkPhysicalDeviceTimelineSemaphorePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceTimelineSemaphoreProperties,
+                      transform_fromhost_VkPhysicalDeviceTimelineSemaphorePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkSemaphoreTypeCreateInfo,
+                      transform_tohost_VkSemaphoreTypeCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkSemaphoreTypeCreateInfo,
+                      transform_fromhost_VkSemaphoreTypeCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkTimelineSemaphoreSubmitInfo,
+                      transform_tohost_VkTimelineSemaphoreSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkTimelineSemaphoreSubmitInfo,
+                      transform_fromhost_VkTimelineSemaphoreSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkSemaphoreWaitInfo, transform_tohost_VkSemaphoreWaitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkSemaphoreWaitInfo,
+                      transform_fromhost_VkSemaphoreWaitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkSemaphoreSignalInfo,
+                      transform_tohost_VkSemaphoreSignalInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkSemaphoreSignalInfo,
+                      transform_fromhost_VkSemaphoreSignalInfoKHR)
+
+#endif
 #ifdef VK_KHR_vulkan_memory_model
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceVulkanMemoryModelFeatures,
                       transform_tohost_VkPhysicalDeviceVulkanMemoryModelFeaturesKHR)

@@ -1647,6 +1647,23 @@ DEFINE_ALIAS_FUNCTION(deepcopy_VkQueueFamilyGlobalPriorityProperties,
                       deepcopy_VkQueueFamilyGlobalPriorityPropertiesKHR)
 
 #endif
+#ifdef VK_KHR_timeline_semaphore
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceTimelineSemaphoreFeatures,
+                      deepcopy_VkPhysicalDeviceTimelineSemaphoreFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceTimelineSemaphoreProperties,
+                      deepcopy_VkPhysicalDeviceTimelineSemaphorePropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkSemaphoreTypeCreateInfo, deepcopy_VkSemaphoreTypeCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkTimelineSemaphoreSubmitInfo,
+                      deepcopy_VkTimelineSemaphoreSubmitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkSemaphoreWaitInfo, deepcopy_VkSemaphoreWaitInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkSemaphoreSignalInfo, deepcopy_VkSemaphoreSignalInfoKHR)
+
+#endif
 #ifdef VK_KHR_vulkan_memory_model
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceVulkanMemoryModelFeatures,
                       deepcopy_VkPhysicalDeviceVulkanMemoryModelFeaturesKHR)

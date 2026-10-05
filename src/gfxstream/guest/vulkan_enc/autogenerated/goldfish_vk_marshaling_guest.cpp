@@ -10508,6 +10508,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkCmdCopyImage2KHR";
         }
 #endif
+#ifdef VK_KHR_timeline_semaphore
+        case OP_vkGetSemaphoreCounterValueKHR: {
+            return "OP_vkGetSemaphoreCounterValueKHR";
+        }
+#endif
 #ifdef VK_BASE_VERSION_1_4
         case OP_vkUnmapMemory2: {
             return "OP_vkUnmapMemory2";
@@ -10769,6 +10774,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkCmdSetLineStippleEXT";
         }
 #endif
+#ifdef VK_KHR_timeline_semaphore
+        case OP_vkWaitSemaphoresKHR: {
+            return "OP_vkWaitSemaphoresKHR";
+        }
+#endif
 #ifdef VK_EXT_extended_dynamic_state
         case OP_vkCmdSetCullModeEXT: {
             return "OP_vkCmdSetCullModeEXT";
@@ -10825,6 +10835,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
 #ifdef VK_COMPUTE_VERSION_1_4
         case OP_vkCmdPushDescriptorSet2: {
             return "OP_vkCmdPushDescriptorSet2";
+        }
+#endif
+#ifdef VK_KHR_timeline_semaphore
+        case OP_vkSignalSemaphoreKHR: {
+            return "OP_vkSignalSemaphoreKHR";
         }
 #endif
 #ifdef VK_BASE_VERSION_1_4
