@@ -1459,6 +1459,8 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
    } else {
       uint32_t cp_post_wait_flags =
          S_3C1_FUNCTION(V_3C1_GREATER_THAN_OR_EQUAL_REFERENCE_VALUE) | S_3C1_ENGINE_SEL(leader_engine_sel);
+      if (pdev->info.gfx_level == GFX8 && ip == AMD_IP_COMPUTE)
+         cp_post_wait_flags |= WAIT_REG_MEM_UNCACHED_VI_MEC;
 
       ac_emit_cp_wait_mem(leader_post_cs->b, leader_wait_va, 1, 0xffffffff, cp_post_wait_flags);
    }
