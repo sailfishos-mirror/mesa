@@ -1137,6 +1137,15 @@ radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image
    return flush_bits;
 }
 
+uint32_t
+radv_clear_htile_rmw_to_uncompressed(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image,
+                                     const VkImageSubresourceRange *range, enum radv_meta_htile_preserve_flags preserve)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+
+   return radv_clear_htile_rmw(cmd_buffer, image, range, radv_get_htile_initial_value(device, image), preserve);
+}
+
 static uint32_t
 radv_dcc_single_clear_value(const struct radv_device *device)
 {

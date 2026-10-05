@@ -16047,14 +16047,12 @@ radv_CmdSetRayTracingPipelineStackSizeKHR(VkCommandBuffer commandBuffer, uint32_
 static uint32_t
 radv_init_htile(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
 {
-   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const uint32_t htile_value = radv_get_htile_initial_value(device, image);
    struct radv_barrier_data barrier = {0};
 
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
-   return radv_clear_htile_rmw(cmd_buffer, image, range, htile_value, 0);
+   return radv_clear_htile_rmw_to_uncompressed(cmd_buffer, image, range, 0);
 }
 
 static uint32_t

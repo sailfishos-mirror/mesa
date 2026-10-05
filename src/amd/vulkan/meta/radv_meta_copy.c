@@ -260,8 +260,7 @@ radv_meta_fixup_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
                                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT, 0, image, &range);
          }
 
-         const uint32_t htile_value = radv_get_htile_initial_value(device, image);
-         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw(cmd_buffer, image, &range, htile_value, preserve);
+         cmd_buffer->state.flush_bits |= radv_clear_htile_rmw_to_uncompressed(cmd_buffer, image, &range, preserve);
       }
    }
 }
