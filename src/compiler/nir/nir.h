@@ -6412,6 +6412,7 @@ typedef struct nir_lower_tex_options {
    unsigned saturate_s;
    unsigned saturate_t;
    unsigned saturate_r;
+   unsigned saturate_lod_zero;
 
    /* Bitmask of samplers whose txl LOD <= 0.5 is replaced with 0.0, moving
     * the magnification switch-over point from a lambda of 0 to the 0.5 that

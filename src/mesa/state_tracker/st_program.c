@@ -863,6 +863,7 @@ st_create_common_variant(struct st_context *st,
       tex_opts.saturate_s = key->gl_clamp[0];
       tex_opts.saturate_t = key->gl_clamp[1];
       tex_opts.saturate_r = key->gl_clamp[2];
+      tex_opts.saturate_lod_zero = key->gl_clamp[3];
       NIR_PASS(finalize, state.ir.nir, nir_lower_tex, &tex_opts);
    }
 
@@ -1150,6 +1151,7 @@ st_create_fp_variant(struct st_context *st,
       tex_opts.saturate_s = key->gl_clamp[0];
       tex_opts.saturate_t = key->gl_clamp[1];
       tex_opts.saturate_r = key->gl_clamp[2];
+      tex_opts.saturate_lod_zero = key->gl_clamp[3];
       NIR_PASS(finalize, state.ir.nir, nir_lower_tex, &tex_opts);
    }
 
