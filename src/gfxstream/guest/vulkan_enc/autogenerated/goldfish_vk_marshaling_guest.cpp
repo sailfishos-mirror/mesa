@@ -10538,6 +10538,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkCmdSetPrimitiveRestartEnable";
         }
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+        case OP_vkCmdSetRenderingAttachmentLocationsKHR: {
+            return "OP_vkCmdSetRenderingAttachmentLocationsKHR";
+        }
+#endif
 #ifdef VK_COMPUTE_VERSION_1_3
         case OP_vkCmdSetEvent2: {
             return "OP_vkCmdSetEvent2";
@@ -10687,6 +10692,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
         }
         case OP_vkCmdCopyBufferToImage2KHR: {
             return "OP_vkCmdCopyBufferToImage2KHR";
+        }
+#endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+        case OP_vkCmdSetRenderingInputAttachmentIndicesKHR: {
+            return "OP_vkCmdSetRenderingInputAttachmentIndicesKHR";
         }
 #endif
 #ifdef VK_EXT_image_drm_format_modifier

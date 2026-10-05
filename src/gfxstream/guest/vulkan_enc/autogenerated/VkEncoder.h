@@ -828,6 +828,14 @@ class VkEncoder {
     VkResult vkSignalSemaphoreKHR(VkDevice device, const VkSemaphoreSignalInfo* pSignalInfo,
                                   uint32_t doLock);
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+    void vkCmdSetRenderingAttachmentLocationsKHR(
+        VkCommandBuffer commandBuffer, const VkRenderingAttachmentLocationInfo* pLocationInfo,
+        uint32_t doLock);
+    void vkCmdSetRenderingInputAttachmentIndicesKHR(
+        VkCommandBuffer commandBuffer,
+        const VkRenderingInputAttachmentIndexInfo* pInputAttachmentIndexInfo, uint32_t doLock);
+#endif
 #ifdef VK_KHR_buffer_device_address
     VkDeviceAddress vkGetBufferDeviceAddressKHR(VkDevice device,
                                                 const VkBufferDeviceAddressInfo* pInfo,

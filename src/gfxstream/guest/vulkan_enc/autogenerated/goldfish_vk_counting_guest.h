@@ -1538,6 +1538,17 @@ DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceShaderTerminateInvocationFeatures,
                       count_VkPhysicalDeviceShaderTerminateInvocationFeaturesKHR)
 
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      count_VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkRenderingAttachmentLocationInfo,
+                      count_VkRenderingAttachmentLocationInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(count_VkRenderingInputAttachmentIndexInfo,
+                      count_VkRenderingInputAttachmentIndexInfoKHR)
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceBufferDeviceAddressFeatures,
                       count_VkPhysicalDeviceBufferDeviceAddressFeaturesKHR)

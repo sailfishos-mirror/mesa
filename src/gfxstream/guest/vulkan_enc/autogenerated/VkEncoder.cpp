@@ -20708,6 +20708,131 @@ VkResult VkEncoder::vkSignalSemaphoreKHR(VkDevice device, const VkSemaphoreSigna
 }
 
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+void VkEncoder::vkCmdSetRenderingAttachmentLocationsKHR(
+    VkCommandBuffer commandBuffer, const VkRenderingAttachmentLocationInfo* pLocationInfo,
+    uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkCommandBuffer local_commandBuffer;
+    VkRenderingAttachmentLocationInfo* local_pLocationInfo;
+    local_commandBuffer = commandBuffer;
+    local_pLocationInfo = nullptr;
+    if (pLocationInfo) {
+        local_pLocationInfo = (VkRenderingAttachmentLocationInfo*)pool->alloc(
+            sizeof(const VkRenderingAttachmentLocationInfo));
+        deepcopy_VkRenderingAttachmentLocationInfo(
+            pool, VK_STRUCTURE_TYPE_MAX_ENUM, pLocationInfo,
+            (VkRenderingAttachmentLocationInfo*)(local_pLocationInfo));
+    }
+    if (local_pLocationInfo) {
+        transform_tohost_VkRenderingAttachmentLocationInfo(
+            sResourceTracker, (VkRenderingAttachmentLocationInfo*)(local_pLocationInfo));
+    }
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        count_VkRenderingAttachmentLocationInfo(
+            sFeatureBits, VK_STRUCTURE_TYPE_MAX_ENUM,
+            (VkRenderingAttachmentLocationInfo*)(local_pLocationInfo), countPtr);
+    }
+    uint32_t packetSize_vkCmdSetRenderingAttachmentLocationsKHR = 4 + 4 + count;
+    if (queueSubmitWithCommandsEnabled) packetSize_vkCmdSetRenderingAttachmentLocationsKHR -= 8;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkCmdSetRenderingAttachmentLocationsKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkCmdSetRenderingAttachmentLocationsKHR =
+        OP_vkCmdSetRenderingAttachmentLocationsKHR;
+    memcpy(streamPtr, &opcode_vkCmdSetRenderingAttachmentLocationsKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkCmdSetRenderingAttachmentLocationsKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (!queueSubmitWithCommandsEnabled) {
+        uint64_t cgen_var_0;
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
+        memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+        *streamPtrPtr += 1 * 8;
+    }
+    reservedmarshal_VkRenderingAttachmentLocationInfo(
+        stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+        (VkRenderingAttachmentLocationInfo*)(local_pLocationInfo), streamPtrPtr);
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+}
+
+void VkEncoder::vkCmdSetRenderingInputAttachmentIndicesKHR(
+    VkCommandBuffer commandBuffer,
+    const VkRenderingInputAttachmentIndexInfo* pInputAttachmentIndexInfo, uint32_t doLock) {
+    (void)doLock;
+    bool queueSubmitWithCommandsEnabled =
+        sFeatureBits & VULKAN_STREAM_FEATURE_QUEUE_SUBMIT_WITH_COMMANDS_BIT;
+    if (!queueSubmitWithCommandsEnabled && doLock) this->lock();
+    auto stream = mImpl->stream();
+    auto pool = mImpl->pool();
+    VkCommandBuffer local_commandBuffer;
+    VkRenderingInputAttachmentIndexInfo* local_pInputAttachmentIndexInfo;
+    local_commandBuffer = commandBuffer;
+    local_pInputAttachmentIndexInfo = nullptr;
+    if (pInputAttachmentIndexInfo) {
+        local_pInputAttachmentIndexInfo = (VkRenderingInputAttachmentIndexInfo*)pool->alloc(
+            sizeof(const VkRenderingInputAttachmentIndexInfo));
+        deepcopy_VkRenderingInputAttachmentIndexInfo(
+            pool, VK_STRUCTURE_TYPE_MAX_ENUM, pInputAttachmentIndexInfo,
+            (VkRenderingInputAttachmentIndexInfo*)(local_pInputAttachmentIndexInfo));
+    }
+    if (local_pInputAttachmentIndexInfo) {
+        transform_tohost_VkRenderingInputAttachmentIndexInfo(
+            sResourceTracker,
+            (VkRenderingInputAttachmentIndexInfo*)(local_pInputAttachmentIndexInfo));
+    }
+    size_t count = 0;
+    size_t* countPtr = &count;
+    {
+        uint64_t cgen_var_0;
+        (void)cgen_var_0;
+        *countPtr += 1 * 8;
+        count_VkRenderingInputAttachmentIndexInfo(
+            sFeatureBits, VK_STRUCTURE_TYPE_MAX_ENUM,
+            (VkRenderingInputAttachmentIndexInfo*)(local_pInputAttachmentIndexInfo), countPtr);
+    }
+    uint32_t packetSize_vkCmdSetRenderingInputAttachmentIndicesKHR = 4 + 4 + count;
+    if (queueSubmitWithCommandsEnabled) packetSize_vkCmdSetRenderingInputAttachmentIndicesKHR -= 8;
+    uint8_t* streamPtr = stream->reserve(packetSize_vkCmdSetRenderingInputAttachmentIndicesKHR);
+    uint8_t** streamPtrPtr = &streamPtr;
+    uint32_t opcode_vkCmdSetRenderingInputAttachmentIndicesKHR =
+        OP_vkCmdSetRenderingInputAttachmentIndicesKHR;
+    memcpy(streamPtr, &opcode_vkCmdSetRenderingInputAttachmentIndicesKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    memcpy(streamPtr, &packetSize_vkCmdSetRenderingInputAttachmentIndicesKHR, sizeof(uint32_t));
+    streamPtr += sizeof(uint32_t);
+    if (!queueSubmitWithCommandsEnabled) {
+        uint64_t cgen_var_0;
+        *&cgen_var_0 = gfxstream_vk_command_buffer_to_host_u64((*&local_commandBuffer));
+        memcpy(*streamPtrPtr, (uint64_t*)&cgen_var_0, 1 * 8);
+        *streamPtrPtr += 1 * 8;
+    }
+    reservedmarshal_VkRenderingInputAttachmentIndexInfo(
+        stream, VK_STRUCTURE_TYPE_MAX_ENUM,
+        (VkRenderingInputAttachmentIndexInfo*)(local_pInputAttachmentIndexInfo), streamPtrPtr);
+    ++encodeCount;
+    if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
+        pool->freeAll();
+        stream->clearPool();
+    }
+    if (!queueSubmitWithCommandsEnabled && doLock) this->unlock();
+}
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 VkDeviceAddress VkEncoder::vkGetBufferDeviceAddressKHR(VkDevice device,
                                                        const VkBufferDeviceAddressInfo* pInfo,

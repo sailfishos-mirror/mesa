@@ -2693,6 +2693,26 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderTerminateInvocati
                       transform_fromhost_VkPhysicalDeviceShaderTerminateInvocationFeaturesKHR)
 
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      transform_tohost_VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      transform_fromhost_VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkRenderingAttachmentLocationInfo,
+                      transform_tohost_VkRenderingAttachmentLocationInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkRenderingAttachmentLocationInfo,
+                      transform_fromhost_VkRenderingAttachmentLocationInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkRenderingInputAttachmentIndexInfo,
+                      transform_tohost_VkRenderingInputAttachmentIndexInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkRenderingInputAttachmentIndexInfo,
+                      transform_fromhost_VkRenderingInputAttachmentIndexInfoKHR)
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceBufferDeviceAddressFeatures,
                       transform_tohost_VkPhysicalDeviceBufferDeviceAddressFeaturesKHR)

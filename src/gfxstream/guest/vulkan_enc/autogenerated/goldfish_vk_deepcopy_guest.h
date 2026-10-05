@@ -1687,6 +1687,17 @@ DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceShaderTerminateInvocationFeatures
                       deepcopy_VkPhysicalDeviceShaderTerminateInvocationFeaturesKHR)
 
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      deepcopy_VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkRenderingAttachmentLocationInfo,
+                      deepcopy_VkRenderingAttachmentLocationInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkRenderingInputAttachmentIndexInfo,
+                      deepcopy_VkRenderingInputAttachmentIndexInfoKHR)
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceBufferDeviceAddressFeatures,
                       deepcopy_VkPhysicalDeviceBufferDeviceAddressFeaturesKHR)

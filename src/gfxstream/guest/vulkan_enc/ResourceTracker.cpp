@@ -1826,6 +1826,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_KHR_shader_float16_int8",
         "VK_KHR_timeline_semaphore",
         "VK_KHR_push_descriptor",
+        "VK_KHR_dynamic_rendering_local_read",
         "VK_AMD_gpu_shader_half_float",
         "VK_NV_shader_subgroup_partitioned",
         "VK_KHR_shader_subgroup_extended_types",

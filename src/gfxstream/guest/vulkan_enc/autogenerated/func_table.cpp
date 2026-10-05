@@ -2853,6 +2853,27 @@ VkResult gfxstream_vk_SignalSemaphoreKHR(VkDevice device,
     return vkSignalSemaphoreKHR_VkResult_return;
 }
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+void gfxstream_vk_CmdSetRenderingAttachmentLocationsKHR(
+    VkCommandBuffer commandBuffer, const VkRenderingAttachmentLocationInfo* pLocationInfo) {
+    MESA_TRACE_SCOPE("vkCmdSetRenderingAttachmentLocationsKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdSetRenderingAttachmentLocationsKHR(commandBuffer, pLocationInfo,
+                                                       true /* do lock */);
+    }
+}
+void gfxstream_vk_CmdSetRenderingInputAttachmentIndicesKHR(
+    VkCommandBuffer commandBuffer,
+    const VkRenderingInputAttachmentIndexInfo* pInputAttachmentIndexInfo) {
+    MESA_TRACE_SCOPE("vkCmdSetRenderingInputAttachmentIndicesKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdSetRenderingInputAttachmentIndicesKHR(commandBuffer, pInputAttachmentIndexInfo,
+                                                          true /* do lock */);
+    }
+}
+#endif
 #ifdef VK_KHR_buffer_device_address
 VkDeviceAddress gfxstream_vk_GetBufferDeviceAddressKHR(VkDevice device,
                                                        const VkBufferDeviceAddressInfo* pInfo) {

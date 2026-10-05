@@ -1707,6 +1707,17 @@ DEFINE_ALIAS_FUNCTION(reservedmarshal_VkPhysicalDeviceShaderTerminateInvocationF
                       reservedmarshal_VkPhysicalDeviceShaderTerminateInvocationFeaturesKHR)
 
 #endif
+#ifdef VK_KHR_dynamic_rendering_local_read
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      reservedmarshal_VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkRenderingAttachmentLocationInfo,
+                      reservedmarshal_VkRenderingAttachmentLocationInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(reservedmarshal_VkRenderingInputAttachmentIndexInfo,
+                      reservedmarshal_VkRenderingInputAttachmentIndexInfoKHR)
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 DEFINE_ALIAS_FUNCTION(reservedmarshal_VkPhysicalDeviceBufferDeviceAddressFeatures,
                       reservedmarshal_VkPhysicalDeviceBufferDeviceAddressFeaturesKHR)
