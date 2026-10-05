@@ -12,7 +12,7 @@ a200-gl:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 180
     DEQP_SUITE: freedreno-a200
 
-.a306-gl:
+a306-gl:
   extends:
     - .lava-arm64-test-gl
     - .lava-dragonboard-410c:arm64
@@ -22,7 +22,7 @@ a200-gl:
     FDO_CI_CONCURRENT: 6
   parallel: 5
 
-.a306-piglit:
+a306-piglit:
   extends:
     - .lava-arm64-test-gl
     - .lava-dragonboard-410c:arm64
@@ -33,7 +33,7 @@ a200-gl:
     DEQP_SUITE: freedreno-a306-piglit
     HWCI_START_WESTON: 1
 
-.a306-piglit-gl:
+a306-piglit-gl:
   extends:
     - .lava-arm64-test-gl
     - .lava-dragonboard-410c:arm64
@@ -44,7 +44,7 @@ a200-gl:
     FDO_CI_CONCURRENT: 3
     HWCI_START_WESTON: 1
 
-.a306-piglit-shader:
+a306-piglit-shader:
   extends:
     - .lava-arm64-test-gl
     - .lava-dragonboard-410c:arm64
@@ -55,7 +55,7 @@ a200-gl:
     FDO_CI_CONCURRENT: 6
     HWCI_START_WESTON: 1
 
-.a306-traces:
+a306-traces:
   extends:
     - .lava-arm64-piglit-traces
     - .lava-dragonboard-410c:arm64
