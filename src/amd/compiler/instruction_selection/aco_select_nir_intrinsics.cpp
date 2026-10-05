@@ -5119,6 +5119,27 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
       }
       break;
    }
+   case nir_intrinsic_load_abort_buffer_address: {
+      Temp dst = get_ssa_temp(ctx, &instr->def);
+      assert(dst.regClass() == s2);
+
+      Temp addr_lo = bld.sop1(aco_opcode::p_load_symbol, bld.def(s1),
+                              Operand::c32(aco_symbol_abort_buffer_addr_lo));
+      Temp addr_hi = bld.sop1(aco_opcode::p_load_symbol, bld.def(s1),
+                              Operand::c32(aco_symbol_abort_buffer_addr_hi));
+
+      bld.pseudo(aco_opcode::p_create_vector, Definition(dst), addr_lo, addr_hi);
+      emit_split_vector(ctx, dst, 2);
+      break;
+   }
+   case nir_intrinsic_load_abort_buffer_size: {
+      Temp dst = get_ssa_temp(ctx, &instr->def);
+      assert(dst.regClass() == s1);
+
+      bld.sop1(aco_opcode::p_load_symbol, Definition(dst),
+               Operand::c32(aco_symbol_abort_buffer_size));
+      break;
+   }
    default:
       isel_err(&instr->instr, "Unimplemented intrinsic instr");
       abort();
