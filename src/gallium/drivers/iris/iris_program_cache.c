@@ -186,7 +186,7 @@ iris_upload_shader(struct iris_screen *screen,
                                shader->assembly.offset +
                                shader->const_data_offset;
 
-   struct intel_shader_reloc_value reloc_values[4] = {};
+   struct intel_shader_reloc_value reloc_values[5] = {};
    int rv_count = 0;
 
    reloc_values[rv_count++] = (struct intel_shader_reloc_value){
@@ -197,6 +197,13 @@ iris_upload_shader(struct iris_screen *screen,
       .id = INTEL_SHADER_RELOC_CONST_DATA_ADDR_HIGH,
       .value = shader_data_addr >> 32,
    };
+
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)) {
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value){
+         .id = BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH,
+         .value = IRIS_MEMZONE_DYNAMIC_START >> 32,
+      };
+   }
 
    if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr) && shader->total_scratch) {
 

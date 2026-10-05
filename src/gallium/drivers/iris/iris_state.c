@@ -6841,9 +6841,12 @@ setup_binding_tables_to_push_bos(struct iris_context *ice,
                             len_bytes,
                             32,
                             &push_const_addr);
-   uint64_t *push_const_map = map;
+   uint32_t *push_const_map = map;
 
    assert(push_const_map);
+   assert(batch->render_target_surfs_state_addr[stage] >> 32 ==
+          IRIS_MEMZONE_DYNAMIC_START >> 32 ||
+          batch->render_target_surfs_state_addr[stage] == 0);
    push_const_map[0] = batch->render_target_surfs_state_addr[stage];
 
    if (ice->shaders.prog[stage]) {
@@ -6855,6 +6858,8 @@ setup_binding_tables_to_push_bos(struct iris_context *ice,
          iris_use_pinned_bo(batch, iris_resource_bo(shs->sampler_table.res), false,
                             IRIS_DOMAIN_NONE);
 
+         assert(shs->sampler_table.offset >> 32 ==
+                IRIS_MEMZONE_DYNAMIC_START >> 32);
          push_const_map[1] = shs->sampler_table.offset;
       }
    }
@@ -9692,9 +9697,7 @@ iris_emit_compute_walker2(struct iris_context *ice,
       .InterfaceDescriptor = idd,
       .InlineData = {
          [0] = batch->render_target_surfs_state_addr[MESA_SHADER_COMPUTE] & 0xffffffff,
-         [1] = batch->render_target_surfs_state_addr[MESA_SHADER_COMPUTE] >> 32,
-         [2] = shs->sampler_table.offset & 0xffffffff,
-         [3] = shs->sampler_table.offset >> 32,
+         [1] = shs->sampler_table.offset & 0xffffffff,
       },
    };
 

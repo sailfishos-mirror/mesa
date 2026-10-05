@@ -1354,23 +1354,23 @@ rewrite_src_with_bti(nir_builder *b, struct iris_binding_table *bt,
 }
 
 /**
- * Load the 64-bit GPU address of this stage's 64-bit binding table, i.e.
+ * Load the lower 32-bit GPU address of this stage's 64-bit binding table, i.e.
  * the array of SURFACE_STATEs built by iris_populate_64bit_binding_table().
  */
 static nir_def *
 iris_load_eff_64bit_surfaces_base_address(nir_builder *b)
 {
    if (b->shader->info.stage == MESA_SHADER_COMPUTE) {
-      return nir_load_inline_data_intel(b, 1, 64, nir_imm_int(b, 0),
-                                        .base = 0, .range = 8);
+      return nir_load_inline_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                                        .base = 0, .range = 4);
    }
 
-   return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
-                                   .base = 0, .range = 8);
+   return nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                                   .base = 0, .range = 4);
 }
 
 /**
- * Load the 64-bit GPU address of this stage's sampler-state table, i.e.
+ * Load the lower 32-bit GPU address of this stage's sampler-state table, i.e.
  * the array of SAMPLER_STATE_EXTENDED records built by
  * iris_upload_sampler_states().
  */
@@ -1378,12 +1378,34 @@ static nir_def *
 iris_load_eff_64bit_sampler_base_address(nir_builder *b)
 {
    if (b->shader->info.stage == MESA_SHADER_COMPUTE) {
-      return nir_load_inline_data_intel(b, 1, 64, nir_imm_int(b, 0),
-                                        .base = 8, .range = 8);
+      return nir_load_inline_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                                        .base = 4, .range = 4);
    }
 
-   return nir_load_push_data_intel(b, 1, 64, nir_imm_int(b, 0),
-                                   .base = 8, .range = 8);
+   return nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
+                                   .base = 4, .range = 4);
+}
+
+static nir_def *
+iris_eff_64bit_surface_handle(nir_builder *b, nir_def *base_addr,
+                              nir_def *byte_offset)
+{
+   nir_def *reloc_high = nir_load_reloc_const_intel(b, BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH);
+   nir_def *addr = nir_vec2(b,
+                            nir_iadd(b, base_addr, byte_offset),
+                            reloc_high);
+
+   return nir_resource_intel(
+      b,
+      2, /* num_components */
+      32, /* bit size */
+      base_addr, /* set_offset */
+      addr, /* surface_index */
+      nir_imm_int(b, 0), /* array_index */
+      nir_imm_int(b, 0), /* bindless_base_offset*/
+      .desc_set = 0,
+      .binding = 0,
+      .resource_access_intel = nir_resource_intel_internal);
 }
 
 /**
@@ -1422,18 +1444,24 @@ rewrite_src_with_surface_address(nir_builder *b,
       byte_offset = nir_imul_imm(b, nir_u2u32(b, slot), ss_size);
    }
 
-   nir_def *addr64 = nir_iadd(b, base_addr, nir_u2u64(b, byte_offset));
-   nir_def *handle = nir_resource_intel(
-      b,
-      1, /* num_components */
-      64, /* bit size */
-      addr64, /* set_offset */
-      addr64, /* surface_index */
-      nir_imm_int(b, 0), /* array_index */
-      nir_imm_int(b, 0), /* bindless_base_offset */
-      .desc_set = 0,
-      .binding = 0,
-      .resource_access_intel = nir_resource_intel_internal);
+   nir_def *handle = iris_eff_64bit_surface_handle(b, base_addr, byte_offset);
+
+   /* brw_nir_pre_lower_texture() lowers image_size and get_ssbo_size to a
+    * resinfo tex instruction and only uses texture_handle (which accepts the
+    * vec2 handle) when the resource is flagged bindless, otherwise it uses
+    * texture_offset that only takes a single component.
+    */
+   if (instr->type == nir_instr_type_intrinsic) {
+      nir_intrinsic_op op = nir_instr_as_intrinsic(instr)->intrinsic;
+
+      if (op == nir_intrinsic_image_size ||
+          op == nir_intrinsic_get_ssbo_size) {
+         nir_intrinsic_instr *rsrc = nir_def_as_intrinsic(handle);
+         nir_intrinsic_set_resource_access_intel(
+            rsrc, nir_intrinsic_resource_access_intel(rsrc) |
+                  nir_resource_intel_bindless);
+      }
+   }
 
    nir_src_rewrite(src, handle);
 }
@@ -1471,19 +1499,7 @@ rewrite_tex_with_surface_address(nir_builder *b,
       byte_offset = nir_imm_int(b, slot * state_size);
    }
 
-   nir_def *addr64 = nir_iadd(b, base_addr, nir_u2u64(b, byte_offset));
-   nir_def *handle = nir_resource_intel(
-      b,
-      1, /* num_components */
-      64, /* bit size */
-      addr64, /* set_offset */
-      addr64, /* surface_index */
-      nir_imm_int(b, 0), /* array_index */
-      nir_imm_int(b, 0), /* bindless_base_offset */
-      .desc_set = 0,
-      .binding = 0,
-      .resource_access_intel = nir_resource_intel_internal);
-
+   nir_def *handle = iris_eff_64bit_surface_handle(b, base_addr, byte_offset);
    nir_tex_instr_add_src(tex, src_type, handle);
 }
 
@@ -1754,6 +1770,11 @@ iris_setup_binding_table(const struct iris_screen *screen,
                rewrite_src_with_surface_address(&b, bt, instr, &intrin->src[0],
                                                 IRIS_SURFACE_GROUP_IMAGE,
                                                 screen->isl_dev.ss.size);
+               /* intrinsic_image_* intrinsics only takes a single component
+                * handle, so here we rewrite as bindless to use a vec2 handle.
+                */
+               nir_rewrite_image_intrinsic(intrin, intrin->src[0].ssa,
+                                           nir_image_intrinsic_type_bindless);
             } else {
                rewrite_src_with_bti(&b, bt, instr, &intrin->src[0],
                                     IRIS_SURFACE_GROUP_IMAGE);
@@ -1821,19 +1842,8 @@ iris_setup_binding_table(const struct iris_screen *screen,
             if (use_efficient_64bit) {
                uint32_t slot = iris_group_index_to_bti(bt, IRIS_SURFACE_GROUP_CS_WORK_GROUPS, 0);
                nir_def *base_addr = iris_load_eff_64bit_surfaces_base_address(&b);
-               nir_def *addr64 = nir_iadd_imm(&b, base_addr, slot * screen->isl_dev.ss.size);
-
-               ubo_index = nir_resource_intel(
-                  &b,
-                  1, /* num_components */
-                  64, /* bit size */
-                  addr64, /* set_offset */
-                  addr64, /* surface_index */
-                  nir_imm_int(&b, 0), /* array_index */
-                  nir_imm_int(&b, 0), /* bindless_base_offset */
-                  .desc_set = 0,
-                  .binding = 0,
-                  .resource_access_intel = nir_resource_intel_internal);
+               ubo_index = iris_eff_64bit_surface_handle(
+                  &b, base_addr, nir_imm_int(&b, slot * screen->isl_dev.ss.size));
             } else {
                uint32_t offset = bt->offsets[IRIS_SURFACE_GROUP_CS_WORK_GROUPS];
 
@@ -3006,21 +3016,14 @@ static nir_def *
 iris_rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
 {
    const struct isl_device *isl_dev = data;
-   nir_def *addr = iris_load_eff_64bit_surfaces_base_address(b);
+   uint64_t offset = rt > 0 ? (uint32_t)(rt * isl_dev->ss.size) : 0;
+   nir_def *addr_lo = nir_iadd_imm(
+      b,
+      iris_load_eff_64bit_surfaces_base_address(b),
+      offset);
+   nir_def *reloc_high = nir_load_reloc_const_intel(b, BRW_SHADER_RELOC_DESCRIPTORS_INTERNAL_HIGH);
 
-   if (rt > 0) {
-      nir_def *offset = nir_imm_int(b, (uint32_t)(rt * isl_dev->ss.size));
-      nir_def *addr_lo = nir_unpack_64_2x32_split_x(b, addr);
-      nir_def *addr_hi = nir_unpack_64_2x32_split_y(b, addr);
-
-      nir_def *new_lo = nir_iadd(b, addr_lo, offset);
-      nir_def *carry = nir_b2i32(b, nir_ult(b, new_lo, addr_lo));
-      nir_def *new_hi = nir_iadd(b, addr_hi, carry);
-
-      addr = nir_pack_64_2x32_split(b, new_lo, new_hi);
-   }
-
-   return addr;
+   return nir_pack_64_2x32_split(b, addr_lo, reloc_high);
 }
 
 /**
