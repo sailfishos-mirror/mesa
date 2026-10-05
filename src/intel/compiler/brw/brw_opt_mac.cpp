@@ -1144,7 +1144,7 @@ munge_types(path *curr)
 
 static void
 apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
-                  unsigned acc_to_write, path *curr)
+                  unsigned acc_to_write, path *curr, bool can_replace_destination)
 {
    brw_inst *inst = curr->inst;
    brw_reg acc;
@@ -1163,7 +1163,7 @@ apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
       acc.nr += ffs(acc_to_write) - 1;
    }
 
-   if (curr->replace_destination) {
+   if (curr->replace_destination && can_replace_destination) {
       /* For pre-CNL, the Bspec says:
        *
        *    No explicit accumulator access because this is a three-source
@@ -1211,8 +1211,6 @@ apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
             inst->src[other] = apply_negate(inst->src[other]);
          } else if (source_mods_can_reassociate(inst->src[curr->src], src_inst,
                                                 &abs_count, &negate_count)) {
-            assert(abs_count == 0 || abs_count == src_inst->sources);
-
             for (unsigned i = 0; i < abs_count; i++)
                src_inst->src[i] = apply_abs(src_inst->src[i]);
 
@@ -1223,6 +1221,33 @@ apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
             inst->src[curr->src].abs = false;
          } else {
             assert(s.devinfo->verx10 > 120);
+         }
+      } else if (curr->src >= 0 &&
+                 s.devinfo->verx10 <= 120 &&
+                 inst->opcode == BRW_OPCODE_CSEL) {
+         unsigned abs_count;
+         unsigned negate_count;
+
+         if (source_mods_can_reassociate(inst->src[curr->src], src_inst,
+                                         &abs_count, &negate_count)) {
+            for (unsigned i = 0; i < abs_count; i++)
+               src_inst->src[i] = apply_abs(src_inst->src[i]);
+
+            for (unsigned i = 0; i < negate_count; i++)
+               src_inst->src[i] = apply_negate(src_inst->src[i]);
+
+            inst->src[curr->src].negate = false;
+            inst->src[curr->src].abs = false;
+         } else {
+            /* Source modifiers on the would-be accumulator source cannot be
+             * moved, so the source cannot be changed to the accumulator. That
+             * means the next instruction cannot replace its destination with
+             * the accumulator.
+             */
+            if (curr->next != nullptr)
+               apply_replacement(s, defs, b, acc_to_write, curr->next, false);
+
+            return;
          }
       }
 
@@ -1261,7 +1286,7 @@ apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
    }
 
    if (curr->next != nullptr)
-      apply_replacement(s, defs, b, acc_to_write, curr->next);
+      apply_replacement(s, defs, b, acc_to_write, curr->next, true);
 }
 
 bool
@@ -1320,7 +1345,7 @@ brw_opt_mac(brw_shader &s)
       path *best = find_optimal_path(s, defs, block, acc, flags, all_paths);
       if (best != nullptr) {
          munge_types(best);
-         apply_replacement(s, defs, block, acc, best);
+         apply_replacement(s, defs, block, acc, best, true);
          progress = true;
       }
    }

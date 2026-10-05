@@ -1720,3 +1720,41 @@ TEST_F(mac_test, sel_neg_d_src1)
 
    EXPECT_NO_PROGRESS(brw_opt_mac, bld);
 }
+
+TEST_F(mac_test, issue_16469)
+{
+   set_gfx_verx10(120);
+
+   brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+   brw_builder exp = make_shader(MESA_SHADER_FRAGMENT, 16);
+
+   brw_reg dst0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg dst1 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg dst2 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src1 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src2 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src3 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg acc0 = retype(brw_acc_reg(8 * reg_unit(devinfo)),
+                         BRW_TYPE_F);
+
+   bld.MOV(src0, brw_imm_f(3.14));
+   bld.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(1));
+   bld.BFREV(retype(src2, BRW_TYPE_UD), brw_imm_ud(2));
+   bld.BFREV(retype(src3, BRW_TYPE_UD), brw_imm_ud(3));
+   bld.ADD(dst0, src0, src1);
+   bld.CSEL(dst1, dst0, src2, src3, BRW_CONDITIONAL_G);
+   bld.MAD(dst2, brw_abs(dst1), src1, src2);
+
+   EXPECT_PROGRESS(brw_opt_mac, bld);
+
+   exp.MOV(acc0, brw_imm_f(3.14));
+   exp.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(1));
+   exp.BFREV(retype(src2, BRW_TYPE_UD), brw_imm_ud(2));
+   exp.BFREV(retype(src3, BRW_TYPE_UD), brw_imm_ud(3));
+   exp.ADD(dst0, acc0, src1);
+   exp.CSEL(acc0, brw_abs(dst0), brw_abs(src2), src3, BRW_CONDITIONAL_G);
+   exp.MAC(dst2, src1, src2);
+
+   EXPECT_SHADERS_MATCH(bld, exp);
+}
