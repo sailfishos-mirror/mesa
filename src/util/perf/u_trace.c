@@ -31,6 +31,10 @@
 #include "util/u_debug.h"
 #include "util/u_vector.h"
 
+#if U_TRACE_HAS_COMPRESS
+#include <zlib.h>
+#endif
+
 #define __NEEDS_TRACE_PRIV
 #include "u_trace_priv.h"
 
@@ -44,6 +48,13 @@ struct u_trace_state {
     */
    const char *tracefile_template;
    enum u_trace_type enabled_traces;
+
+#if U_TRACE_HAS_COMPRESS
+   /* Shared compressed output, set instead of trace_file for a ".gz" path
+    * without "%i". Contexts drain into it under shared_out_mtx.
+    */
+   gzFile trace_file_gz;
+#endif
 };
 static struct u_trace_state u_trace_state = { .once = UTIL_ONCE_FLAG_INIT };
 
@@ -51,19 +62,73 @@ static struct u_trace_state u_trace_state = { .once = UTIL_ONCE_FLAG_INIT };
 static uint32_t u_trace_context_count;
 
 /* Serializes contexts writing to a shared trace file. Taken around every
- * printer callback, whether or not the output is actually shared: it is
- * uncontended in that case and costs less than the write it wraps. Kept off
- * the surrounding timestamp reads, which can block.
+ * printer callback and gzip drain, whether or not the output is actually
+ * shared: it is uncontended in that case and costs less than the write it
+ * wraps. Kept off the surrounding timestamp reads, which can block.
  */
 static simple_mtx_t shared_out_mtx = SIMPLE_MTX_INITIALIZER;
 
 /* Flushes utctx->out after each batch so a crash still leaves the trace
- * readable up to the last processed submit.
+ * readable up to the last processed submit. For gzip output this drains the
+ * batch buffer into the gz stream and rewinds it for the next batch.
  */
 static void
 flush_output(struct u_trace_context *utctx)
 {
+#if U_TRACE_HAS_COMPRESS
+   if (utctx->compress_gz) {
+      u_memstream_flush(&utctx->compress_mem);
+
+      simple_mtx_lock(&shared_out_mtx);
+      if (utctx->compress_buf_size > 0) {
+         gzwrite(utctx->compress_gz, utctx->compress_buf,
+                 utctx->compress_buf_size);
+         rewind(utctx->out);
+         utctx->compress_buf_size = 0;
+      }
+      gzflush(utctx->compress_gz, Z_SYNC_FLUSH);
+      simple_mtx_unlock(&shared_out_mtx);
+      return;
+   }
+#endif
+
    fflush(utctx->out);
+}
+
+#if U_TRACE_HAS_COMPRESS
+/* Points utctx->out at a memstream buffering one batch, the bridge from the
+ * printers' FILE* to gzwrite(); flush_output() drains it into gz.
+ */
+static bool
+attach_gz_output(struct u_trace_context *utctx, gzFile gz)
+{
+   if (!u_memstream_open(&utctx->compress_mem, &utctx->compress_buf,
+                         &utctx->compress_buf_size))
+      return false;
+
+   utctx->compress_gz = gz;
+   utctx->out = u_memstream_get(&utctx->compress_mem);
+   return true;
+}
+#endif
+
+/* Closes a context's own output. A shared gz stream is closed at process
+ * exit instead, not per context.
+ */
+static void
+close_output(struct u_trace_context *utctx)
+{
+#if U_TRACE_HAS_COMPRESS
+   if (utctx->compress_gz) {
+      u_memstream_close(&utctx->compress_mem);
+      free(utctx->compress_buf);
+      if (utctx->compress_gz != u_trace_state.trace_file_gz)
+         gzclose(utctx->compress_gz);
+      return;
+   }
+#endif
+
+   fclose(utctx->out);
 }
 
 #ifdef HAVE_PERFETTO
@@ -346,6 +411,22 @@ trace_file_fini(void)
    if (u_trace_state.trace_file && u_trace_state.trace_file != stdout)
       fclose(u_trace_state.trace_file);
    u_trace_state.trace_file = NULL;
+
+#if U_TRACE_HAS_COMPRESS
+   if (u_trace_state.trace_file_gz)
+      gzclose(u_trace_state.trace_file_gz);
+   u_trace_state.trace_file_gz = NULL;
+#endif
+}
+
+/* Always defined, so we can warn on a ".gz" path in a build without
+ * compression support rather than silently writing plain text to it.
+ */
+static bool
+path_wants_compression(const char *path)
+{
+   size_t len = strlen(path);
+   return len >= 3 && !strcmp(path + len - 3, ".gz");
 }
 
 static void
@@ -355,8 +436,21 @@ u_trace_state_init_once(void)
       debug_get_flags_option("MESA_GPU_TRACES", config_control, 0);
    const char *tracefile_name = debug_get_option("MESA_GPU_TRACEFILE", NULL);
    if (tracefile_name && __normal_user()) {
+#if !U_TRACE_HAS_COMPRESS
+      if (path_wants_compression(tracefile_name)) {
+         mesa_logw("u_trace: MESA_GPU_TRACEFILE requests gzip compression "
+                   "(\".gz\") but this build doesn't support it (needs "
+                   "zlib); writing uncompressed");
+      }
+#endif
       if (strstr(tracefile_name, "%i")) {
          u_trace_state.tracefile_template = tracefile_name;
+#if U_TRACE_HAS_COMPRESS
+      } else if (path_wants_compression(tracefile_name)) {
+         u_trace_state.trace_file_gz = gzopen(tracefile_name, "wb");
+         if (u_trace_state.trace_file_gz)
+            atexit(trace_file_fini);
+#endif
       } else {
          u_trace_state.trace_file = fopen(tracefile_name, "w");
          if (u_trace_state.trace_file != NULL) {
@@ -364,7 +458,11 @@ u_trace_state_init_once(void)
          }
       }
    }
-   if (!u_trace_state.trace_file && !u_trace_state.tracefile_template) {
+   if (!u_trace_state.trace_file && !u_trace_state.tracefile_template
+#if U_TRACE_HAS_COMPRESS
+       && !u_trace_state.trace_file_gz
+#endif
+      ) {
       u_trace_state.trace_file = stdout;
    }
 }
@@ -382,6 +480,21 @@ open_tracefile_for_context(struct u_trace_context *utctx)
 
    snprintf(name, len, "%.*s%u%s", (int) (token - template), template,
             utctx->id, token + 2);
+
+#if U_TRACE_HAS_COMPRESS
+   if (path_wants_compression(name)) {
+      gzFile gz = gzopen(name, "wb");
+      free(name);
+      if (!gz)
+         return false;
+
+      if (!attach_gz_output(utctx, gz)) {
+         gzclose(gz);
+         return false;
+      }
+      return true;
+   }
+#endif
 
    FILE *file = fopen(name, "w");
    free(name);
@@ -499,6 +612,11 @@ u_trace_context_init(struct u_trace_context *utctx,
 
    utctx->out = NULL;
    utctx->out_owned = false;
+#if U_TRACE_HAS_COMPRESS
+   utctx->compress_buf = NULL;
+   utctx->compress_buf_size = 0;
+   utctx->compress_gz = NULL;
+#endif
 
    if (utctx->enabled_traces & U_TRACE_TYPE_PRINT) {
       if (u_trace_state.tracefile_template) {
@@ -508,6 +626,20 @@ u_trace_context_init(struct u_trace_context *utctx,
                       "falling back to stdout", utctx->id);
          }
       }
+#if U_TRACE_HAS_COMPRESS
+      /* A shared ".gz" needs a per-context batch buffer that drains into the
+       * one shared gz stream.
+       */
+      if (!utctx->out && u_trace_state.trace_file_gz) {
+         if (attach_gz_output(utctx, u_trace_state.trace_file_gz)) {
+            utctx->out_owned = true;
+         } else {
+            mesa_logw("u_trace: failed to allocate output buffer for "
+                      "context %u, falling back to unbuffered stdout",
+                      utctx->id);
+         }
+      }
+#endif
       if (!utctx->out) {
          utctx->out = u_trace_state.trace_file ? u_trace_state.trace_file
                                                : stdout;
@@ -592,7 +724,7 @@ u_trace_context_fini(struct u_trace_context *utctx)
 
       flush_output(utctx);
       if (utctx->out_owned)
-         fclose(utctx->out);
+         close_output(utctx);
    }
 
    free (utctx->dummy_indirect_data);

@@ -8,6 +8,10 @@
 #include "util/perf/u_trace.h"
 #include "util/os_misc.h"
 
+#if U_TRACE_HAS_COMPRESS
+#include <zlib.h>
+#endif
+
 #define NUM_DEBUG_TEST_THREAD 8
 
 static const char *trace_file_path =
@@ -73,6 +77,32 @@ read_file(const char *path)
    fclose(f);
    return contents;
 }
+
+#if U_TRACE_HAS_COMPRESS
+/* complete is cleared if the stream ends without its trailer, i.e. it was
+ * never closed.
+ */
+static std::string
+read_gz_file(const char *path, bool *complete)
+{
+   std::string contents;
+   *complete = false;
+   gzFile f = gzopen(path, "rb");
+   if (!f)
+      return contents;
+
+   char buf[256];
+   int n;
+   while ((n = gzread(f, buf, sizeof(buf))) > 0)
+      contents.append(buf, n);
+
+   int err;
+   gzerror(f, &err);
+   *complete = n == 0 && err == Z_OK;
+   gzclose(f);
+   return contents;
+}
+#endif
 
 static int
 count_lines_starting_with(const std::string &contents, const std::string &prefix)
@@ -166,3 +196,55 @@ TEST_F(UtilPerfTraceTest, PerContextFiles)
       remove(path.c_str());
    }
 }
+
+#if U_TRACE_HAS_COMPRESS
+TEST_F(UtilPerfTraceTest, GzipPerContextFiles)
+{
+   std::string path_template = trace_file_with("-%i.gz");
+   os_set_option("MESA_GPU_TRACEFILE", path_template.c_str(), true);
+   os_set_option("MESA_GPU_TRACES", "print", true);
+
+   struct u_trace_context ctx[2];
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      init_context(&ctx[i]);
+      process_frame(&ctx[i]);
+      u_trace_context_fini(&ctx[i]);
+   }
+   u_trace_state_reset();
+
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      std::string path = trace_file_with(("-" + std::to_string(i) + ".gz").c_str());
+      bool complete;
+      std::string out = read_gz_file(path.c_str(), &complete);
+      EXPECT_TRUE(complete) << path;
+      std::string marker = "END OF FRAME 0 (ctx " + std::to_string(i) + ")";
+      EXPECT_EQ(count_lines_starting_with(out, marker), 1) << out;
+      remove(path.c_str());
+   }
+}
+
+TEST_F(UtilPerfTraceTest, GzipSharedFile)
+{
+   std::string path = trace_file_with(".gz");
+   os_set_option("MESA_GPU_TRACEFILE", path.c_str(), true);
+   os_set_option("MESA_GPU_TRACES", "print", true);
+
+   struct u_trace_context ctx[2];
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      init_context(&ctx[i]);
+      process_frame(&ctx[i]);
+      u_trace_context_fini(&ctx[i]);
+   }
+   /* The shared stream is only closed here, with the process-wide state. */
+   u_trace_state_reset();
+
+   bool complete;
+   std::string out = read_gz_file(path.c_str(), &complete);
+   EXPECT_TRUE(complete);
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      std::string marker = "END OF FRAME 0 (ctx " + std::to_string(i) + ")";
+      EXPECT_EQ(count_lines_starting_with(out, marker), 1) << out;
+   }
+   remove(path.c_str());
+}
+#endif

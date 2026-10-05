@@ -61,6 +61,11 @@ u_trace is controlled by environment variables:
    file. ``print_json`` needs ``%i`` to produce valid JSON with more than
    one context.
 
+   If the file name ends in ``.gz`` the output is gzip-compressed (needs
+   a zlib-enabled build). It is flushed every batch, so a trace stays
+   readable up to the last processed submit even if the application
+   crashes before exiting.
+
 .. envvar:: *_GPU_TRACEPOINT
 
    tracepoints can be enabled or disabled using driver specific environment

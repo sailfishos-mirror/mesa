@@ -31,8 +31,16 @@
 #include "util/hash_table.h"
 #include "util/u_dynarray.h"
 #include "util/macros.h"
+#include "util/memstream.h"
 #include "util/u_atomic.h"
 #include "util/u_queue.h"
+
+/* gzip-compressing trace output needs zlib. */
+#ifdef HAVE_ZLIB
+#define U_TRACE_HAS_COMPRESS 1
+#else
+#define U_TRACE_HAS_COMPRESS 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -250,6 +258,17 @@ struct u_trace_context {
    FILE *out;
    bool out_owned; /* `out` is owned by this context and must be closed */
    struct u_trace_printer *out_printer;
+
+#if U_TRACE_HAS_COMPRESS
+   /* For gzip output, `out` is a memstream buffering one batch; it is drained
+    * into compress_gz (an opaque gzFile, to keep zlib.h out of this header)
+    * and rewound each batch.
+    */
+   struct u_memstream compress_mem;
+   char *compress_buf;
+   size_t compress_buf_size;
+   void *compress_gz;
+#endif
 
    /* Once u_trace_flush() is called u_trace_chunk's are queued up to
     * render tracepoints on a queue.  The per-chunk queue jobs block until
