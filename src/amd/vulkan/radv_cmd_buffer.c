@@ -2101,7 +2101,7 @@ radv_emit_thread_trace_marker(const struct radv_device *device, struct radv_cmd_
 }
 
 static void
-radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_flags flags)
+radv_cmd_buffer_debug_after_draw(struct radv_cmd_buffer *cmd_buffer, enum ac_barrier_flags flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -14512,7 +14512,8 @@ radv_after_draw(struct radv_cmd_buffer *cmd_buffer)
       cmd_buffer->state.flush_bits |= AC_BARRIER_VGT_STREAMOUT_SYNC;
    }
 
-   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS);
+   if (device->debug_after_draw)
+      radv_cmd_buffer_debug_after_draw(cmd_buffer, AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -15455,7 +15456,8 @@ radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer)
    if (use_prefetch)
       radv_emit_compute_prefetch(cmd_buffer);
 
-   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
+   if (device->debug_after_draw)
+      radv_cmd_buffer_debug_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
 }
 
 void
@@ -15521,7 +15523,8 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer)
    if (use_prefetch)
       radv_emit_ray_tracing_prefetch(cmd_buffer);
 
-   radv_cmd_buffer_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
+   if (device->debug_after_draw)
+      radv_cmd_buffer_debug_after_draw(cmd_buffer, AC_BARRIER_SYNC_CS);
 }
 
 VKAPI_ATTR void VKAPI_CALL

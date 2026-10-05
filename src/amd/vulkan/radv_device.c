@@ -1664,6 +1664,9 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    /* Keep shader info for GPU hangs debugging. */
    device->keep_shader_info = radv_device_fault_detection_enabled(device) || radv_trap_handler_enabled();
 
+   device->debug_after_draw = RADV_DEBUG(instance, SYNC_SHADERS) || RADV_DEBUG(instance, FULL_SYNC) ||
+                              radv_device_fault_detection_enabled(device);
+
    result = radv_device_init_tools(device);
    if (result != VK_SUCCESS)
       goto fail;

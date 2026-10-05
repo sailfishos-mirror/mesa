@@ -176,6 +176,8 @@ struct radv_device {
    /* Whether to keep shader debug info, for debugging. */
    bool keep_shader_info;
 
+   bool debug_after_draw;
+
    /* Backup in-memory cache to be used if the app doesn't provide one */
    struct vk_pipeline_cache *mem_cache;
 
