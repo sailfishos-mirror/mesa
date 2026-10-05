@@ -50,7 +50,11 @@ u_trace is controlled by environment variables:
 
 .. envvar:: MESA_GPU_TRACEFILE
 
-   specifies a file where to write the output instead of ``stdout``
+   specifies a file where to write the output instead of ``stdout``.
+   The output identifies the trace context (e.g. the Vulkan device) that
+   wrote it: a final ``ctx=`` field on each CSV row, a ``ctx`` field on
+   each JSON frame and a ``(ctx N)`` suffix on the text end-of-frame
+   marker.
 
 .. envvar:: *_GPU_TRACEPOINT
 

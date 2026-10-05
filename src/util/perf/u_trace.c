@@ -42,6 +42,9 @@ struct u_trace_state {
 };
 static struct u_trace_state u_trace_state = { .once = UTIL_ONCE_FLAG_INIT };
 
+/* Incremented for each initialized context to assign u_trace_context::id. */
+static uint32_t u_trace_context_count;
+
 #ifdef HAVE_PERFETTO
 /**
  * Global list of contexts, so we can defer starting the queue until
@@ -121,7 +124,7 @@ print_txt_start(struct u_trace_context *utctx)
 static void
 print_txt_end_of_frame(struct u_trace_context *utctx)
 {
-   fprintf(utctx->out, "END OF FRAME %u\n", utctx->frame_nr);
+   fprintf(utctx->out, "END OF FRAME %u (ctx %u)\n", utctx->frame_nr, utctx->id);
 }
 
 static void
@@ -213,9 +216,12 @@ print_csv_event(struct u_trace_context *utctx,
 {
    fprintf(utctx->out, "%u,%u,%"PRIu64",%s,",
            utctx->frame_nr, utctx->batch_nr, ns, evt->tp->name);
-   if (evt->tp->print)
+   /* The ID goes last, so existing fields keep their positions. */
+   if (evt->tp->print) {
       evt->tp->print(utctx->out, evt->payload, indirect);
-   fprintf(utctx->out, "\n");
+      fprintf(utctx->out, ", ");
+   }
+   fprintf(utctx->out, "ctx=%u\n", utctx->id);
 }
 
 static struct u_trace_printer csv_printer = {
@@ -245,7 +251,8 @@ print_json_start_of_frame(struct u_trace_context *utctx)
 {
    if (utctx->frame_nr != 0)
       fprintf(utctx->out, ",\n");
-   fprintf(utctx->out, "{\n\"frame\": %u,\n", utctx->frame_nr);
+   fprintf(utctx->out, "{\n\"ctx\": %u,\n", utctx->id);
+   fprintf(utctx->out, "\"frame\": %u,\n", utctx->frame_nr);
    fprintf(utctx->out, "\"batches\": [\n");
 }
 
@@ -349,6 +356,7 @@ u_trace_state_reset(void)
 {
    trace_file_fini();
    u_trace_state = (struct u_trace_state) { .once = UTIL_ONCE_FLAG_INIT };
+   u_trace_context_count = 0;
 }
 
 bool
@@ -421,6 +429,7 @@ u_trace_context_init(struct u_trace_context *utctx,
 {
    u_trace_state_init();
 
+   utctx->id = p_atomic_fetch_add(&u_trace_context_count, 1);
    utctx->enabled_traces = u_trace_state.enabled_traces;
    utctx->pctx = pctx;
    utctx->create_buffer = create_buffer;

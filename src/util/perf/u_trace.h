@@ -267,6 +267,8 @@ struct u_trace_context {
    uint64_t last_time_ns;
    uint64_t first_time_ns;
 
+   uint32_t id; /* process-unique id, printed with the output */
+
    uint32_t frame_nr;
    uint32_t batch_nr;
    uint32_t event_nr;

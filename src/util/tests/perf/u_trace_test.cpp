@@ -118,5 +118,5 @@ TEST_F(UtilPerfTraceTest, EndOfFrameOnce)
    u_trace_state_reset();
 
    std::string out = read_file(trace_file_path);
-   EXPECT_EQ(count_lines_starting_with(out, "END OF FRAME"), 1) << out;
+   EXPECT_EQ(count_lines_starting_with(out, "END OF FRAME 0 (ctx 0)"), 1) << out;
 }
