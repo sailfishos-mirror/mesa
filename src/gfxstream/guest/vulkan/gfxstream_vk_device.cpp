@@ -572,6 +572,12 @@ static void adjust_entrypoints_by_api_version(struct gfxstream_vk_device* gfxstr
             gfxstream_device->base.dispatch_table.CmdPushDescriptorSetWithTemplate2KHR =
                 gfxstream_vk_device_entrypoints.CmdPushDescriptorSetWithTemplate2KHR;
         }
+        if (gfxstream_device->base.enabled_extensions.KHR_push_descriptor) {
+            gfxstream_device->base.dispatch_table.CmdPushDescriptorSetKHR =
+                gfxstream_vk_device_entrypoints.CmdPushDescriptorSetKHR;
+            gfxstream_device->base.dispatch_table.CmdPushDescriptorSetWithTemplateKHR =
+                gfxstream_vk_device_entrypoints.CmdPushDescriptorSetWithTemplateKHR;
+        }
         if (gfxstream_device->base.enabled_extensions.KHR_line_rasterization) {
             gfxstream_device->base.dispatch_table.CmdSetLineStippleKHR =
                 gfxstream_vk_device_entrypoints.CmdSetLineStippleKHR;

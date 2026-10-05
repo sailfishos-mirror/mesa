@@ -52,6 +52,7 @@ RESOURCE_TRACKER_ENTRIES = [
     "vkUpdateDescriptorSetWithTemplate",
     "vkUpdateDescriptorSetWithTemplateKHR",
     "vkCmdPushDescriptorSet",
+    "vkCmdPushDescriptorSetKHR",
     "vkCmdPushDescriptorSetWithTemplate",
     "vkCmdPushDescriptorSetWithTemplateKHR",
     "vkCmdPushDescriptorSet2",

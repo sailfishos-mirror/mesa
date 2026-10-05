@@ -1477,6 +1477,11 @@ void deepcopy_VkSemaphoreGetFdInfoKHR(Allocator* alloc, VkStructureType rootType
                                       VkSemaphoreGetFdInfoKHR* to);
 
 #endif
+#ifdef VK_KHR_push_descriptor
+DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDevicePushDescriptorProperties,
+                      deepcopy_VkPhysicalDevicePushDescriptorPropertiesKHR)
+
+#endif
 #ifdef VK_KHR_shader_float16_int8
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceShaderFloat16Int8Features,
                       deepcopy_VkPhysicalDeviceShaderFloat16Int8FeaturesKHR)

@@ -1825,6 +1825,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_KHR_sampler_ycbcr_conversion",
         "VK_KHR_shader_float16_int8",
         "VK_KHR_timeline_semaphore",
+        "VK_KHR_push_descriptor",
         "VK_AMD_gpu_shader_half_float",
         "VK_NV_shader_subgroup_partitioned",
         "VK_KHR_shader_subgroup_extended_types",
@@ -7363,10 +7364,41 @@ void ResourceTracker::on_vkCmdPushDescriptorSet(void* context, VkCommandBuffer c
                                 transformedWrites.data(), true /* do lock */);
 }
 
+void ResourceTracker::on_vkCmdPushDescriptorSetKHR(void* context, VkCommandBuffer commandBuffer,
+                                                   VkPipelineBindPoint pipelineBindPoint,
+                                                   VkPipelineLayout layout, uint32_t set,
+                                                   uint32_t descriptorWriteCount,
+                                                   const VkWriteDescriptorSet* pDescriptorWrites) {
+    VkEncoder* enc = (VkEncoder*)context;
+    std::vector<VkDescriptorImageInfo> transformedImageInfos;
+    std::vector<VkWriteDescriptorSet> transformedWrites;
+    sanitizePushDescriptorWrites(descriptorWriteCount, pDescriptorWrites, transformedWrites,
+                                 transformedImageInfos);
+    enc->vkCmdPushDescriptorSetKHR(commandBuffer, pipelineBindPoint, layout, set,
+                                   descriptorWriteCount, transformedWrites.data(),
+                                   true /* do lock */);
+}
+
 void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate(
     void* context, VkCommandBuffer commandBuffer,
     VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
     const void* pData) {
+    pushDescriptorSetWithTemplate(context, commandBuffer, descriptorUpdateTemplate, layout, set,
+                                  pData, false /* khr */);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplateKHR(
+    void* context, VkCommandBuffer commandBuffer,
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
+    const void* pData) {
+    pushDescriptorSetWithTemplate(context, commandBuffer, descriptorUpdateTemplate, layout, set,
+                                  pData, true /* khr */);
+}
+
+void ResourceTracker::pushDescriptorSetWithTemplate(
+    void* context, VkCommandBuffer commandBuffer,
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
+    const void* pData, bool khr) {
     VkPushDescriptorSetWithTemplateInfo pushInfo = {
         .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_WITH_TEMPLATE_INFO,
         .pNext = nullptr,
@@ -7375,15 +7407,7 @@ void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate(
         .set = set,
         .pData = pData,
     };
-    on_vkCmdPushDescriptorSetWithTemplate2(context, commandBuffer, &pushInfo);
-}
-
-void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplateKHR(
-    void* context, VkCommandBuffer commandBuffer,
-    VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
-    const void* pData) {
-    on_vkCmdPushDescriptorSetWithTemplate(context, commandBuffer, descriptorUpdateTemplate, layout,
-                                          set, pData);
+    pushDescriptorSetWithTemplate2(context, commandBuffer, &pushInfo, khr);
 }
 
 void ResourceTracker::on_vkCmdPushDescriptorSet2(
@@ -7423,6 +7447,20 @@ void ResourceTracker::on_vkCmdPushDescriptorSet2KHR(
 void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2(
     void* context, VkCommandBuffer commandBuffer,
     const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo) {
+    pushDescriptorSetWithTemplate2(context, commandBuffer, pPushDescriptorSetWithTemplateInfo,
+                                   false /* khr */);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2KHR(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo) {
+    pushDescriptorSetWithTemplate2(context, commandBuffer, pPushDescriptorSetWithTemplateInfo,
+                                   true /* khr */);
+}
+
+void ResourceTracker::pushDescriptorSetWithTemplate2(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo, bool khr) {
     if (!pPushDescriptorSetWithTemplateInfo) return;
     const uint8_t* userBuffer =
         static_cast<const uint8_t*>(pPushDescriptorSetWithTemplateInfo->pData);
@@ -7518,10 +7556,17 @@ void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2(
 
     if (!pPushDescriptorSetWithTemplateInfo->pNext &&
         pPushDescriptorSetWithTemplateInfo->layout != VK_NULL_HANDLE) {
-        on_vkCmdPushDescriptorSet(context, commandBuffer, pipelineBindPoint,
-                                  pPushDescriptorSetWithTemplateInfo->layout,
-                                  pPushDescriptorSetWithTemplateInfo->set,
-                                  static_cast<uint32_t>(writes.size()), writes.data());
+        if (khr) {
+            on_vkCmdPushDescriptorSetKHR(context, commandBuffer, pipelineBindPoint,
+                                         pPushDescriptorSetWithTemplateInfo->layout,
+                                         pPushDescriptorSetWithTemplateInfo->set,
+                                         static_cast<uint32_t>(writes.size()), writes.data());
+        } else {
+            on_vkCmdPushDescriptorSet(context, commandBuffer, pipelineBindPoint,
+                                      pPushDescriptorSetWithTemplateInfo->layout,
+                                      pPushDescriptorSetWithTemplateInfo->set,
+                                      static_cast<uint32_t>(writes.size()), writes.data());
+        }
         return;
     }
 
@@ -7543,14 +7588,11 @@ void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2(
         .descriptorWriteCount = static_cast<uint32_t>(writes.size()),
         .pDescriptorWrites = writes.data(),
     };
-    on_vkCmdPushDescriptorSet2(context, commandBuffer, &pushInfo);
-}
-
-void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2KHR(
-    void* context, VkCommandBuffer commandBuffer,
-    const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo) {
-    on_vkCmdPushDescriptorSetWithTemplate2(context, commandBuffer,
-                                           pPushDescriptorSetWithTemplateInfo);
+    if (khr) {
+        on_vkCmdPushDescriptorSet2KHR(context, commandBuffer, &pushInfo);
+    } else {
+        on_vkCmdPushDescriptorSet2(context, commandBuffer, &pushInfo);
+    }
 }
 
 #ifdef LINUX_GUEST_BUILD

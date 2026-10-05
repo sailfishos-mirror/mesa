@@ -458,6 +458,11 @@ class ResourceTracker {
                                    VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
                                    uint32_t set, uint32_t descriptorWriteCount,
                                    const VkWriteDescriptorSet* pDescriptorWrites);
+    void on_vkCmdPushDescriptorSetKHR(void* context, VkCommandBuffer commandBuffer,
+                                      VkPipelineBindPoint pipelineBindPoint,
+                                      VkPipelineLayout layout, uint32_t set,
+                                      uint32_t descriptorWriteCount,
+                                      const VkWriteDescriptorSet* pDescriptorWrites);
     void on_vkCmdPushDescriptorSetWithTemplate(void* context, VkCommandBuffer commandBuffer,
                                                VkDescriptorUpdateTemplate descriptorUpdateTemplate,
                                                VkPipelineLayout layout, uint32_t set,
@@ -926,6 +931,15 @@ class ResourceTracker {
 
     VkDescriptorImageInfo filterNonexistentSampler(const VkDescriptorImageInfo& inputInfo);
 
+    // The template writes are expanded on the guest; khr picks the KHR entry points for the
+    // pushes, which is what a device below 1.4 with VK_KHR_push_descriptor has.
+    void pushDescriptorSetWithTemplate(void* context, VkCommandBuffer commandBuffer,
+                                       VkDescriptorUpdateTemplate descriptorUpdateTemplate,
+                                       VkPipelineLayout layout, uint32_t set, const void* pData,
+                                       bool khr);
+    void pushDescriptorSetWithTemplate2(
+        void* context, VkCommandBuffer commandBuffer,
+        const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo, bool khr);
     void sanitizePushDescriptorWrites(uint32_t descriptorWriteCount,
                                       const VkWriteDescriptorSet* pDescriptorWrites,
                                       std::vector<VkWriteDescriptorSet>& transformedWrites,

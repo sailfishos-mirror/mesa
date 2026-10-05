@@ -10170,10 +10170,15 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkGetSemaphoreFdKHR";
         }
 #endif
-#ifdef VK_KHR_descriptor_update_template
+#ifdef VK_KHR_push_descriptor
+        case OP_vkCmdPushDescriptorSetKHR: {
+            return "OP_vkCmdPushDescriptorSetKHR";
+        }
         case OP_vkCmdPushDescriptorSetWithTemplateKHR: {
             return "OP_vkCmdPushDescriptorSetWithTemplateKHR";
         }
+#endif
+#ifdef VK_KHR_descriptor_update_template
         case OP_vkCreateDescriptorUpdateTemplateKHR: {
             return "OP_vkCreateDescriptorUpdateTemplateKHR";
         }

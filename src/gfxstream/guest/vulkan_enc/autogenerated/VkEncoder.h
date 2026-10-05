@@ -736,6 +736,16 @@ class VkEncoder {
     VkResult vkGetSemaphoreFdKHR(VkDevice device, const VkSemaphoreGetFdInfoKHR* pGetFdInfo,
                                  int* pFd, uint32_t doLock);
 #endif
+#ifdef VK_KHR_push_descriptor
+    void vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer,
+                                   VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
+                                   uint32_t set, uint32_t descriptorWriteCount,
+                                   const VkWriteDescriptorSet* pDescriptorWrites, uint32_t doLock);
+    void vkCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuffer,
+                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
+                                               VkPipelineLayout layout, uint32_t set,
+                                               const void* pData, uint32_t doLock);
+#endif
 #ifdef VK_KHR_descriptor_update_template
     VkResult vkCreateDescriptorUpdateTemplateKHR(
         VkDevice device, const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo,
@@ -748,10 +758,6 @@ class VkEncoder {
     void vkUpdateDescriptorSetWithTemplateKHR(VkDevice device, VkDescriptorSet descriptorSet,
                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
                                               const void* pData, uint32_t doLock);
-    void vkCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuffer,
-                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
-                                               VkPipelineLayout layout, uint32_t set,
-                                               const void* pData, uint32_t doLock);
 #endif
 #ifdef VK_KHR_create_renderpass2
     VkResult vkCreateRenderPass2KHR(VkDevice device, const VkRenderPassCreateInfo2* pCreateInfo,

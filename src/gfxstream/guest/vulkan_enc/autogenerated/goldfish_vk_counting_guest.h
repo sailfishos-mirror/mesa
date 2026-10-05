@@ -1335,6 +1335,11 @@ void count_VkSemaphoreGetFdInfoKHR(uint32_t featureBits, VkStructureType rootTyp
                                    const VkSemaphoreGetFdInfoKHR* toCount, size_t* count);
 
 #endif
+#ifdef VK_KHR_push_descriptor
+DEFINE_ALIAS_FUNCTION(count_VkPhysicalDevicePushDescriptorProperties,
+                      count_VkPhysicalDevicePushDescriptorPropertiesKHR)
+
+#endif
 #ifdef VK_KHR_shader_float16_int8
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceShaderFloat16Int8Features,
                       count_VkPhysicalDeviceShaderFloat16Int8FeaturesKHR)

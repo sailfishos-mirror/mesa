@@ -1585,6 +1585,13 @@ void unmarshal_VkSemaphoreGetFdInfoKHR(VulkanStreamGuest* vkStream, VkStructureT
 #define OP_vkImportSemaphoreFdKHR 20218
 #define OP_vkGetSemaphoreFdKHR 20219
 #endif
+#ifdef VK_KHR_push_descriptor
+DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDevicePushDescriptorProperties,
+                      unmarshal_VkPhysicalDevicePushDescriptorPropertiesKHR)
+
+#define OP_vkCmdPushDescriptorSetKHR 20220
+#define OP_vkCmdPushDescriptorSetWithTemplateKHR 20221
+#endif
 #ifdef VK_KHR_shader_float16_int8
 DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceShaderFloat16Int8Features,
                       unmarshal_VkPhysicalDeviceShaderFloat16Int8FeaturesKHR)
@@ -1614,7 +1621,6 @@ DEFINE_ALIAS_FUNCTION(unmarshal_VkDescriptorUpdateTemplateCreateInfo,
 #define OP_vkCreateDescriptorUpdateTemplateKHR 20222
 #define OP_vkDestroyDescriptorUpdateTemplateKHR 20223
 #define OP_vkUpdateDescriptorSetWithTemplateKHR 20224
-#define OP_vkCmdPushDescriptorSetWithTemplateKHR 20221
 #endif
 #ifdef VK_KHR_imageless_framebuffer
 DEFINE_ALIAS_FUNCTION(unmarshal_VkPhysicalDeviceImagelessFramebufferFeatures,
