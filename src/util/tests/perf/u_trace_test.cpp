@@ -13,6 +13,12 @@
 static const char *trace_file_path =
    "tracefile_for_test-b5ba5a0c-6ed1-4901-a38d-755991182663";
 
+static std::string
+trace_file_with(const char *suffix)
+{
+   return std::string(trace_file_path) + suffix;
+}
+
 /* u_trace reads its MESA_GPU_TRACE* options once, so the state is reset
  * around each test to let every case set its own.
  */
@@ -119,4 +125,27 @@ TEST_F(UtilPerfTraceTest, EndOfFrameOnce)
 
    std::string out = read_file(trace_file_path);
    EXPECT_EQ(count_lines_starting_with(out, "END OF FRAME 0 (ctx 0)"), 1) << out;
+}
+
+TEST_F(UtilPerfTraceTest, PerContextFiles)
+{
+   std::string path_template = trace_file_with("-%i");
+   os_set_option("MESA_GPU_TRACEFILE", path_template.c_str(), true);
+   os_set_option("MESA_GPU_TRACES", "print", true);
+
+   struct u_trace_context ctx[2];
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      init_context(&ctx[i]);
+      process_frame(&ctx[i]);
+      u_trace_context_fini(&ctx[i]);
+   }
+   u_trace_state_reset();
+
+   for (unsigned i = 0; i < ARRAY_SIZE(ctx); i++) {
+      std::string path = trace_file_with(("-" + std::to_string(i)).c_str());
+      std::string out = read_file(path.c_str());
+      std::string marker = "END OF FRAME 0 (ctx " + std::to_string(i) + ")";
+      EXPECT_EQ(count_lines_starting_with(out, marker), 1) << out;
+      remove(path.c_str());
+   }
 }

@@ -26,6 +26,7 @@
 #include <inttypes.h>
 
 #include "util/list.h"
+#include "util/log.h"
 #include "util/u_call_once.h"
 #include "util/u_debug.h"
 #include "util/u_vector.h"
@@ -38,6 +39,10 @@
 struct u_trace_state {
    util_once_flag once;
    FILE *trace_file;
+   /* Set instead of trace_file when MESA_GPU_TRACEFILE contains "%i": each
+    * context opens its own file with "%i" replaced by the context ID.
+    */
+   const char *tracefile_template;
    enum u_trace_type enabled_traces;
 };
 static struct u_trace_state u_trace_state = { .once = UTIL_ONCE_FLAG_INIT };
@@ -335,14 +340,38 @@ u_trace_state_init_once(void)
       debug_get_flags_option("MESA_GPU_TRACES", config_control, 0);
    const char *tracefile_name = debug_get_option("MESA_GPU_TRACEFILE", NULL);
    if (tracefile_name && __normal_user()) {
-      u_trace_state.trace_file = fopen(tracefile_name, "w");
-      if (u_trace_state.trace_file != NULL) {
-         atexit(trace_file_fini);
+      if (strstr(tracefile_name, "%i")) {
+         u_trace_state.tracefile_template = tracefile_name;
+      } else {
+         u_trace_state.trace_file = fopen(tracefile_name, "w");
+         if (u_trace_state.trace_file != NULL) {
+            atexit(trace_file_fini);
+         }
       }
    }
-   if (!u_trace_state.trace_file) {
+   if (!u_trace_state.trace_file && !u_trace_state.tracefile_template) {
       u_trace_state.trace_file = stdout;
    }
+}
+
+/* Substitutes the context ID for "%i" and opens the result as utctx->out. */
+static bool
+open_tracefile_for_context(struct u_trace_context *utctx)
+{
+   const char *template = u_trace_state.tracefile_template;
+   const char *token = strstr(template, "%i");
+   size_t len = strlen(template) + 16;
+   char *name = malloc(len);
+   if (!name)
+      return false;
+
+   snprintf(name, len, "%.*s%u%s", (int) (token - template), template,
+            utctx->id, token + 2);
+
+   FILE *file = fopen(name, "w");
+   free(name);
+   utctx->out = file;
+   return file != NULL;
 }
 
 void
@@ -453,8 +482,21 @@ u_trace_context_init(struct u_trace_context *utctx,
 
    util_dynarray_init(&utctx->flushed_traces, NULL);
 
+   utctx->out = NULL;
+   utctx->out_owned = false;
+
    if (utctx->enabled_traces & U_TRACE_TYPE_PRINT) {
-      utctx->out = u_trace_state.trace_file;
+      if (u_trace_state.tracefile_template) {
+         utctx->out_owned = open_tracefile_for_context(utctx);
+         if (!utctx->out_owned) {
+            mesa_logw("u_trace: failed to open trace file for context %u, "
+                      "falling back to stdout", utctx->id);
+         }
+      }
+      if (!utctx->out) {
+         utctx->out = u_trace_state.trace_file ? u_trace_state.trace_file
+                                               : stdout;
+      }
 
       if (utctx->enabled_traces & U_TRACE_TYPE_JSON) {
          utctx->out_printer = &json_printer;
@@ -463,8 +505,17 @@ u_trace_context_init(struct u_trace_context *utctx,
       } else {
          utctx->out_printer = &txt_printer;
       }
+
+      /* Contexts sharing a file each write their own top-level JSON array,
+       * which don't combine into a valid document; per-context files fix it.
+       */
+      if (utctx->out_printer == &json_printer && utctx->id > 0 &&
+          !(u_trace_state.tracefile_template && utctx->out_owned)) {
+         mesa_logw("u_trace: multiple contexts sharing one trace file "
+                   "produce invalid JSON, use %%i in MESA_GPU_TRACEFILE "
+                   "for a file per context");
+      }
    } else {
-      utctx->out = NULL;
       utctx->out_printer = NULL;
    }
 
@@ -521,6 +572,8 @@ u_trace_context_fini(struct u_trace_context *utctx)
 
       utctx->out_printer->end(utctx);
       fflush(utctx->out);
+      if (utctx->out_owned)
+         fclose(utctx->out);
    }
 
    free (utctx->dummy_indirect_data);

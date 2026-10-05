@@ -248,6 +248,7 @@ struct u_trace_context {
    uint64_t max_indirect_size_bytes;
 
    FILE *out;
+   bool out_owned; /* `out` is owned by this context and must be closed */
    struct u_trace_printer *out_printer;
 
    /* Once u_trace_flush() is called u_trace_chunk's are queued up to

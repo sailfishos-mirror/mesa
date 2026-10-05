@@ -56,6 +56,11 @@ u_trace is controlled by environment variables:
    each JSON frame and a ``(ctx N)`` suffix on the text end-of-frame
    marker.
 
+   If the value contains ``%i``, each context writes to its own file,
+   with ``%i`` replaced by its ID; otherwise all contexts share a single
+   file. ``print_json`` needs ``%i`` to produce valid JSON with more than
+   one context.
+
 .. envvar:: *_GPU_TRACEPOINT
 
    tracepoints can be enabled or disabled using driver specific environment
