@@ -620,7 +620,6 @@ struct radv_compiler_info {
       uint64_t trap_excp_flags;
       struct vk_debug_report *debug_report;
       struct radv_debug_nir *debug_nir;
-      struct radv_shader_abort_data *shader_abort;
       simple_mtx_t *shader_dump_mtx;
       bool keep_shader_info;
       bool capture_shaders;

@@ -1123,10 +1123,6 @@ radv_device_is_cache_disabled(const struct radv_device *device)
    if (device->debug_nir.valid_va.buffer_addr)
       return true;
 
-   /* The buffer address used for shader abort is hardcoded. */
-   if (device->shader_abort.buffer_addr)
-      return true;
-
    /* Pipeline caches can be disabled with RADV_DEBUG=nocache, with MESA_GLSL_CACHE_DISABLE=1 and
     * when ACO_DEBUG is used. MESA_GLSL_CACHE_DISABLE is done elsewhere.
     */
@@ -1290,7 +1286,6 @@ radv_device_init_compiler_info(struct radv_device *device)
             .trap_excp_flags = instance->trap_excp_flags,
             .debug_report = &instance->vk.debug_report,
             .debug_nir = &device->debug_nir,
-            .shader_abort = &device->shader_abort,
             .shader_dump_mtx = &instance->shader_dump_mtx,
             .keep_shader_info = device->keep_shader_info,
             .capture_shaders = RADV_DEBUG_DUMP_SHADERS(instance) || device->keep_shader_info,
