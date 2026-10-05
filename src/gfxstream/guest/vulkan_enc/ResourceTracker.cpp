@@ -8512,7 +8512,6 @@ const VkPhysicalDeviceMemoryProperties& ResourceTracker::getPhysicalDeviceMemory
     return *mCachedPhysicalDeviceMemoryProps;
 }
 
-static ResourceTracker* sTracker = nullptr;
 
 ResourceTracker::ResourceTracker() {}
 
@@ -8520,10 +8519,9 @@ ResourceTracker::~ResourceTracker() {}
 
 // static
 ResourceTracker* ResourceTracker::get() {
-    if (!sTracker) {
-        // To be initialized once on vulkan device open.
-        sTracker = new ResourceTracker;
-    }
+    // Made on first use and never freed. A function local static is initialized
+    // once even when several threads arrive at the same time.
+    static ResourceTracker* const sTracker = new ResourceTracker;
     return sTracker;
 }
 
