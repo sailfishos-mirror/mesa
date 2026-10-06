@@ -8,10 +8,11 @@ implementation for Bifrost and later.
 Which GPUs are conformant to which APIs can be seen from the footnotes in the
 table below. Each footnote might only apply to some of the GPUs in the row.
 
-On GPUs where PanVK support is experimental, the driver refuses to load by
-default. Setting PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1 enables it. Experimental
-support comes with no guarantees: it may be broken, may require newer kernel
-driver versions, and may be removed.
+.. note::
+   On GPUs where PanVK support is experimental, the driver refuses to load by
+   default. Setting PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1 enables it. Experimental
+   support comes with no guarantees: it may be broken, may require newer kernel
+   driver versions, and may be removed.
 
 The following hardware is currently supported:
 
