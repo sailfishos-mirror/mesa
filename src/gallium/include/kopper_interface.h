@@ -34,8 +34,11 @@
 #ifndef KOPPER_INTERFACE_H
 #define KOPPER_INTERFACE_H
 
-#include "mesa_interface.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <vulkan/vulkan_core.h>
+
+struct dri_drawable;
 
 typedef struct __DRIkopperLoaderExtensionRec    __DRIkopperLoaderExtension;
 typedef struct __DRIkopperDrawableInfoRec    __DRIkopperDrawableInfo;
