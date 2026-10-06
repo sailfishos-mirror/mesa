@@ -43,6 +43,15 @@ radv_hash_graphics_spirv_to_nir(blake3_hash hash, const struct radv_shader_stage
    _mesa_blake3_final(&ctx, hash);
 }
 
+void
+radv_free_binary_debug_info(struct radv_shader_binary_debug_info *dbg)
+{
+   free(dbg->disasm_string);
+   free(dbg->ir_string);
+   free(dbg->statistics);
+   free(dbg->debug_info);
+}
+
 static void
 radv_shader_destroy(struct vk_device *_device, struct vk_pipeline_cache_object *object)
 {
@@ -58,11 +67,8 @@ radv_shader_destroy(struct vk_device *_device, struct vk_pipeline_cache_object *
 
    free(shader->dbg.spirv);
    free(shader->dbg.nir_string);
-   free(shader->dbg.disasm_string);
-   free(shader->dbg.ir_string);
    free(shader->dbg.args_string);
-   free(shader->dbg.statistics);
-   free(shader->dbg.debug_info);
+   radv_free_binary_debug_info(&shader->dbg.bin);
    free(shader->binary);
 
    vk_pipeline_cache_object_finish(&shader->base);
@@ -83,7 +89,7 @@ radv_shader_deserialize(struct radv_device *device, const void *key_data, size_t
    if (!shader)
       return NULL;
 
-   radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg);
+   radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg.bin);
 
    assert(key_size == sizeof(shader->hash));
    memcpy(shader->hash, key_data, key_size);
@@ -185,8 +191,9 @@ radv_shader_create(struct radv_device *device, struct vk_pipeline_cache *cache, 
       radv_shader_create_uncached(device, binary, false, NULL, dbg, &shader);
       /* radv_parse_binary_debug_info() might have been done earlier by radv_shader_dump_asm(). Skip it in that case to
        * avoid memory leaks. */
-      if (!dbg || (!dbg->statistics && !dbg->ir_string && !dbg->disasm_string && !dbg->debug_info_count))
-         radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg);
+      if (!dbg ||
+          (!dbg->bin.statistics && !dbg->bin.ir_string && !dbg->bin.disasm_string && !dbg->bin.debug_info_count))
+         radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg.bin);
       return shader;
    }
 

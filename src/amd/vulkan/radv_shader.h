@@ -440,6 +440,14 @@ struct radv_serialized_shader_arena_block {
    uint32_t arena_size;
 };
 
+struct radv_shader_binary_debug_info {
+   char *disasm_string;
+   char *ir_string;
+   struct amd_stats *statistics;
+   struct ac_shader_debug_info *debug_info;
+   uint32_t debug_info_count;
+};
+
 struct radv_shader_debug_info {
    /* These are uncached. */
    bool dump_shader;
@@ -449,12 +457,8 @@ struct radv_shader_debug_info {
    char *spirv;
    uint32_t spirv_size;
    char *nir_string;
-   char *disasm_string;
-   char *ir_string;
    char *args_string;
-   struct amd_stats *statistics;
-   struct ac_shader_debug_info *debug_info;
-   uint32_t debug_info_count;
+   struct radv_shader_binary_debug_info bin;
 };
 
 struct radv_shader {
@@ -676,7 +680,10 @@ void radv_destroy_shader_upload_queue(struct radv_device *device);
 struct radv_shader_args;
 
 VkResult radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info,
-                                      const struct radv_shader_binary *binary, struct radv_shader_debug_info *dbg);
+                                      const struct radv_shader_binary *binary,
+                                      struct radv_shader_binary_debug_info *dbg);
+
+void radv_free_binary_debug_info(struct radv_shader_binary_debug_info *dbg);
 
 VkResult radv_shader_create_uncached(struct radv_device *device, const struct radv_shader_binary *binary,
                                      bool replayable, struct radv_serialized_shader_arena_block *replay_block,

@@ -481,16 +481,16 @@ radv_dump_annotated_shader(const struct radv_shader *shader, mesa_shader_stage s
    unsigned num_inst = 0;
    struct radv_shader_inst *instructions = calloc(shader->code_size / 4, sizeof(struct radv_shader_inst));
 
-   radv_add_split_disasm(shader->dbg.disasm_string, start_addr, &num_inst, instructions);
+   radv_add_split_disasm(shader->dbg.bin.disasm_string, start_addr, &num_inst, instructions);
 
    fprintf(f, COLOR_YELLOW "%s - annotated disassembly:" COLOR_RESET "\n", radv_get_shader_name(&shader->info, stage));
 
    /* Maps a given offset inside the shader binary to a given debug_info index */
    struct ac_shader_debug_info **debug_info_mapping = NULL;
-   if (shader->dbg.debug_info_count > 0) {
+   if (shader->dbg.bin.debug_info_count > 0) {
       debug_info_mapping = calloc(shader->code_size, sizeof(struct ac_shader_debug_info *));
-      for (uint32_t debug_index = 0; debug_index < shader->dbg.debug_info_count; debug_index++) {
-         struct ac_shader_debug_info *debug_info = &shader->dbg.debug_info[debug_index];
+      for (uint32_t debug_index = 0; debug_index < shader->dbg.bin.debug_info_count; debug_index++) {
+         struct ac_shader_debug_info *debug_info = &shader->dbg.bin.debug_info[debug_index];
          if (debug_info->type != ac_shader_debug_info_src_loc)
             continue;
 
@@ -502,8 +502,8 @@ radv_dump_annotated_shader(const struct radv_shader *shader, mesa_shader_stage s
          uint32_t range_end = shader->code_size; /* Last debug_info spans until the end of the shader */
 
          if (debug_index + 1 <
-             shader->dbg.debug_info_count) { /* Only if there is another debug_info after the current one */
-            struct ac_shader_debug_info *next_debug_info = &shader->dbg.debug_info[debug_index + 1];
+             shader->dbg.bin.debug_info_count) { /* Only if there is another debug_info after the current one */
+            struct ac_shader_debug_info *next_debug_info = &shader->dbg.bin.debug_info[debug_index + 1];
             range_end = next_debug_info->offset;
          }
 
@@ -602,8 +602,8 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
       fprintf(f, "ARGS:\n%s\n", shader->dbg.args_string);
    }
 
-   fprintf(f, "%s IR:\n%s\n", pdev->use_llvm ? "LLVM" : "ACO", shader->dbg.ir_string);
-   fprintf(f, "DISASM:\n%s\n", shader->dbg.disasm_string);
+   fprintf(f, "%s IR:\n%s\n", pdev->use_llvm ? "LLVM" : "ACO", shader->dbg.bin.ir_string);
+   fprintf(f, "DISASM:\n%s\n", shader->dbg.bin.disasm_string);
 
    if (pipeline)
       radv_dump_shader_stats(device, pipeline, shader, f);
@@ -1223,7 +1223,7 @@ radv_dump_faulty_shader(const struct radv_device *device, const struct radv_shad
    struct radv_shader_inst *instructions = calloc(shader->code_size / 4, sizeof(struct radv_shader_inst));
 
    /* Split the disassembly string into instructions. */
-   radv_add_split_disasm(shader->dbg.disasm_string, start_addr, &num_inst, instructions);
+   radv_add_split_disasm(shader->dbg.bin.disasm_string, start_addr, &num_inst, instructions);
 
    /* Print instructions with annotations. */
    for (unsigned i = 0; i < num_inst; i++) {

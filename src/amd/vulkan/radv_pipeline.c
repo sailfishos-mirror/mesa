@@ -836,8 +836,8 @@ radv_GetPipelineExecutableStatisticsKHR(VkDevice _device, const VkPipelineExecut
    VK_OUTARRAY_MAKE_TYPED(VkPipelineExecutableStatisticKHR, out, pStatistics, pStatisticCount);
 
    struct amd_stats stats = {0};
-   if (shader->dbg.statistics)
-      stats = *shader->dbg.statistics;
+   if (shader->dbg.bin.statistics)
+      stats = *shader->dbg.bin.statistics;
    stats.driverhash = pipeline->pipeline_hash;
    stats.sgprs = shader->config.num_sgprs;
    stats.vgprs = shader->config.num_vgprs;
@@ -1037,17 +1037,17 @@ radv_GetPipelineExecutableInternalRepresentationsKHR(
          VK_COPY_STR(p->name, "ACO IR");
          VK_COPY_STR(p->description, "The ACO IR after some optimizations");
       }
-      if (radv_copy_representation(p->pData, &p->dataSize, shader->dbg.ir_string) != VK_SUCCESS)
+      if (radv_copy_representation(p->pData, &p->dataSize, shader->dbg.bin.ir_string) != VK_SUCCESS)
          result = VK_INCOMPLETE;
    }
    ++p;
 
    /* Disassembler */
-   if (p < end && shader->dbg.disasm_string) {
+   if (p < end && shader->dbg.bin.disasm_string) {
       p->isText = true;
       VK_COPY_STR(p->name, "Assembly");
       VK_COPY_STR(p->description, "Final Assembly");
-      if (radv_copy_representation(p->pData, &p->dataSize, shader->dbg.disasm_string) != VK_SUCCESS)
+      if (radv_copy_representation(p->pData, &p->dataSize, shader->dbg.bin.disasm_string) != VK_SUCCESS)
          result = VK_INCOMPLETE;
    }
    ++p;
