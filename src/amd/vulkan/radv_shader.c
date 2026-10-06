@@ -2765,13 +2765,8 @@ radv_shader_binary_get_layout(struct radv_shader_binary_legacy *binary)
 }
 
 bool
-radv_shader_get_code(struct radv_device *device, struct radv_shader *shader, void *dest_ptr)
+radv_shader_get_code(struct radv_device *device, const struct radv_shader *shader, void *dest_ptr)
 {
-   if (!shader->code)
-      shader->code = calloc(shader->code_size, 1);
-   if (!shader->code)
-      return false;
-
    if (shader->binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
       return false;
@@ -2794,23 +2789,11 @@ radv_shader_get_code(struct radv_device *device, struct radv_shader *shader, voi
       }
 
       ac_rtld_close(&rtld_binary);
-
-      if (shader->code) {
-         /* Instead of running RTLD twice, just copy the relocated binary back from VRAM.
-          * Use streaming memcpy to reduce penalty of copying from uncachable memory.
-          */
-         util_streaming_load_memcpy(shader->code, dest_ptr, shader->code_size);
-      }
 #endif
    } else {
       struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)shader->binary;
       struct radv_shader_binary_layout layout = radv_shader_binary_get_layout(bin);
-
       memcpy(dest_ptr, layout.code, bin->code_size);
-
-      if (shader->code) {
-         memcpy(shader->code, layout.code, bin->code_size);
-      }
    }
 
    return true;

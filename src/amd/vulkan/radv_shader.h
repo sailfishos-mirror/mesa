@@ -477,7 +477,6 @@ struct radv_shader {
    uint32_t max_waves;
 
    blake3_hash hash;
-   void *code;
 
    struct radv_shader_debug_info dbg;
 
@@ -758,7 +757,7 @@ VkResult radv_dump_shader_stats(struct radv_device *device, struct radv_pipeline
                                 FILE *output);
 
 /* Returns true on success and false on failure */
-bool radv_shader_get_code(struct radv_device *device, struct radv_shader *shader, void *dest_ptr);
+bool radv_shader_get_code(struct radv_device *device, const struct radv_shader *shader, void *dest_ptr);
 bool radv_shader_upload(struct radv_device *device, struct radv_shader *shader);
 
 extern const struct vk_pipeline_cache_object_ops radv_shader_ops;

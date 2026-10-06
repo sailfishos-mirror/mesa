@@ -56,7 +56,6 @@ radv_shader_destroy(struct vk_device *_device, struct vk_pipeline_cache_object *
 
    radv_free_shader_memory(device, shader->alloc);
 
-   free(shader->code);
    free(shader->dbg.spirv);
    free(shader->dbg.nir_string);
    free(shader->dbg.disasm_string);
