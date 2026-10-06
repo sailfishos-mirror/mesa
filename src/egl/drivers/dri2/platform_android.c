@@ -613,8 +613,8 @@ droid_query_buffer_age(_EGLDisplay *disp, _EGLSurface *surface)
 /* The damage regions are unused; the Android EGL framework already takes
  * care of pushing them into ANativeWindow. */
 static EGLBoolean
-droid_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
-			       const EGLint *rects, EGLint n_rects)
+droid_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
+		   const EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
@@ -874,7 +874,7 @@ static const struct dri2_egl_display_vtbl droid_display_vtbl = {
    .create_pbuffer_surface = droid_create_pbuffer_surface,
    .destroy_surface = droid_destroy_surface,
    .create_image = droid_create_image_khr,
-   .swap_buffers_with_damage = droid_swap_buffers_with_damage,
+   .swap_buffers = droid_swap_buffers,
    .swap_interval = droid_swap_interval,
    .query_buffer_age = droid_query_buffer_age,
    .query_surface = droid_query_surface,

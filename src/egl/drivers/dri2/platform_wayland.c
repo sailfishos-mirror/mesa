@@ -1823,8 +1823,8 @@ throttle(struct dri2_egl_display *dri2_dpy,
  * Called via eglSwapBuffers(), drv->SwapBuffers().
  */
 static EGLBoolean
-dri2_wl_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
-                                 const EGLint *rects, EGLint n_rects)
+dri2_wl_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
+                     const EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
@@ -2360,7 +2360,7 @@ static const struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
    .destroy_surface = dri2_wl_destroy_surface,
    .swap_interval = dri2_wl_swap_interval,
    .create_image = dri2_create_image_khr,
-   .swap_buffers_with_damage = dri2_wl_swap_buffers_with_damage,
+   .swap_buffers = dri2_wl_swap_buffers,
    .query_buffer_age = dri2_wl_query_buffer_age,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
 };
@@ -2393,8 +2393,8 @@ dri2_wl_surface_throttle(struct dri2_egl_surface *dri2_surf)
 }
 
 static EGLBoolean
-dri2_wl_kopper_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
-                                        const EGLint *rects, EGLint n_rects)
+dri2_wl_kopper_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
+                            const EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
 
@@ -2431,7 +2431,7 @@ static const struct dri2_egl_display_vtbl dri2_wl_kopper_display_vtbl = {
    .create_pbuffer_surface = dri2_wl_create_pbuffer_surface,
    .destroy_surface = dri2_wl_destroy_surface,
    .create_image = dri2_create_image_khr,
-   .swap_buffers_with_damage = dri2_wl_kopper_swap_buffers_with_damage,
+   .swap_buffers = dri2_wl_kopper_swap_buffers,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
    .query_buffer_age = dri2_wl_kopper_query_buffer_age,
 };
@@ -3058,8 +3058,8 @@ dri2_wl_swrast_put_image(struct dri_drawable *draw, int op, int x, int y, int w,
 }
 
 static EGLBoolean
-dri2_wl_swrast_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
-                                        const EGLint *rects, EGLint n_rects)
+dri2_wl_swrast_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
+                            const EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
 
@@ -3102,13 +3102,6 @@ dri2_wl_swrast_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
    dri2_surf->back = NULL;
 
    dri2_wl_swrast_commit_backbuffer(dri2_surf);
-   return EGL_TRUE;
-}
-
-static EGLBoolean
-dri2_wl_swrast_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
-{
-   dri2_wl_swrast_swap_buffers_with_damage(disp, draw, NULL, 0);
    return EGL_TRUE;
 }
 
@@ -3176,7 +3169,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_swrast_display_vtbl = {
    .swap_interval = dri2_wl_swap_interval,
    .create_image = dri2_create_image_khr,
    .swap_buffers = dri2_wl_swrast_swap_buffers,
-   .swap_buffers_with_damage = dri2_wl_swrast_swap_buffers_with_damage,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
    .query_buffer_age = dri2_wl_swrast_query_buffer_age,
 };

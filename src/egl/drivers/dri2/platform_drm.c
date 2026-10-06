@@ -351,8 +351,8 @@ dri2_drm_flush_front_buffer(struct dri_drawable *driDrawable, void *loaderPrivat
 /* Damage is ignored for this SwapBuffers implementation, as it does not
  * actually post any updates. */
 static EGLBoolean
-dri2_drm_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
-				  const EGLint *rects, EGLint n_rects)
+dri2_drm_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
+		      const EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
@@ -588,7 +588,7 @@ static const struct dri2_egl_display_vtbl dri2_drm_display_vtbl = {
    .create_pixmap_surface = dri2_drm_create_pixmap_surface,
    .destroy_surface = dri2_drm_destroy_surface,
    .create_image = dri2_drm_create_image_khr,
-   .swap_buffers_with_damage = dri2_drm_swap_buffers_with_damage,
+   .swap_buffers = dri2_drm_swap_buffers,
    .query_buffer_age = dri2_drm_query_buffer_age,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
 };

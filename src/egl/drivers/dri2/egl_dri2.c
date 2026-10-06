@@ -1686,11 +1686,7 @@ dri2_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *surf,
 
    if (ctx && surf)
       dri2_surf_update_fence_fd(ctx, disp, surf);
-   if (dri2_dpy->vtbl->swap_buffers_with_damage)
-      ret =
-         dri2_dpy->vtbl->swap_buffers_with_damage(disp, surf, rects, n_rects);
-   else
-      ret = dri2_dpy->vtbl->swap_buffers(disp, surf);
+   ret = dri2_dpy->vtbl->swap_buffers(disp, surf, rects, n_rects);
 
    /* SwapBuffers marks the end of the frame; reset the damage region for
     * use again next time.

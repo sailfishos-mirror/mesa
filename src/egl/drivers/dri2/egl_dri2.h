@@ -132,12 +132,9 @@ struct dri2_egl_display_vtbl {
                               const EGLint *attr_list);
 
    /* mandatory */
-   EGLBoolean (*swap_buffers)(_EGLDisplay *disp, _EGLSurface *surf);
-
-   /* optional - falls back to .swap_buffers */
-   EGLBoolean (*swap_buffers_with_damage)(_EGLDisplay *disp,
-                                          _EGLSurface *surface,
-                                          const EGLint *rects, EGLint n_rects);
+   EGLBoolean (*swap_buffers)(_EGLDisplay *disp,
+                              _EGLSurface *surface,
+                              const EGLint *rects, EGLint n_rects);
 
    /* optional */
    EGLBoolean (*copy_buffers)(_EGLDisplay *disp, _EGLSurface *surf,
