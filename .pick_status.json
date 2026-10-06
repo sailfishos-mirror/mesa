@@ -2484,7 +2484,7 @@
         "description": "intel/jay: Don't attempt to do work when there is none",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e4dc1612770643b7f5263088a1ccb8b45151b01b",
         "notes": null
