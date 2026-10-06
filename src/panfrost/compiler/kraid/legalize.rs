@@ -274,7 +274,10 @@ impl LegalizeFAU<'_> {
             let idx64 = fau.idx >> 1;
             let word = fau.idx & 1;
 
-            if word == 1 && model.op_src_is_64bit(&op, src) {
+            if fau.page != FAUPage::SmallConst
+                && word == 1
+                && model.op_src_is_64bit(&op, src)
+            {
                 self.src64_w1.insert(src_idx);
 
                 // We can't handle .w1 in most 64-bit ops.  If we can't compose
