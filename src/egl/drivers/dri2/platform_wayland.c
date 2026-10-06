@@ -3093,10 +3093,7 @@ dri2_wl_swrast_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
       dri2_wl_swrast_get_image(NULL, 0, 0, dri2_surf->base.Width,
                                  dri2_surf->base.Height, dst, dri2_surf);
 
-   if (n_rects)
-      driSwapBuffersWithDamage(dri2_surf->dri_drawable, n_rects, rects);
-   else
-      driSwapBuffers(dri2_surf->dri_drawable);
+   driSwapBuffersWithDamage(dri2_surf->dri_drawable, n_rects, rects);
 
    dri2_surf->current = dri2_surf->back;
    dri2_surf->back = NULL;
