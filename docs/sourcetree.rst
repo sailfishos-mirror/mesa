@@ -139,7 +139,6 @@ each directory.
          device drivers
 
          -  **dri** - Meta frontend for DRI drivers, see mesa/state_tracker
-         -  **glx** - Meta frontend for GLX
          -  **hgl** - Haiku OpenGL
          -  **lavapipe** - Vulkan frontend, software Vulkan rasterizer using LLVMpipe.
          -  **va** - VA-API frontend
@@ -152,7 +151,6 @@ each directory.
 
          -  **drm** - Direct Rendering Manager on Linux
          -  **gdi** - Windows
-         -  **xlib** - indirect rendering on X Window System
          -  XXX more
 
    -  **targets** - These control how the Gallium code is compiled into

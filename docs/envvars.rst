@@ -473,37 +473,6 @@ that wrap calls to NIR lowering/optimizations.
 
    a comma-separated list of optimization/lowering passes to skip.
 
-Mesa Xlib driver environment variables
---------------------------------------
-
-The following are only applicable to the Mesa Xlib software driver. See
-the :doc:`Xlib software driver page <xlibdriver>` for details.
-
-.. envvar:: MESA_RGB_VISUAL
-
-   specifies the X visual and depth for RGB mode
-
-.. envvar:: MESA_BACK_BUFFER
-
-   specifies how to implement the back color buffer, either ``pixmap``
-   or ``ximage``
-
-.. envvar:: MESA_XSYNC
-
-   enable synchronous X behavior (for debugging only)
-
-.. envvar:: MESA_GLX_FORCE_ALPHA
-
-   if set, forces RGB windows to have an alpha channel.
-
-.. envvar:: MESA_GLX_DEPTH_BITS
-
-   specifies default number of bits for depth buffer.
-
-.. envvar:: MESA_GLX_ALPHA_BITS
-
-   specifies default number of bits for alpha channel.
-
 Mesa WGL driver environment variables
 -------------------------------------
 
