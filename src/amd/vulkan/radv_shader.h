@@ -480,6 +480,8 @@ struct radv_shader {
    void *code;
 
    struct radv_shader_debug_info dbg;
+
+   struct radv_shader_binary *binary;
 };
 
 struct radv_shader_part {

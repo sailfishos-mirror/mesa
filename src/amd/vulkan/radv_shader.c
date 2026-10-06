@@ -2765,21 +2765,20 @@ radv_shader_binary_get_layout(struct radv_shader_binary_legacy *binary)
 }
 
 static bool
-radv_shader_binary_upload(struct radv_device *device, const struct radv_shader_binary *binary,
-                          struct radv_shader *shader, void *dest_ptr)
+radv_shader_binary_upload(struct radv_device *device, struct radv_shader *shader, void *dest_ptr)
 {
    shader->code = calloc(shader->code_size, 1);
    if (!shader->code)
       return false;
 
-   if (binary->type == RADV_BINARY_TYPE_RTLD) {
+   if (shader->binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
       return false;
 #else
       const struct radv_physical_device *pdev = radv_device_physical(device);
       struct ac_rtld_binary rtld_binary = {0};
 
-      if (!radv_open_rtld_binary(pdev->info.gfx_level, binary, &rtld_binary))
+      if (!radv_open_rtld_binary(pdev->info.gfx_level, shader->binary, &rtld_binary))
          return false;
 
       struct ac_rtld_upload_info info = {
@@ -2803,7 +2802,7 @@ radv_shader_binary_upload(struct radv_device *device, const struct radv_shader_b
       }
 #endif
    } else {
-      struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)binary;
+      struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)shader->binary;
       struct radv_shader_binary_layout layout = radv_shader_binary_get_layout(bin);
 
       memcpy(dest_ptr, layout.code, bin->code_size);
@@ -2958,7 +2957,7 @@ radv_shader_dma_submit(struct radv_device *device, struct radv_shader_dma_submis
 }
 
 static bool
-radv_shader_upload(struct radv_device *device, struct radv_shader *shader, const struct radv_shader_binary *binary)
+radv_shader_upload(struct radv_device *device, struct radv_shader *shader)
 {
    if (device->shader_use_invisible_vram) {
       struct radv_shader_dma_submission *submission =
@@ -2966,7 +2965,7 @@ radv_shader_upload(struct radv_device *device, struct radv_shader *shader, const
       if (!submission)
          return false;
 
-      if (!radv_shader_binary_upload(device, binary, shader, submission->ptr)) {
+      if (!radv_shader_binary_upload(device, shader, submission->ptr)) {
          radv_shader_dma_push_submission(device, submission, 0);
          return false;
       }
@@ -2976,7 +2975,7 @@ radv_shader_upload(struct radv_device *device, struct radv_shader *shader, const
    } else {
       void *dest_ptr = shader->alloc->arena->ptr + shader->alloc->offset;
 
-      if (!radv_shader_binary_upload(device, binary, shader, dest_ptr))
+      if (!radv_shader_binary_upload(device, shader, dest_ptr))
          return false;
    }
    return true;
@@ -3113,6 +3112,12 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
    shader->info = binary->info;
    shader->config = binary->config;
    shader->max_waves = radv_get_max_waves(device, &shader->config, &shader->info);
+   shader->binary = malloc(binary->total_size);
+   if (!shader->binary) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto out;
+   }
+   memcpy(shader->binary, binary, binary->total_size);
 
    if (dbg)
       shader->dbg = *dbg;
@@ -3156,7 +3161,7 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
    shader->bo = shader->alloc->arena->bo;
    shader->va = radv_buffer_get_va(shader->bo) + shader->alloc->offset;
 
-   if (!radv_shader_upload(device, shader, binary)) {
+   if (!radv_shader_upload(device, shader)) {
       result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
       goto out;
    }

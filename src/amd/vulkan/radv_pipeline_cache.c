@@ -64,6 +64,7 @@ radv_shader_destroy(struct vk_device *_device, struct vk_pipeline_cache_object *
    free(shader->dbg.args_string);
    free(shader->dbg.statistics);
    free(shader->dbg.debug_info);
+   free(shader->binary);
 
    vk_pipeline_cache_object_finish(&shader->base);
    free(shader);
