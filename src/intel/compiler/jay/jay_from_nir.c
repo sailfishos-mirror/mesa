@@ -5091,12 +5091,19 @@ jay_compile(const struct intel_device_info *devinfo,
 
    /* Discard variants with poor VRT occupancy */
    if (devinfo->ver >= 30) {
-      for (unsigned i = 0; i < ARRAY_SIZE(variants); i++) {
-         if (variants[i].bin &&
-             variants[i].bin->stats[0].vrt_size > best_vrt_size &&
-             variants[i].bin->stats[0].vrt_size > vrt_threshold) {
+      bool selected = false;
+      for (int i = ARRAY_SIZE(variants) - 1; i >= 0; i--) {
+         if (!variants[i].bin)
+            continue;
+
+         /* Also discard extra variants for non-fragment shaders. */
+         if ((variants[i].bin->stats[0].vrt_size > best_vrt_size &&
+              variants[i].bin->stats[0].vrt_size > vrt_threshold) ||
+             (orig_nir->info.stage != MESA_SHADER_FRAGMENT && selected)) {
             ralloc_free(variants[i].bin);
             variants[i].bin = NULL;
+         } else {
+            selected = true;
          }
       }
    }
@@ -5123,9 +5130,13 @@ jay_compile(const struct intel_device_info *devinfo,
    bin->size = total_bin_size;
    prog_data->base.program_size = total_bin_size;
    prog_data->base.grf_used = 0;
-   prog_data->fs.dispatch_8 = false;
-   prog_data->fs.dispatch_16 = false;
-   prog_data->fs.dispatch_32 = false;
+   if (orig_nir->info.stage == MESA_SHADER_FRAGMENT) {
+      prog_data->fs.dispatch_8 = false;
+      prog_data->fs.dispatch_16 = false;
+      prog_data->fs.dispatch_32 = false;
+   } else if (mesa_shader_stage_uses_workgroup(orig_nir->info.stage)) {
+      prog_data->cs.prog_mask = 0;
+   }
 
    struct intel_shader_reloc *relocs = NULL;
    if (total_num_relocs > 0) {
@@ -5166,7 +5177,7 @@ jay_compile(const struct intel_device_info *devinfo,
             prog_data->fs.dispatch_32 = true;
             prog_data->fs.prog_offset_32 = offset;
          }
-      } else if (orig_nir->info.stage == MESA_SHADER_COMPUTE) {
+      } else if (mesa_shader_stage_uses_workgroup(orig_nir->info.stage)) {
          prog_data->cs.prog_mask |= BITFIELD_BIT(i);
       } else if (brw_shader_stage_is_bindless(orig_nir->info.stage)) {
          prog_data->bs.simd_size = 8 << i;
