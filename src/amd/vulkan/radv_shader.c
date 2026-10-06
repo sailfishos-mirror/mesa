@@ -3542,9 +3542,6 @@ radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, struct radv
                      const struct radv_shader_binary *binary, const struct radv_shader_info *info)
 {
    if (debug->dump_shader && compiler_info->debug.dump_asm) {
-      assert(!debug->bin.disasm_string);
-      radv_parse_binary_debug_info(compiler_info, binary, &debug->bin);
-
       struct radv_shader_binary_debug_info dbg = {0};
       radv_parse_binary_debug_info(compiler_info, binary, &dbg);
 
@@ -3601,7 +3598,6 @@ radv_create_trap_handler_shader(struct radv_device *device)
 
    struct radv_shader *shader;
    radv_shader_create_uncached(device, binary, false, NULL, &debug, &shader);
-   radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg.bin);
 
    if (dump_shader) {
       struct radv_shader_binary_debug_info dbg = {0};
@@ -3611,7 +3607,6 @@ radv_create_trap_handler_shader(struct radv_device *device)
       radv_free_binary_debug_info(&dbg);
    }
 
-   free(shader->dbg.bin.disasm_string);
    ralloc_free(b.shader);
    free(binary);
 
@@ -3678,7 +3673,7 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
 
    radv_postprocess_binary_config(compiler_info, binary, &stage->args);
    radv_shader_create_uncached(device, binary, false, NULL, debug, &prolog);
-   if (!prolog || radv_parse_binary_debug_info(compiler_info, binary, &prolog->dbg.bin) != VK_SUCCESS)
+   if (!prolog)
       goto done;
 
    if (dump_shader) {

@@ -458,7 +458,6 @@ struct radv_shader_debug_info {
    uint32_t spirv_size;
    char *nir_string;
    char *args_string;
-   struct radv_shader_binary_debug_info bin;
 };
 
 struct radv_shader {
