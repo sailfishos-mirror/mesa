@@ -2251,6 +2251,7 @@ static void pvr_init_fs_blend(pco_data *data,
    if (!cb)
       return;
 
+   blend_opts->scalar_blend_const = true;
    blend_opts->logicop_enable = cb->logic_op_enable;
    blend_opts->logicop_func = vk_logic_op_to_pipe(cb->logic_op);
 

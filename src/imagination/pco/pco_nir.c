@@ -251,7 +251,12 @@ static bool gather_fs_data_pass(struct nir_builder *b,
    }
 
    case nir_intrinsic_load_blend_const_color_rgba:
-      data->fs.blend_consts_needed |= PIPE_MASK_RGBA;
+   case nir_intrinsic_load_blend_const_color_r_float:
+   case nir_intrinsic_load_blend_const_color_g_float:
+   case nir_intrinsic_load_blend_const_color_b_float:
+   case nir_intrinsic_load_blend_const_color_a_float:
+      data->fs.blend_consts_needed |=
+         pco_nir_blend_load_to_mask(intr->intrinsic);
       break;
 
    case nir_intrinsic_load_front_face_op_pco:

@@ -2510,6 +2510,28 @@ static pco_instr *trans_is_null_desc(trans_ctx *tctx,
    return pco_mov(&tctx->b, dest, all_dwords_zero);
 }
 
+static pco_instr *
+trans_blend_load(trans_ctx *tctx, nir_intrinsic_instr *intr, pco_ref dest)
+{
+   pco_range range = tctx->shader->data.fs.blend_consts;
+
+   if (intr->intrinsic != nir_intrinsic_load_blend_const_color_rgba) {
+      unsigned offset =
+         util_bitcount((pco_nir_blend_load_to_mask(intr->intrinsic) - 1) &
+                       tctx->shader->data.fs.blend_consts_needed);
+      range.start += offset;
+      range.count -= offset;
+   }
+
+   return trans_load_common_store(tctx,
+                                  intr,
+                                  dest,
+                                  pco_ref_null(),
+                                  0u,
+                                  false,
+                                  &range);
+}
+
 /**
  * \brief Translates a NIR intrinsic instruction into PCO.
  *
@@ -2649,14 +2671,12 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_blend_const_color_rgba:
+   case nir_intrinsic_load_blend_const_color_r_float:
+   case nir_intrinsic_load_blend_const_color_g_float:
+   case nir_intrinsic_load_blend_const_color_b_float:
+   case nir_intrinsic_load_blend_const_color_a_float:
       assert(tctx->stage == MESA_SHADER_FRAGMENT);
-      instr = trans_load_common_store(tctx,
-                                      intr,
-                                      dest,
-                                      pco_ref_null(),
-                                      0u,
-                                      false,
-                                      &tctx->shader->data.fs.blend_consts);
+      instr = trans_blend_load(tctx, intr, dest);
       break;
 
    case nir_intrinsic_load_packed_sample_location_pco:

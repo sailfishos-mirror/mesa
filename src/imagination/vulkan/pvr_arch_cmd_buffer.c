@@ -5892,12 +5892,18 @@ static VkResult pvr_setup_descriptor_mappings(
             const struct vk_color_blend_state *cb =
                &cmd_buffer->vk.dynamic_graphics_state.cb;
 
+            float packed_blend_consts[ARRAY_SIZE(cb->blend_constants)];
+            unsigned packed_idx = 0;
+            for (unsigned i = 0; i < ARRAY_SIZE(cb->blend_constants); ++i)
+               if (data->fs.blend_consts_needed & BITFIELD_BIT(i))
+                  packed_blend_consts[packed_idx++] = cb->blend_constants[i];
+
             struct pvr_suballoc_bo *blend_consts_bo;
-            result =
-               pvr_arch_cmd_buffer_upload_general(cmd_buffer,
-                                                  cb->blend_constants,
-                                                  sizeof(cb->blend_constants),
-                                                  &blend_consts_bo);
+            result = pvr_arch_cmd_buffer_upload_general(
+               cmd_buffer,
+               packed_blend_consts,
+               sizeof(*packed_blend_consts) * data->fs.blend_consts.count,
+               &blend_consts_bo);
 
             if (result != VK_SUCCESS)
                return result;
