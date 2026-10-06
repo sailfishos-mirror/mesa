@@ -285,6 +285,10 @@ static bool r300_is_format_supported(struct pipe_screen* screen,
                          format == PIPE_FORMAT_R16G16B16X16_FLOAT;
     const struct util_format_description *desc;
 
+    /* The byte swap is set up for host-endian formats only. */
+    if (util_format_description(format)->is_byte_swapped)
+        return false;
+
     if (MAX2(1, sample_count) != MAX2(1, storage_sample_count))
         return false;
 
