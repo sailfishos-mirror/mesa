@@ -335,11 +335,13 @@ pub extern "C" fn kraid_compile_nir(
         }
         stats
     } else {
+        let va_stats = valhall_stats {
+            threads: model.max_threads(0).into(),
+            ..Default::default()
+        };
         pan_stats {
             isa: PAN_STAT_VALHALL,
-            __bindgen_anon_1: pan_stats__bindgen_ty_1 {
-                valhall: valhall_stats::default(),
-            },
+            __bindgen_anon_1: pan_stats__bindgen_ty_1 { valhall: va_stats },
         }
     };
 
