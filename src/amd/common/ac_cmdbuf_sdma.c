@@ -882,6 +882,16 @@ ac_sdma_use_unaligned_buffer_image_copy(const struct radeon_info *const info,
    const enum sdma_version ver = info->sdma_ip_version;
 
    if (ver < SDMA_4_0) {
+      /* SDMA2-3 seems to access memory before the linear buffer's VA
+       * when the image is tiled and the offset isn't aligned to
+       * microtile width (8 pixels) or 16 bytes, causing page faults.
+       * This issue isn't documented or acknowledged by AMD.
+       */
+      if (!img->surf->is_linear &&
+          !(util_is_aligned(img->offset.x, 8) ||
+            util_is_aligned(img->offset.x * img->bpp, 16)))
+         return true;
+
       /* SDMA2-3 HW requirements for L2L/L2T/T2L copies:
        * Tiled surface must be 256-byte aligned.
        * Linear surface needs to be dword-aligned.
