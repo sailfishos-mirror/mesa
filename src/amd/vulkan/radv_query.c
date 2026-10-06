@@ -2674,7 +2674,6 @@ radv_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uin
    radv_meta_end(cmd_buffer);
 
    if (flush_bits) {
-      /* Only need to flush caches for the compute shader path. */
       cmd_buffer->pending_reset_query = true;
       cmd_buffer->state.flush_bits |= flush_bits;
    }
