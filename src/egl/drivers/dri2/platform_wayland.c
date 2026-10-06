@@ -1967,12 +1967,6 @@ dri2_wl_query_buffer_age(_EGLDisplay *disp, _EGLSurface *surface)
    return dri2_surf->back->age;
 }
 
-static EGLBoolean
-dri2_wl_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
-{
-   return dri2_wl_swap_buffers_with_damage(disp, draw, NULL, 0);
-}
-
 #ifdef HAVE_BIND_WL_DISPLAY
 static struct wl_buffer *
 dri2_wl_create_wayland_buffer_from_image(_EGLDisplay *disp, _EGLImage *img)
@@ -2366,7 +2360,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
    .destroy_surface = dri2_wl_destroy_surface,
    .swap_interval = dri2_wl_swap_interval,
    .create_image = dri2_create_image_khr,
-   .swap_buffers = dri2_wl_swap_buffers,
    .swap_buffers_with_damage = dri2_wl_swap_buffers_with_damage,
    .query_buffer_age = dri2_wl_query_buffer_age,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
