@@ -3545,13 +3545,18 @@ radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, struct radv
       assert(!debug->bin.disasm_string);
       radv_parse_binary_debug_info(compiler_info, binary, &debug->bin);
 
+      struct radv_shader_binary_debug_info dbg = {0};
+      radv_parse_binary_debug_info(compiler_info, binary, &dbg);
+
       const char *sep = "";
       u_foreach_bit (stage, debug->stages) {
          fprintf(stderr, "%s%s", sep, radv_get_shader_name(info, stage));
          sep = " + ";
       }
 
-      fprintf(stderr, "\ndisasm:\n%s\n", debug->bin.disasm_string);
+      fprintf(stderr, "\ndisasm:\n%s\n", dbg.disasm_string);
+
+      radv_free_binary_debug_info(&dbg);
    }
 }
 
@@ -3599,8 +3604,11 @@ radv_create_trap_handler_shader(struct radv_device *device)
    radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg.bin);
 
    if (dump_shader) {
+      struct radv_shader_binary_debug_info dbg = {0};
+      radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
       fprintf(stderr, "Trap handler");
-      fprintf(stderr, "\ndisasm:\n%s\n", shader->dbg.bin.disasm_string);
+      fprintf(stderr, "\ndisasm:\n%s\n", dbg.disasm_string);
+      radv_free_binary_debug_info(&dbg);
    }
 
    free(shader->dbg.bin.disasm_string);
@@ -3674,9 +3682,12 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
       goto done;
 
    if (dump_shader) {
+      struct radv_shader_binary_debug_info dbg = {0};
+      radv_parse_binary_debug_info(&device->compiler_info, binary, &dbg);
       fprintf(stderr, "Raytracing prolog");
-      fprintf(stderr, "\ndisasm:\n%s\n", prolog->dbg.bin.disasm_string);
+      fprintf(stderr, "\ndisasm:\n%s\n", dbg.disasm_string);
       simple_mtx_unlock(compiler_info->debug.shader_dump_mtx);
+      radv_free_binary_debug_info(&dbg);
    }
 
 done:
