@@ -27,62 +27,71 @@ The following hardware is currently supported:
      - OpenGL ES
      - OpenGL
      - Vulkan
+     - OpenCL
    * - T600, T620, T720
      - Midgard (v4)
      - 2.0
      - 2.1
      -
+     - 3.0
    * - T760, T820, T830, T860, T880
      - Midgard (v5)
      - 3.1
      - 3.1
      -
+     - 3.0
    * - G71, G72
      - Bifrost (v6)
      - 3.1
      - 3.1
      - 1.3
+     - 3.0
    * - G31, G51, G52, G76
      - Bifrost (v7)
      - 3.1
      - 3.1
      - 1.3
+     - 3.0
    * - G57, G68
      - Valhall (v9)
      - 3.1
      - 3.1
      -
+     - 3.0
    * - G310, G610
      - Valhall (v10)
      - 3.1
      - 3.1
      - 1.4
+     - 3.0
    * - G615, G715
      - Valhall (v11)
      - 3.1
      - 3.1
      - 1.4
+     - 3.0
    * - G720
      - 5th Gen (v12)
      - 3.1
      - 3.1
      - 1.4
+     - 3.0
    * - G725
      - 5th Gen (v13)
      - 3.1
      - 3.1
      - 1.4
+     - 3.0
    * - G1-Pro, G1-Premium, G1-Ultra
      - 5th Gen (v14)
      - 3.1
      - 3.1
      - 1.4
+     - 3.0
 
 Older Mali GPUs based on the Utgard architecture (Mali-400, Mali-450) are
 supported by the :doc:`Lima <lima>` driver, not Panfrost. Lima is also
 available as part of Mesa.
-
-Other graphics APIs (OpenCL) are not supported at this time.
 
 Building
 --------
@@ -104,6 +113,9 @@ you can build and install the required tools on the host (with LLVM installed) w
 ``meson . build-host/ -Dtools=panfrost -Dmesa-clc=enabled -Dinstall-mesa-clc=true
 -Dprecomp-compiler=enabled -Dinstall-precomp-compiler=true``
 and then use ``-Dmesa-clc=system -Dprecomp-compiler=system`` on the cross compile side.
+
+OpenCL is supported through :doc:`Rusticl <../rusticl>`, using the
+``-Dgallium-rusticl=true`` flag, and requires LLVM.
 
 For general information on building Mesa, read :doc:`the install documentation
 <../install>`.
