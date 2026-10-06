@@ -147,6 +147,12 @@ enum radv_meta_htile_preserve_flags {
    RADV_HTILE_PRESERVE_VRS = BITFIELD_BIT(3),
 
    RADV_HTILE_PRESERVE_ALL = BITFIELD_MASK(4),
+
+   /* Whether ZRANGE_PRECISION can be dynamic. If not set, it's assumed that ZRANGE_PRECISION == 1.
+    * It only affects images where radv_image_has_tc_compat_zrange_metadata is true.
+    * Only allowed to be passed to radv_clear_htile_rmw_to_uncompressed.
+    */
+   RADV_HTILE_DYNAMIC_ZRANGE_PRECISION = BITFIELD_BIT(31),
 };
 
 VkResult radv_device_init_meta(struct radv_device *device);

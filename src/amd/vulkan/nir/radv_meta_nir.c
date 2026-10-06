@@ -9,6 +9,7 @@
 
 #include "radv_meta_nir.h"
 #include "nir/nir_format_convert.h"
+#include "ac_descriptors.h"
 #include "ac_nir_surface.h"
 #include "ac_surface.h"
 #include "nir_builder.h"
@@ -753,7 +754,7 @@ radv_meta_nir_build_clear_depthstencil_vertex_shader(bool multiview)
 }
 
 nir_shader *
-radv_meta_nir_build_clear_htile_mask_shader()
+radv_meta_nir_build_clear_htile_mask_shader(bool mask_zbase_conditionally, bool full_mask)
 {
    nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "meta_clear_htile_mask");
    b.shader->info.workgroup_size[0] = 64;
@@ -767,11 +768,29 @@ radv_meta_nir_build_clear_htile_mask_shader()
    nir_def *va = nir_pack_64_2x32(&b, nir_channels(&b, constants, 0x3));
    va = nir_iadd(&b, va, nir_u2u64(&b, offset));
 
-   nir_def *load = nir_load_global(&b, 4, 32, va, .align_mul = 16);
+   nir_def *masked_clear_value0 = nir_channel(&b, constants, 2);
+   nir_def *masked_clear_value1 = NULL;
+   nir_def *mask = nir_channel(&b, constants, 3);
+   nir_def *select_value0 = NULL;
+
+   if (mask_zbase_conditionally) {
+      nir_def *constants2 = nir_load_push_constant(&b, 2, 32, nir_imm_int(&b, 0), .base = 16, .range = 8);
+      nir_def *value_select_cond_va = nir_pack_64_2x32(&b, nir_channels(&b, constants2, 0x3));
+      masked_clear_value1 = nir_iand_imm(&b, masked_clear_value0, ~(ac_htile_dword){.zs.zbase = ~0}.dword);
+
+      select_value0 =
+         nir_load_global(&b, 1, 32, value_select_cond_va, .access = ACCESS_NON_WRITEABLE | ACCESS_RESTRICT);
+      select_value0 = nir_ieq_imm(&b, select_value0, 0);
+   }
+
+   nir_def *load = full_mask ? NULL : nir_load_global(&b, 4, 32, va, .align_mul = 16);
+
+   if (mask_zbase_conditionally)
+      masked_clear_value0 = nir_bcsel(&b, select_value0, masked_clear_value0, masked_clear_value1);
 
    /* data = (data & ~htile_mask) | (htile_value & htile_mask) */
-   nir_def *data = nir_iand(&b, load, nir_channel(&b, constants, 3));
-   data = nir_ior(&b, data, nir_channel(&b, constants, 2));
+   nir_def *data = full_mask ? nir_imm_ivec4(&b, 0, 0, 0, 0) : nir_iand(&b, load, mask);
+   data = nir_ior(&b, data, masked_clear_value0);
 
    nir_store_global(&b, data, va, .access = ACCESS_NON_READABLE, .align_mul = 16);
 

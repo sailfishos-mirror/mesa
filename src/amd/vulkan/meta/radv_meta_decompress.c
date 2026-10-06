@@ -473,7 +473,7 @@ radv_decompress_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_im
       }
    }
 
-   enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS;
+   enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS | RADV_HTILE_DYNAMIC_ZRANGE_PRECISION;
 
    if (cmd_buffer->qf == RADV_QUEUE_GENERAL) {
       /* Z/S decompression via DB always sets the compression bits. */

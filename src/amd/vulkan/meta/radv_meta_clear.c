@@ -512,15 +512,28 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
    }
 }
 
+struct radv_clear_htile_mask_key {
+   enum radv_meta_object_key_type type;
+   bool mask_zbase_conditionally;
+   bool full_mask;
+};
+
 static VkResult
-get_clear_htile_mask_pipeline(struct radv_device *device, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
+get_clear_htile_mask_pipeline(struct radv_device *device, VkPipeline *pipeline_out, VkPipelineLayout *layout_out,
+                              bool mask_zbase_conditionally, bool full_mask)
 {
-   enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_CLEAR_HTILE;
+   struct radv_clear_htile_mask_key key;
+   memset(&key, 0, sizeof(key));
+
+   key.type = RADV_META_OBJECT_KEY_CLEAR_HTILE;
+   key.mask_zbase_conditionally = mask_zbase_conditionally;
+   key.full_mask = full_mask;
+
    VkResult result;
 
    const VkPushConstantRange pc_range = {
       .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .size = 16,
+      .size = (mask_zbase_conditionally ? 6 : 4) * 4,
    };
 
    result = vk_meta_get_pipeline_layout(&device->vk, &device->meta_state.device, NULL, &pc_range, &key, sizeof(key),
@@ -534,7 +547,7 @@ get_clear_htile_mask_pipeline(struct radv_device *device, VkPipeline *pipeline_o
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_clear_htile_mask_shader();
+   nir_shader *cs = radv_meta_nir_build_clear_htile_mask_shader(mask_zbase_conditionally, full_mask);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -560,7 +573,7 @@ get_clear_htile_mask_pipeline(struct radv_device *device, VkPipeline *pipeline_o
 
 static uint32_t
 clear_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, struct radeon_winsys_bo *bo,
-                 uint64_t va, uint64_t size, uint32_t htile_value, uint32_t htile_mask)
+                 uint64_t va, uint64_t size, uint32_t htile_value, uint32_t htile_mask, uint64_t value_select_cond_va)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
@@ -569,7 +582,8 @@ clear_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
    VkPipeline pipeline;
    VkResult result;
 
-   result = get_clear_htile_mask_pipeline(device, &pipeline, &layout);
+   result =
+      get_clear_htile_mask_pipeline(device, &pipeline, &layout, value_select_cond_va != 0, htile_mask == 0xffffffff);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return 0;
@@ -579,19 +593,27 @@ clear_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
-   const unsigned constants[4] = {
-      va,
-      va >> 32,
-      htile_value & htile_mask,
-      ~htile_mask,
+   const unsigned constants[] = {
+      va, va >> 32, htile_value & htile_mask, ~htile_mask, value_select_cond_va, value_select_cond_va >> 32,
    };
+   const unsigned constants_size = (value_select_cond_va ? 6 : 4) * 4;
 
-   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), constants);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants_size, constants);
+
+   /* The condition value is loaded by SMEM, but is stored by the CP. */
+   if (value_select_cond_va)
+      cmd_buffer->state.flush_bits |= AC_BARRIER_INV_SMEM;
 
    radv_CmdDispatchBase(radv_cmd_buffer_to_handle(cmd_buffer), 0, 0, 0, block_count, 1, 1);
 
-   return AC_BARRIER_SYNC_CS | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                     VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
+   /* PFP can overwrite the predicate while the shader is in flight, so PFP_SYNC_ME is needed.
+    * However, a single barrier with PFP_SYNC_ME after this dispatch is not enough if the predicate
+    * is overwritten before the barrier. That never happens though. All functions that overwrite
+    * the predicate only do it after a barrier + dispatch or CP DMA clear, so we are safe.
+    */
+   return AC_BARRIER_SYNC_CS | (value_select_cond_va ? AC_BARRIER_PFP_SYNC_ME : 0) |
+          radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, 0,
+                                image, NULL);
 }
 
 static uint32_t
@@ -613,6 +635,7 @@ radv_get_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image 
                     enum radv_meta_htile_preserve_flags preserve)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   assert(!(preserve & (RADV_HTILE_DYNAMIC_ZRANGE_PRECISION)));
    assert(preserve != RADV_HTILE_PRESERVE_ALL);
 
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
@@ -1077,10 +1100,22 @@ radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const bool zrange_precision_wa =
+      range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT && !(flags & RADV_HTILE_PRESERVE_HIZ_RANGE) &&
+      flags & RADV_HTILE_DYNAMIC_ZRANGE_PRECISION && cmd_buffer->qf != RADV_QUEUE_TRANSFER &&
+      radv_image_has_tc_compat_zrange_metadata(device, image) &&
+      radv_tc_compat_htile_enabled(image, range->baseMipLevel);
    const uint32_t layer_count = vk_image_subresource_layer_count(&image->vk, range);
    uint32_t level_count = vk_image_subresource_level_count(&image->vk, range);
    uint32_t flush_bits = 0;
    uint32_t htile_mask;
+
+   /* The ZRANGE_PRECISION workaround that masks the zbase HTILE field in the RMW shader only works
+    * if zbase is the maximum value because the shader only zeroes it.
+    */
+   assert(!zrange_precision_wa || (ac_htile_dword){.dword = value}.zs.zbase == 0x3FFF);
+
+   flags &= ~RADV_HTILE_DYNAMIC_ZRANGE_PRECISION;
 
    htile_mask = radv_get_htile_mask(cmd_buffer, image, range->aspectMask, flags);
 
@@ -1096,7 +1131,10 @@ radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image
       radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                             htile_mask != UINT32_MAX ? VK_ACCESS_2_SHADER_STORAGE_READ_BIT : 0, 0, image, range);
 
-   if (level_count != image->vk.mip_levels) {
+   /* If we have 2 clear values and multiple levels, then we need to iterate levels because the clear
+    * value selection is per level.
+    */
+   if (level_count != image->vk.mip_levels || (image->vk.mip_levels > 1 && zrange_precision_wa)) {
       assert(pdev->info.gfx_level >= GFX10);
 
       /* Clear individuals levels separately. Each layer is a separate mip tree, so it must be cleared
@@ -1114,13 +1152,14 @@ radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image
             if (!size)
                continue;
 
-            if (htile_mask == UINT32_MAX) {
+            if (htile_mask == UINT32_MAX && !zrange_precision_wa) {
                /* Clear the whole HTILE buffer. */
                flush_bits |= radv_fill_image(cmd_buffer, image, htile_offset, size, value);
             } else {
                /* Only clear depth or stencil bytes in the HTILE buffer. */
                flush_bits |= clear_htile_mask(cmd_buffer, image, image->bindings[0].bo,
-                                              image->bindings[0].addr + htile_offset, size, value, htile_mask);
+                                              image->bindings[0].addr + htile_offset, size, value, htile_mask,
+                                              zrange_precision_wa ? radv_get_tc_compat_zrange_va(image, level) : 0);
             }
          }
       }
@@ -1129,13 +1168,14 @@ radv_clear_htile_rmw(struct radv_cmd_buffer *cmd_buffer, const struct radv_image
       uint64_t htile_offset =
          image->planes[0].surface.meta_offset + image->planes[0].surface.meta_slice_size * range->baseArrayLayer;
 
-      if (htile_mask == UINT32_MAX) {
+      if (htile_mask == UINT32_MAX && !zrange_precision_wa) {
          /* Clear the whole HTILE buffer. */
          flush_bits = radv_fill_image(cmd_buffer, image, htile_offset, size, value);
       } else {
          /* Only clear depth or stencil bytes in the HTILE buffer. */
-         flush_bits = clear_htile_mask(cmd_buffer, image, image->bindings[0].bo, image->bindings[0].addr + htile_offset,
-                                       size, value, htile_mask);
+         flush_bits =
+            clear_htile_mask(cmd_buffer, image, image->bindings[0].bo, image->bindings[0].addr + htile_offset, size,
+                             value, htile_mask, zrange_precision_wa ? radv_get_tc_compat_zrange_va(image, 0) : 0);
       }
    }
 

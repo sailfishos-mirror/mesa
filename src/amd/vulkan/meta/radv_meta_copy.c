@@ -240,7 +240,7 @@ radv_meta_fixup_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
           * If Z compression is disabled (like with the GENERAL layout), HiZ stays enabled, so we
           * must expand the Z bounds in this case too.
           */
-         enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS;
+         enum radv_meta_htile_preserve_flags preserve = RADV_HTILE_PRESERVE_VRS | RADV_HTILE_DYNAMIC_ZRANGE_PRECISION;
 
          /* The tiles outside the region may still be compressed, so we must preserve that. */
          if (has_zs_compression && image_stores_decompress)
