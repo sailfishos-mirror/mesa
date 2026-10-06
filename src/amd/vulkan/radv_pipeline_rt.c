@@ -205,7 +205,7 @@ radv_rt_init_capture_replay(struct radv_device *device, const VkRayTracingPipeli
             library_shader->bo = library_shader->alloc->arena->bo;
             library_shader->va = radv_buffer_get_va(library_shader->bo) + library_shader->alloc->offset;
 
-            if (!radv_shader_reupload(device, library_shader)) {
+            if (!radv_shader_upload(device, library_shader)) {
                result = VK_ERROR_UNKNOWN;
                goto reloc_out;
             }

@@ -2767,7 +2767,8 @@ radv_shader_binary_get_layout(struct radv_shader_binary_legacy *binary)
 static bool
 radv_shader_binary_upload(struct radv_device *device, struct radv_shader *shader, void *dest_ptr)
 {
-   shader->code = calloc(shader->code_size, 1);
+   if (!shader->code)
+      shader->code = calloc(shader->code_size, 1);
    if (!shader->code)
       return false;
 
@@ -2956,7 +2957,7 @@ radv_shader_dma_submit(struct radv_device *device, struct radv_shader_dma_submis
    return true;
 }
 
-static bool
+bool
 radv_shader_upload(struct radv_device *device, struct radv_shader *shader)
 {
    if (device->shader_use_invisible_vram) {
@@ -3178,26 +3179,6 @@ out:
    }
 
    return result;
-}
-
-bool
-radv_shader_reupload(struct radv_device *device, struct radv_shader *shader)
-{
-   if (device->shader_use_invisible_vram) {
-      struct radv_shader_dma_submission *submission =
-         radv_shader_dma_get_submission(device, shader->bo, shader->va, shader->code_size);
-      if (!submission)
-         return false;
-
-      memcpy(submission->ptr, shader->code, shader->code_size);
-
-      if (!radv_shader_dma_submit(device, submission, &shader->upload_seq))
-         return false;
-   } else {
-      void *dest_ptr = shader->alloc->arena->ptr + shader->alloc->offset;
-      memcpy(dest_ptr, shader->code, shader->code_size);
-   }
-   return true;
 }
 
 static bool
