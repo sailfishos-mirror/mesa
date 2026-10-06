@@ -2416,13 +2416,6 @@ dri2_wl_kopper_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
    return EGL_TRUE;
 }
 
-static EGLBoolean
-dri2_wl_kopper_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
-{
-   dri2_wl_kopper_swap_buffers_with_damage(disp, draw, NULL, 0);
-   return EGL_TRUE;
-}
-
 static EGLint
 dri2_wl_kopper_query_buffer_age(_EGLDisplay *disp, _EGLSurface *surface)
 {
@@ -2438,7 +2431,6 @@ static const struct dri2_egl_display_vtbl dri2_wl_kopper_display_vtbl = {
    .create_pbuffer_surface = dri2_wl_create_pbuffer_surface,
    .destroy_surface = dri2_wl_destroy_surface,
    .create_image = dri2_create_image_khr,
-   .swap_buffers = dri2_wl_kopper_swap_buffers,
    .swap_buffers_with_damage = dri2_wl_kopper_swap_buffers_with_damage,
    .get_dri_drawable = dri2_surface_get_dri_drawable,
    .query_buffer_age = dri2_wl_kopper_query_buffer_age,
