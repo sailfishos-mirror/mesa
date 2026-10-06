@@ -114,7 +114,7 @@ radv_sqtt_reloc_graphics_shaders(struct radv_device *device, struct radv_graphic
    }
 
    for (int i = 0; i < MESA_VULKAN_SHADER_STAGES; ++i) {
-      const struct radv_shader *shader = pipeline->base.shaders[i];
+      struct radv_shader *shader = pipeline->base.shaders[i];
       void *dest_ptr;
       if (!shader)
          continue;
@@ -126,7 +126,7 @@ radv_sqtt_reloc_graphics_shaders(struct radv_device *device, struct radv_graphic
       else
          dest_ptr = slab_ptr + offset;
 
-      memcpy(dest_ptr, shader->code, shader->code_size);
+      radv_shader_get_code(device, shader, dest_ptr);
 
       offset += align(shader->code_size, RADV_SHADER_ALLOC_ALIGNMENT);
    }
@@ -1464,7 +1464,8 @@ radv_fill_code_object_record(struct radv_device *device, struct rgp_shader_data 
    shader_data->hash[1] = (uint64_t)(uintptr_t)shader >> 32;
    shader_data->code_size =
       shader->exec_size; /* Only include executable size so RGP doesn't try to disassemble constant data. */
-   shader_data->code = shader->code;
+   shader_data->code = malloc(shader->code_size);
+   radv_shader_get_code(device, shader, shader_data->code);
    shader_data->vgpr_count = shader->config.num_vgprs;
    shader_data->sgpr_count = shader->config.num_sgprs;
    shader_data->scratch_memory_size = shader->config.scratch_bytes_per_wave;
@@ -1715,6 +1716,8 @@ radv_unregister_records(struct radv_device *device, uint64_t hash)
       if (record->pipeline_hash[0] == hash) {
          code_object->record_count--;
          list_del(&record->list);
+         u_foreach_bit (i, record->shader_stages_mask)
+            free(record->shader_data[i].code);
          free(record);
          break;
       }
