@@ -647,7 +647,7 @@ droid_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
                                              __DRI2_NOTHROTTLE_SWAPBUFFER);
 
    if (dri2_dpy->pure_swrast) {
-      driSwapBuffersWithDamage(dri2_surf->dri_drawable, n_rects, rects);
+      driSwapBuffers(dri2_surf->dri_drawable, n_rects, rects);
       if (dri2_surf->buffer)
          droid_window_enqueue_buffer(disp, dri2_surf);
    } else {

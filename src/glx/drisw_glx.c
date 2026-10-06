@@ -570,7 +570,7 @@ driswSwapBuffers(__GLXDRIdrawable * pdraw,
       CALL_Flush(GET_DISPATCH(), ());
    }
 
-   driSwapBuffersWithDamage(pdraw->dri_drawable, 0, NULL);
+   driSwapBuffers(pdraw->dri_drawable, 0, NULL);
 
    return 0;
 }

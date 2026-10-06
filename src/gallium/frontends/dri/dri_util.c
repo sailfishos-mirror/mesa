@@ -858,19 +858,11 @@ driGetAPIMask(struct dri_screen *screen)
  * driver.
  */
 void
-driSwapBuffersWithDamage(struct dri_drawable *drawable, int nrects, const int *rects)
+driSwapBuffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
    assert(drawable->screen->swrast_loader);
 
    drawable->swap_buffers(drawable, nrects, rects);
-}
-
-void
-driSwapBuffers(struct dri_drawable *drawable)
-{
-   assert(drawable->screen->swrast_loader);
-
-   drawable->swap_buffers(drawable, 0, NULL);
 }
 
 int

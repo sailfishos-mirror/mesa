@@ -358,7 +358,7 @@ dri2_drm_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
 
    if (dri2_dpy->swrast_not_kms) {
-      driSwapBuffersWithDamage(dri2_surf->dri_drawable, n_rects, rects);
+      driSwapBuffers(dri2_surf->dri_drawable, n_rects, rects);
       return EGL_TRUE;
    }
 

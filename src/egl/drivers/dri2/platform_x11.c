@@ -712,7 +712,7 @@ dri2_x11_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
                       const EGLint *rects, EGLint numRects)
 {
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
-   driSwapBuffersWithDamage(dri2_surf->dri_drawable, numRects, rects);
+   driSwapBuffers(dri2_surf->dri_drawable, numRects, rects);
    return EGL_TRUE;
 }
 
@@ -737,7 +737,7 @@ dri2_x11_copy_buffers(_EGLDisplay *disp, _EGLSurface *surf,
        * okay-ish on swrast because those aren't invalidating the back buffer on
        * swap.
        */
-      driSwapBuffersWithDamage(dri2_surf->dri_drawable, 0, NULL);
+      driSwapBuffers(dri2_surf->dri_drawable, 0, NULL);
    }
 
    gc = xcb_generate_id(dri2_dpy->conn);

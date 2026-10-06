@@ -137,9 +137,7 @@ driIndexConfigAttrib(const struct dri_config *config, int index, unsigned int *a
 PUBLIC void
 driDestroyDrawable(struct dri_drawable *drawable);
 PUBLIC void
-driSwapBuffers(struct dri_drawable *drawable);
-PUBLIC void
-driSwapBuffersWithDamage(struct dri_drawable *drawable, int nrects, const int *rects);
+driSwapBuffers(struct dri_drawable *drawable, int nrects, const int *rects);
 PUBLIC struct dri_context *
 driCreateNewContext(struct dri_screen *screen, const struct dri_config *config,
                     struct dri_context *shared, void *data, bool thread_safe);
