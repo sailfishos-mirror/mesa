@@ -8764,7 +8764,7 @@
         "description": "ir3: Only call nir_opt_shrink_vectors once",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e7c6037d12211c94c24839291d73bbddc19ca184",
         "notes": null
