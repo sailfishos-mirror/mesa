@@ -3025,6 +3025,7 @@ struct radv_shader_binary_debug_info
 radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, const struct radv_shader_binary *binary)
 {
    struct radv_shader_binary_debug_info dbg = {0};
+   dbg.type = binary->type;
    if (binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
       return dbg;
@@ -3050,7 +3051,7 @@ radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, con
          memcpy(dbg.statistics, stats_data, stats_size);
       }
 
-      dbg.ir_string = bin->llvm_ir_size ? strdup((const char *)(bin->data + bin->elf_size)) : NULL;
+      dbg.ir_string = bin->llvm_ir_size ? (char *)(bin->data + bin->elf_size) : NULL;
 
       ac_rtld_close(&rtld_binary);
 #endif
@@ -3063,8 +3064,8 @@ radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, con
          memcpy(dbg.statistics, layout.stats, bin->stats_size);
       }
 
-      dbg.ir_string = bin->ir_size ? strdup(layout.ir) : NULL;
-      dbg.disasm_string = bin->disasm_size ? strdup(layout.disasm) : NULL;
+      dbg.ir_string = bin->ir_size ? layout.ir : NULL;
+      dbg.disasm_string = bin->disasm_size ? layout.disasm : NULL;
 
       if (bin->debug_info_size) {
          dbg.debug_info = malloc(bin->debug_info_size);

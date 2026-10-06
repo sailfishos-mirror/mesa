@@ -441,6 +441,8 @@ struct radv_serialized_shader_arena_block {
 };
 
 struct radv_shader_binary_debug_info {
+   enum radv_shader_binary_type type;
+
    char *disasm_string;
    char *ir_string;
    struct amd_stats *statistics;

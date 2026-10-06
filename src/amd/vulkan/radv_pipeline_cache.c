@@ -46,8 +46,9 @@ radv_hash_graphics_spirv_to_nir(blake3_hash hash, const struct radv_shader_stage
 void
 radv_free_binary_debug_info(struct radv_shader_binary_debug_info *dbg)
 {
-   free(dbg->disasm_string);
-   free(dbg->ir_string);
+   /* ir_string is always owned by the radv_shader_binary, and disasm_string usually is too. */
+   if (dbg->type == RADV_BINARY_TYPE_RTLD)
+      free(dbg->disasm_string);
    free(dbg->statistics);
    free(dbg->debug_info);
 }
