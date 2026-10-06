@@ -314,7 +314,7 @@
         "description": "etnaviv: Skip render compatibility for external TS plane resources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dd82b4582130d7273c5666f5b4e8d9aa42b93fc1",
         "notes": null
