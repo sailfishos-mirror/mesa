@@ -79,8 +79,10 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
          struct jay_register_block B = b->shader->partition.blocks[GPR][i];
          bool late_eot = !jay_has_early_eot(b->shader);
 
-         if (B.len_gpr >= 4 && (B.type == JAY_BLOCK_EOT ||
-                                (B.type == JAY_BLOCK_NORMAL && late_eot))) {
+         if (B.len_gpr >= 4 &&
+             (B.type == JAY_BLOCK_EOT || (B.type == JAY_BLOCK_NORMAL &&
+                                          late_eot &&
+                                          B.stride == JAY_STRIDE_4))) {
             gpr = B.start_gpr;
          }
       }
