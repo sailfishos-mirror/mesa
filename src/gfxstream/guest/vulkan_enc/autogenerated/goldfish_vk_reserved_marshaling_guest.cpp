@@ -10511,17 +10511,20 @@ void reservedmarshal_extension_struct(VulkanStreamGuest* vkStream, VkStructureTy
         return;
     } else {
         // known or null extension struct
-        memcpy(*ptr, &currExtSize, sizeof(uint32_t));
-        ;
-        gfxstream::aemu::Stream::toBe32((uint8_t*)*ptr);
-        *ptr += sizeof(uint32_t);
         if (!currExtSize) {
+            memcpy(*ptr, &currExtSize, sizeof(uint32_t));
+            ;
+            gfxstream::aemu::Stream::toBe32((uint8_t*)*ptr);
+            *ptr += sizeof(uint32_t);
             // exit if this was a null extension struct (size == 0 in this branch)
             return;
         }
     }
+    uint8_t* sizePtr = *ptr;
+    *ptr += sizeof(uint32_t);
     memcpy(*ptr, structExtension, sizeof(VkStructureType));
     *ptr += sizeof(VkStructureType);
+    uint8_t* structStartPtr = *ptr;
     if (!structExtension) {
         return;
     }
@@ -12190,6 +12193,9 @@ void reservedmarshal_extension_struct(VulkanStreamGuest* vkStream, VkStructureTy
             abort();
         }
     }
+    currExtSize = (uint32_t)(*ptr - structStartPtr);
+    memcpy(sizePtr, &currExtSize, sizeof(uint32_t));
+    gfxstream::aemu::Stream::toBe32(sizePtr);
 }
 
 }  // namespace vk

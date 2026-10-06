@@ -8042,15 +8042,21 @@ void unmarshal_extension_struct(VulkanStreamGuest* vkStream, VkStructureType roo
         return;
     } else {
         // known or null extension struct
-        vkStream->getBe32();
-        if (!currExtSize) {
+        uint32_t hostExtSize = vkStream->getBe32();
+        if (!currExtSize || !hostExtSize) {
             // exit if this was a null extension struct (size == 0 in this branch)
             return;
         }
     }
-    uint64_t pNext_placeholder;
+    uint64_t pNext_placeholder = 0;
     vkStream->read((void*)(&pNext_placeholder), sizeof(VkStructureType));
     (void)pNext_placeholder;
+    // Find the struct corresponding to the next struct returned from the host
+    // passing over any structs that were skipped by the host (e.g. due to being unknown).
+    while (structExtension_out && goldfish_vk_struct_type(structExtension_out) !=
+                                      goldfish_vk_struct_type((&pNext_placeholder))) {
+        structExtension_out = (void*)((VkBaseInStructure*)structExtension_out)->pNext;
+    }
     if (!structExtension_out) {
         return;
     }
