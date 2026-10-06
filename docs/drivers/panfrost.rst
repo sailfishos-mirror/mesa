@@ -46,9 +46,9 @@ The following hardware is currently supported:
 | G1-Ultra           |               |           |        |        |
 +--------------------+---------------+-----------+--------+--------+
 
-Older Mali chips based on the Utgard architecture (Mali-400, Mali-450) are
-supported in the :doc:`Lima <lima>` driver, not Panfrost. Lima is also
-available in Mesa.
+Older Mali GPUs based on the Utgard architecture (Mali-400, Mali-450) are
+supported by the :doc:`Lima <lima>` driver, not Panfrost. Lima is also
+available as part of Mesa.
 
 Other graphics APIs (OpenCL) are not supported at this time.
 
