@@ -27,7 +27,7 @@ The following hardware is currently supported:
 | T760, T820, T830   | Midgard (v5)  | 3.1       | 3.1    |        |
 | T860, T880         |               |           |        |        |
 +--------------------+---------------+-----------+--------+--------+
-| G72                | Bifrost (v6)  | 3.1       | 3.1    | 1.3    |
+| G71, G72           | Bifrost (v6)  | 3.1       | 3.1    | 1.3    |
 +--------------------+---------------+-----------+--------+--------+
 | G31, G51, G52, G76 | Bifrost (v7)  | 3.1       | 3.1    | 1.3    |
 +--------------------+---------------+-----------+--------+--------+
@@ -44,8 +44,6 @@ The following hardware is currently supported:
 | G1-Pro, G1-Premium | 5th Gen (v14) | 3.1       | 3.1    | 1.4    |
 | G1-Ultra           |               |           |        |        |
 +--------------------+---------------+-----------+--------+--------+
-
-Other Midgard and Bifrost chips (e.g. G71) are not yet supported.
 
 Older Mali chips based on the Utgard architecture (Mali-400, Mali-450) are
 supported in the :doc:`Lima <lima>` driver, not Panfrost. Lima is also
