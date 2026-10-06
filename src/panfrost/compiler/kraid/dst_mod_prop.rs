@@ -149,27 +149,6 @@ impl<A: AllocSSA> DstModProp<'_, A> {
         debug_assert!(old.is_none());
     }
 
-    fn add_f32_to_f16_uses(&mut self, op: &OpF32ToF16) {
-        let SrcRef::SSA(vec) = &op.src.src_ref else {
-            return;
-        };
-        debug_assert!(vec.comps() == 1);
-        let ssa = vec[0];
-
-        debug_assert!(ssa.bits() == 32);
-        if !op.src.src_mod.is_none() {
-            self.add_use(ssa, UseMod::INVALID);
-            return;
-        }
-
-        debug_assert!(op.src.swizzle.is_none());
-        let use_mod = UseMod {
-            clamp: ClampUses::F32(op.clamp),
-            to_f16: Uses::One(op.round),
-        };
-        self.add_use(ssa, use_mod);
-    }
-
     fn add_fadd_uses(&mut self, op: &OpFAdd) {
         let src = if op.srcs[0].is_fneg_zero(op.dst_type) {
             &op.srcs[1]
@@ -213,7 +192,6 @@ impl<A: AllocSSA> DstModProp<'_, A> {
 
     fn add_instr_uses(&mut self, instr: &Instr) {
         match &instr.op {
-            Op::F32ToF16(op) => self.add_f32_to_f16_uses(op.as_ref()),
             Op::FAdd(op) => self.add_fadd_uses(op.as_ref()),
             _ => {
                 for ssa in instr.iter_ssa_uses() {
@@ -260,31 +238,6 @@ impl<A: AllocSSA> DstModProp<'_, A> {
     fn try_fold_instr_src(&mut self, instr: &mut Instr) -> bool {
         // This must match the same cases as add_instr_uses()
         match &mut instr.op {
-            Op::F32ToF16(op) => {
-                let SrcRef::SSA(vec) = &op.src.src_ref else {
-                    return false;
-                };
-                debug_assert!(vec.comps() == 1);
-                let ssa = vec[0];
-
-                let clamp_changed =
-                    self.try_remove_clamp(&mut op.clamp, ssa, DataType::F32);
-
-                if let Some(ssa_f16) = self.def_f16.get(&ssa) {
-                    // If our source is now an f16, we need to convert to a
-                    // (possibly no-op) FADD.f16
-                    instr.op = Op::from(OpFAdd {
-                        dst: op.dst.clone(),
-                        dst_type: DataType::V2F16,
-                        round: op.round,
-                        clamp: op.clamp,
-                        srcs: [(*ssa_f16).into(), Src::fneg_zero(16)],
-                    });
-                    true
-                } else {
-                    clamp_changed
-                }
-            }
             Op::FAdd(op) => {
                 let src = if op.srcs[0].is_fneg_zero(op.dst_type) {
                     &mut op.srcs[1]
@@ -396,9 +349,6 @@ impl<A: AllocSSA> DstModProp<'_, A> {
     fn try_fold_instr(&mut self, instr: &mut Instr) -> bool {
         let src_folded = self.try_fold_instr_src(instr);
         let dst_folded = match &mut instr.op {
-            Op::F32ToF16(op) => {
-                self.fold_clamp(&op.dst, DataType::F16, &mut op.clamp)
-            }
             Op::FAdd(op) => {
                 self.fold_clamp(&op.dst, op.dst_type, &mut op.clamp)
                     | self.fold_to_f32(&mut op.dst, op.dst_type, op.round)

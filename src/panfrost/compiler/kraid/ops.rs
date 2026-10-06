@@ -1157,51 +1157,6 @@ impl DisplayOp for OpF16ToI32 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-pub struct OpF32ToF16 {
-    #[dst_type(F16)]
-    pub dst: Dst,
-    #[src_type(F32)]
-    pub src: Src,
-    pub round: FRound,
-    pub clamp: FClamp,
-}
-
-impl DisplayOp for OpF32ToF16 {
-    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "F32_TO_F16")
-    }
-
-    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{} {}",
-            self.round,
-            self.clamp,
-            self.fmt_src(&self.src)
-        )
-    }
-}
-
-impl Foldable for OpF32ToF16 {
-    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
-        let c = f.get_src(&self.src);
-        let c = f32::from_bits(c as u32);
-        let c = self.clamp.fold(c);
-
-        let c = match self.round {
-            FRound::NearestEven => F16::from_f32_rtne(c),
-            FRound::Up => F16::from_f32_ru(c),
-            FRound::Down => F16::from_f32_rd(c),
-            FRound::TowardsZero => F16::from_f32_rtz(c),
-            FRound::NearestValue => panic!("Invalid for float conv"),
-        };
-
-        f.set_dst(&self.dst, c.to_bits() as u64);
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
 #[variants(dst_type in [S32, U32])]
 pub struct OpF32ToI32 {
     pub dst: Dst,
@@ -5188,7 +5143,6 @@ pub enum Op {
     Discard(Box<OpDiscard>),
     F16ToF32(Box<OpF16ToF32>),
     F16ToI32(Box<OpF16ToI32>),
-    F32ToF16(Box<OpF32ToF16>),
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
     FAddLScale(Box<OpFAddLScale>),

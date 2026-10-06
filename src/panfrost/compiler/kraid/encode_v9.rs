@@ -1093,55 +1093,6 @@ impl V9Instr for OpF16ToI32 {
     }
 }
 
-impl From<FRound> for Round {
-    fn from(round: FRound) -> Round {
-        match round {
-            FRound::NearestEven => Round::None,
-            FRound::Up => Round::RoundUp,
-            FRound::Down => Round::RoundDown,
-            FRound::TowardsZero => Round::RoundZero,
-            FRound::NearestValue => Round::RoundNa,
-        }
-    }
-}
-
-impl From<FClamp> for ClampM {
-    fn from(clamp: FClamp) -> ClampM {
-        match clamp {
-            FClamp::None => ClampM::None,
-            FClamp::ZeroToInf => ClampM::Clamp0Inf,
-            FClamp::NegOneToOne => ClampM::ClampM11,
-            FClamp::ZeroToOne => ClampM::Clamp01,
-        }
-    }
-}
-
-impl V9Instr for OpF32ToF16 {
-    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
-        V9InstrInfo::from_isa(
-            F32ToF16::get_info((), arch),
-            src_map! {
-                src0: src,
-            },
-        )
-    }
-
-    fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        let mut dst = op_encode_dst(self, &self.dst);
-        dst.lanes = match dst.lanes {
-            v9::DstLanes::H0 => v9::DstLanes::Hf0,
-            v9::DstLanes::H1 => v9::DstLanes::Hf1,
-            _ => panic!("Invalid dst.lanes"),
-        };
-        e.encode(F32ToF16 {
-            dst,
-            src0: op_encode_src(self, &self.src),
-            round: self.round.into(),
-            clamp: self.clamp.into(),
-        })
-    }
-}
-
 impl From<FRound> for RoundIntegerM {
     fn from(round: FRound) -> Self {
         match round {
@@ -1186,6 +1137,29 @@ impl V9Instr for OpF32ToI32 {
                 round: self.round.into(),
             }),
             _ => panic!("Invalid dst_type"),
+        }
+    }
+}
+
+impl From<FRound> for Round {
+    fn from(round: FRound) -> Round {
+        match round {
+            FRound::NearestEven => Round::None,
+            FRound::Up => Round::RoundUp,
+            FRound::Down => Round::RoundDown,
+            FRound::TowardsZero => Round::RoundZero,
+            FRound::NearestValue => Round::RoundNa,
+        }
+    }
+}
+
+impl From<FClamp> for ClampM {
+    fn from(clamp: FClamp) -> ClampM {
+        match clamp {
+            FClamp::None => ClampM::None,
+            FClamp::ZeroToInf => ClampM::Clamp0Inf,
+            FClamp::NegOneToOne => ClampM::ClampM11,
+            FClamp::ZeroToOne => ClampM::Clamp01,
         }
     }
 }
@@ -3949,7 +3923,6 @@ macro_rules! v9_op_match_else {
             Op::Discard($x) => $y,
             Op::F16ToF32($x) => $y,
             Op::F16ToI32($x) => $y,
-            Op::F32ToF16($x) => $y,
             Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,
             Op::FAddLScale($x) => $y,
@@ -4169,10 +4142,6 @@ pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
             DstLanesSet::from_array([ir::DstLanes::All])
         };
         return lanes;
-    }
-
-    if matches!(op, Op::F32ToF16(_)) {
-        return ir::DstLanes::ALL_H;
     }
 
     let mut lanes = DstLanesSet::new();

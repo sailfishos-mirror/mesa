@@ -650,12 +650,7 @@ impl<'a> ShaderFromNir<'a> {
                 match alu.def.num_components {
                     1 => {
                         if self.model.arch() > 10 {
-                            b.push_op(OpF32ToF16 {
-                                dst: dst.into(),
-                                src: srcs(0),
-                                round,
-                                clamp: FClamp::None,
-                            });
+                            b.f32_to_f16_to(dst.into(), srcs(0), round);
                         } else {
                             b.push_op(OpV2F32ToV2F16 {
                                 dst: dst.into(),
@@ -1027,12 +1022,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 let x16 = b.alloc_ssa(16);
                 if self.model.arch() > 10 {
-                    b.push_op(OpF32ToF16 {
-                        dst: x16.into(),
-                        src: srcs(0),
-                        round: FRound::NearestEven,
-                        clamp: FClamp::None,
-                    });
+                    b.f32_to_f16_to(x16.into(), srcs(0), FRound::NearestEven);
                 } else {
                     b.push_op(OpV2F32ToV2F16 {
                         dst: x16.into(),

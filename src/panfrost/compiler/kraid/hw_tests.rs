@@ -1374,41 +1374,6 @@ fn test_op_f16_to_f32() {
 }
 
 #[test]
-fn test_op_f32_to_f16() {
-    let run = RunSingleton::get();
-
-    // F32_TO_F16 only available from v11
-    if run.model.arch() < 11 {
-        return;
-    }
-
-    const ROUND_MODES: &[FRound] = &[
-        FRound::NearestEven,
-        FRound::Up,
-        FRound::Down,
-        FRound::TowardsZero,
-    ];
-
-    const CLAMP_MODES: &[FClamp] = &[
-        FClamp::None,
-        FClamp::ZeroToInf,
-        FClamp::NegOneToOne,
-        FClamp::ZeroToOne,
-    ];
-    for &round in ROUND_MODES {
-        for &clamp in CLAMP_MODES {
-            let op = OpF32ToF16 {
-                dst: DstRef::None.into(),
-                src: 0_u32.into(),
-                round,
-                clamp,
-            };
-            test_foldable_op(op, Precision::Ulp(0));
-        }
-    }
-}
-
-#[test]
 fn test_op_f32_to_i32() {
     const DATA_TYPES: &[DataType] = &[DataType::S32, DataType::U32];
 
