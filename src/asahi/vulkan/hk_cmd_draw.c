@@ -24,6 +24,7 @@
 #include "hk_entrypoints.h"
 #include "hk_image.h"
 #include "hk_image_view.h"
+#include "hk_instance.h"
 #include "hk_physical_device.h"
 #include "hk_private.h"
 #include "hk_shader.h"
@@ -1009,10 +1010,13 @@ hk_init_heap(const void *data)
 {
    struct hk_cmd_buffer *cmd = (struct hk_cmd_buffer *)data;
    struct hk_device *dev = hk_cmd_buffer_device(cmd);
+   struct hk_instance *instance =
+      hk_physical_device_instance(hk_device_physical(dev));
 
    perf_debug(cmd, "Allocating heap");
 
-   size_t size = 128 * 1024 * 1024;
+   size_t size =
+      (size_t)instance->drirc.misc.geometry_heap_size_mb * 1024 * 1024;
    dev->heap = agx_bo_create(&dev->dev, size, 0, 0, "Geometry heap");
 
    /* The geometry state buffer is initialized here and then is treated by
