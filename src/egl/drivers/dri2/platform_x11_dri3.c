@@ -441,12 +441,6 @@ dri3_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
 }
 
 static EGLBoolean
-dri3_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
-{
-   return dri3_swap_buffers_with_damage(disp, draw, NULL, 0);
-}
-
-static EGLBoolean
 dri3_copy_buffers(_EGLDisplay *disp, _EGLSurface *surf,
                   void *native_pixmap_target)
 {
@@ -512,7 +506,6 @@ struct dri2_egl_display_vtbl dri3_x11_display_vtbl = {
    .destroy_surface = dri3_destroy_surface,
    .create_image = dri3_create_image_khr,
    .swap_interval = dri3_set_swap_interval,
-   .swap_buffers = dri3_swap_buffers,
    .swap_buffers_with_damage = dri3_swap_buffers_with_damage,
    .copy_buffers = dri3_copy_buffers,
    .query_buffer_age = dri3_query_buffer_age,
