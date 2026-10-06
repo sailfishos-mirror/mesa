@@ -124,8 +124,8 @@ gen_inst_is_unordered(const intel_device_info *devinfo,
                       const gen_inst *inst)
 {
    return inst->opcode == GEN_OP_SEND || inst->opcode == GEN_OP_SENDC ||
-          inst->opcode == GEN_OP_SENDG || inst->opcode == GEN_OP_SENDS ||
-          inst->opcode == GEN_OP_SENDSC ||
+          inst->opcode == GEN_OP_SENDG || inst->opcode == GEN_OP_SENDGC ||
+          inst->opcode == GEN_OP_SENDS || inst->opcode == GEN_OP_SENDSC ||
           (devinfo->ver < 20 && inst->opcode == GEN_OP_MATH) ||
           inst->opcode == GEN_OP_DPAS ||
           (devinfo->has_64bit_float_via_math_pipe &&
@@ -158,7 +158,7 @@ gen_swsb_encode(const struct intel_device_info *devinfo,
                  /* swsb.mode & GEN_SBID_DST */ 0b11;
          } else if (swsb.mode & GEN_SBID_SET) {
             assert(op == GEN_OP_SEND || op == GEN_OP_SENDC ||
-                   op == GEN_OP_SENDG);
+                   op == GEN_OP_SENDG || op == GEN_OP_SENDGC);
             assert(swsb.pipe == GEN_PIPE_ALL ||
                    swsb.pipe == GEN_PIPE_INT ||
                    swsb.pipe == GEN_PIPE_FLOAT);
@@ -497,7 +497,8 @@ gen_swsb_decode(const struct intel_device_info *devinfo,
    if (devinfo->ver >= 20) {
       if (x & 0x300) {
          /* Mode isn't SingleInfo, there's a tuple */
-         if (op == GEN_OP_SEND || op == GEN_OP_SENDC || op == GEN_OP_SENDG) {
+         if (op == GEN_OP_SEND || op == GEN_OP_SENDC || op == GEN_OP_SENDG ||
+             op == GEN_OP_SENDGC) {
             const gen_swsb swsb = {
                (x & 0xe0u) >> 5,
                ((x & 0x300) == 0x300 ? GEN_PIPE_INT :
@@ -877,7 +878,8 @@ struct gen_encoder {
             set(E::SEND_EX_BSO, 1);
 
          if constexpr (E::TYPE >= GEN_ENCODING_XE3P_64BIT) {
-            assert(inst->opcode == GEN_OP_SENDG);
+            assert(inst->opcode == GEN_OP_SENDG ||
+                   inst->opcode == GEN_OP_SENDGC);
             set(E::SENDG_SRC0_LEN, inst->send.src0_len);
             set(E::SEND_SRC1_LEN, inst->send.src1_len);
             set(E::SENDG_DST_REG_FILE, inst->dst.file == GEN_GRF ? 1 : 0);

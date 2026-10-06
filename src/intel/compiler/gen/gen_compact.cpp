@@ -2094,7 +2094,7 @@ private:
    try_compact()
    {
       /* TODO: implement sendg compact */
-      if (desc->gen_op == GEN_OP_SENDG)
+      if (desc->gen_op == GEN_OP_SENDG || desc->gen_op == GEN_OP_SENDGC)
          return false;
 
       memset(&c_raw, 0, sizeof(c_raw));

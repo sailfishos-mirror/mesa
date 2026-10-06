@@ -225,6 +225,7 @@ brw_opcode_to_gen(enum opcode op)
    case BRW_OPCODE_SEND:     return GEN_OP_SEND;
    case BRW_OPCODE_SENDC:    return GEN_OP_SENDC;
    case BRW_OPCODE_SENDG:    return GEN_OP_SENDG;
+   case BRW_OPCODE_SENDGC:   return GEN_OP_SENDGC;
    case BRW_OPCODE_SENDS:    return GEN_OP_SENDS;
    case BRW_OPCODE_SENDSC:   return GEN_OP_SENDSC;
    case BRW_OPCODE_SHL:      return GEN_OP_SHL;
@@ -448,6 +449,7 @@ brw_generator::generate_send(brw_send_inst *inst,
    if (send->check_tdr) {
       if      (gen->opcode == GEN_OP_SEND)  gen->opcode = GEN_OP_SENDC;
       else if (gen->opcode == GEN_OP_SENDS) gen->opcode = GEN_OP_SENDSC;
+      else if (gen->opcode == GEN_OP_SENDG) gen->opcode = GEN_OP_SENDGC;
    }
 
    /* Serialize messages if needed */

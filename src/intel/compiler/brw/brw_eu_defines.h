@@ -189,6 +189,7 @@ enum ENUM_PACKED opcode {
    BRW_OPCODE_SENDS,
    BRW_OPCODE_SENDSC,
    BRW_OPCODE_SENDG, /* Gfx35+ with 64bits addressing */
+   BRW_OPCODE_SENDGC, /* Gfx35+ with 64bits addressing */
    BRW_OPCODE_MATH,
    BRW_OPCODE_ADD,
    BRW_OPCODE_MUL,

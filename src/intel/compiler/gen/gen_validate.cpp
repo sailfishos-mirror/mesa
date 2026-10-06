@@ -1943,7 +1943,7 @@ private:
       if (!gen_inst_is_send(inst) || inst->send.desc_is_reg)
          return;
 
-      if (inst->opcode == GEN_OP_SENDG) {
+      if (inst->opcode == GEN_OP_SENDG || inst->opcode == GEN_OP_SENDGC) {
          sendg_descriptor_restrictions();
          return;
       }
