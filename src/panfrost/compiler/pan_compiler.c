@@ -635,8 +635,8 @@ pan_stats_verbose_prologue(FILE *f, const char* prefix, uint64_t gpu_id,
    const struct pan_model *model = pan_get_model(gpu_id, gpu_variant);
    const char *archname[] = {
       "Unknown",              /* 0 must always be "Unknown" */
-      "Lima", "Lima", "Lima", /* 1-3 */
-      "Utgard", "Midgard", "Bifrost", "Bifrost", /* 4-7 */
+      "Unknown", "Unknown", "Unknown", /* 1-3 */
+      "Midgard", "Midgard", "Bifrost", "Bifrost", /* 4-7 */
       "Valhall", "Valhall", "Valhall", "Valhall", /* 8-11 */
       "Arm 5th Gen", "Arm 5th Gen", "Arm 5th Gen" /* 12-14 */
    };
