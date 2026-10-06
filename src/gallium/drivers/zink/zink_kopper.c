@@ -180,6 +180,7 @@ destroy_swapchain(struct zink_screen *screen, struct kopper_swapchain *cswap)
       util_dynarray_fini(arr);
       free(arr);
    }
+   simple_mtx_destroy(&cswap->lock);
    _mesa_hash_table_u64_destroy(cswap->presents);
    VKSCR(DestroySwapchainKHR)(screen->dev, cswap->swapchain, NULL);
    free(cswap);
@@ -281,6 +282,7 @@ kopper_CreateSwapchain(struct zink_screen *screen, struct kopper_displaytarget *
    }
    cswap->last_present_prune = 1;
    util_queue_fence_init(&cswap->present_fence);
+   simple_mtx_init(&cswap->lock, mtx_plain);
 
    bool has_alpha = cdt->info.has_alpha && (cdt->caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR);
    if (cdt->swapchain) {
@@ -623,7 +625,9 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
          if (!acquire)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
       }
+      simple_mtx_lock(&cdt->swapchain->lock);
       ret = VKSCR(AcquireNextImageKHR)(screen->dev, cdt->swapchain->swapchain, timeout, acquire, VK_NULL_HANDLE, &res->obj->dt_idx);
+      simple_mtx_unlock(&cdt->swapchain->lock);
       if (ret != VK_SUCCESS && ret != VK_SUBOPTIMAL_KHR) {
          if (ret == VK_ERROR_OUT_OF_DATE_KHR) {
             res->obj->new_dt = true;
@@ -799,7 +803,9 @@ kopper_present(void *data, void *gdata, int thread_idx)
       cpi->info.pWaitSemaphores = NULL;
       cpi->info.waitSemaphoreCount = 0;
    }
+   simple_mtx_lock(&swapchain->lock);
    VkResult error2 = VKSCR(QueuePresentKHR)(screen->queue, &cpi->info);
+   simple_mtx_unlock(&swapchain->lock);
    zink_screen_debug_marker_end(screen, screen->frame_marker_emitted);
    zink_screen_debug_marker_begin(screen, "frame");
    simple_mtx_unlock(screen->queue_lock);
