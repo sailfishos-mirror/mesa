@@ -5521,7 +5521,7 @@ tc_destroy(struct pipe_context *_pipe)
       pipe_resource_reference(&tc->fb_resources[i], NULL);
    pipe_resource_reference(&tc->fb_resolve, NULL);
 
-   FREE(tc);
+   FREE_CL(tc);
 }
 
 void tc_driver_internal_flush_notify(struct threaded_context *tc)
@@ -5571,7 +5571,7 @@ threaded_context_create(struct pipe_context *pipe,
    if (!debug_get_bool_option("GALLIUM_THREAD", true))
       return pipe;
 
-   tc = CALLOC_STRUCT(threaded_context);
+   tc = CALLOC_STRUCT_CL(threaded_context);
    if (!tc) {
       pipe->destroy(pipe);
       return NULL;

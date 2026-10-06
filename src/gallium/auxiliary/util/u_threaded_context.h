@@ -704,10 +704,11 @@ struct threaded_context {
    struct pipe_resource *fb_resolve;
    /* accessed by main thread; preserves info across batches */
    struct tc_renderpass_info *renderpass_info_recording;
-   /* accessed by driver thread */
-   struct tc_renderpass_info *renderpass_info;
    /* internal-only: if dsa/fs are bound between render passes */
    void *pending_renderpass_dsa, *pending_renderpass_fs;
+
+   /* accessed by driver thread */
+   alignas(MESA_CACHE_LINE_SIZE) struct tc_renderpass_info *renderpass_info;
 };
 
 
