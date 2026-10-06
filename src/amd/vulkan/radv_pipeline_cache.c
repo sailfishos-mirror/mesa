@@ -145,37 +145,7 @@ serialize_binary(struct blob *blob, const struct radv_shader_binary *binary, con
 void
 radv_shader_serialize(struct radv_shader *shader, struct blob *blob)
 {
-   size_t stats_size = shader->dbg.statistics ? sizeof(struct amd_stats) : 0;
-   size_t ir_size = shader->dbg.ir_string ? strlen(shader->dbg.ir_string) + 1 : 0;
-   size_t disasm_size = shader->dbg.disasm_string ? strlen(shader->dbg.disasm_string) + 1 : 0;
-   size_t debug_info_size = shader->dbg.debug_info_count * sizeof(struct ac_shader_debug_info);
-   size_t code_size = shader->code_size;
-   uint32_t total_size =
-      sizeof(struct radv_shader_binary_legacy) + code_size + stats_size + ir_size + disasm_size + debug_info_size;
-
-   struct radv_shader_binary_legacy binary = {
-      .base =
-         {
-            .type = RADV_BINARY_TYPE_LEGACY,
-            .config = shader->config,
-            .info = shader->info,
-            .total_size = total_size,
-         },
-      .code_size = code_size,
-      .exec_size = shader->exec_size,
-      .ir_size = ir_size,
-      .disasm_size = disasm_size,
-      .stats_size = stats_size,
-      .debug_info_size = debug_info_size,
-   };
-
-   blob_write_bytes(blob, &binary, sizeof(struct radv_shader_binary_legacy));
-   blob_write_bytes(blob, shader->dbg.statistics, stats_size);
-   blob_write_bytes(blob, shader->code, code_size);
-   blob_write_bytes(blob, shader->dbg.ir_string, binary.ir_size);
-   blob_write_bytes(blob, shader->dbg.disasm_string, binary.disasm_size);
-   blob_write_bytes(blob, shader->dbg.debug_info, binary.debug_info_size);
-
+   blob_write_bytes(blob, shader->binary, shader->binary->total_size);
    if (shader->dbg.spirv_size || shader->dbg.nir_string || shader->dbg.args_string)
       serialize_shader_debug_info(blob, &shader->dbg);
 }
