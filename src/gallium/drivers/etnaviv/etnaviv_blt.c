@@ -467,7 +467,8 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
       etna_calculate_clear_bits(translate_pe_internal_format(dst->format, ctx->screen), clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
    bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx) &&
-                 (etna_resource_level_ts_valid(dst_level) || dst_level->ts_needs_clear);
+                 (fast_clear || etna_resource_level_ts_valid(dst_level) ||
+                  dst_level->ts_needs_clear);
    int msaa_xscale = 1, msaa_yscale = 1;
 
    translate_samples_to_xyscale(dst->texture->nr_samples,
@@ -475,6 +476,9 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 
    if (fast_clear)
       dst_level->clear_value = new_clear_value;
+
+   if (use_ts && !etna_resource_level_ts_valid(dst_level))
+      dst_level->ts_needs_clear = true;
 
    struct blt_clear_op clr = {};
    clr.dest.addr.bo = dst_res->bo;
