@@ -685,21 +685,6 @@ dri2_x11_add_configs_for_visuals(struct dri2_egl_display *dri2_dpy,
 }
 
 static EGLBoolean
-dri2_x11_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
-{
-   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
-   struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
-
-   if (dri2_dpy->swrast) {
-      /* aka the swrast path, which does the swap in the gallium driver. */
-      driSwapBuffers(dri2_surf->dri_drawable);
-      return EGL_TRUE;
-   }
-
-   return EGL_TRUE;
-}
-
-static EGLBoolean
 dri2_x11_kopper_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *draw,
                                          const EGLint *rects, EGLint numRects)
 {
@@ -925,7 +910,6 @@ static const struct dri2_egl_display_vtbl dri2_x11_swrast_display_vtbl = {
    .create_pbuffer_surface = dri2_x11_create_pbuffer_surface,
    .destroy_surface = dri2_x11_destroy_surface,
    .create_image = dri2_create_image_khr,
-   .swap_buffers = dri2_x11_swap_buffers,
    .swap_buffers_with_damage = dri2_x11_swap_buffers_with_damage,
    .copy_buffers = dri2_x11_copy_buffers,
    .query_buffer_age = dri2_swrast_query_buffer_age,
