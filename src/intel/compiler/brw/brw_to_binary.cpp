@@ -2612,7 +2612,7 @@ brw_generator::append_reloc(const intel_shader_reloc &r)
 static uint64_t
 brw_bsr(const struct intel_device_info *devinfo,
         uint32_t offset, uint8_t simd_size, uint8_t local_arg_offset,
-        uint8_t grf_used)
+        unsigned grf_used)
 {
    assert(offset % 64 == 0);
    assert(simd_size == 8 || simd_size == 16);
