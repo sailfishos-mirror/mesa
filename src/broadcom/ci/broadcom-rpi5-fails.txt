@@ -78,11 +78,6 @@ spec@ext_packed_depth_stencil@texwrap formats offset,Fail
 spec@ext_packed_depth_stencil@texwrap formats offset@GL_DEPTH24_STENCIL8- NPOT,Fail
 spec@ext_packed_depth_stencil@texwrap formats,Fail
 spec@ext_packed_depth_stencil@texwrap formats@GL_DEPTH24_STENCIL8- NPOT,Fail
-spec@ext_texture_integer@fbo-blending,Fail
-spec@ext_texture_integer@getteximage-clamping gl_arb_texture_rg,Fail
-spec@ext_texture_integer@getteximage-clamping,Fail
-spec@ext_texture_integer@multisample-formats 2 gl_ext_texture_integer,Fail
-spec@ext_texture_integer@multisample-formats 4 gl_ext_texture_integer,Fail
 spec@ext_texture_integer@texwrap formats bordercolor,Fail
 spec@ext_texture_integer@texwrap formats bordercolor-swizzled,Fail
 spec@ext_texture_integer@texwrap formats bordercolor-swizzled@GL_ALPHA16I_EXT- swizzled- border color only,Fail
@@ -97,14 +92,6 @@ spec@ext_texture_integer@texwrap formats bordercolor@GL_ALPHA32I_EXT- border col
 spec@ext_texture_integer@texwrap formats bordercolor@GL_ALPHA32UI_EXT- border color only,Fail
 spec@ext_texture_integer@texwrap formats bordercolor@GL_ALPHA8I_EXT- border color only,Fail
 spec@ext_texture_integer@texwrap formats bordercolor@GL_ALPHA8UI_EXT- border color only,Fail
-spec@ext_texture_integer@texwrap formats offset,Fail
-spec@ext_texture_integer@texwrap formats offset@GL_ALPHA8I_EXT,Fail
-spec@ext_texture_integer@texwrap formats offset@GL_ALPHA8I_EXT- NPOT,Fail
-spec@ext_texture_integer@texwrap formats offset@GL_ALPHA8I_EXT- swizzled,Fail
-spec@ext_texture_integer@texwrap formats,Fail
-spec@ext_texture_integer@texwrap formats@GL_ALPHA8I_EXT,Fail
-spec@ext_texture_integer@texwrap formats@GL_ALPHA8I_EXT- NPOT,Fail
-spec@ext_texture_integer@texwrap formats@GL_ALPHA8I_EXT- swizzled,Fail
 spec@ext_texture_snorm@texwrap formats bordercolor,Fail
 spec@ext_texture_snorm@texwrap formats bordercolor-swizzled,Fail
 spec@ext_texture_snorm@texwrap formats bordercolor-swizzled@GL_LUMINANCE16_ALPHA16_SNORM- swizzled- border color only,Fail
