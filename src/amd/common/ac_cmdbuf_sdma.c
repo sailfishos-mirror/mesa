@@ -880,6 +880,22 @@ ac_sdma_use_unaligned_buffer_image_copy(const struct radeon_info *const info,
                                         const uint32_t depth)
 {
    const enum sdma_version ver = info->sdma_ip_version;
+
+   if (ver < SDMA_4_0) {
+      /* SDMA2-3 HW requirements for L2L/L2T/T2L copies:
+       * Tiled surface must be 256-byte aligned.
+       * Linear surface needs to be dword-aligned.
+       * Linear pitch (and slice pitch) needs to be dword-aligned.
+       * Linear and tiled offset X need to be dword-aligned
+       * (multiple of 4 for 8 bits per pixel, multiple of 2 for 16 bits per pixel).
+       */
+      return !util_is_aligned(img->offset.x * img->bpp, 4) ||
+             !util_is_aligned(buf->va, 4) ||
+             !util_is_aligned(buf->pitch, 4) ||
+             !util_is_aligned(buf->slice_pitch, 4) ||
+             !util_is_aligned(width * img->bpp, 4);
+   }
+
    const uint32_t required_pitch_alignment = ver >= SDMA_5_0 ? MAX2(1, 4 / img->bpp) : 4;
 
    if (!util_is_aligned(buf->pitch, required_pitch_alignment))
