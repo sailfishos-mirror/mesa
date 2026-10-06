@@ -6145,13 +6145,31 @@ radv_gfx12_override_hiz_enable(struct radv_cmd_buffer *cmd_buffer, bool enable, 
 }
 
 static void
+radv_get_optimized_ds_state(const struct radv_cmd_buffer *cmd_buffer, struct vk_depth_stencil_state *ds)
+{
+   VkImageAspectFlags ds_aspects = cmd_buffer->state.render.ds_att_aspects;
+
+   *ds = cmd_buffer->state.dynamic.vk.ds;
+
+   /* Depth/stencil states must be ignored when the pipeline has no depth/stencil attachments, even
+    * if the render pass instance has one with dynamic rendering unused attachments.
+    */
+   if (cmd_buffer->state.ignore_ds_state) {
+      ds->depth.bounds_test.enable = false;
+      ds_aspects = 0;
+   }
+
+   vk_optimize_depth_stencil_state(ds, ds_aspects, true);
+}
+
+static void
 radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
    const struct radv_image_view *iview = render->ds_att.iview;
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   struct vk_depth_stencil_state ds;
 
    if (pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL && pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL_REZ)
       return;
@@ -6172,8 +6190,7 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
       return;
    }
 
-   struct vk_depth_stencil_state ds = d->vk.ds;
-   vk_optimize_depth_stencil_state(&ds, render->ds_att_aspects, true);
+   radv_get_optimized_ds_state(cmd_buffer, &ds);
 
    const bool depth_and_stencil_enable =
       (ds.depth.test_enable || ds.depth.write_enable) && (ds.stencil.test_enable || ds.stencil.write_enable);
@@ -6761,11 +6778,13 @@ lookup_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
       state.has_stencil_output = ps->info.ps.writes_stencil;
       state.has_sample_mask_output = ps->info.ps.writes_sample_mask;
 
-      state.ignore_depth_output =
-         state.has_depth_output && !(render->ds_att_aspects & VK_IMAGE_ASPECT_DEPTH_BIT && d->vk.ds.depth.test_enable);
+      state.ignore_depth_output = state.has_depth_output &&
+                                  (cmd_buffer->state.ignore_ds_state ||
+                                   !(render->ds_att_aspects & VK_IMAGE_ASPECT_DEPTH_BIT && d->vk.ds.depth.test_enable));
       state.ignore_stencil_output =
          state.has_stencil_output &&
-         !(render->ds_att_aspects & VK_IMAGE_ASPECT_STENCIL_BIT && d->vk.ds.stencil.test_enable);
+         (cmd_buffer->state.ignore_ds_state ||
+          !(render->ds_att_aspects & VK_IMAGE_ASPECT_STENCIL_BIT && d->vk.ds.stencil.test_enable));
       state.lower_1bit_sample_mask_to_discard = state.has_sample_mask_output && render->max_samples == 1;
 
       if (d->vk.ms.alpha_to_coverage_enable) {
@@ -9097,6 +9116,23 @@ radv_bind_custom_blend_mode(struct radv_cmd_buffer *cmd_buffer, unsigned custom_
    cmd_buffer->state.custom_blend_mode = custom_blend_mode;
 }
 
+static void
+radv_bind_ignore_ds_state(struct radv_cmd_buffer *cmd_buffer, bool ignore_ds_state)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   if (cmd_buffer->state.ignore_ds_state == ignore_ds_state)
+      return;
+
+   /* Make sure to re-emit depth/stencil tests when DS states are ignored. */
+   cmd_buffer->state.dirty |= RADV_CMD_DIRTY_DEPTH_STENCIL_STATE;
+   if (pdev->info.gfx_level >= GFX12)
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE;
+
+   cmd_buffer->state.ignore_ds_state = ignore_ds_state;
+}
+
 static bool
 radv_can_enable_rbplus_depth_only(const struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *ps,
                                   uint32_t col_format, uint32_t custom_blend_mode)
@@ -9672,6 +9708,8 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
    radv_bind_multisample_state(cmd_buffer, &graphics_pipeline->ms);
 
    radv_bind_custom_blend_mode(cmd_buffer, graphics_pipeline->custom_blend_mode);
+
+   radv_bind_ignore_ds_state(cmd_buffer, graphics_pipeline->ignore_ds_state);
 
    if (cmd_buffer->state.uses_out_of_order_rast != graphics_pipeline->uses_out_of_order_rast ||
        (pdev->info.gfx_level >= GFX11 &&
@@ -13260,10 +13298,9 @@ radv_emit_depth_stencil_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-   struct vk_depth_stencil_state ds = d->vk.ds;
+   struct vk_depth_stencil_state ds;
 
-   vk_optimize_depth_stencil_state(&ds, render->ds_att_aspects, true);
+   radv_get_optimized_ds_state(cmd_buffer, &ds);
 
    const uint32_t db_depth_control =
       S_028800_Z_ENABLE(ds.depth.test_enable) | S_028800_Z_WRITE_ENABLE(ds.depth.write_enable) |
@@ -17433,6 +17470,7 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.force_vrs_per_vertex = false;
 
          radv_bind_custom_blend_mode(cmd_buffer, 0);
+         radv_bind_ignore_ds_state(cmd_buffer, false);
 
          if (cmd_buffer->state.spi_shader_col_format || cmd_buffer->state.spi_shader_z_format ||
              cmd_buffer->state.cb_shader_mask) {

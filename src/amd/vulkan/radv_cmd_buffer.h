@@ -388,6 +388,7 @@ struct radv_cmd_state {
    bool uses_out_of_order_rast;
    bool uses_vrs_attachment;
    bool force_vrs_per_vertex;
+   bool ignore_ds_state;
 
    uint64_t shader_query_buf_va; /* GFX12+ */
 

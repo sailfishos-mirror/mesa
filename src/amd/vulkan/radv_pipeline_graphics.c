@@ -3311,6 +3311,7 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
 
    pipeline->uses_out_of_order_rast = gfx_state.vk.rs->rasterization_order_amd == VK_RASTERIZATION_ORDER_RELAXED_AMD;
    pipeline->uses_vrs_attachment = radv_pipeline_uses_vrs_attachment(pipeline, &gfx_state.vk);
+   pipeline->ignore_ds_state = gfx_state.vk.rp && !radv_pipeline_has_ds_attachments(gfx_state.vk.rp);
 
    uint32_t push_constant_size = 0;
    for (uint32_t i = 0; i < MESA_VULKAN_SHADER_STAGES; i++) {
