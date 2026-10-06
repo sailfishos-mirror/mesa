@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
+#include <list>
 #include <string>
+#include <vector>
 #include <gtest/gtest.h>
 
 #ifdef _WIN32
@@ -14,6 +17,9 @@
 
 #include "c11/threads.h"
 #include "util/perf/u_trace.h"
+/* For struct u_tracepoint and u_trace_append(), as generated tracepoints do. */
+#define __NEEDS_TRACE_PRIV
+#include "util/perf/u_trace_priv.h"
 #include "util/os_misc.h"
 
 #if U_TRACE_HAS_COMPRESS
@@ -293,3 +299,172 @@ TEST_F(UtilPerfTraceTest, GzipSharedFile)
    remove(path.c_str());
 }
 #endif
+
+/* CPU stand-ins for a driver's timestamp buffers, reached from the u_trace
+ * callbacks through the context's pctx. A deleted buffer is poisoned rather
+ * than freed, so a clone still pointing into its source reads garbage.
+ */
+struct fake_timestamps {
+   std::list<std::vector<uint64_t>> buffers;
+   uint64_t next_ts = 0;
+   bool reuse_next = false;
+   unsigned copies = 0;
+   uint64_t bytes_copied = 0;
+   std::vector<uint64_t> read_back;
+
+   static fake_timestamps *of(struct u_trace_context *utctx)
+   {
+      return (fake_timestamps *) utctx->pctx;
+   }
+
+   static void *create_buffer(struct u_trace_context *utctx, uint64_t size_B)
+   {
+      return of(utctx)->buffers.emplace_back(size_B / sizeof(uint64_t)).data();
+   }
+
+   static void delete_buffer(struct u_trace_context *utctx, void *buffer)
+   {
+      for (std::vector<uint64_t> &b : of(utctx)->buffers) {
+         if (b.data() == buffer)
+            std::fill(b.begin(), b.end(), UINT64_MAX);
+      }
+   }
+
+   static bool record_ts(struct u_trace *ut, void *cs, void *timestamps,
+                         uint64_t offset_B, uint32_t flags)
+   {
+      fake_timestamps *f = of(ut->utctx);
+      if (f->reuse_next)
+         return false;
+
+      ((uint64_t *) timestamps)[offset_B / sizeof(uint64_t)] = ++f->next_ts;
+      return true;
+   }
+
+   static uint64_t read_ts(struct u_trace_context *utctx, void *timestamps,
+                           uint64_t offset_B, uint32_t flags, void *flush_data)
+   {
+      uint64_t ts = ((uint64_t *) timestamps)[offset_B / sizeof(uint64_t)];
+      of(utctx)->read_back.push_back(ts);
+      return ts;
+   }
+
+   static void copy_buffer(struct u_trace_context *utctx, void *cmdstream,
+                           void *ts_from, uint64_t from_offset, void *ts_to,
+                           uint64_t to_offset, uint64_t size_B)
+   {
+      memcpy((char *) ts_to + to_offset, (char *) ts_from + from_offset, size_B);
+      of(utctx)->copies++;
+      of(utctx)->bytes_copied += size_B;
+   }
+};
+
+static const struct u_tracepoint clone_test_tp = { "clone_test" };
+
+class UtilPerfTraceCloneTest : public ::testing::Test {
+protected:
+   fake_timestamps fake;
+   struct u_trace_context ctx = {};
+   struct u_trace src;
+
+   void SetUp() override
+   {
+      u_trace_state_reset();
+      u_trace_context_init(&ctx, &fake, sizeof(uint64_t), 0,
+                           fake_timestamps::create_buffer,
+                           fake_timestamps::delete_buffer,
+                           fake_timestamps::record_ts,
+                           fake_timestamps::read_ts, NULL, NULL, NULL);
+      u_trace_init(&src, &ctx);
+   }
+
+   void TearDown() override
+   {
+      u_trace_fini(&src);
+      u_trace_context_fini(&ctx);
+      u_trace_state_reset();
+   }
+
+   void append(struct u_trace *ut, unsigned count = 1, bool reuse = false)
+   {
+      fake.reuse_next = reuse;
+      for (unsigned i = 0; i < count; i++)
+         u_trace_append(ut, NULL, &clone_test_tp);
+      fake.reuse_next = false;
+   }
+
+   /* Clones [begin, end) of the source after `own` events of the
+    * destination's own, deletes the source, and returns the timestamps the
+    * clone reads back.
+    */
+   std::vector<uint64_t> clone(struct u_trace_iterator begin,
+                               struct u_trace_iterator end, unsigned own)
+   {
+      struct u_trace dst;
+      u_trace_init(&dst, &ctx);
+      append(&dst, own);
+
+      fake.copies = 0;
+      fake.bytes_copied = 0;
+      u_trace_clone_append(begin, end, &dst, NULL, fake_timestamps::copy_buffer);
+      EXPECT_EQ(fake.copies, u_trace_clone_append_copy_count(begin, end));
+
+      u_trace_fini(&src);
+      u_trace_init(&src, &ctx);
+
+      fake.read_back.clear();
+      u_trace_flush(&dst, NULL, 0, false);
+      u_trace_context_process(&ctx, true);
+      util_queue_finish(&ctx.queue);
+      u_trace_fini(&dst);
+      return fake.read_back;
+   }
+};
+
+TEST_F(UtilPerfTraceCloneTest, CopiesOnlyTheClonedRange)
+{
+   append(&src, 3);
+   struct u_trace_iterator begin = u_trace_end_iterator(&src);
+   append(&src, 5);
+   struct u_trace_iterator end = u_trace_end_iterator(&src);
+   append(&src, 2);
+
+   /* The destination's own two events are recorded after the source's ten. */
+   EXPECT_EQ(clone(begin, end, 2),
+             (std::vector<uint64_t>{ 11, 12, 4, 5, 6, 7, 8 }));
+   EXPECT_EQ(fake.bytes_copied, 5 * sizeof(uint64_t));
+}
+
+TEST_F(UtilPerfTraceCloneTest, RangeAcrossTimestampBuffers)
+{
+   append(&src);
+   uint64_t per_buffer = fake.buffers.front().size();
+
+   /* Two events at the end of the first timestamp buffer, two in a second. */
+   append(&src, per_buffer - 3);
+   struct u_trace_iterator begin = u_trace_end_iterator(&src);
+   append(&src, 4);
+   struct u_trace_iterator end = u_trace_end_iterator(&src);
+   ASSERT_EQ(fake.buffers.size(), 2u);
+
+   EXPECT_EQ(clone(begin, end, 0),
+             (std::vector<uint64_t>{ per_buffer - 1, per_buffer,
+                                     per_buffer + 1, per_buffer + 2 }));
+   EXPECT_EQ(fake.copies, 2u);
+   EXPECT_EQ(fake.bytes_copied, 4 * sizeof(uint64_t));
+}
+
+TEST_F(UtilPerfTraceCloneTest, ReusedTimestampFromBeforeTheRange)
+{
+   append(&src);
+   struct u_trace_iterator begin = u_trace_end_iterator(&src);
+   append(&src, 1, true);
+   append(&src);
+   append(&src, 1, true);
+   struct u_trace_iterator end = u_trace_end_iterator(&src);
+
+   /* The first cloned event reuses a timestamp recorded before the range.
+    * Read-back skips an event whose timestamp is the previous event's.
+    */
+   EXPECT_EQ(clone(begin, end, 0), (std::vector<uint64_t>{ 1, 2 }));
+}
