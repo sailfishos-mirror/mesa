@@ -2241,6 +2241,21 @@ brw_nir_code_motion(const brw_pass_tracker *pt)
           INTEL_CODE_MOTION_LICM : INTEL_CODE_MOTION_GCM;
 }
 
+static bool
+brw_nir_licm_filter(nir_instr *instr, nir_loop *loop,
+                    bool instr_block_dominates_exit)
+{
+   if (instr_block_dominates_exit)
+      return true;
+
+   if (instr->type != nir_instr_type_intrinsic)
+      return false;
+
+   nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+   return nir_intrinsic_has_access(intrin) &&
+          (nir_intrinsic_access(intrin) & ACCESS_CAN_SPECULATE);
+}
+
 void
 brw_nir_optimize(brw_pass_tracker *pt, bool run_code_motion)
 {
@@ -2324,7 +2339,7 @@ brw_nir_optimize(brw_pass_tracker *pt, bool run_code_motion)
       }
       LOOP_OPT(nir_opt_remove_phis);
       if (code_motion == INTEL_CODE_MOTION_LICM) {
-         LOOP_OPT(nir_opt_licm, NULL);
+         LOOP_OPT(nir_opt_licm, brw_nir_licm_filter);
       } else if (code_motion == INTEL_CODE_MOTION_GCM) {
          LOOP_OPT(nir_opt_gcm, false);
       }
