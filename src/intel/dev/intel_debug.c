@@ -294,6 +294,7 @@ bool
 intel_use_jay_for_stage(const struct intel_device_info *devinfo,
                         mesa_shader_stage stage)
 {
+   assert(stage != MESA_SHADER_NONE);
    if (stage == MESA_SHADER_KERNEL)
       stage = MESA_SHADER_COMPUTE;
 
