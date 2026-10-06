@@ -464,9 +464,7 @@ kopper_flush_swapbuffers(struct dri_context *ctx,
 }
 
 static void
-kopper_swap_buffers(struct dri_drawable *drawable);
-static void
-kopper_swap_buffers_with_damage(struct dri_drawable *drawable, int nrects, const int *rects);
+kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects);
 
 void
 kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
@@ -479,7 +477,6 @@ kopper_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits
    drawable->update_tex_buffer = kopper_update_tex_buffer;
    drawable->flush_swapbuffers = kopper_flush_swapbuffers;
    drawable->swap_buffers = kopper_swap_buffers;
-   drawable->swap_buffers_with_damage = kopper_swap_buffers_with_damage;
 
    drawable->info.has_alpha = alphaBits > 0;
    if (screen->kopper_loader->SetSurfaceCreateInfo)
@@ -570,16 +567,9 @@ kopperSwapBuffers(struct dri_drawable *dPriv, uint32_t flush_flags)
 }
 
 static void
-kopper_swap_buffers_with_damage(struct dri_drawable *drawable, int nrects, const int *rects)
+kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
-
    kopperSwapBuffersWithDamage(drawable, 0, nrects, rects);
-}
-
-static void
-kopper_swap_buffers(struct dri_drawable *drawable)
-{
-   kopper_swap_buffers_with_damage(drawable, 0, NULL);
 }
 
 void

@@ -223,7 +223,7 @@ drisw_copy_to_front(struct pipe_context *pipe,
  */
 
 static void
-drisw_swap_buffers_with_damage(struct dri_drawable *drawable, int nrects, const int *rects)
+drisw_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
    /* Damage regions still require us to update the whole front buffer
     * in case the compositor doesn't obey them, so we will just ignore
@@ -270,12 +270,6 @@ drisw_swap_buffers_with_damage(struct dri_drawable *drawable, int nrects, const 
       /* TODO: remove this if the framebuffer state doesn't change. */
       st_context_invalidate_state(ctx->st, ST_INVALIDATE_FB_STATE);
    }
-}
-
-static void
-drisw_swap_buffers(struct dri_drawable *drawable)
-{
-   drisw_swap_buffers_with_damage(drawable, 0, NULL);
 }
 
 static void
@@ -594,7 +588,6 @@ drisw_init_drawable(struct dri_drawable *drawable, bool isPixmap, int alphaBits)
    drawable->flush_frontbuffer = drisw_flush_frontbuffer;
    drawable->update_tex_buffer = drisw_update_tex_buffer;
    drawable->swap_buffers = drisw_swap_buffers;
-   drawable->swap_buffers_with_damage = drisw_swap_buffers_with_damage;
 }
 
 struct pipe_screen *

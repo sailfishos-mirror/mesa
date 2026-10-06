@@ -862,7 +862,7 @@ driSwapBuffersWithDamage(struct dri_drawable *drawable, int nrects, const int *r
 {
    assert(drawable->screen->swrast_loader);
 
-   drawable->swap_buffers_with_damage(drawable, nrects, rects);
+   drawable->swap_buffers(drawable, nrects, rects);
 }
 
 void
@@ -870,7 +870,7 @@ driSwapBuffers(struct dri_drawable *drawable)
 {
    assert(drawable->screen->swrast_loader);
 
-   drawable->swap_buffers(drawable);
+   drawable->swap_buffers(drawable, 0, NULL);
 }
 
 int
