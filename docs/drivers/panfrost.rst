@@ -6,7 +6,7 @@ GPUs based on the Midgard and later architectures, as well as PanVK, a Vulkan
 implementation for Bifrost and later.
 
 Which GPUs are conformant to which APIs can be seen from the footnotes in the
-table below. Each footnote only applies to a single GPU.
+table below. Each footnote might only apply to some of the GPUs in the row.
 
 On GPUs where PanVK support is experimental, the driver refuses to load by
 default. Setting PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1 enables it. Experimental
@@ -59,7 +59,7 @@ The following hardware is currently supported:
      - 3.1 [*]_
      - 3.1
      - 1.4 [*]_
-     - 3.0
+     - 3.0 [*]_
    * - G615, G715
      - Valhall (v11)
      - 3.1
@@ -89,6 +89,7 @@ The following hardware is currently supported:
 .. [*] `Mali-G57 OpenGL ES 3.1 submission <https://www.khronos.org/conformance/adopters/conformant-products/opengles#submission_980>`__
 .. [*] `Mali-G610 OpenGL ES 3.1 submission <https://www.khronos.org/conformance/adopters/conformant-products/opengles#submission_1053>`__
 .. [*] `Mali-G610 Vulkan 1.4 submission <https://www.khronos.org/conformance/adopters/conformant-products#submission_939>`__
+.. [*] `Mali-G310 and Mali-G610 OpenCL 3.0 submission <https://www.khronos.org/conformance/adopters/conformant-products/opencl#submission_474>`__
 
 Older Mali GPUs based on the Utgard architecture (Mali-400, Mali-450) are
 supported by the :doc:`Lima <lima>` driver, not Panfrost. Lima is also
