@@ -58,6 +58,8 @@ struct kopper_swapchain {
    struct kopper_swapchain *next;
    VkSwapchainKHR swapchain;
 
+   simple_mtx_t lock;
+
    unsigned last_present;
    unsigned num_images;
    uint32_t last_present_prune;
