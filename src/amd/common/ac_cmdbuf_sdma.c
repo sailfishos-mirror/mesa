@@ -29,6 +29,25 @@ static const uint32_t ac_sdma_t2t_alignment_3d[][3] = {
    {2, 2, 4}, /* 16 bpp */
 };
 
+static const uint32_t ac_sdma_t2t_thick_z_alignment_sdma2[] = {
+   1, /* LINEAR_GENERAL */
+   1, /* LINEAR_ALIGNED */
+   1, /* 1D_TILED_THIN1 */
+   4, /* 1D_TILED_THICK */
+   1, /* 2D_TILED_THIN1 */
+   1, /* PRT_TILED_THIN1 */
+   1, /* PRT_2D_TILED_THIN1 */
+   4, /* 2D_TILED_THICK */
+   8, /* 2D_TILED_XTHICK */
+   4, /* PRT_TILED_THICK */
+   4, /* PRT_2D_TILED_THICK */
+   1, /* PRT_3D_TILED_THIN1 */
+   1, /* 3D_TILED_THIN1 */
+   4, /* 3D_TILED_THICK */
+   8, /* 3D_TILED_XTHICK */
+   4, /* PRT_3D_TILED_THICK */
+};
+
 static bool
 ac_sdma_5_2_uses_cpv(enum sdma_version sdma_ip_version)
 {
@@ -741,6 +760,16 @@ ac_sdma_check_t2t_alignment(const struct radeon_info *const info,
       z_alignment = needs_3d_alignment
                     ? ac_sdma_t2t_alignment_3d[log2bpp][2]
                     : ac_sdma_t2t_alignment_2d_and_planar[log2bpp][2];
+   } else {
+      const uint32_t src_tile_index = ac_surface_get_legacy_tiling_index(src->surf, src->first_level, src->is_stencil);
+      const uint32_t src_tile_mode = info->si_tile_mode_array[src_tile_index];
+      const uint32_t src_array_mode = G_009910_ARRAY_MODE(src_tile_mode);
+
+      x_alignment = 8;
+      y_alignment = 8;
+
+      if (G_009910_MICRO_TILE_MODE_NEW(src_tile_mode) == V_009910_ADDR_SURF_THICK_MICRO_TILING)
+         z_alignment = ac_sdma_t2t_thick_z_alignment_sdma2[src_array_mode];
    }
 
    return util_is_aligned(width, x_alignment) &&
