@@ -2769,10 +2769,8 @@ radv_shader_binary_upload(struct radv_device *device, const struct radv_shader_b
                           struct radv_shader *shader, void *dest_ptr)
 {
    shader->code = calloc(shader->code_size, 1);
-   if (!shader->code) {
-      radv_shader_unref(device, shader);
+   if (!shader->code)
       return false;
-   }
 
    if (binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
@@ -2781,10 +2779,8 @@ radv_shader_binary_upload(struct radv_device *device, const struct radv_shader_b
       const struct radv_physical_device *pdev = radv_device_physical(device);
       struct ac_rtld_binary rtld_binary = {0};
 
-      if (!radv_open_rtld_binary(pdev->info.gfx_level, binary, &rtld_binary)) {
-         free(shader);
+      if (!radv_open_rtld_binary(pdev->info.gfx_level, binary, &rtld_binary))
          return false;
-      }
 
       struct ac_rtld_upload_info info = {
          .binary = &rtld_binary,
@@ -2793,7 +2789,6 @@ radv_shader_binary_upload(struct radv_device *device, const struct radv_shader_b
       };
 
       if (!ac_rtld_upload(&info)) {
-         radv_shader_unref(device, shader);
          ac_rtld_close(&rtld_binary);
          return false;
       }
@@ -3106,8 +3101,8 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
    VkResult result = VK_SUCCESS;
    struct radv_shader *shader = calloc(1, sizeof(struct radv_shader));
    if (!shader) {
-      result = VK_ERROR_OUT_OF_HOST_MEMORY;
-      goto out;
+      *out_shader = NULL;
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
    simple_mtx_init(&shader->replay_mtx, mtx_plain);
 
@@ -3173,7 +3168,7 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
 
 out:
    if (result != VK_SUCCESS) {
-      free(shader);
+      radv_shader_unref(device, shader);
       *out_shader = NULL;
    }
 
