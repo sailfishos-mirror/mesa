@@ -86,6 +86,7 @@ fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
         support_indirect_inputs: 0,
         lower_hadd: arch >= 11,
         lower_hadd64: true,
+        lower_mul_32x16: true,
         discard_is_demote: true,
         has_udot_4x8: true,
         has_udot_4x8_sat: true,
