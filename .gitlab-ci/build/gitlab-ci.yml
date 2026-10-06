@@ -691,7 +691,6 @@ debian-clang-release:
       -Wno-error=vla-cxx-extension
       -Wno-error=deprecated-declarations
     DRI_LOADERS: >
-      -D glx=xlib
       -D platforms=x11,wayland
     GALLIUM_ST: >
       -D gallium-extra-hud=true
