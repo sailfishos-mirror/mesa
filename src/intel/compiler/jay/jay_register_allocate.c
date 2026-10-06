@@ -857,14 +857,16 @@ pick_regs(jay_ra_state *ra,
     * whole vector if we are the representative. This leaves us registers for
     * the rest of the vector.
     */
-   if (rr->gpr <= best_reg && best_reg <= rr->gpr + 16) {
-      bool is_repr = affinity.repr == jay_channel(var, 0);
-      rr->gpr =
-         best_reg + MAX2(size, is_repr ? (affinity.nr - affinity.offset) : 0);
+   if (file != MEM) {
+      if (rr->gpr <= best_reg && best_reg <= rr->gpr + 16) {
+         bool is_repr = affinity.repr == jay_channel(var, 0);
+         rr->gpr = best_reg +
+                   MAX2(size, is_repr ? (affinity.nr - affinity.offset) : 0);
 
-      if (rr->gpr >= partition->blocks[file][rr->block].len_gpr) {
-         rr->block = ((rr->block + 1) == nr_blocks) ? 0 : (rr->block + 1);
-         rr->gpr = 0;
+         if (rr->gpr >= partition->blocks[file][rr->block].len_gpr) {
+            rr->block = ((rr->block + 1) == nr_blocks) ? 0 : (rr->block + 1);
+            rr->gpr = 0;
+         }
       }
    }
 
