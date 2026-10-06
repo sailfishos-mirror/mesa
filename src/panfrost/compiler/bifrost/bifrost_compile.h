@@ -153,6 +153,7 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
       .support_indirect_inputs = 0 /* TODO support indirect varyings */,       \
       .lower_hadd = arch >= 11,                                                \
       .lower_hadd64 = true,                                                    \
+      .lower_mul_32x16 = true,                                                 \
       .discard_is_demote = true,                                               \
       .has_udot_4x8 = arch >= 9,                                               \
       .has_udot_4x8_sat = arch >= 9,                                           \
