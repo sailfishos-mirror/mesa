@@ -1676,27 +1676,6 @@ dri2_flush_drawable_for_swapbuffers(_EGLDisplay *disp, _EGLSurface *draw)
 }
 
 static EGLBoolean
-dri2_swap_buffers(_EGLDisplay *disp, _EGLSurface *surf)
-{
-   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
-   struct dri_drawable *dri_drawable = dri2_dpy->vtbl->get_dri_drawable(surf);
-   _EGLContext *ctx = _eglGetCurrentContext();
-   EGLBoolean ret;
-
-   if (ctx && surf)
-      dri2_surf_update_fence_fd(ctx, disp, surf);
-   ret = dri2_dpy->vtbl->swap_buffers(disp, surf);
-
-   /* SwapBuffers marks the end of the frame; reset the damage region for
-    * use again next time.
-    */
-   if (ret && disp->Extensions.KHR_partial_update)
-      dri_set_damage_region(dri_drawable, 0, NULL);
-
-   return ret;
-}
-
-static EGLBoolean
 dri2_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *surf,
                               const EGLint *rects, EGLint n_rects)
 {
@@ -1720,6 +1699,12 @@ dri2_swap_buffers_with_damage(_EGLDisplay *disp, _EGLSurface *surf,
       dri_set_damage_region(dri_drawable, 0, NULL);
 
    return ret;
+}
+
+static EGLBoolean
+dri2_swap_buffers(_EGLDisplay *disp, _EGLSurface *surf)
+{
+   return dri2_swap_buffers_with_damage(disp, surf, NULL, 0);
 }
 
 static EGLBoolean
