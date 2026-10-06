@@ -4,13 +4,7 @@
 #include "dri_util.h"
 
 int64_t
-kopperSwapBuffers(struct dri_drawable *dPriv, uint32_t flush_flags)
-{
-   return 0;
-}
-
-int64_t
-kopperSwapBuffersWithDamage(struct dri_drawable *dPriv, uint32_t flush_flags, int nrects, const int *rects)
+kopperSwapBuffers(struct dri_drawable *dPriv, uint32_t flush_flags, int nrects, const int *rects)
 {
    return 0;
 }

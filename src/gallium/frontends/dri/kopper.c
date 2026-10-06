@@ -513,7 +513,7 @@ kopper_destroy_drawable(struct dri_drawable *drawable)
 }
 
 int64_t
-kopperSwapBuffersWithDamage(struct dri_drawable *drawable, uint32_t flush_flags, int nrects, const int *rects)
+kopperSwapBuffers(struct dri_drawable *drawable, uint32_t flush_flags, int nrects, const int *rects)
 {
    struct dri_context *ctx = dri_get_current();
    struct pipe_resource *ptex;
@@ -560,16 +560,10 @@ kopperSwapBuffersWithDamage(struct dri_drawable *drawable, uint32_t flush_flags,
    return 0;
 }
 
-int64_t
-kopperSwapBuffers(struct dri_drawable *dPriv, uint32_t flush_flags)
-{
-   return kopperSwapBuffersWithDamage(dPriv, flush_flags, 0, NULL);
-}
-
 static void
 kopper_swap_buffers(struct dri_drawable *drawable, int nrects, const int *rects)
 {
-   kopperSwapBuffersWithDamage(drawable, 0, nrects, rects);
+   kopperSwapBuffers(drawable, 0, nrects, rects);
 }
 
 void

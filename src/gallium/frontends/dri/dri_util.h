@@ -150,9 +150,7 @@ PUBLIC int driUnbindContext(struct dri_context *ctx);
 
 
 PUBLIC int64_t
-kopperSwapBuffers(struct dri_drawable *dPriv, uint32_t flush_flags);
-PUBLIC int64_t
-kopperSwapBuffersWithDamage(struct dri_drawable *drawable, uint32_t flush_flags, int nrects, const int *rects);
+kopperSwapBuffers(struct dri_drawable *drawable, uint32_t flush_flags, int nrects, const int *rects);
 PUBLIC struct dri_drawable *
 kopperCreateNewDrawable(struct dri_screen *psp,
                         const struct dri_config *config,

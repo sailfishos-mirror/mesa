@@ -2404,11 +2404,7 @@ dri2_wl_kopper_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
    if (!dri2_wl_surface_throttle(dri2_surf))
       return EGL_FALSE;
 
-   if (n_rects) {
-      kopperSwapBuffersWithDamage(dri2_surf->dri_drawable, __DRI2_FLUSH_CONTEXT | __DRI2_FLUSH_INVALIDATE_ANCILLARY, n_rects, rects);
-   } else {
-      kopperSwapBuffers(dri2_surf->dri_drawable, __DRI2_FLUSH_CONTEXT | __DRI2_FLUSH_INVALIDATE_ANCILLARY);
-   }
+   kopperSwapBuffers(dri2_surf->dri_drawable, __DRI2_FLUSH_CONTEXT | __DRI2_FLUSH_INVALIDATE_ANCILLARY, n_rects, rects);
 
    dri2_surf->current = dri2_surf->back;
    dri2_surf->back = NULL;
