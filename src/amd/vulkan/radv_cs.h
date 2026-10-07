@@ -96,6 +96,12 @@ radeon_check_space(struct radeon_winsys *ws, struct ac_cmdbuf *cs, unsigned need
 
 #define radeon_set_uconfig_reg_idx(info, reg, idx, value) ac_cmdbuf_set_ucfg_reg_idx(info, reg, idx, value)
 
+#define radeon_opt_set_uconfig_reg(reg, reg_enum, value)                                                               \
+   do {                                                                                                                \
+      struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
+      ac_cmdbuf_opt_set_ucfg_reg(__tracked_regs, reg, reg_enum, value);                                                \
+   } while (0)
+
 #define radeon_opt_set_uconfig_reg_idx(info, reg, idx, reg_enum, value)                                                \
    do {                                                                                                                \
       struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \

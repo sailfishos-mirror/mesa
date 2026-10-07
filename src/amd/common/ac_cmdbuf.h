@@ -512,6 +512,17 @@ struct ac_tracked_regs {
       }                                                                          \
    } while (0)
 
+#define ac_cmdbuf_opt_set_ucfg_reg(tracked_regs, reg, reg_enum, value)     \
+   do {                                                                    \
+      const uint32_t __value = (value);                                    \
+      if (!BITSET_TEST(tracked_regs->reg_saved_mask, (reg_enum)) ||        \
+          tracked_regs->reg_value[(reg_enum)] != __value) {                \
+         ac_cmdbuf_set_ucfg_reg(reg, __value);                             \
+         BITSET_SET(tracked_regs->reg_saved_mask, (reg_enum));             \
+         tracked_regs->reg_value[(reg_enum)] = __value;                    \
+      }                                                                    \
+   } while (0)
+
 #define ac_cmdbuf_opt_set_ucfg_reg_idx(tracked_regs, info, reg, idx, reg_enum, value)   \
    do {                                                                          \
       const uint32_t __value = (value);                                          \

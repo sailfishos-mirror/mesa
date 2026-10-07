@@ -3338,7 +3338,7 @@ radv_emit_hw_vs(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *sh
       radeon_emit(shader->regs.vs.spi_shader_late_alloc_vs);
 
       if (pdev->info.gfx_level >= GFX10) {
-         radeon_set_uconfig_reg(R_030980_GE_PC_ALLOC, shader->regs.ge_pc_alloc);
+         radeon_opt_set_uconfig_reg(R_030980_GE_PC_ALLOC, AC_TRACKED_GE_PC_ALLOC, shader->regs.ge_pc_alloc);
 
          if (shader->info.stage == MESA_SHADER_TESS_EVAL) {
             radeon_opt_set_context_reg(R_028A44_VGT_GS_ONCHIP_CNTL, AC_TRACKED_VGT_GS_ONCHIP_CNTL,
@@ -3393,7 +3393,6 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_cmd_state *state = &cmd_buffer->state;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    const uint64_t va = radv_shader_get_va(shader);
    mesa_shader_stage es_type;
@@ -3515,17 +3514,15 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
                                  shader->regs.vgt_gs_onchip_cntl);
    }
 
-   if (state->last_ge_cntl != ge_cntl) {
-      radeon_set_uconfig_reg(R_03096C_GE_CNTL, ge_cntl);
-      state->last_ge_cntl = ge_cntl;
-   }
+   radeon_opt_set_uconfig_reg(R_03096C_GE_CNTL, AC_TRACKED_GE_CNTL, ge_cntl);
 
    const uint32_t ngg_lds_layout_offset = radv_get_user_sgpr_loc(shader, AC_UD_NGG_LDS_LAYOUT);
    assert(ngg_lds_layout_offset);
    assert(!(shader->info.ngg_info.esgs_ring_size & 0xffff0000));
 
    if (pdev->info.gfx_level >= GFX12) {
-      radeon_set_uconfig_reg(R_030988_VGT_PRIMITIVEID_EN, shader->regs.ngg.vgt_primitiveid_en);
+      radeon_opt_set_uconfig_reg(R_030988_VGT_PRIMITIVEID_EN, AC_TRACKED_VGT_PRIMITIVEID_EN_UCONFIG,
+                                 shader->regs.ngg.vgt_primitiveid_en);
 
       gfx12_push_sh_reg(ngg_lds_layout_offset,
                         SET_SGPR_FIELD(NGG_LDS_LAYOUT_GS_OUT_VERTEX_BASE, shader->info.ngg_info.esgs_ring_size));
@@ -3535,7 +3532,7 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
       if (pdev->info.gfx_level < GFX11)
          radeon_set_sh_reg(R_00B204_SPI_SHADER_PGM_RSRC4_GS, shader->regs.spi_shader_pgm_rsrc4_gs_hs);
 
-      radeon_set_uconfig_reg(R_030980_GE_PC_ALLOC, shader->regs.ge_pc_alloc);
+      radeon_opt_set_uconfig_reg(R_030980_GE_PC_ALLOC, AC_TRACKED_GE_PC_ALLOC, shader->regs.ge_pc_alloc);
 
       radeon_set_sh_reg(ngg_lds_layout_offset,
                         SET_SGPR_FIELD(NGG_LDS_LAYOUT_GS_OUT_VERTEX_BASE, shader->info.ngg_info.esgs_ring_size));
@@ -3811,7 +3808,8 @@ radv_emit_vgt_gs_out(struct radv_cmd_buffer *cmd_buffer, uint32_t vgt_gs_out_pri
 
    radeon_begin(cs);
    if (pdev->info.gfx_level >= GFX11) {
-      radeon_set_uconfig_reg(R_030998_VGT_GS_OUT_PRIM_TYPE, vgt_gs_out_prim_type);
+      radeon_opt_set_uconfig_reg(R_030998_VGT_GS_OUT_PRIM_TYPE, AC_TRACKED_VGT_GS_OUT_PRIM_TYPE_UCONFIG,
+                                 vgt_gs_out_prim_type);
    } else {
       radeon_opt_set_context_reg(R_028A6C_VGT_GS_OUT_PRIM_TYPE, AC_TRACKED_VGT_GS_OUT_PRIM_TYPE, vgt_gs_out_prim_type);
    }
@@ -7754,13 +7752,9 @@ gfx10_emit_ge_cntl(struct radv_cmd_buffer *cmd_buffer)
              S_03096C_PACKET_TO_ONE_PA(0) /* this should only be set if LINE_STIPPLE_TEX_ENA == 1 */ |
              S_03096C_BREAK_WAVE_AT_EOI(break_wave_at_eoi);
 
-   if (state->last_ge_cntl != ge_cntl) {
-      radeon_begin(cmd_buffer->cs);
-      radeon_set_uconfig_reg(R_03096C_GE_CNTL, ge_cntl);
-      radeon_end();
-
-      state->last_ge_cntl = ge_cntl;
-   }
+   radeon_begin(cmd_buffer->cs);
+   radeon_opt_set_uconfig_reg(R_03096C_GE_CNTL, AC_TRACKED_GE_CNTL, ge_cntl);
+   radeon_end();
 }
 
 static void
