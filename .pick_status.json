@@ -2114,7 +2114,7 @@
         "description": "zink/kopper: fix invalid read during swapchain teardown",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "66f22a1a650cd48dc3e91c8093c0b9a84e2d7eb3",
         "notes": null
