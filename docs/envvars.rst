@@ -1656,7 +1656,7 @@ RADV driver environment variables
       enable experimental implementation of
       VK_EXT_multisampled_render_to_single_sampled
    ``sparse``
-      enable experimental sparse binding and sparse residency on GPUs where we don't support it by default (pre Polaris)
+      enable experimental sparse binding and sparse residency on GPUs where we don't support it by default (GFX6, GFX7-8 APUs)
    ``transfer_queue``
       enable experimental transfer queue support (GFX9+, not yet spec compliant)
    ``video_decode``
