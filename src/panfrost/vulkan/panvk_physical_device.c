@@ -422,8 +422,7 @@ panvk_physical_device_init(struct panvk_physical_device *device,
    unsigned core_count =
       pan_query_core_count(&device->kmod.dev->props);
 
-   memset(device->name, 0, sizeof(device->name));
-   sprintf(device->name, "%s MC%u", device->model->name, core_count);
+   pan_model_device_name(device->name, sizeof(device->name), device->model, core_count, "");
 
    result = get_core_masks(device, instance);
    if (result != VK_SUCCESS)

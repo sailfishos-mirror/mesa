@@ -132,4 +132,11 @@ pan_rev(uint64_t gpu_id)
    return PAN_REV(PAN_VERSION_MAJOR(gpu_id), PAN_VERSION_MINOR(gpu_id));
 }
 
+static inline int
+pan_model_device_name(char *buf, size_t size, const struct pan_model *model,
+                      unsigned core_count, const char *suffix)
+{
+   return snprintf(buf, size, "%s MC%u%s", model->name, core_count, suffix);
+}
+
 #endif
