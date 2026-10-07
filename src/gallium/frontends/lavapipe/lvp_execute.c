@@ -30,6 +30,7 @@
 #include "pipe/p_state.h"
 #include "lvp_conv.h"
 #include "lp_state.h"
+#include "driver_trace/tr_context.h"
 
 #include "util/blend.h"
 #include "util/format/u_format.h"
@@ -87,6 +88,7 @@ struct lvp_conditional_rendering_state {
 
 struct rendering_state {
    struct pipe_context *pctx;
+   struct pipe_context *drv_pctx;
    struct lvp_device *device;
    struct u_upload_mgr *uploader;
    struct cso_context *cso;
@@ -1202,7 +1204,7 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
       }
       if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN)) {
          state->tess_ccw = ps->ts->domain_origin == VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT;
-         llvmpipe_set_tess_ccw_flip(state->pctx, state->tess_ccw);
+         llvmpipe_set_tess_ccw_flip(state->drv_pctx, state->tess_ccw);
       }
    }
 
@@ -4191,7 +4193,7 @@ static void handle_set_tessellation_domain_origin(struct vk_cmd_queue_entry *cmd
    if (tess_ccw == state->tess_ccw)
       return;
    state->tess_ccw = tess_ccw;
-   llvmpipe_set_tess_ccw_flip(state->pctx, tess_ccw);
+   llvmpipe_set_tess_ccw_flip(state->drv_pctx, tess_ccw);
 }
 
 static void handle_set_depth_clamp_enable(struct vk_cmd_queue_entry *cmd,
@@ -6044,6 +6046,7 @@ VkResult lvp_execute_cmds(struct lvp_device *device,
    struct rendering_state *state = queue->state;
    memset(state, 0, sizeof(*state));
    state->pctx = queue->ctx;
+   state->drv_pctx = trace_get_possibly_threaded_context(queue->ctx);
    state->device = device;
    state->uploader = queue->uploader;
    state->cso = queue->cso;
@@ -6085,7 +6088,7 @@ VkResult lvp_execute_cmds(struct lvp_device *device,
 
    state->start_vb = -1;
    state->num_vb = 0;
-   llvmpipe_set_tess_ccw_flip(state->pctx, false);
+   llvmpipe_set_tess_ccw_flip(state->drv_pctx, false);
    cso_unbind_context(queue->cso);
    for (unsigned i = 0; i < ARRAY_SIZE(state->so_targets); i++) {
       if (state->so_targets[i]) {

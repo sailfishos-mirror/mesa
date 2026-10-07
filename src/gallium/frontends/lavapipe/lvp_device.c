@@ -1521,6 +1521,8 @@ lvp_physical_device_init(struct lvp_physical_device *device,
    device->pscreen = pipe_loader_create_screen_vk(device->pld, true, false);
    if (!device->pscreen)
       return vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
+   device->drv_pscreen = device->pscreen->get_driver_pipe_screen ?
+      device->pscreen->get_driver_pipe_screen(device->pscreen) : device->pscreen;
    for (unsigned i = 0; i < ARRAY_SIZE(device->drv_options); i++)
       device->drv_options[i] = device->pscreen->nir_options[MIN2(i, MESA_SHADER_COMPUTE)];
 
@@ -1830,7 +1832,7 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetPhysicalDeviceMemoryProperties2(
       LIST_FOR_EACH_ENTRY(instance, &instance_list, link) {
          struct lvp_physical_device *device;
          LIST_FOR_EACH_ENTRY(device, &instance->vk.physical_devices.list, vk.link) {
-            uint64_t mem_file_size = llvmpipe_get_mem_file_size(device->pscreen);
+            uint64_t mem_file_size = llvmpipe_get_mem_file_size(device->drv_pscreen);
             props->heapUsage[0] += mem_file_size;
          }
       }
@@ -2011,6 +2013,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateDevice(
    device->vk.command_buffer_ops = &lvp_cmd_buffer_ops;
 
    device->pscreen = physical_device->pscreen;
+   device->drv_pscreen = physical_device->drv_pscreen;
 
    device->shader_destroys = UTIL_DYNARRAY_INIT;
    simple_mtx_init(&device->shader_destroys_lock, mtx_plain);
@@ -2061,9 +2064,9 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateDevice(
       .seamless_cube_map = 1,
       .max_lod = 0.25,
    };
-   device->null_texture_handle = llvmpipe_create_texture_handle(device->pscreen,
+   device->null_texture_handle = llvmpipe_create_texture_handle(device->drv_pscreen,
       &(struct pipe_sampler_view){ 0 }, &null_sampler);
-   device->null_image_handle = llvmpipe_create_image_handle(device->pscreen,
+   device->null_image_handle = llvmpipe_create_image_handle(device->drv_pscreen,
       &(struct pipe_image_view){ 0 });
 
    device->bda_texture_handles = UTIL_DYNARRAY_INIT;
@@ -2082,8 +2085,8 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateDevice(
    return VK_SUCCESS;
 
 fail_meta:
-   llvmpipe_delete_image_handle(device->pscreen, device->null_image_handle);
-   llvmpipe_delete_texture_handle(device->pscreen, device->null_texture_handle);
+   llvmpipe_delete_image_handle(device->drv_pscreen, device->null_image_handle);
+   llvmpipe_delete_texture_handle(device->drv_pscreen, device->null_texture_handle);
    pipe_resource_reference(&device->zero_buffer, NULL);
    simple_mtx_destroy(&device->bda_lock);
    _mesa_hash_table_fini(&device->bda, NULL);
@@ -2111,17 +2114,17 @@ VKAPI_ATTR void VKAPI_CALL lvp_DestroyDevice(
    vk_meta_device_finish(&device->vk, &device->meta);
 
    util_dynarray_foreach(&device->bda_texture_handles, struct lp_texture_handle *, handle)
-      llvmpipe_delete_texture_handle(device->pscreen, *handle);
+      llvmpipe_delete_texture_handle(device->drv_pscreen, *handle);
 
    util_dynarray_fini(&device->bda_texture_handles);
 
    util_dynarray_foreach(&device->bda_image_handles, struct lp_texture_handle *, handle)
-      llvmpipe_delete_image_handle(device->pscreen, *handle);
+      llvmpipe_delete_image_handle(device->drv_pscreen, *handle);
 
    util_dynarray_fini(&device->bda_image_handles);
 
-   llvmpipe_delete_texture_handle(device->pscreen, device->null_texture_handle);
-   llvmpipe_delete_image_handle(device->pscreen, device->null_image_handle);
+   llvmpipe_delete_texture_handle(device->drv_pscreen, device->null_texture_handle);
+   llvmpipe_delete_image_handle(device->drv_pscreen, device->null_image_handle);
 
    device->queue[0].ctx->delete_fs_state(device->queue[0].ctx, device->noop_fs);
 
@@ -2801,9 +2804,9 @@ lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, 
    state.reduction_mode = (enum pipe_tex_reduction_mode)vk_state->reduction_mode;
    memcpy(&state.border_color, &vk_state->border_color_value, sizeof(vk_state->border_color_value));
 
-   struct lp_texture_handle *texture_handle = llvmpipe_create_texture_handle(device->pscreen, NULL, &state);
+   struct lp_texture_handle *texture_handle = llvmpipe_create_texture_handle(device->drv_pscreen, NULL, &state);
    desc->sampler_index = texture_handle->sampler_index;
-   llvmpipe_delete_texture_handle(device->pscreen, texture_handle);
+   llvmpipe_delete_texture_handle(device->drv_pscreen, texture_handle);
 
    lp_jit_sampler_from_pipe(&desc->jit, &state);
 }
