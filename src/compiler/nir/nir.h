@@ -7092,6 +7092,8 @@ bool nir_opt_idiv_const(nir_shader *shader, unsigned min_bit_size);
 
 bool nir_opt_mqsad(nir_shader *shader);
 
+bool nir_opt_uadd_carry(nir_shader *shader, unsigned bit_sizes);
+
 typedef enum {
    nir_opt_if_optimize_phi_true_false = (1 << 0),
    nir_opt_if_avoid_64bit_phis = (1 << 1),
