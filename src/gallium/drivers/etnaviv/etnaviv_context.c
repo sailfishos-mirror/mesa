@@ -452,7 +452,16 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       ctx->dirty |= ETNA_DIRTY_STREAMOUT;
    }
 
-   u_foreach_bit(i, ctx->active_sampler_views) {
+   const struct etna_shader *bind_vs = ctx->shader.bind_vs;
+   const struct etna_shader *bind_fs = ctx->shader.bind_fs;
+   uint32_t used_views = 0;
+
+   if (bind_fs)
+      used_views |= bind_fs->textures_used;
+   if (bind_vs)
+      used_views |= bind_vs->textures_used << ctx->screen->specs.vertex_sampler_offset;
+
+   u_foreach_bit(i, ctx->active_sampler_views & used_views) {
       /* If a texture was modified since the last update, we need to clear the
        * texture cache and possibly resolve TS or a sampler compatible sibling.
        */
