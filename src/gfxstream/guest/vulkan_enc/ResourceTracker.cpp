@@ -1860,6 +1860,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_EXT_load_store_op_none",
         "VK_EXT_swapchain_colorspace",
         "VK_EXT_image_robustness",
+        "VK_EXT_robustness2",
         "VK_EXT_custom_border_color",
         "VK_EXT_border_color_swizzle",
         "VK_EXT_shader_stencil_export",
