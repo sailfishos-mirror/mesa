@@ -85,6 +85,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_index_type_uint8",
     "VK_KHR_load_store_op_none",
     "VK_KHR_maintenance5",
+    "VK_KHR_map_memory2",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
     "VK_EXT_image_compression_control_swapchain",

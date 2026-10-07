@@ -1949,6 +1949,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         // Vulkan 1.4
         "VK_KHR_index_type_uint8",
         "VK_KHR_load_store_op_none",
+        "VK_KHR_map_memory2",
 
         // Android requirements
         "VK_EXT_pipeline_protected_access",
