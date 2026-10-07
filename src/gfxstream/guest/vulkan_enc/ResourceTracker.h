@@ -492,6 +492,10 @@ class ResourceTracker {
                                     uint32_t firstSet, uint32_t descriptorSetCount,
                                     const VkDescriptorSet* pDescriptorSets,
                                     uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets);
+    void on_vkCmdBindDescriptorSets2(void* context, VkCommandBuffer commandBuffer,
+                                     const VkBindDescriptorSetsInfo* pBindDescriptorSetsInfo);
+    void on_vkCmdBindDescriptorSets2KHR(void* context, VkCommandBuffer commandBuffer,
+                                        const VkBindDescriptorSetsInfo* pBindDescriptorSetsInfo);
 
     void on_vkCmdPipelineBarrier(
         void* context, VkCommandBuffer commandBuffer, VkPipelineStageFlags srcStageMask,

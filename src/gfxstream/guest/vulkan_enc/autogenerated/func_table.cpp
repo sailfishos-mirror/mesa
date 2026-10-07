@@ -2279,7 +2279,8 @@ void gfxstream_vk_CmdBindDescriptorSets2(VkCommandBuffer commandBuffer,
     MESA_TRACE_SCOPE("vkCmdBindDescriptorSets2");
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
-        vkEnc->vkCmdBindDescriptorSets2(commandBuffer, pBindDescriptorSetsInfo, true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        resources->on_vkCmdBindDescriptorSets2(vkEnc, commandBuffer, pBindDescriptorSetsInfo);
     }
 }
 void gfxstream_vk_CmdPushConstants2(VkCommandBuffer commandBuffer,
@@ -3085,8 +3086,8 @@ void gfxstream_vk_CmdBindDescriptorSets2KHR(
     MESA_TRACE_SCOPE("vkCmdBindDescriptorSets2KHR");
     {
         auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
-        vkEnc->vkCmdBindDescriptorSets2KHR(commandBuffer, pBindDescriptorSetsInfo,
-                                           true /* do lock */);
+        auto resources = gfxstream::vk::ResourceTracker::get();
+        resources->on_vkCmdBindDescriptorSets2KHR(vkEnc, commandBuffer, pBindDescriptorSetsInfo);
     }
 }
 void gfxstream_vk_CmdPushConstants2KHR(VkCommandBuffer commandBuffer,

@@ -1013,8 +1013,12 @@ static void addPendingDescriptorSets(VkCommandBuffer commandBuffer, uint32_t des
     CommandBufferPendingDescriptorSets* pendingSets =
         (CommandBufferPendingDescriptorSets*)cb->userPtr;
 
+    if (!pDescriptorSets) return;
+
     for (uint32_t i = 0; i < descriptorSetCount; ++i) {
-        pendingSets->sets.insert(pDescriptorSets[i]);
+        if (pDescriptorSets[i]) {
+            pendingSets->sets.insert(pDescriptorSets[i]);
+        }
     }
 }
 
@@ -7633,6 +7637,26 @@ void ResourceTracker::on_vkCmdBindDescriptorSets(void* context, VkCommandBuffer 
     enc->vkCmdBindDescriptorSets(commandBuffer, pipelineBindPoint, layout, firstSet,
                                  descriptorSetCount, pDescriptorSets, dynamicOffsetCount,
                                  pDynamicOffsets, true /* do lock */);
+}
+
+void ResourceTracker::on_vkCmdBindDescriptorSets2(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkBindDescriptorSetsInfo* pBindDescriptorSetsInfo) {
+    if (!pBindDescriptorSetsInfo) return;
+    VkEncoder* enc = (VkEncoder*)context;
+
+    if (mFeatureInfo.hasVulkanBatchedDescriptorSetUpdate) {
+        addPendingDescriptorSets(commandBuffer, pBindDescriptorSetsInfo->descriptorSetCount,
+                                 pBindDescriptorSetsInfo->pDescriptorSets);
+    }
+
+    enc->vkCmdBindDescriptorSets2(commandBuffer, pBindDescriptorSetsInfo, true /* do lock */);
+}
+
+void ResourceTracker::on_vkCmdBindDescriptorSets2KHR(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkBindDescriptorSetsInfo* pBindDescriptorSetsInfo) {
+    on_vkCmdBindDescriptorSets2(context, commandBuffer, pBindDescriptorSetsInfo);
 }
 
 void ResourceTracker::on_vkCmdPipelineBarrier(

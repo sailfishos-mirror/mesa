@@ -71,6 +71,8 @@ RESOURCE_TRACKER_ENTRIES = [
     "vkCreateDescriptorSetLayout",
     "vkCmdExecuteCommands",
     "vkCmdBindDescriptorSets",
+    "vkCmdBindDescriptorSets2",
+    "vkCmdBindDescriptorSets2KHR",
     "vkDestroyDescriptorSetLayout",
     "vkAllocateCommandBuffers",
     "vkQueueSignalReleaseImageANDROID",
