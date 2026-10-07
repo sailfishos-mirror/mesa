@@ -248,7 +248,7 @@ bool pan_nir_lower_vs_outputs(nir_shader *shader, uint64_t gpu_id,
                               const struct pan_varying_layout *varying_layout,
                               bool has_idvs, bool *needs_extended_fifo);
 
-bool pan_nir_lower_fs_inputs(nir_shader *shader, uint64_t gpu_id,
+bool pan_nir_lower_fs_inputs(nir_shader *shader, unsigned arch,
                              const struct pan_varying_layout *varying_layout,
                              struct pan_shader_info *info);
 
