@@ -4695,7 +4695,8 @@ radv_emit_vgt_prim_state(struct radv_cmd_buffer *cmd_buffer)
       radeon_opt_set_uconfig_reg_idx(&pdev->info, R_030908_VGT_PRIMITIVE_TYPE, 1, AC_TRACKED_VGT_PRIMITIVE_TYPE,
                                      vgt_prim);
    } else {
-      radeon_set_config_reg(R_008958_VGT_PRIMITIVE_TYPE, d->vk.ia.primitive_topology);
+      radeon_opt_set_config_reg(R_008958_VGT_PRIMITIVE_TYPE, AC_TRACKED_VGT_PRIMITIVE_TYPE,
+                                d->vk.ia.primitive_topology);
    }
    radeon_end();
 

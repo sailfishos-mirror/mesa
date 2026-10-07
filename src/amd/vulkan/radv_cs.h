@@ -44,6 +44,12 @@ radeon_check_space(struct radeon_winsys *ws, struct ac_cmdbuf *cs, unsigned need
 
 #define radeon_set_config_reg(reg, value) ac_cmdbuf_set_cfg_reg(reg, value)
 
+#define radeon_opt_set_config_reg(reg, reg_enum, value)                                                                \
+   do {                                                                                                                \
+      struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
+      ac_cmdbuf_opt_set_cfg_reg(__tracked_regs, reg, reg_enum, value);                                                 \
+   } while (0)
+
 /* Packet building helpers for CONTEXT registers. */
 #define radeon_set_context_reg_seq(reg, num) ac_cmdbuf_set_ctx_reg_seq(reg, num)
 

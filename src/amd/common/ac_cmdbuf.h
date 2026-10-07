@@ -246,7 +246,7 @@ enum ac_tracked_reg
 
    AC_TRACKED_GE_VRS_RATE,
    AC_TRACKED_GE_MULTI_PRIM_IB_RESET_EN_UCONFIG,
-   AC_TRACKED_VGT_PRIMITIVE_TYPE, /* UCONFIG on GFX7+ */
+   AC_TRACKED_VGT_PRIMITIVE_TYPE, /* CONFIG on GFX6, UCONFIG on GFX7+ */
 
    /* This spot is only for new SH and UCONFIG register enums.
     * Context register enums should be before AC_NUM_TRACKED_CONTEXT_REGS.
@@ -514,6 +514,17 @@ struct ac_tracked_regs {
          tracked_regs->reg_value[(reg_enum)] = __value;                          \
          __cs->context_roll = true;                                              \
       }                                                                          \
+   } while (0)
+
+#define ac_cmdbuf_opt_set_cfg_reg(tracked_regs, reg, reg_enum, value)      \
+   do {                                                                    \
+      const uint32_t __value = (value);                                    \
+      if (!BITSET_TEST(tracked_regs->reg_saved_mask, (reg_enum)) ||        \
+          tracked_regs->reg_value[(reg_enum)] != __value) {                \
+         ac_cmdbuf_set_cfg_reg(reg, __value);                              \
+         BITSET_SET(tracked_regs->reg_saved_mask, (reg_enum));             \
+         tracked_regs->reg_value[(reg_enum)] = __value;                    \
+      }                                                                    \
    } while (0)
 
 #define ac_cmdbuf_opt_set_ucfg_reg(tracked_regs, reg, reg_enum, value)     \
