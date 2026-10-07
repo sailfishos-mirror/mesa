@@ -890,7 +890,7 @@ bifrost_postprocess_nir(nir_shader *nir,
    }
 
    NIR_PASS(_, nir, pan_nir_lower_tex, gpu_arch);
-   NIR_PASS(_, nir, pan_nir_lower_image, gpu_id);
+   NIR_PASS(_, nir, pan_nir_lower_image, gpu_arch);
 
    /* Remove useless movs left behind from lower_io_to_scalar/vectorize_io */
    NIR_PASS(_, nir, nir_opt_copy_prop);
