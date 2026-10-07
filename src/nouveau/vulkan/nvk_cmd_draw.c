@@ -2560,6 +2560,11 @@ nvk_flush_ia_state(struct nvk_cmd_buffer *cmd)
       P_IMMD(p, NV9097, SET_DA_PRIMITIVE_RESTART,
              dyn->ia.primitive_restart_enable && !has_mesh_shader);
    }
+
+   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_INDEX)) {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+      P_IMMD(p, NV9097, SET_DA_PRIMITIVE_RESTART_INDEX, dyn->ia.primitive_restart_index);
+   }
 }
 
 static void
@@ -4497,6 +4502,20 @@ nvk_CmdBindIndexBuffer3KHR(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    const VkDeviceAddressRangeKHR addr_range = pInfo->addressRange;
+
+   /* From the Vulkan 1.4.348 spec, vkCmdSetPrimitiveRestartIndexEXT():
+    *
+    *    "Binding an index buffer invalidates the custom index value."
+    *
+    * Index buffer binding can happen via CmdBindIndexBuffer3KHR() or DGC with
+    * VK_INDIRECT_COMMANDS_TOKEN_TYPE_INDEX_BUFFER_EXT and are handled by the
+    * MME macro.
+    *
+    * This macro already invalidate the primitive restart index so we skip
+    * dynanmic state invalidation here.
+    */
+   cmd->vk.dynamic_graphics_state.ia.primitive_restart_index =
+      vk_index_to_restart(pInfo->indexType);
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_BIND_IB));

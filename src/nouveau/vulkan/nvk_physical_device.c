@@ -288,6 +288,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
 #ifdef NVK_USE_WSI_PLATFORM
       .EXT_present_timing = true,
 #endif
+      .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_private_data = true,
       .EXT_primitives_generated_query = true,
@@ -750,6 +751,9 @@ nvk_get_device_features(const struct nv_device_info *info,
 
       /* VK_EXT_non_seamless_cube_map */
       .nonSeamlessCubeMap = true,
+
+      /* VK_EXT_primitive_restart_index */
+      .primitiveRestartIndex = true,
 
       /* VK_EXT_primitive_topology_list_restart */
       .primitiveTopologyListRestart = true,
