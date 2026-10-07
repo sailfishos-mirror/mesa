@@ -213,6 +213,11 @@ struct pvr_sub_cmd_gfx {
 
    bool has_query;
 
+   /* True if this is a geometry-only kick (e.g., for XFB queries outside render
+    * pass).
+    */
+   bool geom_only;
+
    bool wait_on_previous_transfer;
 
    bool has_depth_feedback;

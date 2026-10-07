@@ -416,23 +416,40 @@ err_free_depth_bias_bo:
 
 static VkResult
 pvr_cmd_buffer_emit_ppp_state(const struct pvr_cmd_buffer *const cmd_buffer,
-                              struct pvr_csb *const csb)
+                              struct pvr_csb *const csb,
+                              bool geom_only)
 {
-   const struct pvr_render_state *const rstate =
-      cmd_buffer->state.render_pass_info.rstate;
+   pvr_dev_addr_t ppp_addr;
+   uint32_t ppp_size;
 
    assert(csb->stream_type == PVR_CMD_STREAM_TYPE_GRAPHICS ||
           csb->stream_type == PVR_CMD_STREAM_TYPE_GRAPHICS_DEFERRED);
 
+   if (geom_only) {
+      /* Geometry-only kicks have no render state, so use the PPP state built
+       * for the dummy render target.
+       */
+      const struct pvr_device *const device = cmd_buffer->device;
+
+      ppp_addr = device->dummy_rt.ppp_state_bo->dev_addr;
+      ppp_size = device->dummy_rt.ppp_state_size;
+   } else {
+      const struct pvr_render_state *const rstate =
+         cmd_buffer->state.render_pass_info.rstate;
+
+      ppp_addr = rstate->ppp_state_bo->dev_addr;
+      ppp_size = rstate->ppp_state_size;
+   }
+
    pvr_csb_set_relocation_mark(csb);
 
    pvr_csb_emit (csb, VDMCTRL_PPP_STATE0, state0) {
-      state0.addrmsb = rstate->ppp_state_bo->dev_addr;
-      state0.word_count = rstate->ppp_state_size;
+      state0.addrmsb = ppp_addr;
+      state0.word_count = ppp_size;
    }
 
    pvr_csb_emit (csb, VDMCTRL_PPP_STATE1, state1) {
-      state1.addrlsb = rstate->ppp_state_bo->dev_addr;
+      state1.addrlsb = ppp_addr;
    }
 
    pvr_csb_clear_relocation_mark(csb);
@@ -667,7 +684,7 @@ static VkResult pvr_sub_cmd_gfx_build_terminate_ctrl_stream(
 
    pvr_csb_init(device, PVR_CMD_STREAM_TYPE_GRAPHICS, &csb);
 
-   result = pvr_cmd_buffer_emit_ppp_state(cmd_buffer, &csb);
+   result = pvr_cmd_buffer_emit_ppp_state(cmd_buffer, &csb, false);
    if (result != VK_SUCCESS)
       goto err_csb_finish;
 
@@ -2396,6 +2413,49 @@ err_csb_finish:
    return result;
 }
 
+/* Job setup for a geometry-only kick issued outside of a render pass, e.g. to
+ * run a transform feedback query program. There are no attachments and no
+ * fragment phase.
+ */
+static void
+pvr_sub_cmd_gfx_geom_only_job_init(struct pvr_cmd_buffer *cmd_buffer,
+                                   struct pvr_sub_cmd_gfx *sub_cmd)
+{
+   struct pvr_render_job *const job = &sub_cmd->job;
+
+   job->view_state.view_index = 0;
+   job->view_state.rt_datasets = &cmd_buffer->device->dummy_rt.rt_dataset;
+
+   job->ctrl_stream_addr = pvr_csb_get_start_address(&sub_cmd->control_stream);
+
+   if (sub_cmd->depth_bias_bo)
+      job->depth_bias_table_addr = sub_cmd->depth_bias_bo->dev_addr;
+   else
+      job->depth_bias_table_addr = PVR_DEV_ADDR_INVALID;
+
+   if (sub_cmd->scissor_bo)
+      job->scissor_table_addr = sub_cmd->scissor_bo->dev_addr;
+   else
+      job->scissor_table_addr = PVR_DEV_ADDR_INVALID;
+
+   job->has_depth_attachment = false;
+   job->has_stencil_attachment = false;
+   job->ds_clear_value = (VkClearDepthStencilValue){
+      .depth = 1.0f,
+      .stencil = 0xFFFFFFFF,
+   };
+
+   job->samples = VK_SAMPLE_COUNT_1_BIT;
+   job->max_tiles_in_flight = 0U;
+   job->frag_uses_atomic_ops = sub_cmd->frag_uses_atomic_ops;
+   job->disable_compute_overlap = false;
+   job->disable_pixel_merging = true;
+   job->max_shared_registers = cmd_buffer->state.max_shared_regs;
+
+   job->geometry_terminate = false;
+   job->run_frag = false;
+}
+
 VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
 {
    struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
@@ -2466,6 +2526,8 @@ VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
 
       /* TODO: Check if the sub_cmd can be skipped based on
        * sub_cmd->gfx.empty_cmd flag and if dynamic rendering isn't enabled.
+       * NOTE: Do NOT skip geometry-only kicks (protect with
+       * !gfx_sub_cmd->geom_only) as they have XFB query side effects.
        */
 
       /* TODO: Set the state in the functions called with the command buffer
@@ -2477,7 +2539,8 @@ VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
          return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
       result = pvr_cmd_buffer_emit_ppp_state(cmd_buffer,
-                                             &gfx_sub_cmd->control_stream);
+                                             &gfx_sub_cmd->control_stream,
+                                             gfx_sub_cmd->geom_only);
       if (result != VK_SUCCESS)
          return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
@@ -2495,11 +2558,15 @@ VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
             return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
       }
 
-      result = pvr_sub_cmd_gfx_job_init(&device->pdevice->dev_info,
-                                        cmd_buffer,
-                                        gfx_sub_cmd);
-      if (result != VK_SUCCESS)
-         return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
+      if (gfx_sub_cmd->geom_only) {
+         pvr_sub_cmd_gfx_geom_only_job_init(cmd_buffer, gfx_sub_cmd);
+      } else {
+         result = pvr_sub_cmd_gfx_job_init(&device->pdevice->dev_info,
+                                           cmd_buffer,
+                                           gfx_sub_cmd);
+         if (result != VK_SUCCESS)
+            return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
+      }
 
       if (pvr_sub_cmd_gfx_requires_split_submit(gfx_sub_cmd)) {
          result = pvr_sub_cmd_gfx_build_terminate_ctrl_stream(device,
@@ -2686,6 +2753,22 @@ pvr_render_pass_info_get_view_mask(const struct pvr_render_pass_info *rp_info)
    return hw_render->view_mask;
 }
 
+static inline bool
+pvr_cmd_buffer_in_render_pass(const struct pvr_cmd_buffer *const cmd_buffer)
+{
+   const struct pvr_render_pass_info *const rp_info =
+      &cmd_buffer->state.render_pass_info;
+
+   /* Secondaries that continue a render pass are inside one throughout. */
+   if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY &&
+       (cmd_buffer->usage_flags &
+        VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT)) {
+      return true;
+   }
+
+   return rp_info->pass || rp_info->dynamic_render;
+}
+
 VkResult pvr_arch_cmd_buffer_start_sub_cmd(struct pvr_cmd_buffer *cmd_buffer,
                                            enum pvr_sub_cmd_type type)
 {
@@ -2737,24 +2820,33 @@ VkResult pvr_arch_cmd_buffer_start_sub_cmd(struct pvr_cmd_buffer *cmd_buffer,
                                1);
       sub_cmd->gfx.rstate = state->render_pass_info.rstate;
       sub_cmd->gfx.empty_cmd = true;
-      sub_cmd->gfx.view_mask =
-         pvr_render_pass_info_get_view_mask(&state->render_pass_info);
-      if (state->render_pass_info.dynamic_render) {
-         sub_cmd->is_suspend = state->render_pass_info.suspend;
-         sub_cmd->is_resume = state->render_pass_info.resume;
-         sub_cmd->is_dynamic_render = true;
-         sub_cmd->gfx.hw_render = state->render_pass_info.hw_render;
-         sub_cmd->gfx.multiview_enabled =
-            state->render_pass_info.hw_render->multiview_enabled;
-         sub_cmd->gfx.hw_render_idx = 0;
-         sub_cmd->gfx.dr_info = state->render_pass_info.dr_info;
+      sub_cmd->gfx.geom_only = !pvr_cmd_buffer_in_render_pass(cmd_buffer);
+
+      /* Check if this is a geometry-only kick (graphics sub-cmd outside render pass). */
+      if (sub_cmd->gfx.geom_only) {
+         sub_cmd->gfx.rstate = NULL;
+         sub_cmd->gfx.view_mask = 1; /* Single view for geometry-only. */
+         sub_cmd->gfx.multiview_enabled = false;
       } else {
-         sub_cmd->gfx.hw_render_idx =
-            state->render_pass_info.current_hw_subpass;
-         sub_cmd->gfx.multiview_enabled =
-            state->render_pass_info.pass
-               ? state->render_pass_info.pass->multiview_enabled
-               : false;
+         sub_cmd->gfx.view_mask =
+            pvr_render_pass_info_get_view_mask(&state->render_pass_info);
+         if (state->render_pass_info.dynamic_render) {
+            sub_cmd->is_suspend = state->render_pass_info.suspend;
+            sub_cmd->is_resume = state->render_pass_info.resume;
+            sub_cmd->is_dynamic_render = true;
+            sub_cmd->gfx.hw_render = state->render_pass_info.hw_render;
+            sub_cmd->gfx.multiview_enabled =
+               state->render_pass_info.hw_render->multiview_enabled;
+            sub_cmd->gfx.hw_render_idx = 0;
+            sub_cmd->gfx.dr_info = state->render_pass_info.dr_info;
+         } else {
+            sub_cmd->gfx.hw_render_idx =
+               state->render_pass_info.current_hw_subpass;
+            sub_cmd->gfx.multiview_enabled =
+               state->render_pass_info.pass
+                  ? state->render_pass_info.pass->multiview_enabled
+                  : false;
+         }
       }
       sub_cmd->gfx.view_index_wanted = sub_cmd->gfx.multiview_enabled;
 
