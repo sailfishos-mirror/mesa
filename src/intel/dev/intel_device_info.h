@@ -283,6 +283,12 @@ intel_device_info_update_from_masks(struct intel_device_info *devinfo,
                                     uint32_t subslice_mask,
                                     uint32_t n_eus);
 
+static inline bool
+intel_has_vrt(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver >= 30 && !unlikely(INTEL_DEBUG(DEBUG_NO_VRT));
+}
+
 #ifdef __cplusplus
 }
 #endif

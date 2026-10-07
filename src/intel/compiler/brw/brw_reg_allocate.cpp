@@ -80,7 +80,7 @@ extern "C" void
 brw_alloc_reg_sets(struct brw_compiler *compiler, int debug)
 {
    const struct intel_device_info *devinfo = compiler->devinfo;
-   int base_reg_count = (devinfo->ver < 30 || INTEL_DEBUG(DEBUG_NO_VRT)) ?
+   int base_reg_count = !intel_has_vrt(devinfo) ?
                         BRW_MAX_GRF :
                         MIN2(XE3_MAX_GRF / reg_unit(devinfo),
                              debug_vrt_max_reg_count(compiler, debug));
@@ -120,7 +120,7 @@ brw_alloc_reg_sets(struct brw_compiler *compiler, int debug)
       for (int reg = 0; reg <= base_reg_count - class_sizes[i]; reg++)
          ra_class_add_reg(classes[i], reg);
 
-      if (devinfo->ver >= 30 && !INTEL_DEBUG(DEBUG_NO_VRT))
+      if (intel_has_vrt(devinfo))
          ra_class_override_p(classes[i], 96 - class_sizes[i] + 1);
    }
 

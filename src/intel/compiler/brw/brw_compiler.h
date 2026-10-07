@@ -1488,7 +1488,7 @@ intel_vrt_register_file_size(const struct intel_device_info *devinfo,
                              uint64_t source_hash,
                              unsigned size)
 {
-   if (devinfo->ver < 30)
+   if (!intel_has_vrt(devinfo))
       return 128;
 
    unsigned vrt_size = MIN2(align(size, size > 192 ? 64 : 32), 256);
