@@ -306,6 +306,8 @@ radv_optimize_nir_algebraic_late(nir_shader *nir)
       NIR_LOOP_PASS(_, skip, nir, nir_opt_cse);
    }
    _mesa_set_destroy(skip, NULL);
+
+   NIR_PASS(_, nir, nir_opt_uadd_carry, 32 | 64);
 }
 
 void

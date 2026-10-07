@@ -82,6 +82,8 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
    options->lower_hadd = true;
    options->lower_mul_32x16 = true;
    options->lower_bfloat16_conversions = true;
+   options->lower_uadd_carry = true;
+   options->lower_usub_borrow = true;
    options->has_ldexp = true;
    options->has_bfe = true;
    options->has_bfm = true;
@@ -506,8 +508,6 @@ lower_bit_size_callback(const nir_instr *instr, enum amd_gfx_level chip, bool di
       switch (alu->op) {
       case nir_op_imul_high:
       case nir_op_umul_high:
-      case nir_op_uadd_carry:
-      case nir_op_usub_borrow:
          return 32;
       case nir_op_iabs:
       case nir_op_imax:
