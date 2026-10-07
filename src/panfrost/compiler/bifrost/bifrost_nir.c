@@ -810,8 +810,7 @@ bifrost_postprocess_nir(nir_shader *nir,
 {
    MESA_TRACE_FUNC();
 
-   const uint64_t gpu_id = inputs->gpu_id;
-   const unsigned gpu_arch = pan_arch(gpu_id);
+   const unsigned gpu_arch = pan_arch(inputs->gpu_id);
 
    if (gpu_arch >= 9)
       NIR_PASS(_, nir, pan_nir_lower_image_64bit);
