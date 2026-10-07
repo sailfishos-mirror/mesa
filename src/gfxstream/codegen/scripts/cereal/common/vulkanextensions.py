@@ -70,6 +70,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_8bit_storage",
     "VK_KHR_draw_indirect_count",
     "VK_KHR_driver_properties",
+    "VK_KHR_sampler_mirror_clamp_to_edge",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
