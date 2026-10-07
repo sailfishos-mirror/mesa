@@ -107,9 +107,6 @@ brw_compile_vs(const struct brw_compiler *compiler,
    BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, compiler->devinfo,
                 &prog_data->base.vue_map, 0, 0);
 
-   if (BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_IS_INDEXED_DRAW))
-      prog_data->uses_is_indexed_draw = true;
-
    if (BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FIRST_VERTEX))
       prog_data->uses_firstvertex = true;
 
