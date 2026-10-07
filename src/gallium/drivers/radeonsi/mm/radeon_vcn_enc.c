@@ -60,7 +60,7 @@ static void radeon_vcn_enc_quality_modes(struct radeon_encoder *enc,
     * VCN 5.0.0, where only pre_encode_mode is enabled.
     */
    enc->enc_pic.quality_params.two_pass_search_center_map_mode =
-      (sscreen->info.vcn_ip_version < VCN_5_0_0 &&
+      (sscreen->info.vcn_ip_version != VCN_5_0_0 &&
          enc->enc_pic.quality_modes.pre_encode_mode &&
          !enc->enc_pic.spec_misc.b_picture_enabled) ? 1 : 0;
    enc->enc_pic.quality_params.vbaq_strength = 0;
@@ -1316,7 +1316,7 @@ static void pre_encode_size(struct radeon_encoder *enc,
          *offset += align((pre_size * 4 + full_size) * sizeof(uint32_t), enc->alignment);
       else if (!is_h264)
          *offset += align((pre_size * 52 + full_size) * sizeof(uint32_t), enc->alignment);
-   } else { /* only for vcn5.x rather than VCN5_0_0 */
+   } else if (sscreen->info.vcn_ip_version != VCN_5_0_0) {
       if (is_h264 && !has_b)
          *offset += align(full_size * 8, enc->alignment);
       else if (!is_h264)
