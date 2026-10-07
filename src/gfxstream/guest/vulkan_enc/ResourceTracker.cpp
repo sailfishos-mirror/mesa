@@ -6951,6 +6951,7 @@ VkResult ResourceTracker::initDescriptorUpdateTemplateBuffers(
     }
 
     auto& info = it->second;
+    info.pipelineBindPoint = pCreateInfo->pipelineBindPoint;
     uint32_t inlineUniformBlockBufferSize = 0;
 
     for (uint32_t i = 0; i < pCreateInfo->descriptorUpdateEntryCount; ++i) {
@@ -7049,6 +7050,15 @@ VkResult ResourceTracker::on_vkCreateDescriptorUpdateTemplate(
     if (input_result != VK_SUCCESS) return input_result;
 
     return initDescriptorUpdateTemplateBuffers(pCreateInfo, *pDescriptorUpdateTemplate);
+}
+
+VkResult ResourceTracker::on_vkCreateDescriptorUpdateTemplateKHR(
+    void* context, VkResult input_result, VkDevice device,
+    const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate) {
+    return on_vkCreateDescriptorUpdateTemplate(context, input_result, device, pCreateInfo,
+                                               pAllocator, pDescriptorUpdateTemplate);
 }
 
 void ResourceTracker::on_vkUpdateDescriptorSetWithTemplate(
@@ -7195,6 +7205,13 @@ void ResourceTracker::on_vkUpdateDescriptorSetWithTemplate(
         bufferViews, inlineUniformBlockBuffer, true /* do lock */);
 }
 
+void ResourceTracker::on_vkUpdateDescriptorSetWithTemplateKHR(
+    void* context, VkDevice device, VkDescriptorSet descriptorSet,
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void* pData) {
+    on_vkUpdateDescriptorSetWithTemplate(context, device, descriptorSet, descriptorUpdateTemplate,
+                                         pData);
+}
+
 // VK_KHR_push_descriptor (core in VK_VERSION_1_4) allows applications to leave
 // some fields of VkWriteDescriptorSet unset (e.g. `dstSet`) and some other
 // fields unset based on the descriptor type (e.g. `pImageInfo` for
@@ -7264,6 +7281,29 @@ void ResourceTracker::on_vkCmdPushDescriptorSet(void* context, VkCommandBuffer c
                                 transformedWrites.data(), true /* do lock */);
 }
 
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate(
+    void* context, VkCommandBuffer commandBuffer,
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
+    const void* pData) {
+    VkPushDescriptorSetWithTemplateInfo pushInfo = {
+        .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_WITH_TEMPLATE_INFO,
+        .pNext = nullptr,
+        .descriptorUpdateTemplate = descriptorUpdateTemplate,
+        .layout = layout,
+        .set = set,
+        .pData = pData,
+    };
+    on_vkCmdPushDescriptorSetWithTemplate2(context, commandBuffer, &pushInfo);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplateKHR(
+    void* context, VkCommandBuffer commandBuffer,
+    VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
+    const void* pData) {
+    on_vkCmdPushDescriptorSetWithTemplate(context, commandBuffer, descriptorUpdateTemplate, layout,
+                                          set, pData);
+}
+
 void ResourceTracker::on_vkCmdPushDescriptorSet2(
     void* context, VkCommandBuffer commandBuffer,
     const VkPushDescriptorSetInfo* pPushDescriptorSetInfo) {
@@ -7283,6 +7323,143 @@ void ResourceTracker::on_vkCmdPushDescriptorSet2KHR(
     void* context, VkCommandBuffer commandBuffer,
     const VkPushDescriptorSetInfo* pPushDescriptorSetInfo) {
     on_vkCmdPushDescriptorSet2(context, commandBuffer, pPushDescriptorSetInfo);
+}
+
+// VkPushDescriptorSetWithTemplateInfo has an opaque `const void* pData` field
+// whose size is determined from the VkDescriptorUpdateTemplateEntry referenced.
+// Instead of trying to make the marhsaling code more stateful, the template
+// writes are expanded into vkCmdPushDescriptorSet() calls in the guest.
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo) {
+    if (!pPushDescriptorSetWithTemplateInfo) return;
+    const uint8_t* userBuffer =
+        static_cast<const uint8_t*>(pPushDescriptorSetWithTemplateInfo->pData);
+
+    VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    std::vector<VkWriteDescriptorSet> writes;
+    std::vector<VkDescriptorImageInfo> imageInfos;
+    std::vector<VkDescriptorBufferInfo> bufferInfos;
+    std::vector<VkBufferView> bufferViews;
+    std::vector<VkWriteDescriptorSetInlineUniformBlock> inlineUniformBlocks;
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(mLock);
+        auto it = info_VkDescriptorUpdateTemplate.find(
+            pPushDescriptorSetWithTemplateInfo->descriptorUpdateTemplate);
+        if (it == info_VkDescriptorUpdateTemplate.end()) {
+            return;
+        }
+        const auto& info = it->second;
+        if (!userBuffer && info.templateEntryCount > 0) {
+            return;
+        }
+
+        pipelineBindPoint = info.pipelineBindPoint;
+        writes.resize(info.templateEntryCount);
+        imageInfos.resize(info.imageInfoCount);
+        bufferInfos.resize(info.bufferInfoCount);
+        bufferViews.resize(info.bufferViewCount);
+        inlineUniformBlocks.resize(info.inlineUniformBlockCount);
+
+        uint32_t currImageInfoIndex = 0;
+        uint32_t currBufferInfoIndex = 0;
+        uint32_t currBufferViewIndex = 0;
+        uint32_t currInlineUniformBlockIndex = 0;
+
+        for (uint32_t i = 0; i < info.templateEntryCount; ++i) {
+            const auto& entry = info.templateEntries[i];
+            VkDescriptorType descType = entry.descriptorType;
+            uint32_t descCount = entry.descriptorCount;
+            size_t offset = entry.offset;
+            size_t stride = entry.stride;
+
+            VkWriteDescriptorSet& write = writes[i];
+            write = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = VK_NULL_HANDLE,
+                .dstBinding = entry.dstBinding,
+                .dstArrayElement = entry.dstArrayElement,
+                .descriptorCount = descCount,
+                .descriptorType = descType,
+                .pImageInfo = nullptr,
+                .pBufferInfo = nullptr,
+                .pTexelBufferView = nullptr,
+            };
+
+            if (isDescriptorTypeImageInfo(descType)) {
+                if (!stride) stride = sizeof(VkDescriptorImageInfo);
+                write.pImageInfo = &imageInfos[currImageInfoIndex];
+                for (uint32_t j = 0; j < descCount; ++j) {
+                    imageInfos[currImageInfoIndex++] =
+                        *reinterpret_cast<const VkDescriptorImageInfo*>(userBuffer + offset +
+                                                                        j * stride);
+                }
+            } else if (isDescriptorTypeBufferInfo(descType)) {
+                if (!stride) stride = sizeof(VkDescriptorBufferInfo);
+                write.pBufferInfo = &bufferInfos[currBufferInfoIndex];
+                for (uint32_t j = 0; j < descCount; ++j) {
+                    bufferInfos[currBufferInfoIndex++] =
+                        *reinterpret_cast<const VkDescriptorBufferInfo*>(userBuffer + offset +
+                                                                         j * stride);
+                }
+            } else if (isDescriptorTypeBufferView(descType)) {
+                if (!stride) stride = sizeof(VkBufferView);
+                write.pTexelBufferView = &bufferViews[currBufferViewIndex];
+                for (uint32_t j = 0; j < descCount; ++j) {
+                    bufferViews[currBufferViewIndex++] =
+                        *reinterpret_cast<const VkBufferView*>(userBuffer + offset + j * stride);
+                }
+            } else if (isDescriptorTypeInlineUniformBlock(descType)) {
+                VkWriteDescriptorSetInlineUniformBlock& iub =
+                    inlineUniformBlocks[currInlineUniformBlockIndex++];
+                iub = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK,
+                    .pNext = nullptr,
+                    .dataSize = descCount,
+                    .pData = userBuffer + offset,
+                };
+                write.pNext = &iub;
+            }
+        }
+    }
+
+    if (!pPushDescriptorSetWithTemplateInfo->pNext &&
+        pPushDescriptorSetWithTemplateInfo->layout != VK_NULL_HANDLE) {
+        on_vkCmdPushDescriptorSet(context, commandBuffer, pipelineBindPoint,
+                                  pPushDescriptorSetWithTemplateInfo->layout,
+                                  pPushDescriptorSetWithTemplateInfo->set,
+                                  static_cast<uint32_t>(writes.size()), writes.data());
+        return;
+    }
+
+    VkShaderStageFlags stageFlags = VK_SHADER_STAGE_ALL;
+    if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+        stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+    } else if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE) {
+        stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    } else if (pipelineBindPoint == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
+        stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    }
+
+    VkPushDescriptorSetInfo pushInfo = {
+        .sType = VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO,
+        .pNext = pPushDescriptorSetWithTemplateInfo->pNext,
+        .stageFlags = stageFlags,
+        .layout = pPushDescriptorSetWithTemplateInfo->layout,
+        .set = pPushDescriptorSetWithTemplateInfo->set,
+        .descriptorWriteCount = static_cast<uint32_t>(writes.size()),
+        .pDescriptorWrites = writes.data(),
+    };
+    on_vkCmdPushDescriptorSet2(context, commandBuffer, &pushInfo);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSetWithTemplate2KHR(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo) {
+    on_vkCmdPushDescriptorSetWithTemplate2(context, commandBuffer,
+                                           pPushDescriptorSetWithTemplateInfo);
 }
 
 #ifdef LINUX_GUEST_BUILD

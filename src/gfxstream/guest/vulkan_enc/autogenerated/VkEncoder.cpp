@@ -18925,6 +18925,9 @@ VkResult VkEncoder::vkCreateDescriptorUpdateTemplateKHR(
     sResourceTracker->register_VkDescriptorUpdateTemplate(*pDescriptorUpdateTemplate);
     VkResult vkCreateDescriptorUpdateTemplateKHR_VkResult_return = (VkResult)0;
     stream->read(&vkCreateDescriptorUpdateTemplateKHR_VkResult_return, sizeof(VkResult));
+    sResourceTracker->on_vkCreateDescriptorUpdateTemplateKHR(
+        this, vkCreateDescriptorUpdateTemplateKHR_VkResult_return, device, pCreateInfo, pAllocator,
+        pDescriptorUpdateTemplate);
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();

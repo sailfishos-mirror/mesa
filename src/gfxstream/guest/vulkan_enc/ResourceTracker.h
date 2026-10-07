@@ -440,20 +440,42 @@ class ResourceTracker {
         const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo,
         const VkAllocationCallbacks* pAllocator,
         VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate);
+    VkResult on_vkCreateDescriptorUpdateTemplateKHR(
+        void* context, VkResult input_result, VkDevice device,
+        const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo,
+        const VkAllocationCallbacks* pAllocator,
+        VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate);
 
     void on_vkUpdateDescriptorSetWithTemplate(void* context, VkDevice device,
                                               VkDescriptorSet descriptorSet,
                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
                                               const void* pData);
+    void on_vkUpdateDescriptorSetWithTemplateKHR(
+        void* context, VkDevice device, VkDescriptorSet descriptorSet,
+        VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void* pData);
 
     void on_vkCmdPushDescriptorSet(void* context, VkCommandBuffer commandBuffer,
                                    VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
                                    uint32_t set, uint32_t descriptorWriteCount,
                                    const VkWriteDescriptorSet* pDescriptorWrites);
+    void on_vkCmdPushDescriptorSetWithTemplate(void* context, VkCommandBuffer commandBuffer,
+                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
+                                               VkPipelineLayout layout, uint32_t set,
+                                               const void* pData);
+    void on_vkCmdPushDescriptorSetWithTemplateKHR(
+        void* context, VkCommandBuffer commandBuffer,
+        VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set,
+        const void* pData);
     void on_vkCmdPushDescriptorSet2(void* context, VkCommandBuffer commandBuffer,
                                     const VkPushDescriptorSetInfo* pPushDescriptorSetInfo);
     void on_vkCmdPushDescriptorSet2KHR(void* context, VkCommandBuffer commandBuffer,
                                        const VkPushDescriptorSetInfo* pPushDescriptorSetInfo);
+    void on_vkCmdPushDescriptorSetWithTemplate2(
+        void* context, VkCommandBuffer commandBuffer,
+        const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo);
+    void on_vkCmdPushDescriptorSetWithTemplate2KHR(
+        void* context, VkCommandBuffer commandBuffer,
+        const VkPushDescriptorSetWithTemplateInfo* pPushDescriptorSetWithTemplateInfo);
 
     void on_vkGetPhysicalDeviceFormatProperties2(void* context, VkPhysicalDevice physicalDevice,
                                                  VkFormat format,
@@ -833,6 +855,7 @@ class ResourceTracker {
     };
 
     struct VkDescriptorUpdateTemplate_Info {
+        VkPipelineBindPoint pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         uint32_t templateEntryCount = 0;
         VkDescriptorUpdateTemplateEntry* templateEntries;
 
