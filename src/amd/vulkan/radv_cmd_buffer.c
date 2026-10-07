@@ -13356,9 +13356,9 @@ radv_emit_fragment_output_state(struct radv_cmd_buffer *cmd_buffer)
    radeon_begin(cmd_buffer->cs);
    if (pdev->info.gfx_level >= GFX12) {
       gfx12_begin_context_regs();
-      gfx12_set_context_reg(R_028854_CB_SHADER_MASK, cmd_buffer->state.cb_shader_mask);
-      gfx12_set_context_reg(R_028650_SPI_SHADER_Z_FORMAT, cmd_buffer->state.spi_shader_z_format);
-      gfx12_set_context_reg(R_028654_SPI_SHADER_COL_FORMAT, col_format_compacted);
+      gfx12_opt_set_context_reg(R_028854_CB_SHADER_MASK, AC_TRACKED_CB_SHADER_MASK, cmd_buffer->state.cb_shader_mask);
+      gfx12_opt_set_context_reg2(R_028650_SPI_SHADER_Z_FORMAT, AC_TRACKED_SPI_SHADER_Z_FORMAT,
+                                 cmd_buffer->state.spi_shader_z_format, col_format_compacted);
       gfx12_end_context_regs();
    } else if (pdev->info.has_set_context_pairs_packed) {
       gfx11_begin_packed_context_regs();
