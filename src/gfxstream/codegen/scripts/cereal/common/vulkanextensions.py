@@ -89,6 +89,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_shader_expect_assume",
     "VK_KHR_shader_float_controls2",
     "VK_KHR_shader_subgroup_rotate",
+    "VK_KHR_vertex_attribute_divisor",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
     "VK_EXT_image_compression_control_swapchain",
