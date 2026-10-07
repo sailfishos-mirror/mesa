@@ -4072,13 +4072,22 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
           sources[FB_WRITE_LOGICAL_SRC_COLOR1] = get_nir_src(ntb, instr->src[2], -1);
 
       signed target = (signed) nir_intrinsic_target(instr);
-      /* If our alpha happens to match src0_alpha, we can skip sending it, as
-       * the hardware will use our alpha in that case.
-       */
-      if (!nir_src_is_undef(instr->src[3]) && target != 0 &&
-          !scalars_equal(nir_scalar_resolved(instr->src[3].ssa, 0),
-                         nir_scalar_resolved(instr->src[1].ssa, 3)))
-         sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] = get_nir_src(ntb, instr->src[3], 0);
+      if (ntb.s.key->use_efficient_64bit) {
+         /* Refer to the programming notes in HSD 14023691226. */
+         if (!nir_src_is_undef(instr->src[3]) &&
+             fs_prog_data->alpha_to_coverage != INTEL_NEVER && target != 0)
+            sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] =
+               get_nir_src(ntb, instr->src[3], 0);
+      } else {
+         /* If our alpha happens to match src0_alpha, we can skip sending it,
+          * as the hardware will use our alpha in that case.
+          */
+         if (!nir_src_is_undef(instr->src[3]) && target != 0 &&
+             !scalars_equal(nir_scalar_resolved(instr->src[3].ssa, 0),
+                            nir_scalar_resolved(instr->src[1].ssa, 3)))
+            sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] =
+               get_nir_src(ntb, instr->src[3], 0);
+      }
 
       if (!nir_src_is_undef(instr->src[4]) && fs_prog_data->uses_omask)
          sources[FB_WRITE_LOGICAL_SRC_OMASK] = get_nir_src(ntb, instr->src[4], 0);
