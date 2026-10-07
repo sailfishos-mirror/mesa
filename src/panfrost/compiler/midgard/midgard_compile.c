@@ -388,7 +388,7 @@ midgard_preprocess_nir(nir_shader *nir, UNUSED uint64_t gpu_id)
 }
 
 void
-midgard_postprocess_nir(nir_shader *nir, UNUSED uint64_t gpu_id)
+midgard_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    midgard_lower_texture_nir(nir, gpu_id);
 
