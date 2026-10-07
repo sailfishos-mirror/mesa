@@ -89,3 +89,4 @@ VK_EXT_primitive_restart_index on NVK
 occlusionQueryPrecise on pvr
 VK_EXT_vertex_attribute_robustness on panvk
 VK_EXT_host_image_copy on RADV/GFX9 with RADV_EXPERIMENTAL=hic
+VK_KHR_internally_synchronized_queues on pvr

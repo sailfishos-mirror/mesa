@@ -147,6 +147,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_image_format_list = true,
       .KHR_imageless_framebuffer = true,
       .KHR_index_type_uint8 = true,
+      .KHR_internally_synchronized_queues = true,
       .KHR_line_rasterization = true,
       .KHR_maintenance1 = true,
       .KHR_maintenance2 = true,
@@ -582,7 +583,10 @@ static void pvr_physical_device_get_supported_features(
       .swapchainMaintenance1 = PVR_USE_WSI_PLATFORM,
 
       /* KHR_unifiedImageLayouts */
-      .unifiedImageLayouts = true
+      .unifiedImageLayouts = true,
+
+      /* VK_KHR_internally_synchronized_queues */
+      .internallySynchronizedQueues = true,
    };
 }
 
