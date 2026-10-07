@@ -3853,7 +3853,8 @@ radv_emit_mesh_shader(struct radv_cmd_buffer *cmd_buffer)
 
    radeon_opt_set_context_reg(R_028B38_VGT_GS_MAX_VERT_OUT, AC_TRACKED_VGT_GS_MAX_VERT_OUT,
                               ms->regs.vgt_gs_max_vert_out);
-   radeon_set_uconfig_reg_idx(&pdev->info, R_030908_VGT_PRIMITIVE_TYPE, 1, V_008958_DI_PT_POINTLIST);
+   radeon_opt_set_uconfig_reg_idx(&pdev->info, R_030908_VGT_PRIMITIVE_TYPE, 1, AC_TRACKED_VGT_PRIMITIVE_TYPE,
+                                  V_008958_DI_PT_POINTLIST);
    radeon_end();
 
    if (pdev->info.gfx_level >= GFX11)
@@ -4691,7 +4692,8 @@ radv_emit_vgt_prim_state(struct radv_cmd_buffer *cmd_buffer)
       if (pdev->info.gfx_level >= GFX12)
          vgt_prim |= S_030908_NUM_INPUT_CP(d->vk.ts.patch_control_points);
 
-      radeon_set_uconfig_reg_idx(&pdev->info, R_030908_VGT_PRIMITIVE_TYPE, 1, vgt_prim);
+      radeon_opt_set_uconfig_reg_idx(&pdev->info, R_030908_VGT_PRIMITIVE_TYPE, 1, AC_TRACKED_VGT_PRIMITIVE_TYPE,
+                                     vgt_prim);
    } else {
       radeon_set_config_reg(R_008958_VGT_PRIMITIVE_TYPE, d->vk.ia.primitive_topology);
    }
@@ -4818,7 +4820,8 @@ radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
    radeon_begin(cs);
 
    /* Emit per-draw VRS rate which is the first combiner. */
-   radeon_set_uconfig_reg(R_03098C_GE_VRS_RATE, S_03098C_RATE_X(rate_x) | S_03098C_RATE_Y(rate_y));
+   radeon_opt_set_uconfig_reg(R_03098C_GE_VRS_RATE, AC_TRACKED_GE_VRS_RATE,
+                              S_03098C_RATE_X(rate_x) | S_03098C_RATE_Y(rate_y));
 
    radeon_opt_set_context_reg(R_028848_PA_CL_VRS_CNTL, AC_TRACKED_PA_CL_VRS_CNTL, pa_cl_vrs_cntl);
 
@@ -7772,13 +7775,15 @@ radv_emit_primitive_restart(struct radv_cmd_buffer *cmd_buffer, bool enable)
    }
 
    if (gfx_level >= GFX11) {
-      radeon_set_uconfig_reg(R_03092C_GE_MULTI_PRIM_IB_RESET_EN, S_03092C_RESET_EN(enable) |
-                                                                    /* This disables primitive restart for non-indexed
-                                                                     * draws. By keeping this set, we don't have to
-                                                                     * unset RESET_EN for non-indexed draws. */
-                                                                    S_03092C_DISABLE_FOR_AUTO_INDEX(1));
+      radeon_opt_set_uconfig_reg(R_03092C_GE_MULTI_PRIM_IB_RESET_EN, AC_TRACKED_GE_MULTI_PRIM_IB_RESET_EN_UCONFIG,
+                                 S_03092C_RESET_EN(enable) |
+                                    /* This disables primitive restart for non-indexed
+                                     * draws. By keeping this set, we don't have to
+                                     * unset RESET_EN for non-indexed draws. */
+                                    S_03092C_DISABLE_FOR_AUTO_INDEX(1));
    } else if (gfx_level >= GFX9) {
-      radeon_set_uconfig_reg(R_03092C_VGT_MULTI_PRIM_IB_RESET_EN, enable);
+      radeon_opt_set_uconfig_reg(R_03092C_VGT_MULTI_PRIM_IB_RESET_EN, AC_TRACKED_GE_MULTI_PRIM_IB_RESET_EN_UCONFIG,
+                                 enable);
    } else {
       radeon_set_context_reg(R_028A94_VGT_MULTI_PRIM_IB_RESET_EN, enable);
    }

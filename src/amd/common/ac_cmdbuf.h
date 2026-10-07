@@ -244,6 +244,10 @@ enum ac_tracked_reg
    AC_TRACKED_COMPUTE_DISPATCH_SCRATCH_BASE_LO, /* GFX11+ */
    AC_TRACKED_COMPUTE_DISPATCH_SCRATCH_BASE_HI, /* GFX11+ */
 
+   AC_TRACKED_GE_VRS_RATE,
+   AC_TRACKED_GE_MULTI_PRIM_IB_RESET_EN_UCONFIG,
+   AC_TRACKED_VGT_PRIMITIVE_TYPE, /* UCONFIG on GFX7+ */
+
    /* This spot is only for new SH and UCONFIG register enums.
     * Context register enums should be before AC_NUM_TRACKED_CONTEXT_REGS.
     */
