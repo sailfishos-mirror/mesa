@@ -10844,7 +10844,7 @@
         "description": "etnaviv: Update sampler sources before deriving state",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4daee6733f3c4c755f9450a0dea33c0203cacd68",
         "notes": null
