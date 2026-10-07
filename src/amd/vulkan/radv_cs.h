@@ -87,6 +87,12 @@ radeon_check_space(struct radeon_winsys *ws, struct ac_cmdbuf *cs, unsigned need
       ac_cmdbuf_opt_set_ctx_reg4(__tracked_regs, reg, reg_enum, v1, v2, v3, v4);                                       \
    } while (0)
 
+#define radeon_opt_set_context_reg6(reg, reg_enum, v1, v2, v3, v4, v5, v6)                                             \
+   do {                                                                                                                \
+      struct ac_tracked_regs *__tracked_regs = &__rcs->tracked_regs;                                                   \
+      ac_cmdbuf_opt_set_ctx_reg6(__tracked_regs, reg, reg_enum, v1, v2, v3, v4, v5, v6);                               \
+   } while (0)
+
 #define radeon_opt_set_context_regn(reg, values, saved_values, num)                                                    \
    ac_cmdbuf_opt_set_ctx_regn(reg, values, saved_values, num)
 
