@@ -840,7 +840,7 @@ bifrost_postprocess_nir(nir_shader *nir,
       NIR_PASS(_, nir, bifrost_nir_lower_load_output);
 
       /* Collect format varyings */
-      pan_varying_collect_formats(&info->varyings.formats, nir, inputs->gpu_id);
+      pan_varying_collect_formats(&info->varyings.formats, nir, gpu_arch);
 
       NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats,
                inputs->varying_layout ?: &info->varyings.formats);
