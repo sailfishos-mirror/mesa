@@ -741,7 +741,7 @@ ac_prepare_cs_clear_copy_buffer(const ac_cs_clear_copy_buffer_options *options,
       /* Each invocation must increment the offset by 2^n. */
       (!util_is_power_of_two_nonzero(dwords_per_thread) ||
        /* The buffer range bounds must be divisible by the copy size per invocation. */
-       ((info->src_offset - src_align_offset) % (dwords_per_thread * 4) != 0 ||
+       ((info->src_offset - dst_align_offset) % (dwords_per_thread * 4) != 0 ||
         (info->src_offset + info->size) % (dwords_per_thread * 4) != 0));
    out->shader_key.src_align_offset = src_align_offset;
    out->shader_key.dst_align_offset = dst_align_offset;
