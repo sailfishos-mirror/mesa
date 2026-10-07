@@ -611,23 +611,28 @@ ac_clear_copy_calc_dwords_per_thread(const ac_cs_clear_copy_buffer_options *opti
    if (info->dwords_per_thread)
       dwords_per_thread = info->dwords_per_thread;
 
-   if (info->dst_is_sparse)
-      assert(util_is_power_of_two_nonzero(dwords_per_thread));
-
    /* Validate dwords_per_thread. */
+   if (info->dst_is_sparse && !util_is_power_of_two_nonzero(dwords_per_thread)) {
+      fprintf(stderr, "ac_nir_meta_cs_clear_copy_buffer: dwords_per_thread must be a power of two "
+                      "for a sparse destination\n");
+      exit(1);
+   }
+
    if (dwords_per_thread > 4) {
-      assert(!"dwords_per_thread must be <= 4");
-      return 0; /* invalid value */
+      fprintf(stderr, "ac_nir_meta_cs_clear_copy_buffer: dwords_per_thread must be <= 4\n");
+      exit(1);
    }
 
    if (clear_value_size > dwords_per_thread * 4) {
-      assert(!"clear_value_size must be <= dwords_per_thread");
-      return 0; /* invalid value */
+      fprintf(stderr, "ac_nir_meta_cs_clear_copy_buffer: clear_value_size must be <= "
+                      "dwords_per_thread\n");
+      exit(1);
    }
 
    if (clear_value_size == 12 && info->dst_offset % 4) {
-      assert(!"if clear_value_size == 12, dst_offset must be aligned to 4");
-      return 0; /* invalid value */
+      fprintf(stderr, "ac_nir_meta_cs_clear_copy_buffer: if clear_value_size == 12, dst_offset "
+                      "must be aligned to 4\n");
+      exit(1);
    }
 
    return dwords_per_thread;
