@@ -72,6 +72,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_driver_properties",
     "VK_KHR_sampler_mirror_clamp_to_edge",
     "VK_KHR_separate_depth_stencil_layouts",
+    "VK_KHR_shader_atomic_int64",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
