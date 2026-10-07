@@ -80,6 +80,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_EXT_host_query_reset",
     "VK_EXT_sampler_filter_minmax",
     "VK_EXT_separate_stencil_usage",
+    "VK_EXT_shader_viewport_index_layer",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
