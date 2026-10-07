@@ -11,7 +11,7 @@
 #include "panfrost/compiler/pan_compiler.h"
 #include "util/u_dynarray.h"
 
-void midgard_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void midgard_preprocess_nir(nir_shader *nir);
 void midgard_postprocess_nir(nir_shader *nir, uint64_t gpu_id);
 void midgard_lower_texture_nir(nir_shader *nir, uint64_t gpu_id);
 

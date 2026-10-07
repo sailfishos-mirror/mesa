@@ -363,7 +363,7 @@ lower_vec816_alu(const nir_instr *instr, const void *cb_data)
 }
 
 void
-midgard_preprocess_nir(nir_shader *nir, UNUSED uint64_t gpu_id)
+midgard_preprocess_nir(nir_shader *nir)
 {
    /* Ensure that halt are translated to returns and get ride of them */
    NIR_PASS(_, nir, nir_lower_halt_to_return);

@@ -157,7 +157,7 @@ pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    if (pan_arch(gpu_id) >= 6)
       bifrost_preprocess_nir(nir, gpu_id);
    else
-      midgard_preprocess_nir(nir, gpu_id);
+      midgard_preprocess_nir(nir);
 
    bool is_kraid = pan_use_kraid(pan_arch(gpu_id), nir->info.stage,
                                  nir->info.internal);

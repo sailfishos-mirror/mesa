@@ -173,7 +173,7 @@ scalar_as_imm_i4(nir_scalar s)
 }
 
 static bool
-bi_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+bi_lower_txf_buf(nir_builder *b, nir_tex_instr *tex)
 {
    assert(tex->op == nir_texop_txf);
 
@@ -196,7 +196,7 @@ bi_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
 }
 
 static bool
-bi_lower_texs(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+bi_lower_texs(nir_builder *b, nir_tex_instr *tex)
 {
    assert(tex->op == nir_texop_tex || tex->op == nir_texop_txl);
 
@@ -481,7 +481,7 @@ enum bifrost_tex_sreg {
 };
 
 static bool
-bi_lower_tex(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+bi_lower_tex(nir_builder *b, nir_tex_instr *tex)
 {
    /* If txf is used, we assume there is a valid sampler bound at index 0. Use
     * it for txf operations, since there may be no other valid samplers. This is
@@ -621,7 +621,7 @@ bi_lower_tex(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
 }
 
 static bool
-bi_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+bi_lower_lod(nir_builder *b, nir_tex_instr *tex)
 {
    b->cursor = nir_before_instr(&tex->instr);
    struct tex_srcs srcs = steal_tex_srcs(b, tex);
@@ -668,12 +668,10 @@ bi_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
 static bool
 bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
 {
-   uint64_t gpu_id = *(uint64_t *)cb_data;
-
    switch (tex->op) {
    case nir_texop_tex:
    case nir_texop_txl:
-      if (bi_lower_texs(b, tex, gpu_id))
+      if (bi_lower_texs(b, tex))
          return true;
 
       FALLTHROUGH;
@@ -684,13 +682,13 @@ bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    case nir_texop_txf_ms:
    case nir_texop_tg4:
       if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF)
-         return bi_lower_txf_buf(b, tex, gpu_id);
+         return bi_lower_txf_buf(b, tex);
       else
-         return bi_lower_tex(b, tex, gpu_id);
+         return bi_lower_tex(b, tex);
 
    case nir_texop_lod:
       assert(tex->sampler_dim != GLSL_SAMPLER_DIM_BUF);
-      return bi_lower_lod(b, tex, gpu_id);
+      return bi_lower_lod(b, tex);
 
    default:
       return false;
@@ -698,7 +696,7 @@ bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
 }
 
 static bool
-va_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
+va_lower_txf_buf(nir_builder *b, nir_tex_instr *tex)
 {
    assert(tex->op == nir_texop_txf);
 
@@ -1100,7 +1098,7 @@ va_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    case nir_texop_txf_ms:
    case nir_texop_tg4:
       if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF)
-         return va_lower_txf_buf(b, tex, gpu_id);
+         return va_lower_txf_buf(b, tex);
       else
          return va_lower_tex(b, tex, gpu_id);
 
@@ -1127,7 +1125,7 @@ pan_nir_lower_tex(nir_shader *nir, uint64_t gpu_id)
    } else if (pan_arch(gpu_id) >= 6) {
       return nir_shader_tex_pass(nir, bi_lower_tex_instr,
                                  nir_metadata_control_flow,
-                                 &gpu_id);
+                                 NULL);
    } else {
       UNREACHABLE("Midgard is not supported by this pass");
    }
