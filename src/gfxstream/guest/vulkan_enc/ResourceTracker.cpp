@@ -1952,6 +1952,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_KHR_map_memory2",
         "VK_KHR_shader_expect_assume",
         "VK_KHR_shader_float_controls2",
+        "VK_KHR_shader_subgroup_rotate",
 
         // Android requirements
         "VK_EXT_pipeline_protected_access",
