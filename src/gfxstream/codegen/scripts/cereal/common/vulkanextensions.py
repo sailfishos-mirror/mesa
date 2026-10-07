@@ -61,6 +61,8 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_EXT_frame_boundary",
     # see aosp/2736079 + b/268351352
     "VK_EXT_swapchain_maintenance1",
+    # VK1.1 extensions
+    "VK_KHR_16bit_storage",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
