@@ -361,7 +361,7 @@ bool pan_nir_resize_varying_io(nir_shader *nir,
                                struct pan_varying_layout *varying_fmt,
                                const struct pan_varying_layout *varying_layout);
 
-bool pan_nir_fuse_io_cvt(nir_shader *nir, uint64_t gpu_id,
+bool pan_nir_fuse_io_cvt(nir_shader *nir,
                          const struct pan_varying_layout *layout);
 
 bool pan_nir_opt_push_ubo(nir_shader *nir,

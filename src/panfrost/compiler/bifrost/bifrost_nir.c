@@ -317,7 +317,7 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
 
    NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
 
-   NIR_PASS(_, nir, pan_nir_fuse_io_cvt, gpu_id, &info->varyings.formats);
+   NIR_PASS(_, nir, pan_nir_fuse_io_cvt, &info->varyings.formats);
 
    /* nir_lower_pack can generate split operations, execute algebraic again to
     * handle them */
