@@ -1948,6 +1948,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_EXT_ycbcr_2plane_444_formats",
 
         // Vulkan 1.4
+        "VK_KHR_global_priority",
         "VK_KHR_index_type_uint8",
         "VK_KHR_load_store_op_none",
         "VK_KHR_map_memory2",
