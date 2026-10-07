@@ -4071,11 +4071,11 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       if (!nir_src_is_undef(instr->src[2]))
           sources[FB_WRITE_LOGICAL_SRC_COLOR1] = get_nir_src(ntb, instr->src[2], -1);
 
+      signed target = (signed) nir_intrinsic_target(instr);
       /* If our alpha happens to match src0_alpha, we can skip sending it, as
        * the hardware will use our alpha in that case.
        */
-      if (!nir_src_is_undef(instr->src[3]) &&
-          nir_intrinsic_target(instr) != 0 &&
+      if (!nir_src_is_undef(instr->src[3]) && target != 0 &&
           !scalars_equal(nir_scalar_resolved(instr->src[3].ssa, 0),
                          nir_scalar_resolved(instr->src[1].ssa, 3)))
          sources[FB_WRITE_LOGICAL_SRC_SRC0_ALPHA] = get_nir_src(ntb, instr->src[3], 0);
@@ -4089,7 +4089,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
 
       brw_fb_write_inst *write = bld.emit(FS_OPCODE_FB_WRITE_LOGICAL, brw_reg(),
                                           sources, ARRAY_SIZE(sources))->as_fb_write();
-      write->target     = MAX2(0, (signed) nir_intrinsic_target(instr));
+      write->target     = MAX2(0, target);
       write->components = 4;
       /* Enable null_rt if the shader doesn't write any relevant output. */
       write->null_rt    = fs_prog_data->alpha_to_coverage == INTEL_NEVER &&
@@ -4097,7 +4097,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
                           !(s.nir->info.outputs_written &
                             (BITFIELD64_BIT(FRAG_RESULT_DEPTH) |
                              BITFIELD64_BIT(FRAG_RESULT_STENCIL))) &&
-                          ((signed) nir_intrinsic_target(instr) < 0);
+                          target < 0;
       write->last_rt    = !nir_instr_next(&instr->instr);
       write->eot        = !nir_instr_next(&instr->instr);
 
