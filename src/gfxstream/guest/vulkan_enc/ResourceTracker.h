@@ -446,6 +446,15 @@ class ResourceTracker {
                                               VkDescriptorUpdateTemplate descriptorUpdateTemplate,
                                               const void* pData);
 
+    void on_vkCmdPushDescriptorSet(void* context, VkCommandBuffer commandBuffer,
+                                   VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
+                                   uint32_t set, uint32_t descriptorWriteCount,
+                                   const VkWriteDescriptorSet* pDescriptorWrites);
+    void on_vkCmdPushDescriptorSet2(void* context, VkCommandBuffer commandBuffer,
+                                    const VkPushDescriptorSetInfo* pPushDescriptorSetInfo);
+    void on_vkCmdPushDescriptorSet2KHR(void* context, VkCommandBuffer commandBuffer,
+                                       const VkPushDescriptorSetInfo* pPushDescriptorSetInfo);
+
     void on_vkGetPhysicalDeviceFormatProperties2(void* context, VkPhysicalDevice physicalDevice,
                                                  VkFormat format,
                                                  VkFormatProperties2* pFormatProperties);
@@ -905,6 +914,11 @@ class ResourceTracker {
     };
 
     VkDescriptorImageInfo filterNonexistentSampler(const VkDescriptorImageInfo& inputInfo);
+
+    void sanitizePushDescriptorWrites(uint32_t descriptorWriteCount,
+                                      const VkWriteDescriptorSet* pDescriptorWrites,
+                                      std::vector<VkWriteDescriptorSet>& transformedWrites,
+                                      std::vector<VkDescriptorImageInfo>& transformedImageInfos);
 
     void emitDeviceMemoryReport(const VkDevice_Info& info, VkDeviceMemoryReportEventTypeEXT type,
                                 uint64_t memoryObjectId, VkDeviceSize size, VkObjectType objectType,

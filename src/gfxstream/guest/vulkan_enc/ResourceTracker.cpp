@@ -7195,6 +7195,96 @@ void ResourceTracker::on_vkUpdateDescriptorSetWithTemplate(
         bufferViews, inlineUniformBlockBuffer, true /* do lock */);
 }
 
+// VK_KHR_push_descriptor (core in VK_VERSION_1_4) allows applications to leave
+// some fields of VkWriteDescriptorSet unset (e.g. `dstSet`) and some other
+// fields unset based on the descriptor type (e.g. `pImageInfo` for
+// `VK_DESCRIPTOR_TYPE_SAMPLER`). The pre-existing guest marshaling code for
+// `VkWriteDescriptorSet` will try to lookup the host handles of those various
+// fields if they are not VK_NULL_HANDLE, so we clear them out here.
+void ResourceTracker::sanitizePushDescriptorWrites(
+    uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites,
+    std::vector<VkWriteDescriptorSet>& transformedWrites,
+    std::vector<VkDescriptorImageInfo>& transformedImageInfos) {
+    std::lock_guard<std::recursive_mutex> lock(mLock);
+
+    transformedWrites.resize(descriptorWriteCount);
+    size_t imageInfosNeeded = 0;
+    for (uint32_t i = 0; i < descriptorWriteCount; ++i) {
+        if (isDescriptorTypeImageInfo(pDescriptorWrites[i].descriptorType) &&
+            pDescriptorWrites[i].pImageInfo) {
+            imageInfosNeeded += pDescriptorWrites[i].descriptorCount;
+        }
+    }
+    transformedImageInfos.resize(imageInfosNeeded);
+    size_t imageInfoIndex = 0;
+    for (uint32_t i = 0; i < descriptorWriteCount; ++i) {
+        VkWriteDescriptorSet& write = transformedWrites[i];
+        write = pDescriptorWrites[i];
+        write.dstSet = VK_NULL_HANDLE;
+
+        VkDescriptorType descType = write.descriptorType;
+        if (isDescriptorTypeImageInfo(descType) && write.pImageInfo && write.descriptorCount > 0) {
+            VkDescriptorImageInfo* dstImageInfos = &transformedImageInfos[imageInfoIndex];
+            for (uint32_t j = 0; j < write.descriptorCount; ++j) {
+                VkDescriptorImageInfo imgInfo = write.pImageInfo[j];
+                if (descType == VK_DESCRIPTOR_TYPE_SAMPLER) {
+                    // If the descriptor type is VK_DESCRIPTOR_TYPE_SAMPLER, the pImageInfo
+                    // parameter is ignored and the immutable sampler is taken from the push
+                    // descriptor set layout in the pipeline layout.
+                    imgInfo.imageView = VK_NULL_HANDLE;
+                    imgInfo = filterNonexistentSampler(imgInfo);
+                } else if (descType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                    imgInfo = filterNonexistentSampler(imgInfo);
+                } else {
+                    // The descriptor type is VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    // the samplermember of the pImageInfo parameter is ignored and the
+                    // immutable sampler is taken from the push descriptor set layout in
+                    // the pipeline layout.
+                    imgInfo.sampler = VK_NULL_HANDLE;
+                }
+                dstImageInfos[j] = imgInfo;
+            }
+            write.pImageInfo = dstImageInfos;
+            imageInfoIndex += write.descriptorCount;
+        }
+    }
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSet(void* context, VkCommandBuffer commandBuffer,
+                                                VkPipelineBindPoint pipelineBindPoint,
+                                                VkPipelineLayout layout, uint32_t set,
+                                                uint32_t descriptorWriteCount,
+                                                const VkWriteDescriptorSet* pDescriptorWrites) {
+    VkEncoder* enc = (VkEncoder*)context;
+    std::vector<VkDescriptorImageInfo> transformedImageInfos;
+    std::vector<VkWriteDescriptorSet> transformedWrites;
+    sanitizePushDescriptorWrites(descriptorWriteCount, pDescriptorWrites, transformedWrites,
+                                 transformedImageInfos);
+    enc->vkCmdPushDescriptorSet(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount,
+                                transformedWrites.data(), true /* do lock */);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSet2(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetInfo* pPushDescriptorSetInfo) {
+    if (!pPushDescriptorSetInfo) return;
+    VkEncoder* enc = (VkEncoder*)context;
+    std::vector<VkDescriptorImageInfo> transformedImageInfos;
+    std::vector<VkWriteDescriptorSet> transformedWrites;
+    sanitizePushDescriptorWrites(pPushDescriptorSetInfo->descriptorWriteCount,
+                                 pPushDescriptorSetInfo->pDescriptorWrites, transformedWrites,
+                                 transformedImageInfos);
+    VkPushDescriptorSetInfo modifiedInfo = *pPushDescriptorSetInfo;
+    modifiedInfo.pDescriptorWrites = transformedWrites.data();
+    enc->vkCmdPushDescriptorSet2(commandBuffer, &modifiedInfo, true /* do lock */);
+}
+
+void ResourceTracker::on_vkCmdPushDescriptorSet2KHR(
+    void* context, VkCommandBuffer commandBuffer,
+    const VkPushDescriptorSetInfo* pPushDescriptorSetInfo) {
+    on_vkCmdPushDescriptorSet2(context, commandBuffer, pPushDescriptorSetInfo);
+}
+
 #ifdef LINUX_GUEST_BUILD
 static void fillEmulatedDrmFormatModPropsList(
     const VkFormatProperties* pFormatProperties,
