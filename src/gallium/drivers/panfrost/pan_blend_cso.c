@@ -104,7 +104,7 @@ GENX(pan_blend_get_shader_locked)(struct pan_blend_shader_cache *cache,
    };
 
    struct pan_shader_info info;
-   pan_preprocess_nir(nir, inputs.gpu_id);
+   pan_preprocess_nir(nir, PAN_ARCH);
 
 #if PAN_ARCH < 6
    enum pipe_format rt_formats[8] = {0};

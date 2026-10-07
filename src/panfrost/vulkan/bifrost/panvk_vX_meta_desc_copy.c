@@ -354,7 +354,7 @@ panvk_meta_desc_copy_rsd(struct panvk_device *dev)
       .fau.reserved = DIV_ROUND_UP(sizeof(struct pan_nir_desc_copy_info), 4),
    };
 
-   pan_preprocess_nir(b.shader, inputs.gpu_id);
+   pan_preprocess_nir(b.shader, PAN_ARCH);
 
    VkResult result = panvk_per_arch(create_internal_shader)(
       dev, b.shader, &inputs, &shader);

@@ -111,7 +111,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
     * happens at CSO create time regardless.
     */
    if (mesa_shader_stage_is_compute(s->info.stage)) {
-      pan_preprocess_nir(s, panfrost_device_gpu_id(dev));
+      pan_preprocess_nir(s, dev->arch);
    }
 
    struct pan_compile_inputs inputs = {
@@ -565,7 +565,7 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    }
 
    /* Then run the suite of lowering and optimization, including I/O lowering */
-   pan_preprocess_nir(nir, panfrost_device_gpu_id(dev));
+   pan_preprocess_nir(nir, dev->arch);
 
    /* Usually IO is lowered by gallium, but TTN doesn't */
    if (!nir->info.io_lowered) {

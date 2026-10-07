@@ -541,7 +541,7 @@ pan_preload_get_shader(struct pan_fb_preload_cache *cache,
    for (unsigned i = 0; i < active_count; ++i)
       BITSET_SET(b.shader->info.textures_used, i);
 
-   pan_preprocess_nir(b.shader, inputs.gpu_id);
+   pan_preprocess_nir(b.shader, PAN_ARCH);
    pan_postprocess_nir(b.shader, &inputs, &shader->info);
 
    if (PAN_ARCH == 4) {

@@ -436,7 +436,7 @@ main(int argc, const char **argv)
          NIR_PASS(_, s, nir_lower_vars_to_explicit_types, nir_var_mem_shared,
                   glsl_get_cl_type_size_align);
 
-         pan_preprocess_nir(s, inputs.gpu_id);
+         pan_preprocess_nir(s, target_arch);
 
          NIR_PASS(_, s, nir_opt_deref);
          NIR_PASS(_, s, nir_lower_vars_to_ssa);

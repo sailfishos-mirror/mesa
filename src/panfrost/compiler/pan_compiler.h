@@ -74,7 +74,7 @@ struct pan_compile_inputs {
  * preprocess and postprocess.  Any code except sysval inlining put after
  * postprocess WILL BE NAKed.
  */
-void pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void pan_preprocess_nir(nir_shader *nir, unsigned arch);
 void pan_postprocess_nir(nir_shader *nir,
                          const struct pan_compile_inputs *inputs,
                          struct pan_shader_info *info);

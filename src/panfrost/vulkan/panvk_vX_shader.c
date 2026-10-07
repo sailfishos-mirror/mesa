@@ -499,7 +499,7 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
    NIR_PASS(_, nir, nir_inline_sysval, nir_intrinsic_load_core_max_id_arm,
             core_max_id);
 
-   pan_preprocess_nir(nir, pdev->kmod.dev->props.gpu_id);
+   pan_preprocess_nir(nir, PAN_ARCH);
 }
 
 static void

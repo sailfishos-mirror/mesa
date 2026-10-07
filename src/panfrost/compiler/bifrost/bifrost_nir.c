@@ -406,7 +406,7 @@ bi_optimize_late(nir_shader *nir, unsigned arch,
 }
 
 void
-bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
+bifrost_preprocess_nir(nir_shader *nir, unsigned arch)
 {
    MESA_TRACE_FUNC();
 
@@ -424,7 +424,7 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, nir_lower_terminate_to_demote);
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {
-      if (pan_arch(gpu_id) <= 7)
+      if (arch <= 7)
          NIR_PASS(_, nir, pan_nir_lower_vertex_id);
    }
 
@@ -435,7 +435,7 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    /* Get rid of any global vars before we lower to scratch. */
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
 
-   bi_optimize_loop(nir, pan_arch(gpu_id), true /* allow_copies */);
+   bi_optimize_loop(nir, arch, true /* allow_copies */);
 
    NIR_PASS(_, nir, nir_lower_var_copies);
 }
