@@ -205,7 +205,7 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
                  nir_intrinsic_instr *low, nir_intrinsic_instr *high,
                  void *data)
 {
-   uint64_t gpu_id = *(uint64_t *)data;
+   unsigned arch = *(unsigned *)data;
 
    if (hole_size > 0)
       return false;
@@ -223,7 +223,7 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
    /* Valhall+ (v9+) supports unaligned load/store, so we don't need the
     * combined access to be naturally aligned.
     */
-   if (pan_arch(gpu_id) >= 9)
+   if (arch >= 9)
       return true;
 
    const unsigned combined_align = nir_combined_align(align_mul, align_offset);
@@ -910,7 +910,7 @@ bifrost_postprocess_nir(nir_shader *nir,
                nir_var_mem_shared |
                nir_var_mem_ubo /* | nir_var_mem_temp */,
       .callback = mem_vectorize_cb,
-      .cb_data = (void *)&gpu_id,
+      .cb_data = (void *)&gpu_arch,
       .robust_modes = inputs->robust_modes,
    };
 
