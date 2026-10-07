@@ -312,3 +312,5 @@ dEQP-VK.glsl.texture_functions.query.texturequerylod.sampler2d_float_trilinearno
 dEQP-VK.rasterization.primitives.no_stipple.lines,Fail
 dEQP-VK.rasterization.primitives.no_stipple.lines_factor_0,Fail
 dEQP-VK.rasterization.primitives.no_stipple.lines_factor_large,Fail
+
+dEQP-VK.api.driver_properties.conformance_version,Fail

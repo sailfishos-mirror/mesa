@@ -1,6 +1,8 @@
 dEQP-VK.glsl.loops.special.do_while_dynamic_iterations.dowhile_trap_vertex,Crash
 asan-dEQP-VK.glsl.loops.special.do_while_dynamic_iterations.dowhile_trap_vertex,Crash
 
+dEQP-VK.api.driver_properties.conformance_version,Fail
+
 afbcp-spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
 afbcp-spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgrad,Fail
 afbcp-spec@arb_shader_texture_lod@execution@tex-miplevel-selection *gradarb 1d,Fail

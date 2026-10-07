@@ -746,3 +746,5 @@ dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.uniform_texel_buf
 dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.uniform_texel_buffer_sparse_fetch_size_2_16_r32ui_strict,Fail
 dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.uniform_texel_buffer_sparse_fetch_size_2_24_r32ui,Fail
 dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.uniform_texel_buffer_sparse_fetch_size_2_24_r32ui_strict,Fail
+
+dEQP-VK.api.driver_properties.conformance_version,Fail

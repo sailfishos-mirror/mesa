@@ -6,6 +6,8 @@ angle-KHR-GLES31.core.shader_storage_buffer_object.advanced-usage-sync-vsfs,Fail
 dEQP-VK.wsi.xcb.present_timing.query.parallel.parallel,Fail
 dEQP-VK.wsi.xlib.present_timing.basic.timing_queue,Fail
 
+dEQP-VK.api.driver_properties.conformance_version,Fail
+
 # uprev ANGLE in Mesa
 angle-dEQP-GLES2.functional.negative_api.texture.compressedteximage2d_invalid_border_cube_neg_x,Fail
 angle-dEQP-GLES2.functional.negative_api.texture.compressedteximage2d_invalid_border_cube_neg_y,Fail

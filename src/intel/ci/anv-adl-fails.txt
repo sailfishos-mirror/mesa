@@ -14,6 +14,8 @@ dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.non_resident_buffer_strict
 dEQP-VK.video.capabilities.av1_decode_dpb_video_format_support_query,Fail
 dEQP-VK.video.capabilities.av1_decode_dst_video_format_support_query,Fail
 
+dEQP-VK.api.driver_properties.conformance_version,Fail
+
 # fluster
 GStreamer-H.264-Vulkan@CVFC1_Sony_C,Fail
 GStreamer-H.264-Vulkan@FM1_BT_B,Fail

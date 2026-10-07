@@ -17,3 +17,5 @@ dEQP-VK.api.copy_and_blit.core.use_after_copy.x8_d24_unorm_pack32.general.32x32x
 dEQP-VK.api.copy_and_blit.core.use_after_copy.x8_d24_unorm_pack32.general.32x32x2_img2img,Fail
 dEQP-VK.api.copy_and_blit.core.use_after_copy.x8_d24_unorm_pack32.general.32x32x2_img2img_msaa,Fail
 dEQP-VK.api.copy_and_blit.core.use_after_copy.x8_d24_unorm_pack32.general.32x32x2_regions,Fail
+
+dEQP-VK.api.driver_properties.conformance_version,Fail

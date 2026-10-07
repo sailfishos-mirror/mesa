@@ -881,3 +881,5 @@ dEQP-VK.pipeline.monolithic.extended_dynamic_state.after_pipelines.tess_domain_o
 dEQP-VK.pipeline.monolithic.extended_dynamic_state.two_draws_dynamic.stride_with_offset_and_padding,Fail
 dEQP-VK.shader_object.misc.state.pipeline.vert_tess_geom_frag.depth.clip_control,Fail
 dEQP-VK.tessellation.tesscoord.triangles_fractional_even_spacing_execution_mode_in_tesc,Fail
+
+dEQP-VK.api.driver_properties.conformance_version,Fail

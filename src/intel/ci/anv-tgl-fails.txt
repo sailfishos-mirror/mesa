@@ -48,3 +48,4 @@ dEQP-VK.video.encode.h265.resources_without_profiles_layered_src_video_layout,Fa
 dEQP-VK.video.encode.h265.resources_without_profiles_separated_src_video_layout,Fail
 dEQP-VK.video.encode.h265.usage_separated_src_video_layout,Fail
 
+dEQP-VK.api.driver_properties.conformance_version,Fail

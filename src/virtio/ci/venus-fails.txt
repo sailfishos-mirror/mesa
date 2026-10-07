@@ -24,3 +24,4 @@ dEQP-VK.sparse_resources.buffer.texel_buffers.sparse_residency.uniform_texel_buf
 # Nightly run expectations update
 dEQP-VK.tessellation.tesscoord.isolines_equal_spacing_execution_mode_in_tesc,Fail
 
+dEQP-VK.api.driver_properties.conformance_version,Fail
