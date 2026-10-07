@@ -87,6 +87,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_maintenance5",
     "VK_KHR_map_memory2",
     "VK_KHR_shader_expect_assume",
+    "VK_KHR_shader_float_controls2",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
     "VK_EXT_image_compression_control_swapchain",
