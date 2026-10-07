@@ -64,6 +64,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     # VK1.1 extensions
     "VK_KHR_16bit_storage",
     "VK_KHR_relaxed_block_layout",
+    "VK_KHR_shader_draw_parameters",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
