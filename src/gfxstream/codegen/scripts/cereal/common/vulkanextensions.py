@@ -68,6 +68,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_variable_pointers",
     # VK1.2 extensions
     "VK_KHR_8bit_storage",
+    "VK_KHR_draw_indirect_count",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
