@@ -1950,6 +1950,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_KHR_index_type_uint8",
         "VK_KHR_load_store_op_none",
         "VK_KHR_map_memory2",
+        "VK_KHR_shader_expect_assume",
 
         // Android requirements
         "VK_EXT_pipeline_protected_access",
