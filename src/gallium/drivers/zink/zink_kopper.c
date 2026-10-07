@@ -192,7 +192,7 @@ prune_old_swapchains(struct zink_screen *screen, struct kopper_displaytarget *cd
    while (cdt->old_swapchain) {
       struct kopper_swapchain *cswap = cdt->old_swapchain;
       /* present_fence is always in signalled state when !cdt->async */
-      if (cdt->async && !util_queue_fence_is_signalled(&cdt->swapchain->present_fence)) {
+      if (cdt->async && cdt->swapchain && !util_queue_fence_is_signalled(&cdt->swapchain->present_fence)) {
          if (!wait)
             return;
          util_queue_fence_wait(&cdt->swapchain->present_fence);
@@ -264,10 +264,12 @@ zink_kopper_deinit_displaytarget(struct zink_screen *screen, struct kopper_displ
    cdt = he->data;
    _mesa_hash_table_remove(&screen->dts, he);
    simple_mtx_unlock(&screen->dt_lock);
-   destroy_swapchain(screen, cdt->swapchain);
+   struct kopper_swapchain *cswap = cdt->swapchain;
+   cdt->swapchain = NULL;
+   destroy_swapchain(screen, cswap);
    prune_old_swapchains(screen, cdt, true);
    VKSCR(DestroySurfaceKHR)(screen->instance, cdt->surface, NULL);
-   cdt->swapchain = cdt->old_swapchain = NULL;
+   cdt->old_swapchain = NULL;
    cdt->surface = VK_NULL_HANDLE;
 }
 
