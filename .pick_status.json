@@ -10854,7 +10854,7 @@
         "description": "etnaviv: blt: Program the source TS for mipmap generation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ff008db792551cd56ebf9960b899fbf3a467f7e6",
         "notes": null
