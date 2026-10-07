@@ -108,24 +108,23 @@ testing changes, etc.
 Basic guidelines
 ----------------
 
-- Patches should not mix code changes with code formatting changes
+- Commits should not mix code changes with code formatting changes
   (except, perhaps, in very trivial cases.)
-- Code patches should follow Mesa :doc:`coding
+- Code commits should follow Mesa :doc:`coding
   conventions <codingstyle>`.
-- Whenever possible, patches should only affect individual Mesa/Gallium
-  components.
-- Patches should never introduce build breaks and should be bisectable
+- Whenever possible, commits should only affect individual Mesa components.
+- Commits should never introduce build breaks and should be bisectable
   (see ``Git bisect``.)
-- Patches should be properly :ref:`formatted <formatting>`.
-- Patches should be sufficiently :ref:`tested <testing>` before
+- Commits should be properly :ref:`formatted <formatting>`.
+- Commits should be sufficiently :ref:`tested <testing>` before
   submitting.
-- Patches should be :ref:`submitted <submit>` via a merge request for
+- Commits should be :ref:`submitted <submit>` via a merge request for
   :ref:`review <reviewing>`.
 
 .. _formatting:
 
-Patch formatting
-----------------
+Commit formatting
+-----------------
 
 - Lines should be limited to 75 characters or less so that Git logs
   displayed in 80-column terminals avoid line wrapping. Note that
@@ -141,7 +140,7 @@ Patch formatting
 
      i965: Fix missing type in local variable declaration.
 
-- Subsequent patch comments should describe the change in more detail,
+- The rest of the commit message should describe the change in more detail,
   if needed. For example:
 
   ::
@@ -154,7 +153,7 @@ Patch formatting
      platform.
 
 - A "Signed-off-by:" line is not required, but not discouraged either.
-- If a patch addresses an issue in GitLab, use the Closes: tag For
+- If a commit addresses an issue in GitLab, use the Closes: tag For
   example:
 
   ::
@@ -168,7 +167,7 @@ Patch formatting
   ``Fixes:`` for something else.
   See :ref:`below <fixes>`.
 
-- If there have been several revisions to a patch during the review
+- If there have been several revisions to a commit during the review
   process, they should be noted such as in this example:
 
   ::
@@ -187,13 +186,13 @@ Patch formatting
      v3: hit fallback for getteximage
      v4: put s8 back in front, it shouldn't get picked now (Ilia)
 
-- If someone tested your patch, document it with a line like this:
+- If someone tested your commit, document it with a line like this:
 
   ::
 
      Tested-by: Joe Hacker <jhacker@foo.com>
 
-- If the patch was reviewed (usually the case) or acked by someone,
+- If the commit was reviewed (usually the case) or acked by someone,
   that should be documented with:
 
   ::
@@ -203,7 +202,7 @@ Patch formatting
 
 - When updating a merge request add all the tags (``Acked-by:``, ``Reviewed-by:``,
   ``Fixes:``, ``Backport-to:`` and/or other) to the commit messages.
-  This provides reviewers with quick feedback if the patch has already
+  This provides reviewers with quick feedback if the commit has already
   been reviewed.
 
 .. _fixes:
@@ -211,7 +210,7 @@ Patch formatting
 The ``Fixes:`` tag
 ------------------
 
-If a patch addresses a issue introduced with earlier commit, that
+If a commit addresses a issue introduced with earlier commit, that
 should be noted in the commit message. For example::
 
     Fixes: d7b3707c612 ("util/disk_cache: use stat() to check if entry is a directory")
@@ -234,9 +233,9 @@ The stable tag
 If you want a commit to be applied to a stable branch, you should add an
 appropriate note to the commit message.
 
-Using a ``Fixes:`` tag as described in :ref:`Patch formatting <formatting>`
+Using a ``Fixes:`` tag as described in :ref:`Commit formatting <formatting>`
 is the preferred way to nominate a commit that should be backported.
-There are scripts that will figure out which releases to apply the patch
+There are scripts that will figure out which releases to apply the commit
 to automatically, so you don't need to figure it out.
 
 Alternatively, you may use the ``Backport-to:`` tag, as presented in the
@@ -261,28 +260,28 @@ Here are some examples of such a note::
     CC: 20.0 19.3 <mesa-stable>
 
 Using the CC tag **should** include the stable branches you want to
-nominate the patch to. If you do not provide any version it is nominated
+nominate the commit to. If you do not provide any version it is nominated
 to all active stable branches.
 
 .. _testing:
 
-Testing Patches
+Testing Commits
 ---------------
 
-It should go without saying that patches must be tested. In general, do
+It should go without saying that commits must be tested. In general, do
 whatever testing is prudent.
 
-You should always run the Mesa test suite before submitting patches. The
+You should always run the Mesa test suite before submitting commits. The
 test suite can be run using the 'meson test' command. All tests must
-pass before patches will be accepted, this may mean you have to update
+pass before commits will be accepted, this may mean you have to update
 the tests themselves.
 
-Whenever possible and applicable, test the patch with
+Whenever possible and applicable, test the commit with
 `Piglit <https://piglit.freedesktop.org>`__ and/or
 `dEQP <https://android.googlesource.com/platform/external/deqp/>`__ to
 check for regressions.
 
-As mentioned at the beginning, patches should be bisectable. A good way
+As mentioned at the beginning, commits should be bisectable. A good way
 to test this is to make use of the \`git rebase\` command, to run your
 tests on each commit. Assuming your branch is based off
 ``origin/main``, you can run:
@@ -295,14 +294,14 @@ replacing ``"meson test"`` with whatever other test you want to run.
 
 .. _submit:
 
-Submitting Patches
+Submitting Commits
 ------------------
 
-Patches are submitted to the Mesa project via a
+Commits are submitted to the Mesa project via a
 `GitLab <https://gitlab.freedesktop.org/mesa/mesa>`__ Merge Request (MR).
 
-- Please do NOT submit your patches in email to a mailing list,
-  we only review patches on GitLab.
+- Please do NOT submit your commits as patches in email to a mailing list,
+  we only review commits on GitLab.
 - Please do NOT paste your patches as comments in a conversation,
   unless it is small or unless that is what the maintainers requested.
 - If you are not familiar with how to use git, please learn that
@@ -335,9 +334,9 @@ your work on top of main.
 
    Allow commits from members who can merge to the target branch
 
-If you revise your patches based on code review and push an update to
-your branch, you should maintain a **clean** history in your patches.
-There should not be "fixup" patches in the history. The series should be
+If you revise your commits based on code review and push an update to
+your branch, you should maintain a **clean** history in your commits.
+There should not be "fixup" commits in the history. The series should be
 buildable and functional after every commit whenever you push the
 branch.
 
@@ -354,21 +353,21 @@ Some other notes:
 - Old, stale MR may be closed, but you can reopen it if you still want
   to pursue the changes
 - You should periodically check to see if your MR needs to be rebased
-- Make sure your MR is closed if your patches get pushed outside of
+- Make sure your MR is closed if your commits get pushed outside of
   GitLab
 - Please send MRs from a personal fork rather than from the main Mesa
   repository, as it clutters it unnecessarily.
 
 .. _reviewing:
 
-Reviewing Patches
+Reviewing Commits
 -----------------
 
 To participate in code review, you can monitor the GitLab Mesa `Merge
 Requests <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests>`__
 page, and/or register for notifications in your GitLab settings.
 
-When you've reviewed a patch, please be unambiguous about your review.
+When you've reviewed a commit, please be unambiguous about your review.
 That is, state either
 
 ::
@@ -389,7 +388,7 @@ If small changes are suggested, it's OK to say something like:
 
    With the above fixes, Reviewed-by: Joe Hacker <jhacker@foo.com>
 
-which tells the patch author that the patch can be committed, as long as
+which tells the commit author that the commit can be merged, as long as
 the issues are resolved first.
 
 These Reviewed-by, Acked-by, and Tested-by tags should also be amended
@@ -409,7 +408,7 @@ Review by non-experts is encouraged. Understanding how someone else goes
 about solving a problem is a great way to learn your way around the
 project. The submitter is expected to evaluate whether they have an
 appropriate amount of review feedback from people who also understand
-the code before merging their patches.
+the code before merging their commits.
 
 .. _merging:
 
@@ -461,7 +460,7 @@ Common issues when merging
 Nominating a commit for a stable branch
 ---------------------------------------
 
-There are several ways to nominate a patch for inclusion in the stable
+There are several ways to nominate a commit for inclusion in the stable
 branch and release. In order or preference:
 
 - By adding the ``Fixes:`` tag in the commit message as described above, if you are fixing
@@ -473,38 +472,38 @@ branch and release. In order or preference:
 Please **DO NOT** send patches to mesa-stable@lists.freedesktop.org, it
 is not monitored actively and is a historical artifact.
 
-If you are not the author of the original patch, please Cc: them in your
+If you are not the author of the original commit, please Cc: them in your
 nomination request.
 
-The current patch status can be observed in the :ref:`staging
+The current commit status can be observed in the :ref:`staging
 branch <stagingbranch>`.
 
 .. _criteria:
 
-Criteria for accepting patches to the stable branch
+Criteria for accepting commits to the stable branch
 ---------------------------------------------------
 
 Mesa has a designated release manager for each stable branch, and the
 release manager is the only developer that should be pushing changes to
-these branches. Everyone else should nominate patches using the
-mechanism described above. The following rules define which patches are
+these branches. Everyone else should nominate commits using the
+mechanism described above. The following rules define which commits are
 accepted and which are not. The stable-release manager is also given
-broad discretion in rejecting patches that have been nominated.
+broad discretion in rejecting commits that have been nominated.
 
-- Patch must conform with the :ref:`Basic guidelines <guidelines>`
-- Patch must have landed in main first. In case where the original
-  patch is too large and/or otherwise contradicts with the rules set
+- Commit must conform with the :ref:`Basic guidelines <guidelines>`
+- Commit must have landed in main first. In case where the original
+  commit is too large and/or otherwise contradicts with the rules set
   within, a backport is appropriate.
 - It must not introduce a regression - be that build or runtime wise.
 
   .. note::
      If the regression is due to faulty Piglit/dEQP/CTS/other test
      the latter must be fixed first. A reference to the offending test(s)
-     and respective fix(es) should be provided in the nominated patch.
+     and respective fix(es) should be provided in the nominated commit.
 
-- Patches that move code around with no functional change should be
+- Commits that move code around with no functional change should be
   rejected.
-- Patch must be a bug fix and not a new feature.
+- Commit must be a bug fix and not a new feature.
 
   .. note::
      An exception to this rule, are hardware-enabling "features". For
@@ -512,25 +511,25 @@ broad discretion in rejecting patches that have been nominated.
      newly-developed hardware product can be accepted if they can be
      reasonably determined not to have effects on other hardware.
 
-- Patch must be reviewed, For example, the commit message has
+- Commit must be reviewed, For example, the commit message has
   Reviewed-by, Signed-off-by, or Tested-by tags from someone but the
   author.
-- Patches for performance regressions are considered only if they provide
+- Commits for performance regressions are considered only if they provide
   information about the hardware, program in question and observed
   improvement. Use numbers to represent your measurements.
-- If you think your patch needs to be backported but isn't covered by the
+- If you think your commit needs to be backported but isn't covered by the
   cases above, please contact the :doc:`release manager for that release cycle
   <release-calendar>` by e.g. tagging them on the MR before merging it, and
   present your arguments.  The release manager is the only one who can decide
   to make an exception.  Exceptions are more likely to be accepted during the
   release candidate stage than after the first public release.
 
-If the patch complies with the rules it will be
+If the commit complies with the rules it will be
 :ref:`cherry-picked <pickntest>`. Alternatively the release
-manager will reply to the patch in question stating why the patch has
+manager will reply to the commit in question stating why the commit has
 been rejected or would request a backport. The stable-release manager
 may at times need to force-push changes to the stable branches, for
-example, to drop a previously-picked patch that was later identified as
+example, to drop a previously-picked commit that was later identified as
 causing a regression). These force-pushes may cause changes to be lost
 from the stable branch if developers push things directly. Consider
 yourself warned.
@@ -543,9 +542,9 @@ Sending backports for the stable branch
 By default merge conflicts are resolved by the stable-release manager.
 The release maintainer should resolve trivial conflicts, but for complex
 conflicts they should ask the original author to provide a backport or
-denominate the patch.
+denominate the commit.
 
-For patches that either need to be nominated after they've landed in
+For commits that either need to be nominated after they've landed in
 main, or that are known ahead of time to not not apply cleanly to a
 stable branch (such as due to a rename), using a GitLab MR is most
 appropriate. The MR must be based on and target the ``YY.N`` branch, and the
@@ -565,7 +564,7 @@ to the commit message, to allow the release maintainters to mark those
 as backported, which in turn allows the tools to correctly report any
 future ``Fixes:`` affecting the commits you backported.
 
-Documentation patches
+Documentation commits
 ---------------------
 
 Our documentation is written as `reStructuredText`_ files in the
@@ -602,7 +601,7 @@ Git tips
      git commit --fixup=FOO
      git rebase -i --autosquash ...
 
-- Test for build breakage between patches e.g last 8 commits.
+- Test for build breakage between commits e.g last 8 commits.
 
   .. code-block:: sh
 
