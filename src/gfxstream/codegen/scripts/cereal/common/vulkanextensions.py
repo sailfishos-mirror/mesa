@@ -75,6 +75,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_KHR_shader_atomic_int64",
     "VK_KHR_shader_float_controls",
     "VK_KHR_spirv_1_4",
+    "VK_KHR_uniform_buffer_standard_layout",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
