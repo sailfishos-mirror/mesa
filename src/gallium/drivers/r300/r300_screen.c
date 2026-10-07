@@ -543,7 +543,6 @@ static void r300_init_screen_caps(struct r300_screen* r300screen)
 
    /* Render targets. */
    caps->max_render_targets = 4;
-   caps->endianness = PIPE_ENDIAN_LITTLE;
 
    caps->max_viewports = 1;
 
