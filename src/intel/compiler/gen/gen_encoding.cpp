@@ -1845,7 +1845,8 @@ private:
 
 template <typename E>
 static int
-gen_find_shader_size_xe(const uint64_t *raw,
+gen_find_shader_size_xe(const intel_device_info *devinfo,
+                        const uint64_t *raw,
                         const uint64_t *raw_start,
                         const uint64_t *raw_end)
 {
@@ -1865,10 +1866,20 @@ gen_find_shader_size_xe(const uint64_t *raw,
       if (hw_opcode == E::gen_to_description[GEN_OP_ILLEGAL].hw_opcode)
          break;
 
-      if (!compact &&
-          (hw_opcode == E::gen_to_description[GEN_OP_SEND].hw_opcode ||
-           hw_opcode == E::gen_to_description[GEN_OP_SENDC].hw_opcode) &&
-          (raw - inst_words)[0] & (UINT64_C(1) << ((gen_range)E::SEND_EOT).lo))
+      if (compact)
+         continue;
+
+      const bool send_eot =
+         (hw_opcode == E::gen_to_description[GEN_OP_SEND].hw_opcode ||
+          hw_opcode == E::gen_to_description[GEN_OP_SENDC].hw_opcode) &&
+         ((raw - inst_words)[0] & (UINT64_C(1) << ((gen_range)E::SEND_EOT).lo));
+      const bool sendg_eot =
+         (devinfo->verx10 >= 350) &&
+          (hw_opcode == gen_encoding_xe3p_64bit::gen_to_description[GEN_OP_SENDG].hw_opcode ||
+           hw_opcode == gen_encoding_xe3p_64bit::gen_to_description[GEN_OP_SENDGC].hw_opcode) &&
+         ((raw - inst_words)[0] & (UINT64_C(1) << ((gen_range)gen_encoding_xe3p_64bit::SEND_EOT).lo));
+
+      if (send_eot || sendg_eot)
          break;
    }
 
@@ -1894,9 +1905,9 @@ gen_find_shader_size(const struct intel_device_info *devinfo,
    if (devinfo->ver < 12)
       return gen_find_shader_size_pre_xe(devinfo, raw, raw_start, raw_end);
    else if (devinfo->ver < 20)
-      return gen_find_shader_size_xe<gen_encoding_xe>(raw, raw_start, raw_end);
+      return gen_find_shader_size_xe<gen_encoding_xe>(devinfo, raw, raw_start, raw_end);
    else
-      return gen_find_shader_size_xe<gen_encoding_xe2>(raw, raw_start, raw_end);
+      return gen_find_shader_size_xe<gen_encoding_xe2>(devinfo, raw, raw_start, raw_end);
 }
 
 bool
