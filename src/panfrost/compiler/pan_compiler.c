@@ -255,10 +255,8 @@ pan_lookup_pushed_imm(const struct pan_fau_layout *fau, uint32_t imm)
 
 void
 pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
-                       const struct pan_compile_inputs *inputs)
+                       unsigned arch)
 {
-   unsigned arch = pan_arch(inputs->gpu_id);
-
    info->stage = s->info.stage;
    info->contains_barrier =
       s->info.uses_memory_barrier || s->info.uses_control_barrier;
@@ -381,7 +379,7 @@ pan_shader_compile(nir_shader *s, struct pan_compile_inputs *inputs,
       /* pan_shader_update_info done in the compile */
    } else {
       midgard_compile_shader_nir(s, inputs, binary, info);
-      pan_shader_update_info(info, s, inputs);
+      pan_shader_update_info(info, s, arch);
    }
 }
 

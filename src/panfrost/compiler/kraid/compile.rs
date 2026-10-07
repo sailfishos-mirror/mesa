@@ -349,7 +349,7 @@ pub extern "C" fn kraid_compile_nir(
     }
 
     write_back_info(model.as_ref(), &s.info, nir, info, idvs);
-    unsafe { pan_shader_update_info(info, nir, inputs) };
+    unsafe { pan_shader_update_info(info, nir, model.arch().into()) };
 
     if DEBUG.contains(DebugFlags::STATS) {
         let mut stream = MemStream::new().expect("Failed to open memstream");

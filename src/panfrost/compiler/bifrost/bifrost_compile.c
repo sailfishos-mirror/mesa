@@ -4532,7 +4532,7 @@ bi_compile_variant_nir(nir_shader *nir,
       va_gather_hsr_info(ctx, pinfo);
 
    /* update info struct */
-   pan_shader_update_info(pinfo, ctx->nir, inputs);
+   pan_shader_update_info(pinfo, ctx->nir, ctx->arch);
 
    if ((bifrost_debug & (BIFROST_DBG_SHADERDB|BIFROST_DBG_STATSFULL))
        && !skip_internal) {

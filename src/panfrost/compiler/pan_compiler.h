@@ -566,7 +566,7 @@ struct pan_shader_info {
 };
 
 void pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
-                            const struct pan_compile_inputs *inputs);
+                            unsigned arch);
 
 uint16_t pan_to_bytemask(unsigned bytes, unsigned mask);
 
