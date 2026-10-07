@@ -3119,6 +3119,34 @@ label_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
          ctx.info[instr->definitions[0].tempId()].set_extract();
       break;
    }
+   case aco_opcode::v_cmp_lg_i32: {
+      /* (a ? #c : 0) != 0 -> a */
+      if (!instr->usesModifiers() && instr->operands[0].constantEquals(0) &&
+          instr->operands[1].isTemp()) {
+         Instruction* parent = ctx.info[instr->operands[1].tempId()].parent_instr;
+
+         if (parent->opcode == aco_opcode::v_cndmask_b32 && !parent->usesModifiers() &&
+             parent->operands[0].constantEquals(0) && parent->operands[1].isConstant() &&
+             parent->operands[1].constantValue() != 0 && parent->operands[2].isTemp()) {
+            ctx.info[instr->definitions[0].tempId()].set_temp(parent->operands[2].getTemp());
+         }
+      }
+      break;
+   }
+   case aco_opcode::s_cmp_lg_i32: {
+      /* a != 0 -> a if a is already a scalar condition result.*/
+      for (unsigned i = 0; i < 2; i++) {
+         if (instr->operands[!i].constantEquals(0) && instr->operands[i].isTemp()) {
+            Definition def = ctx.info[instr->operands[i].tempId()].parent_instr->definitions.back();
+
+            if (def.isFixed() && def.physReg() == scc &&
+                def.getTemp() == instr->operands[i].getTemp()) {
+               ctx.info[instr->definitions[0].tempId()].set_temp(instr->operands[i].getTemp());
+            }
+         }
+      }
+      break;
+   }
    default: break;
    }
 
