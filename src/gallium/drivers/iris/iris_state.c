@@ -5911,13 +5911,32 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
       return;
    }
 
-   /* Allocate a state long enough to store all surface_states */
-   surfaces_state_map = stream_state(batch,
-                                     ice->state.dynamic_uploader,
-                                     &ice->state.last_res.render_target_64bit_surfs_res[stage],
-                                     isl_dev->ss.size * bt->total_surf_count,
-                                     isl_dev->ss.align,
-                                     &batch->render_target_surfs_state_addr[stage]);
+   if (pin_only) {
+      struct pipe_resource *res = ice->state.last_res.render_target_64bit_surfs_res[stage];
+      assert(res);
+      iris_use_pinned_bo(batch, iris_resource_bo(res), false, IRIS_DOMAIN_NONE);
+
+      if (!mesa_shader_stage_is_compute(stage)) {
+         struct pipe_resource *push_res = ice->state.last_res.push_const_64bit_payload_res[stage];
+         assert(push_res);
+         iris_use_pinned_bo(batch, iris_resource_bo(push_res), false, IRIS_DOMAIN_NONE);
+      }
+
+      /* In pin_only mode, we only would need to do the iris_use_pinned_bo()
+       * calls but that would add too much complexity to the code, so here we
+       * are allocating a new surfaces_state_map with malloc, this way the real
+       * surfaces_state_map is not overwritten and all pins are called.
+       */
+      surfaces_state_map = malloc(isl_dev->ss.size * bt->total_surf_count);
+   } else {
+      /* Allocate a state long enough to store all surface_states */
+      surfaces_state_map = stream_state(batch,
+                                        ice->state.dynamic_uploader,
+                                        &ice->state.last_res.render_target_64bit_surfs_res[stage],
+                                        isl_dev->ss.size * bt->total_surf_count,
+                                        isl_dev->ss.align,
+                                        &batch->render_target_surfs_state_addr[stage]);
+   }
 
    if (stage == MESA_SHADER_FRAGMENT) {
       struct iris_framebuffer_state *cso_fb = &ice->state.framebuffer;
@@ -6128,6 +6147,9 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
          }
       }
    }
+
+   if (pin_only)
+      free(surfaces_state_map);
 
    assert(surfaces_i == bt->total_surf_count);
 }
