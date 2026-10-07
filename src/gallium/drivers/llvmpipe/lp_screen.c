@@ -517,7 +517,11 @@ static const struct nir_shader_compiler_options gallivm_nir_options = {
    .lower_usub_borrow = true,
    .lower_mul_2x32_64 = true,
    .lower_ifind_msb = true,
-   .lower_int64_options = nir_lower_imul_2x32_64 | nir_lower_bitfield_extract64,
+   /* LLVM calls into libgcc for a 64-bit division on a 32-bit target, and
+    * RuntimeDyld can't resolve the R_PPC_REL24 of that call on 32-bit PowerPC.
+    */
+   .lower_int64_options = nir_lower_imul_2x32_64 | nir_lower_bitfield_extract64 |
+                          (DETECT_ARCH_PPC && !DETECT_ARCH_PPC_64 ? nir_lower_divmod64 : 0),
    .lower_doubles_options = nir_lower_dround_even,
    .max_unroll_iterations = 32,
    .lower_to_scalar = true,
