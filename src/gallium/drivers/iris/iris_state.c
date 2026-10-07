@@ -7362,7 +7362,18 @@ iris_emit_push_constants(struct iris_context *ice, struct iris_batch *batch,
 #endif
 
    for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
-      if (!(stage_dirty & (IRIS_STAGE_DIRTY_CONSTANTS_VS << stage)) &&
+      uint64_t stage_check_flags = IRIS_STAGE_DIRTY_CONSTANTS_VS << stage;
+
+      /* If the efficient 64bit addressing mode is enabled, we also need to
+       * check for dirty sampler states and bindings for this stage, so the
+       * pointers in the constant buffer is correctly updated before use.
+       */
+      if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr)) {
+         stage_check_flags |= (IRIS_STAGE_DIRTY_SAMPLER_STATES_VS << stage);
+         stage_check_flags |= (IRIS_STAGE_DIRTY_BINDINGS_VS << stage);
+      }
+
+      if (!(stage_dirty & stage_check_flags) &&
           !emit_const_wa)
          continue;
 
