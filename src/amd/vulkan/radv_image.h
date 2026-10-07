@@ -461,7 +461,7 @@ enum radv_fmask_compression radv_layout_fmask_compression(const struct radv_devi
 
 unsigned radv_image_queue_family_mask(const struct radv_image *image, enum radv_queue_family qf);
 
-bool radv_image_is_renderable(const struct radv_image *image);
+bool radv_image_is_renderable(const struct radv_physical_device *pdev, const struct radv_image *image);
 
 bool radv_image_is_l2_coherent(const struct radv_device *device, const struct radv_image *image,
                                const VkImageSubresourceRange *range);

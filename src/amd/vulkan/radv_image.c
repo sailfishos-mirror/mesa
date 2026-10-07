@@ -1728,12 +1728,21 @@ radv_image_queue_family_mask(const struct radv_image *image, enum radv_queue_fam
 }
 
 bool
-radv_image_is_renderable(const struct radv_image *image)
+radv_image_is_renderable(const struct radv_physical_device *pdev, const struct radv_image *image)
 {
    if (vk_format_is_96bit(image->vk.format))
       return false;
 
    if (image->planes[0].surface.flags & RADEON_SURF_NO_RENDER_TARGET)
+      return false;
+
+   /* TODO: investigate Fiji.
+    * GFX copy/clear on sparse images sometimes causes page faults on Fiji.
+    * Note that this issue is not documented or acknowledged by AMD.
+    * Prefer the compute shader code path until this is better investigated.
+    */
+   if (pdev->info.family == CHIP_FIJI &&
+       (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT))
       return false;
 
    return true;
