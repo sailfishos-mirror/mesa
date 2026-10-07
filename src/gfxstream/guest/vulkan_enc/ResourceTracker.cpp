@@ -1946,6 +1946,9 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_EXT_tooling_info",
         "VK_EXT_ycbcr_2plane_444_formats",
 
+        // Vulkan 1.4
+        "VK_KHR_index_type_uint8",
+
         // Android requirements
         "VK_EXT_pipeline_protected_access",
         "VK_KHR_maintenance6",
