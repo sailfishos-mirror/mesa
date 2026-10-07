@@ -83,6 +83,7 @@ SUPPORTED_DEVICE_EXTENSIONS = [
     "VK_EXT_shader_viewport_index_layer",
     # VK1.4 extensions
     "VK_KHR_index_type_uint8",
+    "VK_KHR_load_store_op_none",
     "VK_KHR_maintenance5",
     "VK_EXT_host_image_copy",
     "VK_EXT_image_compression_control",
