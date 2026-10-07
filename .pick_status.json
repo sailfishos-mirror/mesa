@@ -1154,7 +1154,7 @@
         "description": "brw: Fix 16-bit type handling in constant combining",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e64be391dd065b6a0eabee17ada038db7a28c112",
         "notes": null
