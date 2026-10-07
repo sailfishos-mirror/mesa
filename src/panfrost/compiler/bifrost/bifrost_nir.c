@@ -884,7 +884,7 @@ bifrost_postprocess_nir(nir_shader *nir,
        * ssbo_atomic and store_output */
       NIR_PASS(_, nir, pan_nir_lower_noperspective_vs);
       NIR_PASS(_, nir, pan_nir_lower_vs_inputs);
-      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
+      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, gpu_arch,
                inputs->varying_layout, info->vs.idvs,
                &info->vs.needs_extended_fifo);
    }

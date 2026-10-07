@@ -2978,14 +2978,15 @@ midgard_compile_shader_nir(nir_shader *nir,
 
    ctx->ssa_constants = _mesa_hash_table_u64_create(ctx);
 
+   unsigned arch = pan_arch(inputs->gpu_id);
+
    /* Collect varyings after lowering I/O */
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       assert(inputs->varying_layout);
       memcpy(&info->varyings.formats, inputs->varying_layout,
              sizeof(*inputs->varying_layout));
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      pan_varying_collect_formats(&info->varyings.formats, nir,
-                                  pan_arch(inputs->gpu_id));
+      pan_varying_collect_formats(&info->varyings.formats, nir, arch);
       info->varyings.noperspective =
          pan_nir_collect_noperspective_varyings_fs(nir);
    }
@@ -2993,7 +2994,7 @@ midgard_compile_shader_nir(nir_shader *nir,
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats,
                &info->varyings.formats);
-      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
+      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, arch,
                inputs->varying_layout, false /* has_idvs */,
                NULL /* needs_extended_fifo */);
    }
