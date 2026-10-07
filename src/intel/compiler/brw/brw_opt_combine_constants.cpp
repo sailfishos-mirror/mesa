@@ -1113,8 +1113,8 @@ add_candidate_immediate(struct table *table, brw_inst *inst, unsigned ip,
 
    unsigned box_idx = box_instruction(table, const_ctx, inst, ip);
 
-   v->value.u64 = inst->src[i].d64;
    v->bit_size = brw_type_size_bits(inst->src[i].type);
+   v->value = nir_const_value_for_raw_uint(inst->src[i].d64, v->bit_size);
    v->instr_index = box_idx;
    v->src = i;
    v->allow_one_constant = allow_one_constant;
@@ -1640,7 +1640,7 @@ brw_opt_combine_constants(brw_shader &s)
             assert(reg->d == table.imm[i].d);
             break;
          case BRW_TYPE_W:
-            assert(abs((int16_t) (reg->d & 0xffff)) == table.imm[i].w);
+            assert(abs((int16_t) (reg->d & 0xffff)) == abs(table.imm[i].w));
             break;
          case BRW_TYPE_UW:
             assert(!link->negate);
