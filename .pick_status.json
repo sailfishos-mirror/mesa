@@ -2124,7 +2124,7 @@
         "description": "pan/bi: Restore VA_MEMORY_ACCESS_FORCE for spills and refills",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "43ffcf06f453c3f415da44a207fc8042781a4ff3",
         "notes": null
