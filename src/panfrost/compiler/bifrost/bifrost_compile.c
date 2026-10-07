@@ -3985,7 +3985,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
       model = pan_get_model(((uint64_t)0x9001) << 16, 0);
       assert(model);
    }
-   unsigned arch = pan_arch(ctx->inputs->gpu_id);
+   assert(ctx->arch == pan_arch(ctx->inputs->gpu_id));
 
    struct valhall_stats stats = {
       .instrs = nr_ins,
@@ -4008,7 +4008,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
 
    /* v14 doesn't have rates anymore */
    const bool output_normalized =
-      !(arch >= 14 || !!(bifrost_debug & BIFROST_DBG_STATSABS));
+      !(ctx->arch >= 14 || !!(bifrost_debug & BIFROST_DBG_STATSABS));
 
    if (output_normalized) {
       assert(model->rates.fma != 0 && model->rates.cvt != 0 &&
@@ -4022,7 +4022,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
       stats.ls /= 1.0;
    }
 
-   stats.alu = pan_va_compute_alu_bound(arch, stats.fma, stats.cvt, stats.sfu);
+   stats.alu = pan_va_compute_alu_bound(ctx->arch, stats.fma, stats.cvt, stats.sfu);
    stats.cycles = MAX4(stats.alu, stats.v, stats.t, stats.ls);
 
    *out = stats;
