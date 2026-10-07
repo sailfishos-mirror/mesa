@@ -174,7 +174,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    }
 
    /* Lower resource indices */
-   NIR_PASS(_, s, panfrost_nir_lower_res_indices, inputs.gpu_id);
+   NIR_PASS(_, s, panfrost_nir_lower_res_indices, dev->arch);
 
    pan_postprocess_nir(s, &inputs, &out->info);
 

@@ -522,7 +522,7 @@ bool panfrost_nir_remove_fragcolor_stores(nir_shader *s, unsigned nr_cbufs);
 bool panfrost_nir_lower_sysvals(nir_shader *s, unsigned arch,
                                 struct panfrost_sysvals *sysvals);
 
-bool panfrost_nir_lower_res_indices(nir_shader *shader, uint64_t gpu_id);
+bool panfrost_nir_lower_res_indices(nir_shader *shader, unsigned arch);
 
 bool panfrost_nir_lower_pls(nir_shader *shader,
                             struct panfrost_screen *screen);
