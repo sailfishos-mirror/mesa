@@ -300,10 +300,13 @@ radv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_s
              state->build_info->type != VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
             state->config.build_flags |= RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS;
 
-         if (!(state->build_info->flags & (VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
-                                           VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR)) &&
-             geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR)
-            state->config.build_flags |= RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES;
+         if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR) &&
+             geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+            if (state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)
+               state->config.build_flags |= RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES;
+            else
+               state->config.build_flags |= RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES;
+         }
       } else if (!radv_emulate_rt(pdev)) {
          if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR))
             state->config.build_flags |= RADV_BUILD_FLAG_USE_BOX16;
@@ -1060,7 +1063,6 @@ pack_geometry_id_and_flags(uint32_t geometry_id, uint32_t flags)
 
    return geometry_id_and_flags;
 }
-
 
 static void
 radv_write_buffer_cp(VkCommandBuffer commandBuffer, VkDeviceAddress addr, void *data, uint32_t size)
