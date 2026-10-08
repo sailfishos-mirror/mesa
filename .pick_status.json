@@ -3804,7 +3804,7 @@
         "description": "vc4: don't reuse flags from before a thread switch",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "67f72c5f5d8172be1bdb970e672202f0a47bac88",
         "notes": null
