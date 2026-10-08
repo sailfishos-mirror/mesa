@@ -5823,6 +5823,14 @@ VkResult ResourceTracker::on_vkCreateBuffer(void* context, VkResult, VkDevice de
         vk_append_struct(&structChainIter, &localDevAddrCi);
     }
 
+    VkBufferUsageFlags2CreateInfo localBufUsageFlags2Ci;
+    const VkBufferUsageFlags2CreateInfo* pBufUsageFlags2Ci =
+        vk_find_struct_const(pCreateInfo, BUFFER_USAGE_FLAGS_2_CREATE_INFO);
+    if (pBufUsageFlags2Ci) {
+        localBufUsageFlags2Ci = vk_make_orphan_copy(*pBufUsageFlags2Ci);
+        vk_append_struct(&structChainIter, &localBufUsageFlags2Ci);
+    }
+
 #ifdef VK_USE_PLATFORM_FUCHSIA
     std::optional<zx::vmo> vmo;
     bool isSysmemBackedMemory = false;
