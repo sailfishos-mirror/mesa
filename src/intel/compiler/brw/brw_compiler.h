@@ -1563,7 +1563,16 @@ intel_vrt_register_file_size(const struct intel_device_info *devinfo,
 
    unsigned vrt_size = MIN2(align(size, size > 192 ? 64 : 32), 256);
 
-   if (unlikely(intel_threads_per_eu_min != (uint32_t)-1)) {
+   // Jay uses vrt_size here to determine its number of GRFs before its RA stage
+   if (unlikely(intel_threads_per_eu_set != (uint32_t)-1)) {
+      if (intel_threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
+          intel_threads_per_eu_srchash == source_hash) {
+         fprintf(stderr,
+                 "INTEL_THREADS_PER_EU: set=%u for src_hash=0x%" PRIx64 "\n",
+                 intel_threads_per_eu_set, source_hash);
+         vrt_size = ROUND_DOWN_TO(1024 / intel_threads_per_eu_set, 32);
+      }
+   } else if (unlikely(intel_threads_per_eu_min != (uint32_t)-1)) {
       if (intel_threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
           intel_threads_per_eu_srchash == source_hash) {
          fprintf(stderr,

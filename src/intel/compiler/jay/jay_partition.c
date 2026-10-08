@@ -403,6 +403,7 @@ jay_partition_grf(jay_shader *shader)
       }
 
       /* Finally, we need to snap to GPR bounds */
+      assert(hw_grfs >= min_grf_for_gprs);
       uniform_grfs = MIN2(uniform_grfs, hw_grfs - min_grf_for_gprs);
       uniform_grfs = align(uniform_grfs, grf_per_gpr);
 
