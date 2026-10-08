@@ -14,9 +14,12 @@
 #include "pan_fb_preload.h"
 #include "pan_jm.h"
 #include "pan_job.h"
-#include "pan_precomp.h"
 #include "pan_trace.h"
 #include "kmod/panfrost_kmod.h"
+
+#if PAN_ARCH >= 6
+#include "pan_precomp.h"
+#endif
 
 #if PAN_ARCH >= 10
 #error "JM helpers are only used for gen < 10"

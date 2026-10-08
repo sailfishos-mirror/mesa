@@ -70,9 +70,9 @@ panlib_update_prims_generated_query_indirect(
       cmd = (constant uint32_t *) ((uintptr_t) cmd + cmd_stride);
    }
 }
-#endif
 
-#if (PAN_ARCH == 6 || PAN_ARCH == 7)
+#elif PAN_ARCH < 9
+
 struct panlib_draw_info {
    struct {
       uint32_t size;
