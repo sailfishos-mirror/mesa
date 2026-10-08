@@ -3134,7 +3134,7 @@ midgard_compile_shader_nir(nir_shader *nir,
    info->ubo_mask = ctx->ubo_mask & ((1 << ctx->nir->info.num_ubos) - 1);
 
    if (midgard_debug & MIDGARD_DBG_SHADERS && !skip_internal) {
-      disassemble_midgard(stdout, binary->data, binary->size, inputs->gpu_id,
+      disassemble_midgard(stdout, binary->data, binary->size, ctx->quirks,
                           midgard_debug & MIDGARD_DBG_VERBOSE);
       fflush(stdout);
    }

@@ -13,6 +13,7 @@
 #include "bifrost/valhall/disassemble.h"
 #include "midgard/disassemble.h"
 #include "midgard/midgard_compile.h"
+#include "midgard/midgard_quirks.h"
 #include "kraid/kraid.h"
 
 #include "panfrost/model/pan_model.h"
@@ -531,8 +532,10 @@ pan_disassemble(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
    }
    else if (pan_arch(gpu_id) >= 6)
       disassemble_bifrost(fp, code, size, verbose);
-   else
-      disassemble_midgard(fp, code, size, gpu_id, verbose);
+   else {
+      unsigned quirks = midgard_get_quirks(pan_prod_id(gpu_id));
+      disassemble_midgard(fp, code, size, quirks, verbose);
+   }
 #else
    fprintf(fp, "Disassembler disabled, enable it with "
                "-Dpanfrost-disassemble=true\n");
