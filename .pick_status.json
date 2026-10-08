@@ -8544,7 +8544,7 @@
         "description": "gallivm: don't emit a scalar llvm.nearbyint on PowerPC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a9d70225eca226410a7455bbbb1eb6925b56b4b9",
         "notes": null

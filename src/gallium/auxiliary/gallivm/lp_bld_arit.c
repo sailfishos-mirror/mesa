@@ -1920,10 +1920,14 @@ lp_build_round(struct lp_build_context *bld,
       LLVMTypeRef vec_type = bld->vec_type;
 
       /* On altivec/VSX, llvm.nearbyint lowers to vrfin/xvrspic (1 instruction,
-       * round-to-nearest-even) for any vector width. */
-      if (util_get_cpu_caps()->has_altivec) {
+       * round-to-nearest-even) for any vector width. A scalar llvm.nearbyint
+       * is a libcall; only llvm.rint is inline, and only with VSX. */
+      if (util_get_cpu_caps()->has_altivec &&
+          (type.length > 1 || util_get_cpu_caps()->has_vsx)) {
          char intrinsic[64];
-         lp_format_intrinsic(intrinsic, sizeof(intrinsic), "llvm.nearbyint", bld->vec_type);
+         lp_format_intrinsic(intrinsic, sizeof(intrinsic),
+                             type.length > 1 ? "llvm.nearbyint" : "llvm.rint",
+                             bld->vec_type);
          return lp_build_intrinsic_unary(builder, intrinsic, bld->vec_type, a);
       }
 
