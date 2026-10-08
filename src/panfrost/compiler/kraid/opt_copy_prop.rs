@@ -251,7 +251,7 @@ impl WordCopies<'_> {
             SrcMod::None => (),
             SrcMod::BNot => {
                 // BNot requires an integer type
-                if !src_type.is_int_type() {
+                if !src_type.is_any_int_type() {
                     return;
                 }
             }
