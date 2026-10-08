@@ -105,6 +105,20 @@ static const unsigned block_size_256B_LINEAR[5] = {
 
 /* Based on GFX10_SW_PATTERN_NIBBLE01, GFX11_SW_PATTERN_NIBBLE01, GFX12_SW_PATTERN_NIBBLE1,
  * GFX9: HwlComputeBlock256Equation, HwlComputeThinEquation.
+ *
+ * Exceptions:
+ * - GFX9-10.3: MSAA color layouts use 1xAA values (each 256B always contains data for 1 sample).
+ *   Only MSAA Z/S layouts use 2-8xAA values.
+ * - GFX10.1: 1bpe 1xAA 64K_Z_X (for stencil) and 1bpe *xAA 64K_R_X (for color) use 32x32 1K
+ *   blocks containing 16 8x8 (64B) blocks whose order in memory is different depending on where
+ *   in the image the 1K block is. Therefore, a 256B block size doesn't exist since adjacent 64B
+ *   blocks don't have to be adjacent in memory. (according to gfx10SwizzlePattern.h)
+ *   Note that this is only true for the GFX10.1 chips that exist, which have only 8 and 16 pipe
+ *   configurations (= memory channels).
+ * - GFX10.1: 2bpe *xAA 64K_R_X use 16x16 512B blocks.
+ * - GFX10.1: 2bpe 1xAA 64K_Z_X use 16x16 512B blocks.
+ * - GFX10.1: 1bpe 2xAA 64K_Z_X use 16x16 512B blocks.
+ * - GFX9: Z swizzles for 2x MSAA use gfx9_block_size_256B_2D_Z_2aa.
  */
 static const ac_block_extent gfx9_gfx12_block_size_256B_2D[4][5] = {
    { /* 1xAA */
@@ -137,8 +151,19 @@ static const ac_block_extent gfx9_gfx12_block_size_256B_2D[4][5] = {
    },
 };
 
+/* GFX9: 2xMSAA Z swizzles. */
+static const ac_block_extent gfx9_block_size_256B_2D_Z_2aa[5] = {
+   {8, 16},
+   {8, 8},
+   {4, 8},
+   /* the 64-128bpp elements are left at 0 */
+};
+
 /* Based on GFX10_SW_PATTERN_NIBBLE01, GFX11_SW_PATTERN_NIBBLE01, GFX12_SW_PATTERN_NIBBLE1.
  * GFX9: HwlComputeThickEquation.
+ *
+ * Exceptions:
+ * - GFX9: 3D S swizzle modes use gfx9_block_size_256B_3D_S.
  */
 static const ac_block_extent gfx9_gfx12_block_size_256B_3D[5] = {
    {8, 4, 8},
@@ -146,6 +171,15 @@ static const ac_block_extent gfx9_gfx12_block_size_256B_3D[5] = {
    {4, 4, 4},
    {4, 2, 4},
    {2, 2, 4},
+};
+
+/* GFX9: 3D S swizzles. Based on HwlComputeThickEquation. */
+static const ac_block_extent gfx9_block_size_256B_3D_S[5] = {
+   {16, 4, 4},
+   {8, 4, 4},
+   {4, 4, 4},
+   {2, 4, 4},
+   {1, 4, 4},
 };
 
 struct ac_addrlib {
@@ -3557,6 +3591,70 @@ static int gfx9_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
 
    default:
       assert(0);
+   }
+
+   const unsigned log_bpe = util_logbase2(surf->bpe);
+   const unsigned log_samples = util_logbase2(is_color_surface && info->gfx_level <= GFX10_3 ?
+                                                 config->info.storage_samples : config->info.samples);
+
+   if (surf->bpe == 12) {
+      /* 96bpp is treated as 32bpp. */
+      surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[2], 1, 1};
+   } else if (surf->is_linear) {
+      surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[log_bpe], 1, 1};
+   } else if (surf->thick_tiling) {
+      if (info->gfx_level == GFX9 && (surf->u.gfx9.swizzle_mode & 0x3) == ADDR_SW_S)
+         surf->block256B_extent = gfx9_block_size_256B_3D_S[log_bpe];
+      else
+         surf->block256B_extent = gfx9_gfx12_block_size_256B_3D[log_bpe];
+   } else {
+      /* Thin tiling (2D). */
+      if (info->gfx_level >= GFX11) {
+         surf->block256B_extent = gfx9_gfx12_block_size_256B_2D[log_samples][log_bpe];
+      } else {
+         /* GFX9-GFX10.3 */
+         const unsigned log_samples_adjusted =
+            (surf->u.gfx9.swizzle_mode & 0x3) == ADDR_SW_Z ? log_samples : 0;
+
+         if (info->gfx_level == GFX10 && surf->bpe <= 2 &&
+             surf->u.gfx9.swizzle_mode == ADDR_SW_64KB_R_X) {
+            if (surf->bpe == 1) {
+               /* It's a 1K block. See the comment at gfx9_gfx12_block_size_256B_2D. */
+               surf->block256B_extent = (ac_block_extent){32, 32, 1};
+            } else {
+               surf->block256B_extent = (ac_block_extent){16, 16, 1}; /* bpe == 2 */
+            }
+         } else if (info->gfx_level == GFX10 && surf->bpe == 2 && log_samples == 0 &&
+                    surf->u.gfx9.swizzle_mode == ADDR_SW_64KB_Z_X) {
+            surf->block256B_extent = (ac_block_extent){16, 16, 1};
+         } else if (info->gfx_level == GFX9 && (surf->u.gfx9.swizzle_mode & 0x3) == ADDR_SW_Z &&
+                    log_samples == 1) {
+            surf->block256B_extent = gfx9_block_size_256B_2D_Z_2aa[log_bpe];
+         } else {
+            surf->block256B_extent = gfx9_gfx12_block_size_256B_2D[log_samples_adjusted][log_bpe];
+         }
+      }
+
+      surf->block256B_extent.depth = 1;
+
+      if (surf->has_stencil) {
+         if (info->gfx_level == GFX10 && log_samples <= 1 &&
+             surf->u.gfx9.zs.stencil_swizzle_mode == ADDR_SW_64KB_Z_X) {
+            if (log_samples == 0) {
+               /* It's a 1K block. See the comment at gfx9_gfx12_block_size_256B_2D. */
+               surf->stencil_block256B_extent = (ac_block_extent){32, 32, 1};
+            } else {
+               surf->stencil_block256B_extent = (ac_block_extent){16, 16, 1}; /* log_samples == 1 */
+            }
+         } else if (info->gfx_level == GFX9 && log_samples == 1 &&
+                    (surf->u.gfx9.zs.stencil_swizzle_mode & 0x3) == ADDR_SW_Z) {
+            surf->stencil_block256B_extent = gfx9_block_size_256B_2D_Z_2aa[0];
+         } else {
+            surf->stencil_block256B_extent = gfx9_gfx12_block_size_256B_2D[log_samples][0];
+         }
+
+         surf->stencil_block256B_extent.depth = 1;
+      }
    }
 
    return 0;
