@@ -30,9 +30,6 @@
 #include <codecapi.h>
 #include <mfobjects.h>
 
-enum pipe_video_profile
-ConvertAVEncVProfileToPipeVideoProfile( struct vl_screen *vlScreen, UINT32 profile, D3D12_VIDEO_ENCODER_CODEC codec );
-
 enum pipe_format
 ConvertAVEncVProfileToPipeFormat( enum eAVEncH264VProfile profile );
 enum pipe_format

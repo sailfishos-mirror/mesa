@@ -707,4 +707,78 @@ done:
    return hr;
 }
 
+// utility to convert from AVEncVProfile to pipe_video_profile
+enum pipe_video_profile
+CDX12EncHMFT::ConvertAVEncVProfileToPipeVideoProfile( struct vl_screen *vlScreen, eAVEncAV1VProfile profile )
+{
+   enum pipe_video_profile pipeProfile = PIPE_VIDEO_PROFILE_UNKNOWN;
+
+   switch( profile )
+   {
+      case eAVEncAV1VProfile_Main_420_8:
+         pipeProfile = PIPE_VIDEO_PROFILE_AV1_MAIN;
+         break;
+      case eAVEncAV1VProfile_Main_420_10:
+         pipeProfile = PIPE_VIDEO_PROFILE_AV1_MAIN;
+         break;
+   }
+
+   if( !vlScreen->pscreen->get_video_param( vlScreen->pscreen, pipeProfile, PIPE_VIDEO_ENTRYPOINT_ENCODE, PIPE_VIDEO_CAP_SUPPORTED ) )
+   {
+      return PIPE_VIDEO_PROFILE_UNKNOWN;
+   }
+
+   return pipeProfile;
+}
+
+HRESULT
+CDX12EncHMFT::CheckOutputMediaSubType( IMFMediaType *pmt, enum pipe_video_profile &videoProfile )
+{
+   HRESULT hr;
+   enum eAVEncAV1VProfile AVEncProfile = eAVEncAV1VProfile_Main_420_8; // default value when user don't set profile explicitly
+   GUID subType;
+
+   videoProfile = PIPE_VIDEO_PROFILE_UNKNOWN;
+   CHECKHR_GOTO( pmt->GetGUID( MF_MT_SUBTYPE, &subType ), done );
+   CHECKBOOL_GOTO( subType.Data1 == FOURCC_AV01, MF_E_INVALIDMEDIATYPE, done );
+   (void) ( pmt->GetUINT32( MF_MT_VIDEO_PROFILE, (UINT32 *) &AVEncProfile ) ); // use default value if not set by user
+   CHECKBOOL_GOTO( ( AVEncProfile == eAVEncAV1VProfile_Main_420_8 ) || ( AVEncProfile == eAVEncAV1VProfile_Main_420_10 ),
+                   MF_E_INVALIDMEDIATYPE,
+                   done );
+   CHECKNULL_GOTO( m_pVlScreen, MF_E_INVALIDMEDIATYPE, done );
+   videoProfile = ConvertAVEncVProfileToPipeVideoProfile( m_pVlScreen, AVEncProfile );
+
+done:
+   if( FAILED( hr ) )
+   {
+      MFE_ERROR( "[dx12 hmft 0x%p] Invalid media subtype - hr=0x%x", this, hr );
+   }
+   return hr;
+}
+
+HRESULT
+CDX12EncHMFT::CheckInputMediaSubType( IMFMediaType *pmt )
+{
+   HRESULT hr;
+   GUID subType;
+
+   CHECKHR_GOTO( pmt->GetGUID( MF_MT_SUBTYPE, &subType ), done );
+
+   switch( subType.Data1 )
+   {
+      case FOURCC_NV12:
+      case FOURCC_P010:
+         hr = S_OK;
+         break;
+      default:
+         hr = MF_E_INVALIDMEDIATYPE;
+         break;
+   }
+done:
+   if( FAILED( hr ) )
+   {
+      MFE_ERROR( "[dx12 hmft 0x%p] Invalid media subtype - hr=0x%x", this, hr );
+   }
+   return hr;
+}
 #endif
