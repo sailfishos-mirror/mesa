@@ -11645,9 +11645,10 @@ radv_emit_copy_data_imm(const struct radv_physical_device *pdev, struct radv_cmd
  */
 static void
 radv_cs_emit_compute_predication(const struct radv_device *device, struct radv_cmd_state *state,
-                                 struct radv_cmd_stream *cs, uint64_t inv_va, bool *inv_emitted, unsigned dwords)
+                                 struct radv_cmd_stream *cs, unsigned dwords)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const uint64_t inv_va = state->cond_render.mec_inv_pred_va;
 
    if (!state->cond_render.enabled)
       return;
@@ -11656,8 +11657,8 @@ radv_cs_emit_compute_predication(const struct radv_device *device, struct radv_c
 
    if (!state->cond_render.type) {
       /* Invert the condition the first time it is needed. */
-      if (!*inv_emitted) {
-         *inv_emitted = true;
+      if (!state->cond_render.mec_inv_pred_emitted) {
+         state->cond_render.mec_inv_pred_emitted = true;
 
          /* Write 1 to the inverted predication VA. */
          radv_emit_copy_data_imm(pdev, cs, 1, inv_va);
@@ -12332,8 +12333,7 @@ radv_emit_direct_taskmesh_draw_packets(const struct radv_device *device, struct 
    const unsigned ace_predication_size = num_views * 6; /* DISPATCH_TASKMESH_DIRECT_ACE size */
 
    radv_emit_userdata_task(cmd_state, ace_cs, x, y, z);
-   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, cmd_state->cond_render.mec_inv_pred_va,
-                                    &cmd_state->cond_render.mec_inv_pred_emitted, ace_predication_size);
+   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, ace_predication_size);
 
    if (!view_mask) {
       radv_cs_emit_dispatch_taskmesh_direct_ace_packet(device, cmd_state, ace_cs, x, y, z);
@@ -12361,8 +12361,7 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
    const unsigned num_views = MAX2(1, util_bitcount(view_mask));
    const unsigned ace_predication_size = num_views * 11; /* DISPATCH_TASKMESH_INDIRECT_MULTI_ACE size */
 
-   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, cmd_state->cond_render.mec_inv_pred_va,
-                                    &cmd_state->cond_render.mec_inv_pred_emitted, ace_predication_size);
+   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, ace_predication_size);
 
    if (!view_mask) {
       radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(device, cmd_state, ace_cs, info->indirect_va,
@@ -15362,8 +15361,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          const unsigned ace_predication_size =
             4 /* DISPATCH_INDIRECT */ + (needs_align32_workaround ? 6 * 3 /* 3x COPY_DATA */ : 0);
 
-         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, cmd_buffer->state.cond_render.mec_inv_pred_va,
-                                          &cmd_buffer->state.cond_render.mec_inv_pred_emitted, ace_predication_size);
+         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, ace_predication_size);
 
          if (needs_align32_workaround) {
             const uint64_t unaligned_va = indirect_va;
@@ -15393,8 +15391,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          radv_emit_indirect_buffer(cs, info->indirect_va, true);
 
          if (cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
-            radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, cmd_buffer->state.cond_render.mec_inv_pred_va,
-                                             &cmd_buffer->state.cond_render.mec_inv_pred_emitted, 3 /* PKT3_DISPATCH_INDIRECT */);
+            radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, 3 /* PKT3_DISPATCH_INDIRECT */);
             predicating = false;
          }
 
@@ -15406,8 +15403,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
       }
    } else {
       if (cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
-         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, cmd_buffer->state.cond_render.mec_inv_pred_va,
-                                          &cmd_buffer->state.cond_render.mec_inv_pred_emitted, 5 /* DISPATCH_DIRECT size */);
+         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, 5 /* DISPATCH_DIRECT size */);
          predicating = false;
       }
 
