@@ -14939,10 +14939,14 @@ radv_CmdDrawMeshTasksIndirectCount2EXT(VkCommandBuffer commandBuffer, const VkDr
    radv_after_draw(cmd_buffer);
 }
 
-static void radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pipeline *pipeline);
+struct radv_dispatch_params;
+
+static void radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pipeline *pipeline,
+                                 const struct radv_dispatch_info *info, const struct radv_dispatch_params *params);
 static void radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer);
 
-static void radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracing_pipeline *pipeline);
+static void radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracing_pipeline *pipeline,
+                                   const struct radv_dispatch_info *info, const struct radv_dispatch_params *params);
 static void radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer);
 
 /* VK_EXT_device_generated_commands */
@@ -15053,7 +15057,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
          rt_pipeline = radv_pipeline_to_ray_tracing(pipeline);
       }
 
-      radv_before_trace_rays(cmd_buffer, rt_pipeline);
+      radv_before_trace_rays(cmd_buffer, rt_pipeline, NULL, NULL);
    } else if (compute) {
       struct radv_compute_pipeline *compute_pipeline = NULL;
 
@@ -15062,7 +15066,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
          compute_pipeline = radv_pipeline_to_compute(pipeline);
       }
 
-      radv_before_dispatch(cmd_buffer, compute_pipeline);
+      radv_before_dispatch(cmd_buffer, compute_pipeline, NULL, NULL);
    } else {
       struct radv_draw_info info = {
          .count = pGeneratedCommandsInfo->maxSequenceCount,
@@ -15244,20 +15248,25 @@ radv_emit_userdata_compute(struct radv_cmd_buffer *cmd_buffer, const struct radv
 
    if (info->unaligned) {
       radeon_begin(cs);
-      radeon_set_sh_reg_seq(R_00B81C_COMPUTE_NUM_THREAD_X, 3);
       if (pdev->info.gfx_level >= GFX12) {
-         radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX12(cs_block_size[0]) |
-                     S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
-         radeon_emit(S_00B820_NUM_THREAD_FULL_GFX12(cs_block_size[1]) |
-                     S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
+         gfx12_push_sh_reg(R_00B81C_COMPUTE_NUM_THREAD_X,
+                           S_00B81C_NUM_THREAD_FULL_GFX12(cs_block_size[0]) |
+                              S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
+         gfx12_push_sh_reg(R_00B820_COMPUTE_NUM_THREAD_Y,
+                           S_00B820_NUM_THREAD_FULL_GFX12(cs_block_size[1]) |
+                              S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
+         gfx12_push_sh_reg(
+            R_00B824_COMPUTE_NUM_THREAD_Z,
+            S_00B824_NUM_THREAD_FULL(cs_block_size[2]) | S_00B824_NUM_THREAD_PARTIAL(params->num_thread_partial[2]));
       } else {
+         radeon_set_sh_reg_seq(R_00B81C_COMPUTE_NUM_THREAD_X, 3);
          radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX6(cs_block_size[0]) |
                      S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
          radeon_emit(S_00B820_NUM_THREAD_FULL_GFX6(cs_block_size[1]) |
                      S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
+         radeon_emit(S_00B824_NUM_THREAD_FULL(cs_block_size[2]) |
+                     S_00B824_NUM_THREAD_PARTIAL(params->num_thread_partial[2]));
       }
-      radeon_emit(S_00B824_NUM_THREAD_FULL(cs_block_size[2]) |
-                  S_00B824_NUM_THREAD_PARTIAL(params->num_thread_partial[2]));
       radeon_end();
    }
 
@@ -15465,11 +15474,13 @@ radv_emit_rt_stack_size(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void
-radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pipeline *pipeline)
+radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pipeline *pipeline,
+                     const struct radv_dispatch_info *info, const struct radv_dispatch_params *params)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
    const bool pipeline_is_dirty = !!(cmd_buffer->state.dirty & RADV_CMD_DIRTY_COMPUTE_PIPELINE);
+   const struct radv_shader *compute_shader = cmd_buffer->state.shaders[MESA_SHADER_COMPUTE];
 
    /* Use the optimal packet order similar to draws. */
    if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_COMPUTE_PIPELINE) {
@@ -15478,6 +15489,9 @@ radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pip
    }
 
    radv_upload_compute_shader_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+   if (params)
+      radv_emit_userdata_compute(cmd_buffer, compute_shader, info, params);
 
    radv_gfx12_emit_buffered_regs(device, cs);
 
@@ -15529,17 +15543,18 @@ radv_compute_dispatch(struct radv_cmd_buffer *cmd_buffer, const struct radv_disp
 
    radv_get_dispatch_params(cmd_buffer, compute_shader, info, &params);
 
-   radv_before_dispatch(cmd_buffer, compute_pipeline);
-   radv_emit_userdata_compute(cmd_buffer, compute_shader, info, &params);
+   radv_before_dispatch(cmd_buffer, compute_pipeline, info, &params);
    radv_emit_dispatch_packets(cmd_buffer, compute_shader, info, &params);
    radv_after_dispatch(cmd_buffer);
 }
 
 static void
-radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracing_pipeline *pipeline)
+radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracing_pipeline *pipeline,
+                       const struct radv_dispatch_info *info, const struct radv_dispatch_params *params)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const bool pipeline_is_dirty = !!(cmd_buffer->state.dirty & RADV_CMD_DIRTY_RAY_TRACING_PIPELINE);
+   const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
 
    /* Use the optimal packet order similar to draws. */
    if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_RAY_TRACING_PIPELINE) {
@@ -15550,6 +15565,9 @@ radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_traci
    radv_emit_rt_stack_size(cmd_buffer);
 
    radv_upload_compute_shader_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
+
+   if (params)
+      radv_emit_userdata_compute(cmd_buffer, rt_prolog, info, params);
 
    radv_gfx12_emit_buffered_regs(device, cmd_buffer->cs);
 
@@ -15816,8 +15834,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
 
    radv_get_dispatch_params(cmd_buffer, rt_prolog, &info, &params);
 
-   radv_before_trace_rays(cmd_buffer, rt_pipeline);
-   radv_emit_userdata_compute(cmd_buffer, rt_prolog, &info, &params);
+   radv_before_trace_rays(cmd_buffer, rt_pipeline, &info, &params);
    radv_emit_dispatch_packets(cmd_buffer, rt_prolog, &info, &params);
    radv_after_trace_rays(cmd_buffer);
 
