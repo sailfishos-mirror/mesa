@@ -15230,6 +15230,79 @@ radv_get_dispatch_params(const struct radv_cmd_buffer *cmd_buffer, const struct 
 }
 
 static void
+radv_emit_userdata_compute(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *compute_shader,
+                           const struct radv_dispatch_info *info, const struct radv_dispatch_params *params)
+{
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radeon_winsys *ws = device->ws;
+   struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
+   const uint32_t grid_size_offset = radv_get_user_sgpr_loc(compute_shader, AC_UD_CS_GRID_SIZE);
+   const unsigned *cs_block_size = compute_shader->info.cs.block_size;
+
+   ASSERTED unsigned cdw_max = radeon_check_space(ws, cs->b, 15);
+
+   if (info->unaligned) {
+      radeon_begin(cs);
+      radeon_set_sh_reg_seq(R_00B81C_COMPUTE_NUM_THREAD_X, 3);
+      if (pdev->info.gfx_level >= GFX12) {
+         radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX12(cs_block_size[0]) |
+                     S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
+         radeon_emit(S_00B820_NUM_THREAD_FULL_GFX12(cs_block_size[1]) |
+                     S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
+      } else {
+         radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX6(cs_block_size[0]) |
+                     S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
+         radeon_emit(S_00B820_NUM_THREAD_FULL_GFX6(cs_block_size[1]) |
+                     S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
+      }
+      radeon_emit(S_00B824_NUM_THREAD_FULL(cs_block_size[2]) |
+                  S_00B824_NUM_THREAD_PARTIAL(params->num_thread_partial[2]));
+      radeon_end();
+   }
+
+   if (info->indirect_va) {
+      if (grid_size_offset && !pdev->load_grid_size_from_user_sgpr) {
+         radeon_begin(cs);
+         radeon_emit_64bit_pointer(grid_size_offset, info->indirect_va);
+         radeon_end();
+      }
+   } else {
+      if (grid_size_offset) {
+         if (pdev->load_grid_size_from_user_sgpr) {
+            radeon_begin(cs);
+            radeon_set_sh_reg_seq(grid_size_offset, 3);
+            radeon_emit(params->grid_size[0]);
+            radeon_emit(params->grid_size[1]);
+            radeon_emit(params->grid_size[2]);
+            radeon_end();
+         } else {
+            uint32_t offset;
+            if (!radv_cmd_buffer_upload_data(cmd_buffer, 12, params->grid_size, &offset))
+               return;
+
+            uint64_t va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + offset;
+
+            radeon_begin(cs);
+            radeon_emit_64bit_pointer(grid_size_offset, va);
+            radeon_end();
+         }
+      }
+
+      if (params->start[0] || params->start[1] || params->start[2]) {
+         radeon_begin(cs);
+         radeon_set_sh_reg_seq(R_00B810_COMPUTE_START_X, 3);
+         radeon_emit(params->start[0]);
+         radeon_emit(params->start[1]);
+         radeon_emit(params->start[2]);
+         radeon_end();
+      }
+   }
+
+   assert(cs->b->cdw <= cdw_max);
+}
+
+static void
 radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *compute_shader,
                            const struct radv_dispatch_info *info, const struct radv_dispatch_params *params)
 {
@@ -15238,45 +15311,25 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
    struct radeon_winsys *ws = device->ws;
    bool predicating = cmd_buffer->state.cond_render.enabled;
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
-   const uint32_t grid_size_offset = radv_get_user_sgpr_loc(compute_shader, AC_UD_CS_GRID_SIZE);
 
    radv_describe_dispatch(cmd_buffer, info);
 
    ASSERTED unsigned cdw_max = radeon_check_space(ws, cs->b, 30);
 
    if (info->indirect_va) {
+      const uint32_t grid_size_offset = radv_get_user_sgpr_loc(compute_shader, AC_UD_CS_GRID_SIZE);
+
       if (radv_device_fault_detection_enabled(device))
          radv_save_dispatch_size(cmd_buffer, info->indirect_va);
 
-      if (info->unaligned) {
+      if (grid_size_offset && pdev->load_grid_size_from_user_sgpr) {
+         /* Must be emitted after the barrier because it loads from memory. */
          radeon_begin(cs);
-         radeon_set_sh_reg_seq(R_00B81C_COMPUTE_NUM_THREAD_X, 3);
-         if (pdev->info.gfx_level >= GFX12) {
-            radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX12(compute_shader->info.cs.block_size[0]));
-            radeon_emit(S_00B820_NUM_THREAD_FULL_GFX12(compute_shader->info.cs.block_size[1]));
-         } else {
-            radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX6(compute_shader->info.cs.block_size[0]));
-            radeon_emit(S_00B820_NUM_THREAD_FULL_GFX6(compute_shader->info.cs.block_size[1]));
-         }
-         radeon_emit(S_00B824_NUM_THREAD_FULL(compute_shader->info.cs.block_size[2]));
-         radeon_end();
-      }
-
-      if (grid_size_offset) {
-         radeon_begin(cs);
-
-         if (pdev->load_grid_size_from_user_sgpr) {
-            assert(pdev->info.gfx_level >= GFX10_3);
-
-            radeon_emit(PKT3(PKT3_LOAD_SH_REG_INDEX, 3, 0));
-            radeon_emit(info->indirect_va);
-            radeon_emit(info->indirect_va >> 32);
-            radeon_emit((grid_size_offset - SI_SH_REG_OFFSET) >> 2);
-            radeon_emit(3);
-         } else {
-            radeon_emit_64bit_pointer(grid_size_offset, info->indirect_va);
-         }
-
+         radeon_emit(PKT3(PKT3_LOAD_SH_REG_INDEX, 3, 0));
+         radeon_emit(info->indirect_va);
+         radeon_emit(info->indirect_va >> 32);
+         radeon_emit((grid_size_offset - SI_SH_REG_OFFSET) >> 2);
+         radeon_emit(3);
          radeon_end();
       }
 
@@ -15331,57 +15384,6 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          radeon_end();
       }
    } else {
-      const unsigned *cs_block_size = compute_shader->info.cs.block_size;
-
-      if (info->unaligned) {
-         radeon_begin(cs);
-         radeon_set_sh_reg_seq(R_00B81C_COMPUTE_NUM_THREAD_X, 3);
-         if (pdev->info.gfx_level >= GFX12) {
-            radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX12(cs_block_size[0]) |
-                        S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
-            radeon_emit(S_00B820_NUM_THREAD_FULL_GFX12(cs_block_size[1]) |
-                        S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
-         } else {
-            radeon_emit(S_00B81C_NUM_THREAD_FULL_GFX6(cs_block_size[0]) |
-                        S_00B81C_NUM_THREAD_PARTIAL(params->num_thread_partial[0]));
-            radeon_emit(S_00B820_NUM_THREAD_FULL_GFX6(cs_block_size[1]) |
-                        S_00B820_NUM_THREAD_PARTIAL(params->num_thread_partial[1]));
-         }
-         radeon_emit(S_00B824_NUM_THREAD_FULL(cs_block_size[2]) |
-                     S_00B824_NUM_THREAD_PARTIAL(params->num_thread_partial[2]));
-         radeon_end();
-      }
-
-      if (grid_size_offset) {
-         if (pdev->load_grid_size_from_user_sgpr) {
-            radeon_begin(cs);
-            radeon_set_sh_reg_seq(grid_size_offset, 3);
-            radeon_emit(params->grid_size[0]);
-            radeon_emit(params->grid_size[1]);
-            radeon_emit(params->grid_size[2]);
-            radeon_end();
-         } else {
-            uint32_t offset;
-            if (!radv_cmd_buffer_upload_data(cmd_buffer, 12, params->grid_size, &offset))
-               return;
-
-            uint64_t va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + offset;
-
-            radeon_begin(cs);
-            radeon_emit_64bit_pointer(grid_size_offset, va);
-            radeon_end();
-         }
-      }
-
-      if (params->start[0] || params->start[1] || params->start[2]) {
-         radeon_begin(cs);
-         radeon_set_sh_reg_seq(R_00B810_COMPUTE_START_X, 3);
-         radeon_emit(params->start[0]);
-         radeon_emit(params->start[1]);
-         radeon_emit(params->start[2]);
-         radeon_end();
-      }
-
       if (cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
          radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, cmd_buffer->state.cond_render.mec_inv_pred_va,
                                           &cmd_buffer->state.cond_render.mec_inv_pred_emitted, 5 /* DISPATCH_DIRECT size */);
@@ -15528,6 +15530,7 @@ radv_compute_dispatch(struct radv_cmd_buffer *cmd_buffer, const struct radv_disp
    radv_get_dispatch_params(cmd_buffer, compute_shader, info, &params);
 
    radv_before_dispatch(cmd_buffer, compute_pipeline);
+   radv_emit_userdata_compute(cmd_buffer, compute_shader, info, &params);
    radv_emit_dispatch_packets(cmd_buffer, compute_shader, info, &params);
    radv_after_dispatch(cmd_buffer);
 }
@@ -15804,6 +15807,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
    radv_get_dispatch_params(cmd_buffer, rt_prolog, &info, &params);
 
    radv_before_trace_rays(cmd_buffer, rt_pipeline);
+   radv_emit_userdata_compute(cmd_buffer, rt_prolog, &info, &params);
    radv_emit_dispatch_packets(cmd_buffer, rt_prolog, &info, &params);
    radv_after_trace_rays(cmd_buffer);
 
