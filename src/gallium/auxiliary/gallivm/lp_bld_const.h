@@ -162,6 +162,23 @@ lp_build_const_int_pointer(struct gallivm_state *gallivm, const void *ptr)
 }
 
 
+/**
+ * Load a pointer-sized value from an address held in a 64-bit integer and
+ * zero extend it to 64 bits.
+ */
+static inline LLVMValueRef
+lp_build_load_pointer_as_int64(struct gallivm_state *gallivm, LLVMValueRef address)
+{
+   LLVMBuilderRef builder = gallivm->builder;
+   LLVMTypeRef int_type = LLVMIntTypeInContext(gallivm->context, 8 * sizeof(void *));
+
+   address = LLVMBuildIntToPtr(builder, address, LLVMPointerType(int_type, 0), "");
+   LLVMValueRef value = LLVMBuildLoad2(builder, int_type, address, "");
+
+   return LLVMBuildZExt(builder, value, LLVMInt64TypeInContext(gallivm->context), "");
+}
+
+
 LLVMValueRef
 lp_build_const_string(struct gallivm_state *gallivm,
                       const char *str);
