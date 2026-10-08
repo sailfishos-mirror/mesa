@@ -264,10 +264,13 @@ etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
          /* We have a temporary resource due to either tile status or
           * tiling format. Write back the updated buffer contents.
           */
+         struct pipe_box staging_box = ptrans->box;
+         staging_box.x = staging_box.y = staging_box.z = 0;
+
          ctx->in_transfer_blit = true;
          etna_copy_resource_box(pctx, ptrans->resource, trans->rsc,
                                 ptrans->level, 0, ptrans->box.x, ptrans->box.y,
-                                ptrans->box.z, &ptrans->box, false);
+                                ptrans->box.z, &staging_box, false);
          ctx->in_transfer_blit = false;
       } else if (trans->staging) {
          /* map buffer object */
@@ -411,10 +414,22 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
          return NULL;
       }
 
+      if (!screen->specs.use_blt) {
+         /* Need to align the transfer region to satisfy RS restrictions, as we
+          * really want to hit the RS blit path here.
+          */
+         etna_align_box_for_rs(ctx->screen, rsc, &ptrans->box);
+      }
+
       struct pipe_resource templ = *prsc;
       templ.last_level = 0;
-      templ.width0 = res_level->width;
-      templ.height0 = res_level->height;
+      templ.width0 = ptrans->box.width;
+      templ.height0 = ptrans->box.height;
+      if (prsc->target == PIPE_TEXTURE_3D)
+         templ.depth0 = ptrans->box.depth;
+      else if (prsc->target != PIPE_TEXTURE_CUBE &&
+               prsc->target != PIPE_TEXTURE_CUBE_ARRAY)
+         templ.array_size = ptrans->box.depth;
       templ.nr_samples = 0;
       templ.bind = PIPE_BIND_RENDER_TARGET;
       /* Emulated depth32f stores as the internal D24S8, so size the staging by
@@ -430,18 +445,10 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       }
       trans->rsc->format = rsc->base.format;
 
-      if (!screen->specs.use_blt) {
-         /* Need to align the transfer region to satisfy RS restrictions, as we
-          * really want to hit the RS blit path here.
-          */
-         etna_align_box_for_rs(ctx->screen, rsc, &ptrans->box);
-      }
-
       if ((usage & PIPE_MAP_READ) || !(usage & ETNA_PIPE_MAP_DISCARD_LEVEL)) {
          ctx->in_transfer_blit = true;
          etna_copy_resource_box(pctx, trans->rsc, &rsc->base, 0, level,
-                                ptrans->box.x, ptrans->box.y, ptrans->box.z,
-                                &ptrans->box, false);
+                                0, 0, 0, &ptrans->box, false);
          ctx->in_transfer_blit = false;
       }
 
@@ -499,8 +506,19 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       ptrans->stride = res_level->stride;
       ptrans->layer_stride = res_level->layer_stride;
 
+      struct pipe_box map_box = *box;
+      if (trans->rsc) {
+         /*
+          * On RS the staging resource is aligned and might therefore be bigger than the requested transfer area.
+          * Move map_box to the offset within the aligned resource to copy the correct box regardless of alignment.
+          */
+         map_box.x -= ptrans->box.x;
+         map_box.y -= ptrans->box.y;
+         map_box.z -= ptrans->box.z;
+      }
+
       trans->mapped += res_level->offset +
-             etna_compute_offset(etna_resource(prsc)->internal_format, box,
+             etna_compute_offset(etna_resource(prsc)->internal_format, &map_box,
                                  res_level->stride, res_level->layer_stride);
 
       /* We need to have the unpatched data ready for the gfx stack. */

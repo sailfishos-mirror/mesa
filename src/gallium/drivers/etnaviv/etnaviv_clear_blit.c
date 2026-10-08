@@ -431,7 +431,6 @@ etna_copy_resource_box(struct pipe_context *pctx, struct pipe_resource *dst,
    struct etna_resource *dst_priv = etna_resource(dst);
 
    assert(src->format == dst->format);
-   assert(src->array_size == dst->array_size);
    assert(!etna_resource_level_needs_flush(&dst_priv->levels[dst_level]));
 
    ctx->blit_rb_swap = rb_swap;
