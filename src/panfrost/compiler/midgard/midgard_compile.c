@@ -1752,7 +1752,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
          ld.src_types[1] = nir_type_int32;
       }
 
-      if (ctx->quirks & MIDGARD_OLD_BLEND) {
+      if (pan_arch(ctx->inputs->gpu_id) < 5) {
          ld.op = midgard_op_ld_special_32u;
          ld.load_store.signed_offset = PACK_LDST_SELECTOR_OFS(16);
          ld.load_store.index_reg = REGISTER_LDST_ZERO;
@@ -1780,7 +1780,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
       for (unsigned c = 4; c < 16; ++c)
          ld.swizzle[0][c] = 0;
 
-      if (ctx->quirks & MIDGARD_OLD_BLEND) {
+      if (pan_arch(ctx->inputs->gpu_id) < 5) {
          if (bits == 16)
             ld.op = midgard_op_ld_special_16f;
          else
