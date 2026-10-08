@@ -68,21 +68,50 @@ impl ClampUses {
     }
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+enum SwizzleUses {
+    #[default]
+    None,
+    Replicate,
+    // Only matches replication for .m1
+    SignExtend,
+    Unknown,
+}
+
+impl SwizzleUses {
+    fn from_swizzle(swizzle: Swizzle) -> Self {
+        const SH0: Swizzle = Swizzle::widen_s16(0);
+
+        match swizzle {
+            Swizzle::H00 => SwizzleUses::Replicate,
+            SH0 => SwizzleUses::SignExtend,
+            _ => SwizzleUses::Unknown,
+        }
+    }
+
+    fn add_use(&mut self, other: Self) {
+        *self = (*self).max(other);
+    }
+}
+
 #[derive(Default)]
 struct UseMod {
     clamp: ClampUses,
     to_f16: Uses<FRound>,
+    swizzle: SwizzleUses,
 }
 
 impl UseMod {
     const INVALID: UseMod = UseMod {
         clamp: ClampUses::Unknown,
         to_f16: Uses::Unknown,
+        swizzle: SwizzleUses::Unknown,
     };
 
     fn add_use(&mut self, use_mod: UseMod) {
         self.clamp.add_use(use_mod.clamp);
         self.to_f16.add_use(use_mod.to_f16);
+        self.swizzle.add_use(use_mod.swizzle);
     }
 }
 
@@ -123,6 +152,7 @@ struct DstModProp<'a, A> {
     use_mods: FxHashMap<SSAValue, UseMod>,
     def_clamp: FxHashMap<SSAValue, ClampUses>,
     def_f16: FxHashMap<SSAValue, SSAValue>,
+    def_repl: FxHashMap<SSAValue, SSAValue>,
 }
 
 impl<A: AllocSSA> DstModProp<'_, A> {
@@ -132,6 +162,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
             use_mods: Default::default(),
             def_clamp: Default::default(),
             def_f16: Default::default(),
+            def_repl: Default::default(),
         }
     }
 
@@ -146,6 +177,11 @@ impl<A: AllocSSA> DstModProp<'_, A> {
 
     fn set_def_f16(&mut self, ssa: SSAValue, f16: SSAValue) {
         let old = self.def_f16.insert(ssa, f16);
+        debug_assert!(old.is_none());
+    }
+
+    fn set_def_repl(&mut self, ssa: SSAValue, repl: SSAValue) {
+        let old = self.def_repl.insert(ssa, repl);
         debug_assert!(old.is_none());
     }
 
@@ -188,9 +224,33 @@ impl<A: AllocSSA> DstModProp<'_, A> {
         true
     }
 
+    // TODO: we can also fold SWZ when there are other, non-OpSwz uses, but
+    //       it requires checking and rewriting sources from every Op.  For more
+    //       details and a WIP impl check the MR
+    fn add_swz_uses(&mut self, op: &OpSwz) -> bool {
+        if !(op.src_type.total_bits() == 32 && op.src.src_mod.is_none()) {
+            return false;
+        }
+        let SrcRef::SSA(vec) = &op.src.src_ref else {
+            return false;
+        };
+        debug_assert_eq!(vec.len(), 1);
+        let ssa = vec[0];
+
+        self.add_use(
+            ssa,
+            UseMod {
+                swizzle: SwizzleUses::from_swizzle(op.src.swizzle),
+                ..UseMod::INVALID
+            },
+        );
+        true
+    }
+
     fn add_instr_uses(&mut self, instr: &Instr) {
         let used = match &instr.op {
             Op::FAdd(op) => self.add_fadd_uses(op.as_ref()),
+            Op::Swz(op) => self.add_swz_uses(op.as_ref()),
             _ => false,
         };
 
@@ -272,6 +332,28 @@ impl<A: AllocSSA> DstModProp<'_, A> {
                     clamp_changed
                 }
             }
+            Op::Swz(op) => {
+                let SrcRef::SSA(vec) = &op.src.src_ref else {
+                    return false;
+                };
+                if vec.comps() != 1 {
+                    return false;
+                }
+                let ssa = vec[0];
+
+                let Some(repl) = self.def_repl.get(&ssa) else {
+                    return false;
+                };
+
+                instr.op = OpCopy {
+                    dst: op.dst.clone(),
+                    dst_type: op.src_type,
+                    src: (*repl).into(),
+                }
+                .into();
+
+                true
+            }
             _ => false,
         }
     }
@@ -346,6 +428,40 @@ impl<A: AllocSSA> DstModProp<'_, A> {
         true
     }
 
+    fn fold_cmp(&mut self, op: &mut OpCmp) -> bool {
+        if op.src_type.bits() != 16 || op.accum_op != CmpAccumOp::None {
+            return false;
+        }
+
+        let DstRef::SSA(vec) = &op.dst.dst_ref else {
+            return false;
+        };
+        debug_assert!(vec.comps() == 1);
+        let ssa = vec[0];
+
+        // 16-bit CMPs replicate their sources
+        if ssa.bits() != 16 || !op.srcs.iter().all(Src::replicates_half) {
+            return false;
+        }
+
+        let Some(use_mod) = self.use_mods.get(&ssa) else {
+            return false;
+        };
+
+        match use_mod.swizzle {
+            SwizzleUses::Replicate => (),
+            // If at least one of our users needs sign-extension, we can only
+            // fuse that for .m1
+            SwizzleUses::SignExtend if op.res_type == CmpResultType::M1 => (),
+            _ => return false,
+        }
+
+        let ssa_repl = self.ssa_alloc.alloc_ssa(32);
+        self.set_def_repl(ssa, ssa_repl);
+        op.dst = ssa_repl.into();
+        true
+    }
+
     fn try_fold_instr(&mut self, instr: &mut Instr) -> bool {
         let src_folded = self.try_fold_instr_src(instr);
         let dst_folded = match &mut instr.op {
@@ -363,6 +479,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
             Op::FMin(op) => {
                 self.fold_clamp(&op.dst, op.dst_type, &mut op.clamp)
             }
+            Op::Cmp(op) => self.fold_cmp(op),
             _ => false,
         };
         src_folded | dst_folded
