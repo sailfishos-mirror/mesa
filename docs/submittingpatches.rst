@@ -518,6 +518,12 @@ broad discretion in rejecting patches that have been nominated.
 - Patches for performance regressions are considered only if they provide
   information about the hardware, program in question and observed
   improvement. Use numbers to represent your measurements.
+- If you think your patch needs to be backported but isn't covered by the
+  cases above, please contact the :doc:`release manager for that release cycle
+  <release-calendar>` by e.g. tagging them on the MR before merging it, and
+  present your arguments.  The release manager is the only one who can decide
+  to make an exception.  Exceptions are more likely to be accepted during the
+  release candidate stage than after the first public release.
 
 If the patch complies with the rules it will be
 :ref:`cherry-picked <pickntest>`. Alternatively the release
