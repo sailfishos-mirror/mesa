@@ -1206,6 +1206,7 @@ struct zink_resource_object {
     * in the ordered cmdbuf which can promote barriers to unordered
     */
    bool ordered_access_is_copied;
+   bool has_ordered_access;
    bool unordered_read;
    bool unordered_write;
    bool unsync_access;
