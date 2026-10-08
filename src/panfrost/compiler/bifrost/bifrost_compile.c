@@ -4248,11 +4248,15 @@ bi_compile_variant_nir(nir_shader *nir,
    /* There may be another program in the dynarray, start at the end */
    unsigned offset = binary->size;
 
+   unsigned arch = pan_arch(inputs->gpu_id);
+   const struct pan_model *model =
+      pan_get_model(inputs->gpu_id, inputs->gpu_variant);
+
    ctx->inputs = inputs;
    ctx->nir = nir;
    ctx->stage = nir->info.stage;
-   ctx->quirks = bifrost_get_quirks(inputs->gpu_id);
-   ctx->arch = pan_arch(inputs->gpu_id);
+   ctx->quirks = bifrost_get_quirks(arch, model);
+   ctx->arch = arch;
    ctx->info = info;
    ctx->idvs = idvs;
    ctx->malloc_idvs = (ctx->arch >= 9) && !inputs->no_idvs;
