@@ -116,8 +116,8 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    }
 
    struct pan_compile_inputs inputs = {
-      .gpu_id = panfrost_device_gpu_id(dev),
-      .gpu_variant = dev->kmod.dev->props.gpu_variant,
+      .arch = dev->arch,
+      .model = dev->model,
    };
 
    /* Lower this early so the backends don't have to worry about it */
@@ -171,7 +171,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
 
       NIR_PASS(_, s, pan_nir_lower_framebuffer, key->fs.rt_formats,
                pan_raw_format_mask_midgard(key->fs.rt_formats), 0,
-               midgard_get_quirks(inputs.gpu_id) & MIDGARD_BROKEN_BLEND_LOADS);
+               midgard_get_quirks(dev->model->gpu_prod_id) & MIDGARD_BROKEN_BLEND_LOADS);
    }
 
    /* Lower resource indices */

@@ -182,7 +182,7 @@ pan_postprocess_nir(nir_shader *nir, const struct pan_compile_inputs *inputs,
 {
    memset(info, 0, sizeof(*info));
 
-   unsigned arch = pan_arch(inputs->gpu_id);
+   unsigned arch = inputs->arch;
    if (arch >= 6)
       bifrost_postprocess_nir(nir, inputs, info);
    else
@@ -371,7 +371,7 @@ void
 pan_shader_compile(nir_shader *s, struct pan_compile_inputs *inputs,
                    struct util_dynarray *binary, struct pan_shader_info *info)
 {
-   unsigned arch = pan_arch(inputs->gpu_id);
+   unsigned arch = inputs->arch;
 
    NIR_PASS(_, s, nir_inline_sysval, nir_intrinsic_load_printf_buffer_size,
             PAN_PRINTF_BUFFER_SIZE - 8);
@@ -631,10 +631,9 @@ static const char *bool_str(bool x) {
 }
 
 void
-pan_stats_verbose_prologue(FILE *f, const char* prefix, uint64_t gpu_id,
-                           uint32_t gpu_variant, unsigned arch)
+pan_stats_verbose_prologue(FILE *f, const char* prefix, unsigned arch,
+                           const struct pan_model *model)
 {
-   const struct pan_model *model = pan_get_model(gpu_id, gpu_variant);
    const char *archname[] = {
       "Unknown",              /* 0 must always be "Unknown" */
       "Unknown", "Unknown", "Unknown", /* 1-3 */
@@ -644,6 +643,7 @@ pan_stats_verbose_prologue(FILE *f, const char* prefix, uint64_t gpu_id,
    };
 
    fprintf(f, "\n");
+   fprintf(f, "Arch: %u\n", arch);
    fprintf(f, "Model: %s\n", model ? model->name : "Unknown");
    fprintf(f, "Shader type: %s\n", prefix);
    fprintf(f, "Architecture: %s\n", archname[arch < ARRAY_SIZE(archname) ? arch : 0]);

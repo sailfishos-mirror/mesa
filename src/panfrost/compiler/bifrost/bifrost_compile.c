@@ -3872,8 +3872,7 @@ bi_shader_stage_name(bi_context *ctx)
 static void
 bi_normalize_stats(struct bifrost_stats *stats, const bi_context *ctx)
 {
-   const struct pan_model *model =
-      pan_get_model(ctx->inputs->gpu_id, ctx->inputs->gpu_variant);
+   const struct pan_model *model = ctx->inputs->model;
    if (model) {
       assert(model->rates.fma && model->rates.texel);
       stats->arith /= model->rates.fma;
@@ -3980,9 +3979,7 @@ pan_va_compute_alu_bound(uint8_t arch, float fma, float cvt, float sfu)
 static void
 va_normalize_stats(struct valhall_stats *stats, const bi_context *ctx)
 {
-   const struct pan_model *model =
-      pan_get_model(ctx->inputs->gpu_id, ctx->inputs->gpu_variant);
-
+   const struct pan_model *model = ctx->inputs->model;
    if (!model)
       return;
 
@@ -4002,7 +3999,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
                const struct va_stats *counts,
                struct valhall_stats *out)
 {
-   assert(ctx->arch == pan_arch(ctx->inputs->gpu_id));
+   assert(ctx->arch == ctx->inputs->arch);
 
    struct valhall_stats stats = {
       .instrs = nr_ins,
@@ -4248,15 +4245,11 @@ bi_compile_variant_nir(nir_shader *nir,
    /* There may be another program in the dynarray, start at the end */
    unsigned offset = binary->size;
 
-   unsigned arch = pan_arch(inputs->gpu_id);
-   const struct pan_model *model =
-      pan_get_model(inputs->gpu_id, inputs->gpu_variant);
-
    ctx->inputs = inputs;
    ctx->nir = nir;
    ctx->stage = nir->info.stage;
-   ctx->quirks = bifrost_get_quirks(arch, model);
-   ctx->arch = arch;
+   ctx->quirks = bifrost_get_quirks(inputs->arch, inputs->model);
+   ctx->arch = inputs->arch; // TODO: remove duplication
    ctx->info = info;
    ctx->idvs = idvs;
    ctx->malloc_idvs = (ctx->arch >= 9) && !inputs->no_idvs;
@@ -4705,8 +4698,8 @@ static void
 pan_stats_verbose(FILE *f, const char *prefix, bi_context *ctx, const struct pan_stats *stats,
                   const struct pan_shader_info *info)
 {
-   pan_stats_verbose_prologue(f, prefix, ctx->inputs->gpu_id,
-                              ctx->inputs->gpu_variant, ctx->arch);
+   pan_stats_verbose_prologue(f, prefix, ctx->inputs->arch,
+                              ctx->inputs->model);
 
    switch (stats->isa) {
    case PAN_STAT_VALHALL: {

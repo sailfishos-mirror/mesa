@@ -89,8 +89,8 @@ get_blend_shader(struct panvk_device *dev,
 
    /* Compile the NIR shader */
    struct pan_compile_inputs inputs = {
-      .gpu_id = pdev->kmod.dev->props.gpu_id,
-      .gpu_variant = pdev->kmod.dev->props.gpu_variant,
+      .arch = PAN_ARCH,
+      .model = pdev->model,
       .is_blend = true,
       /* Blend constants are loaded from the first four FAU words. */
       .fau.reserved = 4,

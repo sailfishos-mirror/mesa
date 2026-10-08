@@ -369,11 +369,9 @@ main(int argc, const char **argv)
          _mesa_blake3_update(&blake3_ctx, &v, sizeof(v));
          _mesa_blake3_final(&blake3_ctx, s->info.source_blake3);
 
-         uint64_t target_gpu_id = (target_arch & 0xf) << 28;
-
          struct pan_compile_inputs inputs = {
-            .gpu_id = target_gpu_id,
-            .gpu_variant = 0,
+            .arch = target_arch,
+            .model = NULL, /* we only know arch when precompiling */
             .fau.reserved = fau_reserved,
          };
 

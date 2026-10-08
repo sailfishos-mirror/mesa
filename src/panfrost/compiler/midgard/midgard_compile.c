@@ -1752,7 +1752,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
          ld.src_types[1] = nir_type_int32;
       }
 
-      if (pan_arch(ctx->inputs->gpu_id) < 5) {
+      if (ctx->inputs->arch < 5) {
          ld.op = midgard_op_ld_special_32u;
          ld.load_store.signed_offset = PACK_LDST_SELECTOR_OFS(16);
          ld.load_store.index_reg = REGISTER_LDST_ZERO;
@@ -1780,7 +1780,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
       for (unsigned c = 4; c < 16; ++c)
          ld.swizzle[0][c] = 0;
 
-      if (pan_arch(ctx->inputs->gpu_id) < 5) {
+      if (ctx->inputs->arch < 5) {
          if (bits == 16)
             ld.op = midgard_op_ld_special_16f;
          else
@@ -2972,13 +2972,13 @@ midgard_compile_shader_nir(nir_shader *nir,
    ctx->stage = nir->info.stage;
    ctx->blend_input = ~0;
    ctx->blend_src1 = ~0;
-   ctx->quirks = midgard_get_quirks(pan_prod_id(inputs->gpu_id));
+   ctx->quirks = midgard_get_quirks(inputs->model->gpu_prod_id);
 
    /* Initialize at a global (not block) level hash tables */
 
    ctx->ssa_constants = _mesa_hash_table_u64_create(ctx);
 
-   unsigned arch = pan_arch(inputs->gpu_id);
+   unsigned arch = inputs->arch;
 
    /* Collect varyings after lowering I/O */
    if (nir->info.stage == MESA_SHADER_VERTEX) {

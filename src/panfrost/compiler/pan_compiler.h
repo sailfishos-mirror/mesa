@@ -18,6 +18,7 @@
 #include "util/shader_stats.h"
 
 struct pan_shader_info;
+struct pan_model;
 
 uint32_t pan_get_compiler_flags(unsigned arch);
 
@@ -32,8 +33,8 @@ pan_get_nir_shader_compiler_options(unsigned arch,
 
 /* Inputs to the backend compiler */
 struct pan_compile_inputs {
-   uint64_t gpu_id;
-   uint32_t gpu_variant;
+   unsigned arch;
+   const struct pan_model *model;
    bool is_blend, is_blit;
    bool no_idvs;
    uint32_t view_mask;
@@ -641,8 +642,8 @@ pan_res_handle(unsigned table, unsigned index)
 void pan_disassemble(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
                      bool verbose);
 
-void pan_stats_verbose_prologue(FILE *f, const char *prefix, uint64_t gpu_id,
-                                uint32_t gpu_variant, unsigned arch);
+void pan_stats_verbose_prologue(FILE *f, const char *prefix, unsigned arch,
+                                const struct pan_model *model);
 
 void pan_valhall_stats_verbose(FILE *f, const struct valhall_stats *stats,
                                const struct valhall_stats *min_stats,

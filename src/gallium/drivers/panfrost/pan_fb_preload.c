@@ -526,9 +526,13 @@ pan_preload_get_shader(struct pan_fb_preload_cache *cache,
       active_count++;
    }
 
+   const struct pan_model *model =
+      pan_get_model(cache->gpu_id, cache->gpu_variant);
+   assert(model != NULL);
+
    struct pan_compile_inputs inputs = {
-      .gpu_id = cache->gpu_id,
-      .gpu_variant = cache->gpu_variant,
+      .arch = PAN_ARCH,
+      .model = model,
       .is_blit = true,
       .no_idvs = true,
    };

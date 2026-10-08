@@ -810,7 +810,7 @@ bifrost_postprocess_nir(nir_shader *nir,
 {
    MESA_TRACE_FUNC();
 
-   const unsigned gpu_arch = pan_arch(inputs->gpu_id);
+   const unsigned gpu_arch = inputs->arch;
 
    if (gpu_arch >= 9)
       NIR_PASS(_, nir, pan_nir_lower_image_64bit);
@@ -1153,7 +1153,7 @@ bi_should_idvs(nir_shader *nir, const struct pan_compile_inputs *inputs)
       return false;
 
    /* Bifrost cannot write gl_PointSize during IDVS */
-   if ((pan_arch(inputs->gpu_id) < 9) &&
+   if ((inputs->arch < 9) &&
        nir->info.outputs_written & VARYING_BIT_PSIZ)
       return false;
 
@@ -1468,7 +1468,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bifrost_init_debug_options();
 
-   unsigned arch = pan_arch(inputs->gpu_id);
+   unsigned arch = inputs->arch;
 
    /* Apply special transformation to IDVS_ALL shaders before late
     * optimization loop. */

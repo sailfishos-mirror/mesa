@@ -413,14 +413,10 @@ impl Model for ValhallModel {
     }
 }
 
-pub fn model_for_gpu_id(
-    gpu_id: u64,
-    gpu_variant: u32,
+pub fn model_for_arch(
+    arch: u8,
+    pan_model: *const PanModel,
 ) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
-    // SAFETY: pan_arch() just translates one integer to another
-    let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
-    let pan_model = unsafe { pan_get_model(gpu_id, gpu_variant) };
-
     if arch >= 15 {
         Err("Kraid does not yet support this GPU")
     } else if arch >= 9 {
@@ -428,4 +424,15 @@ pub fn model_for_gpu_id(
     } else {
         Err("Kraid only supports Valhall (v9) and later GPUs")
     }
+}
+
+#[cfg(test)]
+pub fn model_for_gpu_id(
+    gpu_id: u64,
+    gpu_variant: u32,
+) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
+    // SAFETY: pan_arch() just translates one integer to another
+    let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
+    let pan_model = unsafe { pan_get_model(gpu_id, gpu_variant) };
+    model_for_arch(arch, pan_model)
 }

@@ -349,8 +349,8 @@ panvk_meta_desc_copy_rsd(struct panvk_device *dev)
    PAN_NIR_SET_BLAKE3_INTERNAL(b.shader, &key);
 
    struct pan_compile_inputs inputs = {
-      .gpu_id = phys_dev->kmod.dev->props.gpu_id,
-      .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
+      .arch = PAN_ARCH,
+      .model = phys_dev->model,
       .fau.reserved = DIV_ROUND_UP(sizeof(struct pan_nir_desc_copy_info), 4),
    };
 

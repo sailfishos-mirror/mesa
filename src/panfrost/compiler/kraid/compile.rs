@@ -4,7 +4,7 @@
 use crate::data_type::NumericType;
 use crate::debug::*;
 use crate::ir::*;
-use crate::model::model_for_gpu_id;
+use crate::model::model_for_arch;
 use crate::ops::OpNop;
 use compiler::bindings::*;
 use compiler::memstream::MemStream;
@@ -269,7 +269,8 @@ pub extern "C" fn kraid_compile_nir(
     info: &mut pan_shader_info,
     idvs: kraid_idvs_mode,
 ) {
-    let model = model_for_gpu_id(inputs.gpu_id, inputs.gpu_variant).unwrap();
+    let model =
+        model_for_arch(inputs.arch.try_into().unwrap(), inputs.model).unwrap();
 
     if DEBUG.contains(DebugFlags::PRINT) {
         eprint!("{}", nir.to_string().unwrap());
@@ -361,13 +362,7 @@ pub extern "C" fn kraid_compile_nir(
             let prefix =
                 kraid_shader_stage_name(nir.info.stage(), inputs.is_blend);
 
-            pan_stats_verbose_prologue(
-                f,
-                prefix,
-                inputs.gpu_id,
-                inputs.gpu_variant,
-                model.arch().into(),
-            );
+            pan_stats_verbose_prologue(f, prefix, inputs.arch, inputs.model);
             // TODO: min/max statistics
             pan_valhall_stats_verbose(
                 f,

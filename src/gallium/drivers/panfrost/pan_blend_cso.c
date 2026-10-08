@@ -96,10 +96,14 @@ GENX(pan_blend_get_shader_locked)(struct pan_blend_shader_cache *cache,
    nir_shader_intrinsics_pass(nir, pan_lower_blend_constants,
                               nir_metadata_control_flow, NULL);
 
+   const struct pan_model *model =
+      pan_get_model(cache->gpu_id, cache->gpu_variant);
+   assert(model != NULL);
+
    /* Compile the NIR shader */
    struct pan_compile_inputs inputs = {
-      .gpu_id = cache->gpu_id,
-      .gpu_variant = cache->gpu_variant,
+      .arch = PAN_ARCH,
+      .model = model,
       .is_blend = true,
       .fau.pushable_ubos = BITFIELD_BIT(PAN_UBO_SYSVALS),
    };

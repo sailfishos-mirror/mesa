@@ -1069,8 +1069,10 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
          struct u_memstream mem;
          if (u_memstream_open(&mem, &data, &disasm_size)) {
             FILE *const stream = u_memstream_get(&mem);
+            struct panvk_physical_device *phys_dev =
+               to_panvk_physical_device(dev->vk.physical);
             pan_disassemble(stream, shader->bin_ptr, shader->bin_size,
-                            compile_input->gpu_id, false);
+                            phys_dev->kmod.dev->props.gpu_id, false);
             if (nir->constant_data_size) {
                fprintf(stream, "constant data (%u bytes):\n",
                        nir->constant_data_size);
@@ -1417,8 +1419,8 @@ panvk_compile_shader(struct panvk_device *dev,
       robust_modes |= nir_var_mem_ssbo;
 
    struct pan_compile_inputs inputs = {
-      .gpu_id = phys_dev->kmod.dev->props.gpu_id,
-      .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
+      .arch = PAN_ARCH,
+      .model = phys_dev->model,
       .view_mask = (state && state->rp) ? state->mv->view_mask : 0,
       .robust_modes = robust_modes,
       .robust_descriptors = dev->vk.enabled_features.nullDescriptor,
