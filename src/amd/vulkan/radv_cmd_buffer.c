@@ -15737,13 +15737,47 @@ radv_upload_trace_rays_params(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysInd
 }
 
 static void
+radv_emit_userdata_rt(struct radv_cmd_buffer *cmd_buffer, uint64_t sbt_va, uint64_t launch_size_va)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 8);
+
+   const uint32_t sbt_descriptors_offset = radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_SBT_DESCRIPTORS);
+   if (sbt_descriptors_offset) {
+      radeon_begin(cs);
+      if (pdev->info.gfx_level >= GFX12) {
+         gfx12_push_64bit_pointer(sbt_descriptors_offset, sbt_va);
+      } else {
+         radeon_emit_64bit_pointer(sbt_descriptors_offset, sbt_va);
+      }
+      radeon_end();
+   }
+
+   const uint32_t ray_launch_size_addr_offset = radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_RAY_LAUNCH_SIZE_ADDR);
+   if (ray_launch_size_addr_offset) {
+      radeon_begin(cs);
+      if (pdev->info.gfx_level >= GFX12) {
+         gfx12_push_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
+      } else {
+         radeon_emit_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
+      }
+      radeon_end();
+   }
+
+   assert(cs->b->cdw <= cdw_max);
+}
+
+static void
 radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2KHR *tables, uint64_t indirect_va,
                 enum radv_rt_mode mode)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_dispatch_params params;
 
    if (RADV_DEBUG(instance, NO_RT))
@@ -15778,31 +15812,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
    } else
       info.indirect_va = launch_size_va;
 
-   ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 15);
-
-   const uint32_t sbt_descriptors_offset = radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_SBT_DESCRIPTORS);
-   if (sbt_descriptors_offset) {
-      radeon_begin(cs);
-      if (pdev->info.gfx_level >= GFX12) {
-         gfx12_push_64bit_pointer(sbt_descriptors_offset, sbt_va);
-      } else {
-         radeon_emit_64bit_pointer(sbt_descriptors_offset, sbt_va);
-      }
-      radeon_end();
-   }
-
-   const uint32_t ray_launch_size_addr_offset = radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_RAY_LAUNCH_SIZE_ADDR);
-   if (ray_launch_size_addr_offset) {
-      radeon_begin(cs);
-      if (pdev->info.gfx_level >= GFX12) {
-         gfx12_push_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
-      } else {
-         radeon_emit_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
-      }
-      radeon_end();
-   }
-
-   assert(cs->b->cdw <= cdw_max);
+   radv_emit_userdata_rt(cmd_buffer, sbt_va, launch_size_va);
 
    radv_get_dispatch_params(cmd_buffer, rt_prolog, &info, &params);
 
