@@ -3140,6 +3140,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
          device->has_astc_ldr && !device->emu_astc_ldr;
    }
    device->brw_disable_subgroup_size_control =
+      !intel_use_jay_for_stage(&devinfo, MESA_SHADER_COMPUTE) &&
       device->drirc.debug.disable_subgroup_size_control;
 
    result = anv_physical_device_init_heaps(device, fd);
