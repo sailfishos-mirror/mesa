@@ -516,9 +516,18 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 
    case MALI_CS_OPCODE_REQ_RESOURCE: {
       cs_unpack(instr, CS_REQ_RESOURCE, I);
-      fprintf(fp, "REQ_RESOURCE%s%s%s%s", I.compute ? ".compute" : "",
+      fprintf(fp, "REQ_RESOURCE%s%s%s%s%s%s", I.compute ? ".compute" : "",
               I.fragment ? ".fragment" : "", I.tiler ? ".tiler" : "",
-              I.idvs ? ".idvs" : "");
+              I.idvs ? ".idvs" : "",
+#if PAN_ARCH >= 11
+              I.rt ? ".ray_tracing" :
+#endif
+                "",
+#if PAN_ARCH >= 14
+              I.neural ? ".neural" :
+#endif
+                ""
+	      );
       break;
    }
 

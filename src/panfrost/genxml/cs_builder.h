@@ -2252,6 +2252,12 @@ cs_req_res(struct cs_builder *b, uint32_t res_mask)
       I.tiler = res_mask & CS_TILER_RES;
       I.idvs = res_mask & CS_IDVS_RES;
       I.fragment = res_mask & CS_FRAG_RES;
+#if PAN_ARCH >= 11
+      I.rt = false;
+#endif
+#if PAN_ARCH >= 14
+      I.neural = false;
+#endif
    }
 }
 
