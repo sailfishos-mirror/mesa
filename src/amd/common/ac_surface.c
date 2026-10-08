@@ -95,6 +95,59 @@ drmGetFormatModifierName(uint64_t modifier)
 #define SI__GB_TILE_MODE__MACRO_TILE_ASPECT(x)  (((x) >> 18) & 0x3)
 #define SI__GB_TILE_MODE__NUM_BANKS(x)          (((x) >> 20) & 0x3)
 
+static const unsigned block_size_256B_LINEAR[5] = {
+   256,
+   128,
+   64,
+   32,
+   16,
+};
+
+/* Based on GFX10_SW_PATTERN_NIBBLE01, GFX11_SW_PATTERN_NIBBLE01, GFX12_SW_PATTERN_NIBBLE1,
+ * GFX9: HwlComputeBlock256Equation, HwlComputeThinEquation.
+ */
+static const ac_block_extent gfx9_gfx12_block_size_256B_2D[4][5] = {
+   { /* 1xAA */
+      {16, 16},
+      {16, 8},
+      {8, 8},
+      {8, 4},
+      {4, 4},
+   },
+   { /* 2xAA */
+      {16, 8},
+      {8, 8},
+      {8, 4},
+      {4, 4},
+      {4, 2},
+   },
+   { /* 4xAA */
+      {8, 8},
+      {8, 4},
+      {4, 4},
+      {4, 2},
+      {2, 2},
+   },
+   { /* 8xAA */
+      {8, 4},
+      {4, 4},
+      {4, 2},
+      {2, 2},
+      {2, 1},
+   },
+};
+
+/* Based on GFX10_SW_PATTERN_NIBBLE01, GFX11_SW_PATTERN_NIBBLE01, GFX12_SW_PATTERN_NIBBLE1.
+ * GFX9: HwlComputeThickEquation.
+ */
+static const ac_block_extent gfx9_gfx12_block_size_256B_3D[5] = {
+   {8, 4, 8},
+   {4, 4, 8},
+   {4, 4, 4},
+   {4, 2, 4},
+   {2, 2, 4},
+};
+
 struct ac_addrlib {
    ADDR_HANDLE handle;
    simple_mtx_t lock;
@@ -3618,48 +3671,6 @@ static unsigned gfx12_select_swizzle_mode(struct ac_addrlib *addrlib,
       /* Try to select a 2D (planar) swizzle mode to save memory. */
    }
 
-   static unsigned block_size_LINEAR[5] = {
-      /* 1xAA (MSAA not supported with LINEAR)
-       *
-       * The pitch alignment is 128B, but the slice size is computed as if the pitch alignment
-       * was 256B.
-       */
-      256,
-      128,
-      64,
-      32,
-      16,
-   };
-   static unsigned block_size_256B[4][5][2] = {
-      { /* 1xAA */
-         {16, 16},
-         {16, 8},
-         {8, 8},
-         {8, 4},
-         {4, 4},
-      },
-      { /* 2xAA */
-         {16, 8},
-         {8, 8},
-         {8, 4},
-         {4, 4},
-         {4, 2},
-      },
-      { /* 4xAA */
-         {8, 8},
-         {8, 4},
-         {4, 4},
-         {4, 2},
-         {2, 2},
-      },
-      { /* 8xAA */
-         {8, 4},
-         {4, 4},
-         {4, 2},
-         {2, 2},
-         {2, 1},
-      },
-   };
    static unsigned block_size_4K[4][5][2] = {
       { /* 1xAA */
          {64, 64},
@@ -3751,12 +3762,17 @@ static unsigned gfx12_select_swizzle_mode(struct ac_addrlib *addrlib,
       },
    };
 
+   /* MSAA is not supported with LINEAR.
+    *
+    * The pitch alignment is 128B, but the slice size is computed as if the pitch alignment
+    * was 256B.
+    */
    uint64_t size_LINEAR = ac_estimate_size(config, blk_w, blk_h, get_in.bpp, in->width, in->height,
-                                           block_size_LINEAR[log_bpp], 1, 1);
+                                           block_size_256B_LINEAR[log_bpp], 1, 1);
 
    uint64_t size_256B = ac_estimate_size(config, blk_w, blk_h, get_in.bpp, in->width, in->height,
-                                         block_size_256B[log_samples][log_bpp][0],
-                                         block_size_256B[log_samples][log_bpp][1], 1);
+                                         gfx9_gfx12_block_size_256B_2D[log_samples][log_bpp].width,
+                                         gfx9_gfx12_block_size_256B_2D[log_samples][log_bpp].height, 1);
 
    uint64_t size_4K = ac_estimate_size(config, blk_w, blk_h, get_in.bpp, in->width, in->height,
                                        block_size_4K[log_samples][log_bpp][0],
@@ -3866,6 +3882,8 @@ static bool gfx12_compute_miptree(struct ac_addrlib *addrlib, const struct radeo
    ADDR3_MIP_INFO mip_info[RADEON_SURF_MAX_LEVELS] = {0};
    ADDR3_COMPUTE_SURFACE_INFO_OUTPUT out = {0};
    ADDR_E_RETURNCODE ret;
+   const unsigned log_bpe = util_logbase2(surf->bpe);
+   const unsigned log_samples = util_logbase2(in->numSamples);
 
    out.size = sizeof(ADDR3_COMPUTE_SURFACE_INFO_OUTPUT);
    out.pMipInfo = mip_info;
@@ -3896,6 +3914,11 @@ static bool gfx12_compute_miptree(struct ac_addrlib *addrlib, const struct radeo
       surf->u.gfx9.zs.stencil_offset = align(surf->surf_size, out.baseAlign);
       surf->surf_alignment_log2 = MAX2(surf->surf_alignment_log2, util_logbase2(out.baseAlign));
       surf->surf_size = surf->u.gfx9.zs.stencil_offset + out.surfSize;
+
+      assert(in->swizzleMode >= ADDR3_256B_2D && in->swizzleMode <= ADDR3_256KB_2D);
+      surf->stencil_block256B_extent.width = gfx9_gfx12_block_size_256B_2D[log_samples][0].width;
+      surf->stencil_block256B_extent.height = gfx9_gfx12_block_size_256B_2D[log_samples][0].height;
+      surf->stencil_block256B_extent.depth = 1;
       return true;
    }
 
@@ -3952,6 +3975,20 @@ static bool gfx12_compute_miptree(struct ac_addrlib *addrlib, const struct radeo
    }
 
    surf->u.gfx9.base_mip_height = mip_info[0].height;
+
+   if (surf->bpe == 12) {
+      /* 96bpp is treated as 32bpp. */
+      surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[2], 1, 1};
+   } else if (surf->is_linear) {
+      surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[log_bpe], 1, 1};
+   } else if (in->swizzleMode >= ADDR3_4KB_3D) {
+      assert(log_samples == 0);
+      surf->block256B_extent = gfx9_gfx12_block_size_256B_3D[log_bpe];
+   } else {
+      /* 2D layouts */
+      surf->block256B_extent = gfx9_gfx12_block_size_256B_2D[log_samples][log_bpe];
+      surf->block256B_extent.depth = 1;
+   }
 
    if (in->flags.depth) {
       assert(in->swizzleMode != ADDR3_LINEAR);
