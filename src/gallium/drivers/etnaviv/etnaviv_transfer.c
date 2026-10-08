@@ -425,11 +425,14 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       templ.last_level = 0;
       templ.width0 = ptrans->box.width;
       templ.height0 = ptrans->box.height;
-      if (prsc->target == PIPE_TEXTURE_3D)
+      if (prsc->target == PIPE_TEXTURE_3D) {
          templ.depth0 = ptrans->box.depth;
-      else if (prsc->target != PIPE_TEXTURE_CUBE &&
-               prsc->target != PIPE_TEXTURE_CUBE_ARRAY)
+      } else {
          templ.array_size = ptrans->box.depth;
+         if (prsc->target == PIPE_TEXTURE_CUBE ||
+             prsc->target == PIPE_TEXTURE_CUBE_ARRAY)
+            templ.target = PIPE_TEXTURE_2D_ARRAY;
+      }
       templ.nr_samples = 0;
       templ.bind = PIPE_BIND_RENDER_TARGET;
       /* Emulated depth32f stores as the internal D24S8, so size the staging by
