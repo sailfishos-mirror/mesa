@@ -181,10 +181,11 @@ pan_postprocess_nir(nir_shader *nir, const struct pan_compile_inputs *inputs,
 {
    memset(info, 0, sizeof(*info));
 
-   if (pan_arch(inputs->gpu_id) >= 6)
+   unsigned arch = pan_arch(inputs->gpu_id);
+   if (arch >= 6)
       bifrost_postprocess_nir(nir, inputs, info);
    else
-      midgard_postprocess_nir(nir, inputs->gpu_id);
+      midgard_postprocess_nir(nir, arch);
 }
 
 /** Converts a per-component mask to a byte mask */

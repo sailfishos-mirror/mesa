@@ -388,9 +388,9 @@ midgard_preprocess_nir(nir_shader *nir)
 }
 
 void
-midgard_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
+midgard_postprocess_nir(nir_shader *nir, unsigned arch)
 {
-   midgard_lower_texture_nir(nir, gpu_id);
+   midgard_lower_texture_nir(nir, arch);
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_lower_viewport_transform);
@@ -432,14 +432,14 @@ midgard_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
 }
 
 void
-midgard_lower_texture_nir(nir_shader *nir, uint64_t gpu_id)
+midgard_lower_texture_nir(nir_shader *nir, unsigned arch)
 {
    NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
 
    /* TEX_GRAD fails to apply sampler descriptor settings on some
     * implementations, requiring a lowering.
     */
-   if (midgard_get_quirks(gpu_id) & MIDGARD_BROKEN_LOD)
+   if (arch < 5)
       NIR_PASS(_, nir, midgard_nir_lod_errata);
 
    /* lower MSAA image operations to 3D load before coordinate lowering */
