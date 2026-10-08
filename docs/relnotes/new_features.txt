@@ -88,3 +88,4 @@ VK_KHR_maintenance11 on NVK
 VK_EXT_primitive_restart_index on NVK
 occlusionQueryPrecise on pvr
 EGL_NV_context_priority_realtime on radeonsi
+VK_KHR_maintenance11 on panvk

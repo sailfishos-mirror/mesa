@@ -88,6 +88,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_maintenance8 = true,
       .KHR_maintenance9 = true,
       .KHR_maintenance10 = true,
+      .KHR_maintenance11 = true,
       .KHR_map_memory2 = true,
       .KHR_multiview = true,
       .KHR_pipeline_binary = true,
@@ -499,6 +500,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_KHR_maintenance10 */
       .maintenance10 = true,
+
+      /* VK_KHR_maintenance11 */
+      .maintenance11 = true,
 
       /* VK_KHR_internally_synchronized_queues */
       .internallySynchronizedQueues = true,
