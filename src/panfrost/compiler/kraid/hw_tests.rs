@@ -97,7 +97,7 @@ static F32_CURATED: &[f32] = &[
 static F16_CURATED: &[F16] = &[
     // Trivial values
     F16::ZERO,
-    F16::from_bits(0x3C00), // 1.0
+    F16::ONE,
     F16::from_bits(0x3800), // 0.5
     F16::from_bits(0x4000), // 2.0
     F16::from_bits(0x4800), // 8.0

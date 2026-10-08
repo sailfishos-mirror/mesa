@@ -1402,9 +1402,7 @@ impl CmpResultType {
         match (self, dst_bits) {
             (CmpResultType::I1, _) => 1,
             (CmpResultType::F1, 32) => (1.0_f32).to_bits(),
-            (CmpResultType::F1, 16) => {
-                F16::from_f32_rtne(1.0_f32).to_bits() as u32
-            }
+            (CmpResultType::F1, 16) => F16::ONE.to_bits() as u32,
             (CmpResultType::F1, _) => panic!("Invalid float length"),
             (CmpResultType::M1, _) => 0xFFFF_FFFF,
             (CmpResultType::C, _) => panic!("Not a boolean result type"),
