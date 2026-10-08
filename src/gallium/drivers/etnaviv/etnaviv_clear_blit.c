@@ -292,7 +292,9 @@ etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
          if (rsc->damage) {
             for (unsigned i = 0; i < rsc->num_damage; i++) {
                etna_copy_resource_box(pctx, prsc, rsc->render, 0, 0,
-                                      &rsc->damage[i], flush_rb_swap);
+                                      rsc->damage[i].x, rsc->damage[i].y,
+                                      rsc->damage[i].z, &rsc->damage[i],
+                                      flush_rb_swap);
             }
          } else {
             etna_copy_resource(pctx, prsc, rsc->render, 0, 0, flush_rb_swap);
@@ -421,7 +423,8 @@ etna_copy_resource(struct pipe_context *pctx, struct pipe_resource *dst,
 void
 etna_copy_resource_box(struct pipe_context *pctx, struct pipe_resource *dst,
                        struct pipe_resource *src, int dst_level, int src_level,
-                       struct pipe_box *box, bool rb_swap)
+                       unsigned dstx, unsigned dsty, unsigned dstz,
+                       const struct pipe_box *src_box, bool rb_swap)
 {
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *src_priv = etna_resource(src);
@@ -440,17 +443,20 @@ etna_copy_resource_box(struct pipe_context *pctx, struct pipe_resource *dst,
    blit.filter = PIPE_TEX_FILTER_NEAREST;
    blit.src.resource = src;
    blit.src.format = format;
-   blit.src.box = *box;
+   blit.src.box = *src_box;
    blit.dst.resource = dst;
    blit.dst.format = format;
-   blit.dst.box = *box;
+   blit.dst.box = *src_box;
+   blit.dst.box.x = dstx;
+   blit.dst.box.y = dsty;
 
    blit.dst.box.depth = blit.src.box.depth = 1;
    blit.src.level = src_level;
    blit.dst.level = dst_level;
 
-   for (int z = 0; z < box->depth; z++) {
-      blit.src.box.z = blit.dst.box.z = box->z + z;
+   for (int z = 0; z < src_box->depth; z++) {
+      blit.src.box.z = src_box->z + z;
+      blit.dst.box.z = dstz + z;
       if (unlikely(etna_format_needs_yuv_tiler(blit.src.format)))
          etna_try_yuv_blit(pctx, &blit);
       else

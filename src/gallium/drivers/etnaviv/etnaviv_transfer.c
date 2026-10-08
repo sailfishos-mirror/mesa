@@ -266,7 +266,8 @@ etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
           */
          ctx->in_transfer_blit = true;
          etna_copy_resource_box(pctx, ptrans->resource, trans->rsc,
-                                ptrans->level, 0, &ptrans->box, false);
+                                ptrans->level, 0, ptrans->box.x, ptrans->box.y,
+                                ptrans->box.z, &ptrans->box, false);
          ctx->in_transfer_blit = false;
       } else if (trans->staging) {
          /* map buffer object */
@@ -438,7 +439,9 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
 
       if ((usage & PIPE_MAP_READ) || !(usage & ETNA_PIPE_MAP_DISCARD_LEVEL)) {
          ctx->in_transfer_blit = true;
-         etna_copy_resource_box(pctx, trans->rsc, &rsc->base, 0, level, &ptrans->box, false);
+         etna_copy_resource_box(pctx, trans->rsc, &rsc->base, 0, level,
+                                ptrans->box.x, ptrans->box.y, ptrans->box.z,
+                                &ptrans->box, false);
          ctx->in_transfer_blit = false;
       }
 
