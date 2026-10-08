@@ -51,8 +51,6 @@ ConvertAVEncVProfileToSubtype( enum eAVEncAV1VProfile profile );
 enum eAVEncH264PictureType
 ConvertPictureTypeToAVEncH264PictureType( enum pipe_h2645_enc_picture_type picType );
 
-uint32_t
-ConvertPipeProfileToSpecProfile( pipe_video_profile profile );
 enum pipe_format
 ConvertFourCCToPipeFormat( DWORD dwFourCC );
 UINT32

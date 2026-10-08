@@ -30,6 +30,54 @@
 extern DWORD
 CalculateQualityFromQP( DWORD QP );
 
+enum pipe_format
+ConvertAVEncVProfileToPipeFormat( enum eAVEncH264VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncH264VProfile_ConstrainedBase:
+      case eAVEncH264VProfile_Base:
+      case eAVEncH264VProfile_Main:
+      case eAVEncH264VProfile_Extended:
+      case eAVEncH264VProfile_ConstrainedHigh:
+      case eAVEncH264VProfile_High:
+         return PIPE_FORMAT_NV12;
+      case eAVEncH264VProfile_High10:
+         return PIPE_FORMAT_P010;
+      case eAVEncH264VProfile_422:
+         return PIPE_FORMAT_YUYV;
+      case eAVEncH264VProfile_444:
+         return PIPE_FORMAT_AYUV;
+      default:
+         UNREACHABLE( "Unsupported H.264 profile" );
+         return PIPE_FORMAT_NONE;
+   }
+}
+
+GUID
+ConvertAVEncVProfileToSubtype( enum eAVEncH264VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncH264VProfile_ConstrainedBase:
+      case eAVEncH264VProfile_Base:
+      case eAVEncH264VProfile_Main:
+      case eAVEncH264VProfile_Extended:
+      case eAVEncH264VProfile_ConstrainedHigh:
+      case eAVEncH264VProfile_High:
+         return MFVideoFormat_NV12;
+      case eAVEncH264VProfile_High10:
+         return MFVideoFormat_P010;
+      case eAVEncH264VProfile_422:
+         return MFVideoFormat_YUY2;
+      case eAVEncH264VProfile_444:
+         return MFVideoFormat_AYUV;
+      default:
+         UNREACHABLE( "Unsupported H.264 profile" );
+         return GUID_NULL;
+   }
+}
+
 // utility to convert from pipe_h2645_enc_picture_type to string description
 static const char *
 ConvertPipeH2645FrameTypeToString( pipe_h2645_enc_picture_type picType )

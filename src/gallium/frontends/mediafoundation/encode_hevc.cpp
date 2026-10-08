@@ -30,6 +30,52 @@
 extern DWORD
 CalculateQualityFromQP( DWORD QP );
 
+enum pipe_format
+ConvertAVEncVProfileToPipeFormat( enum eAVEncH265VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncH265VProfile_Main_420_8:
+         return PIPE_FORMAT_NV12;
+      case eAVEncH265VProfile_Main_420_10:
+         return PIPE_FORMAT_P010;
+      case eAVEncH265VProfile_Main_422_8:
+         return PIPE_FORMAT_YUYV;
+      case eAVEncH265VProfile_Main_422_10:
+         return PIPE_FORMAT_Y210;
+      case eAVEncH265VProfile_Main_444_8:
+         return PIPE_FORMAT_AYUV;
+      case eAVEncH265VProfile_Main_444_10:
+         return PIPE_FORMAT_Y410;
+      default:
+         UNREACHABLE( "Unsupported H.265 profile" );
+         return PIPE_FORMAT_NONE;
+   }
+}
+
+GUID
+ConvertAVEncVProfileToSubtype( enum eAVEncH265VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncH265VProfile_Main_420_8:
+         return MFVideoFormat_NV12;
+      case eAVEncH265VProfile_Main_420_10:
+         return MFVideoFormat_P010;
+      case eAVEncH265VProfile_Main_422_8:
+         return MFVideoFormat_YUY2;
+      case eAVEncH265VProfile_Main_422_10:
+         return MFVideoFormat_Y210;
+      case eAVEncH265VProfile_Main_444_8:
+         return MFVideoFormat_AYUV;
+      case eAVEncH265VProfile_Main_444_10:
+         return MFVideoFormat_Y410;
+      default:
+         UNREACHABLE( "Unsupported H.265 profile" );
+         return GUID_NULL;
+   }
+}
+
 // utility to convert from pipe_h2645_enc_picture_type to string description
 static const char *
 ConvertPipeH2645FrameTypeToString( pipe_h2645_enc_picture_type picType )

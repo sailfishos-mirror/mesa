@@ -1105,9 +1105,7 @@ CDX12EncHMFT::ConfigureBitstreamOutputSampleAttributes( IMFSample *pSample,
 
    // Set video format attributes
    CHECKHR_GOTO( pSample->SetUINT32( MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive ), done );
-   CHECKHR_GOTO(
-      pSample->SetUINT32( MF_MT_VIDEO_PROFILE, ConvertPipeProfileToSpecProfile( pDX12EncodeContext->encoderPicInfo.base.profile ) ),
-      done );
+   CHECKHR_GOTO( pSample->SetUINT32( MF_MT_VIDEO_PROFILE, m_uiProfile ), done );
    CHECKHR_GOTO( pSample->SetUINT32( MF_MT_VIDEO_LEVEL, m_pPipeVideoCodec->level ), done );
 
    // Set last slice flag

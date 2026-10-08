@@ -38,6 +38,36 @@ static constexpr uint8_t av1_quantizer_to_qindex[64] = {
    224, 228, 232, 236, 240, 244, 249, 255,
 };
 
+enum pipe_format
+ConvertAVEncVProfileToPipeFormat( enum eAVEncAV1VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncAV1VProfile_Main_420_8:
+         return PIPE_FORMAT_NV12;
+      case eAVEncAV1VProfile_Main_420_10:
+         return PIPE_FORMAT_P010;
+      default:
+         UNREACHABLE( "Unsupported H.265 profile" );
+         return PIPE_FORMAT_NONE;
+   }
+}
+
+GUID
+ConvertAVEncVProfileToSubtype( enum eAVEncAV1VProfile profile )
+{
+   switch( profile )
+   {
+      case eAVEncAV1VProfile_Main_420_8:
+         return MFVideoFormat_NV12;
+      case eAVEncAV1VProfile_Main_420_10:
+         return MFVideoFormat_P010;
+      default:
+         UNREACHABLE( "Unsupported AV1 profile" );
+         return GUID_NULL;
+   }
+}
+
 // utility function to compute the cropping rectangle given texture and output dimensions
 static void
 ComputeCroppingRect( const UINT32 textureWidth,
