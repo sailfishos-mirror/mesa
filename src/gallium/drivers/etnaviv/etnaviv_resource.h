@@ -38,6 +38,8 @@
 
 #include "drm-uapi/drm_fourcc.h"
 
+#define ETNA_RESOURCE_FLAG_CPU_READ    (PIPE_RESOURCE_FLAG_DRV_PRIV << 0)
+
 struct etna_context;
 struct etna_screen;
 struct pipe_screen;

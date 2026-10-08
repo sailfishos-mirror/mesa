@@ -439,6 +439,8 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
        * the internal format. The base format is restored below for the
        * same-format resolve blit. */
       templ.format = rsc->internal_format;
+      if (usage & PIPE_MAP_READ)
+         templ.flags |= ETNA_RESOURCE_FLAG_CPU_READ;
 
       trans->rsc = etna_resource_alloc(pctx->screen, ETNA_LAYOUT_LINEAR,
                                        DRM_FORMAT_MOD_LINEAR, &templ);

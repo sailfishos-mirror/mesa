@@ -34,6 +34,7 @@
 #include "etnaviv_translate.h"
 
 #include "util/box.h"
+#include "util/detect_arch.h"
 #include "util/hash_table.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
@@ -601,7 +602,14 @@ etna_resource_alloc_layout(struct pipe_screen *pscreen, unsigned layout,
       if (unlikely(!rsc->bo))
          goto free_rsc;
    } else {
-      rsc->bo = etna_bo_new(screen->dev, size, DRM_ETNA_GEM_CACHE_WC);
+      uint32_t flags = DRM_ETNA_GEM_CACHE_WC;
+
+      /* The cache maintenance of a cached BO is cheap on arm64. On 32-bit ARM
+       * it costs more than reading write-combined memory. */
+      if (DETECT_ARCH_AARCH64 && (templat->flags & ETNA_RESOURCE_FLAG_CPU_READ))
+         flags = DRM_ETNA_GEM_CACHE_CACHED;
+
+      rsc->bo = etna_bo_new(screen->dev, size, flags);
       if (unlikely(!rsc->bo)) {
          BUG("Problem allocating video memory for resource");
          goto free_rsc;
