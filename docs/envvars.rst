@@ -875,6 +875,54 @@ Intel driver environment variables
    If none of widths for particular shader stage was specified, then all
    widths are allowed.
 
+.. envvar:: INTEL_THREADS_PER_EU_MIN
+
+   Allows the user to specify the minimum number of threads per execution unit (EU).
+   This environment variable affects brw and jay backends on Xe3+ platforms.
+   The only valid entries for this setting are integers within the range [4, 10].
+   The reason for this is that the hardware only supports specific per-thread
+   chunks in multiples of 32 (with the exception of 224 GRFs):
+
+   Supported per-thread chunk sizes::
+
+      32 | 64 | 96 | 128 | 160 | 192 | 256
+
+   Then we have the hardware constraints of 10 threads max per EU and a max size
+   of 1024 GRFs that an EU can support.
+
+   With number of threads (T), the per-thread GRF size (G) can be determined by
+   the following equation, where we are rounding down to the nearest multiple
+   of 32::
+
+      ROUND_DOWN_TO(1024 / T, 32) = G
+
+      T = 10, G = 96  (maximum threads per EU)
+      T = 9,  G = 96  (9 threads will become 10)
+      T = 8,  G = 128
+      T = 7,  G = 128 (7 threads will become 8)
+      T = 6,  G = 160
+      T = 5,  G = 192
+      T = 4,  G = 256 (minimum threads per EU)
+
+   Note that 7 and 9 threads aren't really supported either due to the per-thread
+   chunk size constraints, so the GRF sizes will round down to the nearest size
+   32 chunk, which means that 7 threads become 8, while 9 threads become 10.
+
+   Note this variable should be used with ``MESA_SHADER_CACHE_DISABLE=true`` to
+   avoid conflicting with existing shader cache entries.
+
+.. envvar:: INTEL_THREADS_PER_EU_SET
+
+   Forces a set number of threads per EU. This overrides the default number of
+   threads per EU to the specified value, including overriding :envvar:`INTEL_THREADS_PER_EU_MIN`.
+   Otherwise, this behaves exactly as :envvar:`INTEL_THREADS_PER_EU_MIN`.
+
+.. envvar:: INTEL_THREADS_PER_EU_SRCHASH
+
+   Limits the usage of :envvar:`INTEL_THREADS_PER_EU_MIN` and :envvar:`INTEL_THREADS_PER_EU_SET` to
+   a specified shader hash. Requires ``0x`` prefix in the hash value.
+   For example: ``0xFFFFFFFF``
+
 .. envvar:: MDA_OUTPUT_DIR
 
    Directory where the mda.tar files generated when using INTEL_DEBUG=mda or ANV_DEBUG=shader-dump are
