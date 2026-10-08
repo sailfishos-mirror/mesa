@@ -665,6 +665,7 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
    }
    res->obj->unordered_read = true;
    res->obj->unordered_write = true;
+   res->obj->has_ordered_access = false;
    res->obj->access = 0;
    res->obj->unordered_access = 0;
    /* this is the stage used by the acquire semaphore */

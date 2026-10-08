@@ -36,6 +36,7 @@ reset_obj(struct zink_screen *screen, struct zink_batch_state *bs, struct zink_r
       obj->last_write = 0;
       obj->access_stage = 0;
       obj->unordered_access_stage = 0;
+      obj->has_ordered_access = false;
       obj->copies_need_reset = true;
       obj->unsync_access = true;
       if (obj->dt)
