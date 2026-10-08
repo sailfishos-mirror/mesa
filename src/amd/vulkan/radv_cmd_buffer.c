@@ -15280,10 +15280,16 @@ radv_emit_userdata_compute(struct radv_cmd_buffer *cmd_buffer, const struct radv
       if (grid_size_offset) {
          if (pdev->load_grid_size_from_user_sgpr) {
             radeon_begin(cs);
-            radeon_set_sh_reg_seq(grid_size_offset, 3);
-            radeon_emit(params->grid_size[0]);
-            radeon_emit(params->grid_size[1]);
-            radeon_emit(params->grid_size[2]);
+            if (pdev->info.gfx_level >= GFX12) {
+               gfx12_push_sh_reg(grid_size_offset + 0, params->grid_size[0]);
+               gfx12_push_sh_reg(grid_size_offset + 4, params->grid_size[1]);
+               gfx12_push_sh_reg(grid_size_offset + 8, params->grid_size[2]);
+            } else {
+               radeon_set_sh_reg_seq(grid_size_offset, 3);
+               radeon_emit(params->grid_size[0]);
+               radeon_emit(params->grid_size[1]);
+               radeon_emit(params->grid_size[2]);
+            }
             radeon_end();
          } else {
             uint32_t offset;
@@ -15300,10 +15306,16 @@ radv_emit_userdata_compute(struct radv_cmd_buffer *cmd_buffer, const struct radv
 
       if (params->start[0] || params->start[1] || params->start[2]) {
          radeon_begin(cs);
-         radeon_set_sh_reg_seq(R_00B810_COMPUTE_START_X, 3);
-         radeon_emit(params->start[0]);
-         radeon_emit(params->start[1]);
-         radeon_emit(params->start[2]);
+         if (pdev->info.gfx_level >= GFX12) {
+            gfx12_push_sh_reg(R_00B810_COMPUTE_START_X, params->start[0]);
+            gfx12_push_sh_reg(R_00B814_COMPUTE_START_Y, params->start[1]);
+            gfx12_push_sh_reg(R_00B818_COMPUTE_START_Z, params->start[2]);
+         } else {
+            radeon_set_sh_reg_seq(R_00B810_COMPUTE_START_X, 3);
+            radeon_emit(params->start[0]);
+            radeon_emit(params->start[1]);
+            radeon_emit(params->start[2]);
+         }
          radeon_end();
       }
    }
