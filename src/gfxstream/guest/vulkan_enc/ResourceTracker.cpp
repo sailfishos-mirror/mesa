@@ -891,65 +891,98 @@ static void commitDescriptorSetUpdates(void* context, VkQueue queue,
 
         auto& writes = reified->allWrites;
 
-        for (size_t i = 0; i < writes.size(); ++i) {
+        for (size_t i = 0; i < writes.bindings.size(); ++i) {
             uint32_t binding = i;
+            auto& bindingWrite = writes.bindings[i];
 
-            for (size_t j = 0; j < writes[i].size(); ++j) {
-                auto& write = writes[i][j];
+            if (auto* elementWrites = std::get_if<std::vector<DescriptorBindingElementWrite>>(
+                    &bindingWrite.elements)) {
+                for (size_t j = 0; j < elementWrites->size(); ++j) {
+                    auto& write = (*elementWrites)[j];
 
-                if (write.type == DescriptorWriteType::Empty) continue;
+                    if (write.type == DescriptorWriteType::Empty) continue;
 
-                uint32_t dstArrayElement = 0;
+                    uint32_t dstArrayElement = 0;
+                    uint32_t descriptorCount = 1;
+                    const void* pNext = nullptr;
 
-                VkDescriptorImageInfo* imageInfo = nullptr;
-                VkDescriptorBufferInfo* bufferInfo = nullptr;
-                VkBufferView* bufferView = nullptr;
+                    VkDescriptorImageInfo* imageInfo = nullptr;
+                    VkDescriptorBufferInfo* bufferInfo = nullptr;
+                    VkBufferView* bufferView = nullptr;
 
-                switch (write.type) {
-                    case DescriptorWriteType::Empty:
-                        break;
-                    case DescriptorWriteType::ImageInfo:
-                        dstArrayElement = j;
-                        imageInfo = &write.imageInfo;
-                        break;
-                    case DescriptorWriteType::BufferInfo:
-                        dstArrayElement = j;
-                        bufferInfo = &write.bufferInfo;
-                        break;
-                    case DescriptorWriteType::BufferView:
-                        dstArrayElement = j;
-                        bufferView = &write.bufferView;
-                        break;
-                    case DescriptorWriteType::InlineUniformBlock:
-                    case DescriptorWriteType::AccelerationStructure:
-                        // TODO
-                        mesa_loge(
-                            "Encountered pending inline uniform block or acceleration structure "
-                            "desc write, abort (NYI)\n");
-                        abort();
-                    default:
-                        break;
+                    switch (write.type) {
+                        case DescriptorWriteType::Empty:
+                            break;
+                        case DescriptorWriteType::ImageInfo:
+                            dstArrayElement = j;
+                            imageInfo = &write.imageInfo;
+                            break;
+                        case DescriptorWriteType::BufferInfo:
+                            dstArrayElement = j;
+                            bufferInfo = &write.bufferInfo;
+                            break;
+                        case DescriptorWriteType::BufferView:
+                            dstArrayElement = j;
+                            bufferView = &write.bufferView;
+                            break;
+                        case DescriptorWriteType::AccelerationStructure:
+                            // TODO
+                            mesa_loge(
+                                "Encountered pending acceleration structure "
+                                "desc write, abort (NYI)\n");
+                            abort();
+                        default:
+                            break;
+                    }
+
+                    // TODO: Combine multiple writes into one VkWriteDescriptorSet.
+                    VkWriteDescriptorSet forHost = {
+                        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                        pNext,
+                        set,
+                        binding,
+                        dstArrayElement,
+                        descriptorCount,
+                        bindingWrite.descriptorType,
+                        imageInfo,
+                        bufferInfo,
+                        bufferView,
+                    };
+
+                    writesForHost.push_back(forHost);
+                    ++currentWriteIndex;
+
+                    // Set it back to empty.
+                    write.type = DescriptorWriteType::Empty;
                 }
+            } else if (auto* blockWrite =
+                           std::get_if<DescriptorInlineUniformBlockWrite>(&bindingWrite.elements)) {
+                if (!blockWrite->pendingWrite) continue;
 
-                // TODO: Combine multiple writes into one VkWriteDescriptorSet.
+                uint32_t descriptorCount = static_cast<uint32_t>(blockWrite->bytes.size());
+                blockWrite->writeInfo.sType =
+                    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK;
+                blockWrite->writeInfo.pNext = nullptr;
+                blockWrite->writeInfo.dataSize = descriptorCount;
+                blockWrite->writeInfo.pData = blockWrite->bytes.data();
+
                 VkWriteDescriptorSet forHost = {
                     VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    0 /* TODO: inline uniform block */,
+                    &blockWrite->writeInfo,
                     set,
                     binding,
-                    dstArrayElement,
-                    1,
-                    write.descriptorType,
-                    imageInfo,
-                    bufferInfo,
-                    bufferView,
+                    0,  // dstArrayElement
+                    descriptorCount,
+                    bindingWrite.descriptorType,
+                    nullptr,
+                    nullptr,
+                    nullptr,
                 };
 
                 writesForHost.push_back(forHost);
                 ++currentWriteIndex;
 
-                // Set it back to empty.
-                write.type = DescriptorWriteType::Empty;
+                blockWrite->pendingWrite = false;
             }
         }
     }
