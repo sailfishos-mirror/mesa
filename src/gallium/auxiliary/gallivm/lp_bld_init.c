@@ -422,6 +422,8 @@ gallivm_compile_module(struct gallivm_state *gallivm)
       goto skip_cached;
    }
 
+   lp_disable_eh_frame(gallivm);
+
    /* Dump bitcode to a file */
    if (gallivm_debug & GALLIVM_DEBUG_DUMP_BC) {
       char filename[256];
