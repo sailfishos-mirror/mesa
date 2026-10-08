@@ -11638,20 +11638,26 @@ radv_emit_copy_data_imm(const struct radv_physical_device *pdev, struct radv_cmd
 /**
  * Emulates predication for MEC using COND_EXEC.
  * When the current command buffer is predicating, emit a COND_EXEC packet
- * so that the MEC skips the next few dwords worth of packets.
+ * so that the MEC skips all packets emitted until radv_cs_end_compute_predication().
  *
  * To make it work with inverted conditional rendering, we allocate
  * space in the upload BO and emit some packets to invert the condition.
+ *
+ * When conditional rendering is not enabled, returns NULL.
+ * When conditional rendering is enabled, returns a pointer to the number of DWORDS to skip, which
+ * is later patched by radv_cs_end_compute_predication(). All the skipped packets need to be in the
+ * same CS IB BO as the COND_EXEC packet, so the caller must reserve enough space in the CS to make
+ * sure that it can't grow in between.
  */
-static void
-radv_cs_emit_compute_predication(const struct radv_device *device, struct radv_cmd_state *state,
-                                 struct radv_cmd_stream *cs, unsigned dwords)
+static uint32_t *
+radv_cs_begin_compute_predication(const struct radv_device *device, struct radv_cmd_state *state,
+                                  struct radv_cmd_stream *cs)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const uint64_t inv_va = state->cond_render.mec_inv_pred_va;
 
    if (!state->cond_render.enabled)
-      return;
+      return NULL;
 
    uint64_t va = state->cond_render.user_va;
 
@@ -11673,7 +11679,24 @@ radv_cs_emit_compute_predication(const struct radv_device *device, struct radv_c
       va = inv_va;
    }
 
-   ac_emit_cp_cond_exec(cs->b, pdev->info.gfx_level, va, dwords);
+   ac_emit_cp_cond_exec(cs->b, pdev->info.gfx_level, va, 0);
+
+   /* The number of dwords to skip is the last dword of COND_EXEC. */
+   return &cs->b->buf[cs->b->cdw - 1];
+}
+
+static void
+radv_cs_end_compute_predication(struct radv_cmd_stream *cs, uint32_t *count)
+{
+   if (!count)
+      return;
+
+   const uint32_t *end = &cs->b->buf[cs->b->cdw];
+
+   /* Make sure the CS didn't grow. */
+   assert(count >= cs->b->buf && count < end);
+
+   *count = end - count - 1;
 }
 
 ALWAYS_INLINE static void
@@ -12329,11 +12352,10 @@ radv_emit_direct_taskmesh_draw_packets(const struct radv_device *device, struct 
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const uint32_t view_mask = cmd_state->render.view_mask;
-   const unsigned num_views = MAX2(1, util_bitcount(view_mask));
-   const unsigned ace_predication_size = num_views * 6; /* DISPATCH_TASKMESH_DIRECT_ACE size */
 
    radv_emit_userdata_task(cmd_state, ace_cs, x, y, z);
-   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, ace_predication_size);
+
+   uint32_t *ace_predication = radv_cs_begin_compute_predication(device, cmd_state, ace_cs);
 
    if (!view_mask) {
       radv_cs_emit_dispatch_taskmesh_direct_ace_packet(device, cmd_state, ace_cs, x, y, z);
@@ -12347,6 +12369,8 @@ radv_emit_direct_taskmesh_draw_packets(const struct radv_device *device, struct 
       }
    }
 
+   radv_cs_end_compute_predication(ace_cs, ace_predication);
+
    if (device->sqtt.bo)
       radv_emit_thread_trace_marker(device, ace_cs, cmd_state->cond_render.enabled);
 }
@@ -12358,10 +12382,8 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const uint32_t view_mask = cmd_state->render.view_mask;
-   const unsigned num_views = MAX2(1, util_bitcount(view_mask));
-   const unsigned ace_predication_size = num_views * 11; /* DISPATCH_TASKMESH_INDIRECT_MULTI_ACE size */
 
-   radv_cs_emit_compute_predication(device, cmd_state, ace_cs, ace_predication_size);
+   uint32_t *ace_predication = radv_cs_begin_compute_predication(device, cmd_state, ace_cs);
 
    if (!view_mask) {
       radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(device, cmd_state, ace_cs, info->indirect_va,
@@ -12376,6 +12398,8 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
          radv_cs_emit_dispatch_taskmesh_gfx_packet(device, cmd_state, cs);
       }
    }
+
+   radv_cs_end_compute_predication(ace_cs, ace_predication);
 }
 
 static void
@@ -15331,6 +15355,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
    struct radeon_winsys *ws = device->ws;
    bool predicating = cmd_buffer->state.cond_render.enabled;
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
+   uint32_t *ace_predication = NULL;
 
    radv_describe_dispatch(cmd_buffer, info);
 
@@ -15358,10 +15383,8 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          const bool needs_align32_workaround = pdev->info.has_async_compute_align32_bug &&
                                                cmd_buffer->qf == RADV_QUEUE_COMPUTE &&
                                                !util_is_aligned(indirect_va, 32);
-         const unsigned ace_predication_size =
-            4 /* DISPATCH_INDIRECT */ + (needs_align32_workaround ? 6 * 3 /* 3x COPY_DATA */ : 0);
 
-         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, ace_predication_size);
+         ace_predication = radv_cs_begin_compute_predication(device, &cmd_buffer->state, cs);
 
          if (needs_align32_workaround) {
             const uint64_t unaligned_va = indirect_va;
@@ -15391,7 +15414,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
          radv_emit_indirect_buffer(cs, info->indirect_va, true);
 
          if (cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
-            radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, 3 /* PKT3_DISPATCH_INDIRECT */);
+            ace_predication = radv_cs_begin_compute_predication(device, &cmd_buffer->state, cs);
             predicating = false;
          }
 
@@ -15403,7 +15426,7 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
       }
    } else {
       if (cmd_buffer->qf == RADV_QUEUE_COMPUTE) {
-         radv_cs_emit_compute_predication(device, &cmd_buffer->state, cs, 5 /* DISPATCH_DIRECT size */);
+         ace_predication = radv_cs_begin_compute_predication(device, &cmd_buffer->state, cs);
          predicating = false;
       }
 
@@ -15415,6 +15438,8 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
       radeon_emit(params->dispatch_initiator);
       radeon_end();
    }
+
+   radv_cs_end_compute_predication(cs, ace_predication);
 
    if (device->sqtt.bo)
       radv_emit_thread_trace_marker(device, cmd_buffer->cs, cmd_buffer->state.cond_render.enabled);
