@@ -2972,7 +2972,7 @@ midgard_compile_shader_nir(nir_shader *nir,
    ctx->stage = nir->info.stage;
    ctx->blend_input = ~0;
    ctx->blend_src1 = ~0;
-   ctx->quirks = midgard_get_quirks(inputs->gpu_id);
+   ctx->quirks = midgard_get_quirks(pan_prod_id(inputs->gpu_id));
 
    /* Initialize at a global (not block) level hash tables */
 

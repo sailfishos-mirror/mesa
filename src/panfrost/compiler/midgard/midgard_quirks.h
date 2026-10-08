@@ -43,9 +43,9 @@
 #define MIDGARD_NO_UPPER_ALU (1 << 2)
 
 static inline unsigned
-midgard_get_quirks(uint64_t gpu_id)
+midgard_get_quirks(uint32_t gpu_prod_id)
 {
-   switch (pan_prod_id(gpu_id)) {
+   switch (gpu_prod_id) {
    case 0x600:
    case 0x620:
       return MIDGARD_BROKEN_BLEND_LOADS | MIDGARD_NO_UPPER_ALU;

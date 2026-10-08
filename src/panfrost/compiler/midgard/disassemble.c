@@ -1880,7 +1880,7 @@ disassemble_midgard(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
       switch (tag) {
       case TAG_TEXTURE_4_VTX ... TAG_TEXTURE_4_BARRIER: {
          bool interpipe_aliasing =
-            midgard_get_quirks(gpu_id) & MIDGARD_INTERPIPE_REG_ALIASING;
+            midgard_get_quirks(pan_prod_id(gpu_id)) & MIDGARD_INTERPIPE_REG_ALIASING;
 
          print_texture_word(
             &ctx, fp, &words[i], tabs, interpipe_aliasing ? 0 : REG_TEX_BASE,
