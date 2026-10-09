@@ -324,7 +324,7 @@
         "description": "intel/gen/compact: Fix typo in Xe3P compact tables",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "791cf54f536a396b0cee4c1bba2842a37765bc18",
         "notes": null
