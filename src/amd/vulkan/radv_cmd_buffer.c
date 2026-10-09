@@ -3394,6 +3394,7 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_state *state = &cmd_buffer->state;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    const uint64_t va = radv_shader_get_va(shader);
    mesa_shader_stage es_type;
@@ -3515,7 +3516,10 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
                                  shader->regs.vgt_gs_onchip_cntl);
    }
 
-   radeon_set_uconfig_reg(R_03096C_GE_CNTL, ge_cntl);
+   if (state->last_ge_cntl != ge_cntl) {
+      radeon_set_uconfig_reg(R_03096C_GE_CNTL, ge_cntl);
+      state->last_ge_cntl = ge_cntl;
+   }
 
    const uint32_t ngg_lds_layout_offset = radv_get_user_sgpr_loc(shader, AC_UD_NGG_LDS_LAYOUT);
    assert(ngg_lds_layout_offset);
