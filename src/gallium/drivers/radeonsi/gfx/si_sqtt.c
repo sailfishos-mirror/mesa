@@ -168,7 +168,7 @@ static void si_sqtt_start(struct si_context *sctx, struct radeon_cmdbuf *cs)
    if (sctx->spm.bo) {
       ac_emit_spm_reset(&cs->current);
       si_pc_emit_shaders(cs, ac_sqtt_get_shader_mask(&sctx->screen->info));
-      si_emit_spm_setup(sctx, cs);
+      si_emit_spm_setup(sctx, &sctx->spm, cs);
    }
 
    si_emit_sqtt_start(sctx, cs, ip_type);
@@ -384,7 +384,7 @@ bool si_init_sqtt(struct si_context *sctx)
    if (sctx->gfx_level >= GFX10 &&
        debug_get_bool_option("AMD_THREAD_TRACE_SPM", sctx->gfx_level < GFX11)) {
       /* Limit SPM counters to GFX10 and GFX10_3 for now */
-      ASSERTED bool r = si_spm_init(sctx);
+      ASSERTED bool r = si_spm_init(sctx, &sctx->spm);
       assert(r);
    }
 
@@ -518,7 +518,7 @@ void si_destroy_sqtt(struct si_context *sctx)
    sctx->sqtt = NULL;
 
    if (sctx->spm.bo)
-      si_spm_finish(sctx);
+      si_spm_finish(sctx, &sctx->spm);
 }
 
 static uint64_t num_frames = 0;

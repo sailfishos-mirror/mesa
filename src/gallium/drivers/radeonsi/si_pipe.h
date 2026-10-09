@@ -1565,9 +1565,9 @@ void si_init_perfcounters(struct si_screen *screen);
 void si_destroy_perfcounters(struct si_screen *screen);
 void si_inhibit_clockgating(struct si_context *sctx, struct radeon_cmdbuf *cs, bool inhibit);
 void si_pc_emit_shaders(struct radeon_cmdbuf *cs, unsigned shaders);
-void si_emit_spm_setup(struct si_context *sctx, struct radeon_cmdbuf *cs);
-bool si_spm_init(struct si_context *sctx);
-void si_spm_finish(struct si_context *sctx);
+void si_emit_spm_setup(struct si_context *sctx, struct ac_spm *spm, struct radeon_cmdbuf *cs);
+bool si_spm_init(struct si_context *sctx, struct ac_spm *spm);
+void si_spm_finish(struct si_context *sctx, struct ac_spm *spm);
 
 /* si_query.c */
 void si_init_screen_query_functions(struct si_screen *sscreen);
