@@ -335,7 +335,6 @@ nvkmd_ctx_bind(struct nvkmd_ctx *ctx,
       assert(binds[i].va_offset_B <= binds[i].va->size_B);
       assert(binds[i].va_offset_B + binds[i].range_B <= binds[i].va->size_B);
       if (binds[i].op == NVKMD_BIND_OP_BIND) {
-         assert(binds[i].mem_offset_B % binds[i].mem->bind_align_B == 0);
          assert(binds[i].mem_offset_B <= binds[i].mem->size_B);
          assert(binds[i].mem_offset_B + binds[i].range_B <=
                 binds[i].mem->size_B);
