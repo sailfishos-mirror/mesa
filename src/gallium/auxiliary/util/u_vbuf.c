@@ -1773,6 +1773,17 @@ out:
       pipe_resource_release(pipe, releasebufs[i]);
 }
 
+void u_vbuf_draw_vbo_primconvert(struct u_vbuf *mgr,
+                                 const struct pipe_draw_info *info,
+                                 unsigned drawid_offset,
+                                 const struct pipe_draw_indirect_info *indirect,
+                                 const struct pipe_draw_start_count_bias *draws,
+                                 unsigned num_draws)
+{
+   util_primconvert_save_flatshade_first(mgr->pc, mgr->flatshade_first);
+   util_primconvert_draw_vbo(mgr->pc, info, drawid_offset, indirect, draws, num_draws);
+}
+
 void u_vbuf_save_vertex_elements(struct u_vbuf *mgr)
 {
    assert(!mgr->ve_saved);

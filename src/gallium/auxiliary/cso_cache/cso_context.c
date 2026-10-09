@@ -267,6 +267,22 @@ cso_init_vbuf(struct cso_context_priv *cso, unsigned flags)
    }
 }
 
+void
+cso_draw_vbo_unsupported_mode(struct cso_context *cso,
+                              const struct pipe_draw_info *info,
+                              unsigned drawid_offset,
+                              const struct pipe_draw_indirect_info *indirect,
+                              const struct pipe_draw_start_count_bias *draws,
+                              unsigned num_draws)
+{
+   struct cso_context_priv *ctx = (struct cso_context_priv *)cso;
+
+   if (ctx->vbuf_current)
+      u_vbuf_draw_vbo(cso->pipe, info, drawid_offset, indirect, draws, num_draws);
+   else
+      u_vbuf_draw_vbo_primconvert(ctx->vbuf, info, drawid_offset, indirect, draws, num_draws);
+}
+
 static void
 cso_draw_vbo_default(struct pipe_context *pipe,
                      const struct pipe_draw_info *info,
