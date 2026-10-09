@@ -12127,8 +12127,7 @@ radv_emit_draw_indexed_packet_views(struct radv_cmd_buffer *cmd_buffer, uint64_t
 }
 
 ALWAYS_INLINE static void
-radv_emit_direct_draw_indexed_packet(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
-                                     uint32_t first_index, uint32_t index_count, uint32_t vertex_offset)
+radv_emit_direct_draw_indexed_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t first_index, uint32_t index_count)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -12140,7 +12139,6 @@ radv_emit_direct_draw_indexed_packet(struct radv_cmd_buffer *cmd_buffer, const s
    if (!remaining_indexes && pdev->info.has_zero_index_buffer_bug)
       radv_handle_zero_index_buffer_bug(cmd_buffer, &index_va, &remaining_indexes);
 
-   radv_emit_userdata_vertex(cmd_buffer, info, vertex_offset);
    radv_emit_draw_indexed_packet_views(cmd_buffer, index_va, remaining_indexes, index_count, false);
 
    if (device->sqtt.bo)
@@ -12163,7 +12161,6 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
 
    if (uses_drawid) {
       if (vertexOffset) {
-         radv_emit_userdata_vertex(cmd_buffer, info, *vertexOffset);
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
             uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
             uint64_t index_va = state->index_buffer.va + draw->firstIndex * state->index_buffer.index_size;
@@ -12198,8 +12195,7 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
                   radeon_set_sh_reg(state->vtx_base_sgpr + sizeof(uint32_t), i);
                   radeon_end();
                }
-            } else
-               radv_emit_userdata_vertex(cmd_buffer, info, draw->vertexOffset);
+            }
 
             radv_emit_draw_indexed_packet_views(cmd_buffer, index_va, remaining_indexes, draw->indexCount, false);
          }
@@ -12222,7 +12218,6 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
             }
          }
 
-         radv_emit_userdata_vertex(cmd_buffer, info, *vertexOffset);
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
             uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
             uint64_t index_va = state->index_buffer.va + draw->firstIndex * state->index_buffer.index_size;
@@ -12246,7 +12241,8 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
             const VkMultiDrawIndexedInfoEXT *next =
                (const VkMultiDrawIndexedInfoEXT *)(i < drawCount - 1 ? ((uint8_t *)draw + stride) : NULL);
             const bool offset_changes = next && next->vertexOffset != draw->vertexOffset;
-            radv_emit_userdata_vertex(cmd_buffer, info, draw->vertexOffset);
+            if (i > 0)
+               radv_emit_userdata_vertex(cmd_buffer, info, draw->vertexOffset);
 
             radv_emit_draw_indexed_packet_views(cmd_buffer, index_va, remaining_indexes, draw->indexCount,
                                                 can_eop && !offset_changes && i < drawCount - 1);
@@ -12280,12 +12276,10 @@ radv_emit_draw_packet_views(struct radv_cmd_buffer *cmd_buffer, uint32_t vertex_
 }
 
 ALWAYS_INLINE static void
-radv_emit_direct_draw_packet(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
-                             uint32_t first_vertex, uint32_t vertex_count, uint32_t use_opaque)
+radv_emit_direct_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t vertex_count, uint32_t use_opaque)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   radv_emit_userdata_vertex(cmd_buffer, info, first_vertex);
    radv_emit_draw_packet_views(cmd_buffer, vertex_count, use_opaque);
 
    if (device->sqtt.bo)
@@ -12293,8 +12287,8 @@ radv_emit_direct_draw_packet(struct radv_cmd_buffer *cmd_buffer, const struct ra
 }
 
 ALWAYS_INLINE static void
-radv_emit_direct_multi_draw_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
-                                    uint32_t drawCount, const VkMultiDrawInfoEXT *minfo, uint32_t stride)
+radv_emit_direct_multi_draw_packets(struct radv_cmd_buffer *cmd_buffer, uint32_t drawCount,
+                                    const VkMultiDrawInfoEXT *minfo, uint32_t stride)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_state *state = &cmd_buffer->state;
@@ -12303,9 +12297,7 @@ radv_emit_direct_multi_draw_packets(struct radv_cmd_buffer *cmd_buffer, const st
    unsigned i = 0;
 
    vk_foreach_multi_draw (draw, i, minfo, drawCount, stride) {
-      if (!i)
-         radv_emit_userdata_vertex(cmd_buffer, info, draw->firstVertex);
-      else
+      if (i > 0)
          radv_emit_userdata_vertex_drawid(cmd_buffer, draw->firstVertex, uses_drawid ? i : 0);
 
       radv_emit_draw_packet_views(cmd_buffer, draw->vertexCount, 0);
@@ -14489,6 +14481,14 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
    radv_emit_graphics_states(cmd_buffer, info);
    radv_upload_graphics_shader_descriptors(cmd_buffer);
 
+   /* For direct draws, emit the vertex userdata (of the first draw for multi draws) before the
+    * barriers.
+    */
+   if (!info->indirect_va) {
+      assert(cmd_buffer->state.vtx_base_sgpr);
+      radv_emit_userdata_vertex(cmd_buffer, info, info->vertex_offset);
+   }
+
    /* Only GFX12 buffers SH registers. */
    radv_gfx12_emit_buffered_regs(device, cs);
 
@@ -14508,7 +14508,6 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
       radv_describe_draw(cmd_buffer, *info, false);
    if (likely(!info->indirect_va)) {
       struct radv_cmd_state *state = &cmd_buffer->state;
-      assert(state->vtx_base_sgpr);
       if (state->last_num_instances != info->instance_count) {
          radeon_begin(cs);
          radeon_emit(PKT3(PKT3_NUM_INSTANCES, 0, false));
@@ -14655,6 +14654,7 @@ radv_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t insta
    struct radv_draw_info info;
 
    info.count = vertexCount;
+   info.vertex_offset = firstVertex;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
    info.strmout_va = 0;
@@ -14663,7 +14663,7 @@ radv_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, uint32_t insta
 
    if (!radv_before_draw(cmd_buffer, &info, 1, 0, false))
       return;
-   radv_emit_direct_draw_packet(cmd_buffer, &info, firstVertex, vertexCount, 0);
+   radv_emit_direct_draw_packet(cmd_buffer, vertexCount, 0);
    radv_after_draw(cmd_buffer);
 }
 
@@ -14678,6 +14678,7 @@ radv_CmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const Vk
       return;
 
    info.count = pVertexInfo->vertexCount;
+   info.vertex_offset = pVertexInfo->firstVertex;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
    info.strmout_va = 0;
@@ -14686,7 +14687,7 @@ radv_CmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const Vk
 
    if (!radv_before_draw(cmd_buffer, &info, drawCount, 0, false))
       return;
-   radv_emit_direct_multi_draw_packets(cmd_buffer, &info, drawCount, pVertexInfo, stride);
+   radv_emit_direct_multi_draw_packets(cmd_buffer, drawCount, pVertexInfo, stride);
    radv_after_draw(cmd_buffer);
 }
 
@@ -14699,6 +14700,7 @@ radv_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t
 
    info.indexed = true;
    info.count = indexCount;
+   info.vertex_offset = vertexOffset;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
    info.strmout_va = 0;
@@ -14706,7 +14708,7 @@ radv_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t
 
    if (!radv_before_draw(cmd_buffer, &info, 1, 0, false))
       return;
-   radv_emit_direct_draw_indexed_packet(cmd_buffer, &info, firstIndex, indexCount, vertexOffset);
+   radv_emit_direct_draw_indexed_packet(cmd_buffer, firstIndex, indexCount);
    radv_after_draw(cmd_buffer);
 }
 
@@ -14724,6 +14726,7 @@ radv_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
    const VkMultiDrawIndexedInfoEXT *minfo = pIndexInfo;
    info.indexed = true;
    info.count = minfo->indexCount;
+   info.vertex_offset = pVertexOffset ? *pVertexOffset : minfo->vertexOffset;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
    info.strmout_va = 0;
@@ -17485,6 +17488,7 @@ radv_CmdDrawIndirectByteCount2EXT(VkCommandBuffer commandBuffer, uint32_t instan
    struct radv_draw_info info;
 
    info.count = 0;
+   info.vertex_offset = 0;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
    info.strmout_va = pCounterInfo->addressRange.address;
@@ -17495,7 +17499,7 @@ radv_CmdDrawIndirectByteCount2EXT(VkCommandBuffer commandBuffer, uint32_t instan
    if (!radv_before_draw(cmd_buffer, &info, 1, 0, false))
       return;
    radv_emit_strmout_buffer(cmd_buffer, &info, counterOffset);
-   radv_emit_direct_draw_packet(cmd_buffer, &info, 0, 0, S_0287F0_USE_OPAQUE(1));
+   radv_emit_direct_draw_packet(cmd_buffer, 0, S_0287F0_USE_OPAQUE(1));
 
    if (pdev->info.gfx_level == GFX12) {
       /* DrawTransformFeedback requires 3 SQ_NON_EVENTs after the packet. */

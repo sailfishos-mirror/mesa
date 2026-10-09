@@ -703,6 +703,11 @@ struct radv_draw_info {
    uint32_t count;
 
    /**
+    * Vertex offset.
+    */
+   uint32_t vertex_offset;
+
+   /**
     * First instance id.
     */
    uint32_t first_instance;
