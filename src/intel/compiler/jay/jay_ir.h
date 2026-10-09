@@ -1070,6 +1070,17 @@ jay_simd_width_physical(jay_shader *s, const jay_inst *I)
    return jay_simd_width_logical(s, I) >> I->simd_split;
 }
 
+/*
+ * Returns whether a given Jay instruction will map to a compressed GEN
+ * instruction <==> an execution width exceeding the native SIMD width for
+ * the platform. These require special handling.
+ */
+static inline bool
+jay_is_compressed(jay_shader *shader, jay_inst *I)
+{
+   return jay_simd_width_logical(shader, I) > 8 * reg_unit(shader->devinfo);
+}
+
 /**
  * Representation of an (implemented) function in the Jay IR. This corresponds
  * to nir_function_impl in NIR.

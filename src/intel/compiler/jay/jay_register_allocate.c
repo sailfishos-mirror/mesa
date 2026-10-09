@@ -664,6 +664,20 @@ pick_regs_from_block(jay_ra_state *ra,
     */
    bool may_tie = !jay_is_shuffle_like(I);
 
+   /* GPRs stay within their lane, but UGPRs do not. So if UGPR strides are
+    * mixed between source & destination, we cannot tie for a similar reason,
+    * this time due to compressed instructions (SIMD32 uniform math will get
+    * broken down into smaller native instructions, introducing hazards).
+    */
+   if (file == UGPR && jay_is_compressed(ra->b.shader, I)) {
+      jay_foreach_src(I, s) {
+         if (I->src[s].file == UGPR) {
+            may_tie &= jay_type_size_bits(jay_src_type(I, s)) ==
+                       jay_type_size_bits(I->type);
+         }
+      }
+   }
+
    first = align(first, alignment);
    for (unsigned i = first; i + size <= block.len_gpr; i += alignment) {
       unsigned r = block.start_gpr + i;
