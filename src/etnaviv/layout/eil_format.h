@@ -58,6 +58,18 @@ eil_format_is_emulated_128bit(enum pipe_format fmt)
    return f->emulation == EIL_EMU_128BIT;
 }
 
+/*
+ * If a format can't be handled by hardware directly,
+ * the pipe_format used in emulation is returned.
+ * Otherwise fmt is returned unmodified.
+ */
+static inline enum pipe_format
+eil_format_emulated(enum pipe_format fmt)
+{
+   const struct eil_format* f = eil_get_format_entry(fmt);
+   return f->emulation != EIL_EMU_NONE ? f->emulated : fmt;
+}
+
 #ifdef __cplusplus
 }
 #endif

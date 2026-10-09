@@ -512,7 +512,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 
    if (is_128bit_format) {
       const uint64_t rg_bits =
-         etna_calculate_clear_bits(translate_format_128bit_to_64bit(dst->format), clear_mask);
+         etna_calculate_clear_bits(eil_format_emulated(dst->format), clear_mask);
 
       clr.clear_value[0] = color->ui[0];
       clr.clear_value[1] = color->ui[1];
@@ -524,7 +524,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 
    if (is_128bit_format) {
       const uint64_t ba_bits =
-         etna_calculate_clear_bits(translate_format_128bit_to_64bit(dst->format), clear_mask >> 2);
+         etna_calculate_clear_bits(eil_format_emulated(dst->format), clear_mask >> 2);
 
       clr.clear_value[0] = color->ui[2];
       clr.clear_value[1] = color->ui[3];
@@ -857,8 +857,8 @@ etna_try_blt_blit(struct pipe_context *pctx,
       blt_assert_swizzle_compatible(blit_info);
    }
 
-   src_fmt = translate_format_128bit_to_64bit(src_fmt);
-   dst_fmt = translate_format_128bit_to_64bit(dst_fmt);
+   src_fmt = eil_format_emulated(src_fmt);
+   dst_fmt = eil_format_emulated(dst_fmt);
 
    /* try to find an exact format match first */
    uint32_t src_format = translate_blt_format(src_fmt);

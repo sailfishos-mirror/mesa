@@ -334,7 +334,7 @@ setup_miptree(struct etna_resource *rsc, unsigned paddingX, unsigned paddingY,
               unsigned msaa_xscale, unsigned msaa_yscale)
 {
    struct pipe_resource *prsc = &rsc->base;
-   enum pipe_format fmt = translate_format_128bit_to_64bit(prsc->format);
+   enum pipe_format fmt = eil_format_emulated(prsc->format);
    unsigned level, size = 0;
    unsigned width = prsc->width0;
    unsigned height = prsc->height0;
@@ -504,7 +504,7 @@ etna_resource_border_tail(const struct etna_resource *rsc)
 {
    const struct pipe_resource *prsc = &rsc->base;
    const struct etna_resource_level *lvl = &rsc->levels[prsc->last_level];
-   enum pipe_format fmt = translate_format_128bit_to_64bit(prsc->format);
+   enum pipe_format fmt = eil_format_emulated(prsc->format);
    int msaa_xscale = 1, msaa_yscale = 1;
    unsigned tile_w = 1, tile_h = 1;
    unsigned tail = 0;

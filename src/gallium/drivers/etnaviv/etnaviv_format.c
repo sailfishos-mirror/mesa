@@ -283,7 +283,7 @@ uint32_t
 translate_texture_format(enum pipe_format fmt, const struct etna_screen *screen)
 {
    fmt = util_format_linear(fmt);
-   fmt = translate_emulated_format_z32f(fmt);
+   fmt = eil_format_emulated(fmt);
 
    if (!formats[fmt].present)
       return ETNA_NO_MATCH;

@@ -68,36 +68,10 @@ translate_pe_internal_format(enum pipe_format fmt, const struct etna_screen *scr
 uint32_t
 translate_vertex_format_type(enum pipe_format fmt);
 
-static inline enum pipe_format
-translate_format_128bit_to_64bit(enum pipe_format fmt)
-{
-    switch (fmt) {
-    case PIPE_FORMAT_R32G32B32A32_FLOAT:
-        return PIPE_FORMAT_R32G32_FLOAT;
-    case PIPE_FORMAT_R32G32B32A32_SINT:
-        return PIPE_FORMAT_R32G32_SINT;
-    case PIPE_FORMAT_R32G32B32A32_UINT:
-        return PIPE_FORMAT_R32G32_UINT;
-    default:
-        return fmt;
-    }
-}
-
 static inline bool
 resolve_copies_one_sample(enum pipe_format format)
 {
    return util_format_is_pure_integer(format);
-}
-
-/* The emulated depth32f formats are physically stored as D24S8; map them to
- * that format and leave everything else unchanged. */
-static inline enum pipe_format
-translate_emulated_format_z32f(enum pipe_format fmt)
-{
-    if (eil_format_is_emulated_z32f(fmt))
-        return PIPE_FORMAT_S8_UINT_Z24_UNORM;
-
-    return fmt;
 }
 
 #endif /* ETNAVIV_FORMAT_H_ */
