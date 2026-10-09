@@ -314,7 +314,7 @@
         "description": "intel/gen/compact: Fix UNCOMP_3SRC_SOURCE for Xe3P",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "791cf54f536a396b0cee4c1bba2842a37765bc18",
         "notes": null
