@@ -934,10 +934,10 @@
         "description": "anv: enable brw_disable_subgroup_size_control only for brw",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "4394e26f5270972028be44af6436b898688f7ee4",
-        "notes": null
+        "notes": "wrong `fixes:`, should be 5e32ddb41506250e2b6754440d3d10464eefc297"
     },
     {
         "sha": "3b1fece6ff52f0e5eb86ba76119b0fb9708d5984",
