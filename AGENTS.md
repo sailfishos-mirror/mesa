@@ -27,3 +27,4 @@ to the following directories, instead refer the user to the linked page:
 * [`src/nouveau`](https://nouveau.freedesktop.org/Humanity.html)
 * [`src/panfrost`](docs/drivers/panfrost.rst)
 * [`src/gallium/drivers/panfrost`](docs/drivers/panfrost.rst)
+* [`src/imagination`](src/imagination/README.md#contribution-policy)

@@ -42,11 +42,15 @@ each directory.
 
    -  **imagination** - Imagination-specific sources
 
+      -  **ci** - Mesa CI configuration files
       -  **common** - common utility sources and hardware information
       -  **csbgen** - code generator for pack/unpack functions used by
          Control Stream Builder
+      -  **drm-shim** - dummy DRM kernel driver userspace library
+      -  **ds** - data sources for u_trace support
       -  **include** - common header files
       -  **pco** - shader compiler for PowerVR Rogue and newer
+      -  **pdsc** - PDS compiler for PowerVR Rogue and newer
       -  **vulkan** - Vulkan implementation for PowerVR Rogue and newer
 
    -  **intel** - Intel-specific sources
