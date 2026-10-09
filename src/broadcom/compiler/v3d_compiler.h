@@ -380,6 +380,7 @@ struct v3d_fs_key {
         bool sample_alpha_to_one;
         bool can_earlyz_with_discard;
         bool software_blend;
+        bool force_dual_color_blend;
         bool ignore_sample_mask;
         /* Mask of which color render targets are present. */
         uint8_t cbufs;
