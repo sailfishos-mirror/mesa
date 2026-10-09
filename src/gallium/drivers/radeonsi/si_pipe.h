@@ -1272,14 +1272,16 @@ struct si_context {
    void (*emit_spi_map[33])(struct si_context *sctx, unsigned index);
 
    /* SQTT */
-   struct ac_sqtt *sqtt;
-   struct ac_spm spm;
-   struct pipe_fence_handle *last_sqtt_fence;
-   enum rgp_sqtt_marker_event_type sqtt_next_event;
-   bool sqtt_enabled;
-   struct si_sqtt_timestamp sqtt_timestamp;
-   uint64_t sqtt_device_id;
-   uint32_t sqtt_cb_id;
+   struct {
+      struct ac_sqtt *data;
+      struct ac_spm spm;
+      struct pipe_fence_handle *last_fence;
+      enum rgp_sqtt_marker_event_type next_event;
+      bool enabled;
+      struct si_sqtt_timestamp timestamp;
+      uint64_t device_id;
+      uint32_t cb_id;
+   } sqtt;
 
    bool perfetto_enabled;
 

@@ -72,7 +72,7 @@ static void si_emit_string_marker(struct pipe_context *ctx, const char *string, 
 
    dd_parse_apitrace_marker(string, len, &sctx->apitrace_call_number);
 
-   if (sctx->sqtt_enabled)
+   if (sctx->sqtt.enabled)
       si_write_user_event(sctx, &sctx->gfx_cs, UserEventTrigger, string, len);
 
    if (sctx->log)
@@ -374,7 +374,7 @@ void si_fini_gfx_context(struct si_context *sctx) {
    if (sctx->gfx_level >= GFX10 && sctx->is_gfx_queue)
       si_gfx11_destroy_query(sctx);
 
-   if (sctx->sqtt) {
+   if (sctx->sqtt.data) {
       struct si_screen *sscreen = sctx->screen;
 
       si_handle_sqtt(sctx, &sctx->gfx_cs);

@@ -456,7 +456,7 @@ static void si_flush_all_queues(struct pipe_context *ctx,
 
       tc_driver_internal_flush_notify(sctx->tc);
 
-      if (unlikely(sctx->sqtt && (flags & PIPE_FLUSH_END_OF_FRAME))) {
+      if (unlikely(sctx->sqtt.data && (flags & PIPE_FLUSH_END_OF_FRAME))) {
          si_handle_sqtt(sctx, &sctx->gfx_cs);
       }
 
