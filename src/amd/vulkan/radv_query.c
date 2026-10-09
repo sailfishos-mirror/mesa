@@ -37,13 +37,10 @@ static void radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType qu
                               uint32_t pipeline_stats_mask, uint32_t avail_offset, bool uses_emulated_queries);
 
 static enum ac_barrier_flags
-get_query_flush_bits(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type)
+get_query_flush_bits(VkQueryType query_type)
 {
-   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   /* Only BOTTOM_OF_PIPE barriers wait for EOP event writes.
-    * (with the possible exception of SAMPLE_STREAMOUTSTATS).
+   /* Use a BOTTOM_OF_PIPE barrier wait for EOP event writes because it's faster than waiting for
+    * individual queries with WAIT_REG_MEM.
     */
    switch (query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
@@ -52,19 +49,11 @@ get_query_flush_bits(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type)
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_BOTTOM_LEVEL_POINTERS_KHR:
-   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
-      return AC_BARRIER_SYNC_BOTTOM_OF_PIPE;
-
-   /* SAMPLE_STREAMOUTSTATS and shader emulation only need to wait for pre-rasterization shaders.
-    * (if SAMPLE_STREAMOUTSTATS starts failing, use RADV_CMD_FLAG_SYNC_BOTTOM_OF_PIPE)
-    */
    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
    case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
-      return AC_BARRIER_SYNC_VS;
-
+   case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
-      /* On GFX10.3, we use shader atomics to emulate the query. */
-      return pdev->info.gfx_level >= GFX11 ? AC_BARRIER_SYNC_BOTTOM_OF_PIPE : AC_BARRIER_SYNC_VS;
+      return AC_BARRIER_SYNC_BOTTOM_OF_PIPE;
 
    /* Performance queries wait for idle in EndQuery. */
    case VK_QUERY_TYPE_PERFORMANCE_QUERY_KHR:
@@ -1880,7 +1869,7 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
    cmd_buffer->state.flush_bits |= AC_BARRIER_INV_VMEM;
 
    if (flags & VK_QUERY_RESULT_WAIT_BIT)
-      cmd_buffer->state.flush_bits |= get_query_flush_bits(cmd_buffer, query_type);
+      cmd_buffer->state.flush_bits |= get_query_flush_bits(query_type);
 
    /* Make EOP event writes visible to the shader if they arrived. */
    if (pdev->info.gfx_level <= GFX8 || pdev->info.cp_sdma_ge_use_system_memory_scope)
@@ -2766,7 +2755,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       UNREACHABLE("ending unhandled query type");
    }
 
-   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, query_type);
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(query_type);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -2898,7 +2887,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
       query_va += pool->stride;
    }
 
-   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(cmd_buffer, VK_QUERY_TYPE_TIMESTAMP);
+   cmd_buffer->active_query_flush_bits |= get_query_flush_bits(VK_QUERY_TYPE_TIMESTAMP);
    assert(cs->b->cdw <= cdw_max);
 }
 
