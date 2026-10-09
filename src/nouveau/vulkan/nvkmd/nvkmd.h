@@ -15,7 +15,6 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <stdbool.h>
 #include <sys/types.h>
 
 struct nvkmd_ctx;
