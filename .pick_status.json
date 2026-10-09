@@ -3604,7 +3604,7 @@
         "description": "radeonsi: invalidate I$/SMEM$/VMEM$ at IB start on all gfx levels",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
