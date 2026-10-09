@@ -1283,7 +1283,9 @@ struct si_context {
       struct si_sqtt_timestamp timestamp;
       uint64_t device_id;
       uint32_t cb_id;
-      int start_frame;
+
+      enum ac_rgp_capture_mode mode;
+      int start_frame, end_frame;
       char *trigger_file;
    } sqtt;
 

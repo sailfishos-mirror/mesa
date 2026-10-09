@@ -362,15 +362,24 @@ bool si_init_sqtt(struct si_context *sctx)
          ? (uint32_t)debug_get_num_option("AMD_THREAD_TRACE_INSTRUCTION_TIMING_SE_MASK", ~0u)
          : 0;
    sctx->sqtt.start_frame = 10;
+   sctx->sqtt.end_frame = 10;
+   sctx->sqtt.mode = AC_RGP_CAPTURE_MODE_FRAME;
 
    const char *trigger = os_get_option("AMD_THREAD_TRACE_TRIGGER");
    if (trigger) {
       char *endptr;
-      sctx->sqtt.start_frame = strtol(trigger, &endptr, 0);
+      sctx->sqtt.start_frame = strtol(trigger, &endptr, 10);
+      sctx->sqtt.end_frame = sctx->sqtt.start_frame;
       if (trigger == endptr) {
          /* This isn't a frame number, must be a file */
          sctx->sqtt.trigger_file = strdup(trigger);
          sctx->sqtt.start_frame = -1;
+      } else {
+         if (*endptr == '-' && strlen(endptr) > 1) {
+            sctx->sqtt.end_frame = strtol(endptr + 1, &endptr, 10);
+            if (*endptr == 's')
+               sctx->sqtt.mode = AC_RGP_CAPTURE_MODE_SUBMIT;
+         }
       }
    }
 
@@ -521,28 +530,41 @@ void si_destroy_sqtt(struct si_context *sctx)
       si_spm_finish(sctx, &sctx->sqtt.spm);
 }
 
-static uint64_t num_frames = 0;
+static uint64_t num_frames = 0, num_submits = 0;
 
-void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
+static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
+   /* File based capture*/
+   if (sctx->sqtt.trigger_file &&
+       access(sctx->sqtt.trigger_file, W_OK) == 0) {
+      if (unlink(sctx->sqtt.trigger_file) == 0) {
+         return true;
+      } else {
+         /* Do not enable tracing if we cannot remove the file,
+          * because by then we'll trace every frame.
+          */
+         mesa_logw("could not remove thread "
+                     "trace trigger file, ignoring");
+      }
+   }
+   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME)
+      return num_frames == sctx->sqtt.start_frame;
+   return num_submits == sctx->sqtt.start_frame;
+}
+
+static bool si_sqtt_must_stop_capture(const struct si_context *sctx) {
+   /* File based capture*/
+   if (sctx->sqtt.start_frame < 0)
+      return true;
+   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME)
+      return num_frames >= sctx->sqtt.end_frame;
+   return num_submits >= sctx->sqtt.end_frame;
+}
+
+void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end_of_frame)
 {
    /* Should we enable SQTT yet? */
    if (!sctx->sqtt.enabled) {
-      bool frame_trigger = num_frames == sctx->sqtt.start_frame;
-      bool file_trigger = false;
-      if (sctx->sqtt.trigger_file &&
-          access(sctx->sqtt.trigger_file, W_OK) == 0) {
-         if (unlink(sctx->sqtt.trigger_file) == 0) {
-            file_trigger = true;
-         } else {
-            /* Do not enable tracing if we cannot remove the file,
-             * because by then we'll trace every frame.
-             */
-            mesa_logw("could not remove thread "
-                      "trace trigger file, ignoring");
-         }
-      }
-
-      if (frame_trigger || file_trigger) {
+      if (si_sqtt_must_start_capture(sctx)) {
          /* Wait for last submission */
          if (sctx->last_gfx_fence)
             sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
@@ -552,21 +574,19 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
          si_begin_sqtt(sctx, rcs);
 
          sctx->sqtt.enabled = true;
-         sctx->sqtt.start_frame = -1;
 
          /* Force shader update to make sure si_sqtt_describe_pipeline_bind is
           * called for the current "pipeline".
           */
          sctx->dirty_shaders_mask |= SI_SQTT_STATE_DIRTY_BIT;
       }
-   } else {
+   } else if (si_sqtt_must_stop_capture(sctx)) {
       struct ac_sqtt_trace sqtt_trace = {0};
       struct pipe_transfer *transfers[2];
 
       /* Stop SQTT */
       si_end_sqtt(sctx, rcs);
       sctx->sqtt.enabled = false;
-      sctx->sqtt.start_frame = -1;
       assert(sctx->sqtt.last_fence);
 
       /* Wait for SQTT to finish and read back the bo */
@@ -582,8 +602,13 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
          if (sctx->sqtt.spm.ptr)
             ac_spm_get_trace(&sctx->sqtt.spm, &spm_trace);
 
+         struct ac_rgp_capture_info info = {
+            .mode = sctx->sqtt.mode,
+            .frame_idx = sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME ? num_frames : num_submits
+         };
+
          ac_dump_rgp_capture(&sctx->screen->info, &sqtt_trace,
-                             sctx->sqtt.spm.ptr ? &spm_trace : NULL, NULL);
+                             sctx->sqtt.spm.ptr ? &spm_trace : NULL, &info);
 
          if (sctx->sqtt.spm.ptr) {
             pipe_buffer_unmap(&sctx->b, transfers[1]);
@@ -594,7 +619,9 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
          sctx->sqtt.data->ptr = NULL;
       } else if (sctx->sqtt.data->bo) {
          if (!sctx->sqtt.trigger_file) {
-            sctx->sqtt.start_frame = num_frames + 10;
+            int end_frame = sctx->sqtt.end_frame;
+            sctx->sqtt.end_frame += sctx->sqtt.end_frame - sctx->sqtt.start_frame;
+            sctx->sqtt.start_frame = end_frame;
          }
 
          /* Restart SQTT to try to capture the next frame. */
@@ -604,7 +631,9 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
       si_sqtt_reset_queue_state(sctx);
    }
 
-   num_frames++;
+   if (end_of_frame)
+      num_frames++;
+   num_submits++;
 }
 
 static void si_emit_sqtt_userdata(struct si_context *sctx,

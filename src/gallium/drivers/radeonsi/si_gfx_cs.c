@@ -233,8 +233,8 @@ void si_flush_gfx_cs(struct si_context *ctx, unsigned flags, struct pipe_fence_h
    si_begin_new_gfx_cs(ctx, false);
    ctx->gfx_flush_in_progress = false;
 
-   if (unlikely(ctx->sqtt.data && (flags & PIPE_FLUSH_END_OF_FRAME))) {
-      si_handle_sqtt(ctx, &ctx->gfx_cs);
+   if (unlikely(ctx->sqtt.data)) {
+      si_handle_sqtt(ctx, &ctx->gfx_cs, flags & PIPE_FLUSH_END_OF_FRAME);
    }
 
 #if SHADER_DEBUG_LOG
