@@ -77,7 +77,7 @@ nvkmd_nouveau_create_exec_ctx(struct nvkmd_dev *_dev,
    if (err < 0) {
       nouveau_ws_context_destroy(ctx->ws_ctx);
       FREE(ctx);
-      return vk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
+      return vk_error(log_obj, VK_ERROR_OUT_OF_HOST_MEMORY);
    }
 
    ctx->max_push = dev->ws_dev->max_push;
