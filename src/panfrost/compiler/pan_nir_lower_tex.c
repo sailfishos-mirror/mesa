@@ -731,11 +731,11 @@ va_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, unsigned arch)
    return true;
 }
 
-static nir_def *
-va_tex_handle(nir_builder *b, nir_def *tex_h, nir_def *samp_h)
+static bool
+va_pack_tex_handle(nir_def *tex_h, nir_def *samp_h, uint32_t *packed_out)
 {
    if (!nir_def_is_const(tex_h) || !nir_def_is_const(samp_h))
-      return nir_vec2(b, samp_h, tex_h);
+      return false;
 
    uint32_t imm_tex_h = nir_scalar_as_uint(nir_get_scalar(tex_h, 0));
    uint32_t tex_table = pan_res_handle_get_table(imm_tex_h);
@@ -747,12 +747,21 @@ va_tex_handle(nir_builder *b, nir_def *tex_h, nir_def *samp_h)
 
    if (!va_is_valid_const_table(tex_table) || tex_index >= 1024 ||
        !va_is_valid_const_table(samp_table) || samp_index >= 1024)
+      return false;
+
+   *packed_out = (tex_table << 27) | (tex_index << 16) |
+                 (samp_table << 11) | samp_index;
+   return true;
+}
+
+static nir_def *
+va_tex_handle(nir_builder *b, nir_def *tex_h, nir_def *samp_h)
+{
+   uint32_t packed;
+   if (va_pack_tex_handle(tex_h, samp_h, &packed))
+      return nir_imm_int(b, packed);
+   else
       return nir_vec2(b, samp_h, tex_h);
-
-   uint32_t packed_h = (tex_table << 27) | (tex_index << 16) |
-                       (samp_table << 11) | samp_index;
-
-   return nir_imm_int(b, packed_h);
 }
 
 static nir_def *
@@ -810,27 +819,37 @@ enum valhall_tex_sreg {
    VA_TEX_SR_COUNT,
 };
 
-static bool
-va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
+/* TEX_FETCH doesn't have CUBE support. This is not a problem as a cube is
+ * just a 2D array in any cases.
+ */
+static void
+cube_txf_to_array(nir_tex_instr *tex)
 {
-   b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
-   nir_def *tex_h = va_tex_handle(b, srcs.tex_h, srcs.samp_h);
-
-   struct pan_va_tex_flags flags = {
-      .wide_indices = tex_h->num_components > 1,
-   };
-   uint32_t narrow = 0;
-
-   nir_def *sr[VA_TEX_SR_COUNT] = {};
-
-   /* TEX_FETCH doesn't have CUBE support. This is not a problem as a cube is
-    * just a 2D array in any cases.
-    */
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE && tex->op == nir_texop_txf) {
       tex->sampler_dim = GLSL_SAMPLER_DIM_2D;
       tex->is_array = true;
    }
+}
+
+static void
+va_collect_tex_srcs(nir_builder *b,
+                    nir_tex_instr *tex,
+                    struct pan_va_tex_flags *flags,
+                    nir_def **tex_h_out,
+                    uint32_t *narrow,
+                    nir_def *sr[VA_TEX_SR_COUNT],
+                    unsigned arch)
+{
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
+   nir_def *tex_h = va_tex_handle(b, srcs.tex_h, srcs.samp_h);
+
+   if (tex_h->num_components > 1) {
+      flags->wide_indices = true;
+      narrow = NULL;
+   }
+
+   if (tex_h_out != NULL)
+      *tex_h_out = tex_h;
 
    const unsigned coord_comps = tex->coord_components - tex->is_array;
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE) {
@@ -838,7 +857,7 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
       bool is_kraid = pan_use_kraid(arch, b->shader->info.stage,
                                     b->shader->info.internal);
       if (arch >= 11 && is_kraid) {
-         flags.projection_enable = true;
+         flags->projection_enable = true;
          for (unsigned i = 0; i < coord_comps; i++)
             sr[VA_TEX_SR_COORD_S + i] = nir_channel(b, srcs.coord, i);
       } else {
@@ -851,7 +870,7 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
          sr[VA_TEX_SR_COORD_S + i] = nir_channel(b, srcs.coord, i);
       if (srcs.proj) {
          sr[VA_TEX_SR_COORD_Q] = srcs.proj;
-         flags.projection_enable = true;
+         flags->projection_enable = true;
       }
    }
 
@@ -862,28 +881,27 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
        * On v9 and v10, narrow_array_index is a U16 in bits [31:16].  However,
        * it does not appear to bounds-check correctly so we can't use it.
        */
-      if (arch >= 11 && !flags.wide_indices &&
-          scalar_is_imm_i4(arr_idx, false)) {
-         narrow |= scalar_as_imm_i4(arr_idx) << 12;
+      if (arch >= 11 && narrow != NULL && scalar_is_imm_i4(arr_idx, false)) {
+         *narrow |= scalar_as_imm_i4(arr_idx) << 12;
       } else {
          sr[VA_TEX_SR_ARRAY] = nir_mov_scalar(b, arr_idx);
-         flags.array_enable = true;
+         flags->array_enable = true;
       }
    }
 
    if (srcs.z_cmpr) {
       sr[VA_TEX_SR_SHADOW] = srcs.z_cmpr;
-      flags.compare_enable = true;
+      flags->compare_enable = true;
    }
 
    /* On v9 and v10, narrow_lod is a U4 in bits [15:12] and is not affected
     * by texel_offset
     */
-   if (arch < 11 && !flags.wide_indices &&
+   if (arch < 11 && narrow != NULL &&
        tex->op == nir_texop_txf && srcs.lod &&
        nir_scalar_is_const(nir_get_scalar(srcs.lod, 0))) {
       uint32_t imm_lod = nir_scalar_as_uint(nir_get_scalar(srcs.lod, 0));
-      narrow |= MIN2(imm_lod, 15) << 12;
+      *narrow |= MIN2(imm_lod, 15) << 12;
       srcs.lod = NULL;
    }
 
@@ -931,8 +949,8 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
          }
       }
 
-      if (is_narrow && !flags.wide_indices) {
-         narrow |= narrow_offset;
+      if (is_narrow && narrow != NULL) {
+         *narrow |= narrow_offset;
       } else {
          for (unsigned i = 0; i < ARRAY_SIZE(comps); i++) {
             if (!comps[i].def)
@@ -941,33 +959,47 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 
          sr[VA_TEX_SR_OFFSET] =
             nir_pack_32_4x8(b, nir_i2i8(b, nir_vec_scalars(b, comps, 4)));
-         flags.texel_offset = true;
+         flags->texel_offset = true;
       }
    }
 
    if (tex->op != nir_texop_txf) {
       if (srcs.lod) {
          if (nir_scalar_is_zero(nir_get_scalar(srcs.lod, 0))) {
-            flags.lod_mode = BI_VA_LOD_MODE_ZERO_LOD;
+            flags->lod_mode = BI_VA_LOD_MODE_ZERO_LOD;
          } else {
-            flags.lod_mode = BI_VA_LOD_MODE_EXPLICIT;
+            flags->lod_mode = BI_VA_LOD_MODE_EXPLICIT;
             sr[VA_TEX_SR_LOD] = nir_u2u32(b, build_sfixed_8_8(b, srcs.lod));
          }
       } else if (srcs.bias || srcs.min_lod) {
-         flags.lod_mode = BI_VA_LOD_MODE_COMPUTED_BIAS;
+         flags->lod_mode = BI_VA_LOD_MODE_COMPUTED_BIAS;
          sr[VA_TEX_SR_LOD] = build_lod_bias_clamp(b, srcs.bias, srcs.min_lod);
       } else if (srcs.ddx || srcs.ddy) {
-         flags.lod_mode = BI_VA_LOD_MODE_GRDESC;
+         flags->lod_mode = BI_VA_LOD_MODE_GRDESC;
          nir_def *grdesc = build_va_gradient_desc(b, tex_h, tex->sampler_dim,
                                                   srcs.ddx, srcs.ddy);
          sr[VA_TEX_SR_GRDESC0] = nir_channel(b, grdesc, 0);
          sr[VA_TEX_SR_GRDESC1] = nir_channel(b, grdesc, 1);
       } else {
-         flags.lod_mode = BI_VA_LOD_MODE_COMPUTED_LOD;
+         flags->lod_mode = BI_VA_LOD_MODE_COMPUTED_LOD;
       }
    }
+}
 
-   /* Now, fill out the lowered instruction */
+static bool
+va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
+{
+   /* Convert cube textures to arrays before we start lowering */
+   cube_txf_to_array(tex);
+
+   b->cursor = nir_before_instr(&tex->instr);
+
+   struct pan_va_tex_flags flags = { };
+   nir_def *tex_h;
+   uint32_t narrow = 0;
+   nir_def *sr[VA_TEX_SR_COUNT] = {};
+
+   va_collect_tex_srcs(b, tex, &flags, &tex_h, &narrow, sr, arch);
 
    tex->backend_flags = PAN_AS_U32(flags);
 
@@ -989,6 +1021,129 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
       nir_def *sr1 = nir_vec(b, sr + 4, sr_count - 4);
       nir_tex_instr_add_src(tex, nir_tex_src_backend2, sr1);
    }
+
+   return true;
+}
+
+static bool
+va_tex_can_dual(nir_tex_instr *tex)
+{
+   switch (tex->op) {
+   case nir_texop_tex:
+   case nir_texop_txb:
+   case nir_texop_txl:
+      return true;
+   case nir_texop_txd:
+      /* This is a TEX_SINGLE so we could double it except it requires us to
+       * also somehow double the gradient descriptor.
+       */
+      return false;
+   default:
+      return false;
+   }
+}
+
+static bool
+va_try_lower_tex_dual(nir_builder *b, nir_tex_instr *tex_a,
+                      nir_tex_instr *tex_b, unsigned arch)
+{
+   assert(va_tex_can_dual(tex_a));
+   assert(va_tex_can_dual(tex_b));
+
+   if (tex_a->op != tex_b->op || tex_a->num_srcs != tex_b->num_srcs)
+      return false;
+
+   nir_def *tex_h_a = NULL, *samp_h_a = NULL;
+   nir_def *tex_h_b = NULL, *samp_h_b = NULL;
+   for (unsigned i = 0; i < tex_a->num_srcs; i++) {
+      if (tex_a->src[i].src_type != tex_b->src[i].src_type)
+         return false;
+
+      switch (tex_a->src[i].src_type) {
+      case nir_tex_src_texture_handle:
+      case nir_tex_src_texture_offset:
+         tex_h_a = tex_a->src[i].src.ssa;
+         tex_h_b = tex_b->src[i].src.ssa;
+         break;
+
+      case nir_tex_src_sampler_handle:
+      case nir_tex_src_sampler_offset:
+         samp_h_a = tex_a->src[i].src.ssa;
+         samp_h_b = tex_b->src[i].src.ssa;
+         break;
+
+      default:
+         if (tex_a->src[i].src.ssa != tex_b->src[i].src.ssa)
+            return false;
+         break;
+      }
+   }
+
+   uint32_t packed_tex_h_a, packed_tex_h_b;
+   if (!va_pack_tex_handle(tex_h_a, samp_h_a, &packed_tex_h_a) ||
+       !va_pack_tex_handle(tex_h_b, samp_h_b, &packed_tex_h_b))
+      return false;
+
+   /* TODO: The hardware supports multiple destination types but that's
+    * awkward to plumb through NIR.
+    */
+   if (tex_a->sampler_dim != tex_b->sampler_dim ||
+       tex_a->dest_type != tex_b->dest_type ||
+       tex_a->coord_components != tex_b->coord_components ||
+       tex_a->is_array != tex_b->is_array ||
+       tex_a->is_shadow != tex_b->is_shadow ||
+       tex_a->component != tex_b->component)
+      return false;
+
+   /* At this point, we know that they both have narrow handles and have
+    * identical parameters.  We assume that tex_a comes first in the shader
+    * so that's the one we modify.  The only value we pull from tex_b is
+    * the packed texture/sampler handle and that's a constant so there are
+    * no dominance issues.
+    */
+   nir_tex_instr *tex = tex_a;
+
+   struct pan_va_tex_flags flags = { };
+   nir_def *sr[VA_TEX_SR_COUNT] = {};
+
+   b->cursor = nir_before_instr(&tex->instr);
+   va_collect_tex_srcs(b, tex, &flags, NULL, NULL, sr, arch);
+   assert(!flags.wide_indices);
+
+   /* The gradient descriptor is per-texture so we can't double with one */
+   assert(flags.lod_mode != BI_VA_LOD_MODE_GRDESC);
+
+   tex->op = nir_texop_dual_pan;
+   tex->backend_flags = PAN_AS_U32(flags);
+
+   /* For TEX_DUAL, the two handles are packed together */
+   nir_def *tex_h = nir_imm_ivec2(b, packed_tex_h_a, packed_tex_h_b);
+   nir_tex_instr_add_src(tex, nir_tex_src_texture_handle, tex_h);
+
+   unsigned sr_count = 0;
+   for (unsigned i = 0; i < VA_TEX_SR_COUNT; i++) {
+      if (sr[i])
+         sr[sr_count++] = sr[i];
+   }
+   assert(sr_count <= 8);
+
+   nir_def *sr0 = nir_vec(b, sr, MIN2(4, sr_count));
+   nir_tex_instr_add_src(tex, nir_tex_src_backend1, sr0);
+   if (sr_count > 4) {
+      nir_def *sr1 = nir_vec(b, sr + 4, sr_count - 4);
+      nir_tex_instr_add_src(tex, nir_tex_src_backend2, sr1);
+   }
+
+   assert(tex_a->def.num_components == tex_b->def.num_components);
+   const int dest_comps = tex->def.num_components;
+   tex->def.num_components = dest_comps * 2;
+
+   b->cursor = nir_after_instr(&tex->instr);
+   nir_def *res_b = nir_shift_channels(b, &tex->def, -dest_comps, dest_comps);
+   nir_def *res_a = nir_shift_channels(b, &tex->def, 0, dest_comps);
+
+   nir_def_rewrite_uses_after(&tex_a->def, res_a);
+   nir_def_replace(&tex_b->def, res_b);
 
    return true;
 }
@@ -1134,12 +1289,64 @@ va_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    }
 }
 
+static bool
+va_try_lower_tex_dual_impl(nir_function_impl *impl, unsigned arch)
+{
+   bool progress = false;
+
+   struct util_dynarray tex_instrs;
+   util_dynarray_init(&tex_instrs, NULL);
+
+   nir_builder build = nir_builder_create(impl);
+   nir_foreach_block(block, impl) {
+      util_dynarray_clear(&tex_instrs);
+      nir_foreach_instr_safe(instr, block) {
+         if (instr->type != nir_instr_type_tex)
+            continue;
+
+         nir_tex_instr *tex = nir_instr_as_tex(instr);
+         if (!va_tex_can_dual(tex))
+            continue;
+
+         nir_tex_instr **match = NULL;
+         util_dynarray_foreach(&tex_instrs, nir_tex_instr *, prev_tex) {
+            if (va_try_lower_tex_dual(&build, *prev_tex, tex, arch)) {
+               match = prev_tex;
+               break;
+            }
+         }
+
+         if (match) {
+            /* Remove match from the array by popping off the last element
+             * and moving it to match.  In the case where match is the last
+             * element, the move is a no-op.  It's harmless because
+             * util_dynarray_pop() never de-allocates memory.
+             */
+            *match = util_dynarray_pop(&tex_instrs, nir_tex_instr *);
+            progress = true;
+         } else {
+            util_dynarray_append(&tex_instrs, tex);
+         }
+      }
+   }
+
+   util_dynarray_fini(&tex_instrs);
+
+   return nir_progress(progress, impl, nir_metadata_control_flow);
+}
+
 bool
 pan_nir_lower_tex(nir_shader *nir, unsigned arch)
 {
    if (arch >= 9) {
+      bool progress = false;
+      if (pan_use_kraid(arch, nir->info.stage, nir->info.internal)) {
+         nir_foreach_function_impl(impl, nir)
+            progress |= va_try_lower_tex_dual_impl(impl, arch);
+      }
+
       return nir_shader_tex_pass(nir, va_lower_tex_instr,
-                                 nir_metadata_none, &arch);
+                                 nir_metadata_none, &arch) || progress;
    } else if (arch >= 6) {
       return nir_shader_tex_pass(nir, bi_lower_tex_instr,
                                  nir_metadata_control_flow, &arch);
