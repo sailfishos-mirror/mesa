@@ -374,8 +374,12 @@ panvk_physical_device_init(struct panvk_physical_device *device,
    if (result != VK_SUCCESS)
       return result;
 
+   unsigned core_count =
+      pan_query_core_count(&device->kmod.dev->props);
    device->model = pan_get_model(device->kmod.dev->props.gpu_id,
-                                 device->kmod.dev->props.gpu_variant);
+                                 device->kmod.dev->props.gpu_variant,
+                                 core_count,
+                                 device->kmod.dev->props.gpu_features);
 
    unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
 
@@ -418,9 +422,6 @@ panvk_physical_device_init(struct panvk_physical_device *device,
 
    device->formats.all = pan_format_table(arch);
    device->formats.blendable = pan_blendable_format_table(arch);
-
-   unsigned core_count =
-      pan_query_core_count(&device->kmod.dev->props);
 
    pan_model_device_name(device->name, sizeof(device->name), device->model, core_count, "");
 

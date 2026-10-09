@@ -433,6 +433,6 @@ pub fn model_for_gpu_id(
 ) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
     // SAFETY: pan_arch() just translates one integer to another
     let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
-    let pan_model = unsafe { pan_get_model(gpu_id, gpu_variant) };
+    let pan_model = unsafe { pan_get_model(gpu_id, gpu_variant, 1, 0) };
     model_for_arch(arch, pan_model)
 }
