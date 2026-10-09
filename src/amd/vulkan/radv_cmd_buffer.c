@@ -12026,9 +12026,17 @@ radv_emit_userdata_vertex_drawid(struct radv_cmd_buffer *cmd_buffer, uint32_t ve
    radeon_end();
 }
 
+struct radv_taskmesh_userdata {
+   uint32_t x;
+   uint32_t y;
+   uint32_t z;
+};
+
 ALWAYS_INLINE static void
-radv_emit_userdata_mesh(struct radv_cmd_buffer *cmd_buffer, const uint32_t x, const uint32_t y, const uint32_t z)
+radv_emit_userdata_mesh(struct radv_cmd_buffer *cmd_buffer, const struct radv_taskmesh_userdata *userdata)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_state *state = &cmd_buffer->state;
    const struct radv_shader *mesh_shader = state->shaders[MESA_SHADER_MESH];
    struct radv_cmd_stream *cs = cmd_buffer->cs;
@@ -12039,39 +12047,61 @@ radv_emit_userdata_mesh(struct radv_cmd_buffer *cmd_buffer, const uint32_t x, co
       return;
 
    radeon_begin(cs);
-   radeon_set_sh_reg_seq(state->vtx_base_sgpr, state->vtx_emit_num);
-   if (uses_grid_size) {
-      radeon_emit(x);
-      radeon_emit(y);
-      radeon_emit(z);
-   }
-   if (uses_drawid) {
-      radeon_emit(0);
-      state->last_drawid = 0;
+   if (pdev->info.gfx_level >= GFX12) {
+      if (uses_grid_size) {
+         gfx12_push_sh_reg(state->vtx_base_sgpr + 0, userdata->x);
+         gfx12_push_sh_reg(state->vtx_base_sgpr + 4, userdata->y);
+         gfx12_push_sh_reg(state->vtx_base_sgpr + 8, userdata->z);
+      }
+      if (uses_drawid)
+         gfx12_push_sh_reg(state->vtx_base_sgpr + (uses_grid_size ? 12 : 0), 0);
+   } else {
+      radeon_set_sh_reg_seq(state->vtx_base_sgpr, state->vtx_emit_num);
+      if (uses_grid_size) {
+         radeon_emit(userdata->x);
+         radeon_emit(userdata->y);
+         radeon_emit(userdata->z);
+      }
+      if (uses_drawid)
+         radeon_emit(0);
    }
    radeon_end();
+
+   if (uses_drawid)
+      state->last_drawid = 0;
 }
 
 ALWAYS_INLINE static void
-radv_emit_userdata_task(const struct radv_cmd_state *cmd_state, struct radv_cmd_stream *ace_cs, uint32_t x, uint32_t y,
-                        uint32_t z)
+radv_emit_userdata_task(const struct radv_device *device, const struct radv_cmd_state *cmd_state,
+                        struct radv_cmd_stream *ace_cs, const struct radv_taskmesh_userdata *userdata)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader *task_shader = cmd_state->shaders[MESA_SHADER_TASK];
-
    const uint32_t xyz_offset = radv_get_user_sgpr_loc(task_shader, AC_UD_CS_GRID_SIZE);
    const uint32_t draw_id_offset = radv_get_user_sgpr_loc(task_shader, AC_UD_CS_TASK_DRAW_ID);
 
    radeon_begin(ace_cs);
 
-   if (xyz_offset) {
-      radeon_set_sh_reg_seq(xyz_offset, 3);
-      radeon_emit(x);
-      radeon_emit(y);
-      radeon_emit(z);
-   }
+   if (pdev->info.gfx_level >= GFX12) {
+      if (xyz_offset) {
+         gfx12_push_sh_reg(xyz_offset + 0, userdata->x);
+         gfx12_push_sh_reg(xyz_offset + 4, userdata->y);
+         gfx12_push_sh_reg(xyz_offset + 8, userdata->z);
+      }
 
-   if (draw_id_offset) {
-      radeon_set_sh_reg(draw_id_offset, 0);
+      if (draw_id_offset)
+         gfx12_push_sh_reg(draw_id_offset, 0);
+   } else {
+      if (xyz_offset) {
+         radeon_set_sh_reg_seq(xyz_offset, 3);
+         radeon_emit(userdata->x);
+         radeon_emit(userdata->y);
+         radeon_emit(userdata->z);
+      }
+
+      if (draw_id_offset) {
+         radeon_set_sh_reg(draw_id_offset, 0);
+      }
    }
 
    radeon_end();
@@ -12288,8 +12318,6 @@ radv_emit_direct_mesh_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t x
    const uint32_t view_mask = cmd_buffer->state.render.view_mask;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   radv_emit_userdata_mesh(cmd_buffer, x, y, z);
-
    if (pdev->info.gfx_level >= GFX11) {
       if (!view_mask) {
          radv_cs_emit_mesh_dispatch_packet(cmd_buffer, x, y, z);
@@ -12361,8 +12389,6 @@ radv_emit_direct_taskmesh_draw_packets(const struct radv_device *device, struct 
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const uint32_t view_mask = cmd_state->render.view_mask;
-
-   radv_emit_userdata_task(cmd_state, ace_cs, x, y, z);
 
    uint32_t *ace_predication = radv_cs_begin_compute_predication(device, cmd_state, ace_cs);
 
@@ -14469,7 +14495,8 @@ radv_before_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info
 }
 
 ALWAYS_INLINE static bool
-radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info, bool dgc)
+radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *info,
+                          const struct radv_taskmesh_userdata *userdata, bool dgc)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
@@ -14519,6 +14546,14 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    const VkShaderStageFlags pc_stages = radv_must_flush_constants(cmd_buffer, stages, VK_PIPELINE_BIND_POINT_GRAPHICS);
    if (pc_stages)
       radv_flush_constants(cmd_buffer, pc_stages, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+   if (userdata) {
+      if (task_shader) {
+         radv_emit_userdata_task(device, &cmd_buffer->state, cmd_buffer->gang.cs, userdata);
+      } else {
+         radv_emit_userdata_mesh(cmd_buffer, userdata);
+      }
+   }
 
    radv_gfx12_emit_buffered_regs(device, cs);
    if (task_shader)
@@ -14852,6 +14887,7 @@ radv_CmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t x, uint32_t y, 
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+   struct radv_taskmesh_userdata userdata;
    struct radv_draw_info info;
 
    info.count = x * y * z;
@@ -14863,7 +14899,11 @@ radv_CmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t x, uint32_t y, 
    info.count_va = 0;
    info.indirect_va = 0;
 
-   if (!radv_before_taskmesh_draw(cmd_buffer, &info, false))
+   userdata.x = x;
+   userdata.y = y;
+   userdata.z = z;
+
+   if (!radv_before_taskmesh_draw(cmd_buffer, &info, &userdata, false))
       return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -14913,7 +14953,7 @@ radv_CmdDrawMeshTasksIndirect2EXT(VkCommandBuffer commandBuffer, const VkDrawInd
    info.indexed = false;
    info.instance_count = 0;
 
-   if (!radv_before_taskmesh_draw(cmd_buffer, &info, false))
+   if (!radv_before_taskmesh_draw(cmd_buffer, &info, NULL, false))
       return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -14968,7 +15008,7 @@ radv_CmdDrawMeshTasksIndirectCount2EXT(VkCommandBuffer commandBuffer, const VkDr
    info.indexed = false;
    info.instance_count = 0;
 
-   if (!radv_before_taskmesh_draw(cmd_buffer, &info, false))
+   if (!radv_before_taskmesh_draw(cmd_buffer, &info, NULL, false))
       return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -15117,7 +15157,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
       };
 
       if (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_MESH)) {
-         if (!radv_before_taskmesh_draw(cmd_buffer, &info, true))
+         if (!radv_before_taskmesh_draw(cmd_buffer, &info, NULL, true))
             return;
       } else {
          if (!radv_before_draw(cmd_buffer, &info, 1, layout->vk.draw_count ? pGeneratedCommandsInfo->maxDrawCount : 1,
