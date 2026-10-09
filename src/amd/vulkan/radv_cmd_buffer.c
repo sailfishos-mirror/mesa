@@ -8609,7 +8609,7 @@ radv_CmdBindVertexBuffers3KHR(VkCommandBuffer commandBuffer, uint32_t firstBindi
 
       if (!!vertex_buffer->bindings[idx].addr != !!addr ||
           (addr && ((vertex_buffer->bindings[idx].addr & 0x3) != (addr & 0x3) ||
-                    (d->vk.vi_binding_strides[idx] & 0x3) != (stride & 0x3)))) {
+                    (binding_info->setStride && (d->vk.vi_binding_strides[idx] & 0x3) != (stride & 0x3))))) {
          misaligned_mask_invalid |= d->vertex_input.bindings_match_attrib ? BITFIELD_BIT(idx) : 0xffffffff;
       }
 
