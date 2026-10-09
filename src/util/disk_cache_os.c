@@ -1160,11 +1160,21 @@ disk_cache_mmap_cache_index(void *mem_ctx, struct disk_cache *cache)
     * guarantees of the cryptographic hash, a corrupt entry is
     * unlikely to ever match a real cache key).
     */
-   cache->index_mmap = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                            MAP_SHARED, fd, 0);
-   if (cache->index_mmap == MAP_FAILED)
+   const size_t page_size = sysconf(_SC_PAGESIZE);
+   const size_t reserve_size = ALIGN_POT(size, page_size) + 2 * page_size;
+   uint8_t *reserve = mmap(NULL, reserve_size, PROT_NONE,
+                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+   if (reserve == MAP_FAILED)
       goto path_fail;
-   cache->index_mmap_size = size;
+
+   cache->index_mmap = mmap(reserve + page_size, size, PROT_READ | PROT_WRITE,
+                            MAP_SHARED | MAP_FIXED, fd, 0);
+   if (cache->index_mmap == MAP_FAILED) {
+      munmap(reserve, reserve_size);
+      goto path_fail;
+   }
+   cache->index_reserve = reserve;
+   cache->index_reserve_size = reserve_size;
 
    cache->size = (p_atomic_uint64_t *) cache->index_mmap;
    cache->stored_keys = cache->index_mmap + sizeof(uint64_t);
@@ -1180,7 +1190,7 @@ path_fail:
 void
 disk_cache_destroy_mmap(struct disk_cache *cache)
 {
-   munmap(cache->index_mmap, cache->index_mmap_size);
+   munmap(cache->index_reserve, cache->index_reserve_size);
 }
 
 void *

@@ -76,7 +76,8 @@ struct disk_cache {
 
    /* A pointer to the mmapped index file within the cache directory. */
    uint8_t *index_mmap;
-   size_t index_mmap_size;
+   uint8_t *index_reserve;
+   size_t index_reserve_size;
 
    /* Pointer to total size of all objects in cache (within index_mmap) */
    p_atomic_uint64_t *size;
