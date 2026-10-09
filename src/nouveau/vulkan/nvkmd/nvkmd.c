@@ -143,7 +143,7 @@ nvkmd_dev_alloc_mapped_mem(struct nvkmd_dev *dev,
    assert(!(map_flags & NVKMD_MEM_MAP_FIXED));
    result = nvkmd_mem_map(mem, log_obj, map_flags, NULL, NULL);
    if (result != VK_SUCCESS) {
-      mem->ops->free(mem);
+      nvkmd_mem_unref(mem);
       return result;
    }
 
