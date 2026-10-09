@@ -384,12 +384,12 @@ struct radeon_surf {
    uint8_t alignment_log2;
 
    /* The dimensions of one 256B block. (96bpp is treated as 32bpp)
-    * This can be bigger than a 256B block if 256B block dimensions don't exist.
+    * This can be smaller or bigger than 256B if 256B block dimensions don't exist.
     */
    ac_block_extent block256B_extent;
 
    /* The dimensions of one 256B block of the stencil buffer, if present.
-    * This can be bigger than a 256B block if 256B block dimensions don't exist.
+    * This can be smaller or bigger than 256B if 256B block dimensions don't exist.
     */
    ac_block_extent stencil_block256B_extent;
 

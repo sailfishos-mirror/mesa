@@ -191,6 +191,9 @@ struct ac_addrlib {
     */
    uint32_t surf_index;
    uint32_t fmask_surf_index;
+
+   /* Precomputed 256B block extents for GFX6-8. */
+   ac_block_extent gfx6_block256B_extents[5][5][4][32]; /* [log_bpe][log_samples][log_frags][tiling_index] */
 };
 
 static bool is_displayable(const uint32_t bpe, const uint32_t blk_w, const uint32_t blk_h,
@@ -2129,6 +2132,123 @@ static int gfx6_validate_surf_modifier(const struct radeon_info *const info,
    return 0;
 }
 
+static bool
+gfx6_coord_from_addr(const struct ac_addrlib *addrlib, const struct ac_surf_config *config,
+                     uint64_t surf_flags, const struct legacy_surf_level *level,
+                     unsigned tiling_index, unsigned bpe, uint64_t addr, unsigned coords[3])
+{
+   ADDR_COMPUTE_SURFACE_COORDFROMADDR_INPUT in = {
+      .size = sizeof(in),
+      .addr = addr,
+
+      .bpp = bpe * 8,
+      .pitch = level->nblk_x,
+      .height = level->nblk_y,
+      .numSlices = config->is_3d ? config->info.depth : 1,
+      .numSamples = config->info.samples,
+      .numFrags = surf_flags & RADEON_SURF_Z_OR_SBUFFER ? config->info.samples
+                                                         : config->info.storage_samples,
+      .tileIndex = tiling_index,
+   };
+   ADDR_COMPUTE_SURFACE_COORDFROMADDR_OUTPUT out = {
+      .size = sizeof(out),
+   };
+
+   if (AddrComputeSurfaceCoordFromAddr(addrlib->handle, &in, &out) != ADDR_OK)
+      return false;
+
+   coords[0] = out.x;
+   coords[1] = out.y;
+   coords[2] = out.slice;
+   return true;
+}
+
+static bool
+gfx6_determine_256B_block_size(struct ac_addrlib *addrlib, const struct radeon_info *info,
+                               const struct ac_surf_config *config, uint64_t surf_flags,
+                               const struct legacy_surf_level *level, unsigned tiling_index,
+                               unsigned bpe, ac_block_extent *out)
+{
+   if (bpe == 12) {
+      /* 96bpp is treated as 32bpp. 32bpp linear blocks always have 64B. */
+      *out = (ac_block_extent){16, 1, 1};
+      return true;
+   }
+
+   ac_block_extent *precomputed_block_size =
+      &addrlib->gfx6_block256B_extents[util_logbase2(bpe)][util_logbase2(config->info.samples)]
+                                      [util_logbase2(config->info.storage_samples)][tiling_index];
+
+   /* Check if we've already computed the block size. */
+   simple_mtx_lock(&addrlib->lock);
+   if (precomputed_block_size->width) {
+      *out = *precomputed_block_size;
+      simple_mtx_unlock(&addrlib->lock);
+      return true;
+   }
+   simple_mtx_unlock(&addrlib->lock);
+
+   const unsigned gb_tile_mode = info->si_tile_mode_array[tiling_index];
+   const bool is_linear = G_009910_ARRAY_MODE(gb_tile_mode) == ADDR_TM_LINEAR_ALIGNED;
+   const bool is_1d_tiled_thin = G_009910_ARRAY_MODE(gb_tile_mode) == ADDR_TM_1D_TILED_THIN1;
+
+   /* Linear uses 64B blocks for bpe <= 8 and 128B blocks for bpe = 16.
+    *
+    * 1D thin tiling has smaller tiles and the position of the next tile depends on
+    * the pitch and the tile position in the image, so 256B block dimensions don't exist.
+    * Get 128B or 64B block dimensions instead.
+    */
+   const unsigned num_addr_bits = is_linear ? (bpe <= 8 ? 6 : 7) :
+                                  is_1d_tiled_thin && bpe <= 2 ? (bpe == 1 ? 6 : 7) : 8;
+   unsigned block_size[3] = {0};
+
+   /* Test which coordinates are produced by setting only one of the first 6-8 bits of the address.
+    * Then the block size is the power-of-two-aligned bounding box of all produced coordinates.
+    */
+   for (unsigned addr_bit = 0; addr_bit < num_addr_bits; addr_bit++) {
+      unsigned coords[3];
+
+      if (!gfx6_coord_from_addr(addrlib, config, surf_flags, level, tiling_index, bpe,
+                                (uint64_t)BITFIELD_BIT(addr_bit), coords))
+         return false;
+
+      for (unsigned c = 0; c < 3; c++)
+         block_size[c] = MAX2(block_size[c], util_next_power_of_two(coords[c] + 1));
+   }
+
+   out->width = block_size[0];
+   out->height = block_size[1];
+   out->depth = block_size[2];
+
+   /* Save the precomputed block size, so that we don't have to compute it for other images. */
+   simple_mtx_lock(&addrlib->lock);
+   *precomputed_block_size = *out;
+   simple_mtx_unlock(&addrlib->lock);
+
+   return true;
+}
+
+static bool
+gfx6_determine_256B_block_size_for_surf(struct ac_addrlib *addrlib, const struct radeon_info *info,
+                                        const struct ac_surf_config *config, struct radeon_surf *surf)
+{
+   /* Skip this for stencil-only surfaces. */
+   if ((!surf->has_stencil || surf->flags & RADEON_SURF_ZBUFFER) &&
+       !gfx6_determine_256B_block_size(addrlib, info, config, surf->flags, &surf->u.legacy.level[0],
+                                       surf->u.legacy.tiling_index[0], surf->bpe,
+                                       &surf->block256B_extent))
+      return false;
+
+   if (surf->has_stencil &&
+       !gfx6_determine_256B_block_size(addrlib, info, config, surf->flags,
+                                       &surf->u.legacy.zs.stencil_level[0],
+                                       surf->u.legacy.zs.stencil_tiling_index[0], 1,
+                                       &surf->stencil_block256B_extent))
+      return false;
+
+   return true;
+}
+
 /**
  * Fill in the tiling information in \p surf based on the given surface config.
  *
@@ -2403,6 +2523,9 @@ static int gfx6_compute_surface(struct ac_addrlib *const addrlib,
    }
 
    ac_compute_cmask(info, config, surf);
+
+   if (!gfx6_determine_256B_block_size_for_surf(addrlib, info, config, surf))
+      return 1;
 
    r = gfx6_validate_surf_modifier(info, config, surf);
 
