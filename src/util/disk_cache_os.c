@@ -482,7 +482,7 @@ write_all(int fd, const void *buf, size_t count)
 }
 
 /* Evict least recently used cache item */
-void
+bool
 disk_cache_evict_lru_item(struct disk_cache *cache)
 {
    char *dir_path;
@@ -494,7 +494,7 @@ disk_cache_evict_lru_item(struct disk_cache *cache)
     */
    uint64_t rand64 = rand_xorshift128plus(cache->seed_xorshift128plus);
    if (asprintf(&dir_path, "%s/%02" PRIx64 , cache->path, rand64 & 0xff) < 0)
-      return;
+      return false;
 
    size_t size = unlink_lru_file_from_directory(dir_path);
 
@@ -502,7 +502,7 @@ disk_cache_evict_lru_item(struct disk_cache *cache)
 
    if (size) {
       p_atomic_add(&cache->size->value, - (uint64_t)size);
-      return;
+      return true;
    }
 
    /* In the case where the random choice of directory didn't find
@@ -516,7 +516,7 @@ disk_cache_evict_lru_item(struct disk_cache *cache)
    struct list_head *lru_file_list =
       choose_lru_file_matching(cache->path, is_two_character_sub_directory);
    if (lru_file_list == NULL)
-      return;
+      return false;
 
    assert(!list_is_empty(lru_file_list));
 
@@ -529,6 +529,8 @@ disk_cache_evict_lru_item(struct disk_cache *cache)
 
    if (size)
       p_atomic_add(&cache->size->value, - (uint64_t)size);
+
+   return size > 0;
 }
 
 void
