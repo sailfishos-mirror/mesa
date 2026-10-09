@@ -540,10 +540,10 @@ disk_cache_evict_item(struct disk_cache *cache, char *filename)
       return;
    }
 
-   unlink(filename);
+   int ret = unlink(filename);
    free(filename);
 
-   if (sb.st_blocks)
+   if (ret == 0 && sb.st_blocks)
       p_atomic_add(&cache->size->value, - (uint64_t)sb.st_blocks * 512);
 }
 
