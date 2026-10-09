@@ -7,6 +7,8 @@
 # tex: Texture format that gets mapped, prefixed with TEXTURE_FORMAT_.
 # pe: PE format that get's mapped, prefixed with PE_FORMAT_.
 # rb_swap: true if the format needs red and blue channel swapped.
+# emulated: If a given format is emulated, specifies the pipe format used as replacement, prefixed with PIPE_FORMAT_.
+# emulation: Name of the emulation.
 #
 # Values other than pipe are optional and will be filled with default
 # values if left out.
@@ -175,13 +177,15 @@
 - pipe: R32_FIXED
   vtx: FIXED
 
-# emulated
 - pipe: Z32_FLOAT
   tex: EXT_R32F
+  emulated: S8_UINT_Z24_UNORM
+  emulation: DEPTH32F
 
-# emulated
 - pipe: Z32_FLOAT_S8X24_UINT
   tex: EXT_R32F
+  emulated: S8_UINT_Z24_UNORM
+  emulation: DEPTH32F
 
 - pipe: R16G16_UNORM
   vtx: UNSIGNED_SHORT

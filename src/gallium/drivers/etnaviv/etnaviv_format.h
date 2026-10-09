@@ -27,6 +27,7 @@
 #ifndef ETNAVIV_FORMAT_H_
 #define ETNAVIV_FORMAT_H_
 
+#include "layout/eil_format.h"
 #include "util/format/u_format.h"
 #include "pipe/p_state.h"
 #include <stdint.h>
@@ -101,19 +102,12 @@ format_is_128bit(enum pipe_format fmt)
     }
 }
 
-static inline bool
-format_is_emulated_z32f(enum pipe_format fmt)
-{
-    return fmt == PIPE_FORMAT_Z32_FLOAT ||
-           fmt == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT;
-}
-
 /* The emulated depth32f formats are physically stored as D24S8; map them to
  * that format and leave everything else unchanged. */
 static inline enum pipe_format
 translate_emulated_format_z32f(enum pipe_format fmt)
 {
-    if (format_is_emulated_z32f(fmt))
+    if (eil_format_is_emulated_z32f(fmt))
         return PIPE_FORMAT_S8_UINT_Z24_UNORM;
 
     return fmt;

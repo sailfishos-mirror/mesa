@@ -18,6 +18,8 @@ TEST(FormatTable, get_entry_undefined)
    EXPECT_FALSE(entry->has_vtx);
    EXPECT_FALSE(entry->has_tex);
    EXPECT_FALSE(entry->has_pe);
+   EXPECT_EQ(EIL_EMU_NONE, entry->emulation);
+   EXPECT_EQ(PIPE_FORMAT_NONE, entry->emulated);
 }
 
 #ifndef NDEBUG
@@ -40,6 +42,8 @@ TEST(FormatTable, get_entry)
    EXPECT_EQ(FE_DATA_TYPE_UNSIGNED_BYTE, entry->vtx);
    EXPECT_EQ(TEXTURE_FORMAT_A8R8G8B8, entry->tex);
    EXPECT_EQ(PE_FORMAT_A8R8G8B8, entry->pe);
+   EXPECT_EQ(EIL_EMU_NONE, entry->emulation);
+   EXPECT_EQ(PIPE_FORMAT_R8G8B8A8_UNORM, entry->emulated);
 }
 
 TEST(FormatTable, get_entry_ext)
@@ -51,6 +55,8 @@ TEST(FormatTable, get_entry_ext)
    EXPECT_EQ(0, entry->vtx);
    EXPECT_TRUE(entry->tex_ext);
    EXPECT_FALSE(entry->tex_astc);
+   EXPECT_EQ(EIL_EMU_NONE, entry->emulation);
+   EXPECT_EQ(PIPE_FORMAT_R8G8B8X8_SNORM, entry->emulated);
 }
 
 TEST(FormatTable, get_entry_astc)
@@ -62,4 +68,32 @@ TEST(FormatTable, get_entry_astc)
    EXPECT_EQ(0, entry->vtx);
    EXPECT_FALSE(entry->tex_ext);
    EXPECT_TRUE(entry->tex_astc);
+   EXPECT_EQ(EIL_EMU_NONE, entry->emulation);
+   EXPECT_EQ(PIPE_FORMAT_ASTC_4x4, entry->emulated);
+}
+
+TEST(FormatTable, get_entry_emu_depth32f)
+{
+   auto entry_z32_float = eil_get_format_entry(PIPE_FORMAT_Z32_FLOAT);
+   EXPECT_EQ(EIL_EMU_DEPTH32F, entry_z32_float->emulation);
+   EXPECT_EQ(PIPE_FORMAT_S8_UINT_Z24_UNORM, entry_z32_float->emulated);
+
+   auto entry_z32_float_s8x24 = eil_get_format_entry(PIPE_FORMAT_Z32_FLOAT_S8X24_UINT);
+   EXPECT_EQ(EIL_EMU_DEPTH32F, entry_z32_float_s8x24->emulation);
+   EXPECT_EQ(PIPE_FORMAT_S8_UINT_Z24_UNORM, entry_z32_float_s8x24->emulated);
+}
+
+TEST(Format, is_emulated_z32f)
+{
+   /* not defined */
+   EXPECT_FALSE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z32_UNORM));
+
+   /* not emulated */
+   EXPECT_FALSE(eil_format_is_emulated_z32f(PIPE_FORMAT_R8G8B8A8_UNORM));
+   EXPECT_FALSE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z16_UNORM));
+   EXPECT_FALSE(eil_format_is_emulated_z32f(PIPE_FORMAT_X8Z24_UNORM));
+
+   /* emulated */
+   EXPECT_TRUE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z32_FLOAT));
+   EXPECT_TRUE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z32_FLOAT_S8X24_UINT));
 }

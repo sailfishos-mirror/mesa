@@ -31,11 +31,15 @@ def main():
             tex = f"TEXTURE_FORMAT_{format['tex']}" if "tex" in format else "0"
             pe = f"PE_FORMAT_{format['pe']}" if "pe" in format else "0"
             pe_rb_swap = format.get("rb_swap", False)
+            emulated = format.get("emulated", format["pipe"])
+            emulation = format.get("emulation", "NONE")
 
             file.write(f"[PIPE_FORMAT_{format['pipe']}] = {{\n")
             file.write(f".vtx = {vtx},\n")
             file.write(f".tex = {tex},\n")
             file.write(f".pe = {pe},\n")
+            file.write(f".emulation = EIL_EMU_{emulation},\n")
+            file.write(f".emulated = PIPE_FORMAT_{emulated},\n")
             file.write(f".has_vtx = {'vtx' in format:d},\n")
             file.write(f".has_tex = {'tex' in format:d},\n")
             file.write(f".has_pe = {'pe' in format:d},\n")

@@ -46,6 +46,7 @@
 #include "etnaviv_transfer.h"
 #include "etnaviv_translate.h"
 #include "etnaviv_zsa.h"
+#include "layout/eil_format.h"
 
 #include "nir/nir_xfb_info.h"
 #include "pipe/p_context.h"
@@ -241,7 +242,7 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
       if (ctx->sampler[i]->compare_mode == PIPE_TEX_COMPARE_NONE)
          continue;
 
-      const bool emulated_z32f = format_is_emulated_z32f(ctx->sampler_view[i]->format);
+      const bool emulated_z32f = eil_format_is_emulated_z32f(ctx->sampler_view[i]->format);
 
       if (ctx->screen->info->halti >= 2 && !emulated_z32f)
          continue;
