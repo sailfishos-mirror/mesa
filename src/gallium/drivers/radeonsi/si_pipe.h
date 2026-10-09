@@ -1274,6 +1274,8 @@ struct si_context {
    /* SQTT */
    struct {
       struct ac_sqtt *data;
+      struct radeon_cmdbuf *start_cs[2];
+      struct radeon_cmdbuf *stop_cs[2];
       struct ac_spm spm;
       struct pipe_fence_handle *last_fence;
       enum rgp_sqtt_marker_event_type next_event;

@@ -235,12 +235,12 @@ static void si_sqtt_init_cs(struct si_context *sctx)
    struct radeon_winsys *ws = sctx->ws;
    unsigned barriers;
 
-   for (unsigned i = 0; i < ARRAY_SIZE(sctx->sqtt.data->start_cs); i++) {
-      sctx->sqtt.data->start_cs[i] = CALLOC_STRUCT(radeon_cmdbuf);
-      if (!ws->cs_create(sctx->sqtt.data->start_cs[i], sctx->ctx, (enum amd_ip_type)i,
+   for (unsigned i = 0; i < ARRAY_SIZE(sctx->sqtt.start_cs); i++) {
+      sctx->sqtt.start_cs[i] = CALLOC_STRUCT(radeon_cmdbuf);
+      if (!ws->cs_create(sctx->sqtt.start_cs[i], sctx->ctx, (enum amd_ip_type)i,
                          NULL, NULL)) {
-         free(sctx->sqtt.data->start_cs[i]);
-         sctx->sqtt.data->start_cs[i] = NULL;
+         free(sctx->sqtt.start_cs[i]);
+         sctx->sqtt.start_cs[i] = NULL;
          return;
       }
 
@@ -248,34 +248,34 @@ static void si_sqtt_init_cs(struct si_context *sctx)
       barriers = sctx->barrier_flags;
       sctx->barrier_flags = 0;
 
-      si_sqtt_start(sctx, sctx->sqtt.data->start_cs[i]);
+      si_sqtt_start(sctx, sctx->sqtt.start_cs[i]);
 
-      sctx->sqtt.data->stop_cs[i] = CALLOC_STRUCT(radeon_cmdbuf);
-      if (!ws->cs_create(sctx->sqtt.data->stop_cs[i], sctx->ctx, (enum amd_ip_type)i,
+      sctx->sqtt.stop_cs[i] = CALLOC_STRUCT(radeon_cmdbuf);
+      if (!ws->cs_create(sctx->sqtt.stop_cs[i], sctx->ctx, (enum amd_ip_type)i,
                          NULL, NULL)) {
-         ws->cs_destroy(sctx->sqtt.data->start_cs[i]);
-         free(sctx->sqtt.data->start_cs[i]);
-         sctx->sqtt.data->start_cs[i] = NULL;
-         free(sctx->sqtt.data->stop_cs[i]);
-         sctx->sqtt.data->stop_cs[i] = NULL;
+         ws->cs_destroy(sctx->sqtt.start_cs[i]);
+         free(sctx->sqtt.start_cs[i]);
+         sctx->sqtt.start_cs[i] = NULL;
+         free(sctx->sqtt.stop_cs[i]);
+         sctx->sqtt.stop_cs[i] = NULL;
          sctx->barrier_flags = barriers;
          return;
       }
 
-      si_sqtt_stop(sctx, sctx->sqtt.data->stop_cs[i]);
+      si_sqtt_stop(sctx, sctx->sqtt.stop_cs[i]);
       sctx->barrier_flags = barriers;
    }
 }
 
 static void si_begin_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
 {
-   struct radeon_cmdbuf *cs = sctx->sqtt.data->start_cs[sctx->ws->cs_get_ip_type(rcs)];
+   struct radeon_cmdbuf *cs = sctx->sqtt.start_cs[sctx->ws->cs_get_ip_type(rcs)];
    sctx->ws->cs_flush(cs, 0, NULL);
 }
 
 static void si_end_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
 {
-   struct radeon_cmdbuf *cs = sctx->sqtt.data->stop_cs[sctx->ws->cs_get_ip_type(rcs)];
+   struct radeon_cmdbuf *cs = sctx->sqtt.stop_cs[sctx->ws->cs_get_ip_type(rcs)];
    sctx->ws->cs_flush(cs, 0, &sctx->sqtt.last_fence);
 }
 
@@ -315,9 +315,9 @@ static bool si_get_sqtt_trace(struct si_context *sctx,
       if (!si_sqtt_resize_bo(sctx)) {
          mesa_loge("Failed to resize the SQTT buffer.");
       } else {
-         for (int i = 0; i < ARRAY_SIZE(sctx->sqtt.data->start_cs); i++) {
-            sctx->screen->ws->cs_destroy(sctx->sqtt.data->start_cs[i]);
-            sctx->screen->ws->cs_destroy(sctx->sqtt.data->stop_cs[i]);
+         for (int i = 0; i < ARRAY_SIZE(sctx->sqtt.start_cs); i++) {
+            sctx->screen->ws->cs_destroy(sctx->sqtt.start_cs[i]);
+            sctx->screen->ws->cs_destroy(sctx->sqtt.stop_cs[i]);
          }
          si_sqtt_init_cs(sctx);
       }
@@ -454,11 +454,11 @@ void si_destroy_sqtt(struct si_context *sctx)
 
    free(sctx->sqtt.data->trigger_file);
 
-   for (int i = 0; i < ARRAY_SIZE(sctx->sqtt.data->start_cs); i++) {
-      if (sctx->sqtt.data->start_cs[i])
-         sscreen->ws->cs_destroy(sctx->sqtt.data->start_cs[i]);
-      if (sctx->sqtt.data->stop_cs[i])
-         sscreen->ws->cs_destroy(sctx->sqtt.data->stop_cs[i]);
+   for (int i = 0; i < ARRAY_SIZE(sctx->sqtt.start_cs); i++) {
+      if (sctx->sqtt.start_cs[i])
+         sscreen->ws->cs_destroy(sctx->sqtt.start_cs[i]);
+      if (sctx->sqtt.stop_cs[i])
+         sscreen->ws->cs_destroy(sctx->sqtt.stop_cs[i]);
    }
 
    struct rgp_pso_correlation *pso_correlation =

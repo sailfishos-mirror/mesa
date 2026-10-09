@@ -34,9 +34,6 @@ struct radeon_info;
  * around each command needed. The primary user of this is RGP.
  */
 struct ac_sqtt {
-   /* Only used by RadeonSI */
-   void *start_cs[2];
-   void *stop_cs[2];
    /* VkBuffer or struct si_resource */
    void *bo;
    uint64_t buffer_va;
