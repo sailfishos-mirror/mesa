@@ -397,6 +397,7 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
       compiler->nir_options.force_indirect_unrolling = nir_var_all,
       compiler->nir_options.lower_device_index_to_zero = true;
       compiler->nir_options.instance_id_includes_base_index = true;
+      /* pre-6xx doesn't have the BNOT modifier support we use for nir_op_bitz. */
       compiler->nir_options.has_bit_test = true;
 
       if (dev_info->props.has_dp2acc || dev_info->props.has_dp4acc) {

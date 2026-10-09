@@ -1902,7 +1902,8 @@ ir3_cat2_int(opc_t opc)
 }
 
 /* map cat2 instruction to valid abs/neg flags: */
-unsigned ir3_cat2_absneg(opc_t opc);
+unsigned ir3_cat2_absneg(struct ir3_compiler *compiler, opc_t opc,
+                         unsigned src_n);
 
 /* map cat3 instructions to valid abs/neg flags: */
 unsigned ir3_cat3_absneg(struct ir3_compiler *compiler, opc_t opc,
