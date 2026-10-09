@@ -550,10 +550,13 @@ disk_cache_size_is_valid(struct disk_cache *cache)
    return true;
 }
 
+#define DISK_CACHE_STALE_TMP_AGE (60 * 60)
+
 void
 disk_cache_recompute_size(struct disk_cache *cache)
 {
    uint64_t total = 0;
+   time_t now = time(NULL);
 
    for (unsigned i = 0; i < 256; i++) {
       char *dir_path;
@@ -574,8 +577,28 @@ disk_cache_recompute_size(struct disk_cache *cache)
             continue;
 
          size_t len = strlen(dir_ent->d_name);
-         if (len >= 4 && strcmp(&dir_ent->d_name[len - 4], ".tmp") == 0)
+         if (len >= 4 && strcmp(&dir_ent->d_name[len - 4], ".tmp") == 0) {
+            if (now - sb.st_mtime > DISK_CACHE_STALE_TMP_AGE) {
+               int fd = openat(dir_fd, dir_ent->d_name, O_WRONLY | O_CLOEXEC);
+               if (fd != -1) {
+#ifdef HAVE_FLOCK
+                  int err = flock(fd, LOCK_EX | LOCK_NB);
+#else
+                  struct flock lock = {
+                     .l_start = 0,
+                     .l_len = 0,
+                     .l_type = F_WRLCK,
+                     .l_whence = SEEK_SET
+                  };
+                  int err = fcntl(fd, F_SETLK, &lock);
+#endif
+                  if (err == 0)
+                     unlinkat(dir_fd, dir_ent->d_name, 0);
+                  close(fd);
+               }
+            }
             continue;
+         }
 
          total += (uint64_t)sb.st_blocks * 512;
       }
