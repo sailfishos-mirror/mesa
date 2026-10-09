@@ -139,6 +139,12 @@ disk_cache_generate_cache_dir(void *mem_ctx, const char *gpu_name,
 bool
 disk_cache_evict_lru_item(struct disk_cache *cache);
 
+bool
+disk_cache_size_is_valid(struct disk_cache *cache);
+
+void
+disk_cache_recompute_size(struct disk_cache *cache);
+
 void
 disk_cache_evict_item(struct disk_cache *cache, char *filename);
 

@@ -95,6 +95,7 @@ disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 #include "utime.h"
 
@@ -531,6 +532,57 @@ disk_cache_evict_lru_item(struct disk_cache *cache)
       p_atomic_add(&cache->size->value, - (uint64_t)size);
 
    return size > 0;
+}
+
+bool
+disk_cache_size_is_valid(struct disk_cache *cache)
+{
+   uint64_t size = p_atomic_read_relaxed(&cache->size->value);
+
+   if (size % 512)
+      return false;
+
+   struct statvfs vfs;
+   if (statvfs(cache->path, &vfs) == 0 &&
+       size > (uint64_t)vfs.f_blocks * vfs.f_frsize)
+      return false;
+
+   return true;
+}
+
+void
+disk_cache_recompute_size(struct disk_cache *cache)
+{
+   uint64_t total = 0;
+
+   for (unsigned i = 0; i < 256; i++) {
+      char *dir_path;
+      if (asprintf(&dir_path, "%s/%02x", cache->path, i) < 0)
+         continue;
+
+      DIR *dir = opendir(dir_path);
+      free(dir_path);
+      if (dir == NULL)
+         continue;
+
+      const int dir_fd = dirfd(dir);
+      struct dirent *dir_ent;
+      while ((dir_ent = readdir(dir)) != NULL) {
+         struct stat sb;
+         if (fstatat(dir_fd, dir_ent->d_name, &sb, AT_SYMLINK_NOFOLLOW) != 0 ||
+             !S_ISREG(sb.st_mode))
+            continue;
+
+         size_t len = strlen(dir_ent->d_name);
+         if (len >= 4 && strcmp(&dir_ent->d_name[len - 4], ".tmp") == 0)
+            continue;
+
+         total += (uint64_t)sb.st_blocks * 512;
+      }
+      closedir(dir);
+   }
+
+   p_atomic_set(&cache->size->value, total);
 }
 
 void

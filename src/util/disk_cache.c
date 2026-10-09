@@ -162,6 +162,8 @@ disk_cache_type_create(const char *gpu_name,
 
    if (cache->type == DISK_CACHE_DATABASE)
       mesa_cache_db_multipart_set_size_limit(&cache->cache_db, cache->max_size);
+   else if (cache->type == DISK_CACHE_MULTI_FILE && !disk_cache_size_is_valid(cache))
+      disk_cache_recompute_size(cache);
 
    if (!disk_cache_init_queue(cache))
       goto fail;
