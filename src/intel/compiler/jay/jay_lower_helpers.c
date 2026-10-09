@@ -75,8 +75,9 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
       jay_builder_insert(b, send);
    } else {
       signed gpr = -1;
+      struct jay_register_block B;
       for (unsigned i = 0; i < b->shader->partition.nr_blocks[GPR]; ++i) {
-         struct jay_register_block B = b->shader->partition.blocks[GPR][i];
+         B = b->shader->partition.blocks[GPR][i];
          bool late_eot = !jay_has_early_eot(b->shader);
 
          if (B.len_gpr >= 4 &&
@@ -98,7 +99,8 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
 
       send = jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE,
                       .msg_desc = desc | (ex_desc << 32), .nr_srcs = 1,
-                      .srcs = &dummy, .type = JAY_TYPE_U32, .eot = true);
+                      .srcs = &dummy, .type = JAY_TYPE_U32, .eot = true,
+                      .simd_width = b->shader->dispatch_width >> B.split);
       send =
          jay_add_predicate(b, send, jay_negate(ctx->helper_flag), jay_null());
    }
