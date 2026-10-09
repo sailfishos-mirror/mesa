@@ -5,6 +5,7 @@
 
 #include "util/u_math.h"
 #include "jay_ir.h"
+#include "jay_opcodes.h"
 #include "jay_private.h"
 #include "shader_enums.h"
 
@@ -30,6 +31,7 @@
  */
 struct instruction_req {
    unsigned gpr[JAY_NUM_STRIDES];
+   unsigned gpr_split;
    unsigned ugpr;
 };
 
@@ -53,6 +55,15 @@ analyze_per_inst(jay_shader *shader)
                local.ugpr += MAX2(size, jay_dst_alignment(shader, I));
             } else if (x.file == UGPR && i >= 0) {
                local.ugpr += size;
+            } else if (x.file == GPR &&
+                       I->op == JAY_OPCODE_SEND &&
+                       I->simd_split) {
+               /* We do not currently split other stride sends. If/when that
+                * changes, we'll need to complicate the partition a bit.
+                */
+               assert(jay_src_stride_minmax(I, i, false) == JAY_STRIDE_4);
+               assert(jay_src_stride_minmax(I, i, true) == JAY_STRIDE_4);
+               local.gpr_split += size;
             } else if (x.file == GPR && i >= 0) {
                enum jay_stride min_stride = jay_src_stride_minmax(I, i, false);
                local.gpr[min_stride] += size;
@@ -65,6 +76,7 @@ analyze_per_inst(jay_shader *shader)
 
       /* Take the worst-case for each block */
       global.ugpr = MAX2(global.ugpr, local.ugpr);
+      global.gpr_split = MAX2(global.gpr_split, local.gpr_split);
 
       for (unsigned i = 0; i < ARRAY_SIZE(global.gpr); ++i) {
          global.gpr[i] = MAX2(global.gpr[i], local.gpr[i]);
@@ -348,9 +360,10 @@ jay_partition_grf(jay_shader *shader)
       demand[I->dst.file] = MAX2(demand[I->dst.file], end + extra);
    }
 
+   unsigned split_4 = instr_req.gpr_split * grf_per_gpr;
    unsigned uniform_grfs, nonuniform_grfs, hw_grfs;
    unsigned spilling_grfs = 0, mem_slots = 0;
-   unsigned special_4 = payload_4[0] + payload_4[1] + eot_4;
+   unsigned special_4 = payload_4[0] + payload_4[1] + eot_4 + split_4;
    unsigned special_u = payload_u[0] + payload_u[1] + eot_u;
 
    unsigned increment[JAY_NUM_STRIDES] = { grf_per_gpr, grf_per_gpr,
@@ -497,6 +510,7 @@ jay_partition_grf(jay_shader *shader)
       { GPR, JAY_STRIDE_4, picked_grf[JAY_STRIDE_4] - special_4 },
       { GPR, JAY_STRIDE_8, picked_grf[JAY_STRIDE_8] },
       { GPR, JAY_STRIDE_2, picked_grf[JAY_STRIDE_2] },
+      { GPR, JAY_STRIDE_4, split_4, JAY_BLOCK_NORMAL, 1 },
 
       /* Spilling registers */
       { UGPR, 0, spilling_grfs, JAY_BLOCK_SPILL },
