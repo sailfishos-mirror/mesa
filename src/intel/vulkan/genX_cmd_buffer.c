@@ -3655,16 +3655,10 @@ genX(flush_binding_mode)(struct anv_cmd_buffer *cmd_buffer,
          assert((offset & ~ANV_DESCRIPTOR_SET_OFFSET_MASK) == 0);
          assert((dyn_set_offset & ANV_DESCRIPTOR_SET_OFFSET_MASK) == 0);
 
-         /* Plaforms with LSC will use descriptor buffer push constant
-          * offsets, also with device generated commands, shaders are much
-          * more likely to access the offset on pre-LSC platforms.
-          */
-         if (cmd_buffer->device->vk.enabled_features.deviceGeneratedCommands || GFX_VERx10 >= 125) {
-            UPDATE_PUSH(push->legacy.sets[i].surfaces_offset, offset | dyn_set_offset);
-            UPDATE_PUSH(push->legacy.sets[i].samplers_offset,
-                        anv_address_physical(set->desc_sampler_addr) -
-                        anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr);
-         }
+         UPDATE_PUSH(push->legacy.sets[i].surfaces_offset, offset | dyn_set_offset);
+         UPDATE_PUSH(push->legacy.sets[i].samplers_offset,
+                     anv_address_physical(set->desc_sampler_addr) -
+                     anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr);
          for (uint32_t j = 0; j < set->layout->vk.dynamic_descriptor_count; j++) {
             UPDATE_PUSH(push->legacy.dynamic_offsets[dyn_set_offset + j],
                         bind_state->dynamic_offsets[i].offsets[j]);
