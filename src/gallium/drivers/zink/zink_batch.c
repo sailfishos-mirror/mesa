@@ -991,10 +991,12 @@ zink_end_batch(struct zink_context *ctx)
             _mesa_set_add(ctx->need_barriers[i], res);
       }
 
-      for (; res; res = zink_resource(res->base.b.next)) {
-         VkSemaphore sem = zink_create_exportable_semaphore(screen);
-         if (sem) {
-            util_dynarray_append(&ctx->bs->signal_semaphores, sem);
+      if (res->obj->exportable_dmabuf) {
+         for (; res; res = zink_resource(res->base.b.next)) {
+            VkSemaphore sem = zink_create_exportable_semaphore(screen);
+            if (sem) {
+               util_dynarray_append(&ctx->bs->signal_semaphores, sem);
+            }
          }
       }
       bs->has_work = true;
