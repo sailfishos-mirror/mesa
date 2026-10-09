@@ -141,7 +141,7 @@ st_prepare_draw(struct gl_context *ctx, const st_state_bitset state_mask)
 
 void
 st_draw_gallium(struct gl_context *ctx,
-                const struct pipe_draw_info *info,
+                struct pipe_draw_info *info,
                 unsigned drawid_offset,
                 const struct pipe_draw_indirect_info *indirect,
                 const struct pipe_draw_start_count_bias *draws,
@@ -159,7 +159,7 @@ st_draw_gallium(struct gl_context *ctx,
 
 static void
 st_draw_gallium_stipple(struct gl_context *ctx,
-                const struct pipe_draw_info *info,
+                struct pipe_draw_info *info,
                 unsigned drawid_offset,
                 const struct pipe_draw_indirect_info *indirect,
                 const struct pipe_draw_start_count_bias *draws,
@@ -468,7 +468,7 @@ st_draw_quad(struct st_context *st,
 
 static void
 st_hw_select_draw_gallium(struct gl_context *ctx,
-                          const struct pipe_draw_info *info,
+                          struct pipe_draw_info *info,
                           unsigned drawid_offset,
                           const struct pipe_draw_indirect_info *indirect,
                           const struct pipe_draw_start_count_bias *draws,
@@ -482,16 +482,14 @@ st_hw_select_draw_gallium(struct gl_context *ctx,
    st_prepare_draw(ctx, mask);
 
    if (st_draw_hw_select_prepare_common(ctx, &releasebuf) &&
-       /* Removing "const" is fine because we restore the changed mode
-        * at the end. */
-       st_draw_hw_select_prepare_mode(ctx, ((struct pipe_draw_info*)info))) {
+       st_draw_hw_select_prepare_mode(ctx, info)) {
       cso_draw_vbo(st->cso_context, info, drawid_offset, indirect, draws,
                    num_draws);
    }
 
    pipe_resource_release(st->pipe, releasebuf);
 
-   ((struct pipe_draw_info*)info)->mode = old_mode;
+   info->mode = old_mode;
 }
 
 static void

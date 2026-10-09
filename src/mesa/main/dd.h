@@ -149,7 +149,7 @@ struct dd_function_table {
     * The interface is identical to pipe_context::draw_vbo.
     */
    void (*DrawGallium)(struct gl_context *ctx,
-                       const struct pipe_draw_info *info,
+                       struct pipe_draw_info *info,
                        unsigned drawid_offset,
                        const struct pipe_draw_indirect_info *indirect,
                        const struct pipe_draw_start_count_bias *draws,
