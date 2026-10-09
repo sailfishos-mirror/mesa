@@ -11,6 +11,7 @@
 #include "pan_shader.h"
 #include "panfrost/compiler/pan_compiler.h"
 #include "panfrost/compiler/pan_nir.h"
+#include "panfrost/compiler/midgard/midgard_quirks.h"
 #include "pan_context.h"
 
 #ifndef PAN_ARCH
@@ -111,7 +112,7 @@ GENX(pan_blend_get_shader_locked)(struct pan_blend_shader_cache *cache,
    rt_formats[rt] = GENX(pan_blend_shader_fmt)(key.format);
    NIR_PASS(_, nir, pan_nir_lower_framebuffer, rt_formats,
             pan_raw_format_mask_midgard(rt_formats), MAX2(key.nr_samples, 1),
-            pan_prod_id(cache->gpu_id) < 0x700);
+            midgard_get_quirks(cache->gpu_id) & MIDGARD_BROKEN_BLEND_LOADS);
 #endif
 
    pan_postprocess_nir(nir, &inputs, &info);

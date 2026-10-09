@@ -19,6 +19,7 @@
 #include "pan_nir.h"
 #include "pan_trace.h"
 #include "compiler/bifrost/bifrost_compile.h"
+#include "panfrost/compiler/midgard/midgard_quirks.h"
 #include "shader_enums.h"
 
 static struct panfrost_uncompiled_shader *
@@ -170,7 +171,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
 
       NIR_PASS(_, s, pan_nir_lower_framebuffer, key->fs.rt_formats,
                pan_raw_format_mask_midgard(key->fs.rt_formats), 0,
-               panfrost_device_gpu_prod_id(dev) < 0x700);
+               midgard_get_quirks(inputs.gpu_id) & MIDGARD_BROKEN_BLEND_LOADS);
    }
 
    /* Lower resource indices */
