@@ -33,16 +33,30 @@ combine_index(nir_builder *b, nir_def *offset, uint32_t index)
 }
 
 static struct tex_srcs
-steal_tex_srcs(nir_builder *b, nir_tex_instr *tex)
+steal_tex_srcs(nir_builder *b, nir_tex_instr *tex, ASSERTED unsigned arch)
 {
    struct tex_srcs srcs = { NULL, };
    for (unsigned i = 0; i < tex->num_srcs; i++) {
       nir_def *def = tex->src[i].src.ssa;
       switch (tex->src[i].src_type) {
-      case nir_tex_src_texture_handle: srcs.tex_h = def;    break;
-      case nir_tex_src_sampler_handle: srcs.samp_h = def;   break;
-      case nir_tex_src_texture_offset: srcs.tex_h = def;    break;
-      case nir_tex_src_sampler_offset: srcs.samp_h = def;   break;
+      case nir_tex_src_texture_handle:
+         assert(arch >= 9);
+         assert(tex->texture_index == 0);
+         srcs.tex_h = def;
+         break;
+      case nir_tex_src_sampler_handle:
+         assert(arch >= 9);
+         assert(tex->sampler_index == 0);
+         srcs.samp_h = def;
+         break;
+      case nir_tex_src_texture_offset:
+         assert(arch < 9);
+         srcs.tex_h = def;
+         break;
+      case nir_tex_src_sampler_offset:
+         assert(arch < 9);
+         srcs.samp_h = def;
+         break;
       case nir_tex_src_coord:          srcs.coord = def;    break;
       case nir_tex_src_ms_index:       srcs.ms_idx = def;   break;
       case nir_tex_src_comparator:     srcs.z_cmpr = def;   break;
@@ -61,6 +75,8 @@ steal_tex_srcs(nir_builder *b, nir_tex_instr *tex)
    }
    tex->num_srcs = 0;
 
+   assert(arch < 9 || srcs.tex_h != NULL);
+   assert(arch < 9 || srcs.samp_h != NULL);
    srcs.tex_h = combine_index(b, srcs.tex_h, tex->texture_index);
    srcs.samp_h = combine_index(b, srcs.samp_h, tex->sampler_index);
 
@@ -172,12 +188,12 @@ scalar_as_imm_i4(nir_scalar s)
 }
 
 static bool
-bi_lower_txf_buf(nir_builder *b, nir_tex_instr *tex)
+bi_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    assert(tex->op == nir_texop_txf);
 
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
 
    nir_def *attr = nir_lea_attr_pan(b, srcs.tex_h, srcs.coord,
                                     nir_imm_int(b, 0),
@@ -480,7 +496,7 @@ enum bifrost_tex_sreg {
 };
 
 static bool
-bi_lower_tex(nir_builder *b, nir_tex_instr *tex)
+bi_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    /* If txf is used, we assume there is a valid sampler bound at index 0. Use
     * it for txf operations, since there may be no other valid samplers. This is
@@ -495,7 +511,7 @@ bi_lower_tex(nir_builder *b, nir_tex_instr *tex)
    };
 
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
 
    nir_def *coord_xy = NULL;
    nir_def *sr[BI_TEX_SR_COUNT] = {};
@@ -620,10 +636,10 @@ bi_lower_tex(nir_builder *b, nir_tex_instr *tex)
 }
 
 static bool
-bi_lower_lod(nir_builder *b, nir_tex_instr *tex)
+bi_lower_lod(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
 
    struct bifrost_texture_operation desc = {
       .op = BIFROST_TEX_OP_GRDESC,
@@ -667,6 +683,8 @@ bi_lower_lod(nir_builder *b, nir_tex_instr *tex)
 static bool
 bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
 {
+   unsigned arch = *(unsigned *)cb_data;
+
    switch (tex->op) {
    case nir_texop_tex:
    case nir_texop_txl:
@@ -681,13 +699,13 @@ bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    case nir_texop_txf_ms:
    case nir_texop_tg4:
       if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF)
-         return bi_lower_txf_buf(b, tex);
+         return bi_lower_txf_buf(b, tex, arch);
       else
-         return bi_lower_tex(b, tex);
+         return bi_lower_tex(b, tex, arch);
 
    case nir_texop_lod:
       assert(tex->sampler_dim != GLSL_SAMPLER_DIM_BUF);
-      return bi_lower_lod(b, tex);
+      return bi_lower_lod(b, tex, arch);
 
    default:
       return false;
@@ -695,12 +713,12 @@ bi_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
 }
 
 static bool
-va_lower_txf_buf(nir_builder *b, nir_tex_instr *tex)
+va_lower_txf_buf(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    assert(tex->op == nir_texop_txf);
 
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
 
    nir_def *addr = nir_pack_64_2x32(b,
       nir_lea_buf_pan(b, srcs.tex_h, srcs.coord));
@@ -796,7 +814,7 @@ static bool
 va_lower_tex(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
    nir_def *tex_h = va_tex_handle(b, srcs.tex_h, srcs.samp_h);
 
    struct pan_va_tex_flags flags = {
@@ -979,7 +997,7 @@ static bool
 va_lower_lod(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
    nir_def *tex_h = va_tex_handle(b, srcs.tex_h, srcs.samp_h);
 
    struct pan_va_tex_flags flags = {
@@ -1050,10 +1068,10 @@ va_lower_lod(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 }
 
 static bool
-va_lower_tex_query(nir_builder *b, nir_tex_instr *tex)
+va_lower_tex_query(nir_builder *b, nir_tex_instr *tex, unsigned arch)
 {
    b->cursor = nir_before_instr(&tex->instr);
-   struct tex_srcs srcs = steal_tex_srcs(b, tex);
+   struct tex_srcs srcs = steal_tex_srcs(b, tex, arch);
 
    nir_def *val;
    switch (tex->op) {
@@ -1098,7 +1116,7 @@ va_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    case nir_texop_txf_ms:
    case nir_texop_tg4:
       if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF)
-         return va_lower_txf_buf(b, tex);
+         return va_lower_txf_buf(b, tex, arch);
       else
          return va_lower_tex(b, tex, arch);
 
@@ -1109,7 +1127,7 @@ va_lower_tex_instr(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    case nir_texop_txs:
    case nir_texop_query_levels:
    case nir_texop_texture_samples:
-      return va_lower_tex_query(b, tex);
+      return va_lower_tex_query(b, tex, arch);
 
    default:
       return false;
@@ -1124,8 +1142,7 @@ pan_nir_lower_tex(nir_shader *nir, unsigned arch)
                                  nir_metadata_none, &arch);
    } else if (arch >= 6) {
       return nir_shader_tex_pass(nir, bi_lower_tex_instr,
-                                 nir_metadata_control_flow,
-                                 NULL);
+                                 nir_metadata_control_flow, &arch);
    } else {
       UNREACHABLE("Midgard is not supported by this pass");
    }
