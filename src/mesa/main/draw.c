@@ -1612,7 +1612,10 @@ _mesa_validated_drawrangeelements(struct gl_context *ctx,
       ST_PIPELINE_RENDER_STATE_MASK(mask);
       st_prepare_draw(ctx, mask);
 
-      if (st->cso_context->draw_vbo == tc_draw_vbo) {
+      if (st->cso_context->draw_vbo == tc_draw_vbo &&
+          cso_draw_mode_supported(st->cso_context, mode, 1 << index_size_shift,
+                                  ctx->Array._PrimitiveRestart[index_size_shift],
+                                  ctx->Array._RestartIndex[index_size_shift])) {
          assert(!st->draw_needs_minmax_index);
          struct pipe_resource *index_buffer = index_bo->buffer;
          struct tc_draw_single *draw =
