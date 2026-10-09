@@ -349,6 +349,11 @@ void u_vbuf_get_caps(struct pipe_screen *screen, struct u_vbuf_caps *caps,
    if (!caps->attrib_4byte_unaligned || !caps->attrib_element_unaligned)
       caps->needs_fallback = true;
 
+   caps->fallback_only_for_formats_and_prims =
+      caps->needs_fallback && !caps->rewrite_ubyte_ibs &&
+      caps->max_vertex_buffers >= 16 &&
+      caps->attrib_4byte_unaligned && caps->attrib_element_unaligned;
+
    if (!caps->needs_fallback && !caps->user_vertex_buffers)
       caps->fallback_only_for_user_vbuffers = true;
 }

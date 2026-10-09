@@ -266,12 +266,28 @@ cso_init_vbuf(struct cso_context_priv *cso, unsigned flags)
    if (caps.needs_fallback ||
        (uses_user_vertex_buffers &&
         caps.fallback_only_for_user_vbuffers)) {
+      const bool can_bypass_vbuf = caps.fallback_only_for_formats_and_prims &&
+                                   cso->base.pipe->draw_vbo == tc_draw_vbo;
+
       assert(!cso->base.pipe->vbuf);
       cso->vbuf = u_vbuf_create(cso->base.pipe, &caps);
       cso->base.pipe->vbuf = cso->vbuf;
-      cso->always_use_vbuf = caps.needs_fallback;
+      cso->always_use_vbuf = caps.needs_fallback && !can_bypass_vbuf;
       cso->vbuf_current = cso->base.pipe->vbuf =
-         caps.needs_fallback ? cso->vbuf : NULL;
+         cso->always_use_vbuf ? cso->vbuf : NULL;
+
+      if (can_bypass_vbuf) {
+         cso->base.supported_prim_modes = caps.supported_prim_modes;
+         cso->base.supported_restart_modes =
+            caps.supported_restart_modes & caps.supported_prim_modes;
+         cso->base.rewrite_restart_index = caps.rewrite_restart_index;
+         cso->base.check_draw_modes =
+            cso->base.supported_prim_modes != BITFIELD_MASK(MESA_PRIM_COUNT) ||
+            cso->base.supported_restart_modes != BITFIELD_MASK(MESA_PRIM_COUNT) ||
+            cso->base.rewrite_restart_index;
+         cso->base.vertex_format_fallbacks =
+            !BITSET_IS_EMPTY(cso->vbuf_format_fallbacks);
+      }
    }
 }
 
