@@ -20,11 +20,11 @@ DERIVE_HASH_TABLE(pan_blend_shader_key);
 
 void
 pan_blend_shader_cache_init(struct pan_blend_shader_cache *cache,
-                            uint64_t gpu_id, uint32_t gpu_variant,
+                            const struct pan_model *model,
                             struct pan_pool *bin_pool)
 {
-   cache->gpu_id = gpu_id;
-   cache->gpu_variant = gpu_variant;
+   assert(model != NULL);
+   cache->model = model;
    cache->bin_pool = bin_pool;
    cache->shaders = pan_blend_shader_key_table_create(NULL);
    pthread_mutex_init(&cache->lock, NULL);
@@ -96,14 +96,10 @@ GENX(pan_blend_get_shader_locked)(struct pan_blend_shader_cache *cache,
    nir_shader_intrinsics_pass(nir, pan_lower_blend_constants,
                               nir_metadata_control_flow, NULL);
 
-   const struct pan_model *model =
-      pan_get_model(cache->gpu_id, cache->gpu_variant);
-   assert(model != NULL);
-
    /* Compile the NIR shader */
    struct pan_compile_inputs inputs = {
       .arch = PAN_ARCH,
-      .model = model,
+      .model = cache->model,
       .is_blend = true,
       .fau.pushable_ubos = BITFIELD_BIT(PAN_UBO_SYSVALS),
    };
@@ -116,7 +112,7 @@ GENX(pan_blend_get_shader_locked)(struct pan_blend_shader_cache *cache,
    rt_formats[rt] = GENX(pan_blend_shader_fmt)(key.format);
    NIR_PASS(_, nir, pan_nir_lower_framebuffer, rt_formats,
             pan_raw_format_mask_midgard(rt_formats), MAX2(key.nr_samples, 1),
-            midgard_get_quirks(cache->gpu_id) & MIDGARD_BROKEN_BLEND_LOADS);
+            midgard_get_quirks(cache->model->gpu_prod_id) & MIDGARD_BROKEN_BLEND_LOADS);
 #endif
 
    pan_postprocess_nir(nir, &inputs, &info);

@@ -4911,8 +4911,7 @@ GENX(panfrost_cmdstream_screen_init)(struct panfrost_screen *screen)
    screen->vtbl.get_conv_desc = get_conv_desc;
    screen->vtbl.draw_fullscreen = panfrost_draw_fullscreen;
 
-   pan_blend_shader_cache_init(&dev->blend_shaders, panfrost_device_gpu_id(dev),
-                               dev->kmod.dev->props.gpu_variant,
+   pan_blend_shader_cache_init(&dev->blend_shaders, dev->model,
                                &screen->mempools.bin.base);
 
    GENX(pan_fb_preload_cache_init)
