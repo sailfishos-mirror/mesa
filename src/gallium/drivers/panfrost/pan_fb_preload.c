@@ -526,13 +526,9 @@ pan_preload_get_shader(struct pan_fb_preload_cache *cache,
       active_count++;
    }
 
-   const struct pan_model *model =
-      pan_get_model(cache->gpu_id, cache->gpu_variant);
-   assert(model != NULL);
-
    struct pan_compile_inputs inputs = {
       .arch = PAN_ARCH,
-      .model = model,
+      .model = cache->model,
       .is_blit = true,
       .no_idvs = true,
    };
@@ -1238,9 +1234,8 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
        * The PAN_ARCH check is redundant but allows the compiler to optimize
        * when PAN_ARCH < 7.
        */
-      unsigned arch_major = PAN_ARCH_MAJOR(cache->gpu_id);
-      unsigned arch_minor = PAN_ARCH_MINOR(cache->gpu_id);
-      if (PAN_ARCH >= 7 && (arch_major == 7 && arch_minor >= 2))
+      unsigned arch_minor = (cache->model->gpu_prod_id >> 8) & 0xff;
+      if (PAN_ARCH >= 7 && (PAN_ARCH == 7 && arch_minor >= 2))
          fb->bifrost.pre_post.modes[dcd_idx] =
             MALI_PRE_POST_FRAME_SHADER_MODE_EARLY_ZS_ALWAYS;
       else
@@ -1381,12 +1376,12 @@ pan_preload_prefill_preload_shader_cache(struct pan_fb_preload_cache *cache)
 
 void
 GENX(pan_fb_preload_cache_init)(
-   struct pan_fb_preload_cache *cache, uint64_t gpu_id, uint32_t gpu_variant,
+   struct pan_fb_preload_cache *cache, const struct pan_model *model,
    struct pan_blend_shader_cache *blend_shader_cache, struct pan_pool *bin_pool,
    struct pan_pool *desc_pool)
 {
-   cache->gpu_id = gpu_id;
-   cache->gpu_variant = gpu_variant;
+   assert(model != NULL);
+   cache->model = model;
    cache->shaders.preload = pan_preload_shader_key_table_create(NULL);
    cache->shaders.pool = bin_pool;
    pthread_mutex_init(&cache->shaders.lock, NULL);

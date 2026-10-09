@@ -4915,8 +4915,7 @@ GENX(panfrost_cmdstream_screen_init)(struct panfrost_screen *screen)
                                &screen->mempools.bin.base);
 
    GENX(pan_fb_preload_cache_init)
-   (&dev->fb_preload_cache, panfrost_device_gpu_id(dev),
-    dev->kmod.dev->props.gpu_variant, &dev->blend_shaders,
+   (&dev->fb_preload_cache, dev->model, &dev->blend_shaders,
     &screen->mempools.bin.base, &screen->mempools.desc.base);
 
 #if PAN_ARCH >= 6
