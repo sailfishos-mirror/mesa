@@ -2144,7 +2144,7 @@
         "description": "gallivm: Query host CPU features on aarch64 too",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bc6bfc861fd3484c4cc51f24ccb0bf64239fcfd7",
         "notes": null
