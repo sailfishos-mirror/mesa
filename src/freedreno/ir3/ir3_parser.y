@@ -93,6 +93,7 @@ static void print_token(FILE *file, int type, YYSTYPE value)
 /* src register flags */
 %token <tok> T_ABSNEG
 %token <tok> T_NEG
+%token <tok> T_NOT
 %token <tok> T_ABS
 %token <tok> T_R
 %token <tok> T_LAST
@@ -1374,6 +1375,7 @@ dst_reg:           dst                 { $1->flags |= IR3_REG_R; }
 
 src_reg_flag:      T_ABSNEG       { rflags.flags |= IR3_REG_ABS|IR3_REG_NEGATE; }
 |                  T_NEG          { rflags.flags |= IR3_REG_NEGATE; }
+|                  T_NOT          { rflags.flags |= IR3_REG_BNOT; }
 |                  T_ABS          { rflags.flags |= IR3_REG_ABS; }
 |                  T_R            { rflags.flags |= IR3_REG_R; }
 |                  T_LAST         { rflags.flags |= IR3_REG_LAST_USE; }

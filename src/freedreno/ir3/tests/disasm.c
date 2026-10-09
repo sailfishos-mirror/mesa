@@ -118,11 +118,32 @@ static const struct test {
    INSTR_6XX(40a500f8_2c000004, "cmps.f.ne p0.x, hr1.x, h(0.0)"),
    INSTR_6XX(438000f8_20010009, "and.b p0.x, hr2.y, h(1)"),
    INSTR_6XX(438000f9_00020001, "and.b p0.y, hr0.y, hr0.z"),
+   INSTR_5XX(43900803_40050003, "(nop1) and.b r0.w, r0.w, (not)r1.y"),
    INSTR_6XX(40080902_50200006, "(rpt1)add.f hr0.z, (r)hr1.z, (neg)(r)hc8.x"),
    INSTR_6XX(42380c01_00040001, "(nop3) add.s (sat)r0.y, r0.y, r1.x"),
    INSTR_6XX(42480000_48801086, "(nop2) sub.u hr0.x, hc33.z, (neg)hr<a0.x + 128>"),
    INSTR_6XX(46b00001_00001020, "clz.b r0.y, c8.x"),
    INSTR_6XX(46700009_00000009, "bfrev.b r2.y, r2.y"),
+   INSTR_5XX(43b00004_60ff0000, "or.b r1.x, r0.x, (not)255"),
+   INSTR_5XX(46f0000d_4006000d, "shr.b r3.y, r3.y, (neg)r1.z"),
+   INSTR_5XX(47100015_40120015, "ashr.b r5.y, r5.y, (neg)r4.z"),
+
+   INSTR_6XX(46700009_00004009, "bfrev.b r2.y, (not)r2.y"), // blob has (neg)
+   INSTR_6XX(46b00009_00004009, "clz.b r2.y, (not)r2.y"), // blob has (neg)
+   INSTR_6XX(43d00009_00004009, "not.b r2.y, (neg)r2.y"),
+   INSTR_6XX(47b00009_00004009, "cbits.b r2.y, (not)r2.y"),
+   INSTR_6XX(43900009_00064009, "and.b r2.y, (not)r2.y, r1.z"),
+   INSTR_6XX(43b00009_00064009, "or.b r2.y, (not)r2.y, r1.z"),
+   INSTR_6XX(43f00009_00064009, "xor.b r2.y, (not)r2.y, r1.z"),
+   INSTR_6XX(43f00009_40060009, "xor.b r2.y, r2.y, (not)r1.z"),
+   INSTR_6XX(46d00009_00064009, "shl.b r2.y, (not)r2.y, r1.z"), // blob has (neg)
+   INSTR_6XX(46d00009_40060009, "shl.b r2.y, r2.y, (neg)r1.z"),
+   INSTR_6XX(46f00009_00064009, "shr.b r2.y, (not)r2.y, r1.z"), // blob has (neg)
+   INSTR_6XX(47100009_00064009, "ashr.b r2.y, (neg)r2.y, r1.z"),
+   INSTR_6XX(47500009_00064009, "mgen.b r2.y, (neg)r2.y, r1.z"),
+   INSTR_6XX(47500009_40060009, "mgen.b r2.y, r2.y, (neg)r1.z"),
+   INSTR_6XX(47700009_00064009, "getbit.b r2.y, (not)r2.y, r1.z"),
+   INSTR_6XX(47700009_40060009, "getbit.b r2.y, r2.y, (neg)r1.z"),
 
    INSTR_7XX(42380800_04010400, "(nop3) add.s r0.x, (last)r0.x, (last)r0.y"),
    INSTR_7XX(42930000_04000406, "cmps.u.ge r0.x, (last)r1.z, (last)r0.x"),
