@@ -1643,6 +1643,15 @@ struct gl_vertex_array_object
    GLbitfield NonIdentityBufferAttribMapping;
 
    /**
+    * Mask of vertex attributes whose VertexAttrib[i].Format._PipeFormat is
+    * set in gl_array_attrib::VertexFormatFallbacks, i.e. the attributes that
+    * the driver can only draw with after u_vbuf has translated them.
+    * This is indexed like Enabled and is updated for all attributes
+    * regardless of whether they are enabled.
+    */
+   GLbitfield FormatFallbackMask;
+
+   /**
     * Mask indicating which VertexAttrib and BufferBinding structures have
     * been changed since the VAO creation. No bit is ever cleared to 0 by
     * state updates. Setting to the default state doesn't update this.
@@ -1722,6 +1731,12 @@ struct gl_array_attrib
     * by polygon mode to be not drawn. (i.e. culled)
     */
    bool _PolygonModeAlwaysCulls;
+
+   /**
+    * The vertex formats that the driver doesn't support and that u_vbuf has
+    * to translate. This is set at context creation and never changes.
+    */
+   BITSET_DECLARE(VertexFormatFallbacks, PIPE_FORMAT_COUNT);
 
    /**
     * If gallium vertex buffers are dirty, this flag indicates whether gallium

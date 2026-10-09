@@ -36,6 +36,7 @@
   */
 
 #include "pipe/p_state.h"
+#include "util/bitset.h"
 #include "util/u_draw.h"
 #include "util/u_framebuffer.h"
 #include "util/u_helpers.h"
@@ -76,6 +77,8 @@ struct cso_context_priv {
    bool has_streamout;
 
    uint32_t max_fs_samplerviews : 16;
+
+   BITSET_DECLARE(vbuf_format_fallbacks, PIPE_FORMAT_COUNT);
 
    unsigned saved_state;  /**< bitmask of CSO_BIT_x flags */
    unsigned saved_compute_state;  /**< bitmask of CSO_BIT_COMPUTE_x flags */
@@ -254,6 +257,11 @@ cso_init_vbuf(struct cso_context_priv *cso, unsigned flags)
 
    u_vbuf_get_caps(cso->base.pipe->screen, &caps, needs64b);
 
+   for (unsigned i = 0; i < PIPE_FORMAT_COUNT; i++) {
+      if (caps.format_translation[i] != i)
+         BITSET_SET(cso->vbuf_format_fallbacks, i);
+   }
+
    /* Enable u_vbuf if needed. */
    if (caps.needs_fallback ||
        (uses_user_vertex_buffers &&
@@ -265,6 +273,15 @@ cso_init_vbuf(struct cso_context_priv *cso, unsigned flags)
       cso->vbuf_current = cso->base.pipe->vbuf =
          caps.needs_fallback ? cso->vbuf : NULL;
    }
+}
+
+bool
+cso_vertex_format_needs_vbuf(const struct cso_context *cso,
+                             enum pipe_format format)
+{
+   const struct cso_context_priv *ctx = (const struct cso_context_priv *)cso;
+
+   return BITSET_TEST(ctx->vbuf_format_fallbacks, format);
 }
 
 void

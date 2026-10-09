@@ -56,6 +56,11 @@ struct cso_context {
    uint32_t supported_restart_modes;
    /* Whether only the fixed restart index for the index size is supported. */
    bool rewrite_restart_index;
+   /* Whether u_vbuf is not always in the draw path and the caller must
+    * request it (uses_user_vertex_buffers) for vertex elements whose format
+    * needs translation, see cso_vertex_format_needs_vbuf.
+    */
+   bool vertex_format_fallbacks;
 };
 
 #define CSO_NO_USER_VERTEX_BUFFERS (1 << 0)
@@ -243,6 +248,10 @@ void
 cso_draw_arrays(struct cso_context *cso, unsigned mode, unsigned start, unsigned count);
 
 /* Inline functions. */
+
+bool
+cso_vertex_format_needs_vbuf(const struct cso_context *cso,
+                             enum pipe_format format);
 
 void
 cso_draw_vbo_unsupported_mode(struct cso_context *cso,
