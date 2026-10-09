@@ -60,7 +60,7 @@ struct u_vbuf_caps {
 
    uint16_t supported_restart_modes;
    uint16_t supported_prim_modes;
-   bool fallback_always;
+   bool needs_fallback;
    bool fallback_only_for_user_vbuffers;
    bool rewrite_ubyte_ibs;
    bool rewrite_restart_index;

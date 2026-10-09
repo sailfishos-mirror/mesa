@@ -255,15 +255,15 @@ cso_init_vbuf(struct cso_context_priv *cso, unsigned flags)
    u_vbuf_get_caps(cso->base.pipe->screen, &caps, needs64b);
 
    /* Enable u_vbuf if needed. */
-   if (caps.fallback_always ||
+   if (caps.needs_fallback ||
        (uses_user_vertex_buffers &&
         caps.fallback_only_for_user_vbuffers)) {
       assert(!cso->base.pipe->vbuf);
       cso->vbuf = u_vbuf_create(cso->base.pipe, &caps);
       cso->base.pipe->vbuf = cso->vbuf;
-      cso->always_use_vbuf = caps.fallback_always;
+      cso->always_use_vbuf = caps.needs_fallback;
       cso->vbuf_current = cso->base.pipe->vbuf =
-         caps.fallback_always ? cso->vbuf : NULL;
+         caps.needs_fallback ? cso->vbuf : NULL;
    }
 }
 

@@ -301,7 +301,7 @@ void u_vbuf_get_caps(struct pipe_screen *screen, struct u_vbuf_caps *caps,
       if (!screen->is_format_supported(screen, format, PIPE_BUFFER, 0, 0,
                                        PIPE_BIND_VERTEX_BUFFER)) {
          caps->format_translation[format] = vbuf_format_fallbacks[i].to;
-         caps->fallback_always = true;
+         caps->needs_fallback = true;
       }
    }
 
@@ -332,24 +332,24 @@ void u_vbuf_get_caps(struct pipe_screen *screen, struct u_vbuf_caps *caps,
       caps->supported_restart_modes = screen->caps.supported_prim_modes_with_restart;
       caps->supported_restart_modes |= BITFIELD_BIT(MESA_PRIM_PATCHES);
       if (caps->supported_restart_modes != BITFIELD_MASK(MESA_PRIM_COUNT))
-         caps->fallback_always = true;
-      caps->fallback_always |= caps->rewrite_restart_index;
+         caps->needs_fallback = true;
+      caps->needs_fallback |= caps->rewrite_restart_index;
    }
    caps->supported_prim_modes = screen->caps.supported_prim_modes;
    if (caps->supported_prim_modes != BITFIELD_MASK(MESA_PRIM_COUNT))
-      caps->fallback_always = true;
+      caps->needs_fallback = true;
 
    if (!screen->is_format_supported(screen, PIPE_FORMAT_R8_UINT, PIPE_BUFFER, 0, 0, PIPE_BIND_INDEX_BUFFER))
-      caps->fallback_always = caps->rewrite_ubyte_ibs = true;
+      caps->needs_fallback = caps->rewrite_ubyte_ibs = true;
 
    /* OpenGL 2.0 requires a minimum of 16 vertex buffers */
    if (caps->max_vertex_buffers < 16)
-      caps->fallback_always = true;
+      caps->needs_fallback = true;
 
    if (!caps->attrib_4byte_unaligned || !caps->attrib_element_unaligned)
-      caps->fallback_always = true;
+      caps->needs_fallback = true;
 
-   if (!caps->fallback_always && !caps->user_vertex_buffers)
+   if (!caps->needs_fallback && !caps->user_vertex_buffers)
       caps->fallback_only_for_user_vbuffers = true;
 }
 
