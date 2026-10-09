@@ -144,7 +144,7 @@
         "description": "mesa: only set _NEW_BUFFERS from _mesa_resize_framebuffer when size changed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "17d6f7cc7f5166b0bba2f67183f40a547a7768a7",
         "notes": null
