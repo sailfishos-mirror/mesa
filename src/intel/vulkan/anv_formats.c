@@ -1150,15 +1150,19 @@ anv_get_color_format_features(const struct anv_physical_device *physical_device,
 }
 
 static VkFormatFeatureFlags2
-anv_get_image_format_features2(const struct anv_physical_device *physical_device,
-                               const struct anv_format *anv_format,
-                               VkImageTiling vk_tiling,
-                               VkImageUsageFlags usage,
-                               VkImageCreateFlags create_flags,
-                               VkImageCompressionFlagsEXT comp_flags,
-                               const struct isl_drm_modifier_info *isl_mod_info)
+anv_get_image_format_features(const struct anv_physical_device *physical_device,
+                              const struct anv_format *anv_format,
+                              VkImageTiling vk_tiling,
+                              VkImageUsageFlags usage,
+                              VkImageCreateFlags create_flags,
+                              VkImageCompressionFlagsEXT comp_flags,
+                              const struct isl_drm_modifier_info *isl_mod_info,
+                              VkFormatFeatureFlags4KHR *out_features_4)
 {
    const struct intel_device_info *devinfo = &physical_device->info;
+
+   /* No available flags in there yet */
+   *out_features_4 = 0;
 
    if (anv_format == NULL ||
        anv_format->planes[0].isl_format == ISL_FORMAT_UNSUPPORTED)
@@ -1198,12 +1202,16 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
 }
 
 static VkFormatFeatureFlags2
-get_buffer_format_features2(const struct anv_physical_device *physical_device,
-                            VkFormat vk_format,
-                            const struct anv_format *anv_format)
+get_buffer_format_features(const struct anv_physical_device *physical_device,
+                           VkFormat vk_format,
+                           const struct anv_format *anv_format,
+                           VkFormatFeatureFlags4KHR *out_features_4)
 {
    const struct intel_device_info *devinfo = &physical_device->info;
    VkFormatFeatureFlags2 flags = 0;
+
+   /* No available flags in there yet */
+   *out_features_4 = 0;
 
    if (anv_format == NULL)
       return 0;
@@ -1266,12 +1274,14 @@ get_drm_format_modifier_properties_list(const struct anv_physical_device *physic
                           &list->drmFormatModifierCount);
 
    isl_drm_modifier_info_for_each(isl_mod_info) {
+      VkFormatFeatureFlags4KHR features4;
       VkFormatFeatureFlags2 features2 =
-         anv_get_image_format_features2(physical_device, anv_format,
-                                        VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
-                                        0 /* usage */, 0 /* create_flags */,
-                                        VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                        isl_mod_info);
+         anv_get_image_format_features(physical_device, anv_format,
+                                       VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
+                                       0 /* usage */, 0 /* create_flags */,
+                                       VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                       isl_mod_info,
+                                       &features4);
       VkFormatFeatureFlags features = vk_format_features2_to_features(features2);
       if (!features)
          continue;
@@ -1308,13 +1318,15 @@ get_drm_format_modifier_properties_list_2(const struct anv_physical_device *phys
                           &list->drmFormatModifierCount);
 
    isl_drm_modifier_info_for_each(isl_mod_info) {
+      VkFormatFeatureFlags4KHR features4;
       VkFormatFeatureFlags2 features2 =
-         anv_get_image_format_features2(physical_device, anv_format,
-                                        VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
-                                        0 /* usage */, 0 /* create_flags */,
-                                        VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                        isl_mod_info);
-      if (!features2)
+         anv_get_image_format_features(physical_device, anv_format,
+                                       VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
+                                       0 /* usage */, 0 /* create_flags */,
+                                       VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                       isl_mod_info,
+                                       &features4);
+      if (!features2 && !features4)
          continue;
 
       const uint32_t planes =
@@ -1343,19 +1355,23 @@ void anv_GetPhysicalDeviceFormatProperties2(
    assert(pFormatProperties->sType == VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2);
 
    VkFormatFeatureFlags2 linear2, optimal2, buffer2;
-   linear2 = anv_get_image_format_features2(physical_device, anv_format,
-                                            VK_IMAGE_TILING_LINEAR,
+   VkFormatFeatureFlags4KHR linear4, optimal4, buffer4;
+   linear2 = anv_get_image_format_features(physical_device, anv_format,
+                                           VK_IMAGE_TILING_LINEAR,
+                                           0 /* usage */,
+                                           0 /* create_flags */,
+                                           VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                           NULL,
+                                           &linear4);
+   optimal2 = anv_get_image_format_features(physical_device, anv_format,
+                                            VK_IMAGE_TILING_OPTIMAL,
                                             0 /* usage */,
                                             0 /* create_flags */,
                                             VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                            NULL);
-   optimal2 = anv_get_image_format_features2(physical_device, anv_format,
-                                             VK_IMAGE_TILING_OPTIMAL,
-                                             0 /* usage */,
-                                             0 /* create_flags */,
-                                             VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                             NULL);
-   buffer2 = get_buffer_format_features2(physical_device, vk_format, anv_format);
+                                            NULL,
+                                            &optimal4);
+   buffer2 = get_buffer_format_features(physical_device, vk_format, anv_format,
+                                        &buffer4);
 
    pFormatProperties->formatProperties = (VkFormatProperties) {
       .linearTilingFeatures = vk_format_features2_to_features(linear2),
@@ -1386,6 +1402,15 @@ void anv_GetPhysicalDeviceFormatProperties2(
       case VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR:
          /* don't have any thing to use this for yet */
          break;
+
+      case VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_4_KHR: {
+         VkFormatProperties4KHR *props = (VkFormatProperties4KHR *)ext;
+         props->linearTilingFeatures = linear4;
+         props->optimalTilingFeatures = optimal4;
+         props->bufferFeatures = buffer4;
+         break;
+      }
+
       default:
          vk_debug_ignored_stype(sType);
          break;
@@ -1396,6 +1421,7 @@ void anv_GetPhysicalDeviceFormatProperties2(
 static bool
 anv_format_supports_usage(
    VkFormatFeatureFlags2 format_feature_flags,
+   VkFormatFeatureFlags4KHR format_feature_flags4,
    VkImageUsageFlags usage_flags)
 {
    if (usage_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
@@ -1545,11 +1571,13 @@ anv_formats_gather_format_features(
    const struct isl_drm_modifier_info *isl_mod_info,
    const VkImageFormatListCreateInfo *format_list_info,
    VkImageUsageFlags usage,
-   VkImageCreateFlags create_flags)
+   VkImageCreateFlags create_flags,
+   VkFormatFeatureFlags4KHR *out_formats_features4)
 {
    const bool allow_texel_compatible =
       (create_flags & VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT) != 0;
    VkFormatFeatureFlags2 all_formats_feature_flags = 0;
+   VkFormatFeatureFlags4KHR all_formats_feature_flags4 = 0;
 
    /* We need to check that each of the usage bits are allowed for at least
     * one of the potential formats.
@@ -1571,13 +1599,16 @@ anv_formats_gather_format_features(
             if (anv_formats_are_compatible(physical_device,
                                            format, possible_anv_format,
                                            tiling, allow_texel_compatible)) {
+               VkFormatFeatureFlags4KHR view_format_features4;
                VkFormatFeatureFlags2 view_format_features =
-                  anv_get_image_format_features2(physical_device,
-                                                 possible_anv_format, tiling,
-                                                 usage, create_flags,
-                                                 VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                                 isl_mod_info);
+                  anv_get_image_format_features(physical_device,
+                                                possible_anv_format, tiling,
+                                                usage, create_flags,
+                                                VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                                isl_mod_info,
+                                                &view_format_features4);
                all_formats_feature_flags |= view_format_features;
+               all_formats_feature_flags4 |= view_format_features4;
             }
          }
       }
@@ -1591,14 +1622,19 @@ anv_formats_gather_format_features(
 
          const struct anv_format *anv_view_format =
             anv_get_format(physical_device, vk_view_format);
+         VkFormatFeatureFlags4KHR view_format_features4;
          VkFormatFeatureFlags2 view_format_features =
-            anv_get_image_format_features2(physical_device, anv_view_format,
-                                           tiling, usage, create_flags,
-                                           VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                           isl_mod_info);
+            anv_get_image_format_features(physical_device, anv_view_format,
+                                          tiling, usage, create_flags,
+                                          VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                          isl_mod_info,
+                                          &view_format_features4);
          all_formats_feature_flags |= view_format_features;
+         all_formats_feature_flags4 |= view_format_features4;
       }
    }
+
+   *out_formats_features4 = all_formats_feature_flags4;
 
    return all_formats_feature_flags;
 }
@@ -1650,6 +1686,7 @@ anv_get_image_format_properties(
    VkImageFormatProperties2 *props)
 {
    VkFormatFeatureFlags2 format_feature_flags;
+   VkFormatFeatureFlags4KHR format_feature_flags4;
    VkExtent3D maxExtent;
    uint32_t maxMipLevels;
    uint32_t maxArraySize;
@@ -1809,17 +1846,20 @@ anv_get_image_format_properties(
     * different usage than the image, so we can't always filter on usage.
     * There is one exception to this below for storage.
     */
-   format_feature_flags = anv_get_image_format_features2(physical_device,
-                                                         format,
-                                                         info->tiling,
-                                                         info->usage,
-                                                         info->flags,
-                                                         comp_info ?
-                                                         comp_info->flags :
-                                                         VK_IMAGE_COMPRESSION_DEFAULT_EXT,
-                                                         isl_mod_info);
+   format_feature_flags = anv_get_image_format_features(physical_device,
+                                                        format,
+                                                        info->tiling,
+                                                        info->usage,
+                                                        info->flags,
+                                                        comp_info ?
+                                                        comp_info->flags :
+                                                        VK_IMAGE_COMPRESSION_DEFAULT_EXT,
+                                                        isl_mod_info,
+                                                        &format_feature_flags4);
 
-   if (!anv_format_supports_usage(format_feature_flags, info->usage)) {
+   if (!anv_format_supports_usage(format_feature_flags,
+                                  format_feature_flags4,
+                                  info->usage)) {
       /* If image format itself does not support the usage, and we don't allow
        * views formats to support it, then we can't support this usage at all.
        */
@@ -1845,14 +1885,18 @@ anv_get_image_format_properties(
       /* Gather all possible format feature flags for the formats listed in
        * the format list or all the compatible formats.
        */
+      VkFormatFeatureFlags4KHR all_formats_feature_flags4;
       VkFormatFeatureFlags2 all_formats_feature_flags = format_feature_flags |
          anv_formats_gather_format_features(physical_device, format,
                                             info->tiling, isl_mod_info,
                                             format_list_info,
                                             info->usage,
-                                            info->flags);
+                                            info->flags,
+                                            &all_formats_feature_flags4);
 
-      if (!anv_format_supports_usage(all_formats_feature_flags, info->usage))
+      if (!anv_format_supports_usage(all_formats_feature_flags,
+                                     all_formats_feature_flags4,
+                                     info->usage))
          goto unsupported;
    }
 
