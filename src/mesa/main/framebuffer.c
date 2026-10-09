@@ -276,6 +276,7 @@ _mesa_resize_framebuffer(struct gl_context *ctx, struct gl_framebuffer *fb,
    /* XXX I think we could check if the size is not changing
     * and return early.
     */
+   bool changed = fb->Width != width || fb->Height != height;
 
    /* Can only resize win-sys framebuffer objects */
    assert(_mesa_is_winsys_fbo(fb));
@@ -286,6 +287,7 @@ _mesa_resize_framebuffer(struct gl_context *ctx, struct gl_framebuffer *fb,
          struct gl_renderbuffer *rb = att->Renderbuffer;
          /* only resize if size is changing */
          if (rb->Width != width || rb->Height != height) {
+            changed = true;
             if (_mesa_renderbuffer_alloc_storage(ctx, rb, rb->InternalFormat,
                                                  width, height)) {
                assert(rb->Width == width);
@@ -308,7 +310,8 @@ _mesa_resize_framebuffer(struct gl_context *ctx, struct gl_framebuffer *fb,
       /* Signal new buffer state so that swrast will update its clipping
        * info (the CLIP_BIT flag).
        */
-      ctx->NewState |= _NEW_BUFFERS;
+      if (changed)
+         ctx->NewState |= _NEW_BUFFERS;
    }
 }
 
