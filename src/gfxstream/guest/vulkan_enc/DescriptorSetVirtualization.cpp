@@ -323,6 +323,10 @@ void doEmulatedDescriptorImageInfoWriteFromTemplate(VkDescriptorType descType, u
             entry.imageInfo = imageInfos[i];
             entry.type = DescriptorWriteType::ImageInfo;
             bindingWrite.descriptorType = descType;
+            auto* imageView = gfxstream_vk_image_view_from_handle(entry.imageInfo.imageView);
+            entry.alive = imageView ? imageView->alive : std::weak_ptr<bool>();
+            auto* sampler = gfxstream_vk_sampler_from_handle(entry.imageInfo.sampler);
+            entry.samplerAlive = sampler ? sampler->alive : std::weak_ptr<bool>();
         });
 }
 
@@ -337,6 +341,8 @@ void doEmulatedDescriptorBufferInfoWriteFromTemplate(VkDescriptorType descType, 
             entry.bufferInfo = bufferInfos[i];
             entry.type = DescriptorWriteType::BufferInfo;
             bindingWrite.descriptorType = descType;
+            auto* buffer = gfxstream_vk_buffer_from_handle(entry.bufferInfo.buffer);
+            entry.alive = buffer ? buffer->alive : std::weak_ptr<bool>();
         });
 }
 
@@ -351,6 +357,8 @@ void doEmulatedDescriptorBufferViewWriteFromTemplate(VkDescriptorType descType, 
             entry.bufferView = bufferViews[i];
             entry.type = DescriptorWriteType::BufferView;
             bindingWrite.descriptorType = descType;
+            auto* bufferView = gfxstream_vk_buffer_view_from_handle(entry.bufferView);
+            entry.alive = bufferView ? bufferView->alive : std::weak_ptr<bool>();
         });
 }
 

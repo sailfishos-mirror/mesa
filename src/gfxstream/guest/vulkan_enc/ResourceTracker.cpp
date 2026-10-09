@@ -910,18 +910,56 @@ static void commitDescriptorSetUpdates(void* context, VkQueue queue,
                     VkDescriptorBufferInfo* bufferInfo = nullptr;
                     VkBufferView* bufferView = nullptr;
 
+                    // VK_EXT_descriptor_indexing allows an application to update a descriptor
+                    // set and then destroy the corresponding descriptor resource before
+                    // submitting the command buffer if the descriptor is unused.
+                    //
+                    // VK_KHR_robustness2 allows an application to explicitly set VK_NULL_HANDLE
+                    // for unused resources in descriptors.
+                    //
+                    // Gfxstream should send writes with VK_NULL_HANDLE (the `!= VK_NULL_HANDLE`
+                    // checks below) but should not send writes for destroyed resources (the
+                    // `alive.expired()` checks below) to support both without trying to
+                    // dereference deleted handles on the host.
                     switch (write.type) {
                         case DescriptorWriteType::Empty:
                             break;
-                        case DescriptorWriteType::ImageInfo:
+                        case DescriptorWriteType::ImageInfo: {
+                            bool resourcesAlive = true;
+                            if (bindingWrite.descriptorType != VK_DESCRIPTOR_TYPE_SAMPLER &&
+                                write.imageInfo.imageView != VK_NULL_HANDLE) {
+                                resourcesAlive &= !write.alive.expired();
+                            }
+                            if ((bindingWrite.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
+                                 bindingWrite.descriptorType ==
+                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) &&
+                                (binding >= reified->bindingIsImmutableSampler.size() ||
+                                 !reified->bindingIsImmutableSampler[binding]) &&
+                                write.imageInfo.sampler != VK_NULL_HANDLE) {
+                                resourcesAlive &= !write.samplerAlive.expired();
+                            }
+                            if (!resourcesAlive) {
+                                write.type = DescriptorWriteType::Empty;
+                                continue;
+                            }
                             dstArrayElement = j;
                             imageInfo = &write.imageInfo;
                             break;
+                        }
                         case DescriptorWriteType::BufferInfo:
+                            if (write.bufferInfo.buffer != VK_NULL_HANDLE &&
+                                write.alive.expired()) {
+                                write.type = DescriptorWriteType::Empty;
+                                continue;
+                            }
                             dstArrayElement = j;
                             bufferInfo = &write.bufferInfo;
                             break;
                         case DescriptorWriteType::BufferView:
+                            if (write.bufferView != VK_NULL_HANDLE && write.alive.expired()) {
+                                write.type = DescriptorWriteType::Empty;
+                                continue;
+                            }
                             dstArrayElement = j;
                             bufferView = &write.bufferView;
                             break;

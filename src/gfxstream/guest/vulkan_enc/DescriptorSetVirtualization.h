@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <memory>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -31,6 +32,9 @@ struct DescriptorBindingElementWrite {
         VkBufferView bufferView;
         VkWriteDescriptorSetAccelerationStructureKHR accelerationStructure;
     };
+
+    std::weak_ptr<bool> alive;
+    std::weak_ptr<bool> samplerAlive;
 };
 
 struct DescriptorInlineUniformBlockWrite {

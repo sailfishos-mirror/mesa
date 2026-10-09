@@ -38,6 +38,7 @@
 #include <vulkan/vk_icd.h>
 #include <vulkan/vulkan.h>
 
+#include <memory>
 #include <vector>
 
 #include "gfxstream_vk_entrypoints.h"
@@ -143,6 +144,8 @@ struct gfxstream_vk_buffer {
     struct vk_buffer base;
 
     struct gfxstream_vk_object_common common;
+
+    std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer, base.base, VkBuffer, VK_OBJECT_TYPE_BUFFER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_buffer, VkBuffer)
@@ -271,6 +274,7 @@ struct gfxstream_vk_sampler {
     // Must be first member.
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
+    std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_sampler, base, VkSampler, VK_OBJECT_TYPE_SAMPLER)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_sampler, VkSampler)
@@ -299,6 +303,7 @@ struct gfxstream_vk_buffer_view {
     // Must be first member.
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
+    std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_buffer_view, base, VkBufferView,
                                VK_OBJECT_TYPE_BUFFER_VIEW)
@@ -308,6 +313,7 @@ struct gfxstream_vk_image_view {
     // Must be first member.
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
+    std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_image_view, base, VkImageView,
                                VK_OBJECT_TYPE_IMAGE_VIEW)
