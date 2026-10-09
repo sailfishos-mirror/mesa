@@ -1283,6 +1283,8 @@ struct si_context {
       struct si_sqtt_timestamp timestamp;
       uint64_t device_id;
       uint32_t cb_id;
+      int start_frame;
+      char *trigger_file;
    } sqtt;
 
    bool perfetto_enabled;
