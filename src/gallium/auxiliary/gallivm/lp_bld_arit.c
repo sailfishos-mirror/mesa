@@ -3591,7 +3591,7 @@ lp_build_fpstate_set_denorms_zero(struct gallivm_state *gallivm,
                              LLVMConstInt(LLVMTypeOf(mxcsr), daz_ftz, 0), "");
       } else {
          mxcsr = LLVMBuildAnd(builder, mxcsr,
-                              LLVMConstInt(LLVMTypeOf(mxcsr), ~daz_ftz, 0), "");
+                              lp_build_const_int_trunc(LLVMTypeOf(mxcsr), ~daz_ftz), "");
       }
 
       LLVMBuildStore(builder, mxcsr, mxcsr_ptr);
