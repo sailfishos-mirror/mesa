@@ -115,6 +115,9 @@ impl VaStatCount {
                     };
                     self.v += f32::from(total_bytes.div_ceil(4));
                 }
+                Op::TexDual(_) => {
+                    self.t += 2.0;
+                }
                 Op::TexFetch(_)
                 | Op::TexGather(_)
                 | Op::TexGradient(_)

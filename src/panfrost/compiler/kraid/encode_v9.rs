@@ -3264,6 +3264,24 @@ impl From<TexLodMode> for TexLodModeM {
     }
 }
 
+impl From<TexLodMode> for TexDualLodModeM {
+    fn from(lod_mode: TexLodMode) -> Self {
+        match lod_mode {
+            TexLodMode::None => TexDualLodModeM::None,
+            TexLodMode::Computed => TexDualLodModeM::Computed,
+            TexLodMode::ComputedForceDelta => {
+                TexDualLodModeM::ComputedForceDelta
+            }
+            TexLodMode::Explicit => TexDualLodModeM::Explicit,
+            TexLodMode::ComputedBias => TexDualLodModeM::ComputedBias,
+            TexLodMode::ComputedBiasForceDelta => {
+                TexDualLodModeM::ComputedBiasForceDelta
+            }
+            TexLodMode::GradientDesc => TexDualLodModeM::Grdesc,
+        }
+    }
+}
+
 impl From<DataType> for TexWidthM {
     fn from(dst_type: DataType) -> Self {
         assert!(dst_type.num_type() == NumericType::Auto);
@@ -3278,6 +3296,68 @@ impl From<DataType> for TexWidthM {
 impl From<TexWriteMask> for TexWriteMaskM {
     fn from(mask: TexWriteMask) -> Self {
         TexWriteMaskM::try_decode(mask.to_bits(), 9).unwrap()
+    }
+}
+
+impl From<TexWriteMask> for TexDualPrimaryWriteMaskM {
+    fn from(mask: TexWriteMask) -> Self {
+        TexDualPrimaryWriteMaskM::try_decode(mask.to_bits(), 9).unwrap()
+    }
+}
+
+impl From<TexWriteMask> for TexDualSecondaryWriteMaskM {
+    fn from(mask: TexWriteMask) -> Self {
+        TexDualSecondaryWriteMaskM::try_decode(mask.to_bits(), 9).unwrap()
+    }
+}
+
+impl V9Instr for OpTexDual {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            TexDual::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_types[0].comps(), self.write_masks[0].comps());
+        assert_eq!(self.dst_types[1].comps(), self.write_masks[1].comps());
+        let dst0_regs = self.dst_types[0].total_bits().div_ceil(32);
+        let dst1_regs = self.dst_types[1].total_bits().div_ceil(32);
+        if let DstRef::Reg(dst_reg) = &self.dst.dst_ref {
+            assert_eq!(dst_reg.range, RegRange::Regs(dst0_regs + dst1_regs));
+        } else {
+            panic!("Not a register destination");
+        }
+
+        e.encode(TexDual {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            primary_width: match self.dst_types[0].bits() {
+                16 => TexDualPrimaryWidthM::PrimaryDst16,
+                32 => TexDualPrimaryWidthM::PrimaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            primary_write_mask: self.write_masks[0].into(),
+            secondary_width: match self.dst_types[1].bits() {
+                16 => TexDualSecondaryWidthM::SecondaryDst16,
+                32 => TexDualSecondaryWidthM::SecondaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            secondary_write_mask: self.write_masks[1].into(),
+            projection_enable: self.projection_enable.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.handle),
+            texel_offset: self.texel_offset.into(),
+        })
     }
 }
 
@@ -3583,6 +3663,7 @@ macro_rules! v9_op_match_else {
             Op::StCvt($x) => $y,
             Op::Store($x) => $y,
             Op::StTile($x) => $y,
+            Op::TexDual($x) => $y,
             Op::TexFetch($x) => $y,
             Op::TexGather($x) => $y,
             Op::TexGradient($x) => $y,

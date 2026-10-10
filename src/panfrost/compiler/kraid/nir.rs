@@ -1488,25 +1488,86 @@ impl<'a> ShaderFromNir<'a> {
             BI_VA_LOD_MODE_GRDESC => TexLodMode::GradientDesc,
             _ => panic!("Unknown LOD mode: {}", flags.lod_mode()),
         };
-        let write_mask =
-            TexWriteMask::new(tex.def.components_read().try_into().unwrap());
+        let comps_read = u8::try_from(tex.def.components_read()).unwrap();
 
-        let dst_type = DataType::get(
-            write_mask.comps(),
+        let dst0_comps = if tex.op == nir_texop_dual_pan {
+            // Since the two texture ops are identical, we can simply divide by
+            // 2 to get the per-tex number of components from the NIR dest.
+            assert!(tex.def.num_components % 2 == 0);
+            tex.def.num_components / 2
+        } else {
+            tex.def.num_components
+        };
+        let dst1_comps = tex.def.num_components - dst0_comps;
+
+        let u8_mask = |bits: u8| u8::MAX >> (8 - bits);
+        let make_consecutive = |comps: u8| {
+            debug_assert!(comps <= 0xf);
+            u8_mask(comps.max(1).ilog2() as u8 + 1)
+        };
+
+        // Figure out the write masks.  The first write mask can be anything
+        // but the second write mask must be contiguous components.  If we're
+        // not TEX_DUAL, the second write mask will be empty.
+        let wm0 = (comps_read & u8_mask(dst0_comps)).max(1);
+        let wm1 = if tex.op == nir_texop_dual_pan {
+            make_consecutive(comps_read >> dst0_comps)
+        } else {
+            assert!(dst1_comps == 0);
+            0
+        };
+        let write_masks = [TexWriteMask::new(wm0), TexWriteMask::new(wm1)];
+        debug_assert!((comps_read & !(wm0 | (wm1 << dst0_comps))) == 0);
+        debug_assert!(
+            tex.op == nir_texop_dual_pan || write_masks[1].is_empty()
+        );
+
+        let dst0_type = DataType::get(
+            write_masks[0].comps(),
             NumericType::Auto,
             tex.def.bit_size,
         );
-        let tmp = b.alloc_ref(dst_type.total_bits().into());
+
+        // Now allocate the tex destination.  The second tex (if any) is aligned
+        // to a whole register.
+        let mut dst_bits = u16::from(write_masks[0].comps() * tex.def.bit_size);
+        if !write_masks[1].is_empty() {
+            dst_bits = dst_bits.next_multiple_of(32);
+            dst_bits += u16::from(write_masks[1].comps() * tex.def.bit_size);
+        }
+        let tmp = b.alloc_ref(dst_bits);
 
         match tex.op {
-            nir_texop_tex | nir_texop_txb | nir_texop_txl | nir_texop_txd => {
-                b.push_op(OpTexSingle {
+            nir_texop_dual_pan => {
+                assert!(!wide_indices);
+                let dst1_type = DataType::get(
+                    write_masks[1].comps(),
+                    NumericType::Auto,
+                    tex.def.bit_size,
+                );
+                b.push_op(OpTexDual {
                     dst: tmp.clone().into(),
-                    dst_type,
+                    dst_types: [dst0_type, dst1_type],
                     skip,
                     dim,
                     projection_enable,
-                    write_mask,
+                    write_masks,
+                    array_enable,
+                    texel_offset,
+                    compare_enable,
+                    lod_mode,
+                    data: sr.into(),
+                    handle: tex_h.into(),
+                });
+            }
+            nir_texop_tex | nir_texop_txb | nir_texop_txl | nir_texop_txd => {
+                b.push_op(OpTexSingle {
+                    dst: tmp.clone().into(),
+                    dst_type: dst0_type,
+                    skip,
+                    dim,
+                    projection_enable,
+                    write_mask: write_masks[0],
                     wide_indices,
                     array_enable,
                     texel_offset,
@@ -1520,10 +1581,10 @@ impl<'a> ShaderFromNir<'a> {
                 assert!(!projection_enable);
                 b.push_op(OpTexFetch {
                     dst: tmp.clone().into(),
-                    dst_type,
+                    dst_type: dst0_type,
                     skip,
                     dim,
-                    write_mask,
+                    write_mask: write_masks[0],
                     wide_indices,
                     array_enable,
                     texel_offset,
@@ -1534,11 +1595,11 @@ impl<'a> ShaderFromNir<'a> {
             nir_texop_tg4 => {
                 b.push_op(OpTexGather {
                     dst: tmp.clone().into(),
-                    dst_type,
+                    dst_type: dst0_type,
                     skip,
                     dim,
                     projection_enable,
-                    write_mask,
+                    write_mask: write_masks[0],
                     wide_indices,
                     array_enable,
                     texel_offset,
@@ -1566,11 +1627,11 @@ impl<'a> ShaderFromNir<'a> {
                 };
                 b.push_op(OpTexGradient {
                     dst: tmp.clone().into(),
-                    dst_type,
+                    dst_type: dst0_type,
                     skip,
                     dim,
                     projection_enable,
-                    write_mask,
+                    write_mask: write_masks[0],
                     wide_indices,
                     coord_mode,
                     lod_bias_disable: flags.lod_bias_disable(),
@@ -1582,27 +1643,38 @@ impl<'a> ShaderFromNir<'a> {
             _ => panic!("Unsupported tex instruction"),
         }
 
-        let mut comps = (0_u8..).into_iter();
+        let mut c = 0_u8;
         let mut vec_srcs = Vec::new();
         if tex.def.bit_size == 16 {
-            for i in 0..tex.def.num_components {
-                if write_mask.has_comp(i) {
-                    let c = comps.next().unwrap();
-                    let ssa = tmp[usize::from(c) / 2];
-                    vec_srcs.push(Src::from(ssa).half(c % 2));
-                } else {
-                    vec_srcs.push(Src::from(0_u16));
+            for t in 0..2 {
+                // Each texture destination starts at a whole register
+                debug_assert!((c & 1) == 0);
+                let dst_comps = [dst0_comps, dst1_comps][t];
+                for i in 0..dst_comps {
+                    if write_masks[t].has_comp(i) {
+                        let ssa = tmp[usize::from(c) / 2];
+                        vec_srcs.push(Src::from(ssa).half(c % 2));
+                        c += 1;
+                    } else {
+                        vec_srcs.push(Src::from(0_u16));
+                    }
+                }
+                if (write_masks[t].comps() & 1) != 0 {
+                    c += 1;
                 }
             }
         } else {
             assert_eq!(tex.def.bit_size, 32);
-            for i in 0..tex.def.num_components {
-                if write_mask.has_comp(i) {
-                    let c = comps.next().unwrap();
-                    let ssa = tmp[usize::from(c)];
-                    vec_srcs.push(Src::from(ssa));
-                } else {
-                    vec_srcs.push(Src::from(0_u32));
+            for t in 0..2 {
+                let dst_comps = [dst0_comps, dst1_comps][t];
+                for i in 0..dst_comps {
+                    if write_masks[t].has_comp(i) {
+                        let ssa = tmp[usize::from(c)];
+                        vec_srcs.push(Src::from(ssa));
+                        c += 1;
+                    } else {
+                        vec_srcs.push(Src::from(0_u32));
+                    }
                 }
             }
         }

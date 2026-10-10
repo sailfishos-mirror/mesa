@@ -4318,6 +4318,10 @@ impl TexWriteMask {
         TexWriteMask(mask)
     }
 
+    pub fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
     pub fn comps(self) -> u8 {
         self.0.count_ones() as u8
     }
@@ -4341,6 +4345,52 @@ impl fmt::Display for TexWriteMask {
             }
         }
         Ok(())
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpTexDual {
+    #[dst_type(SR)]
+    pub dst: Dst,
+    pub dst_types: [DataType; 2],
+
+    pub skip: bool,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_masks: [TexWriteMask; 2],
+    pub array_enable: bool,
+    pub texel_offset: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(SR)]
+    pub data: Src,
+    #[src_type(I64)]
+    pub handle: Src,
+}
+
+impl DisplayOp for OpTexDual {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TEX_DUAL.{}.{}", self.dst_types[0], self.dst_types[1])
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_masks[0],
+            self.write_masks[1],
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.texel_offset),
+            bool_as_mod_str!(self.compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.handle),
+        )
     }
 }
 
@@ -4758,6 +4808,7 @@ pub enum Op {
     Store(Box<OpStore>),
     StTile(Box<OpStTile>),
     Swz(Box<OpSwz>),
+    TexDual(Box<OpTexDual>),
     TexFetch(Box<OpTexFetch>),
     TexGather(Box<OpTexGather>),
     TexGradient(Box<OpTexGradient>),
@@ -4838,6 +4889,7 @@ impl Op {
             | Op::LdVarBuf(_)
             | Op::LdVarBufFlat(_)
             | Op::LdVarFlat(_)
+            | Op::TexDual(_)
             | Op::TexFetch(_)
             | Op::TexGather(_)
             | Op::TexGradient(_)
@@ -4884,6 +4936,7 @@ impl Op {
 
             // Texture ops have a .skip modifier which tells them to return
             // zero in helper lanes as an optimization
+            Op::TexDual(op) => op.skip,
             Op::TexFetch(op) => op.skip,
             Op::TexGather(op) => op.skip,
             Op::TexGradient(op) => op.skip,
