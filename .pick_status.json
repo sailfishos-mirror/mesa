@@ -3584,7 +3584,7 @@
         "description": "egl: Fix int-to-void-pointer-cast warning on macOS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1d9215f90440e5c677f68d68d806c1912d7071c1",
         "notes": null
