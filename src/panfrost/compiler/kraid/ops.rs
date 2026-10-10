@@ -4334,6 +4334,7 @@ impl TexWriteMask {
 
 impl fmt::Display for TexWriteMask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, ".")?;
         for (i, c) in "rgba".chars().enumerate() {
             if (self.0 & (1 << i)) != 0 {
                 write!(f, "{c}")?;
