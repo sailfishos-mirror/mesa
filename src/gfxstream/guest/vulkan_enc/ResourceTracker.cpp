@@ -3514,10 +3514,10 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
         auto it = info_VkDevice.find(device);                                                  \
         if (it == info_VkDevice.end()) return result;                                          \
         mesa_logw("%s:%d: Allocation failure %d", __func__, __LINE__, result);                 \
-        emitDeviceMemoryReport(it->second,                                                     \
-                               VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT, 0,    \
-                               pAllocateInfo->allocationSize, VK_OBJECT_TYPE_DEVICE_MEMORY, 0, \
-                               pAllocateInfo->memoryTypeIndex);                                \
+        emitDeviceMemoryReport(                                                                \
+            it->second, VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT, 0,           \
+            pAllocateInfo->allocationSize, VK_OBJECT_TYPE_DEVICE_MEMORY, 0,                    \
+            it->second.memProps.memoryTypes[pAllocateInfo->memoryTypeIndex].heapIndex);        \
         return result;                                                                         \
     }
 
@@ -4242,12 +4242,14 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
             memoryObjectId = getAHardwareBufferId(ahw);
         }
 #endif
-        emitDeviceMemoryReport(info_VkDevice[device],
-                               isImport ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
-                                        : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT,
-                               memoryObjectId, pAllocateInfo->allocationSize,
-                               VK_OBJECT_TYPE_DEVICE_MEMORY, (uint64_t)(void*)*pMemory,
-                               pAllocateInfo->memoryTypeIndex);
+        const auto& deviceInfo = info_VkDevice[device];
+        emitDeviceMemoryReport(
+            deviceInfo,
+            isImport ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
+                     : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT,
+            memoryObjectId, pAllocateInfo->allocationSize, VK_OBJECT_TYPE_DEVICE_MEMORY,
+            (uint64_t)(void*)*pMemory,
+            deviceInfo.memProps.memoryTypes[pAllocateInfo->memoryTypeIndex].heapIndex);
         return VK_SUCCESS;
     }
 
@@ -4299,12 +4301,14 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
     }
 #endif
 
-    emitDeviceMemoryReport(info_VkDevice[device],
-                           isImport ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
-                                    : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT,
-                           memoryObjectId, pAllocateInfo->allocationSize,
-                           VK_OBJECT_TYPE_DEVICE_MEMORY, (uint64_t)(void*)*pMemory,
-                           pAllocateInfo->memoryTypeIndex);
+    const auto& deviceInfo = info_VkDevice[device];
+    emitDeviceMemoryReport(
+        deviceInfo,
+        isImport ? VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_IMPORT_EXT
+                 : VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATE_EXT,
+        memoryObjectId, pAllocateInfo->allocationSize, VK_OBJECT_TYPE_DEVICE_MEMORY,
+        (uint64_t)(void*)*pMemory,
+        deviceInfo.memProps.memoryTypes[pAllocateInfo->memoryTypeIndex].heapIndex);
     return VK_SUCCESS;
 }
 
