@@ -571,6 +571,7 @@ radv_amdgpu_winsys_bo_create(struct radeon_winsys *_ws, uint64_t size, unsigned 
 
    if (initial_domain & RADEON_DOMAIN_VRAM) {
       request.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
+      request.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 
       /* Since VRAM and GTT have almost the same performance on
        * APUs, we could just set GTT. However, in order to decrease
