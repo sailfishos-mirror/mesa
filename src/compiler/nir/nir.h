@@ -2693,6 +2693,8 @@ typedef enum nir_texop {
    nir_texop_tex_type_nv,
    /** Maps to TXQ.SAMPLER_POS */
    nir_texop_sample_pos_nv,
+   /** Maps to TEX_DUAL */
+   nir_texop_dual_pan,
    /** Maps to TEX_GRADIENT */
    nir_texop_gradient_pan,
    /**

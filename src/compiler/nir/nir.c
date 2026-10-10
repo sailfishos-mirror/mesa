@@ -3561,6 +3561,9 @@ nir_tex_instr_result_size(const nir_tex_instr *instr)
    case nir_texop_sample_pos_nv:
       return 4;
 
+   case nir_texop_dual_pan:
+      return (instr->is_shadow && instr->is_new_style_shadow) ? 2 : 8;
+
    case nir_texop_gradient_pan:
       return 2;
 

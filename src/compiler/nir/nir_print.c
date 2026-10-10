@@ -2020,6 +2020,9 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
    case nir_texop_sample_pos_nv:
       fprintf(fp, "sample_pos_nv ");
       break;
+   case nir_texop_dual_pan:
+      fprintf(fp, "dual_pan ");
+      break;
    case nir_texop_gradient_pan:
       fprintf(fp, "gradient_pan ");
       break;
