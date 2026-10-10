@@ -133,6 +133,7 @@ enum radv_cmd_dirty_bits {
 };
 
 enum radv_linear_suballocator {
+   RADV_SUBALLOCATOR_VRAM,
    RADV_SUBALLOCATOR_CPU_UPLOAD,
 
    RADV_NUM_LINEAR_SUBALLOCATORS,
@@ -638,6 +639,9 @@ radv_get_num_pipeline_stat_queries(struct radv_cmd_buffer *cmd_buffer)
    return cmd_buffer->state.active_pipeline_queries + cmd_buffer->state.active_prims_gen_queries +
           cmd_buffer->state.active_prims_xfb_queries;
 }
+
+bool radv_cmd_buffer_vram_suballoc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
+                                   uint64_t *out_va);
 
 bool radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment,
                                   uint64_t *out_va, void **ptr);
