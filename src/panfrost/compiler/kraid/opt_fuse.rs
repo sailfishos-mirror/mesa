@@ -142,6 +142,44 @@ impl Fuse {
     }
 
     // c = FCMP.f32.lt a, b
+    // d = MUX.i32.int_zero y, x, c
+    //      =>
+    // d = CSEL.f32.lt a, b, x, y
+    // This actually upsets the spiller, presumably because we increase the max
+    // register pressure.  It is still a (small) win with small shaders though
+    fn fuse_mux_csel(&self, s: &Shader, mux: &OpMux) -> Option<Op> {
+        if mux.mux_op != MuxOp::IntZero || !mux.sel.src_mod.is_none() {
+            return None;
+        }
+        debug_assert!(mux.dst_type.total_bits() <= 32);
+
+        let SrcRef::SSA(sel_ssa) = &mux.sel.src_ref else {
+            return None;
+        };
+        let sel_ssa = sel_ssa[0];
+        let cmp = self.get_foldable_cmp(s, sel_ssa)?;
+        if cmp.accum_op != CmpAccumOp::None
+            || cmp.src_type.bits() != mux.dst_type.bits()
+        {
+            return None;
+        }
+
+        let cmp_srcs = cmp.srcs.clone().map(|x| x.swizzle(mux.sel.swizzle));
+        let op = OpCSel {
+            dst: mux.dst.clone(),
+            cmp_type: cmp.src_type,
+            cmp_op: cmp.cmp_op,
+            cmp_srcs,
+            sel_srcs: [mux.src1.clone(), mux.src0.clone()],
+        };
+
+        if !op.is_valid_variant(op.cmp_type) {
+            return None;
+        }
+        Some(op.into())
+    }
+
+    // c = FCMP.f32.lt a, b
     // f = FCMP.f32.lt d, e
     // g = OR c, d
     //      =>
@@ -198,6 +236,7 @@ impl Fuse {
     pub fn visit(&self, s: &Shader, i: &Instr) -> Option<Op> {
         match &i.op {
             Op::Discard(op) => self.fuse_discard(s, op),
+            Op::Mux(op) => self.fuse_mux_csel(s, op),
             Op::ShiftLop(op) => self.fuse_shift_lop_accum(s, op),
             _ => None,
         }
