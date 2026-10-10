@@ -1512,10 +1512,11 @@ const struct vk_command_buffer_ops radv_cmd_buffer_ops = {
 
 static bool
 radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer,
-                                           struct radv_linear_suballoc_buffer *suballoc, uint64_t min_needed)
+                                           enum radv_linear_suballocator suballocator, uint64_t min_needed)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+   struct radv_linear_suballoc_buffer *suballoc = &cmd_buffer->linear_suballocators[suballocator];
    uint64_t new_size;
    struct radeon_winsys_bo *bo = NULL;
    struct radv_linear_suballoc_buffer *saved_suballoc;
@@ -1563,7 +1564,7 @@ radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer,
 }
 
 static bool
-radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, struct radv_linear_suballoc_buffer *suballoc,
+radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, enum radv_linear_suballocator suballocator,
                                 unsigned size, unsigned alignment, uint64_t *out_va, void **ptr)
 {
    assert(size % 4 == 0);
@@ -1571,6 +1572,7 @@ radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, struct radv_
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radeon_info *gpu_info = &pdev->info;
+   struct radv_linear_suballoc_buffer *suballoc = &cmd_buffer->linear_suballocators[suballocator];
 
    /* Align to the scalar cache line size if it results in this allocation
     * being placed in less of them.
@@ -1585,7 +1587,7 @@ radv_cmd_buffer_linear_suballoc(struct radv_cmd_buffer *cmd_buffer, struct radv_
    offset = align(offset, alignment);
 
    if (offset + size > suballoc->size) {
-      if (!radv_cmd_buffer_resize_linear_suballoc_buf(cmd_buffer, suballoc, size))
+      if (!radv_cmd_buffer_resize_linear_suballoc_buf(cmd_buffer, suballocator, size))
          return false;
       offset = 0;
    }
@@ -1602,7 +1604,7 @@ bool
 radv_cmd_buffer_upload_alloc(struct radv_cmd_buffer *cmd_buffer, unsigned size, unsigned alignment, uint64_t *out_va,
                              void **ptr)
 {
-   return radv_cmd_buffer_linear_suballoc(cmd_buffer, &cmd_buffer->upload, size, alignment, out_va, ptr);
+   return radv_cmd_buffer_linear_suballoc(cmd_buffer, RADV_SUBALLOCATOR_CPU_UPLOAD, size, alignment, out_va, ptr);
 }
 
 bool
@@ -1863,10 +1865,11 @@ radv_gang_sem_should_use_separate_bo(struct radv_cmd_buffer *cmd_buffer)
 
    const struct radv_device *const device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *const pdev = radv_device_physical(device);
+   const struct radeon_winsys_bo *upload_bo = cmd_buffer->linear_suballocators[RADV_SUBALLOCATOR_CPU_UPLOAD].bo;
    const enum radeon_bo_domain upload_bo_dom =
       /* Upload BO exists: its memory domain is known */
-      cmd_buffer->upload.bo ? cmd_buffer->upload.bo->initial_domain :
-                            /* Upload BO doesn't exist: judge by all_vram_visible to make this deterministic */
+      upload_bo ? upload_bo->initial_domain :
+                /* Upload BO doesn't exist: judge by all_vram_visible to make this deterministic */
          pdev->info.all_vram_visible ? RADEON_DOMAIN_VRAM
                                      : RADEON_DOMAIN_GTT;
 

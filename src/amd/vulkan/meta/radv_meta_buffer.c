@@ -413,7 +413,8 @@ radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t siz
 
       radv_cmd_buffer_upload_data(cmd_buffer, size, 4, data, &src_va);
 
-      const VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_bo(cmd_buffer->upload.bo);
+      const VkAddressCopyFlagsKHR src_copy_flags =
+         radv_get_copy_flags_from_bo(cmd_buffer->linear_suballocators[RADV_SUBALLOCATOR_CPU_UPLOAD].bo);
       radv_copy_memory(cmd_buffer, src_va, va, size, src_copy_flags, dst_copy_flags);
    }
 }

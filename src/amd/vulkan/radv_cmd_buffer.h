@@ -502,12 +502,7 @@ struct radv_cmd_buffer {
    uint64_t descriptor_buffers[MAX_SETS];
    uint64_t descriptor_heaps[RADV_MAX_HEAPS];
 
-   union {
-      struct radv_linear_suballoc_buffer linear_suballocators[RADV_NUM_LINEAR_SUBALLOCATORS];
-      struct {
-         struct radv_linear_suballoc_buffer upload; /* TODO: remove this */
-      };
-   };
+   struct radv_linear_suballoc_buffer linear_suballocators[RADV_NUM_LINEAR_SUBALLOCATORS];
 
    struct radv_cmd_buffer_queue_state queue_state;
 
