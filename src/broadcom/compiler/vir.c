@@ -1473,9 +1473,9 @@ v3d_instr_delay_cb(nir_instr *instr, void *data)
       case nir_op_ushr: {
          nir_scalar s = nir_get_scalar(alu->src[1].src.ssa, 0);
          if (!nir_scalar_is_const(s))
-            return false;
+            return 1;
 
-         return nir_scalar_as_uint(s) == 16u;
+         return nir_scalar_as_uint(s) != 16u;
       }
 
       default:
