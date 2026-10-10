@@ -438,10 +438,10 @@ struct radv_enc_state {
 };
 
 struct radv_cmd_buffer_upload {
-   uint8_t *map;
+   uint8_t *cpu_map;
    unsigned offset;
    uint64_t size;
-   struct radeon_winsys_bo *upload_bo;
+   struct radeon_winsys_bo *bo;
    struct list_head list;
 };
 

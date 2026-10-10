@@ -3356,7 +3356,7 @@ radv_prepare_dgc(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCommandsIn
                                 &upload_data, &params);
    }
 
-   params.params_addr = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + upload_offset;
+   params.params_addr = radv_buffer_get_va(cmd_buffer->upload.bo) + upload_offset;
 
    if (layout->push_constant_mask) {
       params.const_copy = dgc_pc_info.need_upload;
