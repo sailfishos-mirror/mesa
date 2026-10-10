@@ -126,6 +126,21 @@ get_texture_index(struct gl_context *ctx, const unsigned unit)
    return index;
 }
 
+static bool
+can_drop_clip_dist(struct st_context *st, const struct gl_program *prog)
+{
+   const struct gl_program *fp = st->ctx->FragmentProgram._Current;
+
+   return !st->screen->caps.clip_planes &&
+          !st->ctx->Transform.ClipPlanesEnabled &&
+          (prog->info.outputs_written & VARYING_BIT_CLIP_DIST0) &&
+          !prog->info.cull_distance_array_size &&
+          !(fp && (fp->info.inputs_read &
+                   (VARYING_BIT_CLIP_DIST0 | VARYING_BIT_CLIP_DIST1))) &&
+          !(prog->sh.LinkedTransformFeedback &&
+            prog->sh.LinkedTransformFeedback->NumOutputs);
+}
+
 static void
 update_gl_clamp(struct st_context *st, struct gl_program *prog, uint32_t *gl_clamp)
 {
@@ -344,6 +359,8 @@ st_update_vp( struct st_context *st )
          /* _NEW_TRANSFORM */
          if (!st->screen->caps.clip_planes && st_user_clip_planes_enabled(st->ctx))
             key.lower_ucp = st->ctx->Transform.ClipPlanesEnabled;
+         else
+            key.drop_clip_dist = can_drop_clip_dist(st, vp);
       }
 
       update_gl_clamp(st, st->ctx->VertexProgram._Current, key.gl_clamp);
@@ -399,6 +416,9 @@ st_update_common_program(struct st_context *st, struct gl_program *prog,
           (pipe_shader == MESA_SHADER_GEOMETRY ||
              !st->ctx->GeometryProgram._Current))
          key.lower_ucp = st->ctx->Transform.ClipPlanesEnabled;
+      else if (pipe_shader == MESA_SHADER_GEOMETRY ||
+               !st->ctx->GeometryProgram._Current)
+         key.drop_clip_dist = can_drop_clip_dist(st, prog);
 
       if (st->lower_point_size)
          key.export_point_size = !st->ctx->VertexProgram.PointSizeEnabled && !st->ctx->PointSizeIsSet;

@@ -354,6 +354,9 @@ struct st_common_variant_key
    /* for user-defined clip-planes */
    uint8_t lower_ucp;
 
+   /* remove clip distance outputs when no clip plane is enabled */
+   bool drop_clip_dist;
+
    /* Whether st_variant::driver_shader is for the draw module,
     * not for the driver.
     */

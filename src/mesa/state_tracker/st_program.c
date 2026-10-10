@@ -704,6 +704,38 @@ get_nir_shader(struct st_context *st, struct gl_program *prog, bool is_draw)
    return nir_deserialize(NULL, options, &blob_reader);
 }
 
+static bool
+drop_clip_dist_store(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_store_output &&
+       intr->intrinsic != nir_intrinsic_store_per_vertex_output)
+      return false;
+
+   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+   if (sem.location != VARYING_SLOT_CLIP_DIST0 &&
+       sem.location != VARYING_SLOT_CLIP_DIST1)
+      return false;
+
+   nir_instr_remove(&intr->instr);
+   return true;
+}
+
+static bool
+drop_clip_dist(nir_shader *nir)
+{
+   assert(nir->info.io_lowered);
+
+   bool progress = nir_shader_intrinsics_pass(nir, drop_clip_dist_store,
+                                              nir_metadata_control_flow, NULL);
+   if (progress) {
+      nir->info.outputs_written &=
+         ~(VARYING_BIT_CLIP_DIST0 | VARYING_BIT_CLIP_DIST1);
+      nir->info.clip_distance_array_size = 0;
+   }
+
+   return progress;
+}
+
 static void
 lower_ucp(struct st_context *st,
           struct nir_shader *nir,
@@ -855,6 +887,11 @@ st_create_common_variant(struct st_context *st,
       finalize = true;
    }
 
+   if (key->drop_clip_dist) {
+      assert(!options->unify_interfaces);
+      NIR_PASS(finalize, state.ir.nir, drop_clip_dist);
+   }
+
    if (!st->screen->caps.gl_clamp &&
          (key->gl_clamp[0] || key->gl_clamp[1] || key->gl_clamp[2])) {
       nir_lower_tex_options tex_opts = {0};
@@ -970,12 +1007,13 @@ st_get_common_variant(struct st_context *st,
    if (!v) {
       if (prog->variants != NULL) {
          _mesa_perf_debug(st->ctx, MESA_DEBUG_SEVERITY_MEDIUM,
-                          "Compiling %s shader variant (%s%s%s%s%s%s)",
+                          "Compiling %s shader variant (%s%s%s%s%s%s%s)",
                           _mesa_shader_stage_to_string(prog->info.stage),
                           key->passthrough_edgeflags ? "edgeflags," : "",
                           key->clamp_color ? "clamp_color," : "",
                           key->export_point_size ? "point_size," : "",
                           key->lower_ucp ? "ucp," : "",
+                          key->drop_clip_dist ? "drop_clip_dist," : "",
                           key->is_draw_shader ? "draw," : "",
                           key->gl_clamp[0] || key->gl_clamp[1] || key->gl_clamp[2] ? "GL_CLAMP," : "");
       }
