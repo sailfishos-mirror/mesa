@@ -2192,7 +2192,6 @@ ir3_cat2_absneg(struct ir3_compiler *compiler, opc_t opc, unsigned src_n)
    case OPC_CLZ_S:
    case OPC_NOT_B:
    case OPC_MGEN_B:
-   case OPC_ASHR_B:
       return 0;
 
    case OPC_ABSNEG_S:
@@ -2208,6 +2207,15 @@ ir3_cat2_absneg(struct ir3_compiler *compiler, opc_t opc, unsigned src_n)
 
    case OPC_SHL_B:
    case OPC_SHR_B:
+      if (compiler->gen >= 6)
+         return src_n == 0 ? IR3_REG_BNOT : IR3_REG_SNEG;
+      return 0;
+
+   case OPC_ASHR_B:
+      if (compiler->gen >= 6 && src_n == 1)
+         return IR3_REG_SNEG;
+      return 0;
+
    case OPC_GETBIT_B:
       if (src_n == 0 && compiler->gen >= 6)
          return IR3_REG_BNOT;
