@@ -1662,7 +1662,11 @@ x11_handle_dri3_present_event(struct x11_swapchain *chain,
 
       assert(!chain->base.image_info.explicit_sync);
       for (unsigned i = 0; i < chain->base.image_count; i++) {
-         if (chain->images[i].pixmap == idle->pixmap) {
+         /* Match both client pixmap and our fence so we handle disconnects
+          * correctly
+          */
+         if (chain->images[i].pixmap == idle->pixmap &&
+             chain->images[i].sync_fence == idle->idle_fence) {
             chain->sent_image_count--;
             assert(chain->sent_image_count >= 0);
             wsi_queue_push(&chain->acquire_queue, i);
