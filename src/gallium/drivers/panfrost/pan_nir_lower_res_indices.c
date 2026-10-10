@@ -129,28 +129,23 @@ va_lower_tex(nir_builder *b, nir_tex_instr *tex)
    nir_def *tex_offset = nir_steal_tex_src(tex, nir_tex_src_texture_offset);
    nir_def *samp_offset = nir_steal_tex_src(tex, nir_tex_src_sampler_offset);
 
-   if (tex_offset != NULL) {
-      tex_offset = pan_nir_res_handle(b, PAN_TABLE_TEXTURE,
-                                      tex->texture_index, tex_offset);
-      nir_tex_instr_add_src(tex, nir_tex_src_texture_offset, tex_offset);
-   } else {
-      tex->texture_index =
-         pan_res_handle(PAN_TABLE_TEXTURE, tex->texture_index);
-   }
+   nir_def *tex_handle = pan_nir_res_handle(b, PAN_TABLE_TEXTURE,
+                                            tex->texture_index, tex_offset);
+   nir_tex_instr_add_src(tex, nir_tex_src_texture_handle, tex_handle);
+   tex->texture_index = 0;
 
    /* By ABI with the compiler, we assume there is a valid sampler bound at
     * index 0 for txf.
     */
+   nir_def *samp_handle;
    if (!nir_tex_instr_need_sampler(tex)) {
-      tex->sampler_index = pan_res_handle(PAN_TABLE_SAMPLER, 0);
-   } else if (samp_offset != NULL) {
-      samp_offset = pan_nir_res_handle(b, PAN_TABLE_SAMPLER,
-                                       tex->sampler_index, samp_offset);
-      nir_tex_instr_add_src(tex, nir_tex_src_sampler_offset, samp_offset);
+      samp_handle = pan_nir_res_handle(b, PAN_TABLE_SAMPLER, 0, NULL);
    } else {
-      tex->sampler_index =
-         pan_res_handle(PAN_TABLE_SAMPLER, tex->sampler_index);
+      samp_handle = pan_nir_res_handle(b, PAN_TABLE_SAMPLER,
+                                       tex->sampler_index, samp_offset);
    }
+   nir_tex_instr_add_src(tex, nir_tex_src_sampler_handle, samp_handle);
+   tex->sampler_index = 0;
 
    return true;
 }

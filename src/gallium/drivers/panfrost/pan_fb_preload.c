@@ -354,18 +354,6 @@ lower_sampler_parameters(nir_builder *b, nir_intrinsic_instr *intr,
 }
 
 static uint32_t
-sampler_hw_index(uint32_t index)
-{
-   return PAN_ARCH >= 9 ? pan_res_handle(PAN_BLIT_TABLE_SAMPLER, index) : index;
-}
-
-static uint32_t
-tex_hw_index(uint32_t index)
-{
-   return PAN_ARCH >= 9 ? pan_res_handle(PAN_BLIT_TABLE_TEXTURE, index) : index;
-}
-
-static uint32_t
 attr_hw_index(uint32_t index)
 {
    return PAN_ARCH >= 9 ? pan_res_handle(PAN_BLIT_TABLE_ATTRIBUTE, index)
@@ -477,32 +465,43 @@ pan_preload_get_shader(struct pan_fb_preload_cache *cache,
          UNREACHABLE("Invalid dimension");
       }
 
-      nir_tex_instr *tex = nir_tex_instr_create(b.shader, ms ? 3 : 1);
+      unsigned num_srcs = (PAN_ARCH >= 9 ? 2 : 0) + (ms ? 3 : 1);
+      nir_tex_instr *tex = nir_tex_instr_create(b.shader, num_srcs);
+      unsigned src_idx = 0;
 
       tex->dest_type = key->surfaces[i].type;
-      tex->texture_index = tex_hw_index(active_count);
-      tex->sampler_index = sampler_hw_index(0);
+      if (PAN_ARCH >= 9) {
+         tex->src[src_idx++] = nir_tex_src_for_ssa(nir_tex_src_texture_handle,
+            pan_nir_res_handle(&b, PAN_BLIT_TABLE_TEXTURE, active_count, NULL));
+         tex->src[src_idx++] = nir_tex_src_for_ssa(nir_tex_src_sampler_handle,
+            pan_nir_res_handle(&b, PAN_BLIT_TABLE_SAMPLER, 0, NULL));
+      } else {
+         tex->texture_index = active_count;
+         tex->sampler_index = 0;
+      }
       tex->is_array = key->surfaces[i].array;
       tex->sampler_dim = sampler_dim;
 
       if (ms) {
          tex->op = nir_texop_txf_ms;
 
-         tex->src[0] =
+         tex->src[src_idx++] =
             nir_tex_src_for_ssa(nir_tex_src_coord, nir_f2i32(&b, coord));
          tex->coord_components = coord_comps;
 
-         tex->src[1] =
+         tex->src[src_idx++] =
             nir_tex_src_for_ssa(nir_tex_src_ms_index, nir_load_sample_id(&b));
 
-         tex->src[2] = nir_tex_src_for_ssa(nir_tex_src_lod, nir_imm_int(&b, 0));
+         tex->src[src_idx++] =
+            nir_tex_src_for_ssa(nir_tex_src_lod, nir_imm_int(&b, 0));
       } else {
          tex->op = nir_texop_txl;
 
-         tex->src[0] = nir_tex_src_for_ssa(nir_tex_src_coord, coord);
+         tex->src[src_idx++] = nir_tex_src_for_ssa(nir_tex_src_coord, coord);
          tex->coord_components = coord_comps;
       }
 
+      assert(src_idx == num_srcs);
       nir_def_init(&tex->instr, &tex->def, 4, 32);
       nir_builder_instr_insert(&b, &tex->instr);
 
