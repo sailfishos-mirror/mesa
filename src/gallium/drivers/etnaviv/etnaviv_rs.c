@@ -45,6 +45,7 @@
 #include "util/u_memory.h"
 #include "util/u_surface.h"
 
+#include "layout/eil_format.h"
 #include "hw/state.xml.h"
 #include "hw/state_3d.xml.h"
 
@@ -405,7 +406,7 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
       etna_resource_level_mark_unflushed(dst_level);
       ctx->dirty |= ETNA_DIRTY_TS;
    } else { /* Queue normal RS clear for non-TS surfaces */
-      if (format_is_128bit(dst->format)) {
+      if (eil_format_is_emulated_128bit(dst->format)) {
          const uint64_t rg = (uint64_t)color->ui[1] << 32 | color->ui[0];
          const uint64_t ba = (uint64_t)color->ui[3] << 32 | color->ui[2];
 

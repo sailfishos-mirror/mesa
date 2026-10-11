@@ -431,17 +431,19 @@
 - pipe: R32G32B32A32_SNORM
   vtx: INT
 
-# emulated
 - pipe: R32G32B32A32_UINT
   vtx: FLOAT
   tex: EXT_G32R32I
   pe: G32R32F
+  emulated: R32G32_UINT
+  emulation: 128BIT
 
-# emulated
 - pipe: R32G32B32A32_SINT
   vtx: FLOAT
   tex: EXT_G32R32I
   pe: G32R32F
+  emulated: R32G32_SINT
+  emulation: 128BIT
 
 - pipe: R32G32B32A32_USCALED
   vtx: UNSIGNED_INT
@@ -449,11 +451,12 @@
 - pipe: R32G32B32A32_SSCALED
   vtx: INT
 
-# emulated
 - pipe: R32G32B32A32_FLOAT
   vtx: FLOAT
   tex: EXT_G32R32F
   pe: G32R32F
+  emulated: R32G32_FLOAT
+  emulation: 128BIT
 
 - pipe: R32G32B32A32_FIXED
   vtx: FIXED

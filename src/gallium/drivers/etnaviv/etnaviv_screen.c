@@ -460,7 +460,7 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
    /* 128-bit formats sample as paired planes: G32R32F via the half-float pipe,
     * G32R32I only on halti5+.
     */
-   if (format_is_128bit(format))
+   if (eil_format_is_emulated_128bit(format))
       supported = util_format_is_pure_integer(format)
          ? VIV_FEATURE(screen, ETNA_FEATURE_HALTI5)
          : VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
@@ -543,7 +543,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
       return VIV_FEATURE(screen, ETNA_FEATURE_HALTI3);
 
    /* 128-bit formats render as paired G32R32F targets via the half-float pipe. */
-   if (format_is_128bit(format))
+   if (eil_format_is_emulated_128bit(format))
       return VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
 
    if (util_format_is_pure_integer(format) || util_format_is_float(format))

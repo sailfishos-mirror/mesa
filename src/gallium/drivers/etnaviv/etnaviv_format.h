@@ -89,19 +89,6 @@ resolve_copies_one_sample(enum pipe_format format)
    return util_format_is_pure_integer(format);
 }
 
-static inline bool
-format_is_128bit(enum pipe_format fmt)
-{
-    switch (fmt) {
-    case PIPE_FORMAT_R32G32B32A32_FLOAT:
-    case PIPE_FORMAT_R32G32B32A32_SINT:
-    case PIPE_FORMAT_R32G32B32A32_UINT:
-        return true;
-    default:
-        return false;
-    }
-}
-
 /* The emulated depth32f formats are physically stored as D24S8; map them to
  * that format and leave everything else unchanged. */
 static inline enum pipe_format

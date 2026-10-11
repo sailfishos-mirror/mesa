@@ -83,6 +83,21 @@ TEST(FormatTable, get_entry_emu_depth32f)
    EXPECT_EQ(PIPE_FORMAT_S8_UINT_Z24_UNORM, entry_z32_float_s8x24->emulated);
 }
 
+TEST(FormatTable, get_entry_emu_128bit)
+{
+   auto rgba32_uint = eil_get_format_entry(PIPE_FORMAT_R32G32B32A32_UINT);
+   EXPECT_EQ(EIL_EMU_128BIT, rgba32_uint->emulation);
+   EXPECT_EQ(PIPE_FORMAT_R32G32_UINT, rgba32_uint->emulated);
+
+   auto rgba32_sint = eil_get_format_entry(PIPE_FORMAT_R32G32B32A32_SINT);
+   EXPECT_EQ(EIL_EMU_128BIT, rgba32_sint->emulation);
+   EXPECT_EQ(PIPE_FORMAT_R32G32_SINT, rgba32_sint->emulated);
+
+   auto rgba32_float = eil_get_format_entry(PIPE_FORMAT_R32G32B32A32_FLOAT);
+   EXPECT_EQ(EIL_EMU_128BIT, rgba32_float->emulation);
+   EXPECT_EQ(PIPE_FORMAT_R32G32_FLOAT, rgba32_float->emulated);
+}
+
 TEST(Format, is_emulated_z32f)
 {
    /* not defined */
@@ -96,4 +111,19 @@ TEST(Format, is_emulated_z32f)
    /* emulated */
    EXPECT_TRUE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z32_FLOAT));
    EXPECT_TRUE(eil_format_is_emulated_z32f(PIPE_FORMAT_Z32_FLOAT_S8X24_UINT));
+}
+
+TEST(Format, is_emulated_128bit)
+{
+   /* not defined */
+   EXPECT_FALSE(eil_format_is_emulated_128bit(PIPE_FORMAT_R32G32B32A32_USCALED));
+
+   /* not emulated */
+   EXPECT_FALSE(eil_format_is_emulated_128bit(PIPE_FORMAT_R8G8B8A8_UNORM));
+   EXPECT_FALSE(eil_format_is_emulated_128bit(PIPE_FORMAT_R32_UNORM));
+
+   /* emulated */
+   EXPECT_TRUE(eil_format_is_emulated_128bit(PIPE_FORMAT_R32G32B32A32_FLOAT));
+   EXPECT_TRUE(eil_format_is_emulated_128bit(PIPE_FORMAT_R32G32B32A32_SINT));
+   EXPECT_TRUE(eil_format_is_emulated_128bit(PIPE_FORMAT_R32G32B32A32_UINT));
 }

@@ -362,7 +362,7 @@ get_texture_swiz(enum pipe_format fmt, unsigned swizzle_r,
    };
 
    /* 128-bit texels are swizzled in the shader once the halves are joined. */
-   if (format_is_128bit(fmt)) {
+   if (eil_format_is_emulated_128bit(fmt)) {
       swiz[0] = PIPE_SWIZZLE_X;
       swiz[1] = PIPE_SWIZZLE_Y;
       swiz[2] = PIPE_SWIZZLE_Z;

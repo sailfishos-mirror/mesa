@@ -33,6 +33,7 @@
 #include "etnaviv_screen.h"
 #include "etnaviv_translate.h"
 
+#include "layout/eil_format.h"
 #include "util/box.h"
 #include "util/detect_arch.h"
 #include "util/hash_table.h"
@@ -176,7 +177,7 @@ etna_resource_can_use_ts(struct etna_screen *screen,
       return false;
 
    /* Do not use TS for emulated 128 bit formats */
-   if (format_is_128bit(prsc->format))
+   if (eil_format_is_emulated_128bit(prsc->format))
       return false;
 
    /* Without BLT_8bpp_256TILE_FC_FIX the BLT can not fast clear 8 bpp MSAA */
@@ -352,7 +353,7 @@ setup_miptree(struct etna_resource *rsc, unsigned paddingX, unsigned paddingY,
       mip->layer_stride = mip->stride * util_format_get_nblocksy(fmt, mip->padded_height);
       mip->size = prsc->array_size * mip->layer_stride;
 
-      if (format_is_128bit(prsc->format))
+      if (eil_format_is_emulated_128bit(prsc->format))
          mip->size *= 2;
 
       /* align levels to 64 bytes to be able to render to them */
@@ -706,7 +707,7 @@ etna_resource_create(struct pipe_screen *pscreen,
    }
 
    /* 128 bit format needs to be CPU tiled specially */
-   if (format_is_128bit(templat->format))
+   if (eil_format_is_emulated_128bit(templat->format))
       layout = ETNA_LAYOUT_TILED;
 
    if (/* linear base or scanout without modifier requested */

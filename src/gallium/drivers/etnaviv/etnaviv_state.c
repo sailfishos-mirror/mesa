@@ -152,7 +152,7 @@ etna_fb_expand_128bit(struct etna_context *ctx,
    unsigned next_output = ctx->screen->base.caps.max_render_targets;
 
    for (unsigned i = 0; i < nr_cbufs; i++) {
-      if (!fb->cbufs[i].texture || !format_is_128bit(fb->cbufs[i].format))
+      if (!fb->cbufs[i].texture || !eil_format_is_emulated_128bit(fb->cbufs[i].format))
          continue;
 
       const struct etna_resource *res = etna_resource_get_render_compatible(&ctx->base, fb->cbufs[i].texture);

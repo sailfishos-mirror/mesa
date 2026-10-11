@@ -44,6 +44,7 @@
 #include "util/u_memory.h"
 #include "util/u_surface.h"
 
+#include "layout/eil_format.h"
 #include "hw/common_3d.xml.h"
 #include "hw/state_blt.xml.h"
 #include "hw/common.xml.h"
@@ -456,7 +457,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
    uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color, ctx->screen);
-   bool is_128bit_format = format_is_128bit(dst->format);
+   bool is_128bit_format = eil_format_is_emulated_128bit(dst->format);
    const uint64_t clear_bits = is_128bit_format ? 0 :
       etna_calculate_clear_bits(translate_pe_internal_format(dst->format, ctx->screen), clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
@@ -1030,7 +1031,7 @@ etna_try_blt_blit(struct pipe_context *pctx,
       etna_set_state(ctx->stream, VIVS_TS_FLUSH_CACHE, 0x00000001);
       emit_blt_copyimage(ctx, &op);
 
-      if (format_is_128bit(blit_info->dst.format)) {
+      if (eil_format_is_emulated_128bit(blit_info->dst.format)) {
          op.src.addr.offset += etna_resource_level_second_plane_offset(src_lev);
          op.dest.addr.offset += etna_resource_level_second_plane_offset(dst_lev);
 

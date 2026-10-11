@@ -17,6 +17,7 @@ extern "C" {
 enum eil_emulation {
    EIL_EMU_NONE,
    EIL_EMU_DEPTH32F,
+   EIL_EMU_128BIT,
 };
 
 struct eil_format {
@@ -48,6 +49,13 @@ eil_format_is_emulated_z32f(enum pipe_format fmt)
 {
    const struct eil_format *f = eil_get_format_entry(fmt);
    return f->emulation == EIL_EMU_DEPTH32F;
+}
+
+static inline bool
+eil_format_is_emulated_128bit(enum pipe_format fmt)
+{
+   const struct eil_format* f = eil_get_format_entry(fmt);
+   return f->emulation == EIL_EMU_128BIT;
 }
 
 #ifdef __cplusplus

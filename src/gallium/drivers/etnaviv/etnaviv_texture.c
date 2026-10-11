@@ -34,6 +34,7 @@
 #include "etnaviv_texture_state.h"
 #include "etnaviv_translate.h"
 #include "etnaviv_yuv.h"
+#include "layout/eil_format.h"
 #include "util/bitscan.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
@@ -368,7 +369,7 @@ etna_pack_unified_companions(struct etna_context *ctx, mesa_shader_stage stage,
    unsigned comp = nr;
 
    for (unsigned i = 0; i < PIPE_MAX_SAMPLERS / 2; i++) {
-      if (i < nr && views[i] && format_is_128bit(views[i]->format)) {
+      if (i < nr && views[i] && eil_format_is_emulated_128bit(views[i]->format)) {
          mask |= 1u << i;
          ctx->sampler_companion[stage][i] = comp++;
       } else {
@@ -397,7 +398,7 @@ etna_fragtex_set_sampler_views(struct etna_context *ctx, unsigned nr,
 
    uint16_t mask = 0;
    for (unsigned i = 0; i < nr; i++) {
-      if (views[i] && format_is_128bit(views[i]->format)) {
+      if (views[i] && eil_format_is_emulated_128bit(views[i]->format)) {
          assert(nr + i < screen->specs.fragment_sampler_count);
          mask |= 1u << i;
       }
@@ -430,7 +431,7 @@ etna_vertex_set_sampler_views(struct etna_context *ctx, unsigned nr,
 
    uint16_t mask = 0;
    for (unsigned k = 0; k < nr; k++)
-      if (views[k] && format_is_128bit(views[k]->format))
+      if (views[k] && eil_format_is_emulated_128bit(views[k]->format))
          mask |= 1u << k;
 
    ctx->tex_is_128bit[MESA_SHADER_VERTEX] = mask;
