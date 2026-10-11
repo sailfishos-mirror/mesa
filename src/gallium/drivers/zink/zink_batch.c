@@ -1232,8 +1232,10 @@ zink_batch_usage_unflushed_wait(struct zink_context *ctx, struct zink_batch_usag
          if (trywait) {
             struct timespec ts = {0, 10000};
             cnd_timedwait(&u->flush, &u->mtx, &ts);
-         } else if (u->unflushed)
-            cnd_wait(&u->flush, &u->mtx);
+         } else {
+            while (u->unflushed)
+               cnd_wait(&u->flush, &u->mtx);
+         }
          mtx_unlock(&u->mtx);
       }
    }
