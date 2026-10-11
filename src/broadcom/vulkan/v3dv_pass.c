@@ -90,11 +90,15 @@ subpass_setup_tlb_input_attachments(struct v3dv_subpass *subpass)
    memset(subpass->tlb_input_attachment_location, UINT8_MAX,
           sizeof(subpass->tlb_input_attachment_location));
 
+   bool has_input = false;
+   bool all_inputs_use_tlb = true;
+
    for (uint32_t input = 0; input < subpass->input_count; input++) {
       const uint32_t attachment = subpass->input_attachments[input].attachment;
       if (attachment == VK_ATTACHMENT_UNUSED)
          continue;
 
+      has_input = true;
       for (uint32_t rt = 0; rt < subpass->color_count; rt++) {
          if (subpass->color_attachments[rt].attachment != attachment)
             continue;
@@ -102,7 +106,15 @@ subpass_setup_tlb_input_attachments(struct v3dv_subpass *subpass)
          subpass->tlb_input_attachment_location[input] = FRAG_RESULT_DATA0 + rt;
          break;
       }
+      if (subpass->tlb_input_attachment_location[input] == UINT8_MAX)
+         all_inputs_use_tlb = false;
    }
+
+   /* The memory barrier requires all input attachment read to
+    * use the framebuffer-local TLB path.
+    */
+   subpass->is_tlb_color_memory_barrier_safe =
+      has_input && all_inputs_use_tlb;
 }
 
 static void

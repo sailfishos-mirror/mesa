@@ -3445,24 +3445,42 @@ is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
    if (!subpass->has_tlb_color_input_self_dependency)
       return false;
 
-   /* If this is not strictly a subpass self-dependency chances are
-    * that we'll have to flush the job anyway.
-    *
-    * FIXME: there are some non-image barriers that are no-ops for us
-    * (i.e. host-stage barriers). So it could make sense to improve the
-    * check to not bail if all these other barriers are no-op.
+   if (info->memoryBarrierCount == 0 &&
+       info->imageMemoryBarrierCount == 0){
+      return false;
+   }
+
+   /* A memoryBarrier covers all accesses in its source and destination scopes.
+    * Fallback unless the subpass memory barrier safe bit is set,
+    * indicating that the covered attachment access can use TLB path.
     */
-   if (info->memoryBarrierCount > 0)
+   if (info->memoryBarrierCount > 0 &&
+       !subpass->is_tlb_color_memory_barrier_safe){
       return false;
+   }
 
-   if (info->imageMemoryBarrierCount == 0)
-      return false;
+   for (uint32_t i=0; i< info->memoryBarrierCount; i++) {
+      const VkMemoryBarrier2 *barrier = &info->pMemoryBarriers[i];
+      /* VK_KHR_maintainance8 can extent the access scope with pNext chain.
+       * Fall back for pNext chains.
+       */
+      if (barrier->pNext != NULL)
+         return false;
 
+      if (!is_tlb_color_input_barrier_scope(barrier->srcStageMask,
+                                            barrier->srcAccessMask,
+                                            barrier->dstStageMask,
+                                            barrier->dstAccessMask)){
+         return false;
+      }
+   }
    const VkDependencyFlags allowed_dependency_flags = VK_DEPENDENCY_BY_REGION_BIT |
                                                       VK_DEPENDENCY_VIEW_LOCAL_BIT |
                                                       VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT;
-   if (info->dependencyFlags & ~allowed_dependency_flags)
+   if (!(info->dependencyFlags & VK_DEPENDENCY_BY_REGION_BIT) ||
+      (info->dependencyFlags & ~allowed_dependency_flags)) {
       return false;
+   }
 
    for (uint32_t i = 0; i < info->imageMemoryBarrierCount; i++) {
       const VkImageMemoryBarrier2 *barrier = &info->pImageMemoryBarriers[i];

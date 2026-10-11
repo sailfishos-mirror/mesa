@@ -49,6 +49,7 @@ struct v3dv_subpass {
    /* UINT8_MAX disables TLB access for an input attachment. */
    uint8_t tlb_input_attachment_location[MAX_INPUT_ATTACHMENTS];
    bool has_tlb_color_input_self_dependency;
+   bool is_tlb_color_memory_barrier_safe;
 
    /* If we need to emit the clear of the depth/stencil attachment using a
     * a draw call instead of using the TLB (GFXH-1461).
