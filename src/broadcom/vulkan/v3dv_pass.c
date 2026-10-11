@@ -906,8 +906,12 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
          continue;
       }
 
-      /* We don't have info about load/store, so we assume we load and we
-       * store.
+      /* Load/Store ops are not provided by dynamic rendering inheritance since
+       * a secondary command buffer can be recorded with
+       * VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT and used with compatible
+       * render pass instances that can use different ops.
+       * So we should use Load/Store ops in the primary command buffer's render
+       * pass instance.
        */
       att->desc.format = format;
       att->desc.samples = info->rasterizationSamples;
@@ -924,20 +928,10 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
       att->desc.format = info->depthAttachmentFormat != VK_FORMAT_UNDEFINED ?
          info->depthAttachmentFormat : info->stencilAttachmentFormat;
       att->desc.samples = info->rasterizationSamples;
-      if (vk_format_has_depth(att->desc.format)) {
-         att->desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-         att->desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      } else {
-         att->desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-         att->desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      }
-      if (vk_format_has_stencil(att->desc.format)) {
-         att->desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-         att->desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-      } else {
-         att->desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-         att->desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      }
+      att->desc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      att->desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      att->desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      att->desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
       subpass->ds_attachment.attachment = a++;
    } else {
       subpass->ds_attachment.attachment = VK_ATTACHMENT_UNUSED;
