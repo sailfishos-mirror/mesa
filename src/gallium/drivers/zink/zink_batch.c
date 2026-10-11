@@ -658,9 +658,9 @@ submit_queue(void *data, void *gdata, int thread_index)
    bool count_submit = false;
    while (!bs->fence.batch_id)
       bs->fence.batch_id = (uint32_t)p_atomic_inc_return(&screen->curr_batch);
-   bs->usage.usage = bs->fence.batch_id;
-   assert(bs->usage.usage);
-   bs->usage.unflushed = false;
+   assert(bs->fence.batch_id);
+   p_atomic_set(&bs->usage.usage, bs->fence.batch_id);
+   p_atomic_set(&bs->usage.unflushed, false);
 
    uint64_t batch_id = bs->fence.batch_id;
    /* first submit is just for acquire waits since they have a separate array */
