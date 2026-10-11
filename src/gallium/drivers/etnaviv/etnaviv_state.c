@@ -39,6 +39,7 @@
 #include "etnaviv_translate.h"
 #include "etnaviv_util.h"
 #include "etnaviv_zsa.h"
+#include "layout/eil_format.h"
 #include "nir/nir_xfb_info.h"
 #include "util/u_framebuffer.h"
 #include "util/u_helpers.h"
@@ -770,10 +771,11 @@ etna_vertex_elements_state_create(struct pipe_context *pctx,
                        elements[idx + 1].vertex_buffer_index != buffer_idx ||
                        end_offset != elements[idx + 1].src_offset;
 
-      format_type = translate_vertex_format_type(elements[idx].src_format);
-      normalize = translate_vertex_format_normalize(elements[idx].src_format);
+      const struct eil_format *fmt_entry = eil_get_format_entry(elements[idx].src_format);
+      assert(fmt_entry->has_vtx);
+      format_type = fmt_entry->vtx;
 
-      assert(format_type != ETNA_NO_MATCH);
+      normalize = translate_vertex_format_normalize(elements[idx].src_format);
       assert(normalize != ETNA_NO_MATCH);
 
       if (screen->info->halti < 5) {

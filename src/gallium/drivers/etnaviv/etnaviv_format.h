@@ -65,9 +65,6 @@ remap_texture_format_rb_swap(uint32_t format);
 enum pipe_format
 translate_pe_internal_format(enum pipe_format fmt, const struct etna_screen *screen);
 
-uint32_t
-translate_vertex_format_type(enum pipe_format fmt);
-
 static inline bool
 resolve_copies_one_sample(enum pipe_format format)
 {

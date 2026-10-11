@@ -465,13 +465,3 @@ translate_pe_internal_format(enum pipe_format fmt, const struct etna_screen *scr
       UNREACHABLE("unexpected rb_swap format");
    }
 }
-
-/* Return type flags for vertex element format */
-uint32_t
-translate_vertex_format_type(enum pipe_format fmt)
-{
-   if (!formats[fmt].present)
-      return ETNA_NO_MATCH;
-
-   return formats[fmt].vtx;
-}

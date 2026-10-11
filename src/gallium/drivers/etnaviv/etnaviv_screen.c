@@ -27,6 +27,7 @@
 
 #include "etnaviv_screen.h"
 
+#include "layout/eil_format.h"
 #include "hw/common.xml.h"
 
 #include "etnaviv_compiler.h"
@@ -562,7 +563,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 static bool
 gpu_supports_vertex_format(struct etna_screen *screen, enum pipe_format format)
 {
-   if (translate_vertex_format_type(format) == ETNA_NO_MATCH)
+   if (!eil_get_format_entry(format)->has_vtx)
       return false;
 
    if (util_format_is_pure_integer(format))
