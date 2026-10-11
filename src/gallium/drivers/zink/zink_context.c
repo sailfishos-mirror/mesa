@@ -4476,6 +4476,7 @@ zink_flush(struct pipe_context *pctx,
    bool deferred = flags & PIPE_FLUSH_DEFERRED;
    bool deferred_fence = false;
    struct zink_batch_state *bs = NULL;
+   uint32_t submit_count = 0;
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    VkSemaphore export_sem = VK_NULL_HANDLE;
 
@@ -4540,6 +4541,11 @@ zink_flush(struct pipe_context *pctx,
       if (pfence) {
          /* reuse last fence */
          bs = ctx->last_batch_state;
+         if (bs) {
+            mtx_lock(&bs->usage.mtx);
+            submit_count = bs->usage.submit_count - (bs->fence.submitted ? 1 : 0);
+            mtx_unlock(&bs->usage.mtx);
+         }
       }
       if (!deferred) {
          struct zink_batch_state *last = ctx->last_batch_state;
@@ -4553,6 +4559,7 @@ zink_flush(struct pipe_context *pctx,
       tc_driver_internal_flush_notify(ctx->tc);
    } else {
       bs = ctx->bs;
+      submit_count = bs->usage.submit_count;
       if (deferred && !(flags & PIPE_FLUSH_FENCE_FD) && pfence)
          deferred_fence = true;
       else
@@ -4579,8 +4586,8 @@ zink_flush(struct pipe_context *pctx,
          /* store the count from before this batch's submit so that
           * a diff of 1 in zink_fence_finish always means 'submitted once'
           */
+         mfence->submit_count = submit_count;
          mtx_lock(&bs->usage.mtx);
-         mfence->submit_count = bs->usage.submit_count - (bs->fence.submitted ? 1 : 0);
          util_dynarray_append(&bs->fence.mfences, mfence);
          mtx_unlock(&bs->usage.mtx);
       }
