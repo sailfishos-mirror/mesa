@@ -1393,6 +1393,7 @@ struct zink_screen {
    struct zink_batch_state *free_batch_states; //unused batch states
    struct zink_batch_state *last_free_batch_state; //for appending
    simple_mtx_t free_batch_states_lock;
+   simple_mtx_t submit_lock;
 
    struct zink_batch_state *active_batch_states; //active batch states
    struct zink_batch_state *last_active_batch_state; //for appending

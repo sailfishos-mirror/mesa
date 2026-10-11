@@ -960,7 +960,9 @@ zink_end_batch(struct zink_context *ctx)
       util_queue_add_job(&screen->flush_queue, bs, &bs->flush_completed,
                          submit_queue, NULL, 0);
    } else {
+      simple_mtx_lock(&screen->submit_lock);
       submit_queue(bs, NULL, 0);
+      simple_mtx_unlock(&screen->submit_lock);
    }
 
    ctx->last_transfer_sync = 0;
