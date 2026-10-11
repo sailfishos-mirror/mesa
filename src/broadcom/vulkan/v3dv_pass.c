@@ -318,7 +318,7 @@ pass_compute_subpass_config(struct v3dv_device *device,
                             struct v3dv_render_pass *pass)
 {
    STATIC_ASSERT(V3D_INTERNAL_BPP_32 == 0);
-   pass->granularity = (VkExtent2D) { 64, 64 };
+   pass->granularity = (VkExtent2D) { 1, 1 };
 
    for (uint32_t i = 0; i < pass->subpass_count; i++) {
       struct v3dv_subpass *subpass = &pass->subpasses[i];
@@ -380,9 +380,9 @@ pass_compute_subpass_config(struct v3dv_device *device,
       }
 
       pass->granularity.width =
-         MIN2(pass->granularity.width, subpass->tile_size[subpass->msaa].width);
+         MAX2(pass->granularity.width, subpass->tile_size[subpass->msaa].width);
       pass->granularity.height =
-         MIN2(pass->granularity.height, subpass->tile_size[subpass->msaa].height);
+         MAX2(pass->granularity.height, subpass->tile_size[subpass->msaa].height);
 
       v3d_choose_tile_size(&device->devinfo,
                            subpass->color_count,
