@@ -1199,15 +1199,9 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
    if (ctx->in_rp)
       ctx->can_promote_depth_op = false;
 
-   bind_vertex_buffers<DYNAMIC_STATE>(ctx, buffers);
-
-   if ((DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2 || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT) && (BATCH_CHANGED || ctx->vertex_state_changed))
-      VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
-                                    ctx->element_state->hw_state.num_bindings, ctx->element_state->hw_state.dynbindings,
-                                    ctx->element_state->hw_state.num_attribs, ctx->element_state->hw_state.dynattribs);
-   ctx->vertex_state_changed = false;
-
-   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, true>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
+   /* bound in zink_draw after zink_batch_rp() */
+   ctx->vertex_buffers_dirty = true;
+   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, false>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
 }
 
 template <util_popcnt HAS_POPCNT>
