@@ -113,6 +113,10 @@ etna_resource_is_render_compatible(struct pipe_screen *pscreen,
       if (!VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE))
          return false;
 
+      /* Nothing undoes the PE's R/B swap for linear buffers. */
+      if (translate_pe_format_rb_swap(rsc->base.format, screen))
+         return false;
+
       if (util_format_get_blocksizebits(rsc->base.format) == 64)
          return false;
 
