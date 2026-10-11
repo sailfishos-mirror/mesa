@@ -796,6 +796,7 @@ _tc_sync(struct threaded_context *tc, UNUSED const char *info, UNUSED const char
          tc->renderpass_info_recording->data32[0] = 0;
       }
       tc->renderpass_info_recording->ended = false;
+      tc_batch_rp_info(tc->renderpass_info_recording)->end_call = NULL;
       tc->seen_fb_state = false;
       tc->query_ended = false;
    }
