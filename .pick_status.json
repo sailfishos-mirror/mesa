@@ -9654,7 +9654,7 @@
         "description": "pvr: amend shared memory coeff reg count to use DWORD granularity",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1821309b540b9b5c785fdcb6cf389105482c21b0",
         "notes": null
