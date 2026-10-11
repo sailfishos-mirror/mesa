@@ -2616,6 +2616,10 @@ typedef enum nir_tex_src_type {
    /** Second backend-specific vec4 tex src argument, see nir_tex_src_backend1. */
    nir_tex_src_backend2,
 
+   /** Used for panfrost VAR_* texturing forms */
+   nir_tex_src_var_handle_pan,
+   nir_tex_src_var_buf_offset_pan,
+
    /** VK_QCOM_image_processing sources */
    nir_tex_src_ref_coord,
    nir_tex_src_texture_2_deref,

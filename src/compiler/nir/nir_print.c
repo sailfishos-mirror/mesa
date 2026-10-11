@@ -2176,6 +2176,12 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
       case nir_tex_src_plane:
          fprintf(fp, "(plane)");
          break;
+      case nir_tex_src_var_handle_pan:
+         fprintf(fp, "(var_handle_pan)");
+         break;
+      case nir_tex_src_var_buf_offset_pan:
+         fprintf(fp, "(var_buf_offset_pan)");
+         break;
 
       default:
          UNREACHABLE("Invalid texture source type");
