@@ -3730,50 +3730,43 @@ nir_tex_instr_src_type(const nir_tex_instr *instr, unsigned src)
 unsigned
 nir_tex_instr_src_size(const nir_tex_instr *instr, unsigned src)
 {
-   if (instr->src[src].src_type == nir_tex_src_coord )
+   switch (instr->src[src].src_type) {
+   case nir_tex_src_coord:
       return instr->coord_components;
-
-   /* The MCS value is expected to be a vec4 returned by a txf_ms_mcs_intel */
-   if (instr->src[src].src_type == nir_tex_src_ms_mcs_intel)
+   case nir_tex_src_ms_mcs_intel:
+      /* The MCS value is expected to be a vec4 returned by a
+       * txf_ms_mcs_intel
+       */
       return 4;
-
-   if (instr->src[src].src_type == nir_tex_src_box_size)
+   case nir_tex_src_box_size:
       return 2;
-
-   /* These are vec2s at the spirv level, but get lowered to 16_16 packed values
-    * in the backend, so they don't have a single known size
-    */
-   if (instr->src[src].src_type == nir_tex_src_ref_coord ||
-       instr->src[src].src_type == nir_tex_src_block_size) {
+   case nir_tex_src_ref_coord:
+   case nir_tex_src_block_size:
+      /* These are vec2s at the spirv level, but get lowered to 16_16 packed
+       * values in the backend, so they don't have a single known size
+       */
       return 0;
-   }
-
-   if (instr->src[src].src_type == nir_tex_src_ddx ||
-       instr->src[src].src_type == nir_tex_src_ddy) {
-
+   case nir_tex_src_ddx:
+   case nir_tex_src_ddy:
       if (instr->is_array && !instr->array_is_lowered_cube)
          return instr->coord_components - 1;
       else
          return instr->coord_components;
-   }
-
-   if (instr->src[src].src_type == nir_tex_src_offset) {
+   case nir_tex_src_offset:
       if (instr->is_array)
          return instr->coord_components - 1;
       else
          return instr->coord_components;
-   }
-
-   if (instr->src[src].src_type == nir_tex_src_backend1 ||
-       instr->src[src].src_type == nir_tex_src_backend2)
+   case nir_tex_src_backend1:
+   case nir_tex_src_backend2:
       return nir_src_num_components(instr->src[src].src);
-
-   /* For AMD, this can be a vec8/vec4 image/sampler descriptor. */
-   if (instr->src[src].src_type == nir_tex_src_texture_handle ||
-       instr->src[src].src_type == nir_tex_src_sampler_handle)
+   case nir_tex_src_texture_handle:
+   case nir_tex_src_sampler_handle:
+      /* For AMD, this can be a vec8/vec4 image/sampler descriptor. */
       return 0;
-
-   return 1;
+   default:
+      return 1;
+   }
 }
 
 /**
