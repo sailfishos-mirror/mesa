@@ -203,6 +203,24 @@ etna_fb_rt_ts_mask(struct etna_context *ctx,
 }
 
 static void
+etna_fb_shadow_linear_cbufs(struct pipe_context *pctx,
+                            const struct pipe_framebuffer_state *fb)
+{
+   if (!fb->zsbuf.texture)
+      return;
+
+   for (unsigned i = 0; i < fb->nr_cbufs; i++) {
+      if (!fb->cbufs[i].texture)
+         continue;
+
+      struct etna_resource *rsc = etna_resource(fb->cbufs[i].texture);
+
+      if (!rsc->render && rsc->layout == ETNA_LAYOUT_LINEAR)
+         etna_resource_alloc_render_shadow(pctx, &rsc->base);
+   }
+}
+
+static void
 etna_set_framebuffer_state(struct pipe_context *pctx,
                            const struct pipe_framebuffer_state *fb)
 {
@@ -219,6 +237,8 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    util_copy_framebuffer_state(&ctx->framebuffer_s.base, fb);
 
    memset(cs, 0, sizeof(struct compiled_framebuffer_state));
+
+   etna_fb_shadow_linear_cbufs(pctx, fb);
 
    /* Set up TS as well. Warning: this state is used by both the RS and PE */
    uint32_t ts_mem_config = 0;
