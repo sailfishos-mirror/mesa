@@ -2484,7 +2484,7 @@
         "description": "radv/nir: fix determining if a VS input location is high 64-bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8e6bff4caac2693d01e51092fa86bb93914ef2a5",
         "notes": null
