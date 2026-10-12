@@ -744,6 +744,12 @@ vk_ahb_format_to_image_format(uint32_t ahb_format)
 #endif
    case AHARDWAREBUFFER_FORMAT_Y8:
       return VK_FORMAT_R8_UNORM;
+#if ANDROID_API_LEVEL >= 34
+   case AHARDWAREBUFFER_FORMAT_R16_UINT:
+      return VK_FORMAT_R16_UINT;
+   case AHARDWAREBUFFER_FORMAT_R16G16_UINT:
+      return VK_FORMAT_R16G16_UINT;
+#endif
    case AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM:
       return VK_FORMAT_B8G8R8A8_UNORM;
    default:
@@ -786,6 +792,12 @@ vk_image_format_to_ahb_format(VkFormat vk_format)
 #if ANDROID_API_LEVEL >= 33
    case VK_FORMAT_R8_UNORM:
       return AHARDWAREBUFFER_FORMAT_R8_UNORM;
+#endif
+#if ANDROID_API_LEVEL >= 34
+   case VK_FORMAT_R16_UINT:
+      return AHARDWAREBUFFER_FORMAT_R16_UINT;
+   case VK_FORMAT_R16G16_UINT:
+      return AHARDWAREBUFFER_FORMAT_R16G16_UINT;
 #endif
    case VK_FORMAT_B8G8R8A8_UNORM:
       return AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM;
