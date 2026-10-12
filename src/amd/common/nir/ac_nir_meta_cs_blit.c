@@ -599,8 +599,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
             img_src->type->sampler_array +
             glsl_get_sampler_dim_coordinate_components(img_src->type->sampler_dimensionality);
       const bool is_resolve = src_samples > 1 && dst_samples == 1;
-      const bool uses_samples_identical = options->info->compiler_info.has_fmask &&
-                                          key->src_has_non_identity_fmask && is_resolve;
+      const bool uses_samples_identical = key->src_has_non_identity_fmask && is_resolve;
       nir_def *samples_identical = NULL, *sample0[SI_MAX_COMPUTE_BLIT_LANE_SIZE] = {0};
       nir_if *if_identical = NULL;
 
