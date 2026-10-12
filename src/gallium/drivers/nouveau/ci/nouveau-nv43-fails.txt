@@ -537,7 +537,7 @@ KHR-GLES2.core.internalformat.renderbuffer.rgba8,Fail
 
 KHR-GLES2.texture_3d.filtering.combinations.negative,Fail
 
-# results from piglit egl with nv30_transfer_rect_cpu
+# results from piglit egl
 
 shaders@glsl-bug-110796,Fail
 shaders@glsl-fs-fragcoord-zw-ortho,Fail
