@@ -261,6 +261,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .EXT_hdr_metadata                     = true,
 #endif
       .EXT_host_query_reset                 = true,
+      .EXT_host_image_copy                  = true,
       .EXT_image_drm_format_modifier        = true,
       .EXT_image_robustness                 = true,
       .EXT_index_type_uint8                 = true,
@@ -624,6 +625,9 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_KHR_maintenance6 */
       .maintenance6 = true,
+
+      /* VK_EXT_host_image_copy */
+      .hostImageCopy = true,
    };
 }
 
@@ -1427,6 +1431,55 @@ get_device_properties(const struct v3dv_physical_device *device,
    memset(properties->driverInfo, 0, VK_MAX_DRIVER_INFO_SIZE);
    snprintf(properties->driverInfo, VK_MAX_DRIVER_INFO_SIZE,
             "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
+
+   /* We don't use image layouts, so every layout
+    * is supported for host copies.
+    */
+   static VkImageLayout supported_host_copy_layouts[] = {
+      VK_IMAGE_LAYOUT_GENERAL,
+      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      VK_IMAGE_LAYOUT_PREINITIALIZED,
+      VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT,
+
+      /*  Vulkan 1.1 or VK_KHR_maintenance2 */
+      VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+
+      /*  Vulkan 1.2 or VK_KHR_separate_depth_stencil_layouts */
+      VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
+
+      /* Vulkan 1.3 or VK_KHR_synchronization2 */
+      VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+      VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+
+      /* Vulkan 1.4 or VK_KHR_dynamic_rendering_local_read */
+      VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ,
+
+      /* VK_KHR_swapchain */
+      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+
+      /* VK_EXT_attachment_feedback_loop_layout */
+      VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
+   };
+   properties->pCopySrcLayouts = supported_host_copy_layouts;
+   properties->copySrcLayoutCount = ARRAY_SIZE(supported_host_copy_layouts);
+   properties->pCopyDstLayouts = supported_host_copy_layouts;
+   properties->copyDstLayoutCount = ARRAY_SIZE(supported_host_copy_layouts);
+   properties->identicalMemoryTypeRequirements = true;
+
+   /* One tiling scheme across all V3D HW, so this only needs to change when
+    * the driver build does. driver_uuid is already derived from the build.
+    */
+   memcpy(properties->optimalTilingLayoutUUID, device->driver_uuid,
+          VK_UUID_SIZE);
 
 }
 
