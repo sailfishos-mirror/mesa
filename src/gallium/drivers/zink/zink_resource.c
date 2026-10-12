@@ -1384,6 +1384,13 @@ enum resource_object_create_result {
    roc_fail_and_cleanup_all
 };
 
+/* without resizable BAR, large buffers are uploaded through staging instead of mapped */
+static inline bool
+is_indirect_map_buffer(const struct zink_screen *screen, const struct pipe_resource *templ)
+{
+   return !screen->resizable_bar && templ->target == PIPE_BUFFER && templ->width0 >= 8196;
+}
+
 static inline enum resource_object_create_result
 allocate_bo(struct zink_screen *screen, const struct pipe_resource *templ,
             VkMemoryRequirements *reqs, struct zink_resource_object *obj,
@@ -1501,6 +1508,7 @@ allocate_bo(struct zink_screen *screen, const struct pipe_resource *templ,
       assert(zink_mem_type_idx_from_types(screen, heap, reqs->memoryTypeBits) != UINT32_MAX);
    }
 
+   bool host_fallback = false;
    while (1) {
       /* iterate over all available memory types to reduce chance of oom */
       for (unsigned i = 0; !obj->bo && i < screen->heap_count[heap]; i++) {
@@ -1512,15 +1520,32 @@ allocate_bo(struct zink_screen *screen, const struct pipe_resource *templ,
                                           mai.memoryTypeIndex, mai.pNext, zink_clientptr_heap(templ->clientptr_heap)));
       }
 
-      if (obj->bo || heap != ZINK_HEAP_DEVICE_LOCAL_VISIBLE)
+      if (obj->bo)
          break;
 
+      /* a demoted dynamic buffer can still use host memory */
+      if (host_fallback && heap == ZINK_HEAP_DEVICE_LOCAL) {
+         host_fallback = false;
+         heap = ZINK_HEAP_HOST_VISIBLE_COHERENT;
+         continue;
+      }
+
+      if (heap != ZINK_HEAP_DEVICE_LOCAL_VISIBLE)
+         break;
+
+      /* staged buffers gain nothing from host memory, which the gpu reads over the bus */
+      bool indirect_dynamic = templ->usage == PIPE_USAGE_DYNAMIC &&
+                              is_indirect_map_buffer(screen, templ) &&
+                              !(templ->flags & PIPE_RESOURCE_FLAG_MAP_PERSISTENT);
+
       /* demote BAR allocations to a different heap on failure to avoid oom */
-      if (templ->flags & PIPE_RESOURCE_FLAG_MAP_COHERENT || templ->usage == PIPE_USAGE_DYNAMIC ||
+      if (templ->flags & PIPE_RESOURCE_FLAG_MAP_COHERENT ||
+          (templ->usage == PIPE_USAGE_DYNAMIC && !indirect_dynamic) ||
           templ->bind & ZINK_BIND_DESCRIPTOR)
           heap = ZINK_HEAP_HOST_VISIBLE_COHERENT;
       else
           heap = ZINK_HEAP_DEVICE_LOCAL;
+      host_fallback = indirect_dynamic;
    };
 
    return obj->bo ? roc_success : roc_fail_and_cleanup_object;
@@ -2275,7 +2300,7 @@ resource_create(struct pipe_screen *pscreen,
    if (templ->target == PIPE_BUFFER) {
       util_range_init(&res->valid_buffer_range);
       res->base.b.bind |= PIPE_BIND_SHADER_IMAGE;
-      if (!screen->resizable_bar && templ->width0 >= 8196) {
+      if (is_indirect_map_buffer(screen, templ)) {
          /* We don't want to evict buffers from VRAM by mapping them for CPU access,
           * because they might never be moved back again. If a buffer is large enough,
           * upload data by copying from a temporary GTT buffer. 8K might not seem much,
