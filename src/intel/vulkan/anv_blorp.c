@@ -2314,7 +2314,9 @@ void anv_CmdClearAttachments(
     * trash our depth and stencil buffers.
     */
    struct blorp_batch batch;
-   enum blorp_batch_flags flags = BLORP_BATCH_NO_EMIT_DEPTH_STENCIL;
+   enum blorp_batch_flags flags = BLORP_BATCH_NO_EMIT_DEPTH_STENCIL |
+      (cmd_buffer->device->info->ver >= 35 ?
+       BLORP_BATCH_NO_HIZ_EMIT_DEPTH_CLEAR_VIEWPORT : 0);
    if (cmd_buffer->state.conditional_render_enabled) {
       anv_cmd_emit_conditional_render_predicate(cmd_buffer);
       flags |= BLORP_BATCH_PREDICATE_ENABLE;
@@ -2852,7 +2854,10 @@ anv_image_hiz_clear(struct anv_cmd_buffer *cmd_buffer,
                     const VkClearDepthStencilValue *clear_value)
 {
    struct blorp_batch batch;
-   anv_blorp_batch_init(cmd_buffer, &batch, &(struct anv_blorp_batch_params) {});
+   anv_blorp_batch_init(cmd_buffer, &batch, &(struct anv_blorp_batch_params) {
+      .flags = cmd_buffer->device->info->ver >= 35 ?
+         BLORP_BATCH_NO_HIZ_EMIT_DEPTH_CLEAR_VIEWPORT : 0,
+   });
    assert((batch.flags & BLORP_BATCH_USE_COMPUTE) == 0);
 
    anv_fast_clear_depth_stencil(cmd_buffer, &batch, image, aspects,
