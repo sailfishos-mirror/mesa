@@ -169,7 +169,8 @@ radv_alloc_memory(struct radv_device *device, const VkMemoryAllocateInfo *pAlloc
        * (see DCC tiling flags).
        */
       if (pdev->info.gfx_level >= GFX12 && pdev->info.gfx12_supports_dcc_write_compress_disable &&
-          domain == RADEON_DOMAIN_VRAM && (flags & RADEON_FLAG_NO_CPU_ACCESS) && !radv_is_dcc_disabled(pdev)) {
+          domain == RADEON_DOMAIN_VRAM && (flags & RADEON_FLAG_NO_CPU_ACCESS) && !radv_is_dcc_disabled(pdev) &&
+          (!mem->image || mem->image->planes[0].surface.u.gfx9.gfx12_enable_dcc)) {
          flags |= RADEON_FLAG_GFX12_ALLOW_DCC;
       }
 
