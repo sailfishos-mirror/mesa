@@ -393,6 +393,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_driver_properties                 = true,
       .KHR_dynamic_rendering                 = true,
       .KHR_dynamic_rendering_local_read      = true,
+      .KHR_extended_flags                    = true,
       .KHR_external_fence                    = true,
       .KHR_external_fence_fd                 = true,
       .KHR_external_memory                   = true,
@@ -1317,6 +1318,9 @@ get_features(const struct anv_physical_device *pdevice,
       /* soft fp64 does not support fma */
       .shaderFmaFloat64 = pdevice->info.has_64bit_float &&
                           !INTEL_DEBUG(DEBUG_SOFT64),
+
+      /* VK_KHR_extended_flags */
+      .extendedFlags = true,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
