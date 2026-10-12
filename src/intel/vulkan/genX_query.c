@@ -1682,8 +1682,6 @@ gpu_write_query_result(struct anv_cmd_buffer *cmd_buffer,
     * write any value.
     */
    if (flags & VK_QUERY_RESULT_PARTIAL_BIT) {
-      mi_store(b, mi_reg64(MI_PREDICATE_SRC0), mi_mem64(poll_addr));
-
       gpu_write_query_on_predicate(cmd_buffer, b, dst_addr, value_index,
                                    flags & VK_QUERY_RESULT_64_BIT,
                                    query_result, 1);
@@ -1776,6 +1774,9 @@ copy_query_results_with_cs(struct anv_cmd_buffer *cmd_buffer,
             sem.SemaphoreAddress    = query_addr;
          }
       }
+
+      if (flags & VK_QUERY_RESULT_PARTIAL_BIT)
+         mi_store(&b, mi_reg64(MI_PREDICATE_SRC0), mi_mem64(query_addr));
 
       uint32_t idx = 0;
       switch (pool->vk.query_type) {
