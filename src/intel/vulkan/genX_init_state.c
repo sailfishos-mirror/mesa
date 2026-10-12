@@ -1665,10 +1665,15 @@ genX(init_trtt_context_state)(struct anv_async_submit *submit)
    anv_batch_write_reg(batch, GENX(COMP_CTX0_TRTT_CR), trtt_cr)
       trtt_cr.TRTTEnable = true;
 
-   if (queue->family->engine_class != INTEL_ENGINE_CLASS_COPY) {
+   if (batch->engine_class == INTEL_ENGINE_CLASS_RENDER ||
+       batch->engine_class == INTEL_ENGINE_CLASS_COMPUTE) {
       genx_batch_emit_pipe_control(batch, device->info, _3D,
                                    ANV_PIPE_CS_STALL_BIT |
                                    ANV_PIPE_TLB_INVALIDATE_BIT);
+   } else {
+      anv_batch_emit(batch, GENX(MI_FLUSH_DW), mfd) {
+         mfd.TLBInvalidate = true;
+      }
    }
 #endif
    return VK_SUCCESS;
