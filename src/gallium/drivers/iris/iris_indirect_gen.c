@@ -392,6 +392,7 @@ emit_indirect_generate_draw(struct iris_batch *batch,
          cc.CCViewportPointer = cc_vp_address;
       }
    }
+   batch->dfc_vp_sent = true;
 #else
    iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), cc) {
       cc.CCViewportPointer = cc_vp_address;

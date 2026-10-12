@@ -7553,6 +7553,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
             ptr.CCViewportPointer = cc_vp_address;
          }
       }
+      batch->dfc_vp_sent = true;
 #else
       iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), ptr) {
          ptr.CCViewportPointer = cc_vp_address;
