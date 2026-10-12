@@ -113,6 +113,9 @@ etna_resource_is_render_compatible(struct pipe_screen *pscreen,
       if (!VIV_FEATURE(screen, ETNA_FEATURE_LINEAR_PE))
          return false;
 
+      if (util_format_get_blocksizebits(rsc->base.format) == 64)
+         return false;
+
       if (VIV_FEATURE(screen, ETNA_FEATURE_FAST_CLEAR)) {
          unsigned int min_tilesize = etna_screen_get_tile_size(screen, TS_MODE_128B,
                                                                rsc->base.nr_samples > 1);
