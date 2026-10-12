@@ -673,23 +673,31 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
          if (decode_dpb_only || decode_dst_only)
             supportedImageUsage |= dpb_output_coincide_usage;
 
-         if (profile->lumaBitDepth == VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR) {
-            vk_outarray_append_typed(VkVideoFormatPropertiesKHR, &out, p) {
-               p->format = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
-               p->imageCreateFlags = supportedImageCreateFlags;
-               p->imageType = VK_IMAGE_TYPE_2D;
-               p->imageTiling = VK_IMAGE_TILING_OPTIMAL;
-               p->imageUsageFlags = supportedImageUsage;
-            }
-         }
+         VkImageTiling tilings[2];
+         unsigned num_tilings = 0;
+         tilings[num_tilings++] = VK_IMAGE_TILING_OPTIMAL;
+         if (supportedImageUsage & VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR)
+            tilings[num_tilings++] = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
 
-         if (profile->lumaBitDepth == VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR) {
-            vk_outarray_append_typed(VkVideoFormatPropertiesKHR, &out, p) {
-               p->format = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
-               p->imageCreateFlags = supportedImageCreateFlags;
-               p->imageType = VK_IMAGE_TYPE_2D;
-               p->imageTiling = VK_IMAGE_TILING_OPTIMAL;
-               p->imageUsageFlags = supportedImageUsage;
+         for (unsigned t = 0; t < num_tilings; t++) {
+            if (profile->lumaBitDepth == VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR) {
+               vk_outarray_append_typed(VkVideoFormatPropertiesKHR, &out, p) {
+                  p->format = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
+                  p->imageCreateFlags = supportedImageCreateFlags;
+                  p->imageType = VK_IMAGE_TYPE_2D;
+                  p->imageTiling = tilings[t];
+                  p->imageUsageFlags = supportedImageUsage;
+               }
+            }
+
+            if (profile->lumaBitDepth == VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR) {
+               vk_outarray_append_typed(VkVideoFormatPropertiesKHR, &out, p) {
+                  p->format = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
+                  p->imageCreateFlags = supportedImageCreateFlags;
+                  p->imageType = VK_IMAGE_TYPE_2D;
+                  p->imageTiling = tilings[t];
+                  p->imageUsageFlags = supportedImageUsage;
+               }
             }
          }
       }
