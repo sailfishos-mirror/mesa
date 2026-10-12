@@ -6,6 +6,7 @@ use std::ptr;
 use crate::encode_v9::*;
 use crate::ir::*;
 use crate::isa::ExecUnit;
+use crate::ops::SamplePosition;
 use compiler::bitset::ConstBitSet;
 use kraid_bindings::*;
 
@@ -278,6 +279,14 @@ impl Model for ValhallModel {
     fn op_src_is_fake(&self, op: &Op, src: &Src) -> bool {
         match op {
             Op::BlendCall(op) => ptr_eq(src, &op.second_color),
+            Op::VarTexBufDual(op) => ptr_eq(src, &op.sample),
+            Op::VarTexBufGather(op) => ptr_eq(src, &op.sample),
+            Op::VarTexBufGradient(op) => ptr_eq(src, &op.sample),
+            Op::VarTexBufSingle(op) => ptr_eq(src, &op.sample),
+            Op::VarTexDual(op) => ptr_eq(src, &op.sample),
+            Op::VarTexGather(op) => ptr_eq(src, &op.sample),
+            Op::VarTexGradient(op) => ptr_eq(src, &op.sample),
+            Op::VarTexSingle(op) => ptr_eq(src, &op.sample),
             _ => false,
         }
     }
@@ -342,6 +351,23 @@ impl Model for ValhallModel {
     fn op_fixed_src_reg(&self, op: &Op, src: &Src) -> Option<RegRef> {
         let preg = |p| Some(self.preload_reg(p).unwrap());
         let coverage = preg(PreloadReg::CumulativeCoverage);
+
+        // All VAR_TEX_* ops do an implicit read of the SampleCentroidId
+        // preload reg whenever they're not .center.  For SamplePosition::None,
+        // the actual interpolation comes from the hidden register so we don't
+        // need the sample ID in that case, either.
+        macro_rules! var_tex_sample {
+            ($op: expr) => {
+                if ptr::eq(&$op.sample, src)
+                    && $op.sample_position != SamplePosition::Center
+                    && $op.sample_position != SamplePosition::None
+                {
+                    preg(PreloadReg::SampleCentroidId)
+                } else {
+                    None
+                }
+            };
+        }
         match op {
             Op::ATest(op) if ptr::eq(&op.coverage, src) => coverage,
             Op::ZSEmit(op) if ptr::eq(&op.coverage, src) => coverage,
@@ -364,6 +390,14 @@ impl Model for ValhallModel {
                     None
                 }
             }
+            Op::VarTexBufDual(op) => var_tex_sample!(op),
+            Op::VarTexBufGather(op) => var_tex_sample!(op),
+            Op::VarTexBufGradient(op) => var_tex_sample!(op),
+            Op::VarTexBufSingle(op) => var_tex_sample!(op),
+            Op::VarTexDual(op) => var_tex_sample!(op),
+            Op::VarTexGather(op) => var_tex_sample!(op),
+            Op::VarTexGradient(op) => var_tex_sample!(op),
+            Op::VarTexSingle(op) => var_tex_sample!(op),
             _ => None,
         }
     }

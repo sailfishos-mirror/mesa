@@ -1440,24 +1440,40 @@ impl<'a> ShaderFromNir<'a> {
     }
 
     fn parse_tex(&mut self, b: &mut impl SSABuilder, tex: &nir_tex_instr) {
-        let mut tex_h = None;
+        let mut tex_handle = None;
         let mut sr: [&[SSAValue]; 2] = [&[], &[]];
+        let mut var_handle = None;
+        let mut var_buf_offset = None;
         for src in tex.srcs_as_slice() {
             match src.src_type {
                 nir_tex_src_texture_handle => {
                     let vec = self.get_src_ssa(&src.src);
                     assert_eq!(vec.comps(), 2);
-                    tex_h = Some(vec);
+                    tex_handle = Some(vec);
                 }
                 nir_tex_src_backend1 => sr[0] = self.get_ssa(src.src.as_def()),
                 nir_tex_src_backend2 => sr[1] = self.get_ssa(src.src.as_def()),
+                nir_tex_src_var_buf_offset_pan => {
+                    let vec = self.get_src_ssa(&src.src);
+                    assert_eq!(vec.comps(), 1);
+                    var_buf_offset = Some(Src::from(vec));
+                }
+                nir_tex_src_var_handle_pan => {
+                    let vec = self.get_src_ssa(&src.src);
+                    assert_eq!(vec.comps(), 1);
+                    var_handle = Some(Src::from(vec));
+                }
                 _ => panic!("Unknown tex source"),
             }
         }
-        let tex_h = tex_h.unwrap();
-        let sr = SSARef::from_iter(
-            sr[0].iter().copied().chain(sr[1].iter().copied()),
-        );
+        let tex_handle = tex_handle.unwrap().into();
+        let sr = if !sr[0].is_empty() {
+            Some(SSARef::from_iter(
+                sr[0].iter().copied().chain(sr[1].iter().copied()),
+            ))
+        } else {
+            None
+        };
 
         let flags: pan_va_tex_flags =
             unsafe { std::mem::transmute(tex.backend_flags) };
@@ -1467,6 +1483,15 @@ impl<'a> ShaderFromNir<'a> {
         let texel_offset = flags.texel_offset();
         let compare_enable = flags.compare_enable();
         let projection_enable = flags.projection_enable();
+        let sample_position = sample_position_from_pan(flags.var_sample_loc());
+
+        let sample = if (var_handle.is_some() || var_buf_offset.is_some())
+            && sample_position != SamplePosition::Center
+        {
+            Src::from(self.preload(b, PreloadReg::SampleCentroidId))
+        } else {
+            Src::from(0_u32)
+        };
 
         let dim = match tex.sampler_dim.into() {
             GLSL_SAMPLER_DIM_1D | GLSL_SAMPLER_DIM_BUF => TexDim::Tex1D,
@@ -1487,6 +1512,11 @@ impl<'a> ShaderFromNir<'a> {
             BI_VA_LOD_MODE_COMPUTED_BIAS => TexLodMode::ComputedBias,
             BI_VA_LOD_MODE_GRDESC => TexLodMode::GradientDesc,
             _ => panic!("Unknown LOD mode: {}", flags.lod_mode()),
+        };
+        let var_mem_type = if flags.var_buf_src_f16() {
+            DataType::F16
+        } else {
+            DataType::F32
         };
         let comps_read = u8::try_from(tex.def.components_read()).unwrap();
 
@@ -1509,9 +1539,19 @@ impl<'a> ShaderFromNir<'a> {
         // Figure out the write masks.  The first write mask can be anything
         // but the second write mask must be contiguous components.  If we're
         // not TEX_DUAL, the second write mask will be empty.
-        let wm0 = (comps_read & u8_mask(dst0_comps)).max(1);
+        let dst0_comps_read = comps_read & u8_mask(dst0_comps);
+        let dst1_comps_read = comps_read >> dst0_comps;
+        let wm0 = if var_handle.is_some() || var_buf_offset.is_some() {
+            if tex.op == nir_texop_dual_pan {
+                u8_mask(4)
+            } else {
+                make_consecutive(dst0_comps_read)
+            }
+        } else {
+            dst0_comps_read.max(1)
+        };
         let wm1 = if tex.op == nir_texop_dual_pan {
-            make_consecutive(comps_read >> dst0_comps)
+            make_consecutive(dst1_comps_read)
         } else {
             assert!(dst1_comps == 0);
             0
@@ -1545,37 +1585,122 @@ impl<'a> ShaderFromNir<'a> {
                     NumericType::Auto,
                     tex.def.bit_size,
                 );
-                b.push_op(OpTexDual {
-                    dst: tmp.clone().into(),
-                    dst_types: [dst0_type, dst1_type],
-                    skip,
-                    dim,
-                    projection_enable,
-                    write_masks,
-                    array_enable,
-                    texel_offset,
-                    compare_enable,
-                    lod_mode,
-                    data: sr.into(),
-                    handle: tex_h.into(),
-                });
+
+                if let Some(var_buf_offset) = var_buf_offset {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexBufDual {
+                        dst: tmp.clone().into(),
+                        dst_types: [dst0_type, dst1_type],
+                        skip,
+                        var_mem_type,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_masks,
+                        array_enable,
+                        compare_enable,
+                        lod_mode,
+                        tex_handle,
+                        var_buf_offset,
+                        sample,
+                    });
+                } else if let Some(var_handle) = var_handle {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexDual {
+                        dst: tmp.clone().into(),
+                        dst_types: [dst0_type, dst1_type],
+                        skip,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_masks,
+                        array_enable,
+                        compare_enable,
+                        lod_mode,
+                        tex_handle,
+                        var_handle,
+                        sample,
+                    });
+                } else if let Some(sr) = sr {
+                    b.push_op(OpTexDual {
+                        dst: tmp.clone().into(),
+                        dst_types: [dst0_type, dst1_type],
+                        skip,
+                        dim,
+                        projection_enable,
+                        write_masks,
+                        array_enable,
+                        texel_offset,
+                        compare_enable,
+                        lod_mode,
+                        data: sr.into(),
+                        handle: tex_handle,
+                    });
+                } else {
+                    panic!("Texture op does not have a valid source");
+                }
             }
             nir_texop_tex | nir_texop_txb | nir_texop_txl | nir_texop_txd => {
-                b.push_op(OpTexSingle {
-                    dst: tmp.clone().into(),
-                    dst_type: dst0_type,
-                    skip,
-                    dim,
-                    projection_enable,
-                    write_mask: write_masks[0],
-                    wide_indices,
-                    array_enable,
-                    texel_offset,
-                    compare_enable,
-                    lod_mode,
-                    data: sr.into(),
-                    handle: tex_h.into(),
-                });
+                if let Some(var_buf_offset) = var_buf_offset {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexBufSingle {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        var_mem_type,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        compare_enable,
+                        lod_mode,
+                        tex_handle,
+                        var_buf_offset,
+                        sample,
+                    });
+                } else if let Some(var_handle) = var_handle {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexSingle {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        compare_enable,
+                        lod_mode,
+                        tex_handle,
+                        var_handle,
+                        sample,
+                    });
+                } else if let Some(sr) = sr {
+                    b.push_op(OpTexSingle {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        texel_offset,
+                        compare_enable,
+                        lod_mode,
+                        data: sr.into(),
+                        handle: tex_handle,
+                    });
+                } else {
+                    panic!("Texture op does not have a valid source");
+                }
             }
             nir_texop_txf | nir_texop_txf_ms => {
                 assert!(!projection_enable);
@@ -1588,33 +1713,80 @@ impl<'a> ShaderFromNir<'a> {
                     wide_indices,
                     array_enable,
                     texel_offset,
-                    data: sr.into(),
-                    handle: tex_h.into(),
+                    data: sr
+                        .expect("TEX_FETCH does not have VAR_ variants")
+                        .into(),
+                    handle: tex_handle,
                 });
             }
             nir_texop_tg4 => {
-                b.push_op(OpTexGather {
-                    dst: tmp.clone().into(),
-                    dst_type: dst0_type,
-                    skip,
-                    dim,
-                    projection_enable,
-                    write_mask: write_masks[0],
-                    wide_indices,
-                    array_enable,
-                    texel_offset,
-                    compare_enable,
-                    coord_mode: TexCoordMode::F32,
-                    gather_comp: match tex.component() {
-                        0 => TexGatherComp::R,
-                        1 => TexGatherComp::G,
-                        2 => TexGatherComp::B,
-                        3 => TexGatherComp::A,
-                        c => panic!("Invalid texture gather component: {c}"),
-                    },
-                    data: sr.into(),
-                    handle: tex_h.into(),
-                });
+                let gather_comp = match tex.component() {
+                    0 => TexGatherComp::R,
+                    1 => TexGatherComp::G,
+                    2 => TexGatherComp::B,
+                    3 => TexGatherComp::A,
+                    c => panic!("Invalid texture gather component: {c}"),
+                };
+
+                if let Some(var_buf_offset) = var_buf_offset {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexBufGather {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        var_mem_type,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        compare_enable,
+                        gather_comp,
+                        tex_handle,
+                        var_buf_offset,
+                        sample,
+                    });
+                } else if let Some(var_handle) = var_handle {
+                    assert!(!texel_offset);
+                    b.push_op(OpVarTexGather {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        compare_enable,
+                        gather_comp,
+                        tex_handle,
+                        var_handle,
+                        sample,
+                    });
+                } else if let Some(sr) = sr {
+                    b.push_op(OpTexGather {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        array_enable,
+                        texel_offset,
+                        compare_enable,
+                        coord_mode: TexCoordMode::F32,
+                        gather_comp,
+                        data: sr.into(),
+                        handle: tex_handle,
+                    });
+                } else {
+                    panic!("Texture op does not have a valid source");
+                }
             }
             nir_texop_gradient_pan => {
                 let coord_mode = if flags.force_delta_enable() {
@@ -1625,20 +1797,62 @@ impl<'a> ShaderFromNir<'a> {
                 } else {
                     TexGradientCoordMode::Coords
                 };
-                b.push_op(OpTexGradient {
-                    dst: tmp.clone().into(),
-                    dst_type: dst0_type,
-                    skip,
-                    dim,
-                    projection_enable,
-                    write_mask: write_masks[0],
-                    wide_indices,
-                    coord_mode,
-                    lod_bias_disable: flags.lod_bias_disable(),
-                    lod_clamp_disable: flags.lod_clamp_disable(),
-                    data: sr.into(),
-                    handle: tex_h.into(),
-                });
+
+                if let Some(var_buf_offset) = var_buf_offset {
+                    assert_eq!(coord_mode, TexGradientCoordMode::Coords);
+                    b.push_op(OpVarTexBufGradient {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        var_mem_type,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        lod_bias_disable: flags.lod_bias_disable(),
+                        lod_clamp_disable: flags.lod_clamp_disable(),
+                        tex_handle,
+                        var_buf_offset,
+                        sample,
+                    });
+                } else if let Some(var_handle) = var_handle {
+                    assert_eq!(coord_mode, TexGradientCoordMode::Coords);
+                    b.push_op(OpVarTexGradient {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        sample_position,
+                        update: VaryingUpdateMode::Store,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        lod_bias_disable: flags.lod_bias_disable(),
+                        lod_clamp_disable: flags.lod_clamp_disable(),
+                        tex_handle,
+                        var_handle,
+                        sample,
+                    });
+                } else if let Some(sr) = sr {
+                    b.push_op(OpTexGradient {
+                        dst: tmp.clone().into(),
+                        dst_type: dst0_type,
+                        skip,
+                        dim,
+                        projection_enable,
+                        write_mask: write_masks[0],
+                        wide_indices,
+                        coord_mode,
+                        lod_bias_disable: flags.lod_bias_disable(),
+                        lod_clamp_disable: flags.lod_clamp_disable(),
+                        data: sr.into(),
+                        handle: tex_handle,
+                    });
+                } else {
+                    panic!("Texture op does not have a valid source");
+                }
             }
             _ => panic!("Unsupported tex instruction"),
         }

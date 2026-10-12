@@ -3535,6 +3535,353 @@ impl V9Instr for OpV2F32ToV2F16 {
     }
 }
 
+impl From<TexDim> for VarTexDimensionalityM {
+    fn from(dim: TexDim) -> Self {
+        match dim {
+            TexDim::Cube => VarTexDimensionalityM::Cube,
+            TexDim::Tex1D => VarTexDimensionalityM::Tex1d,
+            TexDim::Tex2D => VarTexDimensionalityM::Tex2d,
+            TexDim::Tex3D => VarTexDimensionalityM::Tex3d,
+        }
+    }
+}
+
+impl TryFrom<TexLodMode> for VarTexDualLodModeM {
+    type Error = &'static str;
+
+    fn try_from(lod_mode: TexLodMode) -> Result<Self, &'static str> {
+        match lod_mode {
+            TexLodMode::None => Ok(VarTexDualLodModeM::None),
+            TexLodMode::Computed => Ok(VarTexDualLodModeM::Computed),
+            _ => Err("Invalid VAR_*TEX* LOD mode"),
+        }
+    }
+}
+
+impl TryFrom<TexLodMode> for VarTexLodModeM {
+    type Error = &'static str;
+
+    fn try_from(lod_mode: TexLodMode) -> Result<Self, &'static str> {
+        match lod_mode {
+            TexLodMode::None => Ok(VarTexLodModeM::None),
+            TexLodMode::Computed => Ok(VarTexLodModeM::Computed),
+            _ => Err("Invalid VAR_*TEX* LOD mode"),
+        }
+    }
+}
+
+fn var_tex_buf_src_format(
+    mem_type: DataType,
+    arch: u8,
+) -> Option<VarTexBufSourceFormatM> {
+    if arch < 10 {
+        assert_eq!(mem_type, DataType::F32);
+        None
+    } else {
+        match mem_type {
+            DataType::F16 => Some(VarTexBufSourceFormatM::SrcF16),
+            DataType::F32 => Some(VarTexBufSourceFormatM::SrcF32),
+            _ => panic!("Invalid mem_type: {mem_type}"),
+        }
+    }
+}
+
+impl V9Instr for OpVarTexBufDual {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexBufDual::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_buf_offset,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_types[0].comps(), self.write_masks[0].comps());
+        assert_eq!(self.dst_types[1].comps(), self.write_masks[1].comps());
+        let dst0_regs = self.dst_types[0].total_bits().div_ceil(32);
+        let dst1_regs = self.dst_types[1].total_bits().div_ceil(32);
+        if let DstRef::Reg(dst_reg) = &self.dst.dst_ref {
+            assert_eq!(dst_reg.range, RegRange::Regs(dst0_regs + dst1_regs));
+        } else {
+            panic!("Not a register destination");
+        }
+
+        e.encode(VarTexBufDual {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            primary_width: match self.dst_types[0].bits() {
+                16 => TexDualPrimaryWidthM::PrimaryDst16,
+                32 => TexDualPrimaryWidthM::PrimaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            primary_write_mask: self.write_masks[0].into(),
+            secondary_width: match self.dst_types[1].bits() {
+                16 => TexDualSecondaryWidthM::SecondaryDst16,
+                32 => TexDualSecondaryWidthM::SecondaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            secondary_write_mask: self.write_masks[1].into(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            source_format: var_tex_buf_src_format(self.var_mem_type, e.arch),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_buf_offset),
+            update: self.update.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexBufGather {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexBufGather::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_buf_offset,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        assert_eq!(self.dim, TexDim::Tex2D);
+        e.encode(VarTexBufGather {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            gather_component: self.gather_comp.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            source_format: var_tex_buf_src_format(self.var_mem_type, e.arch),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_buf_offset),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexBufGradient {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexBufGradient::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_buf_offset,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        e.encode(VarTexBufGradient {
+            dimensionality: self.dim.into(),
+            lod_bias_disable: self.lod_bias_disable.into(),
+            lod_clamp_disable: self.lod_clamp_disable.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            source_format: var_tex_buf_src_format(self.var_mem_type, e.arch),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_buf_offset),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexBufSingle {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexBufSingle::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_buf_offset,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        e.encode(VarTexBufSingle {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            source_format: var_tex_buf_src_format(self.var_mem_type, e.arch),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_buf_offset),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexDual {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexDual::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_types[0].comps(), self.write_masks[0].comps());
+        assert_eq!(self.dst_types[1].comps(), self.write_masks[1].comps());
+        let dst0_regs = self.dst_types[0].total_bits().div_ceil(32);
+        let dst1_regs = self.dst_types[1].total_bits().div_ceil(32);
+        if let DstRef::Reg(dst_reg) = &self.dst.dst_ref {
+            assert_eq!(dst_reg.range, RegRange::Regs(dst0_regs + dst1_regs));
+        } else {
+            panic!("Not a register destination");
+        }
+
+        e.encode(VarTexDual {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            primary_width: match self.dst_types[0].bits() {
+                16 => TexDualPrimaryWidthM::PrimaryDst16,
+                32 => TexDualPrimaryWidthM::PrimaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            primary_write_mask: self.write_masks[0].into(),
+            secondary_width: match self.dst_types[1].bits() {
+                16 => TexDualSecondaryWidthM::SecondaryDst16,
+                32 => TexDualSecondaryWidthM::SecondaryDst32,
+                t => panic!("Invalid texture dst_type: {t}"),
+            },
+            secondary_write_mask: self.write_masks[1].into(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_handle),
+            update: self.update.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexGather {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexGather::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        assert_eq!(self.dim, TexDim::Tex2D);
+        e.encode(VarTexGather {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            gather_component: self.gather_comp.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_handle),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexGradient {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexGradient::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        e.encode(VarTexGradient {
+            dimensionality: self.dim.into(),
+            lod_bias_disable: self.lod_bias_disable.into(),
+            lod_clamp_disable: self.lod_clamp_disable.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_handle),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpVarTexSingle {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            VarTexSingle::get_info((), arch),
+            src_map! {
+                src0: tex_handle,
+                src2: var_handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        assert_eq!(self.dst_type.comps(), self.write_mask.comps());
+        e.encode(VarTexSingle {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            sample_position: self.sample_position.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.tex_handle),
+            src2: op_encode_src(self, &self.var_handle),
+            update: self.update.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
 impl V9Instr for OpWMask {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -3669,6 +4016,14 @@ macro_rules! v9_op_match_else {
             Op::TexGradient($x) => $y,
             Op::TexSingle($x) => $y,
             Op::V2F32ToV2F16($x) => $y,
+            Op::VarTexBufDual($x) => $y,
+            Op::VarTexBufGather($x) => $y,
+            Op::VarTexBufGradient($x) => $y,
+            Op::VarTexBufSingle($x) => $y,
+            Op::VarTexDual($x) => $y,
+            Op::VarTexGather($x) => $y,
+            Op::VarTexGradient($x) => $y,
+            Op::VarTexSingle($x) => $y,
             Op::WMask($x) => $y,
             Op::ZSEmit($x) => $y,
             _ => $z,

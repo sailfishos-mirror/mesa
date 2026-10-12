@@ -4224,12 +4224,23 @@ impl Foldable for OpSwz {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TexDim {
     Cube,
     Tex1D,
     Tex2D,
     Tex3D,
+}
+
+impl TexDim {
+    pub fn coord_comps(&self) -> u8 {
+        match self {
+            TexDim::Cube => 3,
+            TexDim::Tex1D => 1,
+            TexDim::Tex2D => 2,
+            TexDim::Tex3D => 3,
+        }
+    }
 }
 
 impl fmt::Display for TexDim {
@@ -4490,7 +4501,7 @@ impl DisplayOp for OpTexGather {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum TexGradientCoordMode {
     #[default]
     Coords,
@@ -4656,6 +4667,444 @@ impl Foldable for OpV2F32ToV2F16 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpVarTexBufDual {
+    #[dst_type(SR)]
+    pub dst: Dst,
+    pub dst_types: [DataType; 2],
+
+    pub skip: bool,
+    pub var_mem_type: DataType,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_masks: [TexWriteMask; 2],
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_buf_offset: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexBufDual {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "VAR_TEX_BUF_DUAL.{}.{}",
+            self.dst_types[0], self.dst_types[1]
+        )
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}.src_{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.var_mem_type,
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_masks[0],
+            self.write_masks[1],
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_buf_offset),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpVarTexBufGather {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub var_mem_type: DataType,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub gather_comp: TexGatherComp,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_buf_offset: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexBufGather {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_BUF_GATHER.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}.src_{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.var_mem_type,
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.gather_comp,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_buf_offset),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [A16, V2A16, V3A16, V4A16, A32, V2A32])]
+pub struct OpVarTexBufGradient {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub var_mem_type: DataType,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub lod_bias_disable: bool,
+    pub lod_clamp_disable: bool,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_buf_offset: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexBufGradient {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_BUF_GRADIENT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}.src_{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.var_mem_type,
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.lod_bias_disable),
+            bool_as_mod_str!(self.lod_clamp_disable),
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_buf_offset),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpVarTexBufSingle {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub var_mem_type: DataType,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_buf_offset: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexBufSingle {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_BUF_SINGLE.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}.src_{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.var_mem_type,
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_buf_offset),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpVarTexDual {
+    #[dst_type(SR)]
+    pub dst: Dst,
+    pub dst_types: [DataType; 2],
+
+    pub skip: bool,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_masks: [TexWriteMask; 2],
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_handle: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexDual {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "VAR_TEX_DUAL.{}.{}",
+            self.dst_types[0], self.dst_types[1]
+        )
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_masks[0],
+            self.write_masks[1],
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_handle),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpVarTexGather {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub gather_comp: TexGatherComp,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_handle: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexGather {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_GATHER.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.gather_comp,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_handle),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [A16, V2A16, V3A16, V4A16, A32, V2A32])]
+pub struct OpVarTexGradient {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub lod_bias_disable: bool,
+    pub lod_clamp_disable: bool,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_handle: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexGradient {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_GRADIENT.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.lod_bias_disable),
+            bool_as_mod_str!(self.lod_clamp_disable),
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_handle),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpVarTexSingle {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub sample_position: SamplePosition,
+    pub update: VaryingUpdateMode,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(I64)]
+    pub tex_handle: Src,
+    #[src_type(I32)]
+    pub var_handle: Src,
+    #[src_type(I32)]
+    pub sample: Src,
+}
+
+impl DisplayOp for OpVarTexSingle {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VAR_TEX_SINGLE.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}{}{}{} {} {} {}",
+            bool_as_mod_str!(self.skip),
+            self.sample_position,
+            self.update,
+            self.dim,
+            bool_as_mod_str!(self.projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self.wide_indices),
+            bool_as_mod_str!(self.array_enable),
+            bool_as_mod_str!(self.compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.tex_handle),
+            self.fmt_src(&self.var_handle),
+            self.fmt_src(&self.sample),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpWMask {
     #[dst_type(I32)]
     pub dst: Dst,
@@ -4814,6 +5263,14 @@ pub enum Op {
     TexGradient(Box<OpTexGradient>),
     TexSingle(Box<OpTexSingle>),
     V2F32ToV2F16(Box<OpV2F32ToV2F16>),
+    VarTexBufDual(Box<OpVarTexBufDual>),
+    VarTexBufGather(Box<OpVarTexBufGather>),
+    VarTexBufGradient(Box<OpVarTexBufGradient>),
+    VarTexBufSingle(Box<OpVarTexBufSingle>),
+    VarTexDual(Box<OpVarTexDual>),
+    VarTexGather(Box<OpVarTexGather>),
+    VarTexGradient(Box<OpVarTexGradient>),
+    VarTexSingle(Box<OpVarTexSingle>),
     WMask(Box<OpWMask>),
     ZSEmit(Box<OpZSEmit>),
 }
@@ -4893,7 +5350,15 @@ impl Op {
             | Op::TexFetch(_)
             | Op::TexGather(_)
             | Op::TexGradient(_)
-            | Op::TexSingle(_) => MemoryEffect::ConstRead,
+            | Op::TexSingle(_)
+            | Op::VarTexBufDual(_)
+            | Op::VarTexBufGather(_)
+            | Op::VarTexBufGradient(_)
+            | Op::VarTexBufSingle(_)
+            | Op::VarTexDual(_)
+            | Op::VarTexGather(_)
+            | Op::VarTexGradient(_)
+            | Op::VarTexSingle(_) => MemoryEffect::ConstRead,
             Op::Blend(_)
             | Op::BlendCall(_)
             | Op::StCvt(_)
@@ -4912,6 +5377,14 @@ impl Op {
             Op::LdVar(op) => op.update,
             Op::LdVarBuf(op) => op.update,
             Op::LdVarSpecial(op) => op.update,
+            Op::VarTexBufDual(op) => op.update,
+            Op::VarTexBufGather(op) => op.update,
+            Op::VarTexBufGradient(op) => op.update,
+            Op::VarTexBufSingle(op) => op.update,
+            Op::VarTexDual(op) => op.update,
+            Op::VarTexGather(op) => op.update,
+            Op::VarTexGradient(op) => op.update,
+            Op::VarTexSingle(op) => op.update,
             _ => VaryingUpdateMode::None,
         }
     }
@@ -4941,6 +5414,14 @@ impl Op {
             Op::TexGather(op) => op.skip,
             Op::TexGradient(op) => op.skip,
             Op::TexSingle(op) => op.skip,
+            Op::VarTexBufDual(op) => op.skip,
+            Op::VarTexBufGather(op) => op.skip,
+            Op::VarTexBufGradient(op) => op.skip,
+            Op::VarTexBufSingle(op) => op.skip,
+            Op::VarTexDual(op) => op.skip,
+            Op::VarTexGather(op) => op.skip,
+            Op::VarTexGradient(op) => op.skip,
+            Op::VarTexSingle(op) => op.skip,
 
             // Stores are ignored in discarded lanes
             Op::StTile(_) => true,

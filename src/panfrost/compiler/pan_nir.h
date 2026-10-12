@@ -290,6 +290,13 @@ nir_intrinsic_pan_bi_tex_flags(const nir_intrinsic_instr *instr)
    return flags;
 }
 
+enum pan_bi_sample_loc {
+   PAN_SAMPLE_LOC_CENTER,
+   PAN_SAMPLE_LOC_CENTROID,
+   PAN_SAMPLE_LOC_SAMPLE,
+   PAN_SAMPLE_LOC_EXPLICIT,
+};
+
 PRAGMA_DIAGNOSTIC_PUSH
 PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
 struct pan_va_tex_flags {
@@ -308,17 +315,12 @@ struct pan_va_tex_flags {
     * from the raw direction vector.
     */
    bool projection_enable : 1;
-   unsigned _pad : 20;
+   enum pan_bi_sample_loc var_sample_loc : 2;
+   bool var_buf_src_f16 : 1;
+   unsigned _pad : 17;
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
-
-enum pan_bi_sample_loc {
-   PAN_SAMPLE_LOC_CENTER,
-   PAN_SAMPLE_LOC_CENTROID,
-   PAN_SAMPLE_LOC_SAMPLE,
-   PAN_SAMPLE_LOC_EXPLICIT,
-};
 
 enum pan_bi_varying_name {
    PAN_VARYING_NAME_POINT = 0,
