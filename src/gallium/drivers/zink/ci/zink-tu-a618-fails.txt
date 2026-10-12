@@ -9,6 +9,9 @@ dEQP-GLES3.functional.shaders.matrix.inverse.dynamic.mediump_mat4_float_vertex,F
 dEQP-GLES3.functional.multisample.fbo_4_samples.stencil,Fail
 dEQP-GLES3.functional.multisample.fbo_max_samples.stencil,Fail
 
+# GL_MAP_CLIENT_POINTER_BIT_MESA not recognized as a valid storage flag
+KHR-GL46.direct_state_access.buffers_errors,Fail
+
 # EGL
 # Usual Zink failures
 wayland-dEQP-EGL.functional.resize.surface_size.grow,Fail
