@@ -130,6 +130,27 @@ Panfrost developers and users hang out on IRC at ``#panfrost`` on OFTC. Note
 that registering and authenticating with ``NickServ`` is required to prevent
 spam. `Join the chat. <https://webchat.oftc.net/?channels=panfrost>`__
 
+AI policy
+---------
+
+Many of the Panfrost developers share the view that important code is best
+written by human beings at this point. Writing code is not the bottleneck
+of development, and it's critical that we have human beings that deeply
+understand the code and are accountable for any changes. The best way of
+getting this understanding is by writing the code ourselves.
+
+So we ask developers to refrain from using AI to generate patches. It's OK to
+use AI to analyze code, review test logs, sanity-check patches etc., but please
+write the code you submit yourself.
+
+We also do not want AI-generated issue reports and other project communication.
+This is because reports like that tend to be overly verbose and often
+confusing to read. We prefer a short report written by a human over a wall of
+text written by a machine. We can always ask for more details when needed.
+
+While we can't conclusively prove violations of this policy, we ask that
+contributors do their best to follow it.
+
 Technical details
 -----------------
 
