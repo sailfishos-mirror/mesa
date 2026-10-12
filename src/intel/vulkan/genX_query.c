@@ -854,6 +854,23 @@ emit_zero_queries(struct anv_cmd_buffer *cmd_buffer,
    }
 }
 
+static bool
+append_query_copy_flush(struct anv_cmd_buffer *cmd_buffer,
+                        struct anv_query_pool *pool,
+                        const char *reason)
+{
+   if (cmd_buffer->state.queries.copy_bits == 0)
+      return false;
+
+   anv_add_pending_pipe_bits(cmd_buffer,
+                             VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                             ANV_PIPE_QUERY_BITS(
+                                cmd_buffer->state.queries.copy_bits),
+                             reason);
+   return true;
+}
+
 void genX(CmdResetQueryPool)(
     VkCommandBuffer                             commandBuffer,
     VkQueryPool                                 queryPool,
@@ -864,6 +881,10 @@ void genX(CmdResetQueryPool)(
    ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
    const struct anv_physical_device *pdevice = cmd_buffer->device->physical;
    const struct anv_instance *instance = pdevice->instance;
+
+   if (append_query_copy_flush(cmd_buffer, pool,
+                               "CmdResetQueryPool* flush query copies"))
+      genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 
    /* Shader clearing is only possible on render/compute when not in protected
     * mode.
@@ -1106,7 +1127,6 @@ append_query_clear_flush(struct anv_cmd_buffer *cmd_buffer,
                              reason);
    return true;
 }
-
 
 void genX(CmdBeginQueryIndexedEXT)(
     VkCommandBuffer                             commandBuffer,
@@ -2040,7 +2060,16 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
     * HDC/Data cache depending on the generation. Also stall at pixel
     * scoreboard in case we're doing the copy with a fragment shader.
     */
-   cmd_buffer->state.queries.buffer_write_bits |= ANV_QUERY_WRITES_DATA_FLUSH;
+   if (anv_cmd_buffer_is_compute_queue(cmd_buffer) ||
+       cmd_buffer->state.current_pipeline ==
+       cmd_buffer->device->physical->gpgpu_pipeline_value) {
+      cmd_buffer->state.queries.copy_bits =
+         ANV_QUERY_COMPUTE_WRITES_PENDING_BITS;
+   } else {
+      cmd_buffer->state.queries.copy_bits =
+         ANV_QUERY_RENDER_TARGET_WRITES_PENDING_BITS(
+            cmd_buffer->device->info);
+   }
 
    trace_intel_end_query_copy_shader(&cmd_buffer->trace, query_count);
 }
