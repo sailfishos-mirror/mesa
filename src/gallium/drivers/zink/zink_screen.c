@@ -1459,7 +1459,7 @@ zink_is_format_supported(struct pipe_screen *pscreen,
          info.type = VK_IMAGE_TYPE_3D;
          if (bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL))
             info.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
-         if (screen->info.have_EXT_image_2d_view_of_3d)
+         if (screen->info.have_EXT_image_2d_view_of_3d && bind & PIPE_BIND_SHADER_IMAGE)
             info.flags |= VK_IMAGE_CREATE_2D_VIEW_COMPATIBLE_BIT_EXT;
          break;
 

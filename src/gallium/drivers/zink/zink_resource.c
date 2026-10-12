@@ -551,6 +551,17 @@ emit_usage_candidates(struct image_config *c, unsigned n, VkImageTiling tiling, 
    return n;
 }
 
+static void
+add_2d_view_flag(struct zink_screen *screen, const struct pipe_resource *templ, VkImageUsageFlags usage, VkImageCreateFlags *flags)
+{
+   if (templ->target != PIPE_TEXTURE_3D || !(usage & VK_IMAGE_USAGE_STORAGE_BIT))
+      return;
+   if (!(templ->flags & PIPE_RESOURCE_FLAG_SPARSE) || screen->info.maint9_props.image2DViewOf3DSparse) {
+      if (screen->info.have_EXT_image_2d_view_of_3d)
+         (*flags) |= VK_IMAGE_CREATE_2D_VIEW_COMPATIBLE_BIT_EXT;
+   }
+}
+
 static unsigned
 build_usage_candidates(struct zink_screen *screen, const struct pipe_resource *templ, unsigned bind,
                        VkImageTiling tiling, VkImageCreateFlags base_flags, bool extended, bool have_fmtlist,
@@ -577,6 +588,7 @@ build_usage_candidates(struct zink_screen *screen, const struct pipe_resource *t
       feats = UINT32_MAX;
       usage = get_image_usage_for_feats(screen, feats, templ, bind, &need_extended);
    }
+   add_2d_view_flag(screen, templ, usage, &flags);
 
    /* full usage, mutable required */
    n = emit_usage_candidates(c, n, tiling, usage, flags, true, have_fmtlist, always_mutable, max);
@@ -650,9 +662,10 @@ find_good_mod(struct zink_screen *screen, VkImageCreateInfo *ici, const struct p
       VkImageCreateFlags try_flags = saved_flags;
       if (feats & VK_FORMAT_FEATURE_DISJOINT_BIT && util_format_get_num_planes(templ->format))
          try_flags |= VK_IMAGE_CREATE_DISJOINT_BIT;
-      ici->flags = try_flags;
 
       VkImageUsageFlags usage = get_image_usage_for_feats(screen, feats, templ, bind, &need_extended);
+      add_2d_view_flag(screen, templ, usage, &try_flags);
+      ici->flags = try_flags;
       assert(!need_extended);
       if (try_usage_mutable(screen, ici, usage, modifiers[i])) {
          found = true;
@@ -724,6 +737,7 @@ negotiate_image_config(struct zink_screen *screen, VkImageCreateInfo *ici, const
          if (feats & VK_FORMAT_FEATURE_DISJOINT_BIT && util_format_get_num_planes(templ->format) > 1)
             ici->flags |= VK_IMAGE_CREATE_DISJOINT_BIT;
          VkImageUsageFlags usage = get_image_usage_for_feats(screen, feats, templ, bind, &need_extended);
+         add_2d_view_flag(screen, templ, usage, &ici->flags);
          assert(!need_extended);
          if (try_usage_mutable(screen, ici, usage, DRM_FORMAT_MOD_LINEAR)) {
             mod = DRM_FORMAT_MOD_LINEAR;
@@ -868,7 +882,8 @@ init_ici(struct zink_screen *screen, VkImageCreateInfo *ici, const struct pipe_r
          ici->flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
       }
       if (!(templ->flags & PIPE_RESOURCE_FLAG_SPARSE) || screen->info.maint9_props.image2DViewOf3DSparse) {
-         if (screen->info.have_EXT_image_2d_view_of_3d)
+         /* only globally add if sampler feature is enabled */
+         if (screen->info.have_EXT_image_2d_view_of_3d && screen->info.view2d_feats.sampler2DViewOf3D)
             ici->flags |= VK_IMAGE_CREATE_2D_VIEW_COMPATIBLE_BIT_EXT;
       }
       break;
