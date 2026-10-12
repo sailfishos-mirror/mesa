@@ -628,15 +628,15 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
    VkImageUsageFlags supportedImageUsage = pVideoFormatInfo->imageUsage;
    VkImageCreateFlags supportedImageCreateFlags = 0;
 
-   if (pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR ||
-       pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR)
+   if ((pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) ||
+       (pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_2_VIDEO_ENCODE_SRC_BIT_KHR))
    {
-      supportedImageUsage |= (VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                              VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                              VK_IMAGE_USAGE_SAMPLED_BIT);
+      supportedImageUsage |= (VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR |
+                              VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR |
+                              VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR);
 
-      supportedImageCreateFlags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT |
-                                  VK_IMAGE_CREATE_EXTENDED_USAGE_BIT;
+      supportedImageCreateFlags = VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR |
+                                  VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR;
 
    }
 
@@ -654,16 +654,16 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
          if (res != VK_SUCCESS)
             return res;
 
-         const VkImageUsageFlags dpb_output_coincide_usage =
-            VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR |
-            VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR;
+         const VkImageUsageFlags2KHR dpb_output_coincide_usage =
+            VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR |
+            VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR;
 
          const bool decode_dpb_only =
             (pVideoFormatInfo->imageUsage & dpb_output_coincide_usage) ==
-            VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR;
+            VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR;
          const bool decode_dst_only =
             (pVideoFormatInfo->imageUsage & dpb_output_coincide_usage) ==
-            VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
+            VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR;
 
          /* Decoder supports only
           * VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR.

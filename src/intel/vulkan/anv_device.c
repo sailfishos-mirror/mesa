@@ -1907,7 +1907,7 @@ VkResult anv_AllocateMemory(
           * wait for render complete.
           */
          if (pdevice->drirc.debug.external_memory_implicit_sync &&
-             (image->vk.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+             (image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR))
             alloc_flags |= ANV_BO_ALLOC_IMPLICIT_WRITE;
       }
    }

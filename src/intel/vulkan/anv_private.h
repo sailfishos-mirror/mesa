@@ -6486,8 +6486,8 @@ isl_surf_usage_flags_t
 anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
                                 VkFormat vk_format,
                                 const VkImageFormatListCreateInfo *format_list_info,
-                                VkImageCreateFlags vk_create_flags,
-                                VkImageUsageFlags vk_usage,
+                                VkImageCreateFlags2KHR vk_create_flags,
+                                VkImageUsageFlags2KHR vk_usage,
                                 isl_surf_usage_flags_t isl_extra_usage,
                                 VkImageAspectFlagBits aspect,
                                 VkImageCompressionFlagsEXT comp_flags);
@@ -6571,7 +6571,7 @@ enum isl_aux_usage ATTRIBUTE_PURE
 anv_layout_to_aux_usage(const struct intel_device_info * const devinfo,
                         const struct anv_image *image,
                         const VkImageAspectFlagBits aspect,
-                        const VkImageUsageFlagBits usage,
+                        const VkImageUsageFlagBits2KHR usage,
                         const VkImageLayout layout,
                         const VkQueueFlagBits queue_flags);
 

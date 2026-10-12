@@ -3067,8 +3067,8 @@ VkResult anv_WriteResourceDescriptorsEXT(
                enum isl_aux_usage aux_usage =
                   anv_layout_to_aux_usage(device->info, image, aspect,
                                           is_storage ?
-                                          VK_IMAGE_USAGE_STORAGE_BIT :
-                                          VK_IMAGE_USAGE_SAMPLED_BIT,
+                                          VK_IMAGE_USAGE_2_STORAGE_BIT_KHR :
+                                          VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR,
                                           img_info->layout,
                                           VK_QUEUE_GRAPHICS_BIT |
                                           VK_QUEUE_COMPUTE_BIT);

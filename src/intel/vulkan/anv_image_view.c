@@ -243,8 +243,8 @@ anv_image_view_init(struct anv_device *device,
          iview->planes[vplane].isl.usage = 0;
       }
 
-      if (iview->vk.usage & (VK_IMAGE_USAGE_SAMPLED_BIT |
-                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)) {
+      if (iview->vk.usage & (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR |
+                             VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR)) {
          iview->planes[vplane].optimal_sampler.state =
             anv_device_maybe_alloc_surface_state(device, surface_state_stream);
          iview->planes[vplane].general_sampler.state =
@@ -252,12 +252,12 @@ anv_image_view_init(struct anv_device *device,
 
          enum isl_aux_usage general_aux_usage =
             anv_layout_to_aux_usage(device->info, image, 1UL << iaspect_bit,
-                                    VK_IMAGE_USAGE_SAMPLED_BIT,
+                                    VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR,
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     device->view_queues);
          enum isl_aux_usage optimal_aux_usage =
             anv_layout_to_aux_usage(device->info, image, 1UL << iaspect_bit,
-                                    VK_IMAGE_USAGE_SAMPLED_BIT,
+                                    VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR,
                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                     device->view_queues);
 
@@ -283,7 +283,7 @@ anv_image_view_init(struct anv_device *device,
       }
 
       /* NOTE: This one needs to go last since it may stomp isl_view.format */
-      if (iview->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) {
+      if (iview->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
          struct isl_view storage_view = iview->planes[vplane].isl;
          if (iview->vk.view_type == VK_IMAGE_VIEW_TYPE_3D) {
             storage_view.base_array_layer = iview->vk.storage.z_slice_offset;
@@ -292,7 +292,7 @@ anv_image_view_init(struct anv_device *device,
 
          enum isl_aux_usage general_aux_usage =
             anv_layout_to_aux_usage(device->info, image, 1UL << iaspect_bit,
-                                    VK_IMAGE_USAGE_STORAGE_BIT,
+                                    VK_IMAGE_USAGE_2_STORAGE_BIT_KHR,
                                     VK_IMAGE_LAYOUT_GENERAL,
                                     device->view_queues);
          iview->planes[vplane].storage.state =

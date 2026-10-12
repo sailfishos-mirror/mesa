@@ -6598,7 +6598,7 @@ void genX(CmdBeginRendering)(
             anv_layout_to_aux_usage(cmd_buffer->device->info,
                                     d_iview->image,
                                     VK_IMAGE_ASPECT_DEPTH_BIT,
-                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                    VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR,
                                     depth_layout,
                                     cmd_buffer->queue_family->queueFlags);
          clear_value.depth = d_att->clearValue.depthStencil.depth;
@@ -6612,7 +6612,7 @@ void genX(CmdBeginRendering)(
             anv_layout_to_aux_usage(cmd_buffer->device->info,
                                     s_iview->image,
                                     VK_IMAGE_ASPECT_STENCIL_BIT,
-                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                    VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR,
                                     stencil_layout,
                                     cmd_buffer->queue_family->queueFlags);
          clear_value.stencil = s_att->clearValue.depthStencil.stencil;
@@ -6819,7 +6819,7 @@ void genX(CmdBeginRendering)(
       att->layout = vk_att->imageLayout;
       att->aux_usage = anv_layout_to_aux_usage(
          cmd_buffer->device->info, iview->image,
-         iview->vk.aspects, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+         iview->vk.aspects, VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR,
          vk_att->imageLayout, cmd_buffer->queue_family->queueFlags);
 
       att->skip_srgb_decode = vk_att_flags_info &&

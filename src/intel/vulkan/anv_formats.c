@@ -838,7 +838,7 @@ static VkFormatFeatureFlags2
 anv_get_color_format_features(const struct anv_physical_device *physical_device,
                               const struct anv_format *anv_format,
                               const VkImageTiling vk_tiling,
-                              VkImageUsageFlags usage,
+                              VkImageUsageFlags2KHR usage,
                               VkImageCreateFlags create_flags,
                               VkImageCompressionFlagsEXT comp_flags,
                               const struct isl_drm_modifier_info *isl_mod_info)
@@ -847,12 +847,12 @@ anv_get_color_format_features(const struct anv_physical_device *physical_device,
    VkFormatFeatureFlags2 flags = 0;
    const VkFormat vk_format = anv_format->vk_format;
    const bool is_sparse = (create_flags &
-                           (VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
-                            VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT |
-                            VK_IMAGE_CREATE_SPARSE_ALIASED_BIT)) != 0;
+                           (VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR |
+                            VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR |
+                            VK_IMAGE_CREATE_2_SPARSE_ALIASED_BIT_KHR)) != 0;
 
    if (anv_format->flags & ANV_FORMAT_FLAG_CAN_VIDEO &&
-         !(create_flags & VK_IMAGE_CREATE_DISJOINT_BIT)) {
+         !(create_flags & VK_IMAGE_CREATE_2_DISJOINT_BIT_KHR)) {
       flags |= ANV_DEBUG(VIDEO_DECODE) ?
                   VK_FORMAT_FEATURE_2_VIDEO_DECODE_OUTPUT_BIT_KHR |
                   VK_FORMAT_FEATURE_2_VIDEO_DECODE_DPB_BIT_KHR : 0;
@@ -1013,7 +1013,7 @@ anv_get_color_format_features(const struct anv_physical_device *physical_device,
     *
     * Remove disallowed flags if any of the plane can support that feature.
     */
-   if (create_flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT) {
+   if (create_flags & VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR) {
       for (uint32_t p = 0; p < anv_format->n_planes; p++) {
          const struct anv_format_plane ycbcr_plane_format =
             anv_get_format_plane(physical_device, vk_format, p, vk_tiling);
@@ -1074,10 +1074,10 @@ anv_get_color_format_features(const struct anv_physical_device *physical_device,
        * bits are set, the media engines do not support disjoint.
        */
       if (anv_format->n_planes > 1 &&
-            !(usage & (VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR |
-                       VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR |
-                       VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR |
-                       VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR)))
+            !(usage & (VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR |
+                       VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR |
+                       VK_IMAGE_USAGE_2_VIDEO_ENCODE_SRC_BIT_KHR |
+                       VK_IMAGE_USAGE_2_VIDEO_ENCODE_DPB_BIT_KHR)))
          flags |= VK_FORMAT_FEATURE_2_DISJOINT_BIT;
 
       flags &= ~disallowed_ycbcr_image_features;
@@ -1153,7 +1153,7 @@ static VkFormatFeatureFlags2
 anv_get_image_format_features(const struct anv_physical_device *physical_device,
                               const struct anv_format *anv_format,
                               VkImageTiling vk_tiling,
-                              VkImageUsageFlags usage,
+                              VkImageUsageFlags2KHR usage,
                               VkImageCreateFlags create_flags,
                               VkImageCompressionFlagsEXT comp_flags,
                               const struct isl_drm_modifier_info *isl_mod_info,
@@ -1422,58 +1422,58 @@ static bool
 anv_format_supports_usage(
    VkFormatFeatureFlags2 format_feature_flags,
    VkFormatFeatureFlags4KHR format_feature_flags4,
-   VkImageUsageFlags usage_flags)
+   VkImageUsageFlags2KHR usage_flags)
 {
-   if (usage_flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR) {
       if (!(format_feature_flags & (VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
                                     VK_FORMAT_FEATURE_2_BLIT_SRC_BIT))) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR) {
       if (!(format_feature_flags & (VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT |
                                     VK_FORMAT_FEATURE_2_BLIT_DST_BIT))) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_SAMPLED_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) {
       if (!(format_feature_flags & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_STORAGE_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
       if (!(format_feature_flags & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) {
       if (!(format_feature_flags & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR) {
       if (!(format_feature_flags & VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_TRANSIENT_ATTACHMENT_BIT_KHR) {
       /* Nothing to check. */
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) {
+   if (usage_flags & VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR) {
       if (!(format_feature_flags & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                                     VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT))) {
          return false;
       }
    }
 
-   if (usage_flags & VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) {
+   if (usage_flags & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) {
       if (!(format_feature_flags & VK_FORMAT_FEATURE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR)) {
          return false;
       }
@@ -1570,12 +1570,12 @@ anv_formats_gather_format_features(
    VkImageTiling tiling,
    const struct isl_drm_modifier_info *isl_mod_info,
    const VkImageFormatListCreateInfo *format_list_info,
-   VkImageUsageFlags usage,
+   VkImageUsageFlags2KHR usage,
    VkImageCreateFlags create_flags,
    VkFormatFeatureFlags4KHR *out_formats_features4)
 {
    const bool allow_texel_compatible =
-      (create_flags & VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT) != 0;
+      (create_flags & VK_IMAGE_CREATE_2_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_KHR) != 0;
    VkFormatFeatureFlags2 all_formats_feature_flags = 0;
    VkFormatFeatureFlags4KHR all_formats_feature_flags4 = 0;
 
@@ -1704,7 +1704,7 @@ anv_get_image_format_properties(
    VkImageCompressionPropertiesEXT *comp_props = NULL;
    VkHostImageCopyDevicePerformanceQueryEXT *host_props = NULL;
    const struct wsi_image_create_info *wsi_info = NULL;
-   const bool is_sparse = info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
+   const bool is_sparse = info->flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR;
 
    /* Extract input structs */
    vk_foreach_struct_const(sType, s, info->pNext) {
@@ -1764,8 +1764,8 @@ anv_get_image_format_properties(
       goto unsupported;
 
    /* Would require some annoying tracking or kernel support. */
-   if ((info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) &&
-       (info->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT))
+   if ((info->flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) &&
+       (info->usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR))
       goto unsupported;
 
    bool ccs_mod = false;
@@ -1777,7 +1777,7 @@ anv_get_image_format_properties(
       ccs_mod = isl_drm_modifier_has_aux(isl_mod_info->modifier);
 
       /* only allow Y-tiling/Tile4 for video decode. */
-      if (info->usage & VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR) {
+      if (info->usage & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) {
          if (isl_mod_info->tiling != ISL_TILING_Y0 && isl_mod_info->tiling != ISL_TILING_4)
             goto unsupported;
       }
@@ -1820,7 +1820,7 @@ anv_get_image_format_properties(
    /* If any of the format in VkImageFormatListCreateInfo is completely
     * unsupported, report unsupported.
     */
-   if ((info->flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) &&
+   if ((info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) &&
        format_list_info != NULL) {
       for (uint32_t i = 0; i < format_list_info->viewFormatCount; i++) {
          const struct anv_format *view_format =
@@ -1858,13 +1858,12 @@ anv_get_image_format_properties(
                                                         &format_feature_flags4);
 
    if (!anv_format_supports_usage(format_feature_flags,
-                                  format_feature_flags4,
-                                  info->usage)) {
+                                  format_feature_flags4, info->usage)) {
       /* If image format itself does not support the usage, and we don't allow
        * views formats to support it, then we can't support this usage at all.
        */
-      if (!(info->flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) ||
-          !(info->flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT))
+      if (!(info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) ||
+          !(info->flags & VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR))
          goto unsupported;
 
       /* We don't want emulated formats to gain unexpected usage (storage in
@@ -1890,8 +1889,7 @@ anv_get_image_format_properties(
          anv_formats_gather_format_features(physical_device, format,
                                             info->tiling, isl_mod_info,
                                             format_list_info,
-                                            info->usage,
-                                            info->flags,
+                                            info->usage, info->flags,
                                             &all_formats_feature_flags4);
 
       if (!anv_format_supports_usage(all_formats_feature_flags,
@@ -1914,8 +1912,8 @@ anv_get_image_format_properties(
       sampleCounts = VK_SAMPLE_COUNT_1_BIT;
 
       if (isl_mod_info->supports_clear_color &&
-          (info->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) &&
-          (info->flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)) {
+          (info->usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
+          (info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR)) {
          /* Format reinterpretation generally won't work correctly with the
           * raw clear color channels.
           */
@@ -1944,14 +1942,14 @@ anv_get_image_format_properties(
        info->type == VK_IMAGE_TYPE_2D &&
        (format_feature_flags & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                                 VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
-       !(info->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) &&
-       !(info->usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
-       !(info->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT) &&
+       !(info->flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) &&
+       !(info->usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) &&
+       !(info->usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR) &&
        isl_format_supports_multisampling(devinfo, format->planes[0].isl_format)) {
       sampleCounts = isl_device_get_sample_counts(&physical_device->isl_dev);
    }
 
-   if (info->usage & VK_IMAGE_USAGE_STORAGE_BIT) {
+   if (info->usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
       /* Non-power-of-two formats can never be used as storage images.  We
        * only check plane 0 because there are no YCbCr formats with
        * non-power-of-two planes.
@@ -1962,7 +1960,7 @@ anv_get_image_format_properties(
          goto unsupported;
    }
 
-   if (info->flags & VK_IMAGE_CREATE_DISJOINT_BIT) {
+   if (info->flags & VK_IMAGE_CREATE_2_DISJOINT_BIT_KHR) {
       /* From the Vulkan 1.2.149 spec, VkImageCreateInfo:
        *
        *    If format is a multi-planar format, and if imageCreateFormatFeatures
@@ -1982,7 +1980,7 @@ anv_get_image_format_properties(
        * VK_IMAGE_CREATE_DISJOINT_BIT.
        */
       if (format->n_planes == 1 &&
-          !(info->flags & VK_IMAGE_CREATE_ALIAS_BIT)) {
+          !(info->flags & VK_IMAGE_CREATE_2_ALIAS_BIT_KHR)) {
           goto unsupported;
       }
 
@@ -1995,7 +1993,7 @@ anv_get_image_format_properties(
       }
    }
 
-   if ((info->usage & VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) &&
+   if ((info->usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) &&
        !devinfo->has_coarse_pixel_primitive_and_cb)
       goto unsupported;
 
@@ -2311,8 +2309,8 @@ void anv_GetPhysicalDeviceSparseImageFormatProperties2(
       assert(isl_format != ISL_FORMAT_UNSUPPORTED);
 
       VkImageCreateFlags vk_create_flags =
-         VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
-         VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT;
+         VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR |
+         VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR;
 
       isl_surf_usage_flags_t isl_usage =
          anv_image_choose_isl_surf_usage(physical_device,
