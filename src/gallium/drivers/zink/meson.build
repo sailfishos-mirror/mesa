@@ -77,8 +77,7 @@ if host_machine.system() == 'darwin'
       endif
     endif
     inc_zink_vk += include_directories(moltenvk_includes)
-  else
-    error('moltenvk-dir is required but not set.')
+    zink_c_args += '-DHAVE_MOLTENVK'
   endif
 
   zink_c_args += ['-x','objective-c'] # Put compiler into objective-C mode to allow for MacOS types, like IOSurface and CAMetalLayer

@@ -297,7 +297,8 @@ option(
   'moltenvk-dir',
   type : 'string',
   value : '',
-  description : 'Location of the MoltenVk SDK. Default: '
+  description : 'Location of the MoltenVK SDK, macOS only. ' +
+                'Also enables MoltenVK-specific configuration.'
 )
 
 option(

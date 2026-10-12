@@ -61,11 +61,11 @@
 #define DRM_FORMAT_MOD_LINEAR 0
 #endif
 
-#ifdef __APPLE__
+#ifdef HAVE_MOLTENVK
 #include "MoltenVK/mvk_vulkan.h"
 // Source of MVK_VERSION
 #include "MoltenVK/mvk_config.h"
-#endif /* __APPLE__ */
+#endif /* HAVE_MOLTENVK */
 
 #define ZINK_EXTERNAL_MEMORY_HANDLE 999
 
