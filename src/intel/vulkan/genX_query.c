@@ -1755,6 +1755,19 @@ copy_query_results_with_cs(struct anv_cmd_buffer *cmd_buffer,
       genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
    }
 
+
+#if GFX_VER >= 20
+   /* On Gfx20+, if we're waiting for the results but there is no CS stall, we
+    * need to fence the MI write emitted by previous vkCmdQuery(Begin|End)*
+    * commands so the results are visible by MI read commands.
+    */
+   if (needed_flushes == 0 && (flags & VK_QUERY_RESULT_WAIT_BIT)) {
+      anv_batch_emit(&cmd_buffer->batch, GENX(MI_MEM_FENCE), fence) {
+         fence.FenceType = FENCE_TYPE_MI_WRITE;
+      }
+   }
+#endif
+
    struct mi_builder b;
    mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
    mi_builder_set_mocs(&b, anv_mocs_for_address(
