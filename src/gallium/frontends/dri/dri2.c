@@ -836,6 +836,7 @@ dri_create_image(struct dri_screen *screen,
    struct pipe_screen *pscreen = screen->base.screen;
    struct dri_image *img;
    struct pipe_resource templ;
+   enum pipe_format pipe_format;
    unsigned tex_usage = 0;
    unsigned count = _count;
 
@@ -868,14 +869,7 @@ dri_create_image(struct dri_screen *screen,
        height > pscreen->caps.max_texture_2d_size)
       return NULL;
 
-   if (pscreen->is_format_supported(pscreen, map->pipe_format, screen->target,
-                                    0, 0, PIPE_BIND_RENDER_TARGET))
-      tex_usage |= PIPE_BIND_RENDER_TARGET;
-   if (pscreen->is_format_supported(pscreen, map->pipe_format, screen->target, 0, 0,
-                                    PIPE_BIND_SAMPLER_VIEW) ||
-       pscreen->is_format_supported(pscreen, map->pipe_format, screen->target, 0, 0,
-                                    PIPE_BIND_SAMPLER_VIEW | PIPE_BIND_SAMPLER_VIEW_SUBOPTIMAL))
-      tex_usage |= PIPE_BIND_SAMPLER_VIEW;
+   pipe_format = dri2_get_create_format(screen, map->pipe_format, &tex_usage);
 
    if (!tex_usage)
       return NULL;
@@ -902,7 +896,7 @@ dri_create_image(struct dri_screen *screen,
 
    memset(&templ, 0, sizeof(templ));
    templ.bind = tex_usage;
-   templ.format = map->pipe_format;
+   templ.format = pipe_format;
    templ.target = PIPE_TEXTURE_2D;
    templ.last_level = 0;
    templ.width0 = width;
@@ -928,7 +922,7 @@ dri_create_image(struct dri_screen *screen,
    img->level = 0;
    img->layer = 0;
    img->dri_format = format;
-   img->dri_fourcc = dri2_get_host_fourcc(screen, map);
+   img->dri_fourcc = dri2_get_image_fourcc(screen, map, pipe_format);
    img->use = use;
    img->in_fence_fd = -1;
 
@@ -957,7 +951,8 @@ dri2_query_image_common(struct dri_image *image, int attrib, int *value)
          if (!map)
             return false;
 
-         *value = dri2_get_host_fourcc(image->screen, map);
+         *value = dri2_get_image_fourcc(image->screen, map,
+                                        image->texture->format);
       }
       return true;
    case __DRI_IMAGE_ATTRIB_COMPRESSION_RATE:

@@ -741,6 +741,12 @@ dri2_get_mapping_by_format(int format)
          return &dri2_format_table[i];
    }
 
+   /* an image with the fixed little-endian variant of a format */
+   for (unsigned i = 0; i < ARRAY_SIZE(dri2_format_table); i++) {
+      if (util_format_le_byte_order(dri2_format_table[i].dri_format) == format)
+         return &dri2_format_table[i];
+   }
+
    return NULL;
 }
 
@@ -793,6 +799,24 @@ dri2_yuv_dma_buf_supported(struct dri_screen *screen,
    return true;
 }
 
+static unsigned
+dri2_get_tex_usage(struct dri_screen *screen, enum pipe_format format)
+{
+   struct pipe_screen *pscreen = screen->base.screen;
+   unsigned tex_usage = 0;
+
+   if (pscreen->is_format_supported(pscreen, format, screen->target, 0, 0,
+                                    PIPE_BIND_RENDER_TARGET))
+      tex_usage |= PIPE_BIND_RENDER_TARGET;
+   if (pscreen->is_format_supported(pscreen, format, screen->target, 0, 0,
+                                    PIPE_BIND_SAMPLER_VIEW) ||
+       pscreen->is_format_supported(pscreen, format, screen->target, 0, 0,
+                                    PIPE_BIND_SAMPLER_VIEW | PIPE_BIND_SAMPLER_VIEW_SUBOPTIMAL))
+      tex_usage |= PIPE_BIND_SAMPLER_VIEW;
+
+   return tex_usage;
+}
+
 /**
  * A dma-buf has the little-endian layout of its fourcc, so on a big-endian
  * host it is imported with the fixed little-endian variant of \p format, if
@@ -813,15 +837,38 @@ dri2_get_import_format(struct dri_screen *screen, enum pipe_format format)
 }
 
 /**
- * The fourcc of a host-endian image described by \p map. It has
- * DRM_FORMAT_BIG_ENDIAN set if a dma-buf with the plain fourcc is imported
- * with a different format.
+ * The format to allocate an image of \p format with, and the binds the driver
+ * supports for it in \p tex_usage. On a big-endian host this is the fixed
+ * little-endian variant of \p format, which has the layout of the fourcc, if
+ * the driver supports it for all that it supports \p format for.
+ */
+enum pipe_format
+dri2_get_create_format(struct dri_screen *screen, enum pipe_format format,
+                       unsigned *tex_usage)
+{
+   enum pipe_format le_format = util_format_le_byte_order(format);
+
+   *tex_usage = dri2_get_tex_usage(screen, format);
+
+   if (UTIL_ARCH_BIG_ENDIAN && le_format != format && *tex_usage &&
+       dri2_get_tex_usage(screen, le_format) == *tex_usage)
+      return le_format;
+
+   return format;
+}
+
+/**
+ * The fourcc of an image described by \p map with a texture of \p format.
+ * It has DRM_FORMAT_BIG_ENDIAN set if the texture is host-endian and a
+ * dma-buf with the plain fourcc is imported with a different format.
  */
 int
-dri2_get_host_fourcc(struct dri_screen *screen,
-                     const struct dri2_format_mapping *map)
+dri2_get_image_fourcc(struct dri_screen *screen,
+                      const struct dri2_format_mapping *map,
+                      enum pipe_format format)
 {
-   if (dri2_get_import_format(screen, map->pipe_format) != map->pipe_format)
+   if (format == map->pipe_format &&
+       dri2_get_import_format(screen, map->pipe_format) != map->pipe_format)
       return map->dri_fourcc | DRM_FORMAT_BIG_ENDIAN;
 
    return map->dri_fourcc;
@@ -829,7 +876,7 @@ dri2_get_host_fourcc(struct dri_screen *screen,
 
 /**
  * The mapping to import a dma-buf of \p fourcc with, or NULL. Unless
- * \p fourcc is one from dri2_get_host_fourcc(), this is \p import_map, a
+ * \p fourcc is one from dri2_get_image_fourcc(), this is \p import_map, a
  * copy of the table entry with the formats from dri2_get_import_format().
  */
 const struct dri2_format_mapping *
@@ -840,7 +887,8 @@ dri2_get_import_mapping(struct dri_screen *screen, int fourcc,
 
    if (!map) {
       map = dri2_get_mapping_by_fourcc(fourcc & ~DRM_FORMAT_BIG_ENDIAN);
-      if (map && dri2_get_host_fourcc(screen, map) != fourcc)
+      if (map &&
+          dri2_get_image_fourcc(screen, map, map->pipe_format) != fourcc)
          map = NULL;
       return map;
    }
