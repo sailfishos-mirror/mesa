@@ -647,19 +647,21 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
        vk_format_get_blocksizebits(image_format) == 128 && vk_format_is_compressed(image_format))
       flags |= RADEON_SURF_NO_RENDER_TARGET;
 
-   if (!radv_use_dcc_for_image_early(device, image, pCreateInfo, image_format, &image->dcc_sign_reinterpret))
+   if (pdev->info.gfx_level < GFX12 &&
+       !radv_use_dcc_for_image_early(device, image, pCreateInfo, image_format, &image->dcc_sign_reinterpret))
       flags |= RADEON_SURF_DISABLE_DCC;
 
    if (!radv_use_fmask_for_image(device, image))
       flags |= RADEON_SURF_NO_FMASK;
 
    if (image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR) {
-      flags |= RADEON_SURF_PRT | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE | RADEON_SURF_DISABLE_DCC;
+      flags |= RADEON_SURF_PRT | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE |
+               (pdev->info.gfx_level < GFX12 ? RADEON_SURF_DISABLE_DCC : 0);
    }
 
    /* Disable DCC for VRS rate images because the hw can't handle compression. */
    if (image->vk.usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR)
-      flags |= RADEON_SURF_VRS_RATE | RADEON_SURF_DISABLE_DCC;
+      flags |= RADEON_SURF_VRS_RATE | (pdev->info.gfx_level < GFX12 ? RADEON_SURF_DISABLE_DCC : 0);
    if (!(image->vk.usage & (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)))
       flags |= RADEON_SURF_NO_TEXTURE;
    if (image->vk.usage & (VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR | VK_IMAGE_USAGE_2_VIDEO_ENCODE_DPB_BIT_KHR) &&
@@ -682,8 +684,9 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
       bool is_4k_capable;
 
       if (!vk_format_is_depth_or_stencil(image_format)) {
-         is_4k_capable = !(image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
-                         (flags & RADEON_SURF_DISABLE_DCC) && (flags & RADEON_SURF_NO_FMASK);
+         is_4k_capable =
+            !(image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
+            (pdev->info.gfx_level >= GFX12 || ((flags & RADEON_SURF_DISABLE_DCC) && (flags & RADEON_SURF_NO_FMASK)));
       } else {
          /* Depth-stencil format without DEPTH_STENCIL usage does not work either. */
          is_4k_capable = false;
@@ -696,7 +699,8 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
    }
 
    if (image->vk.usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR)
-      flags |= RADEON_SURF_HOST_TRANSFER | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE | RADEON_SURF_DISABLE_DCC;
+      flags |= RADEON_SURF_HOST_TRANSFER | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE |
+               (pdev->info.gfx_level < GFX12 ? RADEON_SURF_DISABLE_DCC : 0);
 
    return flags;
 }
