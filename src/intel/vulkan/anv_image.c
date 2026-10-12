@@ -36,6 +36,7 @@
 #include "util/u_math.h"
 
 #include "vk_format.h"
+#include "vk_format_info.h"
 #include "av1_tables.h"
 
 #define ANV_OFFSET_IMPLICIT UINT64_MAX
@@ -464,6 +465,7 @@ image_may_use_r32_view(VkImageCreateFlags create_flags,
 static bool
 formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
                          VkImageCreateFlags create_flags,
+                         VkFormat vk_format,
                          VkImageAspectFlagBits aspect,
                          enum isl_format format, VkImageTiling vk_tiling,
                          const VkImageFormatListCreateInfo *fmt_list)
@@ -502,12 +504,21 @@ formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
       return false;
 
    for (uint32_t i = 0; i < fmt_list->viewFormatCount; i++) {
-      if (fmt_list->pViewFormats[i] == VK_FORMAT_UNDEFINED)
+      const VkFormat vk_view_format = fmt_list->pViewFormats[i];
+      const bool plane_view =
+         (vk_format_get_plane_count(vk_format) > 1) &&
+         (vk_format_get_plane_count(vk_view_format) == 1);
+
+      /* This can happen if it's a multi-planar image depending on the passed aspect. */
+      if (plane_view &&
+          vk_format_get_class_info(vk_view_format) !=
+          vk_format_get_class_info(vk_format_get_aspect_format(vk_format, aspect)))
          continue;
 
       enum isl_format view_format =
-         anv_get_isl_format(physical_device, fmt_list->pViewFormats[i],
-                            aspect, vk_tiling);
+         anv_get_isl_format(physical_device, vk_view_format,
+                            plane_view ? VK_IMAGE_ASPECT_COLOR_BIT : aspect,
+                            vk_tiling);
 
       if (!isl_formats_are_ccs_e_compatible(devinfo, format, view_format))
          return false;
@@ -527,8 +538,8 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
       enum isl_format format =
          anv_get_isl_format(physical_device, vk_format, aspect, vk_tiling);
 
-      if (!formats_ccs_e_compatible(physical_device, create_flags, aspect,
-                                    format, vk_tiling, fmt_list))
+      if (!formats_ccs_e_compatible(physical_device, create_flags, vk_format,
+                                    aspect, format, vk_tiling, fmt_list))
          return false;
    }
 
