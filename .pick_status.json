@@ -2694,7 +2694,7 @@
         "description": "zink: avoid constantly failing BAR allocations on systems without ReBAR",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
