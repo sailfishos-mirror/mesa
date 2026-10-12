@@ -1103,6 +1103,11 @@ tc_is_buffer_on_busy_list(const struct threaded_context *tc, const struct thread
    return false;
 }
 
+/* The number of "busy" replies from is_resource_busy after which the driver isn't asked again until
+ * it flushes.
+ */
+#define TC_MAX_BUSY_REPLIES 8
+
 static bool
 tc_is_buffer_busy(struct threaded_context *tc, struct threaded_resource *tbuf,
                   unsigned map_usage)
@@ -1113,9 +1118,20 @@ tc_is_buffer_busy(struct threaded_context *tc, struct threaded_resource *tbuf,
    if (tc_is_buffer_on_busy_list(tc, tbuf))
       return true;
 
+   /* Asking the driver can cost a syscall per query. Once it has replied "busy" a few times, assume
+    * that buffers stay busy until the driver submits more work. A wrong "busy" only costs
+    * an invalidation or a synchronized mapping.
+    */
+   if (p_atomic_read_relaxed(&tc->num_busy_replies) >= TC_MAX_BUSY_REPLIES)
+      return true;
+
    /* The buffer isn't referenced by any unflushed batch: we can safely ask to the driver whether
     * this buffer is busy or not. */
-   return tc->options.is_resource_busy(tc->pipe->screen, tbuf->latest, map_usage);
+   if (!tc->options.is_resource_busy(tc->pipe->screen, tbuf->latest, map_usage))
+      return false;
+
+   p_atomic_inc(&tc->num_busy_replies);
+   return true;
 }
 
 /**
@@ -4063,6 +4079,10 @@ tc_flush(struct pipe_context *_pipe, struct pipe_fence_handle **fence,
    bool async = flags & (PIPE_FLUSH_DEFERRED | PIPE_FLUSH_ASYNC);
    bool deferred = (flags & PIPE_FLUSH_DEFERRED) > 0;
 
+   /* Drivers that don't report their flushes are asked again after every flush request. */
+   if (!tc->options.driver_calls_flush_notify)
+      p_atomic_set(&tc->num_busy_replies, 0);
+
    if (!deferred || !fence) {
       tc->in_renderpass = false;
       if (tc->renderpass_info_recording)
@@ -5932,6 +5952,8 @@ void tc_driver_internal_flush_notify(struct threaded_context *tc)
     */
    if (!tc)
       return;
+
+   p_atomic_set(&tc->num_busy_replies, 0);
 
    /* Signal fences set by tc_batch_execute. */
    for (unsigned i = 0; i < tc->num_signal_fences_next_flush; i++)

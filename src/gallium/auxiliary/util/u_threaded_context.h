@@ -166,7 +166,9 @@
  * There are 1 driver callback and 1 TC callback:
  *
  * 1) is_resource_busy: It returns true when a resource is busy. If this is NULL,
- *    the resource is considered always busy.
+ *    the resource is considered always busy. After it has returned true a few
+ *    times, the threaded context stops calling it and considers all buffers
+ *    busy until the driver flushes.
  *
  * 2) tc_driver_internal_flush_notify: If the driver set
  *    driver_calls_flush_notify = true in threaded_context_create, it should
@@ -660,6 +662,11 @@ struct threaded_context {
     */
    thrd_t driver_thread;
 #endif
+
+   /* Number of "busy" replies from is_resource_busy since the driver last flushed. It's reset by
+    * the driver thread, so it's accessed atomically.
+    */
+   uint32_t num_busy_replies;
 
    bool seen_tcs;
    bool seen_tes;
