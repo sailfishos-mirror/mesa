@@ -1354,3 +1354,113 @@ pan_nir_lower_tex(nir_shader *nir, unsigned arch)
       UNREACHABLE("Midgard is not supported by this pass");
    }
 }
+
+static bool
+def_is_sample_centroid(nir_def *def)
+{
+   nir_instr *instr = nir_def_instr(def);
+   if (instr->type != nir_instr_type_intrinsic)
+      return false;
+
+   nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+   return intr->intrinsic == nir_intrinsic_load_sample_centroid_pan;
+}
+
+static bool
+va_opt_var_tex(nir_builder *b, nir_tex_instr *tex, void *cb_data)
+{
+   unsigned arch = *(unsigned *)cb_data;
+
+   struct pan_va_tex_flags flags;
+   STATIC_ASSERT(sizeof(tex->backend_flags) == sizeof(flags));
+   memcpy(&flags, &tex->backend_flags, sizeof(flags));
+
+   /* We can't have an offset or explicit LOD */
+   if (flags.texel_offset ||
+       (flags.lod_mode != BI_VA_LOD_MODE_ZERO_LOD &&
+        flags.lod_mode != BI_VA_LOD_MODE_COMPUTED_LOD))
+      return false;
+
+   if (tex->op == nir_texop_gradient_pan &&
+       (flags.force_delta_enable || flags.derivative_enable))
+      return false;
+
+   if (tex->op == nir_texop_tg4 && tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
+      return false;
+
+   int src_idx = nir_tex_instr_src_index(tex, nir_tex_src_backend1);
+   if (src_idx < 0)
+      return false;
+
+   /* VAR_*TEX* only works for 32-bit interploation. */
+   nir_def *sr = tex->src[src_idx].src.ssa;
+   if (sr->bit_size != 32)
+      return false;
+
+   /* A varying is at most 4 components, so we can't have a backend2 */
+   if (nir_tex_instr_src_index(tex, nir_tex_src_backend2) >= 0)
+      return false;
+
+   /* We're only supposed to do VAR_*TEX* if the tex op is the only use of
+    * the LD_VAR[_BUF].  This also means that we don't need to worry about
+    * whether or not the tex op uses a subset of the LD_VAR[_BUF] because
+    * we should have already shrunk it as needed.
+    */
+   if (!list_is_singular(&sr->uses))
+      return false;
+
+   nir_instr *var_instr = nir_def_instr(sr);
+   if (var_instr->type != nir_instr_type_intrinsic)
+      return false;
+
+   nir_intrinsic_instr *var_intr = nir_instr_as_intrinsic(var_instr);
+
+   nir_tex_src_type var_src_type;
+   switch (var_intr->intrinsic) {
+   case nir_intrinsic_load_var_pan:
+      var_src_type = nir_tex_src_var_handle_pan;
+      break;
+
+   case nir_intrinsic_load_var_buf_pan: {
+      var_src_type = nir_tex_src_var_buf_offset_pan;
+
+      nir_alu_type src_type = nir_intrinsic_src_type(var_intr);
+      assert(nir_alu_type_get_base_type(src_type) == nir_type_float);
+      flags.var_buf_src_f16 = nir_alu_type_get_type_size(src_type) == 16;
+
+      /* We don't get .src_f16 until v10 */
+      if (flags.var_buf_src_f16 && arch < 10)
+         return false;
+      break;
+   }
+
+   default:
+      return false;
+   }
+
+   enum pan_bi_sample_loc sample_loc = nir_intrinsic_flags(var_intr);
+   if (sample_loc != PAN_SAMPLE_LOC_CENTER &&
+       !def_is_sample_centroid(var_intr->src[1].ssa))
+      return false;
+
+   flags.var_sample_loc = sample_loc;
+   tex->backend_flags = PAN_AS_U32(flags);
+
+   tex->src[src_idx].src_type = var_src_type;
+   nir_src_rewrite(&tex->src[src_idx].src, var_intr->src[0].ssa);
+
+   return true;
+}
+
+bool
+pan_nir_opt_var_tex(nir_shader *nir, unsigned arch)
+{
+   if (arch >= 9) {
+      return nir_shader_tex_pass(nir, va_opt_var_tex,
+                                 nir_metadata_control_flow,
+                                 &arch);
+   } else {
+      nir_shader_preserve_all_metadata(nir);
+      return false;
+   }
+}

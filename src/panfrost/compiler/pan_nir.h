@@ -342,6 +342,7 @@ void pan_nir_lower_mediump_io(nir_shader *nir);
 
 bool pan_nir_lower_tex(nir_shader *nir, unsigned arch);
 bool pan_nir_lower_image(nir_shader *nir, unsigned arch);
+bool pan_nir_opt_var_tex(nir_shader *nir, unsigned arch);
 
 bool pan_nir_lower_mem_to_global(nir_shader *nir);
 

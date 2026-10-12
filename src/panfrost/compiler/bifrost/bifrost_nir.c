@@ -893,6 +893,10 @@ bifrost_postprocess_nir(nir_shader *nir,
 
    /* Remove useless movs left behind from lower_io_to_scalar/vectorize_io */
    NIR_PASS(_, nir, nir_opt_copy_prop);
+   NIR_PASS(_, nir, nir_opt_dce);
+
+   if (bi_use_kraid(nir, gpu_arch) && nir->info.stage == MESA_SHADER_FRAGMENT)
+      NIR_PASS(_, nir, pan_nir_opt_var_tex, gpu_arch);
 
    /* Why aren't we vectorizing nir_var_shader_temp?
     * Basically, the current RA doesn't know rematerialization and is still
