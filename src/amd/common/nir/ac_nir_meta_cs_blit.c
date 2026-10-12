@@ -267,6 +267,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       fprintf(stderr, "   key.src_has_z = %u\n", key->src_has_z);
       fprintf(stderr, "   key.dst_has_z = %u\n", key->dst_has_z);
       fprintf(stderr, "   key.src_has_non_identity_fmask = %u\n", key->src_has_non_identity_fmask);
+      fprintf(stderr, "   key.dst_store_fmask = %u\n", key->dst_store_fmask);
       fprintf(stderr, "   key.dst_is_rgb5 = %u\n", key->dst_is_rgb5);
       fprintf(stderr, "   key.a16 = %u\n", key->a16);
       fprintf(stderr, "   key.d16 = %u\n", key->d16);
@@ -300,13 +301,14 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                              !key->src_has_z && !key->src_has_non_identity_fmask));
    const bool has_src_sampler = key->src_is_sampler;
    const bool has_src_image = !key->is_clear && !key->src_is_sampler;
+   const bool has_dst_fmask = key->dst_store_fmask;
 
    /* The workgroup size varies depending on the tiling layout and blit dimensions. */
    b.shader->info.workgroup_size_variable = true;
    b.shader->info.cs.user_data_components_amd = get_num_user_data_terms(key);
 
-   nir_variable *img_src = NULL, *img_dst = NULL;
-   nir_deref_instr *img_src_deref = NULL, *img_dst_deref = NULL;
+   nir_variable *img_src = NULL, *img_dst = NULL, *fmask_dst = NULL;
+   nir_deref_instr *img_src_deref = NULL, *img_dst_deref = NULL, *fmask_dst_deref = NULL;
    nir_def *img_src_global_addr = NULL, *img_dst_global_addr = NULL;
    nir_def *zero = nir_imm_int(&b, 0);
 
@@ -325,7 +327,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       img_dst_global_addr = nir_load_ssbo_address(&b, 1, 64, dst_buf, zero);
    } else {
       /* These info fields are only used by radeonsi. */
-      b.shader->info.num_images = has_src_image + 1;
+      b.shader->info.num_images = has_src_image + 1 + has_dst_fmask;
 
       if (has_src_sampler)
          BITSET_SET(b.shader->info.textures_used, 0);
@@ -368,8 +370,17 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
        */
       img_dst->data.binding = has_src_sampler || has_src_image;
 
+      if (has_dst_fmask) {
+         const struct glsl_type *dst_fmask_type =
+            glsl_image_type(GLSL_SAMPLER_DIM_2D, key->dst_has_z, GLSL_TYPE_UINT);
+
+         fmask_dst = nir_variable_create(b.shader, nir_var_image, dst_fmask_type, "fmask_image");
+         fmask_dst->data.binding = img_dst->data.binding + 1;
+      }
+
       img_src_deref = img_src ? nir_build_deref_var(&b, img_src) : NULL;
       img_dst_deref = nir_build_deref_var(&b, img_dst);
+      fmask_dst_deref = fmask_dst ? nir_build_deref_var(&b, fmask_dst) : NULL;
    }
 
    unsigned lane_width = 1 << key->log_lane_width;
@@ -706,15 +717,26 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    /* We need to load the descriptor here, otherwise the load would be after optimization
     * barriers waiting for image loads, i.e. after s_waitcnt vmcnt(0).
     */
-   nir_def *img_dst_desc = NULL;
+   nir_def *img_dst_desc = NULL, *fmask_dst_desc = NULL;
 
    if (!key->format_is_96bit) {
       img_dst_desc =
          nir_image_deref_descriptor_amd(&b, 8, 32, &img_dst_deref->def,
                                         .image_dim = img_dst->type->sampler_dimensionality,
                                         .image_array = img_dst->type->sampler_array);
-      if (lane_size > 1 && !b.shader->info.use_aco_amd)
+
+      if (key->dst_store_fmask) {
+         fmask_dst_desc =
+            nir_image_deref_descriptor_amd(&b, 8, 32, &fmask_dst_deref->def,
+                                           .image_dim = fmask_dst->type->sampler_dimensionality,
+                                           .image_array = fmask_dst->type->sampler_array);
+      }
+
+      if (lane_size > 1 && !b.shader->info.use_aco_amd) {
          img_dst_desc = nir_optimization_barrier_sgpr_amd(&b, 32, img_dst_desc);
+         if (fmask_dst_desc)
+            fmask_dst_desc = nir_optimization_barrier_sgpr_amd(&b, 32, fmask_dst_desc);
+      }
 
       /* Apply the blit output modifiers, once per sample.  */
       foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
@@ -776,6 +798,20 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                                   src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
                                   .image_dim = img_dst->type->sampler_dimensionality,
                                   .image_array = img_dst->type->sampler_array);
+      }
+   }
+
+   /* Store FMASK pixels. */
+   if (key->dst_store_fmask) {
+      assert(!key->format_is_96bit);
+      assert(key->is_clear);
+      assert(key->sample0_only);
+
+      /* Clear FMASK to 0. */
+      foreach_pixel_in_lane(1, sample, x, y, z, i) {
+         nir_bindless_image_store(&b, fmask_dst_desc, coord_dst[i], zero_coord, zero, zero_coord,
+                                  .image_dim = fmask_dst->type->sampler_dimensionality,
+                                  .image_array = fmask_dst->type->sampler_array);
       }
    }
 
@@ -1527,6 +1563,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    key.dst_is_1d = blit->dst.dim == 1;
    key.dst_is_msaa = dst_samples > 1;
    key.dst_has_z = blit->dst.dim == 3 || blit->dst.is_array;
+   key.dst_store_fmask = blit->dst_store_fmask;
    key.dst_is_rgb5 = max_dst_chan_size <= 6 &&
                      !util_format_is_pure_integer(blit->dst.format);
    key.last_dst_channel = key.format_is_96bit ? 0 : util_format_get_last_component(blit->dst.format);
