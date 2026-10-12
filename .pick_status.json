@@ -2384,7 +2384,7 @@
         "description": "nvk/nvkmd: handle exec_count == 0 in nvkmd_nouveau_exec_ctx_exec",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "457149a48e9353f48a20edd4c383f94ada699927",
         "notes": null
