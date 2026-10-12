@@ -1404,7 +1404,7 @@
         "description": "pvr: fix for job samples being initialised to 0",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "47d714e5903a320307f01e4bf0037c753c3e0b6a",
         "notes": null
