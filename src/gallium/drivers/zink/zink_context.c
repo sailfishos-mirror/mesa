@@ -1230,6 +1230,11 @@ zink_create_sampler_view(struct pipe_context *pctx, struct pipe_resource *pres,
          }
       }
 
+      if (pres->target == PIPE_TEXTURE_3D && state->target == PIPE_TEXTURE_2D) {
+         if (!screen->info.view2d_feats.sampler2DViewOf3D)
+            UNREACHABLE("zink: app samples 2D slices of 3D: needs driconf to enable sampler2DViewOf3D");
+      }
+
       ivci = create_ivci(screen, res, &templ, target);
       ivci.subresourceRange.levelCount = state->is_tex2d_from_buf ? 1 : (state->u.tex.last_level - state->u.tex.first_level + 1);
       ivci.subresourceRange.aspectMask = util_format_is_depth_or_stencil(state->format) ? sampler_aspect_from_format(state->format) : res->aspect;

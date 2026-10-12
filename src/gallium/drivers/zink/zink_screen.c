@@ -3270,6 +3270,8 @@ static void
 disable_features(struct zink_screen *screen)
 {
    screen->info.mesh_feats.primitiveFragmentShadingRateMeshShader = false;
+   /* if this is used anywhere it should just be enabled with driconf */
+   screen->info.view2d_feats.sampler2DViewOf3D = false;
 }
 
 static void
