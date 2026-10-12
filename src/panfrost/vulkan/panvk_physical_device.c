@@ -89,14 +89,18 @@ create_kmod_dev(struct panvk_physical_device *device,
       flags |= PAN_KMOD_DEV_FLAG_MMAP_SYNC_THROUGH_KERNEL;
 
    device->kmod.dev = pan_kmod_dev_create(fd, flags, &instance->kmod.allocator);
-
-   if (PANVK_DEBUG(STARTUP) && device->kmod.dev) {
-      mesa_logi("Found compatible device '%s'.", path);
-   } else if (!device->kmod.dev) {
+   if (!device->kmod.dev) {
       close(fd);
+
+      if (errno != -ENOMEM)
+         return VK_ERROR_INCOMPATIBLE_DRIVER;
+
       return panvk_errorf(instance, VK_ERROR_OUT_OF_HOST_MEMORY,
                           "cannot create device");
    }
+
+   if (PANVK_DEBUG(STARTUP))
+      mesa_logi("Found compatible device '%s'.", path);
 
    return VK_SUCCESS;
 }
