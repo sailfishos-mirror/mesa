@@ -47,6 +47,12 @@ struct st_texture_image_transfer
    GLubyte *temp_data; /**< Temporary compressed texture storage. */
    unsigned temp_stride; /**< Stride of the compressed texture storage. */
    struct pipe_box box; /**< Region of the transfer's resource to write. */
+
+   /* For a resource with a byte-swapped format: the mapping of it, and the
+    * host-endian copy that is handed out instead.
+    */
+   uint8_t *transfer_map;
+   uint8_t *swapped_map;
 };
 
 
