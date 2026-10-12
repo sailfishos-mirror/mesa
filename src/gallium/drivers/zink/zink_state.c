@@ -655,6 +655,8 @@ zink_create_rasterizer_state(struct pipe_context *pctx,
    }
 
    state->offset_fill = util_get_offset(rs_state, rs_state->fill_front);
+   state->offset_all_prims = state->offset_fill && rs_state->fill_front == PIPE_POLYGON_MODE_FILL &&
+                             screen->driver_workarounds.fill_mode_no_line_point_bias;
    state->offset_units = rs_state->offset_units * 2;
    state->offset_clamp = rs_state->offset_clamp;
    state->offset_scale = rs_state->offset_scale;

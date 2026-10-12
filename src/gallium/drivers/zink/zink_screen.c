@@ -3459,6 +3459,20 @@ init_driver_workarounds(struct zink_screen *screen)
       break;
    }
 
+   /* only these drivers were checked to not bias line and point draws in fill polygon mode */
+   switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_MESA_RADV:
+   case VK_DRIVER_ID_MESA_NVK:
+   case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
+   case VK_DRIVER_ID_MESA_TURNIP:
+   case VK_DRIVER_ID_MESA_LLVMPIPE:
+   case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+      screen->driver_workarounds.fill_mode_no_line_point_bias = true;
+      break;
+   default:
+      break;
+   }
+
    if (zink_debug & ZINK_DEBUG_NOGENERAL)
       screen->driver_workarounds.general_layout = false;
 

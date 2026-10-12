@@ -1005,7 +1005,11 @@ zink_draw_atoms(struct zink_context *ctx,
             if (strip_psiz != zink_get_last_vertex_key(ctx)->strip_psiz)
                zink_set_last_vertex_key(ctx)->strip_psiz = strip_psiz;
 
-            bool using_depth_bias = zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES && rast_state->offset_fill;
+            /* a generated geometry shader may turn lines and points into triangles */
+            bool using_depth_bias = rast_state->offset_fill &&
+                                    (zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES ||
+                                     (rast_state->offset_all_prims &&
+                                      !(ctx->last_vertex_stage && ctx->last_vertex_stage->non_fs.is_generated)));
             if (using_depth_bias != ctx->was_using_depth_bias) {
                ctx->was_using_depth_bias = using_depth_bias;
                zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);

@@ -365,6 +365,7 @@ struct zink_rasterizer_hw_state {
 struct zink_rasterizer_state {
    struct pipe_rasterizer_state base;
    bool offset_fill;
+   bool offset_all_prims; //line and point draws keep the offset in fill polygon mode
    float offset_units, offset_clamp, offset_scale;
    float line_width;
    VkFrontFace front_face;
@@ -1738,6 +1739,8 @@ struct zink_screen {
       bool general_layout;
       /* render passes per batch before a flush, UINT32_MAX means no limit */
       unsigned max_batch_rps;
+      /* line and point draws are not biased in fill polygon mode */
+      bool fill_mode_no_line_point_bias;
       /* intel driver is somehow broken for srgb-compatible dmabufs...but only in mesa CI */
       bool srgb_dmabufs;
    } driver_workarounds;
