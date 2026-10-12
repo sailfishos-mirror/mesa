@@ -624,12 +624,17 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
 
    const struct VkVideoProfileListInfoKHR *prof_list = (struct VkVideoProfileListInfoKHR *)
       vk_find_struct_const(pVideoFormatInfo->pNext, VIDEO_PROFILE_LIST_INFO_KHR);
+   const VkImageUsageFlags2CreateInfoKHR *usage_2_info =
+      vk_find_struct_const(pVideoFormatInfo->pNext, IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR);
 
-   VkImageUsageFlags supportedImageUsage = pVideoFormatInfo->imageUsage;
-   VkImageCreateFlags supportedImageCreateFlags = 0;
+   const VkImageUsageFlags2KHR requested_usages = usage_2_info ?
+      usage_2_info->usage : pVideoFormatInfo->imageUsage;
 
-   if ((pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) ||
-       (pVideoFormatInfo->imageUsage & VK_IMAGE_USAGE_2_VIDEO_ENCODE_SRC_BIT_KHR))
+   VkImageUsageFlags2KHR supportedImageUsage = requested_usages;
+   VkImageCreateFlags2KHR supportedImageCreateFlags = 0;
+
+   if ((requested_usages & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) ||
+       (requested_usages & VK_IMAGE_USAGE_2_VIDEO_ENCODE_SRC_BIT_KHR))
    {
       supportedImageUsage |= (VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR |
                               VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR |
@@ -659,10 +664,10 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
             VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR;
 
          const bool decode_dpb_only =
-            (pVideoFormatInfo->imageUsage & dpb_output_coincide_usage) ==
+            (requested_usages & dpb_output_coincide_usage) ==
             VK_IMAGE_USAGE_2_VIDEO_DECODE_DPB_BIT_KHR;
          const bool decode_dst_only =
-            (pVideoFormatInfo->imageUsage & dpb_output_coincide_usage) ==
+            (requested_usages & dpb_output_coincide_usage) ==
             VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR;
 
          /* Decoder supports only
@@ -687,6 +692,15 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
                   p->imageType = VK_IMAGE_TYPE_2D;
                   p->imageTiling = tilings[t];
                   p->imageUsageFlags = supportedImageUsage;
+
+                  VkImageCreateFlags2CreateInfoKHR *create_2 =
+                     vk_find_struct(p->pNext, IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR);
+                  if (create_2)
+                     create_2->flags = supportedImageCreateFlags;
+                  VkImageUsageFlags2CreateInfoKHR *flags_2 =
+                     vk_find_struct(p->pNext, IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR);
+                  if (flags_2)
+                     flags_2->usage = supportedImageUsage;
                }
             }
 
@@ -697,6 +711,15 @@ anv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
                   p->imageType = VK_IMAGE_TYPE_2D;
                   p->imageTiling = tilings[t];
                   p->imageUsageFlags = supportedImageUsage;
+
+                  VkImageCreateFlags2CreateInfoKHR *create_2 =
+                     vk_find_struct(p->pNext, IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR);
+                  if (create_2)
+                     create_2->flags = supportedImageCreateFlags;
+                  VkImageUsageFlags2CreateInfoKHR *flags_2 =
+                  vk_find_struct(p->pNext, IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR);
+                  if (flags_2)
+                     flags_2->usage = supportedImageUsage;
                }
             }
          }

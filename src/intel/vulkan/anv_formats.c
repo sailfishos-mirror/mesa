@@ -1698,13 +1698,14 @@ anv_get_image_format_properties(
    const VkImageFormatListCreateInfo *format_list_info = NULL;
    const VkPhysicalDeviceExternalImageFormatInfo *external_info = NULL;
    const VkImageCompressionControlEXT *comp_info = NULL;
+   const VkImageCreateFlags2CreateInfoKHR *create_flags_2_info = NULL;
+   const VkImageUsageFlags2CreateInfoKHR *usage_flags_2_info = NULL;
    VkExternalImageFormatProperties *external_props = NULL;
    VkSamplerYcbcrConversionImageFormatProperties *ycbcr_props = NULL;
    VkTextureLODGatherFormatPropertiesAMD *texture_lod_gather_props = NULL;
    VkImageCompressionPropertiesEXT *comp_props = NULL;
    VkHostImageCopyDevicePerformanceQueryEXT *host_props = NULL;
    const struct wsi_image_create_info *wsi_info = NULL;
-   const bool is_sparse = info->flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR;
 
    /* Extract input structs */
    vk_foreach_struct_const(sType, s, info->pNext) {
@@ -1729,6 +1730,12 @@ anv_get_image_format_properties(
          break;
       case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_CONTROL_EXT:
          comp_info = s;
+         break;
+      case VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR:
+         usage_flags_2_info = s;
+         break;
+      case VK_STRUCTURE_TYPE_IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR:
+         create_flags_2_info = s;
          break;
       default:
          vk_debug_ignored_stype(sType);
@@ -1763,9 +1770,15 @@ anv_get_image_format_properties(
    if (format == NULL)
       goto unsupported;
 
+   const VkImageCreateFlagBits2KHR flags =
+      create_flags_2_info ? create_flags_2_info->flags : info->flags;
+   const VkImageUsageFlagBits2KHR usage =
+      usage_flags_2_info ? usage_flags_2_info->usage : info->usage;
+   const bool is_sparse = flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR;
+
    /* Would require some annoying tracking or kernel support. */
-   if ((info->flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) &&
-       (info->usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR))
+   if ((flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) &&
+       (usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR))
       goto unsupported;
 
    bool ccs_mod = false;
@@ -1777,7 +1790,7 @@ anv_get_image_format_properties(
       ccs_mod = isl_drm_modifier_has_aux(isl_mod_info->modifier);
 
       /* only allow Y-tiling/Tile4 for video decode. */
-      if (info->usage & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) {
+      if (usage & VK_IMAGE_USAGE_2_VIDEO_DECODE_DST_BIT_KHR) {
          if (isl_mod_info->tiling != ISL_TILING_Y0 && isl_mod_info->tiling != ISL_TILING_4)
             goto unsupported;
       }
@@ -1820,7 +1833,7 @@ anv_get_image_format_properties(
    /* If any of the format in VkImageFormatListCreateInfo is completely
     * unsupported, report unsupported.
     */
-   if ((info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) &&
+   if ((flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) &&
        format_list_info != NULL) {
       for (uint32_t i = 0; i < format_list_info->viewFormatCount; i++) {
          const struct anv_format *view_format =
@@ -1849,8 +1862,8 @@ anv_get_image_format_properties(
    format_feature_flags = anv_get_image_format_features(physical_device,
                                                         format,
                                                         info->tiling,
-                                                        info->usage,
-                                                        info->flags,
+                                                        usage,
+                                                        flags,
                                                         comp_info ?
                                                         comp_info->flags :
                                                         VK_IMAGE_COMPRESSION_DEFAULT_EXT,
@@ -1858,12 +1871,12 @@ anv_get_image_format_properties(
                                                         &format_feature_flags4);
 
    if (!anv_format_supports_usage(format_feature_flags,
-                                  format_feature_flags4, info->usage)) {
+                                  format_feature_flags4, usage)) {
       /* If image format itself does not support the usage, and we don't allow
        * views formats to support it, then we can't support this usage at all.
        */
-      if (!(info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) ||
-          !(info->flags & VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR))
+      if (!(flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR) ||
+          !(flags & VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR))
          goto unsupported;
 
       /* We don't want emulated formats to gain unexpected usage (storage in
@@ -1889,12 +1902,12 @@ anv_get_image_format_properties(
          anv_formats_gather_format_features(physical_device, format,
                                             info->tiling, isl_mod_info,
                                             format_list_info,
-                                            info->usage, info->flags,
+                                            usage, flags,
                                             &all_formats_feature_flags4);
 
       if (!anv_format_supports_usage(all_formats_feature_flags,
                                      all_formats_feature_flags4,
-                                     info->usage))
+                                     usage))
          goto unsupported;
    }
 
@@ -1912,8 +1925,8 @@ anv_get_image_format_properties(
       sampleCounts = VK_SAMPLE_COUNT_1_BIT;
 
       if (isl_mod_info->supports_clear_color &&
-          (info->usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
-          (info->flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR)) {
+          (usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
+          (flags & VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR)) {
          /* Format reinterpretation generally won't work correctly with the
           * raw clear color channels.
           */
@@ -1921,7 +1934,7 @@ anv_get_image_format_properties(
       }
 
       if (ccs_mod &&
-          !anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
+          !anv_formats_ccs_e_compatible(physical_device, flags, info->format,
                                         info->tiling, format_list_info)) {
          goto unsupported;
       }
@@ -1942,14 +1955,14 @@ anv_get_image_format_properties(
        info->type == VK_IMAGE_TYPE_2D &&
        (format_feature_flags & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                                 VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
-       !(info->flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) &&
-       !(info->usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) &&
-       !(info->usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR) &&
+       !(flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) &&
+       !(usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) &&
+       !(usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR) &&
        isl_format_supports_multisampling(devinfo, format->planes[0].isl_format)) {
       sampleCounts = isl_device_get_sample_counts(&physical_device->isl_dev);
    }
 
-   if (info->usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
+   if (usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
       /* Non-power-of-two formats can never be used as storage images.  We
        * only check plane 0 because there are no YCbCr formats with
        * non-power-of-two planes.
@@ -1960,7 +1973,7 @@ anv_get_image_format_properties(
          goto unsupported;
    }
 
-   if (info->flags & VK_IMAGE_CREATE_2_DISJOINT_BIT_KHR) {
+   if (flags & VK_IMAGE_CREATE_2_DISJOINT_BIT_KHR) {
       /* From the Vulkan 1.2.149 spec, VkImageCreateInfo:
        *
        *    If format is a multi-planar format, and if imageCreateFormatFeatures
@@ -1979,8 +1992,7 @@ anv_get_image_format_properties(
        * VK_IMAGE_CREATE_ALIAS_BIT, flags must not contain
        * VK_IMAGE_CREATE_DISJOINT_BIT.
        */
-      if (format->n_planes == 1 &&
-          !(info->flags & VK_IMAGE_CREATE_2_ALIAS_BIT_KHR)) {
+      if (format->n_planes == 1 && !(flags & VK_IMAGE_CREATE_2_ALIAS_BIT_KHR)) {
           goto unsupported;
       }
 
@@ -1993,13 +2005,13 @@ anv_get_image_format_properties(
       }
    }
 
-   if ((info->usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) &&
+   if ((usage & VK_IMAGE_USAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR) &&
        !devinfo->has_coarse_pixel_primitive_and_cb)
       goto unsupported;
 
    if (is_sparse) {
       if (anv_sparse_image_check_support(physical_device,
-                                         info->flags,
+                                         flags,
                                          info->tiling,
                                          sampleCounts,
                                          info->type,
@@ -2187,7 +2199,7 @@ anv_get_image_format_properties(
       (info->tiling != VK_IMAGE_TILING_LINEAR || devinfo->ver >= 20) &&
       (vk_format_has_depth(info->format) ||
        isl_format_supports_ccs_d(devinfo, format->planes[0].isl_format) ||
-       anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
+       anv_formats_ccs_e_compatible(physical_device, flags, info->format,
                                     info->tiling, format_list_info));
 
    if (comp_props) {
@@ -2271,21 +2283,42 @@ void anv_GetPhysicalDeviceSparseImageFormatProperties2(
       return;
    }
 
-   vk_foreach_struct_const(sType, ext, pFormatInfo->pNext)
-      vk_debug_ignored_stype(sType);
+   const VkImageUsageFlags2CreateInfoKHR *usage_flags_2_info = NULL;
+   vk_foreach_struct_const(sType, s, pFormatInfo->pNext) {
+      switch ((unsigned)sType) {
+      case VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR:
+         usage_flags_2_info = s;
+         break;
+      default:
+         vk_debug_ignored_stype(sType);
+         break;
+      }
+   }
+
+   const VkImageUsageFlagBits2KHR usage =
+      usage_flags_2_info ? usage_flags_2_info->usage : pFormatInfo->usage;
 
    /* Check if the image is supported at all (regardless of being Sparse). */
+   const VkImageCreateFlags2CreateInfoKHR img_create_flags_2 = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR,
+      .flags = VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR |
+               VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR,
+   };
+   const VkImageUsageFlags2CreateInfoKHR img_usage_flags_2 = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR,
+      .pNext = (void *)&img_create_flags_2,
+      .usage = usage,
+   };
    const VkPhysicalDeviceImageFormatInfo2 img_info = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
-      .pNext = NULL,
+      .pNext = (void *)&img_usage_flags_2,
       .format = pFormatInfo->format,
       .type = pFormatInfo->type,
       .tiling = pFormatInfo->tiling,
-      .usage = pFormatInfo->usage,
-      .flags = VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
-               VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT,
    };
-   VkImageFormatProperties2 img_props = {};
+   VkImageFormatProperties2 img_props = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+   };
    if (anv_get_image_format_properties(physical_device,
                                        &img_info, &img_props) != VK_SUCCESS)
       return;
@@ -2315,7 +2348,7 @@ void anv_GetPhysicalDeviceSparseImageFormatProperties2(
       isl_surf_usage_flags_t isl_usage =
          anv_image_choose_isl_surf_usage(physical_device,
                                          pFormatInfo->format, NULL,
-                                         vk_create_flags, pFormatInfo->usage,
+                                         vk_create_flags, usage,
                                          0, aspect,
                                          VK_IMAGE_COMPRESSION_DEFAULT_EXT);
 
