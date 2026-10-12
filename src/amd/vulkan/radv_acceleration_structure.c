@@ -285,42 +285,38 @@ radv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_s
    }
 
    state->config.build_flags = radv_default_build_flags(pdev);
-   if (state->build_info->mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR) {
-      if (radv_use_bvh8(pdev)) {
-         /*
-          * Leaf nodes are not written in the order provided by the application when BVH8 encoding is used.
-          * The proper order leaf nodes is used...
-          *    1. When fetching vertex positions for triangles.
-          *    2. When applying/writing BLAS pointers during TLAS deserialization/serialization. The type
-          *       compared to VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR to handle the
-          *       VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR case when the application queries the
-          *       acceleration structure size.
-          */
-         if ((state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR) ||
-             state->build_info->type != VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
-            state->config.build_flags |= RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS;
+   if (radv_use_bvh8(pdev)) {
+      /*
+       * Leaf nodes are not written in the order provided by the application when BVH8 encoding is used.
+       * The proper order leaf nodes is used...
+       *    1. When fetching vertex positions for triangles.
+       *    2. When applying/writing BLAS pointers during TLAS deserialization/serialization. The type
+       *       compared to VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR to handle the
+       *       VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR case when the application queries the
+       *       acceleration structure size.
+       */
+      if ((state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR) ||
+          state->build_info->type != VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
+         state->config.build_flags |= RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS;
 
-         if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR) &&
-             geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
-            if (state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)
-               state->config.build_flags |= RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES;
-            else
-               state->config.build_flags |= RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES;
-         }
-      } else if (!radv_emulate_rt(pdev)) {
-         if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR))
-            state->config.build_flags |= RADV_BUILD_FLAG_USE_BOX16;
+      if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_KHR) &&
+          geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+         if (state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)
+            state->config.build_flags |= RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES;
+         else
+            state->config.build_flags |= RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES;
       }
-   } else {
-      if (state->build_info->srcAccelerationStructure == state->build_info->dstAccelerationStructure)
-         state->config.build_flags |= RADV_BUILD_FLAG_UPDATE_IN_PLACE;
-
-      if (state->build_info->geometryCount == 1)
-         state->config.build_flags |= RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY;
-
-      if (device->meta_state.accel_struct_build.build_args.propagate_cull_flags)
-         state->config.build_flags |= VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS;
+   } else if (!radv_emulate_rt(pdev)) {
+      if (!(state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR))
+         state->config.build_flags |= RADV_BUILD_FLAG_USE_BOX16;
    }
+
+   /* Build flags for updates. They can be set unconditionally because passes filter out unused build flags. */
+   if (state->build_info->srcAccelerationStructure == state->build_info->dstAccelerationStructure)
+      state->config.build_flags |= RADV_BUILD_FLAG_UPDATE_IN_PLACE;
+
+   if (state->build_info->geometryCount == 1)
+      state->config.build_flags |= RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY;
 }
 
 static void
