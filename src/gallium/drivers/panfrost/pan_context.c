@@ -86,6 +86,11 @@ static void
 panfrost_texture_barrier(struct pipe_context *pipe, unsigned flags)
 {
    struct panfrost_context *ctx = pan_context(pipe);
+
+   /* Framebuffer fetch is coherent, so barriers are a no-op. */
+   if (flags == PIPE_TEXTURE_BARRIER_FRAMEBUFFER)
+      return;
+
    panfrost_flush_all_batches(ctx, "Texture barrier");
 }
 
