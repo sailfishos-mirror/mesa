@@ -890,20 +890,22 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
                         ac_cs_blit_dispatches *out)
 {
    const struct radeon_info *info = options->info;
-   bool is_2d_tiling = !blit->dst.surf->is_linear && !blit->dst.surf->thick_tiling;
-   bool is_3d_tiling = blit->dst.surf->thick_tiling;
-   bool is_clear = !blit->src.surf;
-   unsigned dst_samples = MAX2(1, blit->dst.num_samples);
-   unsigned src_samples = is_clear ? 1 : MAX2(1, blit->src.num_samples);
-   bool is_resolve = !is_clear && dst_samples == 1 && src_samples >= 2 &&
-                     !util_format_is_pure_integer(blit->dst.format);
-   bool is_upsampling = !is_clear && src_samples == 1 && dst_samples >= 2;
-   bool sample0_only = (is_clear && dst_samples >= 2 && blit->sample0_only) ||
-                       (!is_clear && src_samples >= 2 && dst_samples == 1 &&
-                        (blit->sample0_only || util_format_is_pure_integer(blit->dst.format)));
+   const bool is_clear = !blit->src.surf;
+   const unsigned dst_tiling_dim = blit->dst.surf->is_linear ? 1 :
+                                   !blit->dst.surf->thick_tiling ? 2 : 3;
+   const unsigned src_tiling_dim = is_clear ? 0 : blit->src.surf->is_linear ? 1 :
+                                                  !blit->src.surf->thick_tiling ? 2 : 3;
+   const unsigned dst_samples = MAX2(1, blit->dst.num_samples);
+   const unsigned src_samples = is_clear ? 1 : MAX2(1, blit->src.num_samples);
+   const bool is_resolve = !is_clear && dst_samples == 1 && src_samples >= 2 &&
+                           !util_format_is_pure_integer(blit->dst.format);
+   const bool is_upsampling = !is_clear && src_samples == 1 && dst_samples >= 2;
+   const bool sample0_only = (is_clear && dst_samples >= 2 && blit->sample0_only) ||
+                             (!is_clear && src_samples >= 2 && dst_samples == 1 &&
+                              (blit->sample0_only || util_format_is_pure_integer(blit->dst.format)));
    /* Get the channel sizes. */
-   unsigned max_dst_chan_size = util_format_get_max_channel_size(blit->dst.format);
-   unsigned max_src_chan_size = is_clear ? 0 : util_format_get_max_channel_size(blit->src.format);
+   const unsigned max_dst_chan_size = util_format_get_max_channel_size(blit->dst.format);
+   const unsigned max_src_chan_size = is_clear ? 0 : util_format_get_max_channel_size(blit->src.format);
    const unsigned dst_bpe = blit->format_is_96bit ? 4 : blit->dst.surf->bpe;
 
    if (!options->is_nested)
@@ -942,10 +944,10 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    if (options->fail_if_slow) {
       if (is_clear) {
          /* Verified on: Tahiti, Hawaii, Tonga, Vega10, Navi10, Navi21, Navi31 */
-         if (is_3d_tiling) {
+         if (dst_tiling_dim == 3) {
             if (info->gfx_level == GFX6 && dst_bpe == 8)
                return false;
-         } else if (is_2d_tiling) {
+         } else if (dst_tiling_dim == 2) {
             /* Each condition inside the parentheses enables the compute clear for that case. */
             if (!(info->gfx_level == GFX6 && dst_bpe <= 4 && dst_samples == 1) &&
                 !(info->gfx_level == GFX7 && dst_bpe == 1 && dst_samples == 1) &&
@@ -974,7 +976,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
             } else {
                assert(dst_samples == src_samples || sample0_only);
 
-               if (is_2d_tiling) {
+               if (dst_tiling_dim == 2) {
                   if (dst_samples == 1) {
                      if (dst_bpe <= 8 &&
                          !(info->gfx_level <= GFX7 && dst_bpe == 1) &&
@@ -1020,7 +1022,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
             } else {
                assert(dst_samples == src_samples || sample0_only);
 
-               if (is_2d_tiling) {
+               if (dst_tiling_dim == 2) {
                   if (dst_bpe == 2 && blit->src.surf->is_linear && dst_samples == 1)
                      return false;
 
@@ -1054,7 +1056,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
        /* Small blits don't benefit. */
        (uint64_t)width * height * depth * dst_bpe * dst_samples > 128 * 1024 &&
        info->has_image_opcodes) {
-      if (is_3d_tiling) {
+      if (dst_tiling_dim == 3) {
          /* Thick tiling. */
          if (!is_clear && blit->src.surf->is_linear) {
             /* Linear -> Thick. */
@@ -1078,13 +1080,13 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          /* Linear layout. */
          if (!is_clear && !blit->src.surf->is_linear) {
             /* Tiled -> Linear. */
-            if (dst_bpe == 8 && !blit->src.surf->thick_tiling)
+            if (dst_bpe == 8 && src_tiling_dim != 3)
                lane_size = (uvec3){2, 1, 1}; /* 16B per lane */
             else if (dst_bpe == 4)
                lane_size = (uvec3){1, 2, 1}; /* 8B per lane */
-            else if (dst_bpe == 2 && blit->src.surf->thick_tiling)
+            else if (dst_bpe == 2 && src_tiling_dim == 3)
                lane_size = (uvec3){2, 2, 1}; /* 8B per lane */
-            else if (dst_bpe == 1 && blit->src.surf->thick_tiling)
+            else if (dst_bpe == 1 && src_tiling_dim == 3)
                lane_size = (uvec3){2, 2, 2}; /* 8B per lane */
             else if (dst_bpe <= 2)
                lane_size = (uvec3){2, 4, 1}; /* 8-16B per lane */
@@ -1184,13 +1186,13 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
        * This was fine-tuned for Navi31, and might be suboptimal on different generations.
        */
       bool slow = (blit->dst.surf->is_linear && !is_clear && blit->src.surf->is_linear && depth > 1) ||
-                  (blit->dst.surf->thick_tiling &&
+                  (dst_tiling_dim == 3 &&
                    ((dst_bpe == 8 && is_clear) ||
                     (dst_bpe == 4 &&
                      (blit->dst.surf->is_linear || (!is_clear && blit->src.surf->is_linear))) ||
                     (dst_bpe == 2 && blit->dst.surf->is_linear && !is_clear &&
                      blit->src.surf->is_linear))) ||
-                  (!blit->dst.surf->thick_tiling &&
+                  (dst_tiling_dim != 3 &&
                    ((dst_bpe == 4 && blit->dst.surf->is_linear && !is_clear &&
                      blit->src.surf->is_linear) ||
                     (dst_bpe == 8 && !is_clear &&
@@ -1289,7 +1291,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
     * to a 256B block or the size of 1 wave, whichever is less, but there are a few exceptions.
     */
    uvec3 align;
-   if (is_3d_tiling) {
+   if (dst_tiling_dim == 3) {
       /* Thick tiling. */
       /* This is based on GFX11_SW_PATTERN_NIBBLE01, which also matches GFX10. */
       if (dst_bpe == 1)
@@ -1415,7 +1417,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    /* Choose the block (i.e. wave) dimensions based on the copy area size and the image layout
     * of dst.
     */
-   if (is_3d_tiling) {
+   if (dst_tiling_dim == 3) {
       /* Thick tiling. (microtiles are 3D boxes)
        * If the box height and depth is > 2, the block size will be 4x4x4.
        * If not, the threads will spill over to X.
