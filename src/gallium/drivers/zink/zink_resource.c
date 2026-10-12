@@ -1169,7 +1169,8 @@ allocate_bo(struct zink_screen *screen, const struct pipe_resource *templ,
          break;
 
       /* demote BAR allocations to a different heap on failure to avoid oom */
-      if (templ->flags & PIPE_RESOURCE_FLAG_MAP_COHERENT || templ->usage == PIPE_USAGE_DYNAMIC)
+      if (templ->flags & PIPE_RESOURCE_FLAG_MAP_COHERENT || templ->usage == PIPE_USAGE_DYNAMIC ||
+          templ->bind & ZINK_BIND_DESCRIPTOR)
           heap = ZINK_HEAP_HOST_VISIBLE_COHERENT;
       else
           heap = ZINK_HEAP_DEVICE_LOCAL;
