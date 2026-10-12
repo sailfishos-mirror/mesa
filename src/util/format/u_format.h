@@ -1534,6 +1534,11 @@ util_format_unpack_rgba_8unorm_rect(enum pipe_format format,
 bool
 util_format_fits_8unorm(const struct util_format_description *format_desc) ATTRIBUTE_CONST;
 
+void
+util_format_byte_swap_rect(enum pipe_format format,
+                           void *dst, const void *src, unsigned stride,
+                           unsigned width, unsigned height);
+
 bool
 util_format_translate(enum pipe_format dst_format,
                       void *dst, unsigned dst_stride,
