@@ -654,6 +654,15 @@ driswCreateScreen(int screen, struct glx_display *priv, enum glx_driver glx_driv
       psp->copySubBuffer = drisw_copy_sub_buffer;
 
    if (psc->kopper) {
+      /* The NVIDIA X server claims a window for its own GLX as soon as a
+       * GLX window is created for it, after which a Vulkan swapchain can no
+       * longer be created on that window. Its pbuffer XIDs are also not X
+       * drawables. kopper needs neither server object, so keep both
+       * client-side there.
+       */
+      const char *vendor = __glXQueryServerString(priv->dpy, screen, GLX_VENDOR);
+      psc->base.client_side_glx_window = vendor && !strncmp(vendor, "NVIDIA", 6);
+      free((char *)vendor);
       psp->setSwapInterval = driswKopperSetSwapInterval;
       psp->getSwapInterval = kopperGetSwapInterval;
       psp->maxSwapInterval = 1;
