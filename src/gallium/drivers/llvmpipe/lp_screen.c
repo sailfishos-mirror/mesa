@@ -676,9 +676,8 @@ llvmpipe_is_format_supported(struct pipe_screen *_screen,
       if (!lp_storage_render_image_format_supported(format))
          return false;
 
-   /* The JIT doesn't byte-swap on store. */
-   if (format_desc->is_byte_swapped &&
-       (bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_SHADER_IMAGE)))
+   /* The JIT doesn't byte-swap on image stores. */
+   if (format_desc->is_byte_swapped && (bind & PIPE_BIND_SHADER_IMAGE))
       return false;
 
    if (bind & PIPE_BIND_SHADER_IMAGE) {
