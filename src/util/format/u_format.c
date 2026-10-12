@@ -1455,3 +1455,11 @@ util_format_get_tilesize(enum pipe_format format, uint32_t dimensions, uint32_t 
    uint32_t block_size_log2 = util_logbase2_ceil(util_format_get_blocksize(format));
    return blocksizes_64kb[block_size_log2][kind][axis];
 }
+
+bool
+util_format_is_stencil_only(enum pipe_format format)
+{
+   const struct util_format_description *desc = util_format_description(format);
+
+   return util_format_has_stencil(desc) && !util_format_has_depth(desc);
+}
