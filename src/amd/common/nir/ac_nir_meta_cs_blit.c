@@ -890,6 +890,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
 {
    const struct radeon_info *info = options->info;
    const bool is_clear = !blit->src.surf;
+   const bool dst_is_stencil = util_format_is_stencil_only(blit->dst.format);
    const unsigned dst_tiling_dim = blit->dst.surf->is_linear ? 1 :
                                    !blit->dst.surf->thick_tiling ? 2 : 3;
    const unsigned src_tiling_dim = is_clear ? 0 : blit->src.surf->is_linear ? 1 :
@@ -905,7 +906,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    /* Get the channel sizes. */
    const unsigned max_dst_chan_size = util_format_get_max_channel_size(blit->dst.format);
    const unsigned max_src_chan_size = is_clear ? 0 : util_format_get_max_channel_size(blit->src.format);
-   const unsigned dst_bpe = blit->format_is_96bit ? 4 : blit->dst.surf->bpe;
+   const unsigned dst_bpe = blit->format_is_96bit ? 4 : dst_is_stencil ? 1 : blit->dst.surf->bpe;
 
    if (!options->is_nested)
       memset(out, 0, sizeof(*out));
