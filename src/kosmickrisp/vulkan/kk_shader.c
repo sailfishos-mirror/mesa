@@ -601,8 +601,8 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
 }
 
 static bool
-kk_fs_reads_input_attachment(const nir_shader *nir, uint32_t depth_att,
-                             uint32_t stencil_att, bool indices_known)
+kk_fs_reads_ds_input_attachment(const nir_shader *nir, uint32_t depth_att,
+                                uint32_t stencil_att, bool indices_known)
 {
    nir_foreach_function_impl(impl, nir) {
       nir_foreach_block(block, impl) {
@@ -611,20 +611,22 @@ kk_fs_reads_input_attachment(const nir_shader *nir, uint32_t depth_att,
                continue;
 
             const nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-            if (intr->intrinsic != nir_intrinsic_image_deref_load &&
-                intr->intrinsic != nir_intrinsic_image_deref_sparse_load)
-               continue;
-
-            nir_deref_instr *deref = nir_src_as_deref(intr->src[0u]);
-            enum glsl_sampler_dim dim = glsl_get_sampler_dim(deref->type);
-            if (dim != GLSL_SAMPLER_DIM_SUBPASS &&
-                dim != GLSL_SAMPLER_DIM_SUBPASS_MS)
-               continue;
-
-            nir_variable *var = nir_deref_instr_get_variable(deref);
-            if (!indices_known || var == NULL || var->data.index == depth_att ||
-                var->data.index == stencil_att)
+            switch (intr->intrinsic) {
+            case nir_intrinsic_image_deref_depth_input_attachment_load:
+            case nir_intrinsic_image_deref_stencil_input_attachment_load:
                return true;
+            case nir_intrinsic_image_deref_input_attachment_load: {
+               if (!indices_known || !nir_src_is_const(intr->src[3]))
+                  return true;
+               const uint32_t idx =
+                  nir_intrinsic_base(intr) + nir_src_as_uint(intr->src[3]);
+               if (idx == depth_att || idx == stencil_att)
+                  return true;
+               break;
+            }
+            default:
+               break;
+            }
          }
       }
    }
@@ -672,8 +674,8 @@ kk_fs_needs_forced_depth_write(const nir_shader *nir,
    const bool indices_known =
       !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_INPUT_ATTACHMENT_MAP);
 
-   return kk_fs_reads_input_attachment(nir, depth_att, stencil_att,
-                                       indices_known);
+   return kk_fs_reads_ds_input_attachment(nir, depth_att, stencil_att,
+                                          indices_known);
 }
 
 static void
