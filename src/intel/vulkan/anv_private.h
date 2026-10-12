@@ -4887,6 +4887,13 @@ struct anv_cmd_state {
        * the command streamer or a shader.
        */
       enum anv_pipe_bits                        clear_bits;
+
+      /**
+       * Tracks query pool copy synchronization bits that will need to be
+       * flushed before doing work in vkCmdQueryReset. If a copy operation is
+       * in flight, we need for it complete before resetting the query pool.
+       */
+      enum anv_pipe_bits                        copy_bits;
    } queries;
 
    /**

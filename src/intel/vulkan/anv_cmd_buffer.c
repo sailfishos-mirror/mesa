@@ -413,6 +413,7 @@ anv_cmd_buffer_update_pending_query_bits(struct anv_cmd_buffer *cmd_buffer,
 {
    clear_pending_query_bits(&cmd_buffer->state.queries.clear_bits, flushed_bits);
    clear_pending_query_bits(&cmd_buffer->state.queries.buffer_write_bits, flushed_bits);
+   clear_pending_query_bits(&cmd_buffer->state.queries.copy_bits, flushed_bits);
 }
 
 static bool
