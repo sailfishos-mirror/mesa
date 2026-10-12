@@ -1072,6 +1072,10 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
       NIR_PASS(_, nir, pco_nir_lower_fs_intrinsics);
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {
+      /* If needed, duplicate the point size for xfb prior to it being clamped.
+       */
+      NIR_PASS(_, nir, pco_nir_point_size_xfb);
+
       NIR_PASS(_,
                nir,
                nir_lower_point_size,
