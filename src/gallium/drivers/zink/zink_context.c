@@ -2409,6 +2409,7 @@ unbind_samplerview_res(struct zink_context *ctx, mesa_shader_stage stage, unsign
          if (!general_layout && ctx->feedback_loops & BITFIELD_BIT(idx)) {
             ctx->dynamic_fb.attachments[idx].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             ctx->rp_layout_changed = true;
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
          }
          update_feedback_loop_state(ctx, idx, ctx->feedback_loops & ~BITFIELD_BIT(idx));
       }
@@ -3731,6 +3732,7 @@ zink_batch_no_rp_safe(struct zink_context *ctx)
       }
    }
    ctx->in_rp = false;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
    for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++) {
       ctx->dynamic_fb.attachments[i].resolveImageView = VK_NULL_HANDLE;
       if (ctx->fb_state.cbufs[i].texture && ctx->dynamic_fb.attachments[i].storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE)
@@ -4182,6 +4184,7 @@ unbind_fb_surface(struct zink_context *ctx, const struct pipe_surface *surf, uns
    if (!general_layout && ctx->feedback_loops & BITFIELD_BIT(idx)) {
       ctx->dynamic_fb.attachments[idx].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
       ctx->rp_layout_changed = true;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
    }
    ctx->feedback_loops &= ~BITFIELD_BIT(idx);
    if (feedback_loops != ctx->feedback_loops) {
@@ -4827,6 +4830,7 @@ zink_memory_barrier(struct pipe_context *pctx, unsigned flags)
       flags &= ~PIPE_BARRIER_MAPPED_BUFFER;
    }
    ctx->memory_barrier = flags;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_MEMORY_BARRIER);
 }
 
 static void
@@ -4950,6 +4954,7 @@ zink_set_stream_output_targets(struct pipe_context *pctx,
          pipe_so_target_reference(&ctx->so_targets[i], NULL);
       }
       ctx->num_so_targets = num_targets;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_STREAMOUT);
 
       /* TODO: possibly avoid rebinding on resume if resuming from same buffers? */
       ctx->dirty_so_targets = true;
@@ -6414,6 +6419,7 @@ add_implicit_feedback_loop(struct zink_context *ctx, struct zink_resource *res)
       ctx->gfx_pipeline_state.feedback_loop_zs = true;
    }
    ctx->rp_layout_changed = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
    ctx->feedback_loops |= is_feedback;
    if (!zink_screen(ctx->base.screen)->info.have_KHR_unified_image_layouts || !zink_screen(ctx->base.screen)->info.have_EXT_attachment_feedback_loop_layout) {
       u_foreach_bit(idx, is_feedback) {
@@ -6466,8 +6472,11 @@ zink_update_barriers(struct zink_context *ctx, bool is_compute,
          /* always barrier on draw if this resource has either multiple image write binds or
           * image write binds and image read binds
           */
-         if (res->write_bind_count[is_compute] && res->bind_count[is_compute] > 1)
+         if (res->write_bind_count[is_compute] && res->bind_count[is_compute] > 1) {
             _mesa_set_add_pre_hashed(ctx->need_barriers[is_compute], he->hash, res);
+            if (!is_compute)
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_BARRIERS);
+         }
       }
       _mesa_set_remove(need_barriers, he);
       if (!need_barriers->entries)

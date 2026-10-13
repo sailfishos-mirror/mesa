@@ -99,21 +99,6 @@ check_buffer_barrier(struct zink_context *ctx, struct pipe_resource *pres, VkAcc
 }
 
 ALWAYS_INLINE static void
-barrier_draw_buffers(struct zink_context *ctx, const struct pipe_draw_info *dinfo,
-                     const struct pipe_draw_indirect_info *dindirect, struct pipe_resource *index_buffer)
-{
-   if (index_buffer)
-      check_buffer_barrier(ctx, index_buffer, VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
-   if (dindirect && dindirect->buffer) {
-      check_buffer_barrier(ctx, dindirect->buffer,
-                           VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
-      if (dindirect->indirect_draw_count)
-         check_buffer_barrier(ctx, dindirect->indirect_draw_count,
-                              VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
-   }
-}
-
-ALWAYS_INLINE static void
 barrier_unowned_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *buffers, unsigned count)
 {
    for (unsigned i = 0; i < count; i++) {
@@ -318,7 +303,7 @@ zink_rast_prim(const struct zink_context *ctx,
 /* set the dynamic state of the given atoms on the cmdbuf */
 template <zink_dynamic_state DYNAMIC_STATE>
 ALWAYS_INLINE static void
-emit_atoms(struct zink_context *ctx, uint32_t atoms, unsigned num_viewports)
+emit_dynamic_atoms(struct zink_context *ctx, uint32_t atoms, unsigned num_viewports)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    struct zink_batch_state *bs = ctx->bs;
@@ -518,13 +503,13 @@ emit_atoms(struct zink_context *ctx, uint32_t atoms, unsigned num_viewports)
          VKCTX(CmdSetLineWidth)(bs->cmdbuf, rast_state->line_width);
          break;
       default:
-         UNREACHABLE("unknown atom");
+         UNREACHABLE("not a dynamic state atom");
       }
    }
    ctx->dirty_atoms &= ~atoms;
 }
 
-/* emit the atoms which are dirty, or all of them for a new cmdbuf, except for skip_atoms */
+/* emit the dynamic state atoms which are dirty, or all of them for a new cmdbuf, except for skip_atoms */
 template <zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED>
 ALWAYS_INLINE static void
 emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num_viewports, bool uses_shobj, uint32_t skip_atoms)
@@ -532,9 +517,9 @@ emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num
    if (ctx->depth_op_promoted && !ctx->can_promote_depth_op)
       zink_update_depth_state(ctx);
 
-   uint32_t atoms = ctx->dirty_atoms;
+   uint32_t atoms = ctx->dirty_atoms & ZINK_DYNAMIC_STATE_ATOMS;
    if (BATCH_CHANGED) {
-      atoms |= BITFIELD_MASK(ZINK_ATOM_COUNT) & ~BITFIELD_BIT(ZINK_ATOM_SAMPLE_LOCATIONS);
+      atoms |= ZINK_DYNAMIC_STATE_ATOMS & ~BITFIELD_BIT(ZINK_ATOM_SAMPLE_LOCATIONS);
       if (zink_screen(ctx->base.screen)->base.caps.programmable_sample_locations || uses_shobj)
          atoms |= BITFIELD_BIT(ZINK_ATOM_SAMPLE_LOCATIONS);
    } else if (DYNAMIC_STATE == ZINK_NO_DYNAMIC_STATE && pipeline_changed) {
@@ -545,7 +530,7 @@ emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num
       atoms |= BITFIELD_BIT(ZINK_ATOM_SCISSOR);
    atoms &= ~skip_atoms;
    if (atoms)
-      emit_atoms<DYNAMIC_STATE>(ctx, atoms, num_viewports);
+      emit_dynamic_atoms<DYNAMIC_STATE>(ctx, atoms, num_viewports);
 }
 
 template <zink_dynamic_state DYNAMIC_STATE>
@@ -591,6 +576,20 @@ bind_index_buffer(struct zink_context *ctx, struct zink_resource *res, unsigned 
    }
 }
 
+/* state which is dirty without its atom being dirty is never set by a draw */
+ALWAYS_INLINE static void
+validate_atoms(const struct zink_context *ctx)
+{
+   assert(ctx->in_rp || zink_is_atom_dirty(ctx, ZINK_ATOM_RENDERPASS));
+   assert(!ctx->rp_layout_changed || zink_is_atom_dirty(ctx, ZINK_ATOM_RENDERPASS));
+   assert(!ctx->memory_barrier || zink_is_atom_dirty(ctx, ZINK_ATOM_MEMORY_BARRIER));
+   assert(!ctx->num_so_targets || zink_is_atom_dirty(ctx, ZINK_ATOM_STREAMOUT));
+   assert(!ctx->need_barriers[0]->entries || zink_is_atom_dirty(ctx, ZINK_ATOM_BARRIERS));
+   assert((!ctx->vertices_query && list_is_empty(&ctx->primitives_generated_queries)) ||
+          zink_is_atom_dirty(ctx, ZINK_ATOM_GS_QUERIES));
+   assert(!(zink_debug & ZINK_DEBUG_SYNC) || zink_is_atom_dirty(ctx, ZINK_ATOM_DEBUG_SYNC));
+}
+
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, bool DRAW_STATE>
 void
 zink_draw(struct pipe_context *pctx,
@@ -620,11 +619,14 @@ zink_draw(struct pipe_context *pctx,
    bool reads_basevertex = ctx->shader_reads_basevertex;
    unsigned work_count = ctx->work_count;
    enum mesa_prim mode = (enum mesa_prim)dinfo->mode;
+   /* these are set by the atoms */
+   bool have_streamout = false;
 
    ctx->rp_draw = true;
 
-   if (ctx->memory_barrier && !ctx->blitting)
-      zink_flush_memory_barrier(ctx);
+   /* a new cmdbuf has none of the state */
+   if (BATCH_CHANGED)
+      ctx->dirty_atoms |= ZINK_DRAW_ATOMS;
 
    if (unlikely(ctx->buffer_rebind_counter < screen->buffer_rebind_counter && !ctx->blitting)) {
       ctx->buffer_rebind_counter = screen->buffer_rebind_counter;
@@ -636,6 +638,7 @@ zink_draw(struct pipe_context *pctx,
       zink_rebind_all_images(ctx);
    }
 
+   /* the buffers which come with the draw are synchronized here: this can end the renderpass */
    unsigned index_offset = 0;
    unsigned index_size = dinfo->index_size;
    struct pipe_resource *index_buffer = NULL;
@@ -657,76 +660,126 @@ zink_draw(struct pipe_context *pctx,
       }
       assert(index_size <= 4 && index_size != 3);
       assert(index_size != 1 || screen->info.have_EXT_index_type_uint8);
+      if (index_buffer)
+         check_buffer_barrier(ctx, index_buffer, VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
    } else {
       ctx->index_buffer = NULL;
    }
-
-   ctx->was_line_loop = dinfo->was_line_loop;
-
-   bool have_streamout = !!ctx->num_so_targets;
-   if (have_streamout) {
-      zink_emit_xfb_counter_barrier(ctx);
-      if (ctx->dirty_so_targets) {
-         /* have to loop here and below because barriers must be emitted out of renderpass,
-          * but xfb buffers can't be bound before the renderpass is active to avoid
-          * breaking from recursion
-          */
-         for (unsigned i = 0; i < ctx->num_so_targets; i++) {
-            struct zink_so_target *t = (struct zink_so_target *)ctx->so_targets[i];
-            if (t) {
-               struct zink_resource *res = zink_resource(t->base.buffer);
-               zink_screen(ctx->base.screen)->buffer_barrier(ctx, res,
-                                            VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT, VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT);
-               if (!ctx->unordered_blitting)
-                  zink_resource_disable_unordered(res, true);
-            }
-         }
+   if (unlikely(ctx->vertex_buffers_unowned) && !DRAW_STATE && (BATCH_CHANGED || ctx->vertex_buffers_dirty))
+      barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count);
+   if (unlikely(dindirect)) {
+      if (dindirect->buffer) {
+         check_buffer_barrier(ctx, dindirect->buffer,
+                              VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
+         if (dindirect->indirect_draw_count)
+            check_buffer_barrier(ctx, dindirect->indirect_draw_count,
+                                 VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
+      }
+      /* ensure synchronization between doing streamout with counter buffer
+       * and using counter buffer for indirect draw
+       */
+      if (so_target && so_target->counter_buffer_valid) {
+         struct zink_resource *res = zink_resource(so_target->counter_buffer);
+         zink_screen(ctx->base.screen)->buffer_barrier(ctx, res,
+                                      VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT,
+                                      VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
+         if (!ctx->unordered_blitting)
+            zink_resource_disable_unordered(res, false);
       }
    }
 
-   barrier_draw_buffers(ctx, dinfo, dindirect, index_buffer);
-   if (unlikely(ctx->vertex_buffers_unowned) && !DRAW_STATE && (BATCH_CHANGED || ctx->vertex_buffers_dirty))
-      barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count);
-   /* this may re-emit draw buffer barriers, but such synchronization is harmless */
-   if (!ctx->blitting)
-      zink_update_barriers(ctx, false, index_buffer, dindirect ? dindirect->buffer : NULL, dindirect ? dindirect->indirect_draw_count : NULL);
+   ctx->was_line_loop = dinfo->was_line_loop;
+   validate_atoms(ctx);
 
-   /* ensure synchronization between doing streamout with counter buffer
-    * and using counter buffer for indirect draw
-    */
-   if (so_target && so_target->counter_buffer_valid) {
-      struct zink_resource *res = zink_resource(so_target->counter_buffer);
-      zink_screen(ctx->base.screen)->buffer_barrier(ctx, res,
-                                   VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT,
-                                   VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT);
-      if (!ctx->unordered_blitting)
-         zink_resource_disable_unordered(res, false);
-   }
-
-   if (ctx->vertices_query || !list_is_empty(&ctx->primitives_generated_queries))
-      zink_query_update_gs_states(ctx);
-
-   if (unlikely(zink_debug & ZINK_DEBUG_SYNC)) {
-      zink_batch_no_rp(ctx);
-      VkMemoryBarrier mb;
-      mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-      mb.pNext = NULL;
-      mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-      mb.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-      VKSCR(CmdPipelineBarrier)(ctx->bs->cmdbuf,
-                                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                                0, 1, &mb, 0, NULL, 0, NULL);
-   }
+   /* inside a renderpass, the renderpass info only has to be parsed again after a new fs or dsa state was bound */
+   if (ctx->rp_tc_info_updated &&
+       (ctx->gfx_dirty || ctx->dirty_gfx_stages || zink_is_atom_dirty(ctx, ZINK_ATOM_DSA)))
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
 
    unsigned rp_state = ctx->gfx_pipeline_state.rp_state;
-   zink_batch_rp(ctx);
-   /* check dead swapchain */
-   if (unlikely(!ctx->in_rp))
-      return;
-
-   if (BATCH_CHANGED)
-      zink_update_descriptor_refs(ctx, false);
+   if (ctx->dirty_atoms) {
+      /* an atom can dirty the ones after it, so the mask is read again after every atom */
+      uint32_t pending = ZINK_DRAW_ATOMS;
+      uint32_t atoms;
+      while ((atoms = ctx->dirty_atoms & pending)) {
+         const enum zink_atom atom = (enum zink_atom)u_bit_scan(&atoms);
+         pending &= ~BITFIELD_MASK(atom + 1);
+         ctx->dirty_atoms &= ~BITFIELD_BIT(atom);
+         switch (atom) {
+         case ZINK_ATOM_MEMORY_BARRIER:
+            if (ctx->memory_barrier) {
+               if (ctx->blitting)
+                  zink_mark_atom_dirty(ctx, ZINK_ATOM_MEMORY_BARRIER);
+               else
+                  zink_flush_memory_barrier(ctx);
+            }
+            break;
+         case ZINK_ATOM_STREAMOUT:
+            if (!ctx->num_so_targets)
+               break;
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_STREAMOUT);
+            have_streamout = true;
+            zink_emit_xfb_counter_barrier(ctx);
+            if (ctx->dirty_so_targets) {
+               /* have to loop here and below because barriers must be emitted out of renderpass,
+                * but xfb buffers can't be bound before the renderpass is active to avoid
+                * breaking from recursion
+                */
+               for (unsigned i = 0; i < ctx->num_so_targets; i++) {
+                  struct zink_so_target *t = (struct zink_so_target *)ctx->so_targets[i];
+                  if (t) {
+                     struct zink_resource *res = zink_resource(t->base.buffer);
+                     zink_screen(ctx->base.screen)->buffer_barrier(ctx, res,
+                                                  VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT, VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT);
+                     if (!ctx->unordered_blitting)
+                        zink_resource_disable_unordered(res, true);
+                  }
+               }
+            }
+            break;
+         case ZINK_ATOM_BARRIERS:
+            /* this may re-emit draw buffer barriers, but such synchronization is harmless */
+            if (!ctx->blitting)
+               zink_update_barriers(ctx, false, index_buffer, dindirect ? dindirect->buffer : NULL, dindirect ? dindirect->indirect_draw_count : NULL);
+            else if (ctx->need_barriers[0]->entries)
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_BARRIERS);
+            break;
+         case ZINK_ATOM_GS_QUERIES:
+            if (ctx->vertices_query || !list_is_empty(&ctx->primitives_generated_queries)) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_GS_QUERIES);
+               zink_query_update_gs_states(ctx);
+            }
+            break;
+         case ZINK_ATOM_DEBUG_SYNC:
+            if (unlikely(zink_debug & ZINK_DEBUG_SYNC)) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_DEBUG_SYNC);
+               zink_batch_no_rp(ctx);
+               VkMemoryBarrier mb;
+               mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+               mb.pNext = NULL;
+               mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+               mb.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+               VKSCR(CmdPipelineBarrier)(ctx->bs->cmdbuf,
+                                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                                         0, 1, &mb, 0, NULL, 0, NULL);
+            }
+            break;
+         case ZINK_ATOM_RENDERPASS:
+            zink_batch_rp(ctx);
+            /* check dead swapchain */
+            if (unlikely(!ctx->in_rp)) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
+               return;
+            }
+            if (BATCH_CHANGED)
+               zink_update_descriptor_refs(ctx, false);
+            break;
+         default:
+            UNREACHABLE("not a draw atom");
+         }
+      }
+   }
 
    /* these must be after renderpass start to avoid issues with recursion */
    bool mode_changed = ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode;
@@ -783,9 +836,6 @@ zink_draw(struct pipe_context *pctx,
          zink_gfx_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.dyn_state2.primitive_restart = dinfo->primitive_restart;
    }
-
-   if (have_streamout && ctx->dirty_so_targets)
-      zink_emit_stream_output_targets(pctx);
 
    /* without dynamic vertex input, the vertex input state is part of the pipeline */
    const bool vertex_input_changed = DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT &&
@@ -896,7 +946,9 @@ zink_draw(struct pipe_context *pctx,
       }
    }
 
-   if (have_streamout) {
+   if (unlikely(have_streamout)) {
+      if (ctx->dirty_so_targets)
+         zink_emit_stream_output_targets(pctx);
       for (unsigned i = 0; i < ctx->num_so_targets; i++) {
          struct zink_so_target *t = zink_so_target(ctx->so_targets[i]);
          counter_buffers[i] = VK_NULL_HANDLE;
@@ -1003,7 +1055,7 @@ zink_draw(struct pipe_context *pctx,
    if (unlikely(zink_tracing))
       zink_cmd_debug_marker_end(ctx, bs->cmdbuf, marker);
 
-   if (have_streamout) {
+   if (unlikely(have_streamout)) {
       for (unsigned i = 0; i < ctx->num_so_targets; i++) {
          struct zink_so_target *t = zink_so_target(ctx->so_targets[i]);
          if (t) {

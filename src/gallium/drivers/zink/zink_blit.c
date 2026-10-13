@@ -536,6 +536,7 @@ zink_blit(struct pipe_context *pctx,
       /* for unordered blit, swap the unordered cmdbuf for the main one for the whole op to avoid conditional hell */
       ctx->bs->cmdbuf = ctx->bs->reordered_cmdbuf;
       ctx->in_rp = false;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
       ctx->rp_changed = true;
       ctx->queries_disabled = true;
       ctx->pipeline_changed[ZINK_PIPELINE_GFX] = true;

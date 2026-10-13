@@ -94,6 +94,8 @@ zink_gfx_mesh_pipeline_state_dirty(struct zink_context *ctx)
 static ALWAYS_INLINE struct set_entry *
 zink_context_add_barrier(struct zink_context *ctx, bool is_compute, struct zink_resource *res)
 {
+   if (!is_compute)
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_BARRIERS);
    return _mesa_set_add(ctx->need_barriers[is_compute], res);
 }
 

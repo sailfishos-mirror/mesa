@@ -1815,8 +1815,20 @@ enum zink_ds3_state {
    ZINK_DS3_BLEND_LOGIC,
 };
 
-/* dynamic state which is set on the cmdbuf by the next draw after it changes */
+/* state which the next draw sets on the cmdbuf after it changes
+ *
+ * a draw emits its dirty atoms in this order
+ */
 enum zink_atom {
+   /* synchronization, which can end the renderpass */
+   ZINK_ATOM_MEMORY_BARRIER,
+   ZINK_ATOM_STREAMOUT, //dirty for as long as targets are bound
+   ZINK_ATOM_BARRIERS,
+   ZINK_ATOM_GS_QUERIES, //dirty for as long as a query needs zink_query_update_gs_states()
+   ZINK_ATOM_DEBUG_SYNC, //dirty for as long as ZINK_DEBUG=sync
+   ZINK_ATOM_RENDERPASS,
+   /* starting the renderpass can draw, so everything else is set after it */
+   /* dynamic state, which mesh draws emit too */
    ZINK_ATOM_VIEWPORT,
    ZINK_ATOM_SCISSOR,
    ZINK_ATOM_STENCIL_REF,
@@ -1831,6 +1843,9 @@ enum zink_atom {
    ZINK_ATOM_LINE_WIDTH,
    ZINK_ATOM_COUNT,
 };
+
+#define ZINK_DYNAMIC_STATE_ATOMS BITFIELD_RANGE(ZINK_ATOM_VIEWPORT, ZINK_ATOM_COUNT - ZINK_ATOM_VIEWPORT)
+#define ZINK_DRAW_ATOMS BITFIELD_MASK(ZINK_ATOM_VIEWPORT)
 
 struct zink_context {
    struct pipe_context base;
