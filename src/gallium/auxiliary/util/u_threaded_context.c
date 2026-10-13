@@ -3717,7 +3717,7 @@ tc_texture_subdata(struct pipe_context *_pipe,
           tc->options.parse_renderpass_info && tc->in_renderpass) {
          /* upload to staging buffer and then buf2img copy */
          struct pipe_resource *pres = pipe_buffer_create(pipe->screen, 0, PIPE_USAGE_STREAM, layer_stride * box->depth);
-         pipe->buffer_subdata(pipe, pres, unsync_usage, 0, layer_stride * box->depth, data);
+         tc->base.buffer_subdata(&tc->base, pres, 0, 0, size, data);
          tc->base.image_copy_buffer(&tc->base, resource, pres, 0, stride, layer_stride, level, box);
          pipe_resource_reference(&pres, NULL);
       } else {
