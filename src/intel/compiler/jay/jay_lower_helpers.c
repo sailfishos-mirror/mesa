@@ -85,6 +85,7 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
                                           late_eot &&
                                           B.stride == JAY_STRIDE_4))) {
             gpr = B.start_gpr;
+            break;
          }
       }
 
