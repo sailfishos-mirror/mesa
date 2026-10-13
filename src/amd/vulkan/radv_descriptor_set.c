@@ -376,7 +376,7 @@ radv_alloc_descriptor_pool_entry(struct radv_device *device, struct radv_descrip
       if (set->header.size) {
          uint64_t pool_vma_offset = util_vma_heap_alloc(&pool->bo_heap, set->header.size, 32);
          if (!pool_vma_offset)
-            return VK_ERROR_FRAGMENTED_POOL;
+            return pool->bo_heap.free_size < set->header.size ? VK_ERROR_OUT_OF_POOL_MEMORY : VK_ERROR_FRAGMENTED_POOL;
 
          assert(pool_vma_offset >= RADV_POOL_HEAP_OFFSET && pool_vma_offset <= pool->size + RADV_POOL_HEAP_OFFSET);
          set->header.offset = pool_vma_offset - RADV_POOL_HEAP_OFFSET;

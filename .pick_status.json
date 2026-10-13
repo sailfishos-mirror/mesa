@@ -10434,7 +10434,7 @@
         "description": "radv: fix the error code when allocating a pool entry failed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "849d41dbf8314d555b761a3b8d461869f7e4a8f1",
         "notes": null
