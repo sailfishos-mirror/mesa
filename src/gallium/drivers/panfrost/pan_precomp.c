@@ -325,7 +325,10 @@ GENX(panfrost_launch_precomp)(struct panfrost_batch *batch,
    uint64_t fau_ptr = push_uniforms.gpu | (fau_count << 56);
    cs_move64_to(b, cs_sr_reg64(b, COMPUTE, FAU_0), fau_ptr);
 
-   cs_move64_to(b, cs_sr_reg64(b, COMPUTE, SPD_0), shader->state_ptr);
+   uint64_t spd_addr =
+      pan_shader_get_spd_addr(&shader->info, shader->state_ptr);
+   cs_move64_to(b, cs_sr_reg64(b, COMPUTE, SPD_0), spd_addr);
+
    cs_move64_to(b, cs_sr_reg64(b, COMPUTE, TSD_0), tsd);
 
    /* Global attribute offset */

@@ -16,6 +16,7 @@
 #include "pan_context.h"
 #include "pan_csf.h"
 #include "pan_fb_preload.h"
+#include "pan_shader.h"
 #include "pan_job.h"
 #include "pan_trace.h"
 #include "panfrost_tracepoints.h"
@@ -1240,7 +1241,9 @@ csf_emit_shader_regs(struct panfrost_batch *batch, mesa_shader_stage stage,
    cs_move64_to(b, cs_reg64(b, 0 + offset), resources);
    cs_move64_to(b, cs_reg64(b, 8 + offset),
                 batch->push_uniforms[stage] | ((uint64_t)fau_count << 56));
-   cs_move64_to(b, cs_reg64(b, 16 + offset), shader);
+   uint64_t spd_addr =
+      pan_shader_get_spd_addr(&batch->ctx->prog[stage]->info, shader);
+   cs_move64_to(b, cs_reg64(b, 16 + offset), spd_addr);
 }
 
 void
