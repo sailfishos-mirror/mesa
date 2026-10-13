@@ -353,17 +353,6 @@ jay_partition_grf(jay_shader *shader)
    unsigned special_4 = payload_4[0] + payload_4[1] + eot_4;
    unsigned special_u = payload_u[0] + payload_u[1] + eot_u;
 
-   /* If the minimum vector length can't fit in any single existing block, we
-    * will need a new block for it. This is quite conservative.
-    */
-   unsigned min_ugprs = special_u * ugpr_per_grf;
-   if (instr_req.ugpr > payload_u[0] * ugpr_per_grf &&
-       instr_req.ugpr > payload_u[1] * ugpr_per_grf &&
-       instr_req.ugpr > eot_u * ugpr_per_grf) {
-
-      min_ugprs += instr_req.ugpr;
-   }
-
    unsigned increment[JAY_NUM_STRIDES] = { grf_per_gpr, grf_per_gpr,
                                            2 * grf_per_gpr };
    unsigned min_grf[JAY_NUM_STRIDES] = {};
@@ -371,6 +360,15 @@ jay_partition_grf(jay_shader *shader)
    for (unsigned i = 0; i < JAY_NUM_STRIDES; ++i) {
       min_grf[i] = align(instr_req.gpr[i] * grf_per_gpr, increment[i]);
       min_grf_for_gprs += min_grf[i];
+   }
+
+   /* If the minimum vector length can't fit in any single existing block, we
+    * will need a new block for it. This is quite conservative.
+    */
+   unsigned min_ugprs = special_u * ugpr_per_grf;
+   unsigned max_ugpr_block = MAX3(payload_u[0], payload_u[1], eot_u);
+   if (instr_req.ugpr > max_ugpr_block * ugpr_per_grf) {
+      min_ugprs += instr_req.ugpr;
    }
 
    unsigned estimate_nonunif_grf =
@@ -447,7 +445,16 @@ jay_partition_grf(jay_shader *shader)
       }
    }
 
-   min_grf[JAY_STRIDE_4] = MAX2(min_grf[JAY_STRIDE_4], special_4);
+   /* As above, but for non-split stride-4 GPRs this time: if the minimum vector
+    * length can't fit in any single existing block, we will need a new block
+    * for it.
+    */
+   unsigned req_grf4 = instr_req.gpr[JAY_STRIDE_4] * grf_per_gpr;
+   min_grf[JAY_STRIDE_4] = special_4;
+
+   if (req_grf4 > MAX3(payload_4[0], payload_4[1], eot_4)) {
+      min_grf[JAY_STRIDE_4] += req_grf4;
+   }
 
    unsigned picked_grf[JAY_NUM_STRIDES] = {}, total = 0;
 
