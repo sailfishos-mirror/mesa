@@ -904,7 +904,7 @@
         "description": "nouveau/mme: Add dependency on mthd for DREAD/DWRITE",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "51e81947369f3ae83082b493af9f607d42ef29e5",
         "notes": null
