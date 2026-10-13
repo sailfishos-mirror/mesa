@@ -1334,7 +1334,7 @@
         "description": "pan/lib: do not fold into the same op twice",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1f51daf3091728147b1d550ac71b85519b860874",
         "notes": null
