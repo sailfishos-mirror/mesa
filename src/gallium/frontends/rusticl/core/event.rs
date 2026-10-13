@@ -117,18 +117,17 @@ impl Profiler for CPUProfiler {
         work: Option<EventSig>,
     ) -> CLResult<()> {
         self.set_time(EventTimes::Submit, ctx.dev.screen().get_timestamp());
+        let mut query_start =
+            PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
+                .ok_or(CL_OUT_OF_HOST_MEMORY)?;
         if let Some(w) = work {
-            let mut query_start =
-                PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
-                    .ok_or(CL_OUT_OF_HOST_MEMORY)?;
             w(cl_ctx, ctx)?;
-            let mut query_end =
-                PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
-                    .ok_or(CL_OUT_OF_HOST_MEMORY)?;
-
-            self.set_time(EventTimes::Start, query_start.read_blocked());
-            self.set_time(EventTimes::End, query_end.read_blocked());
         }
+        let mut query_end = PipeQueryGen::<{ pipe_query_type::PIPE_QUERY_TIMESTAMP }>::new(ctx.ctx)
+            .ok_or(CL_OUT_OF_HOST_MEMORY)?;
+
+        self.set_time(EventTimes::Start, query_start.read_blocked());
+        self.set_time(EventTimes::End, query_end.read_blocked());
 
         Ok(())
     }
@@ -212,15 +211,15 @@ impl Profiler for GPUProfiler {
         self.time_submit
             .store(ctx.dev.screen().get_timestamp(), PROFILING_ORDERING);
 
+        let mut query_start = self.create_timestamp_query(ctx.ctx)?;
+        query_start.write_to_resource(&self.res, 0);
+
         if let Some(w) = work {
-            let mut query_start = self.create_timestamp_query(ctx.ctx)?;
-            query_start.write_to_resource(&self.res, 0);
-
             w(cl_ctx, ctx)?;
-
-            let mut query_end = self.create_timestamp_query(ctx.ctx)?;
-            query_end.write_to_resource(&self.res, 8);
         }
+
+        let mut query_end = self.create_timestamp_query(ctx.ctx)?;
+        query_end.write_to_resource(&self.res, 8);
 
         Ok(())
     }
