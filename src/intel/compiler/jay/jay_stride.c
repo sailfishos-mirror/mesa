@@ -86,7 +86,8 @@ jay_dst_stride_minmax(jay_inst *I, bool do_max)
          min = JAY_STRIDE_4;
    }
 
-   if (I->op == JAY_OPCODE_EXPAND_QUAD) {
+   if (I->op == JAY_OPCODE_EXPAND_QUAD ||
+       I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS) {
       return JAY_STRIDE_4;
    }
 
