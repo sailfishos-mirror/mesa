@@ -167,7 +167,7 @@ draw_indexed(struct zink_context *ctx,
    } else {
       if (needs_drawid)
          update_drawid(ctx, draw_id);
-      if (HAS_MULTIDRAW) {
+      if (HAS_MULTIDRAW && num_draws > 1) {
          VKCTX(CmdDrawMultiIndexedEXT)(cmdbuf, num_draws, (const VkMultiDrawIndexedInfoEXT*)draws,
                                        dinfo->instance_count,
                                        dinfo->start_instance, sizeof(struct pipe_draw_start_count_bias),
@@ -200,7 +200,7 @@ draw(struct zink_context *ctx,
    } else {
       if (needs_drawid)
          update_drawid(ctx, draw_id);
-      if (HAS_MULTIDRAW)
+      if (HAS_MULTIDRAW && num_draws > 1)
          VKCTX(CmdDrawMultiEXT)(cmdbuf, num_draws, (const VkMultiDrawInfoEXT*)draws,
                                 dinfo->instance_count, dinfo->start_instance,
                                 sizeof(struct pipe_draw_start_count_bias));
