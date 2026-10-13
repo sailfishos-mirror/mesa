@@ -1831,6 +1831,8 @@ enum zink_atom {
    ZINK_ATOM_DRAW_ID, //dirty for as long as the vertex shader reads gl_DrawID
    ZINK_ATOM_PRIMITIVE,
    ZINK_ATOM_PIPELINE,
+   ZINK_ATOM_VERTEX_BUFFERS,
+   ZINK_ATOM_VERTEX_INPUT,
    /* dynamic state, which mesh draws emit too */
    ZINK_ATOM_VIEWPORT,
    ZINK_ATOM_SCISSOR,
@@ -1972,7 +1974,6 @@ struct zink_context {
 
    struct pipe_vertex_buffer vertex_buffers[PIPE_MAX_ATTRIBS];
    unsigned vertex_buffers_count;
-   bool vertex_buffers_dirty;
    bool vertex_buffers_unowned;
 
    struct zink_sampler_state *sampler_states[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
@@ -2127,7 +2128,6 @@ struct zink_context {
    bool blit_scissor : 1;
    bool blit_nearest : 1;
    bool unordered_blitting : 1;
-   bool vertex_state_changed : 1;
    bool rp_tc_info_updated : 1;
    bool last_work_was_compute : 1;
    bool needs_transfer_sync : 1;

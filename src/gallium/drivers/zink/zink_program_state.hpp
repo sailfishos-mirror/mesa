@@ -126,7 +126,7 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
       if (!state->mesh_dirty && !state->mesh_modules_changed)
          return state->mesh_pipeline;
    } else {
-      if (!state->dirty && !state->modules_changed && idx == state->idx && !ctx->vertex_state_changed &&
+      if (!state->dirty && !state->modules_changed && idx == state->idx && !zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT) &&
           ((DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2)))
          return state->pipeline;
    }
@@ -176,7 +176,7 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
          return state->mesh_pipeline;
       }
    } else {
-      if (DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 && DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT && ctx->vertex_state_changed) {
+      if (DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 && DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT && zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT)) {
          /* recalc vertex state if missing optimal extensions */
          if (state->pipeline)
             state->final_hash ^= state->vertex_hash;

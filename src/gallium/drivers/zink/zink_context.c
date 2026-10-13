@@ -1460,8 +1460,8 @@ zink_bind_vertex_elements_state(struct pipe_context *pctx,
    }
    if (cso) {
       if (state->element_state != &ctx->element_state->hw_state) {
-         ctx->vertex_state_changed = true;
-         ctx->vertex_buffers_dirty = ctx->element_state->hw_state.num_bindings > 0;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT);
+         zink_set_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS, ctx->element_state->hw_state.num_bindings > 0);
       }
       state->element_state = &ctx->element_state->hw_state;
       if (zink_screen(pctx->screen)->optimal_keys)
@@ -1507,7 +1507,7 @@ zink_bind_vertex_elements_state(struct pipe_context *pctx,
       }
    } else {
      state->element_state = NULL;
-     ctx->vertex_buffers_dirty = false;
+     zink_set_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS, false);
    }
 }
 
@@ -1557,9 +1557,9 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
       const bool need_state_change = !zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state &&
                                      !have_input_state;
       if (need_state_change)
-         ctx->vertex_state_changed = true;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT);
       else if (!have_input_state && ctx->gfx_pipeline_state.vertex_buffers_enabled_mask != enabled_buffers)
-         ctx->vertex_state_changed = true;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT);
       ctx->gfx_pipeline_state.vertex_buffers_enabled_mask = enabled_buffers;
 #ifndef NDEBUG
       u_foreach_bit(b, enabled_buffers)
@@ -1569,7 +1569,7 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
    /* avoid potential overdraw conflicts */
    ctx->can_promote_depth_op = false;
    ctx->vertex_buffers_count = num_buffers;
-   ctx->vertex_buffers_dirty = num_buffers > 0;
+   zink_set_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS, num_buffers > 0);
    ctx->vertex_buffers_unowned = false;
 }
 
@@ -1633,8 +1633,6 @@ zink_bind_vertex_buffers_internal(struct zink_context *ctx, const struct pipe_ve
       VKCTX(CmdBindVertexBuffers2)(ctx->bs->cmdbuf, 0,
                                   elems->hw_state.num_bindings,
                                   buffers, buffer_offsets, NULL, NULL);
-
-   ctx->vertex_buffers_dirty = false;
 }
 
 void
@@ -1684,8 +1682,6 @@ zink_bind_vertex_addresses(struct zink_context *ctx, const struct pipe_vertex_bu
    }
 
    VKCTX(CmdBindVertexBuffers3KHR)(ctx->bs->cmdbuf, 0, num_bindings, dac_vbs);
-
-   ctx->vertex_buffers_dirty = false;
 }
 
 static void
@@ -5066,7 +5062,7 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
    if (ctx->vertex_buffers_unowned) {
       for (unsigned i = 0; i < ctx->vertex_buffers_count; i++) {
          if (ctx->vertex_buffers[i].buffer.resource == &res->base.b) {
-            ctx->vertex_buffers_dirty = true;
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
             break;
          }
       }
@@ -5101,7 +5097,7 @@ rebind_buffer(struct zink_context *ctx, struct zink_resource *res, uint64_t rebi
          num_rebinds++;
       }
       rebind_mask &= ~BITFIELD64_BIT(TC_BINDING_VERTEX_BUFFER);
-      ctx->vertex_buffers_dirty = true;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    }
    if (expected_num_rebinds && num_rebinds >= expected_num_rebinds && !rebind_mask)
       goto end;
@@ -5712,7 +5708,7 @@ zink_resource_rebind(struct zink_context *ctx, struct zink_resource *res)
 void
 zink_rebind_all_buffers(struct zink_context *ctx)
 {
-   ctx->vertex_buffers_dirty = ctx->gfx_pipeline_state.vertex_buffers_enabled_mask > 0;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    ctx->dirty_so_targets = ctx->num_so_targets > 0;
    if (ctx->num_so_targets)
       zink_screen(ctx->base.screen)->buffer_barrier(ctx, zink_resource(ctx->dummy_xfb_buffer),

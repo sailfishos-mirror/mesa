@@ -606,7 +606,7 @@ mark_draw_atoms(struct zink_context *ctx, const struct pipe_draw_info *dinfo)
       zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
    /* without dynamic vertex input, the vertex input state is part of the pipeline */
    if (DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT && DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 &&
-       ctx->vertex_state_changed)
+       zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT))
       zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
 }
 
@@ -637,6 +637,8 @@ zink_draw(struct pipe_context *pctx,
    bool reads_basevertex = ctx->shader_reads_basevertex;
    unsigned work_count = ctx->work_count;
    enum mesa_prim mode = (enum mesa_prim)dinfo->mode;
+   const bool dynamic_vertex_input = DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT ||
+                                     DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2;
    /* these are set by the atoms */
    bool have_streamout = false;
    bool needs_drawid = false;
@@ -685,7 +687,7 @@ zink_draw(struct pipe_context *pctx,
    } else {
       ctx->index_buffer = NULL;
    }
-   if (unlikely(ctx->vertex_buffers_unowned) && !DRAW_STATE && (BATCH_CHANGED || ctx->vertex_buffers_dirty))
+   if (ctx->vertex_buffers_unowned && !DRAW_STATE && zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS))
       barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count);
    if (unlikely(dindirect)) {
       if (dindirect->buffer) {
@@ -866,6 +868,16 @@ zink_draw(struct pipe_context *pctx,
                return;
             }
             break;
+         case ZINK_ATOM_VERTEX_BUFFERS:
+            if (!DRAW_STATE)
+               bind_vertex_buffers<DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
+            break;
+         case ZINK_ATOM_VERTEX_INPUT:
+            if (!DRAW_STATE && dynamic_vertex_input)
+               VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
+                                           ctx->element_state->hw_state.num_bindings, ctx->element_state->hw_state.dynbindings,
+                                           ctx->element_state->hw_state.num_attribs, ctx->element_state->hw_state.dynattribs);
+            break;
          default:
             UNREACHABLE("not a draw atom");
          }
@@ -876,16 +888,6 @@ zink_draw(struct pipe_context *pctx,
          zink_set_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH, false);
    }
    emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj, 0);
-
-   if (!DRAW_STATE) {
-      if (BATCH_CHANGED || ctx->vertex_buffers_dirty)
-         bind_vertex_buffers<DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
-      if ((DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2 || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT) && (BATCH_CHANGED || ctx->vertex_state_changed))
-         VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
-                                     ctx->element_state->hw_state.num_bindings, ctx->element_state->hw_state.dynbindings,
-                                     ctx->element_state->hw_state.num_attribs, ctx->element_state->hw_state.dynattribs);
-      ctx->vertex_state_changed = false;
-   }
 
    if (BATCH_CHANGED) {
       ctx->pipeline_changed[ZINK_PIPELINE_GFX] = false;
@@ -1299,7 +1301,7 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
       ctx->can_promote_depth_op = false;
 
    /* synchronized and bound in zink_draw */
-   ctx->vertex_buffers_dirty = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, false>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
 }
 
@@ -1377,9 +1379,9 @@ zink_draw_vertex_state(struct pipe_context *pctx,
 
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, true>(pctx, &dinfo, 0, NULL, draws, num_draws, vstate, partial_velem_mask);
    /* ensure ctx->vertex_buffers gets rebound on next non-vstate draw */
-   ctx->vertex_buffers_dirty = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    /* ensure ctx->element_state gets rebound on next non-vstate draw */
-   ctx->vertex_state_changed = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_INPUT);
 
    if (info.take_vertex_state_ownership)
       pipe_vertex_state_reference(&vstate, NULL);
