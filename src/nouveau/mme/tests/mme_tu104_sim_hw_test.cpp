@@ -50,9 +50,9 @@ mme_tu104_sim_test::test_macro(const mme_builder *b,
       .data = &sim_data[0],
       .size = DATA_BO_SIZE,
    };
-   mme_tu104_sim(insts.size(), &insts[0],
-                 params.size(), params.size() ? &params[0] : NULL,
-                 1, &sim_mem);
+   mme_tu104_sim(insts.size(), &insts[0], params.size(),
+                 params.size() ? &params[0] : NULL, 1, &sim_mem,
+                 b->devinfo->cls_eng3d);
 
    /* Now run the macro on the GPU */
    push_macro(0, macro);
