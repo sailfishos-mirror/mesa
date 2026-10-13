@@ -110,6 +110,9 @@ struct nir_to_jay_state {
    jay_builder bld;
    jay_block *current_block, *after_block, *break_block, *exit_block;
 
+   /* Current block weight, see jay_block::weight */
+   float weight;
+
    /* Reconvergence tracking for break and halt instructions */
    jay_block *converge_block;
    struct util_dynarray converge_blocks;
@@ -3728,17 +3731,24 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    jay_builder *b = &nj->bld;
    jay_def condition = nj_src(nif->condition);
    bool uniform = jay_is_uniform(condition);
+   float saved_weight = nj->weight;
 
    jay_block *converge_block = nj->converge_block;
    jay_block *before_block = nj->current_block;
-   jay_block *after_block = jay_new_block(nj->f);
+   jay_block *after_block = jay_new_block(nj->f, nj->weight);
 
    /* Push */
    if (converge_block) {
       util_dynarray_append(&nj->converge_blocks, converge_block);
    }
 
-   jay_block *else_first = jay_new_block(nj->f);
+   /* For a uniform IF, we execute exactly one side. Assume the condition is
+    * 50-50, so weight both at 50%. For a non-uniform IF, we might execute both
+    * sides but we might not, so weight each half somewhat less than outside the
+    * IF. This isn't a science.
+    */
+   nj->weight = uniform ? (saved_weight * 0.5f) : (saved_weight * 0.8f);
+   jay_block *else_first = jay_new_block(nj->f, nj->weight);
 
    /* Break and halt instructions in the then block may reconverge at the
     * else block for a non-uniform IF.
@@ -3803,6 +3813,8 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 
    b->cursor = jay_after_block(else_last);
    jay_ENDIF(b);
+
+   nj->weight = saved_weight;
 }
 
 static void
@@ -3816,7 +3828,9 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    unsigned saved_loop_converge = nj->loop_converge_block;
 
    /* Make the block that will be after the loop exit */
-   nj->break_block = jay_new_block(nj->f);
+   nj->break_block = jay_new_block(nj->f, nj->weight);
+   float saved_weight = nj->weight;
+   nj->weight *= 10.0f;
 
    if (converge_block) {
       util_dynarray_append(&nj->converge_blocks, converge_block);
@@ -3830,7 +3844,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
       util_dynarray_num_elements(&nj->converge_blocks, jay_block *);
 
    /* Make a block for the loop body, which is also the loop header */
-   jay_block *loop_header = jay_new_block(nj->f);
+   jay_block *loop_header = jay_new_block(nj->f, nj->weight);
    loop_header->physical_loop_header = true;
 
    /* The current block falls through to the start of the loop */
@@ -3862,6 +3876,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    nj->break_block = saved_break;
    nj->loop_converge_block = saved_loop_converge;
    nj->converge_block = converge_block;
+   nj->weight = saved_weight;
 
    if (converge_block) {
       (void) util_dynarray_pop_ptr(&nj->converge_blocks, jay_block *);
@@ -3883,7 +3898,7 @@ jay_emit_block(struct nir_to_jay_state *nj, nir_block *nb)
       nj->current_block = nj->after_block;
       nj->after_block = NULL;
    } else {
-      nj->current_block = jay_new_block(nj->f);
+      nj->current_block = jay_new_block(nj->f, nj->weight);
    }
 
    jay_block *block = nj->current_block;
@@ -4558,7 +4573,7 @@ jay_setup_payload(struct nir_to_jay_state *nj)
 {
    jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
-   nj->after_block = jay_new_block(nj->f);
+   nj->after_block = jay_new_block(nj->f, nj->weight);
    b->cursor = jay_after_block(nj->after_block);
 
    struct payload_builder p = { .b = &nj->bld };
@@ -4737,6 +4752,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       .s = s,
       .f = f,
       .nir = nir,
+      .weight = 1.0,
       .devinfo = devinfo,
       .bld = (jay_builder){ .shader = s, .func = f },
       .fs_per_primitive_offsets = fs_perprim->per_primitive_offsets
@@ -4755,7 +4771,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       jay_setup_payload(&nj);
    }
 
-   nj.exit_block = jay_new_block(f);
+   nj.exit_block = jay_new_block(f, nj.weight);
    nj.zero_inactive = BITSET_CALLOC(f->ssa_alloc);
    jay_emit_cf_list(&nj, &impl->body);
    jay_block_add_successor(nj.current_block, nj.exit_block, GPR);

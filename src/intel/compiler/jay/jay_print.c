@@ -248,10 +248,12 @@ comma_separate(FILE *fp, jay_block *block, bool *first)
 void
 jay_print_block(FILE *fp, jay_function *func, jay_block *block)
 {
-   fprintf(fp, "B%d%s%s", block->index, block->uniform ? " [uniform]" : "",
+   fprintf(fp, "B%d%s%s [weight %.3f]", block->index,
+           block->uniform ? " [uniform]" : "",
            block->loop_header          ? " [loop header]" :
            block->physical_loop_header ? " [physical loop header]" :
-                                         "");
+                                         "",
+           block->weight);
    bool first = true;
    jay_foreach_predecessor(block, p, GPR) {
       fprintf(fp, "%s B%d", first ? " <-" : "", (*p)->index);

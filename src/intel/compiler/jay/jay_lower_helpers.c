@@ -146,7 +146,7 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
             halt = jay_add_predicate(b, halt, ctx->helper_flag, jay_null());
             ctx->halted = true;
 
-            jay_block *split = jay_new_block(b->func);
+            jay_block *split = jay_new_block(b->func, block->weight);
             list_partition(&block->instructions, &split->instructions,
                            &halt->link);
             list_addtail(&split->link, &block->link);
