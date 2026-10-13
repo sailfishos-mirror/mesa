@@ -10580,29 +10580,26 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
 
       radv_merge_queue_state(&secondary->queue_state, &primary->queue_state);
 
-      if (!secondary->state.render.has_image_views) {
-         if (primary->state.render.active) {
-            if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL || pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ) {
-               const struct radv_rendering_state *render = &primary->state.render;
-               const struct radv_image_view *iview = render->ds_att.iview;
+      if (primary->state.render.active && !secondary->state.render.has_image_views &&
+          (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL || pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL_REZ)) {
+         const struct radv_rendering_state *render = &primary->state.render;
+         const struct radv_image_view *iview = render->ds_att.iview;
 
-               if (iview && radv_image_has_hiz_metadata(iview->image)) {
-                  /* On GFX12, if the HiZ workaround using metadata is enabled, we need to consider
-                   * that any of the draws in the secondary command buffer could trigger the issue
-                   * and HiZ needs to be disabled completely.
-                   */
-                  const VkImageSubresourceRange range = {
-                     .aspectMask = render->ds_att_aspects,
-                     .baseMipLevel = iview->vk.base_mip_level,
-                     .levelCount = iview->vk.level_count,
-                     .baseArrayLayer = iview->vk.base_array_layer,
-                     .layerCount = iview->vk.layer_count,
-                  };
+         if (iview && radv_image_has_hiz_metadata(iview->image)) {
+            /* On GFX12, if the HiZ workaround using metadata is enabled, we need to consider
+             * that any of the draws in the secondary command buffer could trigger the issue
+             * and HiZ needs to be disabled completely.
+             */
+            const VkImageSubresourceRange range = {
+               .aspectMask = render->ds_att_aspects,
+               .baseMipLevel = iview->vk.base_mip_level,
+               .levelCount = iview->vk.level_count,
+               .baseArrayLayer = iview->vk.base_array_layer,
+               .layerCount = iview->vk.layer_count,
+            };
 
-                  radv_gfx12_override_hiz_enable(primary, false, false, 0);
-                  radv_update_hiz_metadata(primary, iview->image, &range, false);
-               }
-            }
+            radv_gfx12_override_hiz_enable(primary, false, false, 0);
+            radv_update_hiz_metadata(primary, iview->image, &range, false);
          }
       }
 
