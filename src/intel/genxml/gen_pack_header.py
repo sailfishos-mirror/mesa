@@ -328,8 +328,6 @@ class Group(object):
 
             if repack:
                 non_address_fields.append("origin[%d]" % index)
-                if dw.size > 32:
-                    non_address_fields.append("((uint64_t)origin[%d] << 32)" % (index + 1))
 
             for field in dw.fields:
                 if field.type != "mbo" and field.type != "mbz" and field.type != "repack":
@@ -403,13 +401,21 @@ class Group(object):
                           (v_address, index, dw.address.name + field.dim, v,
                            dw.address.start - dword_start, dw.address.end - dword_start))
                 if len(dw.fields) > address_count:
-                    print("   dw[%d] = %s;" % (index, v_address))
-                    print("   dw[%d] = (%s >> 32) | (%s >> 32);" % (index + 1, v_address, v))
+                    if repack:
+                        print("   dw[%d] = %s;" % (index, v_address))
+                        print("   dw[%d] = origin[%d] | (%s >> 32) | (%s >> 32);" % (index + 1, index + 1, v_address, v))
+                    else:
+                        print("   dw[%d] = %s;" % (index, v_address))
+                        print("   dw[%d] = (%s >> 32) | (%s >> 32);" % (index + 1, v_address, v))
                     continue
                 else:
                     v = v_address
-            print("   dw[%d] = %s;" % (index, v))
-            print("   dw[%d] = %s >> 32;" % (index + 1, v))
+            if repack:
+                print("   dw[%d] = %s;" % (index, v))
+                print("   dw[%d] = origin[%d] | (%s >> 32);" % (index + 1, index + 1, v))
+            else:
+                print("   dw[%d] = %s;" % (index, v))
+                print("   dw[%d] = %s >> 32;" % (index + 1, v))
 
     # Given a field (start, end) contained in word `index`, generate the 32-bit
     # mask of present bits relative to the word
