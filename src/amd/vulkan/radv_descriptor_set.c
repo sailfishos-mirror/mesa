@@ -447,8 +447,15 @@ radv_descriptor_set_create(struct radv_device *device, struct radv_descriptor_po
    set->header.size = align(layout_size, 32);
 
    result = radv_alloc_descriptor_pool_entry(device, pool, set);
-   if (result != VK_SUCCESS)
+   if (result != VK_SUCCESS) {
+      vk_object_base_finish(&set->header.base);
+      if (pool->host_memory_base) {
+         pool->host_memory_ptr -= mem_size;
+      } else {
+         vk_free2(&device->vk.alloc, NULL, set);
+      }
       return result;
+   }
 
    if (layout->has_immutable_samplers) {
       for (unsigned i = 0; i < layout->binding_count; ++i) {
