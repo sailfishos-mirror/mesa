@@ -114,13 +114,10 @@ barrier_draw_buffers(struct zink_context *ctx, const struct pipe_draw_info *dinf
 }
 
 ALWAYS_INLINE static void
-barrier_unowned_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *buffers, unsigned count,
-                               bool record)
+barrier_unowned_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *buffers, unsigned count)
 {
    for (unsigned i = 0; i < count; i++) {
       struct zink_resource *res = zink_resource(buffers[i].buffer.resource);
-      if (record)
-         ctx->vertex_buffers[i] = buffers[i];
       if (!res)
          continue;
       check_buffer_barrier(ctx, &res->base.b, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
@@ -689,7 +686,7 @@ zink_draw(struct pipe_context *pctx,
 
    barrier_draw_buffers(ctx, dinfo, dindirect, index_buffer);
    if (unlikely(ctx->vertex_buffers_unowned) && !DRAW_STATE && (BATCH_CHANGED || ctx->vertex_buffers_dirty))
-      barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count, false);
+      barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count);
    /* this may re-emit draw buffer barriers, but such synchronization is harmless */
    if (!ctx->blitting)
       zink_update_barriers(ctx, false, index_buffer, dindirect ? dindirect->buffer : NULL, dindirect ? dindirect->indirect_draw_count : NULL);
@@ -1226,12 +1223,13 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
 
    if (unlikely(!ctx->vertex_buffers_unowned || buffer_count != ctx->vertex_buffers_count))
       zink_set_vertex_buffers_unowned(ctx, buffer_count, buffers);
-   barrier_unowned_vertex_buffers(ctx, buffers, buffer_count, true);
+   else
+      memcpy(ctx->vertex_buffers, buffers, buffer_count * sizeof(struct pipe_vertex_buffer));
 
    if (ctx->in_rp)
       ctx->can_promote_depth_op = false;
 
-   /* bound in zink_draw after zink_batch_rp() */
+   /* synchronized and bound in zink_draw */
    ctx->vertex_buffers_dirty = true;
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, false>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
 }
