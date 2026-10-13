@@ -9,9 +9,6 @@ GTF-GL46.gtf30.GL3Tests.sgis_texture_lod.sgis_texture_lod_basic_lod_selection,Fa
 dEQP-GLES3.functional.shaders.matrix.inverse.dynamic.lowp_mat4_float_vertex,Fail
 dEQP-GLES3.functional.shaders.matrix.inverse.dynamic.mediump_mat4_float_vertex,Fail
 
-# GL_MAP_CLIENT_POINTER_BIT_MESA not recognized as a valid storage flag
-KHR-GL46.direct_state_access.buffers_errors,Fail
-
 glx@glx-multi-window-single-context,Fail
 glx@glx-swap-pixmap-bad,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-divisor-zero,Fail

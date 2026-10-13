@@ -1,6 +1,3 @@
-# GL_MAP_CLIENT_POINTER_BIT_MESA not recognized as a valid storage flag
-KHR-GL46.direct_state_access.buffers_errors,Fail
-
 # initial fails
 KHR-GL46.sparse_texture2_tests.SparseTexture2Commitment_texture_2d_multisample_array_rgba32i,Fail
 KHR-GL46.sparse_texture2_tests.SparseTexture2Commitment_texture_2d_multisample_rg16ui,Fail
