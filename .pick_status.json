@@ -834,7 +834,7 @@
         "description": "util/tc: fix buffer over-read and thread race in staging texture_subdata",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "43facca1958d101b7e083a1c62bae985a3154ef0",
         "notes": null
