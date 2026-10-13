@@ -38,6 +38,7 @@
 #include "virtio/intel_virtio.h"
 
 #include "common/intel_gem.h"
+#include "util/driconf.h"
 #include "util/u_debug.h"
 #include "util/u_string.h"
 #include "util/log.h"
@@ -1582,26 +1583,66 @@ parse_force_probe_entry(int pci_id, const char *entry, bool *force_on,
    return matched;
 }
 
+static const driOptionDescription dri_config_opts[] = {
+    DRI_CONF_SECTION_INITIALIZATION
+        DRI_CONF_INTEL_FORCE_PROBE
+    DRI_CONF_SECTION_END
+};
+
+/* Get force-probe value from either INTEL_FORCE_PROBE env-var or
+ * intel_force_probe driconf.
+ *
+ * The returned string must be freed by caller.
+ */
+static char *get_intel_force_probe_str()
+{
+   driOptionCache default_init_options;
+   driOptionCache user_init_options;
+   char *force_probe = NULL;
+
+   /* INTEL_FORCE_PROBE has first priority */
+   const char *str = os_get_option("INTEL_FORCE_PROBE");
+   if (str != NULL && str[0] != '\0') {
+      force_probe = strdup(str);
+      if (force_probe != NULL)
+         return force_probe;
+   }
+
+   /* Try intel_force_probe driconf option */
+   driParseOptionInfo(&default_init_options, dri_config_opts,
+                      ARRAY_SIZE(dri_config_opts));
+   driParseConfigFiles(&user_init_options, &default_init_options,
+                       &(driConfigFileParseParams) {
+                          .driverName = "intel",
+                       });
+   force_probe = NULL;
+   if (driCheckOption(&user_init_options, "intel_force_probe", DRI_STRING)) {
+      char *str = driQueryOptionstr(&user_init_options, "intel_force_probe");
+      if (str[0] != '\0')
+         force_probe = strdup(str);
+   }
+   driDestroyOptionCache(&user_init_options);
+   driDestroyOptionInfo(&default_init_options);
+
+   return force_probe;
+}
+
 static void
 scan_for_force_probe(int pci_id, bool *force_on, bool *force_off)
 {
    *force_on = false;
    *force_off = false;
 
-   const char *env = os_get_option("INTEL_FORCE_PROBE");
-   if (env == NULL || env[0] == '\0')
-      return;
-
-   char *dup = strdup(env);
-   if (dup == NULL)
+   char *str = get_intel_force_probe_str();
+   if (str == NULL || str[0] == '\0')
       return;
 
    char *saveptr;
-   for (char *entry = strtok_r(dup, ",", &saveptr); entry;
+   for (char *entry = strtok_r(str, ",", &saveptr); entry;
         entry = strtok_r(NULL, ",", &saveptr))
       parse_force_probe_entry(pci_id, entry, force_on, force_off);
 
-   free(dup);
+   free(str);
    assert(!*force_on || !*force_off);
 }
 

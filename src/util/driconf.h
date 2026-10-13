@@ -396,6 +396,9 @@
 #define DRI_CONF_INTEL_ENABLE_EFFICIENT_64BIT(def) \
    DRI_CONF_OPT_B(intel_enable_efficient_64bit, def, "Enable efficient 64bit")
 
+#define DRI_CONF_INTEL_FORCE_PROBE \
+   DRI_CONF_OPT_S_NODEF(intel_force_probe, "Default value of INTEL_FORCE_PROBE.")
+
 /**
  * \brief Image quality-related options
  */
