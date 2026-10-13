@@ -35,6 +35,7 @@ static_assert!(CL_QUEUED == 3);
 
 pub type EventSig =
     Box<dyn FnOnce(&Context, &mut QueueContextWithState) -> CLResult<()> + Send + Sync>;
+pub type CleanupSig = Box<dyn FnOnce(&Context) + Send + Sync>;
 
 const PROFILING_ORDERING: atomic::Ordering = atomic::Ordering::SeqCst;
 
@@ -50,6 +51,9 @@ struct EventMutState {
     status: cl_int,
     cbs: [Vec<EventCB>; 3],
     work: Option<EventSig>,
+
+    /// Cleanup callback that gets called right before the event gets put into `CL_COMPLETE` status.
+    cleanup: Option<CleanupSig>,
 }
 
 trait Profiler: Send + Sync {
@@ -269,6 +273,7 @@ impl Event {
         cmd_type: cl_command_type,
         deps: Vec<Arc<Event>>,
         work: EventSig,
+        cleanup: Option<CleanupSig>,
     ) -> CLResult<Arc<Event>> {
         let profiler: Box<dyn Profiler> = if queue.is_profiling_enabled() {
             if queue.device.screen().caps().query_buffer_object {
@@ -286,6 +291,7 @@ impl Event {
             state: Mutex::new(EventMutState {
                 status: CL_QUEUED as cl_int,
                 work: Some(work),
+                cleanup: cleanup,
                 ..Default::default()
             }),
             kind: EventImpl::GPUEvent(GPUEvent {
@@ -398,14 +404,24 @@ impl Event {
     }
 
     pub(super) fn signal(&self) {
-        let state = self.state();
+        let mut state = self.state();
         // we don't want to call signal on errored events, but if that still happens, handle it
         // gracefully
         debug_assert_eq!(state.status, CL_SUBMITTED as cl_int);
         if state.status < 0 {
             return;
         }
+
+        // Only take the cb when we are sure to set the state to CL_COMPLETE.
+        let cleanup = state.cleanup.take();
         self.set_status(state, CL_RUNNING as cl_int);
+
+        // Cleanup cbs are expected to be called right before putting the event into COMPLETE state.
+        // And we also want to call it while not taking the state lock.
+        if let Some(cleanup) = cleanup {
+            cleanup(&self.context);
+        }
+
         self.set_status(self.state(), CL_COMPLETE as cl_int);
     }
 
