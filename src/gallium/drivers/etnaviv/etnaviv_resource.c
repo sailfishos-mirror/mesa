@@ -1363,7 +1363,7 @@ etna_buffer_rebind(struct etna_context *ctx, struct pipe_resource *prsc)
 
       u_foreach_bit(i, cb->enabled_mask) {
          if (cb->cb[i].buffer == prsc)
-            ctx->dirty |= ETNA_DIRTY_CONSTBUF;
+            ctx->dirty |= etna_constbuf_dirty(stage);
       }
    }
 

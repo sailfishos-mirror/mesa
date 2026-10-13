@@ -119,7 +119,7 @@ etna_set_constant_buffer(struct pipe_context *pctx,
    }
 
    so->enabled_mask |= 1 << index;
-   ctx->dirty |= ETNA_DIRTY_CONSTBUF;
+   ctx->dirty |= etna_constbuf_dirty(shader);
 }
 
 static void
