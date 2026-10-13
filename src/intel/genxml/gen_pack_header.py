@@ -335,9 +335,7 @@ class Group(object):
 
                 nz = "_nonzero" if field.nonzero else ""
 
-                if field.type == "repack":
-                    non_address_fields.append("origin[%d]" % index)
-                elif field.type == "mbo":
+                if field.type == "mbo":
                     non_address_fields.append("util_bitpack_ones(%d, %d)" % \
                         (field.start - dword_start, field.end - dword_start))
                 elif field.type == "mbz":
