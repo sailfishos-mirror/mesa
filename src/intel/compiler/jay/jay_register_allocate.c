@@ -1264,7 +1264,12 @@ local_ra(jay_ra_state *ra, jay_block *block)
       if (ra->global_reg_for_index[i] == NO_REG && reg != NO_REG) {
          assert(!reg_is_available(ra, reg) && "else handled above");
          jay_reg old = reg;
-         reg = find_free_reg(ra, r_file(reg), ~0);
+         reg = try_find_free_reg(ra, r_file(old), ~0, ra->affinities[i].stride,
+                                 ~0);
+         if (reg == NO_REG) {
+            reg = find_free_reg(ra, r_file(old), ~0);
+         }
+
          add_copy(&copies, reg, old);
 
          assign_reg_for_index(ra, i, reg);
