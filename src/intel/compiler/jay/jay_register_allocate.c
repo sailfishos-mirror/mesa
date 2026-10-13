@@ -877,10 +877,7 @@ pick_regs(jay_ra_state *ra,
             r += affinity.offset;
          }
 
-         /* Assigning a stride that is too big may result in SIMDness splitting.
-          * Model that cost so we prefer packed registers.
-          */
-         unsigned block_cost = file == GPR ? block.stride - min_stride : 0;
+         unsigned block_cost = 0;
 
          /* If we are used for end-of-thread and it is not in the appropriate
           * register, we will need to insert 1 copy per channel at the end.
