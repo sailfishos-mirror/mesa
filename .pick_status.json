@@ -7804,7 +7804,7 @@
         "description": "panvk: drop redundant descriptor-copy",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e705ac9c00df04a70007f3b0e6134051f801ab2b",
         "notes": null
