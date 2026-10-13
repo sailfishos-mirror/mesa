@@ -792,7 +792,7 @@ mme_tu104_builder_finish(struct mme_tu104_builder *tb, size_t *size_out)
    tb->insts[tb->inst_count - 2].end_next = true;
 
    if (0)
-      mme_tu104_print(stderr, tb->insts, tb->inst_count);
+      mme_tu104_print(stderr, tb->insts, tb->inst_count, tb->cls_eng3d);
 
    size_t enc_size = tb->inst_count * 3 * sizeof(uint32_t);
    uint32_t *enc = malloc(enc_size);
@@ -808,5 +808,5 @@ mme_tu104_builder_dump(struct mme_builder *b, FILE *fp)
 {
    struct mme_tu104_builder *tb = &b->tu104;
 
-   mme_tu104_print(stderr, tb->insts, tb->inst_count);
+   mme_tu104_print(stderr, tb->insts, tb->inst_count, tb->cls_eng3d);
 }
