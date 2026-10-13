@@ -1306,6 +1306,10 @@ zink_screen_init_compiler(struct zink_screen *screen)
 
    screen->nir_options = default_options;
 
+   /* nvidia leaves small constant loops alone, so unroll them here */
+   if (zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
+      screen->nir_options.max_unroll_iterations = 32;
+
    if (!screen->info.feats.features.shaderInt64)
       screen->nir_options.lower_int64_options = ~0;
 
