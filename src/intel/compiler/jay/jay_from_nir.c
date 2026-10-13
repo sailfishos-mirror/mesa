@@ -3636,6 +3636,14 @@ jay_emit_jump(struct nir_to_jay_state *nj, nir_jump_instr *instr)
    }
 }
 
+static enum jay_type
+phi_type(nir_def *def)
+{
+   return def->bit_size == 1  ? JAY_TYPE_U1 :
+          def->bit_size == 16 ? JAY_TYPE_U16 :
+                                JAY_TYPE_U32;
+}
+
 static void
 jay_emit_instr(struct nir_to_jay_state *nj, jay_block *block, nir_instr *instr)
 {
@@ -3658,11 +3666,12 @@ jay_emit_instr(struct nir_to_jay_state *nj, jay_block *block, nir_instr *instr)
 
    case nir_instr_type_phi:
    case nir_instr_type_undef: {
-      jay_def def = nj_def(nir_instr_def(instr));
+      nir_def *nd = nir_instr_def(instr);
+      jay_def def = nj_def(nd);
 
       jay_foreach_comp(def, c) {
          if (instr->type == nir_instr_type_phi) {
-            jay_PHI_DST(&nj->bld, jay_extract(def, c));
+            jay_PHI_DST(&nj->bld, phi_type(nd), jay_extract(def, c));
          } else {
             jay_UNDEF(&nj->bld, jay_extract(def, c));
          }
@@ -3924,6 +3933,7 @@ jay_emit_block(struct nir_to_jay_state *nj, nir_block *nb)
 
       nir_foreach_phi(nphi, nb_successor) {
          jay_def val = nj_src(nir_phi_get_src_from_block(nphi, nb)->src);
+         enum jay_type type = phi_type(&nphi->def);
 
          /* The phi def might be nonuniform but have uniform source (like a
           * constant). Move to the correct file in the the source block and
@@ -3934,13 +3944,15 @@ jay_emit_block(struct nir_to_jay_state *nj, nir_block *nb)
             jay_def tmp = val;
             val = jay_alloc_def(b, jay_file_for_def(&nphi->def),
                                 jay_num_values(val));
-            jay_copy(b, val, tmp);
+            jay_foreach_comp(val, c) {
+               jay_MOV(b, jay_extract(val, c), jay_extract(tmp, c))->type =
+                  type;
+            }
          }
 
          jay_foreach_comp(val, c) {
             b->cursor = jay_before_jump(block);
-            jay_PHI_SRC(b, JAY_TYPE_U32, jay_extract(val, c),
-                        nphi->def.index + c);
+            jay_PHI_SRC(b, type, jay_extract(val, c), nphi->def.index + c);
          }
       }
    }

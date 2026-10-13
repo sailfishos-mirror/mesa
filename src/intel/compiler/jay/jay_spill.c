@@ -743,7 +743,7 @@ add_phi(struct spill_ctx *ctx,
       /* If the value differs across predecessors, insert a phi for it. */
       jay_builder b = jay_init_builder(ctx->func, jay_before_block(succ));
       jay_def def = jay_alloc_def(&b, ctx->file, 1);
-      jay_PHI_DST(&b, def);
+      jay_PHI_DST(&b, ctx->file == FLAG ? JAY_TYPE_U1 : JAY_TYPE_U32, def);
       remapped = jay_index(def);
 
       jay_foreach_predecessor(succ, pred, ctx->cfg) {

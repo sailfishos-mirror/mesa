@@ -271,6 +271,9 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    jay_foreach_phi_dst_in_block(block, phi) {
       comma_separate(fp, block, &first);
       jay_print_def(fp, func, block, phi, -1, NULL);
+      if (phi->type == JAY_TYPE_U16) {
+         fprintf(fp, "ₕ");
+      }
    }
    fprintf(fp, "%s", first ? "" : " = 𝜙\n");
 
@@ -285,7 +288,8 @@ jay_print_block(FILE *fp, jay_function *func, jay_block *block)
    first = true;
    jay_foreach_phi_src_in_block(block, phi) {
       comma_separate(fp, block, &first);
-      fprintf(fp, "𝜙%u = ", jay_phi_src_index(phi));
+      fprintf(fp, "𝜙%u%s = ", jay_phi_src_index(phi),
+              phi->type == JAY_TYPE_U16 ? "ₕ" : "");
       jay_print_def(fp, func, block, phi, 0, NULL);
    }
    fprintf(fp, "%s", first ? "" : "\n");
