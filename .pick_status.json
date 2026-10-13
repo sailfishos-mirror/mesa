@@ -9124,7 +9124,7 @@
         "description": "panvk: fix allow_merging_workgroups logic",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a0f6c6d84d8a790bd64bfd5be9bad443f671ed92",
         "notes": null
