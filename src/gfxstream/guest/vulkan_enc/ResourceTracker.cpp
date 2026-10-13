@@ -751,13 +751,16 @@ void ResourceTracker::transformImageMemoryRequirementsForGuestLocked(VkImage ima
 
 CoherentMemoryPtr ResourceTracker::freeCoherentMemoryLocked(VkDeviceMemory memory,
                                                             VkDeviceMemory_Info& info) {
-    if (info.coherentMemory && info.ptr) {
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
+
+    if (info.coherentMemory && gfxstream_memory->mapped) {
+        gfxstream_memory->mapped = nullptr;
+
         if (info.coherentMemory->getDeviceMemory() != memory) {
             delete_gfxstream_vk_device_memory(memory);
         }
 
         info.coherentMemory->release(info.coherentMemoryOffset);
-        info.ptr = nullptr;
 
         return std::move(info.coherentMemory);
     }
@@ -1443,12 +1446,14 @@ void ResourceTracker::setDeviceMemoryInfo(VkDevice device, VkDeviceMemory memory
                                           uint32_t memoryTypeIndex, void* ahw, bool imported,
                                           zx_handle_t vmoHandle, VirtGpuResourcePtr blobPtr,
                                           int importedFd) {
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
+    gfxstream_memory->mapped = ptr;
+
     std::lock_guard<std::recursive_mutex> lock(mLock);
     auto& info = info_VkDeviceMemory[memory];
 
     info.device = device;
     info.allocationSize = allocationSize;
-    info.ptr = ptr;
     info.memoryTypeIndex = memoryTypeIndex;
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
     info.ahw = (AHardwareBuffer*)ahw;
@@ -1468,15 +1473,6 @@ void ResourceTracker::setImageInfo(VkImage image, VkDevice device,
     info.createInfo = *pCreateInfo;
 }
 
-uint8_t* ResourceTracker::getMappedPointer(VkDeviceMemory memory) {
-    std::lock_guard<std::recursive_mutex> lock(mLock);
-    const auto it = info_VkDeviceMemory.find(memory);
-    if (it == info_VkDeviceMemory.end()) return nullptr;
-
-    const auto& info = it->second;
-    return info.ptr;
-}
-
 VkDeviceSize ResourceTracker::getMappedSize(VkDeviceMemory memory) {
     std::lock_guard<std::recursive_mutex> lock(mLock);
     const auto it = info_VkDeviceMemory.find(memory);
@@ -1487,12 +1483,14 @@ VkDeviceSize ResourceTracker::getMappedSize(VkDeviceMemory memory) {
 }
 
 bool ResourceTracker::isValidMemoryRange(const VkMappedMemoryRange& range) {
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, range.memory);
+    if (!gfxstream_memory) return false;
+    if (!gfxstream_memory->mapped) return false;
+
     std::lock_guard<std::recursive_mutex> lock(mLock);
     const auto it = info_VkDeviceMemory.find(range.memory);
     if (it == info_VkDeviceMemory.end()) return false;
     const auto& info = it->second;
-
-    if (!info.ptr) return false;
 
     VkDeviceSize offset = range.offset;
     VkDeviceSize size = range.size;
@@ -3404,6 +3402,7 @@ VkResult ResourceTracker::allocateCoherentMemory(VkDevice device,
                   host_res);
         return host_res;
     }
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, mem);
 
     struct VkDeviceMemory_Info info;
     if (mCaps.vulkanCapset.deferredMapping || mCaps.params[kParamCreateGuestHandle]) {
@@ -3424,7 +3423,7 @@ VkResult ResourceTracker::allocateCoherentMemory(VkDevice device,
         coherentMemory->subAllocate(pAllocateInfo->allocationSize, &ptr, offset);
         info.coherentMemoryOffset = offset;
         info.coherentMemory = coherentMemory;
-        info.ptr = ptr;
+        gfxstream_memory->mapped = ptr;
     }
 
     info.coherentMemorySize = hostAllocationInfo.allocationSize;
@@ -3450,7 +3449,7 @@ VkResult ResourceTracker::allocateCoherentMemory(VkDevice device,
         info.allocationSize = pAllocateInfo->allocationSize;
         info.coherentMemoryOffset = offset;
         info.coherentMemory = coherentMemory;
-        info.ptr = ptr;
+        gfxstream_memory->mapped = ptr;
         info_VkDeviceMemory[mem] = info;
         *pMemory = mem;
     } else {
@@ -3499,7 +3498,6 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
         if (coherentMemory) {
             struct VkDeviceMemory_Info info;
             info.coherentMemoryOffset = offset;
-            info.ptr = ptr;
             info.memoryTypeIndex = pAllocateInfo->memoryTypeIndex;
             info.allocationSize = pAllocateInfo->allocationSize;
             info.coherentMemory = coherentMemory;
@@ -3509,6 +3507,8 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
             // memory used for suballocations will still be VkDeviceMemory associated with
             // CoherentMemory
             auto mem = create_gfxstream_vk_device_memory(0);
+            VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, mem);
+            gfxstream_memory->mapped = ptr;
             info_VkDeviceMemory[mem] = info;
             *pMemory = mem;
             return VK_SUCCESS;
@@ -4326,6 +4326,9 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
 
 void ResourceTracker::on_vkFreeMemory(void* context, VkDevice device, VkDeviceMemory memory,
                                       const VkAllocationCallbacks* pAllocateInfo) {
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
+    if (!gfxstream_memory) return;
+
     std::unique_lock<std::recursive_mutex> lock(mLock);
 
     auto it = info_VkDeviceMemory.find(memory);
@@ -4349,13 +4352,15 @@ void ResourceTracker::on_vkFreeMemory(void* context, VkDevice device, VkDeviceMe
                            (uint64_t)(void*)memory);
 
 #ifdef VK_USE_PLATFORM_FUCHSIA
-    if (info.vmoHandle && info.ptr) {
-        zx_status_t status = zx_vmar_unmap(
-            zx_vmar_root_self(), reinterpret_cast<zx_paddr_t>(info.ptr), info.allocationSize);
+    if (info.vmoHandle && gfxstream_memory->mapped) {
+        zx_status_t status =
+            zx_vmar_unmap(zx_vmar_root_self(),
+                          reinterpret_cast<zx_paddr_t>(gfxstream_memory->mapped),
+                          info.allocationSize);
         if (status != ZX_OK) {
             mesa_loge("%s: Cannot unmap ptr: status %d", __func__, status);
         }
-        info.ptr = nullptr;
+        gfxstream_memory->mapped = nullptr;
     }
 #endif
 
@@ -4381,6 +4386,12 @@ VkResult ResourceTracker::on_vkMapMemory(void* context, VkResult host_result, Vk
     if (host_result != VK_SUCCESS) {
         mesa_loge("%s: Host failed to map", __func__);
         return host_result;
+    }
+
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
+    if (!gfxstream_memory) {
+        mesa_loge("%s: Failed to find VkDeviceMemory.", __func__);
+        return VK_ERROR_MEMORY_MAP_FAILED;
     }
 
     std::unique_lock<std::recursive_mutex> lock(mLock);
@@ -4433,16 +4444,17 @@ VkResult ResourceTracker::on_vkMapMemory(void* context, VkResult host_result, Vk
 
         deviceMemoryInfo.coherentMemoryOffset = offset;
         deviceMemoryInfo.coherentMemory = coherentMemory;
-        deviceMemoryInfo.ptr = ptr;
+        gfxstream_memory->mapped = ptr;
     }
 
-    if (!deviceMemoryInfo.ptr) {
+    if (!gfxstream_memory->mapped) {
         mesa_loge("%s: VkDeviceMemory has nullptr.", __func__);
         return VK_ERROR_MEMORY_MAP_FAILED;
     }
 
-    if (size != VK_WHOLE_SIZE && (deviceMemoryInfo.ptr + offset + size >
-                                  deviceMemoryInfo.ptr + deviceMemoryInfo.allocationSize)) {
+    uint8_t* mappedPtr = static_cast<uint8_t*>(gfxstream_memory->mapped);
+    if (size != VK_WHOLE_SIZE &&
+        (mappedPtr + offset + size > mappedPtr + deviceMemoryInfo.allocationSize)) {
         mesa_loge(
             "%s: size is too big. alloc size 0x%llx while we wanted offset 0x%llx size 0x%llx "
             "total 0x%llx",
@@ -4451,7 +4463,7 @@ VkResult ResourceTracker::on_vkMapMemory(void* context, VkResult host_result, Vk
         return VK_ERROR_MEMORY_MAP_FAILED;
     }
 
-    *ppData = deviceMemoryInfo.ptr + offset;
+    *ppData = mappedPtr + offset;
 
     return host_result;
 }
@@ -7874,18 +7886,13 @@ CommandBufferStagingStream::Alloc ResourceTracker::getAlloc() {
             // getCoherentMemory() uses suballocations.
             // To retrieve the suballocated memory address, look up
             // VkDeviceMemory filled in by getCoherentMemory()
-            // scope of mLock
-            {
-                std::lock_guard<std::recursive_mutex> lock(mLock);
-                const auto it = info_VkDeviceMemory.find(vkDeviceMem);
-                if (it == info_VkDeviceMemory.end()) {
-                    mesa_loge("Coherent memory allocated %u not found", result);
-                    return {.deviceMemory = VK_NULL_HANDLE, .ptr = nullptr};
-                };
-
-                const auto& info = it->second;
-                return {.deviceMemory = vkDeviceMem, .ptr = info.ptr};
+            VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, vkDeviceMem);
+            if (!gfxstream_memory) {
+                mesa_loge("Coherent memory allocated %u not found", result);
+                return {.deviceMemory = VK_NULL_HANDLE, .ptr = nullptr};
             }
+
+            return {.deviceMemory = vkDeviceMem, .ptr = gfxstream_memory->mapped};
         };
     }
     return nullptr;

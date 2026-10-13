@@ -2120,7 +2120,7 @@ VkResult VkEncoder::vkFlushMappedMemoryRanges(VkDevice device, uint32_t memoryRa
                 stream->write(&streamSize, sizeof(uint64_t));
                 continue;
             };
-            auto hostPtr = sResourceTracker->getMappedPointer(memory);
+            auto hostPtr = gfxstream_vk_device_memory_get_ptr(memory);
             auto actualSize =
                 size == VK_WHOLE_SIZE ? sResourceTracker->getMappedSize(memory) : size;
             if (!hostPtr) {
@@ -2227,7 +2227,7 @@ VkResult VkEncoder::vkInvalidateMappedMemoryRanges(VkDevice device, uint32_t mem
                 stream->read(&streamSize, sizeof(uint64_t));
                 continue;
             };
-            auto hostPtr = sResourceTracker->getMappedPointer(memory);
+            auto hostPtr = gfxstream_vk_device_memory_get_ptr(memory);
             auto actualSize =
                 size == VK_WHOLE_SIZE ? sResourceTracker->getMappedSize(memory) : size;
             if (!hostPtr) {

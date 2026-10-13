@@ -567,7 +567,6 @@ class ResourceTracker {
                                           const VkAllocationCallbacks* pAllocator,
                                           VkPipeline* pPipelines);
 
-    uint8_t* getMappedPointer(VkDeviceMemory memory);
     VkDeviceSize getMappedSize(VkDeviceMemory memory);
     VkDeviceSize getNonCoherentExtendedSize(VkDevice device, VkDeviceSize basicSize) const;
     bool isValidMemoryRange(const VkMappedMemoryRange& range);
@@ -779,8 +778,6 @@ class ResourceTracker {
 #endif
         zx_handle_t vmoHandle = ZX_HANDLE_INVALID;
         VkDevice device;
-
-        uint8_t* ptr = nullptr;
 
         uint64_t blobId = 0;
         uint64_t allocationSize = 0;
