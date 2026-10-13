@@ -120,8 +120,12 @@ st_invalidate_state(struct gl_context *ctx)
       ST_SET_STATE(ctx->NewDriverState, ST_NEW_RASTERIZER);
 
    if ((new_state & _NEW_LIGHT_STATE) &&
-       (!st->screen->caps.flatshade || !st->screen->caps.two_sided_color))
-      ST_SET_STATE(ctx->NewDriverState, ST_NEW_FS_STATE);
+       (!st->screen->caps.flatshade || !st->screen->caps.two_sided_color)) {
+      /* materials, light parameters, and enables are not in the fs key */
+      if (st_fp_lower_flatshade(st) != st->fp_lower_flatshade ||
+          st_fp_lower_two_sided_color(st) != st->fp_lower_two_sided_color)
+         ST_SET_STATE(ctx->NewDriverState, ST_NEW_FS_STATE);
+   }
 
    if (new_state & _NEW_PROJECTION &&
        st_user_clip_planes_enabled(ctx))
@@ -138,9 +142,17 @@ st_invalidate_state(struct gl_context *ctx)
 
    /* Update the vertex shader if ctx->Light._ClampVertexColor was changed. */
    if (st->clamp_vert_color_in_shader && (new_state & _NEW_LIGHT_STATE)) {
-      ST_SET_STATE(ctx->NewDriverState, ST_NEW_VS_STATE);
+      const bool clamp = ctx->Light._ClampVertexColor;
+
+      if (st->vert_color_clamped[MESA_SHADER_VERTEX] != clamp)
+         ST_SET_STATE(ctx->NewDriverState, ST_NEW_VS_STATE);
+
       if (_mesa_is_desktop_gl_compat(st->ctx) && ctx->Version >= 32) {
-         ST_SET_STATE2(ctx->NewDriverState, ST_NEW_GS_STATE, ST_NEW_TES_STATE);
+         if (st->vert_color_clamped[MESA_SHADER_GEOMETRY] != clamp)
+            ST_SET_STATE(ctx->NewDriverState, ST_NEW_GS_STATE);
+
+         if (st->vert_color_clamped[MESA_SHADER_TESS_EVAL] != clamp)
+            ST_SET_STATE(ctx->NewDriverState, ST_NEW_TES_STATE);
       }
    }
 

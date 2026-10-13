@@ -164,6 +164,19 @@ update_gl_clamp(struct st_context *st, struct gl_program *prog, uint32_t *gl_cla
    }
 }
 
+bool
+st_fp_lower_flatshade(const struct st_context *st)
+{
+   return !st->screen->caps.flatshade && st->ctx->Light.ShadeModel == GL_FLAT;
+}
+
+bool
+st_fp_lower_two_sided_color(const struct st_context *st)
+{
+   return !st->screen->caps.two_sided_color &&
+          _mesa_vertex_program_two_side_enabled(st->ctx);
+}
+
 /**
  * Update fragment program state/atom.  This involves translating the
  * Mesa fragment program into a gallium fragment program and binding it.
@@ -181,6 +194,10 @@ st_update_fp( struct st_context *st )
 
    st->fp_stipple_sampler = -1;
 
+   /* st_invalidate_state compares against these */
+   st->fp_lower_flatshade = st_fp_lower_flatshade(st);
+   st->fp_lower_two_sided_color = st_fp_lower_two_sided_color(st);
+
    if (st->shader_has_one_variant[MESA_SHADER_FRAGMENT] &&
        !fp->ati_fs && /* ATI_fragment_shader always has multiple variants */
        !fp->ExternalSamplersUsed && /* external samplers need variants */
@@ -194,8 +211,7 @@ st_update_fp( struct st_context *st )
 
       key.st = st->screen->caps.shareable_shaders ? NULL : st;
 
-      key.lower_flatshade = !st->screen->caps.flatshade &&
-                            st->ctx->Light.ShadeModel == GL_FLAT;
+      key.lower_flatshade = st->fp_lower_flatshade;
 
       /* _NEW_COLOR */
       key.lower_alpha_func = COMPARE_FUNC_ALWAYS;
@@ -203,8 +219,7 @@ st_update_fp( struct st_context *st )
          key.lower_alpha_func = st->ctx->Color.AlphaFunc;
 
       /* _NEW_LIGHT_STATE | _NEW_PROGRAM */
-      key.lower_two_sided_color = !st->screen->caps.two_sided_color &&
-         _mesa_vertex_program_two_side_enabled(st->ctx);
+      key.lower_two_sided_color = st->fp_lower_two_sided_color;
 
       /* gl_driver_flags::NewFragClamp */
       key.clamp_color = st->clamp_frag_color_in_shader &&
@@ -286,6 +301,9 @@ st_update_vp( struct st_context *st )
     */
    struct gl_program *vp = st->ctx->VertexProgram._Current;
 
+   /* st_invalidate_state compares against this */
+   st->vert_color_clamped[MESA_SHADER_VERTEX] = st->ctx->Light._ClampVertexColor;
+
    if (!vp) {
       _mesa_reference_program(st->ctx, &st->vp, NULL);
       cso_set_vertex_shader_handle(st->cso_context, NULL);
@@ -346,6 +364,10 @@ static void *
 st_update_common_program(struct st_context *st, struct gl_program *prog,
                          unsigned pipe_shader, struct gl_program **dst)
 {
+   /* st_invalidate_state compares against this */
+   if (pipe_shader == MESA_SHADER_GEOMETRY || pipe_shader == MESA_SHADER_TESS_EVAL)
+      st->vert_color_clamped[pipe_shader] = st->ctx->Light._ClampVertexColor;
+
    if (!prog) {
       _mesa_reference_program(st->ctx, dst, NULL);
       return NULL;
