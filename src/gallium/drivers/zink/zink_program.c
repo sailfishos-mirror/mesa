@@ -2153,7 +2153,8 @@ bind_last_vertex_stage(struct zink_context *ctx, mesa_shader_stage stage, struct
       } else {
          ctx->vp_state.num_viewports = 1;
       }
-      ctx->vp_state_changed |= num_viewports != ctx->vp_state.num_viewports;
+      if (num_viewports != ctx->vp_state.num_viewports)
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_VIEWPORT);
       if (!screen->info.have_EXT_extended_dynamic_state) {
          if (ctx->gfx_pipeline_state.dyn_state1.num_viewports != ctx->vp_state.num_viewports)
             ctx->gfx_pipeline_state.dirty = true;
@@ -2226,7 +2227,7 @@ zink_bind_fs_state(struct pipe_context *pctx,
       bool new_writes_cbuf0 = (info->outputs_written & BITFIELD_BIT(FRAG_RESULT_DATA0)) > 0;
       if (ctx->gfx_pipeline_state.blend_state && ctx->gfx_pipeline_state.blend_state->alpha_to_coverage &&
           writes_cbuf0 != new_writes_cbuf0 && zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state3) {
-         ctx->blend_state_changed = true;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_BLEND);
          ctx->ds3_states |= BITFIELD_BIT(ZINK_DS3_BLEND_A2C);
       }
       if (info->fs.uses_fbfetch_output) {
@@ -2736,7 +2737,7 @@ zink_set_rasterizer_discard(struct zink_context *ctx, bool disable)
       return false;
    if (!zink_screen(ctx->base.screen)->info.have_EXT_extended_dynamic_state2)
       ctx->gfx_pipeline_state.dirty |= true;
-   ctx->rasterizer_discard_changed = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_RASTERIZER_DISCARD);
    return true;
 }
 

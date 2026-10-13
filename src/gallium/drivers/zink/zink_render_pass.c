@@ -251,7 +251,7 @@ zink_render_fixup_swapchain(struct zink_context *ctx)
       ctx->dynamic_fb.info.renderArea.extent.height = MIN2(ctx->dynamic_fb.info.renderArea.extent.height, ctx->fb_state.height);
       zink_kopper_fixup_depth_buffer(ctx);
       if (ctx->fb_state.width != old_w || ctx->fb_state.height != old_h)
-         ctx->scissor_changed = true;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_SCISSOR);
       ctx->swapchain_size.width = ctx->swapchain_size.height = 0;
    }
 }

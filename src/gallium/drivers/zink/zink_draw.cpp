@@ -318,199 +318,237 @@ zink_rast_prim(const struct zink_context *ctx,
    return prim_type;
 }
 
-template <zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED>
+/* set the dynamic state of the given atoms on the cmdbuf */
+template <zink_dynamic_state DYNAMIC_STATE>
 ALWAYS_INLINE static void
-emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num_viewports, bool uses_shobj)
+emit_atoms(struct zink_context *ctx, uint32_t atoms, unsigned num_viewports)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    struct zink_batch_state *bs = ctx->bs;
    struct zink_rasterizer_state *rast_state = ctx->rast_state;
    struct zink_depth_stencil_alpha_state *dsa_state = ctx->dsa_state;
 
-   if (BATCH_CHANGED || ctx->vp_state_changed || (DYNAMIC_STATE == ZINK_NO_DYNAMIC_STATE && pipeline_changed)) {
-      VkViewport viewports[PIPE_MAX_VIEWPORTS];
-      for (unsigned i = 0; i < num_viewports; i++) {
-         VkViewport viewport = {
-            ctx->vp_state.viewport_states[i].translate[0] - ctx->vp_state.viewport_states[i].scale[0],
-            ctx->vp_state.viewport_states[i].translate[1] - ctx->vp_state.viewport_states[i].scale[1],
-            MAX2(ctx->vp_state.viewport_states[i].scale[0] * 2, 1),
-            ctx->vp_state.viewport_states[i].scale[1] * 2,
-            CLAMP(ctx->rast_state->base.clip_halfz ?
-                  ctx->vp_state.viewport_states[i].translate[2] :
-                  ctx->vp_state.viewport_states[i].translate[2] - ctx->vp_state.viewport_states[i].scale[2],
-                  0, 1),
-            CLAMP(ctx->vp_state.viewport_states[i].translate[2] + ctx->vp_state.viewport_states[i].scale[2],
-                  0, 1)
-         };
-         if (!ctx->rast_state->base.half_pixel_center) {
-             /* magic constant value from dxvk */
-             float cf = 0.5f - (1.0f / 128.0f);
-             viewport.x += cf;
-             if (viewport.height < 0)
-                viewport.y += cf;
-             else
-                viewport.y -= cf;
-         }
-         viewports[i] = viewport;
-      }
-      if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE)
-         VKCTX(CmdSetViewportWithCount)(bs->cmdbuf, num_viewports, viewports);
-      else
-         VKCTX(CmdSetViewport)(bs->cmdbuf, 0, num_viewports, viewports);
-   }
-   if (BATCH_CHANGED || ctx->scissor_changed || ctx->vp_state_changed || (DYNAMIC_STATE == ZINK_NO_DYNAMIC_STATE && pipeline_changed)) {
-      VkRect2D scissors[PIPE_MAX_VIEWPORTS];
-      if (ctx->rast_state->base.scissor) {
+   u_foreach_bit(atom, atoms) {
+      switch ((enum zink_atom)atom) {
+      case ZINK_ATOM_VIEWPORT: {
+         VkViewport viewports[PIPE_MAX_VIEWPORTS];
          for (unsigned i = 0; i < num_viewports; i++) {
-            scissors[i].offset.x = ctx->vp_state.scissor_states[i].minx;
-            scissors[i].offset.y = ctx->vp_state.scissor_states[i].miny;
-            scissors[i].extent.width = ctx->vp_state.scissor_states[i].maxx - ctx->vp_state.scissor_states[i].minx;
-            scissors[i].extent.height = ctx->vp_state.scissor_states[i].maxy - ctx->vp_state.scissor_states[i].miny;
+            VkViewport viewport = {
+               ctx->vp_state.viewport_states[i].translate[0] - ctx->vp_state.viewport_states[i].scale[0],
+               ctx->vp_state.viewport_states[i].translate[1] - ctx->vp_state.viewport_states[i].scale[1],
+               MAX2(ctx->vp_state.viewport_states[i].scale[0] * 2, 1),
+               ctx->vp_state.viewport_states[i].scale[1] * 2,
+               CLAMP(ctx->rast_state->base.clip_halfz ?
+                     ctx->vp_state.viewport_states[i].translate[2] :
+                     ctx->vp_state.viewport_states[i].translate[2] - ctx->vp_state.viewport_states[i].scale[2],
+                     0, 1),
+               CLAMP(ctx->vp_state.viewport_states[i].translate[2] + ctx->vp_state.viewport_states[i].scale[2],
+                     0, 1)
+            };
+            if (!ctx->rast_state->base.half_pixel_center) {
+                /* magic constant value from dxvk */
+                float cf = 0.5f - (1.0f / 128.0f);
+                viewport.x += cf;
+                if (viewport.height < 0)
+                   viewport.y += cf;
+                else
+                   viewport.y -= cf;
+            }
+            viewports[i] = viewport;
          }
-      } else {
-         for (unsigned i = 0; i < num_viewports; i++) {
-            scissors[i].offset.x = 0;
-            scissors[i].offset.y = 0;
-            scissors[i].extent.width = ctx->fb_state.width;
-            scissors[i].extent.height = ctx->fb_state.height;
-         }
+         if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE)
+            VKCTX(CmdSetViewportWithCount)(bs->cmdbuf, num_viewports, viewports);
+         else
+            VKCTX(CmdSetViewport)(bs->cmdbuf, 0, num_viewports, viewports);
+         break;
       }
-      if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE)
-         VKCTX(CmdSetScissorWithCount)(bs->cmdbuf, num_viewports, scissors);
-      else
-         VKCTX(CmdSetScissor)(bs->cmdbuf, 0, num_viewports, scissors);
-      ctx->vp_state_changed = false;
-      ctx->scissor_changed = false;
-   }
+      case ZINK_ATOM_SCISSOR: {
+         VkRect2D scissors[PIPE_MAX_VIEWPORTS];
+         if (ctx->rast_state->base.scissor) {
+            for (unsigned i = 0; i < num_viewports; i++) {
+               scissors[i].offset.x = ctx->vp_state.scissor_states[i].minx;
+               scissors[i].offset.y = ctx->vp_state.scissor_states[i].miny;
+               scissors[i].extent.width = ctx->vp_state.scissor_states[i].maxx - ctx->vp_state.scissor_states[i].minx;
+               scissors[i].extent.height = ctx->vp_state.scissor_states[i].maxy - ctx->vp_state.scissor_states[i].miny;
+            }
+         } else {
+            for (unsigned i = 0; i < num_viewports; i++) {
+               scissors[i].offset.x = 0;
+               scissors[i].offset.y = 0;
+               scissors[i].extent.width = ctx->fb_state.width;
+               scissors[i].extent.height = ctx->fb_state.height;
+            }
+         }
+         if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE)
+            VKCTX(CmdSetScissorWithCount)(bs->cmdbuf, num_viewports, scissors);
+         else
+            VKCTX(CmdSetScissor)(bs->cmdbuf, 0, num_viewports, scissors);
+         break;
+      }
+      case ZINK_ATOM_STENCIL_REF: {
+         VKCTX(CmdSetStencilReference)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT,
+                                  ctx->stencil_ref.ref_value[0]);
+         VKCTX(CmdSetStencilReference)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT,
+                                  ctx->stencil_ref.ref_value[1]);
+         break;
+      }
+      case ZINK_ATOM_DSA: {
+         if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE) {
+            VKCTX(CmdSetDepthBoundsTestEnable)(bs->cmdbuf, dsa_state->hw_state.depth_bounds_test);
+            if (dsa_state->hw_state.depth_bounds_test)
+               VKCTX(CmdSetDepthBounds)(bs->cmdbuf,
+                                   dsa_state->hw_state.min_depth_bounds,
+                                   dsa_state->hw_state.max_depth_bounds);
+            VKCTX(CmdSetDepthTestEnable)(bs->cmdbuf, dsa_state->hw_state.depth_test);
+            VKCTX(CmdSetDepthCompareOp)(bs->cmdbuf, dsa_state->hw_state.depth_compare_op);
+            VKCTX(CmdSetDepthWriteEnable)(bs->cmdbuf, dsa_state->hw_state.depth_write);
+            VKCTX(CmdSetStencilTestEnable)(bs->cmdbuf, dsa_state->hw_state.stencil_test);
+            if (dsa_state->hw_state.stencil_test) {
+               VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT,
+                                             dsa_state->hw_state.stencil_front.failOp,
+                                             dsa_state->hw_state.stencil_front.passOp,
+                                             dsa_state->hw_state.stencil_front.depthFailOp,
+                                             dsa_state->hw_state.stencil_front.compareOp);
+               VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT,
+                                             dsa_state->hw_state.stencil_back.failOp,
+                                             dsa_state->hw_state.stencil_back.passOp,
+                                             dsa_state->hw_state.stencil_back.depthFailOp,
+                                             dsa_state->hw_state.stencil_back.compareOp);
+               if (dsa_state->base.stencil[1].enabled) {
+                  VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT, dsa_state->hw_state.stencil_front.writeMask);
+                  VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT, dsa_state->hw_state.stencil_back.writeMask);
+                  VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT, dsa_state->hw_state.stencil_front.compareMask);
+                  VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT, dsa_state->hw_state.stencil_back.compareMask);
+               } else {
+                  VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.writeMask);
+                  VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.compareMask);
+               }
+            } else {
+               VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.writeMask);
+               VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.compareMask);
+               VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS);
+            }
+         }
+         break;
+      }
+      case ZINK_ATOM_SAMPLE_LOCATIONS: {
+         bool enabled = ctx->sample_locations_enabled || (!rast_state->base.multisample && ctx->gfx_pipeline_state.rast_samples);
+         VKCTX(CmdSetSampleLocationsEnableEXT)(bs->cmdbuf, enabled);
+         if (enabled) {
+            VkSampleLocationsInfoEXT loc;
+            zink_init_vk_sample_locations(ctx, &loc);
+            VKCTX(CmdSetSampleLocationsEXT)(bs->cmdbuf, &loc);
+         }
+         break;
+      }
+      case ZINK_ATOM_BLEND_COLOR: {
+         VKCTX(CmdSetBlendConstants)(bs->cmdbuf, ctx->blend_constants);
+         break;
+      }
+      case ZINK_ATOM_RASTERIZER_DISCARD: {
+         if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2) {
+            VKCTX(CmdSetRasterizerDiscardEnable)(bs->cmdbuf, ctx->gfx_pipeline_state.dyn_state2.rasterizer_discard);
+         }
+         break;
+      }
+      case ZINK_ATOM_RASTERIZER: {
+         if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE) {
+            VKCTX(CmdSetFrontFace)(bs->cmdbuf, (VkFrontFace)ctx->gfx_pipeline_state.dyn_state1.front_face);
+            VKCTX(CmdSetCullMode)(bs->cmdbuf, ctx->gfx_pipeline_state.dyn_state1.cull_mode);
+         }
 
-   if (BATCH_CHANGED || ctx->stencil_ref_changed) {
-      VKCTX(CmdSetStencilReference)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT,
-                               ctx->stencil_ref.ref_value[0]);
-      VKCTX(CmdSetStencilReference)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT,
-                               ctx->stencil_ref.ref_value[1]);
-      ctx->stencil_ref_changed = false;
+         if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE3) {
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE))
+               VKCTX(CmdSetLineStippleEXT)(bs->cmdbuf, rast_state->base.line_stipple_factor, rast_state->base.line_stipple_pattern);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLIP))
+               VKCTX(CmdSetDepthClipEnableEXT)(bs->cmdbuf, rast_state->hw_state.depth_clip);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLAMP))
+               VKCTX(CmdSetDepthClampEnableEXT)(bs->cmdbuf, rast_state->hw_state.depth_clamp);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_POLYGON))
+               VKCTX(CmdSetPolygonModeEXT)(bs->cmdbuf, (VkPolygonMode)rast_state->hw_state.polygon_mode);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_HALFZ))
+               VKCTX(CmdSetDepthClipNegativeOneToOneEXT)(bs->cmdbuf, !rast_state->hw_state.clip_halfz);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_PV))
+               VKCTX(CmdSetProvokingVertexModeEXT)(bs->cmdbuf,
+                                                   rast_state->hw_state.pv_last ?
+                                                   VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT :
+                                                   VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLIP))
+               VKCTX(CmdSetLineRasterizationModeEXT)(bs->cmdbuf, rast_state->dynamic_line_mode);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE_ON))
+               VKCTX(CmdSetLineStippleEnableEXT)(bs->cmdbuf, rast_state->hw_state.line_stipple_enable);
+            ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_RAST_STIPPLE, ZINK_DS3_RAST_STIPPLE_ON - ZINK_DS3_RAST_STIPPLE);
+         }
+         break;
+      }
+      case ZINK_ATOM_SAMPLE_MASK: {
+         if (screen->have_full_ds3) {
+            VKCTX(CmdSetRasterizationSamplesEXT)(bs->cmdbuf, (VkSampleCountFlagBits)(ctx->gfx_pipeline_state.rast_samples + 1));
+            VKCTX(CmdSetSampleMaskEXT)(bs->cmdbuf, (VkSampleCountFlagBits)(ctx->gfx_pipeline_state.rast_samples + 1), &ctx->gfx_pipeline_state.sample_mask);
+         }
+         break;
+      }
+      case ZINK_ATOM_BLEND: {
+         if (ctx->gfx_pipeline_state.blend_state) {
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_A2C))
+               VKCTX(CmdSetAlphaToCoverageEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->alpha_to_coverage &&
+                                                                           ctx->gfx_stages[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD_BIT(FRAG_RESULT_DATA0));
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_A21))
+               VKCTX(CmdSetAlphaToOneEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->alpha_to_one);
+            if (ctx->fb_state.nr_cbufs) {
+               if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_ON))
+                  VKCTX(CmdSetColorBlendEnableEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.enables);
+               if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_WRITE))
+                  VKCTX(CmdSetColorWriteMaskEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.wrmask);
+               if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_EQ))
+                  VKCTX(CmdSetColorBlendEquationEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.eq);
+            }
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_LOGIC_ON))
+               VKCTX(CmdSetLogicOpEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_enable);
+            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_LOGIC))
+               VKCTX(CmdSetLogicOpEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_func);
+            ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_BLEND_A2C, ZINK_DS3_BLEND_LOGIC - ZINK_DS3_BLEND_A2C);
+         }
+         break;
+      }
+      case ZINK_ATOM_DEPTH_BIAS:
+         if (ctx->was_using_depth_bias)
+            VKCTX(CmdSetDepthBias)(bs->cmdbuf, rast_state->offset_units, rast_state->offset_clamp, rast_state->offset_scale);
+         else
+            VKCTX(CmdSetDepthBias)(bs->cmdbuf, 0.0f, 0.0f, 0.0f);
+         break;
+      case ZINK_ATOM_LINE_WIDTH:
+         VKCTX(CmdSetLineWidth)(bs->cmdbuf, rast_state->line_width);
+         break;
+      default:
+         UNREACHABLE("unknown atom");
+      }
    }
+   ctx->dirty_atoms &= ~atoms;
+}
 
+/* emit the atoms which are dirty, or all of them for a new cmdbuf, except for skip_atoms */
+template <zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED>
+ALWAYS_INLINE static void
+emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num_viewports, bool uses_shobj, uint32_t skip_atoms)
+{
    if (ctx->depth_op_promoted && !ctx->can_promote_depth_op)
       zink_update_depth_state(ctx);
 
-   if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE && (BATCH_CHANGED || ctx->dsa_state_changed)) {
-      VKCTX(CmdSetDepthBoundsTestEnable)(bs->cmdbuf, dsa_state->hw_state.depth_bounds_test);
-      if (dsa_state->hw_state.depth_bounds_test)
-         VKCTX(CmdSetDepthBounds)(bs->cmdbuf,
-                             dsa_state->hw_state.min_depth_bounds,
-                             dsa_state->hw_state.max_depth_bounds);
-      VKCTX(CmdSetDepthTestEnable)(bs->cmdbuf, dsa_state->hw_state.depth_test);
-      VKCTX(CmdSetDepthCompareOp)(bs->cmdbuf, dsa_state->hw_state.depth_compare_op);
-      VKCTX(CmdSetDepthWriteEnable)(bs->cmdbuf, dsa_state->hw_state.depth_write);
-      VKCTX(CmdSetStencilTestEnable)(bs->cmdbuf, dsa_state->hw_state.stencil_test);
-      if (dsa_state->hw_state.stencil_test) {
-         VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT,
-                                       dsa_state->hw_state.stencil_front.failOp,
-                                       dsa_state->hw_state.stencil_front.passOp,
-                                       dsa_state->hw_state.stencil_front.depthFailOp,
-                                       dsa_state->hw_state.stencil_front.compareOp);
-         VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT,
-                                       dsa_state->hw_state.stencil_back.failOp,
-                                       dsa_state->hw_state.stencil_back.passOp,
-                                       dsa_state->hw_state.stencil_back.depthFailOp,
-                                       dsa_state->hw_state.stencil_back.compareOp);
-         if (dsa_state->base.stencil[1].enabled) {
-            VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT, dsa_state->hw_state.stencil_front.writeMask);
-            VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT, dsa_state->hw_state.stencil_back.writeMask);
-            VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_BIT, dsa_state->hw_state.stencil_front.compareMask);
-            VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_BACK_BIT, dsa_state->hw_state.stencil_back.compareMask);
-         } else {
-            VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.writeMask);
-            VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.compareMask);
-         }
-      } else {
-         VKCTX(CmdSetStencilWriteMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.writeMask);
-         VKCTX(CmdSetStencilCompareMask)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, dsa_state->hw_state.stencil_front.compareMask);
-         VKCTX(CmdSetStencilOp)(bs->cmdbuf, VK_STENCIL_FACE_FRONT_AND_BACK, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS);
-      }
-      ctx->dsa_state_changed = false;
+   uint32_t atoms = ctx->dirty_atoms;
+   if (BATCH_CHANGED) {
+      atoms |= BITFIELD_MASK(ZINK_ATOM_COUNT) & ~BITFIELD_BIT(ZINK_ATOM_SAMPLE_LOCATIONS);
+      if (zink_screen(ctx->base.screen)->base.caps.programmable_sample_locations || uses_shobj)
+         atoms |= BITFIELD_BIT(ZINK_ATOM_SAMPLE_LOCATIONS);
+   } else if (DYNAMIC_STATE == ZINK_NO_DYNAMIC_STATE && pipeline_changed) {
+      atoms |= BITFIELD_BIT(ZINK_ATOM_VIEWPORT) | BITFIELD_BIT(ZINK_ATOM_SCISSOR);
    }
-
-   if ((BATCH_CHANGED && (screen->base.caps.programmable_sample_locations || uses_shobj)) || ctx->sample_locations_changed) {
-      bool enabled = ctx->sample_locations_enabled || (!rast_state->base.multisample && ctx->gfx_pipeline_state.rast_samples);
-      VKCTX(CmdSetSampleLocationsEnableEXT)(bs->cmdbuf, enabled);
-      if (enabled) {
-         VkSampleLocationsInfoEXT loc;
-         zink_init_vk_sample_locations(ctx, &loc);
-         VKCTX(CmdSetSampleLocationsEXT)(bs->cmdbuf, &loc);
-      }
-      ctx->sample_locations_changed = false;
-   }
-
-   if (BATCH_CHANGED || ctx->blend_color_changed) {
-      VKCTX(CmdSetBlendConstants)(bs->cmdbuf, ctx->blend_constants);
-      ctx->blend_color_changed = false;
-   }
-
-   if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2 && (BATCH_CHANGED || ctx->rasterizer_discard_changed)) {
-      VKCTX(CmdSetRasterizerDiscardEnable)(bs->cmdbuf, ctx->gfx_pipeline_state.dyn_state2.rasterizer_discard);
-      ctx->rasterizer_discard_changed = false;
-   }
-
-   if (BATCH_CHANGED || ctx->rast_state_changed) {
-      if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE) {
-         VKCTX(CmdSetFrontFace)(bs->cmdbuf, (VkFrontFace)ctx->gfx_pipeline_state.dyn_state1.front_face);
-         VKCTX(CmdSetCullMode)(bs->cmdbuf, ctx->gfx_pipeline_state.dyn_state1.cull_mode);
-      }
-
-      if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE3) {
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE))
-            VKCTX(CmdSetLineStippleEXT)(bs->cmdbuf, rast_state->base.line_stipple_factor, rast_state->base.line_stipple_pattern);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLIP))
-            VKCTX(CmdSetDepthClipEnableEXT)(bs->cmdbuf, rast_state->hw_state.depth_clip);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLAMP))
-            VKCTX(CmdSetDepthClampEnableEXT)(bs->cmdbuf, rast_state->hw_state.depth_clamp);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_POLYGON))
-            VKCTX(CmdSetPolygonModeEXT)(bs->cmdbuf, (VkPolygonMode)rast_state->hw_state.polygon_mode);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_HALFZ))
-            VKCTX(CmdSetDepthClipNegativeOneToOneEXT)(bs->cmdbuf, !rast_state->hw_state.clip_halfz);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_PV))
-            VKCTX(CmdSetProvokingVertexModeEXT)(bs->cmdbuf,
-                                                rast_state->hw_state.pv_last ?
-                                                VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT :
-                                                VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_CLIP))
-            VKCTX(CmdSetLineRasterizationModeEXT)(bs->cmdbuf, rast_state->dynamic_line_mode);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE_ON))
-            VKCTX(CmdSetLineStippleEnableEXT)(bs->cmdbuf, rast_state->hw_state.line_stipple_enable);
-         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_RAST_STIPPLE, ZINK_DS3_RAST_STIPPLE_ON - ZINK_DS3_RAST_STIPPLE);
-      }
-      ctx->rast_state_changed = false;
-   }
-   if ((BATCH_CHANGED || ctx->sample_mask_changed) && screen->have_full_ds3) {
-      VKCTX(CmdSetRasterizationSamplesEXT)(bs->cmdbuf, (VkSampleCountFlagBits)(ctx->gfx_pipeline_state.rast_samples + 1));
-      VKCTX(CmdSetSampleMaskEXT)(bs->cmdbuf, (VkSampleCountFlagBits)(ctx->gfx_pipeline_state.rast_samples + 1), &ctx->gfx_pipeline_state.sample_mask);
-      ctx->sample_mask_changed = false;
-   }
-   if ((BATCH_CHANGED || ctx->blend_state_changed)) {
-      if (ctx->gfx_pipeline_state.blend_state) {
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_A2C))
-            VKCTX(CmdSetAlphaToCoverageEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->alpha_to_coverage &&
-                                                                        ctx->gfx_stages[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD_BIT(FRAG_RESULT_DATA0));
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_A21))
-            VKCTX(CmdSetAlphaToOneEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->alpha_to_one);
-         if (ctx->fb_state.nr_cbufs) {
-            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_ON))
-               VKCTX(CmdSetColorBlendEnableEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.enables);
-            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_WRITE))
-               VKCTX(CmdSetColorWriteMaskEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.wrmask);
-            if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_EQ))
-               VKCTX(CmdSetColorBlendEquationEXT)(bs->cmdbuf, 0, ctx->fb_state.nr_cbufs, ctx->gfx_pipeline_state.blend_state->ds3.eq);
-         }
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_LOGIC_ON))
-            VKCTX(CmdSetLogicOpEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_enable);
-         if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_LOGIC))
-            VKCTX(CmdSetLogicOpEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_func);
-         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_BLEND_A2C, ZINK_DS3_BLEND_LOGIC - ZINK_DS3_BLEND_A2C);
-      }
-      ctx->blend_state_changed = false;
-   }
+   /* the scissors are always set together with the viewports */
+   if (atoms & BITFIELD_BIT(ZINK_ATOM_VIEWPORT))
+      atoms |= BITFIELD_BIT(ZINK_ATOM_SCISSOR);
+   atoms &= ~skip_atoms;
+   if (atoms)
+      emit_atoms<DYNAMIC_STATE>(ctx, atoms, num_viewports);
 }
 
 template <zink_dynamic_state DYNAMIC_STATE>
@@ -708,7 +746,7 @@ zink_draw(struct pipe_context *pctx,
 
    bool rast_prim_changed = false;
    bool prim_changed = false;
-   bool rast_state_changed = ctx->rast_state_changed;
+   bool rast_state_changed = zink_is_atom_dirty(ctx, ZINK_ATOM_RASTERIZER);
    if (mode_changed || ctx->gfx_pipeline_state.modules_changed ||
        rast_state_changed) {
       enum mesa_prim rast_prim = zink_rast_prim(ctx, dinfo);
@@ -762,25 +800,17 @@ zink_draw(struct pipe_context *pctx,
          return;
    }
 
-   emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj);
-
    bool using_depth_bias = zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES && rast_state->offset_fill;
-   if (BATCH_CHANGED || using_depth_bias != ctx->was_using_depth_bias || ctx->depth_bias_changed) {
-      if (using_depth_bias) {
-         VKCTX(CmdSetDepthBias)(bs->cmdbuf, rast_state->offset_units, rast_state->offset_clamp, rast_state->offset_scale);
-      } else {
-         VKCTX(CmdSetDepthBias)(bs->cmdbuf, 0.0f, 0.0f, 0.0f);
-      }
+   if (using_depth_bias != ctx->was_using_depth_bias) {
+      ctx->was_using_depth_bias = using_depth_bias;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
    }
-   ctx->was_using_depth_bias = using_depth_bias;
-   ctx->depth_bias_changed = false;
-
-   if (BATCH_CHANGED ||
-       /* only re-emit on non-batch change when actually drawing lines */
-       ((ctx->line_width_changed || rast_prim_changed) && ctx->gfx_pipeline_state.rast_prim == MESA_PRIM_LINES)) {
-      VKCTX(CmdSetLineWidth)(bs->cmdbuf, rast_state->line_width);
-      ctx->line_width_changed = false;
-   }
+   const bool drawing_lines = ctx->gfx_pipeline_state.rast_prim == MESA_PRIM_LINES;
+   if (rast_prim_changed && drawing_lines)
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH);
+   /* a changed line width is only set once lines are actually drawn */
+   emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj,
+                                                    BATCH_CHANGED || drawing_lines ? 0 : BITFIELD_BIT(ZINK_ATOM_LINE_WIDTH));
 
    if (!DRAW_STATE) {
       if (BATCH_CHANGED || ctx->vertex_buffers_dirty)
@@ -1109,19 +1139,14 @@ zink_draw_mesh_tasks(struct pipe_context *pctx, const struct pipe_grid_info *inf
          return;
    }
 
-   emit_dynamic_state<ZINK_DYNAMIC_STATE3, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.mesh_num_viewports, ctx->mesh_program->base.uses_shobj);
-
-   struct zink_rasterizer_state *rast_state = ctx->rast_state;
-   bool using_depth_bias = !!rast_state->offset_fill;
-   if (BATCH_CHANGED || using_depth_bias != ctx->was_using_depth_bias || ctx->depth_bias_changed) {
-      if (using_depth_bias) {
-         VKCTX(CmdSetDepthBias)(bs->cmdbuf, rast_state->offset_units, rast_state->offset_clamp, rast_state->offset_scale);
-      } else {
-         VKCTX(CmdSetDepthBias)(bs->cmdbuf, 0.0f, 0.0f, 0.0f);
-      }
+   bool using_depth_bias = !!ctx->rast_state->offset_fill;
+   if (using_depth_bias != ctx->was_using_depth_bias) {
+      ctx->was_using_depth_bias = using_depth_bias;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
    }
-   ctx->was_using_depth_bias = using_depth_bias;
-   ctx->depth_bias_changed = false;
+   /* the line width is only set by zink_draw */
+   emit_dynamic_state<ZINK_DYNAMIC_STATE3, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.mesh_num_viewports, ctx->mesh_program->base.uses_shobj,
+                                                          BITFIELD_BIT(ZINK_ATOM_LINE_WIDTH));
 
    if (zink_program_has_descriptors(&ctx->mesh_program->base) && (BATCH_CHANGED || ctx->dd.push_state_changed[ZINK_PIPELINE_MESH] || ctx->dd.state_changed[ZINK_PIPELINE_MESH] || pipeline_changed))
       zink_descriptors_update(ctx, ZINK_PIPELINE_MESH);

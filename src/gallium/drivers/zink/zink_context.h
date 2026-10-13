@@ -54,6 +54,27 @@ struct zink_vertex_elements_state;
    util_debug_message(&ctx->dbg, PERF_INFO, __VA_ARGS__); \
 } while(0)
 
+static ALWAYS_INLINE void
+zink_mark_atom_dirty(struct zink_context *ctx, enum zink_atom atom)
+{
+   ctx->dirty_atoms |= BITFIELD_BIT(atom);
+}
+
+static ALWAYS_INLINE void
+zink_set_atom_dirty(struct zink_context *ctx, enum zink_atom atom, bool dirty)
+{
+   if (dirty)
+      ctx->dirty_atoms |= BITFIELD_BIT(atom);
+   else
+      ctx->dirty_atoms &= ~BITFIELD_BIT(atom);
+}
+
+static ALWAYS_INLINE bool
+zink_is_atom_dirty(const struct zink_context *ctx, enum zink_atom atom)
+{
+   return (ctx->dirty_atoms & BITFIELD_BIT(atom)) != 0;
+}
+
 static inline bool
 zink_fb_clear_enabled(const struct zink_context *ctx, unsigned idx)
 {

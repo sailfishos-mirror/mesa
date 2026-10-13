@@ -1815,6 +1815,23 @@ enum zink_ds3_state {
    ZINK_DS3_BLEND_LOGIC,
 };
 
+/* dynamic state which is set on the cmdbuf by the next draw after it changes */
+enum zink_atom {
+   ZINK_ATOM_VIEWPORT,
+   ZINK_ATOM_SCISSOR,
+   ZINK_ATOM_STENCIL_REF,
+   ZINK_ATOM_DSA,
+   ZINK_ATOM_SAMPLE_LOCATIONS,
+   ZINK_ATOM_BLEND_COLOR,
+   ZINK_ATOM_RASTERIZER_DISCARD,
+   ZINK_ATOM_RASTERIZER,
+   ZINK_ATOM_SAMPLE_MASK,
+   ZINK_ATOM_BLEND,
+   ZINK_ATOM_DEPTH_BIAS,
+   ZINK_ATOM_LINE_WIDTH,
+   ZINK_ATOM_COUNT,
+};
+
 struct zink_context {
    struct pipe_context base;
    struct threaded_context *tc;
@@ -1944,12 +1961,10 @@ struct zink_context {
    struct pipe_sampler_view *sampler_views[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
 
    struct zink_viewport_state vp_state;
-   bool vp_state_changed;
-   bool scissor_changed;
+   uint32_t dirty_atoms; /* mask of enum zink_atom */
 
    float blend_constants[4];
 
-   bool sample_locations_changed;
    bool sample_locations_enabled;
    VkSampleLocationEXT vk_sample_locations[PIPE_MAX_SAMPLE_LOCATION_GRID_SIZE * PIPE_MAX_SAMPLE_LOCATION_GRID_SIZE];
    uint8_t sample_locations[2 * 4 * 8 * 16];
@@ -2095,15 +2110,6 @@ struct zink_context {
    bool blit_nearest : 1;
    bool unordered_blitting : 1;
    bool vertex_state_changed : 1;
-   bool blend_state_changed : 1;
-   bool blend_color_changed : 1;
-   bool sample_mask_changed : 1;
-   bool rast_state_changed : 1;
-   bool depth_bias_changed : 1;
-   bool line_width_changed : 1;
-   bool dsa_state_changed : 1;
-   bool stencil_ref_changed : 1;
-   bool rasterizer_discard_changed : 1;
    bool rp_tc_info_updated : 1;
    bool last_work_was_compute : 1;
    bool needs_transfer_sync : 1;
