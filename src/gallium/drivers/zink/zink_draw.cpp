@@ -614,7 +614,14 @@ mark_draw_atoms(struct zink_context *ctx, const struct pipe_draw_info *dinfo)
       zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
 }
 
-template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, bool DRAW_STATE>
+/* where the vertex buffers of a draw come from */
+enum zink_draw_vbs {
+   ZINK_VBS_BOUND, //set_vertex_buffers
+   ZINK_VBS_UNOWNED, //passed to draw_vbo_buffers
+   ZINK_VBS_VERTEX_STATE, //bound by draw_vertex_state
+};
+
+template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, zink_draw_vbs VBS>
 void
 zink_draw(struct pipe_context *pctx,
           const struct pipe_draw_info *dinfo,
@@ -690,7 +697,8 @@ zink_draw(struct pipe_context *pctx,
    } else {
       ctx->index_buffer = NULL;
    }
-   if (ctx->vertex_buffers_unowned && !DRAW_STATE && zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS))
+   if (VBS == ZINK_VBS_UNOWNED ||
+       (VBS == ZINK_VBS_BOUND && ctx->vertex_buffers_unowned && zink_is_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS)))
       barrier_unowned_vertex_buffers(ctx, ctx->vertex_buffers, ctx->vertex_buffers_count);
    if (unlikely(dindirect)) {
       if (dindirect->buffer) {
@@ -717,14 +725,16 @@ zink_draw(struct pipe_context *pctx,
    mark_draw_atoms<DYNAMIC_STATE>(ctx, dinfo);
    validate_atoms(ctx);
 
-   if (ctx->dirty_atoms) {
+   /* the buffers of draw_vbo_buffers change with every draw, so they are bound after the atoms */
+   const uint32_t skip_atoms = VBS == ZINK_VBS_UNOWNED ? BITFIELD_BIT(ZINK_ATOM_VERTEX_BUFFERS) : 0;
+   if (ctx->dirty_atoms & ~skip_atoms) {
       /* inside a renderpass, the renderpass info only has to be parsed again after a new fs or dsa state was bound */
       if (ctx->rp_tc_info_updated &&
           (ctx->dirty_atoms & (BITFIELD_BIT(ZINK_ATOM_PIPELINE) | BITFIELD_BIT(ZINK_ATOM_DSA))))
          zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
 
       /* an atom can dirty the ones after it, so the mask is read again after every atom */
-      uint32_t pending = ZINK_DRAW_ATOMS;
+      uint32_t pending = ZINK_DRAW_ATOMS & ~skip_atoms;
       uint32_t atoms;
       while ((atoms = ctx->dirty_atoms & pending)) {
          const enum zink_atom atom = (enum zink_atom)u_bit_scan(&atoms);
@@ -882,11 +892,11 @@ zink_draw(struct pipe_context *pctx,
                                  ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL]->non_fs.is_generated));
             break;
          case ZINK_ATOM_VERTEX_BUFFERS:
-            if (!DRAW_STATE)
+            if (VBS == ZINK_VBS_BOUND)
                bind_vertex_buffers<DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
             break;
          case ZINK_ATOM_VERTEX_INPUT:
-            if (!DRAW_STATE && dynamic_vertex_input)
+            if (VBS != ZINK_VBS_VERTEX_STATE && dynamic_vertex_input)
                VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
                                            ctx->element_state->hw_state.num_bindings, ctx->element_state->hw_state.dynbindings,
                                            ctx->element_state->hw_state.num_attribs, ctx->element_state->hw_state.dynattribs);
@@ -974,6 +984,11 @@ zink_draw(struct pipe_context *pctx,
       zink_select_draw_vbo(ctx);
    }
 
+   /* the buffers which come with the draw are not atoms */
+   if (VBS == ZINK_VBS_UNOWNED) {
+      bind_vertex_buffers<DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
+      zink_set_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS, false);
+   }
    if (index_buffer)
       bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
 
@@ -1294,7 +1309,7 @@ zink_draw_vbo(struct pipe_context *pctx,
               const struct pipe_draw_start_count_bias *draws,
               unsigned num_draws)
 {
-   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, false>(pctx, info, drawid_offset, indirect, draws, num_draws, NULL, 0);
+   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_BOUND>(pctx, info, drawid_offset, indirect, draws, num_draws, NULL, 0);
 }
 
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED>
@@ -1310,17 +1325,19 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
 
    struct zink_context *ctx = zink_context(pctx);
 
-   if (unlikely(!ctx->vertex_buffers_unowned || buffer_count != ctx->vertex_buffers_count))
+   if (unlikely(!ctx->vertex_buffers_unowned || buffer_count != ctx->vertex_buffers_count)) {
       zink_set_vertex_buffers_unowned(ctx, buffer_count, buffers);
-   else
-      memcpy(ctx->vertex_buffers, buffers, buffer_count * sizeof(struct pipe_vertex_buffer));
+   } else {
+      for (unsigned i = 0; i < buffer_count; i++)
+         ctx->vertex_buffers[i] = buffers[i];
+   }
 
    if (ctx->in_rp)
       ctx->can_promote_depth_op = false;
 
-   /* synchronized and bound in zink_draw */
+   /* these are used until the next set_vertex_buffers, so they stay dirty until zink_draw binds them */
    zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
-   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, false>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
+   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_UNOWNED>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
 }
 
 template <util_popcnt HAS_POPCNT>
@@ -1395,7 +1412,7 @@ zink_draw_vertex_state(struct pipe_context *pctx,
       zink_resource_disable_unordered(res, false);
    zink_bind_vertex_state<HAS_POPCNT>(ctx, vstate, partial_velem_mask);
 
-   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, true>(pctx, &dinfo, 0, NULL, draws, num_draws, vstate, partial_velem_mask);
+   zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_VERTEX_STATE>(pctx, &dinfo, 0, NULL, draws, num_draws, vstate, partial_velem_mask);
    /* ensure ctx->vertex_buffers gets rebound on next non-vstate draw */
    zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    /* ensure ctx->element_state gets rebound on next non-vstate draw */
