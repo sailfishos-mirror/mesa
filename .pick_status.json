@@ -864,7 +864,7 @@
         "description": "nouveau/mme: Fix scratch_share_3d_to_compute test",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "146a64524d2d592298da3be13426eaef3a6b1858",
         "notes": null
