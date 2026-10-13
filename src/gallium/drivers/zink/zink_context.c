@@ -5889,6 +5889,20 @@ zink_parse_tc_info(struct zink_context *ctx)
       ctx->rp_layout_changed = true;
 }
 
+/* the number of batches after which tc flushes the context if zink hasn't flushed by itself */
+static unsigned
+get_tc_flush_interval(const struct zink_screen *screen)
+{
+   switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+      /* this driver is faster when work is submitted more often */
+      return 20;
+   default:
+      /* other drivers are as fast or faster with fewer submits: use what tc allows */
+      return TC_MAX_DRIVER_FLUSH_INTERVAL;
+   }
+}
+
 struct pipe_context *
 zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 {
@@ -6257,6 +6271,7 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
                                                         .create_fence = zink_create_tc_fence_for_tc,
                                                         .is_resource_busy = zink_context_is_resource_busy,
                                                         .driver_calls_flush_notify = !screen->driver_workarounds.track_renderpasses,
+                                                        .driver_flush_interval = get_tc_flush_interval(screen),
                                                         .unsynchronized_get_device_reset_status = true,
                                                         .unsynchronized_texture_subdata = true,
                                                         .parse_renderpass_info = screen->driver_workarounds.track_renderpasses,

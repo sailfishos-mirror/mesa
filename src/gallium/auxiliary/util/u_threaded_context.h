@@ -267,6 +267,16 @@ struct tc_unflushed_batch_token;
  */
 #define TC_MAX_BUFFER_LISTS   (TC_MAX_BATCHES * 4)
 
+/* The default and the maximum of threaded_context_options::driver_flush_interval.
+ *
+ * Up to TC_MAX_BATCHES buffer lists can belong to batches which haven't
+ * finished executing, and the buffer lists of all batches that have been
+ * executed since the last driver flush are still in use too. The interval is
+ * limited so that all of them always fit in the ring.
+ */
+#define TC_DEFAULT_DRIVER_FLUSH_INTERVAL  (TC_MAX_BUFFER_LISTS / 2)
+#define TC_MAX_DRIVER_FLUSH_INTERVAL      (TC_MAX_BUFFER_LISTS - TC_MAX_BATCHES)
+
 /* This mask is used to get a hash of a buffer ID. It's also the bit size of
  * the buffer list - 1. It must be 2^n - 1. The size should be as low as
  * possible to minimize memory usage, but high enough to minimize hash
@@ -590,6 +600,14 @@ struct threaded_context_options {
    bool driver_calls_flush_notify;
 
    /**
+    * Only used if driver_calls_flush_notify is set: if the driver hasn't
+    * flushed on its own while this many batches were executed, TC flushes it
+    * so that buffer lists can be reused. 0 selects the default, and the value
+    * is limited to TC_MAX_DRIVER_FLUSH_INTERVAL.
+    */
+   unsigned driver_flush_interval;
+
+   /**
     * If true, ctx->get_device_reset_status() will be called without
     * synchronizing with driver thread.  Drivers can enable this to avoid
     * TC syncs if their implementation of get_device_reset_status() is
@@ -710,6 +728,8 @@ struct threaded_context {
     */
    struct util_queue_fence *signal_fences_next_flush[TC_MAX_BUFFER_LISTS];
    unsigned num_signal_fences_next_flush;
+   /* Number of batches which have been executed since the last driver flush. */
+   unsigned num_batches_since_driver_flush;
 
    /* Bound buffers are tracked here using threaded_resource::buffer_id_hash.
     * 0 means unbound.

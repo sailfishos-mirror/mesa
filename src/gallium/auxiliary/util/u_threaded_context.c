@@ -5873,12 +5873,12 @@ tc_batch_execute(void *job, UNUSED void *gdata, int thread_index)
       tc->signal_fences_next_flush[tc->num_signal_fences_next_flush++] = fence;
 
       /* Since our buffer lists are chained as a ring, we need to flush
-       * the context twice as we go around the ring to make the driver signal
-       * the buffer list fences, so that the producer thread can reuse the buffer
-       * list structures for the next batches without waiting.
+       * the context if the driver hasn't flushed on its own for a while to make
+       * the driver signal the buffer list fences, so that the producer thread
+       * can reuse the buffer list structures for the next batches without
+       * waiting.
        */
-      unsigned half_ring = TC_MAX_BUFFER_LISTS / 2;
-      if (batch->buffer_list_index % half_ring == half_ring - 1)
+      if (++tc->num_batches_since_driver_flush >= tc->options.driver_flush_interval)
          pipe->flush(pipe, NULL, PIPE_FLUSH_ASYNC | PIPE_FLUSH_INTERMEDIATE);
    } else {
       util_queue_fence_signal(fence);
@@ -5954,6 +5954,7 @@ void tc_driver_internal_flush_notify(struct threaded_context *tc)
       return;
 
    p_atomic_set(&tc->num_busy_replies, 0);
+   tc->num_batches_since_driver_flush = 0;
 
    /* Signal fences set by tc_batch_execute. */
    for (unsigned i = 0; i < tc->num_signal_fences_next_flush; i++)
@@ -6010,6 +6011,12 @@ threaded_context_create(struct pipe_context *pipe,
       assert(!options->parse_renderpass_info || pipe->image_copy_buffer);
       tc->options = *options;
    }
+
+   STATIC_ASSERT(TC_DEFAULT_DRIVER_FLUSH_INTERVAL <= TC_MAX_DRIVER_FLUSH_INTERVAL);
+   if (!tc->options.driver_flush_interval)
+      tc->options.driver_flush_interval = TC_DEFAULT_DRIVER_FLUSH_INTERVAL;
+   tc->options.driver_flush_interval = MIN2(tc->options.driver_flush_interval,
+                                            TC_MAX_DRIVER_FLUSH_INTERVAL);
 
    pipe = trace_context_create_threaded(pipe->screen, pipe, &replace_buffer, &tc->options);
 
