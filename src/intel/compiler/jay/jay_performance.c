@@ -298,11 +298,10 @@ estimate_block_cycles(jay_function *f, jay_block *block)
 unsigned
 jay_estimate_cycles(jay_function *f)
 {
-   unsigned cycles = 0;
+   float cycles = 0;
 
    jay_foreach_block(f, block) {
-      /* TODO: Scale by block repetition */
-      cycles += estimate_block_cycles(f, block);
+      cycles += block->weight * (float) estimate_block_cycles(f, block);
    }
 
    return cycles;
