@@ -287,7 +287,10 @@ equals_bufferview_key(const void *a, const void *b);
 static unsigned
 obj_cache_bucket(uint32_t width0, uint32_t bind, uint32_t flags, unsigned usage)
 {
-   return ((width0 >> 2) ^ (width0 >> 10) ^ bind ^ flags ^ usage) & 63;
+   /* bind, flags, and usage are shifted above the bits of cached sizes (at most ZINK_OBJ_CACHE_MAX_SIZE, 1MiB);
+    * multiplying by 2^32 / phi spreads every input bit into the high bits which are used as the bucket
+    */
+   return ((width0 ^ (bind << 20) ^ (flags << 24) ^ (usage << 28)) * 0x9e3779b1u) >> (32 - ZINK_OBJ_CACHE_BUCKET_BITS);
 }
 
 static struct zink_resource_object *

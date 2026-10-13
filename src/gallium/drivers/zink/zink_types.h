@@ -1494,6 +1494,9 @@ struct zink_video_format_prop {
    VkVideoFormatPropertiesKHR *pVideoFormatProperties;
 };
 
+/* log2 of the number of buckets in zink_screen::buffer_objs */
+#define ZINK_OBJ_CACHE_BUCKET_BITS 10
+
 struct zink_screen {
    struct pipe_screen base;
 
@@ -1535,7 +1538,7 @@ struct zink_screen {
    /* idle buffer objects kept for reuse, oldest first in each bucket */
    struct {
       simple_mtx_t lock;
-      struct list_head buckets[64];
+      struct list_head buckets[1 << ZINK_OBJ_CACHE_BUCKET_BITS];
       unsigned count;
       uint64_t bytes;
       uint64_t max_bytes;
