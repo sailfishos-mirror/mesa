@@ -43,15 +43,26 @@
 
 struct affinity {
    /**
+    * Block weight of the read
+    */
+   float src_weight;
+
+   /**
     * If there is a vector affinity defined for this SSA def, it is relative to
     * some representative SSA index. Else 0 if there is no affinity.
     */
-   uint32_t repr:29;
+   uint32_t repr:28;
 
    /**
     * Preferred stride according to users, or "don't care"
     */
    enum jay_stride stride:3;
+
+   /**
+    * Whether multiple instructions read the source with different strides. In
+    * this case, we avoid inserting shuffles at the definition.
+    */
+   bool mixed_stride:1;
 
    /** If the representative: offset in registers from the base.
     *
@@ -76,7 +87,7 @@ struct affinity {
    /** Preferred SIMD split for the block */
    unsigned split     :2;
 };
-static_assert(sizeof(struct affinity) == 8, "packed");
+static_assert(sizeof(struct affinity) == 12, "packed");
 
 struct phi_web_node {
    /* Parent index, or circular for root */
@@ -91,7 +102,7 @@ struct phi_web_node {
    /* If root, affinity for the whole web */
    struct affinity affinity;
 };
-static_assert(sizeof(struct phi_web_node) == 16, "packed");
+static_assert(sizeof(struct phi_web_node) == 20, "packed");
 
 static unsigned
 phi_web_find(struct phi_web_node *web, unsigned x)
@@ -1244,13 +1255,24 @@ local_ra(jay_ra_state *ra, jay_block *block)
 
    /* Live-out variables defined in this block need global registers assigned.
     * Assign trivially first as a heuristic to reduce shuffling.
+    *
+    * If the stride at the definition doesn't match the stride of the users, and
+    * the users are deeper in control flow than the definition, we elect to
+    * insert a shuffle here to try to avoid shuffling at the source. This has
+    * the effect of hoisting some shuffles out of loops.
     */
    U_SPARSE_BITSET_FOREACH_SET(&block->live_out, i) {
       jay_reg reg = ra->reg_for_index[i];
 
       if (ra->global_reg_for_index[i] == NO_REG &&
           reg != NO_REG &&
-          reg_is_available(ra, reg)) {
+          reg_is_available(ra, reg) &&
+          !(r_file(reg) == GPR &&
+            ra->affinities[i].stride != JAY_NUM_STRIDES &&
+            ra->affinities[i].src_weight >= block->weight &&
+            !ra->affinities[i].mixed_stride &&
+            jay_lookup_block(&ra->b.shader->partition, r_reg(reg), GPR).stride !=
+               ra->affinities[i].stride)) {
 
          assign_reg_for_index(ra, i, reg);
          ra->global_reg_for_index[i] = reg;
@@ -1262,11 +1284,12 @@ local_ra(jay_ra_state *ra, jay_block *block)
       jay_reg reg = ra->reg_for_index[i];
 
       if (ra->global_reg_for_index[i] == NO_REG && reg != NO_REG) {
-         assert(!reg_is_available(ra, reg) && "else handled above");
          jay_reg old = reg;
          reg = try_find_free_reg(ra, r_file(old), ~0, ra->affinities[i].stride,
                                  ~0);
-         if (reg == NO_REG) {
+         if (reg == NO_REG && reg_is_available(ra, old)) {
+            reg = old;
+         } else if (reg == NO_REG) {
             reg = find_free_reg(ra, r_file(old), ~0);
          }
 
@@ -1461,7 +1484,15 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].align_offs = c;
          }
 
-         ra.affinities[index].stride = jay_src_stride_minmax(I, s, false);
+         enum jay_stride old_stride = ra.affinities[index].stride;
+         enum jay_stride new_stride = jay_src_stride_minmax(I, s, false);
+         if (old_stride == JAY_NUM_STRIDES || old_stride == new_stride) {
+            ra.affinities[index].stride = new_stride;
+            ra.affinities[index].src_weight =
+               MAX2(ra.affinities[index].src_weight, block->weight);
+         } else {
+            ra.affinities[index].mixed_stride = true;
+         }
 
          ra.phi_web[phi_web_find(ra.phi_web, index)].affinity =
             ra.affinities[index];
