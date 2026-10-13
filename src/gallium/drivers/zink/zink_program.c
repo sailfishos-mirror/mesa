@@ -2132,7 +2132,7 @@ bind_last_vertex_stage(struct zink_context *ctx, mesa_shader_stage stage, struct
       if (!zink_screen(ctx->base.screen)->optimal_keys) {
          if (old != MESA_SHADER_STAGES) {
             memset(&ctx->gfx_pipeline_state.shader_keys.key[old].key.vs_base, 0, sizeof(struct zink_vs_key_base));
-            ctx->dirty_gfx_stages |= BITFIELD_BIT(old);
+            zink_update_dirty_gfx_stages(ctx, BITFIELD_BIT(old));
          } else {
             /* always unset vertex shader values when changing to a non-vs last stage */
             memset(&ctx->gfx_pipeline_state.shader_keys.key[MESA_SHADER_VERTEX].key.vs_base, 0, sizeof(struct zink_vs_key_base));
@@ -2157,7 +2157,7 @@ bind_last_vertex_stage(struct zink_context *ctx, mesa_shader_stage stage, struct
          zink_mark_atom_dirty(ctx, ZINK_ATOM_VIEWPORT);
       if (!screen->info.have_EXT_extended_dynamic_state) {
          if (ctx->gfx_pipeline_state.dyn_state1.num_viewports != ctx->vp_state.num_viewports)
-            ctx->gfx_pipeline_state.dirty = true;
+            zink_gfx_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.dyn_state1.num_viewports = ctx->vp_state.num_viewports;
       }
    }
@@ -2238,7 +2238,7 @@ zink_bind_fs_state(struct pipe_context *pctx,
       zink_update_fs_key_samples(ctx);
       if (zink_screen(pctx->screen)->info.have_EXT_rasterization_order_attachment_access) {
          if (ctx->gfx_pipeline_state.rast_attachment_order != info->fs.uses_fbfetch_output)
-            ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+            zink_gfx_mesh_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.rast_attachment_order = info->fs.uses_fbfetch_output;
       }
       zink_set_zs_needs_shader_swizzle_key(ctx, MESA_SHADER_FRAGMENT, false);
@@ -2736,7 +2736,7 @@ zink_set_rasterizer_discard(struct zink_context *ctx, bool disable)
    if (!changed)
       return false;
    if (!zink_screen(ctx->base.screen)->info.have_EXT_extended_dynamic_state2)
-      ctx->gfx_pipeline_state.dirty |= true;
+      zink_gfx_pipeline_state_dirty(ctx);
    zink_mark_atom_dirty(ctx, ZINK_ATOM_RASTERIZER_DISCARD);
    return true;
 }

@@ -783,7 +783,7 @@ zink_draw(struct pipe_context *pctx,
       bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
    if (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2) {
       if (ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart)
-         ctx->gfx_pipeline_state.dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.dyn_state2.primitive_restart = dinfo->primitive_restart;
    }
 

@@ -362,7 +362,7 @@ zink_bind_blend_state(struct pipe_context *pctx, void *cso)
       state->blend_state = cso;
       if (!screen->have_full_ds3) {
          state->blend_id = blend ? blend->id : 0;
-         state->dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
       }
       bool force_dual_color_blend = screen->driconf.dual_color_blend_by_location &&
                                     blend && blend->dual_src_blend && state->blend_state->attachments[0].blendEnable;
@@ -532,7 +532,8 @@ zink_bind_depth_stencil_alpha_state(struct pipe_context *pctx, void *cso)
       struct zink_gfx_pipeline_state *state = &ctx->gfx_pipeline_state;
       if (state->dyn_state1.depth_stencil_alpha_state != &ctx->dsa_state->hw_state) {
          state->dyn_state1.depth_stencil_alpha_state = &ctx->dsa_state->hw_state;
-         state->dirty |= !zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state;
+         if (!zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state)
+            zink_gfx_pipeline_state_dirty(ctx);
          zink_mark_atom_dirty(ctx, ZINK_ATOM_DSA);
          ctx->dsa_state->hw_state.depth_compare_op = compare_op(ctx->dsa_state->base.depth_func);
          if (ctx->in_rp)
@@ -687,13 +688,14 @@ zink_bind_rasterizer_state(struct pipe_context *pctx, void *cso)
          zink_batch_no_rp(ctx);
       memcpy(&ctx->gfx_pipeline_state.dyn_state3, &ctx->rast_state->hw_state, sizeof(struct zink_rasterizer_hw_state));
 
-      ctx->gfx_pipeline_state.dirty |= !zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state3;
+      if (!zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state3)
+         zink_gfx_pipeline_state_dirty(ctx);
       zink_mark_atom_dirty(ctx, ZINK_ATOM_RASTERIZER);
 
       if (clip_halfz != ctx->rast_state->base.clip_halfz) {
          if (screen->info.have_EXT_depth_clip_control) {
-            ctx->gfx_pipeline_state.dirty |= !screen->have_full_ds3;
-            ctx->gfx_pipeline_state.mesh_dirty |= !screen->have_full_ds3;
+            if (!screen->have_full_ds3)
+               zink_gfx_mesh_pipeline_state_dirty(ctx);
          }
          else
             zink_set_last_vertex_key(ctx)->clip_halfz = ctx->rast_state->base.clip_halfz;
@@ -741,11 +743,13 @@ zink_bind_rasterizer_state(struct pipe_context *pctx, void *cso)
 
       if (ctx->gfx_pipeline_state.dyn_state1.front_face != ctx->rast_state->front_face) {
          ctx->gfx_pipeline_state.dyn_state1.front_face = ctx->rast_state->front_face;
-         ctx->gfx_pipeline_state.dirty |= !zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state;
+         if (!zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state)
+            zink_gfx_pipeline_state_dirty(ctx);
       }
       if (ctx->gfx_pipeline_state.dyn_state1.cull_mode != ctx->rast_state->cull_mode) {
          ctx->gfx_pipeline_state.dyn_state1.cull_mode = ctx->rast_state->cull_mode;
-         ctx->gfx_pipeline_state.dirty |= !zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state;
+         if (!zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state)
+            zink_gfx_pipeline_state_dirty(ctx);
       }
       if (!ctx->primitives_generated_active)
          zink_set_rasterizer_discard(ctx, false);
@@ -760,7 +764,7 @@ zink_bind_rasterizer_state(struct pipe_context *pctx, void *cso)
 
       if (ctx->rast_state->base.force_persample_interp != force_persample_interp) {
          zink_set_fs_base_key(ctx)->force_persample_interp = ctx->rast_state->base.force_persample_interp;
-         ctx->gfx_pipeline_state.dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
       }
       ctx->gfx_pipeline_state.force_persample_interp = ctx->rast_state->base.force_persample_interp;
 

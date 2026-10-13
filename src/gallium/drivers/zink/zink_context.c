@@ -2041,9 +2041,9 @@ update_binds_for_samplerviews(struct zink_context *ctx, struct zink_resource *re
       }
     }
     if (gfx_rebind)
-      _mesa_set_add(ctx->need_barriers[0], res);
+      zink_context_add_barrier(ctx, 0, res);
     if (compute_rebind)
-      _mesa_set_add(ctx->need_barriers[1], res);
+      zink_context_add_barrier(ctx, 1, res);
 }
 
 static void
@@ -2074,14 +2074,14 @@ check_for_layout_update(struct zink_context *ctx, struct zink_resource *res, boo
    bool ret = false;
    if (!is_compute && res->fb_binds && !(ctx->feedback_loops & res->fb_binds)) {
       /* always double check feedback loops */
-      ret = !!_mesa_set_add(ctx->need_barriers[0], res);
+      ret = !!zink_context_add_barrier(ctx, 0, res);
    } else {
       if (res->bind_count[is_compute] && ((layout && res->layout != layout) ||
                                           /* Check if we need a queue family transfer */
                                           (res->queue != zink_screen(ctx->base.screen)->gfx_queue && res->queue != VK_QUEUE_FAMILY_IGNORED)))
-         ret = !!_mesa_set_add(ctx->need_barriers[is_compute], res);
+         ret = !!zink_context_add_barrier(ctx, is_compute, res);
       if (res->bind_count[!is_compute] && other_layout && (layout != other_layout || res->layout != other_layout))
-         ret = !!_mesa_set_add(ctx->need_barriers[!is_compute], res);
+         ret = !!zink_context_add_barrier(ctx, !is_compute, res);
    }
    return ret;
 }
@@ -2387,11 +2387,11 @@ update_feedback_loop_state(struct zink_context *ctx, unsigned idx, unsigned feed
    if (feedback_loops != ctx->feedback_loops) {
       if (idx == PIPE_MAX_COLOR_BUFS && !zink_screen(ctx->base.screen)->driver_workarounds.always_feedback_loop_zs) {
          if (ctx->gfx_pipeline_state.feedback_loop_zs)
-            ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+            zink_gfx_mesh_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.feedback_loop_zs = false;
       } else if (idx < PIPE_MAX_COLOR_BUFS && !zink_screen(ctx->base.screen)->driver_workarounds.always_feedback_loop) {
          if (ctx->gfx_pipeline_state.feedback_loop)
-            ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+            zink_gfx_mesh_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.feedback_loop = false;
       }
       update_feedback_loop_dynamic_state(ctx);
@@ -2943,7 +2943,7 @@ zink_set_patch_vertices(struct pipe_context *pctx, uint8_t patch_vertices)
       if (zink_screen(ctx->base.screen)->info.dynamic_state2_feats.extendedDynamicState2PatchControlPoints)
          VKCTX(CmdSetPatchControlPointsEXT)(ctx->bs->cmdbuf, patch_vertices);
       else
-         ctx->gfx_pipeline_state.dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
    }
 }
 
@@ -3550,7 +3550,8 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
    ctx->zsbuf_unused = !zsbuf_used;
    assert(ctx->fb_state.width >= ctx->dynamic_fb.info.renderArea.extent.width);
    assert(ctx->fb_state.height >= ctx->dynamic_fb.info.renderArea.extent.height);
-   ctx->gfx_pipeline_state.dirty |= rp_changed;
+   if (rp_changed)
+      zink_gfx_pipeline_state_dirty(ctx);
    ctx->gfx_pipeline_state.rp_state = rp_state;
 
    if (ctx->needs_transfer_sync) {
@@ -4186,11 +4187,11 @@ unbind_fb_surface(struct zink_context *ctx, const struct pipe_surface *surf, uns
    if (feedback_loops != ctx->feedback_loops) {
       if (idx == PIPE_MAX_COLOR_BUFS && !zink_screen(ctx->base.screen)->driver_workarounds.always_feedback_loop_zs) {
          if (ctx->gfx_pipeline_state.feedback_loop_zs)
-            ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+            zink_gfx_mesh_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.feedback_loop_zs = false;
       } else if (idx < PIPE_MAX_COLOR_BUFS && !zink_screen(ctx->base.screen)->driver_workarounds.always_feedback_loop) {
          if (ctx->gfx_pipeline_state.feedback_loop)
-            ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+            zink_gfx_mesh_pipeline_state_dirty(ctx);
          ctx->gfx_pipeline_state.feedback_loop = false;
       }
    }
@@ -4210,7 +4211,7 @@ unbind_fb_surface(struct zink_context *ctx, const struct pipe_surface *surf, uns
             update_res_sampler_layouts(ctx, res);
             VkImageLayout layout = zink_descriptor_util_image_layout_eval(ctx, res, false);
             if (res->layout != layout && !ctx->blitting)
-               _mesa_set_add(ctx->need_barriers[0], res);
+               zink_context_add_barrier(ctx, 0, res);
          }
       }
    }
@@ -4437,7 +4438,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
       if (screen->have_full_ds3)
          zink_mark_atom_dirty(ctx, ZINK_ATOM_SAMPLE_MASK);
       else
-         ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+         zink_gfx_mesh_pipeline_state_dirty(ctx);
    }
    ctx->gfx_pipeline_state.rast_samples = rast_samples;
 
@@ -4470,7 +4471,7 @@ zink_set_sample_mask(struct pipe_context *pctx, unsigned sample_mask)
    if (zink_screen(pctx->screen)->have_full_ds3)
       zink_mark_atom_dirty(ctx, ZINK_ATOM_SAMPLE_MASK);
    else
-      ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+      zink_gfx_mesh_pipeline_state_dirty(ctx);
 }
 
 static void
@@ -4480,7 +4481,7 @@ zink_set_min_samples(struct pipe_context *pctx, unsigned min_samples)
    if (ctx->gfx_pipeline_state.min_samples == (min_samples - 1))
       return;
    ctx->gfx_pipeline_state.min_samples = min_samples - 1;
-   ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+   zink_gfx_mesh_pipeline_state_dirty(ctx);
 }
 
 static void
@@ -5685,7 +5686,7 @@ rebind_image(struct zink_context *ctx, struct zink_resource *res)
             ctx->invalidate_descriptor_state(ctx, i, ZINK_DESCRIPTOR_TYPE_IMAGE, j, 1);
             update_descriptor_state_image(ctx, i, j, res);
             if (!general_layout)
-               _mesa_set_add(ctx->need_barriers[i == MESA_SHADER_COMPUTE], res);
+               zink_context_add_barrier(ctx, i == MESA_SHADER_COMPUTE, res);
          }
       }
    }
@@ -5796,7 +5797,7 @@ zink_rebind_all_images(struct zink_context *ctx)
             ctx->invalidate_descriptor_state(ctx, i, ZINK_DESCRIPTOR_TYPE_IMAGE, j, 1);
             update_descriptor_state_image(ctx, i, j, res);
             if (!general_layout)
-               _mesa_set_add(ctx->need_barriers[i == MESA_SHADER_COMPUTE], res);
+               zink_context_add_barrier(ctx, i == MESA_SHADER_COMPUTE, res);
          }
       }
    }
@@ -5940,7 +5941,7 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 
    ctx->flags = flags;
    memset(ctx->pipeline_changed, 1, sizeof(ctx->pipeline_changed));
-   ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
+   zink_gfx_mesh_pipeline_state_dirty(ctx);
    ctx->gfx_pipeline_state.dyn_state2.vertices_per_patch = 1;
    ctx->gfx_pipeline_state.uses_dynamic_stride = screen->info.have_EXT_extended_dynamic_state ||
                                                  screen->info.have_EXT_vertex_input_dynamic_state;
@@ -6405,11 +6406,11 @@ add_implicit_feedback_loop(struct zink_context *ctx, struct zink_resource *res)
    /* new feedback loop detected */
    if (res->aspect == VK_IMAGE_ASPECT_COLOR_BIT) {
       if (!ctx->gfx_pipeline_state.feedback_loop)
-         ctx->gfx_pipeline_state.dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.feedback_loop = true;
    } else {
       if (!ctx->gfx_pipeline_state.feedback_loop_zs)
-         ctx->gfx_pipeline_state.dirty = true;
+         zink_gfx_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.feedback_loop_zs = true;
    }
    ctx->rp_layout_changed = true;

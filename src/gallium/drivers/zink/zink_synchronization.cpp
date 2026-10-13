@@ -108,11 +108,11 @@ resource_check_defer_buffer_barrier(struct zink_context *ctx, struct zink_resour
          /* or if has more than just vbo binds and is not a gfx stage */
           (res->vbo_bind_count != bind_count0 && !is_shader_pipline_stage(pipeline)))
          /* sync on next draw */
-         _mesa_set_add(ctx->need_barriers[0], res);
+         zink_context_add_barrier(ctx, 0, res);
    }
    if (res->bind_count[1] && !(pipeline & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
       /* if writing from non-compute and has compute binds, sync on next dispatch */
-      _mesa_set_add(ctx->need_barriers[1], res);
+      zink_context_add_barrier(ctx, 1, res);
 }
 
 static inline bool
@@ -178,10 +178,10 @@ resource_defer_image_barrier(struct zink_context *ctx, struct zink_resource *res
 
    /* queue a layout change if a layout change will be needed */
    if (res->bind_count[!is_compute])
-      _mesa_set_add(ctx->need_barriers[!is_compute], res);
+      zink_context_add_barrier(ctx, !is_compute, res);
    /* also queue a layout change if this is a non-shader layout */
    if (res->bind_count[is_compute] && !is_shader && !is_compute)
-      _mesa_set_add(ctx->need_barriers[is_compute], res);
+      zink_context_add_barrier(ctx, is_compute, res);
 
 }
 

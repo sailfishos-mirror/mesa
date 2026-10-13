@@ -1028,7 +1028,7 @@ zink_end_batch(struct zink_context *ctx)
        */
       for (unsigned i = 0; i < ARRAY_SIZE(ctx->need_barriers); i++) {
          if (res->bind_count[i])
-            _mesa_set_add(ctx->need_barriers[i], res);
+            zink_context_add_barrier(ctx, i, res);
       }
 
       if (res->obj->exportable_dmabuf) {

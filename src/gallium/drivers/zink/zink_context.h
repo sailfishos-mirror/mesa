@@ -75,6 +75,28 @@ zink_is_atom_dirty(const struct zink_context *ctx, enum zink_atom atom)
    return (ctx->dirty_atoms & BITFIELD_BIT(atom)) != 0;
 }
 
+/* the gfx pipeline state changed: the next draw hashes it and looks up the pipeline again */
+static ALWAYS_INLINE void
+zink_gfx_pipeline_state_dirty(struct zink_context *ctx)
+{
+   ctx->gfx_pipeline_state.dirty = true;
+}
+
+/* the same, for state which mesh pipelines use too */
+static ALWAYS_INLINE void
+zink_gfx_mesh_pipeline_state_dirty(struct zink_context *ctx)
+{
+   zink_gfx_pipeline_state_dirty(ctx);
+   ctx->gfx_pipeline_state.mesh_dirty = true;
+}
+
+/* the next draw or dispatch emits a barrier for this resource */
+static ALWAYS_INLINE struct set_entry *
+zink_context_add_barrier(struct zink_context *ctx, bool is_compute, struct zink_resource *res)
+{
+   return _mesa_set_add(ctx->need_barriers[is_compute], res);
+}
+
 static inline bool
 zink_fb_clear_enabled(const struct zink_context *ctx, unsigned idx)
 {
