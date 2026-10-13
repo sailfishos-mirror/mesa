@@ -2495,9 +2495,21 @@ dri2_wl_kopper_get_drawable_info(struct dri_drawable *draw, int *w,
    *h = dri2_surf->base.Height;
 }
 
+static unsigned
+kopperGetCapability(void *loaderPrivate, enum dri_loader_cap cap)
+{
+   switch (cap) {
+   case DRI_LOADER_CAP_RGBA_ORDERING:
+      return 1;
+   default:
+      return 0;
+   }
+}
+
 static const __DRIkopperLoaderExtension kopper_loader_extension = {
    .SetSurfaceCreateInfo = kopperSetSurfaceCreateInfo,
    .GetDrawableInfo = dri2_wl_kopper_get_drawable_info,
+   .getCapability = kopperGetCapability,
 };
 
 static const struct dri_loader_funcs kopper_loader_funcs = {

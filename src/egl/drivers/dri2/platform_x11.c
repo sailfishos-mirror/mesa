@@ -969,9 +969,21 @@ kopperGetDrawableInfo(struct dri_drawable *draw, int *w, int *h,
    x11_get_drawable_info(draw, &x, &y, w, h, loaderPrivate);
 }
 
+static unsigned
+kopperGetCapability(void *loaderPrivate, enum dri_loader_cap cap)
+{
+   switch (cap) {
+   case DRI_LOADER_CAP_RGBA_ORDERING:
+      return 1;
+   default:
+      return 0;
+   }
+}
+
 static const __DRIkopperLoaderExtension kopper_loader_extension = {
    .SetSurfaceCreateInfo = kopperSetSurfaceCreateInfo,
    .GetDrawableInfo = kopperGetDrawableInfo,
+   .getCapability = kopperGetCapability,
 };
 
 static const struct dri_loader_funcs kopper_loader_funcs = {

@@ -34,6 +34,7 @@
 #ifndef KOPPER_INTERFACE_H
 #define KOPPER_INTERFACE_H
 
+#include "mesa_interface.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <vulkan/vulkan_core.h>
@@ -81,5 +82,9 @@ struct __DRIkopperLoaderExtensionRec {
     /* Asks the loader to fill in the drawable's width and height */
     void (*GetDrawableInfo)(struct dri_drawable *draw, int *w, int *h,
                             void *closure);
+    /* Return a loader capability value. If the loader doesn't know the enum,
+     * it will return 0.
+     */
+    unsigned (*getCapability)(void *loaderPrivate, enum dri_loader_cap cap);
 };
 #endif /* KOPPER_INTERFACE_H */
