@@ -498,16 +498,17 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
    }
 
+   struct anv_address src_addr =
+      anv_address_add(src_buffer->address, frame_info->srcBufferOffset);
+
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_IND_OBJ_BASE_ADDR_STATE), indirect) {
-      indirect.HCPIndirectBitstreamObjectBaseAddress =
-         anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
+      indirect.HCPIndirectBitstreamObjectBaseAddress = anv_address_align_down(src_addr, 4096);
 
       indirect.HCPIndirectBitstreamObjectAddressAttributes =
          ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
 
       indirect.HCPIndirectBitstreamObjectAccessUpperBound =
-         anv_address_add(src_buffer->address,
-                         align64(frame_info->srcBufferRange + frame_info->srcBufferOffset, 4096));
+         anv_address_align(anv_address_add(src_addr, frame_info->srcBufferRange), 4096);
 
       indirect.HCPIndirectCUObjectAddressAttributes =
          ANV_VID_ATTR(cmd_buffer->device, NULL);
@@ -854,9 +855,11 @@ anv_h264_decode_video(struct anv_cmd_buffer *cmd_buffer,
          ANV_VID_ATTR(cmd_buffer->device, ref_bo);
    }
 
+   struct anv_address src_addr =
+      anv_address_add(src_buffer->address, frame_info->srcBufferOffset);
+
    anv_batch_emit(&cmd_buffer->batch, GENX(MFX_IND_OBJ_BASE_ADDR_STATE), index_obj) {
-      index_obj.MFXIndirectBitstreamObjectAddress = anv_address_add(src_buffer->address,
-                                                                    frame_info->srcBufferOffset & ~4095);
+      index_obj.MFXIndirectBitstreamObjectAddress = anv_address_align_down(src_addr, 4096);
       index_obj.MFXIndirectBitstreamObjectAttributes =
          ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
       index_obj.MFXIndirectMVObjectAttributes =
@@ -1025,7 +1028,7 @@ anv_h264_decode_video(struct anv_cmd_buffer *cmd_buffer,
       avc_directmode.POCList[33] = h264_pic_info->pStdPictureInfo->PicOrderCnt[1];
    }
 
-   uint32_t buffer_offset = frame_info->srcBufferOffset & 4095;
+   uint32_t buffer_offset = anv_address_physical(src_addr) & 4095;
 #define HEADER_OFFSET 3
    for (unsigned s = 0; s < h264_pic_info->sliceCount; s++) {
       bool last_slice = s == (h264_pic_info->sliceCount - 1);
@@ -1974,9 +1977,11 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
 #endif
    };
 
+   struct anv_address src_addr =
+      anv_address_add(src_buffer->address, frame_info->srcBufferOffset);
+
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_IND_OBJ_BASE_ADDR_STATE), ind) {
-      ind.AVPIndirectBitstreamObjectBaseAddress = anv_address_add(src_buffer->address,
-                                                                  frame_info->srcBufferOffset & ~4095);
+      ind.AVPIndirectBitstreamObjectBaseAddress = anv_address_align_down(src_addr, 4096);
       ind.AVPIndirectBitstreamObjectAddressAttributes =
          ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
 #if GFX_VERx10 >= 125
@@ -2518,7 +2523,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
 
    anv_batch_emit(&cmd_buffer->batch, GENX(AVP_BSD_OBJECT), bsd) {
       bsd.TileIndirectBSDDataLength = av1_pic_info->pTileSizes[tile_idx];
-      bsd.TileIndirectDataStartAddress = (frame_info->srcBufferOffset & 4095) +
+      bsd.TileIndirectDataStartAddress = (anv_address_physical(src_addr) & 4095) +
                                          av1_pic_info->pTileOffsets[tile_idx];
    };
 
@@ -3298,9 +3303,11 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 #endif
    }
 
+   struct anv_address src_addr =
+      anv_address_add(src_buffer->address, frame_info->srcBufferOffset);
+
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_IND_OBJ_BASE_ADDR_STATE), indirect) {
-      indirect.HCPIndirectBitstreamObjectBaseAddress =
-         anv_address_add(src_buffer->address, frame_info->srcBufferOffset & ~4095);
+      indirect.HCPIndirectBitstreamObjectBaseAddress = anv_address_align_down(src_addr, 4096);
 
       indirect.HCPIndirectBitstreamObjectAddressAttributes =
          ANV_VID_ATTR(cmd_buffer->device, src_buffer->address.bo);
@@ -3529,7 +3536,7 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HCP_BSD_OBJECT), bsd) {
       bsd.IndirectBSDDataLength = frame_info->srcBufferRange - vp9_pic_info->compressedHeaderOffset;
-      bsd.IndirectBSDDataStartAddress = (frame_info->srcBufferOffset & 4095) + vp9_pic_info->compressedHeaderOffset;
+      bsd.IndirectBSDDataStartAddress = (anv_address_physical(src_addr) & 4095) + vp9_pic_info->compressedHeaderOffset;
    }
 
 #if GFX_VER >= 12
