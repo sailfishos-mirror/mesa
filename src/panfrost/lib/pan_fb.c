@@ -275,7 +275,7 @@ GENX(pan_fill_fb_info)(const struct pan_fb_desc_info *info,
                        struct pan_fb_info *fbinfo)
 {
    struct pan_bbox bbox = { 0, 0, 0, 0 };
-   if (info->fb->width_px > 0 && info->fb->width_px > 0) {
+   if (info->fb->width_px > 0 && info->fb->height_px > 0) {
       const struct pan_fb_bbox fb_area_px =
          pan_fb_bbox_from_xywh(0, 0, info->fb->width_px, info->fb->height_px);
 
