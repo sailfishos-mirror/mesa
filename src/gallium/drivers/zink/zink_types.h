@@ -1855,11 +1855,15 @@ enum zink_atom {
 #define ZINK_DYNAMIC_STATE_ATOMS BITFIELD_RANGE(ZINK_ATOM_VIEWPORT, ZINK_ATOM_COUNT - ZINK_ATOM_VIEWPORT)
 #define ZINK_DRAW_ATOMS BITFIELD_MASK(ZINK_ATOM_VIEWPORT)
 
+/* draws read and write members all over this struct, and with tc the members marked
+ * "app thread" are used from another thread at the same time: moving or resizing members
+ * changes which of them share a cache line, so benchmark such changes on their own
+ */
 struct zink_context {
    struct pipe_context base;
    struct threaded_context *tc;
    struct slab_child_pool transfer_pool;
-   struct slab_child_pool transfer_pool_unsync;
+   struct slab_child_pool transfer_pool_unsync; //app thread: unsynchronized maps
    struct blitter_context *blitter;
    struct util_debug_callback dbg;
 
@@ -1983,7 +1987,7 @@ struct zink_context {
    struct pipe_sampler_view *sampler_views[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
 
    struct zink_viewport_state vp_state;
-   uint32_t dirty_atoms; /* mask of enum zink_atom */
+   uint32_t dirty_atoms; /* mask of enum zink_atom; read by every draw */
 
    float blend_constants[4];
 
@@ -2117,6 +2121,7 @@ struct zink_context {
    struct pipe_stream_output_target *so_targets[PIPE_MAX_SO_BUFFERS];
    bool dirty_so_targets;
 
+   /* app thread: tc calls create_blend_state and create_vertex_elements_state directly */
    uint32_t blend_state_counter;
    uint32_t vertex_element_state_counter;
 
