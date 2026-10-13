@@ -622,7 +622,7 @@ enum zink_draw_vbs {
 };
 
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, zink_draw_vbs VBS>
-void
+ALWAYS_INLINE static void
 zink_draw(struct pipe_context *pctx,
           const struct pipe_draw_info *dinfo,
           unsigned drawid_offset,
