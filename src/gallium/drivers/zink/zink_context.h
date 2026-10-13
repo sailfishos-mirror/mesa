@@ -80,6 +80,7 @@ static ALWAYS_INLINE void
 zink_gfx_pipeline_state_dirty(struct zink_context *ctx)
 {
    ctx->gfx_pipeline_state.dirty = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
 }
 
 /* the same, for state which mesh pipelines use too */
@@ -170,6 +171,8 @@ static ALWAYS_INLINE void
 zink_update_dirty_gfx_stages(struct zink_context *ctx, uint32_t pstages)
 {
    ctx->dirty_gfx_stages |= (pstages & BITFIELD_MASK(MESA_SHADER_COMPUTE));
+   if (pstages & BITFIELD_MASK(MESA_SHADER_COMPUTE))
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
    ctx->dirty_mesh_stages |= (pstages & (BITFIELD_BIT(MESA_SHADER_FRAGMENT) | BITFIELD_BIT(MESA_SHADER_MESH) | BITFIELD_BIT(MESA_SHADER_TASK)));
 }
 

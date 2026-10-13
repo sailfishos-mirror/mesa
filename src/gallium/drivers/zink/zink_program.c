@@ -2008,8 +2008,12 @@ bind_gfx_stage(struct zink_context *ctx, mesa_shader_stage stage, struct zink_sh
    }
 
    ctx->gfx_stages[stage] = shader;
-   if (stage < MESA_SHADER_COMPUTE)
+   if (stage < MESA_SHADER_COMPUTE) {
       ctx->gfx_dirty = ctx->gfx_stages[MESA_SHADER_FRAGMENT] && ctx->gfx_stages[MESA_SHADER_VERTEX];
+      /* the shaders can change the rasterized primitive */
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
+   }
    if (stage == MESA_SHADER_FRAGMENT || stage > MESA_SHADER_COMPUTE)
       ctx->mesh_dirty = ctx->gfx_stages[MESA_SHADER_FRAGMENT] && ctx->gfx_stages[MESA_SHADER_MESH];
    if (stage <= MESA_SHADER_FRAGMENT)
@@ -2181,6 +2185,7 @@ zink_bind_vs_state(struct pipe_context *pctx,
       ctx->shader_reads_drawid = false;
       ctx->shader_reads_basevertex = false;
    }
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_DRAW_ID);
 }
 
 /* if gl_SampleMask[] is written to, we have to ensure that we get a shader with the same sample count:

@@ -1828,6 +1828,9 @@ enum zink_atom {
    ZINK_ATOM_DEBUG_SYNC, //dirty for as long as ZINK_DEBUG=sync
    ZINK_ATOM_RENDERPASS,
    /* starting the renderpass can draw, so everything else is set after it */
+   ZINK_ATOM_DRAW_ID, //dirty for as long as the vertex shader reads gl_DrawID
+   ZINK_ATOM_PRIMITIVE,
+   ZINK_ATOM_PIPELINE,
    /* dynamic state, which mesh draws emit too */
    ZINK_ATOM_VIEWPORT,
    ZINK_ATOM_SCISSOR,

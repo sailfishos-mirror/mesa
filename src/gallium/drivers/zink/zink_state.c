@@ -690,6 +690,8 @@ zink_bind_rasterizer_state(struct pipe_context *pctx, void *cso)
 
       if (!zink_screen(pctx->screen)->info.have_EXT_extended_dynamic_state3)
          zink_gfx_pipeline_state_dirty(ctx);
+      /* the rasterized primitive and the depth bias depend on this state */
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
       zink_mark_atom_dirty(ctx, ZINK_ATOM_RASTERIZER);
 
       if (clip_halfz != ctx->rast_state->base.clip_halfz) {

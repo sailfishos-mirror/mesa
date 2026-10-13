@@ -588,6 +588,26 @@ validate_atoms(const struct zink_context *ctx)
    assert((!ctx->vertices_query && list_is_empty(&ctx->primitives_generated_queries)) ||
           zink_is_atom_dirty(ctx, ZINK_ATOM_GS_QUERIES));
    assert(!(zink_debug & ZINK_DEBUG_SYNC) || zink_is_atom_dirty(ctx, ZINK_ATOM_DEBUG_SYNC));
+   assert(!ctx->shader_reads_drawid || zink_is_atom_dirty(ctx, ZINK_ATOM_DRAW_ID));
+   assert((!ctx->gfx_dirty && !ctx->dirty_gfx_stages) || zink_is_atom_dirty(ctx, ZINK_ATOM_PIPELINE));
+   /* shader object programs never hash the pipeline state */
+   assert(!ctx->gfx_pipeline_state.dirty || zink_is_atom_dirty(ctx, ZINK_ATOM_PIPELINE) ||
+          (ctx->curr_program && ctx->curr_program->base.uses_shobj));
+}
+
+/* dirty the atoms for the inputs of this draw which differ from the last one */
+template <zink_dynamic_state DYNAMIC_STATE>
+ALWAYS_INLINE static void
+mark_draw_atoms(struct zink_context *ctx, const struct pipe_draw_info *dinfo)
+{
+   if (ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode ||
+       (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2 &&
+        ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart))
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
+   /* without dynamic vertex input, the vertex input state is part of the pipeline */
+   if (DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT && DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 &&
+       ctx->vertex_state_changed)
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
 }
 
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, bool DRAW_STATE>
@@ -607,7 +627,6 @@ zink_draw(struct pipe_context *pctx,
 
    struct zink_context *ctx = zink_context(pctx);
    struct zink_screen *screen = zink_screen(pctx->screen);
-   struct zink_rasterizer_state *rast_state = ctx->rast_state;
    struct zink_batch_state *bs = ctx->bs;
    struct zink_so_target *so_target =
       dindirect && dindirect->count_from_stream_output ?
@@ -615,12 +634,13 @@ zink_draw(struct pipe_context *pctx,
    VkBuffer counter_buffers[PIPE_MAX_SO_BUFFERS];
    VkDeviceSize counter_buffer_offsets[PIPE_MAX_SO_BUFFERS];
    bool need_index_buffer_unref = false;
-   bool reads_drawid = ctx->shader_reads_drawid;
    bool reads_basevertex = ctx->shader_reads_basevertex;
    unsigned work_count = ctx->work_count;
    enum mesa_prim mode = (enum mesa_prim)dinfo->mode;
    /* these are set by the atoms */
    bool have_streamout = false;
+   bool needs_drawid = false;
+   bool pipeline_changed = false;
 
    ctx->rp_draw = true;
 
@@ -689,15 +709,15 @@ zink_draw(struct pipe_context *pctx,
    }
 
    ctx->was_line_loop = dinfo->was_line_loop;
+   mark_draw_atoms<DYNAMIC_STATE>(ctx, dinfo);
    validate_atoms(ctx);
 
-   /* inside a renderpass, the renderpass info only has to be parsed again after a new fs or dsa state was bound */
-   if (ctx->rp_tc_info_updated &&
-       (ctx->gfx_dirty || ctx->dirty_gfx_stages || zink_is_atom_dirty(ctx, ZINK_ATOM_DSA)))
-      zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
-
-   unsigned rp_state = ctx->gfx_pipeline_state.rp_state;
    if (ctx->dirty_atoms) {
+      /* inside a renderpass, the renderpass info only has to be parsed again after a new fs or dsa state was bound */
+      if (ctx->rp_tc_info_updated &&
+          (ctx->dirty_atoms & (BITFIELD_BIT(ZINK_ATOM_PIPELINE) | BITFIELD_BIT(ZINK_ATOM_DSA))))
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
+
       /* an atom can dirty the ones after it, so the mask is read again after every atom */
       uint32_t pending = ZINK_DRAW_ATOMS;
       uint32_t atoms;
@@ -772,92 +792,90 @@ zink_draw(struct pipe_context *pctx,
                zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
                return;
             }
-            if (BATCH_CHANGED)
+            if (BATCH_CHANGED) {
                zink_update_descriptor_refs(ctx, false);
+               /* starting the renderpass can draw, and that draw has emitted its own state */
+               ctx->dirty_atoms |= ZINK_DRAW_ATOMS & ~BITFIELD_MASK(ZINK_ATOM_RENDERPASS + 1);
+            }
+            mark_draw_atoms<DYNAMIC_STATE>(ctx, dinfo);
+            break;
+         case ZINK_ATOM_DRAW_ID: {
+            bool drawid_broken = false;
+            if (ctx->shader_reads_drawid) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_DRAW_ID);
+               if (!dindirect || !dindirect->buffer)
+                  drawid_broken = (drawid_offset != 0 ||
+                                  (!HAS_MULTIDRAW && num_draws > 1) ||
+                                  (HAS_MULTIDRAW && num_draws > 1 && !dinfo->increment_draw_id));
+            }
+            if (drawid_broken != zink_get_last_vertex_key(ctx)->push_drawid)
+               zink_set_last_vertex_key(ctx)->push_drawid = drawid_broken;
+            needs_drawid = drawid_broken;
+            break;
+         }
+         case ZINK_ATOM_PRIMITIVE: {
+            const struct zink_rasterizer_state *rast_state = ctx->rast_state;
+            enum mesa_prim rast_prim = zink_rast_prim(ctx, dinfo);
+            if (rast_prim != ctx->gfx_pipeline_state.rast_prim) {
+               bool points_changed =
+                  (ctx->gfx_pipeline_state.rast_prim == MESA_PRIM_POINTS) !=
+                  (rast_prim == MESA_PRIM_POINTS);
+
+               static bool rect_warned = false;
+               if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE3 && rast_prim == MESA_PRIM_LINES && !rect_warned &&
+                   (VkLineRasterizationMode)rast_state->hw_state.line_mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR) {
+                  if (screen->info.line_rast_feats.rectangularLines)
+                     rect_warned = true;
+                  else
+                     warn_missing_feature(rect_warned, "rectangularLines");
+               }
+
+               ctx->gfx_pipeline_state.rast_prim = rast_prim;
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
+               if (rast_prim == MESA_PRIM_LINES)
+                  zink_mark_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH);
+
+               if (points_changed && rast_state->base.point_quad_rasterization)
+                  zink_set_fs_point_coord_key(ctx);
+            }
+            const bool mode_changed = ctx->gfx_pipeline_state.gfx_prim_mode != mode;
+            if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE && (BATCH_CHANGED || mode_changed))
+               VKCTX(CmdSetPrimitiveTopology)(bs->cmdbuf, zink_primitive_topology(mode));
+            /* a pipeline only draws its own topology, or its own topology class with dynamic topology */
+            if (mode_changed && get_gfx_pipeline_idx<DYNAMIC_STATE>(screen, mode) != ctx->gfx_pipeline_state.idx)
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
+            ctx->gfx_pipeline_state.gfx_prim_mode = mode;
+            zink_set_primitive_emulation_keys(ctx);
+
+            if (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2 &&
+                ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart) {
+               ctx->gfx_pipeline_state.dyn_state2.primitive_restart = dinfo->primitive_restart;
+               zink_gfx_pipeline_state_dirty(ctx);
+            }
+
+            bool using_depth_bias = zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES && rast_state->offset_fill;
+            if (using_depth_bias != ctx->was_using_depth_bias) {
+               ctx->was_using_depth_bias = using_depth_bias;
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
+            }
+            break;
+         }
+         case ZINK_ATOM_PIPELINE:
+            if (!update_gfx_pipeline<DYNAMIC_STATE, BATCH_CHANGED>(ctx, bs, mode, &pipeline_changed)) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
+               return;
+            }
             break;
          default:
             UNREACHABLE("not a draw atom");
          }
       }
+
+      /* the line width is only set while lines are drawn: ZINK_ATOM_PRIMITIVE dirties it when that starts */
+      if (!BATCH_CHANGED && ctx->gfx_pipeline_state.rast_prim != MESA_PRIM_LINES)
+         zink_set_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH, false);
    }
-
-   /* these must be after renderpass start to avoid issues with recursion */
-   bool mode_changed = ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode;
-   /* a pipeline only draws its own topology, or its own topology class with dynamic topology */
-   const bool pipeline_idx_changed = mode_changed &&
-                                     get_gfx_pipeline_idx<DYNAMIC_STATE>(screen, mode) != ctx->gfx_pipeline_state.idx;
-   bool drawid_broken = false;
-   if (reads_drawid && (!dindirect || !dindirect->buffer))
-      drawid_broken = (drawid_offset != 0 ||
-                      (!HAS_MULTIDRAW && num_draws > 1) ||
-                      (HAS_MULTIDRAW && num_draws > 1 && !dinfo->increment_draw_id));
-   if (drawid_broken != zink_get_last_vertex_key(ctx)->push_drawid)
-      zink_set_last_vertex_key(ctx)->push_drawid = drawid_broken;
-
-   bool rast_prim_changed = false;
-   bool prim_changed = false;
-   bool rast_state_changed = zink_is_atom_dirty(ctx, ZINK_ATOM_RASTERIZER);
-   if (mode_changed || ctx->gfx_pipeline_state.modules_changed ||
-       rast_state_changed) {
-      enum mesa_prim rast_prim = zink_rast_prim(ctx, dinfo);
-      if (rast_prim != ctx->gfx_pipeline_state.rast_prim) {
-         bool points_changed =
-            (ctx->gfx_pipeline_state.rast_prim == MESA_PRIM_POINTS) !=
-            (rast_prim == MESA_PRIM_POINTS);
-
-         prim_changed = ctx->gfx_pipeline_state.rast_prim != rast_prim;
-
-         static bool rect_warned = false;
-         if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE3 && rast_prim == MESA_PRIM_LINES && !rect_warned && 
-             (VkLineRasterizationMode)rast_state->hw_state.line_mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR) {
-            if (screen->info.line_rast_feats.rectangularLines)
-               rect_warned = true;
-            else
-               warn_missing_feature(rect_warned, "rectangularLines");
-         }
-
-         ctx->gfx_pipeline_state.rast_prim = rast_prim;
-         rast_prim_changed = true;
-
-         if (points_changed && ctx->rast_state->base.point_quad_rasterization)
-            zink_set_fs_point_coord_key(ctx);
-      }
-      ctx->gfx_pipeline_state.gfx_prim_mode = mode;
-   }
-
-   if ((mode_changed || prim_changed || rast_state_changed || ctx->gfx_pipeline_state.modules_changed)) {
-      zink_set_primitive_emulation_keys(ctx);
-   }
-
-   if (index_buffer)
-      bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
-   if (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2) {
-      if (ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart)
-         zink_gfx_pipeline_state_dirty(ctx);
-      ctx->gfx_pipeline_state.dyn_state2.primitive_restart = dinfo->primitive_restart;
-   }
-
-   /* without dynamic vertex input, the vertex input state is part of the pipeline */
-   const bool vertex_input_changed = DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT &&
-                                     DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 &&
-                                     ctx->vertex_state_changed;
-   bool pipeline_changed = false;
-   if (ctx->gfx_pipeline_state.dirty || rp_state != ctx->gfx_pipeline_state.rp_state || ctx->gfx_dirty || ctx->dirty_gfx_stages || prim_changed || pipeline_idx_changed || vertex_input_changed || BATCH_CHANGED) {
-      if (!update_gfx_pipeline<DYNAMIC_STATE, BATCH_CHANGED>(ctx, bs, mode, &pipeline_changed))
-         return;
-   }
-
-   bool using_depth_bias = zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES && rast_state->offset_fill;
-   if (using_depth_bias != ctx->was_using_depth_bias) {
-      ctx->was_using_depth_bias = using_depth_bias;
-      zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
-   }
-   const bool drawing_lines = ctx->gfx_pipeline_state.rast_prim == MESA_PRIM_LINES;
-   if (rast_prim_changed && drawing_lines)
-      zink_mark_atom_dirty(ctx, ZINK_ATOM_LINE_WIDTH);
-   /* a changed line width is only set once lines are actually drawn */
-   emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj,
-                                                    BATCH_CHANGED || drawing_lines ? 0 : BITFIELD_BIT(ZINK_ATOM_LINE_WIDTH));
+   emit_dynamic_state<DYNAMIC_STATE, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.num_viewports, ctx->curr_program->base.uses_shobj, 0);
 
    if (!DRAW_STATE) {
       if (BATCH_CHANGED || ctx->vertex_buffers_dirty)
@@ -874,8 +892,8 @@ zink_draw(struct pipe_context *pctx,
       zink_select_draw_vbo(ctx);
    }
 
-   if (DYNAMIC_STATE != ZINK_NO_DYNAMIC_STATE && (BATCH_CHANGED || mode_changed))
-      VKCTX(CmdSetPrimitiveTopology)(bs->cmdbuf, zink_primitive_topology(mode));
+   if (index_buffer)
+      bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
 
    if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2 && (BATCH_CHANGED || ctx->primitive_restart != dinfo->primitive_restart)) {
       VKCTX(CmdSetPrimitiveRestartEnable)(bs->cmdbuf, dinfo->primitive_restart);
@@ -995,7 +1013,6 @@ zink_draw(struct pipe_context *pctx,
       }
    }
 
-   bool needs_drawid = reads_drawid && zink_get_last_vertex_key(ctx)->push_drawid;
    work_count += num_draws;
    if (index_size > 0) {
       if (dindirect && dindirect->buffer) {
