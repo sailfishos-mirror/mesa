@@ -204,7 +204,7 @@ fold_resolve_into_store_target(enum pipe_format format,
 
    fold_sample_0_image_load(&resolve->in_bounds, resolve->iview,
                             fb_sample_count);
-   fold_sample_0_image_load(&resolve->in_bounds, resolve->iview,
+   fold_sample_0_image_load(&resolve->border, resolve->iview,
                             fb_sample_count);
 
    if (!resolve_msaa_can_fold(resolve->in_bounds, self_op, format) ||
