@@ -7784,7 +7784,7 @@
         "description": "pan/lib: fix copy-pasta bug",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5fc91b38c84c265583407f0557ccd6c5ecbd2c11",
         "notes": null

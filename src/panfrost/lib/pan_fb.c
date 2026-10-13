@@ -316,7 +316,7 @@ GENX(pan_fill_fb_info)(const struct pan_fb_desc_info *info,
       .sample_positions = info->sample_pos_array_pointer,
       .sprite_coord_origin = info->sprite_coord_origin_max_y,
       .first_provoking_vertex = info->provoking_vertex_first,
-      .allow_hsr_prepass = info->provoking_vertex_first,
+      .allow_hsr_prepass = info->allow_hsr_prepass,
    };
 
    /* There are cases where we only want to fill out a partial fb_info */
