@@ -802,6 +802,8 @@ jay_emit_load_const(struct nir_to_jay_state *nj, nir_load_const_instr *lc)
       jay_MOV(b, jay_extract(dst, 1), (uint32_t) (lc->value[0].u64 >> 32));
    } else if (lc->def.bit_size == 64 && lc->value[0].u64 >> 32) {
       jay_MOV_IMM64(b, dst, lc->value[0].u64);
+   } else if (lc->def.bit_size == 16) {
+      jay_MOV(b, dst, lc->value[0].u32)->type = JAY_TYPE_U16;
    } else {
       jay_MOV(b, dst, lc->value[0].u32);
    }
