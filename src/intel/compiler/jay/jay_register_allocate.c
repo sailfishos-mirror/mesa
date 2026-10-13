@@ -46,7 +46,12 @@ struct affinity {
     * If there is a vector affinity defined for this SSA def, it is relative to
     * some representative SSA index. Else 0 if there is no affinity.
     */
-   uint32_t repr;
+   uint32_t repr:29;
+
+   /**
+    * Preferred stride according to users, or "don't care"
+    */
+   enum jay_stride stride:3;
 
    /** If the representative: offset in registers from the base.
     *
@@ -879,6 +884,12 @@ pick_regs(jay_ra_state *ra,
             block_cost += size;
          }
 
+         /* Likewise for stride, which tends to have a higher cost */
+         if (affinity.stride != block.stride &&
+             affinity.stride != JAY_NUM_STRIDES) {
+            block_cost += size;
+         }
+
          /* Consider only blocks that could be picked */
          if (best_cost > block_cost) {
             pick_regs_from_block(ra, file, size, alignment, I, var, is_src,
@@ -1392,6 +1403,7 @@ jay_register_allocate_function(jay_function *f)
    jay_foreach_inst_in_func(f, block, I) {
       jay_foreach_dst_index(I, _, index) {
          order[index] = order_counter++;
+         ra.affinities[index].stride = JAY_NUM_STRIDES;
       }
 
       jay_foreach_src_index(I, s, c, index) {
@@ -1430,6 +1442,8 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].align = al;
             ra.affinities[index].align_offs = c;
          }
+
+         ra.affinities[index].stride = jay_src_stride_minmax(I, s, false);
 
          ra.phi_web[phi_web_find(ra.phi_web, index)].affinity =
             ra.affinities[index];
