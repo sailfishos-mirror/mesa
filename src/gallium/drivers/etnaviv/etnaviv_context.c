@@ -551,12 +551,15 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    }
 
    if (ctx->dirty & (ETNA_DIRTY_SHADER | ETNA_DIRTY_CONSTBUF)) {
-      /* Mark constant buffers as being read */
-      u_foreach_bit(i, ctx->constant_buffer[MESA_SHADER_VERTEX].enabled_mask)
-         resource_read(ctx, ctx->constant_buffer[MESA_SHADER_VERTEX].cb[i].buffer);
+      const struct etna_constbuf_state *vs_cb = &ctx->constant_buffer[MESA_SHADER_VERTEX];
+      const struct etna_constbuf_state *fs_cb = &ctx->constant_buffer[MESA_SHADER_FRAGMENT];
 
-      u_foreach_bit(i, ctx->constant_buffer[MESA_SHADER_FRAGMENT].enabled_mask)
-         resource_read(ctx, ctx->constant_buffer[MESA_SHADER_FRAGMENT].cb[i].buffer);
+      /* Mark constant buffers the shaders load from as being read */
+      u_foreach_bit(i, vs_cb->enabled_mask & ctx->shader.vs->ubo_mask)
+         resource_read(ctx, vs_cb->cb[i].buffer);
+
+      u_foreach_bit(i, fs_cb->enabled_mask & ctx->shader.fs->ubo_mask)
+         resource_read(ctx, fs_cb->cb[i].buffer);
    }
 
    if (ctx->dirty & ETNA_DIRTY_VERTEX_BUFFERS) {

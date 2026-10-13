@@ -108,6 +108,9 @@ struct etna_shader_variant {
     * uniforms have to get (partial) reloaded. */
    uint32_t uniforms_dirty_bits;
 
+   /* Constant buffers the shader reads from memory. */
+   uint32_t ubo_mask;
+
    /* inputs (for linking) for fs, the inputs must be in register 1..N */
    struct etna_shader_io_file infile;
 

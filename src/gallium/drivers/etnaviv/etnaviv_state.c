@@ -112,12 +112,6 @@ etna_set_constant_buffer(struct pipe_context *pctx,
 
    assert(index != 0 || cb->user_buffer != NULL);
 
-   if (!cb->buffer) {
-      struct pipe_constant_buffer *cb = &so->cb[index];
-      u_upload_data_ref(pctx->const_uploader, 0, cb->buffer_size, 16, cb->user_buffer, &cb->buffer_offset, &cb->buffer);
-      ctx->dirty |= ETNA_DIRTY_SHADER_CACHES;
-   }
-
    so->enabled_mask |= 1 << index;
    ctx->dirty |= etna_constbuf_dirty(shader);
 }
@@ -1214,6 +1208,33 @@ struct etna_state_updater {
    uint32_t dirty;
 };
 
+static void
+etna_upload_constbufs(struct etna_context *ctx, mesa_shader_stage stage,
+                      const struct etna_shader_variant *sobj)
+{
+   struct etna_constbuf_state *so = &ctx->constant_buffer[stage];
+
+   u_foreach_bit(i, so->enabled_mask & sobj->ubo_mask) {
+      struct pipe_constant_buffer *cb = &so->cb[i];
+
+      if (cb->buffer)
+         continue;
+
+      u_upload_data_ref(ctx->base.const_uploader, 0, cb->buffer_size, 16,
+                        cb->user_buffer, &cb->buffer_offset, &cb->buffer);
+      ctx->dirty |= ETNA_DIRTY_SHADER_CACHES;
+   }
+}
+
+static bool
+etna_update_constbufs(struct etna_context *ctx)
+{
+   etna_upload_constbufs(ctx, MESA_SHADER_VERTEX, ctx->shader.vs);
+   etna_upload_constbufs(ctx, MESA_SHADER_FRAGMENT, ctx->shader.fs);
+
+   return true;
+}
+
 static const struct etna_state_updater etna_state_updates[] = {
    {
       etna_shader_update_vertex, ETNA_DIRTY_SHADER | ETNA_DIRTY_VERTEX_ELEMENTS,
@@ -1237,6 +1258,9 @@ static const struct etna_state_updater etna_state_updates[] = {
    },
    {
       etna_update_hwxfb, ETNA_DIRTY_STREAMOUT,
+   },
+   {
+      etna_update_constbufs, ETNA_DIRTY_SHADER | ETNA_DIRTY_CONSTBUF,
    }
 };
 
