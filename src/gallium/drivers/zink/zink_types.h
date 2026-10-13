@@ -1684,6 +1684,8 @@ struct zink_screen {
       bool broken_cache_semantics;
       bool missing_a8_unorm;
       bool implicit_sync;
+      /* skip the implicit_sync handling on X11 swapchains */
+      bool implicit_sync_not_x11;
       bool disable_optimized_compile;
       bool always_feedback_loop;
       bool always_feedback_loop_zs;

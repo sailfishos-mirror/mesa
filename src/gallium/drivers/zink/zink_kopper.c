@@ -793,7 +793,8 @@ kopper_present(void *data, void *gdata, int thread_idx)
    cpi->info.pResults = &error;
 
    simple_mtx_lock(screen->queue_lock);
-   if (screen->driver_workarounds.implicit_sync && cdt->type != KOPPER_WIN32) {
+   if (screen->driver_workarounds.implicit_sync && cdt->type != KOPPER_WIN32 &&
+       (cdt->type != KOPPER_X11 || !screen->driver_workarounds.implicit_sync_not_x11)) {
       if (!screen->fence) {
          VkFenceCreateInfo fci = {0};
          fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

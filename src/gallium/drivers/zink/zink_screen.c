@@ -3151,6 +3151,10 @@ init_driver_workarounds(struct zink_screen *screen)
    case VK_DRIVER_ID_QUALCOMM_PROPRIETARY:
       screen->driver_workarounds.implicit_sync = false;
       break;
+   case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+      /* x11 swapchains stay inside this driver, so the present semaphore is enough */
+      screen->driver_workarounds.implicit_sync_not_x11 = true;
+      break;
    default:
       break;
    }
