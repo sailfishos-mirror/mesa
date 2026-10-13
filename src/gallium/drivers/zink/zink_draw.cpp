@@ -593,6 +593,10 @@ validate_atoms(const struct zink_context *ctx)
    /* shader object programs never hash the pipeline state */
    assert(!ctx->gfx_pipeline_state.dirty || zink_is_atom_dirty(ctx, ZINK_ATOM_PIPELINE) ||
           (ctx->curr_program && ctx->curr_program->base.uses_shobj));
+   /* a program without descriptors leaves these for the next program which has them */
+   assert((!ctx->dd.push_state_changed[ZINK_PIPELINE_GFX] && !ctx->dd.state_changed[ZINK_PIPELINE_GFX]) ||
+          zink_is_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS) || zink_is_atom_dirty(ctx, ZINK_ATOM_PIPELINE) ||
+          !zink_program_has_descriptors(&ctx->curr_program->base));
 }
 
 /* dirty the atoms for the inputs of this draw which differ from the last one */
@@ -634,7 +638,6 @@ zink_draw(struct pipe_context *pctx,
    VkBuffer counter_buffers[PIPE_MAX_SO_BUFFERS];
    VkDeviceSize counter_buffer_offsets[PIPE_MAX_SO_BUFFERS];
    bool need_index_buffer_unref = false;
-   bool reads_basevertex = ctx->shader_reads_basevertex;
    unsigned work_count = ctx->work_count;
    enum mesa_prim mode = (enum mesa_prim)dinfo->mode;
    const bool dynamic_vertex_input = DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT ||
@@ -867,6 +870,16 @@ zink_draw(struct pipe_context *pctx,
                zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
                return;
             }
+            /* the descriptor sets are bound for the pipeline's layout */
+            if (pipeline_changed) {
+               zink_mark_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS);
+               if (ctx->di.any_bindless_dirty)
+                  zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
+            }
+            zink_set_atom_dirty(ctx, ZINK_ATOM_PUSH_CONSTANTS,
+                                ctx->shader_reads_basevertex || !screen->optimal_keys ||
+                                (ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL] &&
+                                 ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL]->non_fs.is_generated));
             break;
          case ZINK_ATOM_VERTEX_BUFFERS:
             if (!DRAW_STATE)
@@ -877,6 +890,73 @@ zink_draw(struct pipe_context *pctx,
                VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
                                            ctx->element_state->hw_state.num_bindings, ctx->element_state->hw_state.dynbindings,
                                            ctx->element_state->hw_state.num_attribs, ctx->element_state->hw_state.dynattribs);
+            break;
+         case ZINK_ATOM_DESCRIPTORS:
+            if (zink_program_has_descriptors(&ctx->curr_program->base))
+               zink_descriptors_update(ctx, ZINK_PIPELINE_GFX);
+            break;
+         case ZINK_ATOM_BINDLESS:
+            if (ctx->di.any_bindless_dirty &&
+                /* some apps (d3dretrace) call MakeTextureHandleResidentARB randomly */
+                zink_program_has_descriptors(&ctx->curr_program->base) &&
+                ctx->curr_program->base.dd.bindless)
+               zink_descriptors_update_bindless(ctx);
+            break;
+         case ZINK_ATOM_PUSH_CONSTANTS:
+            /* ZINK_ATOM_PIPELINE unsets this */
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_PUSH_CONSTANTS);
+            if (ctx->shader_reads_basevertex) {
+               unsigned draw_mode_is_indexed = index_size > 0;
+               VKCTX(CmdPushConstants)(bs->cmdbuf, ctx->curr_program->base.layout, VK_SHADER_STAGE_ALL_GRAPHICS,
+                                 offsetof(struct zink_gfx_push_constant, draw_mode_is_indexed), sizeof(unsigned),
+                                 &draw_mode_is_indexed);
+            }
+            if (ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL] &&
+                ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL]->non_fs.is_generated) {
+               VKCTX(CmdPushConstants)(bs->cmdbuf, ctx->curr_program->base.layout, VK_SHADER_STAGE_ALL_GRAPHICS,
+                                 offsetof(struct zink_gfx_push_constant, default_inner_level), sizeof(float) * 6,
+                                 &ctx->tess_levels[0]);
+            }
+
+            if (!screen->optimal_keys) {
+               if (zink_get_fs_key(ctx)->lower_line_stipple ||
+                   zink_get_gs_key(ctx)->lower_gl_point ||
+                   zink_get_fs_key(ctx)->lower_line_smooth) {
+
+                  assert(zink_get_gs_key(ctx)->lower_line_stipple ==
+                         zink_get_fs_key(ctx)->lower_line_stipple);
+
+                  assert(zink_get_gs_key(ctx)->lower_line_smooth ==
+                         zink_get_fs_key(ctx)->lower_line_smooth);
+
+                  float viewport_scale[2] = {
+                     ctx->vp_state.viewport_states[0].scale[0],
+                     ctx->vp_state.viewport_states[0].scale[1]
+                  };
+                  VKCTX(CmdPushConstants)(bs->cmdbuf,
+                                          ctx->curr_program->base.layout,
+                                          VK_SHADER_STAGE_ALL_GRAPHICS,
+                                          offsetof(struct zink_gfx_push_constant, viewport_scale),
+                                          sizeof(float) * 2, &viewport_scale);
+
+                  uint32_t stipple = ctx->rast_state->base.line_stipple_pattern;
+                  stipple |= ctx->rast_state->base.line_stipple_factor << 16;
+                  VKCTX(CmdPushConstants)(bs->cmdbuf,
+                                          ctx->curr_program->base.layout,
+                                          VK_SHADER_STAGE_ALL_GRAPHICS,
+                                          offsetof(struct zink_gfx_push_constant, line_stipple_pattern),
+                                          sizeof(uint32_t), &stipple);
+
+                  if (ctx->gfx_pipeline_state.shader_keys.key[MESA_SHADER_FRAGMENT].key.fs.lower_line_smooth) {
+                     float line_width = ctx->rast_state->base.line_width;
+                     VKCTX(CmdPushConstants)(bs->cmdbuf,
+                                             ctx->curr_program->base.layout,
+                                             VK_SHADER_STAGE_ALL_GRAPHICS,
+                                             offsetof(struct zink_gfx_push_constant, line_width),
+                                             sizeof(uint32_t), &line_width);
+                  }
+               }
+            }
             break;
          default:
             UNREACHABLE("not a draw atom");
@@ -903,68 +983,6 @@ zink_draw(struct pipe_context *pctx,
    }
    if (dinfo->primitive_restart && screen->info.have_EXT_primitive_restart_index)
       VKCTX(CmdSetPrimitiveRestartIndexEXT)(bs->cmdbuf, dinfo->restart_index);
-
-   if (zink_program_has_descriptors(&ctx->curr_program->base) && (BATCH_CHANGED || ctx->dd.push_state_changed[0] || ctx->dd.state_changed[0] || pipeline_changed))
-      zink_descriptors_update(ctx, ZINK_PIPELINE_GFX);
-
-   if (ctx->di.any_bindless_dirty &&
-       /* some apps (d3dretrace) call MakeTextureHandleResidentARB randomly */
-       zink_program_has_descriptors(&ctx->curr_program->base) &&
-       ctx->curr_program->base.dd.bindless)
-      zink_descriptors_update_bindless(ctx);
-
-   if (reads_basevertex) {
-      unsigned draw_mode_is_indexed = index_size > 0;
-      VKCTX(CmdPushConstants)(bs->cmdbuf, ctx->curr_program->base.layout, VK_SHADER_STAGE_ALL_GRAPHICS,
-                        offsetof(struct zink_gfx_push_constant, draw_mode_is_indexed), sizeof(unsigned),
-                        &draw_mode_is_indexed);
-   }
-   if (ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL] &&
-       ctx->curr_program->shaders[MESA_SHADER_TESS_CTRL]->non_fs.is_generated) {
-      VKCTX(CmdPushConstants)(bs->cmdbuf, ctx->curr_program->base.layout, VK_SHADER_STAGE_ALL_GRAPHICS,
-                        offsetof(struct zink_gfx_push_constant, default_inner_level), sizeof(float) * 6,
-                        &ctx->tess_levels[0]);
-   }
-
-   if (!screen->optimal_keys) {
-      if (zink_get_fs_key(ctx)->lower_line_stipple ||
-          zink_get_gs_key(ctx)->lower_gl_point ||
-          zink_get_fs_key(ctx)->lower_line_smooth) {
-
-         assert(zink_get_gs_key(ctx)->lower_line_stipple ==
-                zink_get_fs_key(ctx)->lower_line_stipple);
-
-         assert(zink_get_gs_key(ctx)->lower_line_smooth ==
-                zink_get_fs_key(ctx)->lower_line_smooth);
-
-         float viewport_scale[2] = {
-            ctx->vp_state.viewport_states[0].scale[0],
-            ctx->vp_state.viewport_states[0].scale[1]
-         };
-         VKCTX(CmdPushConstants)(bs->cmdbuf,
-                                 ctx->curr_program->base.layout,
-                                 VK_SHADER_STAGE_ALL_GRAPHICS,
-                                 offsetof(struct zink_gfx_push_constant, viewport_scale),
-                                 sizeof(float) * 2, &viewport_scale);
-
-         uint32_t stipple = ctx->rast_state->base.line_stipple_pattern;
-         stipple |= ctx->rast_state->base.line_stipple_factor << 16;
-         VKCTX(CmdPushConstants)(bs->cmdbuf,
-                                 ctx->curr_program->base.layout,
-                                 VK_SHADER_STAGE_ALL_GRAPHICS,
-                                 offsetof(struct zink_gfx_push_constant, line_stipple_pattern),
-                                 sizeof(uint32_t), &stipple);
-
-         if (ctx->gfx_pipeline_state.shader_keys.key[MESA_SHADER_FRAGMENT].key.fs.lower_line_smooth) {
-            float line_width = ctx->rast_state->base.line_width;
-            VKCTX(CmdPushConstants)(bs->cmdbuf,
-                                    ctx->curr_program->base.layout,
-                                    VK_SHADER_STAGE_ALL_GRAPHICS,
-                                    offsetof(struct zink_gfx_push_constant, line_width),
-                                    sizeof(uint32_t), &line_width);
-         }
-      }
-   }
 
    if (unlikely(have_streamout)) {
       if (ctx->dirty_so_targets)

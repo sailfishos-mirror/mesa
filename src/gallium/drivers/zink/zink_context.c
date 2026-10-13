@@ -2743,6 +2743,7 @@ zink_make_texture_handle_resident(struct pipe_context *pctx, uint64_t handle, bo
       update_res_bind_count(ctx, res, true, true);
    }
    ctx->di.bindless_dirty[0] = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
 }
 
 static uint64_t
@@ -2870,6 +2871,7 @@ zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t handle, unsi
       unbind_shader_image_counts(ctx, res, true, false);
    }
    ctx->di.bindless_dirty[1] = true;
+   zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
 }
 
 static void

@@ -1833,6 +1833,9 @@ enum zink_atom {
    ZINK_ATOM_PIPELINE,
    ZINK_ATOM_VERTEX_BUFFERS,
    ZINK_ATOM_VERTEX_INPUT,
+   ZINK_ATOM_DESCRIPTORS,
+   ZINK_ATOM_BINDLESS,
+   ZINK_ATOM_PUSH_CONSTANTS, //dirty for as long as the program needs them for every draw
    /* dynamic state, which mesh draws emit too */
    ZINK_ATOM_VIEWPORT,
    ZINK_ATOM_SCISSOR,

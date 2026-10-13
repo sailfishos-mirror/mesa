@@ -1360,6 +1360,8 @@ zink_descriptors_update(struct zink_context *ctx, enum zink_pipeline_idx pidx)
          /* force all descriptors update on next pass: separables use different layouts */
          ctx->dd.state_changed[pidx] = BITFIELD_MASK(ZINK_DESCRIPTOR_TYPE_UNIFORMS);
          ctx->dd.push_state_changed[pidx] = true;
+         if (pidx == ZINK_PIPELINE_GFX)
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS);
          update_separable(ctx, pg);
          if (pg->dd.bindless)
             bind_bindless_db(ctx, pg);
@@ -1503,6 +1505,8 @@ zink_descriptors_update(struct zink_context *ctx, enum zink_pipeline_idx pidx)
 void
 zink_context_invalidate_descriptor_state(struct zink_context *ctx, mesa_shader_stage shader, enum zink_descriptor_type type, unsigned start, unsigned count)
 {
+   if (shader <= MESA_SHADER_FRAGMENT)
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS);
    if (type == ZINK_DESCRIPTOR_TYPE_UBO && !start) {
       if (shader == MESA_SHADER_COMPUTE)
          ctx->dd.push_state_changed[ZINK_PIPELINE_COMPUTE] = true;
@@ -1528,6 +1532,8 @@ zink_context_invalidate_descriptor_state(struct zink_context *ctx, mesa_shader_s
 void
 zink_context_invalidate_descriptor_state_compact(struct zink_context *ctx, mesa_shader_stage shader, enum zink_descriptor_type type, unsigned start, unsigned count)
 {
+   if (shader <= MESA_SHADER_FRAGMENT)
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS);
    if (type == ZINK_DESCRIPTOR_TYPE_UBO && !start)
       if (shader == MESA_SHADER_COMPUTE)
          ctx->dd.push_state_changed[ZINK_PIPELINE_COMPUTE] = true;
