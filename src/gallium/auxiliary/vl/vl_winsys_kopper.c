@@ -129,7 +129,7 @@ vl_kopper_texture_from_drawable(struct vl_screen *vscreen, void *d)
    }
 
    if (needs_new_back_buffer_allocation) {
-      struct kopper_loader_info info;
+      struct kopper_loader_info info = {0};
       VkXcbSurfaceCreateInfoKHR *xcb = (VkXcbSurfaceCreateInfoKHR *)&info.bos;
       xcb->sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
       xcb->pNext = NULL;
