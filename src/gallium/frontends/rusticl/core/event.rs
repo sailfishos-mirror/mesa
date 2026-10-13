@@ -271,7 +271,7 @@ impl Event {
         queue: &Arc<Queue>,
         cmd_type: cl_command_type,
         deps: Vec<Arc<Event>>,
-        work: EventSig,
+        work: Option<EventSig>,
         cleanup: Option<CleanupSig>,
     ) -> CLResult<Arc<Event>> {
         let profiler: Box<dyn Profiler> = if queue.is_profiling_enabled() {
@@ -289,7 +289,7 @@ impl Event {
             context: Arc::clone(&queue.context),
             state: Mutex::new(EventMutState {
                 status: CL_QUEUED as cl_int,
-                work: Some(work),
+                work: work,
                 cleanup: cleanup,
                 ..Default::default()
             }),

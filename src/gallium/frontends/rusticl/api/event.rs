@@ -174,7 +174,7 @@ pub fn create_and_queue(
     deps: Vec<Arc<Event>>,
     event: *mut cl_event,
     block: bool,
-    work: EventSig,
+    work: Option<EventSig>,
 ) -> CLResult<()> {
     create_and_queue_with_cleanup(q, cmd_type, deps, event, block, work, None)
 }
@@ -185,7 +185,7 @@ pub fn create_and_queue_with_cleanup(
     deps: Vec<Arc<Event>>,
     event: *mut cl_event,
     block: bool,
-    work: EventSig,
+    work: Option<EventSig>,
     cleanup: Option<CleanupSig>,
 ) -> CLResult<()> {
     if deps.iter().any(|dep| dep.is_error()) {
