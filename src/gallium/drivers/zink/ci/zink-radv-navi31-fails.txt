@@ -61,3 +61,6 @@ asan-KHR-GL46.packed_pixels.varied_rectangle.compressed_signed_red_rgtc1_format_
 asan-KHR-GL46.packed_pixels.varied_rectangle.compressed_signed_rg_rgtc2_format_bgr,Fail
 asan-KHR-GL46.packed_pixels.varied_rectangle.compressed_signed_rg_rgtc2_format_bgra,Fail
 
+# Regression from https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/43297.
+# According to Mike someone is going to fix GLCTS.
+asan-KHR-GL46.direct_state_access.buffers_errors,Fail
