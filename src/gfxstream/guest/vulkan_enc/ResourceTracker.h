@@ -567,7 +567,6 @@ class ResourceTracker {
                                           const VkAllocationCallbacks* pAllocator,
                                           VkPipeline* pPipelines);
 
-    VkDeviceSize getMappedSize(VkDeviceMemory memory);
     VkDeviceSize getNonCoherentExtendedSize(VkDevice device, VkDeviceSize basicSize) const;
     bool isValidMemoryRange(const VkMappedMemoryRange& range);
 
@@ -780,7 +779,6 @@ class ResourceTracker {
         VkDevice device;
 
         uint64_t blobId = 0;
-        uint64_t allocationSize = 0;
         uint32_t memoryTypeIndex = 0;
         uint64_t coherentMemorySize = 0;
         uint64_t coherentMemoryOffset = 0;

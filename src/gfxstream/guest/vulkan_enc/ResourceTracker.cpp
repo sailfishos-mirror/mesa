@@ -1448,12 +1448,12 @@ void ResourceTracker::setDeviceMemoryInfo(VkDevice device, VkDeviceMemory memory
                                           int importedFd) {
     VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
     gfxstream_memory->mapped = ptr;
+    gfxstream_memory->mapped_size = allocationSize;
 
     std::lock_guard<std::recursive_mutex> lock(mLock);
     auto& info = info_VkDeviceMemory[memory];
 
     info.device = device;
-    info.allocationSize = allocationSize;
     info.memoryTypeIndex = memoryTypeIndex;
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
     info.ahw = (AHardwareBuffer*)ahw;
@@ -1473,33 +1473,19 @@ void ResourceTracker::setImageInfo(VkImage image, VkDevice device,
     info.createInfo = *pCreateInfo;
 }
 
-VkDeviceSize ResourceTracker::getMappedSize(VkDeviceMemory memory) {
-    std::lock_guard<std::recursive_mutex> lock(mLock);
-    const auto it = info_VkDeviceMemory.find(memory);
-    if (it == info_VkDeviceMemory.end()) return 0;
-
-    const auto& info = it->second;
-    return info.allocationSize;
-}
-
 bool ResourceTracker::isValidMemoryRange(const VkMappedMemoryRange& range) {
     VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, range.memory);
     if (!gfxstream_memory) return false;
     if (!gfxstream_memory->mapped) return false;
 
-    std::lock_guard<std::recursive_mutex> lock(mLock);
-    const auto it = info_VkDeviceMemory.find(range.memory);
-    if (it == info_VkDeviceMemory.end()) return false;
-    const auto& info = it->second;
-
     VkDeviceSize offset = range.offset;
     VkDeviceSize size = range.size;
 
     if (size == VK_WHOLE_SIZE) {
-        return offset <= info.allocationSize;
+        return offset <= gfxstream_memory->mapped_size;
     }
 
-    return offset + size <= info.allocationSize;
+    return offset + size <= gfxstream_memory->mapped_size;
 }
 
 void ResourceTracker::setupCaps(uint32_t& noRenderControlEnc) {
@@ -1674,6 +1660,7 @@ void ResourceTracker::deviceMemoryTransform_tohost(VkDeviceMemory* memory, uint3
             if (!mem) {
                 return;
             }
+            VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, mem);
 
             auto it = info_VkDeviceMemory.find(mem);
             if (it == info_VkDeviceMemory.end()) {
@@ -1692,7 +1679,7 @@ void ResourceTracker::deviceMemoryTransform_tohost(VkDeviceMemory* memory, uint3
             }
 
             if (size && size[i] == VK_WHOLE_SIZE) {
-                size[i] = info.allocationSize;
+                size[i] = gfxstream_memory->mapped_size;
             }
         }
     }
@@ -3406,7 +3393,7 @@ VkResult ResourceTracker::allocateCoherentMemory(VkDevice device,
 
     struct VkDeviceMemory_Info info;
     if (mCaps.vulkanCapset.deferredMapping || mCaps.params[kParamCreateGuestHandle]) {
-        info.allocationSize = pAllocateInfo->allocationSize;
+        gfxstream_memory->mapped_size = pAllocateInfo->allocationSize;
         info.blobId = createBlobInfo.blobId;
     }
 
@@ -3446,7 +3433,7 @@ VkResult ResourceTracker::allocateCoherentMemory(VkDevice device,
     if (coherentMemory) {
         std::lock_guard<std::recursive_mutex> lock(mLock);
         coherentMemory->subAllocate(pAllocateInfo->allocationSize, &ptr, offset);
-        info.allocationSize = pAllocateInfo->allocationSize;
+        gfxstream_memory->mapped_size = pAllocateInfo->allocationSize;
         info.coherentMemoryOffset = offset;
         info.coherentMemory = coherentMemory;
         gfxstream_memory->mapped = ptr;
@@ -3499,7 +3486,6 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
             struct VkDeviceMemory_Info info;
             info.coherentMemoryOffset = offset;
             info.memoryTypeIndex = pAllocateInfo->memoryTypeIndex;
-            info.allocationSize = pAllocateInfo->allocationSize;
             info.coherentMemory = coherentMemory;
             info.device = device;
 
@@ -3509,6 +3495,7 @@ VkResult ResourceTracker::getCoherentMemory(const VkMemoryAllocateInfo* pAllocat
             auto mem = create_gfxstream_vk_device_memory(0);
             VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, mem);
             gfxstream_memory->mapped = ptr;
+            gfxstream_memory->mapped_size = pAllocateInfo->allocationSize;
             info_VkDeviceMemory[mem] = info;
             *pMemory = mem;
             return VK_SUCCESS;
@@ -4356,7 +4343,7 @@ void ResourceTracker::on_vkFreeMemory(void* context, VkDevice device, VkDeviceMe
         zx_status_t status =
             zx_vmar_unmap(zx_vmar_root_self(),
                           reinterpret_cast<zx_paddr_t>(gfxstream_memory->mapped),
-                          info.allocationSize);
+                          gfxstream_memory->mapped_size);
         if (status != ZX_OK) {
             mesa_loge("%s: Cannot unmap ptr: status %d", __func__, status);
         }
@@ -4440,7 +4427,7 @@ VkResult ResourceTracker::on_vkMapMemory(void* context, VkResult host_result, Vk
 
         uint8_t* ptr;
         uint64_t offset;
-        coherentMemory->subAllocate(deviceMemoryInfo.allocationSize, &ptr, offset);
+        coherentMemory->subAllocate(gfxstream_memory->mapped_size, &ptr, offset);
 
         deviceMemoryInfo.coherentMemoryOffset = offset;
         deviceMemoryInfo.coherentMemory = coherentMemory;
@@ -4454,11 +4441,11 @@ VkResult ResourceTracker::on_vkMapMemory(void* context, VkResult host_result, Vk
 
     uint8_t* mappedPtr = static_cast<uint8_t*>(gfxstream_memory->mapped);
     if (size != VK_WHOLE_SIZE &&
-        (mappedPtr + offset + size > mappedPtr + deviceMemoryInfo.allocationSize)) {
+        (mappedPtr + offset + size > mappedPtr + gfxstream_memory->mapped_size)) {
         mesa_loge(
             "%s: size is too big. alloc size 0x%llx while we wanted offset 0x%llx size 0x%llx "
             "total 0x%llx",
-            __func__, (unsigned long long)deviceMemoryInfo.allocationSize,
+            __func__, (unsigned long long)gfxstream_memory->mapped_size,
             (unsigned long long)offset, (unsigned long long)size, (unsigned long long)offset);
         return VK_ERROR_MEMORY_MAP_FAILED;
     }

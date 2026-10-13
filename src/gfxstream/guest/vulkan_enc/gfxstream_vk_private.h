@@ -248,6 +248,7 @@ struct gfxstream_vk_device_memory {
     struct vk_object_base base;
     struct gfxstream_vk_object_common common;
     void* mapped = nullptr;
+    uint64_t mapped_size = 0;
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(gfxstream_vk_device_memory, base, VkDeviceMemory,
                                VK_OBJECT_TYPE_DEVICE_MEMORY)
@@ -258,6 +259,13 @@ static inline uint8_t* gfxstream_vk_device_memory_get_ptr(VkDeviceMemory memory)
     if (!gfxstream_memory) return nullptr;
 
     return static_cast<uint8_t*>(gfxstream_memory->mapped);
+}
+
+static inline VkDeviceSize gfxstream_vk_device_memory_get_ptr_size(VkDeviceMemory memory) {
+    VK_FROM_HANDLE(gfxstream_vk_device_memory, gfxstream_memory, memory);
+    if (!gfxstream_memory) return 0;
+
+    return gfxstream_memory->mapped_size;
 }
 
 struct gfxstream_vk_image {
