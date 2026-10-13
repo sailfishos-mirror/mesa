@@ -610,15 +610,14 @@ static jay_reg
 try_find_free_reg(jay_ra_state *ra,
                   enum jay_file file,
                   unsigned except,
-                  bool stride4)
+                  enum jay_stride stride,
+                  bool allow_special)
 {
    for (unsigned b = 0; b < ra->b.shader->partition.nr_blocks[file]; ++b) {
       struct jay_register_block B = ra->b.shader->partition.blocks[file][b];
 
-      if (is_block_compatible(B, file, stride4 ? JAY_STRIDE_4 : 0,
-                              stride4 ? JAY_STRIDE_4 : ~0, 0, false, !stride4,
-                              !stride4)) {
-
+      if (is_block_compatible(B, file, stride == JAY_NUM_STRIDES ? 0 : stride,
+                              stride, 0, false, allow_special, allow_special)) {
          for (unsigned i = B.start_gpr; i < B.start_gpr + B.len_gpr; ++i) {
             if (BITSET_TEST(ra->available_regs[file], i) && i != except) {
                return make_reg(file, i);
@@ -633,7 +632,7 @@ try_find_free_reg(jay_ra_state *ra,
 static jay_reg
 find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
 {
-   jay_reg reg = try_find_free_reg(ra, file, except, false);
+   jay_reg reg = try_find_free_reg(ra, file, except, JAY_NUM_STRIDES, true);
 
    if (reg == NO_REG) {
       fprintf(stderr, "file %u, current demand %u, target %u\n", file,
@@ -648,12 +647,12 @@ static inline struct jay_temp_regs
 find_temp_regs(jay_ra_state *ra)
 {
    /* For efficiency we only bother using stride=4 temporaries */
-   jay_reg gpr = try_find_free_reg(ra, GPR, ~0, true);
+   jay_reg gpr = try_find_free_reg(ra, GPR, ~0, JAY_STRIDE_4, false);
 
    return (struct jay_temp_regs){
       .gpr = gpr,
-      .ugpr = try_find_free_reg(ra, UGPR, ~0, false),
-      .gpr2 = try_find_free_reg(ra, GPR, gpr, true),
+      .ugpr = try_find_free_reg(ra, UGPR, ~0, JAY_NUM_STRIDES, true),
+      .gpr2 = try_find_free_reg(ra, GPR, gpr, JAY_STRIDE_4, false),
    };
 }
 
