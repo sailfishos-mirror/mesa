@@ -481,8 +481,7 @@ radv_dump_annotated_shader(const struct radv_device *device, const struct radv_s
    unsigned num_inst = 0;
    struct radv_shader_inst *instructions = calloc(shader->code_size / 4, sizeof(struct radv_shader_inst));
 
-   struct radv_shader_binary_debug_info dbg = {0};
-   radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
+   struct radv_shader_binary_debug_info dbg = radv_parse_binary_debug_info(&device->compiler_info, shader->binary);
 
    radv_add_split_disasm(dbg.disasm_string, start_addr, &num_inst, instructions);
 
@@ -605,8 +604,7 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
       fprintf(f, "ARGS:\n%s\n", shader->dbg.args_string);
    }
 
-   struct radv_shader_binary_debug_info dbg = {0};
-   radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
+   struct radv_shader_binary_debug_info dbg = radv_parse_binary_debug_info(&device->compiler_info, shader->binary);
    fprintf(f, "%s IR:\n%s\n", pdev->use_llvm ? "LLVM" : "ACO", dbg.ir_string);
    fprintf(f, "DISASM:\n%s\n", dbg.disasm_string);
    radv_free_binary_debug_info(&dbg);
@@ -1229,8 +1227,7 @@ radv_dump_faulty_shader(const struct radv_device *device, const struct radv_shad
    struct radv_shader_inst *instructions = calloc(shader->code_size / 4, sizeof(struct radv_shader_inst));
 
    /* Split the disassembly string into instructions. */
-   struct radv_shader_binary_debug_info dbg = {0};
-   radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
+   struct radv_shader_binary_debug_info dbg = radv_parse_binary_debug_info(&device->compiler_info, shader->binary);
    radv_add_split_disasm(dbg.disasm_string, start_addr, &num_inst, instructions);
    radv_free_binary_debug_info(&dbg);
 

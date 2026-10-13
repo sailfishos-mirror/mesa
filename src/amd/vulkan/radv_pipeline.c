@@ -835,7 +835,7 @@ radv_GetPipelineExecutableStatisticsKHR(VkDevice _device, const VkPipelineExecut
 
    struct radv_shader_binary_debug_info dbg = {0};
    if (pStatistics && *pStatisticCount)
-      radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
+      dbg = radv_parse_binary_debug_info(&device->compiler_info, shader->binary);
 
    VK_OUTARRAY_MAKE_TYPED(VkPipelineExecutableStatisticKHR, out, pStatistics, pStatisticCount);
 
@@ -1019,8 +1019,7 @@ radv_GetPipelineExecutableInternalRepresentationsKHR(
    struct radv_shader *shader =
       radv_get_shader_from_executable_index(pipeline, pExecutableInfo->executableIndex, &stage);
 
-   struct radv_shader_binary_debug_info dbg = {0};
-   radv_parse_binary_debug_info(&device->compiler_info, shader->binary, &dbg);
+   struct radv_shader_binary_debug_info dbg = radv_parse_binary_debug_info(&device->compiler_info, shader->binary);
 
    VkPipelineExecutableInternalRepresentationKHR *p = pInternalRepresentations;
    VkPipelineExecutableInternalRepresentationKHR *end =

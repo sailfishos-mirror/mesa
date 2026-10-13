@@ -678,9 +678,8 @@ void radv_destroy_shader_upload_queue(struct radv_device *device);
 
 struct radv_shader_args;
 
-VkResult radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info,
-                                      const struct radv_shader_binary *binary,
-                                      struct radv_shader_binary_debug_info *dbg);
+struct radv_shader_binary_debug_info radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info,
+                                                                  const struct radv_shader_binary *binary);
 
 void radv_free_binary_debug_info(struct radv_shader_binary_debug_info *dbg);
 
