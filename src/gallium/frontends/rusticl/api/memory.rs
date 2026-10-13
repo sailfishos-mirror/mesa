@@ -4,6 +4,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::api::event::create_and_queue;
+use crate::api::event::create_and_queue_with_cleanup;
 use crate::api::icd::*;
 use crate::api::types::*;
 use crate::api::util::*;
@@ -2607,13 +2608,14 @@ fn enqueue_svm_free_impl(
     // imposed by the OpenCL specification. It is the caller's duty to uphold them.
     let cb_opt = unsafe { SVMFreeCb::new(pfn_free_func, user_data) }.ok();
 
-    create_and_queue(
+    create_and_queue_with_cleanup(
         Arc::clone(&q),
         cmd_type,
         evs,
         event,
         false,
-        Box::new(move |cl_ctx, _| {
+        Box::new(|_, _| Ok(())),
+        Some(Box::new(move |cl_ctx| {
             if let Some(cb) = cb_opt {
                 cb.call(&q, &mut svm_pointers);
             } else {
@@ -2621,9 +2623,7 @@ fn enqueue_svm_free_impl(
                     cl_ctx.remove_svm_ptr(ptr);
                 }
             }
-
-            Ok(())
-        }),
+        })),
     )
 }
 
