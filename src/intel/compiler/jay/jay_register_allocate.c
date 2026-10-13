@@ -1242,16 +1242,30 @@ local_ra(jay_ra_state *ra, jay_block *block)
       }
    }
 
-   /* Live-out variables defined in this block need global registers assigned */
+   /* Live-out variables defined in this block need global registers assigned.
+    * Assign trivially first as a heuristic to reduce shuffling.
+    */
+   U_SPARSE_BITSET_FOREACH_SET(&block->live_out, i) {
+      jay_reg reg = ra->reg_for_index[i];
+
+      if (ra->global_reg_for_index[i] == NO_REG &&
+          reg != NO_REG &&
+          reg_is_available(ra, reg)) {
+
+         assign_reg_for_index(ra, i, reg);
+         ra->global_reg_for_index[i] = reg;
+      }
+   }
+
+   /* ...and then assign the rest, requiring shuffling. */
    U_SPARSE_BITSET_FOREACH_SET(&block->live_out, i) {
       jay_reg reg = ra->reg_for_index[i];
 
       if (ra->global_reg_for_index[i] == NO_REG && reg != NO_REG) {
-         if (!reg_is_available(ra, reg)) {
-            jay_reg old = reg;
-            reg = find_free_reg(ra, r_file(reg), ~0);
-            add_copy(&copies, reg, old);
-         }
+         assert(!reg_is_available(ra, reg) && "else handled above");
+         jay_reg old = reg;
+         reg = find_free_reg(ra, r_file(reg), ~0);
+         add_copy(&copies, reg, old);
 
          assign_reg_for_index(ra, i, reg);
          ra->global_reg_for_index[i] = reg;
