@@ -259,7 +259,8 @@ etna_init_screen_caps(struct etna_screen *screen)
    caps->string_marker = true;
    caps->frontend_noop = true;
    caps->framebuffer_no_attachment = true;
-   caps->vertex_input_alignment = PIPE_VERTEX_INPUT_ALIGNMENT_4BYTE;
+   caps->vertex_input_alignment = screen->info->halti >= 0 ?
+      PIPE_VERTEX_INPUT_ALIGNMENT_NONE : PIPE_VERTEX_INPUT_ALIGNMENT_4BYTE;
    caps->native_fence_fd = screen->drm_version >= ETNA_DRM_VERSION_FENCE_FD;
    caps->fs_position_is_sysval = true;
    caps->fs_face_is_integer_sysval = true; /* note: not integer */
