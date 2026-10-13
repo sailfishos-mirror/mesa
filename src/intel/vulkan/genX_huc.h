@@ -525,10 +525,6 @@ anv_huc_emit_copy(struct anv_cmd_buffer *cmd_buffer,
                   uint32_t size)
 {
    struct anv_device *device = cmd_buffer->device;
-   uint32_t src_offset = src_addr.offset & 4095;
-   uint32_t dst_offset = dst_addr.offset & 4095;
-   struct anv_address src_base = { src_addr.bo, src_addr.offset - src_offset };
-   struct anv_address dst_base = { dst_addr.bo, dst_addr.offset - dst_offset };
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MFX_WAIT), mfx) {
       mfx.MFXSyncControlFlag = 1;
@@ -544,23 +540,23 @@ anv_huc_emit_copy(struct anv_cmd_buffer *cmd_buffer,
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HUC_IND_OBJ_BASE_ADDR_STATE), ind) {
-      ind.HUCIndirectStreamInObjectAddress = src_base;
-      ind.HUCIndirectStreamInObjectAddressAttributes = ANV_VID_ATTR(device, src_base.bo);
+      ind.HUCIndirectStreamInObjectAddress = anv_address_align_down(src_addr, 4096);
+      ind.HUCIndirectStreamInObjectAddressAttributes = ANV_VID_ATTR(device, src_addr.bo);
 
       ind.HUCIndirectStreamInObjectAccessUpperBound =
-         anv_address_add(src_base, align64(src_offset + size, 4096));
+         anv_address_align(anv_address_add(src_addr, size), 4096);
 
-      ind.HUCIndirectStreamOutObjectAddress = dst_base;
-      ind.HUCIndirectStreamOutObjectAddressAttributes = ANV_VID_ATTR(device, dst_base.bo);
+      ind.HUCIndirectStreamOutObjectAddress = anv_address_align_down(dst_addr, 4096);
+      ind.HUCIndirectStreamOutObjectAddressAttributes = ANV_VID_ATTR(device, dst_addr.bo);
       ind.HUCIndirectStreamOutObjectAccessUpperBound =
-         anv_address_add(dst_base, align64(dst_offset + size, 4096));
+         anv_address_align(anv_address_add(dst_addr, size), 4096);
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(HUC_STREAM_OBJECT), so) {
       so.IndirectStreamInDataLength = size;
-      so.IndirectStreamInAddress = src_offset;
+      so.IndirectStreamInAddress = anv_address_physical(src_addr) & 4095;
       so.HUCProcessing = true;
-      so.IndirectStreamOutAddress = dst_offset;
+      so.IndirectStreamOutAddress = anv_address_physical(dst_addr) & 4095;
       so.StreamOut = true;
       so.HUCBitstreamEnable = true;
    }
