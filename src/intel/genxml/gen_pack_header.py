@@ -417,18 +417,6 @@ class Group(object):
                 print("   dw[%d] = %s;" % (index, v))
                 print("   dw[%d] = %s >> 32;" % (index + 1, v))
 
-    # Given a field (start, end) contained in word `index`, generate the 32-bit
-    # mask of present bits relative to the word
-    def mask_for_word(self, index, start, end):
-        field_word_start = index * 32
-        start -= field_word_start
-        end -= field_word_start
-        # Cap multiword at one word
-        start = max(start, 0)
-        end = min(end, 32 - 1)
-        count = (end - start + 1)
-        return (((1 << count) - 1) << start)
-
     def emit_unpack_function(self, dwords, length):
         validation = []
 
