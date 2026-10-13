@@ -154,12 +154,11 @@ vl_kopper_texture_from_drawable(struct vl_screen *vscreen, void *d)
 
       scrn->drawable_texture = vscreen->pscreen->resource_create_drawable(vscreen->pscreen, &templat, &info);
       vl_compositor_reset_dirty_area(&scrn->dirty_area);
-   } else {
-      struct pipe_resource *drawable_texture = NULL;
-      pipe_resource_reference(&drawable_texture, scrn->drawable_texture);
    }
 
-   return scrn->drawable_texture;
+   struct pipe_resource *drawable_texture = NULL;
+   pipe_resource_reference(&drawable_texture, scrn->drawable_texture);
+   return drawable_texture;
 }
 
 struct vl_screen *
