@@ -231,9 +231,9 @@ void VkEncoder::vkDestroyInstance(VkInstance instance, const VkAllocationCallbac
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkInstance(instance);
     delete_gfxstream_vk_instance(instance);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -1067,9 +1067,9 @@ void VkEncoder::vkDestroyDevice(VkDevice device, const VkAllocationCallbacks* pA
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDevice(device);
     delete_gfxstream_vk_device(device);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -2013,9 +2013,9 @@ void VkEncoder::vkFreeMemory(VkDevice device, VkDeviceMemory memory,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDeviceMemory(memory);
     delete_gfxstream_vk_device_memory(memory);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -3109,9 +3109,9 @@ void VkEncoder::vkDestroyFence(VkDevice device, VkFence fence,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkFence(fence);
     delete_gfxstream_vk_fence(fence);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -3483,9 +3483,9 @@ void VkEncoder::vkDestroySemaphore(VkDevice device, VkSemaphore semaphore,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkSemaphore(semaphore);
     delete_gfxstream_vk_semaphore(semaphore);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -3663,9 +3663,9 @@ void VkEncoder::vkDestroyQueryPool(VkDevice device, VkQueryPool queryPool,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkQueryPool(queryPool);
     delete_gfxstream_vk_query_pool(queryPool);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -3930,9 +3930,9 @@ void VkEncoder::vkDestroyBuffer(VkDevice device, VkBuffer buffer,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkBuffer(buffer);
     delete_gfxstream_vk_buffer(buffer);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -4108,9 +4108,9 @@ void VkEncoder::vkDestroyImage(VkDevice device, VkImage image,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkImage(image);
     delete_gfxstream_vk_image(image);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -4366,9 +4366,9 @@ void VkEncoder::vkDestroyImageView(VkDevice device, VkImageView imageView,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkImageView(imageView);
     delete_gfxstream_vk_image_view(imageView);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -4546,9 +4546,9 @@ void VkEncoder::vkDestroyCommandPool(VkDevice device, VkCommandPool commandPool,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkCommandPool(commandPool);
     delete_gfxstream_vk_command_pool(commandPool);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -4782,13 +4782,13 @@ void VkEncoder::vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool,
             *streamPtrPtr += 8 * commandBufferCount;
         }
     }
+    stream->flush();
     if (pCommandBuffers) {
         for (uint32_t i = 0; i < commandBufferCount; ++i) {
             sResourceTracker->unregister_VkCommandBuffer(pCommandBuffers[i]);
             delete_gfxstream_vk_command_buffer(pCommandBuffers[i]);
         }
     }
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -6152,9 +6152,9 @@ void VkEncoder::vkDestroyEvent(VkDevice device, VkEvent event,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkEvent(event);
     delete_gfxstream_vk_event(event);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -6494,9 +6494,9 @@ void VkEncoder::vkDestroyBufferView(VkDevice device, VkBufferView bufferView,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkBufferView(bufferView);
     delete_gfxstream_vk_buffer_view(bufferView);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -6675,9 +6675,9 @@ void VkEncoder::vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModu
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkShaderModule(shaderModule);
     delete_gfxstream_vk_shader_module(shaderModule);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -6856,9 +6856,9 @@ void VkEncoder::vkDestroyPipelineCache(VkDevice device, VkPipelineCache pipeline
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkPipelineCache(pipelineCache);
     delete_gfxstream_vk_pipeline_cache(pipelineCache);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -7257,9 +7257,9 @@ void VkEncoder::vkDestroyPipeline(VkDevice device, VkPipeline pipeline,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkPipeline(pipeline);
     delete_gfxstream_vk_pipeline(pipeline);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -7439,9 +7439,9 @@ void VkEncoder::vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pipeli
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkPipelineLayout(pipelineLayout);
     delete_gfxstream_vk_pipeline_layout(pipelineLayout);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -7615,9 +7615,9 @@ void VkEncoder::vkDestroySampler(VkDevice device, VkSampler sampler,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkSampler(sampler);
     delete_gfxstream_vk_sampler(sampler);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -7801,9 +7801,9 @@ void VkEncoder::vkDestroyDescriptorSetLayout(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDescriptorSetLayout(descriptorSetLayout);
     delete_gfxstream_vk_descriptor_set_layout(descriptorSetLayout);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -7983,9 +7983,9 @@ void VkEncoder::vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descri
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDescriptorPool(descriptorPool);
     delete_gfxstream_vk_descriptor_pool(descriptorPool);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -9364,9 +9364,9 @@ void VkEncoder::vkDestroyFramebuffer(VkDevice device, VkFramebuffer framebuffer,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkFramebuffer(framebuffer);
     delete_gfxstream_vk_framebuffer(framebuffer);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -9544,9 +9544,9 @@ void VkEncoder::vkDestroyRenderPass(VkDevice device, VkRenderPass renderPass,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkRenderPass(renderPass);
     delete_gfxstream_vk_render_pass(renderPass);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -12958,9 +12958,9 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplate(
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDescriptorUpdateTemplate(descriptorUpdateTemplate);
     delete_gfxstream_vk_descriptor_update_template(descriptorUpdateTemplate);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -13301,9 +13301,9 @@ void VkEncoder::vkDestroySamplerYcbcrConversion(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkSamplerYcbcrConversion(ycbcrConversion);
     delete_gfxstream_vk_sampler_ycbcr_conversion(ycbcrConversion);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -14523,9 +14523,9 @@ void VkEncoder::vkDestroyPrivateDataSlot(VkDevice device, VkPrivateDataSlot priv
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkPrivateDataSlot(privateDataSlot);
     delete_gfxstream_vk_private_data_slot(privateDataSlot);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -19007,9 +19007,9 @@ void VkEncoder::vkDestroyDescriptorUpdateTemplateKHR(
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkDescriptorUpdateTemplate(descriptorUpdateTemplate);
     delete_gfxstream_vk_descriptor_update_template(descriptorUpdateTemplate);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -20171,9 +20171,9 @@ void VkEncoder::vkDestroySamplerYcbcrConversionKHR(VkDevice device,
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkSamplerYcbcrConversion(ycbcrConversion);
     delete_gfxstream_vk_sampler_ycbcr_conversion(ycbcrConversion);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();
@@ -25059,9 +25059,9 @@ void VkEncoder::vkDestroyPrivateDataSlotEXT(VkDevice device, VkPrivateDataSlot p
                                               (VkAllocationCallbacks*)(local_pAllocator),
                                               streamPtrPtr);
     }
+    stream->flush();
     sResourceTracker->unregister_VkPrivateDataSlot(privateDataSlot);
     delete_gfxstream_vk_private_data_slot(privateDataSlot);
-    stream->flush();
     ++encodeCount;
     if (0 == encodeCount % POOL_CLEAR_INTERVAL) {
         pool->freeAll();

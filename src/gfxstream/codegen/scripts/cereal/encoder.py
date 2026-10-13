@@ -413,11 +413,6 @@ def emit_parameter_encode_read(typeInfo, api, cgen):
 def emit_post(typeInfo, api, cgen):
     encodingParams = EncodingParameters(api)
 
-    emit_custom_resource_postprocess(typeInfo, api, cgen)
-
-    for p in encodingParams.toDestroy:
-        emit_handlemap_destroy(typeInfo, p, cgen)
-
     doSeqno = True
     if is_cmdbuf_dispatch(api):
         doSeqno = False
@@ -425,14 +420,16 @@ def emit_post(typeInfo, api, cgen):
     retType = api.getRetTypeExpr()
 
     if api.name in ENCODER_EXPLICIT_FLUSHED_APIS:
-        cgen.stmt("stream->flush()");
-        return
-
-    if doSeqno:
+        cgen.stmt("stream->flush()")
+    elif doSeqno:
         if retType == "void":
-            encodingParams = EncodingParameters(api)
             if 0 == len(encodingParams.toRead):
-                cgen.stmt("stream->flush()");
+                cgen.stmt("stream->flush()")
+
+    emit_custom_resource_postprocess(typeInfo, api, cgen)
+
+    for p in encodingParams.toDestroy:
+        emit_handlemap_destroy(typeInfo, p, cgen)
 
 def emit_pool_free(cgen):
     cgen.stmt("++encodeCount")
