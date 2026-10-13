@@ -110,7 +110,7 @@ enum ENUM_PACKED mme_tu104_alu_op {
 
 const char *mme_tu104_alu_op_to_str(enum mme_tu104_alu_op op);
 
-bool mme_tu104_alu_op_has_implicit_imm(enum mme_tu104_alu_op op);
+bool mme_tu104_alu_op_has_implicit_imm(uint32_t cls_eng3d, enum mme_tu104_alu_op op);
 bool mme_tu104_alu_op_has_side_effects(enum mme_tu104_alu_op op);
 bool mme_tu104_alu_op_is_control_flow(enum mme_tu104_alu_op op);
 bool mme_tu104_alu_op_may_depend_on_mthd(enum mme_tu104_alu_op op);

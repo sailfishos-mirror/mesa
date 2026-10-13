@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 
+#include "clcd97.h"
 #include "nv_push_clc597.h"
 
 #define PRED_TO_STR(OP) [MME_TU104_PRED_##OP] = #OP
@@ -222,7 +223,7 @@ mme_tu104_print_alu_src(FILE *fp, const struct mme_tu104_inst *inst,
 }
 
 bool
-mme_tu104_alu_op_has_implicit_imm(enum mme_tu104_alu_op op)
+mme_tu104_alu_op_has_implicit_imm(uint32_t cls_eng3d, enum mme_tu104_alu_op op)
 {
    switch (op) {
    case MME_TU104_ALU_OP_MERGE:
@@ -234,6 +235,12 @@ mme_tu104_alu_op_has_implicit_imm(enum mme_tu104_alu_op op)
    case MME_TU104_ALU_OP_BLEU:
    case MME_TU104_ALU_OP_BEQ:
       return true;
+
+   /* On Blackwell, DREAD / DWRITE uses the immediate as part of the offset
+    * computation */
+   case MME_TU104_ALU_OP_DREAD:
+   case MME_TU104_ALU_OP_DWRITE:
+      return cls_eng3d >= BLACKWELL_A;
    default:
       return false;
    }
