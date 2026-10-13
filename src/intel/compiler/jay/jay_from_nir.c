@@ -618,6 +618,15 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_fneg:
    case nir_op_ineg:
+      /* NIR produces some 8-bit inegs with coopmat, for example in
+       * dEQP-VK.compute.shader_object_spirv.cooperative_matrix.khr_b.subgroupscope.func_const_in.sint8_sint8.workgroup.rowmajor.linear.
+       * Just promote that on the spot so we don't have to worry about the weird
+       * associated stride restrictions.
+       */
+      if (type == JAY_TYPE_S8) {
+         type = JAY_TYPE_S16;
+      }
+
       jay_MODIFIER(b, type, dst, jay_negate(src[0]));
       break;
 
