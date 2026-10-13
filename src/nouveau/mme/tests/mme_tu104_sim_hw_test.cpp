@@ -1823,6 +1823,9 @@ TEST_F(mme_tu104_sim_test, scratch_limit_compute)
 
 TEST_F(mme_tu104_sim_test, scratch_share_3d_to_compute)
 {
+   if (devinfo->cls_compute < AMPERE_COMPUTE_B)
+      GTEST_SKIP();
+
    static const uint32_t chunk_size = 4;
    
    mme_builder b;
@@ -1860,6 +1863,10 @@ TEST_F(mme_tu104_sim_test, scratch_share_3d_to_compute)
 
       push_macro(0, macro);
 
+      /* Ensure some initial values on compute */
+      for (uint32_t j = 0; j < chunk_size; j++)
+         P_IMMD(p, NVC7C0, SET_MME_SHADOW_SCRATCH(i + j), 0xCAFECAFE ^ (i + j));
+
       P_1INC(p, NVC597, CALL_MME_MACRO(0));
       P_INLINE_DATA(p, i);
       P_INLINE_DATA(p, chunk_size);
@@ -1873,6 +1880,6 @@ TEST_F(mme_tu104_sim_test, scratch_share_3d_to_compute)
       submit_push();
 
       for (uint32_t j = 0; j < chunk_size; j++)
-         ASSERT_EQ(data[j], i + j);
+         ASSERT_EQ(data[j], 0xCAFECAFE ^ (i + j));
    }
 }
