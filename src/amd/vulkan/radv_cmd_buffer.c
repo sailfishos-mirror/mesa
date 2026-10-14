@@ -13518,11 +13518,6 @@ radv_emit_raster_state(struct radv_cmd_buffer *cmd_buffer)
    if (pdev->info.gfx_level >= GFX12) {
       gfx12_begin_context_regs();
       gfx12_opt_set_context_reg(R_028A08_PA_SU_LINE_CNTL, AC_TRACKED_PA_SU_LINE_CNTL, pa_su_line_cntl);
-
-      gfx12_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
-                                S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
-                                   S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1));
-
       gfx12_opt_set_context_reg(R_028BDC_PA_SC_LINE_CNTL, AC_TRACKED_PA_SC_LINE_CNTL, pa_sc_line_cntl);
 
       gfx12_opt_set_context_reg(
@@ -13530,8 +13525,14 @@ radv_emit_raster_state(struct radv_cmd_buffer *cmd_buffer)
          S_028810_DX_RASTERIZATION_KILL(d->vk.rs.rasterizer_discard_enable) |
             S_028810_ZCLIP_NEAR_DISABLE(!depth_clip_enable) | S_028810_ZCLIP_FAR_DISABLE(!depth_clip_enable) |
             S_028810_DX_CLIP_SPACE_DEF(!d->vk.vp.depth_clip_negative_one_to_one) | S_028810_DX_LINEAR_ATTR_CLIP_ENA(1));
-      gfx12_opt_set_context_reg(R_028A44_PA_SC_LINE_STIPPLE_RESET, AC_TRACKED_PA_SC_LINE_STIPPLE_RESET,
-                                S_028A44_AUTO_RESET_CNTL(auto_reset_cntl));
+
+      if (d->vk.rs.line.stipple.enable) {
+         gfx12_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
+                                   S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
+                                      S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1));
+         gfx12_opt_set_context_reg(R_028A44_PA_SC_LINE_STIPPLE_RESET, AC_TRACKED_PA_SC_LINE_STIPPLE_RESET,
+                                   S_028A44_AUTO_RESET_CNTL(auto_reset_cntl));
+      }
 
       gfx12_opt_set_context_reg(R_02881C_PA_SU_SC_MODE_CNTL, AC_TRACKED_PA_SU_SC_MODE_CNTL, pa_su_sc_mode_cntl);
       gfx12_end_context_regs();
@@ -13539,10 +13540,12 @@ radv_emit_raster_state(struct radv_cmd_buffer *cmd_buffer)
       gfx11_begin_packed_context_regs();
       gfx11_opt_set_context_reg(R_028A08_PA_SU_LINE_CNTL, AC_TRACKED_PA_SU_LINE_CNTL, pa_su_line_cntl);
 
-      gfx11_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
-                                S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
-                                   S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1) |
-                                   S_028A0C_AUTO_RESET_CNTL(auto_reset_cntl));
+      if (d->vk.rs.line.stipple.enable) {
+         gfx11_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
+                                   S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
+                                      S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1) |
+                                      S_028A0C_AUTO_RESET_CNTL(auto_reset_cntl));
+      }
 
       gfx11_opt_set_context_reg(R_028BDC_PA_SC_LINE_CNTL, AC_TRACKED_PA_SC_LINE_CNTL, pa_sc_line_cntl);
 
@@ -13556,10 +13559,12 @@ radv_emit_raster_state(struct radv_cmd_buffer *cmd_buffer)
    } else {
       radeon_opt_set_context_reg(R_028A08_PA_SU_LINE_CNTL, AC_TRACKED_PA_SU_LINE_CNTL, pa_su_line_cntl);
 
-      radeon_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
-                                 S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
-                                    S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1) |
-                                    S_028A0C_AUTO_RESET_CNTL(auto_reset_cntl));
+      if (d->vk.rs.line.stipple.enable) {
+         radeon_opt_set_context_reg(R_028A0C_PA_SC_LINE_STIPPLE, AC_TRACKED_PA_SC_LINE_STIPPLE,
+                                    S_028A0C_LINE_PATTERN(d->vk.rs.line.stipple.pattern) |
+                                       S_028A0C_REPEAT_COUNT(d->vk.rs.line.stipple.factor - 1) |
+                                       S_028A0C_AUTO_RESET_CNTL(auto_reset_cntl));
+      }
 
       radeon_opt_set_context_reg(R_028BDC_PA_SC_LINE_CNTL, AC_TRACKED_PA_SC_LINE_CNTL, pa_sc_line_cntl);
 
@@ -13979,10 +13984,10 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_EPILOG_SHADER;
    }
 
-   if (dynamic_states &
-       (RADV_DYNAMIC_LINE_WIDTH | RADV_DYNAMIC_LINE_STIPPLE | RADV_DYNAMIC_CULL_MODE | RADV_DYNAMIC_FRONT_FACE |
-        RADV_DYNAMIC_DEPTH_BIAS_ENABLE | RADV_DYNAMIC_POLYGON_MODE | RADV_DYNAMIC_PROVOKING_VERTEX_MODE |
-        RADV_DYNAMIC_RASTERIZER_DISCARD_ENABLE | RADV_DYNAMIC_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE))
+   if (dynamic_states & (RADV_DYNAMIC_LINE_WIDTH | RADV_DYNAMIC_LINE_STIPPLE | RADV_DYNAMIC_LINE_STIPPLE_ENABLE |
+                         RADV_DYNAMIC_CULL_MODE | RADV_DYNAMIC_FRONT_FACE | RADV_DYNAMIC_DEPTH_BIAS_ENABLE |
+                         RADV_DYNAMIC_POLYGON_MODE | RADV_DYNAMIC_PROVOKING_VERTEX_MODE |
+                         RADV_DYNAMIC_RASTERIZER_DISCARD_ENABLE | RADV_DYNAMIC_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE))
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_RASTER_STATE;
 
    if (dynamic_states & RADV_DYNAMIC_POLYGON_MODE) {
