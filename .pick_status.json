@@ -9664,7 +9664,7 @@
         "description": "lavapipe: Guard VK_EXT_multisampled_render_to_swapchain with LVP_USE_WSI_PLATFORM",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f69fbb7fd7b29872e96f6fce066cae5bf5dc7ab8",
         "notes": null
