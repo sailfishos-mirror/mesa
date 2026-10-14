@@ -621,8 +621,10 @@ ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info 
    const uint32_t src_info_dword = ac_sdma_get_tiled_info_dword(info, src);
    const uint32_t dst_info_dword = ac_sdma_get_tiled_info_dword(info, dst);
 
-   /* On GFX10+ this supports DCC, but cannot copy a compressed surface to another compressed surface. */
-   assert(!src->is_compressed || !dst->is_compressed);
+   /* On SDMA 5-6.1, DCC is supported but cannot copy a compressed surface to
+    * another compressed surface.
+    */
+   assert(sdma_ip_version >= SDMA_7_0 || !src->is_compressed || !dst->is_compressed);
 
    if (sdma_ip_version < SDMA_5_0) {
       /* SDMA v2-v4 doesn't support mip_id selection in the T2T copy packet. */
@@ -823,11 +825,11 @@ ac_sdma_use_t2t_scanline_copy(const struct radeon_info *const info,
          return true;
    }
 
-   /* The T2T subwindow copy packet only has fields for one metadata configuration.
-    * It can either compress or decompress, or copy uncompressed images, but it
-    * can't copy from a compressed image to another.
+   /* Before SDMA 7, the T2T subwindow copy packet only has fields for one metadata configuration.
+    * It can either compress or decompress, or copy uncompressed images, but it can't copy from a
+    * compressed image to another.
     */
-   if (src->is_compressed && dst->is_compressed)
+   if (ver < SDMA_7_0 && src->is_compressed && dst->is_compressed)
       return true;
 
    if (ver >= SDMA_7_0) {
