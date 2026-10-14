@@ -2319,6 +2319,22 @@ lane_id(jay_builder *b)
    return lid;
 }
 
+static jay_inst *
+extract_subspan_info(struct nir_to_jay_state *nj,
+                     jay_def dst,
+                     unsigned mask)
+{
+   if (dst.file == GPR) {
+      assert(nj->bld.shader->devinfo->ver >= 20 && "must have multipolygon");
+      return jay_EXTRACT_SUBSPAN_INFO(&nj->bld, dst,
+                                      jay_extract(nj->payload.u0, 9),
+                                      payload_u1(nj, 9, 1), mask);
+   } else {
+      return jay_AND(&nj->bld, JAY_TYPE_U32, dst,
+                     jay_extract(nj->payload.u0, 9), mask);
+   }
+}
+
 static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
@@ -2728,13 +2744,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_layer_id:
       if (b->shader->devinfo->ver >= 20) {
-         /* Gfx20+ has separate Render Target Array indices for each pair
-          * of subspans in order to support multiple polygons, so we need
-          * to use a <1;8,0> region in order to select the correct word
-          * for each channel.
-          */
-         jay_EXTRACT_SUBSPAN_INFO(b, dst, jay_extract(nj->payload.u0, 9),
-                                  payload_u1(nj, 9, 1), 0x7ff);
+         extract_subspan_info(nj, dst, 0x7ff);
       } else if (b->shader->devinfo->ver >= 12) {
          /* The render target array index is provided in the thread payload as
           * bits 26:16 of r1.1.
@@ -2747,20 +2757,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_front_face: {
-      jay_inst *and;
-
-      if (b->shader->devinfo->ver >= 20) {
-         /* Bit 11 is facingness for subspans 1-2 and 5-6. */
-         and = jay_EXTRACT_SUBSPAN_INFO(b, jay_null(),
-                                        jay_extract(nj->payload.u0, 9),
-                                        payload_u1(nj, 9, 1), BITFIELD_BIT(11));
-      } else if (b->shader->devinfo->ver >= 12) {
-         /* Bit 15 instead and no multi-polygon */
-         and = jay_AND(b, JAY_TYPE_U32, jay_null(),
-                       jay_extract(nj->payload.u0, 9), BITFIELD_BIT(15));
-      } else {
-         UNREACHABLE("todo");
-      }
+      /* Extract the bit, passing the real dst so uniform is inferred right */
+      unsigned bit = b->shader->devinfo->ver >= 20 ? 11 : 15;
+      jay_inst *and = extract_subspan_info(nj, dst, BITFIELD_BIT(bit));
+      and->dst = jay_null();
 
       /* The bit is actually backfacingness so check for equality with 0 */
       jay_set_conditional_mod(b, and, dst, GEN_CONDITION_EQ);
@@ -2868,9 +2868,8 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
       if (fs &&
           nir_intrinsic_io_semantics(intr).location == VARYING_SLOT_VIEWPORT) {
-         jay_def x = jay_alloc_def(b, GPR, 1);
-         jay_EXTRACT_SUBSPAN_INFO(b, x, jay_extract(nj->payload.u0, 9),
-                                  payload_u1(nj, 9, 1), BITFIELD_RANGE(12, 4));
+         jay_def x = jay_alloc_def(b, dst.file, 1);
+         extract_subspan_info(nj, x, BITFIELD_RANGE(12, 4));
          jay_SHR(b, JAY_TYPE_U32, dst, x, 12);
          break;
       }
