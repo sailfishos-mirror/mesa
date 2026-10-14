@@ -3429,7 +3429,7 @@ static void
 transfer_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
 {
    struct zink_context *ctx = zink_context(pctx);
-   struct zink_screen *screen = zink_screen(pctx->screen);
+   struct zink_screen *screen = zink_screen(ptrans->resource->screen);
    struct zink_transfer *trans = (struct zink_transfer *)ptrans;
    struct zink_clientptr_heap *clientptr_heap = zink_clientptr_heap(trans->base.b.resource->clientptr_heap);
 
