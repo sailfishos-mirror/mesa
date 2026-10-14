@@ -9734,7 +9734,7 @@
         "description": "zink: wait for dma-buf fences when the batch ends",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d4f8ad27f2d7ebc74ea32d587ae854a791c94133",
         "notes": null
