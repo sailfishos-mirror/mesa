@@ -1203,8 +1203,14 @@ zink_draw(struct pipe_context *pctx,
    mark_draw_atoms<DYNAMIC_STATE>(ctx, dinfo);
    validate_atoms(ctx);
 
-   /* the buffers of draw_vbo_buffers change with every draw, so they are bound after the atoms */
-   const uint32_t skip_atoms = VBS == ZINK_VBS_UNOWNED ? BITFIELD_BIT(ZINK_ATOM_VERTEX_BUFFERS) : 0;
+   /* the buffers of draw_vbo_buffers change with every draw, so they are bound after the atoms;
+    * vertex-state draws bind their own buffers and vertex input, and leave both atoms dirty for
+    * the next draw which doesn't
+    */
+   const uint32_t skip_atoms = VBS == ZINK_VBS_UNOWNED ? BITFIELD_BIT(ZINK_ATOM_VERTEX_BUFFERS) :
+                               VBS == ZINK_VBS_VERTEX_STATE ? BITFIELD_BIT(ZINK_ATOM_VERTEX_BUFFERS) |
+                                                              BITFIELD_BIT(ZINK_ATOM_VERTEX_INPUT) :
+                               0;
    /* nothing has changed since the last draw except the buffers which come with this one */
    if (!BATCH_CHANGED && !(ctx->dirty_atoms & ~skip_atoms) && !dindirect &&
        !(ctx->depth_op_promoted && !ctx->can_promote_depth_op) && !zink_tracing) {
