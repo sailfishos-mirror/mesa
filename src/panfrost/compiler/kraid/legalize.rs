@@ -17,7 +17,10 @@ fn move_src_to_tmp(b: &mut impl SSABuilder, src: &mut Src, bytes: u8) {
     debug_assert!(bytes > 0 && bytes <= 8);
     let tmp = b.alloc_ref((bytes * 8).into());
     let src_ref = std::mem::replace(&mut src.src_ref, tmp.clone().into());
-    b.copy_to(tmp.into(), DataType::i(bytes * 8), src_ref.into());
+
+    // Make sure the Src replicates since zero and imms assume Swizzle::NONE
+    let src = Src::from(src_ref).swizzle(Swizzle::replicate_scalar(bytes * 8));
+    b.copy_to(tmp.into(), DataType::i(bytes * 8), src);
 }
 
 /// Legalizes immediate sources by ensuring the following:
