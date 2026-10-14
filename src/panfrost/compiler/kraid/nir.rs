@@ -648,18 +648,7 @@ impl<'a> ShaderFromNir<'a> {
                     _ => panic!("Invalid f2f16 op"),
                 };
                 match alu.def.num_components {
-                    1 => {
-                        if self.model.arch() > 10 {
-                            b.f32_to_f16_to(dst.into(), srcs(0), round);
-                        } else {
-                            b.push_op(OpV2F32ToV2F16 {
-                                dst: dst.into(),
-                                srcs: [srcs(0).word(0), srcs(0).word(0)],
-                                round,
-                                clamp: FClamp::None,
-                            });
-                        }
-                    }
+                    1 => b.f32_to_f16_to(dst.into(), srcs(0), round),
                     2 => {
                         assert!(self.model.arch() <= 10);
                         b.push_op(OpV2F32ToV2F16 {
@@ -1020,17 +1009,7 @@ impl<'a> ShaderFromNir<'a> {
                 debug_assert!(alu.def.bit_size == 32);
                 debug_assert!(alu.def.num_components == 1);
 
-                let x16 = b.alloc_ssa(16);
-                if self.model.arch() > 10 {
-                    b.f32_to_f16_to(x16.into(), srcs(0), FRound::NearestEven);
-                } else {
-                    b.push_op(OpV2F32ToV2F16 {
-                        dst: x16.into(),
-                        srcs: [srcs(0), srcs(0)],
-                        round: FRound::NearestEven,
-                        clamp: FClamp::None,
-                    });
-                }
+                let x16 = b.f32_to_f16(srcs(0), FRound::NearestEven);
 
                 let flush16 = b.alloc_ssa(16);
                 b.push_op(OpFlush {
