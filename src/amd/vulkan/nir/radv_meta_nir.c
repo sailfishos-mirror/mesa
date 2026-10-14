@@ -681,9 +681,11 @@ radv_meta_nir_build_cleari_96bit_compute_shader()
 }
 
 void
-radv_meta_nir_build_clear_color_shaders(struct nir_shader **out_vs, struct nir_shader **out_fs, uint32_t frag_output)
+radv_meta_nir_build_clear_color_shaders(struct nir_shader **out_vs, struct nir_shader **out_fs, uint32_t frag_output,
+                                        bool multiview)
 {
-   nir_builder vs_b = radv_meta_nir_init_shader(MESA_SHADER_VERTEX, "meta_clear_color_vs");
+   nir_builder vs_b = radv_meta_nir_init_shader(MESA_SHADER_VERTEX, multiview ? "meta_clear_color_vs_multiview"
+                                                                              : "meta_clear_color_vs");
    nir_builder fs_b = radv_meta_nir_init_shader(MESA_SHADER_FRAGMENT, "meta_clear_color_fs-%d", frag_output);
 
    const struct glsl_type *position_type = glsl_vec4_type();
@@ -702,24 +704,28 @@ radv_meta_nir_build_clear_color_shaders(struct nir_shader **out_vs, struct nir_s
    nir_def *outvec = nir_gen_rect_vertices(&vs_b, NULL, NULL);
    nir_store_var(&vs_b, vs_out_pos, outvec, 0xf);
 
-   const struct glsl_type *layer_type = glsl_int_type();
-   nir_variable *vs_out_layer = nir_variable_create(vs_b.shader, nir_var_shader_out, layer_type, "v_layer");
-   vs_out_layer->data.location = VARYING_SLOT_LAYER;
-   vs_out_layer->data.interpolation = INTERP_MODE_FLAT;
-   nir_def *inst_id = nir_load_instance_id(&vs_b);
-   nir_def *base_instance = nir_load_base_instance(&vs_b);
+   /* For multiview clears, radv_nir_export_multiview will export the view_index. */
+   if (!multiview) {
+      const struct glsl_type *layer_type = glsl_int_type();
+      nir_variable *vs_out_layer = nir_variable_create(vs_b.shader, nir_var_shader_out, layer_type, "v_layer");
+      vs_out_layer->data.location = VARYING_SLOT_LAYER;
+      vs_out_layer->data.interpolation = INTERP_MODE_FLAT;
+      nir_def *inst_id = nir_load_instance_id(&vs_b);
+      nir_def *base_instance = nir_load_base_instance(&vs_b);
 
-   nir_def *layer_id = nir_iadd(&vs_b, inst_id, base_instance);
-   nir_store_var(&vs_b, vs_out_layer, layer_id, 0x1);
+      nir_def *layer_id = nir_iadd(&vs_b, inst_id, base_instance);
+      nir_store_var(&vs_b, vs_out_layer, layer_id, 0x1);
+   }
 
    *out_vs = vs_b.shader;
    *out_fs = fs_b.shader;
 }
 
 nir_shader *
-radv_meta_nir_build_clear_depthstencil_vertex_shader()
+radv_meta_nir_build_clear_depthstencil_vertex_shader(bool multiview)
 {
-   nir_builder vs_b = radv_meta_nir_init_shader(MESA_SHADER_VERTEX, "meta_clear_depthstencil_vs");
+   nir_builder vs_b = radv_meta_nir_init_shader(MESA_SHADER_VERTEX, multiview ? "meta_clear_depthstencil_vs_multiview"
+                                                                              : "meta_clear_depthstencil_vs");
 
    const struct glsl_type *position_out_type = glsl_vec4_type();
 
@@ -731,15 +737,18 @@ radv_meta_nir_build_clear_depthstencil_vertex_shader()
    nir_def *outvec = nir_gen_rect_vertices(&vs_b, z, NULL);
    nir_store_var(&vs_b, vs_out_pos, outvec, 0xf);
 
-   const struct glsl_type *layer_type = glsl_int_type();
-   nir_variable *vs_out_layer = nir_variable_create(vs_b.shader, nir_var_shader_out, layer_type, "v_layer");
-   vs_out_layer->data.location = VARYING_SLOT_LAYER;
-   vs_out_layer->data.interpolation = INTERP_MODE_FLAT;
-   nir_def *inst_id = nir_load_instance_id(&vs_b);
-   nir_def *base_instance = nir_load_base_instance(&vs_b);
+   /* For multiview clears, radv_nir_export_multiview will export the view_index. */
+   if (!multiview) {
+      const struct glsl_type *layer_type = glsl_int_type();
+      nir_variable *vs_out_layer = nir_variable_create(vs_b.shader, nir_var_shader_out, layer_type, "v_layer");
+      vs_out_layer->data.location = VARYING_SLOT_LAYER;
+      vs_out_layer->data.interpolation = INTERP_MODE_FLAT;
+      nir_def *inst_id = nir_load_instance_id(&vs_b);
+      nir_def *base_instance = nir_load_base_instance(&vs_b);
 
-   nir_def *layer_id = nir_iadd(&vs_b, inst_id, base_instance);
-   nir_store_var(&vs_b, vs_out_layer, layer_id, 0x1);
+      nir_def *layer_id = nir_iadd(&vs_b, inst_id, base_instance);
+      nir_store_var(&vs_b, vs_out_layer, layer_id, 0x1);
+   }
 
    return vs_b.shader;
 }
