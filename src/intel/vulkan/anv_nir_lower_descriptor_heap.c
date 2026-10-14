@@ -553,6 +553,7 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
          build_surface_handle(b, tex->src[surf_src_idx].src.ssa,
                               plane, tex->texture_non_uniform, data));
       tex->src[surf_src_idx].src_type = nir_tex_src_texture_handle;
+      tex->texture_index = 0;
       progress = true;
    }
    int smpl_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_sampler_heap_offset);
