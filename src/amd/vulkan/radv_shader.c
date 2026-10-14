@@ -3741,7 +3741,7 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    stage.info.wave_size = key->wave32 ? 32 : 64;
    stage.info.vs.needs_instance_id = true;
    stage.info.vs.needs_base_instance = true;
-   stage.info.vs.needs_draw_id = true;
+   stage.info.needs_draw_id = true;
    stage.info.vs.use_per_attribute_vb_descs = true;
    stage.info.vs.vb_desc_usage_mask = BITFIELD_MASK(key->num_attributes);
    stage.info.vs.has_prolog = true;

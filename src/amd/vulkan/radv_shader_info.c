@@ -583,7 +583,7 @@ gather_shader_info_vs(const struct radv_compiler_info *compiler_info, const nir_
     */
    info->vs.needs_instance_id |= info->vs.has_prolog;
    info->vs.needs_base_instance |= info->vs.has_prolog;
-   info->vs.needs_draw_id |= info->vs.has_prolog;
+   info->needs_draw_id |= info->vs.has_prolog;
 
    if (info->vs.dynamic_inputs) {
       info->vs.num_attributes = util_last_bit(info->vs.vb_desc_usage_mask);
@@ -1109,7 +1109,7 @@ radv_nir_shader_info_pass(const struct radv_compiler_info *compiler_info, const 
       outinfo->export_prim_id_per_primitive = per_prim_mask & VARYING_BIT_PRIMITIVE_ID;
    }
 
-   info->vs.needs_draw_id |= BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID);
+   info->needs_draw_id |= BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID);
    info->vs.needs_base_instance |= BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_BASE_INSTANCE);
    info->vs.needs_instance_id |= BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_INSTANCE_ID);
    info->uses_view_index |= BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_VIEW_INDEX);
@@ -1541,6 +1541,7 @@ radv_nir_shader_info_merge(const struct radv_shader_stage *src, struct radv_shad
    dst_info->desc_set_used_mask |= src_info->desc_set_used_mask;
    dst_info->uses_view_index |= src_info->uses_view_index;
    dst_info->uses_prim_id |= src_info->uses_prim_id;
+   dst_info->needs_draw_id |= src_info->needs_draw_id;
    dst_info->inline_push_constant_mask |= src_info->inline_push_constant_mask;
 
    /* Only inline all push constants if both allows it. */

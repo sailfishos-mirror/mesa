@@ -361,7 +361,7 @@ radv_get_sequence_size_graphics(const struct radv_indirect_command_layout *layou
             struct radv_shader *ms = radv_dgc_get_shader(pipeline_info, eso_info, MESA_SHADER_MESH);
 
             /* PKT3_SET_BASE + PKT3_SET_SH_REG + PKT3_DISPATCH_MESH_INDIRECT_MULTI */
-            *cmd_size += (4 + (ms->info.vs.needs_draw_id ? 3 : 0) + 9) * 4;
+            *cmd_size += (4 + (ms->info.needs_draw_id ? 3 : 0) + 9) * 4;
          }
       } else {
          /* PKT3_SET_BASE + PKT3_DRAW_{INDEX}_INDIRECT_MULTI */
@@ -374,7 +374,7 @@ radv_get_sequence_size_graphics(const struct radv_indirect_command_layout *layou
             *cmd_size += (5 + 2 + 5) * 4;
          } else {
             /* PKT3_SET_BASE + PKT3_SET_SH_REG + PKT3_DRAW_{INDEX}_INDIRECT_MULTI */
-            *cmd_size += (4 + (vs->info.vs.needs_draw_id ? 10 : 5)) * 4;
+            *cmd_size += (4 + (vs->info.needs_draw_id ? 10 : 5)) * 4;
          }
       } else {
          if (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_MESH)) {
@@ -3222,7 +3222,7 @@ radv_prepare_dgc_graphics(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedC
    }
 
    uint16_t vtx_base_sgpr = radv_get_user_sgpr(first_shader, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-   const bool uses_drawid = first_shader->info.vs.needs_draw_id;
+   const bool uses_drawid = first_shader->info.needs_draw_id;
 
    if (uses_drawid)
       vtx_base_sgpr |= DGC_USES_DRAWID;

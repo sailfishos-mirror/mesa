@@ -206,7 +206,7 @@ declare_vs_specific_input_sgprs(struct radv_shader_args_state *state, const stru
       }
 
       RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.base_vertex, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-      if (info->vs.needs_draw_id) {
+      if (info->needs_draw_id) {
          RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
       }
       if (info->vs.needs_base_instance) {
@@ -311,7 +311,7 @@ declare_ms_input_sgprs(struct radv_shader_args_state *state, const struct radv_s
    if (info->cs.uses_grid_size) {
       RADV_ADD_UD_ARG(state, 3, AC_ARG_VALUE, ac.num_work_groups, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
    }
-   if (info->vs.needs_draw_id) {
+   if (info->needs_draw_id) {
       RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
    }
    if (info->ms.has_task) {
@@ -649,7 +649,7 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
                RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, cs_state, AC_UD_CS_STATE);
          } else {
             assert(stage == MESA_SHADER_TASK);
-            if (info->vs.needs_draw_id) {
+            if (info->needs_draw_id) {
                RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_CS_TASK_DRAW_ID);
             }
 

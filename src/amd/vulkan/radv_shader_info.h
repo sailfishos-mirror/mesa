@@ -104,6 +104,7 @@ struct radv_shader_info {
    bool uses_view_index : 1;
    bool uses_invocation_id : 1;
    bool uses_prim_id : 1;
+   bool needs_draw_id : 1;
    bool is_ngg : 1;
    bool is_ngg_passthrough : 1;
    bool has_ngg_culling : 1;
@@ -126,7 +127,6 @@ struct radv_shader_info {
       uint32_t input_slot_usage_mask;
       uint8_t num_linked_outputs;
       uint8_t num_attributes;
-      bool needs_draw_id : 1;
       bool needs_instance_id : 1;
       bool as_es : 1;
       bool as_ls : 1;
