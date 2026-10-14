@@ -875,10 +875,17 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    const struct radeon_info *info = options->info;
    const bool is_clear = !blit->src.surf;
    const bool dst_is_stencil = util_format_is_stencil_only(blit->dst.format);
+   const bool src_is_stencil = util_format_is_stencil_only(blit->src.format);
+   const ac_block_extent dst_block256B_extent =
+      dst_is_stencil ? blit->dst.surf->stencil_block256B_extent : blit->dst.surf->block256B_extent;
+   const ac_block_extent src_block256B_extent =
+      is_clear ? (ac_block_extent){}
+               : src_is_stencil ? blit->src.surf->stencil_block256B_extent
+                                : blit->src.surf->block256B_extent;
    const unsigned dst_tiling_dim = blit->dst.surf->is_linear ? 1 :
-                                   !blit->dst.surf->thick_tiling ? 2 : 3;
+                                   dst_block256B_extent.depth == 1 ? 2 : 3;
    const unsigned src_tiling_dim = is_clear ? 0 : blit->src.surf->is_linear ? 1 :
-                                                  !blit->src.surf->thick_tiling ? 2 : 3;
+                                                  src_block256B_extent.depth == 1 ? 2 : 3;
    const unsigned dst_samples = MAX2(1, blit->dst.num_samples);
    const unsigned src_samples = is_clear ? 1 : MAX2(1, blit->src.num_samples);
    const bool is_resolve = !is_clear && dst_samples == 1 && src_samples >= 2 &&
