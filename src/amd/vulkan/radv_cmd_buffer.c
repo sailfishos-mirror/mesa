@@ -4645,6 +4645,9 @@ radv_emit_depth_bias_state(struct radv_cmd_buffer *cmd_buffer)
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    unsigned pa_su_poly_offset_db_fmt_cntl = 0;
 
+   if (!d->vk.rs.depth_bias.enable)
+      return;
+
    if (vk_format_has_depth(render->ds_att.format) &&
        d->vk.rs.depth_bias.representation != VK_DEPTH_BIAS_REPRESENTATION_FLOAT_EXT) {
       VkFormat format = vk_format_depth_only(render->ds_att.format);
@@ -14036,7 +14039,7 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
    if (dynamic_states & RADV_DYNAMIC_SAMPLE_LOCATIONS_ENABLE)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_RAST_SAMPLES_STATE;
 
-   if (dynamic_states & RADV_DYNAMIC_DEPTH_BIAS)
+   if (dynamic_states & (RADV_DYNAMIC_DEPTH_BIAS | RADV_DYNAMIC_DEPTH_BIAS_ENABLE))
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_DEPTH_BIAS_STATE;
 
    if (dynamic_states & RADV_DYNAMIC_VERTEX_INPUT)
