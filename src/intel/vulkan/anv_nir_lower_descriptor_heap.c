@@ -8,6 +8,11 @@
 
 #include "genxml/genX_bits.h"
 
+struct lower_state {
+   const struct anv_physical_device *pdevice;
+   struct anv_pipeline_bind_map *map;
+};
+
 static nir_def *
 build_surface_handle(nir_builder *b, nir_def *heap_offset,
                      uint32_t plane, bool non_uniform,
@@ -522,6 +527,8 @@ build_image_resinfo(nir_builder *b,
 static bool
 lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
 {
+   struct lower_state *state = data;
+
    bool progress = false;
 
    b->cursor = nir_before_instr(&tex->instr);
@@ -541,17 +548,28 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
                          build_image_resinfo(b, tex->src[surf_src_idx].src.ssa,
                                              lod, tex->def.num_components,
                                              tex->sampler_dim, tex->is_array,
-                                             false, data),
+                                             false, state->pdevice),
                          tex->def.num_components));
       return true;
    }
 
+   /* Track input attachments use */
+   if (tex->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS ||
+       tex->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS_MS) {
+      BITSET_SET_COUNT(state->map->input_attachments,
+                       (tex->input_attachment_depth ||
+                        tex->input_attachment_stencil) ?
+                       MAX_DESCRIPTOR_SET_INPUT_ATTACHMENTS :
+                       tex->texture_index,
+                       MAX2(1, tex->texture_array_size));
+      tex->texture_index = 0;
+   }
 
    if (surf_src_idx >= 0) {
       nir_src_rewrite(
          &tex->src[surf_src_idx].src,
          build_surface_handle(b, tex->src[surf_src_idx].src.ssa,
-                              plane, tex->texture_non_uniform, data));
+                              plane, tex->texture_non_uniform, state->pdevice));
       tex->src[surf_src_idx].src_type = nir_tex_src_texture_handle;
       tex->texture_index = 0;
       progress = true;
@@ -560,7 +578,7 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
    if (smpl_src_idx >= 0) {
       nir_def *sampler_index =
          build_sampler_handle(b, tex->src[smpl_src_idx].src.ssa, plane,
-                              tex->sampler_non_uniform, false, data);
+                              tex->sampler_non_uniform, false, state->pdevice);
       nir_src_rewrite(&tex->src[smpl_src_idx].src, sampler_index);
       tex->src[smpl_src_idx].src_type = nir_tex_src_sampler_handle;
       progress = true;
@@ -569,7 +587,7 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, void *data)
          b,
          nir_load_reloc_const_intel(
             b, BRW_SHADER_RELOC_EMBEDDED_SAMPLER_HANDLE + tex->sampler_index),
-         plane, tex->sampler_non_uniform, true, data);
+         plane, tex->sampler_non_uniform, true, state->pdevice);
       nir_tex_instr_add_src(tex, nir_tex_src_sampler_handle, sampler_index);
       tex->sampler_index = 0;
       progress = true;
@@ -750,6 +768,11 @@ anv_nir_lower_descriptor_heap(nir_shader *shader,
       };
    }
 
+   struct lower_state state = {
+      .pdevice = device->physical,
+      .map = map,
+   };
+
    /* Required to lower buffers efficiently */
    nir_divergence_analysis(shader);
 
@@ -763,9 +786,7 @@ anv_nir_lower_descriptor_heap(nir_shader *shader,
                                  nir_metadata_control_flow,
                                  (void *)device->physical);
    progress |=
-      nir_shader_tex_pass(shader, lower_tex,
-                          nir_metadata_control_flow,
-                          (void *)device->physical);
+      nir_shader_tex_pass(shader, lower_tex, nir_metadata_control_flow, &state);
 
    return progress;
 }
