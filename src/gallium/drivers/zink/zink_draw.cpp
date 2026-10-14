@@ -604,9 +604,10 @@ template <zink_dynamic_state DYNAMIC_STATE>
 ALWAYS_INLINE static void
 mark_draw_atoms(struct zink_context *ctx, const struct pipe_draw_info *dinfo)
 {
-   if (ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode ||
-       (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2 &&
-        ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart))
+   const bool primitive_restart = DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2 ?
+                                  ctx->primitive_restart :
+                                  ctx->gfx_pipeline_state.dyn_state2.primitive_restart;
+   if (ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode || primitive_restart != dinfo->primitive_restart)
       zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
    /* without dynamic vertex input, the vertex input state is part of the pipeline */
    if (DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT && DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 &&
@@ -862,8 +863,12 @@ zink_draw(struct pipe_context *pctx,
             ctx->gfx_pipeline_state.gfx_prim_mode = mode;
             zink_set_primitive_emulation_keys(ctx);
 
-            if (DYNAMIC_STATE < ZINK_DYNAMIC_STATE2 &&
-                ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart) {
+            if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2) {
+               if (BATCH_CHANGED || ctx->primitive_restart != dinfo->primitive_restart) {
+                  VKCTX(CmdSetPrimitiveRestartEnable)(bs->cmdbuf, dinfo->primitive_restart);
+                  ctx->primitive_restart = dinfo->primitive_restart;
+               }
+            } else if (ctx->gfx_pipeline_state.dyn_state2.primitive_restart != dinfo->primitive_restart) {
                ctx->gfx_pipeline_state.dyn_state2.primitive_restart = dinfo->primitive_restart;
                zink_gfx_pipeline_state_dirty(ctx);
             }
@@ -992,10 +997,6 @@ zink_draw(struct pipe_context *pctx,
    if (index_buffer)
       bind_index_buffer(ctx, zink_resource(index_buffer), index_offset, index_size);
 
-   if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2 && (BATCH_CHANGED || ctx->primitive_restart != dinfo->primitive_restart)) {
-      VKCTX(CmdSetPrimitiveRestartEnable)(bs->cmdbuf, dinfo->primitive_restart);
-      ctx->primitive_restart = dinfo->primitive_restart;
-   }
    if (dinfo->primitive_restart && screen->info.have_EXT_primitive_restart_index)
       VKCTX(CmdSetPrimitiveRestartIndexEXT)(bs->cmdbuf, dinfo->restart_index);
 
