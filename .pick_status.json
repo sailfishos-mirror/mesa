@@ -984,7 +984,7 @@
         "description": "tu: fix texel buffer emulation bounds check",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dc1bb7bbf451f6728933009c077444383dc063b8",
         "notes": null
