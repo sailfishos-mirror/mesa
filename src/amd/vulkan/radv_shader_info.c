@@ -583,7 +583,6 @@ gather_shader_info_vs(const struct radv_compiler_info *compiler_info, const nir_
     */
    info->vs.needs_instance_id |= info->vs.has_prolog;
    info->vs.needs_base_instance |= info->vs.has_prolog;
-   info->needs_draw_id |= info->vs.has_prolog;
 
    if (info->vs.dynamic_inputs) {
       info->vs.num_attributes = util_last_bit(info->vs.vb_desc_usage_mask);
