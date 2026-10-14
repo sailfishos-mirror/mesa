@@ -10254,7 +10254,7 @@
         "description": "nvk: Do not overwrite prev_subc if no method were emitted",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cb22409d72bb0c31b8d8161a839d63e2c6a40513",
         "notes": null
