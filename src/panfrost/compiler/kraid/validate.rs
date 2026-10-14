@@ -5,7 +5,11 @@ use crate::debug::*;
 use crate::ir::*;
 use rustc_hash::FxHashSet;
 
-fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
+fn validate_instr(
+    s: &Shader,
+    instr: &Instr,
+    ssa_vals: &mut FxHashSet<SSAValue>,
+) {
     for (src, src_type) in instr.srcs_types() {
         if let SrcRef::SSA(vec) = &src.src_ref {
             for ssa in vec {
@@ -18,6 +22,13 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
             assert_eq!(src_type.bits(), 64);
         } else if src.swizzle.is_byte_swizzle() {
             assert!(src.src_ref.bytes_read() <= 4);
+        }
+
+        if s.info.src_swizzles_legal {
+            assert!(
+                s.model.op_src_supports_swizzle(&instr.op, src, src.swizzle),
+                "{instr} uses an unsupported swizzles for {src:?}"
+            );
         }
 
         let src_bytes = src_type.total_bytes();
@@ -133,7 +144,7 @@ impl Shader<'_> {
                     is_prelude = false;
                 }
 
-                validate_instr(instr, &mut ssa_vals);
+                validate_instr(self, instr, &mut ssa_vals);
             }
 
             let mut is_postlude = true;

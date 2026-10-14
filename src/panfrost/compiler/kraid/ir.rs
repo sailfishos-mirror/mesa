@@ -2197,6 +2197,9 @@ pub struct ShaderInfo {
     pub blend1_type: Option<DataType>,
     /// Is this a blend shader?
     pub is_blend: bool,
+
+    /// Src swizzles must always be legal (set after legalize_src_swizzles)
+    pub src_swizzles_legal: bool,
 }
 
 impl ShaderInfo {

@@ -69,5 +69,6 @@ impl Shader<'_> {
             b.push_instr(instr);
             b.into_mapped()
         });
+        self.info.src_swizzles_legal = true;
     }
 }
