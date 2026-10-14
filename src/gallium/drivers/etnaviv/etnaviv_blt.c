@@ -474,8 +474,13 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    translate_samples_to_xyscale(dst->texture->nr_samples,
                                 &msaa_xscale, &msaa_yscale);
 
-   if (fast_clear)
+   if (fast_clear) {
+      /* update clear color in SW meta area of the buffer if TS is exported */
+      if (unlikely(use_ts && etna_resource_ext_ts(etna_resource(dst->texture))))
+         dst_level->ts_meta->v0.clear_value = new_clear_value;
+
       dst_level->clear_value = new_clear_value;
+   }
 
    if (use_ts && !etna_resource_level_ts_valid(dst_level))
       dst_level->ts_needs_clear = true;
@@ -489,6 +494,8 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    clr.dest.tiling = dst_res->layout;
 
    if (use_ts) {
+      const uint64_t clear_value = etna_resource_level_clear_value(dst_level);
+
       if (unlikely(dst_level->ts_needs_clear))
          etna_blt_clear_ts(ctx, dst_res, dst_level);
 
@@ -496,8 +503,8 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
       clr.dest.ts_addr.bo = dst_res->ts_bo;
       clr.dest.ts_addr.offset = dst_level->ts_offset;
       clr.dest.ts_addr.flags = ETNA_RELOC_WRITE;
-      clr.dest.ts_clear_value[0] = dst_level->clear_value;
-      clr.dest.ts_clear_value[1] = dst_level->clear_value >> 32;
+      clr.dest.ts_clear_value[0] = clear_value;
+      clr.dest.ts_clear_value[1] = clear_value >> 32;
       clr.dest.ts_mode = dst_level->ts_mode;
       clr.dest.ts_compress_fmt = dst_level->ts_compress_fmt;
    }
@@ -546,17 +553,15 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 
    /* This made the TS valid */
    if (use_ts) {
-      if (idx == 0) {
-         ctx->framebuffer.TS_COLOR_CLEAR_VALUE = dst_level->clear_value;
-         ctx->framebuffer.TS_COLOR_CLEAR_VALUE_EXT = dst_level->clear_value >> 32;
-      } else {
-         ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[idx - 1] = dst_level->clear_value;
-         ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[idx - 1] = dst_level->clear_value >> 32;
-      }
+      const uint64_t clear_value = etna_resource_level_clear_value(dst_level);
 
-      /* update clear color in SW meta area of the buffer if TS is exported */
-      if (unlikely(etna_resource_ext_ts(etna_resource(dst->texture))))
-         dst_level->ts_meta->v0.clear_value = dst_level->clear_value;
+      if (idx == 0) {
+         ctx->framebuffer.TS_COLOR_CLEAR_VALUE = clear_value;
+         ctx->framebuffer.TS_COLOR_CLEAR_VALUE_EXT = clear_value >> 32;
+      } else {
+         ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE[idx - 1] = clear_value;
+         ctx->framebuffer.RT_TS_COLOR_CLEAR_VALUE_EXT[idx - 1] = clear_value >> 32;
+      }
 
       etna_resource_level_ts_mark_valid(dst_level);
       etna_resource_level_mark_unflushed(dst_level);
@@ -921,6 +926,7 @@ etna_try_blt_blit(struct pipe_context *pctx,
       struct blt_inplace_op op = {};
       size_t tile_size = etna_screen_get_tile_size(ctx->screen, src_lev->ts_mode,
                                                    src->base.nr_samples > 1);
+      const uint64_t clear_value = etna_resource_level_clear_value(src_lev);
 
       op.addr.bo = src->bo;
       op.addr.offset = src_lev->offset + blit_info->src.box.z * src_lev->layer_stride;
@@ -928,8 +934,8 @@ etna_try_blt_blit(struct pipe_context *pctx,
       op.ts_addr.bo = src->ts_bo;
       op.ts_addr.offset = src_lev->ts_offset + blit_info->src.box.z * src_lev->ts_layer_stride;
       op.ts_addr.flags = ETNA_RELOC_READ;
-      op.ts_clear_value[0] = src_lev->clear_value;
-      op.ts_clear_value[1] = src_lev->clear_value >> 32;
+      op.ts_clear_value[0] = clear_value;
+      op.ts_clear_value[1] = clear_value >> 32;
       op.ts_mode = src_lev->ts_mode;
       op.num_tiles = src_lev->layer_stride / tile_size;
       op.bpp = util_format_get_blocksize(src->internal_format);
@@ -968,12 +974,13 @@ etna_try_blt_blit(struct pipe_context *pctx,
          memcpy(op.src.swizzle, ident, 4);
 
       if (etna_resource_level_ts_valid(src_lev)) {
+         const uint64_t clear_value = etna_resource_level_clear_value(src_lev);
          op.src.use_ts = 1;
          op.src.ts_addr.bo = src->ts_bo;
          op.src.ts_addr.offset = src_lev->ts_offset + blit_info->src.box.z * src_lev->ts_layer_stride;
          op.src.ts_addr.flags = ETNA_RELOC_READ;
-         op.src.ts_clear_value[0] = src_lev->clear_value;
-         op.src.ts_clear_value[1] = src_lev->clear_value >> 32;
+         op.src.ts_clear_value[0] = clear_value;
+         op.src.ts_clear_value[1] = clear_value >> 32;
          op.src.ts_mode = src_lev->ts_mode;
          op.src.ts_compress_fmt = src_lev->ts_compress_fmt;
       }

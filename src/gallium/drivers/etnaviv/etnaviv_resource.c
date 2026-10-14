@@ -903,10 +903,7 @@ static void etna_resource_finish_ts_import(struct etna_screen *screen,
    rsc->ts_scanout = ts_rsc->scanout;
    ts_rsc->scanout = NULL;
 
-   /* Get TS layout/usage information from the SW meta. FIXME: clear color may
-    * change over the lifetime of the resource, so might need to look this up
-    * at a few other places. For now it's not an issue, as buffers with shared
-    * TS get re-imported all the time. */
+   /* Get TS layout/usage information from the SW meta. */
    lvl->ts_meta = etna_bo_map(rsc->ts_bo) + ts_rsc->levels[0].offset;
    lvl->ts_compress_fmt = drmfourcc_to_ts_format(lvl->ts_meta->v0.comp_format);
    lvl->ts_offset = ts_rsc->levels[0].offset + lvl->ts_meta->v0.data_offset;

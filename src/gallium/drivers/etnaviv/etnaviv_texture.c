@@ -96,8 +96,10 @@ etna_configure_sampler_ts(struct etna_sampler_ts *sts, struct pipe_sampler_view 
    struct etna_resource *rsc = etna_resource(pview->texture);
    struct etna_resource_level *lev = &rsc->levels[0];
 
-   if ((lev->clear_value & 0xffffffff) != sts->TS_SAMPLER_CLEAR_VALUE ||
-       (lev->clear_value >> 32) != sts->TS_SAMPLER_CLEAR_VALUE2)
+   const uint64_t clear_value = etna_resource_level_clear_value(lev);
+
+   if ((clear_value & 0xffffffff) != sts->TS_SAMPLER_CLEAR_VALUE ||
+       (clear_value >> 32) != sts->TS_SAMPLER_CLEAR_VALUE2)
       dirty = true;
 
    assert(rsc->ts_bo && etna_resource_level_ts_valid(lev));
@@ -109,8 +111,8 @@ etna_configure_sampler_ts(struct etna_sampler_ts *sts, struct pipe_sampler_view 
       COND(lev->ts_compress_fmt >= 0, VIVS_TS_SAMPLER_CONFIG_COMPRESSION) |
       VIVS_TS_SAMPLER_CONFIG_COMPRESSION_FORMAT(lev->ts_compress_fmt) |
       COND(util_format_get_blocksizebits(pview->format) == 64, VIVS_TS_SAMPLER_CONFIG_64BPP_FORMAT);
-   sts->TS_SAMPLER_CLEAR_VALUE = lev->clear_value;
-   sts->TS_SAMPLER_CLEAR_VALUE2 = lev->clear_value >> 32;
+   sts->TS_SAMPLER_CLEAR_VALUE = clear_value;
+   sts->TS_SAMPLER_CLEAR_VALUE2 = clear_value >> 32;
    sts->TS_SAMPLER_STATUS_BASE.bo = rsc->ts_bo;
    sts->TS_SAMPLER_STATUS_BASE.offset = lev->ts_offset;
    sts->TS_SAMPLER_STATUS_BASE.flags = ETNA_RELOC_READ;

@@ -146,6 +146,15 @@ etna_resource_level_ts_mark_invalid(struct etna_resource_level *lvl)
       lvl->ts_valid = false;
 }
 
+static inline uint64_t
+etna_resource_level_clear_value(const struct etna_resource_level *lvl)
+{
+   if (unlikely(lvl->ts_meta))
+      return lvl->ts_meta->v0.clear_value;
+   else
+      return lvl->clear_value;
+}
+
 /* returns TRUE if lvl has valid, unflushed TS data */
 static inline bool
 etna_resource_level_needs_flush(struct etna_resource_level *lvl)

@@ -319,8 +319,9 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
          cs->PE_COLOR_STRIDE = level->stride;
 
          if (rt_use_ts) {
-            cs->TS_COLOR_CLEAR_VALUE = level->clear_value;
-            cs->TS_COLOR_CLEAR_VALUE_EXT = level->clear_value >> 32;
+            const uint64_t clear_value = etna_resource_level_clear_value(level);
+            cs->TS_COLOR_CLEAR_VALUE = clear_value;
+            cs->TS_COLOR_CLEAR_VALUE_EXT = clear_value >> 32;
 
             cs->TS_COLOR_STATUS_BASE.bo = res->ts_bo;
             cs->TS_COLOR_STATUS_BASE.offset = level->ts_offset;
@@ -353,13 +354,15 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
             cs->PE_RT_CONFIG[rt - 1] |= COND(color_supertiled, RT_CONFIG_SUPER_TILED_NEW);
 
          if (rt_use_ts) {
+            const uint64_t clear_value = etna_resource_level_clear_value(level);
+
             cs->RT_TS_MEM_CONFIG[rt - 1] =
                COND(level->ts_compress_fmt >= 0, VIVS_TS_RT_CONFIG_COMPRESSION) |
                COND(level->ts_compress_fmt >= 0, VIVS_TS_RT_CONFIG_COMPRESSION_FORMAT(level->ts_compress_fmt)) |
                COND(util_format_get_blocksizebits(surf->format) == 64, VIVS_TS_RT_CONFIG_64BPP_FORMAT);
 
-            cs->RT_TS_COLOR_CLEAR_VALUE[rt - 1] = level->clear_value;
-            cs->RT_TS_COLOR_CLEAR_VALUE_EXT[rt - 1] = level->clear_value >> 32;
+            cs->RT_TS_COLOR_CLEAR_VALUE[rt - 1] = clear_value;
+            cs->RT_TS_COLOR_CLEAR_VALUE_EXT[rt - 1] = clear_value >> 32;
 
             cs->RT_TS_COLOR_STATUS_BASE[rt - 1].bo = res->ts_bo;
             cs->RT_TS_COLOR_STATUS_BASE[rt - 1].offset = level->ts_offset;

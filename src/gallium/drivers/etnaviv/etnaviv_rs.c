@@ -395,7 +395,7 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
       }
 
       /* update clear color in SW meta area of the buffer if TS is exported */
-      if (unlikely(new_clear_value != dst_level->clear_value &&
+      if (unlikely(new_clear_value != etna_resource_level_clear_value(dst_level) &&
           etna_resource_ext_ts(etna_resource(dst->texture))))
          dst_level->ts_meta->v0.clear_value = new_clear_value;
 
@@ -881,6 +881,7 @@ etna_try_rs_blit(struct pipe_context *pctx,
       unsigned ts_offset =
          src_lev->ts_offset + blit_info->src.box.z * src_lev->ts_layer_stride;
       uint32_t ts_mem_config = 0;
+      const uint64_t clear_value = etna_resource_level_clear_value(src_lev);
 
       /* flush TS cache before changing to another TS configuration */
       etna_set_state(ctx->stream, VIVS_TS_FLUSH_CACHE, VIVS_TS_FLUSH_CACHE_FLUSH);
@@ -906,8 +907,8 @@ etna_try_rs_blit(struct pipe_context *pctx,
       reloc.flags = ETNA_RELOC_READ;
       etna_set_state_reloc(ctx->stream, VIVS_TS_COLOR_SURFACE_BASE, &reloc);
 
-      etna_set_state(ctx->stream, VIVS_TS_COLOR_CLEAR_VALUE, src_lev->clear_value);
-      etna_set_state(ctx->stream, VIVS_TS_COLOR_CLEAR_VALUE_EXT, src_lev->clear_value >> 32);
+      etna_set_state(ctx->stream, VIVS_TS_COLOR_CLEAR_VALUE, clear_value);
+      etna_set_state(ctx->stream, VIVS_TS_COLOR_CLEAR_VALUE_EXT, clear_value >> 32);
 
       source_ts_valid = true;
    } else {
