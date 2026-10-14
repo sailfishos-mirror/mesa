@@ -267,6 +267,10 @@ err_cs:
       vid->dec->destroy(vid->dec);
       vid->dec = NULL;
    }
+   if (vid->ectx) {
+      vid->ectx->destroy(vid->ectx);
+      vid->ectx = NULL;
+   }
 
    return ret;
 }
