@@ -1342,9 +1342,9 @@ dgc_emit_userdata_vertex(struct dgc_cmdbuf *cs, nir_def *first_vertex, nir_def *
    dgc_cs_emit(nir_pkt3(b, PKT3_SET_SH_REG, pkt_cnt));
    dgc_cs_emit(nir_iand_imm(b, vtx_base_sgpr, 0x3FFF));
    dgc_cs_emit(first_vertex);
-   dgc_cs_emit(nir_bcsel(b, nir_ior(b, has_drawid, has_baseinstance), nir_bcsel(b, has_drawid, drawid, first_instance),
-                         nir_imm_int(b, PKT3_NOP_PAD)));
-   dgc_cs_emit(nir_bcsel(b, nir_iand(b, has_drawid, has_baseinstance), first_instance, nir_imm_int(b, PKT3_NOP_PAD)));
+   dgc_cs_emit(nir_bcsel(b, nir_ior(b, has_drawid, has_baseinstance),
+                         nir_bcsel(b, has_baseinstance, first_instance, drawid), nir_imm_int(b, PKT3_NOP_PAD)));
+   dgc_cs_emit(nir_bcsel(b, nir_iand(b, has_drawid, has_baseinstance), drawid, nir_imm_int(b, PKT3_NOP_PAD)));
    dgc_cs_end();
 }
 
@@ -1413,12 +1413,12 @@ dgc_emit_pkt3_draw_indirect(struct dgc_cmdbuf *cs, nir_def *has_drawid, bool ind
    /* vertex_offset_reg = (base_reg - SI_SH_REG_OFFSET) >> 2 */
    nir_def *vertex_offset_reg = vtx_base_sgpr;
 
-   /* start_instance_reg = (base_reg + (draw_id_enable ? 8 : 4) - SI_SH_REG_OFFSET) >> 2 */
-   nir_def *start_instance_offset = nir_bcsel(b, has_drawid, nir_imm_int(b, 2), nir_imm_int(b, 1));
-   nir_def *start_instance_reg = nir_iadd(b, vtx_base_sgpr, start_instance_offset);
+   /* start_instance_reg = (base_reg + 4 - SI_SH_REG_OFFSET) >> 2 */
+   nir_def *start_instance_reg = nir_iadd_imm(b, vtx_base_sgpr, 1);
 
-   /* draw_id_reg = (base_reg + 4 - SI_SH_REG_OFFSET) >> 2 */
-   nir_def *draw_id_reg = nir_iadd(b, vtx_base_sgpr, nir_imm_int(b, 1));
+   /* draw_id_reg = (base_reg + (start_instance_enable ? 8 : 4) - SI_SH_REG_OFFSET) >> 2 */
+   nir_def *draw_id_offset = nir_bcsel(b, has_baseinstance, nir_imm_int(b, 2), nir_imm_int(b, 1));
+   nir_def *draw_id_reg = nir_iadd(b, vtx_base_sgpr, draw_id_offset);
 
    nir_if *if_drawid = nir_push_if(b, has_drawid);
    {
@@ -1557,11 +1557,11 @@ dgc_emit_draw_with_count(struct dgc_cmdbuf *cs, nir_def *stream_addr, nir_def *s
    dgc_emit_pkt3_set_base(cs, va);
 
    nir_def *vertex_offset_reg = nir_iand_imm(b, vtx_base_sgpr, 0x3FFF);
-   nir_def *start_instance_offset = nir_bcsel(b, has_drawid, nir_imm_int(b, 2), nir_imm_int(b, 1));
    nir_def *start_instance_reg =
-      nir_bcsel(b, has_baseinstance, nir_iadd(b, vertex_offset_reg, start_instance_offset), nir_imm_int(b, 0));
+      nir_bcsel(b, has_baseinstance, nir_iadd_imm(b, vertex_offset_reg, 1), nir_imm_int(b, 0));
+   nir_def *draw_id_offset = nir_bcsel(b, has_baseinstance, nir_imm_int(b, 2), nir_imm_int(b, 1));
    nir_def *draw_id_reg = nir_bcsel(
-      b, has_drawid, nir_ior_imm(b, nir_iadd(b, vertex_offset_reg, nir_imm_int(b, 1)), S_2C4_DRAW_INDEX_ENABLE(1)),
+      b, has_drawid, nir_ior_imm(b, nir_iadd(b, vertex_offset_reg, draw_id_offset), S_2C4_DRAW_INDEX_ENABLE(1)),
       nir_imm_int(b, 0));
 
    nir_def *di_src_sel = nir_imm_int(b, indexed ? V_0287F0_DI_SRC_SEL_DMA : V_0287F0_DI_SRC_SEL_AUTO_INDEX);

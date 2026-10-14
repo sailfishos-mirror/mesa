@@ -206,11 +206,11 @@ declare_vs_specific_input_sgprs(struct radv_shader_args_state *state, const stru
       }
 
       RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.base_vertex, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-      if (info->needs_draw_id) {
-         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-      }
       if (info->vs.needs_base_instance) {
          RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.start_instance, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
+      }
+      if (info->needs_draw_id) {
+         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
       }
    }
 }
@@ -445,8 +445,8 @@ declare_unmerged_vs_tcs_args(struct radv_shader_args_state *state, const enum am
    RADV_ADD_UD_ARG(state, 2, AC_ARG_VALUE, prolog_inputs, AC_UD_VS_PROLOG_INPUTS);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_CONST_ADDR, ac.vertex_buffers, AC_UD_VS_VERTEX_BUFFERS);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.base_vertex, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-   RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.start_instance, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
+   RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
 
    declare_global_input_sgprs(state, gfx_level, info, user_sgpr_info);
 
@@ -494,8 +494,8 @@ declare_unmerged_vs_tes_gs_args(struct radv_shader_args_state *state, const enum
    RADV_ADD_UD_ARG(state, 2, AC_ARG_VALUE, prolog_inputs, AC_UD_VS_PROLOG_INPUTS);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_CONST_ADDR, ac.vertex_buffers, AC_UD_VS_VERTEX_BUFFERS);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.base_vertex, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
-   RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
    RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.start_instance, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
+   RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.draw_id, AC_UD_VS_BASE_VERTEX_START_INSTANCE);
 
    declare_global_input_sgprs(state, gfx_level, info, user_sgpr_info);
 

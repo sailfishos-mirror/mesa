@@ -11811,9 +11811,9 @@ radv_cs_emit_indirect_draw_packet(struct radv_cmd_buffer *cmd_buffer, bool index
 
    vertex_offset_reg = (base_reg - SI_SH_REG_OFFSET) >> 2;
    if (cmd_buffer->state.uses_baseinstance)
-      start_instance_reg = ((base_reg + (draw_id_enable ? 8 : 4)) - SI_SH_REG_OFFSET) >> 2;
+      start_instance_reg = ((base_reg + 4) - SI_SH_REG_OFFSET) >> 2;
    if (draw_id_enable)
-      draw_id_reg = ((base_reg + 4) - SI_SH_REG_OFFSET) >> 2;
+      draw_id_reg = ((base_reg + (cmd_buffer->state.uses_baseinstance ? 8 : 4)) - SI_SH_REG_OFFSET) >> 2;
 
    radeon_begin(cs);
 
@@ -11989,15 +11989,15 @@ radv_emit_userdata_vertex_internal(struct radv_cmd_buffer *cmd_buffer, const str
    radeon_emit(vertex_offset);
    state->last_vertex_offset_valid = true;
    state->last_vertex_offset = vertex_offset;
-   if (uses_drawid) {
-      radeon_emit(0);
-      state->last_drawid = 0;
-   }
+
    if (uses_baseinstance) {
       radeon_emit(info->first_instance);
       state->last_first_instance = info->first_instance;
    }
-
+   if (uses_drawid) {
+      radeon_emit(0);
+      state->last_drawid = 0;
+   }
    radeon_end();
 }
 
@@ -12022,13 +12022,16 @@ radv_emit_userdata_vertex_drawid(struct radv_cmd_buffer *cmd_buffer, uint32_t ve
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radeon_begin(cs);
-   radeon_set_sh_reg_seq(state->vtx_base_sgpr, 1 + !!drawid);
+   radeon_set_sh_reg_seq(state->vtx_base_sgpr, 1 + state->uses_baseinstance + !!drawid);
    radeon_emit(vertex_offset);
-   state->last_vertex_offset_valid = true;
-   state->last_vertex_offset = vertex_offset;
+   if (state->uses_baseinstance)
+      radeon_emit(state->last_first_instance);
    if (drawid)
       radeon_emit(drawid);
    radeon_end();
+
+   state->last_vertex_offset_valid = true;
+   state->last_vertex_offset = vertex_offset;
 }
 
 struct radv_taskmesh_userdata {
@@ -12176,7 +12179,7 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
 
             if (i > 0) {
                radeon_begin(cs);
-               radeon_set_sh_reg(state->vtx_base_sgpr + sizeof(uint32_t), i);
+               radeon_set_sh_reg(state->vtx_base_sgpr + (state->uses_baseinstance ? 8 : 4), i);
                radeon_end();
             }
 
@@ -12197,7 +12200,7 @@ radv_emit_direct_multi_draw_indexed_packets(struct radv_cmd_buffer *cmd_buffer, 
                   radv_emit_userdata_vertex_drawid(cmd_buffer, draw->vertexOffset, i);
                } else {
                   radeon_begin(cs);
-                  radeon_set_sh_reg(state->vtx_base_sgpr + sizeof(uint32_t), i);
+                  radeon_set_sh_reg(state->vtx_base_sgpr + (state->uses_baseinstance ? 8 : 4), i);
                   radeon_end();
                }
             }
