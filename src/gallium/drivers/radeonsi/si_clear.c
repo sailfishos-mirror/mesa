@@ -940,7 +940,7 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
       bool compute_clear = sctx->screen->debug_flags & DBG(FORCE_COMPUTE_BLIT);
 
       if (sctx->gfx_level >= GFX12) {
-         if (tex->surface.is_linear || tex->surface.thick_tiling || tex->surface.bpe <= 4 ||
+         if (tex->surface.is_linear || tex->surface.block256B_extent.depth > 1 || tex->surface.bpe <= 4 ||
              (tex->surface.bpe == 16 && tex->buffer.b.b.nr_samples <= 2))
             compute_clear = true;
       } else {
@@ -951,7 +951,7 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
             continue;
 
          /* Clears of thick and linear layouts are fastest with compute. */
-         if (tex->surface.thick_tiling ||
+         if (tex->surface.block256B_extent.depth > 1 ||
              (tex->surface.is_linear && (height > 1 || depth > 1 || width >= 8192)))
             compute_clear = true;
       }

@@ -2600,7 +2600,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
        * This gives the best results for slow clears for AMD_TEST=blitperf on Navi31.
        */
       if ((sctx->framebuffer.nr_samples == 8 && tex->surface.bpe != 2) ||
-          (tex->surface.thick_tiling && tex->surface.bpe == 4 &&
+          (tex->surface.block256B_extent.depth > 1 && tex->surface.bpe == 4 &&
            util_format_get_nr_components(psurf->format) == 4))
          sctx->framebuffer.disable_vrs_flat_shading = true;
    }

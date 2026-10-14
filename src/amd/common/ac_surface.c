@@ -2496,22 +2496,6 @@ static int gfx6_compute_surface(struct ac_addrlib *const addrlib,
    surf->is_displayable = surf->is_linear || surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
                           surf->micro_tile_mode == RADEON_MICRO_MODE_RENDER;
 
-   surf->thick_tiling = AddrSurfInfoOut.tileMode == ADDR_TM_1D_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_2D_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_2B_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_3D_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_3B_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_2D_TILED_XTHICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_3D_TILED_XTHICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_PRT_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_PRT_2D_TILED_THICK ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THICK ||
-                        /* Not thick per se, but these also benefit from the 3D access pattern
-                         * due to pipe rotation between slices.
-                         */
-                        AddrSurfInfoOut.tileMode == ADDR_TM_3D_TILED_THIN1 ||
-                        AddrSurfInfoOut.tileMode == ADDR_TM_PRT_3D_TILED_THIN1;
-
    /* The rotated micro tile mode doesn't work if both CMASK and RB+ are
     * used at the same time. This case is not currently expected to occur
     * because we don't use rotated. Enforce this restriction on all chips
@@ -2905,7 +2889,8 @@ static void ac_copy_htile_equation(const struct radeon_info *info,
 
 static int gfx9_compute_miptree(struct ac_addrlib *addrlib, const struct radeon_info *info,
                                 const struct ac_surf_config *config, struct radeon_surf *surf,
-                                bool compressed, ADDR2_COMPUTE_SURFACE_INFO_INPUT *in)
+                                bool compressed, ADDR2_COMPUTE_SURFACE_INFO_INPUT *in,
+                                bool *uses_3d_tiling)
 {
    ADDR2_MIP_INFO mip_info[RADEON_SURF_MAX_LEVELS] = {0};
    ADDR2_COMPUTE_SURFACE_INFO_OUTPUT out = {0};
@@ -2935,7 +2920,8 @@ static int gfx9_compute_miptree(struct ac_addrlib *addrlib, const struct radeon_
       }
    }
 
-   surf->thick_tiling = out.blockSlices > 1; /* should be 0 for depth and stencil */
+   if (uses_3d_tiling)
+      *uses_3d_tiling = out.blockSlices > 1;
 
    if (in->flags.stencil) {
       surf->u.gfx9.zs.stencil_swizzle_mode = in->swizzleMode;
@@ -3570,10 +3556,12 @@ static int gfx9_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
 
    const bool only_stencil =
       (surf->flags & RADEON_SURF_SBUFFER) && !(surf->flags & RADEON_SURF_ZBUFFER);
+   bool uses_3d_tiling = false;
 
    /* Calculate texture layout information. */
    if (!only_stencil) {
-      r = gfx9_compute_miptree(addrlib, info, config, surf, compressed, &AddrSurfInfoIn);
+      r = gfx9_compute_miptree(addrlib, info, config, surf, compressed, &AddrSurfInfoIn,
+                               &uses_3d_tiling);
       if (r)
          return r;
    }
@@ -3592,7 +3580,7 @@ static int gfx9_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
       } else
          AddrSurfInfoIn.flags.depth = 0;
 
-      r = gfx9_compute_miptree(addrlib, info, config, surf, compressed, &AddrSurfInfoIn);
+      r = gfx9_compute_miptree(addrlib, info, config, surf, compressed, &AddrSurfInfoIn, NULL);
       if (r)
          return r;
    }
@@ -3725,7 +3713,7 @@ static int gfx9_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
       surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[2], 1, 1};
    } else if (surf->is_linear) {
       surf->block256B_extent = (ac_block_extent){block_size_256B_LINEAR[log_bpe], 1, 1};
-   } else if (surf->thick_tiling) {
+   } else if (uses_3d_tiling) {
       if (info->gfx_level == GFX9 && (surf->u.gfx9.swizzle_mode & 0x3) == ADDR_SW_S)
          surf->block256B_extent = gfx9_block_size_256B_3D_S[log_bpe];
       else
@@ -4341,7 +4329,6 @@ static bool gfx12_compute_surface(struct ac_addrlib *addrlib, const struct radeo
    surf->is_displayable = !(surf->flags & RADEON_SURF_Z_OR_SBUFFER) &&
                           surf->u.gfx9.resource_type != RADEON_RESOURCE_3D &&
                           (info->gfx_level >= GFX12 || !surf->u.gfx9.gfx12_enable_dcc);
-   surf->thick_tiling = surf->u.gfx9.swizzle_mode >= ADDR3_4KB_3D;
 
    if (surf->flags & RADEON_SURF_Z_OR_SBUFFER) {
       surf->u.gfx9.zs.hiz.offset = 0;
