@@ -341,10 +341,10 @@ radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_st
    }
 }
 
-void
-radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct radv_cmd_stream *cs,
-                                      const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img_in,
-                                      const VkExtent3D base_extent, const uint64_t temp_bo_va, bool to_image)
+static void
+radv_sdma_single_copy_buffer_image_unaligned(const struct radv_device *device, struct radv_cmd_stream *cs,
+                                             const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img_in,
+                                             const VkExtent3D base_extent, const uint64_t temp_bo_va, bool to_image)
 {
    const struct radv_physical_device *const pdev = radv_device_physical(device);
 
@@ -481,6 +481,64 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
          }
       }
    }
+}
+
+void
+radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct radv_cmd_stream *cs,
+                                      const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img,
+                                      const VkExtent3D extent, const uint64_t temp_bo_va, bool to_image)
+{
+   const struct radv_physical_device *const pdev = radv_device_physical(device);
+
+   if (pdev->info.sdma_ip_version >= SDMA_4_0) {
+      radv_sdma_single_copy_buffer_image_unaligned(device, cs, buf, img, extent, temp_bo_va, to_image);
+      return;
+   }
+
+   /* SDMA v3.x and older have restrictions on image offset and extent alignment.
+    * Instead of applying the full unaligned buffer copy workaround which
+    * causes us to copy the image twice, we can try to align the image
+    * so that we can perform the bulk of the copy on a properly aligned image
+    * and only apply the workaround near the left and right edges.
+    * This way, we minimize the perf loss caused by the misalignment.
+    */
+   const uint32_t pixel_alignment = MAX2(8 * img->bpp, 16) / img->bpp;
+   struct ac_sdma_surf aligned_img = *img;
+   struct ac_sdma_surf aligned_buf = *buf;
+   VkExtent3D aligned_extent = extent;
+
+   aligned_img.offset.x = align(img->offset.x, pixel_alignment);
+   aligned_extent.width -= aligned_img.offset.x - img->offset.x;
+   aligned_extent.width = align(aligned_extent.width, pixel_alignment) - pixel_alignment;
+   aligned_buf.va = buf->va + (aligned_img.offset.x - img->offset.x) * img->bpp;
+
+   if (extent.width <= pixel_alignment * 2 ||
+       !aligned_extent.width ||
+       ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &aligned_buf, &aligned_img, aligned_extent.width, aligned_extent.height, aligned_extent.depth)) {
+      radv_sdma_single_copy_buffer_image_unaligned(device, cs, buf, img, extent, temp_bo_va, to_image);
+      return;
+   }
+
+   /* Use aligned copy for the bulk of the image. */
+   radv_sdma_copy_buffer_image(device, cs, &aligned_buf, &aligned_img, aligned_extent, to_image);
+
+   /* Use unaligned copy workaround for the left edge. */
+   VkExtent3D left_extent = extent;
+   left_extent.width = aligned_img.offset.x - img->offset.x;
+
+   if (left_extent.width)
+      radv_sdma_single_copy_buffer_image_unaligned(device, cs, buf, img, left_extent, temp_bo_va, to_image);
+
+   /* Use unaligned copy workaround for the right edge. */
+   VkExtent3D right_extent = extent;
+   right_extent.width = img->offset.x + extent.width - aligned_img.offset.x - aligned_extent.width;
+   struct ac_sdma_surf right_buf = *buf;
+   right_buf.va = buf->va + (extent.width - right_extent.width) * img->bpp;
+   struct ac_sdma_surf right_img = *img;
+   right_img.offset.x = img->offset.x + extent.width - right_extent.width;
+
+   if (right_extent.width)
+      radv_sdma_single_copy_buffer_image_unaligned(device, cs, &right_buf, &right_img, right_extent, temp_bo_va, to_image);
 }
 
 static void
