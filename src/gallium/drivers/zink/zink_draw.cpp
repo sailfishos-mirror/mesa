@@ -861,7 +861,11 @@ zink_draw(struct pipe_context *pctx,
             if (mode_changed && get_gfx_pipeline_idx<DYNAMIC_STATE>(screen, mode) != ctx->gfx_pipeline_state.idx)
                zink_mark_atom_dirty(ctx, ZINK_ATOM_PIPELINE);
             ctx->gfx_pipeline_state.gfx_prim_mode = mode;
-            zink_set_primitive_emulation_keys(ctx);
+            /* with optimal keys, only these can need a generated geometry shader or have one to unbind */
+            if (!screen->optimal_keys || ctx->is_generated_gs_bound || mode == MESA_PRIM_QUADS ||
+                zink_get_gs_key(ctx)->lower_gl_point ||
+                (ctx->gfx_stages[MESA_SHADER_VERTEX] && ctx->gfx_stages[MESA_SHADER_VERTEX]->has_edgeflags))
+               zink_set_primitive_emulation_keys(ctx);
 
             if (DYNAMIC_STATE >= ZINK_DYNAMIC_STATE2) {
                if (BATCH_CHANGED || ctx->primitive_restart != dinfo->primitive_restart) {
