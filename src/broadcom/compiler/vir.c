@@ -2099,6 +2099,8 @@ v3d_attempt_compile(struct v3d_compile *c)
                 NIR_PASS(_, c->s, nir_opt_cse);
         }
 
+        NIR_PASS(_, c->s, nir_opt_uadd_carry, 32);
+
         NIR_PASS(_, c->s, nir_lower_bool_to_int32);
         nir_divergence_analysis(c->s);
 

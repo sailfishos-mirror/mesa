@@ -1390,6 +1390,20 @@ ntq_emit_alu(struct v3d_compile *c, nir_alu_instr *instr)
 
         struct qreg result;
 
+        if (instr->op == nir_op_uadd_with_carry_out ||
+            instr->op == nir_op_usub_with_borrow_out) {
+                if (instr->op == nir_op_uadd_with_carry_out)
+                        result = vir_ADD(c, src[0], src[1]);
+                else
+                        result = vir_SUB(c, src[0], src[1]);
+
+                vir_set_pf(c, c->defs[result.index], V3D_QPU_PF_PUSHC);
+                ntq_store_def(c, &instr->def, 0, result);
+                ntq_store_def(c, &instr->def, 1, ntq_emit_cond_to_int(c, V3D_QPU_COND_IFA));
+                return;
+        }
+
+
         switch (instr->op) {
         case nir_op_mov:
                 result = vir_MOV(c, src[0]);
@@ -1790,18 +1804,6 @@ ntq_emit_alu(struct v3d_compile *c, nir_alu_instr *instr)
 
         case nir_op_iabs:
                 result = vir_MAX(c, src[0], vir_NEG(c, src[0]));
-                break;
-
-        case nir_op_uadd_carry:
-                vir_set_pf(c, vir_ADD_dest(c, vir_nop_reg(), src[0], src[1]),
-                           V3D_QPU_PF_PUSHC);
-                result = ntq_emit_cond_to_int(c, V3D_QPU_COND_IFA);
-                break;
-
-        case nir_op_usub_borrow:
-                vir_set_pf(c, vir_SUB_dest(c, vir_nop_reg(), src[0], src[1]),
-                           V3D_QPU_PF_PUSHC);
-                result = ntq_emit_cond_to_int(c, V3D_QPU_COND_IFA);
                 break;
 
         case nir_op_pack_half_2x16_split:

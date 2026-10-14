@@ -204,6 +204,8 @@ v3dv_pipeline_get_nir_options(const struct v3d_device_info *devinfo)
       .lower_device_index_to_zero = true,
       .lower_fquantize2f16 = true,
       .lower_ufind_msb = true,
+      .lower_uadd_carry = true,
+      .lower_usub_borrow = true,
       .has_fsub = true,
       .has_isub = true,
       .has_imul24 = true,
