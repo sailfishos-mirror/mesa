@@ -195,6 +195,44 @@ get_num_user_data_terms(const ac_cs_blit_key *key)
    return num;
 }
 
+static nir_def *
+tex(nir_builder *b, const ac_cs_blit_key *key, nir_deref_instr *deref, nir_texop op,
+    nir_def *coord, unsigned num_coords)
+{
+   bool fmask = op == nir_texop_fragment_mask_fetch_amd || op == nir_texop_samples_identical;
+
+   nir_def *result =
+      nir_build_tex(b, op,
+                    .coord = nir_trim_vector(b, coord, num_coords - key->src_is_msaa),
+                    .ms_index = key->src_is_msaa && !fmask ?
+                                   nir_channel(b, coord, num_coords - 1) : NULL,
+                    .texture_deref = deref,
+                    .dim = deref->type->sampler_dimensionality,
+                    .is_array = deref->type->sampler_array);
+   return fmask ? result : nir_trim_vector(b, result, key->last_src_channel + 1);
+}
+
+static nir_def *
+load_src(nir_builder *b, const ac_cs_blit_key *key, nir_deref_instr *deref, nir_texop op,
+         nir_def *coord, unsigned num_coords)
+{
+   if (key->src_is_sampler)
+      return tex(b, key, deref, op, coord, num_coords);
+
+   unsigned bit_size = glsl_base_type_get_bit_size(deref->type->sampled_type);
+   assert(op != nir_texop_samples_identical);
+
+   return nir_image_deref_load(b, key->last_src_channel + 1, bit_size,
+                               &deref->def, coord,
+                               nir_channel(b, coord, num_coords - 1),
+                               nir_imm_intN_t(b, 0, coord->bit_size),
+                               .image_dim = deref->type->sampler_dimensionality,
+                               .image_array = deref->type->sampler_array,
+                               .dest_type = nir_type_uint | bit_size,
+                               .access = op == nir_texop_fragment_fetch_amd ?
+                                            ACCESS_FMASK_LOWERED_AMD : 0);
+}
+
 /* The compute blit shader.
  *
  * Implementation details:
@@ -500,7 +538,6 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    /* Execute image loads and stores. */
    unsigned num_src_coords = (key->src_is_1d ? 1 : 2) + key->src_has_z + key->src_is_msaa;
    unsigned num_dst_coords = (key->dst_is_1d ? 1 : 2) + key->dst_has_z + key->dst_is_msaa;
-   unsigned bit_size = key->d16 ? 16 : 32;
    unsigned num_samples = 1 << key->log_samples;
    unsigned src_samples = key->src_is_msaa && !key->sample0_only &&
                           !key->is_clear ? num_samples : 1;
@@ -594,10 +631,6 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       }
 
       /* Use "samples_identical" for MSAA resolving if it's supported. */
-      const unsigned tex_coord_components =
-         key->format_is_96bit ? 0 :
-            img_src->type->sampler_array +
-            glsl_get_sampler_dim_coordinate_components(img_src->type->sampler_dimensionality);
       const bool is_resolve = src_samples > 1 && dst_samples == 1;
       const bool uses_samples_identical = key->src_has_non_identity_fmask && is_resolve;
       nir_def *samples_identical = NULL, *sample0[SI_MAX_COMPUTE_BLIT_LANE_SIZE] = {0};
@@ -611,11 +644,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
             nir_def *iden;
 
             if (has_src_sampler) {
-               iden = nir_samples_identical(&b, nir_trim_vector(&b, coord_src[i * src_samples],
-                                                                tex_coord_components),
-                                            .texture_deref = img_src_deref,
-                                            .dim = GLSL_SAMPLER_DIM_MS,
-                                            .is_array = img_src->type->sampler_array);
+               iden = tex(&b, key, img_src_deref, nir_texop_samples_identical,
+                          coord_src[i * src_samples], num_src_coords);
             } else {
                iden = nir_image_deref_samples_identical(&b, 1, &img_src_deref->def,
                                                         coord_src[i * src_samples],
@@ -628,26 +658,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
          /* If all samples are identical, load only sample 0. */
          if_identical = nir_push_if(&b, samples_identical);
          foreach_pixel_in_lane(1, sample, x, y, z, i) {
-            if (has_src_sampler) {
-               sample0[i] = nir_build_tex(&b, nir_texop_fragment_fetch_amd,
-                                          .coord = nir_trim_vector(&b, coord_src[i * src_samples],
-                                                                   tex_coord_components),
-                                          .ms_index = nir_channel(&b, coord_src[i * src_samples],
-                                                                  num_src_coords - 1),
-                                          .texture_deref = img_src_deref,
-                                          .dim = GLSL_SAMPLER_DIM_MS,
-                                          .is_array = img_src->type->sampler_array);
-               sample0[i] = nir_trim_vector(&b, sample0[i], key->last_src_channel + 1);
-            } else {
-               sample0[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
-                                                 &img_src_deref->def, coord_src[i * src_samples],
-                                                 nir_channel(&b, coord_src[i * src_samples],
-                                                             num_src_coords - 1), zero_coord,
-                                                 .image_dim = img_src->type->sampler_dimensionality,
-                                                 .image_array = img_src->type->sampler_array,
-                                                 .dest_type = nir_type_uint | bit_size,
-                                                 .access = ACCESS_FMASK_LOWERED_AMD);
-            }
+            sample0[i] = load_src(&b, key, img_src_deref, nir_texop_fragment_fetch_amd,
+                                  coord_src[i * src_samples], num_src_coords);
          }
          nir_push_else(&b, if_identical);
       }
@@ -658,42 +670,12 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
             color[i] = nir_load_global(&b, 1, 32, global_addr_src[i],
                                        .access = ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE,
                                        .align_mul = 4);
-         } else if (has_src_sampler) {
-            if (key->src_is_msaa) {
-               if (key->src_has_non_identity_fmask) {
-                  color[i] = nir_txf_ms(&b, nir_trim_vector(&b, coord_src[i],
-                                                            tex_coord_components),
-                                        nir_channel(&b, coord_src[i],
-                                                    num_src_coords - 1),
-                                        .texture_deref = img_src_deref,
-                                        .dim = GLSL_SAMPLER_DIM_MS,
-                                        .is_array = img_src->type->sampler_array);
-               } else {
-                  color[i] = nir_build_tex(&b, nir_texop_fragment_fetch_amd,
-                                           .coord = nir_trim_vector(&b, coord_src[i],
-                                                                    tex_coord_components),
-                                           .ms_index = nir_channel(&b, coord_src[i],
-                                                                   num_src_coords - 1),
-                                           .texture_deref = img_src_deref,
-                                           .dim = GLSL_SAMPLER_DIM_MS,
-                                           .is_array = img_src->type->sampler_array);
-               }
-            } else {
-               color[i] = nir_txf(&b, nir_trim_vector(&b, coord_src[i], tex_coord_components),
-                                  .texture_deref = img_src_deref,
-                                  .dim = img_src->type->sampler_dimensionality,
-                                  .is_array = img_src->type->sampler_array);
-            }
-            color[i] = nir_trim_vector(&b, color[i], key->last_src_channel + 1);
          } else {
-            color[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
-                                            &img_src_deref->def, coord_src[i],
-                                            nir_channel(&b, coord_src[i], num_src_coords - 1), zero_coord,
-                                            .image_dim = img_src->type->sampler_dimensionality,
-                                            .image_array = img_src->type->sampler_array,
-                                            .dest_type = nir_type_uint | bit_size,
-                                            .access = key->src_has_non_identity_fmask ?
-                                                         0 : ACCESS_FMASK_LOWERED_AMD);
+            color[i] = load_src(&b, key, img_src_deref,
+                                key->src_is_msaa ?
+                                   (key->src_has_non_identity_fmask ? nir_texop_txf_ms :
+                                                                      nir_texop_fragment_fetch_amd) :
+                                   nir_texop_txf, coord_src[i], num_src_coords);
          }
       }
 
