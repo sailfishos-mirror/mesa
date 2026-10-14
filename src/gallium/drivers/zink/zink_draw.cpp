@@ -628,7 +628,7 @@ enum zink_draw_vbs {
 };
 
 /* everything after the atoms: bind the buffers which come with the draw, and draw */
-template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, zink_draw_vbs VBS>
+template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, zink_draw_vbs VBS, bool CLEAN>
 ALWAYS_INLINE static void
 zink_draw_finish(struct zink_context *ctx,
                  struct zink_batch_state *bs,
@@ -684,7 +684,7 @@ zink_draw_finish(struct zink_context *ctx,
    }
 
    bool marker = false;
-   if (unlikely(zink_tracing)) {
+   if (!CLEAN && unlikely(zink_tracing)) {
       VkViewport viewport = {
          ctx->vp_state.viewport_states[0].translate[0] - ctx->vp_state.viewport_states[0].scale[0],
          ctx->vp_state.viewport_states[0].translate[1] - ctx->vp_state.viewport_states[0].scale[1],
@@ -767,7 +767,7 @@ zink_draw_finish(struct zink_context *ctx,
       }
    }
 
-   if (unlikely(zink_tracing))
+   if (!CLEAN && unlikely(zink_tracing))
       zink_cmd_debug_marker_end(ctx, bs->cmdbuf, marker);
 
    if (unlikely(have_streamout)) {
@@ -793,9 +793,9 @@ zink_draw_finish(struct zink_context *ctx,
       pctx->flush(pctx, NULL, 0);
 }
 
-/* emit the dirty atoms, then draw */
+/* the draws which have dirty atoms: out of line, so the draws without any stay compact */
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED, zink_draw_vbs VBS>
-ALWAYS_INLINE static void
+static void ATTRIBUTE_NOINLINE
 zink_draw_atoms(struct zink_context *ctx,
                 const struct pipe_draw_info *dinfo,
                 unsigned drawid_offset,
@@ -1088,7 +1088,7 @@ zink_draw_atoms(struct zink_context *ctx,
       zink_select_draw_vbo(ctx);
    }
 
-   zink_draw_finish<HAS_MULTIDRAW, DYNAMIC_STATE, VBS>(ctx, bs, dinfo, drawid_offset, dindirect, draws, num_draws, so_target,
+   zink_draw_finish<HAS_MULTIDRAW, DYNAMIC_STATE, VBS, false>(ctx, bs, dinfo, drawid_offset, dindirect, draws, num_draws, so_target,
                                                               index_buffer, index_offset, index_size, need_index_buffer_unref,
                                                               work_count, have_streamout, needs_drawid);
 }
@@ -1110,6 +1110,7 @@ zink_draw(struct pipe_context *pctx,
 
    struct zink_context *ctx = zink_context(pctx);
    struct zink_screen *screen = zink_screen(pctx->screen);
+   struct zink_batch_state *bs = ctx->bs;
    struct zink_so_target *so_target =
       dindirect && dindirect->count_from_stream_output ?
          zink_so_target(dindirect->count_from_stream_output) : NULL;
@@ -1204,6 +1205,14 @@ zink_draw(struct pipe_context *pctx,
 
    /* the buffers of draw_vbo_buffers change with every draw, so they are bound after the atoms */
    const uint32_t skip_atoms = VBS == ZINK_VBS_UNOWNED ? BITFIELD_BIT(ZINK_ATOM_VERTEX_BUFFERS) : 0;
+   /* nothing has changed since the last draw except the buffers which come with this one */
+   if (!BATCH_CHANGED && !(ctx->dirty_atoms & ~skip_atoms) && !dindirect &&
+       !(ctx->depth_op_promoted && !ctx->can_promote_depth_op) && !zink_tracing) {
+      zink_draw_finish<HAS_MULTIDRAW, DYNAMIC_STATE, VBS, true>(ctx, bs, dinfo, drawid_offset, NULL, draws, num_draws, NULL,
+                                                               index_buffer, index_offset, index_size, need_index_buffer_unref,
+                                                               work_count, false, false);
+      return;
+   }
    zink_draw_atoms<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, VBS>(ctx, dinfo, drawid_offset, dindirect, draws, num_draws, vstate, partial_velem_mask,
                                                                     so_target, index_buffer, index_offset, index_size,
                                                                     need_index_buffer_unref, work_count, skip_atoms);
