@@ -1924,8 +1924,6 @@ gen_encode(gen_encode_params *params)
    if (!params->raw_bytes)
       return false;
 
-   /* TODO: Implement params->compact_all.  For now it is being ignored. */
-
    const intel_device_info *devinfo = params->devinfo;
 
    if (params->num_insts == 0) {
