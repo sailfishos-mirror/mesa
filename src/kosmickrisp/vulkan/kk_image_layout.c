@@ -46,9 +46,7 @@ vk_image_usage_flags_to_mtl_texture_usage(VkImageUsageFlags usage_flags,
 {
    enum mtl_texture_usage usage = 0u;
 
-   const VkImageUsageFlags shader_write =
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-   if (usage_flags & shader_write)
+   if (usage_flags & VK_IMAGE_USAGE_STORAGE_BIT)
       usage |= MTL_TEXTURE_USAGE_SHADER_WRITE;
 
    const VkImageUsageFlags shader_read =
