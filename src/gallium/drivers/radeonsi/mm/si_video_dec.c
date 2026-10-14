@@ -27,6 +27,8 @@ static void si_dec_begin_frame(struct pipe_video_codec *decoder, struct pipe_vid
    if (vid->bs_buffers[vid->cur_buffer]) {
       vid->bs_ptr = vid->ws->buffer_map(vid->ws, vid->bs_buffers[vid->cur_buffer]->buf,
                                         NULL, PIPE_MAP_WRITE | RADEON_MAP_TEMPORARY);
+      if (!vid->bs_ptr)
+         ERROR("Failed to map bitstream buffer!");
    }
 }
 
