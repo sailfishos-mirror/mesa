@@ -1090,8 +1090,9 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       return true;
 
    if (blit->dst.format == PIPE_FORMAT_A8R8_UNORM || /* This format fails AMD_TEST=imagecopy. */
-       (info->gfx_level <= GFX8 && max_dst_chan_size == 5) || /* image stores with R5G5B5A1_UNORM have precision issues */
-       (info->gfx_level <= GFX8 && max_dst_chan_size == 6) || /* image stores with R5G6B5_UNORM have precision issues */
+       /* GFX8 doesn't seem to support R4G4B4A4_UINT and R5G5B5A1_UINT. VK doesn't have these formats. */
+       (info->gfx_level <= GFX8 && max_dst_chan_size <= 6 &&
+        util_format_is_pure_integer(blit->dst.format)) ||
        dst_samples > SI_MAX_COMPUTE_BLIT_SAMPLES ||
        (!is_clear &&
         /* Scaling is not implemented by the compute shader. */
