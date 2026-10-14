@@ -320,8 +320,6 @@ typedef struct nir_shader_compiler_options {
    bool lower_ufind_msb;
    /** Lowers find_lsb to ufind_msb and logic ops */
    bool lower_find_lsb;
-   bool lower_uadd_carry;
-   bool lower_usub_borrow;
    /** Lowers imul_high/umul_high to 16-bit multiplies and carry operations. */
    bool lower_mul_high;
    bool lower_mul_high16;

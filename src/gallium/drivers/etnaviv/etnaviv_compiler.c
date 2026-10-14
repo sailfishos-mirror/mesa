@@ -44,8 +44,6 @@ etna_compiler_create(const struct etna_core_info *info)
       .float_mul_add16 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
       .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
       .float_mul_add64 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
-      .lower_uadd_carry = true,
-      .lower_usub_borrow = true,
       .lower_mul_high = true,
       .lower_bitops = true,
       .lower_bitfield_insert = info->halti < 5,

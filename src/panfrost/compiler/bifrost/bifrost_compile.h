@@ -126,8 +126,6 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
       .late_lower_int64 = (arch >= 9),                                         \
       .lower_mul_high = true,                                                  \
       .lower_fisnormal = true,                                                 \
-      .lower_uadd_carry = true,                                                \
-      .lower_usub_borrow = true,                                               \
                                                                                \
       .has_ldexp = true,                                                       \
       .has_isub = true,                                                        \

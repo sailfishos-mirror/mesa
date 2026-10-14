@@ -76,9 +76,6 @@ static const nir_shader_compiler_options nir_options = {
 
    .lower_helper_invocation = true,
 
-   .lower_uadd_carry = true,
-   .lower_usub_borrow = true,
-
    .max_unroll_iterations = 16,
    .max_samples = 4,
 

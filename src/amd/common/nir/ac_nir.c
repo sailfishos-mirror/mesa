@@ -82,8 +82,6 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
    options->lower_hadd = true;
    options->lower_mul_32x16 = true;
    options->lower_bfloat16_conversions = true;
-   options->lower_uadd_carry = true;
-   options->lower_usub_borrow = true;
    options->has_ldexp = true;
    options->has_bfe = true;
    options->has_bfm = true;
