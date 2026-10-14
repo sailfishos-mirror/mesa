@@ -252,14 +252,13 @@ add_tex_src_binding(struct apply_pipeline_layout_state *state,
    /* Track input attachments use */
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS ||
        tex->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS_MS) {
-      nir_variable *var =
-         nir_deref_instr_get_variable(
-            nir_src_as_deref(tex->src[deref_src_idx].src));
-      assert(var->data.index == NIR_VARIABLE_NO_INDEX ||
-             var->data.index < MAX_DESCRIPTOR_SET_INPUT_ATTACHMENTS);
-      const uint32_t index = var->data.index == NIR_VARIABLE_NO_INDEX ?
-         MAX_DESCRIPTOR_SET_INPUT_ATTACHMENTS : var->data.index;
-      BITSET_SET(state->bind_map->input_attachments, index);
+      BITSET_SET_COUNT(state->bind_map->input_attachments,
+                       (tex->input_attachment_depth ||
+                        tex->input_attachment_stencil) ?
+                       MAX_DESCRIPTOR_SET_INPUT_ATTACHMENTS :
+                       tex->texture_index,
+                       MAX2(1, tex->texture_array_size));
+      tex->texture_index = 0;
    }
 
    /* This is likely a fallout of Wa_14020375314 but hasn't fully be
