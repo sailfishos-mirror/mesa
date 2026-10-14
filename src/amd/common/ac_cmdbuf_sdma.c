@@ -279,7 +279,8 @@ ac_sdma_check_pitches(enum sdma_version sdma_ip_version, uint32_t pitch,
    assert(util_is_aligned(pitch, pitch_alignment));
 
    if (uses_depth) {
-      ASSERTED const uint32_t slice_pitch_alignment = 4;
+      ASSERTED const uint32_t slice_pitch_alignment =
+         sdma_ip_version >= SDMA_5_0 ? MAX2(1, 4 / bpp) : 4;
       assert(slice_pitch);
       assert(slice_pitch <= (1 << 28));
       assert(util_is_aligned(slice_pitch, slice_pitch_alignment));
@@ -913,11 +914,9 @@ ac_sdma_use_unaligned_buffer_image_copy(const struct radeon_info *const info,
    if (!util_is_aligned(buf->pitch, required_pitch_alignment))
       return true;
 
-   if (!img->surf->is_linear) {
-      const bool uses_depth = img->offset.z != 0 || depth != 1;
-      const uint32_t required_slice_pitch_alignment = uses_depth ? 4 : 1;
-
-      if (!util_is_aligned(buf->slice_pitch, required_slice_pitch_alignment))
+   const bool uses_depth = img->offset.z != 0 || depth != 1;
+   if (!img->surf->is_linear && uses_depth) {
+      if (!util_is_aligned(buf->slice_pitch, required_pitch_alignment))
          return true;
    }
 
