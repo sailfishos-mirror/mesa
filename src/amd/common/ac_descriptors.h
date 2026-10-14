@@ -107,7 +107,25 @@ enum {
  * - compressed: CMASK compresses the FMASK image in a proprietary manner similar to DCC.
  * - decompressed: FMASK is a regular UINT8, UINT16, or UINT32 image.
  *
- * TC-compatible CMASK removes the middle "compressed" state.
+ * TC-compatible CMASK removes the middle "compressed" state, which means that it can only be set
+ * to one of these 2 values:
+ * 1. CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED, which means FMASK loads return 0 and FMASK content
+ *    is ignored.
+ * 2. CMASK_*xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED, which means FMASK loads return FMASK pixels.
+ *
+ * Unlike DCC and HTILE-based compression, image stores into FMASK that's compressed by
+ * TC-compatible CMASK never corrupt FMASK. TC-compatible FMASK compression via CMASK doesn't
+ * store any compressed data in FMASK. TC-compatible CMASK only determines whether FMASK is read
+ * or whether FMASK reads are skipped and 0 is returned to shaders instead. Therefore, image
+ * stores can write FMASK at any time, and if CMASK doesn't indicate "cleared to 0", those FMASK
+ * pixels are returned via later image loads to shaders. If CMASK indicates "cleared to 0",
+ * nothing is read from FMASK, and therefore image stores into FMASK have no visible effect
+ * on FMASK loads with CMASK enabled. When writing an FMASK copy shader, one optimization is to
+ * write only the corresponding CMASK clear value to CMASK if an FMASK tile contains only zeros,
+ * and skip all FMASK image stores. This only applies to TC-compatible CMASK and not
+ * TC-incompatible CMASK. TC-incompatible CMASK does store compressed FMASK data into the FMASK
+ * image if CMASK is in the compressed state (not cleared and not decompressed). BTW, DCC and
+ * HTILE also have clear states where raw image stores that bypass compression have no effect.
  *
  * CMASK can also contain fast clear state for the MSAA color image predating DCC fast clear, but
  * that's unrelated to FMASK. If that's used, CMASK provides fast clear for both FMASK and the color
