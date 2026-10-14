@@ -661,14 +661,29 @@ zink_draw(struct pipe_context *pctx,
    if (BATCH_CHANGED)
       ctx->dirty_atoms |= ZINK_DRAW_ATOMS;
 
-   if (unlikely(ctx->buffer_rebind_counter < screen->buffer_rebind_counter && !ctx->blitting)) {
-      ctx->buffer_rebind_counter = screen->buffer_rebind_counter;
-      zink_rebind_all_buffers(ctx);
-   }
+   /* MSVC resolves "struct zink_context" inside offsetof() to the
+    * zink_context() cast function, so these go through typedefs
+    */
+   typedef struct zink_context zink_context_type;
+   typedef struct zink_screen zink_screen_type;
+   STATIC_ASSERT(offsetof(zink_context_type, image_rebind_counter) ==
+                 offsetof(zink_context_type, buffer_rebind_counter) + sizeof(unsigned));
+   STATIC_ASSERT(offsetof(zink_screen_type, image_rebind_counter) ==
+                 offsetof(zink_screen_type, buffer_rebind_counter) + sizeof(unsigned));
+   /* both counters at once: they only differ after something was rebound */
+   uint64_t ctx_rebinds, screen_rebinds;
+   memcpy(&ctx_rebinds, &ctx->buffer_rebind_counter, sizeof(ctx_rebinds));
+   memcpy(&screen_rebinds, &screen->buffer_rebind_counter, sizeof(screen_rebinds));
+   if (unlikely(ctx_rebinds != screen_rebinds)) {
+      if (ctx->buffer_rebind_counter < screen->buffer_rebind_counter && !ctx->blitting) {
+         ctx->buffer_rebind_counter = screen->buffer_rebind_counter;
+         zink_rebind_all_buffers(ctx);
+      }
 
-   if (unlikely(ctx->image_rebind_counter < screen->image_rebind_counter && !ctx->blitting)) {
-      ctx->image_rebind_counter = screen->image_rebind_counter;
-      zink_rebind_all_images(ctx);
+      if (ctx->image_rebind_counter < screen->image_rebind_counter && !ctx->blitting) {
+         ctx->image_rebind_counter = screen->image_rebind_counter;
+         zink_rebind_all_images(ctx);
+      }
    }
 
    /* the buffers which come with the draw are synchronized here: this can end the renderpass */
