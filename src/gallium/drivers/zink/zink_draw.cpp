@@ -101,11 +101,16 @@ check_buffer_barrier(struct zink_context *ctx, struct pipe_resource *pres, VkAcc
 ALWAYS_INLINE static void
 barrier_unowned_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *buffers, unsigned count)
 {
+   const bool unordered_blitting = ctx->unordered_blitting;
    for (unsigned i = 0; i < count; i++) {
       struct zink_resource *res = zink_resource(buffers[i].buffer.resource);
       if (!res)
          continue;
-      check_buffer_barrier(ctx, &res->base.b, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+      if (res->obj->access != VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT ||
+          res->obj->access_stage != VK_PIPELINE_STAGE_VERTEX_INPUT_BIT)
+         zink_buffer_barrier(ctx, res, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+      if (!unordered_blitting)
+         zink_resource_disable_unordered(res, false);
       zink_batch_resource_usage_set(ctx->bs, res, false, true);
    }
 }
@@ -127,7 +132,7 @@ draw_indexed_need_index_buffer_unref(struct zink_context *ctx,
              bool needs_drawid)
 {
    VkCommandBuffer cmdbuf = ctx->bs->cmdbuf;
-   if (dinfo->increment_draw_id && needs_drawid) {
+   if (needs_drawid && dinfo->increment_draw_id) {
       for (unsigned i = 0; i < num_draws; i++) {
          update_drawid(ctx, draw_id);
          VKCTX(CmdDrawIndexed)(cmdbuf,
@@ -156,7 +161,7 @@ draw_indexed(struct zink_context *ctx,
              bool needs_drawid)
 {
    VkCommandBuffer cmdbuf = ctx->bs->cmdbuf;
-   if (dinfo->increment_draw_id && needs_drawid) {
+   if (needs_drawid && dinfo->increment_draw_id) {
       for (unsigned i = 0; i < num_draws; i++) {
          update_drawid(ctx, draw_id);
          VKCTX(CmdDrawIndexed)(cmdbuf,
@@ -191,7 +196,7 @@ draw(struct zink_context *ctx,
      bool needs_drawid)
 {
    VkCommandBuffer cmdbuf = ctx->bs->cmdbuf;
-   if (dinfo->increment_draw_id && needs_drawid) {
+   if (needs_drawid && dinfo->increment_draw_id) {
       for (unsigned i = 0; i < num_draws; i++) {
          update_drawid(ctx, draw_id);
          VKCTX(CmdDraw)(cmdbuf, draws[i].count, dinfo->instance_count, draws[i].start, dinfo->start_instance);
@@ -1146,7 +1151,7 @@ zink_draw(struct pipe_context *pctx,
       zink_select_draw_mesh_tasks(ctx);
    }
    /* flush if there's >100k draws */
-   if (!ctx->unordered_blitting && (unlikely(work_count >= 30000) || ctx->oom_flush))
+   if (unlikely(work_count >= 30000 || ctx->oom_flush) && !ctx->unordered_blitting)
       pctx->flush(pctx, NULL, 0);
 }
 
@@ -1345,15 +1350,15 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
 
    struct zink_context *ctx = zink_context(pctx);
 
+   if (ctx->in_rp)
+      ctx->can_promote_depth_op = false;
+
    if (unlikely(!ctx->vertex_buffers_unowned || buffer_count != ctx->vertex_buffers_count)) {
       zink_set_vertex_buffers_unowned(ctx, buffer_count, buffers);
    } else {
       for (unsigned i = 0; i < buffer_count; i++)
          ctx->vertex_buffers[i] = buffers[i];
    }
-
-   if (ctx->in_rp)
-      ctx->can_promote_depth_op = false;
 
    /* these are used until the next set_vertex_buffers, so they stay dirty until zink_draw binds them */
    zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
