@@ -629,13 +629,14 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
          if_identical = nir_push_if(&b, samples_identical);
          foreach_pixel_in_lane(1, sample, x, y, z, i) {
             if (has_src_sampler) {
-               sample0[i] = nir_txf_ms(&b, nir_trim_vector(&b, coord_src[i * src_samples],
-                                                           tex_coord_components),
-                                       nir_channel(&b, coord_src[i * src_samples],
-                                                   num_src_coords - 1),
-                                       .texture_deref = img_src_deref,
-                                       .dim = GLSL_SAMPLER_DIM_MS,
-                                       .is_array = img_src->type->sampler_array);
+               sample0[i] = nir_build_tex(&b, nir_texop_fragment_fetch_amd,
+                                          .coord = nir_trim_vector(&b, coord_src[i * src_samples],
+                                                                   tex_coord_components),
+                                          .ms_index = nir_channel(&b, coord_src[i * src_samples],
+                                                                  num_src_coords - 1),
+                                          .texture_deref = img_src_deref,
+                                          .dim = GLSL_SAMPLER_DIM_MS,
+                                          .is_array = img_src->type->sampler_array);
                sample0[i] = nir_trim_vector(&b, sample0[i], key->last_src_channel + 1);
             } else {
                sample0[i] = nir_image_deref_load(&b, key->last_src_channel + 1, bit_size,
@@ -644,7 +645,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
                                                              num_src_coords - 1), zero_coord,
                                                  .image_dim = img_src->type->sampler_dimensionality,
                                                  .image_array = img_src->type->sampler_array,
-                                                 .dest_type = nir_type_uint | bit_size);
+                                                 .dest_type = nir_type_uint | bit_size,
+                                                 .access = ACCESS_FMASK_LOWERED_AMD);
             }
          }
          nir_push_else(&b, if_identical);
