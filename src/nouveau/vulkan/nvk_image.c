@@ -62,12 +62,12 @@ nvk_get_image_plane_format_features(const struct nvk_physical_device *pdev,
    if (nil_format_supports_texturing(&pdev->info, p_format)) {
       features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT;
       features |= VK_FORMAT_FEATURE_2_BLIT_SRC_BIT;
+      if (pdev->info.cls_eng3d >= MAXWELL_B)
+         features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_MINMAX_BIT;
    }
 
    if (nil_format_supports_filtering(&pdev->info, p_format)) {
       features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
-      if (pdev->info.cls_eng3d >= MAXWELL_B)
-         features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_MINMAX_BIT;
    }
 
    /* TODO: VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_DEPTH_COMPARISON_BIT */
