@@ -393,7 +393,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    if (key->format_is_96bit) {
       dst_dword_stride = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 18);
       start_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 18, 6);
-      start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 24, 4);
+      start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 24, 6);
       num++;
       dst_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 18);
       log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 18, 3);
@@ -419,11 +419,11 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       }
    } else {
       start_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 0, 6);
-      start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 6, 4);
-      start_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 10, 3);
-      log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 13, 3);
-      log_block_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 16, 3);
-      log_block_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 19, 3);
+      start_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 6, 6);
+      start_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 12, 6);
+      log_block_x = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 18, 3);
+      log_block_y = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 21, 3);
+      log_block_z = nir_ubfe_imm(&b, nir_channel(&b, user_data, num), 24, 3);
       num++;
       dst_x = nir_u2uN(&b, nir_unpack_32_2x16_split_x(&b, nir_channel(&b, user_data, num)),
                        coord_bit_size);
@@ -1541,7 +1541,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    assert(key.format_is_96bit ? !(blit->dst.box.x & ~0x3ffff) : util_is_uint16(blit->dst.box.x));
    assert(util_is_uint16(blit->dst.box.y));
    assert(util_is_uint16(blit->dst.box.z));
-   assert(start_x <= 63 && start_y <= 15 && start_z <= 7);
+   assert(start_x <= 63 && start_y <= 63 && start_z <= 63);
    assert(log_block_x <= 7 && log_block_y <= 7 && log_block_z <= 7);
    assert(key.dst_has_z || !blit->dst.box.z);
    assert(key.src_has_z || !blit->src.box.z);
@@ -1563,7 +1563,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
       assert(blit->src.box.z == 0);
 
       dispatch->user_data[num++] = (dst_dword_stride & 0x3ffff) |
-                                   ((start_x & 0x3f) << 18) | ((start_y & 0xf) << 24);
+                                   ((start_x & 0x3f) << 18) | ((start_y & 0x3f) << 24);
       dispatch->user_data[num++] = (blit->dst.box.x & 0x3ffff) |
                                    ((log_block_x & 0x7) << 18) | ((log_block_y & 0x7) << 21);
       dispatch->user_data[num++] = (blit->src.box.y & 0xffff) | (((uint32_t)blit->dst.box.y & 0xffff) << 16);
@@ -1576,9 +1576,9 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
          num += 3;
       }
    } else {
-      dispatch->user_data[num++] = (start_x & 0x3f) | ((start_y & 0xf) << 6) | ((start_z & 0x7) << 10) |
-                                   ((log_block_x & 0x7) << 13) | ((log_block_y & 0x7) << 16) |
-                                   ((log_block_z & 0x7) << 19);
+      dispatch->user_data[num++] = (start_x & 0x3f) | ((start_y & 0x3f) << 6) | ((start_z & 0x3f) << 12) |
+                                   ((log_block_x & 0x7) << 18) | ((log_block_y & 0x7) << 21) |
+                                   ((log_block_z & 0x7) << 24);
       dispatch->user_data[num++] = (blit->dst.box.x & 0xffff) | ((uint32_t)(blit->dst.box.y & 0xffff) << 16);
 
       if (key.dst_has_z || key.src_has_z)
