@@ -522,13 +522,13 @@ zink_shader_uses_samples(const struct zink_shader *zs)
    return zs->info.fs.uses_sample_qualifier || zs->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK);
 }
 
-/* the key bits which a program compiles a draw variant for in the background, as bit 0: strip_psiz */
+/* the key bits which a program compiles a draw variant for in the background, as bit 0: strip_psiz, bit 1: no_color_outputs */
 static inline unsigned
 get_draw_variant_bits(uint32_t key)
 {
    union zink_shader_key_optimal k;
    k.val = key;
-   return k.vs_base.strip_psiz;
+   return (unsigned)k.vs_base.strip_psiz | ((unsigned)k.fs.no_color_outputs << 1);
 }
 
 static inline uint32_t
@@ -537,7 +537,18 @@ set_draw_variant_bits(uint32_t key, unsigned bits)
    union zink_shader_key_optimal k;
    k.val = key;
    k.vs_base.strip_psiz = bits & 1;
+   k.fs.no_color_outputs = !!(bits & 2);
    return k.val;
+}
+
+/* the fragment shader outputs which zink_fs_key_base::no_color_outputs removes */
+#define ZINK_FS_COLOR_OUTPUTS (BITFIELD64_BIT(FRAG_RESULT_COLOR) | BITFIELD64_RANGE(FRAG_RESULT_DATA0, PIPE_MAX_COLOR_BUFS))
+
+/* whether zink_fs_key_base::no_color_outputs changes how this shader is compiled */
+static inline bool
+zink_shader_has_removable_color_outputs(const struct zink_shader *zs)
+{
+   return (zs->info.outputs_written & ZINK_FS_COLOR_OUTPUTS) && !zs->info.fs.uses_fbfetch_output;
 }
 
 static inline uint32_t
@@ -550,6 +561,8 @@ zink_sanitize_optimal_key(struct zink_shader **shaders, uint32_t val)
       k.val = zink_shader_key_optimal_no_tcs(val);
    if (!zink_shader_uses_samples(shaders[MESA_SHADER_FRAGMENT]))
       k.fs.samples = false;
+   if (!zink_shader_has_removable_color_outputs(shaders[MESA_SHADER_FRAGMENT]))
+      k.fs.no_color_outputs = false;
    if (!(shaders[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)))
       k.fs.force_dual_color_blend = false;
    return k.val;
@@ -562,6 +575,8 @@ zink_sanitize_optimal_key_mesh(struct zink_shader **shaders, uint32_t val)
    k.val = zink_shader_key_optimal_mesh(val);
    if (!zink_shader_uses_samples(shaders[MESA_SHADER_FRAGMENT]))
       k.fs.samples = false;
+   /* mesh programs don't compile draw variants in the background */
+   k.fs.no_color_outputs = false;
    if (!(shaders[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)))
       k.fs.force_dual_color_blend = false;
    return k.val;

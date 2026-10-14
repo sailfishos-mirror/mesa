@@ -4141,6 +4141,27 @@ remove_interpolate_at_sample(struct nir_builder *b, nir_intrinsic_instr *interp,
    return true;
 }
 
+/* with color writes disabled, the color outputs and everything that only they need are dead;
+ * this is per fragment shader draw variant, so the previous stage still writes the varyings
+ */
+static bool
+remove_color_outputs(nir_shader *nir)
+{
+   bool progress = false;
+   nir_foreach_shader_out_variable(var, nir) {
+      if (BITFIELD64_BIT(var->data.location) & ZINK_FS_COLOR_OUTPUTS) {
+         var->data.mode = nir_var_shader_temp;
+         progress = true;
+      }
+   }
+   if (!progress)
+      return false;
+   nir_fixup_deref_modes(nir);
+   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_shader_temp, NULL);
+   nir->info.outputs_written &= ~ZINK_FS_COLOR_OUTPUTS;
+   return true;
+}
+
 struct zink_shader_object
 zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shader *zs,
                     nir_shader *nir, const struct zink_shader_key *key, const void *extra_data, struct zink_program *pg)
@@ -4260,6 +4281,9 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
 
          if (zink_fs_key(key)->robust_access)
             NIR_PASS(need_optimize, nir, lower_txf_lod_robustness);
+
+         if (zink_fs_key_base(key)->no_color_outputs && zink_shader_has_removable_color_outputs(zs))
+            need_optimize |= remove_color_outputs(nir);
 
          if (!zink_fs_key_base(key)->samples && zink_shader_uses_samples(zs)) {
             /* VK will always use gl_SampleMask[] values even if sample count is 0,

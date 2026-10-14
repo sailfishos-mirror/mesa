@@ -2672,6 +2672,8 @@ zink_gfx_program_queue_draw_variant(struct zink_context *ctx, struct zink_gfx_pr
    const unsigned bits = get_draw_variant_bits(key);
    const uint32_t base_key = set_draw_variant_bits(key, 0);
    if (!bits || ((bits & 1) && !prog->last_vertex_stage->non_fs.has_injected_psiz) ||
+       /* the fragment draw variant is compiled without the zs swizzle */
+       ((bits & 2) && state->shader_keys_optimal.key.fs.shadow_needs_shader_swizzle) ||
        /* the library is built from the bound modules, which must not have a draw variant bit set which the job doesn't compile */
        (get_draw_variant_bits(prog->last_variant_hash) & ~bits) ||
        base_key != set_draw_variant_bits(prog->last_variant_hash, 0))

@@ -368,6 +368,10 @@ zink_bind_blend_state(struct pipe_context *pctx, void *cso)
                                     blend && blend->dual_src_blend && state->blend_state->attachments[0].blendEnable;
       if (force_dual_color_blend != zink_get_fs_base_key(ctx)->force_dual_color_blend)
          zink_set_fs_base_key(ctx)->force_dual_color_blend = force_dual_color_blend;
+      /* alpha-to-coverage still needs the alpha output */
+      bool no_color_outputs = screen->optimal_keys && blend && !blend->wrmask && !blend->alpha_to_coverage;
+      if (no_color_outputs != zink_get_fs_base_key(ctx)->no_color_outputs)
+         zink_set_fs_base_key(ctx)->no_color_outputs = no_color_outputs;
       zink_mark_atom_dirty(ctx, ZINK_ATOM_BLEND);
 
       if (cso && screen->have_full_ds3) {
