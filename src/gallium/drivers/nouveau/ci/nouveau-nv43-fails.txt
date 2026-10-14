@@ -689,7 +689,10 @@ spec@ext_disjoint_timer_query@simple,Fail
 spec@ext_framebuffer_object@fbo-3d,Fail
 spec@ext_framebuffer_object@fbo-blending-formats,Fail
 spec@ext_framebuffer_object@fbo-cubemap,Fail
+
+# recent regression probably due to shader swizzles
 spec@ext_framebuffer_object@fbo-depth-sample-compare,Fail
+
 spec@ext_framebuffer_object@fbo-flushing-2,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_UNSIGNED_SHORT,Fail
@@ -848,6 +851,3 @@ spec@nv_half_float@attribs-half-float,Fail
 spec@nv_primitive_restart@dlist,Fail
 spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-drawelements,Fail
 spec@oes_draw_elements_base_vertex@oes_draw_elements_base_vertex-multidrawelements,Fail
-
-# recent regression probably due to shader swizzles
-spec@ext_framebuffer_object@fbo-depth-sample-compare,Fail
