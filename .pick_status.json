@@ -324,7 +324,7 @@
         "description": "panvk: properly ignore depth-stencil aspectMask",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "deb8b5c9c78e3a00228c0ccf1175dbc2ffc5093c",
         "notes": null
