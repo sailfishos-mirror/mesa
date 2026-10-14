@@ -1821,6 +1821,11 @@ struct zink_context {
    struct zink_batch_state *last_batch_state; //the last command buffer submitted
    struct zink_batch_state *batch_states; //list of submitted batch states: ordered by increasing timeline id
    unsigned batch_states_count; //number of states in `batch_states`
+   /* only ever incremented: the difference is the number of batches waiting for the flush thread,
+    * and it stays correct when the counters wrap
+    */
+   unsigned queued_batches; //batches given to submit_queue()
+   unsigned submitted_batches; //batches submit_queue() has finished: written by the flush thread
    struct zink_batch_state *free_batch_states; //unused batch states
    struct zink_batch_state *last_free_batch_state; //for appending
    bool oom_flush;

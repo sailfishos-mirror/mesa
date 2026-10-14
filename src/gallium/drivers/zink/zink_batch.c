@@ -15,6 +15,9 @@
 
 #define MAX_VIEW_COUNT 500
 
+/* the number of batches a context can have waiting for the flush thread before it waits too */
+#define ZINK_MAX_QUEUED_BATCHES 8
+
 void
 debug_describe_zink_batch_state(char *buf, const struct zink_batch_state *ptr)
 {
@@ -867,6 +870,7 @@ end:
    p_atomic_set(&bs->fence.submitted, true);
    u_cnd_monotonic_broadcast(&bs->usage.flush);
    mtx_unlock(&bs->usage.mtx);
+   p_atomic_inc(&ctx->submitted_batches);
 
    simple_mtx_lock(&screen->active_batch_states_lock);
    simple_mtx_lock(&screen->free_batch_states_lock);
@@ -895,6 +899,12 @@ zink_end_batch(struct zink_context *ctx)
    struct zink_batch_state *bs;
 
    bs = ctx->bs;
+   /* a batch keeps its cmdbufs and everything they use until it is submitted, so a context which
+    * flushes faster than the flush thread submits has to wait for it
+    */
+   if (ctx->queued_batches - p_atomic_read(&ctx->submitted_batches) >= ZINK_MAX_QUEUED_BATCHES &&
+       ctx->last_batch_state)
+      util_queue_fence_wait(&ctx->last_batch_state->flush_completed);
    zink_batch_state_append(&ctx->batch_states, &ctx->last_batch_state, bs);
    ctx->batch_states_count++;
    ctx->work_count = 0;
@@ -973,6 +983,7 @@ zink_end_batch(struct zink_context *ctx)
    util_dynarray_foreach(&bs->fences, struct zink_tc_fence*, mfence)
       (*mfence)->deferred_ctx = NULL;
 
+   ctx->queued_batches++;
    if (screen->threaded_submit) {
       util_queue_add_job(&screen->flush_queue, bs, &bs->flush_completed,
                          submit_queue, NULL, 0);
