@@ -1105,6 +1105,19 @@ ntq_emit_alu(struct vc4_compile *c, nir_alu_instr *instr)
 
         struct qreg result;
 
+        if (instr->op == nir_op_uadd_with_carry_out ||
+            instr->op == nir_op_usub_with_borrow_out) {
+                if (instr->op == nir_op_uadd_with_carry_out)
+                        result = qir_ADD(c, src[0], src[1]);
+                else
+                        result = qir_SUB(c, src[0], src[1]);
+
+                qir_SF(c, result);
+                ntq_store_def(c, &instr->def, 0, result);
+                ntq_store_def(c, &instr->def, 1, ntq_emit_cond_to_int(c, QPU_COND_CS));
+                return;
+        }
+
         switch (instr->op) {
         case nir_op_mov:
                 result = qir_MOV(c, src[0]);
@@ -1276,16 +1289,6 @@ ntq_emit_alu(struct vc4_compile *c, nir_alu_instr *instr)
 
         case nir_op_umul_unorm_4x8_vc4:
                 result = qir_V8MULD(c, src[0], src[1]);
-                break;
-
-        case nir_op_uadd_carry:
-                qir_SF(c, qir_ADD(c, src[0], src[1]));
-                result = ntq_emit_cond_to_int(c, QPU_COND_CS);
-                break;
-
-        case nir_op_usub_borrow:
-                qir_SF(c, qir_SUB(c, src[0], src[1]));
-                result = ntq_emit_cond_to_int(c, QPU_COND_CS);
                 break;
 
         default:
@@ -2146,6 +2149,8 @@ static const nir_shader_compiler_options nir_options = {
         .lower_umax = true,
         .lower_umin = true,
         .lower_isign = true,
+        .lower_uadd_carry = true,
+        .lower_usub_borrow = true,
         .has_fsub = true,
         .has_isub = true,
         .has_texture_scaling = true,
@@ -2287,6 +2292,8 @@ vc4_shader_ntq(struct vc4_context *vc4, enum qstage stage,
                 NIR_PASS(_, c->s, nir_opt_dce);
                 NIR_PASS(_, c->s, nir_opt_cse);
         }
+
+        NIR_PASS(_, c->s, nir_opt_uadd_carry, 32);
 
         NIR_PASS(_, c->s, nir_lower_bool_to_int32);
 
