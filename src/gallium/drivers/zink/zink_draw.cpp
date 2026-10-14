@@ -695,6 +695,9 @@ zink_draw(struct pipe_context *pctx,
 
    /* these must be after renderpass start to avoid issues with recursion */
    bool mode_changed = ctx->gfx_pipeline_state.gfx_prim_mode != dinfo->mode;
+   /* a pipeline only draws its own topology, or its own topology class with dynamic topology */
+   const bool pipeline_idx_changed = mode_changed &&
+                                     get_gfx_pipeline_idx<DYNAMIC_STATE>(screen, mode) != ctx->gfx_pipeline_state.idx;
    bool drawid_broken = false;
    if (reads_drawid && (!dindirect || !dindirect->buffer))
       drawid_broken = (drawid_offset != 0 ||
@@ -754,7 +757,7 @@ zink_draw(struct pipe_context *pctx,
                                      DYNAMIC_STATE != ZINK_DYNAMIC_VERTEX_INPUT2 &&
                                      ctx->vertex_state_changed;
    bool pipeline_changed = false;
-   if (ctx->gfx_pipeline_state.dirty || rp_state != ctx->gfx_pipeline_state.rp_state || ctx->gfx_dirty || ctx->dirty_gfx_stages || prim_changed || vertex_input_changed || BATCH_CHANGED) {
+   if (ctx->gfx_pipeline_state.dirty || rp_state != ctx->gfx_pipeline_state.rp_state || ctx->gfx_dirty || ctx->dirty_gfx_stages || prim_changed || pipeline_idx_changed || vertex_input_changed || BATCH_CHANGED) {
       if (!update_gfx_pipeline<DYNAMIC_STATE, BATCH_CHANGED>(ctx, bs, mode, &pipeline_changed))
          return;
    }
