@@ -926,6 +926,18 @@ zink_end_batch(struct zink_context *ctx)
          zink_query_sync(ctx, (void*)entry->key);
    }
 
+   /* Wait for the implicit-sync fences of the dma-bufs this batch used. */
+   set_foreach(&bs->dmabuf_exports, entry) {
+      struct zink_resource *res = (void*)entry->key;
+      if (!res->obj->exportable_dmabuf)
+         continue;
+      for (struct zink_resource *r = res; r; r = zink_resource(r->base.b.next)) {
+         VkSemaphore sem = zink_screen_export_dmabuf_semaphore(screen, r);
+         if (sem)
+            util_dynarray_append(&bs->fd_wait_semaphores, sem);
+      }
+   }
+
    set_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
       if (screen->info.have_KHR_synchronization2) {
