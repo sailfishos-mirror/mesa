@@ -76,6 +76,9 @@ static const nir_shader_compiler_options nir_options = {
 
    .lower_helper_invocation = true,
 
+   .lower_uadd_carry = true,
+   .lower_usub_borrow = true,
+
    .max_unroll_iterations = 16,
    .max_samples = 4,
 
@@ -1228,6 +1231,8 @@ void pco_postprocess_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       NIR_PASS(_, nir, nir_opt_dce);
       NIR_PASS(_, nir, nir_opt_cse);
    } while (progress);
+
+   NIR_PASS(_, nir, nir_opt_uadd_carry, 32);
 
    pco_nir_opt(ctx, nir, data, false);
 
