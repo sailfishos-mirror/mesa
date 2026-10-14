@@ -3011,7 +3011,7 @@ iris_rt_write_efficient_64bit(nir_builder *b, signed rt, void *data)
       nir_def *addr_hi = nir_unpack_64_2x32_split_y(b, addr);
 
       nir_def *new_lo = nir_iadd(b, addr_lo, offset);
-      nir_def *carry = nir_uadd_carry(b, addr_lo, offset);
+      nir_def *carry = nir_b2i32(b, nir_ult(b, new_lo, addr_lo));
       nir_def *new_hi = nir_iadd(b, addr_hi, carry);
 
       addr = nir_pack_64_2x32_split(b, new_lo, new_hi);
