@@ -719,6 +719,21 @@ preprocess_block(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
             continue;
          }
 
+         /* 3-source instructions prior to Gfx12 can only use implicit
+          * accumulator writes. If src_inst cannot write to the accumulator
+          * this instruction wants to read, the transformation is not
+          * possible.
+          */
+         if (src_inst->is_3src(s.compiler) && s.devinfo->ver <= 11) {
+            unsigned implicit_bits =
+               brw_implicit_accumulator_bits(src_inst->exec_size,
+                                             src_inst->group,
+                                             src_inst->dst.type);
+
+            if ((acc_to_write & implicit_bits) != implicit_bits)
+               continue;
+         }
+
          if (!accumulator_access_between(s, src_inst, inst, acc_to_write)) {
             flags[nr] = true;
          }
