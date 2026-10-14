@@ -67,6 +67,7 @@ typedef union {
       bool dst_has_z:1;
       bool src_has_non_identity_fmask:1;
       bool dst_store_fmask:1;
+      bool copy_physical_samples:1;
       bool dst_is_rgb5:1;
       bool a16:1;
       bool d16:1;
@@ -119,8 +120,13 @@ typedef struct {
    bool src_is_sampler;
    bool src_has_non_identity_fmask;
 
-   /* Whether dst FMASK should be cleared to 0. (TODO: copies will use this too) */
+   /* When clearing, clear FMASK to 0. sample0_only must be true.
+    * When copying, FMASK is copied from src to dst.
+    */
    bool dst_store_fmask;
+
+   /* Copy only the samples referenced by FMASK without the FMASK sample remapping. */
+   bool copy_physical_samples;
 
    /* When clearing, clear only sample 0. Only useful when FMASK is enabled.
     * When resolving, copy sample 0 to the single-sample destination.

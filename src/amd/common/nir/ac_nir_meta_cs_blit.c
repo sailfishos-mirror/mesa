@@ -53,6 +53,9 @@
  *   tiles that are a compromise between the source and destination tiling, e.g. (64B, 4) and
  *   (64B, 2, 2).
  *
+ * MSAA copies copy FMASK together with color samples and they copy only the color samples
+ * referenced by FMASK.
+ *
  * This also supports 96-bit (RGB32) formats as follows:
  * - Only 96-bit -> 96-bit clears and copies are supported.
  * - Only 2D non-layer non-mip, only linear layouts, max 64K x 64K.
@@ -220,6 +223,12 @@ load_src(nir_builder *b, const ac_cs_blit_key *key, nir_deref_instr *deref, nir_
    if (key->src_is_sampler)
       return tex(b, key, deref, op, coord, num_coords);
 
+   if (op == nir_texop_fragment_mask_fetch_amd) {
+      return nir_image_deref_fragment_mask_load_amd(b, &deref->def, coord,
+                                                    .image_dim = GLSL_SAMPLER_DIM_2D,
+                                                    .image_array = deref->type->sampler_array);
+   }
+
    unsigned bit_size = glsl_base_type_get_bit_size(deref->type->sampled_type);
    assert(op != nir_texop_samples_identical);
 
@@ -268,6 +277,7 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
       fprintf(stderr, "   key.dst_has_z = %u\n", key->dst_has_z);
       fprintf(stderr, "   key.src_has_non_identity_fmask = %u\n", key->src_has_non_identity_fmask);
       fprintf(stderr, "   key.dst_store_fmask = %u\n", key->dst_store_fmask);
+      fprintf(stderr, "   key.copy_physical_samples = %u\n", key->copy_physical_samples);
       fprintf(stderr, "   key.dst_is_rgb5 = %u\n", key->dst_is_rgb5);
       fprintf(stderr, "   key.a16 = %u\n", key->a16);
       fprintf(stderr, "   key.d16 = %u\n", key->d16);
@@ -558,6 +568,8 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    nir_def *coord_dst[SI_MAX_COMPUTE_BLIT_LANE_SIZE * SI_MAX_COMPUTE_BLIT_SAMPLES] = {0};
    nir_def *global_addr_dst[SI_MAX_COMPUTE_BLIT_LANE_SIZE] = {0};
    nir_def *src_resinfo = NULL;
+   nir_def *fmask[SI_MAX_COMPUTE_BLIT_LANE_SIZE];
+   nir_def *max_sample_in_fmask = NULL;
 
    if (key->is_clear) {
       if (!key->format_is_96bit) {
@@ -676,13 +688,76 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
          nir_push_else(&b, if_identical);
       }
 
+      /* Load FMASK if we are copying physical samples to know how many samples we need to copy. */
+      if (key->copy_physical_samples) {
+         assert(!key->is_clear);
+
+         if (key->src_has_non_identity_fmask) {
+            foreach_pixel_in_lane(1, sample, x, y, z, i) {
+               fmask[i] = load_src(&b, key, img_src_deref, nir_texop_fragment_mask_fetch_amd,
+                                   coord_src[i * src_samples], num_src_coords);
+            }
+         } else {
+            nir_def *identity = nir_imm_int(&b, 0x76543210);
+
+            foreach_pixel_in_lane(1, sample, x, y, z, i) {
+               fmask[i] = identity;
+            }
+         }
+
+         /* Compute the maximum sample index in FMASK for all pixels in the lane group. */
+         max_sample_in_fmask = zero;
+
+         foreach_pixel_in_lane(1, sample, x, y, z, i) {
+            for (unsigned s = 0; s < src_samples; s++) {
+               max_sample_in_fmask = nir_umax(&b, max_sample_in_fmask,
+                                              nir_ubfe_imm(&b, fmask[i], s * 4, 4));
+            }
+         }
+      }
+
       /* Load src pixels, one per sample. */
-      foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
-         if (key->format_is_96bit) {
+      if (key->format_is_96bit) {
+         foreach_pixel_in_lane(1, sample, x, y, z, i) {
             color[i] = nir_load_global(&b, 1, 32, global_addr_src[i],
                                        .access = ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE,
                                        .align_mul = 4);
-         } else {
+         }
+      } else if (key->copy_physical_samples) {
+         /* Only the samples referenced by FMASK are loaded. */
+         for (unsigned sample = 0; sample < src_samples; sample++) {
+            /* The first sample is loaded unconditionally. Others are loaded conditionally.
+             * If multiple pixels are loaded per lane, the whole lane group is loaded.
+             */
+            if (sample)
+               nir_push_if(&b, nir_uge_imm(&b, max_sample_in_fmask, sample));
+
+            foreach_pixel_in_lane(1, _, x, y, z, i) {
+               unsigned index = i * src_samples + sample;
+
+               color[index] = load_src(&b, key, img_src_deref, nir_texop_fragment_fetch_amd,
+                                       coord_src[index], num_src_coords);
+            }
+         }
+
+         /* Close the ifs and insert phis. */
+         for (int sample = src_samples - 1; sample >= 1; sample--) {
+            nir_pop_if(&b, NULL);
+
+            /* We have to insert phis for all samples >= the current sample because all
+             * those loads are in nested conditional blocks.
+             */
+            for (unsigned phi_sample = sample; phi_sample < src_samples; phi_sample++) {
+               foreach_pixel_in_lane(1, _, x, y, z, i) {
+                  nir_def **value = &color[i * src_samples + phi_sample];
+
+                  *value = nir_if_phi(&b, *value, nir_undef(&b, (*value)->num_components,
+                                                            (*value)->bit_size));
+               }
+            }
+         }
+      } else {
+         foreach_pixel_in_lane(src_samples, sample, x, y, z, i) {
             color[i] = load_src(&b, key, img_src_deref,
                                 key->src_is_msaa ?
                                    (key->src_has_non_identity_fmask ? nir_texop_txf_ms :
@@ -787,31 +862,89 @@ ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
    }
 
    /* Store the pixels, one per sample. */
-   foreach_pixel_in_lane(dst_samples, sample, x, y, z, i) {
-      if (key->format_is_96bit) {
-         nir_store_global(&b, color[i], global_addr_dst[i],
-                          .access = ACCESS_CAN_REORDER | ACCESS_NON_READABLE,
-                          .align_mul = 4);
-      } else {
-         nir_bindless_image_store(&b, img_dst_desc, coord_dst[i],
-                                  nir_channel(&b, coord_dst[i], num_dst_coords - 1),
-                                  src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
-                                  .image_dim = img_dst->type->sampler_dimensionality,
-                                  .image_array = img_dst->type->sampler_array);
+   if (!key->is_clear && key->copy_physical_samples) {
+      assert(!key->format_is_96bit);
+      assert(src_samples > 1);
+      assert(src_samples == dst_samples);
+
+      /* Only the samples referenced by FMASK are stored. */
+      for (unsigned sample = 0; sample < dst_samples; sample++) {
+         /* The first sample is stored unconditionally. Others are stored conditionally.
+          * If multiple pixels are stored per lane, the whole lane group is stored.
+          */
+         if (sample)
+            nir_push_if(&b, nir_uge_imm(&b, max_sample_in_fmask, sample));
+
+         foreach_pixel_in_lane(1, _, x, y, z, i) {
+            unsigned index = i * dst_samples + sample;
+
+            nir_bindless_image_store(&b, img_dst_desc, coord_dst[index],
+                                     nir_channel(&b, coord_dst[index], num_dst_coords - 1),
+                                     color[index], zero_coord,
+                                     .image_dim = img_dst->type->sampler_dimensionality,
+                                     .image_array = img_dst->type->sampler_array);
+         }
+      }
+
+      /* Close the ifs and insert phis. */
+      for (int sample = dst_samples - 1; sample >= 1; sample--)
+         nir_pop_if(&b, NULL);
+   } else {
+      foreach_pixel_in_lane(dst_samples, sample, x, y, z, i) {
+         if (key->format_is_96bit) {
+            nir_store_global(&b, color[i], global_addr_dst[i],
+                             .access = ACCESS_CAN_REORDER | ACCESS_NON_READABLE,
+                             .align_mul = 4);
+         } else {
+            nir_bindless_image_store(&b, img_dst_desc, coord_dst[i],
+                                     nir_channel(&b, coord_dst[i], num_dst_coords - 1),
+                                     src_samples > 1 ? color[i] : color[i / dst_samples], zero_coord,
+                                     .image_dim = img_dst->type->sampler_dimensionality,
+                                     .image_array = img_dst->type->sampler_array);
+         }
       }
    }
 
    /* Store FMASK pixels. */
    if (key->dst_store_fmask) {
       assert(!key->format_is_96bit);
-      assert(key->is_clear);
-      assert(key->sample0_only);
 
-      /* Clear FMASK to 0. */
-      foreach_pixel_in_lane(1, sample, x, y, z, i) {
-         nir_bindless_image_store(&b, fmask_dst_desc, coord_dst[i], zero_coord, zero, zero_coord,
-                                  .image_dim = fmask_dst->type->sampler_dimensionality,
-                                  .image_array = fmask_dst->type->sampler_array);
+      if (key->is_clear) {
+         assert(key->sample0_only);
+
+         /* Clear FMASK to 0. */
+         foreach_pixel_in_lane(1, sample, x, y, z, i) {
+            nir_bindless_image_store(&b, fmask_dst_desc, coord_dst[i], zero_coord, zero, zero_coord,
+                                     .image_dim = fmask_dst->type->sampler_dimensionality,
+                                     .image_array = fmask_dst->type->sampler_array);
+         }
+      } else {
+         /* Store FMASK that was loaded from src or identity. */
+         foreach_pixel_in_lane(1, sample, x, y, z, i) {
+            nir_def *value;
+
+            /* Pack the sample indices in FMASK to get the physical encoding. */
+            if (key->log_samples == 3) {
+               value = fmask[i];
+            } else if (key->log_samples == 2) {
+               /* Pack from 4-bit indices to 2-bit indices. */
+               value = nir_ior(&b, nir_ior(&b, nir_ubfe_imm(&b, fmask[i], 0, 2),
+                                           nir_ishl_imm(&b, nir_ubfe_imm(&b, fmask[i], 4, 2), 2)),
+                               nir_ior(&b, nir_ishl_imm(&b, nir_ubfe_imm(&b, fmask[i], 8, 2), 4),
+                                       nir_ishl_imm(&b, nir_ubfe_imm(&b, fmask[i], 12, 2), 6)));
+            } else if (key->log_samples == 1) {
+               /* Pack from 4-bit indices to 1-bit indices. */
+               value = nir_ior(&b, nir_ubfe_imm(&b, fmask[i], 0, 1),
+                               nir_ishl_imm(&b, nir_ubfe_imm(&b, fmask[i], 4, 1), 1));
+            } else {
+               UNREACHABLE("invalid log_samples");
+            }
+
+            nir_bindless_image_store(&b, fmask_dst_desc, coord_dst[i * dst_samples],
+                                     zero_coord, value, zero_coord,
+                                     .image_dim = fmask_dst->type->sampler_dimensionality,
+                                     .image_array = fmask_dst->type->sampler_array);
+         }
       }
    }
 
@@ -987,7 +1120,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
                return false;
          }
       } else {
-         /* For upsampling, image stores don't compress MSAA as good as draws. */
+         /* TODO: Optionally add an MSAA upsampling path for OpenGL. */
          if (is_upsampling)
             return false;
 
@@ -1002,7 +1135,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
             if (is_resolve) {
                if (!(info->gfx_level == GFX7 && dst_bpe == 16))
                   return false;
-            } else {
+            } else if (!blit->copy_physical_samples) {
                assert(dst_samples == src_samples || sample0_only);
 
                if (dst_tiling_dim == 2) {
@@ -1048,7 +1181,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
                      (dst_bpe == 2 && src_samples == 4) ||
                      (dst_bpe == 16 && src_samples == 4)))
                   return false;
-            } else {
+            } else if (!blit->copy_physical_samples) {
                assert(dst_samples == src_samples || sample0_only);
 
                if (dst_tiling_dim == 2) {
@@ -1564,6 +1697,7 @@ ac_prepare_compute_blit(const ac_cs_blit_options *options,
    key.dst_is_msaa = dst_samples > 1;
    key.dst_has_z = blit->dst.dim == 3 || blit->dst.is_array;
    key.dst_store_fmask = blit->dst_store_fmask;
+   key.copy_physical_samples = blit->copy_physical_samples;
    key.dst_is_rgb5 = max_dst_chan_size <= 6 &&
                      !util_format_is_pure_integer(blit->dst.format);
    key.last_dst_channel = key.format_is_96bit ? 0 : util_format_get_last_component(blit->dst.format);
