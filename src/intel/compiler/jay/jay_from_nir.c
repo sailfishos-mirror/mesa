@@ -2942,7 +2942,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_shuffle_intel: {
       jay_def data = nj_src(intr->src[0]);
 
-      if (nir_src_is_const(intr->src[1])) {
+      if (jay_is_uniform(data)) {
+         /* Trivial case */
+         jay_MOV(b, dst, data);
+      } else if (nir_src_is_const(intr->src[1])) {
          /* Broadcast takes a lane index, with only 32-bit registers */
          jay_BROADCAST_IMM(b, dst, data, nir_src_as_uint(intr->src[1]) / 4);
       } else {
