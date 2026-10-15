@@ -8644,7 +8644,7 @@
         "description": "zink: create swapchain readback copies as stale",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5816b5961f5bc0c034450ab6f1779a64f31e8293",
         "notes": null
