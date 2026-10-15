@@ -177,7 +177,7 @@ VkComponentMapping resolveYcbcrComponentMapping(uint32_t drmFormat) {
     //
     //  * Y ends up in the G-channel
     //  * U (CB) ends up in the B-channel
-    //  * V (CB) ends up in the R-channel
+    //  * V (CR) ends up in the R-channel
     switch (drmFormat) {
         case DRM_FORMAT_NV12:
             // NV12 is a Y-plane followed by a interleaved UV-plane and is
