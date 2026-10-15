@@ -136,10 +136,24 @@ static const struct dri2_wl_visual {
       DRM_FORMAT_XRGB8888,
    },
    {
+      DRM_FORMAT_BGRX8888,
+      PIPE_FORMAT_X8R8G8B8_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_BGRX8888,
+   },
+   {
       DRM_FORMAT_ARGB8888,
       PIPE_FORMAT_BGRA8888_UNORM,
       PIPE_FORMAT_NONE,
       DRM_FORMAT_XRGB8888,
+   },
+   {
+      /* On big-endian, same pipe format as ARGB8888 above, which
+       * dri2_wl_visual_idx_from_pipe_format() finds first. */
+      DRM_FORMAT_BGRA8888,
+      PIPE_FORMAT_A8R8G8B8_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_BGRX8888,
    },
    {
       DRM_FORMAT_RGB888,
@@ -154,10 +168,22 @@ static const struct dri2_wl_visual {
       DRM_FORMAT_XBGR8888,
    },
    {
+      DRM_FORMAT_RGBA8888,
+      PIPE_FORMAT_A8B8G8R8_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_RGBX8888,
+   },
+   {
       DRM_FORMAT_XBGR8888,
       PIPE_FORMAT_RGBX8888_UNORM,
       PIPE_FORMAT_NONE,
       DRM_FORMAT_XBGR8888,
+   },
+   {
+      DRM_FORMAT_RGBX8888,
+      PIPE_FORMAT_X8B8G8R8_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_RGBX8888,
    },
    {
       DRM_FORMAT_BGR888,
