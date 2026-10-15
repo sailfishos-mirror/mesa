@@ -119,7 +119,7 @@ static const struct vk_instance_extension_table lvp_instance_extensions_supporte
 #ifdef VK_USE_PLATFORM_METAL_EXT
    .EXT_metal_surface                        = true,
 #endif
-#ifndef VK_USE_PLATFORM_WIN32_KHR
+#if defined(LVP_USE_WSI_PLATFORM) && !defined(VK_USE_PLATFORM_WIN32_KHR)
    .EXT_headless_surface                     = true,
 #endif
 };
