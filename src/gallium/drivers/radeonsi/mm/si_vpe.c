@@ -1785,7 +1785,6 @@ si_vpe_processor_process_frame(struct pipe_video_codec *codec,
     * Allocate working frame buffer of geometric scaling.
     */
    if (!vpeproc->geometric_buf[0] || !vpeproc->geometric_buf[1]) {
-      struct si_texture *dst_tex = (struct si_texture *)vpeproc->dst_surfaces[0].texture;
       struct pipe_video_buffer templat;
 
       if (vpeproc->geometric_buf[0])
@@ -1794,7 +1793,7 @@ si_vpe_processor_process_frame(struct pipe_video_codec *codec,
          vpeproc->geometric_buf[1]->destroy(vpeproc->geometric_buf[1]);
 
       memset(&templat, 0, sizeof(templat));
-      templat.buffer_format = dst_tex->buffer.b.b.format;
+      templat.buffer_format = vpeproc->dst_buffer->buffer_format;
       templat.width  = (int)(src_rect_width  / pHrSr[0]);
       templat.height = (int)(src_rect_height / pVtSr[0]);
       vpeproc->geometric_buf[0] = vpeproc->base.context->create_video_buffer(vpeproc->base.context, &templat);
