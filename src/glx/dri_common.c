@@ -876,6 +876,7 @@ dri_unbind_context(struct glx_context *context)
 void
 dri_destroy_context(struct glx_context *context)
 {
+   glx_display_remove_context(context);
    driReleaseDrawables(context);
  
    free((char *) context->extensions);
