@@ -1067,7 +1067,11 @@ zink_kopper_acquire_readback(struct zink_context *ctx, struct zink_resource *res
       /* this waits, and gives up shortly once past the acquire limit */
       ret = kopper_acquire(screen, res, UINT64_MAX);
       if (ret == VK_NOT_READY || ret == VK_TIMEOUT) {
-         *readback = res;
+         /* other buffers hold every acquirable image, so read the copies kept from now on */
+         kopper_ensure_readback(screen, res);
+         const struct kopper_swapchain *cur = cdt->swapchain;
+         struct pipe_resource *copy = cur->images[last_dt_idx < cur->num_images ? last_dt_idx : 0].readback;
+         *readback = copy ? zink_resource(copy) : res;
          cdt->age_locked = false;
          return false;
       }
