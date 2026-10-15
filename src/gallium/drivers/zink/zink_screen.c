@@ -1297,7 +1297,13 @@ zink_init_screen_caps(struct zink_screen *screen)
          caps->shader_subgroup_supported_stages = screen->info.subgroup.supportedStages & BITFIELD_MASK(MESA_SHADER_MESH_STAGES);
       else
          caps->shader_subgroup_supported_stages = screen->info.subgroup.supportedStages & BITFIELD_MASK(MESA_SHADER_STAGES);
-      caps->shader_subgroup_supported_features = screen->info.subgroup.supportedOperations & PIPE_SHADER_SUBGROUP_FEATURE_MASK;
+      uint32_t subgroup_ops = screen->info.subgroup.supportedOperations;
+      /* rotates can only be used if their features are enabled */
+      if (!screen->info.subgroup_rotate_feats.shaderSubgroupRotate)
+         subgroup_ops &= ~VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
+      if (!screen->info.subgroup_rotate_feats.shaderSubgroupRotateClustered)
+         subgroup_ops &= ~VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR;
+      caps->shader_subgroup_supported_features = subgroup_ops & PIPE_SHADER_SUBGROUP_FEATURE_MASK;
       caps->shader_subgroup_quad_all_stages = screen->info.subgroup.quadOperationsInAllStages;
    }
 
