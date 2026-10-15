@@ -353,8 +353,21 @@ detect_mempool_size(const uint32_t *mempool, uint32_t sizedwords, bool is_bv,
 {
    const enum mempool_size dflt = is_bv ? MEMPOOL_QUARTER : MEMPOOL_FULL;
 
-   unsigned order[ARRAY_SIZE(mempool_layouts) + 1];
+   unsigned order[ARRAY_SIZE(mempool_layouts) + 2];
    unsigned n = 0;
+
+   /* The kernel stuffs the value of CP_MEM_POOL_SIZE, ie. the number of
+    * blocks in the pool, into dword 0x2000 of the dump, so try the layout it
+    * names first.  Note that this isn't always available (the a650-family
+    * and a7xx kernel paths return early without stuffing it), so treat it as
+    * a hint and validate it like any other candidate.
+    */
+   if (!is_bv && (0x2000 < sizedwords)) {
+      for (unsigned i = 0; i < ARRAY_SIZE(mempool_layouts); i++) {
+         if (mempool[0x2000] == mempool_layouts[i].num_blocks)
+            order[n++] = i;
+      }
+   }
 
    order[n++] = dflt;
 
