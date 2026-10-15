@@ -2473,13 +2473,16 @@ zink_resource_get_dma_buf(struct zink_screen *screen, struct zink_resource *res)
 }
 #endif
 
+/* Returns a semaphore that signals once the dma-buf can be accessed: after
+ * its write fences for a read, or after all of its fences for a write.
+ */
 VkSemaphore
-zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_resource *res)
+zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_resource *res, bool write)
 {
    VkSemaphore sem = VK_NULL_HANDLE;
 #if defined(HAVE_LIBDRM) && (DETECT_OS_LINUX || DETECT_OS_BSD)
    struct dma_buf_export_sync_file export = {
-      .flags = DMA_BUF_SYNC_RW,
+      .flags = write ? DMA_BUF_SYNC_RW : DMA_BUF_SYNC_READ,
       .fd = -1,
    };
 
@@ -2520,8 +2523,11 @@ zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_reso
    return sem;
 }
 
+/* Adds sem to the dma-buf's fences: as a write fence if the access wrote
+ * the buffer, otherwise as a read fence.
+ */
 bool
-zink_screen_import_dmabuf_semaphore(struct zink_screen *screen, struct zink_resource *res, VkSemaphore sem)
+zink_screen_import_dmabuf_semaphore(struct zink_screen *screen, struct zink_resource *res, VkSemaphore sem, bool write)
 {
 #if defined(HAVE_LIBDRM) && (DETECT_OS_LINUX || DETECT_OS_BSD)
    const VkSemaphoreGetFdInfoKHR get_fd_info = {
@@ -2539,7 +2545,7 @@ zink_screen_import_dmabuf_semaphore(struct zink_screen *screen, struct zink_reso
    int fd = zink_resource_get_dma_buf(screen, res);
    if (fd != -1) {
       struct dma_buf_import_sync_file import = {
-         .flags = DMA_BUF_SYNC_RW,
+         .flags = write ? DMA_BUF_SYNC_RW : DMA_BUF_SYNC_READ,
          .fd = sync_file_fd,
       };
       int ioctl_ret = drmIoctl(fd, DMA_BUF_IOCTL_IMPORT_SYNC_FILE, &import);

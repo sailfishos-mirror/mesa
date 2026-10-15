@@ -189,7 +189,9 @@ zink_batch_resource_usage_set(struct zink_batch_state *bs, struct zink_resource 
          struct hash_entry *he = _mesa_hash_table_search(&bs->dmabuf_exports, res);
          bool found = he != NULL;
          if (!found)
-            _mesa_hash_table_insert(&bs->dmabuf_exports, res, NULL);
+            he = _mesa_hash_table_insert(&bs->dmabuf_exports, res, NULL);
+         if (write)
+            he->data = (void *)(uintptr_t)true;
          simple_mtx_unlock(&bs->exportable_lock);
          if (!found) {
             pipe_resource_reference(&pres, &res->base.b);
