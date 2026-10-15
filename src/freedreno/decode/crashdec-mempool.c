@@ -202,6 +202,91 @@ struct mempool_data2 {
    uint32_t unk1[8][8];
 };
 
+/**
+ * Walk one queue, following the linked list of blocks from the reader
+ * position to the writer position.  Returns the number of chunks visited.
+ *
+ * With dump=false nothing is printed, so that this can also be used to
+ * validate a candidate layout.
+ */
+static int
+walk_queue(const uint32_t *mempool, const struct mempool_layout *l,
+           const struct mempool_data1 *data1,
+           const struct mempool_data2 *data2, unsigned queue, bool dump)
+{
+   const uint32_t *next_pointers = &mempool[l->next_pointers_offset];
+   const uint32_t block_size = 1 << l->block_size_log2;
+
+   uint32_t writer_first_block =
+      data1->writer_first_block_chunk[queue] >> l->block_size_log2;
+   uint32_t writer_chunk =
+      data1->writer_first_block_chunk[queue] & (block_size - 1);
+   uint32_t reader_first_block =
+      data1->reader_first_block_chunk[queue] >> l->block_size_log2;
+   uint32_t reader_chunk =
+      data1->reader_first_block_chunk[queue] & (block_size - 1);
+
+   if (dump && verbose) {
+      printf("\t\twriter_first_block: 0x%x\n", writer_first_block);
+      printf("\t\twriter_second_block: 0x%x\n",
+             data1->writer_second_block[queue]);
+      printf("\t\twriter_chunk: %d\n", writer_chunk);
+      printf("\t\treader_first_block: 0x%x\n", reader_first_block);
+      printf("\t\treader_second_block: 0x%x\n",
+             data1->reader_second_block[queue]);
+      printf("\t\treader_chunk: %d\n", reader_chunk);
+      printf("\t\tblock_count: %d\n", data1->block_count[queue]);
+      printf("\t\tunk2: 0x%x\n", data1->unk2[queue]);
+      printf("\t\tqueue_size: %d\n\n", data2->queue_sizes[queue]);
+   }
+
+   uint32_t cur_chunk = reader_chunk;
+   uint32_t cur_block = cur_chunk >= block_size / 2 ?
+      reader_first_block : data1->reader_second_block[queue];
+   uint32_t last_chunk = writer_chunk;
+   uint32_t last_block = last_chunk >= block_size / 2 ?
+      writer_first_block : data1->writer_second_block[queue];
+
+   if (dump && verbose)
+      printf("\tblock %x\n", cur_block);
+
+   if (cur_block >= l->num_blocks) {
+      fprintf(stderr, "block %x too large\n", cur_block);
+      exit(1);
+   }
+
+   uint32_t count = 0;
+
+   while ((cur_block != last_block) || (cur_chunk != last_chunk)) {
+      count++;
+
+      const uint32_t *chunk_ptr =
+         &mempool[(cur_block * block_size + cur_chunk) * 4];
+
+      if (dump) {
+         dump_mem_pool_chunk(chunk_ptr);
+
+         printf("\t%05x: %08x %08x %08x %08x\n",
+                16 * (cur_block * block_size + cur_chunk), chunk_ptr[0],
+                chunk_ptr[1], chunk_ptr[2], chunk_ptr[3]);
+      }
+
+      cur_chunk++;
+      if (cur_chunk == block_size) {
+         cur_block = next_pointers[cur_block];
+         if (dump && verbose)
+            printf("\tblock %x\n", cur_block);
+         if (cur_block >= l->num_blocks) {
+            fprintf(stderr, "block %x too large\n", cur_block);
+            exit(1);
+         }
+         cur_chunk = 0;
+      }
+   }
+
+   return count;
+}
+
 void
 dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 {
@@ -253,10 +338,6 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 
    const struct mempool_layout *layout = &mempool_layouts[mempool_size];
 
-   const uint32_t *next_pointers = &mempool[layout->next_pointers_offset];
-
-   const uint32_t block_size = 1 << layout->block_size_log2;
-
    /* Number of queues or clusters. On a7xx the clusters are shuffled a bit to
     * increase the count by one, but BV seems to not use the last cluster.
     */
@@ -283,7 +364,7 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
       printf("\tunk4: %x\n\n", data1.unk4);
    }
 
-   for (int queue = 0; queue < num_queues; queue++) {
+   for (unsigned queue = 0; queue < num_queues; queue++) {
       const char *cluster_names_a6xx[6] = {"FE",   "SP_VS", "PC_VS",
                                            "GRAS", "SP_PS", "PS"};
       const char *cluster_names_a7xx[7] = {"FE",   "SP_VS", "PC_VS",
@@ -291,65 +372,10 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
       printf("\tCLUSTER_%s:\n\n",
              is_a6xx() ? cluster_names_a6xx[queue] : cluster_names_a7xx[queue]);
 
-      uint32_t writer_first_block =
-         data1.writer_first_block_chunk[queue] >> layout->block_size_log2;
-      uint32_t writer_chunk =
-         data1.writer_first_block_chunk[queue] & (block_size - 1);
-      uint32_t reader_first_block =
-         data1.reader_first_block_chunk[queue] >> layout->block_size_log2;
-      uint32_t reader_chunk =
-         data1.reader_first_block_chunk[queue] & (block_size - 1);
-      if (verbose) {
-         printf("\t\twriter_first_block: 0x%x\n", writer_first_block);
-         printf("\t\twriter_second_block: 0x%x\n",
-                data1.writer_second_block[queue]);
-         printf("\t\twriter_chunk: %d\n", writer_chunk);
-         printf("\t\treader_first_block: 0x%x\n", reader_first_block);
-         printf("\t\treader_second_block: 0x%x\n",
-                data1.reader_second_block[queue]);
-         printf("\t\treader_chunk: %d\n", reader_chunk);
-         printf("\t\tblock_count: %d\n", data1.block_count[queue]);
-         printf("\t\tunk2: 0x%x\n", data1.unk2[queue]);
-         printf("\t\tqueue_size: %d\n\n", data2.queue_sizes[queue]);
-      }
+      int calculated_queue_size =
+         walk_queue(mempool, layout, &data1, &data2, queue, true);
 
-      uint32_t cur_chunk = reader_chunk;
-      uint32_t cur_block = cur_chunk >= block_size / 2 ?
-         reader_first_block : data1.reader_second_block[queue];
-      uint32_t last_chunk = writer_chunk;
-      uint32_t last_block = last_chunk >= block_size / 2 ?
-         writer_first_block : data1.writer_second_block[queue];
-
-      if (verbose)
-         printf("\tblock %x\n", cur_block);
-      if (cur_block >= layout->num_blocks) {
-         fprintf(stderr, "block %x too large\n", cur_block);
-         exit(1);
-      }
-      unsigned calculated_queue_size = 0;
-      while (cur_block != last_block || cur_chunk != last_chunk) {
-         calculated_queue_size++;
-         uint32_t *chunk_ptr = &mempool[(cur_block * block_size + cur_chunk) * 4];
-
-         dump_mem_pool_chunk(chunk_ptr);
-
-         printf("\t%05x: %08x %08x %08x %08x\n",
-                16 * (cur_block * block_size + cur_chunk), chunk_ptr[0],
-                chunk_ptr[1], chunk_ptr[2], chunk_ptr[3]);
-
-         cur_chunk++;
-         if (cur_chunk == block_size) {
-            cur_block = next_pointers[cur_block];
-            if (verbose)
-               printf("\tblock %x\n", cur_block);
-            if (cur_block >= layout->num_blocks) {
-               fprintf(stderr, "block %x too large\n", cur_block);
-               exit(1);
-            }
-            cur_chunk = 0;
-         }
-      }
-      if (calculated_queue_size != data2.queue_sizes[queue]) {
+      if ((uint32_t)calculated_queue_size != data2.queue_sizes[queue]) {
          printf("\t\tCALCULATED SIZE %d DOES NOT MATCH!\n",
                 calculated_queue_size);
       }
