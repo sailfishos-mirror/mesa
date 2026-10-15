@@ -370,7 +370,7 @@ create_batch_state(struct zink_context *ctx)
 
    SET_CREATE(&bs->programs);
    SET_CREATE(&bs->active_queries);
-   SET_CREATE(&bs->dmabuf_exports);
+   _mesa_hash_table_init(&bs->dmabuf_exports, bs, _mesa_hash_pointer, _mesa_key_pointer_equal);
    bs->signal_semaphores = UTIL_DYNARRAY_INIT;
    bs->user_signal_semaphores = UTIL_DYNARRAY_INIT;
    bs->user_signal_semaphore_values = UTIL_DYNARRAY_INIT;
@@ -835,7 +835,7 @@ submit_queue(void *data, void *gdata, int thread_index)
 
    unsigned i = 0;
    VkSemaphore *sem = bs->signal_semaphores.data;
-   set_foreach(&bs->dmabuf_exports, entry) {
+   hash_table_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
       if (res->obj->exportable_dmabuf) {
          for (; res; res = zink_resource(res->base.b.next))
@@ -845,7 +845,7 @@ submit_queue(void *data, void *gdata, int thread_index)
       struct pipe_resource *pres = (void*)entry->key;
       pipe_resource_reference(&pres, NULL);
    }
-   _mesa_set_clear(&bs->dmabuf_exports, NULL);
+   _mesa_hash_table_clear(&bs->dmabuf_exports, NULL);
 
    if (bs->sparse_semaphore)
       (void)util_dynarray_pop(&bs->acquires, VkSemaphore);
@@ -927,7 +927,7 @@ zink_end_batch(struct zink_context *ctx)
    }
 
    /* Wait for the implicit-sync fences of the dma-bufs this batch used. */
-   set_foreach(&bs->dmabuf_exports, entry) {
+   hash_table_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
       if (!res->obj->exportable_dmabuf)
          continue;
@@ -938,7 +938,7 @@ zink_end_batch(struct zink_context *ctx)
       }
    }
 
-   set_foreach(&bs->dmabuf_exports, entry) {
+   hash_table_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
       if (screen->info.have_KHR_synchronization2) {
          VkImageMemoryBarrier2 imb;
