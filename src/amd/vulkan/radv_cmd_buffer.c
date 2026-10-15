@@ -3864,85 +3864,6 @@ radv_emit_mesh_shader(struct radv_cmd_buffer *cmd_buffer)
    radv_emit_vgt_gs_out(cmd_buffer, gs_out);
 }
 
-enum radv_ps_in_type {
-   radv_ps_in_interpolated,
-   radv_ps_in_flat,
-   radv_ps_in_explicit,
-   radv_ps_in_explicit_strict,
-   radv_ps_in_interpolated_fp16,
-   radv_ps_in_interpolated_fp16_hi,
-   radv_ps_in_per_prim_gfx103,
-   radv_ps_in_per_prim_gfx11,
-};
-
-static uint32_t
-offset_to_ps_input(const uint32_t offset, const enum radv_ps_in_type type)
-{
-   if (offset == AC_EXP_PARAM_UNDEFINED) {
-      /* The input is UNDEFINED, use zero. */
-      return S_028644_OFFSET(0x20) | S_028644_DEFAULT_VAL(0);
-   } else if (offset >= AC_EXP_PARAM_DEFAULT_VAL_0000 && offset <= AC_EXP_PARAM_DEFAULT_VAL_1111) {
-      /* The input is a DEFAULT_VAL constant. */
-      return S_028644_OFFSET(0x20) | S_028644_DEFAULT_VAL(offset - AC_EXP_PARAM_DEFAULT_VAL_0000);
-   }
-
-   assert(offset <= AC_EXP_PARAM_OFFSET_31);
-   uint32_t ps_input_cntl = S_028644_OFFSET(offset);
-
-   switch (type) {
-   case radv_ps_in_explicit_strict:
-      /* Rotate parameter cache contents to strict vertex order. */
-      ps_input_cntl |= S_028644_ROTATE_PC_PTR(1);
-      FALLTHROUGH;
-   case radv_ps_in_explicit:
-      /* Force parameter cache to be read in passthrough mode. */
-      ps_input_cntl |= S_028644_OFFSET(1 << 5);
-      FALLTHROUGH;
-   case radv_ps_in_flat:
-      ps_input_cntl |= S_028644_FLAT_SHADE(1);
-      break;
-   case radv_ps_in_interpolated_fp16_hi:
-      ps_input_cntl |= S_028644_ATTR1_VALID(1);
-      FALLTHROUGH;
-   case radv_ps_in_interpolated_fp16:
-      /* These must be set even if only the high 16 bits are used. */
-      ps_input_cntl |= S_028644_FP16_INTERP_MODE(1) | S_028644_ATTR0_VALID(1);
-      break;
-   case radv_ps_in_per_prim_gfx11:
-      ps_input_cntl |= S_028644_PRIM_ATTR(1);
-      break;
-   case radv_ps_in_interpolated:
-   case radv_ps_in_per_prim_gfx103:
-      break;
-   }
-
-   return ps_input_cntl;
-}
-
-static void
-input_mask_to_ps_inputs(const struct radv_vs_output_info *outinfo, const struct radv_shader *ps, uint32_t input_mask,
-                        uint32_t *ps_input_cntl, unsigned *ps_offset, const enum radv_ps_in_type default_type)
-{
-   u_foreach_bit (i, input_mask) {
-      const unsigned vs_offset = outinfo->vs_output_param_offset[VARYING_SLOT_VAR0 + i];
-      enum radv_ps_in_type type = default_type;
-
-      if (ps->info.ps.explicit_shaded_mask & BITFIELD_BIT(*ps_offset))
-         type = radv_ps_in_explicit;
-      else if (ps->info.ps.explicit_strict_shaded_mask & BITFIELD_BIT(*ps_offset))
-         type = radv_ps_in_explicit_strict;
-      else if (ps->info.ps.float16_hi_shaded_mask & BITFIELD_BIT(*ps_offset))
-         type = radv_ps_in_interpolated_fp16_hi;
-      else if (ps->info.ps.float16_shaded_mask & BITFIELD_BIT(*ps_offset))
-         type = radv_ps_in_interpolated_fp16;
-      else if (ps->info.ps.float32_shaded_mask & BITFIELD_BIT(*ps_offset))
-         type = radv_ps_in_interpolated;
-
-      ps_input_cntl[*ps_offset] = offset_to_ps_input(vs_offset, type);
-      ++(*ps_offset);
-   }
-}
-
 static void
 radv_emit_ps_inputs(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -3950,42 +3871,30 @@ radv_emit_ps_inputs(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
    const struct radv_shader *last_vgt_shader = cmd_buffer->state.last_vgt_shader;
-   const struct radv_vs_output_info *outinfo = &last_vgt_shader->info.outinfo;
-   const bool gfx11plus = pdev->info.gfx_level >= GFX11;
-   const enum radv_ps_in_type per_prim = gfx11plus ? radv_ps_in_per_prim_gfx11 : radv_ps_in_per_prim_gfx103;
+   const struct radv_vgt_ps_inputs_regs *vgt = &last_vgt_shader->regs.ps_inputs;
+   const struct radv_ps_inputs_regs *in = &ps->regs.ps.inputs;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   unsigned num_per_primitive_params = 0;
+   unsigned num_per_primitive_params = in->num_per_primitive;
+   const unsigned ps_offset = in->num;
    uint32_t ps_input_cntl[32];
-   unsigned ps_offset = 0;
 
-   if (ps->info.ps.has_pcoord)
-      ps_input_cntl[ps_offset++] = S_028644_PT_SPRITE_TEX(1) | S_028644_OFFSET(0x20);
+   for (unsigned i = 0; i < in->num; i++) {
+      const unsigned slot = in->slot[i];
 
-   if (ps->info.ps.input_clips_culls_mask & 0x0f)
-      ps_input_cntl[ps_offset++] =
-         offset_to_ps_input(outinfo->vs_output_param_offset[VARYING_SLOT_CLIP_DIST0], radv_ps_in_interpolated);
-
-   if (ps->info.ps.input_clips_culls_mask & 0xf0)
-      ps_input_cntl[ps_offset++] =
-         offset_to_ps_input(outinfo->vs_output_param_offset[VARYING_SLOT_CLIP_DIST1], radv_ps_in_interpolated);
-
-   input_mask_to_ps_inputs(outinfo, ps, ps->info.ps.input_mask, ps_input_cntl, &ps_offset, radv_ps_in_flat);
+      ps_input_cntl[i] = vgt->offset[slot];
+      if (vgt->exported_mask & BITFIELD64_BIT(slot))
+         ps_input_cntl[i] |= in->cntl[i];
+   }
 
    /* Potentially per-primitive PS inputs */
-   if (ps->info.ps.viewport_index_input) {
-      num_per_primitive_params += !!outinfo->writes_viewport_index_per_primitive;
-      const enum radv_ps_in_type t = outinfo->writes_viewport_index_per_primitive ? per_prim : radv_ps_in_flat;
-      ps_input_cntl[ps_offset++] = offset_to_ps_input(outinfo->vs_output_param_offset[VARYING_SLOT_VIEWPORT], t);
+   if (in->viewport_index != RADV_PS_INPUT_NONE && vgt->viewport_per_primitive) {
+      ps_input_cntl[in->viewport_index] = vgt->viewport_cntl;
+      num_per_primitive_params++;
    }
-   if (ps->info.ps.prim_id_input) {
-      num_per_primitive_params += !!outinfo->export_prim_id_per_primitive;
-      const enum radv_ps_in_type t = outinfo->export_prim_id_per_primitive ? per_prim : radv_ps_in_flat;
-      ps_input_cntl[ps_offset++] = offset_to_ps_input(outinfo->vs_output_param_offset[VARYING_SLOT_PRIMITIVE_ID], t);
+   if (in->prim_id_index != RADV_PS_INPUT_NONE && vgt->prim_id_per_primitive) {
+      ps_input_cntl[in->prim_id_index] = vgt->prim_id_cntl;
+      num_per_primitive_params++;
    }
-
-   /* Per-primitive PS inputs: the HW needs these to be last. */
-   num_per_primitive_params += util_bitcount(ps->info.ps.input_per_primitive_mask);
-   input_mask_to_ps_inputs(outinfo, ps, ps->info.ps.input_per_primitive_mask, ps_input_cntl, &ps_offset, per_prim);
 
    /* Only GFX10.3+ support per-primitive params */
    assert(pdev->info.gfx_level >= GFX10_3 || num_per_primitive_params == 0);

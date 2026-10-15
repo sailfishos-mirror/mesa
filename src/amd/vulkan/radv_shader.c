@@ -2003,6 +2003,77 @@ radv_precompute_registers_hw_ms(struct radv_device *device, struct radv_shader *
    }
 }
 
+static uint32_t
+radv_ps_input_type_bits(const struct radv_shader_info *info, unsigned index, uint32_t default_bits)
+{
+   if (info->ps.explicit_shaded_mask & BITFIELD_BIT(index)) {
+      /* Force parameter cache to be read in passthrough mode. */
+      return S_028644_OFFSET(1 << 5) | S_028644_FLAT_SHADE(1);
+   } else if (info->ps.explicit_strict_shaded_mask & BITFIELD_BIT(index)) {
+      /* Rotate parameter cache contents to strict vertex order. */
+      return S_028644_ROTATE_PC_PTR(1) | S_028644_OFFSET(1 << 5) | S_028644_FLAT_SHADE(1);
+   } else if (info->ps.float16_hi_shaded_mask & BITFIELD_BIT(index)) {
+      /* These must be set even if only the high 16 bits are used. */
+      return S_028644_ATTR1_VALID(1) | S_028644_FP16_INTERP_MODE(1) | S_028644_ATTR0_VALID(1);
+   } else if (info->ps.float16_shaded_mask & BITFIELD_BIT(index)) {
+      return S_028644_FP16_INTERP_MODE(1) | S_028644_ATTR0_VALID(1);
+   } else if (info->ps.float32_shaded_mask & BITFIELD_BIT(index)) {
+      return 0;
+   }
+
+   return default_bits;
+}
+
+static void
+radv_ps_add_input(struct radv_ps_inputs_regs *in, uint8_t slot, uint32_t cntl)
+{
+   assert(in->num < ARRAY_SIZE(in->cntl));
+   in->slot[in->num] = slot;
+   in->cntl[in->num] = cntl;
+   in->num++;
+}
+
+static void
+radv_precompute_ps_inputs(const struct radv_physical_device *pdev, struct radv_shader *shader)
+{
+   const struct radv_shader_info *info = &shader->info;
+   const uint32_t per_prim_bits = pdev->info.gfx_level >= GFX11 ? S_028644_PRIM_ATTR(1) : 0;
+   const uint32_t flat_bits = S_028644_FLAT_SHADE(1);
+   struct radv_ps_inputs_regs *in = &shader->regs.ps.inputs;
+
+   in->num = 0;
+   in->viewport_index = RADV_PS_INPUT_NONE;
+   in->prim_id_index = RADV_PS_INPUT_NONE;
+
+   if (info->ps.has_pcoord)
+      radv_ps_add_input(in, VARYING_SLOT_PNTC, 0);
+
+   if (info->ps.input_clips_culls_mask & 0x0f)
+      radv_ps_add_input(in, VARYING_SLOT_CLIP_DIST0, 0);
+
+   if (info->ps.input_clips_culls_mask & 0xf0)
+      radv_ps_add_input(in, VARYING_SLOT_CLIP_DIST1, 0);
+
+   u_foreach_bit (i, info->ps.input_mask)
+      radv_ps_add_input(in, VARYING_SLOT_VAR0 + i, radv_ps_input_type_bits(info, in->num, flat_bits));
+
+   /* Potentially per-primitive PS inputs, decided at emit time. */
+   if (info->ps.viewport_index_input) {
+      in->viewport_index = in->num;
+      radv_ps_add_input(in, VARYING_SLOT_VIEWPORT, flat_bits);
+   }
+
+   if (info->ps.prim_id_input) {
+      in->prim_id_index = in->num;
+      radv_ps_add_input(in, VARYING_SLOT_PRIMITIVE_ID, flat_bits);
+   }
+
+   /* Per-primitive PS inputs: the HW needs these to be last. */
+   in->num_per_primitive = util_bitcount(info->ps.input_per_primitive_mask);
+   u_foreach_bit (i, info->ps.input_per_primitive_mask)
+      radv_ps_add_input(in, VARYING_SLOT_VAR0 + i, radv_ps_input_type_bits(info, in->num, per_prim_bits));
+}
+
 static void
 radv_precompute_registers_hw_fs(struct radv_device *device, struct radv_shader *shader)
 {
@@ -2079,6 +2150,8 @@ radv_precompute_registers_hw_fs(struct radv_device *device, struct radv_shader *
 
    regs->ps.spi_shader_z_format = ac_get_spi_shader_z_format(
       info->ps.writes_z, info->ps.writes_stencil, info->ps.writes_sample_mask, info->ps.writes_mrt0_alpha_to_mrtz);
+
+   radv_precompute_ps_inputs(pdev, shader);
 }
 
 static void
@@ -2210,6 +2283,49 @@ radv_precompute_registers_pgm(const struct radv_device *device, struct radv_shad
 }
 
 static void
+radv_precompute_vgt_ps_inputs(const struct radv_physical_device *pdev, struct radv_shader *shader)
+{
+   const struct radv_vs_output_info *outinfo = &shader->info.outinfo;
+   const uint32_t per_prim_bits = pdev->info.gfx_level >= GFX11 ? S_028644_PRIM_ATTR(1) : 0;
+   struct radv_vgt_ps_inputs_regs *r = &shader->regs.ps_inputs;
+
+   r->exported_mask = 0;
+
+   for (unsigned slot = 0; slot < VARYING_SLOT_MAX; slot++) {
+      const uint32_t offset = outinfo->vs_output_param_offset[slot];
+
+      if (offset == AC_EXP_PARAM_UNDEFINED) {
+         /* The input is UNDEFINED, use zero. */
+         r->offset[slot] = S_028644_OFFSET(0x20) | S_028644_DEFAULT_VAL(0);
+      } else if (offset >= AC_EXP_PARAM_DEFAULT_VAL_0000 && offset <= AC_EXP_PARAM_DEFAULT_VAL_1111) {
+         /* The input is a DEFAULT_VAL constant. */
+         r->offset[slot] = S_028644_OFFSET(0x20) | S_028644_DEFAULT_VAL(offset - AC_EXP_PARAM_DEFAULT_VAL_0000);
+      } else {
+         r->offset[slot] = S_028644_OFFSET(offset);
+         r->exported_mask |= BITFIELD64_BIT(slot);
+      }
+   }
+
+   /* Point coord is FS-only and doesn't depend on the last pre-rasterization shader. */
+   r->offset[VARYING_SLOT_PNTC] = S_028644_PT_SPRITE_TEX(1) | S_028644_OFFSET(0x20);
+
+   /* Per-primitive outputs for viewport index and primitive ID. */
+   if (outinfo->writes_viewport_index_per_primitive) {
+      r->viewport_per_primitive = true;
+      r->viewport_cntl = r->offset[VARYING_SLOT_VIEWPORT];
+      if (r->exported_mask & BITFIELD64_BIT(VARYING_SLOT_VIEWPORT))
+         r->viewport_cntl |= per_prim_bits;
+   }
+
+   if (outinfo->export_prim_id_per_primitive) {
+      r->prim_id_per_primitive = true;
+      r->prim_id_cntl = r->offset[VARYING_SLOT_PRIMITIVE_ID];
+      if (r->exported_mask & BITFIELD64_BIT(VARYING_SLOT_PRIMITIVE_ID))
+         r->prim_id_cntl |= per_prim_bits;
+   }
+}
+
+static void
 radv_precompute_registers(struct radv_device *device, struct radv_shader *shader)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -2262,6 +2378,10 @@ radv_precompute_registers(struct radv_device *device, struct radv_shader *shader
    default:
       break;
    }
+
+   if (info->stage == MESA_SHADER_VERTEX || info->stage == MESA_SHADER_TESS_EVAL ||
+       info->stage == MESA_SHADER_GEOMETRY || info->stage == MESA_SHADER_MESH)
+      radv_precompute_vgt_ps_inputs(pdev, shader);
 }
 
 static bool

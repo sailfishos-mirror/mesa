@@ -268,6 +268,28 @@ radv_ps_writes_mrtz(const struct radv_shader_info *info)
    return info->ps.writes_z || info->ps.writes_stencil || info->ps.writes_sample_mask;
 }
 
+#define RADV_PS_INPUT_NONE 0xff
+
+/* SPI_PS_INPUT_CNTL_n without the offset, which depends on the last pre-rasterization shader. */
+struct radv_ps_inputs_regs {
+   uint8_t num;
+   uint8_t num_per_primitive;
+   uint8_t viewport_index; /* RADV_PS_INPUT_NONE if not read */
+   uint8_t prim_id_index;  /* RADV_PS_INPUT_NONE if not read */
+   uint8_t slot[32];       /* VARYING_SLOT_* */
+   uint32_t cntl[32];      /* SPI_PS_INPUT_CNTL_* */
+};
+
+/* SPI_PS_INPUT_CNTL_n offset part, precomputed by the last pre-rasterization shader. */
+struct radv_vgt_ps_inputs_regs {
+   uint32_t offset[VARYING_SLOT_MAX];
+   uint64_t exported_mask;
+   uint32_t viewport_cntl; /* only valid if viewport_per_primitive */
+   uint32_t prim_id_cntl;  /* only valid if prim_id_per_primitive */
+   bool viewport_per_primitive;
+   bool prim_id_per_primitive;
+};
+
 /* Precomputed register values. */
 struct radv_shader_regs {
    uint32_t pgm_lo;
@@ -315,6 +337,8 @@ struct radv_shader_regs {
          uint32_t spi_gs_out_config_ps;
          uint32_t spi_shader_pgm_rsrc4_ps;
          uint32_t pa_sc_hisz_control;
+
+         struct radv_ps_inputs_regs inputs;
       } ps;
 
       struct {
@@ -335,6 +359,9 @@ struct radv_shader_regs {
    uint32_t spi_vs_out_config;
    uint32_t spi_shader_pos_format;
    uint32_t vgt_gs_instance_cnt;
+
+   /* Only for the last pre-rasterization shader. */
+   struct radv_vgt_ps_inputs_regs ps_inputs;
 };
 
 void radv_nir_shader_info_init(mesa_shader_stage stage, mesa_shader_stage next_stage, struct radv_shader_info *info);
