@@ -1084,6 +1084,16 @@ void ac_fill_bug_info(struct radeon_info *info)
    info->has_streamout_vgt_hang_bug = info->family == CHIP_HAWAII ||
                                       info->family == CHIP_TONGA ||
                                       info->family == CHIP_FIJI;
+
+   /* The GE can compute an incorrect number of indices for back-to-back
+    * opaque draws (DrawTransformFeedback) if the DRAW_OPAQUE registers are
+    * updated within 5 cycles on different contexts. 3 SQ_NON_EVENTs are
+    * required after the DRAW_OPAQUE packet to work around it.
+    *
+    * See drawOpaqueSqNonEvents in PAL.
+    */
+   info->has_draw_opaque_ge_bug = info->gfx_level >= GFX11_5 &&
+                                  info->gfx_level <= GFX12;
 }
 
 void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
