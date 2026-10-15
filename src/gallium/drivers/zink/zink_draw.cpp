@@ -792,7 +792,7 @@ zink_draw_finish(struct zink_context *ctx,
       ctx->pipeline_changed[ZINK_PIPELINE_MESH] = true;
       zink_select_draw_mesh_tasks(ctx);
    }
-   /* flush if there's >100k draws */
+   /* flush after 30000 draws and dispatches */
    if (unlikely(work_count >= 30000 || ctx->oom_flush) && !ctx->unordered_blitting)
       pctx->flush(pctx, NULL, 0);
 }
@@ -1402,7 +1402,7 @@ zink_draw_mesh_tasks(struct pipe_context *pctx, const struct pipe_grid_info *inf
       ctx->pipeline_changed[ZINK_PIPELINE_GFX] = true;
       zink_select_draw_vbo(ctx);
    }
-   /* flush if there's >100k draws */
+   /* flush after 30000 draws and dispatches */
    if (!ctx->unordered_blitting && (unlikely(work_count >= 30000) || ctx->oom_flush))
       pctx->flush(pctx, NULL, 0);
 }
@@ -1627,7 +1627,7 @@ zink_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
       VKCTX(CmdDispatch)(bs->cmdbuf, info->grid[0], info->grid[1], info->grid[2]);
    bs->has_work = true;
    ctx->last_work_was_compute = true;
-   /* flush if there's >100k computes */
+   /* flush after 30000 draws and dispatches */
    if (!ctx->unordered_blitting && (unlikely(ctx->work_count >= 30000) || ctx->oom_flush))
       pctx->flush(pctx, NULL, 0);
 }
