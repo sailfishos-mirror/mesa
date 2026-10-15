@@ -504,7 +504,7 @@
         "description": "kk: Fix miptail computation due to behaviour difference in OS versions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1b75efe0014c0d71163a01589bafb510460e7049",
         "notes": null
