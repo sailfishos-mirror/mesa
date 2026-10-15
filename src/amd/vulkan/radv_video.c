@@ -1013,7 +1013,7 @@ radv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
    if ((src_dst || qp_map) && !dpb)
       tiling[num_tiling++] = VK_IMAGE_TILING_LINEAR;
 
-   if ((src_dst || qp_map) && pdev->info.gfx_level >= GFX9)
+   if (src_dst || qp_map)
       tiling[num_tiling++] = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
 
    VkImageUsageFlags2KHR usage_flags = image_usage;
