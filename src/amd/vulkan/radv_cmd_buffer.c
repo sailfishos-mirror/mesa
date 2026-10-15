@@ -17508,7 +17508,7 @@ radv_CmdDrawIndirectByteCount2EXT(VkCommandBuffer commandBuffer, uint32_t instan
    radv_emit_strmout_buffer(cmd_buffer, &info, counterOffset);
    radv_emit_direct_draw_packet(cmd_buffer, 0, S_0287F0_USE_OPAQUE(1));
 
-   if (pdev->info.gfx_level == GFX12) {
+   if (pdev->info.has_draw_opaque_ge_bug) {
       /* DrawTransformFeedback requires 3 SQ_NON_EVENTs after the packet. */
       radeon_begin(cs);
       radeon_event_write(V_028A90_SQ_NON_EVENT);
