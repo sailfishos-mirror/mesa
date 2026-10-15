@@ -70,6 +70,102 @@ dump_mem_pool_chunk(const uint32_t *chunk)
    }
 }
 
+/* The mem pool comes in a few different sizes, and the size determines the
+ * offsets of the various sub-structures within the dump.  The chunk data
+ * always starts at offset 0 and is followed by the next-pointers array.
+ */
+enum mempool_size {
+   MEMPOOL_FULL,
+   MEMPOOL_HALF,
+   MEMPOOL_QUARTER,
+};
+
+/* Unfortunately the per-queue state is a little more complicated than
+ * a simple pair of begin/end pointers. Instead of a single beginning
+ * block, there are *two*, with the property that either the two are
+ * equal or the second is the "next" of the first. Similarly there are
+ * two end blocks. Thus the queue either looks like this:
+ *
+ * A -> B -> ... -> C -> D
+ *
+ * Or like this, or some combination:
+ *
+ * A/B -> ... -> C/D
+ *
+ * However, there's only one beginning/end chunk offset. Now the
+ * question is, which of A or B is the actual start? I.e. is the chunk
+ * offset an offset inside A or B? It depends. I'll show a typical read
+ * cycle, starting here (read pointer marked with a *) with a chunk
+ * offset of 0:
+ *
+ *	  A                    B
+ *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
+ * |_|_|_|_|_|_|_|_| -> |*|_|_|_|_|_|_|_| -> |_|_|_|_|_|_|_|_|
+ *
+ * Once the pointer advances far enough, the hardware decides to free
+ * A, after which the read-side state looks like:
+ *
+ *	(free)                A/B
+ *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
+ * |_|_|_|_|_|_|_|_|    |_|_|_|*|_|_|_|_| -> |_|_|_|_|_|_|_|_|
+ *
+ * Then after advancing the pointer a bit more, the hardware fetches
+ * the "next" pointer for A and stores it in B:
+ *
+ *	(free)                 A                     B
+ *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
+ * |_|_|_|_|_|_|_|_|    |_|_|_|_|_|_|_|*| -> |_|_|_|_|_|_|_|_|
+ *
+ * Then the read pointer advances into B, at which point we've come
+ * back to the first state having advanced a whole block:
+ *
+ *	(free)                 A                     B
+ *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
+ * |_|_|_|_|_|_|_|_|    |_|_|_|_|_|_|_|_| -> |*|_|_|_|_|_|_|_|
+ *
+ *
+ * There is a similar cycle for the write pointer. Now, the question
+ * is, how do we know which state we're in? We need to know this to
+ * know whether the pointer (*) is in A or B if they're different. It
+ * seems like there should be some bit somewhere describing this, but
+ * after lots of experimentation I've come up empty-handed. For now we
+ * assume that if the pointer is in the first half, then we're in
+ * either the first or second state and use B, and otherwise we're in
+ * the second or third state and use A. So far I haven't seen anything
+ * that violates this assumption.
+ */
+struct mempool_data1 {
+   uint32_t unk0;
+   uint32_t padding0[7]; /* Mirrors of unk0 */
+
+   uint32_t writer_first_block_chunk[7];
+   uint32_t padding1[1]; /* Mirror of writer_first_block_chunk[6] */
+
+   uint32_t unk1;
+   uint32_t padding2[7]; /* Mirrors of unk1 */
+
+   uint32_t writer_second_block[7];
+   uint32_t padding3[1];
+
+   uint32_t unk2[7];
+   uint32_t padding4[1];
+
+   uint32_t reader_first_block_chunk[7];
+   uint32_t padding5[1]; /* Mirror of reader_first_block_chunk[6] */
+
+   uint32_t unk3;
+   uint32_t padding6[7]; /* Mirrors of unk3 */
+
+   uint32_t reader_second_block[7];
+   uint32_t padding7[1];
+
+   uint32_t block_count[7];
+   uint32_t padding[1];
+
+   uint32_t unk4;
+   uint32_t padding9[7]; /* Mirrors of unk4 */
+};
+
 void
 dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 {
@@ -112,11 +208,7 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
     */
    bool small_mem_pool = false;
 
-   enum {
-      MEMPOOL_FULL,
-      MEMPOOL_HALF,
-      MEMPOOL_QUARTER,
-   } mempool_size = MEMPOOL_FULL;
+   enum mempool_size mempool_size = MEMPOOL_FULL;
 
    if (small_mem_pool)
       mempool_size = MEMPOOL_HALF;
@@ -167,92 +259,7 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
     */
    const unsigned num_queues = (is_a6xx() || is_bv) ? 6 : 7;
 
-   /* Unfortunately the per-queue state is a little more complicated than
-    * a simple pair of begin/end pointers. Instead of a single beginning
-    * block, there are *two*, with the property that either the two are
-    * equal or the second is the "next" of the first. Similarly there are
-    * two end blocks. Thus the queue either looks like this:
-    *
-    * A -> B -> ... -> C -> D
-    *
-    * Or like this, or some combination:
-    *
-    * A/B -> ... -> C/D
-    *
-    * However, there's only one beginning/end chunk offset. Now the
-    * question is, which of A or B is the actual start? I.e. is the chunk
-    * offset an offset inside A or B? It depends. I'll show a typical read
-    * cycle, starting here (read pointer marked with a *) with a chunk
-    * offset of 0:
-    *
-    *	  A                    B
-    *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
-    * |_|_|_|_|_|_|_|_| -> |*|_|_|_|_|_|_|_| -> |_|_|_|_|_|_|_|_|
-    *
-    * Once the pointer advances far enough, the hardware decides to free
-    * A, after which the read-side state looks like:
-    *
-    *	(free)                A/B
-    *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
-    * |_|_|_|_|_|_|_|_|    |_|_|_|*|_|_|_|_| -> |_|_|_|_|_|_|_|_|
-    *
-    * Then after advancing the pointer a bit more, the hardware fetches
-    * the "next" pointer for A and stores it in B:
-    *
-    *	(free)                 A                     B
-    *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
-    * |_|_|_|_|_|_|_|_|    |_|_|_|_|_|_|_|*| -> |_|_|_|_|_|_|_|_|
-    *
-    * Then the read pointer advances into B, at which point we've come
-    * back to the first state having advanced a whole block:
-    *
-    *	(free)                 A                     B
-    *  _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _      _ _ _ _ _ _ _ _
-    * |_|_|_|_|_|_|_|_|    |_|_|_|_|_|_|_|_| -> |*|_|_|_|_|_|_|_|
-    *
-    *
-    * There is a similar cycle for the write pointer. Now, the question
-    * is, how do we know which state we're in? We need to know this to
-    * know whether the pointer (*) is in A or B if they're different. It
-    * seems like there should be some bit somewhere describing this, but
-    * after lots of experimentation I've come up empty-handed. For now we
-    * assume that if the pointer is in the first half, then we're in
-    * either the first or second state and use B, and otherwise we're in
-    * the second or third state and use A. So far I haven't seen anything
-    * that violates this assumption.
-    */
-
-   struct {
-      uint32_t unk0;
-      uint32_t padding0[7]; /* Mirrors of unk0 */
-
-      uint32_t writer_first_block_chunk[7];
-      uint32_t padding1[1]; /* Mirror of writer_first_block_chunk[6] */
-
-      uint32_t unk1;
-      uint32_t padding2[7]; /* Mirrors of unk1 */
-
-      uint32_t writer_second_block[7];
-      uint32_t padding3[1];
-
-      uint32_t unk2[7];
-      uint32_t padding4[1];
-
-      uint32_t reader_first_block_chunk[7];
-      uint32_t padding5[1]; /* Mirror of reader_first_block_chunk[6] */
-
-      uint32_t unk3;
-      uint32_t padding6[7]; /* Mirrors of unk3 */
-
-      uint32_t reader_second_block[7];
-      uint32_t padding7[1];
-
-      uint32_t block_count[7];
-      uint32_t padding[1];
-
-      uint32_t unk4;
-      uint32_t padding9[7]; /* Mirrors of unk4 */
-   } data1;
+   struct mempool_data1 data1;
 
    const uint32_t *data1_ptr = &mempool[data1_offset];
    memcpy(&data1, data1_ptr, sizeof(data1));
