@@ -96,6 +96,8 @@ struct v3dv_physical_device {
    struct v3d_device_info devinfo;
    struct v3d_perfcntrs *perfcntr;
 
+   bool has_tfu_ccol;
+
 #if USE_V3D_SIMULATOR
    struct v3d_simulator_file *sim_file;
 #endif

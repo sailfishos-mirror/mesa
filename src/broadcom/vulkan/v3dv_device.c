@@ -1588,6 +1588,9 @@ create_physical_device(struct v3dv_instance *instance,
       }
    }
 
+   device->has_tfu_ccol = v3d_has_feature(device,
+                                          DRM_V3D_PARAM_SUPPORTS_TFU_CCOL);
+
    result = init_uuids(device);
    if (result != VK_SUCCESS)
       goto fail;

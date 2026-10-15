@@ -1631,6 +1631,51 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
 
 #endif
 
+#if V3D_VERSION >= 71
+static void
+meta_fill_buffer_tfu_ccol(struct v3dv_cmd_buffer *cmd_buffer,
+                          struct v3dv_bo *bo,
+                          uint32_t offset,
+                          uint32_t size,
+                          uint32_t data)
+{
+   const uint32_t cpp = 4;
+   uint32_t num_pixels = size / cpp;
+
+   const struct v3dv_format *format =
+      v3dX(get_format)(VK_FORMAT_R8G8B8A8_UINT);
+   assert(format && format->plane_count == 1);
+
+   const uint32_t icfg =
+      (V3D71_TFU_ICFG_FORMAT_CONSTANT_COLOUR << V3D71_TFU_ICFG_IFORMAT_SHIFT) |
+      (format->planes[0].tex_type << V3D71_TFU_ICFG_OTYPE_SHIFT);
+
+   uint32_t remaining = num_pixels;
+   while (remaining > 0) {
+      uint32_t width = v3d_tfu_raster_job_width(remaining, cpp);
+      uint32_t height = MAX2(1, MIN2(remaining / width, V3D_TFU_MAX_DIM));
+      uint32_t pixels_this_job = width * height;
+      assert(pixels_this_job <= remaining);
+
+      struct drm_v3d_submit_tfu tfu = {
+         .icfg = icfg,
+         .ioa = bo->offset + offset,
+         .ios = (height << 16) | width,
+         .bo_handles = { bo->handle },
+         .v71 = {
+            .ioc = (V3D71_TFU_IOC_FORMAT_RASTER << V3D71_TFU_IOC_FORMAT_SHIFT) |
+                   (width << V3D71_TFU_IOC_STRIDE_SHIFT),
+            .ccol = { data },
+         },
+      };
+      v3dv_cmd_buffer_add_tfu_job(cmd_buffer, &tfu);
+
+      remaining -= pixels_this_job;
+      offset += pixels_this_job * cpp;
+   }
+}
+#endif
+
 void
 v3dX(meta_fill_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
                        struct v3dv_bo *bo,
@@ -1641,13 +1686,20 @@ v3dX(meta_fill_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
    assert(size > 0 && size % 4 == 0);
    assert(offset + size <= bo->size);
 
-#if V3D_VERSION >= 71 && !USE_V3D_SIMULATOR
-   /* The V3D simulator does not implement TFU stride-0 input and would
-    * assert on this path, so fall back to the TLB-based fill there.
-    */
+#if V3D_VERSION >= 71
    if (!V3D_DBG(DISABLE_TFU)) {
+      if (cmd_buffer->device->pdevice->has_tfu_ccol) {
+         meta_fill_buffer_tfu_ccol(cmd_buffer, bo, offset, size, data);
+         return;
+      }
+
+#if !USE_V3D_SIMULATOR
+      /* The V3D simulator does not implement TFU stride-0 input and would
+       * assert on this path, so fall back to the TLB-based fill there.
+       */
       meta_fill_buffer_tfu_stride0(cmd_buffer, bo, offset, size, data);
       return;
+#endif
    }
 #endif
 
