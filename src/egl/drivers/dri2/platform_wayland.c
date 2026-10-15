@@ -1682,7 +1682,20 @@ create_wl_buffer(struct dri2_egl_display *dri2_dpy,
    bool supported_modifier = false;
    bool mod_invalid_supported = false;
    int visual_idx = dri2_wl_visual_idx_from_fourcc(fourcc);
-   assert(visual_idx != -1);
+
+   if (visual_idx < 0) {
+      uint32_t code = fourcc & ~DRM_FORMAT_BIG_ENDIAN;
+
+      _eglLog(_EGL_WARNING,
+              "wayland: no visual for image fourcc 0x%08x (%c%c%c%c%s)",
+              (unsigned int)fourcc,
+              code & 0xff,
+              (code >> 8) & 0xff,
+              (code >> 16) & 0xff,
+              (code >> 24) & 0xff,
+              (fourcc & DRM_FORMAT_BIG_ENDIAN) ? " big-endian" : "");
+      return NULL;
+   }
 
    uint64_t *mod;
    u_vector_foreach(mod, &dri2_dpy->formats.modifiers[visual_idx])
