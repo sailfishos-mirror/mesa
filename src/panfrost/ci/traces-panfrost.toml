@@ -5,8 +5,8 @@ download_url = "https://s3.freedesktop.org/mesa-tracie-public/"
 path = "behdad-glyphy/glyphy-v2.trace"
 [traces.devices]
 panfrost-t860 = { checksum = "7aa10c6586a6e1c542879922a51aa4b60785edda699158fc25d70a0fff07f7a3" }
-panfrost-g610 = { checksum = "cd8e1e5e3fc0e807a42ac4cf000f3c64b15ffae32c03853a741d069f6f392c39" }
-panfrost-g925 = { checksum = "40161b09bf9b0596843c4f34fe1589c2fcf958eee3bdb4d4387ad531483be9ae" }
+panfrost-g610 = { checksum = "4a63ca5f5cb7f7c86ba5287390a8848fe1c721ecb0a50da5e3d6fba7e7f6aeef" }
+panfrost-g925 = { checksum = "a94476a530973ba63e297d2e48431ad1c62b5fe2e51d05f40afaa7823d8b9b45" }
 
 [[traces]]
 path = "glxgears/glxgears-2-v2.trace"
@@ -36,8 +36,8 @@ panfrost-g925 = { checksum = "87e476f8e15e71fdab267a99397850d8a4a67c9ad20541e9af
 path = "gputest/furmark-v2.trace"
 [traces.devices]
 panfrost-t860 = { checksum = "be93c04484d1e354403e823a299ba2ab3da2ad29fa742cb83e7d800a427eb760" }
-panfrost-g610 = { checksum = "66cc236a06bc0e738d2ad93af585ee26af546b0dc1d71f2507f5b2362fd6a550" }
-panfrost-g925 = { checksum = "a0afdb77715d8a09bc0940227f7c7f16b37210c72d540a19bad56c9b4eb0b8c5" }
+panfrost-g610 = { checksum = "03e9cde82830e67b76740bceb9bc3f2e7cd0f86f549cc7d3e5869a1f339b3452" }
+panfrost-g925 = { checksum = "6e0574aea86ddab61f76782967dbb976693b318cd241f1f73855d6494313a4ad" }
 
 [[traces]]
 path = "gputest/triangle-v2.trace"
@@ -91,15 +91,15 @@ panfrost-g925 = { checksum = "b552222f7497d66800c87f40d0336933577aad3bb1dd03e67c
 [[traces]]
 path = "gputest/pixmark-volplosion-v2.trace"
 [traces.devices]
-panfrost-g610 = { checksum = "96e5ecbe6241e102e8727dc2d28e62e4a8eb7f70f07e4e015702779a15879ba9" }
-panfrost-g925 = { checksum = "96e5ecbe6241e102e8727dc2d28e62e4a8eb7f70f07e4e015702779a15879ba9" }
+panfrost-g610 = { checksum = "fcf41f1b7409c685bb83a6ca39a44b4c9dd1876d79cc42934a08b9700549598b" }
+panfrost-g925 = { checksum = "fcf41f1b7409c685bb83a6ca39a44b4c9dd1876d79cc42934a08b9700549598b" }
 
 [[traces]]
 path = "gputest/plot3d-v2.trace"
 [traces.devices]
 panfrost-t860 = { checksum = "905f702df1d8c21ef58965e25569fb538ce01d439ac7db473a9fa0d84394719b" }
-panfrost-g610 = { checksum = "6f534a65d6e5a6fe31ff616aa20e1fcbec2fe70fbeb32ae27538ff1598f49f04" }
-panfrost-g925 = { checksum = "9d1b25a1d2451f7827f56a1f54293b55e52f7c9b701808a7163ad6e93ec86dab" }
+panfrost-g610 = { checksum = "8074c9234633429b5471a41bb4fe5cbbd4744d26e6e694570956f900b3b194f3" }
+panfrost-g925 = { checksum = "9bcf3109f8fbd2298c0aa08015027ea30712a611021cdf30229efc9929b4cf98" }
 
 [[traces]]
 path = "humus/AmbientAperture-v2.trace"
