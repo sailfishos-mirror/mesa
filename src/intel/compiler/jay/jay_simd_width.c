@@ -11,6 +11,28 @@
 
 #include "intel/compiler/brw/brw_rt.h"
 
+/*
+ * Return the maximum SIMD width that can operate on a given operand.
+ */
+static inline unsigned
+operand_width(const jay_shader *shader, jay_def def, enum jay_type type)
+{
+   /* Look up the block, synthesizing a trivial one for non-GPRs */
+   struct jay_register_block B = { 0 };
+   if (def.file == GPR) {
+      B = jay_lookup_block(&shader->partition, def.reg, GPR);
+   }
+
+   /* Determine the effective stride in bits. This needs to also account for
+    * 64-bit UGPR-only instructions for the I->broadcast_flag case.
+    */
+   unsigned bits = MAX2(jay_stride_to_bits(B.stride), jay_type_size_bits(type));
+
+   /* We must fit within 2 GRFs and within the SIMDness of the register block */
+   return MIN2((512 * reg_unit(shader->devinfo)) / bits,
+               shader->dispatch_width >> B.split);
+}
+
 static unsigned
 max_simd_width(const jay_shader *shader, const jay_inst *I)
 {
@@ -42,27 +64,10 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
    }
 
    if (I->op != JAY_OPCODE_SEND) {
-      /* If any source/destination is 64-bit strided, we must split to avoid
-       * crossing more than 2 GRFs. Note that SENDs don't have this restriction,
-       * we don't have to split A64 load/store.
-       *
-       * This also applies for 64-bit UGPR-only instructions for the
-       * I->broadcast_flag case which has similar SIMD splitting rules.
-       */
-      if ((I->dst.file == GPR &&
-           jay_def_stride(shader, I->dst) == JAY_STRIDE_8) ||
-          jay_type_size_bits(I->type) == 64 ||
-          (I->dst.file == GPR &&
-           jay_lookup_block(&shader->partition, I->dst.reg, GPR).split)) {
-         width = MIN2(width, 16);
-      }
+      width = MIN2(width, operand_width(shader, I->dst, I->type));
 
       jay_foreach_src(I, s) {
-         if (I->src[s].file == GPR &&
-             (jay_def_stride(shader, I->src[s]) == JAY_STRIDE_8 ||
-              jay_lookup_block(&shader->partition, I->src[s].reg, GPR).split)) {
-            width = MIN2(width, 16);
-         }
+         width = MIN2(width, operand_width(shader, I->src[s], I->type));
       }
    } else {
       /* Sends are split elsewhere */
