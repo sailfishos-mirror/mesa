@@ -714,6 +714,8 @@ zink_resource_image_barrier_general(struct zink_context *ctx, struct zink_resour
    }
 
    /* this is just a synchronization barrier with GENERAL layout: use memory barrier for better granularity */
+   if (zink_resource_access_is_write(flags) && zink_is_swapchain(res))
+      zink_kopper_set_readback_needs_update(res);
    zink_resource_memory_barrier<barrier_KHR_synchronzation2, false, true>(ctx, res, flags, pipeline);
 }
 
