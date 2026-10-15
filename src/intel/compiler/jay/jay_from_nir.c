@@ -1119,7 +1119,6 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       src0_alpha = jay_null();
    }
 
-   /* TODO: splitting for dual source, etc */
    unsigned width = b->shader->dispatch_width;
 
    unsigned op;
@@ -1129,7 +1128,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
               XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE :
               BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD8_DUAL_SOURCE_SUBSPAN01;
    } else {
-      assert((width < 32 || devinfo->ver >= 20) && "todo: splitting");
+      width = MIN2(width, devinfo->ver >= 20 ? 32 : 16);
 
       op = width == 32 ?
               XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
