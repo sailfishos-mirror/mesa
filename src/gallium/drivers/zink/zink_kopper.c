@@ -1008,6 +1008,7 @@ kopper_ensure_readback(struct zink_screen *screen, struct zink_resource *res)
       struct pipe_resource templ = res->base.b;
       templ.bind = PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW;
       cswap->images[i].readback = screen->base.resource_create(&screen->base, &templ);
+      cswap->images[i].readback_needs_update = true;
    }
    return true;
 }
