@@ -2936,8 +2936,8 @@ zink_image_map(struct pipe_context *pctx,
       return NULL;
 
    trans->base.b.level = level;
-   if (zink_is_swapchain(res))
-      /* this is probably a multi-chain which has already been acquired */
+   /* reads of presented images go through zink_kopper_acquire_readback */
+   if (zink_is_swapchain(res) && (!(usage & PIPE_MAP_READ) || res->obj->last_dt_idx == UINT32_MAX))
       zink_kopper_acquire(ctx, res, 0);
 
    void *ptr;
