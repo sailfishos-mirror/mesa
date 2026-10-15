@@ -46,6 +46,7 @@
 #include "dri_util.h"
 #include "pipe-loader/pipe_loader.h"
 #include "x11/x11_display.h"
+#include "util/bitscan.h"
 
 #define __ATTRIB(attrib, field) \
     { attrib, offsetof(struct glx_config, field) }
@@ -79,21 +80,30 @@ static const struct
 };
 
 static int
-scalarEqual(struct glx_config *mode, unsigned int attrib, unsigned int value)
+scalarEqual(const struct glx_config *mode, unsigned int attrib, unsigned int value)
 {
    unsigned glxValue, i;
 
    for (i = 0; i < ARRAY_SIZE(attribMap); i++)
       if (attribMap[i].attrib == attrib) {
-         glxValue = *(unsigned int *) ((char *) mode + attribMap[i].offset);
+         glxValue = *(const unsigned int *) ((const char *) mode + attribMap[i].offset);
          return glxValue == GLX_DONT_CARE || glxValue == value;
       }
 
    return GL_TRUE;              /* Is a non-existing attribute equal to value? */
 }
 
+/* server config attributes a match drops, accum and sRGB only when relaxed */
+#define DRI_CONFIG_DROP_ACCUM       (1 << 0)
+#define DRI_CONFIG_DROP_SRGB        (1 << 1)
+#define DRI_CONFIG_DROP_AUX         (1 << 2)
+#define DRI_CONFIG_DROP_TFP_MIPMAP  (1 << 3)
+#define DRI_CONFIG_DROP_RELAXED     (DRI_CONFIG_DROP_ACCUM | DRI_CONFIG_DROP_SRGB)
+
+/* never modifies config since it is compared against every driver config */
 static int
-driConfigEqual(struct glx_config *config, const struct dri_config *driConfig)
+driConfigEqual(const struct glx_config *config, const struct dri_config *driConfig,
+               bool relaxed, unsigned *drop)
 {
    unsigned int attrib, value, glxValue;
    int i;
@@ -166,7 +176,7 @@ driConfigEqual(struct glx_config *config, const struct dri_config *driConfig)
                DebugMessageF("Disabling server's aux buffer support\n");
                warned = 1;
             }
-            config->numAuxBuffers = 0;
+            *drop |= DRI_CONFIG_DROP_AUX;
          }
          break;
 
@@ -180,12 +190,9 @@ driConfigEqual(struct glx_config *config, const struct dri_config *driConfig)
       case __DRI_ATTRIB_ACCUM_BLUE_SIZE:
       case __DRI_ATTRIB_ACCUM_ALPHA_SIZE:
          if (!scalarEqual(config, attrib, value)) {
-            if (value || !config->sampleBuffers)
+            if (!relaxed || value || !config->sampleBuffers)
                return GL_FALSE;
-            config->accumRedBits = 0;
-            config->accumGreenBits = 0;
-            config->accumBlueBits = 0;
-            config->accumAlphaBits = 0;
+            *drop |= DRI_CONFIG_DROP_ACCUM;
          }
          break;
 
@@ -207,9 +214,9 @@ driConfigEqual(struct glx_config *config, const struct dri_config *driConfig)
        */
       case __DRI_ATTRIB_FRAMEBUFFER_SRGB_CAPABLE:
          if (!scalarEqual(config, attrib, value)) {
-            if (value || !config->sampleBuffers)
+            if (!relaxed || value || !config->sampleBuffers)
                return GL_FALSE;
-            config->sRGBCapable = 0;
+            *drop |= DRI_CONFIG_DROP_SRGB;
          }
          break;
 
@@ -226,7 +233,7 @@ driConfigEqual(struct glx_config *config, const struct dri_config *driConfig)
                DebugMessageF("Disabling server's tfp mipmap support\n");
                warned = 1;
             }
-            config->bindToMipmapTexture = 0;
+            *drop |= DRI_CONFIG_DROP_TFP_MIPMAP;
          }
          break;
 
@@ -243,14 +250,36 @@ static struct glx_config *
 createDriMode(struct glx_config *config, const struct dri_config **driConfigs)
 {
    __GLXDRIconfigPrivate *driConfig;
+   const struct dri_config *match = NULL;
+   unsigned drop = 0;
    int i;
 
+   /* prefer an exact match, then the one dropping the fewest attributes */
    for (i = 0; driConfigs[i]; i++) {
-      if (driConfigEqual(config, driConfigs[i]))
+      drop = 0;
+      if (driConfigEqual(config, driConfigs[i], false, &drop)) {
+         match = driConfigs[i];
          break;
+      }
+   }
+   if (!match && config->sampleBuffers) {
+      unsigned best = 0;
+      for (i = 0; driConfigs[i]; i++) {
+         unsigned d = 0;
+         if (driConfigEqual(config, driConfigs[i], true, &d) &&
+             (!match || util_bitcount(d & DRI_CONFIG_DROP_RELAXED) <
+                        util_bitcount(best & DRI_CONFIG_DROP_RELAXED))) {
+            match = driConfigs[i];
+            best = d;
+            /* an exact match was already ruled out */
+            if (util_bitcount(d & DRI_CONFIG_DROP_RELAXED) == 1)
+               break;
+         }
+      }
+      drop = best;
    }
 
-   if (driConfigs[i] == NULL)
+   if (match == NULL)
       return NULL;
 
    driConfig = malloc(sizeof *driConfig);
@@ -258,7 +287,19 @@ createDriMode(struct glx_config *config, const struct dri_config **driConfigs)
       return NULL;
 
    driConfig->base = *config;
-   driConfig->driConfig = driConfigs[i];
+   driConfig->driConfig = match;
+   if (drop & DRI_CONFIG_DROP_ACCUM) {
+      driConfig->base.accumRedBits = 0;
+      driConfig->base.accumGreenBits = 0;
+      driConfig->base.accumBlueBits = 0;
+      driConfig->base.accumAlphaBits = 0;
+   }
+   if (drop & DRI_CONFIG_DROP_SRGB)
+      driConfig->base.sRGBCapable = 0;
+   if (drop & DRI_CONFIG_DROP_AUX)
+      driConfig->base.numAuxBuffers = 0;
+   if (drop & DRI_CONFIG_DROP_TFP_MIPMAP)
+      driConfig->base.bindToMipmapTexture = 0;
 
    return &driConfig->base;
 }
