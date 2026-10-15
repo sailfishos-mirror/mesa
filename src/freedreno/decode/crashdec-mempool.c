@@ -80,6 +80,25 @@ enum mempool_size {
    MEMPOOL_QUARTER,
 };
 
+struct mempool_layout {
+   const char *name;
+   uint32_t next_pointers_offset;
+   uint32_t data1_offset;
+   uint32_t data2_offset;
+   /* Maximum number of blocks in the pool, also the size of the pointers
+    * array.
+    */
+   uint32_t num_blocks;
+   /* log2 of number of chunks per block. */
+   uint32_t block_size_log2;
+};
+
+static const struct mempool_layout mempool_layouts[] = {
+   [MEMPOOL_FULL]    = { "full",    0x1000, 0x1800, 0x2000, 0x80, 3 },
+   [MEMPOOL_HALF]    = { "half",    0x800,  0xc00,  0x1000, 0x30, 3 },
+   [MEMPOOL_QUARTER] = { "quarter", 0x400,  0x600,  0x800,  0x40, 2 },
+};
+
 /* Unfortunately the per-queue state is a little more complicated than
  * a simple pair of begin/end pointers. Instead of a single beginning
  * block, there are *two*, with the property that either the two are
@@ -166,6 +185,23 @@ struct mempool_data1 {
    uint32_t padding9[7]; /* Mirrors of unk4 */
 };
 
+struct mempool_data2 {
+   /* Based on the kernel, the first dword is the mem pool size (in
+    * blocks?) and mirrors CP_MEM_POOL_DBG_SIZE.
+    */
+   uint32_t size;
+   uint32_t padding0[7]; /* Mirrors of size */
+
+   uint32_t unk0[2][8];
+
+   /* This seems to be the size of each queue in chunks.  Only the first
+    * num_queues entries are read.
+    */
+   uint32_t queue_sizes[8];
+
+   uint32_t unk1[8][8];
+};
+
 void
 dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 {
@@ -215,44 +251,11 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
    else if (is_bv)
       mempool_size = MEMPOOL_QUARTER;
 
-   uint32_t next_pointers_offset;
-   uint32_t data1_offset;
-   uint32_t data2_offset;
-   /* Maximum number of blocks in the pool, also the size of the pointers
-    * array.
-    */
-   int num_blocks;
-   /* log2 of number of chunks per block. */
-   int block_size_log2;
+   const struct mempool_layout *layout = &mempool_layouts[mempool_size];
 
-   switch (mempool_size) {
-   case MEMPOOL_FULL:
-      next_pointers_offset = 0x1000;
-      data1_offset = 0x1800;
-      data2_offset = 0x2000;
-      num_blocks = 0x80;
-      block_size_log2 = 3;
-      break;
-   case MEMPOOL_HALF:
-      next_pointers_offset = 0x800;
-      data1_offset = 0xc00;
-      data2_offset = 0x1000;
-      num_blocks = 0x30;
-      block_size_log2 = 3;
-      break;
-   case MEMPOOL_QUARTER:
-      next_pointers_offset = 0x400;
-      data1_offset = 0x600;
-      data2_offset = 0x800;
-      num_blocks = 0x40;
-      block_size_log2 = 2;
-      break;
-   default:
-      UNREACHABLE("unknown mempool size");
-   }
-   const uint32_t *next_pointers = &mempool[next_pointers_offset];
+   const uint32_t *next_pointers = &mempool[layout->next_pointers_offset];
 
-   const int block_size = 1 << block_size_log2;
+   const uint32_t block_size = 1 << layout->block_size_log2;
 
    /* Number of queues or clusters. On a7xx the clusters are shuffled a bit to
     * increase the count by one, but BV seems to not use the last cluster.
@@ -261,20 +264,16 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 
    struct mempool_data1 data1;
 
-   const uint32_t *data1_ptr = &mempool[data1_offset];
+   const uint32_t *data1_ptr = &mempool[layout->data1_offset];
    memcpy(&data1, data1_ptr, sizeof(data1));
 
-   /* Based on the kernel, the first dword is the mem pool size (in
-    * blocks?) and mirrors CP_MEM_POOL_DBG_SIZE.
-    */
-   const uint32_t *data2_ptr = &mempool[data2_offset];
-   const int data2_size = 0x60;
-
-   /* This seems to be the size of each queue in chunks. */
-   const uint32_t *queue_sizes = &data2_ptr[0x18];
+   STATIC_ASSERT(sizeof(struct mempool_data2) == 4 * 0x60);
+   STATIC_ASSERT(offsetof(struct mempool_data2, queue_sizes) == 4 * 0x18);
+   struct mempool_data2 data2;
+   memcpy(&data2, &mempool[layout->data2_offset], sizeof(data2));
 
    printf("\tdata2:\n");
-   dump_hex_ascii(data2_ptr, 4 * data2_size, 1);
+   dump_hex_ascii(&mempool[layout->data2_offset], sizeof(data2), 1);
 
    /* These seem to be some kind of counter of allocated/deallocated blocks */
    if (verbose) {
@@ -293,11 +292,11 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
              is_a6xx() ? cluster_names_a6xx[queue] : cluster_names_a7xx[queue]);
 
       uint32_t writer_first_block =
-         data1.writer_first_block_chunk[queue] >> block_size_log2;
+         data1.writer_first_block_chunk[queue] >> layout->block_size_log2;
       uint32_t writer_chunk =
          data1.writer_first_block_chunk[queue] & (block_size - 1);
       uint32_t reader_first_block =
-         data1.reader_first_block_chunk[queue] >> block_size_log2;
+         data1.reader_first_block_chunk[queue] >> layout->block_size_log2;
       uint32_t reader_chunk =
          data1.reader_first_block_chunk[queue] & (block_size - 1);
       if (verbose) {
@@ -311,7 +310,7 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
          printf("\t\treader_chunk: %d\n", reader_chunk);
          printf("\t\tblock_count: %d\n", data1.block_count[queue]);
          printf("\t\tunk2: 0x%x\n", data1.unk2[queue]);
-         printf("\t\tqueue_size: %d\n\n", queue_sizes[queue]);
+         printf("\t\tqueue_size: %d\n\n", data2.queue_sizes[queue]);
       }
 
       uint32_t cur_chunk = reader_chunk;
@@ -323,7 +322,7 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
 
       if (verbose)
          printf("\tblock %x\n", cur_block);
-      if (cur_block >= num_blocks) {
+      if (cur_block >= layout->num_blocks) {
          fprintf(stderr, "block %x too large\n", cur_block);
          exit(1);
       }
@@ -343,14 +342,14 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
             cur_block = next_pointers[cur_block];
             if (verbose)
                printf("\tblock %x\n", cur_block);
-            if (cur_block >= num_blocks) {
+            if (cur_block >= layout->num_blocks) {
                fprintf(stderr, "block %x too large\n", cur_block);
                exit(1);
             }
             cur_chunk = 0;
          }
       }
-      if (calculated_queue_size != queue_sizes[queue]) {
+      if (calculated_queue_size != data2.queue_sizes[queue]) {
          printf("\t\tCALCULATED SIZE %d DOES NOT MATCH!\n",
                 calculated_queue_size);
       }
