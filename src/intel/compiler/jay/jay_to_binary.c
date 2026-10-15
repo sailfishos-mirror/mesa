@@ -422,12 +422,13 @@ emit(struct jay_codegen *jc,
       break;
 
    case JAY_OPCODE_DESWIZZLE_ODD: {
+      unsigned stride = jay_ugpr_per_grf(f->shader) * 4;
       bool hi = I->simd_offs == 0 ? true : jay_deswizzle_odd_src2_hi(I);
       gen->chan_offset = 0;
       gen->src[0] =
          gen_byte_offset(jc->devinfo,
                          to_gen_operand(f, I, I->simd_offs, 0, false),
-                         hi ? 64 : 0);
+                         hi ? stride : 0);
       break;
    }
 
