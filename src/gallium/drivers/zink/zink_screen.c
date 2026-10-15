@@ -3152,9 +3152,24 @@ init_driver_workarounds(struct zink_screen *screen)
    /* EXT_vertex_input_dynamic_state is only used with EDS2 and above */
    if (!screen->info.have_EXT_extended_dynamic_state2)
       screen->info.have_EXT_vertex_input_dynamic_state = false;
-   if (screen->info.line_rast_feats.stippledRectangularLines &&
-       screen->info.line_rast_feats.stippledBresenhamLines &&
-       screen->info.line_rast_feats.stippledSmoothLines &&
+   if ((!screen->info.have_EXT_line_rasterization ||
+        !screen->info.line_rast_feats.stippledBresenhamLines) &&
+       screen->info.feats.features.geometryShader &&
+       screen->info.feats.features.sampleRateShading) {
+      /* we're using stippledBresenhamLines as a proxy for all of these, to
+       * avoid accidentally changing behavior on VK-drivers where we don't
+       * want to add emulation.
+       */
+      screen->driver_workarounds.no_linestipple = true;
+   }
+
+   /* hardware line stipple needs a dynamic enable, since EDS3 pipelines keep the enable
+    * they were created with
+    */
+   if (!screen->driver_workarounds.no_linestipple &&
+       (screen->info.line_rast_feats.stippledRectangularLines ||
+        screen->info.line_rast_feats.stippledBresenhamLines ||
+        screen->info.line_rast_feats.stippledSmoothLines) &&
        !screen->info.dynamic_state3_feats.extendedDynamicState3LineStippleEnable)
       screen->info.have_EXT_extended_dynamic_state3 = false;
    if (!screen->info.dynamic_state3_feats.extendedDynamicState3PolygonMode ||
@@ -3188,17 +3203,6 @@ init_driver_workarounds(struct zink_screen *screen)
    if (zink_driverid(screen) == VK_DRIVER_ID_MESA_TURNIP) {
       /* performance */
       screen->info.border_color_feats.customBorderColorWithoutFormat = VK_FALSE;
-   }
-
-   if ((!screen->info.have_EXT_line_rasterization ||
-        !screen->info.line_rast_feats.stippledBresenhamLines) &&
-       screen->info.feats.features.geometryShader &&
-       screen->info.feats.features.sampleRateShading) {
-      /* we're using stippledBresenhamLines as a proxy for all of these, to
-       * avoid accidentally changing behavior on VK-drivers where we don't
-       * want to add emulation.
-       */
-      screen->driver_workarounds.no_linestipple = true;
    }
 
    if (zink_driverid(screen) ==
