@@ -1063,9 +1063,13 @@ zink_kopper_acquire_readback(struct zink_context *ctx, struct zink_resource *res
          util_queue_fence_wait(&cdt->swapchain->present_fence);
       }
       cdt->age_locked = true;
-      do {
-         ret = kopper_acquire(screen, res, 0);
-      } while (!is_swapchain_kill(ret) && (ret == VK_NOT_READY || ret == VK_TIMEOUT));
+      /* this waits, and gives up shortly once past the acquire limit */
+      ret = kopper_acquire(screen, res, UINT64_MAX);
+      if (ret == VK_NOT_READY || ret == VK_TIMEOUT) {
+         *readback = res;
+         cdt->age_locked = false;
+         return false;
+      }
       if (is_swapchain_kill(ret)) {
          kill_swapchain(ctx, res);
          *readback = NULL;
