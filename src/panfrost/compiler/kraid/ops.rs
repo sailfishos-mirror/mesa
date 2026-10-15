@@ -732,6 +732,58 @@ impl PerCompFoldable for OpClz {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [
+    S8, U8, V2S8, V2U8, V4S8, V4U8,
+    F16, S16, U16, V2F16, V2S16, V2U16,
+    F32, S32, U32
+])]
+pub struct OpCmp {
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub res_type: CmpResultType,
+    pub cmp_op: CmpOp,
+
+    pub srcs: [Src; 2],
+
+    #[src_type(VNIN)]
+    pub accum: Src,
+    pub accum_op: CmpAccumOp,
+}
+
+impl DisplayOp for OpCmp {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CMP{}.{}", self.accum_op, self.src_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{} {} {}",
+            self.res_type,
+            self.cmp_op,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+impl PerCompFoldable for OpCmp {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_src(&self.srcs[0]);
+        let cb = f.get_src(&self.srcs[1]);
+        let accum = f.get_src(&self.accum);
+
+        let c = self.cmp_op.fold_data(self.src_type.scalar_type(), ca, cb);
+        let c = self.accum_op.fold(c, accum != 0);
+        let c = self.res_type.fold(c, self.src_type.bits());
+
+        f.set_dst(&self.dst, c as u64);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]
 pub struct OpCopy {
     pub dst: Dst,
@@ -1440,59 +1492,6 @@ impl CmpOp {
         } else {
             self.fold_ordering(partial_cmp_data(data_type, a, b))
         }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
-#[variants(src_type in [F16, V2F16, F32])]
-pub struct OpFCmp {
-    pub dst: Dst,
-
-    pub src_type: DataType,
-    pub res_type: CmpResultType,
-    pub cmp_op: CmpOp,
-
-    pub srcs: [Src; 2],
-
-    #[src_type(VNIN)]
-    pub accum: Src,
-    pub accum_op: CmpAccumOp,
-}
-
-impl DisplayOp for OpFCmp {
-    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FCMP{}.{}", self.accum_op, self.src_type)
-    }
-
-    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{} {} {}",
-            self.res_type,
-            self.cmp_op,
-            self.fmt_src(&self.srcs[0]),
-            self.fmt_src(&self.srcs[1]),
-        )?;
-
-        if self.accum_op != CmpAccumOp::None {
-            write!(f, " {}", self.fmt_src(&self.accum))?;
-        }
-        Ok(())
-    }
-}
-
-impl PerCompFoldable for OpFCmp {
-    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
-        let ca = f.get_src(&self.srcs[0]);
-        let cb = f.get_src(&self.srcs[1]);
-        let accum = f.get_src(&self.accum);
-
-        let c = self.cmp_op.fold_data(self.src_type.scalar_type(), ca, cb);
-        let c = self.accum_op.fold(c, accum != 0);
-        let c = self.res_type.fold(c, self.src_type.bits());
-
-        f.set_dst(&self.dst, c as u64);
     }
 }
 
@@ -2219,57 +2218,6 @@ impl PerCompFoldable for OpIAdd {
         };
 
         f.set_dst(&self.dst, c);
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
-#[variants(src_type in [
-    S8, U8, V2S8, V2U8, V4S8, V4U8,
-    S16, U16, V2S16, V2U16, S32, U32
-])]
-pub struct OpICmp {
-    pub dst: Dst,
-
-    pub src_type: DataType,
-    pub res_type: CmpResultType,
-    pub cmp_op: CmpOp,
-
-    pub srcs: [Src; 2],
-
-    #[src_type(VNIN)]
-    pub accum: Src,
-    pub accum_op: CmpAccumOp,
-}
-
-impl DisplayOp for OpICmp {
-    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ICMP{}.{}", self.accum_op, self.src_type)
-    }
-
-    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{} {} {}",
-            self.res_type,
-            self.cmp_op,
-            self.fmt_src(&self.srcs[0]),
-            self.fmt_src(&self.srcs[1]),
-        )
-    }
-}
-
-impl PerCompFoldable for OpICmp {
-    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
-        let ca = f.get_src(&self.srcs[0]);
-        let cb = f.get_src(&self.srcs[1]);
-        let accum = f.get_src(&self.accum);
-
-        let c = self.cmp_op.fold_data(self.src_type.scalar_type(), ca, cb);
-        let c = self.accum_op.fold(c, accum != 0);
-        let c = self.res_type.fold(c, self.src_type.bits());
-
-        f.set_dst(&self.dst, c as u64);
     }
 }
 
@@ -5135,6 +5083,7 @@ pub enum Op {
     Branch(Box<OpBranch>),
     Clper(Box<OpClper>),
     Clz(Box<OpClz>),
+    Cmp(Box<OpCmp>),
     Copy(Box<OpCopy>),
     CSel(Box<OpCSel>),
     CubeFaceIdx(Box<OpCubeFaceIdx>),
@@ -5146,7 +5095,6 @@ pub enum Op {
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
     FAddLScale(Box<OpFAddLScale>),
-    FCmp(Box<OpFCmp>),
     FCosTable(Box<OpFCosTable>),
     FExp16(Box<OpFExp16>),
     FExp32(Box<OpFExp32>),
@@ -5166,7 +5114,6 @@ pub enum Op {
     HAdd(Box<OpHAdd>),
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
-    ICmp(Box<OpICmp>),
     ICmpMulti(Box<OpICmpMulti>),
     IDpAdd(Box<OpIDpAdd>),
     IMul(Box<OpIMul>),

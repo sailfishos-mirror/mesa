@@ -820,7 +820,7 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_op_feq_pan | nir_op_fge_pan | nir_op_flt_pan
             | nir_op_fneu_pan => {
-                b.push_op(OpFCmp {
+                b.push_op(OpCmp {
                     dst: dst.into(),
                     src_type: src_type(0, NumericType::Float),
                     res_type: CmpResultType::M1,
@@ -1206,7 +1206,7 @@ impl<'a> ShaderFromNir<'a> {
                     // clean this up in almost all cases.
                     b.copy_i32_to(dst[1].into(), dst[0].into());
                 } else {
-                    b.push_op(OpICmp {
+                    b.push_op(OpCmp {
                         dst: dst.into(),
                         src_type: src_type(0, num_type),
                         res_type: CmpResultType::M1,
@@ -2505,7 +2505,7 @@ impl<'a> ShaderFromNir<'a> {
                 // Facing is the only field in the low byte, so select it
                 // rather than masking: (primitive_flags & 1) == 0 is front
                 let dst = self.alloc_ssa(b, &intrin.def).into();
-                b.push_op(OpICmp {
+                b.push_op(OpCmp {
                     dst,
                     src_type: DataType::U32,
                     res_type: CmpResultType::M1,
