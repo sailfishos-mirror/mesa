@@ -131,6 +131,8 @@ vlVaQueryVideoProcPipelineCaps(VADriverContextP ctx, VAContextID context,
       pipeline_cap->blend_flags |= VA_BLEND_GLOBAL_ALPHA;
    if (!media_only || pipe_blend_modes & PIPE_VIDEO_VPP_BLEND_MODE_PREMULTIPLIED_ALPHA)
       pipeline_cap->blend_flags |= VA_BLEND_PREMULTIPLIED_ALPHA;
+   if (pipe_blend_modes & PIPE_VIDEO_VPP_BLEND_MODE_LUMA_KEY)
+      pipeline_cap->blend_flags |= VA_BLEND_LUMA_KEY;
 
    vlVaDriver *drv = VL_VA_DRIVER(ctx);
 
@@ -516,6 +518,11 @@ vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *contex
          vpp.blend.mode |= PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA;
       if (param->blend_state->flags & VA_BLEND_PREMULTIPLIED_ALPHA)
          vpp.blend.mode |= PIPE_VIDEO_VPP_BLEND_MODE_PREMULTIPLIED_ALPHA;
+      if (param->blend_state->flags & VA_BLEND_LUMA_KEY) {
+         vpp.blend.mode |= PIPE_VIDEO_VPP_BLEND_MODE_LUMA_KEY;
+         vpp.blend.min_luma = param->blend_state->min_luma;
+         vpp.blend.max_luma = param->blend_state->max_luma;
+      }
    }
 
    /* Output background color */

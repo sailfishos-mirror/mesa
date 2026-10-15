@@ -2149,6 +2149,11 @@ struct pipe_vpp_blend
    enum pipe_video_vpp_blend_mode mode;
    /* To be used with PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA */
    float global_alpha;
+   /* To be used with PIPE_VIDEO_VPP_BLEND_MODE_LUMA_KEY.
+    * min and max should be in range [0.0f, 1.0f]
+    */
+   float min_luma;
+   float max_luma;
 };
 
 struct pipe_vpp_desc
