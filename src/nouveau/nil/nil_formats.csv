@@ -152,6 +152,11 @@ R32G32B32X32_UINT       , RU32_GU32_BU32_X32    , R32_G32_B32_A32   , UUUU , U  
 R64_SINT                , NONE                  , R32_G32           , II   , I      , RG01 , BS
 R64_UINT                , NONE                  , R32_G32           , UU   , U      , RG01 , BS
 
+X6R10_UNORM             , R16                   , R16               , N    , N      , R001 , CTBSA
+X4R12_UNORM             , R16                   , R16               , N    , N      , R001 , CTBSA
+X6R10X6G10_UNORM        , R16_G16               , R16_G16           , NN   , N      , RG01 , CTBSA
+X4R12X4G12_UNORM        , R16_G16               , R16_G16           , NN   , N      , RG01 , CTBSA
+
 # Depth/stencil formats
 Z16_UNORM               , Z16                   , Z16               , N    , N      , R001 , TZ        , MaxwellA
 Z32_FLOAT               , ZF32                  , ZF32              , F    , F      , R001 , TZ
