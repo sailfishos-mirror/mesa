@@ -699,6 +699,12 @@ convert_texel(nir_builder *b, VkFormat src_fmt, VkFormat dst_fmt,
    if (src_pfmt == dst_pfmt)
       return texel;
 
+   if ((src_pfmt == PIPE_FORMAT_R32_FLOAT &&
+        dst_pfmt == PIPE_FORMAT_Z32_FLOAT) ||
+       (src_pfmt == PIPE_FORMAT_R16_UNORM &&
+        dst_pfmt == PIPE_FORMAT_Z16_UNORM))
+      return texel;
+
    /*
     * For depth, the hardware is about to convert from float to the output
     * format, so to compensate for that we need to do the inverse conversion
