@@ -2893,9 +2893,10 @@ zink_set_global_binding(struct pipe_context *pctx,
          memcpy(&addr, handles[i], sizeof(addr));
          addr += zink_resource_get_address(zink_screen(pctx->screen), res);
          memcpy(handles[i], &addr, sizeof(addr));
-         zink_resource_usage_set(res, ctx->bs, true);
+         /* barrier before setting usage so access from completed batches is reset */
          zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
          zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+         zink_resource_usage_set(res, ctx->bs, true);
          zink_resource_disable_unordered(res, true);
       } else if (globals[i]) {
          zink_batch_reference_resource(ctx, zink_resource(globals[first + i]));
