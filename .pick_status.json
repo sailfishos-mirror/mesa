@@ -94,7 +94,7 @@
         "description": "radv/video: Allow DRM format modifiers for video images on GFX6-8",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
