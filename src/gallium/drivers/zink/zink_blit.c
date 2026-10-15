@@ -458,6 +458,9 @@ zink_blit(struct pipe_context *pctx,
    if (src->obj->dt) {
       zink_fb_clears_apply_region(ctx, info->src.resource, zink_rect_from_box(&info->src.box), info->src.box.z, info->src.box.depth);
       needs_present_readback = zink_kopper_acquire_readback(ctx, src, &use_src);
+      /* no image to read from */
+      if (zink_is_swapchain(use_src) && !zink_kopper_acquire(ctx, use_src, UINT64_MAX))
+         goto end;
    }
 
    /* this is discard_only because we're about to start a renderpass that will
