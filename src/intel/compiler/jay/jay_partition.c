@@ -36,7 +36,7 @@ struct instruction_req {
 };
 
 static struct instruction_req
-analyze_per_inst(jay_shader *shader)
+analyze_per_inst(jay_shader *shader, unsigned base_split)
 {
    struct instruction_req global = { 0 };
 
@@ -57,7 +57,7 @@ analyze_per_inst(jay_shader *shader)
                local.ugpr += size;
             } else if (x.file == GPR &&
                        I->op == JAY_OPCODE_SEND &&
-                       I->simd_split) {
+                       I->simd_split > base_split) {
                /* We do not currently split other stride sends. If/when that
                 * changes, we'll need to complicate the partition a bit.
                 */
@@ -187,14 +187,17 @@ build_partition(jay_shader *shader,
 }
 
 static inline unsigned
-register_limit(jay_shader *s, enum jay_file file, unsigned limit)
+register_limit(jay_shader *s,
+               enum jay_file file,
+               unsigned limit,
+               unsigned base_split)
 {
    /* If testing spilling, set limit tightly. */
    if (jay_debug & JAY_DBG_SPILL) {
       /* UGPR spilling needs 1 extra register throughout the program but 2
        * extra registers right at the beginning with all the preloading.
        */
-      struct instruction_req req = analyze_per_inst(s);
+      struct instruction_req req = analyze_per_inst(s, base_split);
       limit =
          file == UGPR ? req.ugpr + 1 : req.gpr[0] + req.gpr[1] + req.gpr[2];
 
@@ -335,9 +338,10 @@ jay_partition_grf(jay_shader *shader)
     * We will use this to choose a good partition.
     */
    unsigned demand[JAY_NUM_GRF_FILES] = { 0 };
-   struct instruction_req instr_req = analyze_per_inst(shader);
+   struct instruction_req instr_req = analyze_per_inst(shader, base_split);
    unsigned max_ugpr = shader->devinfo->ver >= 20 ? 64 : 96;
-   unsigned ugpr_limit = register_limit(shader, UGPR, max_ugpr * ugpr_per_grf);
+   unsigned ugpr_limit =
+      register_limit(shader, UGPR, max_ugpr * ugpr_per_grf, base_split);
    unsigned hw_flags = jay_num_flags(shader);
    unsigned flag_limit = hw_flags - shader->helpers_tracked;
 
@@ -446,7 +450,8 @@ jay_partition_grf(jay_shader *shader)
       shader->num_regs[UGPR] = uniform_grfs * ugpr_per_grf;
 
       /* If we're under the limit without spilling, we're good to go. */
-      if (demand[GPR] <= register_limit(shader, GPR, shader->num_regs[GPR])) {
+      if (demand[GPR] <=
+          register_limit(shader, GPR, shader->num_regs[GPR], base_split)) {
          break;
       }
    }
@@ -555,7 +560,8 @@ jay_partition_grf(jay_shader *shader)
 
    /* Spill as needed to fit within the partition we picked. */
    jay_foreach_function(shader, f) {
-      unsigned limit = register_limit(shader, GPR, shader->num_regs[GPR]);
+      unsigned limit =
+         register_limit(shader, GPR, shader->num_regs[GPR], base_split);
       bool spilled = f->demand[GPR] > limit;
 
       if (spilled) {
