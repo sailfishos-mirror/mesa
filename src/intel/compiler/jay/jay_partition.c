@@ -227,6 +227,22 @@ jay_partition_grf(jay_shader *shader)
    unsigned grf_per_gpr = jay_grf_per_gpr(shader);
    unsigned ugpr_per_grf = jay_ugpr_per_grf(shader);
 
+   /* Xe1 does not have any 32-bit SIMD32 instructions, so we use SIMD16 as the
+    * base split there (and then use SIMD8 for instructions requiring further
+    * splits). Meanwhile, Xe2 does not have any SIMD8 sends. Those observations
+    * taken together means we only ever need 2 levels of splitting, regardless
+    * of dispatch width or platform. base_split controls this.
+    */
+   unsigned base_split =
+      shader->dispatch_width == 32 && devinfo->ver < 20 ? 1 : 0;
+
+   unsigned eot_split = base_split;
+   jay_foreach_inst_in_shader(shader, f, I) {
+      if (jay_is_early_eot_send(shader, I)) {
+         eot_split = I->simd_split;
+      }
+   }
+
    /* Determine the shape of the payload/EOT sections upfront. */
    unsigned payload_4[2] = { 0, 0 }, payload_u[2] = { grf_per_gpr, 0 };
    unsigned eot_u = 0, eot_4 = 0;
@@ -299,11 +315,11 @@ jay_partition_grf(jay_shader *shader)
          payload_u[0] = 2;
       }
 
-      payload_4[0] = shader->payload_gprs;
+      payload_4[0] = shader->payload_gprs * (grf_per_gpr == 4 ? 2 : 1);
       payload_u[1] = (shader->payload_ugprs / ugpr_per_grf) - payload_u[0];
       payload_4[1] = grf_per_gpr == 2 ? shader->payload_gprs : 0;
-      eot_4 = 14;
-      eot_u = 1;
+      eot_4 = 12 << eot_split;
+      eot_u = 2;
    } else {
       eot_u = 1;
    }
@@ -507,18 +523,21 @@ jay_partition_grf(jay_shader *shader)
 
       /* General registers */
       { UGPR, 0, uniform_grfs - special_u - spilling_grfs },
-      { GPR, JAY_STRIDE_4, picked_grf[JAY_STRIDE_4] - special_4 },
-      { GPR, JAY_STRIDE_8, picked_grf[JAY_STRIDE_8] },
-      { GPR, JAY_STRIDE_2, picked_grf[JAY_STRIDE_2] },
-      { GPR, JAY_STRIDE_4, split_4, JAY_BLOCK_NORMAL, 1 },
+      { GPR, JAY_STRIDE_4, picked_grf[JAY_STRIDE_4] - special_4,
+       JAY_BLOCK_NORMAL, base_split },
+      { GPR, JAY_STRIDE_8, picked_grf[JAY_STRIDE_8], JAY_BLOCK_NORMAL,
+       base_split },
+      { GPR, JAY_STRIDE_2, picked_grf[JAY_STRIDE_2], JAY_BLOCK_NORMAL,
+       base_split },
+      { GPR, JAY_STRIDE_4, split_4, JAY_BLOCK_NORMAL, base_split + 1 },
 
       /* Spilling registers */
       { UGPR, 0, spilling_grfs, JAY_BLOCK_SPILL },
       { MEM, JAY_STRIDE_4, mem_slots },
 
       /* EOT */
+      { GPR, JAY_STRIDE_4, eot_4, JAY_BLOCK_EOT, eot_split },
       { UGPR, 0, eot_u, JAY_BLOCK_EOT },
-      { GPR, JAY_STRIDE_4, eot_4, JAY_BLOCK_EOT },
 
       /* Accumulator block */
       { GPR, JAY_STRIDE_4, mapped_accums * grf_per_gpr, JAY_BLOCK_ACCUM },
