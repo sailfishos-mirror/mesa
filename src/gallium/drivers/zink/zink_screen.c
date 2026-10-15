@@ -1091,6 +1091,12 @@ zink_init_screen_caps(struct zink_screen *screen)
 
    caps->video_memory = get_video_mem(screen) >> 20;
    caps->uma = screen->info.props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+   /* a quarter of vram like radeonsi, but an image still needs a single allocation, so an
+    * unreported allocation limit keeps the default */
+   if (!caps->uma && !screen->is_cpu && screen->info.props11.maxMemoryAllocationSize) {
+      unsigned max_mb = MIN2(caps->video_memory / 4, screen->info.props11.maxMemoryAllocationSize >> 20);
+      caps->max_texture_mb = MAX2(caps->max_texture_mb, max_mb);
+   }
 
    caps->max_vertex_attrib_stride =
       screen->info.props.limits.maxVertexInputBindingStride;
