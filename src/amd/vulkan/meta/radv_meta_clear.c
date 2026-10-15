@@ -591,7 +591,7 @@ clear_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
    radv_CmdDispatchBase(radv_cmd_buffer_to_handle(cmd_buffer), 0, 0, 0, block_count, 1, 1);
 
    return AC_BARRIER_SYNC_CS | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                 VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
+                                                     VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
 }
 
 static uint32_t
@@ -783,15 +783,13 @@ static uint32_t
 radv_get_cmask_fast_clear_value(const struct radv_image *image)
 {
    /* Default value when no DCC. */
-   uint32_t value = image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_CLEAR_REG :
-                                            CMASK_NOAA_COLOR_CLEAR_REG;
+   uint32_t value = image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_CLEAR_REG : CMASK_NOAA_COLOR_CLEAR_REG;
 
    /* The fast-clear value is different for images that have both DCC and
     * CMASK metadata.
     */
    if (radv_image_has_dcc(image)) {
-      return image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED :
-                                     CMASK_NOAA_COLOR_EXPANDED;
+      return image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED : CMASK_NOAA_COLOR_EXPANDED;
    }
 
    return value;
@@ -1065,7 +1063,7 @@ radv_clear_dcc_comp_to_single(struct radv_cmd_buffer *cmd_buffer, struct radv_im
    }
 
    return AC_BARRIER_SYNC_CS | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                 VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
+                                                     VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, NULL);
 }
 
 uint32_t
@@ -1416,8 +1414,7 @@ radv_can_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 static void
 radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_image_view *iview,
                       const VkClearAttachment *clear_att, const VkClearRect *clear_rect,
-                      enum ac_barrier_flags *pre_flush, enum ac_barrier_flags *post_flush,
-                      uint32_t view_mask)
+                      enum ac_barrier_flags *pre_flush, enum ac_barrier_flags *post_flush, uint32_t view_mask)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -1434,9 +1431,8 @@ radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
    };
 
    if (pre_flush) {
-      enum ac_barrier_flags bits =
-         radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                               VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, iview->image, NULL);
+      enum ac_barrier_flags bits = radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                                         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, iview->image, NULL);
       cmd_buffer->state.flush_bits |= bits & ~*pre_flush;
       *pre_flush |= cmd_buffer->state.flush_bits;
    }
@@ -1553,11 +1549,10 @@ emit_clear(struct radv_cmd_buffer *cmd_buffer, const VkClearAttachment *clear_at
       }
 
       if (can_fast_clear_depth && can_fast_clear_stencil) {
-         radv_fast_clear_depth(cmd_buffer, ds_att->iview, clear_att->clearValue.depthStencil, aspects,
-                               pre_flush, post_flush);
+         radv_fast_clear_depth(cmd_buffer, ds_att->iview, clear_att->clearValue.depthStencil, aspects, pre_flush,
+                               post_flush);
       } else if (!can_fast_clear_depth && !can_fast_clear_stencil) {
-         emit_depthstencil_clear(cmd_buffer, clear_att->clearValue.depthStencil, aspects, clear_rect,
-                                 view_mask);
+         emit_depthstencil_clear(cmd_buffer, clear_att->clearValue.depthStencil, aspects, clear_rect, view_mask);
       } else {
          if (can_fast_clear_depth) {
             radv_fast_clear_depth(cmd_buffer, ds_att->iview, clear_att->clearValue.depthStencil,

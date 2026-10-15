@@ -884,9 +884,9 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
       (gfx_state->ps.depth_output_needs_epilog && info->ps.writes_z) ||
       (gfx_state->ps.stencil_output_needs_epilog && info->ps.writes_stencil) ||
       (gfx_state->ps.sample_mask_output_needs_epilog && info->ps.writes_sample_mask) ||
-      (writes_mrt0_alpha && ((gfx_level >= GFX11 && gfx_state->ms.alpha_to_coverage_unknown &&
-                              radv_ps_writes_mrtz(info)) ||
-                             (gfx_state->ms.alpha_to_coverage_unknown && gfx_state->ms.alpha_to_one_enable)));
+      (writes_mrt0_alpha &&
+       ((gfx_level >= GFX11 && gfx_state->ms.alpha_to_coverage_unknown && radv_ps_writes_mrtz(info)) ||
+        (gfx_state->ms.alpha_to_coverage_unknown && gfx_state->ms.alpha_to_one_enable)));
 
    if (!info->ps.has_epilog) {
       info->ps.mrt0_is_dual_src = gfx_state->ps.epilog.mrt0_is_dual_src;
@@ -900,8 +900,7 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
 
       info->ps.writes_mrt0_alpha_to_mrtz =
          writes_mrt0_alpha && gfx_state->ms.alpha_to_coverage_enable &&
-         ((gfx_level >= GFX11 && radv_ps_writes_mrtz(info)) ||
-          gfx_state->ms.alpha_to_one_enable);
+         ((gfx_level >= GFX11 && radv_ps_writes_mrtz(info)) || gfx_state->ms.alpha_to_one_enable);
    }
 
    if (gfx_level >= GFX10_3) {

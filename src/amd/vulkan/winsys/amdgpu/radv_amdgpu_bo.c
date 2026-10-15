@@ -555,8 +555,8 @@ radv_amdgpu_winsys_bo_create(struct radeon_winsys *_ws, uint64_t size, unsigned 
                              (flags & RADEON_FLAG_REPLAYABLE ? AMDGPU_VA_RANGE_REPLAYABLE : 0);
    uint64_t va_gap_size = ws->debug_vm ? MAX2(4 * virt_alignment, 64 * 1024) : 0;
 
-   r = ac_drm_va_range_alloc(ws->dev, amdgpu_gpu_va_range_general, va_size + va_gap_size, virt_alignment, replay_address,
-                             &va, &va_handle, va_flags);
+   r = ac_drm_va_range_alloc(ws->dev, amdgpu_gpu_va_range_general, va_size + va_gap_size, virt_alignment,
+                             replay_address, &va, &va_handle, va_flags);
    if (r) {
       result = replay_address ? VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS : VK_ERROR_OUT_OF_DEVICE_MEMORY;
       goto error_va_alloc;

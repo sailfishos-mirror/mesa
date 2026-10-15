@@ -26,10 +26,9 @@ struct radv_fill_or_copy_memory_key {
 };
 
 static VkResult
-get_fill_or_copy_memory_pipeline(struct radv_device *device,
-                                 const ac_cs_clear_copy_buffer_options *const options,
-                                 const ac_cs_clear_copy_buffer_dispatch *const dispatch,
-                                 VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
+get_fill_or_copy_memory_pipeline(struct radv_device *device, const ac_cs_clear_copy_buffer_options *const options,
+                                 const ac_cs_clear_copy_buffer_dispatch *const dispatch, VkPipeline *pipeline_out,
+                                 VkPipelineLayout *layout_out)
 {
    struct radv_fill_or_copy_memory_key key;
    VkResult result;
@@ -118,8 +117,7 @@ radv_clear_copy_buffer_info(const struct radv_cmd_buffer *const cmd_buffer, cons
 }
 
 static void
-radv_compute_fill_memory(struct radv_cmd_buffer *cmd_buffer,
-                         const ac_cs_clear_copy_buffer_options *const options,
+radv_compute_fill_memory(struct radv_cmd_buffer *cmd_buffer, const ac_cs_clear_copy_buffer_options *const options,
                          const ac_cs_clear_copy_buffer_dispatch *const dispatch)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -142,8 +140,7 @@ radv_compute_fill_memory(struct radv_cmd_buffer *cmd_buffer,
 }
 
 static void
-radv_compute_copy_memory(struct radv_cmd_buffer *cmd_buffer,
-                         const ac_cs_clear_copy_buffer_options *const options,
+radv_compute_copy_memory(struct radv_cmd_buffer *cmd_buffer, const ac_cs_clear_copy_buffer_options *const options,
                          const ac_cs_clear_copy_buffer_dispatch *const dispatch, const uint64_t size)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -203,8 +200,7 @@ radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
    const ac_cs_clear_copy_buffer_options options = radv_clear_copy_buffer_options(cmd_buffer);
    ac_cs_clear_copy_buffer_dispatch dispatch = {0};
-   ac_cs_clear_copy_buffer_info info =
-      radv_clear_copy_buffer_info(cmd_buffer, 0, dst_va, size, 0, dst_copy_flags);
+   ac_cs_clear_copy_buffer_info info = radv_clear_copy_buffer_info(cmd_buffer, 0, dst_va, size, 0, dst_copy_flags);
 
    info.clear_value[0] = value;
    info.clear_value_size = sizeof(uint32_t);

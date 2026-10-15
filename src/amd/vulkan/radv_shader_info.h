@@ -86,7 +86,7 @@ struct radv_shader_info {
    uint32_t num_tess_patches;
    uint32_t esgs_itemsize;       /* Only for VS or TES as ES */
    uint32_t ngg_lds_vertex_size; /* VS,TES: Cull+XFB, GS: GSVS size */
-   uint64_t gs_inputs_read;  /* Mask of GS inputs read (only used by linked ES) */
+   uint64_t gs_inputs_read;      /* Mask of GS inputs read (only used by linked ES) */
 
    struct radv_userdata_locations user_sgprs_locs;
    struct radv_vs_output_info outinfo;

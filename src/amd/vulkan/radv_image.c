@@ -81,8 +81,8 @@ radv_use_tc_compat_htile_for_image(struct radv_device *device, const struct radv
    /* Do not enable TC-compatible HTILE if the image isn't readable by a
     * shader because no texture fetches will happen.
     */
-   if (!(image->vk.usage &
-         (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR | VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR)))
+   if (!(image->vk.usage & (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR |
+                            VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR)))
       return false;
 
    if (pdev->info.gfx_level < GFX9) {
@@ -383,8 +383,8 @@ radv_use_tc_compat_cmask_for_image(struct radv_device *device, struct radv_image
    /* Do not enable TC-compatible if the image isn't readable by a shader
     * because no texture fetches will happen.
     */
-   if (!(image->vk.usage &
-         (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR | VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR)))
+   if (!(image->vk.usage & (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR |
+                            VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR)))
       return false;
 
    /* If the image doesn't have FMASK, it can't be fetchable. */
@@ -596,7 +596,8 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
    }
 
    if (image->vk.image_type == VK_IMAGE_TYPE_3D) {
-      if ((image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) && !(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
+      if ((image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR) &&
+          !(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
          /* Select a 2D swizzle mode for 3D CB render targets because it's optimal regardless of the
           * access pattern (CB prefers thin tiling). This optimization isn't applied to images that
           * can be used as storage because it mostly depends on the access pattern, and it's really
@@ -893,7 +894,8 @@ radv_image_is_l2_coherent(const struct radv_device *device, const struct radv_im
       return !radv_image_is_pipe_misaligned(image, range);
    } else if (pdev->info.gfx_level == GFX9) {
       if (image->vk.samples == 1 &&
-          (image->vk.usage & (VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR | VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR)) &&
+          (image->vk.usage &
+           (VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR | VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR)) &&
           !vk_format_has_stencil(image->vk.format)) {
          /* Single-sample color and single-sample depth
           * (not stencil) are coherent with shaders on
@@ -1741,8 +1743,7 @@ radv_image_is_renderable(const struct radv_physical_device *pdev, const struct r
     * Note that this issue is not documented or acknowledged by AMD.
     * Prefer the compute shader code path until this is better investigated.
     */
-   if (pdev->info.family == CHIP_FIJI &&
-       (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT))
+   if (pdev->info.family == CHIP_FIJI && (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT))
       return false;
 
    return true;

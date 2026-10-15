@@ -822,7 +822,7 @@ radv_dump_enabled_options(const struct radv_device *device, FILE *f)
       fprintf(f, "Enabled debug options: ");
 
       unsigned i;
-      BITSET_FOREACH_SET(i, instance->debug_flags, RADV_DEBUG_COUNT) {
+      BITSET_FOREACH_SET (i, instance->debug_flags, RADV_DEBUG_COUNT) {
          fprintf(f, "%s, ", radv_get_debug_option_name(i));
       }
       fprintf(f, "\n");

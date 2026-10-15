@@ -801,7 +801,8 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
          const bool cached = !stage->key.optimisations_disabled &&
                              !(pipeline->base.base.create_flags & VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR);
          rt_stages[idx].stack_size = stage->nir->scratch_size;
-         rt_stages[idx].nir = radv_pipeline_cache_nir_to_handle(device, cache, stage->nir, rt_stages[idx].blake3, cached);
+         rt_stages[idx].nir =
+            radv_pipeline_cache_nir_to_handle(device, cache, stage->nir, rt_stages[idx].blake3, cached);
       }
 
       stage->feedback.duration += os_time_get_nano() - stage_start;
@@ -1152,9 +1153,9 @@ radv_ray_tracing_pipeline_hash(const struct radv_device *device, const VkRayTrac
       _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].generalShader, sizeof(pCreateInfo->pGroups[i].generalShader));
       _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].anyHitShader, sizeof(pCreateInfo->pGroups[i].anyHitShader));
       _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].closestHitShader,
-                        sizeof(pCreateInfo->pGroups[i].closestHitShader));
+                          sizeof(pCreateInfo->pGroups[i].closestHitShader));
       _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].intersectionShader,
-                        sizeof(pCreateInfo->pGroups[i].intersectionShader));
+                          sizeof(pCreateInfo->pGroups[i].intersectionShader));
       _mesa_blake3_update(&ctx, &rt_state->groups[i].handle, sizeof(struct radv_pipeline_group_handle));
    }
 

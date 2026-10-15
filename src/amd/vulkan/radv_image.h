@@ -21,8 +21,8 @@
 #include "vk_format.h"
 #include "vk_image.h"
 
-#define RADV_IMAGE_USAGE_WRITE_BITS                                                                                   \
-   (VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR | VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR |                               \
+#define RADV_IMAGE_USAGE_WRITE_BITS                                                                                    \
+   (VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR | VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR |                                \
     VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR | VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)
 
 struct radv_image_plane {

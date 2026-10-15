@@ -645,15 +645,15 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
                                                   VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BYTES_WRITTEN_BIT_KHR;
 
          if (pdev->vk.supported_extensions.KHR_video_encode_feedback2) {
-            enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_INTRA_PIXELS_BIT_KHR |
-                                                      VK_VIDEO_ENCODE_FEEDBACK_INTER_PIXELS_BIT_KHR;
+            enc_caps->supportedEncodeFeedbackFlags |=
+               VK_VIDEO_ENCODE_FEEDBACK_INTRA_PIXELS_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_INTER_PIXELS_BIT_KHR;
             if (ecap->feedback.avg_qp)
                enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_AVERAGE_QUANTIZATION_BIT_KHR;
             if (ecap->feedback.skipped_pixels)
                enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_SKIPPED_PIXELS_BIT_KHR;
             if (ecap->feedback.minmax_qp)
-               enc_caps->supportedEncodeFeedbackFlags |=
-                  (VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_MAX_QUANTIZATION_BIT_KHR);
+               enc_caps->supportedEncodeFeedbackFlags |= (VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR |
+                                                          VK_VIDEO_ENCODE_FEEDBACK_MAX_QUANTIZATION_BIT_KHR);
             if (ecap->feedback.partition_count)
                enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_PICTURE_PARTITION_COUNT_BIT_KHR;
          }
@@ -1035,8 +1035,8 @@ radv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
          {
             VkImageCreateFlags2KHR create_flags = 0;
             if (src_dst || qp_map)
-               create_flags |= VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR |
-                               VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR | VK_IMAGE_CREATE_2_ALIAS_BIT_KHR;
+               create_flags |= VK_IMAGE_CREATE_2_MUTABLE_FORMAT_BIT_KHR | VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR |
+                               VK_IMAGE_CREATE_2_ALIAS_BIT_KHR;
 
             p->format = format;
             p->componentMapping.r = VK_COMPONENT_SWIZZLE_IDENTITY;

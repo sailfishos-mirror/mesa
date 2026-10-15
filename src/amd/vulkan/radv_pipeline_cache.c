@@ -38,8 +38,7 @@ radv_hash_graphics_spirv_to_nir(blake3_hash hash, const struct radv_shader_stage
    for (unsigned i = 0; i < stage->layout.num_sets; i++) {
       if (!stage->layout.set[i].layout)
          continue;
-      _mesa_blake3_update(&ctx, stage->layout.set[i].layout->hash,
-                          sizeof(stage->layout.set[i].layout->hash));
+      _mesa_blake3_update(&ctx, stage->layout.set[i].layout->hash, sizeof(stage->layout.set[i].layout->hash));
    }
    _mesa_blake3_final(&ctx, hash);
 }
@@ -550,7 +549,8 @@ radv_ray_tracing_pipeline_cache_search(struct radv_device *device, struct vk_pip
          pipeline->stages[i].shader = radv_shader_ref(pipeline_obj->shaders[idx++]);
 
       if (pipeline->stages[i].needs_nir) {
-         pipeline->stages[i].nir = radv_pipeline_cache_lookup_nir_handle(&device->compiler_info, cache, pipeline->stages[i].blake3);
+         pipeline->stages[i].nir =
+            radv_pipeline_cache_lookup_nir_handle(&device->compiler_info, cache, pipeline->stages[i].blake3);
          complete &= pipeline->stages[i].nir != NULL;
       }
    }

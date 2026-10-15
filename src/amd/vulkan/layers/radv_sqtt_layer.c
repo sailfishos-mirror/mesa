@@ -15,9 +15,9 @@
 #include "radv_shader.h"
 #include "vk_semaphore.h"
 
+#include "util/u_memory.h"
 #include "ac_rgp.h"
 #include "ac_sqtt.h"
-#include "util/u_memory.h"
 
 void
 radv_sqtt_emit_relocated_shaders(struct radv_cmd_buffer *cmd_buffer, struct radv_graphics_pipeline *pipeline)
@@ -726,7 +726,6 @@ radv_sqtt_wsi_submit(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *
 
       FREE(new_cmdbufs);
    }
-
 
    return result;
 
@@ -1601,8 +1600,8 @@ radv_register_rt_stage(struct radv_device *device, struct radv_ray_tracing_pipel
    result = ac_sqtt_add_code_object_loader_event(&device->sqtt, *(uint64_t *)blake3, shader->va);
    if (!result)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
-   result =
-      radv_add_rt_record(device, &device->sqtt.rgp_code_object, pipeline, shader, stack_size, index, *(uint64_t *)blake3);
+   result = radv_add_rt_record(device, &device->sqtt.rgp_code_object, pipeline, shader, stack_size, index,
+                               *(uint64_t *)blake3);
    return result;
 }
 

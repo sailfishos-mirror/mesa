@@ -1867,9 +1867,8 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       /* base encode feedback size */
       pool->stride = RADV_ENC_FEEDBACK_PARTITION_SIZE * sizeof(uint32_t);
-      pool->encode_feedback.needs_skip =
-         pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR ||
-         pdev->info.vcn_ip_version >= VCN_5_0_0;
+      pool->encode_feedback.needs_skip = pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR ||
+                                         pdev->info.vcn_ip_version >= VCN_5_0_0;
 
       if (pool->vk.encode_feedback_flags &
           (VK_VIDEO_ENCODE_FEEDBACK_AVERAGE_QUANTIZATION_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR |
@@ -2297,7 +2296,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
                *(uint32_t *)data = VK_QUERY_RESULT_STATUS_NOT_READY_KHR;
             goto out;
          }
-      FALLTHROUGH;
+         FALLTHROUGH;
       case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR: {
          const bool write_memory =
             pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL;
@@ -2706,8 +2705,7 @@ radv_CmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 sta
 
    if (pdev->drirc.debug.flush_before_timestamp_write) {
       /* Make sure previously launched waves have finished */
-      cmd_buffer->state.flush_bits |=
-         AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS | AC_BARRIER_SYNC_CS;
+      cmd_buffer->state.flush_bits |= AC_BARRIER_SYNC_VS | AC_BARRIER_SYNC_PS | AC_BARRIER_SYNC_CS;
    }
 
    radv_emit_cache_flush(cmd_buffer, false);

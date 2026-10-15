@@ -506,9 +506,9 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    aligned_extent.width = align(aligned_extent.width, pixel_alignment) - pixel_alignment;
    aligned_buf.va = buf->va + (aligned_img.offset.x - img->offset.x) * img->bpp;
 
-   if (extent.width <= pixel_alignment * 2 ||
-       !aligned_extent.width ||
-       ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &aligned_buf, &aligned_img, aligned_extent.width, aligned_extent.height, aligned_extent.depth)) {
+   if (extent.width <= pixel_alignment * 2 || !aligned_extent.width ||
+       ac_sdma_use_unaligned_buffer_image_copy(&pdev->info, &aligned_buf, &aligned_img, aligned_extent.width,
+                                               aligned_extent.height, aligned_extent.depth)) {
       radv_sdma_single_copy_buffer_image_unaligned(device, cs, buf, img, extent, temp_bo_va, to_image);
       return;
    }
@@ -532,7 +532,8 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    right_img.offset.x = img->offset.x + extent.width - right_extent.width;
 
    if (right_extent.width)
-      radv_sdma_single_copy_buffer_image_unaligned(device, cs, &right_buf, &right_img, right_extent, temp_bo_va, to_image);
+      radv_sdma_single_copy_buffer_image_unaligned(device, cs, &right_buf, &right_img, right_extent, temp_bo_va,
+                                                   to_image);
 }
 
 static void
@@ -643,8 +644,7 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
                                                       new_extent.height, new_extent.depth))
             radv_sdma_copy_buffer_image(device, cs, &t2l_dst, &t2l_src, new_extent, false);
          else
-            radv_sdma_copy_buffer_image_unaligned(device, cs, &t2l_dst, &t2l_src, new_extent,
-                                                  temp_bufimg_va, false);
+            radv_sdma_copy_buffer_image_unaligned(device, cs, &t2l_dst, &t2l_src, new_extent, temp_bufimg_va, false);
          radv_sdma_emit_nop(device, cs);
 
          l2t_dst.offset.y = dst->offset.y + row;
@@ -655,8 +655,7 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
                                                       new_extent.height, new_extent.depth))
             radv_sdma_copy_buffer_image(device, cs, &l2t_src, &l2t_dst, new_extent, true);
          else
-            radv_sdma_copy_buffer_image_unaligned(device, cs, &l2t_src, &l2t_dst, new_extent,
-                                                  temp_bufimg_va, true);
+            radv_sdma_copy_buffer_image_unaligned(device, cs, &l2t_src, &l2t_dst, new_extent, temp_bufimg_va, true);
          radv_sdma_emit_nop(device, cs);
       }
    }

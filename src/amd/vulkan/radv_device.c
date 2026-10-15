@@ -1595,8 +1595,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
       total_queue_count += pCreateInfo->pQueueCreateInfos[i].queueCount;
 
-   device->queues = vk_zalloc(&device->vk.alloc, total_queue_count * sizeof(struct radv_queue), 8,
-                              VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+   device->queues =
+      vk_zalloc(&device->vk.alloc, total_queue_count * sizeof(struct radv_queue), 8, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
    if (!device->queues) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail;
@@ -2257,7 +2257,8 @@ radv_GetDeviceFaultReportsKHR(VkDevice _device, uint64_t timeout, uint32_t *pFau
       };
       strncpy(fault_info.description, "A GPUVM fault has been detected", sizeof(fault_info.description));
 
-      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem) {
+      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem)
+      {
          *elem = fault_info;
          device->fault.fault_addr_reported = true;
       }
@@ -2272,7 +2273,8 @@ radv_GetDeviceFaultReportsKHR(VkDevice _device, uint64_t timeout, uint32_t *pFau
       strncpy(fault_info.description, "A device lost due to OpAbortKHR has been detected",
               sizeof(fault_info.description));
 
-      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem) {
+      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem)
+      {
          *elem = fault_info;
          device->fault.shader_abort_reported = true;
       }
@@ -2283,7 +2285,8 @@ radv_GetDeviceFaultReportsKHR(VkDevice _device, uint64_t timeout, uint32_t *pFau
       };
       strncpy(fault_info.description, "A device lost has been detected", sizeof(fault_info.description));
 
-      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem) {
+      vk_outarray_append_typed(VkDeviceFaultInfoKHR, &out, elem)
+      {
          *elem = fault_info;
          device->fault.device_lost_reported = true;
       }

@@ -669,10 +669,8 @@ radv_get_modifier_flags(struct radv_physical_device *pdev, VkFormat format, uint
    features &= ~VK_FORMAT_FEATURE_2_COPY_IMAGE_INDIRECT_DST_BIT_KHR;
 
    if (!ac_modifier_supports_video(&pdev->info, modifier))
-      features &= ~(VK_FORMAT_FEATURE_2_VIDEO_DECODE_OUTPUT_BIT_KHR |
-                    VK_FORMAT_FEATURE_2_VIDEO_DECODE_DPB_BIT_KHR |
-                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_INPUT_BIT_KHR |
-                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_DPB_BIT_KHR |
+      features &= ~(VK_FORMAT_FEATURE_2_VIDEO_DECODE_OUTPUT_BIT_KHR | VK_FORMAT_FEATURE_2_VIDEO_DECODE_DPB_BIT_KHR |
+                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_INPUT_BIT_KHR | VK_FORMAT_FEATURE_2_VIDEO_ENCODE_DPB_BIT_KHR |
                     VK_FORMAT_FEATURE_2_VIDEO_ENCODE_QUANTIZATION_DELTA_MAP_BIT_KHR);
 
    if (ac_modifier_has_dcc(modifier)) {
@@ -867,8 +865,7 @@ radv_check_modifier_support(struct radv_physical_device *pdev, const VkPhysicalD
          return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
       bool need_dcc_sign_reinterpret = false;
-      bool ret = radv_are_formats_dcc_compatible(pdev, info->pNext, format,
-                                                 info->flags, &need_dcc_sign_reinterpret);
+      bool ret = radv_are_formats_dcc_compatible(pdev, info->pNext, format, info->flags, &need_dcc_sign_reinterpret);
       if (!ret && !need_dcc_sign_reinterpret)
          return VK_ERROR_FORMAT_NOT_SUPPORTED;
    }

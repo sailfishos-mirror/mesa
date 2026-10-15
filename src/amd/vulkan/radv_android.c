@@ -6,13 +6,13 @@
  */
 
 #include "radv_android.h"
+#include "ac_drm_fourcc.h"
 #include "radv_buffer.h"
 #include "radv_device.h"
 #include "radv_device_memory.h"
 #include "radv_entrypoints.h"
 #include "radv_image.h"
 #include "radv_physical_device.h"
-#include "ac_drm_fourcc.h"
 
 #if DETECT_OS_ANDROID
 #include <vulkan/vk_android_native_buffer.h>
@@ -334,7 +334,8 @@ get_ahb_buffer_format_properties(VkDevice device_h, const struct AHardwareBuffer
    p->samplerYcbcrConversionComponents.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
    const bool is_yuv = vk_format_get_ycbcr_info(p->format) != NULL;
-   p->suggestedYcbcrModel = is_yuv ? VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601 : VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY;
+   p->suggestedYcbcrModel =
+      is_yuv ? VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601 : VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY;
    p->suggestedYcbcrRange = is_yuv ? VK_SAMPLER_YCBCR_RANGE_ITU_NARROW : VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
 
    p->suggestedXChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
@@ -408,7 +409,8 @@ get_ahb_buffer_format_properties2(VkDevice device_h, const struct AHardwareBuffe
    p->samplerYcbcrConversionComponents.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
    const bool is_yuv = vk_format_get_ycbcr_info(p->format) != NULL;
-   p->suggestedYcbcrModel = is_yuv ? VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601 : VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY;
+   p->suggestedYcbcrModel =
+      is_yuv ? VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601 : VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY;
    p->suggestedYcbcrRange = is_yuv ? VK_SAMPLER_YCBCR_RANGE_ITU_NARROW : VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
 
    p->suggestedXChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;

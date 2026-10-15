@@ -38,9 +38,9 @@
 #include "sid.h"
 #include "vk_debug_report.h"
 #include "vk_nir.h"
+#include "vk_nir_convert_ycbcr.h"
 #include "vk_nir_lower_descriptor_heaps.h"
 #include "vk_sampler.h"
-#include "vk_nir_convert_ycbcr.h"
 #include "vk_semaphore.h"
 #include "vk_sync.h"
 #include "vk_ycbcr_conversion.h"
@@ -802,8 +802,8 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
    if (!stage->key.optimisations_disabled) {
       /* Only run this pass once before nir_lower_var_copies is called,
-      * so that we don't introduce any new copy_deref instructions later.
-      */
+       * so that we don't introduce any new copy_deref instructions later.
+       */
       NIR_PASS(_, nir, nir_opt_find_array_copies);
       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
 
@@ -919,9 +919,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
    if (compiler_info->ac->has_cs_regalloc_hang_bug && mesa_shader_stage_is_compute(nir->info.stage)) {
-      const uint32_t wg_size = nir->info.workgroup_size[0] *
-                               nir->info.workgroup_size[1] *
-                               nir->info.workgroup_size[2];
+      const uint32_t wg_size = nir->info.workgroup_size[0] * nir->info.workgroup_size[1] * nir->info.workgroup_size[2];
 
       if (wg_size > 256) {
          NIR_PASS(progress, nir, nir_lower_workgroup_size, 256);
@@ -1819,7 +1817,7 @@ radv_precompute_registers_hw_gs(struct radv_device *device, const struct radv_sh
    const uint8_t max_stream = gs_info->gs.num_components_per_stream[3]   ? 3
                               : gs_info->gs.num_components_per_stream[2] ? 2
                               : gs_info->gs.num_components_per_stream[1] ? 1
-                                                                      : 0;
+                                                                         : 0;
    const uint8_t *num_components = gs_info->gs.num_components_per_stream;
 
    uint32_t offset = num_components[0] * gs_max_out_vertices;
@@ -3373,7 +3371,8 @@ radv_gather_nir_debug_info(struct nir_shader *const *shaders, int shader_count)
 }
 
 char *
-radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders, int shader_count)
+radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders,
+                      int shader_count)
 {
    if (compiler_info->key.nir_debug_info)
       return radv_gather_nir_debug_info(shaders, shader_count);
@@ -3995,21 +3994,15 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
    }
 
    /* POW_W_FLOAT requires that one set of perspective barycentric coordinates is enabled. */
-   if (G_0286CC_POS_W_FLOAT_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_SAMPLE_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_CENTER_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_CENTROID_ENA(spi_ps_input) &&
+   if (G_0286CC_POS_W_FLOAT_ENA(spi_ps_input) && !G_0286CC_PERSP_SAMPLE_ENA(spi_ps_input) &&
+       !G_0286CC_PERSP_CENTER_ENA(spi_ps_input) && !G_0286CC_PERSP_CENTROID_ENA(spi_ps_input) &&
        !G_0286CC_PERSP_PULL_MODEL_ENA(spi_ps_input))
       spi_ps_input |= S_0286CC_PERSP_CENTER_ENA(1);
 
-   if (!G_0286CC_PERSP_SAMPLE_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_CENTER_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_CENTROID_ENA(spi_ps_input) &&
-       !G_0286CC_PERSP_PULL_MODEL_ENA(spi_ps_input) &&
-       !G_0286CC_LINEAR_SAMPLE_ENA(spi_ps_input) &&
-       !G_0286CC_LINEAR_CENTER_ENA(spi_ps_input) &&
-       !G_0286CC_LINEAR_CENTROID_ENA(spi_ps_input) &&
-       !G_0286CC_LINE_STIPPLE_TEX_ENA(spi_ps_input)) {
+   if (!G_0286CC_PERSP_SAMPLE_ENA(spi_ps_input) && !G_0286CC_PERSP_CENTER_ENA(spi_ps_input) &&
+       !G_0286CC_PERSP_CENTROID_ENA(spi_ps_input) && !G_0286CC_PERSP_PULL_MODEL_ENA(spi_ps_input) &&
+       !G_0286CC_LINEAR_SAMPLE_ENA(spi_ps_input) && !G_0286CC_LINEAR_CENTER_ENA(spi_ps_input) &&
+       !G_0286CC_LINEAR_CENTROID_ENA(spi_ps_input) && !G_0286CC_LINE_STIPPLE_TEX_ENA(spi_ps_input)) {
       /* At least one of PERSP_*, LINEAR_*, or LINE_STIPPLE_TEX must be enabled.
        * LINE_STIPPLE_TEX uses the least number of initialized VGPRs, so let's use it because
        * pixel throughput is limited by the number of initialized VGPRs.

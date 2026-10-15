@@ -88,8 +88,8 @@ enum radv_meta_resolve_compute_type {
 
 nir_shader *radv_meta_nir_build_resolve_cs(bool use_fmask, enum radv_meta_resolve_compute_type type, uint8_t samples,
                                            VkImageAspectFlags aspects, VkResolveModeFlagBits resolve_mode);
-nir_shader *radv_meta_nir_build_resolve_fs(bool use_fmask, uint32_t samples, bool is_integer, VkImageAspectFlags aspects,
-                                           VkResolveModeFlagBits resolve_mode);
+nir_shader *radv_meta_nir_build_resolve_fs(bool use_fmask, uint32_t samples, bool is_integer,
+                                           VkImageAspectFlags aspects, VkResolveModeFlagBits resolve_mode);
 
 nir_shader *radv_meta_nir_build_clear_hiz_compute_shader(uint32_t samples);
 

@@ -249,12 +249,12 @@ struct radv_llvm_compiler_options {
 #define NGG_STATE_QUERY__SHIFT              6
 #define NGG_STATE_QUERY__MASK               0x7
 
-#define PS_STATE_NUM_SAMPLES__SHIFT             0
-#define PS_STATE_NUM_SAMPLES__MASK              0xf
-#define PS_STATE_SMOOTH_LINES__SHIFT            4
-#define PS_STATE_SMOOTH_LINES__MASK             0x1
-#define PS_STATE_PS_ITER_MASK__SHIFT            5
-#define PS_STATE_PS_ITER_MASK__MASK             0xff
+#define PS_STATE_NUM_SAMPLES__SHIFT  0
+#define PS_STATE_NUM_SAMPLES__MASK   0xf
+#define PS_STATE_SMOOTH_LINES__SHIFT 4
+#define PS_STATE_SMOOTH_LINES__MASK  0x1
+#define PS_STATE_PS_ITER_MASK__SHIFT 5
+#define PS_STATE_PS_ITER_MASK__MASK  0xff
 /* gap: bits 13:21 */
 #define PS_STATE_RAST_PRIM__SHIFT               22
 #define PS_STATE_RAST_PRIM__MASK                0x3
@@ -660,9 +660,7 @@ struct radv_shader_stage;
 void radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively);
 void radv_optimize_nir_algebraic_early(nir_shader *shader);
 void radv_optimize_nir_algebraic_late(nir_shader *shader);
-void radv_optimize_nir_algebraic(nir_shader *shader, bool opt_offsets, bool opt_mqsad,
-                                 enum amd_gfx_level gfx_level);
-
+void radv_optimize_nir_algebraic(nir_shader *shader, bool opt_offsets, bool opt_mqsad, enum amd_gfx_level gfx_level);
 
 struct radv_shader_stage;
 
@@ -676,8 +674,8 @@ void radv_destroy_shader_upload_queue(struct radv_device *device);
 
 struct radv_shader_args;
 
-VkResult radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, const struct radv_shader_binary *binary,
-                                      struct radv_shader_debug_info *dbg);
+VkResult radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info,
+                                      const struct radv_shader_binary *binary, struct radv_shader_debug_info *dbg);
 
 VkResult radv_shader_create_uncached(struct radv_device *device, const struct radv_shader_binary *binary,
                                      bool replayable, struct radv_serialized_shader_arena_block *replay_block,
@@ -690,7 +688,8 @@ struct radv_shader_binary *radv_shader_nir_to_asm(const struct radv_compiler_inf
 void radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, struct radv_shader_debug_info *debug,
                           const struct radv_shader_binary *binary, const struct radv_shader_info *info);
 
-char *radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders, int shader_count);
+char *radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders,
+                            int shader_count);
 
 VkResult radv_shader_wait_for_upload(struct radv_device *device, uint64_t seq);
 

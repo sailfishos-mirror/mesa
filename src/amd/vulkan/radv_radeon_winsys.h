@@ -317,11 +317,8 @@ struct radeon_winsys {
 
    struct util_sync_provider *(*get_sync_provider)(struct radeon_winsys *ws);
 
-   VkResult (*copy_sync_payloads)(struct vk_device *device,
-                                  uint32_t wait_count,
-                                  const struct vk_sync_wait *waits,
-                                  uint32_t signal_count,
-                                  const struct vk_sync_signal *signals);
+   VkResult (*copy_sync_payloads)(struct vk_device *device, uint32_t wait_count, const struct vk_sync_wait *waits,
+                                  uint32_t signal_count, const struct vk_sync_signal *signals);
 
    int (*reserve_vmid)(struct radeon_winsys *ws);
    void (*unreserve_vmid)(struct radeon_winsys *ws);

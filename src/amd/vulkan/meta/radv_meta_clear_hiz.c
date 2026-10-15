@@ -193,9 +193,8 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    } else {
       radv_compute_clear_hiz(cmd_buffer, image, range, value);
 
-      flush_bits |=
-         AC_BARRIER_SYNC_CS | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);
+      flush_bits |= AC_BARRIER_SYNC_CS | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                               VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);
    }
 
    return flush_bits;

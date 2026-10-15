@@ -146,8 +146,8 @@
 #define RADV_ACCEL_STRUCT_DESC_SIZE  16
 
 /* Descriptor heaps */
-#define RADV_HEAP_RESOURCE  0
-#define RADV_HEAP_SAMPLER   1
+#define RADV_HEAP_RESOURCE 0
+#define RADV_HEAP_SAMPLER  1
 
 /* Number of descriptor heaps */
 #define RADV_MAX_HEAPS (RADV_HEAP_SAMPLER + 1)
