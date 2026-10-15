@@ -746,7 +746,7 @@ pick_regs_from_block(jay_ra_state *ra,
           */
          if (i < affinity.offset ||
              !util_is_aligned(i - affinity.offset, 4) ||
-             (i - affinity.offset) + affinity.nr >= block.len_gpr) {
+             (i - affinity.offset) + affinity.nr > block.len_gpr) {
             cost += affinity.nr;
          }
       } else if (affinity.repr) {

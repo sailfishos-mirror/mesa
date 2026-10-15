@@ -934,7 +934,7 @@
         "description": "jay/ra: Don't penalize affinities that are at the tail of the block",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5535bec9e7c88ed1d7d8f8f098f020d8154bb696",
         "notes": null
