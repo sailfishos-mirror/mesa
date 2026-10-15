@@ -31,12 +31,14 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
       return grf_simd;
    }
 
+   unsigned width = 32;
+
    /* These special instructions need to be split for various reasons. */
    if (I->op == JAY_OPCODE_EXPAND_QUAD ||
        I->op == JAY_OPCODE_EXTRACT_SUBSPAN_INFO ||
        I->op == JAY_OPCODE_EXTRACT_BYTE_PER_8LANES ||
        I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS) {
-      return 16;
+      width = MIN2(width, 16);
    }
 
    if (I->op != JAY_OPCODE_SEND) {
@@ -52,14 +54,14 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
           jay_type_size_bits(I->type) == 64 ||
           (I->dst.file == GPR &&
            jay_lookup_block(&shader->partition, I->dst.reg, GPR).split)) {
-         return 16;
+         width = MIN2(width, 16);
       }
 
       jay_foreach_src(I, s) {
          if (I->src[s].file == GPR &&
              (jay_def_stride(shader, I->src[s]) == JAY_STRIDE_8 ||
               jay_lookup_block(&shader->partition, I->src[s].reg, GPR).split)) {
-            return 16;
+            width = MIN2(width, 16);
          }
       }
    } else {
@@ -78,21 +80,21 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
        (I->dst.file == GPR && jay_def_stride(shader, I->dst) == JAY_STRIDE_2) &&
        (I->src[0].file == GPR &&
         jay_def_stride(shader, I->src[0]) == JAY_STRIDE_2)) {
-      return 16;
+      width = MIN2(width, 16);
    }
 
    /* BSpec 56640 requires that execution size be no greater than 16
     * for mixed-mode operations involving bfloats.
     */
    if (I->type == JAY_TYPE_BF16) {
-      return 16;
+      width = MIN2(width, 16);
    }
    jay_foreach_src(I, s) {
       if (jay_src_type(I, s) == JAY_TYPE_BF16)
-         return 16;
+         width = MIN2(width, 16);
    }
 
-   return 32;
+   return width;
 }
 
 unsigned
