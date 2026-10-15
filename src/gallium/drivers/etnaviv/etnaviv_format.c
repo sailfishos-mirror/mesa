@@ -347,12 +347,6 @@ texture_use_int_filter(const struct pipe_sampler_view *sv,
    }
 }
 
-bool
-texture_format_needs_swiz(enum pipe_format fmt)
-{
-   return util_format_linear(fmt) == PIPE_FORMAT_R8_UNORM;
-}
-
 uint32_t
 get_texture_swiz(enum pipe_format fmt, unsigned swizzle_r,
                  unsigned swizzle_g, unsigned swizzle_b, unsigned swizzle_a)

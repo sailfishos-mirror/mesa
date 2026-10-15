@@ -431,56 +431,18 @@ gpu_supports_texture_target(struct etna_screen *screen,
 }
 
 static bool
-gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
+gpu_supports_texture_format(struct etna_screen *screen,
                             enum pipe_format format)
 {
-   bool supported = true;
-
-   if (fmt == TEXTURE_FORMAT_ETC1)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_ETC1_TEXTURE_COMPRESSION);
-
-   if (fmt >= TEXTURE_FORMAT_DXT1 && fmt <= TEXTURE_FORMAT_DXT4_DXT5)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_DXT_TEXTURE_COMPRESSION);
+   if (!eil_format_supports_sampling(screen->info, util_format_linear(format)))
+      return false;
 
    if (util_format_is_srgb(format))
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
-
-   if (fmt & EXT_FORMAT)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
-
-   if (fmt & ASTC_FORMAT)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC);
-
-   if (util_format_is_snorm(format))
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI1);
-
-   if (format != PIPE_FORMAT_S8_UINT_Z24_UNORM &&
-       (util_format_is_pure_integer(format) || util_format_is_float(format)))
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
-
-   /* 128-bit formats sample as paired planes: G32R32F via the half-float pipe,
-    * G32R32I only on halti5+.
-    */
-   if (eil_format_is_emulated_128bit(format))
-      supported = util_format_is_pure_integer(format)
-         ? VIV_FEATURE(screen, ETNA_FEATURE_HALTI5)
-         : VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
-
-   if (format == PIPE_FORMAT_S8_UINT)
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_S8);
+      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
 
    if (format == PIPE_FORMAT_S8X24_UINT ||
        format == PIPE_FORMAT_X32_S8X24_UINT)
-      supported = gpu_supports_texture_desc(screen);
-
-   if (etna_format_needs_yuv_tiler(format))
-      supported = VIV_FEATURE(screen, ETNA_FEATURE_YUV420_TILER);
-
-   if (!supported)
-      return false;
-
-   if (texture_format_needs_swiz(format))
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
+      return gpu_supports_texture_desc(screen);
 
    return true;
 }
@@ -632,10 +594,10 @@ etna_screen_is_format_supported(struct pipe_screen *pscreen,
    }
 
    if (usage & PIPE_BIND_SAMPLER_VIEW) {
-      uint32_t fmt = translate_texture_format(format, screen);
+      uint32_t fmt = ETNA_NO_MATCH;
 
-      if (!gpu_supports_texture_format(screen, fmt, format))
-         fmt = ETNA_NO_MATCH;
+      if (gpu_supports_texture_format(screen, format))
+         fmt = translate_texture_format(format, screen);
 
       /* lower_txf_ms_dynamic(..) always fetches four samples, so 4x is the
        * only multisample layout that can be sampled.

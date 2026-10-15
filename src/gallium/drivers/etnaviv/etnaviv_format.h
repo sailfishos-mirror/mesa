@@ -46,9 +46,6 @@ texture_use_int_filter(const struct pipe_sampler_view *sv,
                        const struct pipe_sampler_state *ss,
                        bool tex_desc);
 
-bool
-texture_format_needs_swiz(enum pipe_format fmt);
-
 uint32_t
 get_texture_swiz(enum pipe_format fmt, unsigned swizzle_r,
                  unsigned swizzle_g, unsigned swizzle_b, unsigned swizzle_a);

@@ -77,6 +77,19 @@ eil_format_emulated(enum pipe_format fmt)
    return f->emulation != EIL_EMU_NONE ? f->emulated : fmt;
 }
 
+static inline bool
+eil_gate_ok(const struct etna_core_info *info, bool gated, enum etna_feature gate)
+{
+   return !gated || etna_core_has_feature(info, gate);
+}
+
+static inline bool
+eil_format_supports_sampling(const struct etna_core_info *info, enum pipe_format fmt)
+{
+   const struct eil_format *f = eil_get_format_entry(fmt);
+   return f->has_tex && eil_gate_ok(info, f->tex_gated, f->tex_gate);
+}
+
 #ifdef __cplusplus
 }
 #endif

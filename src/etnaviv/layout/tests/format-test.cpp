@@ -182,3 +182,19 @@ TEST(Format, format_emulated)
    EXPECT_EQ(PIPE_FORMAT_R32G32_SINT, eil_format_emulated(PIPE_FORMAT_R32G32B32A32_SINT));
    EXPECT_EQ(PIPE_FORMAT_R32G32_FLOAT, eil_format_emulated(PIPE_FORMAT_R32G32B32A32_FLOAT));
 }
+
+TEST(Format, format_supports_sampling)
+{
+   etna_core_info info = {};
+
+   /* no gate */
+   EXPECT_TRUE(eil_format_supports_sampling(&info, PIPE_FORMAT_A8_UNORM));
+   /* feature not set */
+   EXPECT_FALSE(eil_format_supports_sampling(&info, PIPE_FORMAT_S8X24_UINT));
+   /* wrong feature */
+   BITSET_SET(info.feature, ETNA_FEATURE_HALTI0);
+   EXPECT_FALSE(eil_format_supports_sampling(&info, PIPE_FORMAT_S8X24_UINT));
+   /* feature set */
+   BITSET_SET(info.feature, ETNA_FEATURE_HALTI2);
+   EXPECT_TRUE(eil_format_supports_sampling(&info, PIPE_FORMAT_S8X24_UINT));
+}
