@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "common/etna_core_info.h"
 #include "util/format/u_formats.h"
 
 #ifdef __cplusplus
@@ -23,7 +24,8 @@ enum eil_emulation {
 struct eil_format {
    uint32_t vtx; /* FE_DATA_TYPE_* */
    uint32_t tex; /* TEXTURE_FORMAT_* */
-   uint32_t pe;  /* PE_FORMAT_* */
+   enum etna_feature tex_gate;
+   uint32_t pe; /* PE_FORMAT_* */
    enum eil_emulation emulation;
    enum pipe_format emulated; /* enum pipe_format the HW really sees */
 
@@ -32,6 +34,7 @@ struct eil_format {
    bool has_pe     : 1;
    bool tex_ext    : 1; /* TEXTURE_FORMAT_EXT_* space */
    bool tex_astc   : 1; /* TEXTURE_FORMAT_ASTC_* space */
+   bool tex_gated  : 1;
    bool pe_rb_swap : 1;
 };
 

@@ -98,6 +98,18 @@ TEST(FormatTable, get_entry_emu_128bit)
    EXPECT_EQ(PIPE_FORMAT_R32G32_FLOAT, rgba32_float->emulated);
 }
 
+TEST(FormatTable, get_entry_tex_gate)
+{
+   auto a8_unorm = eil_get_format_entry(PIPE_FORMAT_A8_UNORM);
+   EXPECT_TRUE(a8_unorm->has_tex);
+   EXPECT_FALSE(a8_unorm->tex_gated);
+
+   auto r8_snorm = eil_get_format_entry(PIPE_FORMAT_R8_SNORM);
+   EXPECT_TRUE(r8_snorm->has_tex);
+   EXPECT_TRUE(r8_snorm->tex_gated);
+   EXPECT_EQ(ETNA_FEATURE_HALTI1, r8_snorm->tex_gate);
+}
+
 TEST(Format, is_emulated_z32f)
 {
    /* not defined */

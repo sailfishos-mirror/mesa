@@ -38,6 +38,9 @@ def main():
         for format in formats:
             vtx = f"FE_DATA_TYPE_{format['vtx']}" if "vtx" in format else "0"
             tex = f"TEXTURE_FORMAT_{format['tex']}" if "tex" in format else "0"
+            tex_gate = (
+                f"ETNA_FEATURE_{format['tex_gate']}" if "tex_gate" in format else "0"
+            )
             pe = f"PE_FORMAT_{format['pe']}" if "pe" in format else "0"
             pe_rb_swap = format.get("rb_swap", False)
             emulated = format.get("emulated", format["pipe"])
@@ -46,6 +49,7 @@ def main():
             file.write(f"[PIPE_FORMAT_{format['pipe']}] = {{\n")
             file.write(f".vtx = {vtx},\n")
             file.write(f".tex = {tex},\n")
+            file.write(f".tex_gate = {tex_gate},\n")
             file.write(f".pe = {pe},\n")
             file.write(f".emulation = EIL_EMU_{emulation},\n")
             file.write(f".emulated = PIPE_FORMAT_{emulated},\n")
@@ -54,6 +58,7 @@ def main():
             file.write(f".has_pe = {'pe' in format:d},\n")
             file.write(f".tex_ext = {'EXT_' in tex:d},\n")
             file.write(f".tex_astc = {'ASTC_' in tex:d},\n")
+            file.write(f".tex_gated = {'tex_gate' in format:d},\n")
             file.write(f".pe_rb_swap = {pe_rb_swap:d},\n")
             file.write("},\n")
 
