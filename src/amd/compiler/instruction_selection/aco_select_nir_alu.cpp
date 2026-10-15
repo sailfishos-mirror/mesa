@@ -1500,8 +1500,8 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       Temp src1 = get_alu_src(ctx, instr->src[1]);
       if (dst.regClass() == s2) {
          Temp carry = bld.tmp(s1);
-         Temp res = bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.scc(Definition(carry)),
-                             src0, src1);
+         Temp res =
+            bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.scc(Definition(carry)), src0, src1);
          bld.pseudo(aco_opcode::p_create_vector, Definition(dst), res, carry);
          break;
       }
@@ -1603,8 +1603,8 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       Temp src1 = get_alu_src(ctx, instr->src[1]);
       if (dst.regClass() == s2) {
          Temp borrow = bld.tmp(s1);
-         Temp res = bld.sop2(aco_opcode::s_sub_u32, bld.def(s1), bld.scc(Definition(borrow)),
-                             src0, src1);
+         Temp res =
+            bld.sop2(aco_opcode::s_sub_u32, bld.def(s1), bld.scc(Definition(borrow)), src0, src1);
          bld.pseudo(aco_opcode::p_create_vector, Definition(dst), res, borrow);
          break;
       }
@@ -2104,7 +2104,8 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       Temp src2 = get_alu_src(ctx, instr->src[2], 1);
 
       unsigned opsel_lo = (instr->src[0].swizzle[0] & 1) | ((instr->src[1].swizzle[0] & 1) << 1);
-      unsigned opsel_hi = (instr->src[0].swizzle[1] & 1) | ((instr->src[1].swizzle[1] & 1) << 1) | 0x4;
+      unsigned opsel_hi =
+         (instr->src[0].swizzle[1] & 1) | ((instr->src[1].swizzle[1] & 1) << 1) | 0x4;
 
       bld.vop3p(aco_opcode::v_dot2_f32_bf16, Definition(dst), src0, src1, src2, opsel_lo, opsel_hi);
       break;
@@ -2130,9 +2131,11 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
          Temp src2 = get_alu_src(ctx, instr->src[2], 1);
 
          unsigned opsel_lo = (instr->src[0].swizzle[0] & 1) | ((instr->src[1].swizzle[0] & 1) << 1);
-         unsigned opsel_hi = (instr->src[0].swizzle[1] & 1) | ((instr->src[1].swizzle[1] & 1) << 1) | 0x4;
+         unsigned opsel_hi =
+            (instr->src[0].swizzle[1] & 1) | ((instr->src[1].swizzle[1] & 1) << 1) | 0x4;
 
-         bld.vop3p(aco_opcode::v_dot2_f32_f16, Definition(dst), src0, src1, src2, opsel_lo, opsel_hi);
+         bld.vop3p(aco_opcode::v_dot2_f32_f16, Definition(dst), src0, src1, src2, opsel_lo,
+                   opsel_hi);
       } else {
          isel_err(&instr->instr, "Unimplemented NIR instr bit size");
       }

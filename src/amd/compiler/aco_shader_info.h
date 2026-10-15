@@ -193,7 +193,7 @@ struct aco_symbol {
    unsigned offset;
 };
 
-#define MAX_SGPRS 108
+#define MAX_SGPRS       108
 #define MAX_VGPRS       256
 #define MAX_LDS_SIZE    65536 /* 64 KiB */
 #define NUM_SAVED_VGPRS 2
