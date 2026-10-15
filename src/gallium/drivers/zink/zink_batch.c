@@ -837,9 +837,13 @@ submit_queue(void *data, void *gdata, int thread_index)
    VkSemaphore *sem = bs->signal_semaphores.data;
    hash_table_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
+      /* Add the batch's fence as a write fence if the batch wrote the image,
+       * otherwise as a read fence, which only later writers wait for.
+       */
       if (res->obj->exportable_dmabuf) {
+         bool write = entry->data != NULL;
          for (; res; res = zink_resource(res->base.b.next))
-            zink_screen_import_dmabuf_semaphore(screen, res, sem[i++]);
+            zink_screen_import_dmabuf_semaphore(screen, res, sem[i++], write);
       }
 
       struct pipe_resource *pres = (void*)entry->key;
@@ -926,13 +930,17 @@ zink_end_batch(struct zink_context *ctx)
          zink_query_sync(ctx, (void*)entry->key);
    }
 
-   /* Wait for the implicit-sync fences of the dma-bufs this batch used. */
+   /* Wait for the implicit-sync fences of the dma-bufs this batch used: only
+    * for the write fences if the batch just read the image, but for all of
+    * them if the batch wrote it.
+    */
    hash_table_foreach(&bs->dmabuf_exports, entry) {
       struct zink_resource *res = (void*)entry->key;
       if (!res->obj->exportable_dmabuf)
          continue;
+      bool write = entry->data != NULL;
       for (struct zink_resource *r = res; r; r = zink_resource(r->base.b.next)) {
-         VkSemaphore sem = zink_screen_export_dmabuf_semaphore(screen, r);
+         VkSemaphore sem = zink_screen_export_dmabuf_semaphore(screen, r, write);
          if (sem)
             util_dynarray_append(&bs->fd_wait_semaphores, sem);
       }
