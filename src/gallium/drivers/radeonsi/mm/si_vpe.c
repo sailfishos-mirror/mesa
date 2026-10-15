@@ -821,8 +821,8 @@ si_vpe_init_polyphase_filter(struct vpe_video_processor *vpeproc,
    stream->use_external_scaling_coeffs = true;
    stream->polyphase_scaling_coeffs.taps.h_taps = hw_num_taps[0];
    stream->polyphase_scaling_coeffs.taps.v_taps = hw_num_taps[1];
-   stream->polyphase_scaling_coeffs.taps.h_taps_c = 2;
-   stream->polyphase_scaling_coeffs.taps.v_taps_c = 2;
+   stream->polyphase_scaling_coeffs.taps.h_taps_c = 4;
+   stream->polyphase_scaling_coeffs.taps.v_taps_c = 4;
    stream->polyphase_scaling_coeffs.nb_phases = hw_num_phases;
 
    if (scaling_ratios[0] > 0)
@@ -878,8 +878,8 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
    scaling_info->dst_rect.height       = process_properties->dst_region.y1 - process_properties->dst_region.y0;
    scaling_info->taps.v_taps           = 0;
    scaling_info->taps.h_taps           = 0;
-   scaling_info->taps.v_taps_c         = 2;
-   scaling_info->taps.h_taps_c         = 2;
+   scaling_info->taps.v_taps_c         = 4;
+   scaling_info->taps.h_taps_c         = 4;
 
    /* Get current scaling ratio */
    if (stream->scaling_info.dst_rect.width > 1)
@@ -971,8 +971,8 @@ si_vpe_set_bg_stream_in_param(struct vpe_video_processor *vpeproc,
    scaling_info->dst_rect.height       = scaling_info->src_rect.height;
    scaling_info->taps.v_taps           = 0;
    scaling_info->taps.h_taps           = 0;
-   scaling_info->taps.v_taps_c         = 2;
-   scaling_info->taps.h_taps_c         = 2;
+   scaling_info->taps.v_taps_c         = 4;
+   scaling_info->taps.h_taps_c         = 4;
 
    if (!si_vpe_reuse_scaling_info(vpeproc, stream, scaling_ratios)) {
       /* Failed to reuse scaling info,
