@@ -494,8 +494,12 @@ nvk_cmd_copy_image_meta(struct nvk_cmd_buffer *cmd,
    if (!vk_format_is_depth_or_stencil(src->vk.format)) {
       if (dst->vk.format == VK_FORMAT_X8_D24_UNORM_PACK32)
          src_img_props.color.view_format = VK_FORMAT_R32_UINT;
-      else if (vk_format_is_depth_or_stencil(dst->vk.format))
-         src_img_props.color.view_format = dst->vk.format;
+      else if (dst->vk.format == VK_FORMAT_D32_SFLOAT)
+         src_img_props.color.view_format = VK_FORMAT_R32_UINT;
+      else if (dst->vk.format == VK_FORMAT_D16_UNORM)
+         src_img_props.color.view_format = VK_FORMAT_R16_UNORM;
+      else
+         assert(!vk_format_is_depth_or_stencil(dst->vk.format));
    }
 
    union nvk_meta_save_generic save;
