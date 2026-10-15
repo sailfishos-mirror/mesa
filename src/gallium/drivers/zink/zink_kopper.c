@@ -970,6 +970,7 @@ zink_kopper_present_queue(struct zink_screen *screen, struct zink_resource *res,
       kopper_present(cpi, screen, -1);
    }
    res->obj->indefinite_acquire = false;
+   cdt->present_count++;
    res->use_damage = false;
    memset(&res->damage, 0, sizeof(res->damage));
    cdt->swapchain->images[res->obj->dt_idx].acquired = NULL;
@@ -1023,13 +1024,20 @@ zink_kopper_acquire_readback(struct zink_context *ctx, struct zink_resource *res
    uint32_t last_dt_idx = res->obj->last_dt_idx;
    VkResult ret = VK_SUCCESS;
 
+   /* a front buffer created after a present shows the window's last present */
+   if (last_dt_idx == UINT32_MAX && cdt->present_count) {
+      if (cdt->async)
+         util_queue_fence_wait(&cdt->swapchain->present_fence);
+      last_dt_idx = res->obj->last_dt_idx = cswap->last_present;
+   }
+
    if (++cdt->readback_counter >= ZINK_READBACK_THRESHOLD) {
       if (kopper_ensure_readback(screen, res) &&
           res->obj->dt_idx != UINT32_MAX && cswap->images[res->obj->dt_idx].readback_needs_update)
          zink_kopper_readback_update(ctx, res);
    }
    /* if this hasn't been presented or if it has data, use this as the readback target */
-   if (res->obj->last_dt_idx == UINT32_MAX ||
+   if (last_dt_idx == UINT32_MAX ||
        (res->obj->dt_idx != UINT32_MAX && cdt->swapchain->images[res->obj->dt_idx].age)) {
       *readback = res;
       return false;
@@ -1040,7 +1048,7 @@ zink_kopper_acquire_readback(struct zink_context *ctx, struct zink_resource *res
       return false;
    }
    if (cswap->images[last_dt_idx].readback) {
-      struct zink_resource *rb = zink_resource(cswap->images[res->obj->last_dt_idx].readback);
+      struct zink_resource *rb = zink_resource(cswap->images[last_dt_idx].readback);
       if (!cswap->images[last_dt_idx].readback_needs_update) {
          *readback = rb;
          return false;

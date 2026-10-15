@@ -101,6 +101,7 @@ struct kopper_displaytarget
    VkImageFormatListCreateInfo format_list;
    enum kopper_type type;
    bool is_kill;
+   unsigned present_count; // presents queued
    VkPresentModeKHR present_mode;
    unsigned readback_counter;
 
