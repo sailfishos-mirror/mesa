@@ -569,6 +569,16 @@ zink_kopper_displaytarget_destroy(struct zink_screen *screen, struct kopper_disp
    FREE(cdt);
 }
 
+/* images the app holds, including presents still queued on the flush thread */
+static unsigned
+kopper_held_images(const struct kopper_swapchain *cswap)
+{
+   unsigned held = p_atomic_read(&cswap->async_presents);
+   for (unsigned i = 0; i < cswap->num_images; i++)
+      held += cswap->images[i].acquire || cswap->images[i].acquired;
+   return held;
+}
+
 static VkResult
 kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t timeout)
 {
@@ -597,9 +607,10 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
          res->obj->access = 0;
          res->obj->access_stage = 0;
       }
-      if (timeout == UINT64_MAX && cdt->async &&
-          p_atomic_read_relaxed(&cdt->swapchain->num_acquires) >= cdt->swapchain->max_acquires) {
-         util_queue_fence_wait(&cdt->swapchain->present_fence);
+      if (timeout == UINT64_MAX &&
+          kopper_held_images(cdt->swapchain) >= cdt->swapchain->max_acquires) {
+         if (cdt->async)
+            util_queue_fence_wait(&cdt->swapchain->present_fence);
          /* With a sequence of
               glDrawBuffer(GL_FRONT_AND_BACK);
               glClearBufferfv(GL_COLOR, 0, purple);
@@ -617,7 +628,7 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
             So let's check whether the number of acquired images is still too
             large after the fence was signalled, and if so then clear the timeout.
          */
-         if (p_atomic_read_relaxed(&cdt->swapchain->num_acquires) >= cdt->swapchain->max_acquires)
+         if (kopper_held_images(cdt->swapchain) >= cdt->swapchain->max_acquires)
             timeout = 0;
       }
       VkResult ret;

@@ -2274,7 +2274,7 @@
         "description": "zink: count every held swapchain image against the acquire limit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d1cac5ed0566ed02f1a522cc690ab5cda1880ec0",
         "notes": null
