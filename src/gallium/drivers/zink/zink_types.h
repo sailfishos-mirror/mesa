@@ -644,7 +644,7 @@ struct zink_batch_state {
    struct util_queue_fence flush_completed;
 
    struct set programs;
-   struct set dmabuf_exports;
+   struct hash_table dmabuf_exports;
 
 #define BUFFER_HASHLIST_SIZE 32768
    /* buffer_indices_hashlist[hash(bo)] returns -1 if the bo
