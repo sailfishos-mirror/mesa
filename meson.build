@@ -1302,9 +1302,6 @@ if cc.compiles('__uint128_t foo(void) { return 0; }',
   pre_args += '-DHAVE_UINT128'
 endif
 
-if cc.has_function('reallocarray')
-   pre_args += '-DHAVE_REALLOCARRAY'
-endif
 if cc.has_function('fmemopen')
    pre_args += '-DHAVE_FMEMOPEN'
 endif
