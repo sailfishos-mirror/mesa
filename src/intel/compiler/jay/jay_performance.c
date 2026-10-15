@@ -230,21 +230,42 @@ estimate_block_cycles(jay_function *f, jay_block *block)
          cycle += jay_occupancy(shader, prev);
       }
 
-      if (I->dep.mode && sbid[I->dep.sbid]) {
-         unsigned latency = 0;
-         if (I->dep.mode == GEN_SBID_SRC) {
-            if (sbid[I->dep.sbid]->op == JAY_OPCODE_SEND) {
-               latency = jay_send_src_latency(shader, sbid[I->dep.sbid]);
+      uint32_t wait_src = 0, wait_dst = 0;
+
+      if (I->op == JAY_OPCODE_SYNC) {
+         if (jay_sync_op(I) == TGL_SYNC_ALLWR) {
+            wait_dst = jay_as_uint(I->src[0]);
+         } else if (jay_sync_op(I) == TGL_SYNC_ALLRD) {
+            wait_src = jay_as_uint(I->src[0]);
+         }
+      }
+
+      if (I->dep.mode == GEN_SBID_SRC) {
+         wait_src |= BITFIELD_BIT(I->dep.sbid);
+      } else if (I->dep.mode == GEN_SBID_DST || I->dep.mode == GEN_SBID_SET) {
+         wait_dst |= BITFIELD_BIT(I->dep.sbid);
+      }
+
+      u_foreach_bit(sb, wait_src) {
+         if (sbid[sb]) {
+            unsigned latency = 0;
+            if (sbid[sb]->op == JAY_OPCODE_SEND) {
+               latency = jay_send_src_latency(shader, sbid[sb]);
             } else {
                /* IGC uses occupancy for this. Hit only by DPAS */
-               latency = jay_occupancy(shader, sbid[I->dep.sbid]);
+               latency = jay_occupancy(shader, sbid[sb]);
             }
-         } else {
-            latency = jay_latency(shader, sbid[I->dep.sbid], false);
-            sbid[I->dep.sbid] = NULL;
-         }
 
-         cycle = MAX2(cycle, sbid_issue[I->dep.sbid] + latency);
+            cycle = MAX2(cycle, sbid_issue[sb] + latency);
+         }
+      }
+
+      u_foreach_bit(sb, wait_dst) {
+         if (sbid[sb]) {
+            cycle = MAX2(cycle,
+                         sbid_issue[sb] + jay_latency(shader, sbid[sb], false));
+            sbid[sb] = NULL;
+         }
       }
 
       if (I->dep.regdist) {
