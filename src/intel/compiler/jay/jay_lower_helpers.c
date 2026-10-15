@@ -91,10 +91,14 @@ setup_exit_block(jay_builder *b, struct ctx *ctx)
 
       assert(gpr >= 0 && "must have a suitable gpr block");
       jay_def dummy = jay_bare_regs(GPR, gpr, 4);
+      unsigned width = b->shader->dispatch_width >> B.split;
 
-      unsigned op = b->shader->dispatch_width == 32 ?
-                       XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
-                       BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE;
+      unsigned op =
+         width == 32 ?
+            XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
+         width == 16 ?
+            BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE :
+            BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD8_SINGLE_SOURCE_SUBSPAN01;
       uint64_t desc = brw_fb_write_desc(b->shader->devinfo, 0, op, true, false);
       uint64_t ex_desc = (1 << 20) /* null rt */;
 
