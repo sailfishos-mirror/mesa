@@ -4,6 +4,8 @@
  */
 
 
+#include "util/log.h"
+
 #include "crashdec.h"
 
 
@@ -204,7 +206,10 @@ struct mempool_data2 {
 
 /**
  * Walk one queue, following the linked list of blocks from the reader
- * position to the writer position.  Returns the number of chunks visited.
+ * position to the writer position.  Returns the number of chunks visited,
+ * or -1 if the walk hit an out of range block index or failed to terminate
+ * (which indicates that we've mis-detected the pool layout, or that the
+ * dump is corrupt).
  *
  * With dump=false nothing is printed, so that this can also be used to
  * validate a candidate layout.
@@ -250,15 +255,15 @@ walk_queue(const uint32_t *mempool, const struct mempool_layout *l,
    if (dump && verbose)
       printf("\tblock %x\n", cur_block);
 
-   if (cur_block >= l->num_blocks) {
-      fprintf(stderr, "block %x too large\n", cur_block);
-      exit(1);
-   }
+   if ((cur_block >= l->num_blocks) || (last_block >= l->num_blocks))
+      return -1;
 
+   const uint32_t max_chunks = l->num_blocks << l->block_size_log2;
    uint32_t count = 0;
 
    while ((cur_block != last_block) || (cur_chunk != last_chunk)) {
-      count++;
+      if (count++ >= max_chunks)
+         return -1;
 
       const uint32_t *chunk_ptr =
          &mempool[(cur_block * block_size + cur_chunk) * 4];
@@ -276,10 +281,8 @@ walk_queue(const uint32_t *mempool, const struct mempool_layout *l,
          cur_block = next_pointers[cur_block];
          if (dump && verbose)
             printf("\tblock %x\n", cur_block);
-         if (cur_block >= l->num_blocks) {
-            fprintf(stderr, "block %x too large\n", cur_block);
-            exit(1);
-         }
+         if (cur_block >= l->num_blocks)
+            return -1;
          cur_chunk = 0;
       }
    }
@@ -375,7 +378,9 @@ dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
       int calculated_queue_size =
          walk_queue(mempool, layout, &data1, &data2, queue, true);
 
-      if ((uint32_t)calculated_queue_size != data2.queue_sizes[queue]) {
+      if (calculated_queue_size < 0) {
+         mesa_logw_once("\t\tINVALID QUEUE STATE, SKIPPING!\n");
+      } else if ((uint32_t)calculated_queue_size != data2.queue_sizes[queue]) {
          printf("\t\tCALCULATED SIZE %d DOES NOT MATCH!\n",
                 calculated_queue_size);
       }
