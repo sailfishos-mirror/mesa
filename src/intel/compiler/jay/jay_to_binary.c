@@ -432,12 +432,14 @@ emit(struct jay_codegen *jc,
       break;
    }
 
-   case JAY_OPCODE_DESWIZZLE_EVEN:
-      gen->exec_size = 16;
-      gen->dst = gen_byte_offset(jc->devinfo, gen->dst, 64);
+   case JAY_OPCODE_DESWIZZLE_EVEN: {
+      unsigned stride = jay_ugpr_per_grf(f->shader) * 4;
+      gen->exec_size = jc->devinfo->ver < 20 ? 8 : 16;
+      gen->dst = gen_byte_offset(jc->devinfo, gen->dst, stride);
       gen->src[0] = gen_byte_offset(jc->devinfo, gen->src[0],
-                                    jay_deswizzle_even_src_hi(I) * 64);
+                                    jay_deswizzle_even_src_hi(I) * stride);
       break;
+   }
 
    case JAY_OPCODE_CVT: {
       unsigned index = jay_cvt_index(I);
