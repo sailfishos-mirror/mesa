@@ -3772,10 +3772,11 @@ zink_flush_clears(struct zink_context *ctx)
             continue;
          }
          struct zink_resource *res = zink_resource(ctx->fb_state.cbufs[i].texture);
-         if (zink_is_swapchain(res)) {
-            if (!zink_kopper_acquire(ctx, res, UINT64_MAX))
-               /* technically this is a failure condition, but there's no safe way out */
-               return;
+         if (zink_is_swapchain(res) && !zink_kopper_acquire(ctx, res, UINT64_MAX)) {
+            /* no image to clear, so leave it out of this pass */
+            ctx->has_swapchain = false;
+            ctx->fb_state.cbufs[i].texture = NULL;
+            continue;
          }
          screen->image_barrier(ctx, res,
                               general_layout ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
