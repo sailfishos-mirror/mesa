@@ -154,6 +154,14 @@ fail:
 }
 
 static void
+recycle_semaphore(struct zink_screen *screen, VkSemaphore sem)
+{
+   simple_mtx_lock(&screen->semaphores_lock);
+   util_dynarray_append(&screen->semaphores, sem);
+   simple_mtx_unlock(&screen->semaphores_lock);
+}
+
+static void
 destroy_swapchain(struct zink_screen *screen, struct kopper_swapchain *cswap)
 {
    if (!cswap)
@@ -171,18 +179,14 @@ destroy_swapchain(struct zink_screen *screen, struct kopper_swapchain *cswap)
       pipe_resource_reference(&cswap->images[i].readback, NULL);
       zink_destroy_resource_surface_cache(screen, &cswap->images[i].surface_cache, false);
    }
-   free(cswap->images);
-   hash_table_u64_foreach(cswap->presents, he) {
-      struct util_dynarray *arr = he.data;
-      simple_mtx_lock(&screen->semaphores_lock);
-      util_dynarray_append_dynarray(&screen->semaphores, arr);
-      simple_mtx_unlock(&screen->semaphores_lock);
-      util_dynarray_fini(arr);
-      free(arr);
-   }
    simple_mtx_destroy(&cswap->lock);
-   _mesa_hash_table_u64_destroy(cswap->presents);
    VKSCR(DestroySwapchainKHR)(screen->dev, cswap->swapchain, NULL);
+   /* the images can't be acquired again, so their presents end with the swapchain */
+   for (unsigned i = 0; i < cswap->num_images; i++) {
+      if (cswap->images[i].present)
+         recycle_semaphore(screen, cswap->images[i].present);
+   }
+   free(cswap->images);
    free(cswap);
 }
 
@@ -207,13 +211,11 @@ prune_old_swapchains(struct zink_screen *screen, struct kopper_displaytarget *cd
          zink_screen_timeline_wait(screen, u->usage, UINT64_MAX);
          cswap->batch_uses = NULL;
       }
-      hash_table_u64_foreach(cswap->presents, he) {
-         uint64_t next = he.key;
-         /* don't wait on 'next' timeline syncpoints which will never occur */
-         if (!wait || next < screen->curr_batch) {
-            if (!zink_screen_timeline_wait(screen, next, wait ? UINT64_MAX : 0))
-               return;
-         }
+      if (cswap->present_batch) {
+         /* don't wait on a timeline syncpoint which will never occur */
+         uint64_t batch = wait ? MIN2(cswap->present_batch, screen->curr_batch - 1) : cswap->present_batch;
+         if (!zink_screen_timeline_wait(screen, batch, wait ? UINT64_MAX : 0))
+            return;
       }
       cdt->old_swapchain = cswap->next;
       destroy_swapchain(screen, cswap);
@@ -282,7 +284,6 @@ kopper_CreateSwapchain(struct zink_screen *screen, struct kopper_displaytarget *
       *result = VK_ERROR_OUT_OF_HOST_MEMORY;
       return NULL;
    }
-   cswap->last_present_prune = 1;
    util_queue_fence_init(&cswap->present_fence);
    simple_mtx_init(&cswap->lock, mtx_plain);
 
@@ -395,7 +396,6 @@ kopper_GetSwapchainImages(struct zink_screen *screen, struct kopper_swapchain *c
       mesa_loge("ZINK: failed to allocate cswap->images!");
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
-   cswap->presents = _mesa_hash_table_u64_create(NULL);
    VkImage images[32];
    error = VKSCR(GetSwapchainImagesKHR)(screen->dev, cswap->swapchain, &cswap->num_images, images);
    assert(cswap->num_images <= ARRAY_SIZE(images));
@@ -659,6 +659,11 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
    }
 
    cdt->swapchain->images[res->obj->dt_idx].acquire = acquire;
+   /* getting the image back means its last present is done with the semaphore */
+   if (cdt->swapchain->images[res->obj->dt_idx].present) {
+      recycle_semaphore(screen, cdt->swapchain->images[res->obj->dt_idx].present);
+      cdt->swapchain->images[res->obj->dt_idx].present = VK_NULL_HANDLE;
+   }
    if (cdt->swapchain->images[res->obj->dt_idx].readback)
       zink_resource(cdt->swapchain->images[res->obj->dt_idx].readback)->valid = false;
    res->obj->image = cdt->swapchain->images[res->obj->dt_idx].image;
@@ -819,6 +824,9 @@ kopper_present(void *data, void *gdata, int thread_idx)
    }
    simple_mtx_lock(&swapchain->lock);
    VkResult error2 = VKSCR(QueuePresentKHR)(screen->queue, &cpi->info);
+   /* under the lock, so an acquire that returns the image finds it */
+   if (cpi->info.waitSemaphoreCount)
+      swapchain->images[cpi->image].present = cpi->sem;
    simple_mtx_unlock(&swapchain->lock);
    zink_screen_debug_marker_end(screen, screen->frame_marker_emitted);
    zink_screen_debug_marker_begin(screen, "frame");
@@ -829,44 +837,14 @@ kopper_present(void *data, void *gdata, int thread_idx)
    if (error2 == VK_SUBOPTIMAL_KHR && cdt->swapchain == swapchain)
       cpi->res->obj->new_dt = true;
 
-   /* it's illegal to destroy semaphores if they're in use by a cmdbuf.
-    * but what does "in use" actually mean?
-    * in truth, when using timelines, nobody knows. especially not VVL.
-    *
-    * thus, to avoid infinite error spam and thread-related races,
-    * present semaphores need their own free queue based on the
-    * last-known completed timeline id so that the semaphore persists through
-    * normal cmdbuf submit/signal and then also exists here when it's needed for the present operation
-    */
-   struct util_dynarray *arr;
-   for (; screen->last_finished && swapchain->last_present_prune != screen->last_finished; swapchain->last_present_prune++) {
-      arr = _mesa_hash_table_u64_search(swapchain->presents, swapchain->last_present_prune);
-      if (arr) {
-         simple_mtx_lock(&screen->semaphores_lock);
-         util_dynarray_append_dynarray(&screen->semaphores, arr);
-         simple_mtx_unlock(&screen->semaphores_lock);
-         util_dynarray_fini(arr);
-         free(arr);
-         _mesa_hash_table_u64_remove(swapchain->presents, swapchain->last_present_prune);
-      }
-   }
-   /* queue this wait semaphore for deletion on completion of the next batch */
+   /* with implicit sync, the submit above already waited on the semaphore */
+   if (!cpi->info.waitSemaphoreCount)
+      recycle_semaphore(screen, cpi->sem);
    assert(screen->curr_batch > 0);
    uint32_t next = (uint32_t)screen->curr_batch + 1;
    /* handle overflow */
    next = MAX2(next + 1, 1);
-   arr = _mesa_hash_table_u64_search(swapchain->presents, next);
-   if (!arr) {
-      arr = malloc(sizeof(struct util_dynarray));
-      if (!arr) {
-         mesa_loge("ZINK: failed to allocate arr!");
-         return;
-      }
-
-      *arr = UTIL_DYNARRAY_INIT;
-      _mesa_hash_table_u64_insert(swapchain->presents, next, arr);
-   }
-   util_dynarray_append(arr, cpi->sem);
+   swapchain->present_batch = next;
 out:
    if (thread_idx != -1) {
       p_atomic_dec(&swapchain->async_presents);
