@@ -264,6 +264,11 @@ impl LegalizeFAU<'_> {
 
     fn extract_srcs(&mut self, model: &dyn Model, op: &Op) {
         for (src_idx, src) in op.srcs().iter().enumerate() {
+            // Fake sources don't count towards FAU bounds
+            if model.op_src_is_fake(op, src) {
+                continue;
+            }
+
             if matches!(src.src_ref, SrcRef::Zero) {
                 self.reads_k0 = true;
             }

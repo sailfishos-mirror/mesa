@@ -91,6 +91,8 @@ pub trait Model {
 
     fn op_src_is_64bit(&self, op: &Op, src: &Src) -> bool;
 
+    fn op_src_is_fake(&self, op: &Op, src: &Src) -> bool;
+
     fn op_src_supports_imm32(&self, op: &Op, src: &Src, imm: u32) -> bool;
 
     fn op_src_supports_swizzle(
@@ -129,6 +131,10 @@ pub trait Model {
     fn max_threads(&self, registers_used: u8) -> u8;
 
     fn max_reg_count(&self) -> u8;
+}
+
+fn ptr_eq<T>(a: &T, b: &T) -> bool {
+    (a as *const T) == (b as *const T)
 }
 
 struct ValhallModel {
@@ -263,6 +269,16 @@ impl Model for ValhallModel {
             vop.src_is_64bit(src)
         } else {
             v9_op_src_is_64bit(op, src, self.arch)
+        }
+    }
+
+    // Returns true if this source is fake and never actually gets added
+    // to the instruction.  This is useful for legalization to know we can
+    // skip certain sources.
+    fn op_src_is_fake(&self, op: &Op, src: &Src) -> bool {
+        match op {
+            Op::BlendCall(op) => ptr_eq(src, &op.second_color),
+            _ => false,
         }
     }
 
