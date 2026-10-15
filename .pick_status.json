@@ -8664,7 +8664,7 @@
         "description": "zink: don't acquire a new swapchain image to read presented content",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6786e508a292fb184affbe5968ae890c7e00636b",
         "notes": null
