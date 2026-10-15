@@ -1574,7 +1574,7 @@
         "description": "v3dv: set lower_int64_options to not support any 64bit alu",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "82d8be576d822c8cbeca4ea3aa97470b3fab4fe1",
         "notes": null
