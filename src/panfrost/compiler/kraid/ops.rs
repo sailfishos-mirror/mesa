@@ -1408,6 +1408,21 @@ impl CmpResultType {
             (CmpResultType::C, _) => panic!("Not a boolean result type"),
         }
     }
+
+    pub fn from_true_bits(data: u32, bits: u8) -> Option<Self> {
+        const F16: u32 = F16::ONE.to_bits() as u32;
+        const F32: u32 = (1.0_f32).to_bits();
+
+        match (data, bits) {
+            (1, _) => Some(CmpResultType::I1),
+            (0xFF, 8) => Some(CmpResultType::M1),
+            (0xFFFF, 16) => Some(CmpResultType::M1),
+            (0xFFFFFFFF, 32) => Some(CmpResultType::M1),
+            (F16, 16) => Some(CmpResultType::F1),
+            (F32, 32) => Some(CmpResultType::F1),
+            _ => None,
+        }
+    }
 }
 
 #[allow(dead_code)]

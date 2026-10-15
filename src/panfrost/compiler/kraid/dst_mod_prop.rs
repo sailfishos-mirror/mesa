@@ -4,7 +4,8 @@
 use crate::ir::*;
 use crate::ops::*;
 use crate::ssa_value::AllocSSA;
-use rustc_hash::FxHashMap;
+use mesa_util::bitview::BitViewable;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, Copy, Default, PartialEq)]
 enum Uses<T: Clone + Copy + PartialEq> {
@@ -99,6 +100,7 @@ struct UseMod {
     clamp: ClampUses,
     to_f16: Uses<FRound>,
     swizzle: SwizzleUses,
+    bool_cvt: Uses<(CmpResultType, u8)>,
 }
 
 impl UseMod {
@@ -106,12 +108,14 @@ impl UseMod {
         clamp: ClampUses::Unknown,
         to_f16: Uses::Unknown,
         swizzle: SwizzleUses::Unknown,
+        bool_cvt: Uses::Unknown,
     };
 
     fn add_use(&mut self, use_mod: UseMod) {
         self.clamp.add_use(use_mod.clamp);
         self.to_f16.add_use(use_mod.to_f16);
         self.swizzle.add_use(use_mod.swizzle);
+        self.bool_cvt.add_use(use_mod.bool_cvt);
     }
 }
 
@@ -153,6 +157,7 @@ struct DstModProp<'a, A> {
     def_clamp: FxHashMap<SSAValue, ClampUses>,
     def_f16: FxHashMap<SSAValue, SSAValue>,
     def_repl: FxHashMap<SSAValue, SSAValue>,
+    def_bool: FxHashSet<SSAValue>,
 }
 
 impl<A: AllocSSA> DstModProp<'_, A> {
@@ -163,6 +168,7 @@ impl<A: AllocSSA> DstModProp<'_, A> {
             def_clamp: Default::default(),
             def_f16: Default::default(),
             def_repl: Default::default(),
+            def_bool: Default::default(),
         }
     }
 
@@ -183,6 +189,11 @@ impl<A: AllocSSA> DstModProp<'_, A> {
     fn set_def_repl(&mut self, ssa: SSAValue, repl: SSAValue) {
         let old = self.def_repl.insert(ssa, repl);
         debug_assert!(old.is_none());
+    }
+
+    fn set_def_bool(&mut self, ssa: SSAValue) {
+        let is_new = self.def_bool.insert(ssa);
+        debug_assert!(is_new);
     }
 
     fn add_fadd_uses(&mut self, op: &OpFAdd) -> bool {
@@ -247,10 +258,60 @@ impl<A: AllocSSA> DstModProp<'_, A> {
         true
     }
 
+    fn add_mux_uses(&mut self, op: &OpMux) -> bool {
+        // TODO: In theory if src1 is zero we can invert cmp_op, doesn't seem to
+        // actually ever happen in shader-db though (also, a bit more complex
+        // with floats), nir probably canonicalizes it.
+        if op.mux_op != MuxOp::IntZero
+            || !op.sel.src_mod.is_none()
+            || !op.src0.is_zero()
+        {
+            return false;
+        }
+
+        let bits = op.dst_type.bits();
+        debug_assert!(bits <= 32);
+
+        let val = &op.src1;
+        let replicates = match bits {
+            8 => val.replicates_byte(),
+            16 => val.replicates_half(),
+            32 => true,
+            _ => unreachable!(),
+        };
+        let res_type = val
+            .resolve_imm(op.dst_type)
+            .filter(|_| replicates)
+            .and_then(|imm32| {
+                CmpResultType::from_true_bits(
+                    imm32.get_bit_range_u64(0..bits.into()) as u32,
+                    bits,
+                )
+            });
+        let Some(res_type) = res_type else {
+            return false;
+        };
+
+        let SrcRef::SSA(sel_ssa) = &op.sel.src_ref else {
+            return false;
+        };
+        let sel_ssa = sel_ssa[0];
+
+        self.add_use(
+            sel_ssa,
+            UseMod {
+                bool_cvt: Uses::One((res_type, bits)),
+                ..UseMod::INVALID
+            },
+        );
+        true
+    }
+
     fn add_instr_uses(&mut self, instr: &Instr) {
         let used = match &instr.op {
             Op::FAdd(op) => self.add_fadd_uses(op.as_ref()),
             Op::Swz(op) => self.add_swz_uses(op.as_ref()),
+            Op::Mux(op) => self.add_mux_uses(op.as_ref()),
             _ => false,
         };
 
@@ -354,6 +415,23 @@ impl<A: AllocSSA> DstModProp<'_, A> {
 
                 true
             }
+            Op::Mux(op) => {
+                let SrcRef::SSA(vec) = &op.sel.src_ref else {
+                    return false;
+                };
+                if !self.def_bool.contains(&vec[0]) {
+                    return false;
+                };
+
+                let bytes = op.dst.lanes.bytes(op.dst_type.total_bytes());
+                instr.op = Op::from(OpSwz {
+                    dst: op.dst.clone(),
+                    src_type: DataType::i(bytes * 8),
+                    src: op.sel.clone(),
+                });
+
+                true
+            }
             _ => false,
         }
     }
@@ -429,37 +507,52 @@ impl<A: AllocSSA> DstModProp<'_, A> {
     }
 
     fn fold_cmp(&mut self, op: &mut OpCmp) -> bool {
-        if op.src_type.bits() != 16 || op.accum_op != CmpAccumOp::None {
-            return false;
-        }
-
         let DstRef::SSA(vec) = &op.dst.dst_ref else {
             return false;
         };
+
         debug_assert!(vec.comps() == 1);
         let ssa = vec[0];
-
-        // 16-bit CMPs replicate their sources
-        if ssa.bits() != 16 || !op.srcs.iter().all(Src::replicates_half) {
-            return false;
-        }
 
         let Some(use_mod) = self.use_mods.get(&ssa) else {
             return false;
         };
 
-        match use_mod.swizzle {
-            SwizzleUses::Replicate => (),
-            // If at least one of our users needs sign-extension, we can only
-            // fuse that for .m1
-            SwizzleUses::SignExtend if op.res_type == CmpResultType::M1 => (),
-            _ => return false,
-        }
+        if use_mod.swizzle != SwizzleUses::Unknown {
+            // 16-bit CMPs replicate their sources
+            if op.accum_op != CmpAccumOp::None
+                || op.src_type.bits() != 16
+                || ssa.bits() != 16
+                || !op.srcs.iter().all(Src::replicates_half)
+            {
+                return false;
+            }
+            match use_mod.swizzle {
+                SwizzleUses::Replicate => (),
+                // If at least one of our users needs sign-extension, we can
+                // only fuse that for .m1
+                SwizzleUses::SignExtend if op.res_type == CmpResultType::M1 => {
+                }
+                _ => return false,
+            }
 
-        let ssa_repl = self.ssa_alloc.alloc_ssa(32);
-        self.set_def_repl(ssa, ssa_repl);
-        op.dst = ssa_repl.into();
-        true
+            let ssa_repl = self.ssa_alloc.alloc_ssa(32);
+            self.set_def_repl(ssa, ssa_repl);
+            op.dst = ssa_repl.into();
+
+            true
+        } else if let Uses::One((res_new, bits)) = use_mod.bool_cvt {
+            if op.src_type.bits() != bits {
+                return false;
+            }
+
+            op.res_type = res_new;
+            self.set_def_bool(ssa);
+
+            true
+        } else {
+            false
+        }
     }
 
     fn try_fold_instr(&mut self, instr: &mut Instr) -> bool {
