@@ -4034,7 +4034,7 @@ nvk_mme_set_write_mask(struct mme_builder *b)
       mme_free_reg(b, val);
 
       /* Check if all masks are common */
-      struct mme_value temp = mme_add(b, mask, mme_imm(BITFIELD_RANGE(0, 4)));
+      struct mme_value temp = mme_and(b, mask, mme_imm(BITFIELD_RANGE(0, 4)));
       mme_if(b, ine, first, temp) {
          mme_mov_to(b, common_mask, mme_zero());
       }
@@ -4048,6 +4048,50 @@ nvk_mme_set_write_mask(struct mme_builder *b)
    mme_mthd(b, NV9097_SET_SINGLE_CT_WRITE_CONTROL);
    mme_emit(b, common_mask);
 }
+
+const struct nvk_mme_test_case nvk_mme_set_write_mask_tests[] = {{
+   .params = (uint32_t[]) { 1, 0x0 },
+   .expected = (struct nvk_mme_mthd_data[]) {
+      { NV9097_SET_CT_WRITE(0), 0x0000 },
+      { NV9097_SET_SINGLE_CT_WRITE_CONTROL, 1 },
+      { }
+   },
+}, {
+   .params = (uint32_t[]) { 1, 0xf },
+   .expected = (struct nvk_mme_mthd_data[]) {
+      { NV9097_SET_CT_WRITE(0), 0x1111 },
+      { NV9097_SET_SINGLE_CT_WRITE_CONTROL, 1 },
+      { }
+   },
+}, {
+   .params = (uint32_t[]) { 8, 0x0f0f8421 },
+   .expected = (struct nvk_mme_mthd_data[]) {
+      { NV9097_SET_CT_WRITE(0), 0x0001 },
+      { NV9097_SET_CT_WRITE(1), 0x0010 },
+      { NV9097_SET_CT_WRITE(2), 0x0100 },
+      { NV9097_SET_CT_WRITE(3), 0x1000 },
+      { NV9097_SET_CT_WRITE(4), 0x1111 },
+      { NV9097_SET_CT_WRITE(5), 0x0000 },
+      { NV9097_SET_CT_WRITE(6), 0x1111 },
+      { NV9097_SET_CT_WRITE(7), 0x0000 },
+      { NV9097_SET_SINGLE_CT_WRITE_CONTROL, 0 },
+      { }
+   },
+}, {
+   .params = (uint32_t[]) { 8, 0xffffffff },
+   .expected = (struct nvk_mme_mthd_data[]) {
+      { NV9097_SET_CT_WRITE(0), 0x1111 },
+      { NV9097_SET_CT_WRITE(1), 0x1111 },
+      { NV9097_SET_CT_WRITE(2), 0x1111 },
+      { NV9097_SET_CT_WRITE(3), 0x1111 },
+      { NV9097_SET_CT_WRITE(4), 0x1111 },
+      { NV9097_SET_CT_WRITE(5), 0x1111 },
+      { NV9097_SET_CT_WRITE(6), 0x1111 },
+      { NV9097_SET_CT_WRITE(7), 0x1111 },
+      { NV9097_SET_SINGLE_CT_WRITE_CONTROL, 1 },
+      { }
+   },
+}, {}};
 
 static void
 nvk_flush_cb_state(struct nvk_cmd_buffer *cmd)
