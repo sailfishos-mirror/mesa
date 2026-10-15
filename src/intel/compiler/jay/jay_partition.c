@@ -336,7 +336,8 @@ jay_partition_grf(jay_shader *shader)
     */
    unsigned demand[JAY_NUM_GRF_FILES] = { 0 };
    struct instruction_req instr_req = analyze_per_inst(shader);
-   unsigned ugpr_limit = register_limit(shader, UGPR, 64 * ugpr_per_grf);
+   unsigned max_ugpr = shader->devinfo->ver >= 20 ? 64 : 96;
+   unsigned ugpr_limit = register_limit(shader, UGPR, max_ugpr * ugpr_per_grf);
    unsigned hw_flags = jay_num_flags(shader);
    unsigned flag_limit = hw_flags - shader->helpers_tracked;
 
