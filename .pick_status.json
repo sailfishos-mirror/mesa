@@ -7084,7 +7084,7 @@
         "description": "anv+hasvk: keep shaderInt8 with no_16bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8b75b726135dcc8fc604e32a4e4be47caf374d61",
         "notes": null
