@@ -291,7 +291,7 @@ walk_queue(const uint32_t *mempool, const struct mempool_layout *l,
 }
 
 void
-dump_cp_mem_pool(uint32_t *mempool, bool is_bv)
+dump_cp_mem_pool(uint32_t *mempool, uint32_t sizedwords, bool is_bv)
 {
    /* The mem pool is a shared pool of memory used for storing in-flight
     * register writes. There are 6 different queues, one for each

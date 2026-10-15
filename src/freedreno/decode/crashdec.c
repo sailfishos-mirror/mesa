@@ -1000,9 +1000,9 @@ decode_indexed_registers(void)
             dump_cp_ucode_dbg(buf);
 
          if (!strcmp(name, "CP_MEM_POOL_DBG"))
-            dump_cp_mem_pool(buf, false);
+            dump_cp_mem_pool(buf, sizedwords, false);
          if (!strcmp(name, "CP_BV_MEM_POOL_DBG"))
-            dump_cp_mem_pool(buf, true);
+            dump_cp_mem_pool(buf, sizedwords, true);
 
          if (dump)
             dump_hex_ascii(buf, 4 * sizedwords, 1);
