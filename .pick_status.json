@@ -8594,7 +8594,7 @@
         "description": "zink: resolve swapchain blit sources before any blit path reads them",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cf3f3791e390355e7a8e6c6432a062be5e870c7b",
         "notes": null
