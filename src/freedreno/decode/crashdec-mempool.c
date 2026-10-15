@@ -290,6 +290,102 @@ walk_queue(const uint32_t *mempool, const struct mempool_layout *l,
    return count;
 }
 
+/**
+ * Check whether the dump is big enough to contain all of the sub-structures
+ * that the given layout expects.
+ */
+static bool
+layout_fits(uint32_t sizedwords, const struct mempool_layout *l)
+{
+   const size_t data1_dwords = sizeof(struct mempool_data1) / 4;
+   const size_t data2_dwords = sizeof(struct mempool_data2) / 4;
+
+   return ((l->data2_offset + data2_dwords) <= sizedwords) &&
+          ((l->data1_offset + data1_dwords) <= sizedwords) &&
+          ((l->next_pointers_offset + l->num_blocks) <= sizedwords);
+}
+
+/**
+ * Returns the number of queues whose walked length matches the length
+ * recorded in the dump, or -1 if the layout isn't even self-consistent.
+ * Used to pick between the possible pool layouts.
+ */
+static int
+validate_layout(const uint32_t *mempool, uint32_t sizedwords,
+                const struct mempool_layout *l, unsigned num_queues)
+{
+   if (!layout_fits(sizedwords, l))
+      return -1;
+
+   struct mempool_data1 data1;
+   memcpy(&data1, &mempool[l->data1_offset], sizeof(data1));
+
+   struct mempool_data2 data2;
+   memcpy(&data2, &mempool[l->data2_offset], sizeof(data2));
+
+   int matches = 0;
+   for (unsigned queue = 0; queue < num_queues; queue++) {
+      int count = walk_queue(mempool, l, &data1, &data2, queue, false);
+      if (count < 0)
+         return -1;
+      if ((uint32_t)count == data2.queue_sizes[queue])
+         matches++;
+   }
+
+   return matches;
+}
+
+/**
+ * Figure out which mem pool layout this dump uses.
+ *
+ * Some parts have a smaller mem pool, which shifts the offsets of everything
+ * after the chunk data.  Guessing wrong doesn't just mis-print a few values:
+ * the next-pointers array and the per-queue state end up being read out of
+ * unrelated (often mirrored/padding) parts of the dump, so the queue walk
+ * follows a bogus linked list.
+ *
+ * Fortunately we don't have to guess.  The per-queue sizes recorded in data2
+ * act as a checksum: walk each queue and see whether the lengths agree.
+ */
+static enum mempool_size
+detect_mempool_size(const uint32_t *mempool, uint32_t sizedwords, bool is_bv,
+                    unsigned num_queues)
+{
+   const enum mempool_size dflt = is_bv ? MEMPOOL_QUARTER : MEMPOOL_FULL;
+
+   unsigned order[ARRAY_SIZE(mempool_layouts) + 1];
+   unsigned n = 0;
+
+   order[n++] = dflt;
+
+   for (unsigned i = 0; i < ARRAY_SIZE(mempool_layouts); i++)
+      order[n++] = i;
+
+   int best = -1;
+   int best_matches = -1;
+
+   for (unsigned i = 0; i < n; i++) {
+      int matches = validate_layout(mempool, sizedwords,
+                                    &mempool_layouts[order[i]], num_queues);
+
+      if (matches == (int)num_queues)
+         return order[i];
+
+      if (matches > best_matches) {
+         best_matches = matches;
+         best = order[i];
+      }
+   }
+
+   if (best < 0)
+      best = dflt;
+
+   mesa_logw_once("\tWARNING: could not determine CP mem pool layout, assuming '%s'\n",
+                  mempool_layouts[best].name);
+
+   return best;
+}
+
 void
 dump_cp_mem_pool(uint32_t *mempool, uint32_t sizedwords, bool is_bv)
 {
@@ -310,46 +406,25 @@ dump_cp_mem_pool(uint32_t *mempool, uint32_t sizedwords, bool is_bv)
     * inline.
     */
 
-   /* TODO: The firmware CP_MEM_POOL save/restore routines do something
-    * like:
-    *
-    * cread $02, [ $00 + 0 ]
-    * and $02, $02, 0x118
-    * ...
-    * brne $02, 0, #label
-    * mov $03, 0x2000
-    * mov $03, 0x1000
-    * label:
-    * ...
-    *
-    * I think that control register 0 is the GPU version, and some
-    * versions have a smaller mem pool. It seems some models have a mem
-    * pool that's half the size, and a bunch of offsets are shifted
-    * accordingly. Unfortunately the kernel driver's dumping code doesn't
-    * seem to take this into account, even the downstream android driver,
-    * and we don't know which versions 0x8, 0x10, or 0x100 correspond
-    * to. Or maybe we can use CP_DBG_MEM_POOL_SIZE to figure this out?
-    */
-   bool small_mem_pool = false;
-
-   enum mempool_size mempool_size = MEMPOOL_FULL;
-
-   if (small_mem_pool)
-      mempool_size = MEMPOOL_HALF;
-   else if (is_bv)
-      mempool_size = MEMPOOL_QUARTER;
-
-   const struct mempool_layout *layout = &mempool_layouts[mempool_size];
-
    /* Number of queues or clusters. On a7xx the clusters are shuffled a bit to
     * increase the count by one, but BV seems to not use the last cluster.
     */
    const unsigned num_queues = (is_a6xx() || is_bv) ? 6 : 7;
 
-   struct mempool_data1 data1;
+   /* Some parts have a smaller mem pool, which shifts the offsets of the
+    * next-pointers array and the per-queue state.  Detect which layout this
+    * dump uses rather than assuming, since guessing wrong makes the queue
+    * walk follow an unrelated (and possibly cyclic) linked list:
+    */
+   const enum mempool_size mempool_size =
+      detect_mempool_size(mempool, sizedwords, is_bv, num_queues);
+   const struct mempool_layout *layout = &mempool_layouts[mempool_size];
 
-   const uint32_t *data1_ptr = &mempool[layout->data1_offset];
-   memcpy(&data1, data1_ptr, sizeof(data1));
+   if (verbose)
+      printf("\tmem pool layout: %s\n", layout->name);
+
+   struct mempool_data1 data1;
+   memcpy(&data1, &mempool[layout->data1_offset], sizeof(data1));
 
    STATIC_ASSERT(sizeof(struct mempool_data2) == 4 * 0x60);
    STATIC_ASSERT(offsetof(struct mempool_data2, queue_sizes) == 4 * 0x18);
