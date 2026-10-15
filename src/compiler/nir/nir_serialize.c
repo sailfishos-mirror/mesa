@@ -582,8 +582,8 @@ union packed_instr {
    struct {
       unsigned instr_type : 4;
       unsigned num_srcs : 4;
-      unsigned op : 5;
-      unsigned _pad : 11;
+      unsigned op : 6;
+      unsigned _pad : 10;
       unsigned def : 8;
    } tex;
    struct {
@@ -1400,7 +1400,7 @@ static void
 write_tex(write_ctx *ctx, const nir_tex_instr *tex)
 {
    assert(tex->num_srcs < 16);
-   assert(tex->op < 32);
+   assert(tex->op < 64);
 
    union packed_instr header;
    header.u32 = 0;
