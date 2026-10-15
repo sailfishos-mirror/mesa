@@ -8654,7 +8654,7 @@
         "description": "zink: mark swapchain readback copies stale on GENERAL layout barriers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "622612f67ea72298c3d85dfe53c5d54ee9f98527",
         "notes": null
