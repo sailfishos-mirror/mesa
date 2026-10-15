@@ -1028,8 +1028,8 @@ si_vpe_set_stream_out_param(struct vpe_video_processor *vpeproc,
    if (process_properties->background_color) {
       build_param->target_rect.x      = 0;
       build_param->target_rect.y      = 0;
-      build_param->target_rect.width  = pipe_surface_width(&vpeproc->dst_surfaces[0]);
-      build_param->target_rect.height = pipe_surface_height(&vpeproc->dst_surfaces[0]);
+      build_param->target_rect.width  = vpeproc->dst_surfaces[0].texture->width0;
+      build_param->target_rect.height = vpeproc->dst_surfaces[0].texture->height0;
    } else {
       build_param->target_rect.x      = process_properties->dst_region.x0;
       build_param->target_rect.y      = process_properties->dst_region.y0;
