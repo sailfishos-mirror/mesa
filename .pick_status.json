@@ -2264,7 +2264,7 @@
         "description": "zink: stop retrying swapchain acquires that cannot succeed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "66066650c968769669040e85beeff412ffedb7e0",
         "notes": null

@@ -595,6 +595,7 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
        (cdt->swapchain->images[res->obj->dt_idx].acquire || cdt->swapchain->images[res->obj->dt_idx].acquired))
       return VK_SUCCESS;
    VkSemaphore acquire = VK_NULL_HANDLE;
+   const bool infinite = timeout == UINT64_MAX;
 
    while (true) {
       if (res->obj->new_dt) {
@@ -646,9 +647,8 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
             res->obj->new_dt = true;
             continue;
          }
-         if (ret == VK_NOT_READY || ret == VK_TIMEOUT) {
-            if (timeout > 1000000)
-               UNREACHABLE("kopper_acquire: updated timeout after failure has become unreasonable large");
+         /* past the acquire limit an image may never come back, so retry only briefly */
+         if ((ret == VK_NOT_READY || ret == VK_TIMEOUT) && infinite && timeout < 1000000) {
             timeout += 4000;
             continue;
          }
