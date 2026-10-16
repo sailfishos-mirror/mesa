@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include "util/format/u_formats.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "util/format/u_formats.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,17 +21,17 @@ enum eil_emulation {
 };
 
 struct eil_format {
-   uint32_t vtx;        /* FE_DATA_TYPE_* */
-   uint32_t tex;        /* TEXTURE_FORMAT_* */
-   uint32_t pe;         /* PE_FORMAT_* */
+   uint32_t vtx; /* FE_DATA_TYPE_* */
+   uint32_t tex; /* TEXTURE_FORMAT_* */
+   uint32_t pe;  /* PE_FORMAT_* */
    enum eil_emulation emulation;
-   enum pipe_format emulated;       /* enum pipe_format the HW really sees */
+   enum pipe_format emulated; /* enum pipe_format the HW really sees */
 
-   bool has_vtx : 1;
-   bool has_tex : 1;
-   bool has_pe : 1;
-   bool tex_ext : 1;    /* TEXTURE_FORMAT_EXT_* space */
-   bool tex_astc : 1;   /* TEXTURE_FORMAT_ASTC_* space */
+   bool has_vtx    : 1;
+   bool has_tex    : 1;
+   bool has_pe     : 1;
+   bool tex_ext    : 1; /* TEXTURE_FORMAT_EXT_* space */
+   bool tex_astc   : 1; /* TEXTURE_FORMAT_ASTC_* space */
    bool pe_rb_swap : 1;
 };
 
@@ -54,7 +54,7 @@ eil_format_is_emulated_z32f(enum pipe_format fmt)
 static inline bool
 eil_format_is_emulated_128bit(enum pipe_format fmt)
 {
-   const struct eil_format* f = eil_get_format_entry(fmt);
+   const struct eil_format *f = eil_get_format_entry(fmt);
    return f->emulation == EIL_EMU_128BIT;
 }
 
@@ -66,7 +66,7 @@ eil_format_is_emulated_128bit(enum pipe_format fmt)
 static inline enum pipe_format
 eil_format_emulated(enum pipe_format fmt)
 {
-   const struct eil_format* f = eil_get_format_entry(fmt);
+   const struct eil_format *f = eil_get_format_entry(fmt);
    return f->emulation != EIL_EMU_NONE ? f->emulated : fmt;
 }
 
