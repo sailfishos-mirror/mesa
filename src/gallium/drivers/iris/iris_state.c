@@ -6183,15 +6183,15 @@ iris_populate_binding_table(struct iris_context *ice,
    if (!shader)
       return;
 
+   if (iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
+      iris_populate_64bit_binding_table(ice, batch, stage, pin_only);
+      return;
+   }
+
    const struct shader_info *info = iris_get_shader_info(ice, stage);
    if (!info) {
       /* TCS passthrough doesn't need a binding table. */
       assert(stage == MESA_SHADER_TESS_CTRL);
-      return;
-   }
-
-   if (iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
-      iris_populate_64bit_binding_table(ice, batch, stage, pin_only);
       return;
    }
 
