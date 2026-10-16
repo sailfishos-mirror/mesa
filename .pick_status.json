@@ -344,7 +344,7 @@
         "description": "pan/bi: handle tls-stores in helper analysis",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3fef3b6afcf739f5bdde3e38e47470c564fd256b",
         "notes": null
