@@ -203,6 +203,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_maintenance3                     = true,
       .KHR_maintenance4                     = true,
       .KHR_maintenance5                     = true,
+      .KHR_maintenance6                     = true,
       .KHR_map_memory2                      = true,
       .KHR_multiview                        = true,
       .KHR_pipeline_executable_properties   = true,
@@ -620,6 +621,9 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_KHR_shader_relaxed_extended_instruction */
       .shaderRelaxedExtendedInstruction = true,
+
+      /* VK_KHR_maintenance6 */
+      .maintenance6 = true,
    };
 }
 
@@ -1392,6 +1396,11 @@ get_device_properties(const struct v3dv_physical_device *device,
       .polygonModePointSize = true,
       .nonStrictSinglePixelWideLinesUseParallelogram = true,
       .nonStrictWideLinesUseParallelogram = true,
+
+      /* VK_KHR_maintenance6 */
+      .blockTexelViewCompatibleMultipleLayers = false,
+      .maxCombinedImageSamplerDescriptorCount = V3DV_MAX_PLANE_COUNT,
+      .fragmentShadingRateClampCombinerInputs = false,
    };
 
    /* VkPhysicalDeviceShaderModuleIdentifierPropertiesEXT */
