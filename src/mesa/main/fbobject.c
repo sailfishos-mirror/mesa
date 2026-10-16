@@ -4371,6 +4371,24 @@ _mesa_FramebufferTexture2DMultisampleEXT(GLenum target, GLenum attachment,
                                          GLenum textarget, GLuint texture,
                                          GLint level, GLsizei samples)
 {
+   GET_CURRENT_CONTEXT(ctx);
+
+   /* From the GL_EXT_multisampled_render_to_texture spec:
+    *
+    *    "The error INVALID_ENUM is generated if
+    *    FramebufferTexture2DMultisampleEXT is called with a <textarget> that
+    *    is not TEXTURE_2D, TEXTURE_CUBE_MAP_POSITIVE_X, [...]"
+    *
+    * unlike FramebufferTexture2D, which raises INVALID_OPERATION for other
+    * texture targets.
+    */
+   if (textarget != GL_TEXTURE_2D && !_mesa_is_cube_face(textarget)) {
+      _mesa_error(ctx, GL_INVALID_ENUM,
+                  "glFramebufferTexture2DMultisampleEXT(textarget=%s)",
+                  _mesa_enum_to_string(textarget));
+      return;
+   }
+
    framebuffer_texture_with_dims(2, target, 0, attachment, textarget, texture,
                                  level, samples, 0,
                                  "glFramebufferTexture2DMultisampleEXT",
