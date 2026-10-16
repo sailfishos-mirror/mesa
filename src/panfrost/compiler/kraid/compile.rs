@@ -359,14 +359,17 @@ pub extern "C" fn kraid_compile_nir(
             // Both binding crates generate their own stdio FILE, those are the
             // same type underneath
             let f = stream.c_file() as *mut kraid_bindings::FILE;
-            let prefix =
-                kraid_shader_stage_name(nir.info.stage(), inputs.is_blend);
+            let prefix = kraid_shader_stage_name(
+                nir.info.stage(),
+                inputs.is_blend,
+                idvs,
+            );
 
             pan_stats_verbose_prologue(f, prefix, inputs.arch, inputs.model);
             // TODO: min/max statistics
             pan_valhall_stats_verbose(
                 f,
-                &info.stats.__bindgen_anon_1.valhall,
+                &stats.__bindgen_anon_1.valhall,
                 std::ptr::null(),
                 std::ptr::null(),
                 info.tls_size,
