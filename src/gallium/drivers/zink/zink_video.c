@@ -624,6 +624,10 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    for (unsigned j = 0; j < ARRAY_SIZE(h264->ref); j++)
       ref_slots[j] = -1;
 
+   /* the second field of a pair, reference or not, follows the first into the same picture */
+   bool second_field = h264->field_pic_flag && zvc->last_field && zvc->last_target == target &&
+                       zvc->last_bottom != h264->bottom_field_flag && zvc->last_frame_num == h264->frame_num;
+
    /* drop pictures that are no longer referenced, and find the slots of the ones that are */
    for (unsigned i = 0; i < ARRAY_SIZE(zvc->render_pic_list); i++) {
       if (zvc->render_pic_list[i]) {
@@ -634,7 +638,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
                found = true;
             }
          }
-         if (!found)
+         if (!found && !(second_field && zvc->render_pic_list[i] == target))
             zvc->render_pic_list[i] = NULL;
       }
       /* the target can also be a reference (other field) */
@@ -691,6 +695,8 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    h264_setup_info.PicOrderCnt[0] = h264->field_order_cnt[0];
    h264_setup_info.PicOrderCnt[1] = h264->field_order_cnt[1];
    h264_setup_info.FrameNum = h264->frame_num;
+   h264_setup_info.flags.top_field_flag = h264->field_pic_flag && !h264->bottom_field_flag;
+   h264_setup_info.flags.bottom_field_flag = h264->field_pic_flag && h264->bottom_field_flag;
 
    h264_dpb_setup_info.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR;
    h264_dpb_setup_info.pStdReferenceInfo = &h264_setup_info;
@@ -699,9 +705,15 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    setup_info.slotIndex = cur_slot;
    setup_info.pPictureResource = zvc->coincide_dpb ? &dst_pic : &zvc->dpb_resources[cur_slot];
    setup_info.pNext = &h264_dpb_setup_info;
-   /* this must be added to the list of 'bound resources' */
-   ref_info[num_ref_frames] = setup_info;
-   ref_info[num_ref_frames++].slotIndex = -1;
+   /* this must be added to the list of 'bound resources', unless the other field already bound it */
+   unsigned num_bound = num_ref_frames;
+   bool setup_bound = false;
+   for (unsigned i = 0; i < num_ref_frames; i++)
+      setup_bound |= ref_info[i].slotIndex == cur_slot;
+   if (!setup_bound) {
+      ref_info[num_bound] = setup_info;
+      ref_info[num_bound++].slotIndex = -1;
+   }
 
    StdVideoH264SequenceParameterSet sps = { 0 };
    StdVideoH264PictureParameterSet pps = { 0 };
@@ -733,6 +745,10 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
 
    /* only take the slot once the decode will be recorded, or later frames would reference an inactive slot */
    zvc->render_pic_list[cur_slot] = target;
+   zvc->last_target = target;
+   zvc->last_frame_num = h264->frame_num;
+   zvc->last_field = h264->field_pic_flag;
+   zvc->last_bottom = h264->bottom_field_flag;
 
    if (!ctx->bs->is_video) {
       ctx->video_batch = true;
@@ -765,7 +781,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    bci.sType = VK_STRUCTURE_TYPE_VIDEO_BEGIN_CODING_INFO_KHR;
    bci.videoSession = zvc->session;
    bci.videoSessionParameters = zvc->params;
-   bci.referenceSlotCount = num_ref_frames;
+   bci.referenceSlotCount = num_bound;
    bci.pReferenceSlots = ref_info;
 
    VKSCR(CmdBeginVideoCodingKHR)(cmdbuf, &bci);
@@ -805,6 +821,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    pi.PicOrderCnt[1] = h264->field_order_cnt[1];
    pi.flags.field_pic_flag = h264->field_pic_flag;
    pi.flags.bottom_field_flag = h264->bottom_field_flag;
+   pi.flags.complementary_field_pair = second_field;
    pi.flags.is_reference = h264->is_reference;
 
    VkVideoDecodeH264PictureInfoKHR hpi = { 0 };
@@ -822,7 +839,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    VkVideoDecodeInfoKHR vdi = { 0 };
    vdi.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_INFO_KHR;
    vdi.pNext = &hpi;
-   vdi.referenceSlotCount = num_ref_frames - 1;
+   vdi.referenceSlotCount = num_ref_frames;
    vdi.pReferenceSlots = ref_info;
    vdi.pSetupReferenceSlot = &setup_info;
    vdi.dstPictureResource = dst_pic;

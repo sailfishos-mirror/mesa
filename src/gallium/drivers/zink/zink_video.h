@@ -54,6 +54,11 @@ struct zink_video_codec {
    size_t srcbuf_align;
    size_t srcbuf_offset_align;
    struct pipe_video_buffer *render_pic_list[17];
+   /* the last decoded picture, to find the second field of a pair */
+   struct pipe_video_buffer *last_target;
+   uint32_t last_frame_num;
+   bool last_field;
+   bool last_bottom;
    /* for separate dpb/dst storage */
    struct pipe_resource *dpb_res[17];
    VkVideoPictureResourceInfoKHR dpb_resources[17];
