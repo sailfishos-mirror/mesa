@@ -106,6 +106,7 @@ struct kopper_displaytarget
    unsigned readback_counter;
 
    bool age_locked; //disables buffer age during readback
+   bool frontend_tracks_front; //the frontend reports the front buffer, else last_dt_idx is used
 };
 
 struct zink_kopper_present_info {
@@ -185,6 +186,10 @@ void
 zink_kopper_fixup_depth_buffer(struct zink_context *ctx);
 bool
 zink_kopper_check(struct pipe_resource *pres);
+void
+zink_kopper_set_front(struct pipe_resource *pres, bool front);
+bool
+zink_kopper_reads_next_image(struct zink_resource *res);
 void
 zink_kopper_set_swap_interval(struct pipe_context *pctx, struct pipe_resource *pres, int interval);
 int

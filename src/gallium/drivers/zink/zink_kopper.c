@@ -1002,6 +1002,11 @@ zink_kopper_acquire_readback(struct zink_context *ctx, struct zink_resource *res
    uint32_t last_dt_idx = res->obj->last_dt_idx;
    VkResult ret = VK_SUCCESS;
 
+   if (cdt->frontend_tracks_front && !res->kopper_front) {
+      *readback = res;
+      return false;
+   }
+
    /* a front buffer created after a present shows the window's last present */
    if (last_dt_idx == UINT32_MAX && cdt->present_count) {
       if (cdt->async)
@@ -1224,6 +1229,25 @@ zink_kopper_fixup_depth_buffer(struct zink_context *ctx)
                             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
       ctx->blitting = true;;
    }
+}
+
+void
+zink_kopper_set_front(struct pipe_resource *pres, bool front)
+{
+   struct zink_resource *res = zink_resource(pres);
+   if (!res->obj->dt)
+      return;
+   res->kopper_front = front;
+   res->obj->dt->frontend_tracks_front = true;
+}
+
+/* a read of a back buffer after a swap gets undefined contents, so it takes the next image
+ * instead of presenting other images to get the last one back
+ */
+bool
+zink_kopper_reads_next_image(struct zink_resource *res)
+{
+   return res->obj->dt->frontend_tracks_front && !res->kopper_front;
 }
 
 bool

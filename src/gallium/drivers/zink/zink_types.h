@@ -1390,6 +1390,7 @@ struct zink_resource {
    bool copies_warned;
    bool deleted; //resource_release
    bool swapchain;
+   bool kopper_front; //this is the drawable's front buffer
    bool dmabuf;
    bool unflushed_transient; //format view transient has newer data than parent
    bool subdata; //doing subdata call

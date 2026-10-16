@@ -3133,8 +3133,9 @@ zink_image_map(struct pipe_context *pctx,
       return NULL;
 
    trans->base.b.level = level;
-   /* reads of presented images go through zink_kopper_acquire_readback */
-   if (zink_is_swapchain(res) && (!(usage & PIPE_MAP_READ) || !res->obj->dt->present_count))
+   /* only a front buffer reads the window's last present */
+   if (zink_is_swapchain(res) &&
+       (!(usage & PIPE_MAP_READ) || zink_kopper_reads_next_image(res) || !res->obj->dt->present_count))
       zink_kopper_acquire(ctx, res, 0);
 
    void *ptr;
