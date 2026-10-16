@@ -724,11 +724,13 @@ u_trace_context_init(struct u_trace_context *utctx,
    if (_u_trace_perfetto_count > 0)
       utctx->enabled_traces |= U_TRACE_TYPE_PERFETTO_ACTIVE;
 
-   queue_init(utctx);
+   if (u_trace_should_process(utctx))
+      queue_init(utctx);
 
    simple_mtx_unlock(&ctx_list_mutex);
 #else
-   queue_init(utctx);
+   if (u_trace_should_process(utctx))
+      queue_init(utctx);
 #endif
 
    if (!(p_atomic_read_relaxed(&utctx->enabled_traces) &
@@ -778,10 +780,10 @@ u_trace_context_fini(struct u_trace_context *utctx)
 
    free (utctx->dummy_indirect_data);
 
-   if (!utctx->queue.jobs)
-      return;
-   util_queue_finish(&utctx->queue);
-   util_queue_destroy(&utctx->queue);
+   if (util_queue_is_initialized(&utctx->queue)) {
+      util_queue_finish(&utctx->queue);
+      util_queue_destroy(&utctx->queue);
+   }
    util_dynarray_foreach(&utctx->flushed_traces, struct u_trace_flush *, flush) {
       u_trace_flush_destroy(*flush);
    }
@@ -794,8 +796,10 @@ u_trace_perfetto_start(void)
 {
    simple_mtx_lock(&ctx_list_mutex);
 
+   /* A context created with nothing to trace has no queue yet;
+    * u_trace_context_process() creates it on the context's own thread.
+    */
    list_for_each_entry (struct u_trace_context, utctx, &ctx_list, node) {
-      queue_init(utctx);
       p_atomic_set(&utctx->enabled_traces,
                    utctx->enabled_traces | U_TRACE_TYPE_PERFETTO_ACTIVE);
    }
@@ -1080,6 +1084,18 @@ u_trace_context_process(struct u_trace_context *utctx, bool eof)
 {
    if (!util_dynarray_num_elements(&utctx->flushed_traces, struct u_trace_flush *))
       return;
+
+   /* There are flushes to process: create the queue now if the context
+    * was created with nothing to trace.
+    */
+   queue_init(utctx);
+
+   if (!util_queue_is_initialized(&utctx->queue)) {
+      util_dynarray_foreach(&utctx->flushed_traces, struct u_trace_flush *, flush)
+         u_trace_flush_destroy(*flush);
+      util_dynarray_clear(&utctx->flushed_traces);
+      return;
+   }
 
    struct u_trace_flush *last =
       *util_dynarray_last_ptr(&utctx->flushed_traces, struct u_trace_flush *);
@@ -1373,6 +1389,19 @@ u_trace_flush(struct u_trace *ut,
               uint32_t frame_nr,
               bool free_data)
 {
+   struct u_trace_context *utctx = ut->utctx;
+
+   if (!u_trace_should_process(utctx) && !u_trace_has_points(ut) &&
+       (!free_data ||
+        (!util_queue_is_initialized(&utctx->queue) &&
+         !util_dynarray_num_elements(&utctx->flushed_traces,
+                                     struct u_trace_flush *)))) {
+      if (free_data && utctx->delete_flush_data)
+         utctx->delete_flush_data(utctx, flush_data);
+      u_trace_fini(ut);
+      u_trace_init(ut, utctx);
+      return;
+   }
 
    struct u_trace_flush *flush = calloc(1, sizeof(struct u_trace_flush));
    flush->flush_data = flush_data;

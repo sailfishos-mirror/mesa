@@ -167,6 +167,24 @@ TEST_F(UtilPerfTraceTest, Multithread)
    EXPECT_EQ(newlines, 2 * NUM_DEBUG_TEST_THREAD) << out;
 }
 
+TEST_F(UtilPerfTraceTest, DisabledHasNoQueue)
+{
+   os_set_option("MESA_GPU_TRACES", NULL, true);
+
+   struct u_trace_context ctx;
+   init_context(&ctx);
+   EXPECT_FALSE(util_queue_is_initialized(&ctx.queue));
+
+   struct u_trace ut;
+   u_trace_init(&ut, &ctx);
+   u_trace_flush(&ut, NULL, 0, false);
+   u_trace_fini(&ut);
+   u_trace_context_process(&ctx, true);
+   EXPECT_FALSE(util_queue_is_initialized(&ctx.queue));
+
+   u_trace_context_fini(&ctx);
+}
+
 TEST_F(UtilPerfTraceTest, EndOfFrameOnce)
 {
    os_set_option("MESA_GPU_TRACEFILE", trace_file_path, true);
