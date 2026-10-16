@@ -79,8 +79,6 @@ struct etna_specs {
    unsigned vs_need_z_div : 1;
    /* can use VS_RANGE, PS_RANGE registers*/
    unsigned has_unified_instmem : 1;
-   /* has no limit on the number of constant sources per instruction */
-   unsigned has_no_oneconst_limit : 1;
    /* has V4_COMPRESSION */
    unsigned v4_compression : 1;
    /* supports single-buffer rendering with multiple pixel pipes */
