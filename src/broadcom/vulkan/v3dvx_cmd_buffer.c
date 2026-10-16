@@ -2761,23 +2761,53 @@ v3dX(cmd_buffer_emit_index_buffer)(struct v3dv_cmd_buffer *cmd_buffer)
    struct v3dv_job *job = cmd_buffer->state.job;
    assert(job);
 
-   /* We flag all state as dirty when we create a new job so make sure we
-    * have a valid index buffer before attempting to emit state for it.
+   /* We flag all state as dirty when we create a new job so we may get here
+    * without the application having bound an index buffer.
     */
    struct v3dv_buffer *ibuffer =
       v3dv_buffer_from_handle(cmd_buffer->state.index_buffer.buffer);
-   if (ibuffer) {
-      v3dv_cl_ensure_space_with_branch(
-         &job->bcl, cl_packet_length(INDEX_BUFFER_SETUP));
-      v3dv_return_if_oom(cmd_buffer, NULL);
 
-      const uint32_t offset = ibuffer->mem_offset +
-                              cmd_buffer->state.index_buffer.offset;
+   if (!ibuffer && !cmd_buffer->device->null_bo) {
+      /* No index buffer was bound and null index buffers aren't enabled
+       * (neither nullDescriptor nor maintenance6)
+       */
+      cmd_buffer->state.dirty &= ~V3DV_CMD_DIRTY_INDEX_BUFFER;
+      return;
+   }
+
+   struct v3dv_bo *bo;
+   uint32_t offset;
+   uint32_t size;
+
+   if (ibuffer) {
+      offset = ibuffer->mem_offset + cmd_buffer->state.index_buffer.offset;
       assert(ibuffer->mem->bo->size >= offset);
-      cl_emit(&job->bcl, INDEX_BUFFER_SETUP, ib) {
-         ib.address = v3dv_cl_address(ibuffer->mem->bo, offset);
-         ib.size = cmd_buffer->state.index_buffer.size;
-      }
+      bo = ibuffer->mem->bo;
+      size = cmd_buffer->state.index_buffer.size;
+   } else {
+      /* VK_KHR_maintenance6: null index buffer, all fetches return 0.
+       *
+       * FIXME: this is not a complete solution. The hardware has no way to
+       * return 0 for an arbitrary index fetch, so we point it at a zeroed BO
+       * and rely on the draw not fetching past the end of it. If an indexed
+       * draw fetches more indices than fit in null_bo (see
+       * V3DV_NULL_BO_SIZE_MAINTENANCE6), the fetch goes out of bounds and
+       * the result is no longer 0 (and may fault). A complete solution would
+       * need to fetch indices in software, for example from a shader, for
+       * this case only.
+       */
+      bo = cmd_buffer->device->null_bo;
+      offset = 0;
+      size = bo->size;
+   }
+
+   v3dv_cl_ensure_space_with_branch(
+      &job->bcl, cl_packet_length(INDEX_BUFFER_SETUP));
+   v3dv_return_if_oom(cmd_buffer, NULL);
+
+   cl_emit(&job->bcl, INDEX_BUFFER_SETUP, ib) {
+      ib.address = v3dv_cl_address(bo, offset);
+      ib.size = size;
    }
 
    cmd_buffer->state.dirty &= ~V3DV_CMD_DIRTY_INDEX_BUFFER;

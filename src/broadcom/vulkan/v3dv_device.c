@@ -2095,9 +2095,10 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
       }
    }
 
-   if (device->vk.enabled_features.nullDescriptor) {
+   if (device->vk.enabled_features.nullDescriptor ||
+       device->vk.enabled_features.maintenance6) {
       device->null_bo =
-         v3dv_bo_alloc(device, 4096, "null texture data", true,
+         v3dv_bo_alloc(device, 4096, "null buffer", true,
                        VK_OBJECT_TYPE_DEVICE,
                        vk_object_to_u64_handle(&device->vk.base));
       if (!device->null_bo ||
