@@ -422,6 +422,11 @@ preprocess_block(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
          if (inst->exec_size != src_inst->exec_size)
             continue;
 
+         /* Accumulator accesses cannot preserve arbitrary source regions. */
+         if (!inst->src[i].is_contiguous() ||
+             inst->src[i].offset != src_inst->dst.offset)
+            continue;
+
          /* If the instruction can be modified, its result type either already
           * is or will be modified to be a float type.
           */

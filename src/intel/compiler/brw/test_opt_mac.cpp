@@ -193,6 +193,27 @@ TEST_F(mac_test, negated_saturated_addend)
    EXPECT_SHADERS_MATCH(bld, exp);
 }
 
+TEST_F(mac_test, broadcast_addend)
+{
+   set_gfx_platform("dg2");
+
+   brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+
+   brw_reg src0 = vgrf(bld, BRW_TYPE_F);
+   brw_reg src1 = vgrf(bld, BRW_TYPE_F);
+   brw_reg tmp = vgrf(bld, BRW_TYPE_F);
+   brw_reg dst = vgrf(bld, BRW_TYPE_F);
+
+   bld.BFREV(retype(src0, BRW_TYPE_UD), brw_imm_ud(1));
+   bld.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(2));
+   bld.MUL(tmp, src0, src1);
+
+   /* MAC would read each channel product instead of broadcasting channel 0. */
+   bld.MAD(dst, component(tmp, 0), src0, src1);
+
+   EXPECT_NO_PROGRESS(brw_opt_mac, bld);
+}
+
 TEST_F(mac_test, chain2)
 {
    /* This test exercises a specific bug that existed during development of
