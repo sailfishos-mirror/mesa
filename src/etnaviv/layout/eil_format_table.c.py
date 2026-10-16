@@ -37,6 +37,7 @@ def main():
         file.write("const struct eil_format eil_format_table[PIPE_FORMAT_COUNT] = {\n")
         for format in formats:
             vtx = f"FE_DATA_TYPE_{format['vtx']}" if "vtx" in format else "0"
+            vtx_gate = f"ETNA_FEATURE_{format['vtx_gate']}" if "vtx_gate" in format else "0"
             tex = f"TEXTURE_FORMAT_{format['tex']}" if "tex" in format else "0"
             tex_gate = (
                 f"ETNA_FEATURE_{format['tex_gate']}" if "tex_gate" in format else "0"
@@ -48,6 +49,7 @@ def main():
 
             file.write(f"[PIPE_FORMAT_{format['pipe']}] = {{\n")
             file.write(f".vtx = {vtx},\n")
+            file.write(f".vtx_gate = {vtx_gate},\n")
             file.write(f".tex = {tex},\n")
             file.write(f".tex_gate = {tex_gate},\n")
             file.write(f".pe = {pe},\n")
@@ -56,6 +58,7 @@ def main():
             file.write(f".has_vtx = {'vtx' in format:d},\n")
             file.write(f".has_tex = {'tex' in format:d},\n")
             file.write(f".has_pe = {'pe' in format:d},\n")
+            file.write(f".vtx_gated = {'vtx_gate' in format:d},\n")
             file.write(f".tex_ext = {'EXT_' in tex:d},\n")
             file.write(f".tex_astc = {'ASTC_' in tex:d},\n")
             file.write(f".tex_gated = {'tex_gate' in format:d},\n")

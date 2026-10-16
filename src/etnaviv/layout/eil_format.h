@@ -23,6 +23,7 @@ enum eil_emulation {
 
 struct eil_format {
    uint32_t vtx; /* FE_DATA_TYPE_* */
+   enum etna_feature vtx_gate;
    uint32_t tex; /* TEXTURE_FORMAT_* */
    enum etna_feature tex_gate;
    uint32_t pe; /* PE_FORMAT_* */
@@ -32,6 +33,7 @@ struct eil_format {
    bool has_vtx    : 1;
    bool has_tex    : 1;
    bool has_pe     : 1;
+   bool vtx_gated  : 1;
    bool tex_ext    : 1; /* TEXTURE_FORMAT_EXT_* space */
    bool tex_astc   : 1; /* TEXTURE_FORMAT_ASTC_* space */
    bool tex_gated  : 1;

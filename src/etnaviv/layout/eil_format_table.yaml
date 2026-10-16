@@ -4,6 +4,7 @@
 # Possible values
 # pipe: enum name that the format info belongs to, prefixed with PIPE_FORMAT_.
 # vtx: Vertex format that gets mapped, prefixed with FE_DATA_TYPE_.
+# vtx_gate: GPU feature required to support the format for vertex fetches, prefixed with ETNA_FEATURE_.
 # tex: Texture format that gets mapped, prefixed with TEXTURE_FORMAT_.
 # tex_gate: GPU feature required to support the format as texture, prefixed with ETNA_FEATURE_.
 # pe: PE format that get's mapped, prefixed with PE_FORMAT_.
@@ -28,12 +29,14 @@
 
 - pipe: R8_UINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R8I
 
 - pipe: R8_SINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R8I
@@ -62,12 +65,14 @@
 
 - pipe: R16_UINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R16I
 
 - pipe: R16_SINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R16I
@@ -123,12 +128,14 @@
 
 - pipe: R8G8_UINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G8R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G8R8I
 
 - pipe: R8G8_SINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G8R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G8R8I
@@ -148,9 +155,11 @@
 
 - pipe: R8G8B8_UINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R8G8B8_SINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R8G8B8_USCALED
   vtx: UNSIGNED_BYTE
@@ -167,12 +176,14 @@
 
 - pipe: R32_UINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R32F
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R32F
 
 - pipe: R32_SINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_R32F
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: R32F
@@ -212,12 +223,14 @@
 
 - pipe: R16G16_UINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G16R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G16R16I
 
 - pipe: R16G16_SINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G16R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G16R16I
@@ -259,12 +272,14 @@
 
 - pipe: R8G8B8A8_UINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_A8B8G8R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: A8B8G8R8I
 
 - pipe: R8G8B8A8_SINT
   vtx: BYTE_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_A8B8G8R8I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: A8B8G8R8I
@@ -289,6 +304,7 @@
 
 - pipe: R10G10B10A2_UNORM
   vtx: UNSIGNED_INT_2_10_10_10_REV
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
   tex: EXT_A2B10G10R10
   tex_gate: HALTI0 # Extd. format needs HALTI0
   pe: A2B10G10R10
@@ -300,6 +316,7 @@
 
 - pipe: R10G10B10A2_SNORM
   vtx: INT_2_10_10_10_REV
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: R10G10B10A2_UINT
   tex: EXT_A2B10G10R10UI
@@ -308,21 +325,27 @@
 
 - pipe: R10G10B10A2_USCALED
   vtx: UNSIGNED_INT_2_10_10_10_REV
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: R10G10B10A2_SSCALED
   vtx: INT_2_10_10_10_REV
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: B10G10R10A2_UNORM
   vtx: UNSIGNED_INT_10_10_10_2
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: B10G10R10A2_SNORM
   vtx: INT_10_10_10_2
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: B10G10R10A2_USCALED
   vtx: UNSIGNED_INT_10_10_10_2
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: B10G10R10A2_SSCALED
   vtx: INT_10_10_10_2
+  vtx_gate: HALTI2                      # ARB_vertex_type_2_10_10_10_rev needs HALTI2
 
 - pipe: X8Z24_UNORM
   tex: D24X8
@@ -364,9 +387,11 @@
 
 - pipe: R16G16B16_UINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R16G16B16_SINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R16G16B16_USCALED
   vtx: UNSIGNED_SHORT
@@ -386,12 +411,14 @@
 
 - pipe: R16G16B16A16_UINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_A16B16G16R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: A16B16G16R16I
 
 - pipe: R16G16B16A16_SINT
   vtx: SHORT_I
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_A16B16G16R16I
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: A16B16G16R16I
@@ -416,12 +443,14 @@
 
 - pipe: R32G32_UINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G32R32F
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G32R32F
 
 - pipe: R32G32_SINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G32R32F
   tex_gate: HALTI2 # pure int needs HALTI2
   pe: G32R32F
@@ -450,9 +479,11 @@
 
 - pipe: R32G32B32_UINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R32G32B32_SINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
 
 - pipe: R32G32B32_USCALED
   vtx: UNSIGNED_INT
@@ -475,6 +506,7 @@
 
 - pipe: R32G32B32A32_UINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G32R32I
   tex_gate: HALTI5 # G32R32I emu needs HALTI5
   pe: G32R32F
@@ -483,6 +515,7 @@
 
 - pipe: R32G32B32A32_SINT
   vtx: FLOAT
+  vtx_gate: HALTI2                      # pure int needs HALTI2
   tex: EXT_G32R32I
   tex_gate: HALTI5 # G32R32I emu needs HALTI5
   pe: G32R32F
