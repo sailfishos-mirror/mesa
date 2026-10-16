@@ -679,6 +679,8 @@ dri_flush(struct dri_context *ctx,
    if (reason == __DRI2_THROTTLE_SWAPBUFFER ||
        reason == __DRI2_NOTHROTTLE_SWAPBUFFER)
       flush_flags |= ST_FLUSH_END_OF_FRAME;
+   if (flags & __DRI2_FLUSH_ASYNC)
+      flush_flags |= ST_FLUSH_ASYNC;
 
    /* Flush the context and throttle if needed. */
    if (ctx->screen->throttle &&

@@ -89,6 +89,8 @@ enum st_attachment_type {
 #define ST_FLUSH_END_OF_FRAME             (1 << 1)
 #define ST_FLUSH_WAIT                     (1 << 2)
 #define ST_FLUSH_FENCE_FD                 (1 << 3)
+/* the flush may complete after the call returns (PIPE_FLUSH_ASYNC) */
+#define ST_FLUSH_ASYNC                    (1 << 4)
 
 /**
  * State invalidation flags to notify st_context that states have been changed

@@ -796,6 +796,8 @@ st_context_flush(struct st_context *st, unsigned flags,
       pipe_flags |= PIPE_FLUSH_END_OF_FRAME;
    if (flags & ST_FLUSH_FENCE_FD)
       pipe_flags |= PIPE_FLUSH_FENCE_FD;
+   if (flags & ST_FLUSH_ASYNC)
+      pipe_flags |= PIPE_FLUSH_ASYNC;
 
    /* We can do these in any order because FLUSH_VERTICES will also flush
     * the bitmap cache if there are any unflushed vertices.

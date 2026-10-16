@@ -474,8 +474,9 @@ kopperSwapBuffers(struct dri_drawable *drawable, uint32_t flush_flags, int nrect
 
    drawable->texture_stamp = drawable->lastStamp - 1;
 
+   /* only windows present, and the present syncs tc after the flush is queued */
    dri_flush(ctx, drawable,
-             __DRI2_FLUSH_DRAWABLE | flush_flags,
+             __DRI2_FLUSH_DRAWABLE | (drawable->is_window ? __DRI2_FLUSH_ASYNC : 0) | flush_flags,
              __DRI2_THROTTLE_SWAPBUFFER);
 
    struct pipe_box stack_boxes[64];
