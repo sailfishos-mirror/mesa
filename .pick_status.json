@@ -6774,7 +6774,7 @@
         "description": "vulkan/meta: correct image-resolve for 3D image",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "39a857312aeefe3d2db606271f240cfc50b57f54",
         "notes": null
