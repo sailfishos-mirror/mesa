@@ -5072,7 +5072,7 @@ impl fmt::Display for PrmtMode {
             PrmtMode::Backward4Extract => write!(f, ".b4e"),
             PrmtMode::Replicate8 => write!(f, ".rc8"),
             PrmtMode::EdgeClampLeft => write!(f, ".ecl"),
-            PrmtMode::EdgeClampRight => write!(f, ".ecl"),
+            PrmtMode::EdgeClampRight => write!(f, ".ecr"),
             PrmtMode::Replicate16 => write!(f, ".rc16"),
         }
     }
