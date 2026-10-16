@@ -2097,8 +2097,12 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
 
    if (device->vk.enabled_features.nullDescriptor ||
        device->vk.enabled_features.maintenance6) {
+      const uint32_t null_bo_size =
+         device->vk.enabled_features.maintenance6 ?
+            V3DV_NULL_BO_SIZE_MAINTENANCE6 : 4096;
+
       device->null_bo =
-         v3dv_bo_alloc(device, 4096, "null buffer", true,
+         v3dv_bo_alloc(device, null_bo_size, "null texture data", true,
                        VK_OBJECT_TYPE_DEVICE,
                        vk_object_to_u64_handle(&device->vk.base));
       if (!device->null_bo ||
@@ -2742,6 +2746,15 @@ v3dv_GetDeviceImageMemoryRequirements(
 }
 
 static void
+set_bind_status(const void *pNext, VkResult result)
+{
+   const VkBindMemoryStatusKHR *status =
+      vk_find_struct_const(pNext, BIND_MEMORY_STATUS_KHR);
+   if (status && status->pResult)
+      *status->pResult = result;
+}
+
+static void
 bind_image_memory(const VkBindImageMemoryInfo *info)
 {
    V3DV_FROM_HANDLE(v3dv_image, image, info->image);
@@ -2797,7 +2810,13 @@ v3dv_BindImageMemory2(VkDevice _device,
                       uint32_t bindInfoCount,
                       const VkBindImageMemoryInfo *pBindInfos)
 {
+   /* VK_KHR_maintenance6: we must attempt every bind even if some fail, and
+    * return the result of one of the failed ones.
+    */
+   VkResult ret = VK_SUCCESS;
+
    for (uint32_t i = 0; i < bindInfoCount; i++) {
+      set_bind_status(pBindInfos[i].pNext, VK_SUCCESS);
 #if DETECT_OS_ANDROID
       V3DV_FROM_HANDLE(v3dv_image, image, pBindInfos[i].image);
       if (vk_image_is_android_hardware_buffer(&image->vk) ||
@@ -2827,20 +2846,32 @@ v3dv_BindImageMemory2(VkDevice _device,
                                                V3DV_MAX_PLANE_COUNT);
          }
 
-         if (result != VK_SUCCESS)
-            return result;
+         if (result != VK_SUCCESS) {
+            set_bind_status(pBindInfos[i].pNext, result);
+            if (ret == VK_SUCCESS)
+               ret = result;
+            continue;
+         }
 
          result = v3dv_update_image_layout(device, image,
                                            eci.drmFormatModifier,
                                            /* disjoint = */ false, &eci);
-         if (result != VK_SUCCESS)
-            return result;
+         if (result != VK_SUCCESS) {
+            set_bind_status(pBindInfos[i].pNext, result);
+            if (ret == VK_SUCCESS)
+               ret = result;
+            continue;
+         }
 
          if (vk_image_is_android_native_buffer_alias(&image->vk)) {
             result = vk_android_import_anb_memory(&device->vk, &image->vk, anb,
                                                   &device->vk.alloc);
-            if (result != VK_SUCCESS)
-               return result;
+            if (result != VK_SUCCESS) {
+               set_bind_status(pBindInfos[i].pNext, result);
+               if (ret == VK_SUCCESS)
+                  ret = result;
+               continue;
+            }
 
             VkBindImageMemoryInfo local_bind = pBindInfos[i];
             local_bind.memory = image->vk.anb_memory;
@@ -2872,7 +2903,7 @@ v3dv_BindImageMemory2(VkDevice _device,
       }
    }
 
-   return VK_SUCCESS;
+   return ret;
 }
 
 void
@@ -2965,6 +2996,7 @@ v3dv_buffer_bind_memory(const VkBindBufferMemoryInfo *info)
 
    buffer->mem = mem;
    buffer->mem_offset = info->memoryOffset;
+   set_bind_status(info->pNext, VK_SUCCESS);
 }
 
 
