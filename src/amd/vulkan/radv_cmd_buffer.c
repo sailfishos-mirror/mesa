@@ -12070,6 +12070,29 @@ radv_emit_userdata_mesh(struct radv_cmd_buffer *cmd_buffer, const struct radv_ta
 }
 
 ALWAYS_INLINE static void
+radv_emit_userdata_mesh_indirect(struct radv_cmd_buffer *cmd_buffer)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_cmd_state *state = &cmd_buffer->state;
+   const struct radv_shader *mesh_shader = state->shaders[MESA_SHADER_MESH];
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   if (!state->uses_drawid)
+      return;
+
+   const uint32_t reg = state->vtx_base_sgpr + (mesh_shader->info.cs.uses_grid_size ? 12 : 0);
+
+   radeon_begin(cs);
+   if (pdev->info.gfx_level >= GFX12) {
+      gfx12_push_sh_reg(reg, 0);
+   } else {
+      radeon_set_sh_reg(reg, 0);
+   }
+   radeon_end();
+}
+
+ALWAYS_INLINE static void
 radv_emit_userdata_task(const struct radv_device *device, const struct radv_cmd_state *cmd_state,
                         struct radv_cmd_stream *ace_cs, const struct radv_taskmesh_userdata *userdata)
 {
@@ -12381,15 +12404,6 @@ radv_emit_indirect_mesh_draw_packets(const struct radv_physical_device *pdev, st
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radv_emit_indirect_buffer(cs, info->indirect_va, false);
-
-   if (state->uses_drawid) {
-      const struct radv_shader *mesh_shader = state->shaders[MESA_SHADER_MESH];
-      unsigned reg = state->vtx_base_sgpr + (mesh_shader->info.cs.uses_grid_size ? 12 : 0);
-
-      radeon_begin(cs);
-      radeon_set_sh_reg(reg, 0);
-      radeon_end();
-   }
 
    if (!state->render.view_mask) {
       radv_cs_emit_indirect_mesh_draw_packet(cmd_buffer, info->count, info->count_va, info->stride);
@@ -14584,6 +14598,8 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       } else {
          radv_emit_userdata_mesh(cmd_buffer, userdata);
       }
+   } else if (!task_shader && !dgc) {
+      radv_emit_userdata_mesh_indirect(cmd_buffer);
    }
 
    radv_gfx12_emit_buffered_regs(device, cs);
