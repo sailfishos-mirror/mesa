@@ -6533,7 +6533,7 @@ emit_prolog_regs(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *v
    if (pdev->info.gfx_level >= GFX12) {
       gfx12_push_sh_reg(vs_shader->regs.pgm_lo, prolog->va >> 8);
       gfx12_push_sh_reg(vs_shader->regs.pgm_rsrc1, rsrc1);
-      if (vs_shader->info.merged_shader_compiled_separately)
+      if (vs_shader->info.merged_shader_compiled_separately && vs_shader->info.next_stage == MESA_SHADER_GEOMETRY)
          gfx12_push_sh_reg(vs_shader->regs.pgm_rsrc2, rsrc2);
 
       if (prolog->key.vs.is_ngg) {
@@ -6545,7 +6545,7 @@ emit_prolog_regs(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *v
    } else {
       radeon_set_sh_reg(vs_shader->regs.pgm_lo, prolog->va >> 8);
       radeon_set_sh_reg(vs_shader->regs.pgm_rsrc1, rsrc1);
-      if (vs_shader->info.merged_shader_compiled_separately)
+      if (vs_shader->info.merged_shader_compiled_separately && vs_shader->info.next_stage == MESA_SHADER_GEOMETRY)
          radeon_set_sh_reg(vs_shader->regs.pgm_rsrc2, rsrc2);
 
       if (pdev->info.gfx_level >= GFX11) {
