@@ -593,7 +593,7 @@ static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_
    if (sctx->gfx_level >= GFX10 && waves_per_threadgroup == 1)
       threadgroups_per_cu = 2;
 
-   if (unlikely(sctx->sqtt.enabled)) {
+   if (unlikely(si_is_sqtt_active(sctx))) {
       if (info->indirect) {
          si_sqtt_write_event_marker(sctx, &sctx->gfx_cs,
                                     EventCmdDispatchIndirect,
@@ -795,7 +795,7 @@ static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_
       radeon_emit(dispatch_initiator);
    }
 
-   if (unlikely(sctx->sqtt.enabled && sctx->gfx_level >= GFX9))
+   if (unlikely(si_is_sqtt_active(sctx) && sctx->gfx_level >= GFX9))
       radeon_event_write(V_028A90_THREAD_TRACE_MARKER);
 
    radeon_end();

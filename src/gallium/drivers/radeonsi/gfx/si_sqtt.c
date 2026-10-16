@@ -455,6 +455,11 @@ static void si_sqtt_reset_queue_state(struct si_context *sctx)
    sctx->sqtt.cb_id = 0;
 }
 
+bool si_is_sqtt_active(const struct si_context *sctx)
+{
+   return sctx->sqtt.status == SQTT_STATUS_TRACING;
+}
+
 void si_destroy_sqtt(struct si_context *sctx)
 {
    struct si_screen *sscreen = sctx->screen;
@@ -533,6 +538,8 @@ void si_destroy_sqtt(struct si_context *sctx)
 static uint64_t num_frames = 0, num_submits = 0;
 
 static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
+   if (sctx->sqtt.status != SQTT_STATUS_OFF)
+      return false;
    if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_SUBMIT)
       return num_submits == sctx->sqtt.start_frame;
    /* after the first frame, frames belong to the contexts that present them */
@@ -555,6 +562,8 @@ static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
 }
 
 static bool si_sqtt_must_stop_capture(const struct si_context *sctx, bool end_of_frame) {
+   if (sctx->sqtt.status != SQTT_STATUS_TRACING)
+      return false;
    if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_SUBMIT)
       return num_submits >= sctx->sqtt.end_frame;
    /* frame and file based captures cover whole frames */
@@ -572,9 +581,11 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
    struct ac_sqtt_trace sqtt_trace = {0};
    struct pipe_transfer *transfers[2];
 
+   /* reading the trace back flushes, which must not start another capture */
+   sctx->sqtt.status = SQTT_STATUS_STOPPING;
+
    /* Stop SQTT */
    si_end_sqtt(sctx, rcs);
-   sctx->sqtt.enabled = false;
    assert(sctx->sqtt.last_fence);
 
    /* Wait for SQTT to finish and read back the bo */
@@ -605,6 +616,7 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
 
       pipe_buffer_unmap(&sctx->b, transfers[0]);
       sctx->sqtt.data->ptr = NULL;
+      sctx->sqtt.status = SQTT_STATUS_OFF;
    } else if (allow_retry && sctx->sqtt.data->bo) {
       if (!sctx->sqtt.trigger_file) {
          int end_frame = sctx->sqtt.end_frame;
@@ -614,31 +626,28 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
 
       /* Restart SQTT to try to capture the next frame. */
       si_begin_sqtt(sctx, rcs);
-      sctx->sqtt.enabled = true;
+      sctx->sqtt.status = SQTT_STATUS_TRACING;
    }
    si_sqtt_reset_queue_state(sctx);
 }
 
 void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end_of_frame)
 {
-   /* Should we enable SQTT yet? */
-   if (!sctx->sqtt.enabled) {
-      if (si_sqtt_must_start_capture(sctx)) {
-         /* Wait for last submission */
-         if (sctx->last_gfx_fence)
-            sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
-                                 OS_TIMEOUT_INFINITE);
+   if (si_sqtt_must_start_capture(sctx)) {
+      /* Wait for last submission */
+      if (sctx->last_gfx_fence)
+         sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
+                              OS_TIMEOUT_INFINITE);
 
-         /* Start SQTT */
-         si_begin_sqtt(sctx, rcs);
+      /* Start SQTT */
+      si_begin_sqtt(sctx, rcs);
 
-         sctx->sqtt.enabled = true;
+      sctx->sqtt.status = SQTT_STATUS_TRACING;
 
-         /* Force shader update to make sure si_sqtt_describe_pipeline_bind is
-          * called for the current "pipeline".
-          */
-         sctx->dirty_shaders_mask |= SI_SQTT_STATE_DIRTY_BIT;
-      }
+      /* Force shader update to make sure si_sqtt_describe_pipeline_bind is
+         * called for the current "pipeline".
+         */
+      sctx->dirty_shaders_mask |= SI_SQTT_STATE_DIRTY_BIT;
    } else if (si_sqtt_must_stop_capture(sctx, end_of_frame)) {
       si_sqtt_stop_capture(sctx, rcs, true);
    }
@@ -653,7 +662,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end
 /* ends a running capture without starting another one or counting a submit */
 void si_sqtt_finish_capture(struct si_context *sctx)
 {
-   if (sctx->sqtt.enabled)
+   if (sctx->sqtt.status == SQTT_STATUS_TRACING)
       si_sqtt_stop_capture(sctx, &sctx->gfx_cs, false);
 }
 
@@ -949,9 +958,8 @@ void si_sqtt_describe_pipeline_bind(struct si_context *sctx,
    struct rgp_sqtt_marker_pipeline_bind marker = {0};
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
 
-   if (likely(!sctx->sqtt.enabled)) {
+   if (likely(!si_is_sqtt_active(sctx)))
       return;
-   }
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BIND_PIPELINE;
    marker.cb_id = sctx->sqtt.cb_id;
