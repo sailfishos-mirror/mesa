@@ -217,8 +217,6 @@ static VkResult gfxstream_vk_physical_device_init(
         return result;
     }
 
-    physical_device->instance = instance;
-
     get_device_extensions(gfxstream_vk_physical_device_to_handle(physical_device),
                           &physical_device->base.supported_extensions);
 
@@ -565,7 +563,7 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
     }
 
     const VkAllocationCallbacks* pMesaAllocator =
-        pAllocator ?: &gfxstream_physicalDevice->instance->base.alloc;
+        pAllocator ?: &gfxstream_physicalDevice->base.instance->alloc;
 
 
     // Full local copy of pCreateInfo

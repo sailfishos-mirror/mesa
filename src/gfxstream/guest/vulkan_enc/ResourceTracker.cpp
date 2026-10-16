@@ -1406,6 +1406,10 @@ void ResourceTracker::transformImpl_VkExternalMemoryProperties_fromhost(
 void ResourceTracker::setInstanceInfo(VkInstance instance, uint32_t enabledExtensionCount,
                                       const char* const* ppEnabledExtensionNames,
                                       uint32_t apiVersion) {
+    VK_FROM_HANDLE(gfxstream_vk_instance, gfxstream_instance, instance);
+    if (gfxstream_instance) {
+        gfxstream_instance->api_version = apiVersion;
+    }
     std::lock_guard<std::recursive_mutex> lock(mLock);
     auto& info = info_VkInstance[instance];
     info.highestApiVersion = apiVersion;

@@ -88,8 +88,8 @@ struct gfxstream_vk_instance {
 
     struct gfxstream_vk_object_common common;
 
-    uint32_t api_version;
-    bool init_failed;
+    uint32_t api_version = 0;
+    bool init_failed = false;
 };
 VK_DEFINE_HANDLE_CASTS(gfxstream_vk_instance, base.base, VkInstance, VK_OBJECT_TYPE_INSTANCE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_instance, VkInstance)
@@ -102,7 +102,6 @@ struct gfxstream_vk_physical_device {
 
     struct wsi_device wsi_device;
     const struct vk_sync_type* sync_types[2];
-    struct gfxstream_vk_instance* instance;
     bool doImageDrmFormatModifierEmulation;
 };
 VK_DEFINE_HANDLE_CASTS(gfxstream_vk_physical_device, base.base, VkPhysicalDevice,
