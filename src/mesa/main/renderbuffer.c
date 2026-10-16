@@ -553,6 +553,12 @@ void
 _mesa_update_renderbuffer_surface(struct gl_context *ctx,
                                   struct gl_renderbuffer *rb)
 {
+   /* st_finalize_texture may have moved the image to a new resource, for
+    * example when glGenerateMipmap needs storage for more levels
+    */
+   if (rb->is_rtt && rb->TexImage->pt && rb->TexImage->pt != rb->texture)
+      pipe_resource_reference(&rb->texture, rb->TexImage->pt);
+
    struct pipe_resource *resource = rb->texture;
    const struct gl_texture_object *stTexObj = NULL;
    unsigned rtt_width = rb->Width;
