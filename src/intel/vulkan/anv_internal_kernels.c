@@ -356,6 +356,8 @@ compile_shader(struct anv_device *device,
    union brw_any_prog_key key;
    memset(&key, 0, sizeof(key));
 
+   key.base.use_efficient_64bit = device->physical->uses_efficient_64bit;
+
    union brw_any_prog_data prog_data;
    memset(&prog_data, 0, sizeof(prog_data));
 
@@ -471,15 +473,18 @@ exit:
    return kernel;
 }
 
+struct internal_shader_key {
+   char name[40];
+   bool efficient_64bit;
+};
+
 VkResult
 anv_device_get_internal_shader(struct anv_device *device,
                                enum anv_internal_kernel_name name,
                                struct anv_shader_internal **out_bin)
 {
    const struct {
-      struct {
-         char name[40];
-      } key;
+      struct internal_shader_key key;
 
       mesa_shader_stage stage;
       uint16_t local_size[3];
@@ -605,11 +610,13 @@ anv_device_get_internal_shader(struct anv_device *device,
       return VK_SUCCESS;
    }
 
+   struct internal_shader_key key = internal_kernels[name].key;
+   key.efficient_64bit = device->physical->uses_efficient_64bit;
+
    bin =
       anv_device_search_for_kernel(device,
                                    device->internal_cache,
-                                   &internal_kernels[name].key,
-                                   sizeof(internal_kernels[name].key),
+                                   &key, sizeof(key),
                                    NULL);
    if (bin != NULL) {
       p_atomic_set(&device->internal_kernels[name], bin);
@@ -621,8 +628,7 @@ anv_device_get_internal_shader(struct anv_device *device,
                         name,
                         internal_kernels[name].stage,
                         internal_kernels[name].key.name,
-                        &internal_kernels[name].key,
-                        sizeof(internal_kernels[name].key),
+                        &key, sizeof(key),
                         internal_kernels[name].send_count,
                         internal_kernels[name].local_size);
    if (bin == NULL)
