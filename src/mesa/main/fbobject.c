@@ -2768,7 +2768,7 @@ void
 _mesa_renderbuffer_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
                            GLenum internalFormat, GLsizei width,
                            GLsizei height, GLsizei samples,
-                           GLsizei storageSamples)
+                           GLsizei storageSamples, bool msrtt)
 {
    const GLenum baseFormat = _mesa_base_fbo_format(ctx, internalFormat);
 
@@ -2793,7 +2793,8 @@ _mesa_renderbuffer_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
        rb->Width == (GLuint) width &&
        rb->Height == (GLuint) height &&
        rb->NumSamples == samples &&
-       rb->NumStorageSamples == storageSamples) {
+       rb->NumStorageSamples == storageSamples &&
+       rb->msrtt == msrtt) {
       /* no change in allocation needed */
       return;
    }
@@ -2802,6 +2803,7 @@ _mesa_renderbuffer_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
    rb->Format = MESA_FORMAT_NONE;
    rb->NumSamples = samples;
    rb->NumStorageSamples = storageSamples;
+   rb->msrtt = msrtt;
 
    /* Now allocate the storage */
    assert(rb->AllocStorage);
@@ -2840,7 +2842,7 @@ static void
 renderbuffer_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
                      GLenum internalFormat, GLsizei width,
                      GLsizei height, GLsizei samples, GLsizei storageSamples,
-                     const char *func)
+                     bool msrtt, const char *func)
 {
    GLenum baseFormat;
    GLenum sample_count_error;
@@ -2894,7 +2896,7 @@ renderbuffer_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
    }
 
    _mesa_renderbuffer_storage(ctx, rb, internalFormat, width, height, samples,
-                              storageSamples);
+                              storageSamples, msrtt && samples > 0);
 }
 
 /**
@@ -2917,7 +2919,7 @@ renderbuffer_storage_named(GLuint renderbuffer, GLenum internalFormat,
    }
 
    renderbuffer_storage(ctx, rb, internalFormat, width, height, samples,
-                        storageSamples, func);
+                        storageSamples, false, func);
 }
 
 /**
@@ -2928,7 +2930,8 @@ renderbuffer_storage_named(GLuint renderbuffer, GLenum internalFormat,
 static void
 renderbuffer_storage_target(GLenum target, GLenum internalFormat,
                             GLsizei width, GLsizei height, GLsizei samples,
-                            GLsizei storageSamples, const char *func)
+                            GLsizei storageSamples, bool msrtt,
+                            const char *func)
 {
    GET_CURRENT_CONTEXT(ctx);
 
@@ -2944,7 +2947,7 @@ renderbuffer_storage_target(GLenum target, GLenum internalFormat,
    }
 
    renderbuffer_storage(ctx, ctx->CurrentRenderbuffer, internalFormat, width,
-                        height, samples, storageSamples, func);
+                        height, samples, storageSamples, msrtt, func);
 }
 
 void GLAPIENTRY
@@ -2980,6 +2983,7 @@ _mesa_EGLImageTargetRenderbufferStorageOES(GLenum target, GLeglImageOES image)
 
    FLUSH_VERTICES(ctx, _NEW_BUFFERS, 0);
 
+   rb->msrtt = false;
    st_egl_image_target_renderbuffer_storage(ctx, rb, image);
 }
 
@@ -3012,7 +3016,7 @@ _mesa_RenderbufferStorage(GLenum target, GLenum internalFormat,
     * a token value here just for error reporting purposes.
     */
    renderbuffer_storage_target(target, internalFormat, width, height,
-                               NO_SAMPLES, 0, "glRenderbufferStorage");
+                               NO_SAMPLES, 0, false, "glRenderbufferStorage");
 }
 
 
@@ -3022,7 +3026,7 @@ _mesa_RenderbufferStorageMultisample(GLenum target, GLsizei samples,
                                      GLsizei width, GLsizei height)
 {
    renderbuffer_storage_target(target, internalFormat, width, height,
-                               samples, samples,
+                               samples, samples, false,
                                "glRenderbufferStorageMultisample");
 }
 
@@ -3047,7 +3051,7 @@ _mesa_RenderbufferStorageMultisampleEXT(GLenum target, GLsizei samples,
    }
 
    renderbuffer_storage_target(target, internalFormat, width, height,
-                               samples, samples,
+                               samples, samples, _mesa_is_gles(ctx),
                                "glRenderbufferStorageMultisampleEXT");
 }
 
@@ -3069,7 +3073,7 @@ _mesa_RenderbufferStorageMultisampleAdvancedAMD(
    }
 
    renderbuffer_storage_target(target, internalFormat, width, height,
-                               samples, storageSamples,
+                               samples, storageSamples, false,
                                "glRenderbufferStorageMultisampleAdvancedAMD");
 }
 
@@ -3102,7 +3106,7 @@ _mesa_NamedRenderbufferStorageEXT(GLuint renderbuffer, GLenum internalformat,
    _mesa_HashUnlockMutex(&ctx->Shared->RenderBuffers);
 
    renderbuffer_storage(ctx, rb, internalformat, width, height, NO_SAMPLES,
-                        0, "glNamedRenderbufferStorageEXT");
+                        0, false, "glNamedRenderbufferStorageEXT");
 }
 
 
@@ -3134,7 +3138,7 @@ _mesa_NamedRenderbufferStorageMultisampleEXT(GLuint renderbuffer, GLsizei sample
    _mesa_HashUnlockMutex(&ctx->Shared->RenderBuffers);
 
    renderbuffer_storage(ctx, rb, internalformat, width, height,
-                        samples, samples,
+                        samples, samples, false,
                         "glNamedRenderbufferStorageMultisample");
 }
 
