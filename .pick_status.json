@@ -7294,7 +7294,7 @@
         "description": "wgl: keep the GALLIUM_DRIVER name valid for driconf",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bed69133cda5bb6e29beacd61a665ef653d4d1f9",
         "notes": null
