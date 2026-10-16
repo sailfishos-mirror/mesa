@@ -282,25 +282,32 @@ static void si_end_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
 static bool
 si_sqtt_resize_bo(struct si_context *sctx)
 {
-   /* Destroy the previous thread trace BO. */
-   struct pipe_resource *bo = sctx->sqtt.data->bo;
-   pipe_resource_reference(&bo, NULL);
-   sctx->sqtt.data->bo = NULL;
+   struct pipe_resource *old_bo = sctx->sqtt.data->bo;
+   uint32_t old_size = sctx->sqtt.data->buffer_size;
 
    if (!ac_sqtt_update_bo_size(sctx->sqtt.data, "AMD"))
       return false;
 
-   /* Re-create the thread trace BO. */
-   return si_sqtt_init_bo(sctx);
+   /* keep the current buffer when the bigger one can't be allocated */
+   if (!si_sqtt_init_bo(sctx)) {
+      sctx->sqtt.data->bo = old_bo;
+      sctx->sqtt.data->buffer_size = old_size;
+      return false;
+   }
+
+   pipe_resource_reference(&old_bo, NULL);
+   return true;
 }
 
 static bool si_get_sqtt_trace(struct si_context *sctx,
                               struct ac_sqtt_trace *sqtt,
-                              struct pipe_transfer **transfer)
+                              struct pipe_transfer **transfer,
+                              bool *resized)
 {
    struct pipe_resource *bo = sctx->sqtt.data->bo;
 
    memset(sqtt, 0, sizeof(*sqtt));
+   *resized = false;
 
    sctx->sqtt.data->ptr = pipe_buffer_map(&sctx->b, bo, PIPE_MAP_READ, transfer);
 
@@ -320,6 +327,7 @@ static bool si_get_sqtt_trace(struct si_context *sctx,
             sctx->screen->ws->cs_destroy(sctx->sqtt.stop_cs[i]);
          }
          si_sqtt_init_cs(sctx);
+         *resized = true;
       }
       return false;
    }
@@ -580,6 +588,7 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
 {
    struct ac_sqtt_trace sqtt_trace = {0};
    struct pipe_transfer *transfers[2];
+   bool resized = false;
 
    /* reading the trace back flushes, which must not start another capture */
    sctx->sqtt.status = SQTT_STATUS_STOPPING;
@@ -591,7 +600,7 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
    /* Wait for SQTT to finish and read back the bo */
    if (sctx->ws->fence_wait(sctx->ws, sctx->sqtt.last_fence,
                             OS_TIMEOUT_INFINITE) &&
-       si_get_sqtt_trace(sctx, &sqtt_trace, &transfers[0])) {
+       si_get_sqtt_trace(sctx, &sqtt_trace, &transfers[0], &resized)) {
       struct ac_spm_trace spm_trace;
 
       /* Map the SPM counter buffer */
@@ -617,7 +626,7 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
       pipe_buffer_unmap(&sctx->b, transfers[0]);
       sctx->sqtt.data->ptr = NULL;
       sctx->sqtt.status = SQTT_STATUS_OFF;
-   } else if (allow_retry && sctx->sqtt.data->bo) {
+   } else if (allow_retry && resized) {
       if (!sctx->sqtt.trigger_file) {
          int end_frame = sctx->sqtt.end_frame;
          sctx->sqtt.end_frame += sctx->sqtt.end_frame - sctx->sqtt.start_frame;
