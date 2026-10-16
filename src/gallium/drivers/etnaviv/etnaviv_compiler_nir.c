@@ -1510,7 +1510,7 @@ compile_shader(struct etna_shader_variant *v, bool spill_constants)
 
    NIR_PASS(_, s, etna_nir_lower_bitfield_insert);
    NIR_PASS(_, s, nir_lower_bool_to_int32);
-   NIR_PASS(_, s, etna_lower_alu, c->specs->has_new_transcendentals);
+   NIR_PASS(_, s, etna_lower_alu, etna_core_has_feature(c->info, ETNA_FEATURE_HAS_FAST_TRANSCENDENTALS));
 
    if (spill_constants)
       NIR_PASS(_, s, etna_nir_spill_constants);
