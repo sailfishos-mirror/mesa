@@ -5313,7 +5313,7 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
    struct zink_resource *img = dst->base.b.target == PIPE_BUFFER ? src : dst;
    struct zink_resource *use_img = img;
    struct zink_resource *buf = dst->base.b.target == PIPE_BUFFER ? dst : src;
-   bool needs_present_readback = false;
+   bool needs_present_readback = false, ordered_readback = false;
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    bool buf2img = buf == src;
    bool img_needs_transfer_barrier = !screen->driver_workarounds.general_layout && buf2img && ctx->track_renderpasses;
@@ -5339,6 +5339,13 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
       /* no image to read from */
       if (zink_is_swapchain(use_img) && !zink_kopper_acquire(ctx, use_img, UINT64_MAX))
          return;
+      /* the image goes back to the presentation engine right after the copy, so nothing may be reordered,
+       * except when its layout is undefined: the barrier would then discard what the window's own
+       * clears wrote, which glx-make-current reads back
+       */
+      ordered_readback = needs_present_readback && use_img->layout != VK_IMAGE_LAYOUT_UNDEFINED;
+      if (ordered_readback)
+         ctx->no_reorder++;
       VkImageLayout layout = screen->driver_workarounds.general_layout ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
       screen->image_barrier(ctx, use_img, layout, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
       zink_resource_buffer_transfer_dst_barrier(ctx, buf, box->x, box->width);
@@ -5478,6 +5485,8 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
          zink_resource_disable_unordered_write(buf);
       }
       zink_kopper_present_readback(ctx, img);
+      if (ordered_readback)
+         ctx->no_reorder--;
    }
 
    if (img_needs_transfer_barrier)
