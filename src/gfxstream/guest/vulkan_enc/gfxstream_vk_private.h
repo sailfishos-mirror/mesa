@@ -120,6 +120,8 @@ struct gfxstream_vk_device {
     /* unique queue family indices in which to create the device queues */
     uint32_t* queue_families;
     uint32_t queue_family_count;
+
+    uint32_t api_version = 0;
 };
 VK_DEFINE_HANDLE_CASTS(gfxstream_vk_device, base.base, VkDevice, VK_OBJECT_TYPE_DEVICE)
 GFXSTREAM_DECLARE_VK_OBJECT(gfxstream_vk_device, VkDevice)

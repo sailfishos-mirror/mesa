@@ -1420,6 +1420,11 @@ void ResourceTracker::setDeviceInfo(VkDevice device, VkPhysicalDevice physdev,
                                     const VkPhysicalDeviceMemoryProperties& memProps,
                                     uint32_t enabledExtensionCount,
                                     const char* const* ppEnabledExtensionNames, const void* pNext) {
+    VK_FROM_HANDLE(gfxstream_vk_device, gfxstream_device, device);
+    if (gfxstream_device) {
+        gfxstream_device->api_version = props.apiVersion;
+    }
+
     std::lock_guard<std::recursive_mutex> lock(mLock);
     auto& info = info_VkDevice[device];
     info.physdev = physdev;
@@ -7412,7 +7417,16 @@ void ResourceTracker::on_vkCmdPushDescriptorSet2(
 void ResourceTracker::on_vkCmdPushDescriptorSet2KHR(
     void* context, VkCommandBuffer commandBuffer,
     const VkPushDescriptorSetInfo* pPushDescriptorSetInfo) {
-    on_vkCmdPushDescriptorSet2(context, commandBuffer, pPushDescriptorSetInfo);
+    if (!pPushDescriptorSetInfo) return;
+    VkEncoder* enc = (VkEncoder*)context;
+    std::vector<VkDescriptorImageInfo> transformedImageInfos;
+    std::vector<VkWriteDescriptorSet> transformedWrites;
+    sanitizePushDescriptorWrites(pPushDescriptorSetInfo->descriptorWriteCount,
+                                 pPushDescriptorSetInfo->pDescriptorWrites, transformedWrites,
+                                 transformedImageInfos);
+    VkPushDescriptorSetInfo modifiedInfo = *pPushDescriptorSetInfo;
+    modifiedInfo.pDescriptorWrites = transformedWrites.data();
+    enc->vkCmdPushDescriptorSet2KHR(commandBuffer, &modifiedInfo, true);
 }
 
 // VkPushDescriptorSetWithTemplateInfo has an opaque `const void* pData` field
@@ -8069,7 +8083,15 @@ void ResourceTracker::on_vkCmdBindDescriptorSets2(
 void ResourceTracker::on_vkCmdBindDescriptorSets2KHR(
     void* context, VkCommandBuffer commandBuffer,
     const VkBindDescriptorSetsInfo* pBindDescriptorSetsInfo) {
-    on_vkCmdBindDescriptorSets2(context, commandBuffer, pBindDescriptorSetsInfo);
+    if (!pBindDescriptorSetsInfo) return;
+    VkEncoder* enc = (VkEncoder*)context;
+
+    if (mFeatureInfo.hasVulkanBatchedDescriptorSetUpdate) {
+        addPendingDescriptorSets(commandBuffer, pBindDescriptorSetsInfo->descriptorSetCount,
+                                 pBindDescriptorSetsInfo->pDescriptorSets);
+    }
+
+    enc->vkCmdBindDescriptorSets2KHR(commandBuffer, pBindDescriptorSetsInfo, true);
 }
 
 void ResourceTracker::on_vkCmdPipelineBarrier(

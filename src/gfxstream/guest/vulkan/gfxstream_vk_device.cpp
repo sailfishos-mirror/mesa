@@ -539,6 +539,49 @@ static inline void gfxstream_vk_device_queue_family_fini(struct gfxstream_vk_dev
     vk_free(&dev->base.alloc, dev->queue_families);
 }
 
+// Mesa's device table has a single slot for core and non-core versions of
+// functions with the core versions having precedence (e.g.
+// vkCmdBindIndexBuffer2 and vkCmdBindIndexBuffer2KHR). When the host instance
+// or physical device API version is below 1.4, adjust the dispatch table to
+// route to the extension entrypoints so the guest does not send 1.4 core
+// opcodes to a 1.3 host.
+static void adjust_entrypoints_by_api_version(struct gfxstream_vk_device* gfxstream_device) {
+    auto* gfxstream_instance = reinterpret_cast<gfxstream_vk_instance*>(
+        gfxstream_device->physical_device->base.instance);
+    const uint32_t instance_api_version = gfxstream_instance->api_version;
+    const uint32_t device_api_version = gfxstream_device->api_version;
+
+    if (instance_api_version < VK_API_VERSION_1_4 || device_api_version < VK_API_VERSION_1_4) {
+        if (gfxstream_device->base.enabled_extensions.KHR_maintenance5) {
+            gfxstream_device->base.dispatch_table.CmdBindIndexBuffer2KHR =
+                gfxstream_vk_device_entrypoints.CmdBindIndexBuffer2KHR;
+            gfxstream_device->base.dispatch_table.GetRenderingAreaGranularityKHR =
+                gfxstream_vk_device_entrypoints.GetRenderingAreaGranularityKHR;
+            gfxstream_device->base.dispatch_table.GetDeviceImageSubresourceLayoutKHR =
+                gfxstream_vk_device_entrypoints.GetDeviceImageSubresourceLayoutKHR;
+            gfxstream_device->base.dispatch_table.GetImageSubresourceLayout2KHR =
+                gfxstream_vk_device_entrypoints.GetImageSubresourceLayout2KHR;
+        }
+        if (gfxstream_device->base.enabled_extensions.KHR_maintenance6) {
+            gfxstream_device->base.dispatch_table.CmdBindDescriptorSets2KHR =
+                gfxstream_vk_device_entrypoints.CmdBindDescriptorSets2KHR;
+            gfxstream_device->base.dispatch_table.CmdPushConstants2KHR =
+                gfxstream_vk_device_entrypoints.CmdPushConstants2KHR;
+            gfxstream_device->base.dispatch_table.CmdPushDescriptorSet2KHR =
+                gfxstream_vk_device_entrypoints.CmdPushDescriptorSet2KHR;
+            gfxstream_device->base.dispatch_table.CmdPushDescriptorSetWithTemplate2KHR =
+                gfxstream_vk_device_entrypoints.CmdPushDescriptorSetWithTemplate2KHR;
+        }
+        if (gfxstream_device->base.enabled_extensions.KHR_line_rasterization) {
+            gfxstream_device->base.dispatch_table.CmdSetLineStippleKHR =
+                gfxstream_vk_device_entrypoints.CmdSetLineStippleKHR;
+        } else if (gfxstream_device->base.enabled_extensions.EXT_line_rasterization) {
+            gfxstream_device->base.dispatch_table.CmdSetLineStippleEXT =
+                gfxstream_vk_device_entrypoints.CmdSetLineStippleEXT;
+        }
+    }
+}
+
 VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
                                    const VkDeviceCreateInfo* pCreateInfo,
                                    const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {
@@ -603,6 +646,8 @@ VkResult gfxstream_vk_CreateDevice(VkPhysicalDevice physicalDevice,
 
     gfxstream_device->physical_device = gfxstream_physicalDevice;
     gfxstream_device->base.command_dispatch_table = &gfxstream_device->cmd_dispatch;
+
+    adjust_entrypoints_by_api_version(gfxstream_device);
 
     result = gfxstream_vk_device_queue_family_init(gfxstream_device, pCreateInfo);
     if (result != VK_SUCCESS) {
