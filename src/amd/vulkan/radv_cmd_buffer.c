@@ -10517,6 +10517,8 @@ radv_merge_queue_state(const struct radv_cmd_buffer_queue_state *src, struct rad
 static void
 radv_invalidate_state(struct radv_cmd_buffer *cmd_buffer)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_rendering_state render_save = cmd_buffer->state.render;
    uint32_t active_pipeline_queries_save = cmd_buffer->state.active_pipeline_queries;
    uint32_t active_emulated_pipeline_queries_save = cmd_buffer->state.active_emulated_pipeline_queries;
@@ -10549,6 +10551,9 @@ radv_invalidate_state(struct radv_cmd_buffer *cmd_buffer)
    radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
 
    radv_init_default_state(cmd_buffer);
+
+   /* Reset all tracked registers after executing a secondary because it's safer. */
+   ac_init_tracked_regs(&cmd_buffer->cs->tracked_regs, &pdev->info, false);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -10644,21 +10649,6 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
       device->ws->cs_execute_secondary(primary_cs->b, secondary_cs->b, allow_ib2);
 
       primary->state.uses_draw_indirect |= secondary->state.uses_draw_indirect;
-
-      for (uint32_t reg = 0; reg < AC_NUM_ALL_TRACKED_REGS; reg++) {
-         if (!BITSET_TEST(secondary_cs->tracked_regs.reg_saved_mask, reg))
-            continue;
-
-         BITSET_SET(primary_cs->tracked_regs.reg_saved_mask, reg);
-         primary_cs->tracked_regs.reg_value[reg] = secondary_cs->tracked_regs.reg_value[reg];
-      }
-
-      memcpy(primary_cs->tracked_regs.spi_ps_input_cntl, secondary_cs->tracked_regs.spi_ps_input_cntl,
-             sizeof(primary_cs->tracked_regs.spi_ps_input_cntl));
-      memcpy(primary_cs->tracked_regs.cb_blend_control, secondary_cs->tracked_regs.cb_blend_control,
-             sizeof(primary_cs->tracked_regs.cb_blend_control));
-      memcpy(primary_cs->tracked_regs.sx_mrt_blend_opt, secondary_cs->tracked_regs.sx_mrt_blend_opt,
-             sizeof(primary_cs->tracked_regs.sx_mrt_blend_opt));
    }
 
    /* From the Vulkan spec 1.4.349:

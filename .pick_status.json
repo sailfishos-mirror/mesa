@@ -934,7 +934,7 @@
         "description": "radv: reset all tracked registers after executing a secondary",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "128a3e1b452d3c8a322be0f5aa00fc98fc829781",
         "notes": null
