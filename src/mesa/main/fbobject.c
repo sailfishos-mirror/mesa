@@ -3826,13 +3826,6 @@ check_multiview_texture_target(struct gl_context *ctx, GLuint texture, GLenum ta
             _mesa_enum_to_string(target));
       ret = false;
    }
-   else if (level > 0)
-   {
-       _mesa_error(ctx, GL_INVALID_OPERATION,
-            "%s(invalid texture target %s), multisample is supported by OVR_multiview2", caller,
-            _mesa_enum_to_string(target));
-      ret = false;
-   }
    else if ((numViews > MAX_VIEWS_OVR) || (numViews <= 0))
    {
       _mesa_error(ctx, GL_INVALID_VALUE,
@@ -4497,11 +4490,7 @@ frame_buffer_texture(GLuint framebuffer, GLenum target,
       if (multiview) {
          /* We do this regardless of no_error because this sets multiviews */
          if (!check_multiview_texture_target(ctx, texture, texObj->Target, level, layer, numviews, func))
-         {
-            _mesa_error(ctx, GL_INVALID_OPERATION, "%s(invalid target %s)",
-                        func, _mesa_enum_to_string(target));
             return;
-         }
       }
 
       if (!no_error) {
