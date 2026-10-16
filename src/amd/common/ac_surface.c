@@ -1597,6 +1597,9 @@ static void ac_compute_cmask(const struct radeon_info *info, const struct ac_sur
 
    unsigned base_align = num_pipes * pipe_interleave_bytes;
 
+   if (surf->flags & RADEON_SURF_TC_COMPATIBLE_CMASK && surf->fmask_size)
+      base_align *= surf->u.legacy.color.fmask.num_banks;
+
    unsigned width = align(surf->u.legacy.level[0].nblk_x, cl_width * 8);
    unsigned height = align(surf->u.legacy.level[0].nblk_y, cl_height * 8);
    unsigned slice_elements = (width * height) / (8 * 8);
@@ -1617,7 +1620,7 @@ static void ac_compute_cmask(const struct radeon_info *info, const struct ac_sur
       num_layers = config->info.array_size;
 
    surf->cmask_alignment_log2 = util_logbase2(MAX2(256, base_align));
-   surf->cmask_slice_size = align(slice_bytes, base_align);
+   surf->cmask_slice_size = align(slice_bytes, num_pipes * pipe_interleave_bytes);
    surf->cmask_size = surf->cmask_slice_size * num_layers;
 }
 
@@ -2205,6 +2208,7 @@ static int gfx6_compute_surface(struct ac_addrlib *const addrlib,
 
       surf->u.legacy.color.fmask.tiling_index = fout.tileIndex;
       surf->u.legacy.color.fmask.bankh = fout.pTileInfo->bankHeight;
+      surf->u.legacy.color.fmask.num_banks = fout.pTileInfo->banks;
       surf->u.legacy.color.fmask.pitch_in_pixels = fout.pitch;
 
       /* Compute tile swizzle for FMASK. */
