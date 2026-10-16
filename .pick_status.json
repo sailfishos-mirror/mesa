@@ -184,7 +184,7 @@
         "description": "zink: create msrtss transients with only the attached level",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fbff2b6c6525844f243c229d9c028939c772597b",
         "notes": null
