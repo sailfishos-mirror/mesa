@@ -1058,7 +1058,7 @@ static void gfx6_clear(struct pipe_context *ctx, unsigned buffers,
          si_set_barrier_flags(sctx, AC_BARRIER_SYNC_VS);
    }
 
-   if (unlikely(sctx->sqtt.enabled)) {
+   if (unlikely(si_is_sqtt_active(sctx))) {
       if (buffers & PIPE_CLEAR_COLOR)
          sctx->sqtt.next_event = EventCmdClearColorImage;
       else if (buffers & PIPE_CLEAR_DEPTHSTENCIL)
@@ -1109,7 +1109,7 @@ static void gfx12_clear(struct pipe_context *ctx, unsigned buffers,
    if (!buffers)
       return; /* all buffers have been cleared */
 
-   if (unlikely(sctx->sqtt.enabled)) {
+   if (unlikely(si_is_sqtt_active(sctx))) {
       if (buffers & PIPE_CLEAR_COLOR)
          sctx->sqtt.next_event = EventCmdClearColorImage;
       else if (buffers & PIPE_CLEAR_DEPTHSTENCIL)

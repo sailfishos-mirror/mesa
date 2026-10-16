@@ -1443,7 +1443,7 @@ static void si_emit_draw_packets(struct si_context *sctx, const struct pipe_draw
 {
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
 
-   if (unlikely(sctx->sqtt.enabled)) {
+   if (unlikely(si_is_sqtt_active(sctx))) {
       si_sqtt_write_event_marker(sctx, &sctx->gfx_cs, sctx->sqtt.next_event,
                                  UINT_MAX, UINT_MAX, UINT_MAX);
    }
@@ -1890,7 +1890,7 @@ static void si_emit_draw_packets(struct si_context *sctx, const struct pipe_draw
       }
    }
 
-   if (GFX_VERSION >= GFX9 && unlikely(sctx->sqtt.enabled))
+   if (GFX_VERSION >= GFX9 && unlikely(si_is_sqtt_active(sctx)))
      radeon_event_write(V_028A90_THREAD_TRACE_MARKER);
    radeon_end();
 }
