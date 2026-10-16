@@ -1280,6 +1280,7 @@ struct si_context {
       struct pipe_fence_handle *last_fence;
       enum rgp_sqtt_marker_event_type next_event;
       bool enabled;
+      bool presents;
       struct si_sqtt_timestamp timestamp;
       uint64_t device_id;
       uint32_t cb_id;

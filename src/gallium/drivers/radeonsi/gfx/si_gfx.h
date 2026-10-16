@@ -114,6 +114,7 @@ si_sqtt_describe_barrier_end(struct si_context* sctx, struct radeon_cmdbuf *rcs,
 bool si_init_sqtt(struct si_context *sctx);
 void si_destroy_sqtt(struct si_context *sctx);
 MESAPROC void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end_of_frame) TAILV;
+MESAPROC void si_sqtt_finish_capture(struct si_context *sctx) TAILV;
 MESAPROC void si_sqtt_describe_begin(struct si_context *sctx, struct radeon_cmdbuf *rcs) TAILV;
 MESAPROC void si_sqtt_describe_flush(struct si_context *sctx) TAILV;
 
