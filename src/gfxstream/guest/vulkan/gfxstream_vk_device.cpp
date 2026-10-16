@@ -201,19 +201,6 @@ static void get_device_extensions(VkPhysicalDevice physDevInternal,
 
 static VkResult gfxstream_vk_physical_device_init(
     struct gfxstream_vk_physical_device* physical_device, struct gfxstream_vk_instance* instance) {
-    struct vk_device_extension_table supported_extensions = {};
-    get_device_extensions(gfxstream_vk_physical_device_to_handle(physical_device),
-                          &supported_extensions);
-
-    // VK_EXT_image_drm_format_modifier support is either emulated, or passthrough using
-    // host functionality
-    if (!supported_extensions.EXT_image_drm_format_modifier) {
-        physical_device->doImageDrmFormatModifierEmulation = true;
-        supported_extensions.EXT_image_drm_format_modifier = true;
-    } else {
-        physical_device->doImageDrmFormatModifierEmulation = false;
-    }
-
     struct vk_physical_device_dispatch_table dispatch_table;
     memset(&dispatch_table, 0, sizeof(struct vk_physical_device_dispatch_table));
     vk_physical_device_dispatch_table_from_entrypoints(
@@ -224,18 +211,32 @@ static VkResult gfxstream_vk_physical_device_init(
 #endif
 
     // Initialize the mesa object
-    VkResult result = vk_physical_device_init(&physical_device->base, &instance->base,
-                                              &supported_extensions, NULL, NULL, &dispatch_table);
-
-    if (result == VK_SUCCESS) {
-        physical_device->instance = instance;
-        // Note: Must use dummy_sync for correct sync object path in WSI operations
-        physical_device->sync_types[0] = &vk_sync_dummy_type;
-        physical_device->sync_types[1] = NULL;
-        physical_device->base.supported_sync_types = physical_device->sync_types;
-
-        result = gfxstream_vk_wsi_init(physical_device);
+    VkResult result = vk_physical_device_init(&physical_device->base, &instance->base, NULL, NULL,
+                                              NULL, &dispatch_table);
+    if (result != VK_SUCCESS) {
+        return result;
     }
+
+    physical_device->instance = instance;
+
+    get_device_extensions(gfxstream_vk_physical_device_to_handle(physical_device),
+                          &physical_device->base.supported_extensions);
+
+    // VK_EXT_image_drm_format_modifier support is either emulated, or passthrough using
+    // host functionality
+    if (!physical_device->base.supported_extensions.EXT_image_drm_format_modifier) {
+        physical_device->doImageDrmFormatModifierEmulation = true;
+        physical_device->base.supported_extensions.EXT_image_drm_format_modifier = true;
+    } else {
+        physical_device->doImageDrmFormatModifierEmulation = false;
+    }
+
+    // Note: Must use dummy_sync for correct sync object path in WSI operations
+    physical_device->sync_types[0] = &vk_sync_dummy_type;
+    physical_device->sync_types[1] = NULL;
+    physical_device->base.supported_sync_types = physical_device->sync_types;
+
+    result = gfxstream_vk_wsi_init(physical_device);
 
     return result;
 }
