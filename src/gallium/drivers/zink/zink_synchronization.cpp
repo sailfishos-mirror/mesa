@@ -499,6 +499,9 @@ zink_check_valid_buffer_src_access(struct zink_context *ctx, struct zink_resourc
 void
 zink_resource_image_transfer_dst_barrier(struct zink_context *ctx, struct zink_resource *res, unsigned level, const struct pipe_box *box, bool unsync)
 {
+   /* the msrtss emulation's samples no longer match the image, so reload them before the next draw */
+   if (res->transient && res->transient->base.b.nr_samples > 1)
+      res->transient->valid = false;
    if (res->obj->copies_need_reset)
       zink_resource_copies_reset(res);
    /* skip TRANSFER_DST barrier if no intersection from previous copies */
