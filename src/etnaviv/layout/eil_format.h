@@ -27,6 +27,7 @@ struct eil_format {
    uint32_t tex; /* TEXTURE_FORMAT_* */
    enum etna_feature tex_gate;
    uint32_t pe; /* PE_FORMAT_* */
+   enum etna_feature pe_gate;
    enum eil_emulation emulation;
    enum pipe_format emulated; /* enum pipe_format the HW really sees */
 
@@ -38,6 +39,7 @@ struct eil_format {
    bool tex_astc   : 1; /* TEXTURE_FORMAT_ASTC_* space */
    bool tex_gated  : 1;
    bool pe_rb_swap : 1;
+   bool pe_gated   : 1;
 };
 
 extern const struct eil_format eil_format_table[PIPE_FORMAT_COUNT];

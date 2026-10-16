@@ -43,6 +43,7 @@ def main():
                 f"ETNA_FEATURE_{format['tex_gate']}" if "tex_gate" in format else "0"
             )
             pe = f"PE_FORMAT_{format['pe']}" if "pe" in format else "0"
+            pe_gate = f"ETNA_FEATURE_{format['pe_gate']}" if "pe_gate" in format else "0"
             pe_rb_swap = format.get("rb_swap", False)
             emulated = format.get("emulated", format["pipe"])
             emulation = format.get("emulation", "NONE")
@@ -53,6 +54,7 @@ def main():
             file.write(f".tex = {tex},\n")
             file.write(f".tex_gate = {tex_gate},\n")
             file.write(f".pe = {pe},\n")
+            file.write(f".pe_gate = {pe_gate},\n")
             file.write(f".emulation = EIL_EMU_{emulation},\n")
             file.write(f".emulated = PIPE_FORMAT_{emulated},\n")
             file.write(f".has_vtx = {'vtx' in format:d},\n")
@@ -63,6 +65,7 @@ def main():
             file.write(f".tex_astc = {'ASTC_' in tex:d},\n")
             file.write(f".tex_gated = {'tex_gate' in format:d},\n")
             file.write(f".pe_rb_swap = {pe_rb_swap:d},\n")
+            file.write(f".pe_gated = {'pe_gate' in format:d},\n")
             file.write("},\n")
 
         file.write("};\n")

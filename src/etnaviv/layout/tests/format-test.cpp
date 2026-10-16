@@ -122,6 +122,18 @@ TEST(FormatTable, get_entry_tex_gate)
    EXPECT_EQ(ETNA_FEATURE_HALTI1, r8_snorm->tex_gate);
 }
 
+TEST(FormatTable, get_entry_pe_gate)
+{
+   auto bgra4_unorm = eil_get_format_entry(PIPE_FORMAT_B4G4R4A4_UNORM);
+   EXPECT_TRUE(bgra4_unorm->has_pe);
+   EXPECT_FALSE(bgra4_unorm->pe_gated);
+
+   auto r8_unorm = eil_get_format_entry(PIPE_FORMAT_R8_UNORM);
+   EXPECT_TRUE(r8_unorm->has_pe);
+   EXPECT_TRUE(r8_unorm->pe_gated);
+   EXPECT_EQ(ETNA_FEATURE_HALTI5, r8_unorm->pe_gate);
+}
+
 TEST(Format, is_emulated_z32f)
 {
    /* not defined */
