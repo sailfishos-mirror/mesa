@@ -163,6 +163,36 @@ TEST_F(mac_test, chain_gfx125_simd32)
    EXPECT_SHADERS_MATCH(bld, exp);
 }
 
+TEST_F(mac_test, negated_saturated_addend)
+{
+   set_gfx_platform("dg2");
+
+   brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+   brw_builder exp = make_shader(MESA_SHADER_FRAGMENT, 16);
+
+   brw_reg src0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src1 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg tmp = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg dst = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg acc0 = retype(brw_acc_reg(8 * reg_unit(devinfo)), BRW_TYPE_F);
+
+   bld.BFREV(retype(src0, BRW_TYPE_UD), brw_imm_ud(1));
+   bld.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(2));
+   bld.MUL(tmp, src0, src1)->saturate = true;
+   bld.MAD(dst, negate(tmp), src0, src1);
+
+   EXPECT_PROGRESS(brw_opt_mac, bld);
+
+   /* Keep the negation on MAD: -sat(x * y) is not sat(-x * y). */
+   exp.BFREV(retype(src0, BRW_TYPE_UD), brw_imm_ud(1));
+   exp.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(2));
+   exp.MUL(acc0, src0, src1)->saturate = true;
+   brw_inst *inst = exp.MAD(dst, negate(tmp), src0, src1);
+   inst->src[0] = negate(acc0);
+
+   EXPECT_SHADERS_MATCH(bld, exp);
+}
+
 TEST_F(mac_test, chain2)
 {
    /* This test exercises a specific bug that existed during development of
