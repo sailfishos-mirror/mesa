@@ -577,8 +577,6 @@ class ResourceTracker {
     bool hostSupportsVulkan() const;
     bool usingDirectMapping() const;
     uint32_t getStreamFeatures() const;
-    uint32_t getApiVersionFromInstance(VkInstance instance);
-    uint32_t getApiVersionFromDevice(VkDevice device);
     VkDevice getDevice(VkCommandBuffer commandBuffer) const;
     void addToCommandPool(VkCommandPool commandPool, uint32_t commandBufferCount,
                           VkCommandBuffer* pCommandBuffers);
@@ -704,9 +702,6 @@ class ResourceTracker {
     VkResult exportSyncFdForQSRILocked(VkImage image, int* fd);
 #endif
 
-    void setInstanceInfo(VkInstance instance, uint32_t enabledExtensionCount,
-                         const char* const* ppEnabledExtensionNames, uint32_t apiVersion);
-
     void resetCommandBufferStagingInfo(VkCommandBuffer commandBuffer, bool alsoResetPrimaries,
                                        bool alsoClearPendingDescriptorSets);
 
@@ -754,7 +749,6 @@ class ResourceTracker {
     GOLDFISH_VK_LIST_TRIVIAL_HANDLE_TYPES(HANDLE_DEFINE_TRIVIAL_INFO_STRUCT)
 
     struct VkInstance_Info {
-        uint32_t highestApiVersion;
         // Fodder for vkEnumeratePhysicalDevices.
         std::vector<VkPhysicalDevice> physicalDevices;
     };
@@ -763,7 +757,6 @@ class ResourceTracker {
         VkPhysicalDevice physdev;
         VkPhysicalDeviceProperties props;
         VkPhysicalDeviceMemoryProperties memProps;
-        uint32_t apiVersion;
         std::vector<std::pair<PFN_vkDeviceMemoryReportCallbackEXT, void*>>
             deviceMemoryReportCallbacks;
     };
