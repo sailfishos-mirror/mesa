@@ -269,7 +269,6 @@ zink-radv-navi10-valve:
     HWCI_START_WESTON: 1
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 15
     GPU_VERSION: zink-radv-navi10
-    RADV_EXPERIMENTAL: hic
 
 zink-radv-vangogh-valve:
   timeout: 25m

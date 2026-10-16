@@ -226,9 +226,9 @@ bool
 radv_host_image_copy_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   /* TODO: HIC is supported on GFX9 and GFX10 but it's still experimental there. */
-   return pdev->info.gfx_level >= GFX10_3 ||
-          (pdev->info.gfx_level >= GFX9 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC));
+   /* TODO: HIC is supported on GFX9 but it's still experimental there. */
+   return pdev->info.gfx_level >= GFX10 ||
+          (pdev->info.gfx_level == GFX9 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC));
 }
 
 static bool

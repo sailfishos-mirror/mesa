@@ -248,7 +248,7 @@ radv-navi10-vkcts-full:
     - .radv-valve-manual-rules
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 28
-    RADV_EXPERIMENTAL: transfer_queue,hic,msrtss
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
 
 radv-navi21-vkcts:
   timeout: 18m

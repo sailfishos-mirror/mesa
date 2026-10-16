@@ -1651,7 +1651,7 @@ RADV driver environment variables
       forces ray-tracing to be emulated in software on GFX10_3+ and enables
       rt extensions with older hardware.
    ``hic``
-      enable experimental implementation of VK_EXT_host_image_copy on GFX9-10
+      enable experimental implementation of VK_EXT_host_image_copy on GFX9
    ``msrtss``
       enable experimental implementation of
       VK_EXT_multisampled_render_to_single_sampled
