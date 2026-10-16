@@ -83,8 +83,6 @@ struct etna_specs {
    unsigned has_unified_uniforms : 1;
    /* can load shader instructions from memory */
    unsigned has_icache : 1;
-   /* has BLT engine instead of RS */
-   unsigned use_blt : 1;
    /* has correct stencil 0 valuemask */
    unsigned correct_stencil_valuemask : 1;
    /* number of bits per TS tile */

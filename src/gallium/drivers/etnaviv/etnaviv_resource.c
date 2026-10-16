@@ -173,7 +173,7 @@ etna_resource_can_use_ts(struct etna_screen *screen,
       return false;
 
    /* Can be handled by the resolve engine */
-   if (!etna_resource_hw_tileable(screen->specs.use_blt, prsc))
+   if (!etna_resource_hw_tileable(VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE), prsc))
       return false;
 
    /* Do not use TS for emulated 128 bit formats */
@@ -181,7 +181,8 @@ etna_resource_can_use_ts(struct etna_screen *screen,
       return false;
 
    /* Without BLT_8bpp_256TILE_FC_FIX the BLT can not fast clear 8 bpp MSAA */
-   if (screen->specs.use_blt && prsc->nr_samples > 1 &&
+   if (VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE) &&
+       prsc->nr_samples > 1 &&
        util_format_get_blocksize(prsc->format) == 1 &&
        !VIV_FEATURE(screen, ETNA_FEATURE_BLT_8BPP_256TILE_FC_FIX))
       return false;
@@ -376,11 +377,13 @@ etna_layout_multiple(const struct etna_screen *screen,
                      unsigned *paddingX, unsigned *paddingY, unsigned *halign)
 {
    const struct etna_specs *specs = &screen->specs;
+   const bool use_blt = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE);
+
    /* If we have the TEXTURE_HALIGN feature, we can always align to the resolve
     * engine's width.  If not, we must not align resources used only for
     * textures. If this GPU uses the BLT engine, never do RS align.
     */
-   bool rs_align = !specs->use_blt && (!etna_resource_sampler_only(templat) ||
+   bool rs_align = !use_blt && (!etna_resource_sampler_only(templat) ||
                    VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_HALIGN));
    int msaa_xscale = 1, msaa_yscale = 1;
 
@@ -400,7 +403,7 @@ etna_layout_multiple(const struct etna_screen *screen,
    switch (layout) {
    case ETNA_LAYOUT_LINEAR:
       *paddingX = rs_align ? 16 : 4;
-      *paddingY = !specs->use_blt ? 4 : 1;
+      *paddingY = !use_blt ? 4 : 1;
       *halign = rs_align ? TEXTURE_HALIGN_SIXTEEN : TEXTURE_HALIGN_FOUR;
       break;
    case ETNA_LAYOUT_TILED:
@@ -693,7 +696,7 @@ etna_resource_create(struct pipe_screen *pscreen,
          layout |= ETNA_LAYOUT_BIT_SUPER;
    } else if (VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
               VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
-              etna_resource_hw_tileable(screen->specs.use_blt, templat)) {
+              etna_resource_hw_tileable(VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE), templat)) {
       layout |= ETNA_LAYOUT_BIT_SUPER;
    }
 
@@ -745,7 +748,7 @@ select_best_modifier(const struct etna_screen * screen,
                      const uint64_t *modifiers, const unsigned count)
 {
    bool can_supertile = VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
-                        etna_resource_hw_tileable(screen->specs.use_blt, templat);
+                        etna_resource_hw_tileable(VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE), templat);
    enum modifier_priority prio = MODIFIER_PRIORITY_INVALID;
    uint64_t best_modifier, base_modifier;
 
@@ -1244,7 +1247,7 @@ etna_resource_set_damage_region(struct pipe_screen *pscreen,
        * uses upper-left so we need to flip it. */
       damage->y = prsc->height0 - (damage->y + damage->height);
 
-      if (!screen->specs.use_blt)
+      if (!VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE))
          etna_align_box_for_rs(screen, etna_resource(rsc->render), damage);
    }
 

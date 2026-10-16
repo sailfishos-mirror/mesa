@@ -267,8 +267,8 @@ etna_init_screen_caps(struct etna_screen *screen)
    caps->fs_point_is_sysval = false;
    caps->native_fp32_depth = false;
    caps->generate_mipmap =
-   caps->clear_scissored = screen->specs.use_blt;
-   caps->clear_masked = screen->specs.use_blt &&
+   caps->clear_scissored = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE);
+   caps->clear_masked = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE) &&
                         VIV_FEATURE(screen, ETNA_FEATURE_BLT_64BPP_MASKED_CLEAR_FIX);
    caps->blend_equation_advanced =
       VIV_FEATURE(screen, ETNA_FEATURE_PE_ADVANCE_BLEND_PART0) ?
@@ -462,7 +462,7 @@ gpu_supports_multisampled_blitter_resolve(const struct etna_screen *screen,
       /* handled by u_blitter */
       return true;
    default:
-      return !screen->specs.use_blt &&
+      return !VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE) &&
              util_format_get_blocksize(format) <= 4 &&
              (util_format_is_unorm(format) ||
               util_format_is_pure_integer(format));
@@ -485,7 +485,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
       return false;
 
    if (sample_count > 1) {
-      if (screen->specs.use_blt) {
+      if (VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE)) {
          if (translate_blt_format(format) == ETNA_NO_MATCH &&
              !gpu_supports_multisampled_blitter_resolve(screen, format, sample_count))
             return false;
@@ -972,8 +972,6 @@ etna_get_specs(struct etna_screen *screen)
       perf_debug_ctx(NULL, "Hardware ASTC disabled, ASTC is decoded on the CPU");
       etna_core_disable_feature(screen->info, ETNA_FEATURE_TEXTURE_ASTC);
    }
-
-   screen->specs.use_blt = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE);
 
    /* Only allow fast clear with MC2.0 or MMUv2, as the TS unit bypasses the
     * memory offset for the MMUv1 linear window on MC1.0 and we have no way to

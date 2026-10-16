@@ -485,7 +485,7 @@ etna_clear_blit_init(struct pipe_context *pctx)
    pctx->resource_copy_region = etna_resource_copy_region;
    pctx->flush_resource = etna_flush_resource;
 
-   if (screen->specs.use_blt)
+   if (VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE))
       etna_clear_blit_blt_init(pctx);
    else
       etna_clear_blit_rs_init(pctx);
