@@ -3665,9 +3665,14 @@ v3dv_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
 {
    V3DV_FROM_HANDLE(v3dv_cmd_buffer, cmd_buffer, commandBuffer);
 
-   assert(buffer != VK_NULL_HANDLE);
-
-   if (size == VK_WHOLE_SIZE) {
+   /* VK_KHR_maintenance6: a null buffer is legal. Per spec, offset must be 0
+    * in that case and size is ignored, and every index fetch returns 0.
+    */
+   if (buffer == VK_NULL_HANDLE) {
+      assert(offset == 0);
+      offset = 0;
+      size = 0;
+   } else if (size == VK_WHOLE_SIZE) {
       assert(v3dv_buffer_from_handle(buffer)->size >= offset);
       size = v3dv_buffer_from_handle(buffer)->size - offset;
    }
