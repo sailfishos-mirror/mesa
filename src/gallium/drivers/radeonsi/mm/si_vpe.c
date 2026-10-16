@@ -900,7 +900,7 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
    scaling_info->adaptive_sharpeness.enable          = false;
    scaling_info->adaptive_sharpeness.sharpness_level = 0;
 
-   if (process_properties->blend.global_alpha) {
+   if (process_properties->blend.mode & PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA) {
       blend_info->global_alpha_value   = process_properties->blend.global_alpha;
       blend_info->blending             = true;
       blend_info->pre_multiplied_alpha = false;
@@ -936,9 +936,15 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
    stream->horizontal_mirror  = (process_properties->orientation & PIPE_VIDEO_VPP_FLIP_HORIZONTAL) ? true : false;
    stream->vertical_mirror    = (process_properties->orientation & PIPE_VIDEO_VPP_FLIP_VERTICAL)   ? true : false;
 
-   stream->enable_luma_key         = false;
-   stream->lower_luma_bound        = 0.5;
-   stream->upper_luma_bound        = 0.5;
+   if (vpe_handle->level >= VPE_IP_LEVEL_2_0 && (process_properties->blend.mode & PIPE_VIDEO_VPP_BLEND_MODE_LUMA_KEY)) {
+      stream->enable_luma_key  = true;
+      stream->lower_luma_bound = process_properties->blend.min_luma;
+      stream->upper_luma_bound = process_properties->blend.max_luma;
+   } else {
+      stream->enable_luma_key         = false;
+      stream->lower_luma_bound        = 0.0;
+      stream->upper_luma_bound        = 0.0;
+   }
 
    stream->flags.reserved          = 0;
    stream->flags.geometric_scaling = is_geometric_scaling_round;
@@ -987,10 +993,17 @@ si_vpe_set_bg_stream_in_param(struct vpe_video_processor *vpeproc,
    scaling_info->adaptive_sharpeness.enable          = false;
    scaling_info->adaptive_sharpeness.sharpness_level = 0;
 
-   blend_info->global_alpha_value                    = 1.0 - process_properties->blend.global_alpha;
-   blend_info->blending                              = true;
-   blend_info->pre_multiplied_alpha                  = false;
-   blend_info->global_alpha                          = true;
+   if (process_properties->blend.mode & PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA) {
+      blend_info->global_alpha_value                    = 1.0;
+      blend_info->blending                              = true;
+      blend_info->pre_multiplied_alpha                  = false;
+      blend_info->global_alpha                          = true;
+   } else {
+      blend_info->global_alpha_value                    = 0.0;
+      blend_info->blending                              = false;
+      blend_info->pre_multiplied_alpha                  = false;
+      blend_info->global_alpha                          = false;
+   }
 
    /* TO-DO: do ProcAmp in next stage */
    color_adj->brightness                             = 0.0;
@@ -1004,8 +1017,8 @@ si_vpe_set_bg_stream_in_param(struct vpe_video_processor *vpeproc,
    stream->vertical_mirror                           = false;
 
    stream->enable_luma_key                           = false;
-   stream->lower_luma_bound                          = 0.5;
-   stream->upper_luma_bound                          = 0.5;
+   stream->lower_luma_bound                          = 0.0;
+   stream->upper_luma_bound                          = 0.0;
 
    stream->flags.reserved                            = 0;
    stream->flags.geometric_scaling                   = 0;
@@ -1417,7 +1430,7 @@ si_vpe_processor_check_and_build_settins(struct vpe_video_processor *vpeproc,
     * In this case, some special processing is needed for blending mode with global alpha,
     * which requires using dst surface as background input stream for blending.
     */
-   if (final_blit && process_properties->blend.mode == PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA) {
+   if (final_blit && process_properties->blend.mode) {
       SIVPE_INFO(vpeproc->log_level, "Going to handle blending blit\n");
       build_param->num_streams = 2;
    } else {

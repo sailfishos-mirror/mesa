@@ -210,6 +210,7 @@ struct ac_video_proc_caps {
    bool flip_horizontal;
    bool flip_vertical;
    bool blend_global_alpha;
+   bool blend_luma_key;
 };
 
 enum ac_video_write_memory_support {

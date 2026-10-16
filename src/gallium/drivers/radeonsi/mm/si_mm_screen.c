@@ -91,6 +91,8 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
          int blend = PIPE_VIDEO_VPP_BLEND_MODE_NONE;
          if (caps->blend_global_alpha)
             blend |= PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA;
+         if (caps->blend_luma_key)
+            blend |= PIPE_VIDEO_VPP_BLEND_MODE_LUMA_KEY;
          return blend;
       }
 
