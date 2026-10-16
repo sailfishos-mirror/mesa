@@ -1542,6 +1542,18 @@ struct pipe_av1_enc_picture_desc
    struct pipe_enc_quality_modes quality_modes;
    struct pipe_enc_intra_refresh intra_refresh;
    struct pipe_enc_roi roi;
+   struct pipe_enc_dirty_info dirty_info;
+   struct pipe_enc_move_info move_info;
+
+   /* See PIPE_VIDEO_CAP_ENC_GPU_STATS_QP_MAP */
+   struct pipe_resource *gpu_stats_qp_map;
+   /* See PIPE_VIDEO_CAP_ENC_GPU_STATS_SATD_MAP */
+   struct pipe_resource *gpu_stats_satd_map;
+   /* See PIPE_VIDEO_CAP_ENC_GPU_STATS_RATE_CONTROL_BITS_MAP */
+   struct pipe_resource *gpu_stats_rc_bitallocation_map;
+   /* See PIPE_VIDEO_CAP_ENC_GPU_STATS_PSNR */
+   struct pipe_resource *gpu_stats_psnr;
+
    struct pipe_enc_qpmap_input_info input_qpmap_info;
    uint32_t tile_rows;
    uint32_t tile_cols;
