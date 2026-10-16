@@ -214,3 +214,19 @@ TEST(Format, format_supports_vertex_fetch)
    BITSET_SET(info.feature, ETNA_FEATURE_HALTI2);
    EXPECT_TRUE(eil_format_supports_vertex_fetch(&info, PIPE_FORMAT_R8_UINT));
 }
+
+TEST(Format, format_supports_rendering)
+{
+   etna_core_info info = {};
+
+   /* no gate */
+   EXPECT_TRUE(eil_format_supports_rendering(&info, PIPE_FORMAT_B4G4R4A4_UNORM));
+   /* feature not set */
+   EXPECT_FALSE(eil_format_supports_rendering(&info, PIPE_FORMAT_R8_UINT));
+   /* wrong feature */
+   BITSET_SET(info.feature, ETNA_FEATURE_HALTI0);
+   EXPECT_FALSE(eil_format_supports_rendering(&info, PIPE_FORMAT_R8_UINT));
+   /* feature set */
+   BITSET_SET(info.feature, ETNA_FEATURE_HALTI5);
+   EXPECT_TRUE(eil_format_supports_rendering(&info, PIPE_FORMAT_R8_UINT));
+}

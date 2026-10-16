@@ -473,6 +473,12 @@ static bool
 gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
                            unsigned sample_count)
 {
+   if (!eil_format_supports_rendering(screen->info, util_format_linear(format)))
+      return false;
+
+   if (util_format_is_srgb(format) && !VIV_FEATURE(screen, ETNA_FEATURE_HALTI3))
+      return false;
+
    const uint32_t fmt = translate_pe_format(format, screen);
 
    if (fmt == ETNA_NO_MATCH)
@@ -494,30 +500,6 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
             return false;
       }
    }
-
-   if (format == PIPE_FORMAT_R8_UNORM)
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI5);
-
-   /* figure out 8bpp RS clear to enable these formats */
-   if (format == PIPE_FORMAT_R8_SINT || format == PIPE_FORMAT_R8_UINT)
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI5);
-
-   if (util_format_is_srgb(format))
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI3);
-
-   /* 128-bit formats render as paired G32R32F targets via the half-float pipe. */
-   if (eil_format_is_emulated_128bit(format))
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
-
-   if (util_format_is_pure_integer(format) || util_format_is_float(format))
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
-
-   if (format == PIPE_FORMAT_R8G8_UNORM)
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
-
-   /* any other extended format is HALTI0 (only R10G10B10A2?) */
-   if (fmt >= PE_FORMAT_R16F)
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
 
    return true;
 }

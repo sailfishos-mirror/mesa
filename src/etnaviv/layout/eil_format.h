@@ -97,6 +97,13 @@ eil_format_supports_vertex_fetch(const struct etna_core_info *info, enum pipe_fo
    return f->has_vtx && eil_gate_ok(info, f->vtx_gated, f->vtx_gate);
 }
 
+static inline bool
+eil_format_supports_rendering(const struct etna_core_info *info, enum pipe_format fmt)
+{
+   const struct eil_format *f = eil_get_format_entry(fmt);
+   return f->has_pe && eil_gate_ok(info, f->pe_gated, f->pe_gate);
+}
+
 #ifdef __cplusplus
 }
 #endif
