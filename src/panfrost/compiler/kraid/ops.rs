@@ -764,7 +764,13 @@ impl DisplayOp for OpCmp {
             self.cmp_op,
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
-        )
+        )?;
+
+        if self.accum_op != CmpAccumOp::None {
+            write!(f, " {}", self.fmt_src(&self.accum))?;
+        }
+
+        Ok(())
     }
 }
 
