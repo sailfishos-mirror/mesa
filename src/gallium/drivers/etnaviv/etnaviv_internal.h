@@ -85,12 +85,12 @@ struct etna_specs {
    unsigned has_icache : 1;
    /* has correct stencil 0 valuemask */
    unsigned correct_stencil_valuemask : 1;
+   /* fragment and vertex samplers share one dynamically partitioned array */
+   unsigned unified_samplers : 1;
    /* number of bits per TS tile */
    unsigned bits_per_tile;
    /* clear value for TS (dependent on bits_per_tile) */
    uint32_t ts_clear_value;
-   /* fragment and vertex samplers share one dynamically partitioned array */
-   unsigned unified_samplers : 1;
    /* base of vertex texture units */
    unsigned vertex_sampler_offset;
    /* number of fragment sampler units */
