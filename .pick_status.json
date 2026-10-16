@@ -7254,7 +7254,7 @@
         "description": "wgl: don't wait for the gpu on zink swaps",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "01ed71f9451057647a57129c8c01ae19a0f8bfb7",
         "notes": null
