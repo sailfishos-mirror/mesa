@@ -650,7 +650,7 @@ etna_screen_query_dmabuf_modifiers(struct pipe_screen *pscreen,
        * older cores support exactly one TS layout.
        */
       if (VIV_FEATURE(screen, ETNA_FEATURE_CACHE128B256BPERLINE))
-         if (screen->specs.v4_compression &&
+         if (VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION) &&
              translate_ts_format(format) != ETNA_NO_MATCH)
             mods_multiplier += 4;
          else
@@ -723,7 +723,8 @@ etna_screen_is_dmabuf_modifier_supported(struct pipe_screen *pscreen,
          continue;
 
       if ((modifier & VIVANTE_MOD_COMP_DEC400) &&
-          (!screen->specs.v4_compression || translate_ts_format(format) == ETNA_NO_MATCH))
+          (!VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION) ||
+           translate_ts_format(format) == ETNA_NO_MATCH))
          return false;
 
       if (ts_mod) {
@@ -883,8 +884,6 @@ etna_get_specs(struct etna_screen *screen)
    screen->specs.vs_need_z_div =
       screen->info->model < 0x1000 && screen->info->model != 0x880;
    screen->specs.has_unified_instmem = instruction_count > 256;
-   screen->specs.v4_compression =
-      VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION);
 
    /* XXX: The feature bit gating the bugfix is an educated guess */
    screen->specs.correct_stencil_valuemask = VIV_FEATURE(screen, ETNA_FEATURE_PE_DITHER_FIX);

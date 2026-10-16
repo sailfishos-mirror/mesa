@@ -79,8 +79,6 @@ struct etna_specs {
    unsigned vs_need_z_div : 1;
    /* can use VS_RANGE, PS_RANGE registers*/
    unsigned has_unified_instmem : 1;
-   /* has V4_COMPRESSION */
-   unsigned v4_compression : 1;
    /* needs multitiled format for PE usage */
    unsigned pe_multitiled : 1;
    /* has unified uniforms memory */

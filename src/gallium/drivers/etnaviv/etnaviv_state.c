@@ -332,7 +332,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
 
             if (level->ts_compress_fmt >= 0) {
                /* overwrite bit breaks v1/v2 compression */
-               if (!screen->specs.v4_compression)
+               if (!VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION))
                   cs->PE_COLOR_FORMAT &= ~VIVS_PE_COLOR_FORMAT_OVERWRITE;
 
                ts_mem_config |=

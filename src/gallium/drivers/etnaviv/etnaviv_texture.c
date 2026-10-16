@@ -151,7 +151,8 @@ etna_can_use_sampler_ts(struct pipe_sampler_view *view, int num)
       return false;
 
    /* Does not use compression or the hardware supports V4 compression. */
-   if (rsc->levels[0].ts_compress_fmt >= 0 && !screen->specs.v4_compression)
+   if (rsc->levels[0].ts_compress_fmt >= 0 &&
+       !VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION))
       return false;
 
    /* The sampler will have one LOD, and it happens to be level 0.

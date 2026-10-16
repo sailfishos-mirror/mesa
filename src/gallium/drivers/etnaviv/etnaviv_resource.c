@@ -213,7 +213,7 @@ etna_screen_resource_alloc_ts(struct pipe_screen *pscreen,
     * v4 compression can be enabled everywhere without any known drawback,
     * except that in-place resolve must go through a slower path
     */
-   if ((screen->specs.v4_compression &&
+   if ((VIV_FEATURE(screen, ETNA_FEATURE_V4_COMPRESSION) &&
         (!modifier || (modifier & VIVANTE_MOD_COMP_DEC400))) ||
        (!modifier && prsc->nr_samples > 1))
       ts_compress_fmt = translate_ts_format(prsc->format);
