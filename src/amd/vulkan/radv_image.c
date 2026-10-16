@@ -360,7 +360,7 @@ radv_use_htile_for_image(const struct radv_device *device, const struct radv_ima
 }
 
 static bool
-radv_use_tc_compat_cmask_for_image(struct radv_device *device, struct radv_image *image)
+radv_use_tc_compat_cmask_early(struct radv_device *device, struct radv_image *image)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
@@ -385,6 +385,15 @@ radv_use_tc_compat_cmask_for_image(struct radv_device *device, struct radv_image
     */
    if (!(image->vk.usage & (VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR | VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR |
                             VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR)))
+      return false;
+
+   return true;
+}
+
+static bool
+radv_use_tc_compat_cmask_late(struct radv_device *device, struct radv_image *image)
+{
+   if (!(image->planes[0].surface.flags & RADEON_SURF_TC_COMPATIBLE_CMASK))
       return false;
 
    /* If the image doesn't have FMASK, it can't be fetchable. */
@@ -702,6 +711,9 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
    if (image->vk.usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR)
       flags |= RADEON_SURF_HOST_TRANSFER | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE |
                (pdev->info.gfx_level < GFX12 ? RADEON_SURF_DISABLE_DCC : 0);
+
+   if (image->vk.samples > 1 && radv_use_tc_compat_cmask_early(device, image))
+      flags |= RADEON_SURF_TC_COMPATIBLE_CMASK;
 
    return flags;
 }
@@ -1267,7 +1279,7 @@ radv_image_create_layout(struct radv_device *device, struct radv_image_create_in
       image->planes[plane].format = radv_image_get_plane_format(pdev, image, plane);
    }
 
-   image->tc_compatible_cmask = radv_image_has_cmask(image) && radv_use_tc_compat_cmask_for_image(device, image);
+   image->tc_compatible_cmask = radv_image_has_cmask(image) && radv_use_tc_compat_cmask_late(device, image);
 
    if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level < GFX12)
       radv_image_init_first_mip_pipe_misaligned(device, image);
