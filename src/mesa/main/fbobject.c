@@ -1320,6 +1320,7 @@ _mesa_test_framebuffer_completeness(struct gl_context *ctx,
    GLint numColorStorageSamples = -1;
    GLint numDepthSamples = -1;
    GLint fixedSampleLocations = -1;
+   int msrttSamples = -1;
    GLint i;
    GLuint j;
    /* Covers max_layer_count, is_layered, and layer_tex_target */
@@ -1472,6 +1473,25 @@ _mesa_test_framebuffer_completeness(struct gl_context *ctx,
       else {
          assert(att->Type == GL_NONE);
          continue;
+      }
+
+      /* From the GL_EXT_multisampled_render_to_texture spec:
+       *
+       *    "Also, FBOs cannot combine attachments that have associated
+       *    multisample data specified by the mechanisms described in this
+       *    extension with attachments allocated using the core OpenGL ES 3.1
+       *    mechanisms, such as TexStorage2DMultisample."
+       */
+      if (attNumSamples > 0) {
+         bool msrtt = att->Type == GL_TEXTURE ? att->NumSamples > 0
+                                              : att->Renderbuffer->msrtt;
+         if (msrttSamples < 0) {
+            msrttSamples = msrtt;
+         } else if (msrttSamples != msrtt) {
+            fb->_Status = GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE;
+            fbo_incomplete(ctx, "implicit and explicit multisample mixed", -1);
+            return;
+         }
       }
 
       if (i >= 0) {

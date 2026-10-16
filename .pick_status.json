@@ -6634,7 +6634,7 @@
         "description": "mesa: don't mix implicit and explicit multisample attachments",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1b331ae505e63033634d9f5267ca1949336f75d8",
         "notes": null
