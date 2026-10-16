@@ -7811,12 +7811,26 @@ radv_emit_primitive_restart(struct radv_cmd_buffer *cmd_buffer, bool enable)
 static bool
 radv_is_primitive_restart_enabled(struct radv_cmd_buffer *cmd_buffer, bool indexed_draw)
 {
-   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
-   /* Primitive restart is automatically disabled by HW on GFX11+, see DISABLE_FOR_AUTO_INDEX. */
-   return (indexed_draw || pdev->info.gfx_level >= GFX11) && d->vk.ia.primitive_restart_enable;
+   return indexed_draw && d->vk.ia.primitive_restart_enable;
+}
+
+static bool
+radv_primitive_restart_state_changed(struct radv_cmd_buffer *cmd_buffer, bool indexed_draw)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_cmd_state *state = &cmd_buffer->state;
+
+   /* On GFX11+, DISABLE_FOR_AUTO_INDEX makes the HW ignore primitive restart for non-indexed draws,
+    * so the registers only need to be updated for indexed draws.
+    */
+   if (!indexed_draw && pdev->info.gfx_level >= GFX11)
+      return false;
+
+   return radv_is_primitive_restart_enabled(cmd_buffer, indexed_draw) != state->last_primitive_restart_en ||
+          state->primitive_restart_index != state->last_primitive_restart_index;
 }
 
 ALWAYS_INLINE static void
@@ -7872,8 +7886,7 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, bool indexed_draw, 
       state->last_index_type = index_type;
    }
 
-   if (primitive_restart_en != state->last_primitive_restart_en ||
-       state->primitive_restart_index != state->last_primitive_restart_index) {
+   if (radv_primitive_restart_state_changed(cmd_buffer, indexed_draw)) {
       radv_emit_primitive_restart(cmd_buffer, primitive_restart_en);
       state->last_primitive_restart_en = primitive_restart_en;
       state->last_primitive_restart_index = state->primitive_restart_index;
@@ -12566,9 +12579,7 @@ radv_need_late_scissor_emission(struct radv_cmd_buffer *cmd_buffer, bool indexed
    if (cmd_buffer->state.dirty & used_states)
       return true;
 
-   const bool primitive_restart_en = radv_is_primitive_restart_enabled(cmd_buffer, indexed_draw);
-   if (primitive_restart_en != cmd_buffer->state.last_primitive_restart_en ||
-       cmd_buffer->state.primitive_restart_index != cmd_buffer->state.last_primitive_restart_index)
+   if (radv_primitive_restart_state_changed(cmd_buffer, indexed_draw))
       return true;
 
    return false;
