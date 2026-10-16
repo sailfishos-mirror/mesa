@@ -1363,7 +1363,6 @@ genX(write_cs_descriptor)(struct anv_dgc_cs_descriptor *desc,
              sizeof(shader->cs.gfx350.compute_walker_body_2));
       for (uint32_t i = 0; i < ARRAY_SIZE(shader->cs.gfx350.compute_walker_body_2); i++)
          desc->gfx350.compute_walker_2[1 + i] |= shader->cs.gfx350.compute_walker_body_2[i];
-      desc->gfx350.inline_dwords_count = bind_map->inline_dwords_count;
       assert(sizeof(desc->gfx350.inline_dwords) >= bind_map->inline_dwords_count);
       memcpy(desc->gfx350.inline_dwords, bind_map->inline_dwords,
              bind_map->inline_dwords_count);
@@ -1381,7 +1380,6 @@ genX(write_cs_descriptor)(struct anv_dgc_cs_descriptor *desc,
              sizeof(shader->cs.gfx125.compute_walker_body));
       for (uint32_t i = 0; i < ARRAY_SIZE(shader->cs.gfx125.compute_walker_body); i++)
          desc->gfx125.compute_walker[1 + i] |= shader->cs.gfx125.compute_walker_body[i];
-      desc->gfx125.inline_dwords_count = bind_map->inline_dwords_count;
       assert(sizeof(desc->gfx125.inline_dwords) >= bind_map->inline_dwords_count);
       memcpy(desc->gfx125.inline_dwords, bind_map->inline_dwords,
              bind_map->inline_dwords_count);
