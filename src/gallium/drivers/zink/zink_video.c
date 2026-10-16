@@ -467,8 +467,8 @@ convert_pps_sps(struct pipe_picture_desc *picture,
    vsps->max_num_ref_frames = h264->num_ref_frames;
    vsps->chroma_format_idc = sps->chroma_format_idc;
    vsps->pic_width_in_mbs_minus1 = sps->pic_width_in_mbs_minus1;
-   /* no interlace support */
-   vsps->pic_height_in_map_units_minus1 = sps->pic_height_in_mbs_minus1;
+   /* the frontend passes the frame height; map units are macroblock pairs without frame_mbs_only_flag */
+   vsps->pic_height_in_map_units_minus1 = ((sps->pic_height_in_mbs_minus1 + 1) >> !sps->frame_mbs_only_flag) - 1;
 }
 
 static void
