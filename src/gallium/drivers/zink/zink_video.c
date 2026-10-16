@@ -677,7 +677,9 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
       h264_ref_info[n].PicOrderCnt[0] = h264->field_order_cnt_list[j][0];
       h264_ref_info[n].PicOrderCnt[1] = h264->field_order_cnt_list[j][1];
       h264_ref_info[n].FrameNum = h264->frame_num_list[j];
-      /* interlaced content is rejected, so references are frames and the field flags stay clear */
+      /* both flags clear means a frame */
+      h264_ref_info[n].flags.top_field_flag = h264->is_field[j] && h264->top_is_reference[j];
+      h264_ref_info[n].flags.bottom_field_flag = h264->is_field[j] && h264->bottom_is_reference[j];
       h264_ref_info[n].flags.used_for_long_term_reference = h264->is_long_term[j];
 
       h264_dpb_info[n].sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_DPB_SLOT_INFO_KHR;
