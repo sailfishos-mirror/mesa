@@ -438,6 +438,7 @@ typedef struct vlVaSurface {
    unsigned int offsets[3];
    unsigned int data_size;
    enum pipe_video_entrypoint entrypoint;
+   bool field_pic; /* the last H.264 decode to this surface was a field picture */
 } vlVaSurface;
 
 typedef struct {
