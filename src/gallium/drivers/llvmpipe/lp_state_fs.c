@@ -1494,7 +1494,6 @@ generate_fs_loop(struct gallivm_state *gallivm,
  *
  * @param type            fragment shader type (4x or 8x float)
  * @param num_fs          number of fs_src
- * @param is_1d           whether we're outputting to a 1d resource
  * @param dst_channels    number of output channels
  * @param fs_src          output from fragment shader
  * @param dst             pointer to store result
