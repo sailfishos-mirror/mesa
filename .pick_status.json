@@ -154,7 +154,7 @@
         "description": "radeonsi: capture whole frames again with frame and file triggers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "988a767d797a0fb6876901491e45b896ab2745e1",
         "notes": null

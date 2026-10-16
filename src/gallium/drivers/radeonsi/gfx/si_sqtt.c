@@ -533,6 +533,11 @@ void si_destroy_sqtt(struct si_context *sctx)
 static uint64_t num_frames = 0, num_submits = 0;
 
 static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
+   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_SUBMIT)
+      return num_submits == sctx->sqtt.start_frame;
+   /* after the first frame, frames belong to the contexts that present them */
+   if (!sctx->sqtt.presents && num_frames > 0)
+      return false;
    /* File based capture*/
    if (sctx->sqtt.trigger_file &&
        access(sctx->sqtt.trigger_file, W_OK) == 0) {
@@ -546,18 +551,72 @@ static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
                      "trace trigger file, ignoring");
       }
    }
-   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME)
-      return num_frames == sctx->sqtt.start_frame;
-   return num_submits == sctx->sqtt.start_frame;
+   return num_frames == sctx->sqtt.start_frame;
 }
 
-static bool si_sqtt_must_stop_capture(const struct si_context *sctx) {
+static bool si_sqtt_must_stop_capture(const struct si_context *sctx, bool end_of_frame) {
+   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_SUBMIT)
+      return num_submits >= sctx->sqtt.end_frame;
+   /* frame and file based captures cover whole frames */
+   if (!end_of_frame)
+      return false;
    /* File based capture*/
    if (sctx->sqtt.start_frame < 0)
       return true;
-   if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME)
-      return num_frames >= sctx->sqtt.end_frame;
-   return num_submits >= sctx->sqtt.end_frame;
+   return num_frames >= sctx->sqtt.end_frame;
+}
+
+static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *rcs,
+                                 bool allow_retry)
+{
+   struct ac_sqtt_trace sqtt_trace = {0};
+   struct pipe_transfer *transfers[2];
+
+   /* Stop SQTT */
+   si_end_sqtt(sctx, rcs);
+   sctx->sqtt.enabled = false;
+   assert(sctx->sqtt.last_fence);
+
+   /* Wait for SQTT to finish and read back the bo */
+   if (sctx->ws->fence_wait(sctx->ws, sctx->sqtt.last_fence,
+                            OS_TIMEOUT_INFINITE) &&
+       si_get_sqtt_trace(sctx, &sqtt_trace, &transfers[0])) {
+      struct ac_spm_trace spm_trace;
+
+      /* Map the SPM counter buffer */
+      if (sctx->sqtt.spm.bo)
+         sctx->sqtt.spm.ptr = pipe_buffer_map(&sctx->b, sctx->sqtt.spm.bo, PIPE_MAP_READ, &transfers[1]);
+
+      if (sctx->sqtt.spm.ptr)
+         ac_spm_get_trace(&sctx->sqtt.spm, &spm_trace);
+
+      struct ac_rgp_capture_info info = {
+         .mode = sctx->sqtt.mode,
+         .frame_idx = sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME ? num_frames : num_submits
+      };
+
+      ac_dump_rgp_capture(&sctx->screen->info, &sqtt_trace,
+                          sctx->sqtt.spm.ptr ? &spm_trace : NULL, &info);
+
+      if (sctx->sqtt.spm.ptr) {
+         pipe_buffer_unmap(&sctx->b, transfers[1]);
+         sctx->sqtt.spm.ptr = NULL;
+      }
+
+      pipe_buffer_unmap(&sctx->b, transfers[0]);
+      sctx->sqtt.data->ptr = NULL;
+   } else if (allow_retry && sctx->sqtt.data->bo) {
+      if (!sctx->sqtt.trigger_file) {
+         int end_frame = sctx->sqtt.end_frame;
+         sctx->sqtt.end_frame += sctx->sqtt.end_frame - sctx->sqtt.start_frame;
+         sctx->sqtt.start_frame = end_frame;
+      }
+
+      /* Restart SQTT to try to capture the next frame. */
+      si_begin_sqtt(sctx, rcs);
+      sctx->sqtt.enabled = true;
+   }
+   si_sqtt_reset_queue_state(sctx);
 }
 
 void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end_of_frame)
@@ -580,60 +639,22 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end
           */
          sctx->dirty_shaders_mask |= SI_SQTT_STATE_DIRTY_BIT;
       }
-   } else if (si_sqtt_must_stop_capture(sctx)) {
-      struct ac_sqtt_trace sqtt_trace = {0};
-      struct pipe_transfer *transfers[2];
-
-      /* Stop SQTT */
-      si_end_sqtt(sctx, rcs);
-      sctx->sqtt.enabled = false;
-      assert(sctx->sqtt.last_fence);
-
-      /* Wait for SQTT to finish and read back the bo */
-      if (sctx->ws->fence_wait(sctx->ws, sctx->sqtt.last_fence,
-                               OS_TIMEOUT_INFINITE) &&
-          si_get_sqtt_trace(sctx, &sqtt_trace, &transfers[0])) {
-         struct ac_spm_trace spm_trace;
-
-         /* Map the SPM counter buffer */
-         if (sctx->sqtt.spm.bo)
-            sctx->sqtt.spm.ptr = pipe_buffer_map(&sctx->b, sctx->sqtt.spm.bo, PIPE_MAP_READ, &transfers[1]);
-
-         if (sctx->sqtt.spm.ptr)
-            ac_spm_get_trace(&sctx->sqtt.spm, &spm_trace);
-
-         struct ac_rgp_capture_info info = {
-            .mode = sctx->sqtt.mode,
-            .frame_idx = sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_FRAME ? num_frames : num_submits
-         };
-
-         ac_dump_rgp_capture(&sctx->screen->info, &sqtt_trace,
-                             sctx->sqtt.spm.ptr ? &spm_trace : NULL, &info);
-
-         if (sctx->sqtt.spm.ptr) {
-            pipe_buffer_unmap(&sctx->b, transfers[1]);
-            sctx->sqtt.spm.ptr = NULL;
-         }
-
-         pipe_buffer_unmap(&sctx->b, transfers[0]);
-         sctx->sqtt.data->ptr = NULL;
-      } else if (sctx->sqtt.data->bo) {
-         if (!sctx->sqtt.trigger_file) {
-            int end_frame = sctx->sqtt.end_frame;
-            sctx->sqtt.end_frame += sctx->sqtt.end_frame - sctx->sqtt.start_frame;
-            sctx->sqtt.start_frame = end_frame;
-         }
-
-         /* Restart SQTT to try to capture the next frame. */
-         si_begin_sqtt(sctx, rcs);
-         sctx->sqtt.enabled = true;
-      }
-      si_sqtt_reset_queue_state(sctx);
+   } else if (si_sqtt_must_stop_capture(sctx, end_of_frame)) {
+      si_sqtt_stop_capture(sctx, rcs, true);
    }
 
-   if (end_of_frame)
+   if (end_of_frame) {
+      sctx->sqtt.presents = true;
       num_frames++;
+   }
    num_submits++;
+}
+
+/* ends a running capture without starting another one or counting a submit */
+void si_sqtt_finish_capture(struct si_context *sctx)
+{
+   if (sctx->sqtt.enabled)
+      si_sqtt_stop_capture(sctx, &sctx->gfx_cs, false);
 }
 
 static void si_emit_sqtt_userdata(struct si_context *sctx,
