@@ -330,6 +330,12 @@
     # Disable reporting, since DUTs don't have internet access
     FLAKES_CHANNEL: ""
 
+.radv-zink-test-valve-nocl:
+  extends:
+    - .radv-zink-test-valve
+  variables:
+    DEQP_SUITE: zink-radv-nocl
+
 .radv-zink-test-valve-asan:
   extends:
     - .ci-tron-test-amdgpu

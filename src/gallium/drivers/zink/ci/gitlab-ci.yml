@@ -270,11 +270,11 @@ zink-radv-navi10-valve:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 15
     GPU_VERSION: zink-radv-navi10
 
-zink-radv-vangogh-valve:
+zink-radv-vangogh-valve-nocl:
   timeout: 25m
   parallel: 3
   extends:
-    - .radv-zink-test-valve
+    - .radv-zink-test-valve-nocl
     - .vangogh-test-valve
     - .zink-radv-valve-rules
   variables:
@@ -287,7 +287,7 @@ zink-radv-vangogh-valve:
 
 zink-radv-vangogh-traces:
   extends:
-    - zink-radv-vangogh-valve
+    - zink-radv-vangogh-valve-nocl
     - .zink-radv-valve-rules
     - .zink-trace-test
     - .piglit-traces-test
