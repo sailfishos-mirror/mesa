@@ -7543,17 +7543,21 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 
          cc_vp_map += GENX(CC_VIEWPORT_length);
       }
-      if (GFX_VERx10 >= 350 && iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
 #if GFX_VERx10 >= 350
+      if (iris_bufmgr_is_eff_64bit_enabled(bufmgr)) {
          iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2), ptr) {
             ptr.CCViewportPointer = ro_bo(NULL, cc_vp_address);
          }
-#endif
       } else {
          iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), ptr) {
             ptr.CCViewportPointer = cc_vp_address;
          }
       }
+#else
+      iris_emit_cmd(batch, GENX(3DSTATE_VIEWPORT_STATE_POINTERS_CC), ptr) {
+         ptr.CCViewportPointer = cc_vp_address;
+      }
+#endif
 
       if (wa_18020335297_applied) {
 #if GFX_VER >= 12
