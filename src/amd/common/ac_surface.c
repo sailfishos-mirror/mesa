@@ -5092,10 +5092,10 @@ ac_surface_compute_nbc_view(struct ac_addrlib *addrlib, const struct radeon_info
 }
 
 static bool
-gfx10_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_info *info,
-                               const struct radeon_surf *surf, const struct ac_surf_info *surf_info,
-                               const struct ac_surface_copy_region *surf_copy_region,
-                               bool surface_is_dst)
+gfx9_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_info *info,
+                              const struct radeon_surf *surf, const struct ac_surf_info *surf_info,
+                              const struct ac_surface_copy_region *surf_copy_region,
+                              bool surface_is_dst)
 {
    uint32_t format = bpe_to_format(surf);
    uint32_t bpe = surf->bpe;
@@ -5264,14 +5264,14 @@ ac_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_info
                             const struct ac_surface_copy_region *surf_copy_region,
                             bool surface_is_dst)
 {
-   assert(info->gfx_level >= GFX10);
+   assert(info->gfx_level >= GFX9);
 
    if (info->gfx_level >= GFX12) {
       return gfx12_surface_copy_mem_surface(addrlib, info, surf, surf_info,
                                             surf_copy_region, surface_is_dst);
    } else {
-      return gfx10_surface_copy_mem_surface(addrlib, info, surf, surf_info,
-                                            surf_copy_region, surface_is_dst);
+      return gfx9_surface_copy_mem_surface(addrlib, info, surf, surf_info,
+                                           surf_copy_region, surface_is_dst);
    }
 }
 

@@ -59,6 +59,7 @@ radv-raven-vkcts:
   variables:
     DEQP_SUITE: radv
     DEQP_FRACTION: 6
+    RADV_EXPERIMENTAL: hic
 
 amd-raven-skqp:
   extends:
@@ -171,6 +172,7 @@ radv-cezanne-vkcts-asan:
     DEQP_SUITE: radv
     DEQP_FRACTION: 5
     FDO_CI_CONCURRENT: 3  # We get OOMkills if we go wider
+    RADV_EXPERIMENTAL: hic
 
 ############### VKCTS tests ###############
 
@@ -225,7 +227,7 @@ radv-vega10-vkcts-full:
   timeout: 47m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 45
-    RADV_EXPERIMENTAL: transfer_queue,video_decode,video_encode,msrtss
+    RADV_EXPERIMENTAL: transfer_queue,video_decode,video_encode,msrtss,hic
 
 radv-renoir-vkcts-full:
   extends:
@@ -235,7 +237,7 @@ radv-renoir-vkcts-full:
   timeout: 1h 20m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 78
-    RADV_EXPERIMENTAL: transfer_queue,msrtss
+    RADV_EXPERIMENTAL: transfer_queue,msrtss,hic
 
 radv-navi10-vkcts-full:
   timeout: 30m
