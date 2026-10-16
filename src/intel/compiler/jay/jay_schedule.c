@@ -95,6 +95,8 @@ struct sched_ctx {
    unsigned aggression;
 
    /* Pooled allocations used for DAG construction */
+   struct util_dynarray helper_reads;
+
    union {
       struct {
          uint32_t *def;
@@ -129,12 +131,46 @@ add_edge(struct sched_ctx *ctx, uint32_t edge, uint32_t first_node, bool strong)
 }
 
 static void
+add_reader(struct sched_ctx *ctx,
+           uint32_t writer,
+           struct util_dynarray *readers,
+           uint32_t first_node)
+{
+   /* Read-after-write */
+   add_edge(ctx, writer, first_node, true);
+
+   /* Track for write-after-read but do not add a dependency, we
+    * want to reorder readers freely.
+    */
+   util_dynarray_append(readers, ctx->dag.node);
+}
+
+static void
+add_writer(struct sched_ctx *ctx,
+           uint32_t *writer,
+           struct util_dynarray *readers,
+           uint32_t first_node)
+{
+   /* Write-after-write */
+   add_edge(ctx, *writer, first_node, true);
+   *writer = ctx->dag.node;
+
+   /* Write-after-read, this is a weak edge */
+   util_dynarray_foreach(readers, uint32_t, it) {
+      add_edge(ctx, *it, first_node, false);
+   }
+
+   util_dynarray_clear(readers);
+}
+
+static void
 populate_dag(struct sched_ctx *ctx, jay_block *block)
 {
    uint32_t first_node = ctx->dag.node;
 
    /* TODO: Reorder memory instructions */
    uint32_t sidefx = 0, address = 0;
+   uint32_t helper = 0;
 
    jay_foreach_inst_in_block(block, I) {
       if (jay_op_starts_block(I->op)) {
@@ -165,16 +201,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
                jay_def_to_footprint(ctx->func, I, dsts[d], I->type);
 
             jay_foreach_in_footprint(fp, key) {
-               /* Write-after-write */
-               add_edge(ctx, ctx->postra.writer[key], first_node, true);
-               ctx->postra.writer[key] = ctx->dag.node;
-
-               /* Write-after-read, this is a weak edge */
-               util_dynarray_foreach(&ctx->postra.readers[key], uint32_t, it) {
-                  add_edge(ctx, *it, first_node, false);
-               }
-
-               util_dynarray_clear(&ctx->postra.readers[key]);
+               add_writer(ctx, &ctx->postra.writer[key],
+                          &ctx->postra.readers[key], first_node);
             }
          }
 
@@ -184,13 +212,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
                                     jay_src_type(I, s));
 
             jay_foreach_in_footprint(fp, key) {
-               /* Read-after-write */
-               add_edge(ctx, ctx->postra.writer[key], first_node, true);
-
-               /* Track for write-after-read but do not add a dependency, we
-                * want to reorder readers freely.
-                */
-               util_dynarray_append(&ctx->postra.readers[key], ctx->dag.node);
+               add_reader(ctx, ctx->postra.writer[key],
+                          &ctx->postra.readers[key], first_node);
             }
          }
       }
@@ -212,17 +235,23 @@ populate_dag(struct sched_ctx *ctx, jay_block *block)
       if ((I->op == JAY_OPCODE_SEND && !jay_send_pure(I)) ||
           I->op == JAY_OPCODE_SCHEDULE_BARRIER ||
           I->op == JAY_OPCODE_CHECK_TDR ||
-          I->op == JAY_OPCODE_DEMOTE ||
-          I->op == JAY_OPCODE_IS_HELPER ||
-          (I->op == JAY_OPCODE_SEND &&
-           ctx->func->shader->helpers_tracked &&
-           jay_send_skip_helpers(I)) ||
           (I->op == JAY_OPCODE_MOV &&
            I->src[0].file == J_ARF &&
            jay_base_index(I->src[0]) == GEN_ARF_TIMESTAMP)) {
 
          jay_dag_add_edge(&ctx->dag, sidefx, true);
          sidefx = ctx->dag.node;
+      }
+
+      /* The "is helper?" flag is a hidden register, track as if post-RA */
+      if (I->op == JAY_OPCODE_IS_HELPER ||
+          (I->op == JAY_OPCODE_SEND &&
+           ctx->func->shader->helpers_tracked &&
+           jay_send_skip_helpers(I))) {
+
+         add_reader(ctx, helper, &ctx->helper_reads, first_node);
+      } else if (I->op == JAY_OPCODE_DEMOTE) {
+         add_writer(ctx, &helper, &ctx->helper_reads, first_node);
       }
 
       ctx->insts[ctx->dag.node] = I;
@@ -582,6 +611,8 @@ pass(jay_function *f)
       sctx.seen = BITSET_LINEAR_ZALLOC(linctx, f->ssa_alloc);
       sctx.prera.def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
    }
+
+   util_dynarray_init(&sctx.helper_reads, memctx);
 
    sctx.insts = linear_alloc_array(linctx, jay_inst *, nr_inst);
    sctx.cycle_ready = linear_zalloc_array(linctx, uint32_t, nr_inst);
