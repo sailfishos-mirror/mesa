@@ -3022,6 +3022,31 @@ _mesa_RenderbufferStorageMultisample(GLenum target, GLsizei samples,
 
 
 void GLAPIENTRY
+_mesa_RenderbufferStorageMultisampleEXT(GLenum target, GLsizei samples,
+                                        GLenum internalFormat,
+                                        GLsizei width, GLsizei height)
+{
+   GET_CURRENT_CONTEXT(ctx);
+
+   /* From the GL_EXT_multisampled_render_to_texture spec, like that of
+    * GL_EXT_framebuffer_multisample:
+    *
+    *    "If [...] samples is greater than the value of MAX_SAMPLES_EXT, then
+    *    the error INVALID_VALUE is generated."
+    */
+   if (samples > ctx->Const.MaxSamples) {
+      _mesa_error(ctx, GL_INVALID_VALUE,
+                  "glRenderbufferStorageMultisampleEXT(samples=%d)", samples);
+      return;
+   }
+
+   renderbuffer_storage_target(target, internalFormat, width, height,
+                               samples, samples,
+                               "glRenderbufferStorageMultisampleEXT");
+}
+
+
+void GLAPIENTRY
 _mesa_RenderbufferStorageMultisampleAdvancedAMD(
       GLenum target, GLsizei samples, GLsizei storageSamples,
       GLenum internalFormat, GLsizei width, GLsizei height)
