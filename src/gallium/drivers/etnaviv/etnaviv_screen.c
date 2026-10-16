@@ -871,8 +871,6 @@ etna_get_specs(struct etna_screen *screen)
    else
       DBG("etnaviv: GPU arch: pre-HALTI");
 
-   screen->specs.can_supertile =
-      VIV_FEATURE(screen, ETNA_FEATURE_SUPER_TILED);
    screen->specs.bits_per_tile =
       !VIV_FEATURE(screen, ETNA_FEATURE_2BITPERTILE) ||
       VIV_FEATURE(screen, ETNA_FEATURE_CACHE128B256BPERLINE) ? 4 : 2;

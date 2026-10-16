@@ -73,8 +73,6 @@
 
 /* GPU chip 3D specs */
 struct etna_specs {
-   /* supports SUPERTILE (64x64) tiling? */
-   unsigned can_supertile : 1;
    /* needs z=(z+w)/2, for older GCxxx */
    unsigned vs_need_z_div : 1;
    /* can use VS_RANGE, PS_RANGE registers*/

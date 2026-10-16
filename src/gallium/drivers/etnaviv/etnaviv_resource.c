@@ -136,7 +136,7 @@ etna_resource_alloc_render_shadow(struct pipe_context *pctx,
    struct etna_screen *screen = ctx->screen;
    struct etna_resource *res = etna_resource(prsc);
    bool need_multitiled = screen->specs.pe_multitiled;
-   bool want_supertiled = screen->specs.can_supertile;
+   bool want_supertiled = VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE);
    struct pipe_resource templat;
    unsigned layout;
 
@@ -689,9 +689,9 @@ etna_resource_create(struct pipe_screen *pscreen,
    if (templat->bind & PIPE_BIND_DEPTH_STENCIL) {
       if (screen->specs.pe_multitiled)
          layout |= ETNA_LAYOUT_BIT_MULTI;
-      if (screen->specs.can_supertile)
+      if (VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE))
          layout |= ETNA_LAYOUT_BIT_SUPER;
-   } else if (screen->specs.can_supertile &&
+   } else if (VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
               VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
               etna_resource_hw_tileable(screen->specs.use_blt, templat)) {
       layout |= ETNA_LAYOUT_BIT_SUPER;
@@ -702,7 +702,7 @@ etna_resource_create(struct pipe_screen *pscreen,
        (templat->bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL))) {
       if (screen->specs.pixel_pipes > 1 && !VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
          layout |= ETNA_LAYOUT_BIT_MULTI;
-      if (screen->specs.can_supertile)
+      if (VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE))
          layout |= ETNA_LAYOUT_BIT_SUPER;
    }
 
@@ -744,7 +744,7 @@ select_best_modifier(const struct etna_screen * screen,
                      const struct pipe_resource *templat,
                      const uint64_t *modifiers, const unsigned count)
 {
-   bool can_supertile = screen->specs.can_supertile &&
+   bool can_supertile = VIV_FEATURE(screen, ETNA_FEATURE_SUPERTILED_TEXTURE) &&
                         etna_resource_hw_tileable(screen->specs.use_blt, templat);
    enum modifier_priority prio = MODIFIER_PRIORITY_INVALID;
    uint64_t best_modifier, base_modifier;
