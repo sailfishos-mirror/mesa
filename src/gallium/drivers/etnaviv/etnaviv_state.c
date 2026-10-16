@@ -286,7 +286,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       for (int i = 0; i < screen->specs.pixel_pipes; i++) {
          cs->PE_RT_PIPE_COLOR_ADDR[rt][i].bo = res->bo;
          cs->PE_RT_PIPE_COLOR_ADDR[rt][i].offset = level->offset + surf->first_layer * level->layer_stride;
-         if (!screen->specs.single_buffer)
+         if (!VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
             cs->PE_RT_PIPE_COLOR_ADDR[rt][i].offset += level->layer_stride / screen->specs.pixel_pipes * i;
          cs->PE_RT_PIPE_COLOR_ADDR[rt][i].flags = ETNA_RELOC_READ | ETNA_RELOC_WRITE;
       }
@@ -461,7 +461,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       for (int i = 0; i < screen->specs.pixel_pipes; i++) {
          cs->PE_PIPE_DEPTH_ADDR[i].bo = res->bo;
          cs->PE_PIPE_DEPTH_ADDR[i].offset = level->offset + surf->first_layer * level->layer_stride;
-         if (!screen->specs.single_buffer)
+         if (!VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
             cs->PE_PIPE_DEPTH_ADDR[i].offset += level->layer_stride / screen->specs.pixel_pipes * i;
          cs->PE_PIPE_DEPTH_ADDR[i].flags = ETNA_RELOC_READ | ETNA_RELOC_WRITE;
       }
@@ -557,7 +557,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
     */
    if (unlikely(target_linear))
       pe_logic_op |= VIVS_PE_LOGIC_OP_SINGLE_BUFFER(1);
-   else if (screen->specs.single_buffer)
+   else if (VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
       pe_logic_op |= VIVS_PE_LOGIC_OP_SINGLE_BUFFER(target_16bpp || target_s8 ? 3 : 2);
    cs->PE_LOGIC_OP = pe_logic_op;
 

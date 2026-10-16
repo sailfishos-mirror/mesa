@@ -165,7 +165,8 @@ etna_compile_rs_state(struct etna_context *ctx, struct compiled_rs_state *cs,
    /* If source the same as destination, and the hardware supports this,
     * do an in-place resolve to fill in unrendered tiles.
     */
-   if (screen->specs.single_buffer && rs->source == rs->dest &&
+   if (VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER) &&
+         rs->source == rs->dest &&
          rs->source_offset == rs->dest_offset &&
          rs->source_format == rs->dest_format &&
          rs->source_tiling == rs->dest_tiling &&
@@ -181,7 +182,7 @@ etna_compile_rs_state(struct etna_context *ctx, struct compiled_rs_state *cs,
       cs->RS_KICKER_INPLACE = rs->tile_count;
    }
    cs->source_ts_valid = rs->source_ts_valid;
-   cs->single_buffer = screen->specs.single_buffer;
+   cs->single_buffer = VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER);
    cs->downsample_one_sample = rs->downsample_one_sample;
 
    if (cs->single_buffer)
@@ -693,6 +694,7 @@ etna_try_rs_blit(struct pipe_context *pctx,
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *src = etna_resource(blit_info->src.resource);
    struct etna_resource *dst = etna_resource(blit_info->dst.resource);
+   struct etna_screen *screen = ctx->screen;
    struct compiled_rs_state copy_to_screen;
    int src_xscale, src_yscale, dst_xscale, dst_yscale;
    bool downsample_x = false, downsample_y = false;
@@ -844,7 +846,7 @@ etna_try_rs_blit(struct pipe_context *pctx,
 
       /* Try to increase alignment to multi-pipe requirements to unlock
        * multi-pipe resolve for increased performance. */
-      if (!ctx->screen->specs.single_buffer) {
+      if (!VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER)) {
           unsigned int pipe_align = align(height, h_align * ctx->screen->specs.pixel_pipes);
 
           if (pipe_align <= src_lev->padded_height &&

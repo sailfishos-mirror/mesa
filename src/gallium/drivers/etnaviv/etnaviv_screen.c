@@ -966,11 +966,10 @@ etna_get_specs(struct etna_screen *screen)
    screen->specs.max_rendertarget_size =
       VIV_FEATURE(screen, ETNA_FEATURE_RENDERTARGET_8K) ? 8192 : 2048;
 
-   screen->specs.single_buffer = VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER);
-   if (screen->specs.single_buffer)
+   if (VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
       DBG("etnaviv: Single buffer mode enabled with %d pixel pipes", screen->specs.pixel_pipes);
    screen->specs.pe_multitiled = screen->specs.pixel_pipes > 1 &&
-                                 !screen->specs.single_buffer;
+                                 !VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER);
 
    if (VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC)) {
       perf_debug_ctx(NULL, "Hardware ASTC disabled, ASTC is decoded on the CPU");

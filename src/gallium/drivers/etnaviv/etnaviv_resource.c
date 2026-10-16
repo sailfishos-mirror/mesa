@@ -700,7 +700,7 @@ etna_resource_create(struct pipe_screen *pscreen,
    if (/* MSAA render target */
        (templat->nr_samples > 1) &&
        (templat->bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_DEPTH_STENCIL))) {
-      if (screen->specs.pixel_pipes > 1 && !screen->specs.single_buffer)
+      if (screen->specs.pixel_pipes > 1 && !VIV_FEATURE(screen, ETNA_FEATURE_SINGLE_BUFFER))
          layout |= ETNA_LAYOUT_BIT_MULTI;
       if (screen->specs.can_supertile)
          layout |= ETNA_LAYOUT_BIT_SUPER;
