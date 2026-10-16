@@ -443,11 +443,14 @@ util_queue_init(struct util_queue *queue,
    queue->max_jobs = max_jobs;
    queue->global_data = global_data;
 
-   (void) mtx_init(&queue->lock, mtx_plain);
+   if (mtx_init(&queue->lock, mtx_plain) != thrd_success)
+      goto fail_lock;
 
    queue->num_queued = 0;
-   cnd_init(&queue->has_queued_cond);
-   cnd_init(&queue->has_space_cond);
+   if (cnd_init(&queue->has_queued_cond) != thrd_success)
+      goto fail_queued_cond;
+   if (cnd_init(&queue->has_space_cond) != thrd_success)
+      goto fail_space_cond;
 
    queue->jobs = (struct util_queue_job*)
                  calloc(max_jobs, sizeof(struct util_queue_job));
@@ -477,13 +480,13 @@ util_queue_init(struct util_queue *queue,
 
 fail:
    free(queue->threads);
-
-   if (queue->jobs) {
-      cnd_destroy(&queue->has_space_cond);
-      cnd_destroy(&queue->has_queued_cond);
-      mtx_destroy(&queue->lock);
-      free(queue->jobs);
-   }
+   free(queue->jobs);
+   cnd_destroy(&queue->has_space_cond);
+fail_space_cond:
+   cnd_destroy(&queue->has_queued_cond);
+fail_queued_cond:
+   mtx_destroy(&queue->lock);
+fail_lock:
    /* also util_queue_is_initialized can be used to check for success */
    memset(queue, 0, sizeof(*queue));
    return false;

@@ -364,7 +364,7 @@
         "description": "util/queue: remove locked argument from util_queue_add_job_locked",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
@@ -1834,7 +1834,7 @@
         "description": "util/u_queue: fail util_queue_init when mtx_init or cnd_init fails",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
