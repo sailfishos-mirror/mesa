@@ -1014,7 +1014,7 @@
         "description": "kraid: Print correct stats for varying shader",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e67d3ca5a8f6fedbeb3b5ef770fdd1d2db08b307",
         "notes": null
