@@ -2610,6 +2610,11 @@ struct gl_renderbuffer
    bool rtt_layered; /**< whether glFramebufferTexture was called */
    unsigned rtt_nr_samples; /**< from FramebufferTexture2DMultisampleEXT */
    unsigned rtt_numviews;
+
+   /** storage from RenderbufferStorageMultisampleEXT on GLES, whose samples
+    * are implicitly resolved like those of FramebufferTexture2DMultisampleEXT
+    */
+   bool msrtt;
 };
 
 
