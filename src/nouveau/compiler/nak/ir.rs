@@ -7054,7 +7054,7 @@ pub struct OpMemBar {
 
 impl DisplayOp for OpMemBar {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "membar.sc.{}", self.scope)
+        write!(f, "membar.sc{}", self.scope)
     }
 }
 impl_display_for_op!(OpMemBar);
