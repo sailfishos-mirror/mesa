@@ -525,24 +525,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 static bool
 gpu_supports_vertex_format(struct etna_screen *screen, enum pipe_format format)
 {
-   if (!eil_get_format_entry(format)->has_vtx)
-      return false;
-
-   if (util_format_is_pure_integer(format))
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
-
-   /* ARB_vertex_type_2_10_10_10_rev */
-   if (format == PIPE_FORMAT_R10G10B10A2_UNORM ||
-       format == PIPE_FORMAT_B10G10R10A2_UNORM ||
-       format == PIPE_FORMAT_R10G10B10A2_SNORM ||
-       format == PIPE_FORMAT_B10G10R10A2_SNORM ||
-       format == PIPE_FORMAT_R10G10B10A2_USCALED ||
-       format == PIPE_FORMAT_B10G10R10A2_USCALED ||
-       format == PIPE_FORMAT_R10G10B10A2_SSCALED ||
-       format == PIPE_FORMAT_B10G10R10A2_SSCALED)
-      return VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
-
-   return true;
+   return eil_format_supports_vertex_fetch(screen->info, format);
 }
 
 static bool

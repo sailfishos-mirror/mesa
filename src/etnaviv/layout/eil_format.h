@@ -90,6 +90,13 @@ eil_format_supports_sampling(const struct etna_core_info *info, enum pipe_format
    return f->has_tex && eil_gate_ok(info, f->tex_gated, f->tex_gate);
 }
 
+static inline bool
+eil_format_supports_vertex_fetch(const struct etna_core_info *info, enum pipe_format fmt)
+{
+   const struct eil_format *f = eil_get_format_entry(fmt);
+   return f->has_vtx && eil_gate_ok(info, f->vtx_gated, f->vtx_gate);
+}
+
 #ifdef __cplusplus
 }
 #endif
