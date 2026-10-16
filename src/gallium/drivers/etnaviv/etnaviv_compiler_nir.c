@@ -781,7 +781,6 @@ emit_intrinsic(struct etna_compile *c, nir_intrinsic_instr * intr)
          .type = ISA_TYPE_U32,
          .denorm = 1,
          .dst = {
-            .use = 1,
             .write_mask = nir_intrinsic_write_mask(intr),
          },
          .src[0] = get_src(c, &intr->src[1]),
