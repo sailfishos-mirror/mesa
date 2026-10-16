@@ -448,9 +448,8 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
    if (fmt & EXT_FORMAT)
       supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI0);
 
-   if (fmt & ASTC_FORMAT) {
-      supported = screen->specs.tex_astc;
-   }
+   if (fmt & ASTC_FORMAT)
+      supported = VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC);
 
    if (util_format_is_snorm(format))
       supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI1);
@@ -1050,9 +1049,10 @@ etna_get_specs(struct etna_screen *screen)
    screen->specs.pe_multitiled = screen->specs.pixel_pipes > 1 &&
                                  !screen->specs.single_buffer;
 
-   if (VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC))
+   if (VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC)) {
       perf_debug_ctx(NULL, "Hardware ASTC disabled, ASTC is decoded on the CPU");
-   screen->specs.tex_astc = false;
+      etna_core_disable_feature(screen->info, ETNA_FEATURE_TEXTURE_ASTC);
+   }
 
    screen->specs.use_blt = VIV_FEATURE(screen, ETNA_FEATURE_BLT_ENGINE);
 

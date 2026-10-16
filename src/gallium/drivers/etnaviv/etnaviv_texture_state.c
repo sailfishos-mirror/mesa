@@ -498,7 +498,7 @@ etna_emit_new_texture_state(struct etna_context *ctx)
          }
       }
    }
-   if (unlikely(screen->specs.tex_astc && (dirty & (ETNA_DIRTY_SAMPLER_VIEWS)))) {
+   if (unlikely(VIV_FEATURE(screen, ETNA_FEATURE_TEXTURE_ASTC) && (dirty & (ETNA_DIRTY_SAMPLER_VIEWS)))) {
       for (int x = 0; x < VIVS_NTE_SAMPLER__LEN; ++x) {
          if ((1 << x) & active_samplers) {
             struct etna_sampler_view *sv = etna_sampler_view(ctx->sampler_view[x]);
