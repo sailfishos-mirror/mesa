@@ -4076,6 +4076,19 @@ static bool
 check_samples(struct gl_context *ctx, struct gl_texture_object *texObj,
             GLenum target, GLint level, GLint samples, const char *caller)
 {
+   /* From the GL_EXT_multisampled_render_to_texture spec:
+    *
+    *    "If samples is greater than the value of MAX_SAMPLES_EXT, then the
+    *    error INVALID_VALUE is generated."
+    *
+    * GL_OVR_multiview_multisampled_render_to_texture has the same error, and
+    * a negative sizei is INVALID_VALUE as usual.
+    */
+   if (samples < 0 || samples > ctx->Const.MaxSamples) {
+      _mesa_error(ctx, GL_INVALID_VALUE, "%s(samples=%d)", caller, samples);
+      return false;
+   }
+
    if (samples > 0) {
       const struct gl_texture_image *texImage =
          texObj->Image[_mesa_tex_target_to_face(target)][level];

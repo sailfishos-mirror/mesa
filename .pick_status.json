@@ -6694,7 +6694,7 @@
         "description": "mesa: raise INVALID_VALUE for bad msrtt texture sample counts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "17f91c0354a6802fd6a223e157d85e6139cf125f",
         "notes": null
