@@ -1641,6 +1641,7 @@ struct zink_screen {
    } driver_workarounds;
 
    VkImageUsageFlags video_output_usage;
+   bool video_interlaced; //h264 profiles use the interleaved lines picture layout
    /* indexed by bit depth: 8, 10 */
    struct zink_video_format_prop video_format_prop_dpb[2];
    struct zink_video_format_prop video_format_prop_output[2];

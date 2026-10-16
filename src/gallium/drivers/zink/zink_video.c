@@ -615,8 +615,8 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    if (zvc->error)
       return -1;
 
-   /* sessions are created for progressive content only */
-   if (h264->field_pic_flag || !h264->pps->sps->frame_mbs_only_flag)
+   /* the progressive layout can't decode interlaced content */
+   if (!screen->video_interlaced && (h264->field_pic_flag || !h264->pps->sps->frame_mbs_only_flag))
       return -1;
 
    int ref_slots[ARRAY_SIZE(h264->ref)];
@@ -994,7 +994,11 @@ zink_video_fill_single_profile(struct zink_screen *screen,
    case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       out_prof->h264.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_PROFILE_INFO_KHR;
       out_prof->h264.stdProfileIdc = h264_profile_conv(profile);
-      out_prof->h264.pictureLayout = VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR;
+      /* baseline has no interlaced coding tools, so drivers only accept it as progressive */
+      out_prof->h264.pictureLayout = screen->video_interlaced &&
+                                     out_prof->h264.stdProfileIdc != STD_VIDEO_H264_PROFILE_IDC_BASELINE ?
+                                     VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_INTERLACED_INTERLEAVED_LINES_BIT_KHR :
+                                     VK_VIDEO_DECODE_H264_PICTURE_LAYOUT_PROGRESSIVE_KHR;
       out_prof->profile.pNext = &out_prof->h264;
       break;
    default:
@@ -1097,8 +1101,18 @@ void
 zink_video_init_format_props(struct zink_screen *screen)
 {
    struct zink_video_caps_info caps_info = { 0 };
-   bool coincide = zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH,
-                                        PIPE_VIDEO_ENTRYPOINT_BITSTREAM, false, &caps_info) &&
+   /* VA creates surfaces before the stream is known, and every image and session has to use the same
+    * profile, so use interleaved lines whenever the driver supports it: it decodes progressive content too
+    */
+   screen->video_interlaced = true;
+   bool supported = zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH,
+                                         PIPE_VIDEO_ENTRYPOINT_BITSTREAM, false, &caps_info);
+   if (!supported) {
+      screen->video_interlaced = false;
+      supported = zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH,
+                                       PIPE_VIDEO_ENTRYPOINT_BITSTREAM, false, &caps_info);
+   }
+   bool coincide = supported &&
                    (caps_info.dec_caps.flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR);
    screen->video_output_usage = VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
    if (coincide)
