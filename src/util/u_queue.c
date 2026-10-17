@@ -46,8 +46,7 @@
 #define S_256MB (256 * 1024 * 1024)
 
 static void
-util_queue_kill_threads(struct util_queue *queue, unsigned keep_num_threads,
-                        bool locked);
+util_queue_kill_threads_locked(struct util_queue *queue, unsigned keep_num_threads);
 
 /****************************************************************************
  * Wait for all queues to assert idle when exit() is called.
@@ -71,7 +70,9 @@ atexit_handler(void)
    mtx_lock(&exit_mutex);
    /* Wait for all queues to assert idle. */
    LIST_FOR_EACH_ENTRY(iter, &queue_list, head) {
-      util_queue_kill_threads(iter, 0, false);
+      mtx_lock(&iter->lock);
+      util_queue_kill_threads_locked(iter, 0);
+      mtx_unlock(&iter->lock);
    }
    mtx_unlock(&exit_mutex);
 }
@@ -376,7 +377,7 @@ util_queue_adjust_num_threads(struct util_queue *queue, unsigned num_threads,
    }
 
    if (num_threads < old_num_threads) {
-      util_queue_kill_threads(queue, num_threads, true);
+      util_queue_kill_threads_locked(queue, num_threads);
       if (!locked)
          mtx_unlock(&queue->lock);
       return;
@@ -491,16 +492,11 @@ fail:
 }
 
 static void
-util_queue_kill_threads(struct util_queue *queue, unsigned keep_num_threads,
-                        bool locked)
+util_queue_kill_threads_locked(struct util_queue *queue,
+                               unsigned keep_num_threads)
 {
    /* Signal all threads to terminate. */
-   if (!locked)
-      mtx_lock(&queue->lock);
-
    if (keep_num_threads >= queue->num_threads) {
-      if (!locked)
-         mtx_unlock(&queue->lock);
       return;
    }
 
@@ -517,11 +513,7 @@ util_queue_kill_threads(struct util_queue *queue, unsigned keep_num_threads,
       mtx_unlock(&queue->lock);
       for (unsigned i = keep_num_threads; i < old_num_threads; i++)
          thrd_join(queue->threads[i], NULL);
-      if (locked)
-         mtx_lock(&queue->lock);
-   } else {
-      if (!locked)
-         mtx_unlock(&queue->lock);
+      mtx_lock(&queue->lock);
    }
 }
 
@@ -536,7 +528,9 @@ util_queue_finish_execute(void *data, void *gdata, int num_thread)
 void
 util_queue_destroy(struct util_queue *queue)
 {
-   util_queue_kill_threads(queue, 0, false);
+   mtx_lock(&queue->lock);
+   util_queue_kill_threads_locked(queue, 0);
+   mtx_unlock(&queue->lock);
 
    /* This makes it safe to call on a queue that failed util_queue_init. */
    if (queue->head.next != NULL)
