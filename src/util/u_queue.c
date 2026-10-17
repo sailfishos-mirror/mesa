@@ -550,16 +550,11 @@ util_queue_add_job_locked(struct util_queue *queue,
                           struct util_queue_fence *fence,
                           util_queue_execute_func execute,
                           util_queue_execute_func cleanup,
-                          const size_t job_size,
-                          bool locked)
+                          const size_t job_size)
 {
    struct util_queue_job *ptr;
 
-   if (!locked)
-      mtx_lock(&queue->lock);
    if (queue->num_threads == 0) {
-      if (!locked)
-         mtx_unlock(&queue->lock);
       /* well no good option here, but any leaks will be
        * short-lived as things are shutting down..
        */
@@ -630,8 +625,6 @@ util_queue_add_job_locked(struct util_queue *queue,
 
    queue->num_queued++;
    cnd_signal(&queue->has_queued_cond);
-   if (!locked)
-      mtx_unlock(&queue->lock);
 }
 
 void
@@ -642,8 +635,9 @@ util_queue_add_job(struct util_queue *queue,
                    util_queue_execute_func cleanup,
                    const size_t job_size)
 {
-   util_queue_add_job_locked(queue, job, fence, execute, cleanup, job_size,
-                             false);
+   mtx_lock(&queue->lock);
+   util_queue_add_job_locked(queue, job, fence, execute, cleanup, job_size);
+   mtx_unlock(&queue->lock);
 }
 
 /**
@@ -721,7 +715,7 @@ util_queue_finish(struct util_queue *queue)
    for (unsigned i = 0; i < queue->num_threads; ++i) {
       util_queue_fence_init(&fences[i]);
       util_queue_add_job_locked(queue, &barrier, &fences[i],
-                                util_queue_finish_execute, NULL, 0, true);
+                                util_queue_finish_execute, NULL, 0);
    }
    queue->create_threads_on_demand = true;
    mtx_unlock(&queue->lock);
