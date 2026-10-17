@@ -93,6 +93,7 @@ struct v3d_screen {
         bool dual_color_blend_by_location;
         bool has_cpu_queue;
         bool has_multisync;
+        bool has_tfu_ccol;
 
         float heap_memory_percent;
 

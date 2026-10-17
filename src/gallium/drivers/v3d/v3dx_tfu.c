@@ -321,3 +321,105 @@ v3dX(tfu_sand)(struct pipe_context *pctx,
         return false;
 #endif
 }
+
+bool
+v3dX(tfu_clear_buffer)(struct pipe_context *pctx,
+                       struct pipe_resource *prsc,
+                       unsigned offset,
+                       unsigned size,
+                       const void *clear_value,
+                       int clear_value_size)
+{
+#if V3D_VERSION < 71
+        return false;
+#else
+        struct v3d_context *v3d = v3d_context(pctx);
+        struct v3d_screen *screen = v3d->screen;
+        struct v3d_resource *rsc = v3d_resource(prsc);
+
+        if (!screen->has_tfu_ccol)
+                return false;
+
+        uint32_t cpp = clear_value_size;
+        uint32_t ccol[4] = { 0 };
+
+        if (size == 0)
+                return true;
+
+        if (cpp > 16 || !util_is_power_of_two_nonzero(cpp))
+                return false;
+
+        /* For cpp = 1 or cpp = 2, repeat the pattern every 1 or 2 bytes and
+         * use cpp = 4 when possible. This allows us to take 4x (or 2x) fewer
+         * pixels, making it more likely for clears to become single rows or
+         * generate fewer TFU jobs.
+         */
+        if (cpp < 4 && offset % 4 == 0 && size % 4 == 0) {
+                for (uint32_t i = 0; i < 4; i += cpp)
+                        memcpy((uint8_t *)ccol + i, clear_value, cpp);
+                cpp = 4;
+        } else {
+                memcpy(ccol, clear_value, cpp);
+        }
+
+        enum pipe_format pformat;
+        switch (cpp) {
+        case 16: pformat = PIPE_FORMAT_R32G32B32A32_FLOAT; break;
+        case 8:  pformat = PIPE_FORMAT_R16G16B16A16_UNORM; break;
+        case 4:  pformat = PIPE_FORMAT_R8G8B8A8_UNORM;     break;
+        case 2:  pformat = PIPE_FORMAT_R16_UNORM;          break;
+        default: pformat = PIPE_FORMAT_R8_UNORM;           break;
+        }
+
+        enum V3DX(Texture_Data_Formats) tex_format = v3d_get_tex_format(&screen->devinfo, pformat);
+        assert(v3dX(tfu_supports_tex_format)(tex_format, false));
+
+        MESA_TRACE_FUNC();
+
+        v3d_flush_jobs_reading_resource(v3d, prsc, V3D_FLUSH_DEFAULT, false);
+
+        const uint32_t icfg =
+                (V3D71_TFU_ICFG_FORMAT_CONSTANT_COLOUR << V3D71_TFU_ICFG_IFORMAT_SHIFT) |
+                (tex_format << V3D71_TFU_ICFG_OTYPE_SHIFT);
+
+        uint32_t remaining = size / cpp;
+        while (remaining > 0) {
+                uint32_t width = v3d_tfu_raster_job_width(remaining, cpp);
+                uint32_t height = MAX2(1, MIN2(remaining / width, V3D_TFU_MAX_DIM));
+                uint32_t pixels = width * height;
+                assert(pixels <= remaining);
+
+                struct drm_v3d_submit_tfu tfu = {
+                        .icfg = icfg,
+                        .ioa = rsc->bo->offset + offset,
+                        .ios = (height << 16) | width,
+                        .bo_handles = { rsc->bo->handle },
+                        .in_sync = v3d->out_sync,
+                        .out_sync = v3d->out_sync,
+                        .v71 = {
+                                .ioc = (V3D71_TFU_IOC_FORMAT_RASTER << V3D71_TFU_IOC_FORMAT_SHIFT) |
+                                       (width << V3D71_TFU_IOC_STRIDE_SHIFT),
+                                .ccol = { ccol[0], ccol[1], ccol[2], ccol[3] },
+                        },
+                };
+
+                int ret = v3d_ioctl(screen->fd, DRM_IOCTL_V3D_SUBMIT_TFU, &tfu);
+                if (ret != 0) {
+                        mesa_loge("Failed to submit TFU clear job: %d", ret);
+                        return false;
+                }
+
+                remaining -= pixels;
+                offset += pixels * cpp;
+        }
+
+        if (V3D_DBG(SYNC)) {
+                drmSyncobjWait(v3d->fd, &v3d->out_sync, 1, INT64_MAX,
+                               DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
+        }
+
+        rsc->writes++;
+
+        return true;
+#endif
+}
