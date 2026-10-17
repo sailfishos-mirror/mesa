@@ -243,6 +243,18 @@ load_src(nir_builder *b, const ac_cs_blit_key *key, nir_deref_instr *deref, nir_
                                             ACCESS_FMASK_LOWERED_AMD : 0);
 }
 
+static void
+print_shader_key_field(FILE *f, const char *name, unsigned value)
+{
+   /* When logging, we want all fields on the same line. */
+   if (f == stderr)
+      fprintf(f, "   %s = %u\n", name, value);
+   else
+      fprintf(f, "%s = %u, ", name, value);
+}
+
+DEBUG_GET_ONCE_OPTION(log_keys, "AMD_CS_BLIT_LOG_KEYS_FILE", false)
+
 /* The compute blit shader.
  *
  * Implementation details:
@@ -257,43 +269,69 @@ load_src(nir_builder *b, const ac_cs_blit_key *key, nir_deref_instr *deref, nir_
 nir_shader *
 ac_create_blit_cs(const ac_cs_blit_options *options, const ac_cs_blit_key *key)
 {
-   if (options->print_key) {
-      fprintf(stderr, "Internal shader: compute_blit\n");
-      fprintf(stderr, "   key.use_aco = %u\n", key->use_aco);
-      fprintf(stderr, "   key.wg_dim = %u\n", key->wg_dim);
-      fprintf(stderr, "   key.has_start_xyz = %u\n", key->has_start_xyz);
-      fprintf(stderr, "   key.format_is_96bit = %u\n", key->format_is_96bit);
-      fprintf(stderr, "   key.addr_math_64bit = %u\n", key->addr_math_64bit);
-      fprintf(stderr, "   key.log_lane_width = %u\n", key->log_lane_width);
-      fprintf(stderr, "   key.log_lane_height = %u\n", key->log_lane_height);
-      fprintf(stderr, "   key.log_lane_depth = %u\n", key->log_lane_depth);
-      fprintf(stderr, "   key.is_clear = %u\n", key->is_clear);
-      fprintf(stderr, "   key.src_is_sampler = %u\n", key->src_is_sampler);
-      fprintf(stderr, "   key.src_is_1d = %u\n", key->src_is_1d);
-      fprintf(stderr, "   key.dst_is_1d = %u\n", key->dst_is_1d);
-      fprintf(stderr, "   key.src_is_msaa = %u\n", key->src_is_msaa);
-      fprintf(stderr, "   key.dst_is_msaa = %u\n", key->dst_is_msaa);
-      fprintf(stderr, "   key.src_has_z = %u\n", key->src_has_z);
-      fprintf(stderr, "   key.dst_has_z = %u\n", key->dst_has_z);
-      fprintf(stderr, "   key.src_has_non_identity_fmask = %u\n", key->src_has_non_identity_fmask);
-      fprintf(stderr, "   key.dst_store_fmask = %u\n", key->dst_store_fmask);
-      fprintf(stderr, "   key.copy_physical_samples = %u\n", key->copy_physical_samples);
-      fprintf(stderr, "   key.dst_is_rgb5 = %u\n", key->dst_is_rgb5);
-      fprintf(stderr, "   key.a16 = %u\n", key->a16);
-      fprintf(stderr, "   key.d16 = %u\n", key->d16);
-      fprintf(stderr, "   key.log_samples = %u\n", key->log_samples);
-      fprintf(stderr, "   key.sample0_only = %u\n", key->sample0_only);
-      fprintf(stderr, "   key.x_clamp_to_edge = %u\n", key->x_clamp_to_edge);
-      fprintf(stderr, "   key.y_clamp_to_edge = %u\n", key->y_clamp_to_edge);
-      fprintf(stderr, "   key.flip_x = %u\n", key->flip_x);
-      fprintf(stderr, "   key.flip_y = %u\n", key->flip_y);
-      fprintf(stderr, "   key.sint_to_uint = %u\n", key->sint_to_uint);
-      fprintf(stderr, "   key.uint_to_sint = %u\n", key->uint_to_sint);
-      fprintf(stderr, "   key.dst_is_srgb = %u\n", key->dst_is_srgb);
-      fprintf(stderr, "   key.use_integer_one = %u\n", key->use_integer_one);
-      fprintf(stderr, "   key.last_src_channel = %u\n", key->last_src_channel);
-      fprintf(stderr, "   key.last_dst_channel = %u\n", key->last_dst_channel);
-      fprintf(stderr, "\n");
+   if (options->print_key || debug_get_option_log_keys()) {
+      static simple_mtx_t mtx = SIMPLE_MTX_INITIALIZER;
+      FILE *f = stderr;
+
+      if (debug_get_option_log_keys()) {
+         /* The mutex prevents races during logging when shader variants are compiled in parallel. */
+         simple_mtx_lock(&mtx);
+         FILE *log = fopen(debug_get_option_log_keys(), "a");
+
+         if (log) {
+            f = log;
+         } else {
+            simple_mtx_unlock(&mtx);
+            fprintf(stderr, "Can't open %s\n", debug_get_option_log_keys());
+         }
+      }
+
+      if (f == stderr)
+         fprintf(f, "Internal shader: compute_blit\n");
+
+#define PRINT(field) print_shader_key_field(f, "key." #field, key->field)
+      PRINT(use_aco);
+      PRINT(wg_dim);
+      PRINT(has_start_xyz);
+      PRINT(format_is_96bit);
+      PRINT(addr_math_64bit);
+      PRINT(log_lane_width);
+      PRINT(log_lane_height);
+      PRINT(log_lane_depth);
+      PRINT(is_clear);
+      PRINT(src_is_sampler);
+      PRINT(src_is_1d);
+      PRINT(dst_is_1d);
+      PRINT(src_is_msaa);
+      PRINT(dst_is_msaa);
+      PRINT(src_has_z);
+      PRINT(dst_has_z);
+      PRINT(src_has_non_identity_fmask);
+      PRINT(dst_store_fmask);
+      PRINT(copy_physical_samples);
+      PRINT(dst_is_rgb5);
+      PRINT(a16);
+      PRINT(d16);
+      PRINT(log_samples);
+      PRINT(sample0_only);
+      PRINT(x_clamp_to_edge);
+      PRINT(y_clamp_to_edge);
+      PRINT(flip_x);
+      PRINT(flip_y);
+      PRINT(sint_to_uint);
+      PRINT(uint_to_sint);
+      PRINT(dst_is_srgb);
+      PRINT(use_integer_one);
+      PRINT(last_src_channel);
+      PRINT(last_dst_channel);
+#undef PRINT
+
+      fprintf(f, "\n");
+
+      if (f != stderr) {
+         fclose(f);
+         simple_mtx_unlock(&mtx);
+      }
    }
 
    nir_builder b = nir_builder_init_simple_shader(MESA_SHADER_COMPUTE, options->nir_options,
