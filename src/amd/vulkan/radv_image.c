@@ -313,11 +313,6 @@ radv_use_fmask_for_image(const struct radv_device *device, const struct radv_ima
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   if (pdev->info.gfx_level == GFX9 && image->vk.array_layers > 1) {
-      /* On GFX9, FMASK can be interleaved with layers and this isn't properly supported. */
-      return false;
-   }
-
    return pdev->use_fmask && image->vk.samples > 1 && (image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR);
 }
 
@@ -660,6 +655,19 @@ radv_get_surface_flags(struct radv_device *device, struct radv_image *image, uns
    if (pdev->info.gfx_level < GFX12 &&
        !radv_use_dcc_for_image_early(device, image, pCreateInfo, image_format, &image->dcc_sign_reinterpret))
       flags |= RADEON_SURF_DISABLE_DCC;
+
+   /* We can't use CMASK for images with multiple layers when CMASK slices are non-contiguous because our
+    * CMASK clears can't handle it.
+    *
+    * CMASK slices are non-contiguous on GFX9 depending on image dimensions, sample count, FMASK tiling,
+    * and chip config. Even for samples == 1, but only on Vega12.
+    *
+    * CMASK slices are also non-contiguous with TC-compatible CMASK on GFX8, but that's fine because
+    * we can still use TC-incompatible CMASK on GFX8, whose slices are always contiguous.
+    */
+   if (pdev->info.gfx_level == GFX9 && image->vk.array_layers > 1 &&
+       image->vk.usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR)
+      flags |= RADEON_SURF_REQUIRE_CONTIGUOUS_CMASK_SLICES;
 
    if (!radv_use_fmask_for_image(device, image))
       flags |= RADEON_SURF_NO_FMASK;
