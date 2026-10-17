@@ -1674,7 +1674,7 @@
         "description": "nak: never encode IDP.4A with an immediate source",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eb633b49782be3f6df90a5030e92f771896a7e17",
         "notes": null
