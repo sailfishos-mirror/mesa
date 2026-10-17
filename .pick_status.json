@@ -274,7 +274,7 @@
         "description": "d3d12: Reclaim buffer memory outside manager locks",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b8f2b968dea6603aff5175f50bc34a05ef3b2034",
         "notes": null
