@@ -358,28 +358,21 @@ util_queue_create_thread(struct util_queue *queue, unsigned index)
    return true;
 }
 
-void
-util_queue_adjust_num_threads(struct util_queue *queue, unsigned num_threads,
-                              bool locked)
+static void
+util_queue_adjust_num_threads_locked(struct util_queue *queue,
+                                     unsigned num_threads)
 {
    num_threads = MIN2(num_threads, queue->max_threads);
    num_threads = MAX2(num_threads, 1);
 
-   if (!locked)
-      mtx_lock(&queue->lock);
-
    unsigned old_num_threads = queue->num_threads;
 
    if (num_threads == old_num_threads) {
-      if (!locked)
-         mtx_unlock(&queue->lock);
       return;
    }
 
    if (num_threads < old_num_threads) {
       util_queue_kill_threads_locked(queue, num_threads);
-      if (!locked)
-         mtx_unlock(&queue->lock);
       return;
    }
 
@@ -395,9 +388,14 @@ util_queue_adjust_num_threads(struct util_queue *queue, unsigned num_threads,
          break;
       }
    }
+}
 
-   if (!locked)
-      mtx_unlock(&queue->lock);
+void
+util_queue_adjust_num_threads(struct util_queue *queue, unsigned num_threads)
+{
+   mtx_lock(&queue->lock);
+   util_queue_adjust_num_threads_locked(queue, num_threads);
+   mtx_unlock(&queue->lock);
 }
 
 bool
@@ -575,7 +573,7 @@ util_queue_add_job_locked(struct util_queue *queue,
        queue->create_threads_on_demand &&
        execute != util_queue_finish_execute &&
        queue->num_threads < queue->max_threads) {
-      util_queue_adjust_num_threads(queue, queue->num_threads + 1, true);
+      util_queue_adjust_num_threads_locked(queue, queue->num_threads + 1);
    }
 
    if (queue->num_queued == queue->max_jobs) {
