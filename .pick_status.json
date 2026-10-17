@@ -494,7 +494,7 @@
         "description": "util: Fix NSEC_PER_SEC macro-redefined warning on macOS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca96e474477a67a0ff5ec5d0177a7248bb97e303",
         "notes": null
