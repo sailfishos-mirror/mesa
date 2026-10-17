@@ -269,8 +269,11 @@ d3d12_screen_reclaim_one(struct d3d12_screen *screen)
    if (!have_target)
       return false;
 
-   if (screen->fence->GetCompletedValue() < target)
-      screen->fence->SetEventOnCompletion(target, nullptr);
+   if (screen->fence->GetCompletedValue() < target &&
+       FAILED(screen->fence->SetEventOnCompletion(target, nullptr))) {
+      debug_printf("D3D12: failed to wait for pending resource reclamation\n");
+      return false;
+   }
 
    d3d12_screen_reclaim_completed(screen);
    return true;

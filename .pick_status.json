@@ -3224,7 +3224,7 @@
         "description": "d3d12: Stop reclaim retries when the fence wait fails",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "381b56389c95fb809b96eb941ce13a8af48d840d",
         "notes": null
