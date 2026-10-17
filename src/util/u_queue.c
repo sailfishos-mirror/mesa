@@ -70,9 +70,11 @@ atexit_handler(void)
    mtx_lock(&exit_mutex);
    /* Wait for all queues to assert idle. */
    LIST_FOR_EACH_ENTRY(iter, &queue_list, head) {
+      simple_mtx_lock(&iter->finish_lock);
       mtx_lock(&iter->lock);
       util_queue_kill_threads_locked(iter, 0);
       mtx_unlock(&iter->lock);
+      simple_mtx_unlock(&iter->finish_lock);
    }
    mtx_unlock(&exit_mutex);
 }
@@ -393,9 +395,11 @@ util_queue_adjust_num_threads_locked(struct util_queue *queue,
 void
 util_queue_adjust_num_threads(struct util_queue *queue, unsigned num_threads)
 {
+   simple_mtx_lock(&queue->finish_lock);
    mtx_lock(&queue->lock);
    util_queue_adjust_num_threads_locked(queue, num_threads);
    mtx_unlock(&queue->lock);
+   simple_mtx_unlock(&queue->finish_lock);
 }
 
 bool
@@ -443,6 +447,7 @@ util_queue_init(struct util_queue *queue,
    queue->max_jobs = max_jobs;
    queue->global_data = global_data;
 
+   simple_mtx_init(&queue->finish_lock, mtx_plain);
    if (mtx_init(&queue->lock, mtx_plain) != thrd_success)
       goto fail_lock;
 
@@ -487,6 +492,7 @@ fail_space_cond:
 fail_queued_cond:
    mtx_destroy(&queue->lock);
 fail_lock:
+   simple_mtx_destroy(&queue->finish_lock);
    /* also util_queue_is_initialized can be used to check for success */
    memset(queue, 0, sizeof(*queue));
    return false;
@@ -496,6 +502,8 @@ static void
 util_queue_kill_threads_locked(struct util_queue *queue,
                                unsigned keep_num_threads)
 {
+   simple_mtx_assert_locked(&queue->finish_lock);
+
    /* Signal all threads to terminate. */
    if (keep_num_threads >= queue->num_threads) {
       return;
@@ -529,9 +537,11 @@ util_queue_finish_execute(void *data, void *gdata, int num_thread)
 void
 util_queue_destroy(struct util_queue *queue)
 {
+   simple_mtx_lock(&queue->finish_lock);
    mtx_lock(&queue->lock);
    util_queue_kill_threads_locked(queue, 0);
    mtx_unlock(&queue->lock);
+   simple_mtx_unlock(&queue->finish_lock);
 
    /* This makes it safe to call on a queue that failed util_queue_init. */
    if (queue->head.next != NULL)
@@ -540,6 +550,7 @@ util_queue_destroy(struct util_queue *queue)
    cnd_destroy(&queue->has_space_cond);
    cnd_destroy(&queue->has_queued_cond);
    mtx_destroy(&queue->lock);
+   simple_mtx_destroy(&queue->finish_lock);
    free(queue->jobs);
    free(queue->threads);
 }
@@ -694,6 +705,8 @@ util_queue_finish(struct util_queue *queue)
    util_barrier barrier;
    struct util_queue_fence *fences;
 
+   simple_mtx_lock(&queue->finish_lock);
+
    /* If 2 threads were adding jobs for 2 different barries at the same time,
     * a deadlock would happen, because 1 barrier requires that all threads
     * wait for it exclusively.
@@ -703,6 +716,7 @@ util_queue_finish(struct util_queue *queue)
    /* The number of threads can be changed to 0, e.g. by the atexit handler. */
    if (!queue->num_threads) {
       mtx_unlock(&queue->lock);
+      simple_mtx_unlock(&queue->finish_lock);
       return;
    }
 
@@ -730,6 +744,7 @@ util_queue_finish(struct util_queue *queue)
       util_queue_fence_wait(&fences[i]);
       util_queue_fence_destroy(&fences[i]);
    }
+   simple_mtx_unlock(&queue->finish_lock);
 
    free(fences);
 }

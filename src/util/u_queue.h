@@ -228,6 +228,7 @@ struct util_queue_job {
 struct util_queue {
    char name[14]; /* 13 characters = the thread name without the index */
    mtx_t lock;
+   simple_mtx_t finish_lock;
    bool create_threads_on_demand;
    cnd_t has_queued_cond;
    cnd_t has_space_cond;
