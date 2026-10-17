@@ -1415,7 +1415,7 @@ v3dX(meta_copy_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
       uint32_t cur_dst = dst_offset + region->dstOffset;
 
       while (num_pixels > 0) {
-         uint32_t width = MIN2(num_pixels, V3D_TFU_MAX_DIM);
+         uint32_t width = v3d_tfu_raster_job_width(num_pixels, cpp);
          uint32_t height = MAX2(1, MIN2(num_pixels / width, V3D_TFU_MAX_DIM));
          uint32_t pixels_this_job = width * height;
          assert(pixels_this_job <= num_pixels);
@@ -1551,7 +1551,7 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
     *      cmd buffer). On miss, a fresh BO is allocated, mapped, filled
     *      with the pattern, and cached.
     */
-   const uint32_t src_size = V3D_TFU_MAX_DIM * cpp;
+   const uint32_t src_size = V3D_TFU_RASTER_SINGLE_ROW_MAX * cpp;
    struct v3dv_bo *src_bo = NULL;
 
    if (data == 0) {
@@ -1592,7 +1592,7 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
             return;
          }
          uint32_t *map = (uint32_t *)src_bo->map;
-         for (uint32_t i = 0; i < V3D_TFU_MAX_DIM; i++)
+         for (uint32_t i = 0; i < V3D_TFU_RASTER_SINGLE_ROW_MAX; i++)
             map[i] = data;
 
          v3dv_cmd_buffer_add_private_obj(
@@ -1604,7 +1604,7 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
 
    uint32_t remaining = num_pixels;
    while (remaining > 0) {
-      uint32_t width = MIN2(remaining, V3D_TFU_MAX_DIM);
+      uint32_t width = v3d_tfu_raster_job_width(remaining, cpp);
       uint32_t height = MAX2(1, MIN2(remaining / width, V3D_TFU_MAX_DIM));
       uint32_t pixels_this_job = width * height;
       assert(pixels_this_job <= remaining);
