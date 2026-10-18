@@ -364,6 +364,19 @@ radv_use_tc_compat_cmask_early(struct radv_device *device, struct radv_image *im
    if (pdev->info.gfx_level < GFX8)
       return false;
 
+   /* TC-compat CMASK doesn't have contiguous CMASK slices on GFX8. The solution would be to add
+    * a CMASK slice clear shader that uses cmask_equation.
+    *
+    * This should be reproducible by testing partial-range image transitions from UNDEFINED, e.g:
+    * 1. transition layer 0 from UNDEFINED
+    * 2. draw into layer 0
+    * 3. transitioning layer 1 from UNDEFINED should corrupt layer 0 if TC-compat CMASK is enabled
+    *
+    * There doesn't seem to be such a CTS test currently.
+    */
+   if (pdev->info.gfx_level == GFX8 && image->vk.array_layers > 1)
+      return false;
+
    if (RADV_DEBUG(instance, NO_TC_COMPAT_CMASK))
       return false;
 
