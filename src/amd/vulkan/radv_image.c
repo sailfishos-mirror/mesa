@@ -2027,3 +2027,37 @@ radv_GetImageOpaqueCaptureDataEXT(VkDevice device, uint32_t imageCount, const Vk
 
    return VK_SUCCESS;
 }
+
+void
+radv_image_get_cmask_clear_copy_buffer_range(const struct radv_image *image, unsigned z, unsigned layer_count,
+                                             bool layer_range_sanitized, uint64_t *offset, uint64_t *size)
+{
+   const unsigned slice_size = image->planes[0].surface.cmask_slice_size;
+   const unsigned slices_per_group = image->planes[0].surface.cmask_slices_per_group;
+   const uint64_t cmask_offset_layer0 = image->planes[0].surface.cmask_offset;
+   const unsigned cmask_size = image->planes[0].surface.cmask_size;
+   /* Note: This is needed even if the image has only 1 layer because a CMASK slice can have holes
+    * reserved for other slices.
+    */
+   const bool return_remainder = slices_per_group > 1 && z + layer_count == image->vk.array_layers;
+
+   /* Slices can only be copied in groups of "cmask_slices_per_group" slices except the last group. */
+   const bool ranged_clear_valid = !(z % slices_per_group) && (return_remainder || !(layer_count % slices_per_group));
+
+   /* TODO: Remove this fallback. */
+   if (!layer_range_sanitized && !ranged_clear_valid) {
+      *offset = cmask_offset_layer0;
+      *size = cmask_size;
+      return;
+   }
+
+   assert(ranged_clear_valid);
+
+   const uint64_t slice_offset = slice_size * z;
+   *offset = cmask_offset_layer0 + slice_offset;
+
+   /* If we clear the last layer, we should clear the whole remainder of CMASK because slice_size is unusable
+    * if the layer count is not aligned to cmask_slices_per_group.
+    */
+   *size = return_remainder ? cmask_size - slice_offset : slice_size * layer_count;
+}

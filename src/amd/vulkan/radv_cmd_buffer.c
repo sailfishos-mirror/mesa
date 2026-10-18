@@ -16082,7 +16082,7 @@ radv_init_cmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, co
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
 
-   return radv_clear_cmask(cmd_buffer, image, range, value);
+   return radv_clear_cmask(cmd_buffer, image, range, value, false);
 }
 
 uint32_t

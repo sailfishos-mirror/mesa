@@ -377,7 +377,7 @@ void radv_gfx_resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
                             const VkImageResolve2 *region);
 
 uint32_t radv_clear_cmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                          const VkImageSubresourceRange *range, uint32_t value);
+                          const VkImageSubresourceRange *range, uint32_t value, bool layer_range_sanitized);
 uint32_t radv_clear_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                           const VkImageSubresourceRange *range, uint32_t value);
 uint32_t radv_clear_dcc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
