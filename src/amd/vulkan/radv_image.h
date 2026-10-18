@@ -467,6 +467,6 @@ bool radv_image_is_l2_coherent(const struct radv_device *device, const struct ra
                                const VkImageSubresourceRange *range);
 
 void radv_image_get_cmask_clear_copy_buffer_range(const struct radv_image *image, unsigned z, unsigned layer_count,
-                                                  bool layer_range_sanitized, uint64_t *offset, uint64_t *size);
+                                                  uint64_t *offset, uint64_t *size);
 
 #endif /* RADV_IMAGE_H */

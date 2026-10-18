@@ -825,13 +825,13 @@ radv_get_cmask_fast_clear_value(const struct radv_image *image)
 
 uint32_t
 radv_clear_cmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range,
-                 uint32_t value, bool layer_range_sanitized)
+                 uint32_t value)
 {
    uint64_t offset, size;
 
    radv_image_get_cmask_clear_copy_buffer_range(image, range->baseArrayLayer,
                                                 vk_image_subresource_layer_count(&image->vk, range),
-                                                layer_range_sanitized, &offset, &size);
+                                                &offset, &size);
    return radv_fill_image(cmd_buffer, image, offset, size, value);
 }
 
@@ -1500,7 +1500,7 @@ radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
       }
 
       if (radv_image_has_cmask(iview->image)) {
-         flush_bits = radv_clear_cmask(cmd_buffer, iview->image, &range, cmask_clear_value, true);
+         flush_bits = radv_clear_cmask(cmd_buffer, iview->image, &range, cmask_clear_value);
       }
 
       if (!can_avoid_fast_clear_elim)
@@ -1522,7 +1522,7 @@ radv_fast_clear_color(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
          }
       }
    } else {
-      flush_bits = radv_clear_cmask(cmd_buffer, iview->image, &range, cmask_clear_value, true);
+      flush_bits = radv_clear_cmask(cmd_buffer, iview->image, &range, cmask_clear_value);
 
       /* Fast clearing with CMASK should always be eliminated. */
       need_decompress_pass = true;

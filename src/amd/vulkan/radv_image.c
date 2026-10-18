@@ -2047,7 +2047,7 @@ radv_GetImageOpaqueCaptureDataEXT(VkDevice device, uint32_t imageCount, const Vk
 
 void
 radv_image_get_cmask_clear_copy_buffer_range(const struct radv_image *image, unsigned z, unsigned layer_count,
-                                             bool layer_range_sanitized, uint64_t *offset, uint64_t *size)
+                                             uint64_t *offset, uint64_t *size)
 {
    const unsigned slice_size = image->planes[0].surface.cmask_slice_size;
    const unsigned slices_per_group = image->planes[0].surface.cmask_slices_per_group;
@@ -2060,14 +2060,6 @@ radv_image_get_cmask_clear_copy_buffer_range(const struct radv_image *image, uns
 
    /* Slices can only be copied in groups of "cmask_slices_per_group" slices except the last group. */
    const bool ranged_clear_valid = !(z % slices_per_group) && (return_remainder || !(layer_count % slices_per_group));
-
-   /* TODO: Remove this fallback. */
-   if (!layer_range_sanitized && !ranged_clear_valid) {
-      *offset = cmask_offset_layer0;
-      *size = cmask_size;
-      return;
-   }
-
    assert(ranged_clear_valid);
 
    const uint64_t slice_offset = slice_size * z;
