@@ -953,7 +953,7 @@ Anvil(ANV) driver environment variables
   ``experimental``
     Enable experimental features
   ``no-gpl``
-    Disables `VK_KHR_graphics_pipeline_library` support
+    Disables `VK_EXT_graphics_pipeline_library` support
   ``no-sparse``
     Disables sparse support
   ``sparse-trtt``
