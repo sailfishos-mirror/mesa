@@ -2641,6 +2641,38 @@ static void ac_copy_cmask_equation(const struct radeon_info *info,
    }
 }
 
+/* This is only a debugging helper. Normally unused. */
+static void
+ac_print_meta_equation(const struct radeon_info *info, struct gfx9_meta_equation *eq)
+{
+   if (info->gfx_level >= GFX10)
+      return; /* gfx10-11 equation printing not implemented */
+
+   /* Print the layout. */
+   printf("{");
+   for (unsigned addr_bit = 0; addr_bit < eq->u.gfx9.num_bits; addr_bit++) {
+      bool found = false; /* multiple matches are XOR'd */
+
+      for (unsigned term = 0; term < 5; term++) {
+         unsigned dim = eq->u.gfx9.bit[addr_bit].coord[term].dim;
+         unsigned ord = eq->u.gfx9.bit[addr_bit].coord[term].ord;
+
+         if (dim >= 5)
+            continue;
+
+         printf("%s%c%u", found ? "^" : "", "XYZSM"[dim], ord);
+         found = true;
+      }
+
+      if (!found)
+         printf("0");
+
+      if (addr_bit < eq->u.gfx9.num_bits - 1)
+         printf(", ");
+   }
+   printf("}\n");
+}
+
 static void ac_copy_htile_equation(const struct radeon_info *info,
                                    ADDR2_COMPUTE_HTILE_INFO_OUTPUT *htile,
                                    struct gfx9_meta_equation *equation)
