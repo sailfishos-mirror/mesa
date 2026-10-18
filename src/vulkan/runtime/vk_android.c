@@ -1123,6 +1123,12 @@ get_ahb_buffer_format_properties2(
    case DRM_FORMAT_P210:
       external_format = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16;
       break;
+   case DRM_FORMAT_YUYV:
+      external_format = VK_FORMAT_G8B8G8R8_422_UNORM;
+      break;
+   case DRM_FORMAT_UYVY:
+      external_format = VK_FORMAT_B8G8R8G8_422_UNORM;
+      break;
    case DRM_FORMAT_XBGR8888:
       /* This can be resolved from IMPLEMENTATION_DEFINED AHB format */
       external_format = VK_FORMAT_R8G8B8A8_UNORM;
