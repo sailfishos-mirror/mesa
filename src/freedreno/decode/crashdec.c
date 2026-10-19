@@ -442,7 +442,7 @@ parse_ibs(const uint32_t *dwords, uint32_t sizedwords)
          /* ignore */
       } else if (pkt_is_opcode(dwords[0], &val, &count)) {
          const char *name = pktname(val);
-         if (!strcmp(name, "CP_INDIRECT_BUFFER")) {
+         if (name && !strcmp(name, "CP_INDIRECT_BUFFER")) {
             uint64_t ibaddr;
             uint32_t ibsize;
 
@@ -466,6 +466,9 @@ parse_ibs(const uint32_t *dwords, uint32_t sizedwords)
             return;
          }
       }
+
+      if (!count)
+         return;
 
       dwords += count;
       dwords_left -= count;
