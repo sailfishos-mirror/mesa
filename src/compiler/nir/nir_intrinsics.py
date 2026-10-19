@@ -2994,7 +2994,7 @@ intrinsic("btd_retire_intel")
 
 # Intel-specific ray-tracing intrinsic
 # src[] = { globals, payload } SYNCHRONOUS=synchronous
-intrinsic("trace_ray_intel", src_comp=[1, 1], dest_comp=1, bit_sizes=[32], indices=[SYNCHRONOUS])
+intrinsic("trace_ray_intel", src_comp=[1, 1], dest_comp=1, bit_sizes=[32,16], indices=[SYNCHRONOUS])
 
 # System values used for ray-tracing on Intel
 system_value("ray_base_mem_addr_intel", 1, bit_sizes=[64])

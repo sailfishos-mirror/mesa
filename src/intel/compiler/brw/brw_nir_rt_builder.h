@@ -276,7 +276,7 @@ brw_nir_trace_ray(nir_builder *b,
                                   nir_u2u32(b, bvh_level));
 
    return nir_trace_ray_intel(
-      b,
+      b, devinfo->ver >= 35 ? 16 : 32,
       efficient_64bit ?
       /* BSpec 73321 */
       (synchronous ? globals : nir_ior_imm(b, globals, 0x1)) :
