@@ -5691,7 +5691,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
        *    a Ray Query. This message requires a write-back message indicating
        *    RayQuery for all valid Rays (SIMD lanes) have completed."
        */
-      brw_reg dst = synchronous ? bld.vgrf(BRW_TYPE_UD) : bld.null_reg_ud();
+      brw_reg dst = synchronous ? retype(dest, BRW_TYPE_UD) : bld.null_reg_ud();
 
       brw_inst *inst = bld.emit(RT_OPCODE_TRACE_RAY_LOGICAL, dst, srcs, RT_LOGICAL_NUM_SRCS);
       inst->synchronous = synchronous;

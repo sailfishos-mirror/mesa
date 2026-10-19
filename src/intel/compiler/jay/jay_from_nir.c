@@ -2119,8 +2119,7 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
     *    RayQuery for all valid Rays (SIMD lanes) have completed."
     */
    jay_def notif = synchronous ?
-                      jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s)) :
-                      jay_null();
+      nj_def(&instr->def) : jay_null();
 
    switch (instr->intrinsic) {
    case nir_intrinsic_trace_ray_intel:

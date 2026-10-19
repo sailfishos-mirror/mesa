@@ -327,7 +327,8 @@ lower_ray_query_intrinsic(nir_builder *b,
           * made, HW does not write anything back and we can use this bit to
           * detect that.
           */
-         brw_nir_rt_query_mark_done(b, stack_addr);
+         if (state->devinfo->ver < 20)
+            brw_nir_rt_query_mark_done(b, stack_addr);
 
          if (shadow_stack_addr)
             fill_query(b, hw_stack_addr, shadow_stack_addr, ctrl);
@@ -335,24 +336,42 @@ lower_ray_query_intrinsic(nir_builder *b,
          /* Do not use state->rq_globals, we want a uniform value for the
           * tracing call.
           */
-         brw_nir_trace_ray(b, nir_load_ray_query_global_intel(b),
-                           level, ctrl, true,
-                           state->key->use_efficient_64bit, state->devinfo);
+         nir_def *return_status =
+            brw_nir_trace_ray(b, nir_load_ray_query_global_intel(b),
+                              level, ctrl, true,
+                              state->key->use_efficient_64bit, state->devinfo);
 
-         struct brw_nir_rt_mem_hit_defs hit_in = {};
-         brw_nir_rt_load_mem_hit_from_addr(b, &hit_in, hw_stack_addr, false,
-                                           state->devinfo);
+         if (state->devinfo->ver >= 20) {
+            /* On Xe2+ we get a return value from the trace message, the
+             * format is :
+             *   bit[0]  : ProceedFurhter
+             *   bit[1,2]: CommittedStatus
+             *   bit[3]  : CandidateStatus
+             *
+             */
+            done_then = nir_inot(b, nir_test_mask(b, return_status, 0x1));
+
+            update_trace_ctrl_level(b, ctrl_level_deref,
+                                    NULL, NULL, NULL,
+                                    done_then,
+                                    nir_imm_int(b, GEN_RT_TRACE_RAY_CONTINUE),
+                                    nir_imm_int(b, BRW_RT_BVH_LEVEL_OBJECT));
+         } else {
+            struct brw_nir_rt_mem_hit_defs hit_in = {};
+            brw_nir_rt_load_mem_hit_from_addr(b, &hit_in, hw_stack_addr, false,
+                                              state->devinfo);
+
+            done_then = hit_in.done;
+
+            update_trace_ctrl_level(b, ctrl_level_deref,
+                                    NULL, NULL, NULL,
+                                    done_then,
+                                    nir_imm_int(b, GEN_RT_TRACE_RAY_CONTINUE),
+                                    nir_imm_int(b, BRW_RT_BVH_LEVEL_OBJECT));
+         }
 
          if (shadow_stack_addr)
             spill_query(b, hw_stack_addr, shadow_stack_addr);
-
-         update_trace_ctrl_level(b, ctrl_level_deref,
-                                 NULL, NULL, NULL,
-                                 hit_in.done,
-                                 nir_imm_int(b, GEN_RT_TRACE_RAY_CONTINUE),
-                                 hit_in.bvh_level);
-
-         done_then = hit_in.done;
       }
       nir_push_else(b, NULL);
       {
