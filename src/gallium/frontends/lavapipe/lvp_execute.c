@@ -30,6 +30,7 @@
 #include "pipe/p_state.h"
 #include "lvp_conv.h"
 #include "lp_state.h"
+#include "lp_texture.h"
 #include "driver_trace/tr_context.h"
 
 #include "util/blend.h"
@@ -2658,31 +2659,34 @@ static void handle_copy_image(struct vk_cmd_queue_entry *cmd,
             dst_format = find_depth_format(src_image->vk.format, region->srcSubresource.aspectMask);
          else
             src_format = find_depth_format(dst_image->vk.format, region->dstSubresource.aspectMask);
-         struct pipe_transfer *src_t, *dst_t;
-         void *src_data, *dst_data;
-         src_data = state->pctx->texture_map(state->pctx,
-                                             src_image->planes[src_plane].bo,
-                                             region->srcSubresource.mipLevel,
-                                             PIPE_MAP_READ,
-                                             &src_box,
-                                             &src_t);
-         dst_data = state->pctx->texture_map(state->pctx,
-                                             dst_image->planes[dst_plane].bo,
-                                             region->dstSubresource.mipLevel,
-                                             PIPE_MAP_WRITE,
-                                             &dst_box,
-                                             &dst_t);
-         lvp_image_copy_depth_box(dst_data, dst_format,
-                        dst_t->stride, dst_t->layer_stride,
-                        0, 0, 0,
-                        region->extent.width,
-                        region->extent.height,
-                        dst_box.depth,
-                        src_data, src_format,
-                        src_t->stride, src_t->layer_stride,
-                        0, 0, 0);
-         state->pctx->texture_unmap(state->pctx, src_t);
-         state->pctx->texture_unmap(state->pctx, dst_t);
+         unsigned samples = util_res_sample_count(src_image->planes[src_plane].bo);
+         for (unsigned s = 0; s < samples; s++) {
+            struct pipe_transfer *src_t, *dst_t;
+            void *src_data, *dst_data;
+            src_data = llvmpipe_transfer_map_ms(state->drv_pctx,
+                                                src_image->planes[src_plane].bo,
+                                                region->srcSubresource.mipLevel,
+                                                PIPE_MAP_READ, s,
+                                                &src_box,
+                                                &src_t);
+            dst_data = llvmpipe_transfer_map_ms(state->drv_pctx,
+                                                dst_image->planes[dst_plane].bo,
+                                                region->dstSubresource.mipLevel,
+                                                PIPE_MAP_WRITE, s,
+                                                &dst_box,
+                                                &dst_t);
+            lvp_image_copy_depth_box(dst_data, dst_format,
+                           dst_t->stride, dst_t->layer_stride,
+                           0, 0, 0,
+                           region->extent.width,
+                           region->extent.height,
+                           dst_box.depth,
+                           src_data, src_format,
+                           src_t->stride, src_t->layer_stride,
+                           0, 0, 0);
+            state->drv_pctx->texture_unmap(state->drv_pctx, src_t);
+            state->drv_pctx->texture_unmap(state->drv_pctx, dst_t);
+         }
       } else {
          state->pctx->resource_copy_region(state->pctx, dst_image->planes[dst_plane].bo,
                                           region->dstSubresource.mipLevel,
