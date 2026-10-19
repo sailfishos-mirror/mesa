@@ -1122,6 +1122,13 @@ decode(void)
 
          parseline(line, "time: %lf", &time);
          snapshot_linux.seconds = (uint32_t)time;
+      } else if (startswith(line, "comm:")) {
+         char *comm = NULL;
+
+         parseline(line, "comm: %ms", &comm);
+         strncpy((char *)snapshot_linux.comm, comm,
+                 sizeof(snapshot_linux.comm) - 1);
+         free(comm);
       } else if (startswith(line, "revision:")) {
          if (strstr(line, ".")) {
             unsigned core, major, minor, patchid;
