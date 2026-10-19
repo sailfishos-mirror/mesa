@@ -102,7 +102,21 @@ static void
 init_options()
 {
    const char *driver_name = stw_dev->stw_winsys->get_name ? stw_dev->stw_winsys->get_name() : NULL;
-   driParseOptionInfo(&stw_dev->option_info, gallium_driconf, ARRAY_SIZE(gallium_driconf));
+   unsigned driver_count = 0;
+   const driOptionDescription *driver_driconf =
+      stw_dev->stw_winsys->get_driconf ? stw_dev->stw_winsys->get_driconf(&driver_count) : NULL;
+
+   /* driver options come last so their defaults win, like in the pipe loader */
+   if (driver_count) {
+      unsigned count = ARRAY_SIZE(gallium_driconf) + driver_count;
+      driOptionDescription *merged = malloc(count * sizeof(*merged));
+      memcpy(merged, gallium_driconf, sizeof(gallium_driconf));
+      memcpy(&merged[ARRAY_SIZE(gallium_driconf)], driver_driconf, driver_count * sizeof(*merged));
+      driParseOptionInfo(&stw_dev->option_info, merged, count);
+      free(merged);
+   } else {
+      driParseOptionInfo(&stw_dev->option_info, gallium_driconf, ARRAY_SIZE(gallium_driconf));
+   }
    driParseConfigFiles(&stw_dev->option_cache, &stw_dev->option_info,
                        &(driConfigFileParseParams) {
                           .driverName = driver_name ? driver_name : "",
