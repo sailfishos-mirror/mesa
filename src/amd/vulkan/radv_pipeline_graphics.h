@@ -673,6 +673,8 @@ struct radv_ps_epilog_state {
    bool alpha_to_one;
 };
 
+void radv_init_ps_epilog_format_infos(struct radv_compiler_info *compiler_info);
+
 struct radv_ps_epilog_key radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info,
                                                       const struct radv_ps_epilog_state *state);
 

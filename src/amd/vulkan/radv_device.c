@@ -1326,6 +1326,8 @@ radv_device_init_compiler_info(struct radv_device *device)
 
    radv_get_nir_options(&info);
 
+   radv_init_ps_epilog_format_infos(&info);
+
    device->compiler_info = info;
 }
 

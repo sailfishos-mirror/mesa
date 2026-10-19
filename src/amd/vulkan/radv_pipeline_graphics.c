@@ -83,45 +83,17 @@ radv_blend_remove_dst(VkBlendOp *func, VkBlendFactor *src_factor, VkBlendFactor 
    }
 }
 
-static unsigned
-radv_choose_spi_color_format(const struct radv_compiler_info *compiler_info, VkFormat vk_format, bool blend_enable,
-                             bool blend_need_alpha)
-{
-   const struct util_format_description *desc = radv_format_description(vk_format);
-   bool use_rbplus = compiler_info->hw.rbplus_allowed;
-   struct ac_spi_color_formats formats = {0};
-   unsigned format, ntype, swap;
-
-   format = ac_get_cb_format(compiler_info->ac->gfx_level, desc->format);
-   ntype = ac_get_cb_number_type(desc->format);
-   swap = ac_translate_colorswap(compiler_info->ac->gfx_level, desc->format, false);
-
-   ac_choose_spi_color_formats(format, swap, ntype, false, use_rbplus, &formats);
-
-   if (blend_enable && blend_need_alpha)
-      return formats.blend_alpha;
-   else if (blend_need_alpha)
-      return formats.alpha;
-   else if (blend_enable)
-      return formats.blend;
-   else
-      return formats.normal;
-}
-
 static bool
-format_is_int8(VkFormat format)
+format_is_int8(const struct util_format_description *desc)
 {
-   const struct util_format_description *desc = radv_format_description(format);
-   int channel = vk_format_get_first_non_void_channel(format);
+   int channel = util_format_get_first_non_void_channel(desc->format);
 
    return channel >= 0 && desc->channel[channel].pure_integer && desc->channel[channel].size == 8;
 }
 
 static bool
-format_is_int10(VkFormat format)
+format_is_int10(const struct util_format_description *desc)
 {
-   const struct util_format_description *desc = radv_format_description(format);
-
    if (desc->nr_channels != 4)
       return false;
    for (unsigned i = 0; i < 4; i++) {
@@ -132,19 +104,16 @@ format_is_int10(VkFormat format)
 }
 
 static bool
-format_is_float32(VkFormat format)
+format_is_float32(const struct util_format_description *desc)
 {
-   const struct util_format_description *desc = radv_format_description(format);
-   int channel = vk_format_get_first_non_void_channel(format);
+   int channel = util_format_get_first_non_void_channel(desc->format);
 
    return channel >= 0 && desc->channel[channel].type == UTIL_FORMAT_TYPE_FLOAT && desc->channel[channel].size == 32;
 }
 
 static bool
-format_ignores_signed_zero(VkFormat format)
+format_ignores_signed_zero(const struct util_format_description *desc)
 {
-   const struct util_format_description *desc = radv_format_description(format);
-
    /* Unsigned float formats don't care about signed zeros. */
    if (desc->format == PIPE_FORMAT_R11G11B10_FLOAT || desc->format == PIPE_FORMAT_R9G9B9E5_FLOAT)
       return true;
@@ -1436,6 +1405,31 @@ radv_graphics_shaders_link_varyings(struct radv_shader_stage *stages, enum amd_g
    }
 }
 
+void
+radv_init_ps_epilog_format_infos(struct radv_compiler_info *compiler_info)
+{
+   const enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
+
+   for (unsigned i = 0; i < PIPE_FORMAT_COUNT; i++) {
+      const enum pipe_format format = i;
+      const struct util_format_description *desc = util_format_description(format);
+      struct radv_ps_epilog_format_info *info = &compiler_info->ps_epilog_formats[format];
+
+      if (!ac_is_colorbuffer_format_supported(gfx_level, format))
+         continue;
+
+      ac_choose_spi_color_formats(ac_get_cb_format(gfx_level, format), ac_translate_colorswap(gfx_level, format, false),
+                                  ac_get_cb_number_type(format), false, compiler_info->hw.rbplus_allowed,
+                                  &info->spi_color_formats);
+
+      info->colormask = util_format_colormask(desc);
+      info->ignores_signed_zero = format_ignores_signed_zero(desc);
+      info->is_int8 = format_is_int8(desc);
+      info->is_int10 = format_is_int10(desc);
+      info->is_float32 = format_is_float32(desc);
+   }
+}
+
 struct radv_ps_epilog_key
 radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, const struct radv_ps_epilog_state *state)
 {
@@ -1454,24 +1448,34 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
           cb_idx == MESA_VK_ATTACHMENT_UNUSED) {
          cf = V_028714_SPI_SHADER_ZERO;
       } else {
+         const struct radv_ps_epilog_format_info *fmt_info =
+            &compiler_info->ps_epilog_formats[radv_format_to_pipe_format(fmt)];
          const bool blend_enable = (state->color_blend_enable >> i) & 0x1u;
+         const bool need_src_alpha = (state->need_src_alpha >> i) & 0x1u;
 
-         cf = radv_choose_spi_color_format(compiler_info, fmt, blend_enable, state->need_src_alpha & (1 << i));
+         if (blend_enable && need_src_alpha)
+            cf = fmt_info->spi_color_formats.blend_alpha;
+         else if (need_src_alpha)
+            cf = fmt_info->spi_color_formats.alpha;
+         else if (blend_enable)
+            cf = fmt_info->spi_color_formats.blend;
+         else
+            cf = fmt_info->spi_color_formats.normal;
 
-         uint32_t comp_used = util_format_colormask(vk_format_description(fmt));
+         uint32_t comp_used = fmt_info->colormask;
 
          comp_used &= (state->color_write_mask >> (i * 4));
-         comp_used |= ((state->need_src_alpha >> i) & 0x1) << 3;
+         comp_used |= need_src_alpha << 3;
 
          key.colors_needed |= comp_used << (4 * i);
 
-         if (format_ignores_signed_zero(fmt) || blend_enable)
+         if (fmt_info->ignores_signed_zero || blend_enable)
             no_signed_zero |= 1 << i;
-         if (format_is_int8(fmt))
+         if (fmt_info->is_int8)
             is_int8 |= 1 << i;
-         if (format_is_int10(fmt))
+         if (fmt_info->is_int10)
             is_int10 |= 1 << i;
-         if (format_is_float32(fmt))
+         if (fmt_info->is_float32)
             is_float32 |= 1 << i;
       }
 
