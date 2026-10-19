@@ -1814,7 +1814,7 @@
         "description": "rusticl/program: implement CL_INVALID_SPEC_ID error for clSetProgramSpecializationConstant",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "13a4c49cb182ce4fc199c0aa34fbea7eee6f8304",
         "notes": null

@@ -8,6 +8,7 @@ use crate::core::context::*;
 use crate::core::device::*;
 use crate::core::program::*;
 
+use mesa_rust::compiler::clc::spirv::CLCSpecConstantType;
 use mesa_rust_util::string::*;
 use rusticl_opencl_gen::*;
 use rusticl_proc_macros::cl_entrypoint;
@@ -518,7 +519,12 @@ fn set_program_specialization_constant(
         return Err(CL_INVALID_PROGRAM);
     }
 
-    if spec_size != program.get_spec_constant_size(spec_id).into() {
+    // CL_INVALID_SPEC_ID if spec_id is not a valid specialization constant identifier.
+    let actual_spec_size = program
+        .get_spec_constant_size(spec_id)
+        .ok_or(CL_INVALID_SPEC_ID)?;
+
+    if spec_size != actual_spec_size.size().into() {
         // CL_INVALID_VALUE if spec_size does not match the size of the specialization constant in
         // the module,
         return Err(CL_INVALID_VALUE);
