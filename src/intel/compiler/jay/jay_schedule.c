@@ -389,9 +389,18 @@ choose_inst(struct sched_ctx *s, enum sched_mode mode)
                   (ready_cycle(s, mode & BACKWARD, *head) - s->cycle);
       }
 
-      if (score <= min_score) {
+      if (score < min_score) {
          best = *head;
          min_score = score;
+      } else if (score == min_score) {
+         if (s->phase != EARLY) {
+            if ((mode & BACKWARD && *head > best) ||
+                (!(mode & BACKWARD) && *head < best)) {
+               best = *head;
+            }
+         } else {
+            best = *head;
+         }
       }
    }
 
