@@ -629,7 +629,7 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
       }
    }
 
-   if (p.uniform && b->shader->helpers_tracked) {
+   if (p.uniform && b->shader->helpers_tracked && p.skip_helpers) {
       I->cond_flag = jay_alloc_def(b, FLAG, 1);
    }
 
