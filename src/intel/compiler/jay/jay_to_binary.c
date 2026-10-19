@@ -773,7 +773,7 @@ jay_to_binary(jay_shader *s,
          }
 
          jay_foreach_inst_in_block(block, I) {
-            // jay_print_inst(stdout, f, (jay_inst *) I);
+            // jay_print_inst(stderr, f, (jay_inst *) I);
 
             assert(jc.num_insts < jc.insts_cap);
             emit(&jc, &jc.insts[jc.num_insts++], f, I);
@@ -862,7 +862,7 @@ jay_to_binary(jay_shader *s,
       };
 
       if (debug) {
-         print_params.fp = stdout;
+         print_params.fp = stderr;
          gen_print(&print_params);
       }
 

@@ -574,7 +574,7 @@ jay_partition_grf(jay_shader *shader)
 
       if (f->demand[GPR] > limit) {
          fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[GPR]);
-         fflush(stdout);
+         fflush(stderr);
          UNREACHABLE("spiller bug");
       }
 

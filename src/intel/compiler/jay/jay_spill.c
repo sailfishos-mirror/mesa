@@ -561,7 +561,7 @@ min_algorithm(struct spill_ctx *ctx,
 
       if (jay_debug & JAY_DBG_PRINTDEMAND) {
          printf("(SP) %u: ", ctx->nW);
-         jay_print_inst(stdout, ctx->func, I);
+         jay_print_inst(stderr, ctx->func, I);
       }
    }
 

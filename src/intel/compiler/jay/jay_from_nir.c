@@ -3062,7 +3062,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    default:
 #ifndef NDEBUG
       assert(intr->intrinsic < nir_num_intrinsics);
-      fprintf(stdout, "intrinsic: %s\n",
+      fprintf(stderr, "intrinsic: %s\n",
               nir_intrinsic_infos[intr->intrinsic].name);
 #endif
       UNREACHABLE("unknown intrinsic");
@@ -4883,9 +4883,9 @@ jay_compile_simd(const struct intel_device_info *devinfo,
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */
-      fprintf(stdout, "NIR right before from_nir:\n\n");
-      nir_print_shader_annotated(nir, stdout, NULL);
-      fflush(stdout);
+      fprintf(stderr, "NIR right before from_nir:\n\n");
+      nir_print_shader_annotated(nir, stderr, NULL);
+      fflush(stderr);
    }
 
    jay_shader *s = jay_new_shader(NULL, nir->info.stage);
@@ -4932,8 +4932,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    }
 
    if (debug) {
-      fprintf(stdout, "Jay SIMD%u shader:\n\n", simd_width);
-      jay_print(stdout, s);
+      fprintf(stderr, "Jay SIMD%u shader:\n\n", simd_width);
+      jay_print(stderr, s);
    }
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {
@@ -4956,7 +4956,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
     */
    if (bail_if_inefficient && s->num_regs[MEM] > 0) {
       if (debug) {
-         fprintf(stdout,
+         fprintf(stderr,
                  "Jay SIMD%u shader skipped due to num_regs[MEM] = %u > 0.\n",
                  simd_width, s->num_regs[MEM]);
       }
@@ -4967,8 +4967,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    JAY_PASS(s, jay_schedule);
 
    if (debug) {
-      fprintf(stdout, "Jay shader:\n\n");
-      jay_print(stdout, s);
+      fprintf(stderr, "Jay shader:\n\n");
+      jay_print(stderr, s);
    }
 
    JAY_PASS(s, jay_register_allocate);
@@ -5017,8 +5017,8 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    }
 
    if (debug) {
-      fprintf(stdout, "Jay shader (post-RA):\n\n");
-      jay_print(stdout, s);
+      fprintf(stderr, "Jay shader (post-RA):\n\n");
+      jay_print(stderr, s);
       jay_print_partition(s);
    }
 
@@ -5048,7 +5048,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
       const char *shader_name =
          ralloc_asprintf(s, "%s SIMD%u", _mesa_shader_stage_to_abbrev(s->stage),
                          s->dispatch_width);
-      genisa_stats_fprintf(stdout, shader_name, stats);
+      genisa_stats_fprintf(stderr, shader_name, stats);
    }
 
    if (s->stage == MESA_SHADER_FRAGMENT) {
