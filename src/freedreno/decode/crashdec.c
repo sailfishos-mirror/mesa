@@ -431,11 +431,14 @@ valid_header(uint32_t pkt)
  * looks for "IB" type packets and logs the target cmdstream buffers.
  */
 static void
-parse_ibs(const uint32_t *dwords, uint32_t sizedwords)
+parse_ibs(const uint32_t *dwords, uint32_t sizedwords, int level)
 {
    int dwords_left = sizedwords;
    uint32_t count = 0; /* dword count including packet header */
    uint32_t val;
+
+   if (level > 2)
+      return;
 
    while (dwords_left > 0) {
       if (pkt_is_regwrite(dwords[0], &val, &count)) {
@@ -461,6 +464,9 @@ parse_ibs(const uint32_t *dwords, uint32_t sizedwords)
                   ibsize = avail;
 
                snapshot_ib(ibaddr, ptr, ibsize);
+
+               if (ibsize)
+                  parse_ibs(ptr, ibsize, level + 1);
             }
          }
          // TODO CP_SET_DRAW_STATE and others?
@@ -588,7 +594,7 @@ dump_cmdstream(void)
       handle_prefetch(buf, cmdszdw);
 
       if (snapshot) {
-         parse_ibs(buf, cmdszdw);
+         parse_ibs(buf, cmdszdw, 1);
       } else {
          dump_commands(buf, cmdszdw, 0);
       }
