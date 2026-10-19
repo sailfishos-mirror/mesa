@@ -1101,11 +1101,9 @@ impl Program {
         matches!(self.src, ProgramSourceType::Src(_))
     }
 
-    pub fn get_spec_constant_size(&self, spec_id: u32) -> u8 {
+    pub fn get_spec_constant_size(&self, spec_id: u32) -> Option<clc_spec_constant_type> {
         match &self.src {
-            ProgramSourceType::Il(il) => il
-                .spec_constant(spec_id)
-                .map_or(0, spirv::CLCSpecConstantType::size),
+            ProgramSourceType::Il(il) => il.spec_constant(spec_id),
             _ => unreachable!(),
         }
     }
