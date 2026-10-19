@@ -2342,6 +2342,7 @@ x11_manage_event_queue(void *state)
 {
    struct x11_swapchain *chain = state;
    u_thread_setname("WSI swapchain event");
+   util_set_current_thread_full_affinity();
 
    /* While there is an outstanding IDLE we should wait for it.
     * In FLIP modes at most one image will not be driver owned eventually.
@@ -2561,6 +2562,8 @@ x11_manage_present_queue(void *state)
    struct wsi_x11_connection *wsi_conn =
          wsi_x11_get_connection((struct wsi_device*)chain->base.wsi, chain->conn);
    VkResult result = VK_SUCCESS;
+
+   util_set_current_thread_full_affinity();
 
    u_thread_setname("WSI swapchain queue");
 
