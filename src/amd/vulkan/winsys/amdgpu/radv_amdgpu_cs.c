@@ -234,7 +234,7 @@ radv_amdgpu_cs_bo_create(struct radv_amdgpu_cs *cs, uint32_t ib_size)
    const bool can_always_use_ib2 = cs->ws->info.gfx_level >= GFX8 && cs->hw_ip == AMD_IP_GFX;
    const bool avoid_vram = cs->is_secondary && !can_always_use_ib2;
    const enum radeon_bo_domain domain = avoid_vram ? RADEON_DOMAIN_GTT : radv_amdgpu_cs_domain(ws);
-   const enum radeon_bo_flag gtt_wc_flag = avoid_vram ? 0 : RADEON_FLAG_GTT_WC;
+   const enum radeon_bo_flag gtt_wc_flag = domain == RADEON_DOMAIN_GTT ? 0 : RADEON_FLAG_GTT_WC;
    /* Bypass GL2 because command buffers are read only once and it's better for latency. */
    const enum radeon_bo_flag flags = RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING |
                                      RADEON_FLAG_READ_ONLY | RADEON_FLAG_GL2_BYPASS | gtt_wc_flag;
