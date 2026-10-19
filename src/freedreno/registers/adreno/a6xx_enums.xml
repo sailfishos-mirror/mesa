@@ -194,6 +194,16 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<bitfield name="READ" pos="31" type="boolean"/>
 </bitset>
 
+<enum name="a6xx_cluster">
+	<value value="0" name="CLUSTER_NONE"/>
+	<value value="1" name="CLUSTER_FE"/>
+	<value value="2" name="CLUSTER_SP_VS"/>
+	<value value="3" name="CLUSTER_PC_VS"/>
+	<value value="4" name="CLUSTER_GRAS"/>
+	<value value="5" name="CLUSTER_SP_PS"/>
+	<value value="6" name="CLUSTER_PS"/>
+</enum>
+
 <enum name="a6xx_shader_id">
 	<value value="0x9" name="A6XX_TP0_TMO_DATA"/>
 	<value value="0xa" name="A6XX_TP0_SMO_DATA"/>

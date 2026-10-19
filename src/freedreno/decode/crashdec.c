@@ -237,9 +237,16 @@ parseline_nowhitespace(const char *line, const char *fmt, ...)
 static uint32_t
 statetype_id(const char *name)
 {
-   if (!is_a7xx())
+   if (!name)
       return 0;
-   return enumval("a7xx_statetype_id", name);
+
+   if (is_a7xx())
+      return enumval("a7xx_statetype_id", name);
+
+   if (is_a6xx())
+      return enumval("a6xx_shader_id", name);
+
+   return 0;
 }
 
 static uint32_t
@@ -253,17 +260,32 @@ pipe_id(const char *name)
 static uint32_t
 debugbus_id(const char *name)
 {
-   if (!is_a7xx())
+   if (!name)
       return 0;
-   return enumval("a7xx_debugbus_id", name);
+
+   if (is_a7xx())
+      return enumval("a7xx_debugbus_id", name);
+
+   if (is_a6xx())
+      return enumval("a6xx_debugbus_id", name);
+
+   return 0;
 }
 
 static uint32_t
 cluster_id(const char *name)
 {
-   if (!is_a7xx() || !name)
+   if (!name)
       return 0;
-   return enumval("a7xx_cluster", name);
+
+   if (is_a7xx())
+      return enumval("a7xx_cluster", name);
+
+   if (is_a6xx()) {
+      return enumval("a6xx_cluster", name);
+   }
+
+   return 0;
 }
 
 /*
@@ -1024,6 +1046,8 @@ decode_shader_blocks(void)
          parseline_nowhitespace(line, "- location: %d", &location);
       } else if (startswith_nowhitespace(line, "- sp:")) {
          parseline_nowhitespace(line, "- sp: %d", &sp);
+      } else if (startswith_nowhitespace(line, "- bank:")) {
+         parseline_nowhitespace(line, "- bank: %d", &sp);
       } else if (startswith_nowhitespace(line, "- usptp:")) {
          parseline_nowhitespace(line, "- usptp: %d", &usptp);
       } else if (startswith_nowhitespace(line, "size:")) {
