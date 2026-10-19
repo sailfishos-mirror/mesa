@@ -344,7 +344,7 @@ panvk_async_bind_do(struct panvk_async_bind *submit,
    for (uint32_t i = 0; i < vk_submit->image_opaque_bind_count; i++) {
       VK_FROM_HANDLE(panvk_image, image,
                      vk_submit->image_opaque_binds[i].image);
-      assert(image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT);
+      assert(image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR);
       uint64_t resource_va = image->sparse.device_address;
 
       for (uint32_t j = 0; j < vk_submit->image_opaque_binds[i].bindCount;
@@ -360,8 +360,8 @@ panvk_async_bind_do(struct panvk_async_bind *submit,
    }
    for (uint32_t i = 0; i < vk_submit->image_bind_count; i++) {
       VK_FROM_HANDLE(panvk_image, image, vk_submit->image_binds[i].image);
-      assert(image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT);
-      assert(image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT);
+      assert(image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR);
+      assert(image->vk.create_flags & VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR);
 
       struct panvk_sparse_block_desc sblock = panvk_get_sparse_block_desc(image->vk.image_type, image->vk.format);
 

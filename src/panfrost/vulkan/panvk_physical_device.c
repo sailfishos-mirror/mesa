@@ -1274,16 +1274,14 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
    uint32_t maxArraySize;
    VkSampleCountFlags sampleCounts = VK_SAMPLE_COUNT_1_BIT;
    enum pipe_format format = vk_format_to_pipe_format(info->format);
-
-   const VkImageStencilUsageCreateInfo *stencil_usage_info =
-      vk_find_struct_const(info->pNext, IMAGE_STENCIL_USAGE_CREATE_INFO);
-   VkImageUsageFlags stencil_usage =
-      stencil_usage_info ? stencil_usage_info->stencilUsage : info->usage;
-   VkImageUsageFlags all_usage = info->usage | stencil_usage;
+   const VkImageUsageFlags2KHR stencil_usage = vk_image_format_info_2_stencil_usage(info);
+   const VkImageUsageFlags2KHR image_usage = vk_image_format_info_2_usage(info);
+   VkImageUsageFlags2KHR all_usage = image_usage | stencil_usage;
    const struct vk_format_ycbcr_info *ycbcr_info =
       vk_format_get_ycbcr_info(info->format);
 
-   if (info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) {
+   const VkImageCreateFlags2KHR image_flags = vk_image_format_info_2_flags(info);
+   if (image_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) {
       if (!physical_device->vk.supported_features.sparseBinding)
          goto unsupported;
 
@@ -1302,11 +1300,11 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
        * CTS that expect a driver to implement host copies on sparse images is
        * exactly empty, so let's just not bother.
        */
-      if (info->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT)
+      if (image_usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR)
          goto unsupported;
    }
 
-   if (info->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT) {
+   if (image_flags & VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR) {
       if (!((info->type == VK_IMAGE_TYPE_2D &&
              physical_device->vk.supported_features.sparseResidencyImage2D) ||
             (info->type == VK_IMAGE_TYPE_3D &&
@@ -1324,14 +1322,14 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
       if (!panvk_sparse_block_is_valid(sblock_desc))
          goto unsupported;
 
-      VkImageUsageFlags allowed_usages =
-         VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-         VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-         VK_IMAGE_USAGE_SAMPLED_BIT |
-         VK_IMAGE_USAGE_STORAGE_BIT |
-         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-         VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+      VkImageUsageFlags2KHR allowed_usages =
+         VK_IMAGE_USAGE_2_TRANSFER_SRC_BIT_KHR |
+         VK_IMAGE_USAGE_2_TRANSFER_DST_BIT_KHR |
+         VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR |
+         VK_IMAGE_USAGE_2_STORAGE_BIT_KHR |
+         VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR |
+         VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR |
+         VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR;
       if (all_usage & ~allowed_usages)
          goto unsupported;
    }
@@ -1454,8 +1452,8 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
        (format_feature_flags &
         (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
          VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
-       !(info->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) &&
-       !(all_usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
+       !(image_flags & VK_IMAGE_CREATE_2_CUBE_COMPATIBLE_BIT_KHR) &&
+       !(all_usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
       sampleCounts |=
          get_image_format_sample_counts(physical_device, info->format);
    }
@@ -1471,29 +1469,29 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
    * different usage than the image so we can't always filter on usage.
    * There is one exception to this below for storage.
    */
-   if (!(info->flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT)) {
-      if (all_usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
+   if (!(image_flags & VK_IMAGE_CREATE_2_EXTENDED_USAGE_BIT_KHR)) {
+      if (all_usage & VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) {
          if (!(format_feature_flags & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT)) {
             goto unsupported;
          }
       }
 
-      if (all_usage & VK_IMAGE_USAGE_STORAGE_BIT) {
+      if (all_usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) {
          if (!(format_feature_flags & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT)) {
             goto unsupported;
          }
       }
 
-      if (all_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT ||
-          ((all_usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) &&
+      if (all_usage & VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR ||
+          ((all_usage & VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR) &&
            !vk_format_is_depth_or_stencil(info->format))) {
          if (!(format_feature_flags & VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT)) {
             goto unsupported;
          }
       }
 
-      if ((all_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ||
-          ((all_usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) &&
+      if ((all_usage & VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR) ||
+          ((all_usage & VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR) &&
            vk_format_is_depth_or_stencil(info->format))) {
          if (!(format_feature_flags &
                VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) {
@@ -1794,18 +1792,20 @@ panvk_GetPhysicalDeviceImageFormatProperties2(
     *    VK_IMAGE_CREATE_ALIAS_BIT, flags must not contain
     *    VK_IMAGE_CREATE_DISJOINT_BIT"
     */
+   const VkImageCreateFlags2KHR image_flags = vk_image_format_info_2_flags(base_info);
    if (plane_count == 1 &&
-       !(base_info->flags & VK_IMAGE_CREATE_ALIAS_BIT) &&
-       (base_info->flags & VK_IMAGE_CREATE_DISJOINT_BIT))
+       !(image_flags & VK_IMAGE_CREATE_2_ALIAS_BIT_KHR) &&
+       (image_flags & VK_IMAGE_CREATE_2_DISJOINT_BIT_KHR))
       goto fail;
 
    if (ycbcr_info &&
-       ((base_info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) ||
-       (base_info->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT)))
+       ((image_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) ||
+        (image_flags & VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR)))
       goto fail;
 
-   if ((base_info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) &&
-       (base_info->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT))
+   const VkImageUsageFlags2KHR image_usage = vk_image_format_info_2_usage(base_info);
+   if ((image_flags & VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR) &&
+       (image_usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR))
       goto fail;
 
    if (ycbcr_props)
@@ -1836,14 +1836,21 @@ panvk_GetPhysicalDeviceSparseImageFormatProperties2(
 {
    VK_OUTARRAY_MAKE_TYPED(VkSparseImageFormatProperties2, out, pProperties, pPropertyCount);
 
+   VkImageCreateFlags2CreateInfoKHR img_info_flags2 = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR,
+      .flags = VK_IMAGE_CREATE_2_SPARSE_BINDING_BIT_KHR | VK_IMAGE_CREATE_2_SPARSE_RESIDENCY_BIT_KHR,
+   };
+   VkImageUsageFlags2CreateInfoKHR img_info_usage2 = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR,
+      .pNext = &img_info_flags2,
+      .usage = vk_sparse_image_format_info_2_usage(pFormatInfo),
+   };
    VkPhysicalDeviceImageFormatInfo2 img_info = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+      .pNext = &img_info_usage2,
       .format = pFormatInfo->format,
       .type = pFormatInfo->type,
       .tiling = pFormatInfo->tiling,
-      .usage = pFormatInfo->usage,
-      .flags = VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
-               VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT,
    };
    VkImageFormatProperties2 img_props = {};
    if (panvk_GetPhysicalDeviceImageFormatProperties2(physicalDevice, &img_info, &img_props) != VK_SUCCESS)

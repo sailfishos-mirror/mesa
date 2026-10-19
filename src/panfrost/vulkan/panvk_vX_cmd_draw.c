@@ -68,7 +68,7 @@ get_ms2ss_image_view(struct panvk_image_view *iview, uint32_t nr_samples)
    assert(nr_samples >= 2 && nr_samples <= 16);
    assert(iview->pview.nr_samples == 1);
    assert(iview->vk.image->create_flags &
-          VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT);
+          VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT);
 
    /* sample count 2 is at index 0, 4 at 1, .. */
    uint32_t vidx = 0;
