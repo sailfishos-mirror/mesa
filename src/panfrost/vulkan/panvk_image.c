@@ -715,6 +715,21 @@ panvk_image_plane_bind_addr(struct panvk_device *dev,
 }
 
 static void
+drop_ms2ss_flag(VkImageCreateInfo *info,
+                VkImageCreateFlags2CreateInfoKHR *flags2)
+{
+   *flags2 = (VkImageCreateFlags2CreateInfoKHR){
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_FLAGS_2_CREATE_INFO_KHR,
+      .pNext = (void *)info->pNext,
+      .flags = vk_image_create_flags(info) &
+               ~VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT,
+   };
+   info->pNext = flags2;
+   info->flags &=
+      ~VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
+}
+
+static void
 create_ms_images(struct panvk_device *dev, struct panvk_image *img,
                  const VkImageCreateInfo *pCreateInfo,
                  const VkAllocationCallbacks *pAllocator)
@@ -743,11 +758,11 @@ create_ms_images(struct panvk_device *dev, struct panvk_image *img,
       vk_physical_device_to_handle(&pdev->vk), &info, &properties);
 
    VkImageCreateInfo ms_img_info = *pCreateInfo;
+   VkImageCreateFlags2CreateInfoKHR ms_flags2_info;
 
-   assert(ms_img_info.flags &
+   assert(img->vk.create_flags &
           VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT);
-   ms_img_info.flags &=
-      ~VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
+   drop_ms2ss_flag(&ms_img_info, &ms_flags2_info);
 
    for (uint32_t msaa_idx = 0; msaa_idx < ARRAY_SIZE(img->ms_imgs);
         ++msaa_idx) {
@@ -1131,8 +1146,8 @@ panvk_GetDeviceImageMemoryRequirements(VkDevice device,
    /* Make a copy so we can turn off the ms2ss flag. */
    VkDeviceImageMemoryRequirements info = *pInfo;
    VkImageCreateInfo create_info = *(pInfo->pCreateInfo);
-   create_info.flags &=
-      ~VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
+   VkImageCreateFlags2CreateInfoKHR flags2_info;
+   drop_ms2ss_flag(&create_info, &flags2_info);
    info.pCreateInfo = &create_info;
 
    struct panvk_image image = {0};
@@ -1146,14 +1161,12 @@ panvk_GetDeviceImageMemoryRequirements(VkDevice device,
    panvk_GetImageMemoryRequirements2(device, &info2, pMemoryRequirements);
    vk_image_finish(&image.vk);
 
-   if (pInfo->pCreateInfo->flags &
+   if (vk_image_create_flags(pInfo->pCreateInfo) &
        VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT) {
       for (uint32_t msaa_idx = 0; msaa_idx < ARRAY_SIZE(image.ms_imgs);
            ++msaa_idx) {
          /* idx 0 has sample count 2, 1 has sample count 4, ... */
          create_info.samples = 1 << (msaa_idx + 1);
-         create_info.flags &=
-            ~VK_IMAGE_CREATE_2_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
 
          VkMemoryRequirements2 msaa_reqs = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,

@@ -429,7 +429,7 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
    else if (view->vk.aspects == VK_IMAGE_ASPECT_DEPTH_BIT)
       view->pview.format = panvk_image_depth_only_pfmt(image);
 
-   VkImageUsageFlags tex_usage_mask = VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR;
+   VkImageUsageFlags2KHR tex_usage_mask = VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR;
 
 #if PAN_ARCH >= 9
    /* Valhall passes a texture descriptor to LEA_TEX. */
