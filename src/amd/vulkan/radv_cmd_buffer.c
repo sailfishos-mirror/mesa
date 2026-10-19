@@ -6143,6 +6143,8 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
 static float
 radv_get_guardband_clip_discard_distance(struct radv_cmd_buffer *cmd_buffer)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
    const uint32_t raster_prim = radv_get_raster_prim(cmd_buffer);
    float distance = 0.0f;
@@ -6156,7 +6158,15 @@ radv_get_guardband_clip_discard_distance(struct radv_cmd_buffer *cmd_buffer)
       distance = d->vk.rs.line.width;
    }
 
-   return distance;
+   /* Keep the discard distance at the largest point/line distance seen for all primitive types, so
+    * that switching between lines and triangles doesn't change the guardband registers and doesn't
+    * cause any context rolls.
+    */
+   if (distance > cmd_buffer->state.guardband_clip_discard_distance_watermark)
+      cmd_buffer->state.guardband_clip_discard_distance_watermark =
+         MIN2(distance, pdev->drirc.performance.max_clip_discard_watermark);
+
+   return MAX2(distance, cmd_buffer->state.guardband_clip_discard_distance_watermark);
 }
 
 static void
