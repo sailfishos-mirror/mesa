@@ -6,7 +6,6 @@
 
 #include "nir/nir.h"
 #include "nir/nir_builder.h"
-#include "nir/nir_serialize.h"
 
 #include "ac_shader_util.h"
 
@@ -1342,13 +1341,9 @@ radv_ray_tracing_pipeline_import_binary(struct radv_device *device, struct radv_
       if (header->has_nir) {
          uint32_t nir_size = blob_read_uint32(&blob);
          const void *nir_data = blob_read_bytes(&blob, nir_size);
-         struct blob_reader nir_blob;
-         blob_reader_init(&nir_blob, nir_data, nir_size);
-         nir_shader *nir = nir_deserialize(NULL, NULL, &nir_blob);
-
-         pipeline->stages[i].nir = radv_pipeline_cache_nir_to_handle(device, NULL, nir, header->stage_blake3, false);
-         ralloc_free(nir);
-
+         /* Pipeline binaries already contain the serialized NIR used by cache handles. */
+         pipeline->stages[i].nir =
+            radv_pipeline_cache_create_nir_handle(device, header->stage_blake3, nir_data, nir_size);
          if (!pipeline->stages[i].nir)
             return VK_ERROR_OUT_OF_HOST_MEMORY;
       }

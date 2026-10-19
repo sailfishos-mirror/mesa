@@ -673,6 +673,14 @@ radv_pipeline_cache_handle_to_nir(const struct radv_compiler_info *compiler_info
 }
 
 struct vk_pipeline_cache_object *
+radv_pipeline_cache_create_nir_handle(struct radv_device *device, const uint8_t *blake3, const void *data, size_t size)
+{
+   struct vk_raw_data_cache_object *object =
+      vk_raw_data_cache_object_create(&device->vk, blake3, BLAKE3_KEY_LEN, data, size);
+   return object ? &object->base : NULL;
+}
+
+struct vk_pipeline_cache_object *
 radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct vk_pipeline_cache *cache, struct nir_shader *nir,
                                   const uint8_t *blake3, bool cached)
 {
@@ -697,9 +705,7 @@ radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct vk_pipeline
       object = vk_pipeline_cache_create_and_insert_object(cache, blake3, BLAKE3_KEY_LEN, data, size,
                                                           &vk_raw_data_cache_object_ops);
    } else {
-      struct vk_raw_data_cache_object *nir_object =
-         vk_raw_data_cache_object_create(&device->vk, blake3, BLAKE3_KEY_LEN, data, size);
-      object = nir_object ? &nir_object->base : NULL;
+      object = radv_pipeline_cache_create_nir_handle(device, blake3, data, size);
    }
 
    free(data);
