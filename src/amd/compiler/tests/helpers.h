@@ -102,7 +102,8 @@ aco::Temp ext_sshort(aco::Temp src, unsigned idx, aco::Builder b = bld);
 aco::Temp ext_ubyte(aco::Temp src, unsigned idx, aco::Builder b = bld);
 aco::Temp ext_sbyte(aco::Temp src, unsigned idx, aco::Builder b = bld);
 void emit_divergent_if_else(aco::Program* prog, aco::Builder& b, aco::Operand cond,
-                            std::function<void()> then, std::function<void()> els);
+                            std::function<void()> then, std::function<void()> els,
+                            bool full_exec = false);
 
 /* vulkan helpers */
 VkDevice get_vk_device(enum amd_gfx_level gfx_level);

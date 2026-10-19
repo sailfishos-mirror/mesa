@@ -626,7 +626,7 @@ ext_sbyte(Temp src, unsigned idx, Builder b)
 
 void
 emit_divergent_if_else(Program* prog, aco::Builder& b, Operand cond, std::function<void()> then,
-                       std::function<void()> els)
+                       std::function<void()> els, bool full_exec)
 {
    prog->blocks.reserve(prog->blocks.size() + 6);
 
@@ -659,10 +659,16 @@ emit_divergent_if_else(Program* prog, aco::Builder& b, Operand cond, std::functi
    endif_block->linear_preds.push_back(else_linear->index);
 
    PhysReg saved_exec_reg(84);
+   Operand saved_exec = Operand::c32_or_c64(-1, bld.lm == s2);
 
    b.reset(if_block);
-   Temp saved_exec = b.sop1(Builder::s_and_saveexec, b.def(b.lm, saved_exec_reg),
-                            Definition(scc, s1), Definition(exec, b.lm), cond, Operand(exec, b.lm));
+   if (full_exec) {
+      bld.pseudo(aco_opcode::p_parallelcopy, Definition(exec, b.lm), cond);
+   } else {
+      Temp tmp = b.sop1(Builder::s_and_saveexec, b.def(b.lm, saved_exec_reg), Definition(scc, s1),
+                        Definition(exec, b.lm), cond, Operand(exec, b.lm));
+      saved_exec = Operand(tmp, saved_exec_reg);
+   }
    b.branch(aco_opcode::p_cbranch_nz, then_logical->index, then_linear->index);
 
    b.reset(then_logical);
@@ -675,8 +681,8 @@ emit_divergent_if_else(Program* prog, aco::Builder& b, Operand cond, std::functi
    b.branch(aco_opcode::p_branch, invert->index);
 
    b.reset(invert);
-   b.sop2(Builder::s_andn2, Definition(exec, bld.lm), Definition(scc, s1),
-          Operand(saved_exec, saved_exec_reg), Operand(exec, bld.lm));
+   b.sop2(Builder::s_andn2, Definition(exec, bld.lm), Definition(scc, s1), saved_exec,
+          Operand(exec, bld.lm));
    b.branch(aco_opcode::p_cbranch_nz, else_logical->index, else_linear->index);
 
    b.reset(else_logical);
@@ -689,8 +695,7 @@ emit_divergent_if_else(Program* prog, aco::Builder& b, Operand cond, std::functi
    b.branch(aco_opcode::p_branch, endif_block->index);
 
    b.reset(endif_block);
-   b.pseudo(aco_opcode::p_parallelcopy, Definition(exec, bld.lm),
-            Operand(saved_exec, saved_exec_reg));
+   b.pseudo(aco_opcode::p_parallelcopy, Definition(exec, bld.lm), saved_exec);
 }
 
 VkDevice
