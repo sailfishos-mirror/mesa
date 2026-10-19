@@ -604,7 +604,7 @@
         "description": "nir/opt_varyings: use nir_src_rewrite when shrinking varying arrays",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1559e14770765627058bc2e6f3304b162af01efb",
         "notes": null
