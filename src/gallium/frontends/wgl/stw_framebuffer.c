@@ -26,6 +26,7 @@
  **************************************************************************/
 
 #include "state_tracker/st_context.h"
+#include "main/glthread.h"
 
 #include <windows.h>
 
@@ -772,6 +773,13 @@ DrvSwapBuffers(HDC hdc)
 
    if (!stw_dev)
       return false;
+
+   /* glthread validates the framebuffer under its lock, so finish before
+    * taking it
+    */
+   struct stw_context *ctx = stw_current_context();
+   if (ctx)
+      _mesa_glthread_finish(ctx->st->ctx);
 
    fb = stw_framebuffer_from_hdc( hdc );
    if (fb == NULL)

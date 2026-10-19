@@ -31,6 +31,7 @@
 #include "pipe/p_state.h"
 
 #include "state_tracker/st_context.h"
+#include "main/glthread.h"
 
 #include "stw_st.h"
 #include "stw_device.h"
@@ -401,6 +402,8 @@ stw_st_flush(struct st_context *st,
    struct notify_before_flush_cb_args args;
    struct pipe_fence_handle **pfence = NULL;
    struct pipe_fence_handle *fence = NULL;
+
+   _mesa_glthread_finish(st->ctx);
 
    args.st = st;
    args.stwfb = stwfb;

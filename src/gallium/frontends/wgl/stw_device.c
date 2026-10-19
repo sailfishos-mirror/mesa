@@ -45,6 +45,8 @@
 #include "stw_tls.h"
 #include "stw_framebuffer.h"
 #include "stw_st.h"
+#include "stw_context.h"
+#include "hud/hud_context.h"
 
 
 struct stw_device *stw_dev = NULL;
@@ -68,6 +70,15 @@ get_refresh_rate(void)
 #else
    return 60;
 #endif /* _GAMING_XBOX */
+}
+
+static void
+stw_set_background_context(struct st_context *st, struct util_queue_monitoring *queue_info)
+{
+   struct stw_context *ctx = (struct stw_context *)st->frontend_context;
+
+   if (ctx->hud)
+      hud_add_queue_for_monitoring(ctx->hud, queue_info);
 }
 
 static bool
@@ -162,6 +173,7 @@ stw_init(const struct stw_winsys *stw_winsys)
     * resized unless we check on glViewport.
     */
    stw_dev->fscreen->broken_invalidate = true;
+   stw_dev->fscreen->set_background_context = stw_set_background_context;
 
    InitializeCriticalSection(&stw_dev->screen_mutex);
    InitializeCriticalSection(&stw_dev->ctx_mutex);

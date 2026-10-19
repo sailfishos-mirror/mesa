@@ -52,6 +52,8 @@
 #include "stw_tls.h"
 
 #include "main/context.h"
+#include "main/glthread.h"
+#include "util/u_driconf.h"
 
 struct stw_context *
 stw_current_context(void)
@@ -109,6 +111,8 @@ DrvShareLists(DHGLRC dhglrc1, DHGLRC dhglrc2)
    ctx2 = stw_lookup_context_locked( dhglrc2 );
 
    if (ctx1 && ctx2) {
+      _mesa_glthread_finish(ctx1->st->ctx);
+      _mesa_glthread_finish(ctx2->st->ctx);
       ret = _mesa_share_state(ctx2->st->ctx, ctx1->st->ctx);
       ctx1->shared = true;
       ctx2->shared = true;
@@ -257,6 +261,10 @@ stw_create_context_attribs(HDC hdc, INT iLayerPlane, struct stw_context *shareCt
                             st_context_invalidate_state);
    }
 
+   /* Do this last. */
+   if (u_driconf_glthread_enabled(&stw_dev->option_cache))
+      _mesa_glthread_init(ctx->st->ctx);
+
    return ctx;
 
 no_st_ctx:
@@ -299,6 +307,8 @@ stw_create_context_handle(struct stw_context *ctx, DHGLRC handle)
 void
 stw_destroy_context(struct stw_context *ctx)
 {
+   _mesa_glthread_finish(ctx->st->ctx);
+
    if (ctx->hud) {
       hud_destroy(ctx->hud, NULL);
    }
@@ -326,8 +336,10 @@ DrvDeleteContext(DHGLRC dhglrc)
       struct stw_context *curctx = stw_current_context();
 
       /* Unbind current if deleting current context. */
-      if (curctx == ctx)
+      if (curctx == ctx) {
+         _mesa_glthread_finish(ctx->st->ctx);
          st_api_make_current(NULL, NULL, NULL);
+      }
 
       stw_destroy_context(ctx);
       ret = true;
@@ -443,6 +455,8 @@ stw_make_current(struct stw_framebuffer *fb, struct stw_framebuffer *fbRead, str
             return true;
          }
       } else {
+         _mesa_glthread_finish(old_ctx->st->ctx);
+
          if (old_ctx->shared ||
             /* Using a winsys framebuffer effectively means that there's sharing since another
              * context might end up using the same resources. */
@@ -467,6 +481,8 @@ stw_make_current(struct stw_framebuffer *fb, struct stw_framebuffer *fbRead, str
    }
 
    if (ctx) {
+      _mesa_glthread_finish(ctx->st->ctx);
+
       if (ctx->pfi && fb && fb->pfi != ctx->pfi) {
          SetLastError(ERROR_INVALID_PIXEL_FORMAT);
          goto fail;
