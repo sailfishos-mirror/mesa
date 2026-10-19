@@ -6564,7 +6564,7 @@
         "description": "vulkan/meta: fixup typo",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2c0adfd4a19d62d98ac255ea88753a35c109eb60",
         "notes": null
