@@ -6,6 +6,7 @@
  */
 
 #include "util/u_thread.h"
+#include "util/u_cpu_detect.h"
 #include "util/perf/u_perfetto.h"
 
 #include "macros.h"
@@ -256,3 +257,14 @@ bool util_barrier_wait(util_barrier *barrier)
 }
 
 #endif
+
+/* threads inherit their creator's affinity, which may be pinned to one CPU */
+void
+util_set_current_thread_full_affinity(void)
+{
+   util_affinity_mask mask;
+
+   memset(mask, 0xff, sizeof(mask));
+
+   util_set_current_thread_affinity(mask, NULL, util_get_cpu_caps()->num_cpu_mask_bits);
+}

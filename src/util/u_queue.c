@@ -28,7 +28,6 @@
 
 #include "c11/threads.h"
 #include "perf/u_perfetto.h"
-#include "util/u_cpu_detect.h"
 #include "util/os_time.h"
 #include "util/u_string.h"
 #include "util/u_thread.h"
@@ -243,17 +242,9 @@ util_queue_thread_func(void *input)
 
    free(input);
 
-   if (queue->flags & UTIL_QUEUE_INIT_SET_FULL_THREAD_AFFINITY) {
-      /* Don't inherit the thread affinity from the parent thread.
-       * Set the full mask.
-       */
-      uint32_t mask[UTIL_MAX_CPUS / 32];
-
-      memset(mask, 0xff, sizeof(mask));
-
-      util_set_current_thread_affinity(mask, NULL,
-                                       util_get_cpu_caps()->num_cpu_mask_bits);
-   }
+   /* Don't inherit the thread affinity from the parent thread. */
+   if (queue->flags & UTIL_QUEUE_INIT_SET_FULL_THREAD_AFFINITY)
+      util_set_current_thread_full_affinity();
 
 #if defined(__linux__)
    if (queue->flags & UTIL_QUEUE_INIT_USE_MINIMUM_PRIORITY) {

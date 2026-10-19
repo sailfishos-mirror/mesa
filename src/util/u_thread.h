@@ -92,6 +92,9 @@ util_set_current_thread_affinity(const uint32_t *mask,
                                    num_mask_bits);
 }
 
+void
+util_set_current_thread_full_affinity(void);
+
 /*
  * Thread statistics.
  */
