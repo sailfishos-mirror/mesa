@@ -22,6 +22,8 @@
  */
 
 #include "u_driconf.h"
+#include "util/u_cpu_detect.h"
+#include "util/u_debug.h"
 
 void
 u_driconf_fill_st_options(struct st_config_options *options,
@@ -85,4 +87,37 @@ u_driconf_fill_st_options(struct st_config_options *options,
    query_bool_option(vertex_program_default_out);
 
    driComputeOptionsBlake3(optionCache, options->config_options_blake3);
+}
+
+bool
+u_driconf_glthread_enabled(const struct driOptionCache *optionCache)
+{
+   /* order of precedence (least to most):
+    * - driver setting
+    * - app setting
+    * - user setting
+    */
+   bool enable_glthread = driQueryOptionb(optionCache, "mesa_glthread_driver");
+
+   /* always disable glthread by default if fewer than 5 "big" CPUs are active */
+   unsigned nr_big_cpus = util_get_cpu_caps()->nr_big_cpus;
+   if (util_get_cpu_caps()->nr_cpus < 4 || (nr_big_cpus && nr_big_cpus < 5))
+      enable_glthread = false;
+
+   int app_enable_glthread = driQueryOptioni(optionCache, "mesa_glthread_app_profile");
+   if (app_enable_glthread != -1) {
+      /* if set (not -1), apply the app setting */
+      enable_glthread = app_enable_glthread == 1;
+   }
+   if (os_get_option("mesa_glthread")) {
+      /* only apply the env var if set */
+      bool user_enable_glthread = debug_get_bool_option("mesa_glthread", false);
+      if (user_enable_glthread != enable_glthread) {
+         /* print warning to mimic old behavior */
+         fprintf(stderr, "ATTENTION: default value of option mesa_glthread overridden by environment.\n");
+      }
+      enable_glthread = user_enable_glthread;
+   }
+
+   return enable_glthread;
 }
