@@ -1344,7 +1344,7 @@
         "description": "jay: Be more precise when using SHUFFLE for GPR->UGPR fill",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b61a64eb82a4d0593c5369929ac94fdcff114dcd",
         "notes": null
