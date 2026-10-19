@@ -106,6 +106,9 @@ def declare_options():
     ]
 
     performance_options = [
+        S("radv_cs_domain",
+          description="Choose where command buffers and upload buffers are allocated. Accepted values are: auto, vram or gtt",
+          c_name="cs_domain"),
         B("radv_disable_ngg_gs", False,
           "Disable NGG GS on GFX10/GFX10.3.",
           c_name="disable_ngg_gs"),
