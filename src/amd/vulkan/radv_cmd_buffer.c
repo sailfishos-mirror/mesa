@@ -91,7 +91,6 @@ radv_cmd_set_line_width(struct radv_cmd_buffer *cmd_buffer, float line_width)
    state->dynamic.vk.rs.line.width = line_width;
 
    state->dirty_dynamic |= RADV_DYNAMIC_LINE_WIDTH;
-   state->dirty |= RADV_CMD_DIRTY_GUARDBAND;
 }
 
 ALWAYS_INLINE static void
@@ -6141,6 +6140,25 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
    }
 }
 
+static float
+radv_get_guardband_clip_discard_distance(struct radv_cmd_buffer *cmd_buffer)
+{
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const uint32_t raster_prim = radv_get_raster_prim(cmd_buffer);
+   float distance = 0.0f;
+
+   /* When rendering wide points or lines, we need to be more conservative about when to discard
+    * them entirely.
+    */
+   if (raster_prim == V_030998_POINTLIST) {
+      distance = 8191.875f;
+   } else if (raster_prim == V_030998_LINESTRIP) {
+      distance = d->vk.rs.line.width;
+   }
+
+   return distance;
+}
+
 static void
 radv_emit_guardband_state(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -6148,10 +6166,7 @@ radv_emit_guardband_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   float clip_discard_distance = 0.0f;
    struct ac_guardband guardband;
-
-   assert(cmd_buffer->state.guardband_raster_prim == radv_get_raster_prim(cmd_buffer));
 
    if (!d->vk.vp.viewport_count)
       return;
@@ -6171,17 +6186,8 @@ radv_emit_guardband_state(struct radv_cmd_buffer *cmd_buffer)
       maxy = MAX2(maxy, viewport_scissor.offset.y + viewport_scissor.extent.height);
    }
 
-   /* When rendering wide points or lines, we need to be more conservative about when to discard
-    * them entirely.
-    */
-   if (cmd_buffer->state.guardband_raster_prim == V_030998_POINTLIST) {
-      clip_discard_distance = 8191.875f;
-   } else if (cmd_buffer->state.guardband_raster_prim == V_030998_LINESTRIP) {
-      clip_discard_distance = d->vk.rs.line.width;
-   }
-
    ac_compute_guardband(&pdev->info, minx, miny, maxx, maxy, AC_QUANT_MODE_16_8_FIXED_POINT_1_256TH,
-                        clip_discard_distance, &guardband);
+                        cmd_buffer->state.guardband_clip_discard_distance, &guardband);
 
    int hw_screen_offset_x = guardband.hw_screen_offset_x >> 4;
    int hw_screen_offset_y = guardband.hw_screen_offset_y >> 4;
@@ -14033,22 +14039,23 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, bool indexed_d
    }
 
    if ((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
-       (dynamic_states & (RADV_DYNAMIC_PRIMITIVE_TOPOLOGY | RADV_DYNAMIC_POLYGON_MODE |
-                          RADV_DYNAMIC_LINE_RASTERIZATION_MODE | RADV_DYNAMIC_RASTERIZATION_SAMPLES))) {
+       (dynamic_states &
+        (RADV_DYNAMIC_PRIMITIVE_TOPOLOGY | RADV_DYNAMIC_POLYGON_MODE | RADV_DYNAMIC_LINE_RASTERIZATION_MODE |
+         RADV_DYNAMIC_RASTERIZATION_SAMPLES | RADV_DYNAMIC_LINE_WIDTH))) {
       const uint32_t vgt_outprim_type = radv_get_vgt_outprim_type(cmd_buffer);
 
       if (cmd_buffer->state.vgt_outprim_type != vgt_outprim_type) {
-         /* This must be set before computing the guardband raster prim. */
+         /* This must be set before computing the guardband clip discard distance. */
          cmd_buffer->state.vgt_outprim_type = vgt_outprim_type;
 
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE | RADV_CMD_DIRTY_NGG_STATE | RADV_CMD_DIRTY_NGGC_SETTINGS |
                                     RADV_CMD_DIRTY_VGT_PRIM_STATE;
       }
 
-      const uint32_t raster_prim = radv_get_raster_prim(cmd_buffer);
+      const float clip_discard_distance = radv_get_guardband_clip_discard_distance(cmd_buffer);
 
-      if (cmd_buffer->state.guardband_raster_prim != raster_prim) {
-         cmd_buffer->state.guardband_raster_prim = raster_prim;
+      if (cmd_buffer->state.guardband_clip_discard_distance != clip_discard_distance) {
+         cmd_buffer->state.guardband_clip_discard_distance = clip_discard_distance;
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GUARDBAND;
       }
 

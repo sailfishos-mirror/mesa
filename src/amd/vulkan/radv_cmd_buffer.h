@@ -377,7 +377,8 @@ struct radv_cmd_state {
 
    VkLineRasterizationModeEXT line_rast_mode;
    unsigned vgt_outprim_type;
-   unsigned guardband_raster_prim;
+
+   float guardband_clip_discard_distance;
 
    uint32_t vtx_base_sgpr;
    uint8_t vtx_emit_num;
