@@ -600,7 +600,14 @@ snapshot_ib(uint64_t gpuaddr, const uint32_t *dwords, uint32_t sizedwords)
       }
    }
 
-   assert(idx < ARRAY_SIZE(ibs));
+   /* Warn what is being dropped in case of overflow instead of asserting*/
+   if (idx >= ARRAY_SIZE(ibs)) {
+      mesa_logw_once("warning: more than %zu IBs, dropping the rest "
+                     "(first dropped: %016" PRIx64 ")\n",
+                     ARRAY_SIZE(ibs), gpuaddr);
+      return;
+   }
+
    ibs[idx].ib.gpuaddr = gpuaddr;
    ibs[idx].ib.size = sizedwords;
    ibs[idx].ib.ptbase = ptbase;
