@@ -824,7 +824,7 @@
         "description": "radeonsi: re-emit the sqtt pipeline when shader states are emitted",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8034a71430be0b6473449028d90937729b77d6d9",
         "notes": null
