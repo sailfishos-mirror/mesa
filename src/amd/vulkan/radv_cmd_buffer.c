@@ -1503,23 +1503,23 @@ radv_cmd_buffer_resize_linear_suballoc_buf(struct radv_cmd_buffer *cmd_buffer,
    struct radeon_winsys_bo *bo = NULL;
    struct radv_linear_suballoc_buffer *saved_suballoc;
 
-   enum radeon_bo_flag bo_flags = RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT | RADEON_FLAG_GTT_WC;
+   enum radeon_bo_flag bo_flags = RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT;
    enum radeon_bo_domain bo_domain;
    unsigned bo_priority;
    uint64_t new_size = min_needed;
 
    switch (suballocator) {
    case RADV_SUBALLOCATOR_VRAM:
-      bo_flags |= RADEON_FLAG_NO_CPU_ACCESS |
-                  (cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT ? RADEON_FLAG_ENCRYPTED : 0);
       bo_domain = RADEON_DOMAIN_VRAM;
+      bo_flags |= RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_GTT_WC |
+                  (cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT ? RADEON_FLAG_ENCRYPTED : 0);
       bo_priority = RADV_BO_PRIORITY_SCRATCH;
       new_size = MAX2(new_size, 4 * 1024);
       break;
 
    case RADV_SUBALLOCATOR_CPU_UPLOAD:
-      bo_flags |= RADEON_FLAG_CPU_ACCESS;
       bo_domain = must_use_vram ? RADEON_DOMAIN_VRAM : device->ws->cs_domain(device->ws);
+      bo_flags |= RADEON_FLAG_CPU_ACCESS | (bo_domain == RADEON_DOMAIN_GTT ? 0 : RADEON_FLAG_GTT_WC);
       bo_priority = RADV_BO_PRIORITY_UPLOAD_BUFFER;
       new_size = MAX2(new_size, 16 * 1024);
       break;
