@@ -48,7 +48,6 @@ static const struct debug_control_bitset radv_debug_options[] = {
    OPT1("allbos", RADV_DEBUG_ALL_BOS),
    OPT1("noibchaining", RADV_DEBUG_NO_IB_CHAINING),
    OPT1("spirv", RADV_DEBUG_DUMP_SPIRV),
-   OPT1("zerovram", RADV_DEBUG_ZERO_VRAM),
    OPT1("syncshaders", RADV_DEBUG_SYNC_SHADERS),
    OPT1("preoptir", RADV_DEBUG_DUMP_PREOPT_IR),
    OPT1("info", RADV_DEBUG_INFO),
@@ -326,11 +325,6 @@ radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationC
 
    if (RADV_DEBUG(instance, STARTUP))
       fprintf(stderr, "radv: info: Created an instance.\n");
-
-   if (RADV_DEBUG(instance, ZERO_VRAM)) {
-      fprintf(stderr, "radv: WARNING: RADV_DEBUG=zerovram is deprecated and it will be removed in"
-                      " future Mesa releases.\n");
-   }
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
 
