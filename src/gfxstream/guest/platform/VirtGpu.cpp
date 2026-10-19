@@ -9,6 +9,7 @@
 #include <mutex>
 
 #include "Sync.h"
+#include "util/detect_os.h"
 #include "util/log.h"
 #include "util/os_misc.h"
 
@@ -18,10 +19,19 @@ namespace {
 static std::mutex sDeviceMutex;
 static VirtGpuDevice* sDevice = nullptr;
 
+// The Apple backend is a stub, so kumquat is the only transport there.
+static bool useKumquat() {
+#if DETECT_OS_APPLE
+    return true;
+#else
+    return os_get_option("VIRTGPU_KUMQUAT") != nullptr;
+#endif
+}
+
 }  // namespace
 
 VirtGpuDevice* createPlatformVirtGpuDevice(enum VirtGpuCapset capset, int32_t descriptor) {
-    if (os_get_option("VIRTGPU_KUMQUAT")) {
+    if (useKumquat()) {
         return kumquatCreateVirtGpuDevice(capset, descriptor);
     } else {
         return osCreateVirtGpuDevice(capset, descriptor);
@@ -56,7 +66,7 @@ void VirtGpuDevice::resetInstance() {
 namespace gfxstream {
 
 SyncHelper* createPlatformSyncHelper() {
-    if (os_get_option("VIRTGPU_KUMQUAT")) {
+    if (useKumquat()) {
         return kumquatCreateSyncHelper();
     } else {
         return osCreateSyncHelper();
