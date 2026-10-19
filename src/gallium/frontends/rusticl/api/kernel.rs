@@ -454,7 +454,7 @@ fn set_kernel_arg(
                     // We are required to prevent mutable access to immutable memory objects,
                     // however no explicit error code has been specified yet.
                     if arg.kind == KernelArgType::MemGlobal
-                        && bit_check(buffer.flags, CL_MEM_IMMUTABLE_EXT)
+                        && buffer.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT)
                     {
                         return Err(CL_INVALID_ARG_VALUE);
                     }
@@ -478,11 +478,14 @@ fn set_kernel_arg(
                 // of CL_MEM_READ_ONLY.
                 // We are required to prevent mutable access to immutable memory objects, however no
                 // explicit error code has been specified yet.
-                if arg.kind == KernelArgType::Texture && bit_check(img.flags, CL_MEM_WRITE_ONLY)
+                if arg.kind == KernelArgType::Texture
+                    && img.flags.are_any_bits_set(CL_MEM_WRITE_ONLY)
                     || arg.kind == KernelArgType::Image
-                        && bit_check(img.flags, CL_MEM_READ_ONLY | CL_MEM_IMMUTABLE_EXT)
+                        && img
+                            .flags
+                            .are_any_bits_set(CL_MEM_READ_ONLY | CL_MEM_IMMUTABLE_EXT)
                     || arg.kind == KernelArgType::RWImage
-                        && bit_check(img.flags, CL_MEM_IMMUTABLE_EXT)
+                        && img.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT)
                 {
                     return Err(CL_INVALID_ARG_VALUE);
                 }

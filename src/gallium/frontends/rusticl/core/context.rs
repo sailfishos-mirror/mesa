@@ -3,7 +3,7 @@
 
 use crate::api::icd::*;
 use crate::api::types::DeleteContextCB;
-use crate::api::util::bit_check;
+use crate::api::util::BitFlags;
 use crate::core::device::*;
 use crate::core::event::EventSig;
 use crate::core::format::*;
@@ -434,7 +434,7 @@ impl Context {
         flags: cl_map_flags,
     ) -> CLResult<()> {
         // no need to copy
-        if bit_check(flags, CL_MAP_WRITE_INVALIDATE_REGION) {
+        if flags.are_any_bits_set(CL_MAP_WRITE_INVALIDATE_REGION) {
             return Ok(());
         }
 

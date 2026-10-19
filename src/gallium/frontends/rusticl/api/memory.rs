@@ -153,14 +153,14 @@ fn validate_map_flags(m: &MemBase, map_flags: cl_mem_flags) -> CLResult<()> {
 
     // CL_INVALID_OPERATION if buffer has been created with CL_MEM_HOST_WRITE_ONLY or
     // CL_MEM_HOST_NO_ACCESS and CL_MAP_READ is set in map_flags
-    if bit_check(m.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) &&
-      bit_check(map_flags, CL_MAP_READ) ||
+    if m.flags.are_any_bits_set(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) &&
+      map_flags.are_any_bits_set(CL_MAP_READ) ||
       // or if buffer has been created with CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS and
       // CL_MAP_WRITE or CL_MAP_WRITE_INVALIDATE_REGION is set in map_flags.
       // CL_INVALID_OPERATION if buffer was created with CL_MEM_IMMUTABLE_EXT in flags and
       // CL_MAP_WRITE or CL_MAP_WRITE_INVALIDATE_REGION is set in map_flags.
-      bit_check(m.flags, CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT) &&
-      bit_check(map_flags, CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION)
+      m.flags.are_any_bits_set(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT) &&
+      map_flags.are_any_bits_set(CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION)
     {
         return Err(CL_INVALID_OPERATION);
     }
@@ -264,21 +264,21 @@ fn validate_matching_buffer_flags(mem: &MemBase, flags: cl_mem_flags) -> CLResul
     //
     // 1) mem_object was created with CL_MEM_WRITE_ONLY and
     //    flags specifies CL_MEM_READ_WRITE or CL_MEM_READ_ONLY,
-    if bit_check(mem.flags, CL_MEM_WRITE_ONLY) && bit_check(flags, CL_MEM_READ_WRITE | CL_MEM_READ_ONLY) ||
+    if mem.flags.are_any_bits_set(CL_MEM_WRITE_ONLY) && flags.are_any_bits_set(CL_MEM_READ_WRITE | CL_MEM_READ_ONLY) ||
       // 2) mem_object was created with CL_MEM_READ_ONLY and
       //    flags specifies CL_MEM_READ_WRITE or CL_MEM_WRITE_ONLY,
-      bit_check(mem.flags, CL_MEM_READ_ONLY) && bit_check(flags, CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY) ||
+      mem.flags.are_any_bits_set(CL_MEM_READ_ONLY) && flags.are_any_bits_set(CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY) ||
       // 3) flags specifies CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR or CL_MEM_COPY_HOST_PTR.
-      bit_check(flags, CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR) ||
+      flags.are_any_bits_set(CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR) ||
       // CL_INVALID_VALUE if an image is being created from another memory object (buffer or image)
       // and mem_object was created with CL_MEM_HOST_WRITE_ONLY and flags specifies CL_MEM_HOST_READ_ONLY
-      bit_check(mem.flags, CL_MEM_HOST_WRITE_ONLY) && bit_check(flags, CL_MEM_HOST_READ_ONLY) ||
+      mem.flags.are_any_bits_set(CL_MEM_HOST_WRITE_ONLY) && flags.are_any_bits_set(CL_MEM_HOST_READ_ONLY) ||
       // or if mem_object was created with CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY
-      bit_check(mem.flags, CL_MEM_HOST_READ_ONLY) && bit_check(flags, CL_MEM_HOST_WRITE_ONLY) ||
+      mem.flags.are_any_bits_set(CL_MEM_HOST_READ_ONLY) && flags.are_any_bits_set(CL_MEM_HOST_WRITE_ONLY) ||
       // or if mem_object was created with CL_MEM_HOST_NO_ACCESS and_flags_ specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
-      bit_check(mem.flags, CL_MEM_HOST_NO_ACCESS) && bit_check(flags, CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY) ||
+      mem.flags.are_any_bits_set(CL_MEM_HOST_NO_ACCESS) && flags.are_any_bits_set(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY) ||
       // CL_INVALID_VALUE if buffer was created with CL_MEM_IMMUTABLE_EXT and flags specifies CL_MEM_READ_WRITE, CL_MEM_WRITE_ONLY, or CL_MEM_HOST_WRITE_ONLY.
-      bit_check(mem.flags, CL_MEM_IMMUTABLE_EXT) && bit_check(flags, CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY | CL_MEM_HOST_WRITE_ONLY)
+      mem.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) && flags.are_any_bits_set(CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY | CL_MEM_HOST_WRITE_ONLY)
     {
         return Err(CL_INVALID_VALUE);
     }
@@ -616,7 +616,9 @@ fn validate_image_desc(
 
         // CL_INVALID_VALUE if CL_MEM_IMMUTABLE_EXT is not set in flags and mem_object was created
         // with CL_MEM_IMMUTABLE_EXT
-        if bit_check(p.flags, CL_MEM_IMMUTABLE_EXT) && !bit_check(flags, CL_MEM_IMMUTABLE_EXT) {
+        if p.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT)
+            && flags.are_no_bits_set(CL_MEM_IMMUTABLE_EXT)
+        {
             return Err(CL_INVALID_VALUE);
         }
 
@@ -1211,7 +1213,9 @@ fn enqueue_read_buffer(
 
     // CL_INVALID_OPERATION if clEnqueueReadBuffer is called on buffer which has been created with
     // CL_MEM_HOST_WRITE_ONLY or CL_MEM_HOST_NO_ACCESS.
-    if bit_check(b.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) {
+    if b.flags
+        .are_any_bits_set(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1262,10 +1266,9 @@ fn enqueue_write_buffer(
     // CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS.
     // CL_INVALID_OPERATION if clEnqueueWriteBuffer is called on buffer which has been created with
     // CL_MEM_IMMUTABLE_EXT.
-    if bit_check(
-        b.flags,
-        CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT,
-    ) {
+    if b.flags
+        .are_any_bits_set(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1308,7 +1311,7 @@ fn enqueue_copy_buffer(
     }
 
     // CL_INVALID_OPERATION if dst_buffer was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(dst.flags, CL_MEM_IMMUTABLE_EXT) {
+    if dst.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1374,7 +1377,10 @@ fn enqueue_read_buffer_rect(
 
     // CL_INVALID_OPERATION if clEnqueueReadBufferRect is called on buffer which has been created
     // with CL_MEM_HOST_WRITE_ONLY or CL_MEM_HOST_NO_ACCESS.
-    if bit_check(buf.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) {
+    if buf
+        .flags
+        .are_any_bits_set(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1494,10 +1500,10 @@ fn enqueue_write_buffer_rect(
     // with CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS.
     // CL_INVALID_OPERATION if clEnqueueWriteBufferRect is called on buffer which has been created
     // with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(
-        buf.flags,
-        CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT,
-    ) {
+    if buf
+        .flags
+        .are_any_bits_set(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1618,7 +1624,7 @@ fn enqueue_copy_buffer_rect(
     }
 
     // CL_INVALID_OPERATION if dst_buffer was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(dst.flags, CL_MEM_IMMUTABLE_EXT) {
+    if dst.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1751,7 +1757,7 @@ fn enqueue_fill_buffer(
     let evs = event_list_from_cl(&q, num_events_in_wait_list, event_wait_list)?;
 
     // CL_INVALID_OPERATION if buffer was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(b.flags, CL_MEM_IMMUTABLE_EXT) {
+    if b.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1879,7 +1885,9 @@ fn enqueue_read_image(
 
     // CL_INVALID_OPERATION if clEnqueueReadImage is called on image which has been created with
     // CL_MEM_HOST_WRITE_ONLY or CL_MEM_HOST_NO_ACCESS.
-    if bit_check(i.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) {
+    if i.flags
+        .are_any_bits_set(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -1967,10 +1975,9 @@ fn enqueue_write_image(
     // CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS.
     // CL_INVALID_OPERATION if clEnqueueWriteImage is called on image which has been created with
     // CL_MEM_IMMUTABLE_EXT.
-    if bit_check(
-        i.flags,
-        CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT,
-    ) {
+    if i.flags
+        .are_any_bits_set(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_IMMUTABLE_EXT)
+    {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -2052,7 +2059,7 @@ fn enqueue_copy_image(
     }
 
     // CL_INVALID_OPERATION if dst_image was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(dst_image.flags, CL_MEM_IMMUTABLE_EXT) {
+    if dst_image.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -2125,7 +2132,7 @@ fn enqueue_fill_image(
     }
 
     // CL_INVALID_OPERATION if image was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(i.flags, CL_MEM_IMMUTABLE_EXT) {
+    if i.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -2200,7 +2207,7 @@ fn enqueue_copy_buffer_to_image(
     }
 
     // CL_INVALID_OPERATION if dst_image was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(dst.flags, CL_MEM_IMMUTABLE_EXT) {
+    if dst.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -2267,7 +2274,7 @@ fn enqueue_copy_image_to_buffer(
     }
 
     // CL_INVALID_OPERATION if dst_buffer was created with CL_MEM_IMMUTABLE_EXT.
-    if bit_check(dst.flags, CL_MEM_IMMUTABLE_EXT) {
+    if dst.flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_OPERATION);
     }
 
@@ -2491,9 +2498,8 @@ fn enqueue_migrate_mem_objects(
 
     // CL_INVALID_VALUE if flags is not 0 or is not any of the values described in the table above.
     if flags != 0
-        && bit_check(
-            flags,
-            !(CL_MIGRATE_MEM_OBJECT_HOST | CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED),
+        && flags.are_other_bits_set(
+            CL_MIGRATE_MEM_OBJECT_HOST | CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED,
         )
     {
         return Err(CL_INVALID_VALUE);
@@ -2530,12 +2536,14 @@ pub fn svm_alloc(
     }
 
     // flags does not contain CL_MEM_SVM_FINE_GRAIN_BUFFER but does contain CL_MEM_SVM_ATOMICS.
-    if !bit_check(flags, CL_MEM_SVM_FINE_GRAIN_BUFFER) && bit_check(flags, CL_MEM_SVM_ATOMICS) {
+    if flags.are_no_bits_set(CL_MEM_SVM_FINE_GRAIN_BUFFER)
+        && flags.are_any_bits_set(CL_MEM_SVM_ATOMICS)
+    {
         return Err(CL_INVALID_VALUE);
     }
 
     // flags contains CL_MEM_IMMUTABLE_EXT.
-    if bit_check(flags, CL_MEM_IMMUTABLE_EXT) {
+    if flags.are_any_bits_set(CL_MEM_IMMUTABLE_EXT) {
         return Err(CL_INVALID_VALUE);
     }
 
@@ -3152,8 +3160,8 @@ fn enqueue_svm_migrate_mem(
         return Err(CL_INVALID_VALUE);
     }
 
-    let to_device = !bit_check(flags, CL_MIGRATE_MEM_OBJECT_HOST);
-    let content_undefined = bit_check(flags, CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED);
+    let to_device = flags.are_no_bits_set(CL_MIGRATE_MEM_OBJECT_HOST);
+    let content_undefined = flags.are_any_bits_set(CL_MIGRATE_MEM_OBJECT_CONTENT_UNDEFINED);
 
     create_and_queue(
         q,

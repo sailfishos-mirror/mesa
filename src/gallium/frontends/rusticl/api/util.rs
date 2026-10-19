@@ -506,10 +506,6 @@ pub fn checked_compare(a: usize, o: cmp::Ordering, b: u64) -> bool {
     }
 }
 
-pub fn bit_check<A: BitAnd<Output = A> + PartialEq + Default, B: Into<A>>(a: A, b: B) -> bool {
-    a & b.into() != A::default()
-}
-
 pub trait BitFlags: BitAnd<Self, Output = Self> + Sized + Copy + PartialEq {
     fn are_all_bits_set<Other: Into<Self> + Copy>(&self, other: Other) -> bool {
         *self & other.into() == other.into()
