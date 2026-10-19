@@ -449,8 +449,19 @@ parse_ibs(const uint32_t *dwords, uint32_t sizedwords)
             parse_cp_indirect(&dwords[1], count - 1, &ibaddr, &ibsize);
 
             /* map gpuaddr back to hostptr: */
-            void *ptr = hostptr(ibaddr);
-            snapshot_ib(ibaddr, ptr, ibsize);
+            uint32_t *ptr = hostptr(ibaddr);
+
+            /* A corrupt ibaddr won't land in anything the kernel
+             * captured, so there is nothing to record:
+             */
+            if (ptr) {
+               /* Clamp to what the kernel actually captured: */
+               uint32_t avail = hostlen(ibaddr) / 4;
+               if (ibsize > avail)
+                  ibsize = avail;
+
+               snapshot_ib(ibaddr, ptr, ibsize);
+            }
          }
          // TODO CP_SET_DRAW_STATE and others?
       } else if (pkt_is_type2(dwords[0])) {
