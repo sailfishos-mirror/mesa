@@ -63,10 +63,6 @@ nir_shader *radv_pipeline_cache_lookup_nir(const struct radv_compiler_info *comp
 void radv_pipeline_cache_insert_nir(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
                                     const blake3_hash key, const nir_shader *nir);
 
-struct vk_pipeline_cache_object *radv_pipeline_cache_lookup_nir_handle(const struct radv_compiler_info *compiler_info,
-                                                                       struct vk_pipeline_cache *cache,
-                                                                       const unsigned char *blake3);
-
 struct nir_shader *radv_pipeline_cache_handle_to_nir(const struct radv_compiler_info *compiler_info,
                                                      struct vk_pipeline_cache_object *object);
 

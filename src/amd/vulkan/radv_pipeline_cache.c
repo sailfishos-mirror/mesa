@@ -487,6 +487,19 @@ struct radv_ray_tracing_pipeline_cache_data {
    struct radv_ray_tracing_stage_cache_data stages[];
 };
 
+static struct vk_pipeline_cache_object *
+radv_pipeline_cache_lookup_nir_handle(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
+                                      const uint8_t *blake3)
+{
+   if (radv_is_cache_disabled(compiler_info, cache))
+      return NULL;
+
+   if (!cache)
+      cache = compiler_info->mem_cache;
+
+   return vk_pipeline_cache_lookup_object(cache, blake3, BLAKE3_KEY_LEN, &vk_raw_data_cache_object_ops, NULL);
+}
+
 bool
 radv_ray_tracing_pipeline_cache_search(struct radv_device *device, struct vk_pipeline_cache *cache,
                                        struct radv_ray_tracing_pipeline *pipeline, bool *found_in_application_cache)
@@ -639,19 +652,6 @@ radv_pipeline_cache_insert_nir(const struct radv_compiler_info *compiler_info, s
       cache = compiler_info->mem_cache;
 
    vk_pipeline_cache_add_nir(cache, key, sizeof(blake3_hash), nir);
-}
-
-struct vk_pipeline_cache_object *
-radv_pipeline_cache_lookup_nir_handle(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
-                                      const uint8_t *blake3)
-{
-   if (radv_is_cache_disabled(compiler_info, cache))
-      return NULL;
-
-   if (!cache)
-      cache = compiler_info->mem_cache;
-
-   return vk_pipeline_cache_lookup_object(cache, blake3, BLAKE3_KEY_LEN, &vk_raw_data_cache_object_ops, NULL);
 }
 
 struct nir_shader *
