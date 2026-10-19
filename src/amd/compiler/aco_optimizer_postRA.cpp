@@ -1182,13 +1182,13 @@ try_optimize_branching_sequence(pr_opt_ctx& ctx, aco_ptr<Instruction>& exec_copy
    if (can_remove_copy) {
       /* Remove the copy. */
       exec_copy.reset();
-      ctx.uses[exec_temp.id()]--;
    } else {
       /* Reassign the copy to write the register of the original value. */
       exec_copy.reset(create_instruction(aco_opcode::p_parallelcopy, Format::PSEUDO, 1, 1));
       exec_copy->definitions[0] = exec_wr_def;
       exec_copy->operands[0] = Operand(exec, ctx.program->lane_mask);
    }
+   ctx.uses[exec_temp.id()]--;
 
    if (save_original_exec) {
       /* Insert a new instruction that saves the original exec before it is overwritten.
