@@ -681,12 +681,8 @@ radv_pipeline_cache_create_nir_handle(struct radv_device *device, const uint8_t 
 }
 
 struct vk_pipeline_cache_object *
-radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct vk_pipeline_cache *cache, struct nir_shader *nir,
-                                  const uint8_t *blake3, bool cached)
+radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct nir_shader *nir, const uint8_t *blake3)
 {
-   if (!cache)
-      cache = device->mem_cache;
-
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
@@ -696,20 +692,24 @@ radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct vk_pipeline
       return NULL;
    }
 
-   void *data;
-   size_t size;
-   blob_finish_get_buffer(&blob, &data, &size);
-   struct vk_pipeline_cache_object *object;
+   struct vk_pipeline_cache_object *object =
+      radv_pipeline_cache_create_nir_handle(device, blake3, blob.data, blob.size);
+   blob_finish(&blob);
 
-   if (cached && !radv_is_cache_disabled(&device->compiler_info, cache)) {
-      object = vk_pipeline_cache_create_and_insert_object(cache, blake3, BLAKE3_KEY_LEN, data, size,
-                                                          &vk_raw_data_cache_object_ops);
-   } else {
-      object = radv_pipeline_cache_create_nir_handle(device, blake3, data, size);
-   }
-
-   free(data);
    return object;
+}
+
+struct vk_pipeline_cache_object *
+radv_pipeline_cache_insert_nir_handle(struct radv_device *device, struct vk_pipeline_cache *cache,
+                                      struct vk_pipeline_cache_object *object)
+{
+   if (radv_is_cache_disabled(&device->compiler_info, cache))
+      return object;
+
+   if (!cache)
+      cache = device->mem_cache;
+
+   return vk_pipeline_cache_add_object(cache, object);
 }
 
 VkResult

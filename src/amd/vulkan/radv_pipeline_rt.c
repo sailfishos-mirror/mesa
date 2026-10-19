@@ -805,8 +805,9 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
           * with the NIR scratch size which might be zero.
           */
          rt_stages[idx].stack_size = MAX2(rt_stages[idx].stack_size, stage->nir->scratch_size);
-         rt_stages[idx].nir =
-            radv_pipeline_cache_nir_to_handle(device, cache, stage->nir, rt_stages[idx].blake3, cached);
+         rt_stages[idx].nir = radv_pipeline_cache_nir_to_handle(device, stage->nir, rt_stages[idx].blake3);
+         if (cached && rt_stages[idx].nir)
+            rt_stages[idx].nir = radv_pipeline_cache_insert_nir_handle(device, cache, rt_stages[idx].nir);
       }
 
       stage->feedback.duration += os_time_get_nano() - stage_start;

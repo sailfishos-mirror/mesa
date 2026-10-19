@@ -71,10 +71,14 @@ struct vk_pipeline_cache_object *radv_pipeline_cache_create_nir_handle(struct ra
                                                                        const unsigned char *blake3, const void *data,
                                                                        size_t size);
 
-struct vk_pipeline_cache_object *radv_pipeline_cache_nir_to_handle(struct radv_device *device,
-                                                                   struct vk_pipeline_cache *cache,
-                                                                   struct nir_shader *nir, const unsigned char *blake3,
-                                                                   bool cached);
+/* Creates an uncached handle by serializing NIR. */
+struct vk_pipeline_cache_object *radv_pipeline_cache_nir_to_handle(struct radv_device *device, struct nir_shader *nir,
+                                                                   const unsigned char *blake3);
+
+/* Consumes a reference and returns the handle to use, which may already be cached. */
+struct vk_pipeline_cache_object *radv_pipeline_cache_insert_nir_handle(struct radv_device *device,
+                                                                      struct vk_pipeline_cache *cache,
+                                                                      struct vk_pipeline_cache_object *object);
 
 void radv_shader_serialize(struct radv_shader *shader, struct blob *blob);
 
