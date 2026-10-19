@@ -149,34 +149,30 @@ impl<A: AllocSSA> DstModProp<'_, A> {
         debug_assert!(old.is_none());
     }
 
-    fn add_fadd_uses(&mut self, op: &OpFAdd) {
+    fn add_fadd_uses(&mut self, op: &OpFAdd) -> bool {
         let src = if op.srcs[0].is_fneg_zero(op.dst_type) {
             &op.srcs[1]
         } else if op.srcs[1].is_fneg_zero(op.dst_type) {
             &op.srcs[0]
         } else {
-            for ssa in op.iter_ssa_uses() {
-                self.add_use(*ssa, UseMod::INVALID);
-            }
-            return;
+            return false;
         };
 
         let SrcRef::SSA(vec) = &src.src_ref else {
-            return;
+            return false;
         };
         debug_assert!(vec.comps() == 1);
         let ssa = vec[0];
 
         if !src.src_mod.is_none() {
-            self.add_use(ssa, UseMod::INVALID);
-            return;
+            return false;
         }
 
         let use_mod = match SrcType::from_src(src, op.dst_type) {
             SrcType::None => UseMod::INVALID,
             SrcType::F16 => UseMod {
                 clamp: ClampUses::F16(op.clamp),
-                to_f16: Uses::Unknown,
+                ..UseMod::INVALID
             },
             SrcType::F32 => UseMod {
                 clamp: ClampUses::F32(op.clamp),
@@ -185,18 +181,22 @@ impl<A: AllocSSA> DstModProp<'_, A> {
                 } else {
                     Uses::Unknown
                 },
+                ..UseMod::INVALID
             },
         };
         self.add_use(ssa, use_mod);
+        true
     }
 
     fn add_instr_uses(&mut self, instr: &Instr) {
-        match &instr.op {
+        let used = match &instr.op {
             Op::FAdd(op) => self.add_fadd_uses(op.as_ref()),
-            _ => {
-                for ssa in instr.iter_ssa_uses() {
-                    self.add_use(*ssa, UseMod::INVALID);
-                }
+            _ => false,
+        };
+
+        if !used {
+            for ssa in instr.iter_ssa_uses() {
+                self.add_use(*ssa, UseMod::INVALID);
             }
         }
     }
