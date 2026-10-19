@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "util/log.h"
 #include "util/macros.h"
 
 /* High word is static, low word is snapshot version ID */
@@ -404,6 +405,27 @@ struct reg_buf {
 };
 
 static struct reg_buf reg_buf;
+
+/**
+ * Append a register to the pending snapshot section.  Returns false (and
+ * warns once) if the buffer is full, rather than asserting or overflowing.
+ */
+static inline bool
+reg_buf_push(uint32_t offset, uint32_t value)
+{
+   if (reg_buf.count >= ARRAY_SIZE(reg_buf.regs)) {
+      mesa_logw_once("warning: register buffer full (%zu), "
+                     "dropping further registers in this section\n",
+                     ARRAY_SIZE(reg_buf.regs));
+      return false;
+   }
+
+   reg_buf.regs[reg_buf.count].offset = offset;
+   reg_buf.regs[reg_buf.count].value = value;
+   reg_buf.count++;
+
+   return true;
+}
 
 static inline void
 snapshot_registers(void)

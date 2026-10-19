@@ -687,11 +687,7 @@ decode_gmu_registers(void)
       uint32_t offset, value;
       parseline(line, "  - { offset: %x, value: %x }", &offset, &value);
 
-      assert(reg_buf.count < ARRAY_SIZE(reg_buf.regs));
-
-      reg_buf.regs[reg_buf.count].offset = offset / 4;
-      reg_buf.regs[reg_buf.count].value = value;
-      reg_buf.count++;
+      reg_buf_push(offset / 4, value);
 
       if (regacc_push(&r, (offset / 4) + gmu_offset, value)) {
          printf("\t%08"PRIx64"\t", r.value);
@@ -711,11 +707,7 @@ decode_registers(void)
       uint32_t offset, value;
       parseline(line, "  - { offset: %x, value: %x }", &offset, &value);
 
-      assert(reg_buf.count < ARRAY_SIZE(reg_buf.regs));
-
-      reg_buf.regs[reg_buf.count].offset = offset / 4;
-      reg_buf.regs[reg_buf.count].value = value;
-      reg_buf.count++;
+      reg_buf_push(offset / 4, value);
 
       reg_set(offset / 4, value);
       if (regacc_push(&r, offset / 4, value)) {
@@ -756,11 +748,7 @@ decode_clusters(void)
          uint32_t offset, value;
          parseline_nowhitespace(line, "- { offset: %x, value: %x }", &offset, &value);
 
-         assert(reg_buf.count < ARRAY_SIZE(reg_buf.regs));
-
-         reg_buf.regs[reg_buf.count].offset = offset / 4;
-         reg_buf.regs[reg_buf.count].value = value;
-         reg_buf.count++;
+         reg_buf_push(offset / 4, value);
 
          if (regacc_push(&r, offset / 4, value)) {
             printf("\t%08"PRIx64, r.value);
