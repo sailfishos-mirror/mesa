@@ -901,14 +901,18 @@ zink_draw_atoms(struct zink_context *ctx,
             }
             break;
          case ZINK_ATOM_RENDERPASS:
+            /* starting the renderpass can draw, and that draw has to start a renderpass of
+             * its own: keep the atom dirty until this one has started
+             */
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
             zink_batch_rp(ctx);
             /* check dead swapchain */
             if (unlikely(!ctx->in_rp)) {
-               zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
                if (VBS == ZINK_VBS_UNOWNED)
                   zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
                return;
             }
+            zink_set_atom_dirty(ctx, ZINK_ATOM_RENDERPASS, ctx->rp_layout_changed);
             if (BATCH_CHANGED) {
                zink_update_descriptor_refs(ctx, false);
                /* starting the renderpass can draw, and that draw has emitted its own state */
