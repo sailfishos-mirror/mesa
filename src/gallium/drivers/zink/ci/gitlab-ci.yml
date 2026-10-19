@@ -11,8 +11,6 @@ zink-lavapipe:
   variables:
     DEQP_SUITE: zink-lavapipe
     PIGLIT_NO_WINDOW: 1
-    # Enable validation (except for on piglit, see deqp-zink-lavapipe.toml), logging
-    # to stdout and aborting on unknown failures.
     ZINK_DEBUG: validation
     VK_DRIVER: lvp
   parallel: 3
