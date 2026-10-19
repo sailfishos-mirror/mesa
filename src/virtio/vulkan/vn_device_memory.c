@@ -357,7 +357,7 @@ vn_device_memory_emit_report(struct vn_device *dev,
    }
    const uint64_t mem_obj_id =
       (mem_vk->import_handle_type | mem_vk->export_handle_types)
-         ? mem->base_bo->res_id
+         ? (result != VK_SUCCESS ? 0 : mem->base_bo->res_id)
          : mem->base.id;
    const VkMemoryType *mem_type = &dev->physical_device->memory_properties
                                       .memoryTypes[mem_vk->memory_type_index];
