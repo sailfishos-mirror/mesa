@@ -2929,7 +2929,7 @@ pipeline_setup_rendering_info(struct v3dv_device *device,
    if (pCreateInfo->renderPass) {
       struct v3dv_render_pass *pass = v3dv_render_pass_from_handle(pCreateInfo->renderPass);
       struct v3dv_subpass *subpass = &pass->subpasses[pCreateInfo->subpass];
-      const uint32_t attachment_idx = subpass->ds_attachment.attachment;
+      const uint32_t attachment_idx = subpass->ds_attachment;
 
       mv->view_mask = subpass->view_mask;
 
@@ -2950,7 +2950,7 @@ pipeline_setup_rendering_info(struct v3dv_device *device,
 
       rp->color_attachment_count = subpass->color_count;
       for (uint32_t i = 0; i < subpass->color_count; i++) {
-         const uint32_t attachment_idx = subpass->color_attachments[i].attachment;
+         const uint32_t attachment_idx = subpass->color_attachments[i];
          if (attachment_idx == VK_ATTACHMENT_UNUSED) {
             rp->color_attachment_formats[i] = VK_FORMAT_UNDEFINED;
             continue;

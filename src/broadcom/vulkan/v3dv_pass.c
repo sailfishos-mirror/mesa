@@ -94,13 +94,13 @@ subpass_setup_tlb_input_attachments(struct v3dv_subpass *subpass)
    bool all_inputs_use_tlb = true;
 
    for (uint32_t input = 0; input < subpass->input_count; input++) {
-      const uint32_t attachment = subpass->input_attachments[input].attachment;
+      const uint32_t attachment = subpass->input_attachments[input];
       if (attachment == VK_ATTACHMENT_UNUSED)
          continue;
 
       has_input = true;
       for (uint32_t rt = 0; rt < subpass->color_count; rt++) {
-         if (subpass->color_attachments[rt].attachment != attachment)
+         if (subpass->color_attachments[rt] != attachment)
             continue;
 
          subpass->tlb_input_attachment_location[input] = FRAG_RESULT_DATA0 + rt;
@@ -144,7 +144,7 @@ pass_find_subpass_range_for_attachments(struct v3dv_device *device,
       const struct v3dv_subpass *subpass = &pass->subpasses[i];
 
       for (uint32_t j = 0; j < subpass->color_count; j++) {
-         uint32_t attachment_idx = subpass->color_attachments[j].attachment;
+         uint32_t attachment_idx = subpass->color_attachments[j];
          if (attachment_idx == VK_ATTACHMENT_UNUSED)
             continue;
 
@@ -166,24 +166,24 @@ pass_find_subpass_range_for_attachments(struct v3dv_device *device,
          }
 
          if (subpass->resolve_attachments &&
-             subpass->resolve_attachments[j].attachment != VK_ATTACHMENT_UNUSED) {
+             subpass->resolve_attachments[j] != VK_ATTACHMENT_UNUSED) {
             set_try_tlb_resolve(device, att);
          }
       }
 
-      uint32_t ds_attachment_idx = subpass->ds_attachment.attachment;
+      uint32_t ds_attachment_idx = subpass->ds_attachment;
       if (ds_attachment_idx != VK_ATTACHMENT_UNUSED) {
          if (i < pass->attachments[ds_attachment_idx].first_subpass)
             pass->attachments[ds_attachment_idx].first_subpass = i;
          if (i > pass->attachments[ds_attachment_idx].last_subpass)
             pass->attachments[ds_attachment_idx].last_subpass = i;
 
-         if (subpass->ds_resolve_attachment.attachment != VK_ATTACHMENT_UNUSED)
+         if (subpass->ds_resolve_attachment != VK_ATTACHMENT_UNUSED)
             set_try_tlb_resolve(device, &pass->attachments[ds_attachment_idx]);
       }
 
       for (uint32_t j = 0; j < subpass->input_count; j++) {
-         uint32_t input_attachment_idx = subpass->input_attachments[j].attachment;
+         uint32_t input_attachment_idx = subpass->input_attachments[j];
          if (input_attachment_idx == VK_ATTACHMENT_UNUSED)
             continue;
          if (i < pass->attachments[input_attachment_idx].first_subpass)
@@ -194,7 +194,7 @@ pass_find_subpass_range_for_attachments(struct v3dv_device *device,
 
       if (subpass->resolve_attachments) {
          for (uint32_t j = 0; j < subpass->color_count; j++) {
-            uint32_t attachment_idx = subpass->resolve_attachments[j].attachment;
+            uint32_t attachment_idx = subpass->resolve_attachments[j];
             if (attachment_idx == VK_ATTACHMENT_UNUSED)
                continue;
             if (i < pass->attachments[attachment_idx].first_subpass)
@@ -219,12 +219,12 @@ check_do_depth_stencil_clear_with_draw(struct v3dv_device *device,
                                        struct v3dv_subpass *subpass)
 {
    if (device->devinfo.ver > 42 ||
-       subpass->ds_attachment.attachment == VK_ATTACHMENT_UNUSED) {
+       subpass->ds_attachment == VK_ATTACHMENT_UNUSED) {
       return;
    }
 
    struct v3dv_render_pass_attachment *att =
-      &pass->attachments[subpass->ds_attachment.attachment];
+      &pass->attachments[subpass->ds_attachment];
    if (att->desc.format != VK_FORMAT_D24_UNORM_S8_UINT)
       return;
 
@@ -246,16 +246,15 @@ subpasses_can_merge(const struct v3dv_subpass *prev_subpass,
     * triggers the "render job finished" interrupt). We can do this so long
     * as both subpasses render against the same attachments.
     */
-   if (subpass->ds_attachment.attachment !=
-       prev_subpass->ds_attachment.attachment)
+   if (subpass->ds_attachment != prev_subpass->ds_attachment)
       return false;
 
    if (subpass->color_count != prev_subpass->color_count)
       return false;
 
    for (uint32_t i = 0; i < subpass->color_count; i++) {
-      if (subpass->color_attachments[i].attachment !=
-          prev_subpass->color_attachments[i].attachment) {
+      if (subpass->color_attachments[i] !=
+          prev_subpass->color_attachments[i]) {
          return false;
       }
    }
@@ -335,8 +334,7 @@ pass_compute_subpass_config(struct v3dv_device *device,
       subpass->double_buffer.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
       for (uint32_t j = 0; j < subpass->color_count; j++) {
-         uint32_t a =
-            subpass->color_attachments[j].attachment;
+         uint32_t a = subpass->color_attachments[j];
          if (a == VK_ATTACHMENT_UNUSED)
             continue;
 
@@ -360,9 +358,9 @@ pass_compute_subpass_config(struct v3dv_device *device,
                                              VK_IMAGE_ASPECT_COLOR_BIT);
       }
 
-      if (subpass->ds_attachment.attachment != VK_ATTACHMENT_UNUSED) {
+      if (subpass->ds_attachment != VK_ATTACHMENT_UNUSED) {
          const struct v3dv_render_pass_attachment *attachment =
-            &pass->attachments[subpass->ds_attachment.attachment];
+            &pass->attachments[subpass->ds_attachment];
          const VkAttachmentDescription2 *desc = &attachment->desc;
          subpass->msaa |= desc->samples > VK_SAMPLE_COUNT_1_BIT;
          subpass_update_double_buffer_config(subpass, attachment,
@@ -442,7 +440,7 @@ v3dv_CreateRenderPass2(VkDevice _device,
 
    if (subpass_attachment_count) {
       const size_t subpass_attachment_bytes =
-         subpass_attachment_count * sizeof(struct v3dv_subpass_attachment);
+         subpass_attachment_count * sizeof(v3dv_subpass_attachment);
       pass->subpass_attachments =
          vk_alloc2(&device->vk.alloc, pAllocator, subpass_attachment_bytes, 8,
                    VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
@@ -454,7 +452,7 @@ v3dv_CreateRenderPass2(VkDevice _device,
       pass->subpass_attachments = NULL;
    }
 
-   struct v3dv_subpass_attachment *p = pass->subpass_attachments;
+   v3dv_subpass_attachment *p = pass->subpass_attachments;
    for (uint32_t i = 0; i < pCreateInfo->subpassCount; i++) {
       const VkSubpassDescription2 *desc = &pCreateInfo->pSubpasses[i];
       struct v3dv_subpass *subpass = &pass->subpasses[i];
@@ -467,43 +465,29 @@ v3dv_CreateRenderPass2(VkDevice _device,
          subpass->input_attachments = p;
          p += desc->inputAttachmentCount;
 
-         for (uint32_t j = 0; j < desc->inputAttachmentCount; j++) {
-            subpass->input_attachments[j] = (struct v3dv_subpass_attachment) {
-               .attachment = desc->pInputAttachments[j].attachment,
-               .layout = desc->pInputAttachments[j].layout,
-            };
-         }
+         for (uint32_t j = 0; j < desc->inputAttachmentCount; j++)
+            subpass->input_attachments[j] = desc->pInputAttachments[j].attachment;
       }
 
       if (desc->colorAttachmentCount > 0) {
          subpass->color_attachments = p;
          p += desc->colorAttachmentCount;
 
-         for (uint32_t j = 0; j < desc->colorAttachmentCount; j++) {
-            subpass->color_attachments[j] = (struct v3dv_subpass_attachment) {
-               .attachment = desc->pColorAttachments[j].attachment,
-               .layout = desc->pColorAttachments[j].layout,
-            };
-         }
+         for (uint32_t j = 0; j < desc->colorAttachmentCount; j++)
+            subpass->color_attachments[j] = desc->pColorAttachments[j].attachment;
       }
 
       if (desc->pResolveAttachments) {
          subpass->resolve_attachments = p;
          p += desc->colorAttachmentCount;
 
-         for (uint32_t j = 0; j < desc->colorAttachmentCount; j++) {
-            subpass->resolve_attachments[j] = (struct v3dv_subpass_attachment) {
-               .attachment = desc->pResolveAttachments[j].attachment,
-               .layout = desc->pResolveAttachments[j].layout,
-            };
-         }
+         for (uint32_t j = 0; j < desc->colorAttachmentCount; j++)
+            subpass->resolve_attachments[j] =
+               desc->pResolveAttachments[j].attachment;
       }
 
       if (desc->pDepthStencilAttachment) {
-         subpass->ds_attachment = (struct v3dv_subpass_attachment) {
-            .attachment = desc->pDepthStencilAttachment->attachment,
-            .layout = desc->pDepthStencilAttachment->layout,
-         };
+         subpass->ds_attachment = desc->pDepthStencilAttachment->attachment;
 
          check_do_depth_stencil_clear_with_draw(device, pass, subpass);
 
@@ -515,10 +499,7 @@ v3dv_CreateRenderPass2(VkDevice _device,
             resolve_desc->pDepthStencilResolveAttachment->attachment != VK_ATTACHMENT_UNUSED ?
                resolve_desc->pDepthStencilResolveAttachment : NULL;
          if (resolve_att) {
-            subpass->ds_resolve_attachment = (struct v3dv_subpass_attachment) {
-               .attachment = resolve_att->attachment,
-               .layout = resolve_att->layout,
-            };
+            subpass->ds_resolve_attachment = resolve_att->attachment;
             assert(resolve_desc->depthResolveMode == VK_RESOLVE_MODE_SAMPLE_ZERO_BIT ||
                    resolve_desc->stencilResolveMode == VK_RESOLVE_MODE_SAMPLE_ZERO_BIT);
             subpass->resolve_depth =
@@ -528,13 +509,13 @@ v3dv_CreateRenderPass2(VkDevice _device,
                resolve_desc->stencilResolveMode != VK_RESOLVE_MODE_NONE &&
                resolve_att->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT;
          } else {
-            subpass->ds_resolve_attachment.attachment = VK_ATTACHMENT_UNUSED;
+            subpass->ds_resolve_attachment = VK_ATTACHMENT_UNUSED;
             subpass->resolve_depth = false;
             subpass->resolve_stencil = false;
          }
       } else {
-         subpass->ds_attachment.attachment = VK_ATTACHMENT_UNUSED;
-         subpass->ds_resolve_attachment.attachment = VK_ATTACHMENT_UNUSED;
+         subpass->ds_attachment = VK_ATTACHMENT_UNUSED;
+         subpass->ds_resolve_attachment = VK_ATTACHMENT_UNUSED;
          subpass->resolve_depth = false;
          subpass->resolve_stencil = false;
       }
@@ -746,12 +727,12 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
    struct v3dv_subpass *subpass = &state->dynamic_subpass;
    struct v3dv_render_pass_attachment *pass_attachments =
       &state->dynamic_attachments[0];
-   struct v3dv_subpass_attachment *subpass_attachments =
+   v3dv_subpass_attachment *subpass_attachments =
       &state->dynamic_subpass_attachments[0];
 
    memset(pass, 0, sizeof(*pass));
    memset(subpass, 0, sizeof(*subpass));
-   memset(pass_attachments, 0, sizeof(state->dynamic_subpass_attachments));
+   memset(pass_attachments, 0, sizeof(state->dynamic_attachments));
    memset(subpass_attachments, 0, sizeof(state->dynamic_subpass_attachments));
 
    vk_object_base_init(&device->vk, (struct vk_object_base *) pass,
@@ -775,22 +756,20 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
       const VkRenderingAttachmentInfo *att_info = &info->pColorAttachments[i];
 
       if (att_info->imageView == VK_NULL_HANDLE) {
-         subpass->color_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
-         subpass->resolve_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
+         subpass->color_attachments[i] = VK_ATTACHMENT_UNUSED;
+         subpass->resolve_attachments[i] = VK_ATTACHMENT_UNUSED;
          continue;
       }
 
       setup_dynamic_attachment(device, att, att_info, false, false);
-      subpass->color_attachments[i].attachment = a++;
-      subpass->color_attachments[i].layout = att_info->imageLayout;
+      subpass->color_attachments[i] = a++;
 
       if (att_info->resolveMode != VK_RESOLVE_MODE_NONE) {
          struct v3dv_render_pass_attachment *resolve_att = &pass->attachments[a];
          setup_dynamic_attachment(device, resolve_att, att_info, false, true);
-         subpass->resolve_attachments[i].attachment = a++;
-         subpass->resolve_attachments[i].layout = att_info->resolveImageLayout;
+         subpass->resolve_attachments[i] = a++;
       } else {
-         subpass->resolve_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
+         subpass->resolve_attachments[i] = VK_ATTACHMENT_UNUSED;
       }
    }
 
@@ -800,7 +779,7 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
                       info->pStencilAttachment->imageView != VK_NULL_HANDLE;
    if (has_depth || has_stencil) {
       struct v3dv_render_pass_attachment *att = &pass->attachments[a];
-      subpass->ds_attachment.attachment = a++;
+      subpass->ds_attachment = a++;
 
       bool has_depth_resolve = false;
       bool has_stencil_resolve = false;
@@ -808,7 +787,6 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
       if (has_depth) {
          setup_dynamic_attachment(device, att, info->pDepthAttachment,
                                   false, false);
-         subpass->ds_attachment.layout = info->pDepthAttachment->imageLayout;
          has_depth_resolve =
             info->pDepthAttachment->resolveMode != VK_RESOLVE_MODE_NONE;
       }
@@ -820,8 +798,6 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
          } else {
             setup_dynamic_attachment(device, att, info->pStencilAttachment,
                                      true, false);
-            subpass->ds_attachment.layout =
-               info->pStencilAttachment->imageLayout;
          }
          has_stencil_resolve =
             info->pStencilAttachment->resolveMode != VK_RESOLVE_MODE_NONE;
@@ -829,12 +805,10 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
 
       if (has_depth_resolve || has_stencil_resolve) {
          struct v3dv_render_pass_attachment *att = &pass->attachments[a];
-         subpass->ds_resolve_attachment.attachment = a++;
+         subpass->ds_resolve_attachment = a++;
          if (has_depth_resolve) {
             setup_dynamic_attachment(device, att, info->pDepthAttachment,
                                      false, true);
-            subpass->ds_resolve_attachment.layout =
-               info->pDepthAttachment->resolveImageLayout;
             subpass->resolve_depth = true;
          }
          if (has_stencil_resolve) {
@@ -844,16 +818,14 @@ v3dv_setup_dynamic_render_pass(struct v3dv_cmd_buffer *cmd_buffer,
             } else {
                setup_dynamic_attachment(device, att, info->pStencilAttachment,
                                         true, true);
-               subpass->ds_resolve_attachment.layout =
-                  info->pStencilAttachment->resolveImageLayout;
             }
             subpass->resolve_stencil = true;
          }
       } else {
-         subpass->ds_resolve_attachment.attachment = VK_ATTACHMENT_UNUSED;
+         subpass->ds_resolve_attachment = VK_ATTACHMENT_UNUSED;
       }
    } else {
-      subpass->ds_attachment.attachment = VK_ATTACHMENT_UNUSED;
+      subpass->ds_attachment = VK_ATTACHMENT_UNUSED;
    }
 
    check_do_depth_stencil_clear_with_draw(device, pass, subpass);
@@ -873,12 +845,12 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
    struct v3dv_subpass *subpass = &state->dynamic_subpass;
    struct v3dv_render_pass_attachment *pass_attachments =
       &state->dynamic_attachments[0];
-   struct v3dv_subpass_attachment *subpass_attachments =
+   v3dv_subpass_attachment *subpass_attachments =
       &state->dynamic_subpass_attachments[0];
 
    memset(pass, 0, sizeof(*pass));
    memset(subpass, 0, sizeof(*subpass));
-   memset(pass_attachments, 0, sizeof(state->dynamic_subpass_attachments));
+   memset(pass_attachments, 0, sizeof(state->dynamic_attachments));
    memset(subpass_attachments, 0, sizeof(state->dynamic_subpass_attachments));
 
    vk_object_base_init(&device->vk, (struct vk_object_base *) pass,
@@ -902,7 +874,7 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
       const VkFormat format = info->pColorAttachmentFormats[i];
 
       if (format == VK_FORMAT_UNDEFINED) {
-         subpass->color_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
+         subpass->color_attachments[i] = VK_ATTACHMENT_UNUSED;
          continue;
       }
 
@@ -919,7 +891,7 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
       att->desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
       att->desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
       att->desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      subpass->color_attachments[i].attachment = a++;
+      subpass->color_attachments[i] = a++;
    }
 
    if (info->depthAttachmentFormat != VK_FORMAT_UNDEFINED ||
@@ -932,9 +904,9 @@ v3dv_setup_dynamic_render_pass_inheritance(struct v3dv_cmd_buffer *cmd_buffer,
       att->desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
       att->desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
       att->desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      subpass->ds_attachment.attachment = a++;
+      subpass->ds_attachment = a++;
    } else {
-      subpass->ds_attachment.attachment = VK_ATTACHMENT_UNUSED;
+      subpass->ds_attachment = VK_ATTACHMENT_UNUSED;
    }
 
    pass->attachment_count = a;

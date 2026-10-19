@@ -29,21 +29,18 @@
 struct v3dv_device;
 struct v3dv_image_view;
 
-struct v3dv_subpass_attachment {
-   uint32_t attachment;
-   VkImageLayout layout;
-};
+typedef uint32_t v3dv_subpass_attachment;
 
 struct v3dv_subpass {
    uint32_t input_count;
-   struct v3dv_subpass_attachment *input_attachments;
+   v3dv_subpass_attachment *input_attachments;
 
    uint32_t color_count;
-   struct v3dv_subpass_attachment *color_attachments;
-   struct v3dv_subpass_attachment *resolve_attachments;
+   v3dv_subpass_attachment *color_attachments;
+   v3dv_subpass_attachment *resolve_attachments;
 
-   struct v3dv_subpass_attachment ds_attachment;
-   struct v3dv_subpass_attachment ds_resolve_attachment;
+   v3dv_subpass_attachment ds_attachment;
+   v3dv_subpass_attachment ds_resolve_attachment;
    bool resolve_depth, resolve_stencil;
 
    /* UINT8_MAX disables TLB access for an input attachment. */
@@ -121,7 +118,7 @@ struct v3dv_render_pass {
    uint32_t subpass_count;
    struct v3dv_subpass *subpasses;
 
-   struct v3dv_subpass_attachment *subpass_attachments;
+   v3dv_subpass_attachment *subpass_attachments;
 };
 
 struct v3dv_framebuffer {

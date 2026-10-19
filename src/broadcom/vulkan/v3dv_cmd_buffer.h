@@ -421,7 +421,7 @@ struct v3dv_cmd_buffer_state {
    struct v3dv_render_pass dynamic_pass;
    struct v3dv_subpass dynamic_subpass;
    struct v3dv_render_pass_attachment dynamic_attachments[18 /* (8 color + D/S) x 2 (for resolves) */];
-   struct v3dv_subpass_attachment dynamic_subpass_attachments[18];
+   v3dv_subpass_attachment dynamic_subpass_attachments[18];
    struct v3dv_framebuffer *dynamic_framebuffer;
 
    VkRect2D render_area;

@@ -1040,7 +1040,7 @@ emit_subpass_color_clear_rects(struct v3dv_cmd_buffer *cmd_buffer,
 {
    /* Skip if attachment is unused in the current subpass */
    assert(rt_idx < subpass->color_count);
-   const uint32_t attachment_idx = subpass->color_attachments[rt_idx].attachment;
+   const uint32_t attachment_idx = subpass->color_attachments[rt_idx];
    if (attachment_idx == VK_ATTACHMENT_UNUSED)
       return;
 
@@ -1131,7 +1131,7 @@ emit_subpass_ds_clear_rects(struct v3dv_cmd_buffer *cmd_buffer,
                             const VkClearRect *rects)
 {
    /* Skip if attachment is unused in the current subpass */
-   const uint32_t attachment_idx = subpass->ds_attachment.attachment;
+   const uint32_t attachment_idx = subpass->ds_attachment;
    if (attachment_idx == VK_ATTACHMENT_UNUSED)
       return;
 
