@@ -11,9 +11,10 @@
 #include <stdlib.h>
 #include "drm-uapi/amdgpu_drm.h"
 
-#include "tools/radv_debug.h"
 #include "util/detect_os.h"
+#include "util/hash_table.h"
 #include "util/os_time.h"
+#include "util/stack_array.h"
 #include "util/u_memory.h"
 #include "ac_cmdbuf_cp.h"
 #include "ac_debug.h"

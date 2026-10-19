@@ -12,9 +12,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "drm-uapi/amdgpu_drm.h"
-#include "tools/radv_debug.h"
 #include "util/hash_table.h"
 #include "util/u_memory.h"
+#include "util/u_sync_provider.h"
 #include "ac_linux_drm.h"
 #include "ac_surface.h"
 #include "radv_amdgpu_bo.h"

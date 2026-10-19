@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 
-#include "tools/radv_debug.h"
 #include "radv_amdgpu_bo.h"
 
 #include <inttypes.h>

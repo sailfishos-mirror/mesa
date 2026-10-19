@@ -15,7 +15,6 @@
 #include "ac_gpu_info.h"
 #include "ac_linux_drm.h"
 
-#include "util/bitset.h"
 #include "vk_sync.h"
 
 enum radv_amdgpu_cs_domain_mode {
