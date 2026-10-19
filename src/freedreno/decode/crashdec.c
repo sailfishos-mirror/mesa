@@ -779,21 +779,7 @@ decode_clusters(void)
    uint32_t location = ~0;
 
    foreach_line_in_section (line) {
-      if (startswith_nowhitespace(line, "- cluster-name:")) {
-         free(cluster_name);
-         parseline_nowhitespace(line, "- cluster-name: %ms", &cluster_name);
-         location = ~0;
-      } else if (startswith_nowhitespace(line, "- context:")) {
-         parseline_nowhitespace(line, "- context: %u", &context);
-      } else if (startswith_nowhitespace(line, "- location:")) {
-         parseline_nowhitespace(line, "- location: %u", &location);
-      } else if (startswith_nowhitespace(line, "- pipe:")) {
-         snapshot_cluster_regs(pipe_id(pipe_name), cluster_id(cluster_name),
-                               context, location);
-
-         free(pipe_name);
-         parseline_nowhitespace(line, "- pipe: %ms", &pipe_name);
-      } else {
+      if (startswith_nowhitespace(line, "- {")) {
          uint32_t offset, value;
          parseline_nowhitespace(line, "- { offset: %x, value: %x }", &offset, &value);
 
@@ -806,13 +792,31 @@ decode_clusters(void)
 
          continue;
       }
+
+      /* Each cluster/context/pipe/location combination is a separate bank
+       * of registers and must become its own snapshot section, so flush
+       * the current bank before parsing the next header.
+       */
+      snapshot_cluster_regs(pipe_id(pipe_name), cluster_id(cluster_name),
+                            context, location);
+
+      if (startswith_nowhitespace(line, "- cluster-name:")) {
+         free(cluster_name);
+         parseline_nowhitespace(line, "- cluster-name: %ms", &cluster_name);
+         location = ~0;
+      } else if (startswith_nowhitespace(line, "- context:")) {
+         parseline_nowhitespace(line, "- context: %u", &context);
+      } else if (startswith_nowhitespace(line, "- location:")) {
+         parseline_nowhitespace(line, "- location: %u", &location);
+      } else if (startswith_nowhitespace(line, "- pipe:")) {
+         free(pipe_name);
+         parseline_nowhitespace(line, "- pipe: %ms", &pipe_name);
+      }
       printf("%s", line);
    }
 
-   if (reg_buf.count) {
-      snapshot_cluster_regs(pipe_id(pipe_name), cluster_id(cluster_name),
-                            context, location);
-   }
+   snapshot_cluster_regs(pipe_id(pipe_name), cluster_id(cluster_name),
+                         context, location);
 
    free(cluster_name);
    free(pipe_name);
