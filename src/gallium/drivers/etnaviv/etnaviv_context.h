@@ -40,6 +40,7 @@
 #include "pipe/p_state.h"
 #include "util/macros.h"
 #include "util/slab.h"
+#include "util/u_dynarray.h"
 #include "util/u_framebuffer.h"
 #include <util/u_suballoc.h>
 
@@ -259,8 +260,8 @@ struct etna_context {
    /* list of accumulated HW queries */
    struct list_head active_acc_queries;
 
-   /* set of resources used by currently-unsubmitted renders */
-   struct hash_table *pending_resources;
+   /* status of BOs used by currently-unsubmitted work */
+   struct util_dynarray pending_status;
 
    /* resources that must be flushed implicitly at the context flush time */
    struct set *flush_resources;

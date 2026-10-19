@@ -36,7 +36,6 @@
 #include "layout/eil_format.h"
 #include "util/box.h"
 #include "util/detect_arch.h"
-#include "util/hash_table.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #include "util/u_transfer_helper.h"
@@ -1162,40 +1161,49 @@ etna_resource_get_param(struct pipe_screen *pscreen,
    }
 }
 
+static inline struct etna_bo *
+etna_pipe_resource_bo(struct pipe_resource *prsc)
+{
+   if (prsc->target == PIPE_BUFFER)
+      return etna_buffer_resource(prsc)->bo;
+
+   return etna_resource(prsc)->bo;
+}
+
 void
 etna_resource_used(struct etna_context *ctx, struct pipe_resource *prsc,
                    enum etna_resource_status status)
 {
-   struct hash_entry *entry;
-   uint32_t hash;
-
    if (!prsc)
       return;
 
-   hash = _mesa_hash_pointer(prsc);
-   entry = _mesa_hash_table_search_pre_hashed(ctx->pending_resources,
-                                              hash, prsc);
+   struct util_dynarray *pending = &ctx->pending_status;
+   uint32_t handle = etna_bo_handle(etna_pipe_resource_bo(prsc));
+   unsigned count = util_dynarray_num_elements(pending, uint8_t);
 
-   if (entry) {
-      enum etna_resource_status tmp = (uintptr_t)entry->data;
-      tmp |= status;
-      entry->data = (void *)(uintptr_t)tmp;
-   } else {
-      _mesa_hash_table_insert_pre_hashed(ctx->pending_resources, hash, prsc,
-                                         (void *)(uintptr_t)status);
+   if (unlikely(handle >= count)) {
+      unsigned grow = handle + 1 - count;
+      uint8_t *p = util_dynarray_grow(pending, uint8_t, grow);
+
+      if (!p)
+         return;
+
+      memset(p, 0, grow);
    }
+
+   *util_dynarray_element(pending, uint8_t, handle) |= status;
 }
 
 enum etna_resource_status
 etna_resource_status(struct etna_context *ctx, struct pipe_resource *prsc)
 {
-   struct hash_entry *entry = _mesa_hash_table_search(ctx->pending_resources,
-                                                      prsc);
+   const struct util_dynarray *pending = &ctx->pending_status;
+   uint32_t handle = etna_bo_handle(etna_pipe_resource_bo(prsc));
 
-   if (entry)
-      return (enum etna_resource_status)(uintptr_t)entry->data;
-   else
+   if (handle >= util_dynarray_num_elements(pending, uint8_t))
       return 0;
+
+   return *util_dynarray_element(pending, uint8_t, handle);
 }
 
 bool

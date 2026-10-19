@@ -32,7 +32,6 @@
 #include "pipe/p_state.h"
 #include "util/format/u_format.h"
 #include "util/list.h"
-#include "util/hash_table.h"
 #include "util/u_helpers.h"
 #include "util/u_range.h"
 

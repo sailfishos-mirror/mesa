@@ -111,8 +111,7 @@ etna_context_destroy(struct pipe_context *pctx)
    if (VIV_FEATURE(ctx->screen, ETNA_FEATURE_HWTFB))
       pipe_resource_reference(&ctx->streamout.context_buffer, NULL);
 
-   if (ctx->pending_resources)
-      _mesa_hash_table_destroy(ctx->pending_resources, NULL);
+   util_dynarray_fini(&ctx->pending_status);
 
    if (ctx->updated_resources)
       _mesa_set_destroy(ctx->updated_resources, NULL);
@@ -762,7 +761,7 @@ etna_flush(struct pipe_context *pctx, struct pipe_fence_handle **fence,
    if (fence)
       *fence = etna_fence_create(pctx, out_fence_fd);
 
-   _mesa_hash_table_clear(ctx->pending_resources, NULL);
+   util_dynarray_clear(&ctx->pending_status);
 
    list_for_each_entry(struct etna_acc_query, aq, &ctx->active_acc_queries, node)
       etna_acc_query_resume(aq, ctx);
@@ -837,9 +836,7 @@ etna_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
    if (ctx->stream == NULL)
       goto fail;
 
-   ctx->pending_resources = _mesa_pointer_hash_table_create(NULL);
-   if (!ctx->pending_resources)
-      goto fail;
+   util_dynarray_init(&ctx->pending_status, NULL);
 
    ctx->flush_resources = _mesa_set_create(NULL, _mesa_hash_pointer,
                                            _mesa_key_pointer_equal);
