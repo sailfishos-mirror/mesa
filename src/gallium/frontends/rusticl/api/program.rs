@@ -9,6 +9,8 @@ use crate::core::device::*;
 use crate::core::program::*;
 
 use mesa_rust::compiler::clc::spirv::CLCSpecConstantType;
+use mesa_rust_gen::clc_spec_constant_type;
+use mesa_rust_gen::clc_spirv_const_value;
 use mesa_rust_util::string::*;
 use rusticl_opencl_gen::*;
 use rusticl_proc_macros::cl_entrypoint;
@@ -535,10 +537,49 @@ fn set_program_specialization_constant(
         return Err(CL_INVALID_VALUE);
     }
 
+    // SAFETY: The application promises that this is valid data over spec_size.
+    let spec_value: &[u8] = unsafe { slice::from_raw_parts(spec_value.cast(), spec_size) };
+
+    let val = match actual_spec_size {
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_BOOL => clc_spirv_const_value {
+            b: spec_value[0] != 0,
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_INT8 => clc_spirv_const_value {
+            i8_: i8::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_INT16 => clc_spirv_const_value {
+            i16_: i16::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_INT32 => clc_spirv_const_value {
+            i32_: i32::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_INT64 => clc_spirv_const_value {
+            i64_: i64::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_UINT8 => clc_spirv_const_value {
+            u8_: u8::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_HALF
+        | clc_spec_constant_type::CLC_SPEC_CONSTANT_UINT16 => clc_spirv_const_value {
+            u16_: u16::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_UINT32 => clc_spirv_const_value {
+            u32_: u32::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_UINT64 => clc_spirv_const_value {
+            u64_: u64::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_FLOAT => clc_spirv_const_value {
+            f32_: f32::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_DOUBLE => clc_spirv_const_value {
+            f64_: f64::from_ne_bytes(spec_value.try_into().unwrap()),
+        },
+        clc_spec_constant_type::CLC_SPEC_CONSTANT_UNKNOWN => return Err(CL_INVALID_VALUE),
+    };
+
     // SAFETY: according to API spec
-    program.set_spec_constant(spec_id, unsafe {
-        slice::from_raw_parts(spec_value.cast(), spec_size)
-    });
+    program.set_spec_constant(spec_id, val);
 
     Ok(())
 }
