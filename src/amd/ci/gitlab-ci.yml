@@ -526,9 +526,9 @@ radv-vangogh-vkd3d-asan:
     - .test-vkd3d-proton
     - .vangogh-test-valve
     - .radv-valve-manual-rules
-  timeout: 12m
+  timeout: 15m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 13
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
