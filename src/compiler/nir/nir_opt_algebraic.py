@@ -3241,6 +3241,17 @@ for N in [16, 32]:
                     ((op_M_bits, (extract_xM, aN, 0), b), (op, a, b)),
                 ]
 
+# Match some manual extract_u8's seen in llama.cpp
+for shift in [0, 8, 16, 24]:
+    mask = ('iand', 'a@32', 0x0f0f0f0f)
+    src = mask if shift == 0 else ('ushr', mask, shift)
+    optimizations += [
+        # Remove unnecessary sign extension.
+        (('i2i32', ('u2u8', src)), ('ubitfield_extract', a, shift, 4)),
+        (('u2u32', ('u2u8', src)), ('ubitfield_extract', a, shift, 4)),
+        (('u2u8', src), ('u2u8', ('ubitfield_extract', a, shift, 4))),
+    ]
+
 def fexp2i(exp, bits):
    # Generate an expression which constructs value 2.0^exp or 0.0.
    #
