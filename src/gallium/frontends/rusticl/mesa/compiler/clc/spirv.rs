@@ -418,6 +418,29 @@ impl SPIRVBin {
             .map(|sc| sc.type_)
     }
 
+    pub fn specialize(&self, consts: &[clc_spirv_specialization]) -> Option<Self> {
+        let mut out = clc_binary::default();
+        let consts = clc_spirv_specialization_consts {
+            specializations: consts.as_ptr(),
+            num_specializations: consts.len().try_into().unwrap(),
+        };
+
+        let res = unsafe { clc_specialize_spirv(&self.spirv, &self.info?, &consts, &mut out) };
+        if !res {
+            return None;
+        }
+
+        let mut pspirv = clc_parsed_spirv::default();
+        Some(Self {
+            info: if unsafe { clc_parse_spirv(&out, ptr::null(), &mut pspirv) } {
+                Some(pspirv)
+            } else {
+                None
+            },
+            spirv: out,
+        })
+    }
+
     pub fn print(&self) {
         unsafe {
             clc_dump_spirv(&self.spirv, stderr_ptr());
