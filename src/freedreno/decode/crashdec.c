@@ -1118,9 +1118,9 @@ decode(void)
          if ((major < 6) || ((major == 6) && (minor < 19)))
             gmu_offset = 0x1a800;
       } else if (startswith(line, "time:")) {
-         double time;
+         double time = 0;
 
-         parseline(line, "time: %d", &time);
+         parseline(line, "time: %lf", &time);
          snapshot_linux.seconds = (uint32_t)time;
       } else if (startswith(line, "revision:")) {
          if (strstr(line, ".")) {
