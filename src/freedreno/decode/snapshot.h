@@ -330,6 +330,8 @@ struct snapshot_gmu_version {
 static FILE *snapshot;
 static uint64_t ptbase = 0x43210000;  /* We don't always have a real ttbr0, so fake it */
 
+#define SNAPSHOT_MAX_GPU_OBJECT (4 * 1024 * 1024)
+
 static inline void
 snapshot_write(const void *data, size_t sz)
 {

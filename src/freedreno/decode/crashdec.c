@@ -19,6 +19,8 @@
  */
 
 
+#include "util/log.h"
+
 #include "crashdec.h"
 #include "cffdec.h"
 
@@ -649,8 +651,13 @@ decode_bos(void)
 
          add_buffer(iova, size, buf);
 
-         if (size <= 0x40000)
+         if (size <= SNAPSHOT_MAX_GPU_OBJECT) {
             snapshot_gpu_object(iova, size, buf);
+         } else {
+            mesa_logw_once("note: BO %016" PRIx64 " (%u bytes) too large for "
+                           "snapshot, not included as a GPU object\n",
+                           iova, size);
+         }
 
          continue;
       }
