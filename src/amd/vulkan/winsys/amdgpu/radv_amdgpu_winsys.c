@@ -321,7 +321,7 @@ radv_amdgpu_ctx_is_priority_permitted(ac_drm_device *dev, enum radeon_ctx_priori
 }
 
 VkResult
-radv_amdgpu_winsys_query_info(int fd, const BITSET_WORD *debug_flags, bool is_virtio, struct radeon_winsys_info *info)
+radv_amdgpu_winsys_query_info(int fd, bool is_virtio, bool cache_compat, struct radeon_winsys_info *info)
 {
    uint32_t drm_major, drm_minor, r;
    VkResult result = VK_SUCCESS;
@@ -339,7 +339,7 @@ radv_amdgpu_winsys_query_info(int fd, const BITSET_WORD *debug_flags, bool is_vi
    info->base.drm_minor = drm_minor;
    info->base.is_virtio = is_virtio;
 
-   if (!ac_query_gpu_info(fd, dev, &info->base, true, !BITSET_TEST(debug_flags, RADV_DEBUG_NO_CACHE_COMPAT))) {
+   if (!ac_query_gpu_info(fd, dev, &info->base, true, cache_compat)) {
       result = VK_ERROR_INCOMPATIBLE_DRIVER;
       goto fail;
    }

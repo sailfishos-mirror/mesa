@@ -50,8 +50,7 @@ struct radeon_winsys_info {
    uint32_t global_priority_mask;
 };
 
-VkResult radv_amdgpu_winsys_query_info(int fd, const BITSET_WORD *debug_flags, bool is_virtio,
-                                       struct radeon_winsys_info *info);
+VkResult radv_amdgpu_winsys_query_info(int fd, bool is_virtio, bool cache_compat, struct radeon_winsys_info *info);
 
 struct radeon_winsys_heap_info {
    uint64_t allocated_vram;

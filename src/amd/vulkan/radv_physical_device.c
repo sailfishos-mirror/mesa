@@ -2680,7 +2680,8 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 
    struct radeon_winsys_info winsys_info;
 
-   result = radv_amdgpu_winsys_query_info(fd, instance->debug_flags, is_virtio, &winsys_info);
+   result =
+      radv_amdgpu_winsys_query_info(fd, is_virtio, !RADV_DEBUG(instance, NO_CACHE_COMPAT), &winsys_info);
    if (result != VK_SUCCESS) {
       result = vk_errorf(instance, result, "failed to query GPU info");
       goto fail;
