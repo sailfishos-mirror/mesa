@@ -336,7 +336,6 @@ impl SPIRVBin {
         nir_options: *const nir_shader_compiler_options,
         spirv_to_nir_options: SPIRVToNirOptions,
         libclc: &NirShader,
-        spec_constants: &mut nir_spirv_specialization,
         log: Option<&mut Vec<CString>>,
     ) -> Option<NirShader> {
         let spirv_options =
@@ -346,7 +345,7 @@ impl SPIRVBin {
             spirv_to_nir(
                 self.spirv.data.cast(),
                 self.spirv.size / 4,
-                spec_constants,
+                ptr::null_mut(),
                 mesa_shader_stage::MESA_SHADER_KERNEL,
                 entry_point.as_ptr(),
                 &spirv_options,
