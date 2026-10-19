@@ -1329,6 +1329,37 @@ radv_device_init_compiler_info(struct radv_device *device)
    device->compiler_info = info;
 }
 
+#ifndef _WIN32
+static void
+radv_get_winsys_options(const struct radv_physical_device *pdev, struct radv_amdgpu_winsys_options *options)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   enum radv_amdgpu_cs_domain_mode cs_domain_mode;
+
+   if (instance->perftest_flags & RADV_PERFTEST_SAM) {
+      cs_domain_mode = RADV_AMDGPU_CS_DOMAIN_VRAM;
+   } else if (instance->perftest_flags & RADV_PERFTEST_NO_SAM) {
+      cs_domain_mode = RADV_AMDGPU_CS_DOMAIN_GTT;
+   } else {
+      cs_domain_mode = RADV_AMDGPU_CS_DOMAIN_AUTO;
+   }
+
+   *options = (struct radv_amdgpu_winsys_options){
+      .is_virtio =
+         pdev->drm_device_type == RADV_DRM_DEVICE_AMDGPU_VPIPE || pdev->drm_device_type == RADV_DRM_DEVICE_VIRTIO,
+      .chain_ib = !RADV_DEBUG(instance, NO_IB_CHAINING),
+      .debug_all_bos = RADV_DEBUG(instance, ALL_BOS),
+      .debug_log_bos = RADV_DEBUG(instance, HANG),
+      .debug_vm = RADV_DEBUG(instance, VM),
+      .dump_ibs = RADV_DEBUG(instance, DUMP_IBS),
+      .dump_bo_history = RADV_DEBUG(instance, DUMP_BO_HISTORY),
+      .gtt_spill = !(instance->perftest_flags & RADV_PERFTEST_NO_GTT_SPILL),
+      .always_valid_bos = !!(instance->perftest_flags & RADV_PERFTEST_LOCAL_BOS),
+      .cs_domain_mode = cs_domain_mode,
+   };
+}
+#endif
+
 static VkResult
 radv_create_winsys(struct radv_device *device)
 {
@@ -1336,7 +1367,6 @@ radv_create_winsys(struct radv_device *device)
    return VK_ERROR_INCOMPATIBLE_DRIVER;
 #else
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    drmDevicePtr drm_device;
    VkResult result;
    int fd = -1;
@@ -1355,11 +1385,10 @@ radv_create_winsys(struct radv_device *device)
          return VK_ERROR_INITIALIZATION_FAILED;
    }
 
-   const bool is_virtio =
-      pdev->drm_device_type == RADV_DRM_DEVICE_AMDGPU_VPIPE || pdev->drm_device_type == RADV_DRM_DEVICE_VIRTIO;
+   struct radv_amdgpu_winsys_options options;
+   radv_get_winsys_options(pdev, &options);
 
-   result = radv_amdgpu_winsys_create(fd, &pdev->info, instance->debug_flags, instance->perftest_flags, is_virtio,
-                                      &device->ws);
+   result = radv_amdgpu_winsys_create(fd, &pdev->info, &options, &device->ws);
 
    if (fd != -1)
       close(fd);

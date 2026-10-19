@@ -219,8 +219,8 @@ radv_amdgpu_winsys_unreserve_vmid(struct radeon_winsys *rws)
 }
 
 VkResult
-radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, const BITSET_WORD *debug_flags,
-                          uint64_t perftest_flags, bool is_virtio, struct radeon_winsys **winsys)
+radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, const struct radv_amdgpu_winsys_options *options,
+                          struct radeon_winsys **winsys)
 {
    VkResult result = VK_SUCCESS;
 
@@ -228,7 +228,7 @@ radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, const BITSET_W
    ac_drm_device *dev;
    struct radv_amdgpu_winsys *ws = NULL;
 
-   r = ac_drm_device_initialize(fd, is_virtio, &drm_major, &drm_minor, &dev);
+   r = ac_drm_device_initialize(fd, options->is_virtio, &drm_major, &drm_minor, &dev);
    if (r) {
       fprintf(stderr, "radv/amdgpu: failed to initialize device.\n");
       return VK_ERROR_INITIALIZATION_FAILED;
@@ -251,12 +251,12 @@ radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, const BITSET_W
 
    memcpy(&ws->info, info, sizeof(ws->info));
 
-   ws->chain_ib = !BITSET_TEST(debug_flags, RADV_DEBUG_NO_IB_CHAINING);
-   ws->debug_all_bos = BITSET_TEST(debug_flags, RADV_DEBUG_ALL_BOS);
-   ws->debug_log_bos = BITSET_TEST(debug_flags, RADV_DEBUG_HANG);
-   ws->dump_ibs = BITSET_TEST(debug_flags, RADV_DEBUG_DUMP_IBS);
+   ws->chain_ib = options->chain_ib;
+   ws->debug_all_bos = options->debug_all_bos;
+   ws->debug_log_bos = options->debug_log_bos;
+   ws->dump_ibs = options->dump_ibs;
 
-   if (BITSET_TEST(debug_flags, RADV_DEBUG_DUMP_BO_HISTORY)) {
+   if (options->dump_bo_history) {
       ws->bo_history_logfile = fopen("/tmp/radv_bo_history.log", "w+");
       if (!ws->bo_history_logfile)
          fprintf(stderr, "radv/amdgpu: Failed to create /tmp/radv_bo_history.log.\n");
@@ -267,8 +267,10 @@ radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, const BITSET_W
 
    simple_mtx_init(&ws->vm_ioctl_lock, mtx_plain);
 
-   ws->perftest = perftest_flags;
-   ws->debug_vm = BITSET_TEST(debug_flags, RADV_DEBUG_VM);
+   ws->gtt_spill = options->gtt_spill;
+   ws->always_valid_bos = options->always_valid_bos;
+   ws->cs_domain_mode = options->cs_domain_mode;
+   ws->debug_vm = options->debug_vm;
    u_rwlock_init(&ws->global_bo_list.lock);
    list_inithead(&ws->log_bo_list);
    u_rwlock_init(&ws->log_bo_list_lock);

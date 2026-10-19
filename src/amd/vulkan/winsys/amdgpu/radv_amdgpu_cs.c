@@ -206,6 +206,11 @@ radv_amdgpu_cs_domain(const struct radeon_winsys *_ws)
 {
    const struct radv_amdgpu_winsys *ws = (const struct radv_amdgpu_winsys *)_ws;
 
+   if (ws->cs_domain_mode == RADV_AMDGPU_CS_DOMAIN_VRAM)
+      return RADEON_DOMAIN_VRAM;
+   if (ws->cs_domain_mode == RADV_AMDGPU_CS_DOMAIN_GTT)
+      return RADEON_DOMAIN_GTT;
+
    bool enough_vram = ws->info.all_vram_visible || p_atomic_read_relaxed(&ws->alloc_tracker->allocated_vram_vis) * 2 <=
                                                       (uint64_t)ws->info.vram_vis_size_kb * 1024;
 
@@ -215,9 +220,7 @@ radv_amdgpu_cs_domain(const struct radeon_winsys *_ws)
    const uint32_t bandwidth_mbps_threshold = 8 * 0.985 * 1024;
    bool enough_bandwidth = ws->info.pcie_bandwidth_mbps >= bandwidth_mbps_threshold;
 
-   bool use_sam =
-      (enough_vram && enough_bandwidth && ws->info.has_dedicated_vram && !(ws->perftest & RADV_PERFTEST_NO_SAM)) ||
-      (ws->perftest & RADV_PERFTEST_SAM);
+   bool use_sam = enough_vram && enough_bandwidth && ws->info.has_dedicated_vram;
    return use_sam ? RADEON_DOMAIN_VRAM : RADEON_DOMAIN_GTT;
 }
 
