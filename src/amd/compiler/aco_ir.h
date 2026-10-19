@@ -2069,7 +2069,7 @@ SubdwordCaps get_subdword_definition_caps(Program* program, const Instruction* i
 
 bool opcode_supports_dpp(amd_gfx_level gfx_level, aco_opcode opcode, bool vop3p);
 bool can_use_DPP(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr, bool dpp8);
-bool can_write_m0(const aco_ptr<Instruction>& instr);
+bool can_write_m0(const Instruction* instr);
 /* updates "instr" and returns the old instruction (or NULL if no update was needed) */
 aco_ptr<Instruction> convert_to_SDWA(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr);
 aco_ptr<Instruction> convert_to_DPP(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr,

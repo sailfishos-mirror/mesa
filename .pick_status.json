@@ -194,7 +194,7 @@
         "description": "aco/opt_postRA: check for tied defs in try_optimize_branching_sequence",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "984aa6e08550b6bd1b3af30d4945a8eb748472c4",
         "notes": null
