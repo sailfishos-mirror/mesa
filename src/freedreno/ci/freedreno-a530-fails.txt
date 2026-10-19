@@ -48,7 +48,6 @@ spec@arb_draw_indirect@gl_vertexid used with gldrawelementsindirect,Fail
 spec@arb_enhanced_layouts@linker@component-layout@intrastage-vs,Fail
 spec@arb_enhanced_layouts@linker@component-layout@vs-to-fs,Fail
 spec@arb_map_buffer_alignment@arb_map_buffer_alignment-map-invalidate-range,Fail
-spec@arb_occlusion_query@occlusion_query_order,Fail
 spec@arb_point_sprite@arb_point_sprite-interactions 1.0,Fail
 spec@arb_texture_rectangle@1-1-linear-texture,Fail
 spec@arb_timer_query@query gl_timestamp,Fail
