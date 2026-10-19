@@ -545,13 +545,13 @@ void si_destroy_sqtt(struct si_context *sctx)
 
 static uint64_t num_frames = 0, num_submits = 0;
 
-static bool si_sqtt_must_start_capture(const struct si_context *sctx) {
+static bool si_sqtt_must_start_capture(const struct si_context *sctx, bool end_of_frame) {
    if (sctx->sqtt.status != SQTT_STATUS_OFF)
       return false;
    if (sctx->sqtt.mode == AC_RGP_CAPTURE_MODE_SUBMIT)
       return num_submits == sctx->sqtt.start_frame;
-   /* after the first frame, frames belong to the contexts that present them */
-   if (!sctx->sqtt.presents && num_frames > 0)
+   /* captures start where a frame begins: at the first submit or the previous frame's present */
+   if (num_submits > 0 && !end_of_frame)
       return false;
    /* File based capture*/
    if (sctx->sqtt.trigger_file &&
@@ -642,7 +642,13 @@ static void si_sqtt_stop_capture(struct si_context *sctx, struct radeon_cmdbuf *
 
 void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end_of_frame)
 {
-   if (si_sqtt_must_start_capture(sctx)) {
+   if (si_sqtt_must_stop_capture(sctx, end_of_frame))
+      si_sqtt_stop_capture(sctx, rcs, true);
+
+   if (end_of_frame)
+      num_frames++;
+
+   if (si_sqtt_must_start_capture(sctx, end_of_frame)) {
       /* Wait for last submission */
       if (sctx->last_gfx_fence)
          sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
@@ -657,13 +663,6 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs, bool end
          * called for the current "pipeline".
          */
       sctx->dirty_shaders_mask |= SI_SQTT_STATE_DIRTY_BIT;
-   } else if (si_sqtt_must_stop_capture(sctx, end_of_frame)) {
-      si_sqtt_stop_capture(sctx, rcs, true);
-   }
-
-   if (end_of_frame) {
-      sctx->sqtt.presents = true;
-      num_frames++;
    }
    num_submits++;
 }

@@ -1284,7 +1284,6 @@ struct si_context {
          SQTT_STATUS_TRACING,
          SQTT_STATUS_STOPPING
       } status;
-      bool presents;
       struct si_sqtt_timestamp timestamp;
       uint64_t device_id;
       uint32_t cb_id;

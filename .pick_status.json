@@ -834,7 +834,7 @@
         "description": "radeonsi: start frame and file captures where a frame begins",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6362bb45d663f427a2b3b16f79ae22707d016dd5",
         "notes": null
