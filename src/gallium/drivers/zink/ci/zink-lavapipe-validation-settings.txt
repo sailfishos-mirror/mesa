@@ -1,6 +1,6 @@
 # Please include a comment with the log message and a testcase triggering each
 # VUID at the bottom of the file.
-khronos_validation.message_id_filter = VUID-VkPhysicalDeviceProperties2-pNext-pNext,VUID-VkDeviceCreateInfo-pNext-pNext,VUID-RuntimeSpirv-Location-06272,02699,VUID-RuntimeSpirv-OpEntryPoint-08743,VUID-vkCmdPipelineBarrier2-shaderTileImageColorReadAccess-08718,VUID-VkGraphicsPipelineCreateInfo-flags-06482,VUID-vkCmdPipelineBarrier2-None-08719,07474,VUID-vkDestroyDevice-device-05137,VUID-VkImageMemoryBarrier2-srcAccessMask-07454,10909,08911,VUID-vkCmdBlitImage-srcImageLayout-00221,VUID-VkRenderingAttachmentInfo-None-12256,VUID-vkCmdBeginRendering-pRenderingInfo-09592,VUID-vkCmdCopyImage-srcImageLayout-00128,VUID-StandaloneSpirv-OpEntryPoint-08721,VUID-VkImageDrmFormatModifierListCreateInfoEXT-pDrmFormatModifiers-02263,UNASSIGNED-VkMemoryAllocateInfo-pNext-dedicated-image-export,VUID-vkCmdBeginQuery-queryPool-01922,VUID-vkDestroyShaderEXT-shader-08482,VUID-vkGetImageSubresourceLayout-image-07790,VUID-VkPresentInfoKHR-pImageIndices-01430,UNASSIGNED-vkAllocateMemory-maxMemoryAllocationSize,UNASSIGNED-vkAllocateMemory-maxMemoryAllocationSize,VUID-vkGetImageSubresourceLayout-image-07790,VUID-VkShaderModuleCreateInfo-pCode-08737,VUID-VkRenderingAttachmentInfo-imageView-06130,VUID-vkCmdDraw-None-09462
+khronos_validation.message_id_filter = VUID-VkPhysicalDeviceProperties2-pNext-pNext,VUID-VkDeviceCreateInfo-pNext-pNext,VUID-RuntimeSpirv-Location-06272,02699,VUID-RuntimeSpirv-OpEntryPoint-08743,VUID-vkCmdPipelineBarrier2-shaderTileImageColorReadAccess-08718,VUID-VkGraphicsPipelineCreateInfo-flags-06482,VUID-vkCmdPipelineBarrier2-None-08719,07474,VUID-vkDestroyDevice-device-05137,VUID-VkImageMemoryBarrier2-srcAccessMask-07454,10909,08911,VUID-VkRenderingAttachmentInfo-None-12256,VUID-vkCmdBeginRendering-pRenderingInfo-09592,VUID-vkCmdCopyImage-srcImageLayout-00128,VUID-StandaloneSpirv-OpEntryPoint-08721,VUID-VkImageDrmFormatModifierListCreateInfoEXT-pDrmFormatModifiers-02263,UNASSIGNED-VkMemoryAllocateInfo-pNext-dedicated-image-export,VUID-vkCmdBeginQuery-queryPool-01922,VUID-vkDestroyShaderEXT-shader-08482,VUID-vkGetImageSubresourceLayout-image-07790,VUID-VkPresentInfoKHR-pImageIndices-01430,UNASSIGNED-vkAllocateMemory-maxMemoryAllocationSize,UNASSIGNED-vkAllocateMemory-maxMemoryAllocationSize,VUID-vkGetImageSubresourceLayout-image-07790,VUID-VkShaderModuleCreateInfo-pCode-08737,VUID-VkRenderingAttachmentInfo-imageView-06130,VUID-vkCmdDraw-None-09462
 khronos_validation.report_flags = error
 khronos_validation.debug_action = VK_DBG_LAYER_ACTION_LOG_MSG,VK_DBG_LAYER_ACTION_BREAK
 VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
@@ -81,15 +81,6 @@ khronos_validation.log_filename = stdout
 # Objects: 2
 #     [0] VkCommandBuffer 0x55f638578670[zink barrier cmdbuf]
 #     [1] VkPipeline 0x996e000000996e
-
-# KHR-GL46.clear_tex_image.gl_clear_tex_image_clear_red_component_red_image_format_GL_RED_internalFormat_GL_R32F_type_GL_UNSIGNED_SHORT_pixelSize_1_texLevel_0
-#
-# Validation Error: [ VUID-vkCmdBlitImage-srcImageLayout-00221 ] | MessageID = 0x7727610b
-# vkCmdBlitImage(): srcImage Cannot use VkImage 0x18a5e0000018a5e (layer 0, mip 0) with specific layout VK_IMAGE_LAYOUT_GENERAL that doesn't match the previously used layout VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL.
-# The Vulkan spec states: srcImageLayout must specify the layout of the image subresources of srcImage specified in pRegions at the time this command is executed on a VkDevice (https://docs.vulkan.org/spec/latest/chapters/copies.html#VUID-vkCmdBlitImage-srcImageLayout-00221)
-# Objects: 2
-#     [0] VkCommandBuffer 0x56169b800fe0[zink cmdbuf]
-#     [1] VkImage 0x18a5e0000018a5e
 
 # dEQP-GLES3.functional.fbo.multiview.samples_4
 #
