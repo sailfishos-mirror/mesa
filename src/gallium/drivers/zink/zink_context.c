@@ -70,9 +70,16 @@ static void
 update_tc_info(struct zink_context *ctx)
 {
    if (ctx->track_renderpasses) {
-      const struct tc_renderpass_info *info = threaded_context_get_renderpass_info(ctx->tc);
-      ctx->rp_changed |= ctx->dynamic_fb.tc_info.data != info->data;
-      ctx->dynamic_fb.tc_info = *info;
+      struct tc_renderpass_info info = *threaded_context_get_renderpass_info(ctx->tc);
+      /* add zs clears deferred from an earlier tc renderpass, which tc doesn't know about */
+      if (!info.zsbuf_clear && !info.zsbuf_clear_partial) {
+         if (ctx->clears_enabled & PIPE_CLEAR_DEPTHSTENCIL)
+            info.zsbuf_clear_partial = true;
+         if (ctx->rp_clears_enabled & PIPE_CLEAR_DEPTHSTENCIL)
+            info.zsbuf_clear = true;
+      }
+      ctx->rp_changed |= ctx->dynamic_fb.tc_info.data != info.data;
+      ctx->dynamic_fb.tc_info = info;
       ctx->awaiting_resolve = ctx->dynamic_fb.tc_info.has_resolve;
    } else {
       struct tc_renderpass_info info = ctx->dynamic_fb.tc_info;
