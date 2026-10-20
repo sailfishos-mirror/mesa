@@ -4694,7 +4694,7 @@
         "description": "venus: fix a race condition for TLS ring creations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "945165acadb68d9e0301c037cd99c4060180822f",
         "notes": null
