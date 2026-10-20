@@ -9,3 +9,4 @@ GL_EXT_semaphore_fd on asahi
 cl_khr_semaphore on asahi
 cl_khr_external_semaphore on asahi
 cl_khr_external_semaphore_sync_fd on asahi
+VK_KHR_maintenance7 on v3dv
