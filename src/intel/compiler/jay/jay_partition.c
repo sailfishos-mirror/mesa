@@ -592,34 +592,35 @@ static const char *jay_files[JAY_NUM_RA_FILES] = {
 };
 
 void
-jay_print_partition(jay_shader *s)
+jay_print_partition(FILE *fp, jay_shader *s)
 {
    struct jay_partition *p = &s->partition;
 
    jay_foreach_ra_file(file) {
       if (p->nr_blocks[file]) {
-         printf("%s" ANSI_BOLD "    GRF      %s%s" ANSI_END "\n",
-                file ? "\n" : "", jay_files[file],
-                file == GPR ? "    Stride   Split" : "");
+         fprintf(fp, "%s" ANSI_BOLD "    GRF      %s%s" ANSI_END "\n",
+                 file ? "\n" : "", jay_files[file],
+                 file == GPR ? "    Stride   Split" : "");
       }
 
       for (unsigned b = 0; b < p->nr_blocks[file]; ++b) {
          struct jay_register_block B = p->blocks[file][b];
          unsigned len_grf = (B.len_gpr * 16) / p->units_x16[file];
 
-         printf("  %3u…%-3u  %3u…%-3u", B.start_grf, B.start_grf + len_grf - 1,
-                B.start_gpr, B.start_gpr + B.len_gpr - 1);
+         fprintf(fp, "  %3u…%-3u  %3u…%-3u", B.start_grf,
+                 B.start_grf + len_grf - 1, B.start_gpr,
+                 B.start_gpr + B.len_gpr - 1);
 
          if (file == GPR) {
-            printf("  %u-bit   SIMD%u", jay_stride_to_bits(B.stride),
-                   s->dispatch_width >> B.split);
+            fprintf(fp, "  %u-bit   SIMD%u", jay_stride_to_bits(B.stride),
+                    s->dispatch_width >> B.split);
          }
 
          const char *types[JAY_BLOCK_TYPES] = { "", " EOT", " Spill",
                                                 " Accumulator" };
-         printf(ANSI_ITALIC "%s" ANSI_END "\n", types[B.type]);
+         fprintf(fp, ANSI_ITALIC "%s" ANSI_END "\n", types[B.type]);
       }
    }
 
-   printf("\n");
+   fprintf(fp, "\n");
 }
