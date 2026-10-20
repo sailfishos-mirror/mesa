@@ -214,7 +214,7 @@ vn_WaitForFences(VkDevice device,
       if (payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD) {
          const int poll_timeout = vn_timeout_to_poll_timeout(timeout);
          if (payload->fd >= 0 && sync_wait(payload->fd, poll_timeout)) {
-            result = errno == ETIME ? VK_NOT_READY : VK_ERROR_DEVICE_LOST;
+            result = errno == ETIME ? VK_TIMEOUT : VK_ERROR_DEVICE_LOST;
             goto out_stack_arr_fini;
          } else if (waitAll == VK_FALSE) {
             goto out_stack_arr_fini;
