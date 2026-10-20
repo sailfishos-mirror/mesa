@@ -1131,7 +1131,7 @@ struct anv_pipeline_bind_map {
     * anv_push_constants, we can index up to 1024 bytes minus a few values
     * reserved, see ANV_INLINE_PARAM_* above) to inline data parameters.
     */
-   uint8_t                                      inline_dwords[16];
+   uint8_t                                      inline_dwords[ANV_MAX_INLINE_DWORDS];
 
    /* Bitfield of sets for which the surfaces are accessed */
    uint8_t                                      used_surface_sets;

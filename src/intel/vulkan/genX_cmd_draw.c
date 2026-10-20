@@ -667,7 +667,7 @@ cmd_buffer_flush_mesh_inline_data(struct anv_cmd_buffer *cmd_buffer,
          get_mesh_task_push_addr64(cmd_buffer, gfx, MESA_SHADER_MESH);
 
       anv_batch_emit(&cmd_buffer->batch, GENX(3DSTATE_MESH_SHADER_DATA), data) {
-         assert(bind_map->inline_dwords_count < ARRAY_SIZE(data.InlineData));
+         assert(bind_map->inline_dwords_count <= ARRAY_SIZE(data.InlineData));
          fill_inline_params(data.InlineData, bind_map, gfx, push_addr64);
       }
    }

@@ -297,6 +297,7 @@ struct anv_push_constants {
 
 #define ANV_DRIVER_PUSH_CONSTANTS_SIZE (sizeof(struct anv_push_constants) - MAX_PUSH_CONSTANTS_SIZE)
 
+#define ANV_MAX_INLINE_DWORDS (16)
 #define ANV_INLINE_DWORD_PUSH_ADDRESS_LDW      (UINT8_MAX - 0)
 #define ANV_INLINE_DWORD_PUSH_ADDRESS_UDW      (UINT8_MAX - 1)
 
@@ -490,7 +491,7 @@ struct anv_dgc_gfx_descriptor {
             struct anv_dgc_push_bindless_stage {
                uint16_t push_data_offset;
                uint16_t inline_dwords_count;
-               uint8_t  inline_dwords[8];
+               uint8_t  inline_dwords[ANV_MAX_INLINE_DWORDS];
             } bindless;
          };
       } stages[ANV_DGC_N_GFX_STAGES];
