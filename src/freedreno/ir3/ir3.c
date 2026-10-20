@@ -1896,7 +1896,7 @@ ir3_valid_flags(struct ir3_instruction *instr, unsigned n, unsigned flags)
       /* TODO double check if this is still the case on a4xx */
       if (flags & (IR3_REG_CONST | IR3_REG_IMMED))
          return false;
-      if (flags & (IR3_REG_SABS | IR3_REG_SNEG))
+      if (flags & (IR3_REG_SABS | IR3_REG_SNEG | IR3_REG_BNOT))
          return false;
       break;
    case 5:
