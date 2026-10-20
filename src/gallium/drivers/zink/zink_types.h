@@ -1755,7 +1755,6 @@ struct zink_descriptor_db_info {
 struct zink_descriptor_surface {
    union {
       struct zink_surface *surface;
-      struct zink_buffer_view *bufferview;
       struct zink_descriptor_db_info db;
    };
    bool is_buffer;

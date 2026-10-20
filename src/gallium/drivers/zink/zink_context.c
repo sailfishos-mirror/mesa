@@ -2834,15 +2834,11 @@ zink_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view
 
    bd->ds.is_buffer = res->base.b.target == PIPE_BUFFER;
    pipe_resource_reference(&bd->pres, view->resource);
-   if (res->base.b.target == PIPE_BUFFER)
-      if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
-         bd->ds.db.format = view->format;
-         bd->ds.db.offset = view->u.buf.offset;
-         bd->ds.db.size = view->u.buf.size;
-      } else {
-         bd->ds.bufferview = create_image_bufferview(ctx, view);
-      }
-   else {
+   if (res->base.b.target == PIPE_BUFFER) {
+      bd->ds.db.format = view->format;
+      bd->ds.db.offset = view->u.buf.offset;
+      bd->ds.db.size = view->u.buf.size;
+   } else {
       struct zink_resource *import2d = NULL;
       bd->ds.surface = create_image_surface(ctx, view, false, &import2d);
       assert(!import2d);
@@ -2890,13 +2886,15 @@ image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor
       res->bindless[1]++;
       if (is_buffer) {
          if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
-            ctx->di.bindless[0].db.buffer_infos[handle].address = res->obj->bda + ds->db.offset;
-            ctx->di.bindless[0].db.buffer_infos[handle].range = ds->db.size;
-            ctx->di.bindless[0].db.buffer_infos[handle].format = zink_get_format(zink_screen(ctx->base.screen), ds->db.format);
+            ctx->di.bindless[1].db.buffer_infos[handle].address = res->obj->bda + ds->db.offset;
+            ctx->di.bindless[1].db.buffer_infos[handle].range = ds->db.size;
+            ctx->di.bindless[1].db.buffer_infos[handle].format = zink_get_format(zink_screen(ctx->base.screen), ds->db.format);
          } else {
             struct zink_buffer_view *bv = get_buffer_view(ctx, res, ds->db.format, ds->db.offset, ds->db.size);
             ctx->di.bindless[1].t.buffer_infos[handle] = bv->buffer_view;
          }
+         if (paccess & PIPE_IMAGE_ACCESS_WRITE)
+            util_range_add(&res->base.b, &res->valid_buffer_range, ds->db.offset, ds->db.offset + ds->db.size);
          zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
          zink_batch_resource_usage_set(ctx->bs, res, zink_resource_access_is_write(access), true);
          zink_resource_disable_unordered(res, zink_resource_access_is_write(access));
