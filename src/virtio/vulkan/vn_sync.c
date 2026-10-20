@@ -651,8 +651,11 @@ vn_remove_signaled_semaphores(VkDevice device,
                                                        relax_state, &val);
       if (result != VK_SUCCESS)
          return result;
-      if (val < values[i])
-         semaphores[cur++] = semaphores[i];
+      if (val < values[i]) {
+         semaphores[cur] = semaphores[i];
+         values[cur] = values[i];
+         cur++;
+      }
    }
 
    *count = cur;
