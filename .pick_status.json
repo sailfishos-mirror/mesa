@@ -24,7 +24,7 @@
         "description": "radv: disable 8x MSAA for VRS in device properties",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7bf9ff93892d5e164507730961342470cdff8813",
         "notes": null
