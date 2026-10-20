@@ -64,7 +64,7 @@
         "description": "r300: add npot override for kwin",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ff83b54c951e3783d063b2ff1c13e88e7e6092f",
         "notes": null
