@@ -1119,8 +1119,14 @@ system_value("rasterization_stream", 1)
 
 system_value("frag_size", 2)
 system_value("frag_invocation_count", 1)
+
 # Whether smooth lines or polygon smoothing is enabled
 system_value("poly_line_smooth_enabled", 1, bit_sizes=[1])
+
+# Used to lower smooth lines or polygon smoothing, as an alternative to
+# sample_mask_in.
+intrinsic("load_poly_line_smooth_coverage", dest_comp=1, bit_sizes=[32],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # System values for ray tracing.
 system_value("ray_launch_id", 3)
