@@ -887,7 +887,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
           * MSAA overrasterization over a single-sample color buffer.
           */
          if (key->ps.mono.poly_line_smoothing)
-            NIR_PASS(progress, nir, nir_lower_poly_line_smooth, SI_NUM_SMOOTH_AA_SAMPLES);
+            NIR_PASS(progress, nir, nir_lower_poly_line_smooth, true, SI_NUM_SMOOTH_AA_SAMPLES);
 
          /* This adds discard. */
          if (key->ps.part.prolog.poly_stipple)

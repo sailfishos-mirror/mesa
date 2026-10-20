@@ -155,7 +155,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       }
 
       if (key->fs.line_smooth) {
-         NIR_PASS(_, s, nir_lower_poly_line_smooth, 16);
+         NIR_PASS(_, s, nir_lower_poly_line_smooth, true, 16);
          NIR_PASS(_, s, nir_shader_intrinsics_pass,
                   lower_load_poly_line_smooth_enabled,
                   nir_metadata_control_flow, key);

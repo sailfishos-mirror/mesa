@@ -2594,7 +2594,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
 
       if ((!num_raster_vertices_per_prim || num_raster_vertices_per_prim == 2) &&
           gfx_state->smooth_lines_may_be_enabled)
-         NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, RADV_NUM_SMOOTH_AA_SAMPLES);
+         NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, true, RADV_NUM_SMOOTH_AA_SAMPLES);
 
       if (!gfx_state->ps.color_outputs_need_epilog) {
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_remap_color_attachment, gfx_state);
