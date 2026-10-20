@@ -234,7 +234,7 @@
         "description": "v3dv: keep descriptors aligned after inline uniform blocks",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ea3223e7a4690571583f3a0f2d7c9580952e67d8",
         "notes": null
