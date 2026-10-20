@@ -87,6 +87,24 @@ lower_jump(nir_block *block, struct loop_simplify_state *state)
 }
 
 static bool
+cf_list_ends_in_jump(struct exec_list *cf_list)
+{
+   foreach_list_typed(nir_cf_node, node, node, cf_list) {
+      if (node->type == nir_cf_node_block) {
+         if (nir_block_ends_in_jump(nir_cf_node_as_block(node)))
+            return true;
+      } else if (node->type == nir_cf_node_if) {
+         nir_if *nif = nir_cf_node_as_if(node);
+         if (cf_list_ends_in_jump(&nif->then_list) &&
+             cf_list_ends_in_jump(&nif->else_list))
+            return true;
+      }
+   }
+
+   return false;
+}
+
+static bool
 lower_jumps_in_if(nir_if *nif, struct loop_simplify_state *state)
 {
    /* Lower phis before jump removal makes more predecessors reachable.
@@ -98,8 +116,12 @@ lower_jumps_in_if(nir_if *nif, struct loop_simplify_state *state)
 
    nir_block *then_block = nir_if_last_then_block(nif);
    nir_block *else_block = nir_if_last_else_block(nif);
-   bool then_jumps = nir_block_ends_in_jump(then_block);
-   bool else_jumps = nir_block_ends_in_jump(else_block);
+   /* A branch leg can also exit through jumps in both sides of a nested if.
+    * Detect this before lowering so following code is moved into the
+    * surviving branch leg before any of its jumps are removed.
+    */
+   bool then_jumps = cf_list_ends_in_jump(&nif->then_list);
+   bool else_jumps = cf_list_ends_in_jump(&nif->else_list);
 
    bool progress = false;
    progress |= lower_jump(then_block, state);
