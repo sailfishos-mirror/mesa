@@ -1444,7 +1444,7 @@
         "description": "nir/lower_continue_constructs: preserve phi sources when simplifying loop jumps",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "31af989270fa47f7563e5b053952b871631c1a8a",
         "notes": null
