@@ -1824,7 +1824,7 @@
         "description": "iris: update nir information within iris_force_dual_color_blend",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2729b1608fb8f135e1f4773e8f0ea205344adb51",
         "notes": null
