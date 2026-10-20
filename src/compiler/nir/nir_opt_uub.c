@@ -635,6 +635,19 @@ opt_uub_i2i64(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
    return false;
 }
 
+/* i2i32 -> u2u32 */
+static bool
+opt_uub_i2i32(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+{
+   nir_scalar src;
+   get_srcs(alu, &src);
+   if (src.def->bit_size != 32 && uub(state, src) <= (uint32_t)u_intN_max(src.def->bit_size)) {
+      alu->op = nir_op_u2u32;
+      return true;
+   }
+   return false;
+}
+
 static bool
 src_is_const(nir_src *src, void *data)
 {
@@ -695,6 +708,8 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
       return alu->def.bit_size == 64 && opt_uub_alu_u2u64_ishl(b, alu, state);
    case nir_op_i2i64:
       return opt_uub_i2i64(b, alu, state);
+   case nir_op_i2i32:
+      return opt_uub_i2i32(b, alu, state);
    default:
       return false;
    }
