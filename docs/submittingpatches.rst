@@ -87,16 +87,16 @@ process of coming up with the code, except in the following cases:
   still recommended (but not required) to disclose the tool used,
   eg. "AI", "sed", "cocinelle", etc. in order to ease the review process.
 
-We suggest the following scheme to disclose the level "AI" tooling was
+We require the following scheme to disclose the level "AI" tooling was
 involved:
 
-- ``Assisted-by: TOOL (OPTIONAL: MODEL)`` for when "AI" was involved in making
+- ``Assisted-by: LLM`` for when "AI" was involved in making
   decisions or also generated parts of the code.
-- ``Generated-by: TOOL (OPTIONAL: MODEL)`` for when almost all the code was
+- ``Generated-by: LLM`` for when almost all the code was
   generated through "AI".
 
-Do not use the ``Co-authored-by`` tag as this one is reserved for human
-co-authors.
+Do not advertise the model. Do not use the ``Co-authored-by`` tag as this one is
+reserved for human co-authors.
 
 If you don't know programming (and don't want to learn), but you are
 interested in the Mesa project, there are plenty of other ways to
