@@ -172,13 +172,9 @@ static void
 reset_batch_state_ctx(struct zink_context *ctx, struct zink_batch_state *bs)
 {
    /* this is where bindless texture/buffer ids get recycled */
-   for (unsigned i = 0; i < 2; i++) {
-      while (util_dynarray_contains(&bs->bindless_releases[i], uint32_t)) {
-         uint32_t handle = util_dynarray_pop(&bs->bindless_releases[i], uint32_t);
-         bool is_buffer = ZINK_BINDLESS_IS_BUFFER(handle);
-         struct util_idalloc *ids = i ? &ctx->di.bindless[is_buffer].img_slots : &ctx->di.bindless[is_buffer].tex_slots;
-         util_idalloc_free(ids, is_buffer ? handle - ZINK_MAX_BINDLESS_HANDLES : handle);
-      }
+   while (util_dynarray_contains(&bs->bindless_unrefs, struct zink_bindless_descriptor *)) {
+      struct zink_bindless_descriptor *bd = util_dynarray_pop(&bs->bindless_unrefs, struct zink_bindless_descriptor *);
+      zink_bindless_descriptor_unref(zink_screen(ctx->base.screen), bd);
    }
 
    /* queries must only be destroyed once they are inactive */
@@ -263,8 +259,7 @@ zink_batch_state_destroy(struct zink_screen *screen, struct zink_batch_state *bs
    util_dynarray_fini(&bs->swapchain_obj);
    util_dynarray_fini(&bs->swapchain_obj_unsync);
    util_dynarray_fini(&bs->zombie_samplers);
-   util_dynarray_fini(&bs->bindless_releases[0]);
-   util_dynarray_fini(&bs->bindless_releases[1]);
+   util_dynarray_fini(&bs->bindless_unrefs);
    util_dynarray_fini(&bs->acquires);
    util_dynarray_fini(&bs->signal_semaphores);
    util_dynarray_fini(&bs->user_signal_semaphores);
@@ -386,8 +381,7 @@ create_batch_state(struct zink_context *ctx)
    bs->freed_sparse_backing_bos = UTIL_DYNARRAY_INIT;
    bs->acquires = UTIL_DYNARRAY_INIT;
    bs->acquire_flags = UTIL_DYNARRAY_INIT;
-   bs->bindless_releases[0] = UTIL_DYNARRAY_INIT;
-   bs->bindless_releases[1] = UTIL_DYNARRAY_INIT;
+   bs->bindless_unrefs = UTIL_DYNARRAY_INIT;
    bs->swapchain_obj = UTIL_DYNARRAY_INIT;
    bs->swapchain_obj_unsync = UTIL_DYNARRAY_INIT;
    bs->fence.mfences = UTIL_DYNARRAY_INIT;

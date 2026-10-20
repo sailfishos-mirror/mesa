@@ -670,7 +670,7 @@ struct zink_batch_state {
    struct util_dynarray swapchain_obj; //this doesn't have a zink_bo and must be handled differently
    struct util_dynarray swapchain_obj_unsync; //this doesn't have a zink_bo and must be handled differently
 
-   struct util_dynarray bindless_releases[2];
+   struct util_dynarray bindless_unrefs; //zink_bindless_descriptor
 
    struct util_dynarray zombie_samplers;
 
@@ -1506,6 +1506,15 @@ struct zink_screen {
    unsigned base_descriptor_size;
    VkDescriptorSetLayout bindless_layout;
 
+   /* bindless handles are valid in every context of a share group */
+   struct {
+      simple_mtx_t lock;
+      struct {
+         struct util_idalloc slots;
+         struct hash_table handles;
+      } table[2][2]; //[is_image][is_buffer]
+   } bindless_handles;
+
    struct {
       struct pb_cache bo_cache;
       struct pb_slabs bo_slabs;
@@ -1756,6 +1765,9 @@ struct zink_bindless_descriptor {
    struct zink_descriptor_surface ds;
    struct pipe_resource *pres;
    struct zink_sampler_state *sampler;
+   /* the handle and each context it is resident in hold a reference */
+   uint32_t refcount;
+   bool is_image;
    uint32_t handle;
    uint32_t access; //PIPE_ACCESS_...
    uint16_t first_layer;
@@ -2018,10 +2030,6 @@ struct zink_context {
       struct zink_resource *descriptor_res[ZINK_DESCRIPTOR_BASE_TYPES][MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
 
       struct {
-         struct util_idalloc tex_slots; //img, buffer
-         struct util_idalloc img_slots; //img, buffer
-         struct hash_table tex_handles; //img, buffer
-         struct hash_table img_handles; //img, buffer
          union {
             struct {
                VkBufferView *buffer_infos; //tex, img

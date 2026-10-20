@@ -434,7 +434,7 @@
         "description": "zink: share bindless handles between contexts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bc202553e9b7040a36eab2974b16115e6c3125cb",
         "notes": null
