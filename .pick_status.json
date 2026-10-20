@@ -204,7 +204,7 @@
         "description": "aco: add a couple aco_alu_opcode_info methods",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "984aa6e08550b6bd1b3af30d4945a8eb748472c4",
         "notes": null
