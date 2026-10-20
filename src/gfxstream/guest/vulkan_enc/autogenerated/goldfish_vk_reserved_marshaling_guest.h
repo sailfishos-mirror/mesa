@@ -2418,6 +2418,11 @@ void reservedmarshal_VkDebugMetadataGuestThreadIdGOOGLE(
     VulkanStreamGuest* vkStream, VkStructureType rootType,
     const VkDebugMetadataGuestThreadIdGOOGLE* forMarshaling, uint8_t** ptr);
 
+void reservedmarshal_VkGuestCapabilitiesGOOGLE(VulkanStreamGuest* vkStream,
+                                               VkStructureType rootType,
+                                               const VkGuestCapabilitiesGOOGLE* forMarshaling,
+                                               uint8_t** ptr);
+
 void reservedmarshal_VkDebugMetadataGOOGLE(VulkanStreamGuest* vkStream, VkStructureType rootType,
                                            const VkDebugMetadataGOOGLE* forMarshaling,
                                            uint8_t** ptr);

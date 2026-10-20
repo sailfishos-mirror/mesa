@@ -10432,6 +10432,23 @@ void reservedmarshal_VkDebugMetadataGuestThreadIdGOOGLE(
     *ptr += sizeof(uint64_t);
 }
 
+void reservedmarshal_VkGuestCapabilitiesGOOGLE(VulkanStreamGuest* vkStream,
+                                               VkStructureType rootType,
+                                               const VkGuestCapabilitiesGOOGLE* forMarshaling,
+                                               uint8_t** ptr) {
+    (void)vkStream;
+    (void)rootType;
+    memcpy(*ptr, (VkStructureType*)&forMarshaling->sType, sizeof(VkStructureType));
+    *ptr += sizeof(VkStructureType);
+    if (rootType == VK_STRUCTURE_TYPE_MAX_ENUM) {
+        rootType = forMarshaling->sType;
+    }
+    reservedmarshal_extension_struct(vkStream, rootType, forMarshaling->pNext, ptr);
+    memcpy(*ptr, (VkGuestCapabilityFlagsGOOGLE*)&forMarshaling->capabilities,
+           sizeof(VkGuestCapabilityFlagsGOOGLE));
+    *ptr += sizeof(VkGuestCapabilityFlagsGOOGLE);
+}
+
 void reservedmarshal_VkDebugMetadataGOOGLE(VulkanStreamGuest* vkStream, VkStructureType rootType,
                                            const VkDebugMetadataGOOGLE* forMarshaling,
                                            uint8_t** ptr) {
@@ -12156,6 +12173,12 @@ void reservedmarshal_extension_struct(VulkanStreamGuest* vkStream, VkStructureTy
             reservedmarshal_VkDebugMetadataGuestThreadIdGOOGLE(
                 vkStream, rootType,
                 reinterpret_cast<const VkDebugMetadataGuestThreadIdGOOGLE*>(structExtension), ptr);
+            break;
+        }
+        case VK_STRUCTURE_TYPE_GUEST_CAPABILITIES_GOOGLE: {
+            reservedmarshal_VkGuestCapabilitiesGOOGLE(
+                vkStream, rootType,
+                reinterpret_cast<const VkGuestCapabilitiesGOOGLE*>(structExtension), ptr);
             break;
         }
 #endif

@@ -346,6 +346,18 @@ VkResult gfxstream_vk_CreateInstance(const VkInstanceCreateInfo* pCreateInfo,
         localCreateInfo.enabledExtensionCount = static_cast<uint32_t>(filteredExts.size());
         localCreateInfo.ppEnabledExtensionNames = filteredExts.data();
 
+        // Inform the host about what capabilities this guest supports.
+        VkGuestCapabilitiesGOOGLE guestCapabilities = {
+            .sType = VK_STRUCTURE_TYPE_GUEST_CAPABILITIES_GOOGLE,
+            .pNext = localCreateInfo.pNext,
+            // The guest can support inline uniform block descriptors after
+            // https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/45069.
+            .capabilities = VK_GUEST_CAPABILITY_BATCHED_INLINE_UNIFORM_BLOCK_BIT_GOOGLE,
+        };
+        if (gfxstream::vk::ResourceTracker::get()->supportsGuestCapabilities()) {
+            localCreateInfo.pNext = &guestCapabilities;
+        }
+
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         result = vkEnc->vkCreateInstance(&localCreateInfo, nullptr, pInstance, true /* do lock */);
         if (result != VK_SUCCESS) {

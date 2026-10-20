@@ -581,6 +581,7 @@ class ResourceTracker {
     void setThreadingCallbacks(const ThreadingCallbacks& callbacks);
     bool hostSupportsVulkan() const;
     bool usingDirectMapping() const;
+    bool supportsGuestCapabilities() const;
     uint32_t getStreamFeatures() const;
     VkDevice getDevice(VkCommandBuffer commandBuffer) const;
     void addToCommandPool(VkCommandPool commandPool, uint32_t commandBufferCount,

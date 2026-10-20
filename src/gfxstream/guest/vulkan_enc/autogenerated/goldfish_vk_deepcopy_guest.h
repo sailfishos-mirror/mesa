@@ -2419,6 +2419,10 @@ void deepcopy_VkDebugMetadataGuestThreadIdGOOGLE(Allocator* alloc, VkStructureTy
                                                  const VkDebugMetadataGuestThreadIdGOOGLE* from,
                                                  VkDebugMetadataGuestThreadIdGOOGLE* to);
 
+void deepcopy_VkGuestCapabilitiesGOOGLE(Allocator* alloc, VkStructureType rootType,
+                                        const VkGuestCapabilitiesGOOGLE* from,
+                                        VkGuestCapabilitiesGOOGLE* to);
+
 void deepcopy_VkDebugMetadataGOOGLE(Allocator* alloc, VkStructureType rootType,
                                     const VkDebugMetadataGOOGLE* from, VkDebugMetadataGOOGLE* to);
 

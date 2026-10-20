@@ -1597,6 +1597,10 @@ void ResourceTracker::setThreadingCallbacks(const ResourceTracker::ThreadingCall
 
 bool ResourceTracker::usingDirectMapping() const { return true; }
 
+bool ResourceTracker::supportsGuestCapabilities() const {
+    return mCaps.vulkanCapset.hasGuestCapabilities;
+}
+
 uint32_t ResourceTracker::getStreamFeatures() const { return ResourceTracker::streamFeatureBits; }
 
 bool ResourceTracker::supportsDeferredCommands() const {

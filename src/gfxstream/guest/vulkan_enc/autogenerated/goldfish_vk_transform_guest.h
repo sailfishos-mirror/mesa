@@ -3888,6 +3888,12 @@ void transform_tohost_VkDebugMetadataGuestThreadIdGOOGLE(
 void transform_fromhost_VkDebugMetadataGuestThreadIdGOOGLE(
     ResourceTracker* resourceTracker, VkDebugMetadataGuestThreadIdGOOGLE* toTransform);
 
+void transform_tohost_VkGuestCapabilitiesGOOGLE(ResourceTracker* resourceTracker,
+                                                VkGuestCapabilitiesGOOGLE* toTransform);
+
+void transform_fromhost_VkGuestCapabilitiesGOOGLE(ResourceTracker* resourceTracker,
+                                                  VkGuestCapabilitiesGOOGLE* toTransform);
+
 void transform_tohost_VkDebugMetadataGOOGLE(ResourceTracker* resourceTracker,
                                             VkDebugMetadataGOOGLE* toTransform);
 

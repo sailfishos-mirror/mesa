@@ -7977,6 +7977,18 @@ void unmarshal_VkDebugMetadataGuestThreadIdGOOGLE(
     vkStream->read((uint64_t*)&forUnmarshaling->id, sizeof(uint64_t));
 }
 
+void unmarshal_VkGuestCapabilitiesGOOGLE(VulkanStreamGuest* vkStream, VkStructureType rootType,
+                                         VkGuestCapabilitiesGOOGLE* forUnmarshaling) {
+    (void)rootType;
+    vkStream->read((VkStructureType*)&forUnmarshaling->sType, sizeof(VkStructureType));
+    if (rootType == VK_STRUCTURE_TYPE_MAX_ENUM) {
+        rootType = forUnmarshaling->sType;
+    }
+    unmarshal_extension_struct(vkStream, rootType, (void*)(forUnmarshaling->pNext));
+    vkStream->read((VkGuestCapabilityFlagsGOOGLE*)&forUnmarshaling->capabilities,
+                   sizeof(VkGuestCapabilityFlagsGOOGLE));
+}
+
 void unmarshal_VkDebugMetadataGOOGLE(VulkanStreamGuest* vkStream, VkStructureType rootType,
                                      VkDebugMetadataGOOGLE* forUnmarshaling) {
     (void)rootType;
@@ -9530,6 +9542,12 @@ void unmarshal_extension_struct(VulkanStreamGuest* vkStream, VkStructureType roo
             unmarshal_VkDebugMetadataGuestThreadIdGOOGLE(
                 vkStream, rootType,
                 reinterpret_cast<VkDebugMetadataGuestThreadIdGOOGLE*>(structExtension_out));
+            break;
+        }
+        case VK_STRUCTURE_TYPE_GUEST_CAPABILITIES_GOOGLE: {
+            unmarshal_VkGuestCapabilitiesGOOGLE(
+                vkStream, rootType,
+                reinterpret_cast<VkGuestCapabilitiesGOOGLE*>(structExtension_out));
             break;
         }
 #endif

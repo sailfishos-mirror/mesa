@@ -2217,6 +2217,9 @@ void count_VkDebugMetadataGuestThreadIdGOOGLE(uint32_t featureBits, VkStructureT
                                               const VkDebugMetadataGuestThreadIdGOOGLE* toCount,
                                               size_t* count);
 
+void count_VkGuestCapabilitiesGOOGLE(uint32_t featureBits, VkStructureType rootType,
+                                     const VkGuestCapabilitiesGOOGLE* toCount, size_t* count);
+
 void count_VkDebugMetadataGOOGLE(uint32_t featureBits, VkStructureType rootType,
                                  const VkDebugMetadataGOOGLE* toCount, size_t* count);
 
