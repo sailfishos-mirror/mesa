@@ -1769,9 +1769,14 @@ struct zink_bindless_descriptor {
    uint32_t refcount;
    bool is_image;
    uint32_t handle;
-   uint32_t access; //PIPE_ACCESS_...
    uint16_t first_layer;
    uint16_t last_layer;
+};
+
+struct zink_bindless_resident {
+   struct zink_bindless_descriptor *bd;
+   /* PIPE_IMAGE_ACCESS_*, per context since each can use a different one */
+   unsigned access;
 };
 
 struct zink_rendering_info {

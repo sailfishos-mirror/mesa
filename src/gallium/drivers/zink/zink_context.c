@@ -2666,6 +2666,21 @@ zink_delete_texture_handle(struct pipe_context *pctx, uint64_t handle)
    util_dynarray_append(&ctx->bs->bindless_unrefs, bd);
 }
 
+/* returns the access this context made the handle resident with */
+static unsigned
+remove_bindless_resident(struct zink_context *ctx, struct zink_bindless_descriptor *bd)
+{
+   struct util_dynarray *resident = &ctx->di.bindless[bd->is_image].resident;
+   util_dynarray_foreach_reverse(resident, struct zink_bindless_resident, r) {
+      if (r->bd == bd) {
+         unsigned access = r->access;
+         *r = util_dynarray_pop(resident, struct zink_bindless_resident);
+         return access;
+      }
+   }
+   UNREACHABLE("bindless handle not resident");
+}
+
 static void
 zero_bindless_descriptor(struct zink_context *ctx, uint32_t handle, bool is_buffer, bool is_image)
 {
@@ -2762,11 +2777,12 @@ zink_make_texture_handle_resident(struct pipe_context *pctx, uint64_t h, bool re
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= VK_ACCESS_SHADER_READ_BIT;
       res->barrier_access[1] |= VK_ACCESS_SHADER_READ_BIT;
-      util_dynarray_append(&ctx->di.bindless[0].resident, bd);
+      struct zink_bindless_resident r = {bd, 0};
+      util_dynarray_append(&ctx->di.bindless[0].resident, r);
       util_dynarray_append(&ctx->di.bindless[0].updates, bd->handle);
    } else {
       zero_bindless_descriptor(ctx, handle, is_buffer, false);
-      util_dynarray_delete_unordered(&ctx->di.bindless[0].resident, struct zink_bindless_descriptor *, bd);
+      remove_bindless_resident(ctx, bd);
       res->bindless[0]--;
       unbind_bindless_descriptor(ctx, res);
       update_res_bind_count(ctx, res, false, true);
@@ -2825,7 +2841,8 @@ zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t h, unsigned 
    uint32_t handle = ZINK_BINDLESS_SLOT(bd->handle);
    bool is_buffer = ZINK_BINDLESS_IS_BUFFER(bd->handle);
    struct zink_descriptor_surface *ds = &bd->ds;
-   bd->access = paccess;
+   if (!resident)
+      paccess = remove_bindless_resident(ctx, bd);
    struct zink_resource *res = zink_resource(bd->pres);
    VkAccessFlags access = 0;
    if (paccess & PIPE_IMAGE_ACCESS_WRITE) {
@@ -2873,11 +2890,11 @@ zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t h, unsigned 
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= access;
       res->barrier_access[1] |= access;
-      util_dynarray_append(&ctx->di.bindless[1].resident, bd);
+      struct zink_bindless_resident r = {bd, paccess};
+      util_dynarray_append(&ctx->di.bindless[1].resident, r);
       util_dynarray_append(&ctx->di.bindless[1].updates, bd->handle);
    } else {
       zero_bindless_descriptor(ctx, handle, is_buffer, true);
-      util_dynarray_delete_unordered(&ctx->di.bindless[1].resident, struct zink_bindless_descriptor *, bd);
       res->bindless[1]--;
       unbind_bindless_descriptor(ctx, res);
       unbind_shader_image_counts(ctx, res, false, false);
@@ -4026,11 +4043,11 @@ zink_update_descriptor_refs(struct zink_context *ctx, bool compute)
    if (ctx->di.bindless_refs_dirty) {
       ctx->di.bindless_refs_dirty = false;
       for (unsigned i = 0; i < 2; i++) {
-         util_dynarray_foreach(&ctx->di.bindless[i].resident, struct zink_bindless_descriptor*, bd) {
-            struct zink_resource *res = zink_resource((*bd)->pres);
-            zink_batch_resource_usage_set(ctx->bs, res, (*bd)->access & PIPE_IMAGE_ACCESS_WRITE, res->obj->is_buffer);
+         util_dynarray_foreach(&ctx->di.bindless[i].resident, struct zink_bindless_resident, r) {
+            struct zink_resource *res = zink_resource(r->bd->pres);
+            zink_batch_resource_usage_set(ctx->bs, res, r->access & PIPE_IMAGE_ACCESS_WRITE, res->obj->is_buffer);
             if (!ctx->unordered_blitting)
-               zink_resource_disable_unordered(res, (*bd)->access & PIPE_IMAGE_ACCESS_WRITE || !res->obj->is_buffer);
+               zink_resource_disable_unordered(res, r->access & PIPE_IMAGE_ACCESS_WRITE || !res->obj->is_buffer);
          }
       }
    }
