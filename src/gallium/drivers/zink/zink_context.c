@@ -98,6 +98,11 @@ check_resource_for_batch_ref(struct zink_context *ctx, struct zink_resource *res
 }
 
 static void
+texture_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor *bd, bool resident);
+static void
+image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor *bd, unsigned paccess, bool resident);
+
+static void
 zink_context_destroy(struct pipe_context *pctx)
 {
    struct zink_context *ctx = zink_context(pctx);
@@ -105,6 +110,20 @@ zink_context_destroy(struct pipe_context *pctx)
 
    struct pipe_framebuffer_state fb = {0};
    pctx->set_framebuffer_state(pctx, &fb);
+
+   /* handles outlive the context in its share group, so only drop its residency;
+    * the frontend may have deleted them already, so this can't look them up
+    */
+   for (unsigned i = 0; i < 2; i++) {
+      struct util_dynarray *resident = &ctx->di.bindless[i].resident;
+      while (util_dynarray_contains(resident, struct zink_bindless_resident)) {
+         struct zink_bindless_descriptor *bd = util_dynarray_top_ptr(resident, struct zink_bindless_resident)->bd;
+         if (i)
+            image_handle_residency(ctx, bd, 0, false);
+         else
+            texture_handle_residency(ctx, bd, false);
+      }
+   }
 
 #if HAVE_RENDERDOC_INTEGRATION
    if (screen->base.num_contexts == 1 && screen->renderdoc_capturing) {
@@ -2671,6 +2690,7 @@ static unsigned
 remove_bindless_resident(struct zink_context *ctx, struct zink_bindless_descriptor *bd)
 {
    struct util_dynarray *resident = &ctx->di.bindless[bd->is_image].resident;
+   /* scan from the back, since the destroy drain removes the last entry */
    util_dynarray_foreach_reverse(resident, struct zink_bindless_resident, r) {
       if (r->bd == bd) {
          unsigned access = r->access;
@@ -2728,11 +2748,9 @@ unbind_bindless_descriptor(struct zink_context *ctx, struct zink_resource *res)
 }
 
 static void
-zink_make_texture_handle_resident(struct pipe_context *pctx, uint64_t h, bool resident)
+texture_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor *bd, bool resident)
 {
-   struct zink_context *ctx = zink_context(pctx);
    bool general_layout = zink_screen(ctx->base.screen)->driver_workarounds.general_layout;
-   struct zink_bindless_descriptor *bd = find_bindless_descriptor(zink_screen(pctx->screen), h, false, false);
    uint32_t handle = ZINK_BINDLESS_SLOT(bd->handle);
    bool is_buffer = ZINK_BINDLESS_IS_BUFFER(bd->handle);
    struct zink_descriptor_surface *ds = &bd->ds;
@@ -2792,6 +2810,13 @@ zink_make_texture_handle_resident(struct pipe_context *pctx, uint64_t h, bool re
    ctx->di.bindless_dirty[0] = true;
 }
 
+static void
+zink_make_texture_handle_resident(struct pipe_context *pctx, uint64_t handle, bool resident)
+{
+   struct zink_bindless_descriptor *bd = find_bindless_descriptor(zink_screen(pctx->screen), handle, false, false);
+   texture_handle_residency(zink_context(pctx), bd, resident);
+}
+
 static uint64_t
 zink_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view *view)
 {
@@ -2834,10 +2859,8 @@ zink_delete_image_handle(struct pipe_context *pctx, uint64_t handle)
 }
 
 static void
-zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t h, unsigned paccess, bool resident)
+image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor *bd, unsigned paccess, bool resident)
 {
-   struct zink_context *ctx = zink_context(pctx);
-   struct zink_bindless_descriptor *bd = find_bindless_descriptor(zink_screen(pctx->screen), h, true, false);
    uint32_t handle = ZINK_BINDLESS_SLOT(bd->handle);
    bool is_buffer = ZINK_BINDLESS_IS_BUFFER(bd->handle);
    struct zink_descriptor_surface *ds = &bd->ds;
@@ -2902,6 +2925,13 @@ zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t h, unsigned 
       util_dynarray_append(&ctx->bs->bindless_unrefs, bd);
    }
    ctx->di.bindless_dirty[1] = true;
+}
+
+static void
+zink_make_image_handle_resident(struct pipe_context *pctx, uint64_t handle, unsigned paccess, bool resident)
+{
+   struct zink_bindless_descriptor *bd = find_bindless_descriptor(zink_screen(pctx->screen), handle, true, false);
+   image_handle_residency(zink_context(pctx), bd, paccess, resident);
 }
 
 static void
