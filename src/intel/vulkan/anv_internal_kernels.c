@@ -637,11 +637,8 @@ anv_device_get_internal_shader(struct anv_device *device,
                                    device->internal_cache,
                                    &key, sizeof(key),
                                    NULL);
-   if (bin != NULL) {
-      p_atomic_set(&device->internal_kernels[name], bin);
-      *out_bin = bin;
-      return VK_SUCCESS;
-   }
+   if (bin != NULL)
+      goto success;
 
    bin = compile_shader(device,
                         name,
@@ -654,6 +651,7 @@ anv_device_get_internal_shader(struct anv_device *device,
       return vk_errorf(device, VK_ERROR_OUT_OF_HOST_MEMORY,
                        "Unable to compiler internal kernel");
 
+ success:
    /* The cache already has a reference and it's not going anywhere so
     * there is no need to hold a second reference.
     */
