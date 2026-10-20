@@ -614,7 +614,7 @@
         "description": "vulkan/wsi: fix a bunch of incorrect error code checks",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7aac3ea26aca2a5ac4e54152cc67e14f743612dc",
         "notes": null
