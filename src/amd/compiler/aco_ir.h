@@ -2078,6 +2078,7 @@ bool needs_exec_mask(const Instruction* instr);
 aco_opcode get_vcmp_inverse(aco_opcode op);
 aco_opcode get_vcmp_swapped(aco_opcode op);
 aco_opcode get_vcmpx(aco_opcode op);
+/* Assumes that "op" is a VOPC opcode. */
 bool is_cmpx(aco_opcode op);
 
 aco_opcode get_swapped_opcode(aco_opcode opcode, unsigned idx0, unsigned idx1);
@@ -2633,6 +2634,20 @@ struct aco_alu_opcode_info {
    aco_type def_types[3];
    fixed_reg op_fixed_reg[4];
    fixed_reg def_fixed_reg[3];
+
+   aco_type get_def_type(unsigned idx) const
+   {
+      /* v_cmpx instructions before GFX10 have 2 definitions but only one def_type. */
+      return def_types[MIN2(idx, num_defs - 1u)];
+   }
+
+   fixed_reg get_def_fixed_reg(Instruction* instr, enum amd_gfx_level gfx_level, unsigned idx) const
+   {
+      if (gfx_level < GFX10 && def_fixed_reg[0] == fixed_exec && instr->isVOPC())
+         return idx == 0 ? not_fixed : fixed_exec;
+      else
+         return def_fixed_reg[idx];
+   }
 };
 
 typedef struct {
