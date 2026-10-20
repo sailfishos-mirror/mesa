@@ -12669,6 +12669,8 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    bool use_float_frag_coord_xy = false;
    bool use_quad_pos = false;
    bool use_sample_mask_in = false;
+   bool smooth_lines = false;
+   bool needs_sample_coverage = true;
    int front_face_select = 0;
    unsigned raster_prim = 0;
 
@@ -12710,16 +12712,24 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
       }
    }
 
-   if (ps->info.ps.selects_sample_mask_in_dynamically) {
-      use_sample_mask_in = cmd_buffer->state.num_rast_samples != 1;
+   if (ps->info.ps.load_rasterization_prim || ps->info.ps.selects_front_face_dynamically ||
+       ps->info.ps.needs_poly_line_smooth) {
+      raster_prim = radv_get_raster_prim(cmd_buffer);
 
-      if (!use_sample_mask_in)
-         spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
+      smooth_lines = raster_prim == V_030998_LINESTRIP &&
+                     cmd_buffer->state.line_rast_mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH;
    }
 
-   if (ps->info.ps.load_rasterization_prim || ps->info.ps.selects_front_face_dynamically ||
-       ps->info.ps.needs_poly_line_smooth)
-      raster_prim = radv_get_raster_prim(cmd_buffer);
+   if (ps->info.ps.selects_sample_mask_in_dynamically) {
+      use_sample_mask_in = cmd_buffer->state.num_rast_samples != 1;
+      needs_sample_coverage = use_sample_mask_in;
+   } else if (ps->info.ps.needs_poly_line_smooth_coverage && !ps->info.ps.reads_sample_mask_in &&
+              !ps->info.ps.reads_fully_covered) {
+      needs_sample_coverage = smooth_lines;
+   }
+
+   if (!needs_sample_coverage)
+      spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
 
    if (ps->info.ps.selects_front_face_dynamically) {
       if (raster_prim != V_030998_TRISTRIP || cmd_buffer->state.dynamic.vk.rs.cull_mode == VK_CULL_MODE_BACK_BIT)
@@ -12742,8 +12752,6 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    const uint32_t ps_state_offset = radv_get_user_sgpr_loc(ps, AC_UD_PS_STATE);
 
    if (ps_state_offset) {
-      const bool smooth_lines = raster_prim == V_030998_LINESTRIP &&
-                                cmd_buffer->state.line_rast_mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH;
       const unsigned rasterization_samples = cmd_buffer->state.num_rast_samples;
       const unsigned ps_iter_samples = radv_get_ps_iter_samples(cmd_buffer);
       const uint16_t ps_iter_mask = ac_get_ps_iter_mask(ps_iter_samples);
