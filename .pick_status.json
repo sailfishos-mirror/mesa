@@ -134,7 +134,7 @@
         "description": "gen: Fix typo in validation for special restrictions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f308be16a0fad3a1f2cb841b7e590502b5893858",
         "notes": null
