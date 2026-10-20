@@ -1129,6 +1129,10 @@ generate_fs_loop(struct gallivm_state *gallivm,
 
    params.type = type;
    params.mask = &mask;
+   /* Based on lp_build_mask_check and lp_build_mask_update calls. */
+   params.mask_may_be_zero =
+      key->multisample ||
+      ((depth_mode & EARLY_DEPTH_TEST) && !key->stencil[0].enabled);
    params.fs_iface = &fs_iface.base;
    params.consts_ptr = consts_ptr;
    params.system_values = &system_values;
