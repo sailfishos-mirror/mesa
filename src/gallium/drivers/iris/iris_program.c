@@ -3010,6 +3010,9 @@ iris_force_dual_color_blend(nir_shader *nir)
       var->data.location = FRAG_RESULT_DATA0;
       var->data.index = 1;
    }
+
+   /* Update nir information. */
+   nir->info.fs.color_is_dual_source = true;
 }
 
 static nir_def *
