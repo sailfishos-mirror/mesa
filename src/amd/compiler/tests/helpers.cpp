@@ -301,6 +301,9 @@ finish_optimizer_postRA_test()
       return;
    }
 
+   /* the post-RA optimizer uses kill flags */
+   aco::live_var_analysis(program.get());
+
    aco::optimize_postRA(program.get());
 
    if (!aco::validate_ir(program.get())) {
