@@ -389,7 +389,7 @@ debian-android:
       -D platforms=android
     FORCE_FALLBACK_FOR: llvm
     EXTRA_OPTION: >
-      -D amd-use-llvm=false
+      -D amd-options=
       -D android-stub=true
       -D platform-sdk-version=${ANDROID_SDK_VERSION}
       -D cpp_rtti=false

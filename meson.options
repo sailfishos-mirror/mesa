@@ -214,9 +214,19 @@ option(
 )
 
 option(
+  'amd-options',
+  type : 'array',
+  value : ['use-llvm'],
+  choices : ['use-llvm', 'virtio'],
+  description : 'List of options that apply to radv and radeonsi',
+)
+
+# Remove after 27.1 branchpoint
+option(
   'amdgpu-virtio',
   type : 'boolean',
   value : false,
+  deprecated : 'amd-options',
   description : 'use experimental virtio backend for radeonsi/radv',
 )
 
@@ -443,10 +453,12 @@ option(
                 'is included.'
 )
 
+# Remove after 27.1 branchpoint
 option(
   'amd-use-llvm',
   type : 'boolean',
   value : true,
+  deprecated : 'amd-options',
   description : 'Whether to use LLVM for the AMD drivers, if LLVM ' +
                 'is included.'
 )

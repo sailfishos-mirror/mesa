@@ -54,7 +54,8 @@ if get_option('b_lto')
 endif
 
 with_llvm = get_option('llvm')
-amd_with_llvm = with_llvm.allowed() and get_option('amd-use-llvm')
+amd_options = get_option('amd-options')
+amd_with_llvm = with_llvm.allowed() and amd_options.contains('use-llvm')
 
 with_mesa_debug = get_option('buildtype') == 'debug'
 
@@ -209,7 +210,7 @@ elif gallium_drivers.contains('all')
    ]
 endif
 
-with_amdgpu_virtio = get_option('amdgpu-virtio')
+with_amdgpu_virtio = amd_options.contains('virtio')
 with_panfrost_vdrm = get_option('panfrost-virtio')
 
 with_gallium_radeonsi = gallium_drivers.contains('radeonsi')
