@@ -4314,7 +4314,7 @@
         "description": "radv/video: remove decode tier3",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f78222dc29cdfc84135ef107e11de9b0bdd81ac5",
         "notes": null
