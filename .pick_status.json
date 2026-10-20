@@ -444,7 +444,7 @@
         "description": "mesa/st: pass PIPE_IMAGE_ACCESS bits to make_image_handle_resident",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3dd062ce2a5876d4943c1f52a8cfc2b5ab5bd464",
         "notes": null
