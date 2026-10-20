@@ -1484,7 +1484,7 @@
         "description": "v3dv: drop the \"accum_fd\" assertion in merge_syncobjs()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f2435c4ac52c8509cb0185774337bc17ac666a9a",
         "notes": null
