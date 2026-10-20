@@ -494,7 +494,7 @@
         "description": "freedreno/a5xx: Reload textures, SSBOs and images after the program",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "07e1233c61578bb3467d9212a7fab136b1cbe23b",
         "notes": null
