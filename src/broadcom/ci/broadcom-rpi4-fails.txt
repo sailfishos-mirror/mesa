@@ -267,12 +267,6 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float16,
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float2,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float4,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated@sign float1,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated@sign float16,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated@sign float2,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated@sign float4,Fail
-program@execute@builtin@builtin-float-sign-1.0.generated@sign float8,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long1,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long16,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long2,Fail
