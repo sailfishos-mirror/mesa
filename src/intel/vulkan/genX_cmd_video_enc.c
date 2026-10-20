@@ -2176,7 +2176,12 @@ anv_h265_emit_hcp_surface_state(struct anv_cmd_buffer *cmd,
          }
 
          ss.SurfacePitch = img_->planes[0].primary_surface.isl.row_pitch_B - 1;
-         ss.SurfaceFormat = is_10bit ? P010 : PLANAR_420_8;
+         if (!is_10bit)
+            ss.SurfaceFormat = PLANAR_420_8;
+         else if (ss.SurfaceID == HCP_SourceInputPicture)
+            ss.SurfaceFormat = P010;
+         else
+            ss.SurfaceFormat = P010Variant;
 
          ss.YOffsetforUCb = img_->planes[1].primary_surface.memory_range.offset /
                             img_->planes[0].primary_surface.isl.row_pitch_B;
@@ -2496,6 +2501,8 @@ anv_h265_emit_vdenc_ref_surface_state(struct anv_cmd_buffer *cmd,
       vdenc_surface.SurfaceState =
          anv_vdenc_surface_state(base_ref_img, base_ref_img->vk.extent.width,
                                  base_ref_img->vk.extent.height, is_10bit);
+      if (is_10bit)
+         vdenc_surface.SurfaceState.SurfaceFormat = VDENC_P010_VARIANT;
    }
 }
 
