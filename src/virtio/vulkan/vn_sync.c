@@ -723,7 +723,7 @@ vn_WaitSemaphores(VkDevice device,
       return vn_wait_semaphores_legacy(device, pWaitInfo, timeout);
 
    const uint32_t sem_sync_count = dev->queue_count + 1;
-   VkResult result;
+   VkResult result = VK_SUCCESS;
 
    if (pWaitInfo->flags & VK_SEMAPHORE_WAIT_ANY_BIT) {
       const uint32_t total_count = sem_sync_count * pWaitInfo->semaphoreCount;
@@ -738,8 +738,10 @@ vn_WaitSemaphores(VkDevice device,
          VK_FROM_HANDLE(vn_semaphore, sem, pWaitInfo->pSemaphores[i]);
 
          /* skip wait for zero since syncobj api doesn't like it */
-         if (!pWaitInfo->pValues[i])
-            continue;
+         if (!pWaitInfo->pValues[i]) {
+            sync_count = 0;
+            break;
+         }
 
          typed_memcpy(dst_syncs, sem->payload->syncs, sem_sync_count);
          dst_syncs += sem_sync_count;
@@ -750,14 +752,16 @@ vn_WaitSemaphores(VkDevice device,
          sync_count += sem_sync_count;
       }
 
-      const struct vn_renderer_wait wait = {
-         .wait_any = true,
-         .timeout = timeout,
-         .syncs = syncs,
-         .sync_values = sync_vals,
-         .sync_count = sync_count,
-      };
-      result = vn_renderer_wait(dev->renderer, &wait);
+      if (sync_count) {
+         const struct vn_renderer_wait wait = {
+            .wait_any = true,
+            .timeout = timeout,
+            .syncs = syncs,
+            .sync_values = sync_vals,
+            .sync_count = sync_count,
+         };
+         result = vn_renderer_wait(dev->renderer, &wait);
+      }
 
       STACK_ARRAY_FINISH(sync_vals);
       STACK_ARRAY_FINISH(syncs);

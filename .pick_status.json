@@ -1724,7 +1724,7 @@
         "description": "venus: early return for timeline counter zero wait under WAIT_ANY",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f72c0018463eaed412eee984537d2f94d3511aac",
         "notes": null
