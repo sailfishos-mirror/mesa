@@ -4117,7 +4117,7 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
       spi_ps_input |= S_0286CC_ANCILLARY_ENA(1);
    }
 
-   if (info->ps.reads_sample_mask_in || info->ps.reads_fully_covered) {
+   if (info->ps.reads_sample_mask_in || info->ps.reads_fully_covered || info->ps.needs_poly_line_smooth_coverage) {
       spi_ps_input |= S_0286CC_SAMPLE_COVERAGE_ENA(1) |
                       S_02865C_COVERAGE_TO_SHADER_SELECT(gfx_level >= GFX12 && info->ps.reads_fully_covered);
    }

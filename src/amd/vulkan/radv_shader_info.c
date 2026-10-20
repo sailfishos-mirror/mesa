@@ -327,6 +327,9 @@ gather_intrinsic_info(const nir_shader *nir, const nir_intrinsic_instr *instr, s
    case nir_intrinsic_load_poly_line_smooth_enabled:
       info->ps.needs_poly_line_smooth = true;
       break;
+   case nir_intrinsic_load_poly_line_smooth_coverage:
+      info->ps.needs_poly_line_smooth_coverage = true;
+      break;
    case nir_intrinsic_begin_invocation_interlock:
       info->ps.pops = true;
       break;
@@ -852,6 +855,7 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
    info->ps.allow_flat_shading =
       !(uses_persp_or_linear_interp || info->ps.needs_sample_positions || info->ps.reads_frag_shading_rate ||
         info->ps.writes_memory || nir->info.fs.needs_coarse_quad_helper_invocations ||
+        info->ps.needs_poly_line_smooth_coverage ||
         BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
         BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
         BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
