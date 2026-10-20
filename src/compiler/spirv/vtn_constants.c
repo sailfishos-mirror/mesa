@@ -29,8 +29,11 @@ vtn_null_constant(struct vtn_builder *b, struct vtn_type *type)
       nir_address_format addr_format = vtn_mode_to_address_format(b, mode);
 
       const nir_const_value *null_value = nir_address_format_null_value(addr_format);
-      memcpy(c->values, null_value,
-             sizeof(nir_const_value) * nir_address_format_num_components(addr_format));
+      c->is_null_constant = true;
+      for (unsigned i = 0; i < nir_address_format_num_components(addr_format); i++) {
+         c->values[i] = null_value[i];
+         c->is_null_constant &= c->values[i].u64 == 0;
+      }
       break;
    }
 
@@ -46,11 +49,11 @@ vtn_null_constant(struct vtn_builder *b, struct vtn_type *type)
    case vtn_base_type_matrix:
    case vtn_base_type_array:
       vtn_assert(type->length > 0);
-      c->is_null_constant = true;
       c->num_elements = type->length;
       c->elements = ralloc_array(b, nir_constant *, c->num_elements);
 
       c->elements[0] = vtn_null_constant(b, type->array_element);
+      c->is_null_constant = c->elements[0]->is_null_constant;
       for (unsigned i = 1; i < c->num_elements; i++)
          c->elements[i] = c->elements[0];
       break;
@@ -60,8 +63,10 @@ vtn_null_constant(struct vtn_builder *b, struct vtn_type *type)
       c->num_elements = type->length;
       if (c->num_elements) {
          c->elements = ralloc_array(b, nir_constant *, c->num_elements);
-         for (unsigned i = 0; i < c->num_elements; i++)
+         for (unsigned i = 0; i < c->num_elements; i++) {
             c->elements[i] = vtn_null_constant(b, type->members[i]);
+            c->is_null_constant &= c->elements[i]->is_null_constant;
+         }
       }
       break;
 
