@@ -95,7 +95,6 @@ struct ac_video_dec_codec_caps {
 
       struct {
          bool profile2;
-         bool profile2_tier3;
       } av1;
 
       struct {
