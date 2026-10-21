@@ -3574,7 +3574,7 @@
         "description": "freedreno: Fixup incorrectly copied A6XX_TPL1_DBG_ECO_CNTL for A650",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8f0c920a5270443526db480a5f9f6dd4f99becad",
         "notes": null
