@@ -2474,7 +2474,7 @@
         "description": "venus: avoid deadlock in cs upload for guest vram",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d56f65f7ca4f35757e9ef41779181a99360ab806",
         "notes": null
