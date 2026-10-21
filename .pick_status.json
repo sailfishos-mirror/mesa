@@ -4584,7 +4584,7 @@
         "description": "venus/sim_syncobj: amend to set errno on wait timeout",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2b191cf120bf1c3bc64deabcb41342c2f5a0bfc5",
         "notes": null
