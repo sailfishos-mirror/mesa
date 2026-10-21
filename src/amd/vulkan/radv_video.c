@@ -947,6 +947,10 @@ radv_GetPhysicalDeviceVideoFormatPropertiesKHR(VkPhysicalDevice physicalDevice,
 
       VkFormat profile_formats[2] = {VK_FORMAT_UNDEFINED, VK_FORMAT_UNDEFINED};
       if (image_usage & VK_IMAGE_USAGE_2_VIDEO_ENCODE_QUANTIZATION_DELTA_MAP_BIT_KHR) {
+         /* QP maps only exist for encode profiles. */
+         if (!ecap)
+            return VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR;
+
          /* All profiles must share the same qp_map texel size. */
          if (qp_map_texel_size != 0 && qp_map_texel_size != ecap->qp_map_texel_size)
             return VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR;
