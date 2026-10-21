@@ -1594,7 +1594,7 @@
         "description": "venus: avoid null ptr dereference for zero external image handleType",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e4f9ce838a6ded9ca4a024cb7de0ceb309db5f52",
         "notes": null
