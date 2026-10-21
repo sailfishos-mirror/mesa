@@ -566,7 +566,8 @@ handle_glsl450_modf_frexp(struct vtn_builder *b, enum GLSLstd450 opcode,
 
       struct vtn_pointer *i_ptr = vtn_value(b, w[6], vtn_value_type_pointer)->pointer;
       struct vtn_ssa_value *exp = vtn_create_ssa_value(b, i_ptr->type->pointed->type);
-      exp->def = nir_frexp_exp(nb, src);
+      exp->def = nir_i2iN(nb, nir_frexp_exp(nb, src),
+                          glsl_get_bit_size(exp->type));
       vtn_variable_store(b, exp, i_ptr, 0);
       break;
    }
@@ -574,7 +575,8 @@ handle_glsl450_modf_frexp(struct vtn_builder *b, enum GLSLstd450 opcode,
    case GLSLstd450FrexpStruct: {
       vtn_assert(glsl_type_is_struct_or_ifc(dest_type));
       dest->elems[0]->def = nir_frexp_sig(nb, src);
-      dest->elems[1]->def = nir_frexp_exp(nb, src);
+      dest->elems[1]->def = nir_i2iN(nb, nir_frexp_exp(nb, src),
+                                     glsl_get_bit_size(dest->elems[1]->type));
       break;
    }
 
