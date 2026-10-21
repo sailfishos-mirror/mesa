@@ -1684,7 +1684,7 @@
         "description": "venus: fix vk_command_pool adoption",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7a3c18fa8eb5aead308e500cfa38e83020825cbc",
         "notes": null
