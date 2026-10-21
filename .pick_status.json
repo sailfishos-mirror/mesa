@@ -1344,7 +1344,7 @@
         "description": "jay: Fix emission of dummy mov",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3db072b4b6a8bf4177db0ce05c61a3e5fb9299a6",
         "notes": null
