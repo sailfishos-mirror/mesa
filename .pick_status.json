@@ -1924,7 +1924,7 @@
         "description": "v3dv: Fix early-ez on v71",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0abf7c14077b020ef525d29d0b5777929dcf952e",
         "notes": null
