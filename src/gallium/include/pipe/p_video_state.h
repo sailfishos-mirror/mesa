@@ -2156,6 +2156,25 @@ struct pipe_vpp_blend
    float max_luma;
 };
 
+struct pipe_video_vpp_hdr10metadata
+{
+   bool valid;
+   uint16_t display_primaries_x[3];
+   uint16_t display_primaries_y[3];
+   uint16_t white_point_x;
+   uint16_t white_point_y;
+   uint32_t max_display_mastering_luminance;
+   uint32_t min_display_mastering_luminance;
+   uint16_t max_content_light_level;
+   uint16_t max_pic_average_light_level;
+};
+
+struct pipe_video_filter_strength
+{
+   bool valid;
+   float strength;
+};
+
 struct pipe_vpp_desc
 {
    struct pipe_picture_desc base;
@@ -2182,8 +2201,16 @@ struct pipe_vpp_desc
    enum pipe_video_vpp_matrix_coefficients out_matrix_coefficients;
 
    enum pipe_video_vpp_filter_flag filter_flags;
-};
 
+   struct pipe_video_vpp_hdr10metadata in_hdr10metadata;
+   struct pipe_video_vpp_hdr10metadata out_hdr10metadata;
+
+   struct pipe_video_filter_strength color_balance_brightness;
+   struct pipe_video_filter_strength color_balance_contrast;
+   struct pipe_video_filter_strength color_balance_hue;
+   struct pipe_video_filter_strength color_balance_saturation;
+   struct pipe_video_filter_strength sharpening;
+};
 
 /* To be used with PIPE_VIDEO_CAP_ENC_HEVC_PREDICTION_DIRECTION */
 enum pipe_h265_enc_pred_direction

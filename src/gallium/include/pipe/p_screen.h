@@ -96,6 +96,7 @@ struct pipe_screen {
    const struct pipe_caps caps;
    const struct pipe_shader_caps shader_caps[MESA_SHADER_MESH_STAGES];
    const struct pipe_compute_caps compute_caps;
+   const struct pipe_video_caps video_caps;
    const struct nir_shader_compiler_options *nir_options[MESA_SHADER_MESH_STAGES];
 
    /**
