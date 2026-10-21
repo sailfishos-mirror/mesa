@@ -2673,7 +2673,7 @@ vn_get_ahb_image_props(struct vn_physical_device *physical_dev,
       .maxMipLevels = 1,
       .maxArrayLayers = 1,
       .sampleCounts = VK_SAMPLE_COUNT_1_BIT,
-      .maxResourceSize = 1 << 31,
+      .maxResourceSize = 1ull << 31,
    };
 
    /* AHB + VK_KHR_sampler_ycbcr_conversion */
