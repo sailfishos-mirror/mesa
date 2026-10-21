@@ -1654,7 +1654,7 @@
         "description": "venus: avoid leaking the cpu timeline syncobj",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0ed627fed42316bc3e4ff0c962507b632c8a9d2c",
         "notes": null
