@@ -139,10 +139,15 @@ opt_uub_iand(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
    if (!get_src_and_const(alu, &src, &mask, &const_src_idx))
       return false;
 
-   unsigned first_0 = ffsll(~nir_scalar_as_uint(mask));
+   uint32_t mask_u = nir_scalar_as_uint(mask);
+   unsigned first_0 = ffsll(~mask_u);
    uint32_t low_mask = (1ull << (first_0 - 1)) - 1;
 
-   if (low_mask != 0 && uub(state, src) <= low_mask) {
+   if (mask_u != 0 && num_lsb_zero(state, src) >= util_last_bit(mask_u)) {
+      b->cursor = nir_after_def(&alu->def);
+      nir_def_replace(&alu->def, nir_imm_zero(b, 1, alu->def.bit_size));
+      return true;
+   } else if (low_mask != 0 && uub(state, src) <= low_mask) {
       b->cursor = nir_after_def(src.def);
       nir_def_replace(&alu->def, nir_mov_scalar(b, src));
       return true;
