@@ -556,7 +556,8 @@ si_vpe_mpes_vpe_to_gm_primary(enum vpe_color_primaries vpe_pri)
 }
 
 static void
-si_vpe_load_default_primaries(struct vpe_hdr_metadata* vpe_hdr, enum vpe_color_primaries primaries)
+si_vpe_load_primaries(struct vpe_hdr_metadata* vpe_hdr, enum vpe_color_primaries primaries,
+                      const struct pipe_video_vpp_hdr10metadata* metadata)
 {
    enum vpe_color_primaries pri_idx = (primaries < VPE_PRIMARIES_COUNT)?
                                       primaries : VPE_PRIMARIES_BT709;
@@ -573,6 +574,35 @@ si_vpe_load_default_primaries(struct vpe_hdr_metadata* vpe_hdr, enum vpe_color_p
    vpe_hdr->max_mastering = Color_Parimaries[pri_idx].max_mastering;
    vpe_hdr->max_content   = Color_Parimaries[pri_idx].max_content;
    vpe_hdr->avg_content   = Color_Parimaries[pri_idx].avg_content;
+
+   if (metadata && metadata->valid) {
+      if (metadata->display_primaries_x[0] || metadata->display_primaries_y[0] ||
+          metadata->display_primaries_x[1] || metadata->display_primaries_y[1] ||
+          metadata->display_primaries_x[2] || metadata->display_primaries_y[2] ||
+          metadata->white_point_x || metadata->white_point_y)
+      {
+         vpe_hdr->greenX = metadata->display_primaries_x[0];
+         vpe_hdr->greenY = metadata->display_primaries_y[0];
+         vpe_hdr->blueX  = metadata->display_primaries_x[1];
+         vpe_hdr->blueY  = metadata->display_primaries_y[1];
+         vpe_hdr->redX   = metadata->display_primaries_x[2];
+         vpe_hdr->redY   = metadata->display_primaries_y[2];
+         vpe_hdr->whiteX = metadata->white_point_x;
+         vpe_hdr->whiteY = metadata->white_point_y;
+      }
+
+      vpe_hdr->min_mastering = (metadata->min_display_mastering_luminance)?
+                  metadata->min_display_mastering_luminance : vpe_hdr->min_mastering;
+
+      vpe_hdr->max_mastering = (metadata->max_display_mastering_luminance)?
+                  metadata->max_display_mastering_luminance : vpe_hdr->max_mastering;
+
+      vpe_hdr->max_content = (metadata->max_content_light_level)?
+                  metadata->max_content_light_level : vpe_hdr->max_content;
+
+      vpe_hdr->avg_content = (metadata->max_pic_average_light_level)?
+                  metadata->max_pic_average_light_level : vpe_hdr->avg_content;
+   }
 }
 
 static void
@@ -895,10 +925,17 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
       si_vpe_init_polyphase_filter(vpeproc, stream, scaling_ratios);
    }
 
-   scaling_info->enable_easf                         = false;
-   scaling_info->prefer_easf                         = false;
-   scaling_info->adaptive_sharpeness.enable          = false;
-   scaling_info->adaptive_sharpeness.sharpness_level = 0;
+   if(vpe_handle->level >= VPE_IP_LEVEL_2_0 && process_properties->sharpening.valid) {
+      scaling_info->enable_easf                         = true;
+      scaling_info->prefer_easf                         = true;
+      scaling_info->adaptive_sharpeness.enable          = true;
+      scaling_info->adaptive_sharpeness.sharpness_level = process_properties->sharpening.strength;
+   } else {
+      scaling_info->enable_easf                         = false;
+      scaling_info->prefer_easf                         = false;
+      scaling_info->adaptive_sharpeness.enable          = false;
+      scaling_info->adaptive_sharpeness.sharpness_level = 0;
+   }
 
    if (process_properties->blend.mode & PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA) {
       blend_info->global_alpha_value   = process_properties->blend.global_alpha;
@@ -912,11 +949,10 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
       blend_info->global_alpha         = false;
    }
 
-   /* TO-DO: do ProcAmp in next stage */
-   color_adj->brightness               = 0.0;
-   color_adj->contrast                 = 1.0;
-   color_adj->hue                      = 0.0;
-   color_adj->saturation               = 1.0;
+   color_adj->brightness = process_properties->color_balance_brightness.valid ? process_properties->color_balance_brightness.strength : 0.0;
+   color_adj->contrast   = process_properties->color_balance_contrast.valid ? process_properties->color_balance_contrast.strength : 1.0;
+   color_adj->hue        = process_properties->color_balance_hue.valid ? process_properties->color_balance_hue.strength : 0.0;
+   color_adj->saturation = process_properties->color_balance_saturation.valid ? process_properties->color_balance_saturation.strength : 1.0;
 
    switch (process_properties->orientation & 0x7) {
    case PIPE_VIDEO_VPP_ROTATION_90:
@@ -950,8 +986,7 @@ si_vpe_set_stream_in_param(struct vpe_video_processor *vpeproc,
    stream->flags.geometric_scaling = is_geometric_scaling_round;
    stream->flags.hdr_metadata      = 0;
 
-   /* TO-DO: support HDR10 Metadata */
-   si_vpe_load_default_primaries(&stream->hdr_metadata, stream->surface_info.cs.primaries);
+   si_vpe_load_primaries(&stream->hdr_metadata, stream->surface_info.cs.primaries, &process_properties->in_hdr10metadata);
 }
 
 static void
@@ -1005,7 +1040,6 @@ si_vpe_set_bg_stream_in_param(struct vpe_video_processor *vpeproc,
       blend_info->global_alpha                          = false;
    }
 
-   /* TO-DO: do ProcAmp in next stage */
    color_adj->brightness                             = 0.0;
    color_adj->contrast                               = 1.0;
    color_adj->hue                                    = 0.0;
@@ -1024,8 +1058,7 @@ si_vpe_set_bg_stream_in_param(struct vpe_video_processor *vpeproc,
    stream->flags.geometric_scaling                   = 0;
    stream->flags.hdr_metadata                        = 0;
 
-   /* TO-DO: support HDR10 Metadata */
-   si_vpe_load_default_primaries(&stream->hdr_metadata, stream->surface_info.cs.primaries);
+   si_vpe_load_primaries(&stream->hdr_metadata, stream->surface_info.cs.primaries, &process_properties->out_hdr10metadata);
 }
 
 static void
@@ -1066,8 +1099,7 @@ si_vpe_set_stream_out_param(struct vpe_video_processor *vpeproc,
    build_param->alpha_mode         = VPE_ALPHA_OPAQUE;
    build_param->flags.hdr_metadata = 1;
 
-   /* TODO: Should support HDR10 Metadata */
-   si_vpe_load_default_primaries(&build_param->hdr_metadata, build_param->dst_surface.cs.primaries);
+   si_vpe_load_primaries(&build_param->hdr_metadata, build_param->dst_surface.cs.primaries, &process_properties->out_hdr10metadata);
 }
 
 static inline int

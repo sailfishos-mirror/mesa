@@ -610,6 +610,7 @@ vpe_caps(struct radeon_info *info)
    cap->out_formats.r10g10b10a2 = 1;
    cap->out_formats.b10g10r10a2 = 1;
    cap->blend_luma_key = info->vpe_ip_version >= VPE_2_0;
+   cap->sharpening = info->vpe_ip_version >= VPE_2_0;
 }
 
 void
