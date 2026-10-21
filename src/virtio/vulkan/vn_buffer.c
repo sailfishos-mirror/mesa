@@ -329,6 +329,7 @@ struct vn_buffer_create_info {
    VkExternalMemoryBufferCreateInfo external;
    VkBufferOpaqueCaptureAddressCreateInfo capture;
    VkBufferDeviceAddressCreateInfoEXT address;
+   VkBufferUsageFlags2CreateInfo usage2;
 };
 
 static const VkBufferCreateInfo *
@@ -355,6 +356,10 @@ vn_buffer_fix_create_info(
       case VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_CREATE_INFO_EXT:
          memcpy(&local_info->address, src, sizeof(local_info->address));
          next = &local_info->address;
+         break;
+      case VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO:
+         memcpy(&local_info->usage2, src, sizeof(local_info->usage2));
+         next = &local_info->usage2;
          break;
       default:
          break;
