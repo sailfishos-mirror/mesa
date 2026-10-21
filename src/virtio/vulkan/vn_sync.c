@@ -610,8 +610,10 @@ vn_SignalSemaphore(VkDevice device, const VkSemaphoreSignalInfo *pSignalInfo)
    vn_async_vkSignalSemaphore(dev->primary_ring, device, pSignalInfo);
 
    if (payload->type != VN_SYNC_TYPE_TIMELINE_SYNC) {
-      if (vn_sync_feedback_enabled(&sem->feedback))
+      if (vn_sync_feedback_enabled(&sem->feedback)) {
          vn_sync_feedback_write(&sem->feedback, pSignalInfo->value);
+         vn_sync_feedback_cmd_recycle(dev, &sem->feedback);
+      }
       return VK_SUCCESS;
    }
 
