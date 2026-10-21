@@ -1367,6 +1367,17 @@ copy_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
       v3dv_plane_from_aspect(region->dstSubresource.aspectMask);
    assert(dst_plane < dst->plane_count);
 
+   /* Before VK_KHR_maintenance8, the spec required the aspect masks
+    * to match for single-plane image copies. With maintenance8 however,
+    * it is possible to copy between depth/stencil images and color
+    * images, which is a problem on the TLB path because it converts
+    * depth through its internal types, so it can't guarantee the bitwise
+    * copy requirements. Let the other paths handle these.
+    */
+   if (src->plane_count == 1 && dst->plane_count == 1 &&
+       region->dstSubresource.aspectMask != region->srcSubresource.aspectMask)
+      return false;
+
    VkFormat fb_format;
    if (!v3dv_meta_can_use_tlb(src, src_plane, region->srcSubresource.mipLevel,
                               &region->srcOffset, NULL, &fb_format) ||
@@ -1390,15 +1401,6 @@ copy_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
       fb_format = VK_FORMAT_R32_UINT;
    }
 
-   /* From the Vulkan spec, VkImageCopy valid usage:
-    *
-    *    "If neither the calling command’s srcImage nor the calling command’s
-    *     dstImage has a multi-planar image format then the aspectMask member
-    *     of srcSubresource and dstSubresource must match."
-    */
-   assert(src->plane_count != 1 || dst->plane_count != 1 ||
-          region->dstSubresource.aspectMask ==
-          region->srcSubresource.aspectMask);
    uint32_t internal_type, internal_bpp;
    v3d_X((&cmd_buffer->device->devinfo), get_internal_type_bpp_for_image_aspects)
       (fb_format, region->dstSubresource.aspectMask,
