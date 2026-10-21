@@ -1736,14 +1736,15 @@ create_compute_program(struct zink_context *ctx, nir_shader *nir)
    comp->scratch_size = nir->scratch_size;
    comp->nir = nir;
    comp->num_inlinable_uniforms = nir->info.num_inlinable_uniforms;
-
+   if (ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS)
+      comp->robust = screen->info.have_EXT_pipeline_robustness;
    comp->use_local_size = !(nir->info.workgroup_size[0] ||
                             nir->info.workgroup_size[1] ||
                             nir->info.workgroup_size[2]);
    comp->has_variable_shared_mem = nir->info.cs.has_variable_shared_mem;
    comp->base.can_precompile = !comp->use_local_size &&
                                (screen->info.have_EXT_non_seamless_cube_map || !zink_shader_has_cubes(nir)) &&
-                               (screen->info.rb2_feats.robustImageAccess2 || !(ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS));
+                               (screen->robustness & ZINK_ROBUSTNESS_IMAGE2 || !(ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS));
    _mesa_hash_table_init(&comp->pipelines, comp->base.ralloc_ctx, NULL, comp->use_local_size ?
                                                        equals_compute_pipeline_state_local_size :
                                                        equals_compute_pipeline_state);

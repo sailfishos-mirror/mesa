@@ -865,9 +865,8 @@ zink_init_screen_caps(struct zink_screen *screen)
       screen->info.feats.features.pipelineStatisticsQuery;
 
    caps->robust_buffer_access_behavior =
-      screen->info.feats.features.robustBufferAccess &&
-      (screen->info.rb2_feats.robustImageAccess2 ||
-       screen->driver_compiler_workarounds.lower_robustImageAccess2);
+      screen->robustness & ZINK_ROBUSTNESS_BUFFER &&
+      screen->robustness & (ZINK_ROBUSTNESS_IMAGE | ZINK_ROBUSTNESS_IMAGE2);
 
    caps->multi_draw_indirect = screen->info.feats.features.multiDrawIndirect;
 
@@ -3292,9 +3291,7 @@ init_driver_workarounds(struct zink_screen *screen)
 
    /* When robust contexts are advertised but robustImageAccess2 is not available */
    screen->driver_compiler_workarounds.lower_robustImageAccess2 =
-      !screen->info.rb2_feats.robustImageAccess2 &&
-      screen->info.feats.features.robustBufferAccess &&
-      screen->info.rb_image_feats.robustImageAccess;
+      screen->robustness == (ZINK_ROBUSTNESS_BUFFER | ZINK_ROBUSTNESS_IMAGE);
 
    /* once more testing has been done, use the #if 0 block */
    unsigned illegal = ZINK_DEBUG_RP | ZINK_DEBUG_NORP;
@@ -3437,6 +3434,13 @@ disable_features(struct zink_screen *screen)
    screen->info.mesh_feats.primitiveFragmentShadingRateMeshShader = false;
    /* if this is used anywhere it should just be enabled with driconf */
    screen->info.view2d_feats.sampler2DViewOf3D = false;
+
+   if (screen->info.feats.features.robustBufferAccess)
+      screen->robustness |= ZINK_ROBUSTNESS_BUFFER;
+   if (screen->info.rb_image_feats.robustImageAccess)
+      screen->robustness |= ZINK_ROBUSTNESS_IMAGE;
+   if (screen->info.rb2_feats.robustImageAccess2)
+      screen->robustness |= ZINK_ROBUSTNESS_IMAGE2;
 }
 
 static void
@@ -3485,9 +3489,12 @@ init_optimal_keys(struct zink_screen *screen)
       if (screen->driver_workarounds.no_linesmooth)
          fprintf(stderr, "driver does not support smooth lines\n");
       CHECK_OR_PRINT(maint5_props.polygonModePointSize);
-      CHECK_OR_PRINT(rb2_feats.robustImageAccess2);
-      CHECK_OR_PRINT(feats.features.robustBufferAccess);
-      CHECK_OR_PRINT(rb_image_feats.robustImageAccess);
+      if (!(screen->robustness & ZINK_ROBUSTNESS_IMAGE2))
+         fprintf(stderr, "zink: driver does not support robustImageAccess2\n");
+      if (!(screen->robustness & ZINK_ROBUSTNESS_BUFFER))
+         fprintf(stderr, "zink: driver does not support robustBufferAccess\n");
+      if (!(screen->robustness & ZINK_ROBUSTNESS_IMAGE))
+         fprintf(stderr, "zink: driver does not support robustImageAccess\n");
       printf("\n");
       mesa_logw("zink: force-enabling optimal_keys despite missing features. Good luck!");
    }

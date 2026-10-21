@@ -1424,6 +1424,12 @@ struct zink_transfer {
    bool short_lived;
 };
 
+enum zink_robustness {
+   ZINK_ROBUSTNESS_NONE = 0,
+   ZINK_ROBUSTNESS_BUFFER = (1 << 0),
+   ZINK_ROBUSTNESS_IMAGE = (1 << 1),
+   ZINK_ROBUSTNESS_IMAGE2 = (1 << 2),
+};
 
 /** screen types */
 struct zink_modifier_props {
@@ -1554,6 +1560,8 @@ struct zink_screen {
    struct util_idalloc_mt buffer_ids;
    struct util_vertex_state_cache vertex_state_cache;
 
+   /* supported features */
+   enum zink_robustness robustness;
    struct zink_device_info info;
    struct nir_shader_compiler_options nir_options;
    struct ntv_info ntv_info;
