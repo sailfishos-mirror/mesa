@@ -137,7 +137,6 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,F
 program@execute@vector-conversion,Fail
 
 # Nightly run expectations update
-api@clsetkernelarg@Trigger CL_INVALID_ARG_SIZE if arg_size is zero and the argument is declared with the __local qualifier,Fail
 spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-dvec4-index-wr,Crash
 
 # uprev Piglit in Mesa
