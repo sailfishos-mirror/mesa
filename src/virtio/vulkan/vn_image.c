@@ -591,9 +591,10 @@ vn_CreateImage(VkDevice device,
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
       result = vn_image_create_deferred(dev, pCreateInfo, alloc, &img);
 #else
+      VkImage img_handle = VK_NULL_HANDLE;
       result = wsi_common_create_swapchain_image(
-         &dev->physical_device->wsi_device, pCreateInfo,
-         (VkImage *)&img);
+         &dev->physical_device->wsi_device, pCreateInfo, &img_handle);
+      img = vn_image_from_handle(img_handle);
 #endif
    } else {
       struct vn_image_create_info local_info;
