@@ -26,7 +26,7 @@ vn_sync_payload_release_internal(struct vn_device *dev,
       vn_renderer_sync_destroy(dev->renderer, payload->sync);
       break;
    case VN_SYNC_TYPE_TIMELINE_SYNC:
-      for (uint32_t i = 0; i < dev->queue_count; i++)
+      for (uint32_t i = 0; i < dev->queue_count + 1; i++)
          vn_renderer_sync_destroy(dev->renderer, payload->syncs[i]);
       vk_free2(&dev->base.vk.alloc, alloc, payload->syncs);
       break;
