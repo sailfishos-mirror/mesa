@@ -748,7 +748,8 @@ zink_init_screen_caps(struct zink_screen *screen)
    caps->ignored_output_varyings[MESA_SHADER_GEOMETRY] =
    caps->ignored_output_varyings[MESA_SHADER_MESH] = 0;
 
-   caps->null_textures = screen->info.rb_image_feats.robustImageAccess;
+   /* nullDescriptor is required */
+   caps->null_textures = true;
    /* support OVR_multiview and OVR_multiview2 */
    caps->multiview = screen->info.feats11.multiview * 2;
    caps->texrect = false;
