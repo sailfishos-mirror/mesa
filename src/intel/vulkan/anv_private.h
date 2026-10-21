@@ -5121,7 +5121,8 @@ anv_cmd_buffer_is_chainable(struct anv_cmd_buffer *cmd_buffer)
 {
    return !(cmd_buffer->usage_flags &
             VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT) &&
-          !(cmd_buffer->is_companion_rcs_cmd_buffer);
+          !(cmd_buffer->is_companion_rcs_cmd_buffer) &&
+          cmd_buffer->companion_rcs_cmd_buffer == NULL;
 }
 
 static inline bool
