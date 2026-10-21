@@ -204,7 +204,7 @@
         "description": "glsl: only expose tanh since GLSL1.30",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20d43ba51c4c0c580c98c1039d289a63b114d237",
         "notes": null
