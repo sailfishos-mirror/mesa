@@ -315,7 +315,14 @@ virtgpu_sync_read(struct vn_renderer *renderer,
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
 
-   int ret = gpu->sync->query(gpu->sync, &sync->syncobj_handle, val, 1, 0);
+   int ret;
+   if (renderer->info.has_timeline_sync) {
+      ret = gpu->sync->query(gpu->sync, &sync->syncobj_handle, val, 1, 0);
+   } else {
+      ret = gpu->sync->wait(gpu->sync, &sync->syncobj_handle, 1, 0, 0, NULL);
+      *val = !ret;
+      ret = 0;
+   }
 
    return ret ? VK_ERROR_OUT_OF_DEVICE_MEMORY : VK_SUCCESS;
 }
