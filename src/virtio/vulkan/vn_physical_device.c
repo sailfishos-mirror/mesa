@@ -2718,10 +2718,11 @@ vn_GetPhysicalDeviceImageFormatProperties2(
    const VkPhysicalDeviceExternalImageFormatInfo *external_info =
       vk_find_struct_const(pImageFormatInfo->pNext,
                            PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO);
+   if (external_info && !external_info->handleType)
+      external_info = NULL;
+
    if (external_info) {
-      if (!external_info->handleType) {
-         external_info = NULL;
-      } else if (!(external_info->handleType & supported_handle_types)) {
+      if (!(external_info->handleType & supported_handle_types)) {
          return vn_error(physical_dev->instance,
                          VK_ERROR_FORMAT_NOT_SUPPORTED);
       }
