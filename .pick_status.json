@@ -1634,7 +1634,7 @@
         "description": "venus/virtgpu: emulate fence query via wait without timeline sync",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6aded3b9d65b8af85f1684d042249f1a0b32a9c9",
         "notes": null
