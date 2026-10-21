@@ -2261,8 +2261,8 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
    assert(cs_prog_data->local_size[2] == 1);
    uint32_t push_const_offset;
    uint32_t push_const_size;
-   uint32_t surfaces_offset;
-   uint32_t sampler_offset;
+   uint32_t surfaces_offset = 0;
+   uint32_t sampler_offset = 0;
 
    UNUSED void *push_const_ptr =
       blorp_get_compute_push_const(batch, params, dispatch.threads,
