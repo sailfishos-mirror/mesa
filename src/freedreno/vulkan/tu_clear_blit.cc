@@ -1879,6 +1879,34 @@ enum r3d_blit_param {
    R3D_SWAP_COORDS = 1 << 6,
 };
 
+/*
+ * We need to suspend the primitive generated counters so that operations which are internally implemented using the
+ * 3D path (like some clears) don't count towards the query.
+ *
+ * Vulkan is lenient, however for GL on top of Vulkan, it's much easier for us to have the behavior GL expects.
+ * See: https://gitlab.freedesktop.org/mesa/mesa/-/work_items/16654
+ */
+template <chip CHIP>
+static void
+r3d_emit_prim_counter_event(struct tu_cmd_buffer *cmd, struct tu_cs *cs, enum fd_gpu_event event)
+{
+   assert(event == FD_STOP_PRIMITIVE_CTRS || event == FD_START_PRIMITIVE_CTRS);
+
+   if (cs == &cmd->draw_cs) {
+      if (!cmd->state.prim_counters_running)
+         return;
+
+      tu_cond_exec_start(cs,
+                         CP_COND_REG_EXEC_0_MODE(RENDER_MODE) | CP_COND_REG_EXEC_0_SYSMEM | CP_COND_REG_EXEC_0_BINNING);
+      tu_emit_event_write<CHIP>(cmd, cs, event);
+      tu_cond_exec_end(cs);
+      return;
+   }
+
+   if (cmd->state.prim_generated_query_running_before_rp)
+      tu_emit_event_write<CHIP>(cmd, cs, event);
+}
+
 template <chip CHIP>
 static void
 r3d_setup(struct tu_cmd_buffer *cmd,
@@ -2010,9 +2038,7 @@ r3d_setup(struct tu_cmd_buffer *cmd,
       tu_cs_emit_regs(cs, SP_DITHER_CNTL(CHIP));
    }
 
-   if (cmd->state.prim_generated_query_running_before_rp) {
-      tu_emit_event_write<CHIP>(cmd, cs, FD_STOP_PRIMITIVE_CTRS);
-   }
+   r3d_emit_prim_counter_event<CHIP>(cmd, cs, FD_STOP_PRIMITIVE_CTRS);
 
    if (cmd->state.predication_active) {
       tu_cs_emit_pkt7(cs, CP_DRAW_PRED_ENABLE_LOCAL, 1);
@@ -2065,9 +2091,7 @@ r3d_teardown(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
    /* Re-enable sample counting. */
    tu_cs_emit_regs(cs, A6XX_RB_SAMPLE_COUNTER_CNTL(.disable = false));
 
-   if (cmd->state.prim_generated_query_running_before_rp) {
-      tu_emit_event_write<CHIP>(cmd, cs, FD_START_PRIMITIVE_CTRS);
-   }
+   r3d_emit_prim_counter_event<CHIP>(cmd, cs, FD_START_PRIMITIVE_CTRS);
 }
 
 /* blit ops - common interface for 2d/shader paths */
@@ -4729,9 +4753,7 @@ tu_clear_sysmem_attachments(struct tu_cmd_buffer *cmd,
    /* Disable sample counting in order to not affect occlusion query. */
    tu_cs_emit_regs(cs, A6XX_RB_SAMPLE_COUNTER_CNTL(.disable = true));
 
-   if (cmd->state.prim_generated_query_running_before_rp) {
-      tu_emit_event_write<CHIP>(cmd, cs, FD_STOP_PRIMITIVE_CTRS);
-   }
+   r3d_emit_prim_counter_event<CHIP>(cmd, cs, FD_STOP_PRIMITIVE_CTRS);
 
    tu_cs_emit_regs(cs,
                    A6XX_SP_PS_OUTPUT_MASK(.dword = clear_components));
@@ -4854,9 +4876,7 @@ tu_clear_sysmem_attachments(struct tu_cmd_buffer *cmd,
    /* Re-enable sample counting. */
    tu_cs_emit_regs(cs, A6XX_RB_SAMPLE_COUNTER_CNTL(.disable = false));
 
-   if (cmd->state.prim_generated_query_running_before_rp) {
-      tu_emit_event_write<CHIP>(cmd, cs, FD_START_PRIMITIVE_CTRS);
-   }
+   r3d_emit_prim_counter_event<CHIP>(cmd, cs, FD_START_PRIMITIVE_CTRS);
 
    if (cmd->state.fdm_enabled)
       tu_cs_set_writeable(cs, false);
