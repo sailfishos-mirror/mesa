@@ -38,6 +38,20 @@
 
 #define GFX_INPUT_MESH 32
 
+static VkPipelineRobustnessCreateInfo
+pipeline_robustness_info(const struct zink_screen *screen)
+{
+   return (VkPipelineRobustnessCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO,
+      .storageBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+      .uniformBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+      .vertexInputs = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+      .images = screen->robustness & ZINK_ROBUSTNESS_IMAGE2 ?
+                VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2 :
+                VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS,
+   };
+}
+
 VkPipeline
 zink_create_gfx_pipeline(struct zink_screen *screen,
                          struct zink_gfx_program *prog,
@@ -390,6 +404,7 @@ zink_create_gfx_pipeline(struct zink_screen *screen,
 
    VkPipelineShaderStageCreateInfo shader_stages[MESA_SHADER_MESH_STAGES];
    VkShaderModuleCreateInfo smci[MESA_SHADER_MESH_STAGES] = {0};
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
    uint32_t num_stages = 0;
    for (int i = 0; i < MESA_SHADER_MESH_STAGES; ++i) {
       if (!(prog->stages_present & BITFIELD_BIT(i)))
@@ -399,10 +414,13 @@ zink_create_gfx_pipeline(struct zink_screen *screen,
       stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       stage.stage = mesa_to_vk_shader_stage(i);
       stage.pName = "main";
+      if (prog->robust)
+         stage.pNext = &rb;
       if (objs[i].mod) {
          stage.module = objs[i].mod;
       } else {
          smci[i].sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+         smci[i].pNext = stage.pNext;
          stage.pNext = &smci[i];
          smci[i].codeSize = objs[i].spirv->num_words * sizeof(uint32_t);
          smci[i].pCode = objs[i].spirv->words;
@@ -438,11 +456,14 @@ zink_create_compute_pipeline(struct zink_screen *screen, struct zink_compute_pro
    if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB)
       pci.flags |= VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
 
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
    VkPipelineShaderStageCreateInfo stage = {0};
    stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
    stage.module = comp->curr->obj.mod;
    stage.pName = "main";
+   if (comp->robust)
+      stage.pNext = &rb;
 
    VkSpecializationInfo sinfo = {0};
    VkSpecializationMapEntry me[4];
@@ -486,6 +507,7 @@ zink_create_compute_pipeline(struct zink_screen *screen, struct zink_compute_pro
    /* pin the subgroup size whenever the driver can't tell us on compute kernels. */
    VkPipelineShaderStageRequiredSubgroupSizeCreateInfo subInfo = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
+      .pNext = stage.pNext
    };
    if (comp->shader->info.stage == MESA_SHADER_KERNEL &&
        screen->info.feats13.subgroupSizeControl &&
@@ -745,7 +767,7 @@ zink_create_mesh_pipeline_input(struct zink_screen *screen)
 }
 
 static VkPipeline
-create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_object *objs, unsigned stage_mask, VkPipelineLayout layout, VkPipelineCache pipeline_cache)
+create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_object *objs, unsigned stage_mask, VkPipelineLayout layout, VkPipelineCache pipeline_cache, bool robust)
 {
    assert(screen->info.have_EXT_extended_dynamic_state && screen->info.have_EXT_extended_dynamic_state2);
    VkPipelineRenderingCreateInfo rendering_info;
@@ -847,6 +869,7 @@ create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_objec
       tdci.domainOrigin = VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT;
    }
 
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
    VkPipelineShaderStageCreateInfo shader_stages[MESA_SHADER_MESH_STAGES];
    uint32_t num_stages = 0;
    for (int i = 0; i < MESA_SHADER_MESH_STAGES; ++i) {
@@ -858,6 +881,8 @@ create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_objec
       stage.stage = mesa_to_vk_shader_stage(i);
       stage.module = objs[i].mod;
       stage.pName = "main";
+      if (robust)
+         stage.pNext = &rb;
       shader_stages[num_stages++] = stage;
    }
    assert(num_stages > 0);
@@ -888,15 +913,15 @@ VkPipeline
 zink_create_gfx_pipeline_library(struct zink_screen *screen, struct zink_gfx_program *prog)
 {
    u_rwlock_wrlock(&prog->base.pipeline_cache_lock);
-   VkPipeline pipeline = create_gfx_pipeline_library(screen, prog->objs, prog->stages_present, prog->base.layout, prog->base.pipeline_cache);
+   VkPipeline pipeline = create_gfx_pipeline_library(screen, prog->objs, prog->stages_present, prog->base.layout, prog->base.pipeline_cache, prog->robust);
    u_rwlock_wrunlock(&prog->base.pipeline_cache_lock);
    return pipeline;
 }
 
 VkPipeline
-zink_create_gfx_pipeline_separate(struct zink_screen *screen, struct zink_shader_object *objs, VkPipelineLayout layout, mesa_shader_stage stage)
+zink_create_gfx_pipeline_separate(struct zink_screen *screen, struct zink_shader_object *objs, VkPipelineLayout layout, mesa_shader_stage stage, bool robust)
 {
-   return create_gfx_pipeline_library(screen, objs, BITFIELD_BIT(stage), layout, VK_NULL_HANDLE);
+   return create_gfx_pipeline_library(screen, objs, BITFIELD_BIT(stage), layout, VK_NULL_HANDLE, robust);
 }
 
 VkPipeline

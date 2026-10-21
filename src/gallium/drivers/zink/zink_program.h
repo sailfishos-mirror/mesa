@@ -432,6 +432,8 @@ zink_can_use_shader_objects(const struct zink_context *ctx)
           !ctx->gfx_stages[MESA_SHADER_FRAGMENT]->info.fs.uses_sample_shading &&
           /* TODO: maybe someday shader objects + viewmask */
           !ctx->gfx_stages[MESA_SHADER_VERTEX]->info.view_mask &&
+          /* shader objects not compatible with pipeline robustness */
+          (!(ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS) || !zink_screen(ctx->base.screen)->info.have_EXT_pipeline_robustness) &&
           !ctx->gfx_pipeline_state.force_persample_interp &&
           !ctx->gfx_pipeline_state.min_samples &&
           !ctx->is_generated_gs_bound;
@@ -461,6 +463,8 @@ zink_can_use_shader_objects_mesh(const struct zink_context *ctx)
           !ctx->gfx_stages[MESA_SHADER_FRAGMENT]->info.fs.uses_sample_shading &&
           /* TODO: maybe someday shader objects + viewmask */
           !ctx->gfx_stages[MESA_SHADER_MESH]->info.view_mask &&
+          /* shader objects not compatible with pipeline robustness */
+          (!(ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS) || !zink_screen(ctx->base.screen)->info.have_EXT_pipeline_robustness) &&
           !ctx->gfx_pipeline_state.force_persample_interp &&
           !ctx->gfx_pipeline_state.min_samples &&
           !ctx->fb_state.viewmask;
