@@ -204,6 +204,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_maintenance5                     = true,
       .KHR_maintenance6                     = true,
       .KHR_maintenance7                     = true,
+      .KHR_maintenance8                     = true,
       .KHR_map_memory2                      = true,
       .KHR_multiview                        = true,
       .KHR_pipeline_executable_properties   = true,
@@ -631,6 +632,9 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_KHR_maintenance7 */
       .maintenance7 = true,
+
+      /* VK_KHR_maintenance8 */
+      .maintenance8 = true,
    };
 }
 
