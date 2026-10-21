@@ -1463,6 +1463,8 @@ vn_fix_graphics_pipeline_create_info_self(
       fix_tmp->infos[index].pColorBlendState = NULL;
    if (ignore->pipeline_layout)
       fix_tmp->infos[index].layout = VK_NULL_HANDLE;
+   if (ignore->render_pass)
+      fix_tmp->infos[index].renderPass = VK_NULL_HANDLE;
    if (ignore->base_pipeline_handle)
       fix_tmp->infos[index].basePipelineHandle = VK_NULL_HANDLE;
 
