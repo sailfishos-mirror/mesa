@@ -1286,8 +1286,16 @@ copy_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
     * we are only doing raw copies here without interpreting or converting
     * the underlying pixel data according to its format, we can always choose
     * to use compatible formats that are supported with the TFU unit.
+    *
+    * That only holds if both sides have the same texel size. With
+    * VK_KHR_maintenance8, a depth/stencil aspect can be copied to or from a
+    * "matching" color format, and the sizes can differ (for example the
+    * stencil aspect of D24S8 and R8_UINT). TFU copies whole texels, so it
+    * can't do those: decline and let another path handle them.
     */
-   assert(dst->planes[dst_plane].cpp == src->planes[src_plane].cpp);
+   if (dst->planes[dst_plane].cpp != src->planes[src_plane].cpp)
+      return false;
+
    const struct v3dv_format_plane *format_plane =
       tfu_format_plane_for_cpp(cmd_buffer->device,
                                dst->planes[dst_plane].cpp);
