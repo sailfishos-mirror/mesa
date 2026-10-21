@@ -1830,6 +1830,80 @@ v3dX(cmd_buffer_emit_varyings_state)(struct v3dv_cmd_buffer *cmd_buffer)
    }
 }
 
+/* Decides, once per job, whether EZ must be disabled for the entire job based
+ * on state that doesn't depend on the current draw or pipeline. Returns false
+ * if EZ ends up disabled.
+ */
+static bool
+cmd_buffer_decide_global_ez_enable(struct v3dv_cmd_buffer *cmd_buffer)
+{
+   struct v3dv_job *job = cmd_buffer->state.job;
+   assert(job);
+   assert(!job->decided_global_ez_enable);
+   job->decided_global_ez_enable = true;
+
+   struct v3dv_cmd_buffer_state *state = &cmd_buffer->state;
+   assert(state->subpass_idx < state->pass->subpass_count);
+   struct v3dv_subpass *subpass = &state->pass->subpasses[state->subpass_idx];
+   if (subpass->ds_attachment == VK_ATTACHMENT_UNUSED) {
+      job->first_ez_state = V3D_EZ_DISABLED;
+      job->ez_state = V3D_EZ_DISABLED;
+      return false;
+   }
+
+   /* GFXH-1918: the early-z buffer may load incorrect depth values if the
+    * frame has odd width or height, or if the buffer is 16-bit and
+    * multisampled.
+    *
+    * So we need to disable EZ in these cases.
+    */
+   const struct v3dv_render_pass_attachment *ds_attachment =
+      &state->pass->attachments[subpass->ds_attachment];
+
+   const VkImageAspectFlags ds_aspects =
+      vk_format_aspects(ds_attachment->desc.format);
+
+   bool needs_depth_load =
+      v3dv_cmd_buffer_check_needs_load(state,
+                                       ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT,
+                                       ds_attachment->first_subpass,
+                                       ds_attachment->desc.loadOp,
+                                       ds_attachment->last_subpass,
+                                       ds_attachment->desc.storeOp);
+
+   if (needs_depth_load) {
+      if (ds_attachment->desc.format == VK_FORMAT_D16_UNORM &&
+          ds_attachment->desc.samples != VK_SAMPLE_COUNT_1_BIT) {
+         perf_debug("Loading depth aspect from a multisampled 16-bit "
+                    "depth buffer disables early-Z tests.\n");
+         job->first_ez_state = V3D_EZ_DISABLED;
+         job->ez_state = V3D_EZ_DISABLED;
+         return false;
+      }
+
+      struct v3dv_framebuffer *fb = state->framebuffer;
+
+      if (!fb) {
+         assert(cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+         perf_debug("Loading depth aspect in a secondary command buffer "
+                    "without framebuffer info disables early-z tests.\n");
+         job->first_ez_state = V3D_EZ_DISABLED;
+         job->ez_state = V3D_EZ_DISABLED;
+         return false;
+      }
+
+      if (((fb->width % 2) != 0 || (fb->height % 2) != 0)) {
+         perf_debug("Loading depth aspect for framebuffer with odd width "
+                    "or height disables early-Z tests.\n");
+         job->first_ez_state = V3D_EZ_DISABLED;
+         job->ez_state = V3D_EZ_DISABLED;
+         return false;
+      }
+   }
+
+   return true;
+}
+
 /* Updates cmd_buffer, and their job, early z state tracking. Returns false if
  * EZ must be disabled for the current draw call.
  */
@@ -1884,67 +1958,9 @@ cmd_buffer_update_ez_state(struct v3dv_cmd_buffer *cmd_buffer,
     * job (based on state that is not related to the current draw call and
     * pipeline/cmd_buffer state).
     */
-   if (!job->decided_global_ez_enable) {
-      job->decided_global_ez_enable = true;
-
-      struct v3dv_cmd_buffer_state *state = &cmd_buffer->state;
-      assert(state->subpass_idx < state->pass->subpass_count);
-      struct v3dv_subpass *subpass = &state->pass->subpasses[state->subpass_idx];
-      if (subpass->ds_attachment == VK_ATTACHMENT_UNUSED) {
-         job->first_ez_state = V3D_EZ_DISABLED;
-         job->ez_state = V3D_EZ_DISABLED;
-         return false;
-      }
-
-      /* GFXH-1918: the early-z buffer may load incorrect depth values if the
-       * frame has odd width or height, or if the buffer is 16-bit and
-       * multisampled.
-       *
-       * So we need to disable EZ in these cases.
-       */
-      const struct v3dv_render_pass_attachment *ds_attachment =
-         &state->pass->attachments[subpass->ds_attachment];
-
-      const VkImageAspectFlags ds_aspects =
-         vk_format_aspects(ds_attachment->desc.format);
-
-      bool needs_depth_load =
-         v3dv_cmd_buffer_check_needs_load(state,
-                                          ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT,
-                                          ds_attachment->first_subpass,
-                                          ds_attachment->desc.loadOp,
-                                          ds_attachment->last_subpass,
-                                          ds_attachment->desc.storeOp);
-
-      if (needs_depth_load) {
-         if (ds_attachment->desc.format == VK_FORMAT_D16_UNORM &&
-             ds_attachment->desc.samples != VK_SAMPLE_COUNT_1_BIT) {
-            perf_debug("Loading depth aspect from a multisampled 16-bit "
-                       "depth buffer disables early-Z tests.\n");
-            job->first_ez_state = V3D_EZ_DISABLED;
-            job->ez_state = V3D_EZ_DISABLED;
-            return false;
-         }
-
-         struct v3dv_framebuffer *fb = state->framebuffer;
-
-         if (!fb) {
-            assert(cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-            perf_debug("Loading depth aspect in a secondary command buffer "
-                       "without framebuffer info disables early-z tests.\n");
-            job->first_ez_state = V3D_EZ_DISABLED;
-            job->ez_state = V3D_EZ_DISABLED;
-            return false;
-         }
-
-         if (((fb->width % 2) != 0 || (fb->height % 2) != 0)) {
-            perf_debug("Loading depth aspect for framebuffer with odd width "
-                       "or height disables early-Z tests.\n");
-            job->first_ez_state = V3D_EZ_DISABLED;
-            job->ez_state = V3D_EZ_DISABLED;
-            return false;
-         }
-      }
+   if (!job->decided_global_ez_enable &&
+       !cmd_buffer_decide_global_ez_enable(cmd_buffer)) {
+      return false;
    }
 
    /* Otherwise, we can decide to selectively enable or disable EZ for draw
