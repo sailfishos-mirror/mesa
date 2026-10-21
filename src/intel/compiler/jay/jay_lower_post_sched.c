@@ -56,7 +56,7 @@ insert_dummy_mov(jay_builder *b, jay_inst *u, jay_inst *v)
                   u->src[1].reg == v->src[1].reg;
 
    bool issue_2 = !(is_mul(u) || is_maclh(u)) &&
-                  is_maclh(v) &&
+                  jay_num_isa_srcs(u) > 1 && is_maclh(v) &&
                   u->src[1].file == v->src[1].file &&
                   u->src[1].reg == v->src[1].reg;
 
