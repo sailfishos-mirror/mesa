@@ -2066,18 +2066,29 @@ vn_GetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
    const struct vn_layered_api_properties *layered_props =
       &physical_dev->layered_properties;
 
-   vk_common_GetPhysicalDeviceProperties2(physicalDevice, pProperties);
-
-   /* Properly fill maint7 layered api properties. */
    VkPhysicalDeviceLayeredApiPropertiesListKHR *layered_props_list =
       vk_find_struct(pProperties->pNext,
                      PHYSICAL_DEVICE_LAYERED_API_PROPERTIES_LIST_KHR);
+
+   /* track app passed count before common helper overrides it */
+   const uint32_t layered_api_count =
+      layered_props_list ? layered_props_list->layeredApiCount : 0;
+
+   vk_common_GetPhysicalDeviceProperties2(physicalDevice, pProperties);
+
+   /* Properly fill maint7 layered api properties. */
    if (!layered_props_list)
       return;
 
-   layered_props_list->layeredApiCount = 1;
-   if (!layered_props_list->pLayeredApis)
+   if (!layered_props_list->pLayeredApis) {
+      layered_props_list->layeredApiCount = 1;
       return;
+   }
+
+   if (!layered_api_count)
+      return;
+
+   layered_props_list->layeredApiCount = 1;
 
    VN_COPY_STRUCT_GUTS(layered_props_list->pLayeredApis, &layered_props->api,
                        sizeof(layered_props->api));
