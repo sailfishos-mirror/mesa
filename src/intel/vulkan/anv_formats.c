@@ -1707,6 +1707,11 @@ anv_get_image_format_properties(
    VkHostImageCopyDevicePerformanceQueryEXT *host_props = NULL;
    const struct wsi_image_create_info *wsi_info = NULL;
 
+   /* Unsupported format or unsupported image format */
+   if (format == NULL ||
+       format->planes[0].isl_format == ISL_FORMAT_UNSUPPORTED)
+      goto unsupported;
+
    /* Extract input structs */
    vk_foreach_struct_const(sType, s, info->pNext) {
       switch ((unsigned)sType) {
@@ -1766,9 +1771,6 @@ anv_get_image_format_properties(
          break;
       }
    }
-
-   if (format == NULL)
-      goto unsupported;
 
    const VkImageCreateFlagBits2KHR flags =
       create_flags_2_info ? create_flags_2_info->flags : info->flags;
