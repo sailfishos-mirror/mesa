@@ -2204,12 +2204,10 @@ static bool
 aspect_masks_valid(struct vk_image *src_img, struct vk_image *dst_img,
                    const VkImageCopy2 *region)
 {
-   const struct vk_format_ycbcr_info *src_ycbcr_info =
-      vk_format_get_ycbcr_info(src_img->format);
-   const struct vk_format_ycbcr_info *dst_ycbcr_info =
-      vk_format_get_ycbcr_info(dst_img->format);
+   const bool src_multiplanar = vk_format_get_plane_count(src_img->format) > 1;
+   const bool dst_multiplanar = vk_format_get_plane_count(dst_img->format) > 1;
 
-   if (!src_ycbcr_info && !dst_ycbcr_info) {
+   if (!src_multiplanar && !dst_multiplanar) {
       ASSERTED const VkImageAspectFlags valid_aspects =
          VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT |
          VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -2246,7 +2244,7 @@ aspect_masks_valid(struct vk_image *src_img, struct vk_image *dst_img,
     *    of pRegions, srcSubresource.aspectMask must be a single valid
     *    multi-planar aspect mask bit"
     */
-   if (src_ycbcr_info &&
+   if (src_multiplanar &&
        !valid_multiplane_aspect_mask(region->srcSubresource.aspectMask))
       return false;
 
@@ -2256,7 +2254,7 @@ aspect_masks_valid(struct vk_image *src_img, struct vk_image *dst_img,
     *    of pRegions, dstSubresource.aspectMask must be a single valid
     *    multi-planar aspect mask bit"
     */
-   if (dst_ycbcr_info &&
+   if (dst_multiplanar &&
        !valid_multiplane_aspect_mask(region->dstSubresource.aspectMask))
       return false;
 
@@ -2266,7 +2264,7 @@ aspect_masks_valid(struct vk_image *src_img, struct vk_image *dst_img,
     *    not have a multi-planar image format, then for each element of
     *    pRegions, dstSubresource.aspectMask must be VK_IMAGE_ASPECT_COLOR_BIT"
     */
-   if (src_ycbcr_info && !dst_ycbcr_info &&
+   if (src_multiplanar && !dst_multiplanar &&
        region->dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
       return false;
 
@@ -2276,7 +2274,7 @@ aspect_masks_valid(struct vk_image *src_img, struct vk_image *dst_img,
     *    not have a multi-planar image format, then for each element of
     *    pRegions, srcSubresource.aspectMask must be VK_IMAGE_ASPECT_COLOR_BIT"
     */
-   if (!src_ycbcr_info && dst_ycbcr_info &&
+   if (!src_multiplanar && dst_multiplanar &&
        region->srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
       return false;
 
