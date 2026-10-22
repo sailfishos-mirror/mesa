@@ -15,6 +15,10 @@ or to build a tool to analyze the raw performance data.
 Drivers which support u_trace:
    - Intel drivers: ANV, Iris
    - Adreno drivers: Freedreno, Turnip
+   - AMD drivers: RADV, RadeonSI
+   - Arm Mali drivers: Panfrost, PanVK (v10+)
+   - Broadcom drivers: V3DV
+   - Imagination drivers: PowerVR
 
 Usage
 -----
@@ -92,3 +96,15 @@ u_trace is controlled by environment variables:
       * - ANV
         - .. envvar:: INTEL_GPU_TRACEPOINT
         - ``src/intel/ds/intel_tracepoints.py``
+      * - RADV
+        - .. envvar:: RADV_GPU_TRACEPOINT
+        - ``src/amd/vulkan/radv_tracepoints.py``
+      * - RadeonSI
+        - .. envvar:: SI_GPU_TRACEPOINT
+        - ``src/gallium/drivers/radeonsi/si_tracepoints.py``
+      * - Panfrost
+        - .. envvar:: PANFROST_GPU_TRACEPOINT
+        - ``src/gallium/drivers/panfrost/panfrost_tracepoints.py``
+      * - PowerVR
+        - .. envvar:: PVR_GPU_TRACEPOINT
+        - ``src/imagination/ds/pvr_tracepoints.py``
