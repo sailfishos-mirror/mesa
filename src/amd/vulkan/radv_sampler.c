@@ -176,7 +176,7 @@ radv_register_border_color(struct radv_device *device, VkClearColorValue value, 
       }
 
       if (*index == RADV_BORDER_COLOR_COUNT) {
-         result = VK_ERROR_UNKNOWN;
+         result = VK_ERROR_TOO_MANY_OBJECTS;
          goto exit;
       }
    }
@@ -278,7 +278,7 @@ radv_sampler_init(struct radv_device *device, struct radv_sampler *sampler, cons
          result =
             radv_register_border_color(device, sampler->vk.border_color_value, request_index, &border_color_index);
          if (result != VK_SUCCESS)
-            return result;
+            return result == VK_ERROR_TOO_MANY_OBJECTS ? VK_ERROR_UNKNOWN : result;
 
          sampler->border_color_index = border_color_index;
          sampler_state.border_color_index = border_color_index;
