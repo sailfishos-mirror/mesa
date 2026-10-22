@@ -1363,7 +1363,9 @@ vn_queue_submit_2_to_1(struct vn_device *dev,
          _wait_dev_indices[i] = submit->pWaitSemaphoreInfos[i].deviceIndex;
       }
       for (uint32_t i = 0; i < submit->commandBufferInfoCount; i++) {
-         _cmd_dev_indices[i] = submit->pCommandBufferInfos[i].deviceMask;
+         _cmd_dev_indices[i] = submit->pCommandBufferInfos[i].deviceMask
+                                  ? submit->pCommandBufferInfos[i].deviceMask
+                                  : dev->device_mask;
       }
       for (uint32_t i = 0; i < submit->signalSemaphoreInfoCount; i++) {
          _signal_dev_indices[i] = submit->pSignalSemaphoreInfos[i].deviceIndex;
