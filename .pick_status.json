@@ -2434,7 +2434,7 @@
         "description": "venus: only call vn_wsi_sync_wait with valid sync fd",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fdb2a8f88f4ccc769017b46e6fbfbfd34c66c153",
         "notes": null
