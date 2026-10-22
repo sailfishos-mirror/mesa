@@ -794,7 +794,7 @@
         "description": "venus: fix pWaitDstStageMask when dropping imported semaphores",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8fdde4e37f079e4267898510287bc212649ed0d8",
         "notes": null
