@@ -912,8 +912,11 @@ vn_CreateEvent(VkDevice device,
    /* feedback is only needed to speed up host operations */
    if (!(pCreateInfo->flags & VK_EVENT_CREATE_DEVICE_ONLY_BIT)) {
       VkResult result = vn_event_feedback_init(dev, ev);
-      if (result != VK_SUCCESS)
+      if (result != VK_SUCCESS) {
+         vn_object_base_fini(&ev->base);
+         vk_free(alloc, ev);
          return vn_error(dev->instance, result);
+      }
    }
 
    VkEvent ev_handle = vn_event_to_handle(ev);
