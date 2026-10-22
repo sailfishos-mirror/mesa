@@ -1191,6 +1191,77 @@ tfu_slice_stride_arg(const struct v3d_resource_slice *slice)
                                              : slice->padded_height;
 }
 
+static bool
+format_is_d24(VkFormat f)
+{
+   return f == VK_FORMAT_X8_D24_UNORM_PACK32 ||
+          f == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+static bool
+aspect_is_color(VkImageAspectFlags aspect)
+{
+   const VkImageAspectFlags color_aspects =
+      VK_IMAGE_ASPECT_COLOR_BIT |
+      VK_IMAGE_ASPECT_PLANE_0_BIT |
+      VK_IMAGE_ASPECT_PLANE_1_BIT |
+      VK_IMAGE_ASPECT_PLANE_2_BIT;
+
+   return aspect != 0 && (aspect & ~color_aspects) == 0;
+}
+
+/* V3D stores D24 with depth in bits 31:8. Vulkan's X8_D24 layout has it in
+ * bits 23:0, and maintenance8 makes that visible by allowing bitwise copies
+ * between a depth aspect and a 32-bit color format.
+ */
+static bool
+is_d24_depth_color_copy(const struct v3dv_image *dst, uint8_t dst_plane,
+                        const struct v3dv_image *src, uint8_t src_plane,
+                        const VkImageCopy2 *region)
+{
+   const VkImageAspectFlags s = region->srcSubresource.aspectMask;
+   const VkImageAspectFlags d = region->dstSubresource.aspectMask;
+
+   if (src->planes[src_plane].cpp != 4 || dst->planes[dst_plane].cpp != 4) {
+      return false;
+   }
+
+   const bool src_is_d24_depth =
+      s == VK_IMAGE_ASPECT_DEPTH_BIT && format_is_d24(src->vk.format);
+   const bool dst_is_d24_depth =
+      d == VK_IMAGE_ASPECT_DEPTH_BIT && format_is_d24(dst->vk.format);
+
+   /* One side must be D24 depth and the other side a color aspect */
+   return (src_is_d24_depth && aspect_is_color(d)) ||
+          (dst_is_d24_depth && aspect_is_color(s));
+}
+
+static bool
+is_d24s8_stencil_color_copy(const struct v3dv_image *dst, uint8_t dst_plane,
+                            const struct v3dv_image *src, uint8_t src_plane,
+                            const VkImageCopy2 *region)
+{
+   const VkImageAspectFlags s = region->srcSubresource.aspectMask;
+   const VkImageAspectFlags d = region->dstSubresource.aspectMask;
+
+   if (s == VK_IMAGE_ASPECT_STENCIL_BIT &&
+       src->vk.format == VK_FORMAT_D24_UNORM_S8_UINT &&
+       aspect_is_color(d)) {
+      /* Copy-compatible aspects must have the same texel size */
+      assert(dst->planes[dst_plane].cpp == 1);
+      return true;
+   }
+
+   if (d == VK_IMAGE_ASPECT_STENCIL_BIT &&
+       dst->vk.format == VK_FORMAT_D24_UNORM_S8_UINT &&
+       aspect_is_color(s)) {
+      assert(src->planes[src_plane].cpp == 1);
+      return true;
+   }
+
+   return false;
+}
+
 /**
  * Returns true if the implementation supports the requested operation (even if
  * it failed to process it, for example, due to an out-of-memory error).
@@ -1294,6 +1365,9 @@ copy_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
     * can't do those: decline and let another path handle them.
     */
    if (dst->planes[dst_plane].cpp != src->planes[src_plane].cpp)
+      return false;
+
+   if (is_d24_depth_color_copy(dst, dst_plane, src, src_plane, region))
       return false;
 
    const struct v3dv_format_plane *format_plane =
@@ -1555,10 +1629,21 @@ copy_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
     * both rendered to and textured from.
     */
    VkFormat format;
+   VkFormat src_format = VK_FORMAT_UNDEFINED;
+   VkFormat dst_format = VK_FORMAT_UNDEFINED;
    float src_scale_w = 1.0f;
    float src_scale_h = 1.0f;
    float dst_scale_w = block_scale_w;
    float dst_scale_h = block_scale_h;
+
+   const bool d24_color_copy =
+      is_d24_depth_color_copy(dst, dst_plane, src, src_plane, region);
+   const bool stencil_color_copy =
+      is_d24s8_stencil_color_copy(dst, dst_plane, src, src_plane, region);
+   const bool d24_depth_to_color = d24_color_copy && format_is_d24(src->vk.format);
+   const bool d24s8_stencil_to_color = stencil_color_copy &&
+                             src->vk.format == VK_FORMAT_D24_UNORM_S8_UINT;
+   const bool dst_is_d24s8 = dst->vk.format == VK_FORMAT_D24_UNORM_S8_UINT;
    if (vk_format_is_compressed(src->vk.format)) {
       /* If we are copying from a compressed format we should be aware that we
        * are going to texture from the source image, and the texture setup
@@ -1607,6 +1692,19 @@ copy_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
 
       dst = create_image_alias(cmd_buffer, dst,
                                dst_scale_w, dst_scale_h, format);
+   } else if (d24_color_copy) {
+      /* depth <-> 32-bit color: alias both sides as RGBA8 color images */
+      format = VK_FORMAT_R8G8B8A8_UINT;
+      src = create_image_alias(cmd_buffer, src, 1.0f, 1.0f, format);
+      dst = create_image_alias(cmd_buffer, dst, 1.0f, 1.0f, format);
+   } else if (stencil_color_copy) {
+      /* stencil <-> R8: no aliases, real images and real STENCIL aspect;
+       * only the view formats differ, as in blit_shader's own D/S rewrite */
+      format = VK_FORMAT_R8_UINT; /* unused */
+      src_format = d24s8_stencil_to_color ? VK_FORMAT_R8G8B8A8_UINT :
+                                            VK_FORMAT_R8_UINT;
+      dst_format = d24s8_stencil_to_color ? VK_FORMAT_R8_UINT :
+                                            VK_FORMAT_R8G8B8A8_UINT;
    } else if (src->planes[src_plane].vk_format ==
               VK_FORMAT_B10G11R11_UFLOAT_PACK32) {
       /* Sampling B10G11R11_UFLOAT in the blit shader canonicalizes NaN
@@ -1627,6 +1725,9 @@ copy_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
       if (!f->plane_count || f->planes[0].tex_type == TEXTURE_DATA_FORMAT_NO)
          return false;
    }
+
+   if (src_format == VK_FORMAT_UNDEFINED)
+      src_format = dst_format = format;
 
    /* Given an uncompressed image with size WxH, if we copy it to a compressed
     * image, it will result in an image with size W*bWxH*bH, where bW and bH
@@ -1676,17 +1777,45 @@ copy_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
       dst_start.z + region->extent.depth,
    };
 
+   VkImageSubresourceLayers src_sub = region->srcSubresource;
+   VkImageSubresourceLayers dst_sub = region->dstSubresource;
+
+   VkComponentMapping swz = {
+      VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+      VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+   VkColorComponentFlags cmask = 0;
+
+   if (d24_color_copy) {
+         src_sub.aspectMask = dst_sub.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      if (d24_depth_to_color) {
+         swz = (VkComponentMapping) {
+            VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B,
+            VK_COMPONENT_SWIZZLE_A, VK_COMPONENT_SWIZZLE_R };
+      } else {
+         swz = (VkComponentMapping) {
+            VK_COMPONENT_SWIZZLE_A, VK_COMPONENT_SWIZZLE_R,
+            VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B };
+         if (dst_is_d24s8) {
+            cmask = VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                    VK_COLOR_COMPONENT_A_BIT;
+         }
+      }
+   } else if (stencil_color_copy && !d24s8_stencil_to_color) {
+      cmask = VK_COLOR_COMPONENT_R_BIT;
+   }
+
    const VkImageBlit2 blit_region = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
-      .srcSubresource = region->srcSubresource,
+      .srcSubresource = src_sub,
       .srcOffsets = { src_start, src_end },
-      .dstSubresource = region->dstSubresource,
+      .dstSubresource = dst_sub,
       .dstOffsets = { dst_start, dst_end },
    };
+
    bool handled = blit_shader(cmd_buffer,
-                              dst, format,
-                              src, format,
-                              0, NULL,
+                              dst, dst_format,
+                              src, src_format,
+                              cmask, d24_color_copy ? &swz : NULL,
                               &blit_region, VK_FILTER_NEAREST, true);
 
    /* We should have selected formats that we can blit */
