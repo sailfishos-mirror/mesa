@@ -1875,30 +1875,23 @@ si_vpe_processor_process_frame(struct pipe_video_codec *codec,
       struct pipe_surface *dst_surfaces;
       struct pipe_surface *tmp_surfaces;
 
+      /* Copy the original VPP descriptor to the processing descriptor */
+      memcpy(&process_geoscl, process_properties, sizeof(struct pipe_vpp_desc));
+
       src_region = &process_geoscl.src_region;
       dst_region = &process_geoscl.dst_region;
 
       /* First Round:
-       * Should copy the source setting and destination setting from original command.
-       * Complete the CSC at the first round.
+       * Rewrite the source and destination regions for the first round of geometric scaling.
+       * Should keep the source setting and destination setting from original command to complete
+       * the rotation, color space conversion, HDR TM, color adjustment and sharpness at the first round.
        */
-      process_geoscl.orientation                  = process_properties->orientation;
-      process_geoscl.blend.mode                   = PIPE_VIDEO_VPP_BLEND_MODE_NONE;
-      process_geoscl.blend.global_alpha           = process_properties->blend.global_alpha;
-      process_geoscl.background_color             = 0;
+      /* Blending will be done at the final round */
+      process_geoscl.blend.mode       = PIPE_VIDEO_VPP_BLEND_MODE_NONE;
+      process_geoscl.background_color = 0;
+      /* Use full color range during mulit-pass scaling */
+      process_geoscl.out_color_range  = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL;
 
-      process_geoscl.in_color_range               = process_properties->in_color_range;
-      process_geoscl.in_chroma_siting             = process_properties->in_chroma_siting;
-      process_geoscl.out_color_range              = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL;
-      process_geoscl.out_chroma_siting            = process_properties->out_chroma_siting;
-
-      process_geoscl.in_color_primaries           = process_properties->in_color_primaries;
-      process_geoscl.in_transfer_characteristics  = process_properties->in_transfer_characteristics;
-      process_geoscl.in_matrix_coefficients       = process_properties->in_matrix_coefficients;
-
-      process_geoscl.out_color_primaries          = process_properties->out_color_primaries;
-      process_geoscl.out_transfer_characteristics = process_properties->out_transfer_characteristics;
-      process_geoscl.out_matrix_coefficients      = process_properties->out_matrix_coefficients;
 
       /* Setup the scaling size of first round */
       src_region->x0 = process_properties->src_region.x0;
@@ -1925,16 +1918,24 @@ si_vpe_processor_process_frame(struct pipe_video_codec *codec,
 
       /* Second to Final Round:
        * The source format should be reset to the format of DstFormat.
-       * And other option should be cleaned.
+       * And other options which are completed at the first round should be cleaned.
        * Set is_geometric_scaling_round = true to force the format of source format to the format of DstFormat.
        */
       process_geoscl.orientation                  = PIPE_VIDEO_VPP_ORIENTATION_DEFAULT;
-      process_geoscl.blend.global_alpha           = 1.0f;
       process_geoscl.in_color_range               = PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL;
       process_geoscl.in_chroma_siting             = process_properties->out_chroma_siting;
       process_geoscl.in_color_primaries           = process_properties->out_color_primaries;
       process_geoscl.in_transfer_characteristics  = process_properties->out_transfer_characteristics;
       process_geoscl.in_matrix_coefficients       = process_properties->out_matrix_coefficients;
+
+      memcpy(&process_geoscl.in_hdr10metadata, &process_properties->out_hdr10metadata, sizeof(struct pipe_video_vpp_hdr10metadata));
+
+      /* disable filter */
+      process_geoscl.color_balance_brightness.valid = false;
+      process_geoscl.color_balance_contrast.valid = false;
+      process_geoscl.color_balance_hue.valid = false;
+      process_geoscl.color_balance_saturation.valid = false;
+      process_geoscl.sharpening.valid = false;
 
       src_surfaces = tmp_geo_scaling_surf_2;
       for (idx = 1; idx < vpeproc->geometric_passes - 1; idx++) {
