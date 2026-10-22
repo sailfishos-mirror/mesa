@@ -1315,6 +1315,11 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
       if (util_bitcount(vk_format_aspects(info->format)) != 1)
          goto unsupported;
 
+      /* YCbCr formats (including single-plane packed 422 like
+       * G8B8G8R8/B8G8R8G8) are subsampled and not supported for now */
+      if (ycbcr_info != NULL)
+         goto unsupported;
+
       if (info->tiling != VK_IMAGE_TILING_OPTIMAL)
          goto unsupported;
 
