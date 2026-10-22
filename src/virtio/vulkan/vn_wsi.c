@@ -520,9 +520,13 @@ vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
          break;
       case VK_STRUCTURE_TYPE_PRESENT_ID_KHR:
          id = (void *)pnext;
+         if (!id->pPresentIds)
+            id = NULL;
          break;
       case VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR:
          id2 = (void *)pnext;
+         if (!id2->pPresentIds)
+            id2 = NULL;
          break;
       case VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR:
          spfi = (void *)pnext;
@@ -532,6 +536,8 @@ vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
          break;
       case VK_STRUCTURE_TYPE_PRESENT_TIMINGS_INFO_EXT:
          pti = (void *)pnext;
+         if (!pti->pTimingInfos)
+            pti = NULL;
          break;
       default:
          break;
