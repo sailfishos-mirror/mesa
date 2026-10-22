@@ -184,7 +184,7 @@ struct pbo_data {
              uint8_t r11g11b10_or_sint : 1;
              uint8_t r9g9b9e5 : 1;
              uint8_t swap : 1;
-             uint16_t alignment : 2;
+             uint8_t alignment : 2;
              uint8_t dst_bit_size : 2; //8, 16, 32, 64
           };
 
@@ -204,6 +204,7 @@ struct pbo_data {
    };
 };
 
+static_assert(sizeof(struct pbo_data) == 16, "pbo_data must fit in a vec4");
 
 #define STRUCT_OFFSET(name) (offsetof(struct pbo_data, name) * 8)
 
