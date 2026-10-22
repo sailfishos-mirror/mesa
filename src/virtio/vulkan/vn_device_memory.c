@@ -383,6 +383,8 @@ vn_AllocateMemory(VkDevice device,
 
    const VkImportMemoryFdInfoKHR *import_fd_info =
       vk_find_struct_const(pAllocateInfo->pNext, IMPORT_MEMORY_FD_INFO_KHR);
+   if (import_fd_info && !import_fd_info->handleType)
+      import_fd_info = NULL;
 
    VkResult result;
    if (mem->base.vk.ahardware_buffer) {
