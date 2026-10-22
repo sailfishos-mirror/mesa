@@ -479,7 +479,7 @@ emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num
             VKCTX(CmdSetLineRasterizationModeEXT)(bs->cmdbuf, rast_state->dynamic_line_mode);
          if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE_ON))
             VKCTX(CmdSetLineStippleEnableEXT)(bs->cmdbuf, rast_state->hw_state.line_stipple_enable);
-         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_RAST_STIPPLE, ZINK_DS3_RAST_STIPPLE_ON - ZINK_DS3_RAST_STIPPLE);
+         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_RAST_STIPPLE, ZINK_DS3_RAST_STIPPLE_ON - ZINK_DS3_RAST_STIPPLE + 1);
       }
       ctx->rast_state_changed = false;
    }
@@ -507,7 +507,7 @@ emit_dynamic_state(struct zink_context *ctx, bool pipeline_changed, unsigned num
             VKCTX(CmdSetLogicOpEnableEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_enable);
          if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_BLEND_LOGIC))
             VKCTX(CmdSetLogicOpEXT)(bs->cmdbuf, ctx->gfx_pipeline_state.blend_state->logicop_func);
-         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_BLEND_A2C, ZINK_DS3_BLEND_LOGIC - ZINK_DS3_BLEND_A2C);
+         ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_BLEND_A2C, ZINK_DS3_BLEND_LOGIC - ZINK_DS3_BLEND_A2C + 1);
       }
       ctx->blend_state_changed = false;
    }
