@@ -166,6 +166,8 @@ radv_register_border_color(struct radv_device *device, VkClearColorValue value, 
          goto exit;
       }
    } else {
+      *index = RADV_BORDER_COLOR_COUNT;
+
       for (uint32_t i = 0; i < RADV_BORDER_COLOR_COUNT; i++) {
          if (!device->border_color_data.used[i]) {
             *index = i;
