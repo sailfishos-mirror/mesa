@@ -845,7 +845,8 @@ vn_GetSemaphoreFdKHR(VkDevice device,
                                            sync_file);
       vn_renderer_sync_reset(dev->renderer, payload->sync);
 
-      vn_wsi_sync_wait(dev, fd);
+      if (fd >= 0)
+         vn_wsi_sync_wait(dev, fd);
    } else {
       assert(payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD);
 
