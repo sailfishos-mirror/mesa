@@ -6355,7 +6355,7 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
    }
 
    if (is_compute_only || zink_debug & ZINK_DEBUG_NOREORDER)
-      ctx->no_reorder = true;
+      ctx->no_reorder++;
 
    if (!(flags & PIPE_CONTEXT_PREFER_THREADED) || flags & PIPE_CONTEXT_COMPUTE_ONLY) {
       return &ctx->base;

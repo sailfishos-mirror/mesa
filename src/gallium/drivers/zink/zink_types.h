@@ -1911,7 +1911,7 @@ struct zink_context {
    bool oom_flush;
    bool oom_stall;
    bool track_renderpasses;
-   bool no_reorder;
+   unsigned no_reorder; //nonzero while reordering is disabled
    struct zink_batch_state *bs;
 
    unsigned shader_has_inlinable_uniforms_mask;
