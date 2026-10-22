@@ -345,17 +345,22 @@ def emit_dispatch_call(api, cgen):
     decodingParams = DecodingParameters(api)
 
     customParams = []
+    capturedParams = []
 
     delay = api.name in DELAYED_DECODER_DELETES
 
     for i, p in enumerate(api.parameters):
+        if delay and p.accessibleAsPointer():
+            customParams.append("nullptr")
+            continue
         customParam = p.paramName
         if decodingParams.params[i].dispatchHandle:
             customParam = "unboxed_%s" % p.paramName
         customParams.append(customParam)
+        capturedParams.append(customParam)
 
     if delay:
-        cgen.line("std::function<void()> delayed_remove_callback = [vk, %s]() {" % ", ".join(customParams))
+        cgen.line("std::function<void()> delayed_remove_callback = [vk, %s]() {" % ", ".join(capturedParams))
 
     if api.name in driver_workarounds_global_lock_apis:
         if delay:
@@ -386,13 +391,15 @@ def emit_dispatch_call(api, cgen):
 def emit_global_state_wrapped_call(api, cgen, context):
     # Delayed deletes will call wrapped call with a callback without pool or snapshot info
     delay = api.name in DELAYED_DECODER_DELETES
-    coreCustomParams = list(map(lambda p: p.paramName, api.parameters))
 
     if delay:
-        cgen.line("std::function<void()> delayed_remove_callback = [vk, %s]() {" % ", ".join(coreCustomParams))
+        capturedParams = [p.paramName for p in api.parameters if not p.accessibleAsPointer()]
+        coreCustomParams = ["nullptr" if p.accessibleAsPointer() else p.paramName for p in api.parameters]
+        cgen.line("std::function<void()> delayed_remove_callback = [vk, %s]() {" % ", ".join(capturedParams))
         cgen.stmt("auto m_state = VkDecoderGlobalState::get()")
         customParams = ["nullptr", "kInvalidSnapshotApiCallHandle"] + coreCustomParams
     else:
+        coreCustomParams = list(map(lambda p: p.paramName, api.parameters))
         customParams = ["&m_pool", SNAPSHOT_API_CALL_HANDLE_VARNAME] + coreCustomParams
 
     if context:
