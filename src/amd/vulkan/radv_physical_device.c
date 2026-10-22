@@ -338,7 +338,7 @@ radv_device_get_cache_uuid(struct radv_physical_device *pdev, void *uuid)
       return -1;
 #endif
 
-#if AMD_LLVM_AVAILABLE
+#if RADV_LLVM_BACKEND
    if (pdev->use_llvm && !disk_cache_get_function_identifier(LLVMInitializeAMDGPUTargetInfo, &ctx))
       return -1;
 #endif
@@ -2763,7 +2763,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
                       "enabled at build time.\n");
       abort();
    }
-#elif NDEBUG
+#elif !RADV_LLVM_BACKEND
    if (pdev->use_llvm) {
       fprintf(stderr, "ERROR: The LLVM compiler backend is only for debugging and not supported "
                       "in release builds of RADV!\n");

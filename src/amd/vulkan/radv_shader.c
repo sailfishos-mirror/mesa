@@ -25,7 +25,9 @@
 #include "ac_shader_util.h"
 #include "radv_cs.h"
 #include "radv_entrypoints.h"
+#if RADV_LLVM_BACKEND
 #include "radv_nir_to_llvm.h"
+#endif
 #include "radv_sdma.h"
 #include "radv_shader_args.h"
 
@@ -3586,6 +3588,7 @@ radv_aco_build_shader_binary_elf(void **bin, const aco_callback_params *params)
    memcpy(args->binary->data + args->binary->elf_size, params->ir_str, params->ir_size);
 }
 
+#if RADV_LLVM_BACKEND
 static void
 radv_fill_llvm_compiler_options(struct radv_llvm_compiler_options *options,
                                 const struct radv_compiler_info *compiler_info, bool should_use_wgp,
@@ -3602,6 +3605,7 @@ radv_fill_llvm_compiler_options(struct radv_llvm_compiler_options *options,
    options->record_ir = keep_shader_info;
    options->check_ir = compiler_info->debug.check_ir;
 }
+#endif
 
 static inline void
 radv_aco_fill_compiler_options(struct aco_compiler_options *aco_info, const struct radv_compiler_info *compiler_info,
@@ -3652,11 +3656,13 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
    for (unsigned i = 0; i < shader_count; ++i)
       dump_shader |= radv_can_dump_shader(compiler_info, shaders[i]);
 
-   struct radv_shader_binary *binary = NULL;
 #if AMD_LLVM_AVAILABLE
    if (compiler_info->key.use_llvm || dump_shader || pl_stage->key.keep_executable_info)
       ac_init_llvm_once();
+#endif
 
+   struct radv_shader_binary *binary = NULL;
+#if RADV_LLVM_BACKEND
    if (compiler_info->key.use_llvm) {
       struct radv_llvm_compiler_options options = {0};
       radv_fill_llvm_compiler_options(&options, compiler_info, wgp_mode, dump_shader,
