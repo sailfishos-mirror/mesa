@@ -123,6 +123,45 @@ void u_thread_setname( const char *name )
 }
 
 bool
+util_get_thread_affinity(thrd_t thread,
+                         uint32_t *mask,
+                         unsigned num_mask_bits)
+{
+#if defined(HAVE_PTHREAD_SETAFFINITY)
+   cpu_set_t cpuset;
+
+   if (pthread_getaffinity_np(thread, sizeof(cpuset), &cpuset) != 0)
+      return false;
+
+   memset(mask, 0, num_mask_bits / 8);
+   for (unsigned i = 0; i < num_mask_bits && i < CPU_SETSIZE; i++) {
+      if (CPU_ISSET(i, &cpuset))
+         mask[i / 32] |= 1u << (i % 32);
+   }
+
+   return true;
+
+#elif defined(_WIN32) && !defined(HAVE_PTHREAD)
+   /* there is no per-thread getter, so report the process affinity */
+   DWORD_PTR process_mask, system_mask;
+
+   if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask,
+                               &system_mask))
+      return false;
+
+   memset(mask, 0, num_mask_bits / 8);
+   mask[0] = process_mask;
+#ifdef _WIN64
+   mask[1] = process_mask >> 32;
+#endif
+
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool
 util_set_thread_affinity(thrd_t thread,
                          const uint32_t *mask,
                          uint32_t *old_mask,
@@ -131,16 +170,8 @@ util_set_thread_affinity(thrd_t thread,
 #if defined(HAVE_PTHREAD_SETAFFINITY)
    cpu_set_t cpuset;
 
-   if (old_mask) {
-      if (pthread_getaffinity_np(thread, sizeof(cpuset), &cpuset) != 0)
-         return false;
-
-      memset(old_mask, 0, num_mask_bits / 8);
-      for (unsigned i = 0; i < num_mask_bits && i < CPU_SETSIZE; i++) {
-         if (CPU_ISSET(i, &cpuset))
-            old_mask[i / 32] |= 1u << (i % 32);
-      }
-   }
+   if (old_mask && !util_get_thread_affinity(thread, old_mask, num_mask_bits))
+      return false;
 
    CPU_ZERO(&cpuset);
    for (unsigned i = 0; i < num_mask_bits && i < CPU_SETSIZE; i++) {
@@ -258,13 +289,14 @@ bool util_barrier_wait(util_barrier *barrier)
 
 #endif
 
-/* threads inherit their creator's affinity, which may be pinned to one CPU */
+/* threads inherit their creator's affinity, which may be pinned to one CPU;
+ * restore the affinity the process started with so taskset is respected
+ */
 void
-util_set_current_thread_full_affinity(void)
+util_set_current_thread_initial_affinity(void)
 {
-   util_affinity_mask mask;
+   const struct util_cpu_caps_t *caps = util_get_cpu_caps();
 
-   memset(mask, 0xff, sizeof(mask));
-
-   util_set_current_thread_affinity(mask, NULL, util_get_cpu_caps()->num_cpu_mask_bits);
+   util_set_current_thread_affinity(caps->initial_affinity_mask, NULL,
+                                    caps->num_cpu_mask_bits);
 }

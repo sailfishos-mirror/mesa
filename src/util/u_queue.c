@@ -244,7 +244,7 @@ util_queue_thread_func(void *input)
 
    /* Don't inherit the thread affinity from the parent thread. */
    if (queue->flags & UTIL_QUEUE_INIT_SET_FULL_THREAD_AFFINITY)
-      util_set_current_thread_full_affinity();
+      util_set_current_thread_initial_affinity();
 
 #if defined(__linux__)
    if (queue->flags & UTIL_QUEUE_INIT_USE_MINIMUM_PRIORITY) {

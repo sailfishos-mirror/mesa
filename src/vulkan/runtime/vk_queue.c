@@ -739,7 +739,7 @@ vk_queue_submit_thread_func(void *_data)
    struct vk_queue *queue = _data;
    VkResult result;
 
-   util_set_current_thread_full_affinity();
+   util_set_current_thread_initial_affinity();
 
    mtx_lock(&queue->submit.mutex);
 
