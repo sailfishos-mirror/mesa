@@ -10282,6 +10282,14 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkGetDescriptorSetLayoutSupportKHR";
         }
 #endif
+#ifdef VK_KHR_draw_indirect_count
+        case OP_vkCmdDrawIndirectCountKHR: {
+            return "OP_vkCmdDrawIndirectCountKHR";
+        }
+        case OP_vkCmdDrawIndexedIndirectCountKHR: {
+            return "OP_vkCmdDrawIndexedIndirectCountKHR";
+        }
+#endif
 #ifdef VK_ANDROID_native_buffer
         case OP_vkGetSwapchainGrallocUsageANDROID: {
             return "OP_vkGetSwapchainGrallocUsageANDROID";
@@ -10552,6 +10560,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
             return "OP_vkGetSemaphoreCounterValueKHR";
         }
 #endif
+#ifdef VK_KHR_map_memory2
+        case OP_vkUnmapMemory2KHR: {
+            return "OP_vkUnmapMemory2KHR";
+        }
+#endif
 #ifdef VK_BASE_VERSION_1_4
         case OP_vkUnmapMemory2: {
             return "OP_vkUnmapMemory2";
@@ -10580,6 +10593,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
 #ifdef VK_COMPUTE_VERSION_1_3
         case OP_vkCmdSetEvent2: {
             return "OP_vkCmdSetEvent2";
+        }
+#endif
+#ifdef VK_KHR_map_memory2
+        case OP_vkMapMemory2KHR: {
+            return "OP_vkMapMemory2KHR";
         }
 #endif
 #ifdef VK_BASE_VERSION_1_3
@@ -10643,6 +10661,11 @@ const char* api_opcode_to_string(const uint32_t opcode) {
 #ifdef VK_EXT_host_image_copy
         case OP_vkTransitionImageLayoutEXT: {
             return "OP_vkTransitionImageLayoutEXT";
+        }
+#endif
+#ifdef VK_EXT_host_query_reset
+        case OP_vkResetQueryPoolEXT: {
+            return "OP_vkResetQueryPoolEXT";
         }
 #endif
 #ifdef VK_KHR_maintenance4

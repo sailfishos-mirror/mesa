@@ -2368,6 +2368,14 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderFloat16Int8Featur
                       transform_fromhost_VkPhysicalDeviceFloat16Int8FeaturesKHR)
 
 #endif
+#ifdef VK_KHR_16bit_storage
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDevice16BitStorageFeatures,
+                      transform_tohost_VkPhysicalDevice16BitStorageFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDevice16BitStorageFeatures,
+                      transform_fromhost_VkPhysicalDevice16BitStorageFeaturesKHR)
+
+#endif
 #ifdef VK_KHR_incremental_present
 void transform_tohost_VkRectLayerKHR(ResourceTracker* resourceTracker, VkRectLayerKHR* toTransform);
 
@@ -2536,6 +2544,20 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPipelineTessellationDomainOriginState
                       transform_fromhost_VkPipelineTessellationDomainOriginStateCreateInfoKHR)
 
 #endif
+#ifdef VK_KHR_variable_pointers
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceVariablePointersFeatures,
+                      transform_tohost_VkPhysicalDeviceVariablePointerFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceVariablePointersFeatures,
+                      transform_fromhost_VkPhysicalDeviceVariablePointerFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceVariablePointersFeatures,
+                      transform_tohost_VkPhysicalDeviceVariablePointersFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceVariablePointersFeatures,
+                      transform_fromhost_VkPhysicalDeviceVariablePointersFeaturesKHR)
+
+#endif
 #ifdef VK_KHR_dedicated_allocation
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkMemoryDedicatedRequirements,
                       transform_tohost_VkMemoryDedicatedRequirementsKHR)
@@ -2664,6 +2686,22 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderSubgroupExtendedT
                       transform_fromhost_VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR)
 
 #endif
+#ifdef VK_KHR_8bit_storage
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDevice8BitStorageFeatures,
+                      transform_tohost_VkPhysicalDevice8BitStorageFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDevice8BitStorageFeatures,
+                      transform_fromhost_VkPhysicalDevice8BitStorageFeaturesKHR)
+
+#endif
+#ifdef VK_KHR_shader_atomic_int64
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceShaderAtomicInt64Features,
+                      transform_tohost_VkPhysicalDeviceShaderAtomicInt64FeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderAtomicInt64Features,
+                      transform_fromhost_VkPhysicalDeviceShaderAtomicInt64FeaturesKHR)
+
+#endif
 #ifdef VK_KHR_global_priority
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkDeviceQueueGlobalPriorityCreateInfo,
                       transform_tohost_VkDeviceQueueGlobalPriorityCreateInfoKHR)
@@ -2682,6 +2720,28 @@ DEFINE_ALIAS_FUNCTION(transform_tohost_VkQueueFamilyGlobalPriorityProperties,
 
 DEFINE_ALIAS_FUNCTION(transform_fromhost_VkQueueFamilyGlobalPriorityProperties,
                       transform_fromhost_VkQueueFamilyGlobalPriorityPropertiesKHR)
+
+#endif
+#ifdef VK_KHR_driver_properties
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkConformanceVersion,
+                      transform_tohost_VkConformanceVersionKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkConformanceVersion,
+                      transform_fromhost_VkConformanceVersionKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceDriverProperties,
+                      transform_tohost_VkPhysicalDeviceDriverPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceDriverProperties,
+                      transform_fromhost_VkPhysicalDeviceDriverPropertiesKHR)
+
+#endif
+#ifdef VK_KHR_shader_float_controls
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceFloatControlsProperties,
+                      transform_tohost_VkPhysicalDeviceFloatControlsPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceFloatControlsProperties,
+                      transform_fromhost_VkPhysicalDeviceFloatControlsPropertiesKHR)
 
 #endif
 #ifdef VK_KHR_depth_stencil_resolve
@@ -2771,6 +2831,34 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkRenderingInputAttachmentIndexInfo,
                       transform_fromhost_VkRenderingInputAttachmentIndexInfoKHR)
 
 #endif
+#ifdef VK_KHR_separate_depth_stencil_layouts
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures,
+                      transform_tohost_VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures,
+                      transform_fromhost_VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkAttachmentReferenceStencilLayout,
+                      transform_tohost_VkAttachmentReferenceStencilLayoutKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkAttachmentReferenceStencilLayout,
+                      transform_fromhost_VkAttachmentReferenceStencilLayoutKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkAttachmentDescriptionStencilLayout,
+                      transform_tohost_VkAttachmentDescriptionStencilLayoutKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkAttachmentDescriptionStencilLayout,
+                      transform_fromhost_VkAttachmentDescriptionStencilLayoutKHR)
+
+#endif
+#ifdef VK_KHR_uniform_buffer_standard_layout
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceUniformBufferStandardLayoutFeatures,
+                      transform_tohost_VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceUniformBufferStandardLayoutFeatures,
+                      transform_fromhost_VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR)
+
+#endif
 #ifdef VK_KHR_buffer_device_address
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceBufferDeviceAddressFeatures,
                       transform_tohost_VkPhysicalDeviceBufferDeviceAddressFeaturesKHR)
@@ -2847,6 +2935,16 @@ void transform_tohost_VkPipelineExecutableInternalRepresentationKHR(
 
 void transform_fromhost_VkPipelineExecutableInternalRepresentationKHR(
     ResourceTracker* resourceTracker, VkPipelineExecutableInternalRepresentationKHR* toTransform);
+
+#endif
+#ifdef VK_KHR_map_memory2
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkMemoryMapInfo, transform_tohost_VkMemoryMapInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkMemoryMapInfo, transform_fromhost_VkMemoryMapInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkMemoryUnmapInfo, transform_tohost_VkMemoryUnmapInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkMemoryUnmapInfo, transform_fromhost_VkMemoryUnmapInfoKHR)
 
 #endif
 #ifdef VK_KHR_shader_integer_dot_product
@@ -3000,6 +3098,14 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDeviceImageMemoryRequirements,
                       transform_fromhost_VkDeviceImageMemoryRequirementsKHR)
 
 #endif
+#ifdef VK_KHR_shader_subgroup_rotate
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceShaderSubgroupRotateFeatures,
+                      transform_tohost_VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderSubgroupRotateFeatures,
+                      transform_fromhost_VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR)
+
+#endif
 #ifdef VK_KHR_maintenance5
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceMaintenance5Features,
                       transform_tohost_VkPhysicalDeviceMaintenance5FeaturesKHR)
@@ -3048,6 +3154,48 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkBufferUsageFlags2CreateInfo,
                       transform_fromhost_VkBufferUsageFlags2CreateInfoKHR)
 
 #endif
+#ifdef VK_KHR_vertex_attribute_divisor
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceVertexAttributeDivisorProperties,
+                      transform_tohost_VkPhysicalDeviceVertexAttributeDivisorPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceVertexAttributeDivisorProperties,
+                      transform_fromhost_VkPhysicalDeviceVertexAttributeDivisorPropertiesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkVertexInputBindingDivisorDescription,
+                      transform_tohost_VkVertexInputBindingDivisorDescriptionKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkVertexInputBindingDivisorDescription,
+                      transform_fromhost_VkVertexInputBindingDivisorDescriptionKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPipelineVertexInputDivisorStateCreateInfo,
+                      transform_tohost_VkPipelineVertexInputDivisorStateCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPipelineVertexInputDivisorStateCreateInfo,
+                      transform_fromhost_VkPipelineVertexInputDivisorStateCreateInfoKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceVertexAttributeDivisorFeatures,
+                      transform_tohost_VkPhysicalDeviceVertexAttributeDivisorFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceVertexAttributeDivisorFeatures,
+                      transform_fromhost_VkPhysicalDeviceVertexAttributeDivisorFeaturesKHR)
+
+#endif
+#ifdef VK_KHR_shader_float_controls2
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceShaderFloatControls2Features,
+                      transform_tohost_VkPhysicalDeviceShaderFloatControls2FeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderFloatControls2Features,
+                      transform_fromhost_VkPhysicalDeviceShaderFloatControls2FeaturesKHR)
+
+#endif
+#ifdef VK_KHR_index_type_uint8
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceIndexTypeUint8Features,
+                      transform_tohost_VkPhysicalDeviceIndexTypeUint8FeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceIndexTypeUint8Features,
+                      transform_fromhost_VkPhysicalDeviceIndexTypeUint8FeaturesKHR)
+
+#endif
 #ifdef VK_KHR_line_rasterization
 DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceLineRasterizationFeatures,
                       transform_tohost_VkPhysicalDeviceLineRasterizationFeaturesKHR)
@@ -3066,6 +3214,14 @@ DEFINE_ALIAS_FUNCTION(transform_tohost_VkPipelineRasterizationLineStateCreateInf
 
 DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPipelineRasterizationLineStateCreateInfo,
                       transform_fromhost_VkPipelineRasterizationLineStateCreateInfoKHR)
+
+#endif
+#ifdef VK_KHR_shader_expect_assume
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceShaderExpectAssumeFeatures,
+                      transform_tohost_VkPhysicalDeviceShaderExpectAssumeFeaturesKHR)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceShaderExpectAssumeFeatures,
+                      transform_fromhost_VkPhysicalDeviceShaderExpectAssumeFeaturesKHR)
 
 #endif
 #ifdef VK_KHR_maintenance6
@@ -3242,6 +3398,26 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceTextureCompressionASTCH
                       transform_fromhost_VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT)
 
 #endif
+#ifdef VK_EXT_pipeline_robustness
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDevicePipelineRobustnessFeatures,
+                      transform_tohost_VkPhysicalDevicePipelineRobustnessFeaturesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDevicePipelineRobustnessFeatures,
+                      transform_fromhost_VkPhysicalDevicePipelineRobustnessFeaturesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDevicePipelineRobustnessProperties,
+                      transform_tohost_VkPhysicalDevicePipelineRobustnessPropertiesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDevicePipelineRobustnessProperties,
+                      transform_fromhost_VkPhysicalDevicePipelineRobustnessPropertiesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPipelineRobustnessCreateInfo,
+                      transform_tohost_VkPipelineRobustnessCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPipelineRobustnessCreateInfo,
+                      transform_fromhost_VkPipelineRobustnessCreateInfoEXT)
+
+#endif
 #ifdef VK_EXT_depth_clip_enable
 void transform_tohost_VkPhysicalDeviceDepthClipEnableFeaturesEXT(
     ResourceTracker* resourceTracker, VkPhysicalDeviceDepthClipEnableFeaturesEXT* toTransform);
@@ -3256,6 +3432,20 @@ void transform_tohost_VkPipelineRasterizationDepthClipStateCreateInfoEXT(
 void transform_fromhost_VkPipelineRasterizationDepthClipStateCreateInfoEXT(
     ResourceTracker* resourceTracker,
     VkPipelineRasterizationDepthClipStateCreateInfoEXT* toTransform);
+
+#endif
+#ifdef VK_EXT_sampler_filter_minmax
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkSamplerReductionModeCreateInfo,
+                      transform_tohost_VkSamplerReductionModeCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkSamplerReductionModeCreateInfo,
+                      transform_fromhost_VkSamplerReductionModeCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceSamplerFilterMinmaxProperties,
+                      transform_tohost_VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceSamplerFilterMinmaxProperties,
+                      transform_fromhost_VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT)
 
 #endif
 #ifdef VK_EXT_inline_uniform_block
@@ -3356,6 +3546,38 @@ void transform_tohost_VkDrmFormatModifierPropertiesList2EXT(
 
 void transform_fromhost_VkDrmFormatModifierPropertiesList2EXT(
     ResourceTracker* resourceTracker, VkDrmFormatModifierPropertiesList2EXT* toTransform);
+
+#endif
+#ifdef VK_EXT_descriptor_indexing
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDescriptorSetLayoutBindingFlagsCreateInfo,
+                      transform_tohost_VkDescriptorSetLayoutBindingFlagsCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDescriptorSetLayoutBindingFlagsCreateInfo,
+                      transform_fromhost_VkDescriptorSetLayoutBindingFlagsCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceDescriptorIndexingFeatures,
+                      transform_tohost_VkPhysicalDeviceDescriptorIndexingFeaturesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceDescriptorIndexingFeatures,
+                      transform_fromhost_VkPhysicalDeviceDescriptorIndexingFeaturesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceDescriptorIndexingProperties,
+                      transform_tohost_VkPhysicalDeviceDescriptorIndexingPropertiesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceDescriptorIndexingProperties,
+                      transform_fromhost_VkPhysicalDeviceDescriptorIndexingPropertiesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDescriptorSetVariableDescriptorCountAllocateInfo,
+                      transform_tohost_VkDescriptorSetVariableDescriptorCountAllocateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDescriptorSetVariableDescriptorCountAllocateInfo,
+                      transform_fromhost_VkDescriptorSetVariableDescriptorCountAllocateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkDescriptorSetVariableDescriptorCountLayoutSupport,
+                      transform_tohost_VkDescriptorSetVariableDescriptorCountLayoutSupportEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkDescriptorSetVariableDescriptorCountLayoutSupport,
+                      transform_fromhost_VkDescriptorSetVariableDescriptorCountLayoutSupportEXT)
 
 #endif
 #ifdef VK_EXT_vertex_attribute_divisor
@@ -3470,6 +3692,14 @@ DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceToolProperties,
                       transform_fromhost_VkPhysicalDeviceToolPropertiesEXT)
 
 #endif
+#ifdef VK_EXT_separate_stencil_usage
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkImageStencilUsageCreateInfo,
+                      transform_tohost_VkImageStencilUsageCreateInfoEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkImageStencilUsageCreateInfo,
+                      transform_fromhost_VkImageStencilUsageCreateInfoEXT)
+
+#endif
 #ifdef VK_EXT_provoking_vertex
 void transform_tohost_VkPhysicalDeviceProvokingVertexFeaturesEXT(
     ResourceTracker* resourceTracker, VkPhysicalDeviceProvokingVertexFeaturesEXT* toTransform);
@@ -3510,6 +3740,14 @@ DEFINE_ALIAS_FUNCTION(transform_tohost_VkPipelineRasterizationLineStateCreateInf
 
 DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPipelineRasterizationLineStateCreateInfo,
                       transform_fromhost_VkPipelineRasterizationLineStateCreateInfoEXT)
+
+#endif
+#ifdef VK_EXT_host_query_reset
+DEFINE_ALIAS_FUNCTION(transform_tohost_VkPhysicalDeviceHostQueryResetFeatures,
+                      transform_tohost_VkPhysicalDeviceHostQueryResetFeaturesEXT)
+
+DEFINE_ALIAS_FUNCTION(transform_fromhost_VkPhysicalDeviceHostQueryResetFeatures,
+                      transform_fromhost_VkPhysicalDeviceHostQueryResetFeaturesEXT)
 
 #endif
 #ifdef VK_EXT_index_type_uint8

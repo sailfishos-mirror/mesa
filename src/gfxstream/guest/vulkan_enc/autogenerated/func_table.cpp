@@ -2836,6 +2836,32 @@ void gfxstream_vk_GetDescriptorSetLayoutSupportKHR(
     }
 }
 #endif
+#ifdef VK_KHR_draw_indirect_count
+void gfxstream_vk_CmdDrawIndirectCountKHR(VkCommandBuffer commandBuffer, VkBuffer buffer,
+                                          VkDeviceSize offset, VkBuffer countBuffer,
+                                          VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
+                                          uint32_t stride) {
+    MESA_TRACE_SCOPE("vkCmdDrawIndirectCountKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdDrawIndirectCountKHR(commandBuffer, buffer, offset, countBuffer,
+                                         countBufferOffset, maxDrawCount, stride,
+                                         true /* do lock */);
+    }
+}
+void gfxstream_vk_CmdDrawIndexedIndirectCountKHR(VkCommandBuffer commandBuffer, VkBuffer buffer,
+                                                 VkDeviceSize offset, VkBuffer countBuffer,
+                                                 VkDeviceSize countBufferOffset,
+                                                 uint32_t maxDrawCount, uint32_t stride) {
+    MESA_TRACE_SCOPE("vkCmdDrawIndexedIndirectCountKHR");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
+        vkEnc->vkCmdDrawIndexedIndirectCountKHR(commandBuffer, buffer, offset, countBuffer,
+                                                countBufferOffset, maxDrawCount, stride,
+                                                true /* do lock */);
+    }
+}
+#endif
 #ifdef VK_KHR_timeline_semaphore
 VkResult gfxstream_vk_GetSemaphoreCounterValueKHR(VkDevice device, VkSemaphore semaphore,
                                                   uint64_t* pValue) {
@@ -2980,6 +3006,29 @@ VkResult gfxstream_vk_GetPipelineExecutableInternalRepresentationsKHR(
                 true /* do lock */);
     }
     return vkGetPipelineExecutableInternalRepresentationsKHR_VkResult_return;
+}
+#endif
+#ifdef VK_KHR_map_memory2
+VkResult gfxstream_vk_MapMemory2KHR(VkDevice device, const VkMemoryMapInfo* pMemoryMapInfo,
+                                    void** ppData) {
+    MESA_TRACE_SCOPE("vkMapMemory2KHR");
+    VkResult vkMapMemory2KHR_VkResult_return = (VkResult)0;
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkMapMemory2KHR_VkResult_return =
+            vkEnc->vkMapMemory2KHR(device, pMemoryMapInfo, ppData, true /* do lock */);
+    }
+    return vkMapMemory2KHR_VkResult_return;
+}
+VkResult gfxstream_vk_UnmapMemory2KHR(VkDevice device, const VkMemoryUnmapInfo* pMemoryUnmapInfo) {
+    MESA_TRACE_SCOPE("vkUnmapMemory2KHR");
+    VkResult vkUnmapMemory2KHR_VkResult_return = (VkResult)0;
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkUnmapMemory2KHR_VkResult_return =
+            vkEnc->vkUnmapMemory2KHR(device, pMemoryUnmapInfo, true /* do lock */);
+    }
+    return vkUnmapMemory2KHR_VkResult_return;
 }
 #endif
 #ifdef VK_KHR_synchronization2
@@ -3446,6 +3495,16 @@ void gfxstream_vk_CmdSetLineStippleEXT(VkCommandBuffer commandBuffer, uint32_t l
         auto vkEnc = gfxstream::vk::ResourceTracker::getCommandBufferEncoder(commandBuffer);
         vkEnc->vkCmdSetLineStippleEXT(commandBuffer, lineStippleFactor, lineStipplePattern,
                                       true /* do lock */);
+    }
+}
+#endif
+#ifdef VK_EXT_host_query_reset
+void gfxstream_vk_ResetQueryPoolEXT(VkDevice device, VkQueryPool queryPool, uint32_t firstQuery,
+                                    uint32_t queryCount) {
+    MESA_TRACE_SCOPE("vkResetQueryPoolEXT");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkEnc->vkResetQueryPoolEXT(device, queryPool, firstQuery, queryCount, true /* do lock */);
     }
 }
 #endif
