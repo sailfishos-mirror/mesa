@@ -647,7 +647,6 @@ struct zink_batch_state {
    VkVideoSessionParametersKHR video_params;
 
    VkSemaphore present;
-   struct zink_resource *swapchain;
    struct util_dynarray acquires;
    struct util_dynarray acquire_flags;
 
