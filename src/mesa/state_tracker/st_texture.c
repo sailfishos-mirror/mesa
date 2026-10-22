@@ -95,7 +95,13 @@ st_texture_create(struct st_context *st,
    pt.usage = PIPE_USAGE_DEFAULT;
    pt.bind = bind;
    /* only set this for OpenGL textures, not renderbuffers */
-   pt.flags = PIPE_RESOURCE_FLAG_TEXTURING_MORE_LIKELY;
+   pt.flags = PIPE_RESOURCE_FLAG_TEXTURING_MORE_LIKELY | flags;
+   /* threaded maps skip sync
+    * only textures with support
+    * may then take this path
+    */
+   if (!screen->caps.map_unsynchronized_texture_thread_safe)
+      pt.flags &= ~PIPE_RESOURCE_FLAG_MAP_UNSYNCHRONIZED;
    pt.nr_samples = nr_samples;
    pt.nr_storage_samples = nr_samples;
    pt.compression_rate = compression;

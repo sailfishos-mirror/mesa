@@ -814,6 +814,7 @@ zink_init_screen_caps(struct zink_screen *screen)
    caps->can_bind_const_buffer_as_vertex = true;
    caps->allow_mapped_buffers_during_execution = true;
    caps->map_unsynchronized_thread_safe = true;
+   caps->map_unsynchronized_texture_thread_safe = true;
    caps->shareable_shaders = true;
    caps->device_reset_status_query = true;
    caps->query_memory_info = true;
