@@ -203,18 +203,6 @@ struct radv_graphics_pipeline_key {
    struct radv_shader_stage_key stage_info[MESA_VULKAN_SHADER_STAGES];
 };
 
-struct radv_llvm_compiler_options {
-   const struct ac_compiler_info *compiler_info;
-   enum radeon_family family;
-   uint32_t address32_hi;
-   bool robust_buffer_access;
-   bool dump_shader;
-   bool dump_preoptir;
-   bool record_ir;
-   bool check_ir;
-   bool wgp_mode;
-};
-
 #define SET_SGPR_FIELD(field, value) (((unsigned)(value) & field##__MASK) << field##__SHIFT)
 
 #define TCS_OFFCHIP_LAYOUT_NUM_PATCHES__SHIFT           0
