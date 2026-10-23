@@ -2117,9 +2117,13 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
     *    "When this bit is set in the header, Trace Ray Message behaves like
     *    a Ray Query. This message requires a write-back message indicating
     *    RayQuery for all valid Rays (SIMD lanes) have completed."
+    *
+    * Note that writeback ignores channel masking, so we need a UGPR vector
+    * destination for correctness with divergent control flow.
     */
    jay_def notif = synchronous ?
-      nj_def(&instr->def) : jay_null();
+                      jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_gpr(s)) :
+                      jay_null();
 
    switch (instr->intrinsic) {
    case nir_intrinsic_trace_ray_intel: {
@@ -2157,6 +2161,7 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
    if (synchronous) {
       assert(instr->intrinsic == nir_intrinsic_trace_ray_intel);
       jay_SCHEDULE_BARRIER(&nj->bld);
+      jay_MOV(&nj->bld, nj_def(&instr->def), notif);
    }
 }
 
