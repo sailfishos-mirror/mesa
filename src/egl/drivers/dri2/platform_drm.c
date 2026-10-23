@@ -89,9 +89,13 @@ has_free_buffers(struct gbm_surface *_surf)
    struct gbm_dri_surface *surf = gbm_dri_surface(_surf);
    struct dri2_egl_surface *dri2_surf = surf->dri_private;
 
-   for (unsigned i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); i++)
-      if (!dri2_surf->color_buffers[i].locked)
+   for (unsigned i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); i++) {
+      struct dri2_egl_buffer *buffer = &dri2_surf->color_buffers[i];
+
+      if (!buffer->locked &&
+          dri2_surf->current != buffer)
          return 1;
+   }
 
    return 0;
 }
