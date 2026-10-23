@@ -55,7 +55,9 @@ template = """\
  * IN THE SOFTWARE.
  */
 
+#ifdef HAVE_FENV_H
 #include <fenv.h>
+#endif
 #include <math.h>
 #include "util/rounding.h" /* for _mesa_roundeven */
 #include "util/half_float.h"
@@ -658,6 +660,7 @@ nir_eval_const_opcode(nir_op op, nir_const_value *dest, nir_component_mask_t *ou
                       nir_const_value **src,
                       unsigned float_controls_execution_mode)
 {
+#ifdef HAVE_FENV_H
    /* Temporarily disable floating point exception flags while we
     * evaluate shader constants. This avoids games unexpectedly crashing while
     * we evalute shader math on the cpu if they have the exeption flags turn
@@ -671,6 +674,7 @@ nir_eval_const_opcode(nir_op op, nir_const_value *dest, nir_component_mask_t *ou
 #endif
    if (unlikely(had_flags))
       feholdexcept(&__nir_const_fenv);
+#endif
 
    nir_component_mask_t poison;
 
@@ -687,9 +691,11 @@ nir_eval_const_opcode(nir_op op, nir_const_value *dest, nir_component_mask_t *ou
    if (out_poison)
       *out_poison = poison;
 
+#ifdef HAVE_FENV_H
    /* Restore floating point exception flags */
    if (unlikely(had_flags))
       fesetenv(&__nir_const_fenv);
+#endif
 }"""
 
 from mako.template import Template
