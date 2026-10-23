@@ -18,11 +18,8 @@
 
 namespace pps {
 
-PanfrostPerf::PanfrostPerf(const PanfrostDevice &dev)
+PanfrostPerf::PanfrostPerf()
 {
-   assert(dev.fd >= 0);
-   perf = pan_perf_create(dev.fd);
-   assert(perf);
 }
 
 PanfrostPerf::~PanfrostPerf()
@@ -43,6 +40,14 @@ PanfrostPerf::operator=(PanfrostPerf &&o)
 {
    std::swap(perf, o.perf);
    return *this;
+}
+
+bool
+PanfrostPerf::init(const PanfrostDevice &dev)
+{
+   assert(dev.fd >= 0);
+   perf = pan_perf_create(dev.fd);
+   return perf != nullptr;
 }
 
 int
