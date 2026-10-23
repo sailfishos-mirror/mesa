@@ -856,6 +856,13 @@ radv_sqtt_sample_clocks(struct radv_device *device)
    if (!ac_sqtt_add_clock_calibration(&device->sqtt, cpu_timestamp, gpu_timestamp))
       return false;
 
+   /* The SMU metrics can return a stale snapshot on the first read after a while, refresh them with
+    * a dummy read and wait for the kernel metrics cache to expire before sampling.
+    */
+   shader_clock_freq = ws->query_value(ws, RADEON_CURRENT_SCLK);
+   memory_clock_freq = ws->query_value(ws, RADEON_CURRENT_MCLK);
+   os_time_sleep(5000); /* 5ms */
+
    shader_clock_freq = ws->query_value(ws, RADEON_CURRENT_SCLK);
    memory_clock_freq = ws->query_value(ws, RADEON_CURRENT_MCLK);
 
