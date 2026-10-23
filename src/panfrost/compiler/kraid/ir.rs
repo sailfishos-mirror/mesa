@@ -1128,8 +1128,8 @@ impl Src {
         match bits {
             8 => Src::from(0_u8),
             16 => Src::from(0_u16),
-            32 => Src::from(0_u32),
-            _ => panic!("Invalid float bit size"),
+            32 | 64 => SrcRef::Zero.into(),
+            _ => panic!("Invalid bit size"),
         }
     }
 
