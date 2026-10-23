@@ -3196,7 +3196,6 @@ static VkResult
 radv_graphics_pipeline_import_binaries(struct radv_device *device, struct radv_graphics_pipeline *pipeline,
                                        const VkPipelineBinaryInfoKHR *binary_info)
 {
-   blake3_hash pipeline_hash;
    struct mesa_blake3 ctx;
 
    _mesa_blake3_init(&ctx);
@@ -3222,9 +3221,9 @@ radv_graphics_pipeline_import_binaries(struct radv_device *device, struct radv_g
       _mesa_blake3_update(&ctx, pipeline_binary->key, sizeof(pipeline_binary->key));
    }
 
-   _mesa_blake3_final(&ctx, pipeline_hash);
+   _mesa_blake3_final(&ctx, pipeline->base.blake3);
 
-   pipeline->base.pipeline_hash = *(uint64_t *)pipeline_hash;
+   pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
 
    pipeline->has_pipeline_binaries = true;
 
