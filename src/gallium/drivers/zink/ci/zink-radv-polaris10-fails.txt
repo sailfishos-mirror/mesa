@@ -1,8 +1,5 @@
 glx@glx-multi-window-single-context,Fail
 
-spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex,Fail
-spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex@'vs_input2[1][0]' on GL_PROGRAM_INPUT,Fail
-
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_nv12,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_nv21,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_vyuy,Fail

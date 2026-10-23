@@ -494,7 +494,7 @@
         "description": "mesa: don't read past the name when matching a resource without its [0]",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4565b6f4fb59d261f9128ffe91c0787af4b15ea4",
         "notes": null
