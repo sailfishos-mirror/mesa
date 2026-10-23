@@ -53,7 +53,7 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
     */
    const unsigned flags2_reg =
       offsetof(struct panvk_fb_layer_state, flags2) / sizeof(uint32_t);
-   struct cs_index mask = cs_scratch_reg32(b, 8);
+   struct cs_index mask = cs_scratch_reg32(b, 16);
 
    cs_move32_to(b, mask, BITFIELD_MASK(28));
    cs_and32(b, cs_scratch_reg32(b, flags2_reg), cs_scratch_reg32(b, flags2_reg),
