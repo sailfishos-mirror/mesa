@@ -1,5 +1,195 @@
 [
     {
+        "sha": "04d7f733b89ae9cf1cc3544b9fc7d07d1b43878b",
+        "description": "r300: remove artificial vertex shader outputs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5f0fc493a1e0054b2e2a4d304ce9ac2a7a6a177e",
+        "description": "nir: Remove nir_format_unorm_to_float_precise",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c5b5a3df434dc7c4c98125b50a5f6a063486cfe4",
+        "description": "intel/compiler/rt: Use nir_format_unorm24_to_float",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0b84332a4a9cfe76861234a40223626fc9787195",
+        "description": "intel/blorp: Use nir_format_unorm24_to_float",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a0ef4c88056ce621ee4c09d138d1abfd6095db6c",
+        "description": "jay: fix trace_ray return values",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "ad2d231846eb628df12fd4cd534b4e2126b681a1",
+        "notes": null
+    },
+    {
+        "sha": "f04d36929019cffb5bef8eaa9d3e3de9227a3bdf",
+        "description": "gfxstream: Switch Android reference from zstd to zlib",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "821ce631fea7f5fb79a1b3b5e391a72e39708c03",
+        "description": "radeonsi/mm: use preenc_pitch_wa for sizing preencode DPB",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "df7d8911cf0a033e57708d300208ee0df7e70e46",
+        "description": "ac/video: add preenc_pitch_wa flag to caps",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2065a1504137c818f9427ad6381029ef26bc0b24",
+        "description": "radv: move radv_llvm_compiler_options to radv_nir_to_llvm.h",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3265984e8f945e0646d73e24c1ca3021ca5149f9",
+        "description": "radv: do not build the LLVM backend in release builds",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "09a9fae26d5df276a23b3f66050cd0d1d227800a",
+        "description": "gfxstream: check for guest process death in decoder loop",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f6bda4756e55e2bc55058cb20f8993f46effb9cd",
+        "description": "nil: Only advertise texturing for 10X6, 12X4",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e577da62b89018cd0f7406ac26074610640a88e9",
+        "description": "nil: Add table entries for 10X6, 12X4",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7711a96d459c2fff1d7a394ae1cba80150a53033",
+        "description": "nil: Support sRGB formats as buffer formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "bda014104ecf26a7485f5b05b6ee7b377ce3abf5",
+        "description": "mesa: only set _NEW_BUFFERS from _mesa_resize_framebuffer when size changed",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "17d6f7cc7f5166b0bba2f67183f40a547a7768a7",
+        "notes": null
+    },
+    {
+        "sha": "ef025ed119e4c1d1e3f0ef3fbc4405bd853b9721",
+        "description": "radeonsi/vpe: Fix settings conflict between GDS and filters",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b7c66285644670a0e9141952e0e4e6242424f882",
+        "description": "nir/uub: Catch `iand`s which result in zero",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f6cc22d01fda123b95c37ac095234d1b57bdf256",
+        "description": "nir/uub: Remove unecessary i2i32 sign extensions",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2f8a99eba823c2cf9d23b14ded0f45dc80040fb4",
+        "description": "nir/opt_algebraic: Match some `extract_u8`s",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "86bc45c5f3fe6dee69c143ccd1567de6d98daaf0",
         "description": "jay/performance: handle SYNC.allrd/wr",
         "nominated": false,
