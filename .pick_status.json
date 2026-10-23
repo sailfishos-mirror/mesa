@@ -2204,7 +2204,7 @@
         "description": "mesa: zero pipe_memory_info before querying it",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "689a0c4d4ecc9cbd218325844b584f427b8c6d94",
         "notes": null
