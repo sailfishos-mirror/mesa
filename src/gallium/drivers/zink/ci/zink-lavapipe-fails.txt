@@ -38,8 +38,6 @@ spec@!opengl 1.1@polygon-mode-offset@config 6: Expected white pixel on top edge,
 spec@arb_fragment_shader_interlock@arb_fragment_shader_interlock-image-load-store,Fail
 spec@arb_framebuffer_object@execution@msaa-alpha-to-coverage_alpha-to-one_write-z,Fail
 spec@arb_gpu_shader_fp64@execution@arb_gpu_shader_fp64-tf-separate,Fail
-spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex,Fail
-spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex@'vs_input2[1][0]' on GL_PROGRAM_INPUT,Fail
 spec@arb_sample_shading@samplemask 2,Fail
 spec@arb_sample_shading@samplemask 2@0.250000 mask_in_one,Fail
 spec@arb_sample_shading@samplemask 2@0.500000 mask_in_one,Fail
