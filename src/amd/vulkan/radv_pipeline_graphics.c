@@ -2799,21 +2799,6 @@ radv_graphics_shaders_create(struct radv_device *device, struct vk_pipeline_cach
       *gs_copy_shader = radv_shader_create(device, cache, gs_copy_binary, skip_shaders_cache, gs_copy_debug);
 }
 
-static bool
-radv_should_compute_pipeline_hash(const struct radv_device *device, const enum radv_pipeline_type pipeline_type,
-                                  bool fast_linking_enabled)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-
-   /* Skip computing the pipeline hash when GPL fast-linking is enabled because these shaders aren't
-    * supposed to be cached and computing the hash is costly. Though, make sure it's always computed
-    * when RGP is enabled, otherwise ISA isn't reported.
-    */
-   return !fast_linking_enabled ||
-          ((instance->vk.trace_mode & RADV_TRACE_MODE_RGP) && pipeline_type == RADV_PIPELINE_GRAPHICS);
-}
-
 void
 radv_graphics_pipeline_state_finish(struct radv_device *device, struct radv_graphics_pipeline_state *gfx_state)
 {
@@ -2836,8 +2821,6 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
 {
    VK_FROM_HANDLE(radv_pipeline_layout, pipeline_layout, pCreateInfo->layout);
    const VkPipelineCreateFlags2 create_flags = vk_graphics_pipeline_create_flags(pCreateInfo);
-   const bool fast_linking_enabled = radv_is_fast_linking_enabled(pCreateInfo);
-   enum radv_pipeline_type pipeline_type = RADV_PIPELINE_GRAPHICS;
    VkResult result;
 
    memset(gfx_state, 0, sizeof(*gfx_state));
@@ -2847,7 +2830,6 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
       const VkGraphicsPipelineLibraryCreateInfoEXT *lib_info =
          vk_find_struct_const(pCreateInfo->pNext, GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT);
       needed_lib_flags = lib_info ? lib_info->flags : 0;
-      pipeline_type = RADV_PIPELINE_GRAPHICS_LIB;
    }
 
    radv_pipeline_layout_init(device, &gfx_state->layout, false);
@@ -2877,8 +2859,7 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
    if (pipeline_layout)
       radv_graphics_pipeline_import_layout(&gfx_state->layout, pipeline_layout);
 
-   if (radv_should_compute_pipeline_hash(device, pipeline_type, fast_linking_enabled))
-      radv_pipeline_layout_hash(&gfx_state->layout);
+   radv_pipeline_layout_hash(&gfx_state->layout);
 
    gfx_state->compilation_required = !radv_skip_graphics_pipeline_compile(device, pCreateInfo);
    if (gfx_state->compilation_required) {
@@ -2960,12 +2941,6 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
    struct radv_retained_shaders *retained_shaders = NULL;
 
    int64_t pipeline_start = os_time_get_nano();
-
-   if (radv_should_compute_pipeline_hash(device, pipeline->base.type, fast_linking_enabled)) {
-      radv_graphics_pipeline_hash(device, gfx_state, pipeline->base.blake3);
-
-      pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
-   }
 
    /* Skip the shaders cache when any of the below are true:
     * - fast-linking is enabled because it's useless to cache unoptimized pipelines
@@ -3267,6 +3242,10 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
    if (import_pipeline_binaries) {
       result = radv_graphics_pipeline_import_binaries(device, pipeline, binary_info);
    } else {
+      radv_graphics_pipeline_hash(device, &gfx_state, pipeline->base.blake3);
+
+      pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
+
       if (gfx_state.compilation_required) {
          result =
             radv_graphics_pipeline_compile(pipeline, pCreateInfo, &gfx_state, device, cache, fast_linking_enabled);
@@ -3412,6 +3391,10 @@ radv_graphics_lib_pipeline_init(struct radv_graphics_lib_pipeline *pipeline, str
       result = radv_generate_graphics_pipeline_state(device, pCreateInfo, &gfx_state);
       if (result != VK_SUCCESS)
          return result;
+
+      radv_graphics_pipeline_hash(device, &gfx_state, pipeline->base.base.blake3);
+
+      pipeline->base.base.pipeline_hash = *(uint64_t *)pipeline->base.base.blake3;
 
       result =
          radv_graphics_pipeline_compile(&pipeline->base, pCreateInfo, &gfx_state, device, cache, fast_linking_enabled);
