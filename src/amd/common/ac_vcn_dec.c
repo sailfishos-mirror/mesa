@@ -559,7 +559,7 @@ ac_vcn_av1_init_probs(unsigned av1_version, uint8_t *prob)
 #define CHROMA_BLOCK_SIZE_X 44
 
 static int32_t
-radv_vcn_av1_film_grain_random_number(unsigned short *seed, int32_t bits)
+ac_vcn_av1_film_grain_random_number(unsigned short *seed, int32_t bits)
 {
    unsigned short bit;
    unsigned short value = *seed;
@@ -572,7 +572,7 @@ radv_vcn_av1_film_grain_random_number(unsigned short *seed, int32_t bits)
 }
 
 static void
-radv_vcn_av1_film_grain_init_scaling(uint8_t scaling_points[][2], uint8_t num, short scaling_lut[])
+ac_vcn_av1_film_grain_init_scaling(uint8_t scaling_points[][2], uint8_t num, short scaling_lut[])
 {
    int32_t i, x, delta_x, delta_y;
    int64_t delta;
@@ -633,7 +633,7 @@ ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_para
       for (x = 0; x < luma_block_size_x; x++) {
          g = 0;
          if (fg_params->num_y_points > 0) {
-            r = radv_vcn_av1_film_grain_random_number(&seed, gauss_bits);
+            r = ac_vcn_av1_film_grain_random_number(&seed, gauss_bits);
             g = gaussian_sequence[CLAMP(r, 0, 2048 - 1)];
          }
          filt_luma_grain_block[y][x] = ROUND_POWER_OF_TWO(g, shift);
@@ -666,7 +666,7 @@ ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_para
       for (x = 0; x < chroma_block_size_x; x++) {
          g = 0;
          if (fg_params->num_cb_points || fg_params->chroma_scaling_from_luma) {
-            r = radv_vcn_av1_film_grain_random_number(&seed, gauss_bits);
+            r = ac_vcn_av1_film_grain_random_number(&seed, gauss_bits);
             g = gaussian_sequence[CLAMP(r, 0, 2048 - 1)];
          }
          filt_cb_grain_block[y][x] = ROUND_POWER_OF_TWO(g, shift);
@@ -679,7 +679,7 @@ ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_para
       for (x = 0; x < chroma_block_size_x; x++) {
          g = 0;
          if (fg_params->num_cr_points || fg_params->chroma_scaling_from_luma) {
-            r = radv_vcn_av1_film_grain_random_number(&seed, gauss_bits);
+            r = ac_vcn_av1_film_grain_random_number(&seed, gauss_bits);
             g = gaussian_sequence[CLAMP(r, 0, 2048 - 1)];
          }
          filt_cr_grain_block[y][x] = ROUND_POWER_OF_TWO(g, shift);
@@ -767,17 +767,17 @@ ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_para
    }
 
    memset(fg_buf->scaling_lut_y, 0, sizeof(fg_buf->scaling_lut_y));
-   radv_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_y, fg_params->num_y_points, fg_buf->scaling_lut_y);
+   ac_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_y, fg_params->num_y_points, fg_buf->scaling_lut_y);
    if (fg_params->chroma_scaling_from_luma) {
       memcpy(fg_buf->scaling_lut_cb, fg_buf->scaling_lut_y, sizeof(fg_buf->scaling_lut_y));
       memcpy(fg_buf->scaling_lut_cr, fg_buf->scaling_lut_y, sizeof(fg_buf->scaling_lut_y));
    } else {
       memset(fg_buf->scaling_lut_cb, 0, sizeof(fg_buf->scaling_lut_cb));
       memset(fg_buf->scaling_lut_cr, 0, sizeof(fg_buf->scaling_lut_cr));
-      radv_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_cb, fg_params->num_cb_points,
-                                           fg_buf->scaling_lut_cb);
-      radv_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_cr, fg_params->num_cr_points,
-                                           fg_buf->scaling_lut_cr);
+      ac_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_cb, fg_params->num_cb_points,
+                                         fg_buf->scaling_lut_cb);
+      ac_vcn_av1_film_grain_init_scaling(fg_params->scaling_points_cr, fg_params->num_cr_points,
+                                         fg_buf->scaling_lut_cr);
    }
 }
 
