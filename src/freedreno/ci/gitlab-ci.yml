@@ -357,7 +357,7 @@ a702-gl-cl:
   rules:
     - !reference [.qualcomm-freedreno-turnip-manual-rules, rules]
     - !reference [.rusticl-manual-rules, rules]
-  timeout: 300m
+  timeout: 2h
   variables:
     DEQP_SUITE: freedreno-a702
     HWCI_START_WESTON: 1
@@ -378,7 +378,7 @@ a702-vk:
     - .lava-arm64-test-vk
     - .lava-qcom-rb1:arm64
     - .qualcomm-turnip-manual-rules
-  timeout: 6000m
+  timeout: 7h
   parallel: 4
   variables:
     DEQP_SUITE: freedreno-a702-vk
