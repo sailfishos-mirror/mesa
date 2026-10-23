@@ -788,6 +788,12 @@ impl PerCompFoldable for OpCmp {
     }
 }
 
+/// Copy is a virtual Op to copy directly bytes
+///
+/// It does not support any swizzle except for the "basic" ones, those are
+/// NONE for 32-64 bits and byte-half replications for smaller ones.  If you
+/// need to copy 2 16-bit lanes use a I32 copy with NONE swizzle, if you need
+/// swizzles use a OpSwz instead.
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]

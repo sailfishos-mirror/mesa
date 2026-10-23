@@ -405,10 +405,11 @@ impl<A: AllocSSA> DstModProp<'_, A> {
                 let Some(repl) = self.def_repl.get(&ssa) else {
                     return false;
                 };
+                debug_assert_eq!(repl.bits(), op.src_type.total_bits());
 
                 instr.op = OpCopy {
                     dst: op.dst.clone(),
-                    dst_type: op.src_type,
+                    dst_type: DataType::i(repl.bits()),
                     src: (*repl).into(),
                 }
                 .into();
