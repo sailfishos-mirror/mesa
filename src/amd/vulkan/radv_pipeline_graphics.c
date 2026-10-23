@@ -3198,8 +3198,6 @@ radv_graphics_pipeline_import_binaries(struct radv_device *device, struct radv_g
 
    _mesa_blake3_final(&ctx, pipeline->base.blake3);
 
-   pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
-
    pipeline->has_pipeline_binaries = true;
 
    return VK_SUCCESS;
@@ -3244,8 +3242,6 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
    } else {
       radv_graphics_pipeline_hash(device, &gfx_state, pipeline->base.blake3);
 
-      pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
-
       if (gfx_state.compilation_required) {
          result =
             radv_graphics_pipeline_compile(pipeline, pCreateInfo, &gfx_state, device, cache, fast_linking_enabled);
@@ -3256,6 +3252,8 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
       radv_graphics_pipeline_state_finish(device, &gfx_state);
       return result;
    }
+
+   pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
 
    radv_pipeline_init_multisample_state(device, pipeline, pCreateInfo, &gfx_state.vk);
 
@@ -3394,13 +3392,16 @@ radv_graphics_lib_pipeline_init(struct radv_graphics_lib_pipeline *pipeline, str
 
       radv_graphics_pipeline_hash(device, &gfx_state, pipeline->base.base.blake3);
 
-      pipeline->base.base.pipeline_hash = *(uint64_t *)pipeline->base.base.blake3;
-
       result =
          radv_graphics_pipeline_compile(&pipeline->base, pCreateInfo, &gfx_state, device, cache, fast_linking_enabled);
 
       radv_graphics_pipeline_state_finish(device, &gfx_state);
    }
+
+   if (result != VK_SUCCESS)
+      return result;
+
+   pipeline->base.base.pipeline_hash = *(uint64_t *)pipeline->base.base.blake3;
 
    return result;
 }
