@@ -104,7 +104,7 @@
         "description": "panvk: Fix incremental rendering for v14+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "709156bd4558997255dae1faa9d6edb5d971111a",
         "notes": null
