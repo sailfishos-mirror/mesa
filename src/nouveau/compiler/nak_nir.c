@@ -204,7 +204,7 @@ nak_optimize_nir(nir_shader *nir, const struct nak_compiler *nak)
       LOOP_OPT(nir, nir_opt_cse);
 
       nir_opt_peephole_select_options peephole_select_options = {
-         .limit = 0,
+         .limit = 8,
          .discard_ok = true,
       };
       LOOP_OPT_NOT_IDEMPOTENT(nir, nir_opt_peephole_select,
