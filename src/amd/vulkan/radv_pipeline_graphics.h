@@ -724,6 +724,8 @@ struct radv_graphics_pipeline_state {
    struct radv_graphics_pipeline_key key;
 
    struct radv_pipeline_layout layout;
+
+   blake3_hash libs_blake3;
 };
 
 void radv_graphics_pipeline_hash(const struct radv_device *device, const struct radv_graphics_pipeline_state *gfx_state,

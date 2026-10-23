@@ -2838,9 +2838,19 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
    const VkPipelineLibraryCreateInfoKHR *libs_info =
       vk_find_struct_const(pCreateInfo->pNext, PIPELINE_LIBRARY_CREATE_INFO_KHR);
    if (libs_info) {
+      blake3_hash lib_hashes[4] = {0};
+      struct mesa_blake3 ctx;
+
       for (uint32_t i = 0; i < libs_info->libraryCount; i++) {
          VK_FROM_HANDLE(radv_pipeline, pipeline_lib, libs_info->pLibraries[i]);
          const struct radv_graphics_lib_pipeline *gfx_pipeline_lib = radv_pipeline_to_graphics_lib(pipeline_lib);
+
+         /* Hash libraries by flags to keep the key stable if the import order changes. */
+         if (gfx_pipeline_lib->lib_flags) {
+            const unsigned slot = ffs(gfx_pipeline_lib->lib_flags) - 1;
+            assert(slot < ARRAY_SIZE(lib_hashes));
+            memcpy(lib_hashes[slot], gfx_pipeline_lib->base.base.blake3, sizeof(blake3_hash));
+         }
 
          vk_graphics_pipeline_state_merge(&gfx_state->vk, &gfx_pipeline_lib->graphics_state);
 
@@ -2848,6 +2858,10 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
 
          needed_lib_flags &= ~gfx_pipeline_lib->lib_flags;
       }
+
+      _mesa_blake3_init(&ctx);
+      _mesa_blake3_update(&ctx, lib_hashes, sizeof(lib_hashes));
+      _mesa_blake3_final(&ctx, gfx_state->libs_blake3);
    }
 
    result = vk_graphics_pipeline_state_fill(&device->vk, &gfx_state->vk, pCreateInfo, NULL /* driver_mv */,
@@ -2904,6 +2918,8 @@ radv_graphics_pipeline_hash(const struct radv_device *device, const struct radv_
    radv_pipeline_hash(device, &gfx_state->layout, &ctx);
 
    _mesa_blake3_update(&ctx, &gfx_state->key.gfx_state, sizeof(gfx_state->key.gfx_state));
+
+   _mesa_blake3_update(&ctx, gfx_state->libs_blake3, sizeof(gfx_state->libs_blake3));
 
    if (gfx_state->stages) {
       for (unsigned s = 0; s < MESA_VULKAN_SHADER_STAGES; s++) {
