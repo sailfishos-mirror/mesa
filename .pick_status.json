@@ -474,7 +474,7 @@
         "description": "kopper: Don't call swrast_update_tex_buffer() if we don't have swrast",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6366a8992f30f95abfec8342b372d2c2987b2042",
         "notes": null
