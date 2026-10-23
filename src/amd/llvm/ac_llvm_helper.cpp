@@ -252,6 +252,12 @@ struct raw_memory_ostream : public raw_pwrite_stream {
 struct ac_midend_optimizer
 {
    TargetMachine *target_machine;
+#if LLVM_VERSION_MAJOR >= 24
+   /* PassBuilder reads its library options from this context. The pipeline
+    * is built manually, so it doesn't need to be the context of the modules.
+    */
+   LLVMContext pass_builder_context;
+#endif
    PassBuilder pass_builder;
    TargetLibraryInfoImpl target_library_info;
 
@@ -271,7 +277,11 @@ struct ac_midend_optimizer
 
    ac_midend_optimizer(TargetMachine *arg_target_machine, bool arg_check_ir)
       : target_machine(arg_target_machine),
+#if LLVM_VERSION_MAJOR >= 24
+        pass_builder(pass_builder_context, target_machine, PipelineTuningOptions(), {}),
+#else
         pass_builder(target_machine, PipelineTuningOptions(), {}),
+#endif
         target_library_info(Triple(target_machine->getTargetTriple()))
    {
       /* Build the pipeline and optimize.
