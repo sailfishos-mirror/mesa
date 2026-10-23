@@ -17,7 +17,7 @@
 #include <sys/utsname.h>
 
 #if AMD_LLVM_AVAILABLE
-#include <llvm-c/TargetMachine.h>
+#include <llvm-c/Target.h>
 #endif
 
 #include <xf86drm.h>

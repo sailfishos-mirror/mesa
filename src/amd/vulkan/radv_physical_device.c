@@ -44,7 +44,7 @@ typedef void *drmDevicePtr;
 #include "git_sha1.h"
 
 #if AMD_LLVM_AVAILABLE
-#include <llvm-c/TargetMachine.h>
+#include <llvm-c/Target.h>
 #endif
 
 #ifdef _WIN32
