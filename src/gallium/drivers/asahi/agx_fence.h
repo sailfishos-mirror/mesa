@@ -13,6 +13,7 @@ struct agx_context;
 
 struct pipe_fence_handle {
    struct pipe_reference reference;
+   enum pipe_fd_type type;
    uint32_t syncobj;
    bool signaled;
 };
