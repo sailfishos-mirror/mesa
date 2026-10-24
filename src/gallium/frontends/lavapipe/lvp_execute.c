@@ -230,6 +230,7 @@ struct rendering_state {
    struct {
       struct lvp_shader *compute_shader;
       uint8_t push_constants[128 * 4];
+      bool cond_render_enabled;
    } saved;
 
    struct {
@@ -4214,6 +4215,25 @@ lvp_emit_conditional_rendering(struct rendering_state *state)
    }
 }
 
+static void
+lvp_suspend_cond_render(struct rendering_state *state)
+{
+   if (state->conditional_rendering.enabled) {
+      state->saved.cond_render_enabled = state->conditional_rendering.enabled;
+      state->conditional_rendering.enabled = false;
+      lvp_emit_conditional_rendering(state);
+   }
+}
+
+static void
+lvp_resume_cond_render(struct rendering_state *state)
+{
+   if (state->saved.cond_render_enabled) {
+      state->conditional_rendering.enabled = true;
+      lvp_emit_conditional_rendering(state);
+   }
+}
+
 static void handle_begin_conditional_rendering(struct vk_cmd_queue_entry *cmd,
                                                struct rendering_state *state)
 {
@@ -5413,18 +5433,9 @@ lvp_trace_rays(struct rendering_state *state, VkTraceRaysIndirectCommand2KHR *co
    state->trace_rays_info.grid[1] = DIV_ROUND_UP(command->height, state->trace_rays_info.block[1]);
    state->trace_rays_info.grid[2] = DIV_ROUND_UP(command->depth, state->trace_rays_info.block[2]);
 
-   bool conditional_rendering_enabled = state->conditional_rendering.enabled;
-   if (conditional_rendering_enabled) {
-      state->conditional_rendering.enabled = false;
-      lvp_emit_conditional_rendering(state);
-   }
-
+   lvp_suspend_cond_render(state);
    state->pctx->launch_grid(state->pctx, &state->trace_rays_info);
-
-   if (conditional_rendering_enabled) {
-      state->conditional_rendering.enabled = true;
-      lvp_emit_conditional_rendering(state);
-   }
+   lvp_resume_cond_render(state);
 }
 
 static void
@@ -5582,6 +5593,7 @@ handle_save_state(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
 {
    state->saved.compute_shader = state->shaders[MESA_SHADER_COMPUTE];
    memcpy(state->saved.push_constants, state->push_constants, sizeof(state->push_constants));
+   lvp_suspend_cond_render(state);
 }
 
 static void
@@ -5592,6 +5604,7 @@ handle_restore_state(struct vk_cmd_queue_entry *cmd, struct rendering_state *sta
 
    memcpy(state->push_constants, state->saved.push_constants, sizeof(state->push_constants));
    state->pcbuf_dirty[MESA_SHADER_COMPUTE] = true;
+   lvp_resume_cond_render(state);
 }
 
 void lvp_add_enqueue_cmd_entrypoints(struct vk_device_dispatch_table *disp)
