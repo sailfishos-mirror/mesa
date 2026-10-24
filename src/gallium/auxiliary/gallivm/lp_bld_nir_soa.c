@@ -382,9 +382,6 @@ mask_vec_is_nz(struct lp_build_nir_soa_context *bld)
    if (bld->shader->info.stage == MESA_SHADER_FRAGMENT && bld->shader->info.fs.uses_discard)
       return false;
 
-   if (bld->is_callee)
-      return false;
-
    return !bld->exec_mask.has_mask && !bld->mask_may_be_zero;
 }
 
