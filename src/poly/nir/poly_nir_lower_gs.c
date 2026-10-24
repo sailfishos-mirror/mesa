@@ -377,6 +377,22 @@ lower_gs_inputs(nir_builder *b, nir_intrinsic_instr *intr, void *_)
    return true;
 }
 
+static bool
+load_tes_primitive_id(nir_builder *b, nir_intrinsic_instr *intr, void *_)
+{
+   if (intr->intrinsic != nir_intrinsic_load_primitive_id)
+      return false;
+
+   b->cursor = nir_before_instr(&intr->instr);
+   nir_def *id = nir_load_per_vertex_input(
+      b, 1, 32, nir_imm_int(b, 0), nir_imm_int(b, 0),
+      .dest_type = nir_type_uint32,
+      .io_semantics.location = VARYING_SLOT_PRIMITIVE_ID,
+      .io_semantics.num_slots = 1);
+   nir_def_replace(&intr->def, id);
+   return true;
+}
+
 /*
  * Unrolled ID is the index of the primitive in the count buffer, given as
  * (instance ID * # vertices/instance) + vertex ID
@@ -1255,6 +1271,12 @@ poly_nir_lower_gs(nir_shader *gs, nir_shader **gs_count, nir_shader **gs_copy,
 
       nir_shader_intrinsics_pass(gs, rewrite_invocation_id,
                                  nir_metadata_control_flow, nir_imm_int(&b, 0));
+   }
+
+   /* After tessellation, the primitive ID is the patch index the TES writes */
+   if (gs->info.prev_stage == MESA_SHADER_TESS_EVAL) {
+      NIR_PASS(_, gs, nir_shader_intrinsics_pass, load_tes_primitive_id,
+               nir_metadata_control_flow, NULL);
    }
 
    NIR_PASS(_, gs, nir_shader_intrinsics_pass, lower_gs_inputs,
