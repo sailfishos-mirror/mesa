@@ -942,7 +942,7 @@ hk_image_plane_alloc_vma(struct hk_device *dev, struct hk_image_plane *plane,
        * In the future we could optimize this out using the PBE sparse support
        * but that needs more reverse-engineering.
        */
-      hk_bind_scratch(dev, plane->va, 0, size);
+      hk_bind_scratch(dev, plane->va, 0, size, true);
    }
 
    if (sparse_resident) {
