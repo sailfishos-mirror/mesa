@@ -218,7 +218,7 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
             tex->textures[i] ? fd3_pipe_sampler_view(tex->textures[i])
                              : &dummy_view;
          struct fd_resource *rsc = fd_resource(view->base.texture);
-         if (rsc && rsc->b.b.target == PIPE_BUFFER) {
+         if (rsc && view->base.target == PIPE_BUFFER) {
             OUT_RELOC(ring, rsc->bo, view->base.u.buf.offset, 0, 0);
             j = 1;
          } else {
