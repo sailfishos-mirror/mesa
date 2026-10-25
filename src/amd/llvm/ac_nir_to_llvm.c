@@ -1705,6 +1705,8 @@ translate_atomic_op(nir_atomic_op op)
    case nir_atomic_op_imin: return LLVMAtomicRMWBinOpMin;
    case nir_atomic_op_imax: return LLVMAtomicRMWBinOpMax;
    case nir_atomic_op_fadd: return LLVMAtomicRMWBinOpFAdd;
+   case nir_atomic_op_fmin: return LLVMAtomicRMWBinOpFMin;
+   case nir_atomic_op_fmax: return LLVMAtomicRMWBinOpFMax;
    default: UNREACHABLE("Unexpected atomic");
    }
 }
@@ -1975,7 +1977,8 @@ static LLVMValueRef visit_global_atomic(struct ac_nir_context *ctx,
    } else if (nir_op == nir_atomic_op_ordered_add_gfx12_amd) {
       result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.global.atomic.ordered.add.b64", ctx->ac.i64,
                                   (LLVMValueRef[]){addr, data}, 2, 0);
-   } else if (is_float) {
+   } else if (is_float && LLVM_VERSION_MAJOR < 20) {
+      /* These intrinsics were replaced by atomicrmw in LLVM 20. */
       const char *op = translate_atomic_op_str(nir_op);
       char name[64], type[8];
       LLVMValueRef params[2];
@@ -1990,7 +1993,9 @@ static LLVMValueRef visit_global_atomic(struct ac_nir_context *ctx,
       result = ac_build_intrinsic(&ctx->ac, name, data_type, params, arg_count, 0);
    } else {
       op = translate_atomic_op(nir_op);
-      result = ac_build_atomic_rmw(&ctx->ac, op, addr, ac_to_integer(&ctx->ac, data), sync_scope);
+      if (!is_float)
+         data = ac_to_integer(&ctx->ac, data);
+      result = ac_build_atomic_rmw(&ctx->ac, op, addr, data, sync_scope);
    }
 
    result = ac_to_integer(&ctx->ac, result);
@@ -2533,7 +2538,9 @@ static LLVMValueRef visit_var_atomic(struct ac_nir_context *ctx, const nir_intri
       LLVMValueRef src1 = get_src(ctx, instr->src[src_idx + 1]);
       result = ac_build_atomic_cmp_xchg(&ctx->ac, ptr, src, src1, sync_scope);
       result = LLVMBuildExtractValue(ctx->ac.builder, result, 0, "");
-   } else if (nir_op == nir_atomic_op_fmin || nir_op == nir_atomic_op_fmax) {
+   } else if ((nir_op == nir_atomic_op_fmin || nir_op == nir_atomic_op_fmax) &&
+              LLVM_VERSION_MAJOR < 19) {
+      /* These intrinsics were replaced with atomicrmw in LLVM 19. */
       const char *op = translate_atomic_op_str(nir_op);
       char name[64], type[8];
       LLVMValueRef params[5];
@@ -2556,9 +2563,10 @@ static LLVMValueRef visit_var_atomic(struct ac_nir_context *ctx, const nir_intri
       result = ac_to_integer(&ctx->ac, result);
    } else {
       LLVMAtomicRMWBinOp op = translate_atomic_op(nir_op);
+      bool is_float = nir_atomic_op_type(nir_op) == nir_type_float;
       LLVMValueRef val;
 
-      if (nir_op == nir_atomic_op_fadd) {
+      if (is_float) {
          val = ac_to_float(&ctx->ac, src);
       } else {
          val = ac_to_integer(&ctx->ac, src);
@@ -2566,7 +2574,7 @@ static LLVMValueRef visit_var_atomic(struct ac_nir_context *ctx, const nir_intri
 
       result = ac_build_atomic_rmw(&ctx->ac, op, ptr, val, sync_scope);
 
-      if (nir_op == nir_atomic_op_fadd) {
+      if (is_float) {
          result = ac_to_integer(&ctx->ac, result);
       }
    }
