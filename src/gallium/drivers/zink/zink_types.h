@@ -1864,6 +1864,9 @@ struct zink_descriptor_surface {
 struct zink_bindless_descriptor {
    struct zink_descriptor_surface ds;
    struct pipe_resource *pres;
+   /* the view template of a texture handle, to get the view again for a new backing object */
+   struct pipe_surface templ;
+   VkImageViewCreateInfo ivci;
    struct zink_sampler_state *sampler;
    /* the handle and each context it is resident in hold a reference */
    uint32_t refcount;

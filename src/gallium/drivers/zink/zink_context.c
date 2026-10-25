@@ -2713,6 +2713,8 @@ zink_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_view *
       if (!sv->image_view)
          init_sampler_view(ctx, sv);
       bd->ds.surface = sv->image_view;
+      bd->templ = pipe_surface_templ_from_sampler_view(view, view->texture, view->target);
+      bd->ivci = sv->ivci;
       bd->first_layer = view->u.tex.first_layer;
       bd->last_layer = view->u.tex.last_layer;
    }
@@ -2789,7 +2791,10 @@ unbind_bindless_descriptor(struct zink_context *ctx, struct zink_resource *res)
    }
 }
 
-/* write the view or buffer of a resident texture handle into the shadow descriptor */
+/* write the current view or buffer of a resident texture handle into the shadow descriptor,
+ * and queue the descriptor update: also used when the resource's backing object is replaced,
+ * which leaves the view the handle was created with pointing at a destroyed image
+ */
 static void
 bindless_texture_write(struct zink_context *ctx, struct zink_bindless_descriptor *bd, struct zink_resource *res)
 {
@@ -2811,8 +2816,17 @@ bindless_texture_write(struct zink_context *ctx, struct zink_bindless_descriptor
       zink_resource_disable_unordered(res, false);
    } else {
       VkDescriptorImageInfo *ii = &ctx->di.bindless[0].img_infos[handle];
+      /* the resource may have a new backing object since the handle was created */
+      /* zink_get_surface writes the image into the create info, which other contexts also use */
+      VkImageViewCreateInfo ivci = bd->ivci;
+      struct zink_surface *surface = zink_get_surface(ctx, &bd->templ, &ivci);
+      /* the handle is shared with other contexts: don't read back what they may have stored */
+      if (surface)
+         ds->surface = surface;
+      else
+         surface = ds->surface;
       ii->sampler = bd->sampler->sampler;
-      ii->imageView = ds->surface->image_view;
+      ii->imageView = surface->image_view;
       ii->imageLayout = zink_descriptor_util_image_layout_eval(ctx, res, false);
       flush_pending_clears(ctx, res, bd->first_layer, bd->last_layer - bd->first_layer + 1);
       if (general_layout) {
@@ -5827,9 +5841,25 @@ rebind_image(struct zink_context *ctx, struct zink_resource *res)
    }
 }
 
+/* resident bindless texture handles hold the view or address of the old backing object */
+static void
+rebind_bindless_textures(struct zink_context *ctx, struct zink_resource *res)
+{
+   util_dynarray_foreach(&ctx->di.bindless[0].resident, struct zink_bindless_resident, r) {
+      if (zink_resource(r->bd->pres) != res)
+         continue;
+      bindless_texture_write(ctx, r->bd, res);
+      util_dynarray_append(&ctx->di.bindless[0].updates, r->bd->handle);
+      ctx->di.bindless_dirty[0] = true;
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
+   }
+}
+
 bool
 zink_resource_rebind(struct zink_context *ctx, struct zink_resource *res)
 {
+   if (res->bindless[0])
+      rebind_bindless_textures(ctx, res);
    if (res->base.b.target == PIPE_BUFFER) {
       /* force counter buffer reset */
       res->so_valid = false;
