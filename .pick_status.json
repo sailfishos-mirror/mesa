@@ -364,7 +364,7 @@
         "description": "jay: Don't lower U32 movs to F32 when cmod is being used",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "712719a2ae797197b4d5592e66a8530cd42af8aa",
         "notes": null
