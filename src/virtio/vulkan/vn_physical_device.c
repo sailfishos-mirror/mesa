@@ -2370,7 +2370,7 @@ vn_image_get_image_format_key(
    if (format_info->pNext) {
       vk_foreach_struct_const(sType, src, format_info->pNext) {
          _mesa_blake3_update(&blake3_ctx, &sType, sizeof(sType));
-         switch (sType) {
+         switch ((uint32_t)sType) {
          case VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_CONTROL_EXT: {
             VkImageCompressionControlEXT *compression_control =
                (VkImageCompressionControlEXT *)src;
@@ -2424,6 +2424,14 @@ vn_image_get_image_format_key(
                               sizeof(VkImageViewType));
             break;
          }
+         case VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR: {
+            const VkImageUsageFlags2CreateInfoKHR *info = (const void *)src;
+            _mesa_blake3_update(&blake3_ctx, &info->usage,
+                                sizeof(info->usage));
+            break;
+         }
+         case VK_STRUCTURE_TYPE_WSI_IMAGE_CREATE_INFO_MESA:
+            break;
          default:
             if (VN_DEBUG(CACHE)) {
                vn_log(physical_dev->instance, "%s: ignore sType=%s(%d)",

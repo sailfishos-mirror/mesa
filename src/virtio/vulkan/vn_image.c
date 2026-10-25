@@ -99,7 +99,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
    /* Hash relevant fields in the pNext chain */
    vk_foreach_struct_const(sType, src, create_info->pNext) {
       _mesa_blake3_update(&blake3_ctx, &sType, sizeof(sType));
-      switch (sType) {
+      switch ((uint32_t)sType) {
       case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO: {
          struct VkExternalMemoryImageCreateInfo *ext_mem =
             (struct VkExternalMemoryImageCreateInfo *)src;
@@ -141,6 +141,13 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
                            sizeof(VkImageUsageFlags));
          break;
       }
+      case VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR: {
+         const VkImageUsageFlags2CreateInfoKHR *info = (const void *)src;
+         _mesa_blake3_update(&blake3_ctx, &info->usage, sizeof(info->usage));
+         break;
+      }
+      case VK_STRUCTURE_TYPE_WSI_IMAGE_CREATE_INFO_MESA:
+         break;
       case VK_STRUCTURE_TYPE_OPAQUE_CAPTURE_DATA_CREATE_INFO_EXT:
          dev->image_reqs_cache.debug.cache_skip_count++;
          return false;
