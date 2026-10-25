@@ -4178,7 +4178,7 @@ reset_graphics_states(struct zink_context *ctx)
 
    ctx->oom_flush = false;
    ctx->oom_stall = false;
-   ctx->dd.bindless_bound = false;
+   memset(ctx->dd.bindless_bound, 0, sizeof(ctx->dd.bindless_bound));
    ctx->di.bindless_refs_dirty = true;
    ctx->index_buffer = NULL;
    zink_set_atom_dirty(ctx, ZINK_ATOM_SAMPLE_LOCATIONS, ctx->base.screen->caps.programmable_sample_locations);

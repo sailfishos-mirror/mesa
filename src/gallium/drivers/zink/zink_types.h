@@ -447,7 +447,7 @@ struct zink_descriptor_template {
 
 /* ctx->dd; created at context creation */
 struct zink_descriptor_data {
-   bool bindless_bound;
+   bool bindless_bound[ZINK_PIPELINE_MAX]; //gfx, compute, mesh
    bool bindless_init;
    bool has_fbfetch;
    bool push_state_changed[ZINK_PIPELINE_MAX]; //gfx, compute, mesh

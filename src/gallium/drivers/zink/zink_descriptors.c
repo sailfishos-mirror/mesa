@@ -1317,7 +1317,7 @@ zink_descriptors_update_masked(struct zink_context *ctx, enum zink_pipeline_idx 
 }
 
 static void
-bind_bindless_db(struct zink_context *ctx, struct zink_program *pg)
+bind_bindless_db(struct zink_context *ctx, struct zink_program *pg, enum zink_pipeline_idx pidx)
 {
    struct zink_batch_state *bs = ctx->bs;
    struct zink_screen *screen = zink_screen(ctx->base.screen);
@@ -1329,7 +1329,7 @@ bind_bindless_db(struct zink_context *ctx, struct zink_program *pg)
                                            screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS], 1,
                                            &index,
                                            &offset);
-   ctx->dd.bindless_bound = true;
+   ctx->dd.bindless_bound[pidx] = true;
 }
 
 /* entrypoint for all descriptor updating:
@@ -1364,7 +1364,9 @@ zink_descriptors_update(struct zink_context *ctx, enum zink_pipeline_idx pidx)
             zink_mark_atom_dirty(ctx, ZINK_ATOM_DESCRIPTORS);
          update_separable(ctx, pg);
          if (pg->dd.bindless)
-            bind_bindless_db(ctx, pg);
+            bind_bindless_db(ctx, pg, pidx);
+         /* the set was bound with a separable layout, which no other program is compatible with */
+         ctx->dd.bindless_bound[pidx] = false;
          return;
       }
    }
@@ -1391,7 +1393,8 @@ zink_descriptors_update(struct zink_context *ctx, enum zink_pipeline_idx pidx)
     * descriptor sets which were bound with compatible pipeline layouts
     * VK 14.2.2
     */
-   uint8_t bind_sets = bs->dd.pg[pidx] && bs->dd.compat_id[pidx] == pg->compat_id ? 0 : pg->dd.binding_usage;
+   bool layout_changed = !bs->dd.pg[pidx] || bs->dd.compat_id[pidx] != pg->compat_id;
+   uint8_t bind_sets = layout_changed ? pg->dd.binding_usage : 0;
 
    if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
       size_t check_size = 0;
@@ -1484,16 +1487,20 @@ zink_descriptors_update(struct zink_context *ctx, enum zink_pipeline_idx pidx)
       zink_descriptors_update_masked_buffer(ctx, pidx, changed_sets, bind_sets);
    else
       zink_descriptors_update_masked(ctx, pidx, changed_sets, bind_sets);
-   /* bindless descriptors are context-based and get updated elsewhere */
-   if (pg->dd.bindless && unlikely(!ctx->dd.bindless_bound)) {
+   /* bindless descriptors are context-based and get updated elsewhere,
+    * but the set is only valid for the bind point and layout it was bound with
+    */
+   if (layout_changed)
+      ctx->dd.bindless_bound[pidx] = false;
+   if (pg->dd.bindless && unlikely(!ctx->dd.bindless_bound[pidx])) {
       if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
-         bind_bindless_db(ctx, pg);
+         bind_bindless_db(ctx, pg, pidx);
       } else {
          VKCTX(CmdBindDescriptorSets)(ctx->bs->cmdbuf, is_compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pg->layout, screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS], 1, &ctx->dd.t.bindless_set,
                                     0, NULL);
       }
-      ctx->dd.bindless_bound = true;
+      ctx->dd.bindless_bound[pidx] = true;
    }
    bs->dd.pg[pidx] = pg;
    ctx->dd.pg[pidx] = pg;
