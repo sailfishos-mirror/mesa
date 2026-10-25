@@ -142,10 +142,14 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
          break;
       }
       case VK_STRUCTURE_TYPE_OPAQUE_CAPTURE_DATA_CREATE_INFO_EXT:
-      default:
-         /* Skip cache for unsupported pNext */
          dev->image_reqs_cache.debug.cache_skip_count++;
          return false;
+      default:
+         if (VN_DEBUG(CACHE)) {
+            vn_log(dev->instance, "%s: ignore sType=%s(%d)", __func__,
+                   vk_StructureType_to_str(sType), sType);
+         }
+         break;
       }
    }
 

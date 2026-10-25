@@ -2366,17 +2366,7 @@ vn_image_get_image_format_key(
 
    _mesa_blake3_init(&blake3_ctx);
 
-   /* VUID-VkPhysicalDeviceImageFormatInfo2-pNext-pNext
-    * Each pNext member of any structure (including this one) in the pNext
-    * chain must be either NULL or a pointer to a valid instance of
-    * VkImageCompressionControlEXT, VkImageFormatListCreateInfo,
-    * VkImageStencilUsageCreateInfo, VkOpticalFlowImageFormatInfoNV,
-    * VkPhysicalDeviceExternalImageFormatInfo,
-    * VkPhysicalDeviceImageDrmFormatModifierInfoEXT,
-    * VkPhysicalDeviceImageViewImageFormatInfoEXT, or VkVideoProfileListInfoKHR
-    *
-    * Exclude VkOpticalFlowImageFormatInfoNV and VkVideoProfileListInfoKHR
-    */
+   /* Hash relevant fields in the pNext chain */
    if (format_info->pNext) {
       vk_foreach_struct_const(sType, src, format_info->pNext) {
          _mesa_blake3_update(&blake3_ctx, &sType, sizeof(sType));
@@ -2435,8 +2425,11 @@ vn_image_get_image_format_key(
             break;
          }
          default:
-            physical_dev->image_format_cache.debug.cache_skip_count++;
-            return false;
+            if (VN_DEBUG(CACHE)) {
+               vn_log(physical_dev->instance, "%s: ignore sType=%s(%d)",
+                      __func__, vk_StructureType_to_str(sType), sType);
+            }
+            break;
          }
       }
    }
@@ -2445,19 +2438,7 @@ vn_image_get_image_format_key(
     * optional in that they can be attached without a corresponding pNext
     * in pImageFormatInfo.
     *
-    * VUID-VkImageFormatProperties2-pNext-pNext
-    * Each pNext member of any structure (including this one) in the pNext
-    * chain must be either NULL or a pointer to a valid instance of
-    * VkAndroidHardwareBufferUsageANDROID, VkExternalImageFormatProperties,
-    * VkFilterCubicImageViewImageFormatPropertiesEXT,
-    * VkHostImageCopyDevicePerformanceQueryEXT,
-    * VkImageCompressionPropertiesEXT,
-    * VkSamplerYcbcrConversionImageFormatProperties, or
-    * VkTextureLODGatherFormatPropertiesAMD
-    *
     * VkAndroidHardwareBufferUsageANDROID is handled outside of the cache.
-    * VkFilterCubicImageViewImageFormatPropertiesEXT,
-    * VkTextureLODGatherFormatPropertiesAMD are not supported
     */
    if (format_props->pNext) {
       vk_foreach_struct_const(sType, src, format_props->pNext) {
