@@ -286,7 +286,7 @@ class VkExtension(object):
 
 
 def CamelCase_to_SHOUT_CASE(s):
-   return (s[:1] + re.sub(r'(?<![A-Z])([A-Z])', r'_\1', s[1:])).upper()
+   return re.sub(r'([0-9]+|[a-z_])([A-Z0-9])', r'\1_\2', s).upper()
 
 def compute_max_enum_name(s, tags=()):
     if s == "VkSwapchainImageUsageFlagBitsANDROID":
