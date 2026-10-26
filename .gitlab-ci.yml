@@ -76,13 +76,15 @@ spec:
 # | scheduled pipeline   | mesa/mesa | nightly pipelines, running every morning at 4am UTC         |
 # | direct-push pipeline | mesa/mesa | when commits are pushed directly to mesa/mesa, bypassing Marge and its gating pipeline |
 # | downstream pipeline  | mesa/mesa | when a project Mesa CI uses is running Mesa CI on a modified version of that project   |
+# | web pipeline         | mesa/mesa or fork | "Run new pipeline" button on the Gitlab web UI      |
 #
 # Note that the release branches maintained by the release manager fall under
 # the "direct push" category.
 #
 # "context" indicates the permissions that the jobs get; notably, any
 # container created in mesa/mesa gets pushed immediately for everyone to use
-# as soon as the image tag change is merged.
+# as soon as the image tag change is merged. Web pipelines run in the context
+# where they are created.
 #
 # Merge pipelines contain all jobs that must pass before the MR can be merged.
 # Pre-merge pipelines contain the exact same jobs as merge pipelines.
@@ -139,6 +141,14 @@ workflow:
         BUILD_JOB_TIMEOUT_OVERRIDE: 0
     # Pipeline was created as a downstream pipeline in another project (linux, linux-firmware, ...)
     - if: &is-downstream-pipeline $CI_PIPELINE_SOURCE == "pipeline"
+      variables:
+        FDO_RUNNER_JOB_PRIORITY_TAG_X86_64: priority:low
+        FDO_RUNNER_JOB_PRIORITY_TAG_X86_64_KVM: priority:low-kvm
+        FDO_RUNNER_JOB_PRIORITY_TAG_AARCH64: priority:low-aarch64
+        CI_TRON_JOB_PRIORITY: low
+        JOB_PRIORITY: 45
+    # Pipeline created from the GitLab web UI
+    - if: &is-web-pipeline $CI_PIPELINE_SOURCE == "web"
       variables:
         FDO_RUNNER_JOB_PRIORITY_TAG_X86_64: priority:low
         FDO_RUNNER_JOB_PRIORITY_TAG_X86_64_KVM: priority:low-kvm
@@ -306,6 +316,8 @@ include:
 .common-rules:
   rules:
     - if: *is-push-to-fork
+      when: manual
+    - if: *is-web-pipeline
       when: manual
     - if: *is-downstream-pipeline
       when: on_success
