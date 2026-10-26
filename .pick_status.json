@@ -7104,7 +7104,7 @@
         "description": "etnaviv: Do not set the destination for stores",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "a6371db7ede31a3dd3a23aa901285275964cafff",
         "notes": null
