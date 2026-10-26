@@ -990,8 +990,13 @@ emit_vpc(fd_crb &crb, const struct program_builder *b)
       crb.add(SP_RENDER_CNTL(CHIP, .fs_disable = false));
    }
 
+   unsigned num_nonpos_var = b->fs->total_in;
+   if (FD_QUIRK(b->ctx->screen->info, QCTDD08049535_numnonposvar_alignment) &&
+       (DIV_ROUND_UP(num_nonpos_var, 4) & 1))
+      num_nonpos_var += 4;
+
    crb.add(VPC_PS_CNTL(CHIP,
-      .numnonposvar = b->fs->total_in,
+      .numnonposvar = num_nonpos_var,
       .primidloc = linkage.primid_loc,
       .varying = !!b->fs->total_in,
       .viewidloc = linkage.viewid_loc,
