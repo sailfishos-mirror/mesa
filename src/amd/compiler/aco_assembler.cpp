@@ -1194,8 +1194,9 @@ emit_sdwa_instruction(asm_context& ctx, std::vector<uint32_t>& out, Instruction*
    uint32_t encoding = 0;
 
    if (instr->isVOPC()) {
-      if (instr->definitions[0].physReg() !=
-          (ctx.gfx_level >= GFX10 && is_cmpx(instr->opcode) ? exec : vcc)) {
+      const aco_alu_opcode_info& info = instr_info.alu_opcode_infos[(int)instr->opcode];
+      bool def0_exec = info.get_def_fixed_reg(instr, ctx.gfx_level, 0) == fixed_exec;
+      if (!def0_exec && instr->definitions[0].physReg() != vcc) {
          encoding |= reg(ctx, instr->definitions[0]) << 8;
          encoding |= 1 << 15;
       }

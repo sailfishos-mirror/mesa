@@ -1248,13 +1248,6 @@ get_vcmpx(aco_opcode op)
    return get_cmp_info(op, &info) ? info.vcmpx : aco_opcode::num_opcodes;
 }
 
-bool
-is_cmpx(aco_opcode op)
-{
-   CmpInfo info;
-   return !get_cmp_info(op, &info);
-}
-
 aco_opcode
 get_swapped_opcode(aco_opcode opcode, unsigned idx0, unsigned idx1)
 {
