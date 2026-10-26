@@ -479,7 +479,9 @@ emit_dynamic_atoms(struct zink_context *ctx, uint32_t atoms, unsigned num_viewpo
                                                    VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT :
                                                    VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT);
             if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_LINE))
-               VKCTX(CmdSetLineRasterizationModeEXT)(bs->cmdbuf, rast_state->dynamic_line_mode);
+               VKCTX(CmdSetLineRasterizationModeEXT)(bs->cmdbuf, ctx->fb_float_cbuf ?
+                                                     rast_state->dynamic_line_mode_float :
+                                                     rast_state->dynamic_line_mode);
             if (ctx->ds3_states & BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE_ON))
                VKCTX(CmdSetLineStippleEnableEXT)(bs->cmdbuf, rast_state->hw_state.line_stipple_enable);
             ctx->ds3_states &= ~BITFIELD_RANGE(ZINK_DS3_RAST_STIPPLE, ZINK_DS3_RAST_STIPPLE_ON - ZINK_DS3_RAST_STIPPLE + 1);

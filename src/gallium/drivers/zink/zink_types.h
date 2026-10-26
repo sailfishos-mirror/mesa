@@ -370,6 +370,7 @@ struct zink_rasterizer_state {
    VkFrontFace front_face;
    VkCullModeFlags cull_mode;
    VkLineRasterizationModeEXT dynamic_line_mode;
+   VkLineRasterizationModeEXT dynamic_line_mode_float; //dynamic_line_mode with smooth lines made plain
    struct zink_rasterizer_hw_state hw_state;
 };
 
@@ -1704,6 +1705,7 @@ struct zink_screen {
    } driver_compiler_workarounds;
    struct {
       bool broken_l4a4;
+      bool no_float_linesmooth; //dynamic line mode drops smooth lines for float cbufs, see also no_linesmooth
       /* https://gitlab.khronos.org/vulkan/vulkan/-/issues/3306
        * HI TURNIP
        */
@@ -2024,6 +2026,7 @@ struct zink_context {
 
    bool transient_msrtss; //transient_attachments is for msrtss
    bool has_swapchain;
+   bool fb_float_cbuf; //float cbuf bound and no_float_linesmooth applies
    bool pipeline_changed[ZINK_PIPELINE_MAX]; //gfx, compute, mesh
 
    struct zink_shader *gfx_stages[MESA_SHADER_MESH_STAGES];

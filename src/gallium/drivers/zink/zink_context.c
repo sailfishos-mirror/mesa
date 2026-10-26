@@ -4596,8 +4596,12 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
 
    ctx->void_clears = 0;
    ctx->has_swapchain = false;
+
+   bool fb_float_cbuf = false;
    for (int i = 0; i < ctx->fb_state.nr_cbufs; i++) {
       const struct pipe_surface *psurf = &ctx->fb_state.cbufs[i];
+      if (screen->driver_workarounds.no_float_linesmooth)
+         fb_float_cbuf |= util_format_is_float(psurf->format);
       struct zink_resource *res = zink_resource(psurf->texture);
       ctx->fb_formats[i] = zink_get_format(screen, ctx->fb_state.cbufs[i].format);
       if (res) {
@@ -4634,6 +4638,13 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
             if (!res->valid && !zink_fb_clear_full_exists(ctx, i))
                ctx->void_clears |= (PIPE_CLEAR_COLOR0 << i);
          }
+      }
+   }
+   if (ctx->fb_float_cbuf != fb_float_cbuf) {
+      ctx->fb_float_cbuf = fb_float_cbuf;
+      if (ctx->rast_state && ctx->rast_state->dynamic_line_mode != ctx->rast_state->dynamic_line_mode_float) {
+         ctx->ds3_states |= BITFIELD_BIT(ZINK_DS3_RAST_LINE);
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_RASTERIZER);
       }
    }
    if (ctx->fb_state.zsbuf.texture) {

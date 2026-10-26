@@ -633,10 +633,12 @@ zink_create_rasterizer_state(struct pipe_context *pctx,
       state->hw_state.line_mode = VK_LINE_RASTERIZATION_MODE_BRESENHAM;
    }
    state->dynamic_line_mode = state->hw_state.line_mode;
+
+   const bool rectangular_lines = screen->info.line_rast_feats.rectangularLines &&
+                                  !(screen->driver_workarounds.no_thin_rectangular_lines && rs_state->line_width <= 2.0f);
    switch (state->hw_state.line_mode) {
    case VK_LINE_RASTERIZATION_MODE_RECTANGULAR:
-      if (!screen->info.line_rast_feats.rectangularLines ||
-          (screen->driver_workarounds.no_thin_rectangular_lines && rs_state->line_width <= 2.0f))
+      if (!rectangular_lines)
          state->dynamic_line_mode = VK_LINE_RASTERIZATION_MODE_DEFAULT;
       break;
    case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH:
@@ -649,6 +651,10 @@ zink_create_rasterizer_state(struct pipe_context *pctx,
       break;
    default: break;
    }
+   state->dynamic_line_mode_float = state->dynamic_line_mode;
+   if (state->dynamic_line_mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH)
+      state->dynamic_line_mode_float = rectangular_lines ? VK_LINE_RASTERIZATION_MODE_RECTANGULAR :
+                                                           VK_LINE_RASTERIZATION_MODE_DEFAULT;
 
    if (!rs_state->line_stipple_enable) {
       state->base.line_stipple_factor = 1;
@@ -733,6 +739,7 @@ zink_bind_rasterizer_state(struct pipe_context *pctx, void *cso)
          STATE_CHECK(hw_state.clip_halfz, HALFZ);
          STATE_CHECK(hw_state.pv_last, PV);
          STATE_CHECK(dynamic_line_mode, LINE);
+         STATE_CHECK(dynamic_line_mode_float, LINE);
 
 #undef STATE_CHECK
       }

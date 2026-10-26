@@ -3232,6 +3232,12 @@ init_driver_workarounds(struct zink_screen *screen)
                                                          screen->info.gpl_props.graphicsPipelineLibraryFastLinking ||
                                                          screen->is_cpu);
    screen->driver_workarounds.broken_l4a4 = zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY;
+   /* the NVIDIA GL driver draws plain lines into float targets, and the proprietary Vulkan smooth
+    * lines cost about 50x more than plain ones; only the dynamic line mode path can switch them */
+   screen->driver_workarounds.no_float_linesmooth = (zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY ||
+                                                     zink_driverid(screen) == VK_DRIVER_ID_MESA_NVK) &&
+                                                    screen->info.have_EXT_extended_dynamic_state3 &&
+                                                    screen->info.dynamic_state3_feats.extendedDynamicState3LineRasterizationMode;
    if (zink_driverid(screen) == VK_DRIVER_ID_MESA_TURNIP) {
       /* performance */
       screen->info.border_color_feats.customBorderColorWithoutFormat = VK_FALSE;
