@@ -324,7 +324,7 @@
         "description": "st/mesa: pass the edge flag vertex element to the draw module",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
