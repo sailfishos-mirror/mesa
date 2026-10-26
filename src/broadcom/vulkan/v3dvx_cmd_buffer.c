@@ -2276,6 +2276,10 @@ v3dX(cmd_buffer_execute_inside_pass)(struct v3dv_cmd_buffer *primary,
                   secondary_job->double_buffer_score.render;
             }
             primary_job->tmu_dirty_rcl |= secondary_job->tmu_dirty_rcl;
+
+            primary_job->uses_buffer_device_address |=
+               secondary_job->uses_buffer_device_address;
+            primary_job->draw_count += secondary_job->draw_count;
          } else {
             /* This is a regular job (CPU or GPU), so just finish the current
              * primary job (if any) and then add the secondary job to the
