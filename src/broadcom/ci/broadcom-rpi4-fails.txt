@@ -34,7 +34,6 @@ spec@!opengl 1.1@texwrap formats bordercolor@GL_RGB12- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_RGB16- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_RGBA12- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_RGBA16- border color only,Fail
-spec@!opengl 1.4@gl-1.4-polygon-offset,Fail
 spec@arb_depth_buffer_float@fbo-generatemipmap-formats,Fail
 spec@arb_depth_buffer_float@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT32F NPOT,Fail
 spec@arb_depth_buffer_float@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT32F,Fail
