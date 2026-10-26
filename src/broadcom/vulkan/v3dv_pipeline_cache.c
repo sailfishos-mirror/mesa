@@ -231,6 +231,8 @@ v3dv_pipeline_cache_init(struct v3dv_pipeline_cache *cache,
 
       cache->externally_synchronized = flags &
          VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+      cache->internally_synchronized_merge = flags &
+         VK_PIPELINE_CACHE_CREATE_INTERNALLY_SYNCHRONIZED_MERGE_BIT_KHR;
    } else {
       cache->nir_cache = NULL;
       cache->cache = NULL;
@@ -812,6 +814,16 @@ v3dv_MergePipelineCaches(VkDevice device,
    if (!dst->cache || !dst->nir_cache)
       return VK_SUCCESS;
 
+   /* Caches are internally synchronized unless created with
+    * VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT, however, the
+    * dst cache parameter to this function is always externally synchronized.
+    * With VK_PIPELINE_CACHE_CREATE_INTERNALLY_SYNCHRONIZED_MERGE_BIT_KHR
+    * however (mutually exclusive with the above flag), applications can
+    * request the dst cache here to also be internally synchronized.
+    */
+   if (dst->internally_synchronized_merge)
+      pipeline_cache_lock(dst);
+
    for (uint32_t i = 0; i < srcCacheCount; i++) {
       V3DV_FROM_HANDLE(v3dv_pipeline_cache, src, pSrcCaches[i]);
       if (!src->cache || !src->nir_cache)
@@ -877,6 +889,9 @@ v3dv_MergePipelineCaches(VkDevice device,
          }
       }
    }
+
+   if (dst->internally_synchronized_merge)
+      pipeline_cache_unlock(dst);
 
    return VK_SUCCESS;
 }

@@ -195,6 +195,9 @@ struct v3dv_pipeline_cache {
 
    /* For VK_EXT_pipeline_creation_cache_control. */
    bool externally_synchronized;
+
+   /* For VK_KHR_maintenance8 */
+   bool internally_synchronized_merge;
 };
 
 enum v3dv_ez_state {
