@@ -791,6 +791,13 @@ v3d_screen_create(int fd, const struct pipe_screen_config *config,
         screen->fd = fd;
         screen->ro = ro;
 
+        const char *max_cache_size_str = os_get_option("V3D_MAX_BO_CACHE_SIZE");
+        if (max_cache_size_str == NULL)
+                screen->bo_cache.max_cache_size = V3D_DEFAULT_MAX_BO_CACHE_SIZE * 1024 * 1024;
+        else
+                screen->bo_cache.max_cache_size = atoll(max_cache_size_str) * 1024 * 1024;
+        screen->bo_cache.cache_count = 0;
+        screen->bo_cache.cache_size = 0;
         list_inithead(&screen->bo_cache.time_list);
         (void)mtx_init(&screen->bo_cache.lock, mtx_plain);
         (void)mtx_init(&screen->bo_handles_mutex, mtx_plain);
