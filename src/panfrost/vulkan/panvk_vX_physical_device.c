@@ -821,7 +821,7 @@ static VkConformanceVersion
 get_conformance_version()
 {
    if (PAN_ARCH == 10)
-      return (VkConformanceVersion){1, 4, 1, 2};
+      return (VkConformanceVersion){1, 4, 5, 2};
 
    return (VkConformanceVersion){0, 0, 0, 0};
 }
