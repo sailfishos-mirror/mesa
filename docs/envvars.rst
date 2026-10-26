@@ -1439,6 +1439,15 @@ V3D/V3DV driver environment variables
    a comma-separated list of debug options. Use ``V3D_DEBUG=help`` to
    print a list of available options.
 
+.. envvar:: V3D_MAX_BO_CACHE_SIZE
+
+   if set, determines the maximum size (in Mb) of the cache with free BOs that
+   can be reused in v3d. Default value is 64Mb.
+
+.. envvar:: V3DV_MAX_BO_CACHE_SIZE
+
+   if set, determines the maximum size (in Mb) of the cache with free BOs that
+   can be reused in v3dv. Default value is 64Mb.
 
 .. _radv env-vars:
 
