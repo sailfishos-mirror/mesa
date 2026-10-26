@@ -29,15 +29,6 @@
 
 #include "util/perf/cpu_trace.h"
 
-/* Default max size of the bo cache, in MB.
- *
- * This value comes from testing different Vulkan application. Greater values
- * didn't get any further performance benefit. This looks somewhat small, but
- * from testing those applications, the main consumer of the bo cache are
- * the bos used for the CLs, that are usually small.
- */
-#define DEFAULT_MAX_BO_CACHE_SIZE 64
-
 /* Discarded to use a V3D_DEBUG for this, as it would mean adding a run-time
  * check for most of the calls
  */
@@ -460,7 +451,7 @@ v3dv_bo_cache_init(struct v3dv_device *device)
 
    const char *max_cache_size_str = os_get_option("V3DV_MAX_BO_CACHE_SIZE");
    if (max_cache_size_str == NULL)
-      device->bo_cache.max_cache_size = DEFAULT_MAX_BO_CACHE_SIZE;
+      device->bo_cache.max_cache_size = V3D_DEFAULT_MAX_BO_CACHE_SIZE;
    else
       device->bo_cache.max_cache_size = atoll(max_cache_size_str);
 
