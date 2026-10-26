@@ -9,6 +9,7 @@
 #include "zink_screen.h"
 #include "zink_state.h"
 #include "zink_inlines.h"
+#include "zink_list_restart.h"
 
 #include "util/hash_table.h"
 #include "util/u_cpu_detect.h"
@@ -1442,6 +1443,22 @@ zink_draw_mesh_tasks(struct pipe_context *pctx, const struct pipe_grid_info *inf
       pctx->flush(pctx, NULL, 0);
 }
 
+/* NVIDIA and NVK are slow for list topologies with restart indices: draw a compacted copy instead */
+static ALWAYS_INLINE bool
+zink_list_restart_compact(struct zink_context *ctx, const struct pipe_draw_info *dinfo,
+                          unsigned drawid_offset, const struct pipe_draw_indirect_info *indirect,
+                          const struct pipe_draw_start_count_bias *draws, unsigned num_draws,
+                          struct pipe_draw_info *info_out, struct pipe_draw_indirect_info *indirect_out,
+                          struct pipe_draw_start_count_bias *draw_out)
+{
+   const struct zink_screen *screen = zink_screen(ctx->base.screen);
+   return screen->driver_workarounds.compact_list_restart && !indirect && !drawid_offset &&
+          dinfo->index_size && !dinfo->has_user_indices && num_draws == 1 && dinfo->instance_count &&
+          !ctx->blitting && !ctx->unordered_blitting && !ctx->num_so_targets &&
+          (!dinfo->start_instance || screen->info.feats.features.drawIndirectFirstInstance) &&
+          zink_compact_list_restart(ctx, dinfo, &draws[0], info_out, indirect_out, draw_out);
+}
+
 template <zink_multidraw HAS_MULTIDRAW, zink_dynamic_state DYNAMIC_STATE, bool BATCH_CHANGED>
 static void
 zink_draw_vbo(struct pipe_context *pctx,
@@ -1451,6 +1468,17 @@ zink_draw_vbo(struct pipe_context *pctx,
               const struct pipe_draw_start_count_bias *draws,
               unsigned num_draws)
 {
+   if (unlikely(info->primitive_restart)) {
+      struct zink_context *ctx = zink_context(pctx);
+      struct pipe_draw_info compact_info;
+      struct pipe_draw_indirect_info compact_indirect;
+      struct pipe_draw_start_count_bias compact_draw;
+      if (zink_list_restart_compact(ctx, info, drawid_offset, indirect, draws, num_draws, &compact_info, &compact_indirect, &compact_draw)) {
+         zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_BOUND>(pctx, &compact_info, drawid_offset, &compact_indirect,
+                                                                               &compact_draw, 1, NULL, 0);
+         return;
+      }
+   }
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_BOUND>(pctx, info, drawid_offset, indirect, draws, num_draws, NULL, 0);
 }
 
@@ -1467,6 +1495,14 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
 
    struct zink_context *ctx = zink_context(pctx);
 
+   struct pipe_draw_info compact_info;
+   struct pipe_draw_indirect_info compact_indirect;
+   struct pipe_draw_start_count_bias compact_draw;
+   /* this goes before the buffers are synchronized, since the pass can end the batch */
+   const bool compacted = unlikely(dinfo->primitive_restart) &&
+                          zink_list_restart_compact(ctx, dinfo, 0, NULL, draws, num_draws, &compact_info, &compact_indirect,
+                                                    &compact_draw);
+
    if (ctx->in_rp)
       ctx->can_promote_depth_op = false;
 
@@ -1476,6 +1512,11 @@ zink_draw_vbo_buffers(struct pipe_context *pctx,
     * ZINK_ATOM_VERTEX_BUFFERS when it returns without drawing
     */
    barrier_unowned_vertex_buffers<true>(ctx, buffers, buffer_count);
+   if (unlikely(compacted)) {
+      zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_UNOWNED>(pctx, &compact_info, 0, &compact_indirect,
+                                                                             &compact_draw, 1, NULL, 0);
+      return;
+   }
    zink_draw<HAS_MULTIDRAW, DYNAMIC_STATE, BATCH_CHANGED, ZINK_VBS_UNOWNED>(pctx, dinfo, 0, NULL, draws, num_draws, NULL, 0);
 }
 

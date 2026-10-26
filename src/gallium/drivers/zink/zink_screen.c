@@ -3232,6 +3232,20 @@ init_driver_workarounds(struct zink_screen *screen)
                                                          screen->info.gpl_props.graphicsPipelineLibraryFastLinking ||
                                                          screen->is_cpu);
    screen->driver_workarounds.broken_l4a4 = zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY;
+   /* the NVIDIA GL driver rewrites index buffers, the NVIDIA and NVK Vulkan drivers are slow for list topologies
+    * with restart indices */
+   screen->driver_workarounds.compact_list_restart = (zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY ||
+                                                      zink_driverid(screen) == VK_DRIVER_ID_MESA_NVK) &&
+                                                     screen->info.subgroup.subgroupSize == 32 &&
+                                                     (screen->info.subgroup.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) &&
+                                                     (screen->info.subgroup.supportedOperations &
+                                                      (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)) ==
+                                                     (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) &&
+                                                     /* the index buffers are loaded with their own element size */
+                                                     screen->info.have_KHR_8bit_storage && screen->info.have_KHR_16bit_storage &&
+                                                     screen->info.have_KHR_shader_float16_int8 &&
+                                                     screen->info.shader_float16_int8_feats.shaderInt8 &&
+                                                     screen->info.feats.features.shaderInt16;
    /* the NVIDIA GL driver draws plain lines into float targets, and the proprietary Vulkan smooth
     * lines cost about 50x more than plain ones; only the dynamic line mode path can switch them */
    screen->driver_workarounds.no_float_linesmooth = (zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY ||

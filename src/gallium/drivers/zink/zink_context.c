@@ -29,6 +29,7 @@
 #include "zink_helpers.h"
 #include "zink_inlines.h"
 #include "zink_kopper.h"
+#include "zink_list_restart.h"
 #include "zink_program.h"
 #include "zink_query.h"
 #include "zink_render_pass.h"
@@ -117,6 +118,7 @@ zink_context_destroy(struct pipe_context *pctx)
 
    struct pipe_framebuffer_state fb = {0};
    pctx->set_framebuffer_state(pctx, &fb);
+   zink_list_restart_deinit(ctx);
 
    /* handles outlive the context in its share group, so only drop its residency;
     * the frontend may have deleted them already, so this can't look them up
@@ -6226,6 +6228,8 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
       goto fail;
 
    ctx->flags = flags;
+   if (screen->driver_workarounds.compact_list_restart && !zink_list_restart_init(ctx))
+      goto fail;
    if (is_robust)
       screen->has_robust_ctx = true;
    memset(ctx->pipeline_changed, 1, sizeof(ctx->pipeline_changed));

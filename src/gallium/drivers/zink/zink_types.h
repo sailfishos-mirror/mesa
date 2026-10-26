@@ -1713,6 +1713,7 @@ struct zink_screen {
    } driver_compiler_workarounds;
    struct {
       bool broken_l4a4;
+      bool compact_list_restart;
       bool no_float_linesmooth; //dynamic line mode drops smooth lines for float cbufs, see also no_linesmooth
       /* https://gitlab.khronos.org/vulkan/vulkan/-/issues/3306
        * HI TURNIP
@@ -1973,6 +1974,31 @@ enum zink_atom {
 #define ZINK_DYNAMIC_STATE_ATOMS BITFIELD_RANGE(ZINK_ATOM_VIEWPORT, ZINK_ATOM_COUNT - ZINK_ATOM_VIEWPORT)
 #define ZINK_DRAW_ATOMS BITFIELD_MASK(ZINK_ATOM_VIEWPORT)
 
+#define ZINK_LIST_RESTART_STATS_SLOTS 256
+
+struct zink_list_restart {
+   void *scan;
+   void *cs[2][3][6]; //count and scatter by index size and vertices per primitive
+   struct pipe_resource *out; //the compacted indices
+   struct pipe_resource *args; //the indirect commands
+   struct pipe_resource *counts; //the kept primitives of each chunk
+   unsigned out_size, args_size, counts_size;
+   unsigned small_draws; //draws in a row which need a quarter or less of the compacted indices
+   /* what was learned about the draws */
+   struct pipe_resource *stats; //reports of the passes, mapped
+   const uint32_t *stats_map;
+   struct pipe_transfer *stats_xfer;
+   struct hash_table_u64 *entries;
+   void *entries_mem;
+   unsigned num_entries;
+   unsigned pending_head, pending_count;
+   struct {
+      uint64_t key;
+      struct zink_batch_usage *usage; //the batch which writes the report
+      unsigned count, prim_verts;
+   } pending[ZINK_LIST_RESTART_STATS_SLOTS];
+};
+
 /* draws read and write members all over this struct, and with tc the members marked
  * "app thread" are used from another thread at the same time: moving or resizing members
  * changes which of them share a cache line, so benchmark such changes on their own
@@ -2031,6 +2057,7 @@ struct zink_context {
    struct zink_vertex_elements_state *element_state;
    struct zink_rasterizer_state *rast_state;
    struct zink_depth_stencil_alpha_state *dsa_state;
+   struct zink_list_restart *list_restart; //only with compact_list_restart
 
    bool transient_msrtss; //transient_attachments is for msrtss
    bool has_swapchain;

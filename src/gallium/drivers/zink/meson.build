@@ -10,6 +10,7 @@ files_libzink = files(
   'zink_compiler.c',
   'zink_context.c',
   'zink_kopper.c',
+  'zink_list_restart.c',
   'zink_descriptors.c',
   'zink_draw.cpp',
   'zink_fence.c',
