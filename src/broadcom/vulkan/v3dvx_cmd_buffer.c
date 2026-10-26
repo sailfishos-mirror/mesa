@@ -2018,6 +2018,72 @@ cmd_buffer_update_ez_state(struct v3dv_cmd_buffer *cmd_buffer,
    return !disable_ez;
 }
 
+static void
+merge_secondary_ez_state(struct v3dv_cmd_buffer *primary,
+                         struct v3dv_job *p,
+                         const struct v3dv_job *s)
+{
+   /* The secondary may have emitted its first draw, in which case the
+    * primary hasn't made its global EZ decision yet. Make it now, using
+    * the primary's state, before merging.
+    */
+   if (s->decided_global_ez_enable && !p->decided_global_ez_enable) {
+      if (!cmd_buffer_decide_global_ez_enable(primary)) {
+         return;
+      }
+   }
+
+#if V3D_VERSION == 42
+   if (s->ez_state == V3D_EZ_DISABLED && !s->has_ez_draws) {
+      p->ez_state = V3D_EZ_DISABLED;
+      return;
+   }
+#endif
+
+   if (!s->has_ez_draws)
+      return;
+
+#if V3D_VERSION >= 71
+   if (p->ez_state == V3D_EZ_UNDECIDED) {
+      p->ez_state = s->ez_state;
+      p->first_ez_state = s->first_ez_state;
+      p->has_ez_draws = true;
+   }
+#else
+   switch (p->ez_state) {
+   case V3D_EZ_UNDECIDED:
+      /* Adopt the secondary's state. */
+      p->ez_state = s->ez_state;
+      p->first_ez_state = s->first_ez_state;
+      p->has_ez_draws = true;
+      break;
+
+   case V3D_EZ_LT_LE:
+   case V3D_EZ_GT_GE:
+      if (s->first_ez_state != V3D_EZ_UNDECIDED &&
+          s->first_ez_state != p->ez_state) {
+         /* The secondary's early-Z draws use the opposite direction;
+          * conflict, give up early-Z.
+          */
+         p->first_ez_state = V3D_EZ_DISABLED;
+         p->ez_state = V3D_EZ_DISABLED;
+      } else {
+         /* Compatible direction. */
+         if (s->ez_state == V3D_EZ_DISABLED)
+            p->ez_state = V3D_EZ_DISABLED;
+      }
+      break;
+
+   case V3D_EZ_DISABLED:
+      /* The primary already gave up, but the secondary's draws used early-Z,
+       * so the early-Z data for the job is invalid.
+       */
+      p->first_ez_state = V3D_EZ_DISABLED;
+      break;
+   }
+#endif /* V3D_VERSION >= 71 */
+}
+
 void
 v3dX(cmd_buffer_emit_configuration_bits)(struct v3dv_cmd_buffer *cmd_buffer)
 {
@@ -2280,6 +2346,7 @@ v3dX(cmd_buffer_execute_inside_pass)(struct v3dv_cmd_buffer *primary,
             primary_job->uses_buffer_device_address |=
                secondary_job->uses_buffer_device_address;
             primary_job->draw_count += secondary_job->draw_count;
+            merge_secondary_ez_state(primary, primary_job, secondary_job);
          } else {
             /* This is a regular job (CPU or GPU), so just finish the current
              * primary job (if any) and then add the secondary job to the
@@ -2325,6 +2392,16 @@ v3dX(cmd_buffer_execute_inside_pass)(struct v3dv_cmd_buffer *primary,
 
    if (pending_barrier.dst_mask)
       v3dv_merge_barrier_state(&primary->state.barrier, &pending_barrier);
+
+   /* Secondaries may have changed HW state, and the primary may now record
+    * more inline draws, so re-emit everything on the next draw. This is
+    * possible with VK_KHR_maintenance7, which introduces various flags that
+    * allow having both the primary and secondary command buffers to record
+    * draw calls.
+    */
+   primary->state.dirty = ~0;
+   primary->state.dirty_descriptor_stages = ~0;
+   vk_dynamic_graphics_state_dirty_all(&primary->vk.dynamic_graphics_state);
 }
 
 static void
