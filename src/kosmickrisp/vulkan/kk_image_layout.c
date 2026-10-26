@@ -142,19 +142,23 @@ kk_image_layout_calc_tiled(const struct kk_device *dev,
    if (!kk_image_layout_layer_stride_defined(layout))
       return;
 
-   if (layout->layers != 1) {
-      uint32_t old_layers = layout->layers;
+   uint32_t layer_count = layout->layers;
+   if (layout->type == MTL_TEXTURE_TYPE_3D) {
+      /* 3D texture are laid out as 2D array textures */
+      layer_count = layout->depth_px;
+      layout->layer_stride_B = layout->size_B / layer_count;
+   } else if (layout->layers != 1) {
       layout->layers = 1;
       mtl_heap_texture_size_and_align_with_descriptor(
          dev->mtl_handle, layout, &layout->layer_stride_B, NULL);
-      layout->layers = old_layers;
+      layout->layers = layer_count;
    } else {
       /* For one layer, stride is same as image size */
       layout->layer_stride_B = layout->size_B;
    }
 
    /* Layer stride times number of layers should equal total size. */
-   assert(layout->layer_stride_B * layout->layers == layout->size_B);
+   assert(layout->layer_stride_B * layer_count == layout->size_B);
 }
 
 static void
@@ -175,6 +179,12 @@ kk_image_layout_calc_offsets(const struct kk_device *dev,
    struct kk_image_layout calc_layout = *layout;
    calc_layout.layers = 1;
    calc_layout.levels = 1;
+
+   /* 3D texture are laid out as 2D array textures */
+   if (calc_layout.type == MTL_TEXTURE_TYPE_3D) {
+      calc_layout.type = MTL_TEXTURE_TYPE_2D;
+      calc_layout.depth_px = 1u;
+   }
 
    /* Default sparse tile size follows regular tile size */
    uint32_t tile_size_B = mtl_sparse_tile_size_in_bytes(dev->mtl_handle);
@@ -220,7 +230,6 @@ kk_image_layout_calc_offsets(const struct kk_device *dev,
    for (uint8_t level = 0; level < layout->levels; ++level) {
       calc_layout.width_px = u_minify(layout->width_px, level);
       calc_layout.height_px = u_minify(layout->height_px, level);
-      calc_layout.depth_px = u_minify(layout->depth_px, level);
 
       uint64_t level_size;
       mtl_heap_texture_size_and_align_with_descriptor(

@@ -145,9 +145,6 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
       }
 
       mtl_texture *mtl_handle = image->planes[image_plane].mtl_handle;
-      if (image->vk.image_type == VK_IMAGE_TYPE_3D &&
-          view->vk.view_type != VK_IMAGE_VIEW_TYPE_3D)
-         mtl_handle = image->planes[image_plane].mtl_handle_array;
 
       /* Block texel view requires subresource aliasing. We do it here to avoid
        * having to create a texture for every possible subresource up-front */
@@ -167,6 +164,12 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
          subres_layout.format.pipe = view_layout.format.pipe;
          subres_layout.format.mtl = view_layout.format.mtl;
 
+         if (image->vk.image_type == VK_IMAGE_TYPE_3D &&
+             view->vk.view_type != VK_IMAGE_VIEW_TYPE_3D) {
+            subres_layout.type = MTL_TEXTURE_TYPE_2D_ARRAY;
+            subres_layout.depth_px = 1u;
+         }
+
          mtl_handle = kk_image_plane_create_texture(plane, &subres_layout,
                                                     subres_offset_B);
          view->planes[view_plane].mtl_handle_subres = mtl_handle;
@@ -176,6 +179,9 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
          view_layout.num_levels = subres_layout.levels;
          view_layout.base_array_layer = 0u;
          view_layout.array_len = subres_layout.layers;
+      } else if (image->vk.image_type == VK_IMAGE_TYPE_3D &&
+                 view->vk.view_type != VK_IMAGE_VIEW_TYPE_3D) {
+         mtl_handle = image->planes[image_plane].mtl_handle_array;
       }
 
       if (view->vk.usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
