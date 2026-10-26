@@ -41,6 +41,7 @@ class CCUColorCacheFraction(Enum):
 
 quirk_names = {
     "QCTDD06363318": "movs_half",
+    "QCTDD08049535": "numnonposvar_alignment",
     "QCTDD08407086": "cs_lock_unlock",
     "QCTDD08517960": "fs_constlen",
     "QCTDD08901551": "stsc_ss",

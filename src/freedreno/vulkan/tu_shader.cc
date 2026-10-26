@@ -2785,9 +2785,14 @@ tu6_emit_fs_inputs(struct tu_cs *cs, const struct ir3_shader_variant *fs)
    unsigned primid_loc = ir3_find_input_loc(fs, VARYING_SLOT_PRIMITIVE_ID);
    unsigned viewid_loc = ir3_find_input_loc(fs, VARYING_SLOT_VIEW_INDEX);
 
+   unsigned num_nonpos_var = fs->total_in;
+   if (FD_QUIRK(cs->device->physical_device->info, QCTDD08049535_numnonposvar_alignment) &&
+       (DIV_ROUND_UP(num_nonpos_var, 4) & 1))
+      num_nonpos_var += 4;
+
    tu_cs_emit_regs(
       cs,
-      VPC_PS_CNTL(CHIP, .numnonposvar = fs->total_in, .primidloc = primid_loc,
+      VPC_PS_CNTL(CHIP, .numnonposvar = num_nonpos_var, .primidloc = primid_loc,
                   .varying = fs && fs->total_in, .viewidloc = viewid_loc));
 }
 

@@ -826,6 +826,7 @@ a7xx_gen1 = GPUProps(
         supports_uav_ubwc = True,
         enable_tp_ubwc_flag_hint = True,
         reading_shading_rate_requires_smask_quirk = True,
+        QCTDD08049535 = True,
         QCTDD08407086 = True,
         QCTDD08517960 = True,
     )
@@ -846,6 +847,7 @@ a7xx_gen2 = GPUProps(
         has_64b_image_atomics = True,
         has_implicit_fragface_fragcoord_ij_linear = True,
 
+        QCTDD08049535 = True,
         QCTDD08901551 = True,
         QCTDD08517960 = True,
     )

@@ -519,6 +519,16 @@ struct fd_dev_info {
        * of dst_type
        */
       bool QCTDD06363318_movs_half : 1;
+      /* On a7xx gen1/gen2, when the FS varyings in VPC take an odd number of
+       * vec4 slots (+ some conditions about number of contexts and visible
+       * prims that are impossible to detect), VPC_PS_CNTL::NUMNONPOSVAR has to
+       * be padded by one more vec4. Otherwise something goes wrong with varying
+       * storage alloc/dealloc: sometimes we get garbage in loaded varyings,
+       * unless (ei) is removed or moved much later. The padding of
+       * ::NUMNONPOSVAR is what prop driver is doing on a7xx gen1/gen2 and
+       * doesn't do on gen3.
+       */
+      bool QCTDD08049535_numnonposvar_alignment : 1;
       /* Is lock/unlock sequence needed at end of compute shader? */
       bool QCTDD08407086_cs_lock_unlock : 1;
       /* Having zero consts in one FS may corrupt consts in follow up FSs,
