@@ -2143,36 +2143,6 @@ void count_VkPhysicalDeviceExtendedDynamicStateFeaturesEXT(
     const VkPhysicalDeviceExtendedDynamicStateFeaturesEXT* toCount, size_t* count);
 
 #endif
-#ifdef VK_EXT_host_image_copy
-DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceHostImageCopyFeatures,
-                      count_VkPhysicalDeviceHostImageCopyFeaturesEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceHostImageCopyProperties,
-                      count_VkPhysicalDeviceHostImageCopyPropertiesEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkMemoryToImageCopy, count_VkMemoryToImageCopyEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkImageToMemoryCopy, count_VkImageToMemoryCopyEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkCopyMemoryToImageInfo, count_VkCopyMemoryToImageInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkCopyImageToMemoryInfo, count_VkCopyImageToMemoryInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkCopyImageToImageInfo, count_VkCopyImageToImageInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkHostImageLayoutTransitionInfo,
-                      count_VkHostImageLayoutTransitionInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkSubresourceHostMemcpySize, count_VkSubresourceHostMemcpySizeEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkHostImageCopyDevicePerformanceQuery,
-                      count_VkHostImageCopyDevicePerformanceQueryEXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkSubresourceLayout2, count_VkSubresourceLayout2EXT)
-
-DEFINE_ALIAS_FUNCTION(count_VkImageSubresource2, count_VkImageSubresource2EXT)
-
-#endif
 #ifdef VK_EXT_shader_demote_to_helper_invocation
 DEFINE_ALIAS_FUNCTION(count_VkPhysicalDeviceShaderDemoteToHelperInvocationFeatures,
                       count_VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT)
@@ -2277,6 +2247,10 @@ void count_VkPhysicalDeviceImageCompressionControlFeaturesEXT(
 
 void count_VkImageCompressionControlEXT(uint32_t featureBits, VkStructureType rootType,
                                         const VkImageCompressionControlEXT* toCount, size_t* count);
+
+DEFINE_ALIAS_FUNCTION(count_VkSubresourceLayout2, count_VkSubresourceLayout2EXT)
+
+DEFINE_ALIAS_FUNCTION(count_VkImageSubresource2, count_VkImageSubresource2EXT)
 
 void count_VkImageCompressionPropertiesEXT(uint32_t featureBits, VkStructureType rootType,
                                            const VkImageCompressionPropertiesEXT* toCount,

@@ -2330,36 +2330,6 @@ void deepcopy_VkPhysicalDeviceExtendedDynamicStateFeaturesEXT(
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT* to);
 
 #endif
-#ifdef VK_EXT_host_image_copy
-DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceHostImageCopyFeatures,
-                      deepcopy_VkPhysicalDeviceHostImageCopyFeaturesEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceHostImageCopyProperties,
-                      deepcopy_VkPhysicalDeviceHostImageCopyPropertiesEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkMemoryToImageCopy, deepcopy_VkMemoryToImageCopyEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkImageToMemoryCopy, deepcopy_VkImageToMemoryCopyEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkCopyMemoryToImageInfo, deepcopy_VkCopyMemoryToImageInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkCopyImageToMemoryInfo, deepcopy_VkCopyImageToMemoryInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkCopyImageToImageInfo, deepcopy_VkCopyImageToImageInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkHostImageLayoutTransitionInfo,
-                      deepcopy_VkHostImageLayoutTransitionInfoEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkSubresourceHostMemcpySize, deepcopy_VkSubresourceHostMemcpySizeEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkHostImageCopyDevicePerformanceQuery,
-                      deepcopy_VkHostImageCopyDevicePerformanceQueryEXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkSubresourceLayout2, deepcopy_VkSubresourceLayout2EXT)
-
-DEFINE_ALIAS_FUNCTION(deepcopy_VkImageSubresource2, deepcopy_VkImageSubresource2EXT)
-
-#endif
 #ifdef VK_EXT_shader_demote_to_helper_invocation
 DEFINE_ALIAS_FUNCTION(deepcopy_VkPhysicalDeviceShaderDemoteToHelperInvocationFeatures,
                       deepcopy_VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT)
@@ -2475,6 +2445,10 @@ void deepcopy_VkPhysicalDeviceImageCompressionControlFeaturesEXT(
 void deepcopy_VkImageCompressionControlEXT(Allocator* alloc, VkStructureType rootType,
                                            const VkImageCompressionControlEXT* from,
                                            VkImageCompressionControlEXT* to);
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkSubresourceLayout2, deepcopy_VkSubresourceLayout2EXT)
+
+DEFINE_ALIAS_FUNCTION(deepcopy_VkImageSubresource2, deepcopy_VkImageSubresource2EXT)
 
 void deepcopy_VkImageCompressionPropertiesEXT(Allocator* alloc, VkStructureType rootType,
                                               const VkImageCompressionPropertiesEXT* from,

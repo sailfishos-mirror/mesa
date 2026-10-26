@@ -3612,63 +3612,6 @@ void gfxstream_vk_CmdSetStencilOpEXT(VkCommandBuffer commandBuffer, VkStencilFac
     }
 }
 #endif
-#ifdef VK_EXT_host_image_copy
-VkResult gfxstream_vk_CopyMemoryToImageEXT(VkDevice device,
-                                           const VkCopyMemoryToImageInfo* pCopyMemoryToImageInfo) {
-    MESA_TRACE_SCOPE("vkCopyMemoryToImageEXT");
-    VkResult vkCopyMemoryToImageEXT_VkResult_return = (VkResult)0;
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkCopyMemoryToImageEXT_VkResult_return =
-            vkEnc->vkCopyMemoryToImageEXT(device, pCopyMemoryToImageInfo, true /* do lock */);
-    }
-    return vkCopyMemoryToImageEXT_VkResult_return;
-}
-VkResult gfxstream_vk_CopyImageToMemoryEXT(VkDevice device,
-                                           const VkCopyImageToMemoryInfo* pCopyImageToMemoryInfo) {
-    MESA_TRACE_SCOPE("vkCopyImageToMemoryEXT");
-    VkResult vkCopyImageToMemoryEXT_VkResult_return = (VkResult)0;
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkCopyImageToMemoryEXT_VkResult_return =
-            vkEnc->vkCopyImageToMemoryEXT(device, pCopyImageToMemoryInfo, true /* do lock */);
-    }
-    return vkCopyImageToMemoryEXT_VkResult_return;
-}
-VkResult gfxstream_vk_CopyImageToImageEXT(VkDevice device,
-                                          const VkCopyImageToImageInfo* pCopyImageToImageInfo) {
-    MESA_TRACE_SCOPE("vkCopyImageToImageEXT");
-    VkResult vkCopyImageToImageEXT_VkResult_return = (VkResult)0;
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkCopyImageToImageEXT_VkResult_return =
-            vkEnc->vkCopyImageToImageEXT(device, pCopyImageToImageInfo, true /* do lock */);
-    }
-    return vkCopyImageToImageEXT_VkResult_return;
-}
-VkResult gfxstream_vk_TransitionImageLayoutEXT(
-    VkDevice device, uint32_t transitionCount,
-    const VkHostImageLayoutTransitionInfo* pTransitions) {
-    MESA_TRACE_SCOPE("vkTransitionImageLayoutEXT");
-    VkResult vkTransitionImageLayoutEXT_VkResult_return = (VkResult)0;
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkTransitionImageLayoutEXT_VkResult_return = vkEnc->vkTransitionImageLayoutEXT(
-            device, transitionCount, pTransitions, true /* do lock */);
-    }
-    return vkTransitionImageLayoutEXT_VkResult_return;
-}
-void gfxstream_vk_GetImageSubresourceLayout2EXT(VkDevice device, VkImage image,
-                                                const VkImageSubresource2* pSubresource,
-                                                VkSubresourceLayout2* pLayout) {
-    MESA_TRACE_SCOPE("vkGetImageSubresourceLayout2EXT");
-    {
-        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
-        vkEnc->vkGetImageSubresourceLayout2EXT(device, image, pSubresource, pLayout,
-                                               true /* do lock */);
-    }
-}
-#endif
 #ifdef VK_EXT_private_data
 VkResult gfxstream_vk_CreatePrivateDataSlotEXT(VkDevice device,
                                                const VkPrivateDataSlotCreateInfo* pCreateInfo,
@@ -3715,6 +3658,18 @@ void gfxstream_vk_GetPrivateDataEXT(VkDevice device, VkObjectType objectType, ui
         auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
         vkEnc->vkGetPrivateDataEXT(device, objectType, objectHandle, privateDataSlot, pData,
                                    true /* do lock */);
+    }
+}
+#endif
+#ifdef VK_EXT_image_compression_control
+void gfxstream_vk_GetImageSubresourceLayout2EXT(VkDevice device, VkImage image,
+                                                const VkImageSubresource2* pSubresource,
+                                                VkSubresourceLayout2* pLayout) {
+    MESA_TRACE_SCOPE("vkGetImageSubresourceLayout2EXT");
+    {
+        auto vkEnc = gfxstream::vk::ResourceTracker::getThreadLocalEncoder();
+        vkEnc->vkGetImageSubresourceLayout2EXT(device, image, pSubresource, pLayout,
+                                               true /* do lock */);
     }
 }
 #endif
