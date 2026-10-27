@@ -3556,7 +3556,8 @@ zink_create_semaphore(struct zink_screen *screen)
    return ret == VK_SUCCESS ? sem : VK_NULL_HANDLE;
 }
 
-void
+/* returns false (with the lock released) if the copy context couldn't be created */
+bool
 zink_screen_lock_context(struct zink_screen *screen)
 {
    simple_mtx_lock(&screen->copy_context_lock);
@@ -3565,7 +3566,10 @@ zink_screen_lock_context(struct zink_screen *screen)
    if (!screen->copy_context) {
       mesa_loge("zink: failed to create copy context");
       /* realistically there's nothing that can be done here */
+      simple_mtx_unlock(&screen->copy_context_lock);
+      return false;
    }
+   return true;
 }
 
 void

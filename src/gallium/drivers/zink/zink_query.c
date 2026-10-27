@@ -1519,7 +1519,8 @@ zink_get_timestamp(struct pipe_screen *pscreen)
          mesa_loge("ZINK: vkGetCalibratedTimestampsEXT failed (%s)", vk_Result_to_str(result));
       }
    } else {
-      zink_screen_lock_context(screen);
+      if (!zink_screen_lock_context(screen))
+         return 0;
       struct pipe_context *pctx = &screen->copy_context->base;
       struct pipe_query *pquery = pctx->create_query(pctx, PIPE_QUERY_TIMESTAMP, 0);
       if (!pquery) {

@@ -2484,7 +2484,8 @@ zink_resource_get_handle(struct pipe_screen *pscreen,
             unsigned bind = ZINK_BIND_DMABUF;
             if (!(res->base.b.bind & PIPE_BIND_SHARED))
                bind |= PIPE_BIND_SHARED;
-            zink_screen_lock_context(screen);
+            if (!zink_screen_lock_context(screen))
+               return false;
             if (!add_resource_bind(screen->copy_context, res, bind)) {
                zink_screen_unlock_context(screen);
                return false;
@@ -3011,7 +3012,8 @@ overwrite:
          if (usage & (PIPE_MAP_THREAD_SAFE | PIPE_MAP_UNSYNCHRONIZED | TC_TRANSFER_MAP_THREADED_UNSYNC)) {
             assert(ctx != screen->copy_context);
             /* this map can't access the passed context: use the copy context */
-            zink_screen_lock_context(screen);
+            if (!zink_screen_lock_context(screen))
+               goto fail;
             ctx = screen->copy_context;
          }
          if (usage & PIPE_MAP_READ)
