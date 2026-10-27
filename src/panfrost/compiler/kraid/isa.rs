@@ -267,7 +267,7 @@ pub struct SrWriteLanes<L: Copy> {
 
 pub mod v9 {
     use kraid_proc_macros::*;
-    gen_isa_encode!("isa-v9-v14.xml", 9..=14);
+    gen_isa_encode!(9..=14);
 
     #[cfg(kraid_disasm)]
     pub mod decode {
@@ -419,6 +419,6 @@ pub mod v9 {
         type SourceEncoding = SourceEncodingX<false>;
         type SourceEncoding64 = SourceEncodingX<true>;
 
-        gen_isa_decode!("isa-v9-v14.xml", 9..=14);
+        gen_isa_decode!(9..=14);
     }
 }
