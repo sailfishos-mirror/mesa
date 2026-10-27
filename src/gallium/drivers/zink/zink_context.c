@@ -6027,7 +6027,7 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 
    ctx->flags = flags;
    if (is_robust)
-      screen->robust_vertex_input = true;
+      screen->has_robust_ctx = true;
    memset(ctx->pipeline_changed, 1, sizeof(ctx->pipeline_changed));
    zink_gfx_mesh_pipeline_state_dirty(ctx);
    ctx->gfx_pipeline_state.dyn_state2.vertices_per_patch = 1;

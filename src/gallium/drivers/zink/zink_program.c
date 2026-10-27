@@ -1294,7 +1294,6 @@ gfx_program_create(struct zink_context *ctx,
    prog->gfx_hash = gfx_hash;
    prog->base.removed = true;
    prog->optimal_keys = screen->optimal_keys;
-   prog->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
 
    for (int i = is_mesh ? MESA_SHADER_FRAGMENT : 0; i < (is_mesh ? MESA_SHADER_MESH_STAGES : MESA_SHADER_STAGES); ++i) {
       util_dynarray_init(&prog->shader_cache[i][0][0], prog->base.ralloc_ctx);
@@ -1737,7 +1736,6 @@ create_compute_program(struct zink_context *ctx, nir_shader *nir)
    comp->scratch_size = nir->scratch_size;
    comp->nir = nir;
    comp->num_inlinable_uniforms = nir->info.num_inlinable_uniforms;
-   comp->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
    comp->use_local_size = !(nir->info.workgroup_size[0] ||
                             nir->info.workgroup_size[1] ||
                             nir->info.workgroup_size[2]);
@@ -2602,7 +2600,7 @@ precompile_separate_shader(struct zink_shader *zs, struct zink_screen *screen)
    if (!screen->info.have_EXT_shader_object) {
       struct zink_shader_object objs[MESA_SHADER_MESH_STAGES] = {0};
       objs[zs->info.stage].mod = zs->precompile.obj.mod;
-      zs->precompile.gpl = zink_create_gfx_pipeline_separate(screen, objs, zs->precompile.layout, zs->info.stage, zs->robust);
+      zs->precompile.gpl = zink_create_gfx_pipeline_separate(screen, objs, zs->precompile.layout, zs->info.stage);
    }
 }
 
@@ -2634,7 +2632,6 @@ void *
 zink_create_gfx_shader_state(struct pipe_context *pctx, const struct pipe_shader_state *shader)
 {
    struct zink_screen *screen = zink_screen(pctx->screen);
-   struct zink_context *ctx = zink_context(pctx);
    nir_shader *nir;
    if (shader->type != PIPE_SHADER_IR_NIR)
       nir = zink_tgsi_to_nir(pctx->screen, shader->tokens);
@@ -2645,7 +2642,6 @@ zink_create_gfx_shader_state(struct pipe_context *pctx, const struct pipe_shader
       zink_descriptor_util_init_fbfetch(zink_context(pctx));
 
    struct zink_shader *zs = zink_shader_create(zink_screen(pctx->screen), nir);
-   zs->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
    if (zink_debug & ZINK_DEBUG_NOBGC)
       gfx_shader_init_job(zs, screen, 0);
    else

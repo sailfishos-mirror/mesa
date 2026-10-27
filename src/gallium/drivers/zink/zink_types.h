@@ -883,7 +883,6 @@ struct zink_shader {
    bool has_uniforms;
    bool has_edgeflags;
    bool needs_inlining;
-   bool robust; //from a robust context
    struct spirv_shader *spirv;
 
    struct {
@@ -1197,7 +1196,6 @@ struct zink_gfx_program {
    bool needs_inlining; // whether this program requires some uniforms to be inlined
    bool has_edgeflags;
    bool optimal_keys;
-   bool robust;
 
    /* separable */
    struct zink_gfx_program *full_prog;
@@ -1217,7 +1215,6 @@ struct zink_compute_program {
    bool use_local_size;
    bool has_variable_shared_mem;
    bool uses_bindless;
-   bool robust;
 
    unsigned scratch_size;
 
@@ -1493,7 +1490,7 @@ struct zink_screen {
    unsigned buffer_rebind_counter;
    unsigned image_rebind_counter;
    unsigned robust_ctx_count;
-   bool robust_vertex_input; //a robust context has been created, so vertex input libraries are robust
+   bool has_robust_ctx; //a robust context has been created, so all pipelines are robust
 
    struct hash_table dts;
    simple_mtx_t dt_lock;
