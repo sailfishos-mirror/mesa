@@ -2398,6 +2398,14 @@ device_import_bo(struct v3dv_device *device,
    if (ret)
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
+#if USE_V3D_SIMULATOR
+   /* A handle we haven't imported yet may come from another DRM file, so
+    * the simulator doesn't know about it.
+    */
+   if (v3dv_device_lookup_bo(device->pdevice, handle)->refcnt == 0)
+      v3d_simulator_open_from_handle(render_fd, handle, real_size);
+#endif
+
    struct drm_v3d_get_bo_offset get_offset = {
       .handle = handle,
    };
