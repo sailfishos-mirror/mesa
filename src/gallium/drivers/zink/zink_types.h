@@ -1493,6 +1493,7 @@ struct zink_screen {
    unsigned buffer_rebind_counter;
    unsigned image_rebind_counter;
    unsigned robust_ctx_count;
+   bool robust_vertex_input; //a robust context has been created, so vertex input libraries are robust
 
    struct hash_table dts;
    simple_mtx_t dt_lock;

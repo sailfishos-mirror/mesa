@@ -669,9 +669,16 @@ zink_create_gfx_pipeline_input(struct zink_screen *screen,
                                const uint8_t *binding_map,
                                VkPrimitiveTopology primitive_topology)
 {
+   /* the library is shared by all contexts: it is robust once any robust context exists */
+   VkPipelineRobustnessCreateInfo rb = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO,
+      .vertexInputs = screen->robust_vertex_input ?
+                      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS :
+                      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED,
+   };
    VkGraphicsPipelineLibraryCreateInfoEXT gplci = {
       VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT,
-      NULL,
+      screen->info.have_EXT_pipeline_robustness ? &rb : NULL,
       VK_GRAPHICS_PIPELINE_LIBRARY_VERTEX_INPUT_INTERFACE_BIT_EXT
    };
 
