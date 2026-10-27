@@ -17,9 +17,16 @@
 #include "fd2_texture.h"
 #include "fd2_zsa.h"
 
+#include "util/u_upload_mgr.h"
+
 static void
 fd2_context_destroy(struct pipe_context *pctx) in_dt
 {
+   struct fd2_context *fd2_ctx = fd2_context(fd_context(pctx));
+
+   if (fd2_ctx->restore_uploader)
+      u_upload_destroy(fd2_ctx->restore_uploader);
+
    fd_context_destroy(pctx);
    free(pctx);
 }
@@ -102,6 +109,13 @@ fd2_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 
    /* construct vertex state used for solid ops (clear, and gmem<->mem) */
    fd2_ctx->solid_vertexbuf = create_solid_vertexbuf(pctx);
+
+   fd2_ctx->restore_uploader = u_upload_create(
+      pctx, 4096, PIPE_BIND_VERTEX_BUFFER, PIPE_USAGE_STREAM, 0);
+   if (!fd2_ctx->restore_uploader) {
+      pctx->destroy(pctx);
+      return NULL;
+   }
 
    fd2_query_context_init(pctx);
 

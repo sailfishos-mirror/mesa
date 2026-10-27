@@ -19,6 +19,9 @@ struct fd2_context {
     */
    struct pipe_resource *solid_vertexbuf;
 
+   /* per-tile mem->gmem tex coords, never rewritten while queued: */
+   struct u_upload_mgr *restore_uploader;
+
    bool mag_switchover_half;
 };
 
