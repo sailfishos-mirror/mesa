@@ -2414,7 +2414,7 @@
         "description": "zink: clear the last ds3 rasterizer and blend bits after emitting them",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": "9d19d7f6de9da20c1a31203455b8b82500395b91",
         "notes": null
