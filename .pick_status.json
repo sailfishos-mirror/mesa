@@ -2204,7 +2204,7 @@
         "description": "zink: keep swapchain readback copies ordered",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "84b8242262a9b2aa302330a6f34a931a79f3e2b5",
         "notes": null
