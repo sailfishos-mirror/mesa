@@ -1249,9 +1249,9 @@ v3d_simulator_init(int fd)
         simple_mtx_lock(&sim_state.mutex);
         _mesa_hash_table_insert(sim_state.fd_map, int_to_key(fd + 1),
                                 sim_file);
+        sim_file->gmp = u_mmAllocMem(sim_state.heap, 8096, GMP_ALIGN2, 0);
         simple_mtx_unlock(&sim_state.mutex);
 
-        sim_file->gmp = u_mmAllocMem(sim_state.heap, 8096, GMP_ALIGN2, 0);
         sim_file->gmp_addr = sim_file->gmp->ofs;
         v3d_hw_set_mem(sim_state.v3d, sim_file->gmp_addr, 0, 8096);
 
