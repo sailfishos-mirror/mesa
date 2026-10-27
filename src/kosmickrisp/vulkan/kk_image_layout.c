@@ -17,7 +17,8 @@
 #include "util/format/u_format.h"
 
 static enum mtl_texture_type
-vk_image_to_mtl_texture_type(const struct vk_image *image)
+vk_image_to_mtl_texture_type(const struct vk_image *image,
+                             VkImageUsageFlags usage)
 {
    uint32_t array_layers = image->array_layers;
    uint32_t samples = image->samples;
@@ -25,8 +26,7 @@ vk_image_to_mtl_texture_type(const struct vk_image *image)
    case VK_IMAGE_TYPE_1D:
    case VK_IMAGE_TYPE_2D:
       /* We require input attachments to be arrays */
-      if (array_layers > 1 ||
-          (image->usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
+      if (array_layers > 1 || (usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
          return samples > 1u ? MTL_TEXTURE_TYPE_2D_ARRAY_MULTISAMPLE
                              : MTL_TEXTURE_TYPE_2D_ARRAY;
       return samples > 1u ? MTL_TEXTURE_TYPE_2D_MULTISAMPLE
@@ -255,7 +255,8 @@ kk_image_layout_init(const struct kk_device *dev, const struct vk_image *image,
 {
    const struct kk_physical_device *pdev = kk_device_physical(dev);
    const struct kk_va_format *supported_format = kk_get_va_format(format);
-   layout->type = vk_image_to_mtl_texture_type(image);
+   VkImageUsageFlags usage = vk_image_usage(image, image->aspects);
+   layout->type = vk_image_to_mtl_texture_type(image, usage);
    layout->width_px = image->extent.width / width_scale;
    layout->height_px = image->extent.height / height_scale;
    layout->depth_px = image->extent.depth;
@@ -263,9 +264,9 @@ kk_image_layout_init(const struct kk_device *dev, const struct vk_image *image,
    layout->levels = image->mip_levels;
    layout->linear = image->tiling != VK_IMAGE_TILING_OPTIMAL;
    layout->optimized_layout = kk_image_layout_can_optimize(
-      pdev, image->usage, image->tiling, image->create_flags, format);
+      pdev, usage, image->tiling, image->create_flags, format);
    layout->usage = vk_image_usage_flags_to_mtl_texture_usage(
-      image->usage, image->create_flags, supported_format->atomic);
+      usage, image->create_flags, supported_format->atomic);
    layout->create_flags = image->create_flags;
    layout->format.pipe = format;
    layout->format.mtl = supported_format->mtl_pixel_format;
