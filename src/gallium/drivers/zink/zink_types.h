@@ -2099,6 +2099,8 @@ struct zink_context {
    } render_condition;
    struct {
       uint64_t render_passes;
+      uint32_t frame_submits_current;
+      uint32_t frame_submits;
    } hud;
 
    struct pipe_resource *dummy_xfb_buffer;

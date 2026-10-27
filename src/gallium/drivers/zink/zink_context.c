@@ -4675,6 +4675,11 @@ zink_flush(struct pipe_context *pctx,
          flush_batch(ctx, false);
    }
 
+   if (flags & PIPE_FLUSH_END_OF_FRAME) {
+      p_atomic_set(&ctx->hud.frame_submits, ctx->hud.frame_submits_current);
+      ctx->hud.frame_submits_current = 0;
+   }
+
    if (pfence) {
       struct zink_tc_fence *mfence;
 

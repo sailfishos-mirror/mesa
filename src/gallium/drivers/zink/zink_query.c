@@ -14,6 +14,7 @@
 #define NOWAIT_CHECK_THRESHOLD 10 //prevent spinning
 
 #define ZINK_QUERY_RENDER_PASSES (PIPE_QUERY_DRIVER_SPECIFIC + 0)
+#define ZINK_QUERY_SUBMITS_PER_FRAME (PIPE_QUERY_DRIVER_SPECIFIC + 1)
 
 static unsigned NUM_QUERIES = 16;
 
@@ -96,6 +97,7 @@ struct zink_query {
 
 static const struct pipe_driver_query_info zink_specific_queries[] = {
    {"render-passes", ZINK_QUERY_RENDER_PASSES, { 0 }},
+   {"submits-per-frame", ZINK_QUERY_SUBMITS_PER_FRAME, { 0 }},
 };
 
 static inline int
@@ -1149,6 +1151,11 @@ zink_get_query_result(struct pipe_context *pctx,
    if (query->type == ZINK_QUERY_RENDER_PASSES) {
       result->u64 = ctx->hud.render_passes;
       ctx->hud.render_passes = 0;
+      return true;
+   }
+
+   if (query->type == ZINK_QUERY_SUBMITS_PER_FRAME) {
+      result->u64 = p_atomic_read_relaxed(&ctx->hud.frame_submits);
       return true;
    }
 

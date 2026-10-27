@@ -1089,6 +1089,7 @@ zink_end_batch(struct zink_context *ctx)
       (*mfence)->deferred_ctx = NULL;
 
    ctx->queued_batches++;
+   ctx->hud.frame_submits_current++;
    if (screen->threaded_submit) {
       util_queue_add_job(&screen->flush_queue, bs, &bs->flush_completed,
                          submit_queue, NULL, 0);
