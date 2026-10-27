@@ -39,14 +39,21 @@
 #define GFX_INPUT_MESH 32
 
 static VkPipelineRobustnessCreateInfo
-pipeline_robustness_info(const struct zink_screen *screen)
+pipeline_robustness_info(const struct zink_screen *screen, bool robust)
 {
+   /* the device features are off, but a driver's default behavior may still be robust:
+    * non-robust contexts explicitly ask for none
+    */
+   const VkPipelineRobustnessBufferBehavior buffers = robust ?
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS :
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED;
    return (VkPipelineRobustnessCreateInfo){
       .sType = VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO,
-      .storageBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
-      .uniformBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
-      .vertexInputs = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
-      .images = screen->robustness & ZINK_ROBUSTNESS_IMAGE2 ?
+      .storageBuffers = buffers,
+      .uniformBuffers = buffers,
+      .vertexInputs = buffers,
+      .images = !robust ? VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED :
+                screen->robustness & ZINK_ROBUSTNESS_IMAGE2 ?
                 VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2 :
                 VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS,
    };
@@ -404,7 +411,7 @@ zink_create_gfx_pipeline(struct zink_screen *screen,
 
    VkPipelineShaderStageCreateInfo shader_stages[MESA_SHADER_MESH_STAGES];
    VkShaderModuleCreateInfo smci[MESA_SHADER_MESH_STAGES] = {0};
-   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen, prog->robust);
    uint32_t num_stages = 0;
    for (int i = 0; i < MESA_SHADER_MESH_STAGES; ++i) {
       if (!(prog->stages_present & BITFIELD_BIT(i)))
@@ -414,7 +421,7 @@ zink_create_gfx_pipeline(struct zink_screen *screen,
       stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       stage.stage = mesa_to_vk_shader_stage(i);
       stage.pName = "main";
-      if (prog->robust)
+      if (screen->info.have_EXT_pipeline_robustness)
          stage.pNext = &rb;
       if (objs[i].mod) {
          stage.module = objs[i].mod;
@@ -456,13 +463,13 @@ zink_create_compute_pipeline(struct zink_screen *screen, struct zink_compute_pro
    if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB)
       pci.flags |= VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
 
-   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen, comp->robust);
    VkPipelineShaderStageCreateInfo stage = {0};
    stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
    stage.module = comp->curr->obj.mod;
    stage.pName = "main";
-   if (comp->robust)
+   if (screen->info.have_EXT_pipeline_robustness)
       stage.pNext = &rb;
 
    VkSpecializationInfo sinfo = {0};
@@ -869,7 +876,7 @@ create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_objec
       tdci.domainOrigin = VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT;
    }
 
-   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen);
+   VkPipelineRobustnessCreateInfo rb = pipeline_robustness_info(screen, robust);
    VkPipelineShaderStageCreateInfo shader_stages[MESA_SHADER_MESH_STAGES];
    uint32_t num_stages = 0;
    for (int i = 0; i < MESA_SHADER_MESH_STAGES; ++i) {
@@ -881,7 +888,7 @@ create_gfx_pipeline_library(struct zink_screen *screen, struct zink_shader_objec
       stage.stage = mesa_to_vk_shader_stage(i);
       stage.module = objs[i].mod;
       stage.pName = "main";
-      if (robust)
+      if (screen->info.have_EXT_pipeline_robustness)
          stage.pNext = &rb;
       shader_stages[num_stages++] = stage;
    }

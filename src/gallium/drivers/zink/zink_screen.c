@@ -3444,12 +3444,11 @@ disable_features(struct zink_screen *screen)
 
    /* GL doesn't require this behavior */
    screen->info.rb2_feats.robustBufferAccess2 = false;
-   if (screen->info.have_EXT_pipeline_robustness &&
-       (screen->info.pipeline_rb_props.defaultRobustnessStorageBuffers == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED ||
-        screen->info.pipeline_rb_props.defaultRobustnessUniformBuffers == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED ||
-        screen->info.pipeline_rb_props.defaultRobustnessVertexInputs == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED ||
-        screen->info.pipeline_rb_props.defaultRobustnessImages == VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED)) {
-      /* possibly switch to pipeline robustness here */
+   if (screen->info.have_EXT_pipeline_robustness && screen->info.pipeline_rb_feats.pipelineRobustness) {
+      /* every pipeline sets its own robustness, so the device-wide features are not needed:
+       * robust contexts ask for robustness and all other contexts explicitly ask for none,
+       * regardless of what the driver does by default
+       */
       screen->info.feats.features.robustBufferAccess = false;
       screen->info.rb_image_feats.robustImageAccess = false;
       screen->info.rb2_feats.robustImageAccess2 = false;

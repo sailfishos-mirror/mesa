@@ -1294,8 +1294,7 @@ gfx_program_create(struct zink_context *ctx,
    prog->gfx_hash = gfx_hash;
    prog->base.removed = true;
    prog->optimal_keys = screen->optimal_keys;
-   if (ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS)
-      prog->robust = screen->info.have_EXT_pipeline_robustness;
+   prog->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
 
    for (int i = is_mesh ? MESA_SHADER_FRAGMENT : 0; i < (is_mesh ? MESA_SHADER_MESH_STAGES : MESA_SHADER_STAGES); ++i) {
       util_dynarray_init(&prog->shader_cache[i][0][0], prog->base.ralloc_ctx);
@@ -1738,8 +1737,7 @@ create_compute_program(struct zink_context *ctx, nir_shader *nir)
    comp->scratch_size = nir->scratch_size;
    comp->nir = nir;
    comp->num_inlinable_uniforms = nir->info.num_inlinable_uniforms;
-   if (ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS)
-      comp->robust = screen->info.have_EXT_pipeline_robustness;
+   comp->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
    comp->use_local_size = !(nir->info.workgroup_size[0] ||
                             nir->info.workgroup_size[1] ||
                             nir->info.workgroup_size[2]);
@@ -2647,8 +2645,7 @@ zink_create_gfx_shader_state(struct pipe_context *pctx, const struct pipe_shader
       zink_descriptor_util_init_fbfetch(zink_context(pctx));
 
    struct zink_shader *zs = zink_shader_create(zink_screen(pctx->screen), nir);
-   if (ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS)
-      zs->robust = screen->info.have_EXT_pipeline_robustness;
+   zs->robust = ctx->flags & PIPE_CONTEXT_ROBUST_BUFFER_ACCESS;
    if (zink_debug & ZINK_DEBUG_NOBGC)
       gfx_shader_init_job(zs, screen, 0);
    else
