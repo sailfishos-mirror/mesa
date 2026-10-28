@@ -2623,20 +2623,26 @@ destroy_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_des
    free(bd);
 }
 
-static uint64_t
-add_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_descriptor *bd, bool is_image)
+static void
+alloc_bindless_handle(struct zink_screen *screen, struct zink_bindless_descriptor *bd)
 {
    bool is_buffer = bd->ds.is_buffer;
-   bd->refcount = 1;
-   bd->is_image = is_image;
    simple_mtx_lock(&screen->bindless_handles.lock);
-   uint64_t handle = util_idalloc_alloc(&screen->bindless_handles.table[is_image][is_buffer].slots);
+   uint64_t handle = util_idalloc_alloc(&screen->bindless_handles.table[bd->is_image][is_buffer].slots);
    if (is_buffer)
       handle += ZINK_MAX_BINDLESS_HANDLES;
    bd->handle = handle;
-   _mesa_hash_table_insert(&screen->bindless_handles.table[is_image][is_buffer].handles, (void*)(uintptr_t)handle, bd);
+   _mesa_hash_table_insert(&screen->bindless_handles.table[bd->is_image][is_buffer].handles, (void*)(uintptr_t)handle, bd);
    simple_mtx_unlock(&screen->bindless_handles.lock);
-   return handle;
+}
+
+static uint64_t
+add_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_descriptor *bd, bool is_image)
+{
+   bd->refcount = 1;
+   bd->is_image = is_image;
+   alloc_bindless_handle(screen, bd);
+   return bd->handle;
 }
 
 static struct zink_bindless_descriptor *
