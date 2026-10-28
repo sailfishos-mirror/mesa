@@ -1928,8 +1928,10 @@ zink_destroy_gfx_program(struct zink_screen *screen,
 {
    util_queue_fence_wait(&prog->base.cache_fence);
    util_queue_drop_job(&screen->cache_get_thread, &prog->bg_fence);
-   if (prog->draw_variant_zm)
-      zink_destroy_shader_module(screen, prog->draw_variant_zm);
+   for (unsigned i = 0; i < ARRAY_SIZE(prog->draw_variant_zm); i++) {
+      if (prog->draw_variant_zm[i])
+         zink_destroy_shader_module(screen, prog->draw_variant_zm[i]);
+   }
    if (prog->full_prog)
       zink_gfx_program_reference(screen, &prog->full_prog, NULL);
    for (int i = 0; i < ARRAY_SIZE(prog->pipelines); ++i) {
@@ -2630,18 +2632,28 @@ gfx_draw_variant_job(void *data, void *gdata, int thread_index)
    struct zink_gfx_pipeline_state state = {0};
    state.shader_keys_optimal.key.val = prog->draw_variant_key;
    state.optimal_key = prog->draw_variant_key;
-   struct zink_shader *zs = prog->last_vertex_stage;
-   const mesa_shader_stage stage = zs->info.stage;
-   struct zink_shader_module *zm = compile_shader_module_for_stage_optimal(NULL, screen, zs, prog, stage, &state);
-   if (!zm)
-      return;
-   if (prog->libs && !screen->info.have_EXT_shader_object) {
+   const mesa_shader_stage stages[2] = {prog->last_vertex_stage->info.stage, MESA_SHADER_FRAGMENT};
+   u_foreach_bit(i, prog->draw_variant_bits) {
+      const mesa_shader_stage stage = stages[i];
+      struct zink_shader_module *zm = prog->draw_variant_mod[i];
+      if (!zm) {
+         zm = compile_shader_module_for_stage_optimal(NULL, screen, prog->shaders[stage], prog, stage, &state);
+         if (!zm) {
+            /* nothing is adopted, but the program must not be blocked from queueing again */
+            prog->draw_variant_bits = 0;
+            prog->draw_variant_done = true;
+            return;
+         }
+         prog->draw_variant_zm[i] = zm;
+      }
       prog->draw_variant_objs[stage] = zm->obj;
+   }
+   if (prog->libs && !screen->info.have_EXT_shader_object) {
       simple_mtx_lock(&prog->libs->lock);
       create_pipeline_lib(screen, prog, &state, prog->draw_variant_objs);
       simple_mtx_unlock(&prog->libs->lock);
    }
-   prog->draw_variant_zm = zm;
+   prog->draw_variant_done = true;
 }
 
 /* the draw variants which the draws want are worth a compile once the program is reused across batches:
@@ -2665,6 +2677,8 @@ zink_gfx_program_queue_draw_variant(struct zink_context *ctx, struct zink_gfx_pr
        base_key != set_draw_variant_bits(prog->last_variant_hash, 0))
       return;
    if (base_key != prog->draw_variant_base_key) {
+      /* the modules were compiled for other key bits */
+      memset(prog->draw_variant_mod, 0, sizeof(prog->draw_variant_mod));
       prog->draw_variant_ready = 0;
       prog->draw_variant_base_key = base_key;
    }
@@ -2681,11 +2695,19 @@ zink_gfx_program_queue_draw_variant(struct zink_context *ctx, struct zink_gfx_pr
 bool
 zink_gfx_program_adopt_draw_variant(struct zink_gfx_program *prog)
 {
-   if (!prog->bg_queued || !util_queue_fence_is_signalled(&prog->bg_fence) || !prog->draw_variant_zm)
+   if (!prog->bg_queued || !prog->draw_variant_done || !util_queue_fence_is_signalled(&prog->bg_fence))
       return false;
-   util_dynarray_append(&prog->shader_cache[prog->last_vertex_stage->info.stage][0][0], prog->draw_variant_zm);
-   prog->draw_variant_zm = NULL;
+   const mesa_shader_stage stages[2] = {prog->last_vertex_stage->info.stage, MESA_SHADER_FRAGMENT};
+   for (unsigned i = 0; i < ARRAY_SIZE(stages); i++) {
+      if (!prog->draw_variant_zm[i])
+         continue;
+      util_dynarray_append(&prog->shader_cache[stages[i]][0][0], prog->draw_variant_zm[i]);
+      prog->draw_variant_mod[i] = prog->draw_variant_zm[i];
+      prog->draw_variant_zm[i] = NULL;
+   }
    prog->draw_variant_ready |= BITFIELD_BIT(prog->draw_variant_bits);
+   prog->draw_variant_done = false;
+   prog->bg_queued = false;
    return true;
 }
 

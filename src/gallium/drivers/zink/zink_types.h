@@ -1217,10 +1217,15 @@ struct zink_gfx_program {
    /* the background job has been queued or skipped for noopt */
    bool bg_queued;
 
-   /* draw variant of the last vertex stage which is compiled in the background */
-   struct zink_shader_module *draw_variant_zm;
+   /* draw variants of the last vertex stage [0] and the fragment stage [1] which are compiled in the background,
+    * before and after they are added to the shader cache
+    */
+   struct zink_shader_module *draw_variant_zm[2];
+   struct zink_shader_module *draw_variant_mod[2];
    uint32_t draw_variant_key;
    struct zink_shader_object draw_variant_objs[MESA_SHADER_MESH_STAGES];
+   /* the job compiled everything for draw_variant_key */
+   bool draw_variant_done;
    /* the draw variant bits which the job compiles */
    uint8_t draw_variant_bits;
    /* the sets of draw variant key bits (get_draw_variant_bits()) which can be bound without a compile, one bit each */
