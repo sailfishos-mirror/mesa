@@ -475,6 +475,14 @@ find_completed_batch_state(struct zink_context *ctx)
    return NULL;
 }
 
+/* recycle the completed states now, which is where deleted bindless ids come back */
+void
+zink_batch_reset_completed(struct zink_context *ctx)
+{
+   if (!(ctx->flags & ZINK_CONTEXT_COPY_ONLY))
+      find_completed_batch_state(ctx);
+}
+
 /* find a "free" batch state */
 static struct zink_batch_state *
 get_batch_state(struct zink_context *ctx)

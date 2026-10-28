@@ -2623,26 +2623,39 @@ destroy_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_des
    free(bd);
 }
 
-static void
-alloc_bindless_handle(struct zink_screen *screen, struct zink_bindless_descriptor *bd)
+static bool
+try_alloc_bindless_handle(struct zink_screen *screen, struct zink_bindless_descriptor *bd)
 {
    bool is_buffer = bd->ds.is_buffer;
    simple_mtx_lock(&screen->bindless_handles.lock);
-   uint64_t handle = util_idalloc_alloc(&screen->bindless_handles.table[bd->is_image][is_buffer].slots);
-   if (is_buffer)
-      handle += ZINK_MAX_BINDLESS_HANDLES;
-   bd->handle = handle;
-   _mesa_hash_table_insert(&screen->bindless_handles.table[bd->is_image][is_buffer].handles, (void*)(uintptr_t)handle, bd);
+   uint64_t slot = util_idalloc_alloc(&screen->bindless_handles.table[bd->is_image][is_buffer].slots);
+   /* past the id range, ids would alias the buffer range */
+   bool ok = slot < ZINK_MAX_BINDLESS_HANDLES;
+   if (ok) {
+      bd->handle = is_buffer ? slot + ZINK_MAX_BINDLESS_HANDLES : slot;
+      _mesa_hash_table_insert(&screen->bindless_handles.table[bd->is_image][is_buffer].handles, (void*)(uintptr_t)bd->handle, bd);
+   } else {
+      util_idalloc_free(&screen->bindless_handles.table[bd->is_image][is_buffer].slots, slot);
+   }
    simple_mtx_unlock(&screen->bindless_handles.lock);
+   return ok;
 }
 
 static uint64_t
-add_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_descriptor *bd, bool is_image)
+add_bindless_descriptor(struct zink_context *ctx, struct zink_bindless_descriptor *bd, bool is_image)
 {
+   struct zink_screen *screen = zink_screen(ctx->base.screen);
    bd->refcount = 1;
    bd->is_image = is_image;
-   alloc_bindless_handle(screen, bd);
-   return bd->handle;
+   if (try_alloc_bindless_handle(screen, bd))
+      return bd->handle;
+   /* deleted ids are only recycled once the batch which used them has completed */
+   zink_wait_on_batch(ctx, 0);
+   zink_batch_reset_completed(ctx);
+   if (try_alloc_bindless_handle(screen, bd))
+      return bd->handle;
+   destroy_bindless_descriptor(screen, bd);
+   return 0;
 }
 
 static struct zink_bindless_descriptor *
@@ -2703,7 +2716,7 @@ zink_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_view *
       bd->first_layer = view->u.tex.first_layer;
       bd->last_layer = view->u.tex.last_layer;
    }
-   return add_bindless_descriptor(zink_screen(pctx->screen), bd, false);
+   return add_bindless_descriptor(ctx, bd, false);
 }
 
 static void
@@ -2873,7 +2886,7 @@ zink_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view
       bd->ds.surface = create_image_surface(ctx, view, false, &import2d);
       assert(!import2d);
    }
-   return add_bindless_descriptor(zink_screen(pctx->screen), bd, true);
+   return add_bindless_descriptor(ctx, bd, true);
 }
 
 static void
