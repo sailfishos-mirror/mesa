@@ -4,7 +4,7 @@
 #include "v3d_compiler.h"
 
 nir_def *
-v3d_nir_get_tlb_color(nir_builder *b, struct v3d_compile *c, int rt, int sample,
+v3d_nir_get_tlb_color(nir_builder *b, int rt, int sample,
                       unsigned component, unsigned num_components)
 {
         assert(num_components > 0 && component + num_components <= 4);
@@ -62,7 +62,7 @@ lower_tlb_load(nir_builder *b, nir_intrinsic_instr *intr, void *data)
                                             nir_load_sample_id(b);
         }
         nir_def *out = is_color ?
-                v3d_nir_get_tlb_color(b, c, rt, 0, component, num_components) :
+                v3d_nir_get_tlb_color(b, rt, 0, component, num_components) :
                 v3d_nir_get_tlb_depth_stencil(b, sem, 0);
 
         /* If msaa, run through every sample and, if it matches the current sample
@@ -71,7 +71,7 @@ lower_tlb_load(nir_builder *b, nir_intrinsic_instr *intr, void *data)
         for (unsigned i = 1; i < num_samples; i++) {
                 nir_def *is_cur_sample = nir_ieq_imm(b, sample_id, i);
                 nir_def *val = is_color ?
-                        v3d_nir_get_tlb_color(b, c, rt, i, component, num_components) :
+                        v3d_nir_get_tlb_color(b, rt, i, component, num_components) :
                         v3d_nir_get_tlb_depth_stencil(b, sem, i);
                 out = nir_bcsel(b, is_cur_sample, val, out);
         }

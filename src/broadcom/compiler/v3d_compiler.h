@@ -1214,7 +1214,7 @@ bool v3d_nir_lower_algebraic(struct nir_shader *shader, const struct v3d_compile
 bool v3d_nir_lower_tlb_loads(nir_shader *s, struct v3d_compile *c);
 bool v3d_nir_lower_blend(nir_shader *s, struct v3d_compile *c);
 
-nir_def *v3d_nir_get_tlb_color(nir_builder *b, struct v3d_compile *c, int rt,
+nir_def *v3d_nir_get_tlb_color(nir_builder *b, int rt,
                                int sample, unsigned component,
                                unsigned num_components);
 nir_def *v3d_nir_get_tlb_depth_stencil(nir_builder *b, nir_io_semantics sem,
