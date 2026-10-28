@@ -47,6 +47,8 @@
 #include "util/perf/u_trace.h"
 #include "util/u_transfer_helper.h"
 #include "util/hex.h"
+#include "util/bitscan.h"
+#include "util/u_qsort.h"
 #include "util/xmlconfig.h"
 
 #include "util/u_cpu_detect.h"
@@ -3671,6 +3673,48 @@ zink_cl_cts_version(struct pipe_screen *pscreen)
    return "v2024-08-08-00";
 }
 
+/* host-visible vram last, then larger heaps and simpler types first */
+static int
+compare_mem_types(const void *a, const void *b, void *data)
+{
+   const struct zink_screen *screen = data;
+   const VkPhysicalDeviceMemoryProperties *props = &screen->info.mem_props;
+   const unsigned idx_a = *(const uint8_t *)a;
+   const unsigned idx_b = *(const uint8_t *)b;
+   const bool vis_a = zink_is_vis_vram_type(screen, idx_a);
+   const bool vis_b = zink_is_vis_vram_type(screen, idx_b);
+   if (vis_a != vis_b)
+      return vis_a ? 1 : -1;
+
+   const VkDeviceSize size_a = props->memoryHeaps[props->memoryTypes[idx_a].heapIndex].size;
+   const VkDeviceSize size_b = props->memoryHeaps[props->memoryTypes[idx_b].heapIndex].size;
+   if (size_a != size_b)
+      return size_a > size_b ? -1 : 1;
+
+   const VkMemoryPropertyFlags flags_a = props->memoryTypes[idx_a].propertyFlags;
+   const VkMemoryPropertyFlags flags_b = props->memoryTypes[idx_b].propertyFlags;
+   const unsigned count_a = util_bitcount(flags_a);
+   const unsigned count_b = util_bitcount(flags_b);
+   if (count_a != count_b)
+      return count_a < count_b ? -1 : 1;
+   if (flags_a != flags_b)
+      return flags_a < flags_b ? -1 : 1;
+   return (int)idx_a - (int)idx_b;
+}
+
+/* sort a heap holding host-visible vram so its order ignores the driver's listing */
+static void
+sort_mem_types(struct zink_screen *screen, enum zink_heap heap)
+{
+   for (unsigned i = 0; i < screen->heap_count[heap]; i++) {
+      if (zink_is_vis_vram_type(screen, screen->heap_map[heap][i])) {
+         util_qsort_r(screen->heap_map[heap], screen->heap_count[heap], sizeof(uint8_t),
+                      compare_mem_types, screen);
+         return;
+      }
+   }
+}
+
 static struct zink_screen *
 zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev_major, int64_t dev_minor, uint64_t adapter_luid)
 {
@@ -3845,6 +3889,11 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
       /* determine if vis vram is roughly equal to total vram */
       if (biggest_vis_vram > biggest_vram * 0.9)
          screen->resizable_bar = true;
+   }
+   if (!screen->resizable_bar) {
+      /* a small bar is scarce, so host allocations use it last */
+      sort_mem_types(screen, ZINK_HEAP_HOST_VISIBLE_COHERENT);
+      sort_mem_types(screen, ZINK_HEAP_HOST_VISIBLE_COHERENT_CACHED);
    }
 
    setup_renderdoc(screen);
