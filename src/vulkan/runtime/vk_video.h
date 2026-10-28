@@ -290,16 +290,6 @@ struct vk_video_h265_slice_params {
    int16_t delta_chroma_offset_l1[16][2];
 };
 
-void
-vk_video_parse_h265_slice_header(const struct VkVideoDecodeInfoKHR *frame_info,
-                                 const VkVideoDecodeH265PictureInfoKHR *pic_info,
-                                 const StdVideoH265SequenceParameterSet *sps,
-                                 const StdVideoH265PictureParameterSet *pps,
-                                 void *slice_data,
-                                 uint32_t slice_size,
-                                 struct vk_video_h265_slice_params *params);
-
-
 struct vk_video_h265_reference {
    const VkVideoPictureResourceInfoKHR *pPictureResource;
    StdVideoDecodeH265ReferenceInfoFlags flags;
