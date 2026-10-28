@@ -2005,8 +2005,9 @@ blorp_get_compute_push_const(struct blorp_batch *batch,
           cs_prog_data->push.per_thread.size == sizeof(params->wm_inputs));
 
 #if GFX_VERx10 >= 350
+   const bool use_efficient_64bit = params->use_efficient_64bit;
    uint32_t io_align, io_size, push_offset, sampler_offset;
-   if (params->use_efficient_64bit) {
+   if (use_efficient_64bit) {
       blorp_get_efficient_64bit_io_size(batch, params, &io_align, &io_size,
                                         &sampler_offset,
                                         &push_offset);
@@ -2059,7 +2060,7 @@ blorp_get_compute_push_const(struct blorp_batch *batch,
    *state_size = push_const_size;
 
 #if GFX_VERx10 >= 350
-   if (params->use_efficient_64bit) {
+   if (use_efficient_64bit) {
       *state_surfaces_offset = push_const_size - io_size;
       *state_sampler_offset = push_const_size - io_size + sampler_offset;
    }
