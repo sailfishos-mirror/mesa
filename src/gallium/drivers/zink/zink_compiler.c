@@ -4235,6 +4235,8 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
             if (zink_vs_key_base(key)->push_drawid) {
                NIR_PASS(_, nir, lower_drawid);
             }
+            if (zs->non_fs.has_injected_psiz && zink_vs_key_base(key)->strip_psiz)
+               need_optimize |= remove_injected_psiz(nir);
          } else {
             nir->xfb_info = NULL;
          }
@@ -5636,6 +5638,20 @@ zink_shader_create(struct zink_screen *screen, struct nir_shader *nir)
 
    zs->has_edgeflags = nir->info.stage == MESA_SHADER_VERTEX &&
                        nir->info.outputs_written & VARYING_BIT_EDGE;
+
+   /* this is checked at draw time, which can be before zink_shader_init() has run;
+    * the frontend only injects the psiz into a stage which can be the last vertex stage,
+    * a tessellation control shader's psiz is always read by the next stage,
+    * and separate shaders are compiled once with the output kept
+    */
+   if (screen->optimal_keys && !nir->info.separate_shader &&
+       nir->info.stage < MESA_SHADER_FRAGMENT && nir->info.stage != MESA_SHADER_TESS_CTRL &&
+       (nir->info.outputs_written & VARYING_BIT_PSIZ)) {
+      bool captured = false;
+      for (unsigned i = 0; nir->xfb_info && i < nir->xfb_info->output_count; i++)
+         captured |= nir->xfb_info->outputs[i].location == VARYING_SLOT_PSIZ;
+      zs->non_fs.has_injected_psiz = !captured && !check_psiz(nir);
+   }
 
    util_queue_fence_init(&zs->precompile.fence);
    util_dynarray_init(&zs->pipeline_libs, zs);

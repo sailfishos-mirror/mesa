@@ -910,6 +910,7 @@ struct zink_shader {
          struct zink_shader *parent; // for a generated gs this points to the shader that "owns" it
 
          bool is_generated; // if this is a driver-created shader (e.g., tcs)
+         bool has_injected_psiz; // the only psiz output is one that the frontend injected
       } non_fs;
 
       struct {

@@ -990,6 +990,12 @@ zink_draw_atoms(struct zink_context *ctx,
                zink_gfx_pipeline_state_dirty(ctx);
             }
 
+            /* a psiz output injected by the frontend is only needed when points are rasterized */
+            const bool strip_psiz = ctx->last_vertex_stage->non_fs.has_injected_psiz &&
+                                    ctx->gfx_pipeline_state.rast_prim != MESA_PRIM_POINTS;
+            if (strip_psiz != zink_get_last_vertex_key(ctx)->strip_psiz)
+               zink_set_last_vertex_key(ctx)->strip_psiz = strip_psiz;
+
             bool using_depth_bias = zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES && rast_state->offset_fill;
             if (using_depth_bias != ctx->was_using_depth_bias) {
                ctx->was_using_depth_bias = using_depth_bias;
