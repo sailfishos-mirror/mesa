@@ -120,6 +120,12 @@ zink_resource_copies_reset(struct zink_resource *res);
 #include "zink_bo.h"
 #include "zink_kopper.h"
 
+static inline bool
+zink_resource_has_bindless(const struct zink_resource *res)
+{
+   return res->bindless[0] || res->bindless[1];
+}
+
 static ALWAYS_INLINE bool
 zink_resource_usage_is_unflushed(const struct zink_resource *res)
 {

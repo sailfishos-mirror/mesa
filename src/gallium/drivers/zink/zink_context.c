@@ -2957,7 +2957,9 @@ zink_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view
       bd->ds.db.size = view->u.buf.size;
    } else {
       struct zink_resource *import2d = NULL;
-      bd->ds.surface = create_image_surface(ctx, view, false, &import2d);
+      bd->view = *view;
+      bd->view.resource = bd->pres;
+      bd->ds.surface = create_image_surface(ctx, &bd->view, false, &import2d);
       assert(!import2d);
    }
    return add_bindless_descriptor(ctx, bd, true);
@@ -2971,7 +2973,9 @@ zink_delete_image_handle(struct pipe_context *pctx, uint64_t handle)
    util_dynarray_append(&ctx->bs->bindless_unrefs, bd);
 }
 
-/* write the view or buffer of a resident image handle into the shadow descriptor */
+/* write the current view or buffer of a resident image handle into the shadow descriptor:
+ * also used when the resource's backing object is replaced
+ */
 static void
 bindless_image_write(struct zink_context *ctx, struct zink_bindless_descriptor *bd, struct zink_resource *res, unsigned paccess)
 {
@@ -2999,8 +3003,17 @@ bindless_image_write(struct zink_context *ctx, struct zink_bindless_descriptor *
       zink_resource_disable_unordered(res, zink_resource_access_is_write(access));
    } else {
       VkDescriptorImageInfo *ii = &ctx->di.bindless[1].img_infos[handle];
+      /* the resource may have a new backing object since the handle was created */
+      struct zink_resource *import2d = NULL;
+      struct zink_surface *surface = create_image_surface(ctx, &bd->view, false, &import2d);
+      assert(!import2d);
+      /* the handle is shared with other contexts: don't read back what they may have stored */
+      if (surface)
+         ds->surface = surface;
+      else
+         surface = ds->surface;
       ii->sampler = VK_NULL_HANDLE;
-      ii->imageView = ds->surface->image_view;
+      ii->imageView = surface->image_view;
       ii->imageLayout = VK_IMAGE_LAYOUT_GENERAL;
       finalize_image_bind(ctx, res, false, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
       finalize_image_bind(ctx, res, true, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
@@ -5923,25 +5936,30 @@ rebind_image(struct zink_context *ctx, struct zink_resource *res)
    }
 }
 
-/* resident bindless texture handles hold the view or address of the old backing object */
+/* resident bindless handles hold the view or address of the old backing object */
 static void
-rebind_bindless_textures(struct zink_context *ctx, struct zink_resource *res)
+rebind_bindless(struct zink_context *ctx, struct zink_resource *res)
 {
-   util_dynarray_foreach(&ctx->di.bindless[0].resident, struct zink_bindless_resident, r) {
-      if (zink_resource(r->bd->pres) != res)
-         continue;
-      bindless_texture_write(ctx, r->bd, res);
-      util_dynarray_append(&ctx->di.bindless[0].updates, r->bd->handle);
-      ctx->di.bindless_dirty[0] = true;
-      zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
+   for (unsigned i = 0; i < 2; i++) {
+      util_dynarray_foreach(&ctx->di.bindless[i].resident, struct zink_bindless_resident, r) {
+         if (zink_resource(r->bd->pres) != res)
+            continue;
+         if (i)
+            bindless_image_write(ctx, r->bd, res, r->access);
+         else
+            bindless_texture_write(ctx, r->bd, res);
+         util_dynarray_append(&ctx->di.bindless[i].updates, r->bd->handle);
+         ctx->di.bindless_dirty[i] = true;
+         zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
+      }
    }
 }
 
 bool
 zink_resource_rebind(struct zink_context *ctx, struct zink_resource *res)
 {
-   if (res->bindless[0])
-      rebind_bindless_textures(ctx, res);
+   if (zink_resource_has_bindless(res))
+      rebind_bindless(ctx, res);
    if (res->base.b.target == PIPE_BUFFER) {
       /* force counter buffer reset */
       res->so_valid = false;
