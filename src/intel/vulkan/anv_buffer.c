@@ -86,11 +86,22 @@ anv_get_buffer_memory_requirements(struct anv_device *device,
       (device->info->verx10 <= 120 &&
        (usage & VK_BUFFER_USAGE_2_PREPROCESS_BUFFER_BIT_EXT));
 
+   /* Bspec 56933 and HSD 14028776404 recommend disabling compression on ray
+    * tracing buffers for better performance.
+    */
+   bool prefer_uncompressed_buffer = usage & (
+      VK_BUFFER_USAGE_2_SHADER_BINDING_TABLE_BIT_KHR |
+      VK_BUFFER_USAGE_2_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+      VK_BUFFER_USAGE_2_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+      );
+
    uint32_t memory_types;
    if (flags & VK_BUFFER_CREATE_PROTECTED_BIT)
       memory_types = device->physical->memory.protected_mem_types;
    else if (need_dynamic_visible_buffer)
       memory_types = device->physical->memory.dynamic_visible_mem_types;
+   else if (prefer_uncompressed_buffer)
+      memory_types = device->physical->memory.default_buffer_mem_types;
    else
       memory_types = device->physical->memory.default_buffer_mem_types |
                      device->physical->memory.compressed_mem_types;
