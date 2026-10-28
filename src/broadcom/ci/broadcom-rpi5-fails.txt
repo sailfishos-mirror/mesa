@@ -377,8 +377,6 @@ API@queue_properties_queries,Fail
 Basic,Fail
 Basic@bufferreadwriterect,Fail
 Basic@enqueued_local_size,Fail
-Basic@get_global_linear_id,Fail
-Basic@get_local_linear_id,Fail
 Contractions,Fail
 Contractions@contractions_float_0,Fail
 Contractions@contractions_float_1,Fail

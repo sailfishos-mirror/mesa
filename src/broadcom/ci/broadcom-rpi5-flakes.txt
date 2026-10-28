@@ -169,3 +169,5 @@ dEQP-VK.subgroups.basic.graphics.subgroupbarrier
 
 Events
 Events@out_of_order_event_waitlist_multi_queue
+
+dEQP-VK.texture.filtering.3d.combinations.nearest.linear.repeat.mirror_clamp_to_edge.mirror_clamp_to_edge
