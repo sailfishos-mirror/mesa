@@ -238,10 +238,10 @@ get_shader_module_for_stage(struct zink_context *ctx, struct zink_screen *screen
 }
 
 ALWAYS_INLINE static struct zink_shader_module *
-create_shader_module_for_stage_optimal(struct zink_context *ctx, struct zink_screen *screen,
-                                       struct zink_shader *zs, struct zink_gfx_program *prog,
-                                       mesa_shader_stage stage,
-                                       struct zink_gfx_pipeline_state *state)
+compile_shader_module_for_stage_optimal(struct zink_context *ctx, struct zink_screen *screen,
+                                        struct zink_shader *zs, struct zink_gfx_program *prog,
+                                        mesa_shader_stage stage,
+                                        struct zink_gfx_pipeline_state *state)
 {
    struct zink_shader_module *zm;
    uint16_t *key;
@@ -289,6 +289,18 @@ create_shader_module_for_stage_optimal(struct zink_context *ctx, struct zink_scr
       if (unlikely(shadow_needs_shader_swizzle))
          memcpy(&data[1], &ctx->di.zs_swizzle[stage], sizeof(struct zink_zs_swizzle_key));
    }
+   return zm;
+}
+
+static struct zink_shader_module *
+create_shader_module_for_stage_optimal(struct zink_context *ctx, struct zink_screen *screen,
+                                       struct zink_shader *zs, struct zink_gfx_program *prog,
+                                       mesa_shader_stage stage,
+                                       struct zink_gfx_pipeline_state *state)
+{
+   struct zink_shader_module *zm = compile_shader_module_for_stage_optimal(ctx, screen, zs, prog, stage, state);
+   if (!zm)
+      return NULL;
    zm->default_variant = !util_dynarray_contains(&prog->shader_cache[stage][0][0], void*);
    util_dynarray_append(&prog->shader_cache[stage][0][0], zm);
    return zm;
