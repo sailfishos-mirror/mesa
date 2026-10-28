@@ -1536,7 +1536,7 @@ vir_UMUL(struct v3d_compile *c, struct qreg src0, struct qreg src1)
 }
 
 static inline struct qreg
-vir_TLBU_COLOR_READ(struct v3d_compile *c, uint32_t config)
+vir_TLBU_READ(struct v3d_compile *c, uint32_t config)
 {
         assert((config & 0xffffff00) == 0xffffff00);
 
@@ -1548,7 +1548,7 @@ vir_TLBU_COLOR_READ(struct v3d_compile *c, uint32_t config)
 }
 
 static inline struct qreg
-vir_TLB_COLOR_READ(struct v3d_compile *c)
+vir_TLB_READ(struct v3d_compile *c)
 {
         struct qinst *ldtlb = vir_add_inst(V3D_QPU_A_NOP, c->undef,
                                            c->undef, c->undef);
