@@ -1885,6 +1885,8 @@ struct zink_bindless_resident {
    struct zink_bindless_descriptor *bd;
    /* PIPE_IMAGE_ACCESS_*, per context since each can use a different one */
    unsigned access;
+   /* the resource's rebind_count the handle was last written for in this context */
+   unsigned rebind_count;
 };
 
 struct zink_rendering_info {

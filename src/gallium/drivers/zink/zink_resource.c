@@ -2965,7 +2965,11 @@ invalidate_buffer(struct zink_context *ctx, struct zink_resource *res)
    res->queue = VK_QUEUE_FAMILY_IGNORED;
    if (needs_bda)
       zink_resource_get_address(screen, res);
-   if (!zink_resource_rebind(ctx, res))
+   /* bindless handles can be resident in other contexts too */
+   bool bindless = zink_resource_has_bindless(res);
+   if (bindless)
+      res->rebind_count++;
+   if (!zink_resource_rebind(ctx, res) || bindless)
       ctx->buffer_rebind_counter = p_atomic_inc_return(&screen->buffer_rebind_counter);
    return true;
 }
@@ -3993,8 +3997,12 @@ resource_object_add_bind(struct zink_context *ctx, struct zink_resource *res, un
    assert(!res->obj->dt);
    zink_fb_clears_apply(ctx, &res->base.b, 0, INT32_MAX);
    bool ret = add_resource_bind(ctx, res, bind);
-   if (ret)
+   if (ret) {
       zink_resource_rebind(ctx, res);
+      /* other contexts have to refresh their views too */
+      if (res->all_binds)
+         p_atomic_inc(&zink_screen(ctx->base.screen)->image_rebind_counter);
+   }
 
    return ret;
 }

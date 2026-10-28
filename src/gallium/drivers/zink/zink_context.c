@@ -2911,7 +2911,7 @@ texture_handle_residency(struct zink_context *ctx, struct zink_bindless_descript
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= VK_ACCESS_SHADER_READ_BIT;
       res->barrier_access[1] |= VK_ACCESS_SHADER_READ_BIT;
-      struct zink_bindless_resident r = {bd, 0};
+      struct zink_bindless_resident r = {bd, 0, res->rebind_count};
       util_dynarray_append(&ctx->di.bindless[0].resident, r);
       util_dynarray_append(&ctx->di.bindless[0].updates, bd->handle);
    } else {
@@ -3055,7 +3055,7 @@ image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= access;
       res->barrier_access[1] |= access;
-      struct zink_bindless_resident r = {bd, paccess};
+      struct zink_bindless_resident r = {bd, paccess, res->rebind_count};
       util_dynarray_append(&ctx->di.bindless[1].resident, r);
       util_dynarray_append(&ctx->di.bindless[1].updates, bd->handle);
    } else {
@@ -5936,18 +5936,22 @@ rebind_image(struct zink_context *ctx, struct zink_resource *res)
    }
 }
 
-/* resident bindless handles hold the view or address of the old backing object */
+/* resident bindless handles hold the view or address of the old backing object:
+ * a NULL res refreshes whatever this context has not seen the new storage of yet
+ */
 static void
 rebind_bindless(struct zink_context *ctx, struct zink_resource *res)
 {
    for (unsigned i = 0; i < 2; i++) {
       util_dynarray_foreach(&ctx->di.bindless[i].resident, struct zink_bindless_resident, r) {
-         if (zink_resource(r->bd->pres) != res)
+         struct zink_resource *pres = zink_resource(r->bd->pres);
+         if (res ? pres != res : pres->rebind_count == r->rebind_count)
             continue;
+         r->rebind_count = pres->rebind_count;
          if (i)
-            bindless_image_write(ctx, r->bd, res, r->access);
+            bindless_image_write(ctx, r->bd, pres, r->access);
          else
-            bindless_texture_write(ctx, r->bd, res);
+            bindless_texture_write(ctx, r->bd, pres);
          util_dynarray_append(&ctx->di.bindless[i].updates, r->bd->handle);
          ctx->di.bindless_dirty[i] = true;
          zink_mark_atom_dirty(ctx, ZINK_ATOM_BINDLESS);
@@ -5972,6 +5976,7 @@ zink_resource_rebind(struct zink_context *ctx, struct zink_resource *res)
 void
 zink_rebind_all_buffers(struct zink_context *ctx)
 {
+   rebind_bindless(ctx, NULL);
    zink_mark_atom_dirty(ctx, ZINK_ATOM_VERTEX_BUFFERS);
    ctx->dirty_so_targets = ctx->num_so_targets > 0;
    if (ctx->num_so_targets)
@@ -6005,6 +6010,7 @@ void
 zink_rebind_all_images(struct zink_context *ctx)
 {
    assert(!ctx->blitting);
+   rebind_bindless(ctx, NULL);
    if (ctx->in_rp) {
       bool changed = false;
       for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++) {
@@ -6101,7 +6107,11 @@ zink_context_replace_buffer_storage(struct pipe_context *pctx, struct pipe_resou
       rebind_mask = 0;
    }
    unsigned rebind_count = num_rebinds ? rebind_buffer(ctx, d, rebind_mask, num_rebinds) : 0;
-   if (rebind_count != d->bind_count[0] + d->bind_count[1])
+   /* bindless handles can be resident in other contexts too */
+   bool bindless = zink_resource_has_bindless(d);
+   if (bindless)
+      rebind_bindless(ctx, d);
+   if (rebind_count != d->bind_count[0] + d->bind_count[1] || bindless)
       ctx->buffer_rebind_counter = p_atomic_inc_return(&screen->buffer_rebind_counter);
    if (ctx->index_buffer == dst)
       ctx->index_buffer = NULL;
