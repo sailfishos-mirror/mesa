@@ -3327,13 +3327,26 @@ handle_barrier(VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
 }
 
 static bool
-is_tlb_color_input_barrier_scope(const VkPipelineStageFlags2 srcStageMask,
-                                 const VkAccessFlags2 srcAccessMask,
-                                 const VkPipelineStageFlags2 dstStageMask,
-                                 const VkAccessFlags2 dstAccessMask)
+is_tlb_input_barrier_scope(const struct v3dv_subpass *subpass,
+                           const VkPipelineStageFlags2 srcStageMask,
+                           const VkAccessFlags2 srcAccessMask,
+                           const VkPipelineStageFlags2 dstStageMask,
+                           const VkAccessFlags2 dstAccessMask)
 {
-   return !(srcStageMask & ~VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT) &&
-          !(srcAccessMask & ~VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT) &&
+   VkPipelineStageFlags2 allowedStages = 0;
+   VkAccessFlags2 allowedAccess = 0;
+   if (subpass->has_tlb_color_input_self_dependency) {
+      allowedStages |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      allowedAccess |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+   }
+   if (subpass->has_tlb_depth_stencil_input_self_dependency) {
+      allowedStages |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                       VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+      allowedAccess |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+   }
+
+   return !(srcStageMask & ~allowedStages) &&
+          !(srcAccessMask & ~allowedAccess) &&
           !(dstStageMask & ~VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT) &&
           !(dstAccessMask & ~VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT);
 }
@@ -3342,8 +3355,8 @@ is_tlb_color_input_barrier_scope(const VkPipelineStageFlags2 srcStageMask,
  * for subpass self-dependencies.
  */
 static bool
-is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
-                           const VkDependencyInfo *info)
+is_tlb_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
+                     const VkDependencyInfo *info)
 {
    const struct v3dv_cmd_buffer_state *state = &cmd_buffer->state;
    if (!state->pass || !state->job)
@@ -3354,11 +3367,13 @@ is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
 
    const struct v3dv_subpass *subpass =
       &state->pass->subpasses[state->subpass_idx];
-   if (!subpass->has_tlb_color_input_self_dependency)
+   if (!subpass->has_tlb_color_input_self_dependency &&
+       !subpass->has_tlb_depth_stencil_input_self_dependency) {
       return false;
+   }
 
    if (info->memoryBarrierCount == 0 &&
-       info->imageMemoryBarrierCount == 0){
+       info->imageMemoryBarrierCount == 0) {
       return false;
    }
 
@@ -3367,11 +3382,11 @@ is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
     * indicating that the covered attachment access can use TLB path.
     */
    if (info->memoryBarrierCount > 0 &&
-       !subpass->is_tlb_color_memory_barrier_safe){
+       !subpass->is_tlb_color_memory_barrier_safe) {
       return false;
    }
 
-   for (uint32_t i=0; i< info->memoryBarrierCount; i++) {
+   for (uint32_t i = 0; i < info->memoryBarrierCount; i++) {
       const VkMemoryBarrier2 *barrier = &info->pMemoryBarriers[i];
       /* VK_KHR_maintainance8 can extent the access scope with pNext chain.
        * Fall back for pNext chains.
@@ -3379,10 +3394,11 @@ is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
       if (barrier->pNext != NULL)
          return false;
 
-      if (!is_tlb_color_input_barrier_scope(barrier->srcStageMask,
-                                            barrier->srcAccessMask,
-                                            barrier->dstStageMask,
-                                            barrier->dstAccessMask)){
+      if (!is_tlb_input_barrier_scope(subpass,
+                                      barrier->srcStageMask,
+                                      barrier->srcAccessMask,
+                                      barrier->dstStageMask,
+                                      barrier->dstAccessMask)) {
          return false;
       }
    }
@@ -3402,22 +3418,36 @@ is_tlb_color_input_barrier(struct v3dv_cmd_buffer *cmd_buffer,
       if (barrier->srcQueueFamilyIndex != barrier->dstQueueFamilyIndex)
          return false;
 
-      if (barrier->subresourceRange.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+      const VkImageAspectFlags aspects = barrier->subresourceRange.aspectMask;
+      if (aspects & ~(VK_IMAGE_ASPECT_COLOR_BIT |
+                      VK_IMAGE_ASPECT_DEPTH_BIT |
+                      VK_IMAGE_ASPECT_STENCIL_BIT)) {
          return false;
+      }
 
-      if (!is_tlb_color_input_barrier_scope(barrier->srcStageMask,
-                                            barrier->srcAccessMask,
-                                            barrier->dstStageMask,
-                                            barrier->dstAccessMask)) {
+      if ((aspects & VK_IMAGE_ASPECT_COLOR_BIT) &&
+          !subpass->has_tlb_color_input_self_dependency) {
+         return false;
+      }
+
+      if ((aspects & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) &&
+          !subpass->has_tlb_depth_stencil_input_self_dependency) {
+         return false;
+      }
+
+      if (!is_tlb_input_barrier_scope(subpass,
+                                      barrier->srcStageMask,
+                                      barrier->srcAccessMask,
+                                      barrier->dstStageMask,
+                                      barrier->dstAccessMask)) {
          return false;
       }
    }
-   /* If a barrier's scope is limited to color-write to input-reads,
-    * it must target an attachment used as both an input and a color
-    * attachment. The self-dependency is framebuffer-local, and the
-    * input read has already been lowered in the compiler to emit a
-    * TLB load from the corresponding RT, so there is no need to
-    * flush current job.
+   /* If a barrier's scope is limited to attachment write to input-reads,
+    * it must target an attachment used as both an input and a writable
+    * attachment. The self-dependency is framebuffer-local, and the input
+    * read has already been lowered in the compiler to emit a TLB load from the
+    * corresponding attachment, so there is no need to flush the current job.
     */
    return true;
 }
@@ -3435,11 +3465,11 @@ v3dv_cmd_buffer_emit_pipeline_barrier(struct v3dv_cmd_buffer *cmd_buffer,
    uint32_t memoryBarrierCount = info->memoryBarrierCount;
    const VkMemoryBarrier2 *pMemoryBarriers = info->pMemoryBarriers;
 
-   /* We can ignore barriers for color TLB subpass self-dependencies.
+   /* We can ignore barriers for TLB subpass self-dependencies.
     * In these cases we compiled the shader to emit a TLB read and we
     * don't need to flush the current job for that.
     */
-   if (is_tlb_color_input_barrier(cmd_buffer, info))
+   if (is_tlb_input_barrier(cmd_buffer, info))
       return;
 
    struct v3dv_barrier_state state = { 0 };

@@ -42,13 +42,14 @@ num_subpass_attachments(const VkSubpassDescription2 *desc)
           (desc->pDepthStencilAttachment != NULL);
 }
 
-/* FIXME: this only tracks input attachments that read from other
- * color attachments in the same subpass. Ideally, we would want
+/* FIXME: this only tracks input attachments that read from color or
+ * depth/stencil attachments in the same subpass. Ideally, we would want
  * to support input attachments that read from previous subpasses
  * too, but that would require more work.
  */
 static bool
-is_tlb_color_input_self_dependency(const VkSubpassDependency2 *dependency)
+is_tlb_input_self_dependency(const VkSubpassDependency2 *dependency,
+                             bool depth_stencil)
 {
    if (dependency->srcSubpass == VK_SUBPASS_EXTERNAL)
       return false;
@@ -78,9 +79,17 @@ is_tlb_color_input_self_dependency(const VkSubpassDependency2 *dependency)
    src_access_mask = vk_expand_src_access_flags2(src_stage_mask, src_access_mask);
    dst_access_mask = vk_expand_dst_access_flags2(dst_stage_mask, dst_access_mask);
 
-   return (src_stage_mask & VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT) &&
+   const VkPipelineStageFlags2 attachment_stage_mask = depth_stencil ?
+      VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+      VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT :
+      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+   const VkAccessFlags2 attachment_access_mask = depth_stencil ?
+      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT :
+      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+
+   return (src_stage_mask & attachment_stage_mask) &&
           (dst_stage_mask & VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT) &&
-          (src_access_mask & VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT) &&
+          (src_access_mask & attachment_access_mask) &&
           (dst_access_mask & VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT);
 }
 
@@ -539,10 +548,10 @@ v3dv_CreateRenderPass2(VkDevice _device,
 
    for (uint32_t i = 0; i < pCreateInfo->dependencyCount; i++) {
       const VkSubpassDependency2 *dependency = &pCreateInfo->pDependencies[i];
-      if (!is_tlb_color_input_self_dependency(dependency))
-         continue;
-
-      pass->subpasses[dependency->srcSubpass].has_tlb_color_input_self_dependency = true;
+      if (is_tlb_input_self_dependency(dependency, false))
+         pass->subpasses[dependency->srcSubpass].has_tlb_color_input_self_dependency = true;
+      if (is_tlb_input_self_dependency(dependency, true))
+         pass->subpasses[dependency->srcSubpass].has_tlb_depth_stencil_input_self_dependency = true;
       /* FIXME: handle other subpass dependencies? */
    }
    pass_compute_subpass_config(device, pass);

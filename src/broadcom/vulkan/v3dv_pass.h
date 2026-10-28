@@ -46,6 +46,7 @@ struct v3dv_subpass {
    /* UINT8_MAX disables TLB access for an input attachment. */
    uint8_t tlb_input_attachment_location[MAX_INPUT_ATTACHMENTS];
    bool has_tlb_color_input_self_dependency;
+   bool has_tlb_depth_stencil_input_self_dependency;
    bool is_tlb_color_memory_barrier_safe;
 
    /* Static compatibility with the previous subpass; job state is checked later. */
