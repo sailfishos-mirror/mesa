@@ -105,10 +105,17 @@ static unsigned get_slab_entry_alignment(struct zink_screen *screen, unsigned si
    return entry_size;
 }
 
+/* host-visible vram on a small bar fills up fast, and running out is not an error */
+static bool
+is_small_bar_type(const struct zink_screen *screen, unsigned mem_type_idx)
+{
+   return !screen->resizable_bar && zink_is_vis_vram_type(screen, mem_type_idx);
+}
+
 static void
 bo_clear_vis_vram_full(struct zink_screen *screen, struct zink_bo *bo)
 {
-   if (screen->vis_vram_full && zink_is_vis_vram_type(screen, bo->base.placement))
+   if (screen->vis_vram_full && bo->mem && zink_is_vis_vram_type(screen, bo->base.placement))
       screen->vis_vram_full = false;
 }
 
@@ -192,7 +199,6 @@ bo_slab_destroy(struct zink_screen *screen, struct zink_bo *bo)
    struct zink_clientptr_heap *clientptr_heap = bo->u.slab.real->u.real.clientptr_heap;
    struct pb_slabs *slabs = clientptr_heap ? &clientptr_heap->slabs : &screen->pb.bo_slabs;
 
-   bo_clear_vis_vram_full(screen, bo);
    pb_slab_free(slabs, &bo->u.slab.entry);
    if (!p_atomic_read_relaxed(&screen->base.num_contexts))
       pb_slabs_reclaim(slabs);
@@ -279,8 +285,14 @@ bo_create_internal(struct zink_screen *screen,
       alignment = MAX2(alignment, screen->info.props.limits.minMemoryMapAlignment);
       mai.allocationSize = align64(mai.allocationSize, screen->info.props.limits.minMemoryMapAlignment);
    }
+   bool small_bar = is_small_bar_type(screen, mem_type_idx);
+   /* skip the driver call while the heap is known to be full */
+   if (small_bar && screen->vis_vram_full)
+      return NULL;
    unsigned vk_heap_idx = screen->info.mem_props.memoryTypes[mem_type_idx].heapIndex;
    if (mai.allocationSize > screen->info.mem_props.memoryHeaps[vk_heap_idx].size) {
+      if (small_bar)
+         return NULL;
       mesa_loge("zink: can't allocate %"PRIu64" bytes from heap that's only %"PRIu64" bytes!\n", mai.allocationSize, screen->info.mem_props.memoryHeaps[vk_heap_idx].size);
       return NULL;
    }
@@ -293,6 +305,14 @@ bo_create_internal(struct zink_screen *screen,
 
    VkResult ret = VKSCR(AllocateMemory)(screen->dev, &mai, NULL, &bo->mem);
    if (!zink_screen_handle_vkresult(screen, ret)) {
+      bo->mem = VK_NULL_HANDLE;
+      /* a full small bar is expected, so it is not an error */
+      if (small_bar && ret == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+         /* larger requests can fail while small ones still fit */
+         if (mai.allocationSize <= 2 * 1024 * 1024)
+            screen->vis_vram_full = true;
+         goto fail;
+      }
       mesa_loge("zink: couldn't allocate memory: heap=%u size=%" PRIu64, heap, size);
       if (zink_debug & ZINK_DEBUG_MEM) {
          zink_debug_mem_print_stats(screen);
