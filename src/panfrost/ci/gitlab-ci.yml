@@ -222,11 +222,11 @@ panfrost-g610-vk:arm64:
 
 panfrost-g610-traces:arm64:
   extends:
-    - .lava-arm64-test-vk
+    - .lava-arm64-test-gl
     - .panfrost-test
     - .lava-rk3588-rock-5b:arm64
     - .panfrost-traces
-    - .panfrost-panthor-gl-vk-rules
+    - .panfrost-panthor-gl-rules
   variables:
     LAVA_TAGS: 4gb
 
@@ -311,10 +311,10 @@ panfrost-g925-vk-old-full:arm64:
 
 panfrost-g925-traces:arm64:
   extends:
-    - .lava-arm64-test-vk
+    - .lava-arm64-test-gl
     - .panfrost-test
     - .lava-mt8196-rauru-navi-sku0:arm64
     - .panfrost-traces
-    - .panfrost-panthor-gl-vk-manual-rules
+    - .panfrost-panthor-gl-manual-rules
   variables:
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
