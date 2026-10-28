@@ -2428,6 +2428,20 @@ update_feedback_loop_state(struct zink_context *ctx, unsigned idx, unsigned feed
    ctx->feedback_loops = feedback_loops;
 }
 
+static void
+set_feedback_loop_pipeline_state(struct zink_context *ctx, const struct zink_resource *res)
+{
+   if (res->aspect == VK_IMAGE_ASPECT_COLOR_BIT) {
+      if (!ctx->gfx_pipeline_state.feedback_loop)
+         zink_gfx_pipeline_state_dirty(ctx);
+      ctx->gfx_pipeline_state.feedback_loop = true;
+   } else {
+      if (!ctx->gfx_pipeline_state.feedback_loop_zs)
+         zink_gfx_pipeline_state_dirty(ctx);
+      ctx->gfx_pipeline_state.feedback_loop_zs = true;
+   }
+}
+
 ALWAYS_INLINE static void
 unbind_samplerview_res(struct zink_context *ctx, mesa_shader_stage stage, unsigned slot, struct zink_resource *res)
 {
@@ -6563,15 +6577,7 @@ add_implicit_feedback_loop(struct zink_context *ctx, struct zink_resource *res)
       /* already added */
       return true;
    /* new feedback loop detected */
-   if (res->aspect == VK_IMAGE_ASPECT_COLOR_BIT) {
-      if (!ctx->gfx_pipeline_state.feedback_loop)
-         zink_gfx_pipeline_state_dirty(ctx);
-      ctx->gfx_pipeline_state.feedback_loop = true;
-   } else {
-      if (!ctx->gfx_pipeline_state.feedback_loop_zs)
-         zink_gfx_pipeline_state_dirty(ctx);
-      ctx->gfx_pipeline_state.feedback_loop_zs = true;
-   }
+   set_feedback_loop_pipeline_state(ctx, res);
    ctx->rp_layout_changed = true;
    zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
    ctx->feedback_loops |= is_feedback;
