@@ -2486,8 +2486,9 @@ zink_delete_cs_shader_state(struct pipe_context *pctx, void *cso)
 }
 
 /* caller must lock prog->libs->lock */
-struct zink_gfx_library_key *
-zink_create_pipeline_lib(struct zink_screen *screen, struct zink_gfx_program *prog, struct zink_gfx_pipeline_state *state)
+static struct zink_gfx_library_key *
+create_pipeline_lib(struct zink_screen *screen, struct zink_gfx_program *prog, struct zink_gfx_pipeline_state *state,
+                    const struct zink_shader_object *objs)
 {
    struct zink_gfx_library_key *gkey = CALLOC_STRUCT(zink_gfx_library_key);
    bool is_mesh = !prog->shaders[MESA_SHADER_VERTEX];
@@ -2499,10 +2500,17 @@ zink_create_pipeline_lib(struct zink_screen *screen, struct zink_gfx_program *pr
    gkey->optimal_key = !is_mesh ? state->optimal_key : state->mesh_optimal_key;
    assert(is_mesh || gkey->optimal_key);
    for (unsigned i = 0; i < MESA_SHADER_MESH_STAGES; i++)
-      gkey->modules[i] = prog->objs[i].mod;
-   gkey->pipeline = zink_create_gfx_pipeline_library(screen, prog);
+      gkey->modules[i] = objs[i].mod;
+   gkey->pipeline = zink_create_gfx_pipeline_library(screen, prog, objs);
    _mesa_set_add(&prog->libs->libs, gkey);
    return gkey;
+}
+
+/* caller must lock prog->libs->lock */
+struct zink_gfx_library_key *
+zink_create_pipeline_lib(struct zink_screen *screen, struct zink_gfx_program *prog, struct zink_gfx_pipeline_state *state)
+{
+   return create_pipeline_lib(screen, prog, state, prog->objs);
 }
 
 static const char *
