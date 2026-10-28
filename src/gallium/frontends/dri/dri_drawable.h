@@ -86,6 +86,8 @@ struct dri_drawable
     */
    unsigned int lastStamp;
    int w, h;
+   /* kopper: loader resize serial at the time of the last size query */
+   uint32_t kopper_resize_serial;
 
    /* generic for swrast */
    unsigned buffer_age;

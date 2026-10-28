@@ -28,6 +28,10 @@
 #include <xcb/shm.h>
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
+#ifdef HAVE_XCB_PRESENT
+#include <xcb/present.h>
+#endif
+#include "util/u_atomic.h"
 #include "glxclient.h"
 #include <dlfcn.h>
 #include "dri_common.h"
@@ -407,9 +411,61 @@ kopperGetDrawableInfo(struct dri_drawable * draw,
    get_drawable_geometry(draw, &x, &y, w, h, loaderPrivate);
 }
 
+#ifdef HAVE_XCB_PRESENT
+/* watch for Present ConfigureNotify to know when the window was resized */
+static void
+kopperInitResize(struct drisw_drawable *pdp)
+{
+   xcb_connection_t *conn = XGetXCBConnection(pdp->base.psc->dpy);
+   const xcb_query_extension_reply_t *ext = xcb_get_extension_data(conn, &xcb_present_id);
+
+   pdp->resize_serial = 1;
+   if (!ext || !ext->present)
+      return;
+
+   pdp->resize_eid = xcb_generate_id(conn);
+   pdp->resize_se = xcb_register_for_special_xge(conn, &xcb_present_id, pdp->resize_eid, NULL);
+   if (!pdp->resize_se)
+      return;
+   xcb_void_cookie_t c = xcb_present_select_input_checked(conn, pdp->resize_eid, pdp->base.xDrawable,
+                                                          XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY);
+   xcb_generic_error_t *err = xcb_request_check(conn, c);
+   if (err) {
+      free(err);
+      xcb_unregister_for_special_event(conn, pdp->resize_se);
+      pdp->resize_se = NULL;
+   }
+}
+
+/* returns a serial that changes on a resize, 0 if unknown */
+static uint32_t
+kopperGetResizeSerial(void *loaderPrivate)
+{
+   struct drisw_drawable *pdp = loaderPrivate;
+
+   if (!pdp->resize_se)
+      return 0;
+
+   xcb_connection_t *conn = XGetXCBConnection(pdp->base.psc->dpy);
+   /* pick up anything the server has already sent, without blocking */
+   XEventsQueued(pdp->base.psc->dpy, QueuedAfterReading);
+   xcb_generic_event_t *ev;
+   while ((ev = xcb_poll_for_special_event(conn, pdp->resize_se))) {
+      free(ev);
+      /* 0 is reserved for unknown */
+      if (!p_atomic_inc_return(&pdp->resize_serial))
+         p_atomic_inc(&pdp->resize_serial);
+   }
+   return p_atomic_read(&pdp->resize_serial);
+}
+#endif
+
 static const __DRIkopperLoaderExtension kopperLoaderExtension = {
     .SetSurfaceCreateInfo   = kopperSetSurfaceCreateInfo,
     .GetDrawableInfo        = kopperGetDrawableInfo,
+#ifdef HAVE_XCB_PRESENT
+    .GetResizeSerial        = kopperGetResizeSerial,
+#endif
 };
 
 static const struct dri_loader_funcs loader_funcs_shm = {
@@ -463,6 +519,15 @@ driswDestroyDrawable(__GLXDRIdrawable * pdraw)
    struct drisw_drawable *pdp = (struct drisw_drawable *) pdraw;
 
    driDestroyDrawable(pdp->base.dri_drawable);
+
+#ifdef HAVE_XCB_PRESENT
+   if (pdp->resize_se) {
+      xcb_connection_t *conn = XGetXCBConnection(pdraw->psc->dpy);
+      xcb_void_cookie_t c = xcb_present_select_input_checked(conn, pdp->resize_eid, pdraw->xDrawable, 0);
+      free(xcb_request_check(conn, c));
+      xcb_unregister_for_special_event(conn, pdp->resize_se);
+   }
+#endif
 
    XDestroyDrawable(pdp, pdraw->psc->dpy, pdraw->drawable);
    free(pdp);
@@ -534,6 +599,11 @@ driswCreateDrawable(struct glx_screen *base, XID xDrawable,
    }
 
    pdp->base.destroyDrawable = driswDestroyDrawable;
+
+#ifdef HAVE_XCB_PRESENT
+   if (psc->kopper && (type & GLX_WINDOW_BIT))
+      kopperInitResize(pdp);
+#endif
 
    return &pdp->base;
 }

@@ -86,5 +86,9 @@ struct __DRIkopperLoaderExtensionRec {
      * it will return 0.
      */
     unsigned (*getCapability)(void *loaderPrivate, enum dri_loader_cap cap);
+    /* Optional. Returns a serial that changes when the drawable size may have
+     * changed, or 0 if the loader cannot tell and the size must always be queried.
+     */
+    uint32_t (*GetResizeSerial)(void *loaderPrivate);
 };
 #endif /* KOPPER_INTERFACE_H */

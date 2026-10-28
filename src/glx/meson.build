@@ -58,6 +58,9 @@ extra_libs_libglx = []
 extra_deps_libgl = []
 extra_ld_args_libgl = []
 c_args_libglx = []
+if dep_xcb_present.found()
+  c_args_libglx += ['-DHAVE_XCB_PRESENT']
+endif
 
 if with_dri_platform == 'drm' or with_dri_platform == 'pseudo-drm'
   if host_machine.cpu_family() == 'x86' and not with_glx_read_only_text
@@ -121,6 +124,7 @@ libglx = static_library(
   dependencies : [
     idep_mesautil, idep_xmlconfig,
     dep_libdrm, dep_glproto, dep_x11, dep_xext, dep_glvnd, dep_xxf86vm, dep_xshmfence,
+    dep_xcb_present,
   ],
 )
 
