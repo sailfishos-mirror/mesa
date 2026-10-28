@@ -834,6 +834,8 @@ kk_image_plane_create_texture(struct kk_image_plane *plane,
                               struct kk_image_layout *layout, uint64_t offset_B)
 {
    uint64_t mem_offset_B = plane->mem_offset_B + offset_B;
+
+   /* Linear textures in Metal need to be allocated through a buffer... */
    if (plane->layout.linear)
       return mtl_new_texture_with_descriptor_linear(plane->mem->bo->map, layout,
                                                     mem_offset_B);
@@ -854,7 +856,6 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
 
    assert(plane->layout.linear || mem->bo->mtl_handle);
 
-   /* Linear textures in Metal need to be allocated through a buffer... */
    plane->mem = mem;
    plane->mem_offset_B = *offset_B;
    plane->mtl_handle = kk_image_plane_create_texture(plane, &plane->layout, 0u);
