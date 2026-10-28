@@ -630,17 +630,18 @@ zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, en
 
       struct pb_slabs *slabs = clientptr_heap ? &clientptr_heap->slabs : &screen->pb.bo_slabs;
       bool reclaim_all = false;
-      if (heap == ZINK_HEAP_DEVICE_LOCAL_VISIBLE && !screen->resizable_bar) {
+      bool small_bar = is_small_bar_type(screen, mem_type_idx);
+      if (small_bar) {
          unsigned low_bound = 128 * 1024 * 1024; //128MB is a very small BAR
          if (zink_driverid(screen) == VK_DRIVER_ID_NVIDIA_PROPRIETARY)
             low_bound *= 2; //nvidia has fat textures or something
          unsigned vk_heap_idx = screen->info.mem_props.memoryTypes[mem_type_idx].heapIndex;
+         /* reuse idle entries before growing a very small heap */
          reclaim_all = screen->info.mem_props.memoryHeaps[vk_heap_idx].size <= low_bound;
-         if (reclaim_all)
-            reclaim_all = clean_up_buffer_managers(screen);
       }
       entry = pb_slab_alloc_reclaimed(slabs, alloc_size, mem_type_idx, reclaim_all);
-      if (!entry) {
+      /* running out of a small bar is routine, don't drop every cached buffer */
+      if (!entry && !small_bar) {
          /* Clean up buffer managers and try again. */
          if (clean_up_buffer_managers(screen))
             entry = pb_slab_alloc_reclaimed(slabs, alloc_size, mem_type_idx, true);
@@ -715,7 +716,7 @@ no_slab:
    bo = bo_create_internal(screen, size, alignment, heap, mem_type_idx, flags, pNext, clientptr_heap);
    if (!bo) {
       /* Clean up buffer managers and try again. */
-      if (clean_up_buffer_managers(screen))
+      if (!is_small_bar_type(screen, mem_type_idx) && clean_up_buffer_managers(screen))
          bo = bo_create_internal(screen, size, alignment, heap, mem_type_idx, flags, pNext, clientptr_heap);
       if (!bo)
          return NULL;
