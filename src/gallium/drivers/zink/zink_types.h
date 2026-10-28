@@ -1152,6 +1152,12 @@ struct zink_gfx_pipeline_cache_entry {
    struct zink_gfx_program *prog;
    /* GPL only */
    struct util_queue_fence fence;
+   /* the optimized compile has not been queued yet */
+   bool compile_pending;
+   /* batches the entry has been used in, up to ZINK_FULL_PROG_BATCHES */
+   uint8_t batches;
+   /* id of the last batch counted in batches */
+   uint64_t batch_id;
    union {
       struct {
          struct zink_gfx_input_key *ikey;

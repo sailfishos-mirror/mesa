@@ -175,6 +175,8 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
          !prog->inline_variants && likely(prog->last_pipeline[idx]) &&
          /* this data is too big to compare in the fast-path */
          likely(!prog->shaders[MESA_SHADER_FRAGMENT]->fs.legacy_shadow_mask)) {
+         if (unlikely(prog->last_pipeline[idx]->compile_pending))
+            zink_gfx_program_compile_queue(ctx, prog->last_pipeline[idx]);
          state->mesh_pipeline = prog->last_pipeline[idx]->pipeline;
          return state->mesh_pipeline;
       }
@@ -217,6 +219,8 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
             !prog->inline_variants && likely(prog->last_pipeline[idx]) &&
             /* this data is too big to compare in the fast-path */
             likely(!prog->shaders[MESA_SHADER_FRAGMENT]->fs.legacy_shadow_mask)) {
+            if (unlikely(prog->last_pipeline[idx]->compile_pending))
+               zink_gfx_program_compile_queue(ctx, prog->last_pipeline[idx]);
             state->pipeline = prog->last_pipeline[idx]->pipeline;
             return state->pipeline;
          }
@@ -296,6 +300,8 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
    }
 
    struct zink_gfx_pipeline_cache_entry *cache_entry = (struct zink_gfx_pipeline_cache_entry *)entry->data;
+   if (unlikely(cache_entry->compile_pending))
+      zink_gfx_program_compile_queue(ctx, cache_entry);
    if (IS_MESH)
       state->mesh_pipeline = cache_entry->pipeline;
    else

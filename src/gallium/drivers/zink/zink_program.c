@@ -1017,12 +1017,29 @@ optimized_shobj_compile_job(void *data, void *gdata, int thread_index)
    /* no unoptimized_pipeline dance */
 }
 
+/* only objects reused across batches are worth a background compile, so count uses within one batch (same last_submit_id) once */
+static bool
+reused_across_batches(struct zink_screen *screen, uint8_t *batches, uint64_t *batch_id)
+{
+   if (*batch_id == screen->last_submit_id)
+      return false;
+   *batch_id = screen->last_submit_id;
+   return ++*batches >= ZINK_FULL_PROG_BATCHES;
+}
+
+/* called for each use of an unoptimized pipeline: the optimized compile is queued once it is reused across batches */
 void
 zink_gfx_program_compile_queue(struct zink_context *ctx, struct zink_gfx_pipeline_cache_entry *pc_entry)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    if (screen->driver_workarounds.disable_optimized_compile)
       return;
+   pc_entry->compile_pending = true;
+   /* a pipeline without a library is built from the modules which the program has bound when the job runs, so it can't wait */
+   if ((pc_entry->prog->base.uses_shobj || pc_entry->gpl.gkey) &&
+       !reused_across_batches(screen, &pc_entry->batches, &pc_entry->batch_id))
+      return;
+   pc_entry->compile_pending = false;
    if (zink_debug & ZINK_DEBUG_NOBGC) {
       if (pc_entry->prog->base.uses_shobj)
          optimized_shobj_compile_job(pc_entry, screen, 0);
@@ -2593,17 +2610,13 @@ gfx_program_precompile_job(void *data, void *gdata, int thread_index)
    zink_screen_update_pipeline_cache(screen, &prog->base, true);
 }
 
-/* only programs reused across batches are worth a background compile, so count draws within one batch (same last_submit_id) once */
 static bool
 gfx_program_reused_across_batches(struct zink_screen *screen, struct zink_gfx_program *prog)
 {
    /* the program is still compiling */
    if (!util_queue_fence_is_signalled(&prog->base.cache_fence))
       return false;
-   if (prog->bg_batch_id == screen->last_submit_id)
-      return false;
-   prog->bg_batch_id = screen->last_submit_id;
-   return ++prog->bg_batches >= ZINK_FULL_PROG_BATCHES;
+   return reused_across_batches(screen, &prog->bg_batches, &prog->bg_batch_id);
 }
 
 static void

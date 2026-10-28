@@ -232,6 +232,10 @@ update_gfx_pipeline(struct zink_context *ctx, struct zink_batch_state *bs, enum 
          zink_gfx_program_queue_replacement(ctx, ctx->curr_program);
       else if (zink_gfx_program_has_replacement(ctx->curr_program))
          ctx->gfx_dirty = true;
+      /* a pipeline which is drawn with unchanged state is not looked up again, so count its use in this batch here */
+      struct zink_gfx_pipeline_cache_entry *last_pipeline = ctx->curr_program->last_pipeline[ctx->gfx_pipeline_state.idx];
+      if (last_pipeline && unlikely(last_pipeline->compile_pending))
+         zink_gfx_program_compile_queue(ctx, last_pipeline);
       if (zink_gfx_program_adopt_draw_variant(ctx->curr_program))
          ctx->gfx_dirty = true;
       else
