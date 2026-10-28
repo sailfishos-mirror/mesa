@@ -2433,11 +2433,11 @@ set_feedback_loop_pipeline_state(struct zink_context *ctx, const struct zink_res
 {
    if (res->aspect == VK_IMAGE_ASPECT_COLOR_BIT) {
       if (!ctx->gfx_pipeline_state.feedback_loop)
-         zink_gfx_pipeline_state_dirty(ctx);
+         zink_gfx_mesh_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.feedback_loop = true;
    } else {
       if (!ctx->gfx_pipeline_state.feedback_loop_zs)
-         zink_gfx_pipeline_state_dirty(ctx);
+         zink_gfx_mesh_pipeline_state_dirty(ctx);
       ctx->gfx_pipeline_state.feedback_loop_zs = true;
    }
 }
