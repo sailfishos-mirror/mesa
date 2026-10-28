@@ -429,6 +429,10 @@ zink_can_use_pipeline_libs(const struct zink_context *ctx)
 void
 zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_program *prog);
 
+/* add a finished draw variant to the shader cache; returns true if one was added */
+bool
+zink_gfx_program_adopt_draw_variant(struct zink_gfx_program *prog);
+
 /* a link-time shader-object program which has not yet queued its full program */
 ALWAYS_INLINE static bool
 zink_gfx_program_needs_replacement(struct zink_gfx_program *prog)

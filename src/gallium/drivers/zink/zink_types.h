@@ -1210,6 +1210,13 @@ struct zink_gfx_program {
    /* the background job has been queued or skipped for noopt */
    bool bg_queued;
 
+   /* draw variant of the last vertex stage which is compiled in the background */
+   struct zink_shader_module *draw_variant_zm;
+   /* the draw variant bits which the job compiles */
+   uint8_t draw_variant_bits;
+   /* the sets of draw variant key bits which can be bound without a compile, one bit each */
+   uint8_t draw_variant_ready;
+
    struct hash_table pipelines[11]; // [number of draw modes we support]
    uint32_t last_variant_hash;
 

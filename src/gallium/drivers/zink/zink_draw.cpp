@@ -232,6 +232,8 @@ update_gfx_pipeline(struct zink_context *ctx, struct zink_batch_state *bs, enum 
          zink_gfx_program_queue_replacement(ctx, ctx->curr_program);
       else if (zink_gfx_program_has_replacement(ctx->curr_program))
          ctx->gfx_dirty = true;
+      if (zink_gfx_program_adopt_draw_variant(ctx->curr_program))
+         ctx->gfx_dirty = true;
    }
    bool shaders_changed = ctx->gfx_dirty || ctx->dirty_gfx_stages;
    if (screen->optimal_keys && !ctx->is_generated_gs_bound)

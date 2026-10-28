@@ -2574,6 +2574,17 @@ gfx_program_reused_across_batches(struct zink_screen *screen, struct zink_gfx_pr
    return ++prog->bg_batches >= ZINK_FULL_PROG_BATCHES;
 }
 
+bool
+zink_gfx_program_adopt_draw_variant(struct zink_gfx_program *prog)
+{
+   if (!prog->bg_queued || !util_queue_fence_is_signalled(&prog->bg_fence) || !prog->draw_variant_zm)
+      return false;
+   util_dynarray_append(&prog->shader_cache[prog->last_vertex_stage->info.stage][0][0], prog->draw_variant_zm);
+   prog->draw_variant_zm = NULL;
+   prog->draw_variant_ready |= BITFIELD_BIT(prog->draw_variant_bits);
+   return true;
+}
+
 /* the queued full_prog is swapped in by replace_separable_prog once has_replacement is true */
 void
 zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_program *prog)
