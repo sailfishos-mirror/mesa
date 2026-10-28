@@ -2610,6 +2610,19 @@ zink_set_sampler_views(struct pipe_context *pctx,
    }
 }
 
+static void
+destroy_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_descriptor *bd)
+{
+   if (bd->sampler) {
+      VKSCR(DestroySampler)(screen->dev, bd->sampler->sampler, NULL);
+      if (bd->sampler->sampler_clamped)
+         VKSCR(DestroySampler)(screen->dev, bd->sampler->sampler_clamped, NULL);
+      free_sampler_state(screen, bd->sampler);
+   }
+   pipe_resource_reference(&bd->pres, NULL);
+   free(bd);
+}
+
 static uint64_t
 add_bindless_descriptor(struct zink_screen *screen, struct zink_bindless_descriptor *bd, bool is_image)
 {
@@ -2651,14 +2664,7 @@ zink_bindless_descriptor_unref(struct zink_screen *screen, struct zink_bindless_
    util_idalloc_free(&screen->bindless_handles.table[bd->is_image][bd->ds.is_buffer].slots, ZINK_BINDLESS_SLOT(bd->handle));
    simple_mtx_unlock(&screen->bindless_handles.lock);
 
-   if (bd->sampler) {
-      VKSCR(DestroySampler)(screen->dev, bd->sampler->sampler, NULL);
-      if (bd->sampler->sampler_clamped)
-         VKSCR(DestroySampler)(screen->dev, bd->sampler->sampler_clamped, NULL);
-      free_sampler_state(screen, bd->sampler);
-   }
-   pipe_resource_reference(&bd->pres, NULL);
-   free(bd);
+   destroy_bindless_descriptor(screen, bd);
 }
 
 static uint64_t
