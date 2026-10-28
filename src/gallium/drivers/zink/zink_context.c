@@ -2971,12 +2971,49 @@ zink_delete_image_handle(struct pipe_context *pctx, uint64_t handle)
    util_dynarray_append(&ctx->bs->bindless_unrefs, bd);
 }
 
+/* write the view or buffer of a resident image handle into the shadow descriptor */
+static void
+bindless_image_write(struct zink_context *ctx, struct zink_bindless_descriptor *bd, struct zink_resource *res, unsigned paccess)
+{
+   uint32_t handle = ZINK_BINDLESS_SLOT(bd->handle);
+   bool is_buffer = ZINK_BINDLESS_IS_BUFFER(bd->handle);
+   struct zink_descriptor_surface *ds = &bd->ds;
+   VkAccessFlags access = 0;
+   if (paccess & PIPE_IMAGE_ACCESS_WRITE)
+      access |= VK_ACCESS_SHADER_WRITE_BIT;
+   if (paccess & PIPE_IMAGE_ACCESS_READ)
+      access |= VK_ACCESS_SHADER_READ_BIT;
+   if (is_buffer) {
+      if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
+         ctx->di.bindless[1].db.buffer_infos[handle].address = res->obj->bda + ds->db.offset;
+         ctx->di.bindless[1].db.buffer_infos[handle].range = ds->db.size;
+         ctx->di.bindless[1].db.buffer_infos[handle].format = zink_get_format(zink_screen(ctx->base.screen), ds->db.format);
+      } else {
+         struct zink_buffer_view *bv = get_buffer_view(ctx, res, ds->db.format, ds->db.offset, ds->db.size);
+         ctx->di.bindless[1].t.buffer_infos[handle] = bv->buffer_view;
+      }
+      if (paccess & PIPE_IMAGE_ACCESS_WRITE)
+         util_range_add(&res->base.b, &res->valid_buffer_range, ds->db.offset, ds->db.offset + ds->db.size);
+      zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+      zink_batch_resource_usage_set(ctx->bs, res, zink_resource_access_is_write(access), true);
+      zink_resource_disable_unordered(res, zink_resource_access_is_write(access));
+   } else {
+      VkDescriptorImageInfo *ii = &ctx->di.bindless[1].img_infos[handle];
+      ii->sampler = VK_NULL_HANDLE;
+      ii->imageView = ds->surface->image_view;
+      ii->imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+      finalize_image_bind(ctx, res, false, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+      finalize_image_bind(ctx, res, true, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+      zink_batch_resource_usage_set(ctx->bs, res, zink_resource_access_is_write(access), false);
+      zink_resource_disable_unordered_write(res);
+   }
+}
+
 static void
 image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor *bd, unsigned paccess, bool resident)
 {
    uint32_t handle = ZINK_BINDLESS_SLOT(bd->handle);
    bool is_buffer = ZINK_BINDLESS_IS_BUFFER(bd->handle);
-   struct zink_descriptor_surface *ds = &bd->ds;
    if (!resident)
       paccess = remove_bindless_resident(ctx, bd);
    struct zink_resource *res = zink_resource(bd->pres);
@@ -3001,30 +3038,7 @@ image_handle_residency(struct zink_context *ctx, struct zink_bindless_descriptor
       res->image_bind_count[0]++;
       res->image_bind_count[1]++;
       res->bindless[1]++;
-      if (is_buffer) {
-         if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB) {
-            ctx->di.bindless[1].db.buffer_infos[handle].address = res->obj->bda + ds->db.offset;
-            ctx->di.bindless[1].db.buffer_infos[handle].range = ds->db.size;
-            ctx->di.bindless[1].db.buffer_infos[handle].format = zink_get_format(zink_screen(ctx->base.screen), ds->db.format);
-         } else {
-            struct zink_buffer_view *bv = get_buffer_view(ctx, res, ds->db.format, ds->db.offset, ds->db.size);
-            ctx->di.bindless[1].t.buffer_infos[handle] = bv->buffer_view;
-         }
-         if (paccess & PIPE_IMAGE_ACCESS_WRITE)
-            util_range_add(&res->base.b, &res->valid_buffer_range, ds->db.offset, ds->db.offset + ds->db.size);
-         zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-         zink_batch_resource_usage_set(ctx->bs, res, zink_resource_access_is_write(access), true);
-         zink_resource_disable_unordered(res, zink_resource_access_is_write(access));
-      } else {
-         VkDescriptorImageInfo *ii = &ctx->di.bindless[1].img_infos[handle];
-         ii->sampler = VK_NULL_HANDLE;
-         ii->imageView = ds->surface->image_view;
-         ii->imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-         finalize_image_bind(ctx, res, false, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-         finalize_image_bind(ctx, res, true, access, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-         zink_batch_resource_usage_set(ctx->bs, res, zink_resource_access_is_write(access), false);
-         zink_resource_disable_unordered_write(res);
-      }
+      bindless_image_write(ctx, bd, res, paccess);
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= access;
       res->barrier_access[1] |= access;
