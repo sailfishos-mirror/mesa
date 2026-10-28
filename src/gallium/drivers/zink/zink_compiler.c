@@ -2844,6 +2844,24 @@ delete_psiz_store(nir_shader *nir, bool one)
    return progress;
 }
 
+/* the frontend injects a psiz output whenever the psiz state isn't the default,
+ * but the output is only needed when points are rasterized, and drivers can't drop it themselves
+ * when the topology is dynamic
+ */
+static bool
+remove_injected_psiz(nir_shader *nir)
+{
+   nir_variable *var = nir_find_variable_with_location(nir, nir_var_shader_out, VARYING_SLOT_PSIZ);
+   if (!var)
+      return false;
+   var->data.mode = nir_var_shader_temp;
+   nir_fixup_deref_modes(nir);
+   delete_psiz_store(nir, false);
+   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_shader_temp, NULL);
+   nir->info.outputs_written &= ~VARYING_BIT_PSIZ;
+   return true;
+}
+
 struct write_components {
    unsigned slot;
    uint32_t component_mask;
@@ -3103,10 +3121,7 @@ zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_sh
       }
       /* remove injected pointsize from all but the last vertex stage */
       if (can_remove) {
-         var->data.mode = nir_var_shader_temp;
-         nir_fixup_deref_modes(producer);
-         delete_psiz_store(producer, false);
-         NIR_PASS(_, producer, nir_remove_dead_variables, nir_var_shader_temp, NULL);
+         remove_injected_psiz(producer);
          optimize_nir(producer, NULL, true);
       }
    }
