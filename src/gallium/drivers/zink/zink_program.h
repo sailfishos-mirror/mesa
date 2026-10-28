@@ -429,6 +429,12 @@ zink_can_use_pipeline_libs(const struct zink_context *ctx)
 void
 zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_program *prog);
 
+/* count a batch for the program and compile the draw variant which the draws want in the background
+ * once it has been bound enough
+ */
+void
+zink_gfx_program_queue_draw_variant(struct zink_context *ctx, struct zink_gfx_program *prog);
+
 /* add a finished draw variant to the shader cache; returns true if one was added */
 bool
 zink_gfx_program_adopt_draw_variant(struct zink_gfx_program *prog);
@@ -514,6 +520,24 @@ zink_shader_uses_samples(const struct zink_shader *zs)
 {
    assert(zs->info.stage == MESA_SHADER_FRAGMENT);
    return zs->info.fs.uses_sample_qualifier || zs->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK);
+}
+
+/* the key bits which a program compiles a draw variant for in the background, as bit 0: strip_psiz */
+static inline unsigned
+get_draw_variant_bits(uint32_t key)
+{
+   union zink_shader_key_optimal k;
+   k.val = key;
+   return k.vs_base.strip_psiz;
+}
+
+static inline uint32_t
+set_draw_variant_bits(uint32_t key, unsigned bits)
+{
+   union zink_shader_key_optimal k;
+   k.val = key;
+   k.vs_base.strip_psiz = bits & 1;
+   return k.val;
 }
 
 static inline uint32_t

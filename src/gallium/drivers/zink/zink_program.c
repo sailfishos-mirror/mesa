@@ -772,12 +772,35 @@ replace_separable_prog(struct zink_context *ctx, struct hash_entry *entry, struc
    return real;
 }
 
+/* the draw variant bits are only bound by a program which has that set, so that no draw waits for a compile;
+ * returns the bits which were filtered out, which the caller restores in the key once it is done
+ */
+static unsigned
+filter_draw_variants(struct zink_context *ctx, const struct zink_gfx_program *prog)
+{
+   const unsigned bits = get_draw_variant_bits(ctx->gfx_pipeline_state.optimal_key);
+   /* the ready draw variants were compiled for one set of the other key bits */
+   const unsigned ready = prog && set_draw_variant_bits(ctx->gfx_pipeline_state.optimal_key, 0) == prog->draw_variant_base_key ?
+                          prog->draw_variant_ready : 0;
+   unsigned use = bits;
+   while (use && !(ready & BITFIELD_BIT(use)))
+      use = (use - 1) & bits;
+   const unsigned filtered = bits & ~use;
+   if (!filtered)
+      return 0;
+   union zink_shader_key_optimal *key = &ctx->gfx_pipeline_state.shader_keys_optimal.key;
+   key->val = set_draw_variant_bits(key->val, get_draw_variant_bits(key->val) & ~filtered);
+   ctx->gfx_pipeline_state.optimal_key = zink_sanitize_optimal_key(ctx->gfx_stages, key->val);
+   return filtered;
+}
+
 void
 zink_gfx_program_update_optimal(struct zink_context *ctx)
 {
    MESA_TRACE_FUNC();
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    assert(!ctx->gfx_stages[MESA_SHADER_TESS_CTRL] || !ctx->gfx_stages[MESA_SHADER_TESS_CTRL]->non_fs.is_generated);
+   unsigned filtered = 0;
    if (ctx->gfx_dirty) {
       struct zink_gfx_program *prog = NULL;
       ctx->gfx_pipeline_state.optimal_key = zink_sanitize_optimal_key(ctx->gfx_stages, ctx->gfx_pipeline_state.shader_keys_optimal.key.val);
@@ -790,6 +813,7 @@ zink_gfx_program_update_optimal(struct zink_context *ctx)
          ctx->gfx_pipeline_state.final_hash ^= ctx->curr_program->last_variant_hash;
       if (entry) {
          prog = (struct zink_gfx_program*)entry->data;
+         filtered = filter_draw_variants(ctx, prog);
          bool must_replace = prog->base.uses_shobj ? !zink_can_use_shader_objects(ctx) : (prog->is_separable && !zink_can_use_pipeline_libs(ctx));
          if (prog->is_separable) {
             /* shader variants can't be handled by separable programs: sync and compile */
@@ -819,6 +843,7 @@ zink_gfx_program_update_optimal(struct zink_context *ctx)
             zink_gfx_program_queue_replacement(ctx, prog);
          update_gfx_program_optimal(ctx, prog);
       } else {
+         filtered = filter_draw_variants(ctx, NULL);
          ctx->dirty_gfx_stages |= ctx->shader_stages;
          prog = create_gfx_program_separable(ctx, ctx->gfx_stages, ctx->gfx_pipeline_state.dyn_state2.vertices_per_patch, false);
          prog->base.removed = false;
@@ -838,6 +863,7 @@ zink_gfx_program_update_optimal(struct zink_context *ctx)
       /* remove old hash */
       ctx->gfx_pipeline_state.optimal_key = zink_sanitize_optimal_key(ctx->gfx_stages, ctx->gfx_pipeline_state.shader_keys_optimal.key.val);
       ctx->gfx_pipeline_state.final_hash ^= ctx->curr_program->last_variant_hash;
+      filtered = filter_draw_variants(ctx, ctx->curr_program);
 
       bool must_replace = ctx->curr_program->base.uses_shobj ? !zink_can_use_shader_objects(ctx) : (ctx->curr_program->is_separable && !zink_can_use_pipeline_libs(ctx));
       if (must_replace || (ctx->curr_program->is_separable && !ZINK_SHADER_KEY_OPTIMAL_IS_DEFAULT(ctx->gfx_pipeline_state.optimal_key))) {
@@ -857,6 +883,10 @@ zink_gfx_program_update_optimal(struct zink_context *ctx)
       update_gfx_program_optimal(ctx, ctx->curr_program);
       /* apply new hash */
       ctx->gfx_pipeline_state.final_hash ^= ctx->curr_program->last_variant_hash;
+   }
+   if (filtered) {
+      union zink_shader_key_optimal *key = &ctx->gfx_pipeline_state.shader_keys_optimal.key;
+      key->val = set_draw_variant_bits(key->val, get_draw_variant_bits(key->val) | filtered);
    }
    ctx->dirty_gfx_stages = 0;
    ctx->gfx_dirty = false;
@@ -1881,6 +1911,8 @@ zink_destroy_gfx_program(struct zink_screen *screen,
 {
    util_queue_fence_wait(&prog->base.cache_fence);
    util_queue_drop_job(&screen->cache_get_thread, &prog->bg_fence);
+   if (prog->draw_variant_zm)
+      zink_destroy_shader_module(screen, prog->draw_variant_zm);
    if (prog->full_prog)
       zink_gfx_program_reference(screen, &prog->full_prog, NULL);
    for (int i = 0; i < ARRAY_SIZE(prog->pipelines); ++i) {
@@ -2572,6 +2604,65 @@ gfx_program_reused_across_batches(struct zink_screen *screen, struct zink_gfx_pr
       return false;
    prog->bg_batch_id = screen->last_submit_id;
    return ++prog->bg_batches >= ZINK_FULL_PROG_BATCHES;
+}
+
+static void
+gfx_draw_variant_job(void *data, void *gdata, int thread_index)
+{
+   struct zink_screen *screen = gdata;
+   struct zink_gfx_program *prog = data;
+   if (prog->base.removed)
+      return;
+
+   struct zink_gfx_pipeline_state state = {0};
+   state.shader_keys_optimal.key.val = prog->draw_variant_key;
+   state.optimal_key = prog->draw_variant_key;
+   struct zink_shader *zs = prog->last_vertex_stage;
+   const mesa_shader_stage stage = zs->info.stage;
+   struct zink_shader_module *zm = compile_shader_module_for_stage_optimal(NULL, screen, zs, prog, stage, &state);
+   if (!zm)
+      return;
+   if (prog->libs && !screen->info.have_EXT_shader_object) {
+      prog->draw_variant_objs[stage] = zm->obj;
+      simple_mtx_lock(&prog->libs->lock);
+      create_pipeline_lib(screen, prog, &state, prog->draw_variant_objs);
+      simple_mtx_unlock(&prog->libs->lock);
+   }
+   prog->draw_variant_zm = zm;
+}
+
+/* the draw variants which the draws want are worth a compile once the program is reused across batches:
+ * the key may only differ from the bound one in the draw variant bits, since the library is built from the bound modules
+ */
+void
+zink_gfx_program_queue_draw_variant(struct zink_context *ctx, struct zink_gfx_program *prog)
+{
+   struct zink_screen *screen = zink_screen(ctx->base.screen);
+   const struct zink_gfx_pipeline_state *state = &ctx->gfx_pipeline_state;
+   /* a separable program is replaced instead, and the draw state is only the program's while its shaders are unchanged */
+   if (!screen->optimal_keys || !get_draw_variant_bits(state->shader_keys_optimal.key.val) || prog->bg_queued ||
+       prog->base.uses_shobj || prog->is_separable || !prog->last_vertex_stage || ctx->gfx_dirty || ctx->dirty_gfx_stages)
+      return;
+   const uint32_t key = zink_sanitize_optimal_key(ctx->gfx_stages, state->shader_keys_optimal.key.val);
+   const unsigned bits = get_draw_variant_bits(key);
+   const uint32_t base_key = set_draw_variant_bits(key, 0);
+   if (!bits || ((bits & 1) && !prog->last_vertex_stage->non_fs.has_injected_psiz) ||
+       /* the library is built from the bound modules, which must not have a draw variant bit set which the job doesn't compile */
+       (get_draw_variant_bits(prog->last_variant_hash) & ~bits) ||
+       base_key != set_draw_variant_bits(prog->last_variant_hash, 0))
+      return;
+   if (base_key != prog->draw_variant_base_key) {
+      prog->draw_variant_ready = 0;
+      prog->draw_variant_base_key = base_key;
+   }
+   if ((prog->draw_variant_ready & BITFIELD_BIT(bits)) || !gfx_program_reused_across_batches(screen, prog))
+      return;
+   prog->bg_queued = true;
+   prog->draw_variant_key = key;
+   prog->draw_variant_bits = bits;
+   /* the draw thread keeps changing prog->objs, so the library is built from the modules bound now */
+   memcpy(prog->draw_variant_objs, prog->objs, sizeof(prog->draw_variant_objs));
+   util_queue_add_job(&screen->cache_get_thread, prog, &prog->bg_fence, gfx_draw_variant_job, NULL, 0);
 }
 
 bool

@@ -1213,10 +1213,14 @@ struct zink_gfx_program {
 
    /* draw variant of the last vertex stage which is compiled in the background */
    struct zink_shader_module *draw_variant_zm;
+   uint32_t draw_variant_key;
+   struct zink_shader_object draw_variant_objs[MESA_SHADER_MESH_STAGES];
    /* the draw variant bits which the job compiles */
    uint8_t draw_variant_bits;
-   /* the sets of draw variant key bits which can be bound without a compile, one bit each */
+   /* the sets of draw variant key bits (get_draw_variant_bits()) which can be bound without a compile, one bit each */
    uint8_t draw_variant_ready;
+   /* the key without the draw variant bits which draw_variant_ready is valid for */
+   uint32_t draw_variant_base_key;
 
    struct hash_table pipelines[11]; // [number of draw modes we support]
    uint32_t last_variant_hash;

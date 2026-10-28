@@ -159,7 +159,10 @@ zink_get_gfx_pipeline(struct zink_context *ctx,
          sanitized.val = zink_sanitize_optimal_key_mesh(ctx->gfx_stages, ctx->gfx_pipeline_state.shader_keys_optimal.key.val);
          assert(state->mesh_optimal_key == sanitized.val);
       } else {
-         sanitized.val = zink_sanitize_optimal_key(ctx->gfx_stages, ctx->gfx_pipeline_state.shader_keys_optimal.key.val);
+         /* draw variants which aren't ready are filtered out of the key which is bound */
+         const uint32_t key = ctx->gfx_pipeline_state.shader_keys_optimal.key.val;
+         const uint32_t bits = get_draw_variant_bits(key) & get_draw_variant_bits(state->optimal_key);
+         sanitized.val = zink_sanitize_optimal_key(ctx->gfx_stages, set_draw_variant_bits(key, bits));
          assert(state->optimal_key == sanitized.val);
       }
       assert(opt->val == sanitized.val);
