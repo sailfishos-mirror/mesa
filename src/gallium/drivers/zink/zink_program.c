@@ -832,7 +832,7 @@ zink_gfx_program_update_optimal(struct zink_context *ctx)
          struct zink_gfx_program *prog = ctx->curr_program;
 
          util_queue_fence_wait(&prog->base.cache_fence);
-         util_queue_drop_job(&screen->cache_get_thread, &prog->full_fence);
+         util_queue_drop_job(&screen->cache_get_thread, &prog->bg_fence);
          /* shader variants can't be handled by separable programs: sync and compile */
          perf_debug(ctx, "zink[gfx_compile]: non-default shader variant required with separate shader object program\n");
          struct hash_table *ht = &ctx->program_cache[zink_program_cache_stages(ctx->shader_stages)];
@@ -924,7 +924,7 @@ zink_mesh_program_update_optimal(struct zink_context *ctx)
          struct zink_gfx_program *prog = ctx->mesh_program;
 
          util_queue_fence_wait(&prog->base.cache_fence);
-         util_queue_drop_job(&screen->cache_get_thread, &prog->full_fence);
+         util_queue_drop_job(&screen->cache_get_thread, &prog->bg_fence);
          /* shader variants can't be handled by separable programs: sync and compile */
          perf_debug(ctx, "zink[gfx_compile]: non-default shader variant required with separate shader object program\n");
          simple_mtx_lock(lock);
@@ -1148,7 +1148,7 @@ create_program(struct zink_context *ctx, bool is_compute)
    u_rwlock_init(&pg->pipeline_cache_lock);
    util_queue_fence_init(&pg->cache_fence);
    if (!is_compute)
-      util_queue_fence_init(&((struct zink_gfx_program*)pg)->full_fence);
+      util_queue_fence_init(&((struct zink_gfx_program*)pg)->bg_fence);
    pg->is_compute = is_compute;
    pg->precompile_done = true;
    pg->ctx = ctx;
@@ -1868,7 +1868,7 @@ zink_destroy_gfx_program(struct zink_screen *screen,
                          struct zink_gfx_program *prog)
 {
    util_queue_fence_wait(&prog->base.cache_fence);
-   util_queue_drop_job(&screen->cache_get_thread, &prog->full_fence);
+   util_queue_drop_job(&screen->cache_get_thread, &prog->bg_fence);
    if (prog->full_prog)
       zink_gfx_program_reference(screen, &prog->full_prog, NULL);
    for (int i = 0; i < ARRAY_SIZE(prog->pipelines); ++i) {
@@ -2551,16 +2551,16 @@ zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_pro
    if (!util_queue_fence_is_signalled(&prog->base.cache_fence))
       return;
    /* only programs reused across batches are worth a full compile, so count draws within one batch (same last_submit_id) once */
-   if (prog->full_batch_id == screen->last_submit_id)
+   if (prog->bg_batch_id == screen->last_submit_id)
       return;
-   prog->full_batch_id = screen->last_submit_id;
-   if (++prog->full_batches < ZINK_FULL_PROG_BATCHES)
+   prog->bg_batch_id = screen->last_submit_id;
+   if (++prog->bg_batches < ZINK_FULL_PROG_BATCHES)
       return;
-   prog->full_queued = true;
+   prog->bg_queued = true;
    /* noopt keeps the shader-object program */
    if (zink_debug & ZINK_DEBUG_NOOPT)
       return;
-   util_queue_add_job(&screen->cache_get_thread, prog, &prog->full_fence, create_linked_separable_job, NULL, 0);
+   util_queue_add_job(&screen->cache_get_thread, prog, &prog->bg_fence, create_linked_separable_job, NULL, 0);
 }
 
 static void

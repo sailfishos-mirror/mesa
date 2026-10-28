@@ -1202,13 +1202,13 @@ struct zink_gfx_program {
    /* background-compiled full program that replaces a link-time shader-object program */
    struct zink_gfx_program *full_prog;
    /* signaled when the full_prog job is done */
-   struct util_queue_fence full_fence;
+   struct util_queue_fence bg_fence;
    /* batches this program has been bound in, up to ZINK_FULL_PROG_BATCHES */
-   uint8_t full_batches;
-   /* id of the last batch counted in full_batches */
-   uint64_t full_batch_id;
+   uint8_t bg_batches;
+   /* id of the last batch counted in bg_batches */
+   uint64_t bg_batch_id;
    /* the full_prog job has been queued or skipped for noopt */
-   bool full_queued;
+   bool bg_queued;
 
    struct hash_table pipelines[11]; // [number of draw modes we support]
    uint32_t last_variant_hash;

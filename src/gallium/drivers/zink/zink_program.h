@@ -433,7 +433,7 @@ zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_pro
 ALWAYS_INLINE static bool
 zink_gfx_program_needs_replacement(struct zink_gfx_program *prog)
 {
-   return prog->base.uses_shobj && !prog->is_separable && !prog->full_queued;
+   return prog->base.uses_shobj && !prog->is_separable && !prog->bg_queued;
 }
 
 /* the separable program or its queued full program has finished compiling */
@@ -442,7 +442,7 @@ zink_gfx_program_has_replacement(struct zink_gfx_program *prog)
 {
    if (prog->is_separable)
       return util_queue_fence_is_signalled(&prog->base.cache_fence);
-   return prog->base.uses_shobj && util_queue_fence_is_signalled(&prog->full_fence) && prog->full_prog;
+   return prog->base.uses_shobj && util_queue_fence_is_signalled(&prog->bg_fence) && prog->full_prog;
 }
 
 /* stricter requirements */
