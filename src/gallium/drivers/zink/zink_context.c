@@ -4154,6 +4154,12 @@ zink_reset_ds3_states(struct zink_context *ctx)
       ctx->ds3_states &= ~BITFIELD_BIT(ZINK_DS3_RAST_STIPPLE);
 }
 
+ALWAYS_INLINE static bool
+batch_needs_flush(const struct zink_context *ctx)
+{
+   return ctx->oom_flush;
+}
+
 static void
 reset_graphics_states(struct zink_context *ctx)
 {
@@ -4521,7 +4527,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
    ctx->gfx_pipeline_state.rast_samples = rast_samples;
 
    /* this is an ideal time to oom flush since it won't split a renderpass */
-   if (ctx->oom_flush && !ctx->unordered_blitting)
+   if (batch_needs_flush(ctx) && !ctx->unordered_blitting)
       flush_batch(ctx, false);
    else
       update_layered_rendering_state(ctx);
@@ -5504,7 +5510,7 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
       img->obj->transfer_rp = ctx->rp_counter;
    }
 
-   if (ctx->oom_flush && !ctx->in_rp && !ctx->unordered_blitting && !unsync)
+   if (batch_needs_flush(ctx) && !ctx->in_rp && !ctx->unordered_blitting && !unsync)
       flush_batch(ctx, false);
 }
 
@@ -5709,7 +5715,7 @@ zink_resource_copy_region(struct pipe_context *pctx,
       }
       zink_copy_image_buffer(ctx, dst, src, buffer_offset, 0, 0, level, &box, 0);
    }
-   if (ctx->oom_flush && !ctx->in_rp && !ctx->unordered_blitting)
+   if (batch_needs_flush(ctx) && !ctx->in_rp && !ctx->unordered_blitting)
       flush_batch(ctx, false);
 }
 
