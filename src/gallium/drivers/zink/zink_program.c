@@ -2541,20 +2541,26 @@ gfx_program_precompile_job(void *data, void *gdata, int thread_index)
    zink_screen_update_pipeline_cache(screen, &prog->base, true);
 }
 
+/* only programs reused across batches are worth a background compile, so count draws within one batch (same last_submit_id) once */
+static bool
+gfx_program_reused_across_batches(struct zink_screen *screen, struct zink_gfx_program *prog)
+{
+   /* the program is still compiling */
+   if (!util_queue_fence_is_signalled(&prog->base.cache_fence))
+      return false;
+   if (prog->bg_batch_id == screen->last_submit_id)
+      return false;
+   prog->bg_batch_id = screen->last_submit_id;
+   return ++prog->bg_batches >= ZINK_FULL_PROG_BATCHES;
+}
+
 /* the queued full_prog is swapped in by replace_separable_prog once has_replacement is true */
 void
 zink_gfx_program_queue_replacement(struct zink_context *ctx, struct zink_gfx_program *prog)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
 
-   /* the separable program is still compiling */
-   if (!util_queue_fence_is_signalled(&prog->base.cache_fence))
-      return;
-   /* only programs reused across batches are worth a full compile, so count draws within one batch (same last_submit_id) once */
-   if (prog->bg_batch_id == screen->last_submit_id)
-      return;
-   prog->bg_batch_id = screen->last_submit_id;
-   if (++prog->bg_batches < ZINK_FULL_PROG_BATCHES)
+   if (!gfx_program_reused_across_batches(screen, prog))
       return;
    prog->bg_queued = true;
    /* noopt keeps the shader-object program */
