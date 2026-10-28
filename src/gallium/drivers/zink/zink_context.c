@@ -2442,6 +2442,31 @@ set_feedback_loop_pipeline_state(struct zink_context *ctx, const struct zink_res
    }
 }
 
+/* a resident bindless texture can be read by any draw, so an attachment that has no other binds
+ * is a potential feedback loop whenever it has a resident handle
+ */
+static bool
+bindless_feedback_loop(const struct zink_context *ctx, const struct zink_resource *res, unsigned idx)
+{
+   if (!res->bindless[0] || res->sampler_bind_count[0] || res->image_bind_count[0])
+      return false;
+   const struct zink_screen *screen = zink_screen(ctx->base.screen);
+   if (!screen->driver_workarounds.general_layout || !screen->info.have_EXT_attachment_feedback_loop_layout)
+      return false;
+   /* a zsbuf without writes can only be read */
+   return idx < PIPE_MAX_COLOR_BUFS || zink_is_zsbuf_write(ctx);
+}
+
+static void
+add_bindless_feedback_loop(struct zink_context *ctx, struct zink_resource *res, unsigned idx)
+{
+   if (ctx->feedback_loops & BITFIELD_BIT(idx))
+      return;
+   set_feedback_loop_pipeline_state(ctx, res);
+   ctx->feedback_loops |= BITFIELD_BIT(idx);
+   update_feedback_loop_dynamic_state(ctx);
+}
+
 ALWAYS_INLINE static void
 unbind_samplerview_res(struct zink_context *ctx, mesa_shader_stage stage, unsigned slot, struct zink_resource *res)
 {
@@ -2449,6 +2474,9 @@ unbind_samplerview_res(struct zink_context *ctx, mesa_shader_stage stage, unsign
    res->sampler_bind_count[stage == MESA_SHADER_COMPUTE]--;
    if (stage != MESA_SHADER_COMPUTE && !res->sampler_bind_count[0] && res->fb_bind_count) {
       u_foreach_bit(idx, res->fb_binds) {
+         /* resident bindless handles keep reading the attachment */
+         if (bindless_feedback_loop(ctx, res, idx))
+            continue;
          if (!general_layout && ctx->feedback_loops & BITFIELD_BIT(idx)) {
             ctx->dynamic_fb.attachments[idx].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             ctx->rp_layout_changed = true;
@@ -2870,6 +2898,15 @@ texture_handle_residency(struct zink_context *ctx, struct zink_bindless_descript
       update_res_bind_count(ctx, res, false, false);
       update_res_bind_count(ctx, res, true, false);
       res->bindless[0]++;
+      /* an attachment that becomes a feedback loop now: restart the renderpass so
+       * prep_fb_attachment sets that up
+       */
+      u_foreach_bit(idx, res->fb_binds) {
+         if (!(ctx->feedback_loops & BITFIELD_BIT(idx)) && bindless_feedback_loop(ctx, res, idx)) {
+            ctx->rp_layout_changed = true;
+            zink_mark_atom_dirty(ctx, ZINK_ATOM_RENDERPASS);
+         }
+      }
       bindless_texture_write(ctx, bd, res);
       res->gfx_barrier |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
       res->barrier_access[0] |= VK_ACCESS_SHADER_READ_BIT;
@@ -3248,11 +3285,14 @@ prep_fb_attachment(struct zink_context *ctx, struct zink_resource *res, unsigned
    VkImageLayout layout;
    /* depth attachment is stored as the last attachment, but bitfields always use PIPE_MAX_COLOR_BUFS */
    int idx = i == ctx->fb_state.nr_cbufs ? PIPE_MAX_COLOR_BUFS : i;
+   bool bindless_loop = bindless_feedback_loop(ctx, res, idx);
    if (ctx->feedback_loops & BITFIELD_BIT(idx)) {
       /* reevaluate feedback loop in case layout change eliminates the loop */
-      if (!res->sampler_bind_count[0] || (idx == PIPE_MAX_COLOR_BUFS && !zink_is_zsbuf_write(ctx)))
+      if ((!res->sampler_bind_count[0] && !bindless_loop) || (idx == PIPE_MAX_COLOR_BUFS && !zink_is_zsbuf_write(ctx)))
          update_feedback_loop_state(ctx, i, ctx->feedback_loops & ~BITFIELD_BIT(idx));
    }
+   if (bindless_loop)
+      add_bindless_feedback_loop(ctx, res, idx);
    if (ctx->track_renderpasses) {
       layout = zink_tc_renderpass_info_parse(ctx, &ctx->dynamic_fb.tc_info, idx, &pipeline, &access);
       assert(i < ctx->fb_state.nr_cbufs || layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL || !zink_fb_clear_enabled(ctx, PIPE_MAX_COLOR_BUFS));
