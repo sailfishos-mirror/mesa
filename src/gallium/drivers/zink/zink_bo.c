@@ -108,8 +108,7 @@ static unsigned get_slab_entry_alignment(struct zink_screen *screen, unsigned si
 static void
 bo_clear_vis_vram_full(struct zink_screen *screen, struct zink_bo *bo)
 {
-   if (screen->vis_vram_full &&
-       (screen->info.mem_props.memoryTypes[bo->base.placement].propertyFlags & VK_VIS_VRAM) == VK_VIS_VRAM)
+   if (screen->vis_vram_full && zink_is_vis_vram_type(screen, bo->base.placement))
       screen->vis_vram_full = false;
 }
 

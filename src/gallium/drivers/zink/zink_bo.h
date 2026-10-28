@@ -33,6 +33,11 @@
 #define VK_STAGING_RAM (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
 #define VK_LAZY_VRAM (VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 
+static ALWAYS_INLINE bool
+zink_is_vis_vram_type(const struct zink_screen *screen, unsigned mem_type_idx)
+{
+   return (screen->info.mem_props.memoryTypes[mem_type_idx].propertyFlags & VK_VIS_VRAM) == VK_VIS_VRAM;
+}
 
 static ALWAYS_INLINE enum zink_alloc_flag
 zink_alloc_flags_from_heap(enum zink_heap heap)
