@@ -1696,6 +1696,8 @@ struct zink_screen {
       bool can_2d_view_sparse;
       bool general_depth_layout;
       bool general_layout;
+      /* render passes per batch before a flush, UINT32_MAX means no limit */
+      unsigned max_batch_rps;
       /* intel driver is somehow broken for srgb-compatible dmabufs...but only in mesa CI */
       bool srgb_dmabufs;
    } driver_workarounds;

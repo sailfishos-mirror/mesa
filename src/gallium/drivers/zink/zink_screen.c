@@ -3429,6 +3429,17 @@ init_driver_workarounds(struct zink_screen *screen)
    if (zink_debug & ZINK_DEBUG_NOGENERAL)
       screen->driver_workarounds.general_layout = false;
 
+   screen->driver_workarounds.max_batch_rps = UINT32_MAX;
+   switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
+      /* keeps command buffers well under the xe job timeout */
+      if (screen->info.props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+         screen->driver_workarounds.max_batch_rps = 32;
+      break;
+   default:
+      break;
+   }
+
    if (!screen->info.have_EXT_vertex_input_dynamic_state || !screen->info.have_EXT_transform_feedback)
       screen->info.have_KHR_device_address_commands = false;
 

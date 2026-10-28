@@ -4157,7 +4157,8 @@ zink_reset_ds3_states(struct zink_context *ctx)
 ALWAYS_INLINE static bool
 batch_needs_flush(const struct zink_context *ctx)
 {
-   return ctx->oom_flush;
+   const struct zink_screen *screen = zink_screen(ctx->base.screen);
+   return ctx->oom_flush || ctx->rp_counter >= screen->driver_workarounds.max_batch_rps;
 }
 
 static void
@@ -4526,7 +4527,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
    }
    ctx->gfx_pipeline_state.rast_samples = rast_samples;
 
-   /* this is an ideal time to oom flush since it won't split a renderpass */
+   /* this is an ideal time to oom or rp limit flush since it won't split a renderpass */
    if (batch_needs_flush(ctx) && !ctx->unordered_blitting)
       flush_batch(ctx, false);
    else
