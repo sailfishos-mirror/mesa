@@ -3328,8 +3328,22 @@ prep_fb_attachment(struct zink_context *ctx, struct zink_resource *res, unsigned
    else if (layout != VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT &&
             i >= ctx->fb_state.nr_cbufs && screen->driver_workarounds.general_depth_layout)
       layout = VK_IMAGE_LAYOUT_GENERAL;
-   u_foreach_bit(a, access)
-      screen->image_barrier(ctx, res, layout, BITFIELD_BIT(a), pipeline);
+   if (bindless_loop) {
+      /* the resident handles can read the attachment from any gfx stage: cover that here instead of
+       * with another barrier at every draw
+       */
+      pipeline |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                  VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+                  VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
+                  VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      if (screen->info.have_EXT_mesh_shader)
+         pipeline |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+      screen->image_barrier(ctx, res, layout, access | VK_ACCESS_SHADER_READ_BIT, pipeline);
+   } else {
+      u_foreach_bit(a, access)
+         screen->image_barrier(ctx, res, layout, BITFIELD_BIT(a), pipeline);
+   }
    if (!(res->aspect & VK_IMAGE_ASPECT_COLOR_BIT))
       ctx->zsbuf_readonly = res->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
    zink_resource_disable_unordered(res, true);
@@ -4389,7 +4403,7 @@ unbind_fb_surface(struct zink_context *ctx, const struct pipe_surface *surf, uns
       if (ctx->track_renderpasses && !ctx->blitting && res->obj->access & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) {
          pre_sync_transfer_barrier(ctx, res, false);
       }
-      if (res->sampler_bind_count[0] || res->image_bind_count[0]) {
+      if (res->sampler_bind_count[0] || res->image_bind_count[0] || (general_layout && res->bindless[0])) {
          /* force sync after unbind */
          if (general_layout) {
             if (!ctx->blitting)
@@ -6652,8 +6666,12 @@ zink_update_barriers(struct zink_context *ctx, bool is_compute,
          if (res->base.b.target == PIPE_BUFFER) {
             zink_screen(ctx->base.screen)->buffer_barrier(ctx, res, res->barrier_access[is_compute], pipeline);
          } else if (general_layout) {
-            /* let sync figure this out */
-            zink_screen(ctx->base.screen)->image_barrier(ctx, res, VK_IMAGE_LAYOUT_GENERAL, res->barrier_access[is_compute], pipeline);
+            /* a bindless-only feedback loop attachment is already synced for shader reads in prep_fb_attachment;
+             * otherwise let sync figure this out
+             */
+            if (is_compute || !res->fb_binds || !(ctx->feedback_loops & res->fb_binds) ||
+                res->sampler_bind_count[0] || res->image_bind_count[0])
+               zink_screen(ctx->base.screen)->image_barrier(ctx, res, VK_IMAGE_LAYOUT_GENERAL, res->barrier_access[is_compute], pipeline);
          } else {
             bool is_feedback = is_compute ? false : add_implicit_feedback_loop(ctx, res);
             VkImageLayout layout = zink_descriptor_util_image_layout_eval(ctx, res, is_compute);
