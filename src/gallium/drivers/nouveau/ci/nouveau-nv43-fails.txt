@@ -503,6 +503,9 @@ spec@!opengl 1.0@gl-1.0-edgeflag-quads,Fail
 spec@!opengl 1.0@gl-1.0-scissor-many,Fail
 spec@!opengl 1.0@gl-1.0-swapbuffers-behavior,Fail
 spec@!opengl 1.0@gl-1.0-user-clip-all-planes,Fail
+spec@!opengl 1.0@gl-1.0-begin-end-line-loop,Fail
+spec@!opengl 1.0@gl-1.0-front-back-interleave,Fail
+spec@!opengl 1.0@gl-1.0-read-front-after-swap,Fail
 spec@!opengl 1.1@copypixels-draw-sync,Fail
 spec@!opengl 1.1@depthstencil-default_fb-clear,Fail
 spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort,Fail
@@ -528,7 +531,6 @@ spec@!opengl 1.1@texwrap formats bordercolor@GL_ALPHA12- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_ALPHA16- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_ALPHA4- border color only,Fail
 spec@!opengl 1.1@texwrap formats bordercolor@GL_ALPHA8- border color only,Fail
-spec@!opengl 1.1@windowoverlap,Missing
 spec@!opengl 1.2@copyteximage 3d,Fail
 spec@!opengl 1.2@tex3d-maxsize,Crash
 spec@!opengl 1.2@texture-packed-formats,Crash
@@ -563,11 +565,6 @@ spec@arb_depth_texture@fbo-depth-gl_depth_component16-drawpixels,Fail
 spec@arb_depth_texture@fbo-depth-gl_depth_component16-tex1d,Fail
 spec@arb_depth_texture@fbo-depth-gl_depth_component24-drawpixels,Fail
 spec@arb_depth_texture@fbo-depth-gl_depth_component32-drawpixels,Fail
-spec@arb_depth_texture@fbo-generatemipmap-formats,Fail
-spec@arb_depth_texture@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT,Fail
-spec@arb_depth_texture@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT16,Fail
-spec@arb_depth_texture@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT24,Fail
-spec@arb_depth_texture@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT32,Fail
 spec@arb_depth_texture@texdepth,Fail
 spec@arb_depth_texture@texwrap formats bordercolor,Fail
 spec@arb_depth_texture@texwrap formats bordercolor-swizzled,Fail
@@ -667,6 +664,19 @@ spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y412,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y416,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yuv420,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr1555,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr16161616,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr16161616f,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr2101010,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr4444,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_abgr8888,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_argb2101010,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_gr1616,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xbgr16161616,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xbgr16161616f,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xbgr2101010,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xbgr8888,Fail
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_xrgb2101010,Fail
 spec@ext_packed_depth_stencil@fbo-clear-formats,Fail
 spec@ext_packed_depth_stencil@fbo-clear-formats@GL_DEPTH24_STENCIL8,Fail
 spec@ext_packed_depth_stencil@fbo-clear-formats@GL_DEPTH_STENCIL,Fail
@@ -756,6 +766,7 @@ spec@ext_texture_srgb@texwrap formats-s3tc bordercolor@GL_COMPRESSED_SRGB_ALPHA_
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor@GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT- border color only,Fail
 spec@ext_texture_srgb@texwrap formats-s3tc bordercolor@GL_COMPRESSED_SRGB_S3TC_DXT1_EXT- border color only,Fail
 spec@ext_timer_query@time-elapsed,Fail
+spec@ext_timer_query@timer_query,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-op-selection-bool-bvec4-bvec4,Fail
 spec@glsl-1.10@execution@copy-propagation@glsl-vs-copy-propagation-1,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
@@ -782,8 +793,11 @@ spec@glsl-1.10@execution@vs-loop-partial-unroll-multiple-breaks-loop-phi,Fail
 spec@glsl-1.10@execution@vs-loop-variable-iteration-limit-unroll4,Fail
 spec@glsl-1.10@execution@vs-nested-return-sibling-loop,Fail
 spec@glsl-1.10@execution@vs-nested-return-sibling-loop2,Fail
+spec@glsl-1.10@execution@loops@glsl-vs-loop-break,Fail
 spec@glsl-1.20@execution@fs-nan-builtin-max,Fail
 spec@glsl-1.20@execution@fs-nan-builtin-min,Fail
+spec@glsl-1.20@execution@vs-nan-builtin-max,Fail
+spec@glsl-1.20@execution@vs-nan-builtin-min,Fail
 spec@glsl-es-1.00@execution@glsl-no-vertex-attribs,Fail
 spec@intel_performance_query@intel_performance_query-issue_2235,Fail
 spec@nv_conditional_render@blitframebuffer,Fail
