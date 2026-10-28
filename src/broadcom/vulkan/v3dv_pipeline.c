@@ -298,48 +298,49 @@ lower_intrinsics(nir_shader *s)
 }
 
 static bool
-get_tlb_input_attachment_index(nir_tex_instr *tex,
-                               uint32_t *input_attachment_index)
-{
-   const int texture_src =
-      nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
-   nir_deref_instr *deref = nir_src_as_deref(tex->src[texture_src].src);
-   nir_variable *var = nir_deref_instr_get_variable(deref);
-   uint32_t index = var->data.index;
-
-   if (deref->deref_type == nir_deref_type_array)
-      index += nir_src_as_uint(deref->arr.index);
-
-   if (index >= MAX_INPUT_ATTACHMENTS)
-      return false;
-
-   *input_attachment_index = index;
-   return true;
-}
-
-static bool
 lower_tlb_input_attachment_instr(nir_builder *b, nir_tex_instr *tex, void *data)
 {
-   if (tex->sampler_dim != GLSL_SAMPLER_DIM_SUBPASS &&
-       tex->sampler_dim != GLSL_SAMPLER_DIM_SUBPASS_MS)
+   /* When reading input attachments in a regular render pass,
+    * input_attachment_index is set to True and texture_index has
+    * the input attachment index for both color and depth/stencil
+    * input attachments.
+    * When reading depth/stencil input attachments via the
+    * VK_KHR_dynamic_rendering_local_read extension,
+    * input_attachment_index is set to False, and
+    * input_attachment_{depth/stencil} are set to True instead. In
+    * this scenario, texture_index is not set at all and the driver
+    * needs to figure out the index of the attachments implicitly.
+    */
+   /* FIXME: Handle constant texture offsets before lower_tex_src. */
+   if (!tex->input_attachment_index ||
+       nir_tex_instr_src_index(tex, nir_tex_src_texture_offset) >= 0) {
       return false;
-
-   uint32_t input_attachment_index;
-   if (!get_tlb_input_attachment_index(tex, &input_attachment_index))
-      return false;
+   }
 
    const struct v3dv_subpass *subpass = data;
-   const uint32_t location =
-      subpass->tlb_input_attachment_location[input_attachment_index];
+   if (tex->texture_index >= subpass->input_count ||
+       tex->texture_index >= MAX_INPUT_ATTACHMENTS) {
+      return false;
+   }
+
+   uint32_t location =
+      subpass->tlb_input_attachment_location[tex->texture_index];
    if (location == UINT8_MAX)
       return false;
 
+   /* We map both depth and stencil input attachment reads to FRAG_RESULT_DEPTH.
+    * Use the result type to tell whether we want DEPTH or STENCIL.
+    */
+   if (location == FRAG_RESULT_DEPTH &&
+       nir_alu_type_get_base_type(tex->dest_type) != nir_type_float) {
+      location = FRAG_RESULT_STENCIL;
+   }
+
    b->cursor = nir_before_instr(&tex->instr);
 
-   nir_def *sample = tex->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS_MS ?
-      tex->src[nir_tex_instr_src_index(tex, nir_tex_src_ms_index)].src.ssa :
-      nir_imm_int(b, 0);
-
+   int sample_src = nir_tex_instr_src_index(tex, nir_tex_src_ms_index);
+   nir_def *sample = sample_src >= 0 ? tex->src[sample_src].src.ssa :
+                                       nir_imm_int(b, 0);
    nir_def *result = nir_load_tile_image(b, tex->def.num_components,
                                          tex->def.bit_size,
                                          nir_imm_int(b, 0), sample,

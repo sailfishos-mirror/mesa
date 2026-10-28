@@ -111,6 +111,9 @@ subpass_setup_tlb_input_attachments(struct v3dv_subpass *subpass)
          subpass->tlb_input_attachment_location[input] = FRAG_RESULT_DATA0 + rt;
          break;
       }
+      if (attachment == subpass->ds_attachment)
+         subpass->tlb_input_attachment_location[input] = FRAG_RESULT_DEPTH;
+
       if (subpass->tlb_input_attachment_location[input] == UINT8_MAX)
          all_inputs_use_tlb = false;
    }

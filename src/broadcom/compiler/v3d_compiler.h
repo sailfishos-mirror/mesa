@@ -645,7 +645,13 @@ struct v3d_compile {
         struct v3d_interp_input *interp;
         struct qreg *outputs;
         bool msaa_per_sample_output;
+
+        /* Cache of TLB color and Depth/Stencil reads, should the shader have any.
+         * For Color, we have a vec4 per sample for each possible RT.
+         * For Depth/Stencil, we have a depth and stencil scalar per sample.
+         */
         struct qreg color_reads[V3D_MAX_DRAW_BUFFERS * V3D_MAX_SAMPLES * 4];
+        struct qreg ds_reads[2 * V3D_MAX_SAMPLES];
         struct qreg sample_colors[V3D_MAX_DRAW_BUFFERS * V3D_MAX_SAMPLES * 4];
         uint32_t inputs_array_size;
         uint32_t outputs_array_size;
@@ -1211,7 +1217,8 @@ bool v3d_nir_lower_blend(nir_shader *s, struct v3d_compile *c);
 nir_def *v3d_nir_get_tlb_color(nir_builder *b, struct v3d_compile *c, int rt,
                                int sample, unsigned component,
                                unsigned num_components);
-
+nir_def *v3d_nir_get_tlb_depth_stencil(nir_builder *b, nir_io_semantics sem,
+                                       unsigned sample);
 void v3d_vir_emit_tex(struct v3d_compile *c, nir_tex_instr *instr);
 void v3d_vir_emit_image_load_store(struct v3d_compile *c,
                                    nir_intrinsic_instr *instr);
