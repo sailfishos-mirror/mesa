@@ -313,7 +313,7 @@ obj_cache_get(struct zink_screen *screen, const struct pipe_resource *templ)
            zink_screen_usage_check_completion_fast(screen, iter->bo->writes.u))) {
          list_del(&iter->cache_link);
          screen->buffer_objs.count--;
-         screen->buffer_objs.bytes -= iter->size;
+         screen->buffer_objs.bytes -= iter->bo->base.size;
          obj = iter;
       }
       break;
@@ -363,7 +363,7 @@ obj_cache_add(struct zink_screen *screen, struct zink_resource_object *obj)
    struct list_head *bucket = &screen->buffer_objs.buckets[obj_cache_bucket(obj->cache_width0, obj->cache_bind, obj->cache_flags, obj->cache_usage)];
    simple_mtx_lock(&screen->buffer_objs.lock);
    if (screen->buffer_objs.count >= ZINK_OBJ_CACHE_MAX_COUNT ||
-       screen->buffer_objs.bytes + obj->size > screen->buffer_objs.max_bytes) {
+       screen->buffer_objs.bytes + obj->bo->base.size > screen->buffer_objs.max_bytes) {
       simple_mtx_unlock(&screen->buffer_objs.lock);
       return false;
    }
@@ -378,14 +378,14 @@ obj_cache_add(struct zink_screen *screen, struct zink_resource_object *obj)
             list_del(&iter->cache_link);
             list_addtail(&iter->cache_link, &expired);
             screen->buffer_objs.count--;
-            screen->buffer_objs.bytes -= iter->size;
+            screen->buffer_objs.bytes -= iter->bo->base.size;
          }
       }
    }
    obj->cache_time = now;
    list_addtail(&obj->cache_link, bucket);
    screen->buffer_objs.count++;
-   screen->buffer_objs.bytes += obj->size;
+   screen->buffer_objs.bytes += obj->bo->base.size;
    simple_mtx_unlock(&screen->buffer_objs.lock);
 
    list_for_each_entry_safe(struct zink_resource_object, iter, &expired, cache_link) {
