@@ -858,6 +858,9 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
    plane->mem = mem;
    plane->mem_offset_B = *offset_B;
    plane->mtl_handle = kk_image_plane_create_texture(plane, &plane->layout, 0u);
+   if (plane->mtl_handle == NULL)
+      return vk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+
    if (image->vk.base.object_name)
       mtl_resource_set_label(plane->mtl_handle, image->vk.base.object_name);
 
@@ -875,6 +878,8 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
       array_layout.depth_px = 1u;
       plane->mtl_handle_array = mtl_new_texture_with_descriptor(
          mem->bo->mtl_handle, &array_layout, *offset_B);
+      if (plane->mtl_handle_array == NULL)
+         return vk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
       if (image->vk.base.object_name)
          mtl_resource_set_label(plane->mtl_handle_array,
                                 image->vk.base.object_name);
@@ -958,7 +963,7 @@ kk_BindImageMemory2(VkDevice device, uint32_t bindInfoCount,
       const VkBindMemoryStatusKHR *status =
          vk_find_struct_const(pBindInfos[i].pNext, BIND_MEMORY_STATUS_KHR);
       if (status != NULL && status->pResult != NULL)
-         *status->pResult = VK_SUCCESS;
+         *status->pResult = result;
 
       if (first_error_or_success == VK_SUCCESS)
          first_error_or_success = result;
