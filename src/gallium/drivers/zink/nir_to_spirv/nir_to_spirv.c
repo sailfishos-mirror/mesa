@@ -1514,6 +1514,9 @@ emit_bo(struct ntv_context *ctx, struct nir_variable *var, bool aliased)
    if (aliased)
       spirv_builder_emit_decoration(&ctx->builder, var_id, SpvDecorationAliased);
 
+   if (ssbo)
+      spirv_builder_emit_storage_int_caps(&ctx->builder, bitsize);
+
    unsigned idx = bitsize >> 4;
    assert(idx < ARRAY_SIZE(ctx->ssbos));
    if (ssbo && !ctx->sinfo->is_native_vulkan) {
