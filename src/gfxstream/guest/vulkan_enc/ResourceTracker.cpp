@@ -3614,23 +3614,11 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
     // AHardwareBuffers. As such, the VkMemoryDedicatedAllocateInfo is passed to the
     // host and the host will decide whether or not to use it.
 
-    bool shouldPassThroughDedicatedAllocInfo =
-        !exportAllocateInfoPtr && !importBufferCollectionInfoPtr && !importVmoInfoPtr;
-
     const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProps =
         getPhysicalDeviceMemoryProperties(context, device, VK_NULL_HANDLE);
 
     const bool requestedMemoryIsHostVisible =
         isHostVisible(&physicalDeviceMemoryProps, pAllocateInfo->memoryTypeIndex);
-
-#if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
-    shouldPassThroughDedicatedAllocInfo &= !requestedMemoryIsHostVisible;
-#endif  // VK_USE_PLATFORM_FUCHSIA
-
-    if (shouldPassThroughDedicatedAllocInfo && dedicatedAllocInfoPtr) {
-        dedicatedAllocInfo = vk_make_orphan_copy(*dedicatedAllocInfoPtr);
-        vk_append_struct(&structChainIter, &dedicatedAllocInfo);
-    }
 
     // State needed for import/export.
     bool exportAhb = false;
@@ -4228,6 +4216,19 @@ VkResult ResourceTracker::on_vkAllocateMemory(void* context, VkResult input_resu
         }
     }
 #endif
+
+    bool shouldPassThroughDedicatedAllocInfo =
+        (!exportAllocateInfoPtr || ahw != nullptr || bufferBlob != nullptr) &&
+        !importBufferCollectionInfoPtr && !importVmoInfoPtr;
+#if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
+    shouldPassThroughDedicatedAllocInfo &=
+        (ahw != nullptr || bufferBlob != nullptr || !requestedMemoryIsHostVisible);
+#endif
+
+    if (shouldPassThroughDedicatedAllocInfo && dedicatedAllocInfoPtr) {
+        dedicatedAllocInfo = vk_make_orphan_copy(*dedicatedAllocInfoPtr);
+        vk_append_struct(&structChainIter, &dedicatedAllocInfo);
+    }
 
     if (ahw || bufferBlob || !requestedMemoryIsHostVisible) {
         input_result =
