@@ -3925,6 +3925,14 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
       /* a small bar is scarce, so host allocations use it last */
       sort_mem_types(screen, ZINK_HEAP_HOST_VISIBLE_COHERENT);
       sort_mem_types(screen, ZINK_HEAP_HOST_VISIBLE_COHERENT_CACHED);
+   } else {
+      /* coherent maps may only use host-visible VRAM if every memory type for it is coherent */
+      screen->vis_vram_coherent = true;
+      for (unsigned i = 0; i < screen->heap_count[ZINK_HEAP_DEVICE_LOCAL_VISIBLE]; i++) {
+         if (!(screen->info.mem_props.memoryTypes[screen->heap_map[ZINK_HEAP_DEVICE_LOCAL_VISIBLE][i]].propertyFlags &
+               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+            screen->vis_vram_coherent = false;
+      }
    }
 
    setup_renderdoc(screen);

@@ -1619,6 +1619,7 @@ struct zink_screen {
    uint8_t heap_count[ZINK_HEAP_MAX];  // number of memory types per zink heap
    bool resizable_bar;
    bool vis_vram_full;
+   bool vis_vram_coherent; //resizable_bar and all host-visible VRAM memory types are coherent
 
    uint64_t total_video_mem;
    uint64_t clamp_video_mem;
