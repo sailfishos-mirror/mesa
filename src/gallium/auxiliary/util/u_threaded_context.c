@@ -5900,6 +5900,17 @@ tc_batch_execute(void *job, UNUSED void *gdata, int thread_index)
  * create & destroy
  */
 
+static struct pipe_context *
+tc_get_driver_pipe_context(struct pipe_context *_pipe)
+{
+   struct threaded_context *tc = threaded_context(_pipe);
+   struct pipe_context *pipe = tc->pipe;
+
+   if (pipe->get_driver_pipe_context)
+      return pipe->get_driver_pipe_context(pipe);
+   return pipe;
+}
+
 static void
 tc_destroy(struct pipe_context *_pipe)
 {
@@ -6033,6 +6044,7 @@ threaded_context_create(struct pipe_context *pipe,
    tc->base.screen = pipe->screen;
    tc->base.destroy = tc_destroy;
    tc->base.callback = tc_callback;
+   tc->base.get_driver_pipe_context = tc_get_driver_pipe_context;
 
    tc->base.stream_uploader = u_upload_clone(&tc->base, pipe->stream_uploader);
    if (pipe->stream_uploader == pipe->const_uploader)

@@ -1353,7 +1353,33 @@ struct pipe_context {
    struct pipe_ml_subgraph *(*ml_subgraph_deserialize)(struct pipe_context *context,
                                                        const uint8_t *data,
                                                        size_t size);
+
+   /**
+    * Retrieve the underlying driver context pointer.
+    *
+    * \param context    pipe context
+    *
+    * This allows frontend to get the backend driver context for cases where
+    * trace or ddebug are enabled.
+    */
+   struct pipe_context *(*get_driver_pipe_context)(struct pipe_context *context);
 };
+
+
+/**
+ * Returns the driver context, unwrapping any wrapper (debug driver,
+ * threaded) contexts. Returns the context itself if it is not wrapped.
+ *
+ * Note that when a threaded context is unwrapped this way, no
+ * synchronization with the driver thread is performed; use
+ * threaded_context_unwrap_sync() first if synchronization is required.
+ */
+static inline struct pipe_context *
+pipe_get_driver_context(struct pipe_context *pipe)
+{
+   return pipe && pipe->get_driver_pipe_context ?
+          pipe->get_driver_pipe_context(pipe) : pipe;
+}
 
 
 #ifdef __cplusplus

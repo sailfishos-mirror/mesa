@@ -33,7 +33,6 @@
 #include "lp_query.h"
 #include "lp_state.h"
 #include "lp_texture.h"
-#include "driver_trace/tr_context.h"
 
 
 #include "util/blend.h"
@@ -6319,7 +6318,7 @@ VkResult lvp_execute_cmds(struct lvp_device *device,
    struct rendering_state *state = queue->state;
    memset(state, 0, sizeof(*state));
    state->pctx = queue->ctx;
-   state->drv_pctx = trace_get_possibly_threaded_context(queue->ctx);
+   state->drv_pctx = pipe_get_driver_context(queue->ctx);
    state->device = device;
    state->uploader = queue->uploader;
    state->cso = queue->cso;

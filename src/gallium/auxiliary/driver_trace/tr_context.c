@@ -2559,6 +2559,16 @@ trace_context_resource_release(struct pipe_context *_pipe, struct pipe_resource 
    trace_dump_call_end();
 }
 
+static struct pipe_context *
+tr_get_driver_pipe_context(struct pipe_context *_pipe)
+{
+   struct pipe_context *pipe = trace_context(_pipe)->pipe;
+
+   if (pipe->get_driver_pipe_context)
+      return pipe->get_driver_pipe_context(pipe);
+   return pipe;
+}
+
 struct pipe_context *
 trace_context_create(struct trace_screen *tr_scr,
                      struct pipe_context *pipe)
@@ -2585,6 +2595,7 @@ trace_context_create(struct trace_screen *tr_scr,
    tr_ctx->base.const_uploader = pipe->const_uploader;
 
    tr_ctx->base.destroy = trace_context_destroy;
+   tr_ctx->base.get_driver_pipe_context = tr_get_driver_pipe_context;
 
 #define TR_CTX_INIT(_member) \
    tr_ctx->base . _member = pipe -> _member ? trace_context_ ## _member : NULL

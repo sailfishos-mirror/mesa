@@ -58,7 +58,6 @@
 
 #include "vk_format.h"
 
-#include "driver_trace/tr_context.h"
 
 #include "util/u_memory.h"
 #include "util/u_upload_mgr.h"
@@ -6595,7 +6594,7 @@ zink_tc_context_unwrap(struct pipe_context *pctx)
 {
    /* need to get the actual zink_context, not the threaded context */
    pctx = threaded_context_unwrap_sync(pctx);
-   pctx = trace_get_possibly_threaded_context(pctx);
+   pctx = pipe_get_driver_context(pctx);
    return zink_context(pctx);
 }
 
