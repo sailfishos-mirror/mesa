@@ -625,6 +625,16 @@ validate_atoms(const struct zink_context *ctx)
           !zink_program_has_descriptors(&ctx->curr_program->base));
 }
 
+/* offset_all_prims keeps the offset for lines and points, which the driver ignores in fill polygon mode,
+ * but prim_is_rasterized must be false when prim is not what the rasterizer draws
+ */
+ALWAYS_INLINE static bool
+zink_uses_depth_bias(const struct zink_rasterizer_state *rast_state, enum mesa_prim prim, bool prim_is_rasterized)
+{
+   return rast_state->offset_fill &&
+          (prim == MESA_PRIM_TRIANGLES || (rast_state->offset_all_prims && prim_is_rasterized));
+}
+
 /* dirty the atoms for the inputs of this draw which differ from the last one */
 template <zink_dynamic_state DYNAMIC_STATE>
 ALWAYS_INLINE static void
@@ -1006,10 +1016,8 @@ zink_draw_atoms(struct zink_context *ctx,
                zink_set_last_vertex_key(ctx)->strip_psiz = strip_psiz;
 
             /* a generated geometry shader may turn lines and points into triangles */
-            bool using_depth_bias = rast_state->offset_fill &&
-                                    (zink_prim_type(ctx, dinfo) == MESA_PRIM_TRIANGLES ||
-                                     (rast_state->offset_all_prims &&
-                                      !(ctx->last_vertex_stage && ctx->last_vertex_stage->non_fs.is_generated)));
+            bool using_depth_bias = zink_uses_depth_bias(rast_state, zink_prim_type(ctx, dinfo),
+                                                         !(ctx->last_vertex_stage && ctx->last_vertex_stage->non_fs.is_generated));
             if (using_depth_bias != ctx->was_using_depth_bias) {
                ctx->was_using_depth_bias = using_depth_bias;
                zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
@@ -1387,10 +1395,12 @@ zink_draw_mesh_tasks(struct pipe_context *pctx, const struct pipe_grid_info *inf
          return;
    }
 
-   bool using_depth_bias = !!ctx->rast_state->offset_fill;
+   bool using_depth_bias = zink_uses_depth_bias(ctx->rast_state, ctx->gfx_stages[MESA_SHADER_MESH]->info.mesh.primitive_type, true);
    if (using_depth_bias != ctx->was_using_depth_bias) {
       ctx->was_using_depth_bias = using_depth_bias;
       zink_mark_atom_dirty(ctx, ZINK_ATOM_DEPTH_BIAS);
+      /* the next zink_draw decides this from its own primitive */
+      zink_mark_atom_dirty(ctx, ZINK_ATOM_PRIMITIVE);
    }
    /* the line width is only set by zink_draw */
    emit_dynamic_state<ZINK_DYNAMIC_STATE3, BATCH_CHANGED>(ctx, pipeline_changed, ctx->vp_state.mesh_num_viewports, ctx->mesh_program->base.uses_shobj,
