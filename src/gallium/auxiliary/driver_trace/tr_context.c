@@ -2746,10 +2746,17 @@ trace_context_check(const struct pipe_context *pipe)
 }
 
 /**
- * Threaded context is not wrapped, and so it may call fence functions directly
+ * Unwraps the trace layer of a context, if any.
+ *
+ * Screen functions that take a context receive the context the frontend
+ * holds, which may be wrapped by trace and/or the threaded context.
+ * Drivers unwrap threaded contexts themselves (see the guidelines in
+ * u_threaded_context.h), so only the trace layer is stripped here.
  */
 struct pipe_context *
-trace_get_possibly_threaded_context(struct pipe_context *pipe)
+trace_context_unwrap(struct pipe_context *pipe)
 {
-   return pipe->destroy == trace_context_destroy ? ((struct trace_context*)pipe)->pipe : pipe;
+   if (pipe && pipe->destroy == trace_context_destroy)
+      return ((struct trace_context *) pipe)->pipe;
+   return pipe;
 }
