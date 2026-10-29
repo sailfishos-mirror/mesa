@@ -156,7 +156,7 @@ static bool
 zink_fence_finish(struct zink_screen *screen, struct pipe_context *pctx, struct zink_tc_fence *mfence,
                   uint64_t timeout_ns)
 {
-   pctx = threaded_context_unwrap_sync(pctx);
+   pctx = pipe_get_driver_context(threaded_context_unwrap_sync(pctx));
    struct zink_context *ctx = zink_context(pctx);
 
    if (screen->device_lost)

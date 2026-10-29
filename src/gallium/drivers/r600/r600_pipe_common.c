@@ -818,7 +818,7 @@ static bool r600_fence_finish(struct pipe_screen *screen,
 	struct r600_common_context *rctx;
 	int64_t abs_timeout = os_time_get_absolute_timeout(timeout);
 
-	ctx = threaded_context_unwrap_sync(ctx);
+	ctx = pipe_get_driver_context(threaded_context_unwrap_sync(ctx));
 	rctx = ctx ? (struct r600_common_context*)ctx : NULL;
 
 	if (rfence->sdma) {

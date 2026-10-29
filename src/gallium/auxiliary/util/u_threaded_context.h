@@ -35,6 +35,8 @@
  *    driver functions that take a context (fence_finish, texture_get_handle)
  *    should manually unwrap pipe_context by doing:
  *      pipe = threaded_context_unwrap_sync(pipe);
+ *    and, to also unwrap debug driver contexts, follow it with:
+ *      pipe = pipe_get_driver_context(pipe);
  *
  *    pipe_context::priv is used to unwrap the context, so drivers and state
  *    trackers shouldn't use it.

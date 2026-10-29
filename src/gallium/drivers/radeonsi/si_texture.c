@@ -791,7 +791,7 @@ static bool si_texture_get_handle(struct pipe_screen *screen, struct pipe_contex
    uint64_t modifier = DRM_FORMAT_MOD_INVALID;
    bool flush = false;
 
-   ctx = threaded_context_unwrap_sync(ctx);
+   ctx = pipe_get_driver_context(threaded_context_unwrap_sync(ctx));
    sctx = ctx ? (struct si_context *)ctx : si_get_aux_context(sscreen, &sscreen->aux_context.general);
 
    if (resource->target != PIPE_BUFFER) {

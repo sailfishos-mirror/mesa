@@ -247,7 +247,7 @@ static bool si_fence_finish(struct pipe_screen *screen, struct pipe_context *ctx
    struct si_context *sctx;
    int64_t abs_timeout = os_time_get_absolute_timeout(timeout);
 
-   ctx = threaded_context_unwrap_sync(ctx);
+   ctx = pipe_get_driver_context(threaded_context_unwrap_sync(ctx));
    sctx = (struct si_context *)(ctx ? ctx : NULL);
 
    if (!util_queue_fence_is_signalled(&sfence->ready)) {
