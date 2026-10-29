@@ -4413,7 +4413,7 @@ zink_shader_compile_separate(struct zink_screen *screen, struct zink_shader *zs)
          zs->non_fs.generated_tcs = zink_shader_tcs_create(screen, 32);
          zink_shader_tcs_init(screen, zs->non_fs.generated_tcs, nir_clone, &nir_tcs);
          nir_tcs->info.separate_shader = true;
-         zs->non_fs.generated_tcs->precompile.obj = zink_shader_compile_separate(screen, zs->non_fs.generated_tcs);
+         zink_shader_set_precompiled(screen, zs->non_fs.generated_tcs, zink_shader_compile_separate(screen, zs->non_fs.generated_tcs));
          ralloc_free(nir_tcs);
          zs->non_fs.generated_tcs->nir = NULL;
       }
@@ -6022,6 +6022,30 @@ zink_shader_finalize(struct pipe_screen *pscreen, struct nir_shader *nir, bool o
 }
 
 void
+zink_shobj_reference(struct zink_screen *screen, struct zink_shobj **dst, struct zink_shobj *src)
+{
+   struct zink_shobj *old = *dst;
+   if (src)
+      p_atomic_inc(&src->refcount);
+   *dst = src;
+   if (old && !p_atomic_dec_return(&old->refcount)) {
+      VKSCR(DestroyShaderEXT)(screen->dev, old->obj, NULL);
+      FREE(old);
+   }
+}
+
+void
+zink_shader_set_precompiled(struct zink_screen *screen, struct zink_shader *zs, struct zink_shader_object obj)
+{
+   zs->precompile.obj = obj;
+   if (screen->info.have_EXT_shader_object && obj.obj) {
+      zs->precompile.shobj = CALLOC_STRUCT(zink_shobj);
+      zs->precompile.shobj->obj = obj.obj;
+      zs->precompile.shobj->refcount = 1;
+   }
+}
+
+void
 zink_shader_free(struct zink_screen *screen, struct zink_shader *shader)
 {
    _mesa_set_destroy(shader->programs, NULL);
@@ -6029,7 +6053,7 @@ zink_shader_free(struct zink_screen *screen, struct zink_shader *shader)
    util_queue_fence_destroy(&shader->precompile.fence);
    zink_descriptor_shader_deinit(screen, shader);
    if (screen->info.have_EXT_shader_object) {
-      VKSCR(DestroyShaderEXT)(screen->dev, shader->precompile.obj.obj, NULL);
+      zink_shobj_reference(screen, &shader->precompile.shobj, NULL);
    } else {
       if (shader->precompile.obj.mod)
          VKSCR(DestroyShaderModule)(screen->dev, shader->precompile.obj.mod, NULL);

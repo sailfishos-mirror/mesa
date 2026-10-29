@@ -849,6 +849,12 @@ enum zink_rast_prim {
    ZINK_PRIM_MAX,
 };
 
+/* refcounted so programs can outlive the shader whose precompiled object they borrow */
+struct zink_shobj {
+   VkShaderEXT obj;
+   uint32_t refcount;
+};
+
 struct zink_shader_object {
    union {
       VkShaderEXT obj;
@@ -889,6 +895,7 @@ struct zink_shader {
    struct {
       struct util_queue_fence fence;
       struct zink_shader_object obj;
+      struct zink_shobj *shobj; //owns obj.obj with shader objects
       VkDescriptorSetLayout dsl;
       VkPipelineLayout layout;
       VkPipeline gpl;
@@ -1195,6 +1202,7 @@ struct zink_gfx_program {
 
    /* full */
    VkShaderEXT objects[MESA_SHADER_MESH_STAGES];
+   struct zink_shobj *shobj_refs[MESA_SHADER_MESH_STAGES]; //keep borrowed precompiled objects alive
    uint32_t module_hash[MESA_SHADER_MESH_STAGES];
    struct blob blobs[MESA_SHADER_MESH_STAGES];
    struct util_dynarray shader_cache[MESA_SHADER_MESH_STAGES][2][2]; //normal, nonseamless cubes, inline uniforms

@@ -1582,8 +1582,10 @@ create_gfx_program_separable(struct zink_context *ctx, struct zink_shader **stag
          _mesa_set_add(prog->shaders[i]->programs, prog);
          simple_mtx_unlock(&prog->shaders[i]->lock);
          if (screen->info.have_EXT_shader_object) {
-            if (!prog->objects[i])
+            if (!prog->objects[i]) {
                prog->objects[i] = prog->shaders[i]->precompile.obj.obj;
+               zink_shobj_reference(screen, &prog->shobj_refs[i], prog->shaders[i]->precompile.shobj);
+            }
          }
          refs++;
       }
@@ -1952,6 +1954,7 @@ zink_destroy_gfx_program(struct zink_screen *screen,
          _mesa_set_remove_key(prog->shaders[i]->programs, prog);
          prog->shaders[i] = NULL;
       }
+      zink_shobj_reference(screen, &prog->shobj_refs[i], NULL);
       if (!prog->is_separable) {
          destroy_shader_cache(screen, &prog->shader_cache[i][0][0]);
          destroy_shader_cache(screen, &prog->shader_cache[i][0][1]);
@@ -2806,7 +2809,7 @@ zink_delete_shader_state(struct pipe_context *pctx, void *cso)
 static void
 precompile_separate_shader(struct zink_shader *zs, struct zink_screen *screen)
 {
-   zs->precompile.obj = zink_shader_compile_separate(screen, zs);
+   zink_shader_set_precompiled(screen, zs, zink_shader_compile_separate(screen, zs));
    if (!screen->info.have_EXT_shader_object) {
       struct zink_shader_object objs[MESA_SHADER_MESH_STAGES] = {0};
       objs[zs->info.stage].mod = zs->precompile.obj.mod;
