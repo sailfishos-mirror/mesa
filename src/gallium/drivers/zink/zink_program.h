@@ -557,6 +557,17 @@ zink_shader_has_removable_color_outputs(const struct zink_shader *zs)
    return (zs->info.outputs_written & ZINK_FS_COLOR_OUTPUTS) && !zs->info.fs.uses_fbfetch_output;
 }
 
+/* the fragment shader outputs which ZINK_FS_COLOR_SINGLE removes */
+#define ZINK_FS_EXTRA_COLOR_OUTPUTS BITFIELD64_RANGE(FRAG_RESULT_DATA1, PIPE_MAX_COLOR_BUFS - 1)
+
+/* whether ZINK_FS_COLOR_SINGLE changes how this shader is compiled */
+static inline bool
+zink_shader_has_extra_color_outputs(const struct zink_shader *zs)
+{
+   return (zs->info.outputs_written & ZINK_FS_EXTRA_COLOR_OUTPUTS) &&
+          !zs->info.fs.uses_fbfetch_output && !zs->info.fs.color_is_dual_source;
+}
+
 /* the color mode, or ZINK_FS_COLOR_ALL if it doesn't change how this shader is compiled */
 static inline unsigned
 zink_sanitize_fs_color_mode(const struct zink_shader *zs, unsigned mode, bool allow_none)
@@ -564,6 +575,8 @@ zink_sanitize_fs_color_mode(const struct zink_shader *zs, unsigned mode, bool al
    switch (mode) {
    case ZINK_FS_COLOR_NONE:
       return allow_none && zink_shader_has_removable_color_outputs(zs) ? mode : ZINK_FS_COLOR_ALL;
+   case ZINK_FS_COLOR_SINGLE:
+      return zink_shader_has_extra_color_outputs(zs) ? mode : ZINK_FS_COLOR_ALL;
    case ZINK_FS_COLOR_DUAL:
       return zs->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1) ? mode : ZINK_FS_COLOR_ALL;
    default:

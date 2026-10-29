@@ -2308,6 +2308,9 @@ zink_get_fs_color_mode(const struct zink_context *ctx, bool allow_none)
    if (screen->driconf.dual_color_blend_by_location && blend && blend->dual_src_blend &&
        blend->attachments[0].blendEnable)
       return ZINK_FS_COLOR_DUAL;
+   /* with dynamic blend the driver can't drop color outputs that no attachment consumes */
+   if (screen->optimal_keys && screen->have_full_ds3 && ctx->fb_state.nr_cbufs == 1)
+      return ZINK_FS_COLOR_SINGLE;
    return ZINK_FS_COLOR_ALL;
 }
 

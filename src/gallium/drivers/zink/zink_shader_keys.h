@@ -81,12 +81,13 @@ struct zink_zs_swizzle_key {
 };
 
 /* how the fragment shader's color outputs are rewritten, by descending priority:
- * writes disabled beat forced dual source blending
+ * writes disabled beat forced dual source blending, which beats a single color buffer
  */
 enum zink_fs_color_mode {
    ZINK_FS_COLOR_ALL, //keep every color output
    ZINK_FS_COLOR_DUAL, //forced dual source blending: the second output is needed
    ZINK_FS_COLOR_NONE, //color writes are disabled: drop the color outputs
+   ZINK_FS_COLOR_SINGLE, //only one color buffer is bound: drop the other color outputs
 };
 
 struct zink_fs_key_base {

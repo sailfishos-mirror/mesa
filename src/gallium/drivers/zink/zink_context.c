@@ -4580,6 +4580,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
    }
 
    util_copy_framebuffer_state(&ctx->fb_state, state);
+   zink_update_fs_key_color_mode(ctx);
    ctx->rp_changed |= zink_update_fbfetch(ctx);
    ctx->transient_attachments = 0;
    ctx->transient_msrtss = false;
