@@ -319,6 +319,9 @@ void
 zink_update_fs_key_samples(struct zink_context *ctx);
 
 void
+zink_update_fs_key_color_mode(struct zink_context *ctx);
+
+void
 zink_update_gs_key_rectangular_line(struct zink_context *ctx);
 
 static inline struct zink_vs_key *
@@ -522,13 +525,13 @@ zink_shader_uses_samples(const struct zink_shader *zs)
    return zs->info.fs.uses_sample_qualifier || zs->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK);
 }
 
-/* the key bits which a program compiles a draw variant for in the background, as bit 0: strip_psiz, bit 1: no_color_outputs */
+/* the key bits which a program compiles a draw variant for in the background, as bit 0: strip_psiz, bit 1: ZINK_FS_COLOR_NONE */
 static inline unsigned
 get_draw_variant_bits(uint32_t key)
 {
    union zink_shader_key_optimal k;
    k.val = key;
-   return (unsigned)k.vs_base.strip_psiz | ((unsigned)k.fs.no_color_outputs << 1);
+   return (unsigned)k.vs_base.strip_psiz | ((unsigned)(k.fs.color_mode == ZINK_FS_COLOR_NONE) << 1);
 }
 
 static inline uint32_t
@@ -537,18 +540,35 @@ set_draw_variant_bits(uint32_t key, unsigned bits)
    union zink_shader_key_optimal k;
    k.val = key;
    k.vs_base.strip_psiz = bits & 1;
-   k.fs.no_color_outputs = !!(bits & 2);
+   if (bits & 2)
+      k.fs.color_mode = ZINK_FS_COLOR_NONE;
+   else if (k.fs.color_mode == ZINK_FS_COLOR_NONE)
+      k.fs.color_mode = ZINK_FS_COLOR_ALL;
    return k.val;
 }
 
-/* the fragment shader outputs which zink_fs_key_base::no_color_outputs removes */
+/* the fragment shader outputs which ZINK_FS_COLOR_NONE removes */
 #define ZINK_FS_COLOR_OUTPUTS (BITFIELD64_BIT(FRAG_RESULT_COLOR) | BITFIELD64_RANGE(FRAG_RESULT_DATA0, PIPE_MAX_COLOR_BUFS))
 
-/* whether zink_fs_key_base::no_color_outputs changes how this shader is compiled */
+/* whether ZINK_FS_COLOR_NONE changes how this shader is compiled */
 static inline bool
 zink_shader_has_removable_color_outputs(const struct zink_shader *zs)
 {
    return (zs->info.outputs_written & ZINK_FS_COLOR_OUTPUTS) && !zs->info.fs.uses_fbfetch_output;
+}
+
+/* the color mode, or ZINK_FS_COLOR_ALL if it doesn't change how this shader is compiled */
+static inline unsigned
+zink_sanitize_fs_color_mode(const struct zink_shader *zs, unsigned mode, bool allow_none)
+{
+   switch (mode) {
+   case ZINK_FS_COLOR_NONE:
+      return allow_none && zink_shader_has_removable_color_outputs(zs) ? mode : ZINK_FS_COLOR_ALL;
+   case ZINK_FS_COLOR_DUAL:
+      return zs->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1) ? mode : ZINK_FS_COLOR_ALL;
+   default:
+      return ZINK_FS_COLOR_ALL;
+   }
 }
 
 static inline uint32_t
@@ -561,10 +581,7 @@ zink_sanitize_optimal_key(struct zink_shader **shaders, uint32_t val)
       k.val = zink_shader_key_optimal_no_tcs(val);
    if (!zink_shader_uses_samples(shaders[MESA_SHADER_FRAGMENT]))
       k.fs.samples = false;
-   if (!zink_shader_has_removable_color_outputs(shaders[MESA_SHADER_FRAGMENT]))
-      k.fs.no_color_outputs = false;
-   if (!(shaders[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)))
-      k.fs.force_dual_color_blend = false;
+   k.fs.color_mode = zink_sanitize_fs_color_mode(shaders[MESA_SHADER_FRAGMENT], k.fs.color_mode, true);
    return k.val;
 }
 
@@ -576,9 +593,7 @@ zink_sanitize_optimal_key_mesh(struct zink_shader **shaders, uint32_t val)
    if (!zink_shader_uses_samples(shaders[MESA_SHADER_FRAGMENT]))
       k.fs.samples = false;
    /* mesh programs don't compile draw variants in the background */
-   k.fs.no_color_outputs = false;
-   if (!(shaders[MESA_SHADER_FRAGMENT]->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)))
-      k.fs.force_dual_color_blend = false;
+   k.fs.color_mode = zink_sanitize_fs_color_mode(shaders[MESA_SHADER_FRAGMENT], k.fs.color_mode, false);
    return k.val;
 }
 

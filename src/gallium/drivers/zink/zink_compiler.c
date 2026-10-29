@@ -4280,7 +4280,7 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
          if (zink_fs_key(key)->robust_access)
             NIR_PASS(need_optimize, nir, lower_txf_lod_robustness);
 
-         if (zink_fs_key_base(key)->no_color_outputs && zink_shader_has_removable_color_outputs(zs))
+         if (zink_fs_key_base(key)->color_mode == ZINK_FS_COLOR_NONE && zink_shader_has_removable_color_outputs(zs))
             need_optimize |= remove_color_outputs(nir);
 
          if (!zink_fs_key_base(key)->samples && zink_shader_uses_samples(zs)) {
@@ -4298,7 +4298,7 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
 
             need_optimize = true;
          }
-         if (zink_fs_key_base(key)->force_dual_color_blend && nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)) {
+         if (zink_fs_key_base(key)->color_mode == ZINK_FS_COLOR_DUAL && nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DATA1)) {
             NIR_PASS(_, nir, lower_dual_blend);
          }
          if (zink_fs_key_base(key)->coord_replace_bits)
