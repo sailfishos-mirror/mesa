@@ -91,3 +91,6 @@ GStreamer-H.264-VAAPI@Hi422FR15_SONY_A
 GStreamer-H.264-VAAPI@Hi422FREXT19_SONY_A
 GStreamer-H.264-VAAPI@MVCNV-2
 GStreamer-H.264-VAAPI@SVCBM-2-L0
+
+# sparse commitment sometimes hangs until the 180s timeout
+KHR-GL46.sparse_texture_tests.SparseTextureCommitment_texture_rectangle_rg8
