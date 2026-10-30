@@ -166,9 +166,9 @@ kk_get_image_format_features(struct kk_physical_device *pdev,
 }
 
 static VkFormatFeatureFlags2
-vk_image_usage_to_format_features(VkImageUsageFlagBits usage_flag)
+vk_image_usage_to_format_features(VkImageUsageFlagBits2KHR usage_flag)
 {
-   assert(util_bitcount(usage_flag) == 1);
+   assert(util_bitcount64(usage_flag) == 1);
    switch (usage_flag) {
    case VK_IMAGE_USAGE_TRANSFER_SRC_BIT:
       return VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
@@ -219,6 +219,10 @@ kk_GetPhysicalDeviceImageFormatProperties2(
    VkImageFormatProperties2 *pImageFormatProperties)
 {
    VK_FROM_HANDLE(kk_physical_device, pdev, physicalDevice);
+
+   const VkImageUsageFlags2KHR all_usage =
+      vk_image_format_info_2_usage(pImageFormatInfo) |
+      vk_image_format_info_2_stencil_usage(pImageFormatInfo);
 
    const VkPhysicalDeviceExternalImageFormatInfo *external_info =
       vk_find_struct_const(pImageFormatInfo->pNext,
@@ -277,9 +281,8 @@ kk_GetPhysicalDeviceImageFormatProperties2(
     * textures.
     */
    if (pImageFormatInfo->tiling == VK_IMAGE_TILING_LINEAR &&
-       (pImageFormatInfo->usage &
-        (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)))
+       (all_usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)))
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
    if (ycbcr_info && pImageFormatInfo->type != VK_IMAGE_TYPE_2D)
@@ -364,7 +367,7 @@ kk_GetPhysicalDeviceImageFormatProperties2(
        (features & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                     VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
        !(pImageFormatInfo->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) &&
-       !(pImageFormatInfo->usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
+       !(all_usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
       sampleCounts = pdev->info.supported_sample_counts;
    }
 
@@ -379,14 +382,13 @@ kk_GetPhysicalDeviceImageFormatProperties2(
     * different usage than the image so we can't always filter on usage.
     * There is one exception to this below for storage.
     */
-   const VkImageUsageFlags image_usage = pImageFormatInfo->usage;
-   VkImageUsageFlags view_usage = image_usage;
+   VkImageUsageFlags2KHR view_usage = all_usage;
    if (pImageFormatInfo->flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT)
       view_usage = 0;
 
-   u_foreach_bit(b, view_usage) {
+   u_foreach_bit64(b, view_usage) {
       VkFormatFeatureFlags2 usage_features =
-         vk_image_usage_to_format_features(1 << b);
+         vk_image_usage_to_format_features(1ull << b);
       if (usage_features && !(features & usage_features))
          return VK_ERROR_FORMAT_NOT_SUPPORTED;
    }
@@ -455,7 +457,7 @@ kk_GetPhysicalDeviceImageFormatProperties2(
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
    if ((pImageFormatInfo->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) &&
-       (pImageFormatInfo->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT))
+       (all_usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT))
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
    pImageFormatProperties->imageFormatProperties = (VkImageFormatProperties){
@@ -493,10 +495,10 @@ kk_GetPhysicalDeviceImageFormatProperties2(
          /* Optimal device access and identical memory layout if optimization
           * is the same both with and without host transfer usage */
          bool with_host_transfer = kk_image_layout_can_optimize(
-            pdev, pImageFormatInfo->usage, pImageFormatInfo->tiling,
-            pImageFormatInfo->flags, p_format);
+            pdev, all_usage, pImageFormatInfo->tiling, pImageFormatInfo->flags,
+            p_format);
          bool without_host_transfer = kk_image_layout_can_optimize(
-            pdev, pImageFormatInfo->usage & ~VK_IMAGE_USAGE_HOST_TRANSFER_BIT,
+            pdev, all_usage & ~VK_IMAGE_USAGE_HOST_TRANSFER_BIT,
             pImageFormatInfo->tiling, pImageFormatInfo->flags, p_format);
          host_props->optimalDeviceAccess =
             with_host_transfer == without_host_transfer;
