@@ -87,13 +87,14 @@ anv_get_buffer_memory_requirements(struct anv_device *device,
        (usage & VK_BUFFER_USAGE_2_PREPROCESS_BUFFER_BIT_EXT));
 
    /* Bspec 56933 and HSD 14028776404 recommend disabling compression on ray
-    * tracing buffers for better performance.
+    * tracing buffers for better performance. Disable compression if a buffer
+    * will only be used for that purpose.
     */
-   bool prefer_uncompressed_buffer = usage & (
+   bool prefer_uncompressed_buffer = (usage & ~(
       VK_BUFFER_USAGE_2_SHADER_BINDING_TABLE_BIT_KHR |
       VK_BUFFER_USAGE_2_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
       VK_BUFFER_USAGE_2_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
-      );
+      )) == 0;
 
    uint32_t memory_types;
    if (flags & VK_BUFFER_CREATE_PROTECTED_BIT)
